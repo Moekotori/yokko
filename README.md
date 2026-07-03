@@ -10,7 +10,7 @@ Yokko is an osu!framework rhythm game prototype focused on 4K/7K play, precise t
 - `Yokko.Audio` defines the replaceable audio engine boundary for shared WASAPI, WASAPI exclusive, and ASIO.
 - `Yokko.Import` defines chart importer contracts for osu!mania, Malody, BMS, and LR2-oriented BMS libraries.
 
-The main menu currently launches internal 4K and 7K demo charts. 4K uses `D F J K`; 7K uses `S D F Space J K L`.
+Yokko now starts in a lightweight editor workspace. The first editor pass supports new 4K/7K draft charts, click-to-toggle grid notes, live note/length stats, and playtesting the current draft chart in the existing gameplay screen. 4K playtest uses `D F J K`; 7K uses `S D F Space J K L`.
 
 ## Development
 

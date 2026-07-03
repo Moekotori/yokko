@@ -1,7 +1,7 @@
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Screens;
-using Yokko.Game.Screens.Main;
+using Yokko.Game.Screens.Editor;
 
 namespace Yokko.Game
 {
@@ -19,7 +19,7 @@ namespace Yokko.Game
         {
             base.LoadComplete();
 
-            screenStack.Push(new MainScreen());
+            screenStack.Push(new EditorScreen());
         }
     }
 }
