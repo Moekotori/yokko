@@ -5,6 +5,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Editing;
@@ -19,19 +20,19 @@ public partial class EditorSignalStrip : CompositeDrawable
     private readonly EditableBeatmap beatmap;
     private readonly TimelineViewport viewport;
     private readonly Func<EditorAudioWaveform> waveformProvider;
-    private readonly Action<int> dragRows;
-    private float dragAccumulator;
+    private readonly Action<double> seekPreview;
+    private Box playheadLine;
 
     public EditorSignalStrip(
         EditableBeatmap beatmap,
         TimelineViewport viewport,
         Func<EditorAudioWaveform> waveformProvider,
-        Action<int> dragRows)
+        Action<double> seekPreview)
     {
         this.beatmap = beatmap;
         this.viewport = viewport;
         this.waveformProvider = waveformProvider;
-        this.dragRows = dragRows;
+        this.seekPreview = seekPreview;
 
         Width = beatmap.LaneCount == 4 ? 500 : 760;
         Height = 70;
@@ -60,6 +61,13 @@ public partial class EditorSignalStrip : CompositeDrawable
                 RelativeSizeAxes = Axes.Both,
                 Children = createBars(),
             },
+            playheadLine = new Box
+            {
+                RelativeSizeAxes = Axes.Y,
+                Width = 2,
+                Alpha = 0,
+                Colour = YokkoPalette.Lime,
+            },
             new SpriteText
             {
                 Anchor = Anchor.TopLeft,
@@ -81,6 +89,22 @@ public partial class EditorSignalStrip : CompositeDrawable
                 Colour = waveformProvider().HasAudio ? YokkoPalette.Lime : YokkoPalette.TextDim,
             },
         };
+    }
+
+    public void SetPlayheadTime(double timeMilliseconds)
+    {
+        double startMilliseconds = viewport.StartMilliseconds(beatmap.StepMilliseconds);
+        double endMilliseconds = viewport.EndMilliseconds(beatmap.StepMilliseconds);
+
+        if (timeMilliseconds < startMilliseconds || timeMilliseconds > endMilliseconds)
+        {
+            playheadLine.Alpha = 0;
+            return;
+        }
+
+        double progress = (timeMilliseconds - startMilliseconds) / Math.Max(1, endMilliseconds - startMilliseconds);
+        playheadLine.X = Math.Clamp(12 + (float)progress * (Width - 24), 12, Width - 12);
+        playheadLine.Alpha = 0.95f;
     }
 
     private Drawable[] createBeatMarkers()
@@ -204,22 +228,27 @@ public partial class EditorSignalStrip : CompositeDrawable
 
     private static string formatSeconds(double milliseconds) => $"{milliseconds / 1000:0.00}s";
 
-    protected override bool OnDragStart(DragStartEvent e)
+    protected override bool OnMouseDown(MouseDownEvent e)
     {
-        dragAccumulator = 0;
+        seekFromScreenSpace(e.ScreenSpaceMousePosition);
         return true;
     }
 
+    protected override bool OnDragStart(DragStartEvent e)
+        => true;
+
     protected override void OnDrag(DragEvent e)
     {
-        float pixelsPerRow = Math.Max(1, (Width - 24) / viewport.VisibleRows);
-        dragAccumulator += e.Delta.X;
-        int rowDelta = (int)Math.Truncate(-dragAccumulator / pixelsPerRow);
+        seekFromScreenSpace(e.ScreenSpaceMousePosition);
+    }
 
-        if (rowDelta == 0)
-            return;
+    private void seekFromScreenSpace(Vector2 screenSpacePosition)
+    {
+        Vector2 localPosition = ToLocalSpace(screenSpacePosition);
+        float progress = Math.Clamp((localPosition.X - 12) / Math.Max(1, Width - 24), 0, 1);
+        double startMilliseconds = viewport.StartMilliseconds(beatmap.StepMilliseconds);
+        double endMilliseconds = viewport.EndMilliseconds(beatmap.StepMilliseconds);
 
-        dragRows(rowDelta);
-        dragAccumulator += rowDelta * pixelsPerRow;
+        seekPreview(startMilliseconds + progress * (endMilliseconds - startMilliseconds));
     }
 }

@@ -18,6 +18,7 @@ public partial class EditorGrid : CompositeDrawable
     private readonly TimelineViewport viewport;
     private readonly Action<int> scrollByRows;
     private readonly EditorCell[,] cells;
+    private readonly Box playheadLine;
 
     public EditorGrid(EditableBeatmap beatmap, TimelineViewport viewport, Action<int> scrollByRows)
     {
@@ -68,6 +69,13 @@ public partial class EditorGrid : CompositeDrawable
                 RelativeSizeAxes = Axes.Both,
                 Children = gridCells,
             },
+            playheadLine = new Box
+            {
+                RelativeSizeAxes = Axes.X,
+                Height = 2,
+                Alpha = 0,
+                Colour = YokkoPalette.Lime,
+            },
             new Container
             {
                 RelativeSizeAxes = Axes.X,
@@ -82,6 +90,22 @@ public partial class EditorGrid : CompositeDrawable
     }
 
     public event Action NotesChanged;
+
+    public void SetPlayheadTime(double timeMilliseconds)
+    {
+        double startMilliseconds = viewport.StartMilliseconds(beatmap.StepMilliseconds);
+        double endMilliseconds = viewport.EndMilliseconds(beatmap.StepMilliseconds);
+
+        if (timeMilliseconds < startMilliseconds || timeMilliseconds > endMilliseconds)
+        {
+            playheadLine.Alpha = 0;
+            return;
+        }
+
+        double progress = (timeMilliseconds - startMilliseconds) / Math.Max(1, endMilliseconds - startMilliseconds);
+        playheadLine.Y = Math.Clamp((float)progress * Height, 0, Height);
+        playheadLine.Alpha = 0.95f;
+    }
 
     public void Refresh()
     {

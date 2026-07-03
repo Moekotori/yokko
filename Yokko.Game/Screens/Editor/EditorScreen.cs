@@ -32,6 +32,7 @@ public partial class EditorScreen : Screen
     private FillFlowContainer workspace;
     private EditableBeatmap editableBeatmap;
     private TimelineViewport viewport;
+    private readonly EditorPreviewClock previewClock = new();
     private EditorAudioWaveform audioWaveform = EditorAudioWaveform.Missing;
     private EditorSignalStrip signalStrip;
     private EditorGrid grid;
@@ -96,6 +97,7 @@ public partial class EditorScreen : Screen
         cancelWaveformLoad();
         editableBeatmap = EditableBeatmap.Create(keyMode);
         viewport = new TimelineViewport(0, defaultVisibleRows);
+        previewClock.Stop();
         audioWaveform = EditorAudioWaveform.Missing;
         rebuildWorkspace();
         setStatus($"New {(int)keyMode}K draft created.");
@@ -105,7 +107,7 @@ public partial class EditorScreen : Screen
     {
         viewport.MoveToRow(viewport.StartRow, editableBeatmap.Rows);
 
-        signalStrip = new EditorSignalStrip(editableBeatmap, viewport, () => audioWaveform, scrollRows);
+        signalStrip = new EditorSignalStrip(editableBeatmap, viewport, () => audioWaveform, seekPreview);
 
         grid = new EditorGrid(editableBeatmap, viewport, scrollRows)
         {
@@ -117,6 +119,8 @@ public partial class EditorScreen : Screen
         timelineControls = new EditorTimelineControls(
             editableBeatmap,
             viewport,
+            togglePreviewPlayback,
+            stopPreviewPlayback,
             () => scrollRows(-jumpStep),
             () => scrollRows(-rowStep),
             () => scrollRows(rowStep),
@@ -146,6 +150,8 @@ public partial class EditorScreen : Screen
             },
             inspector,
         };
+
+        refreshPreviewVisuals();
     }
 
     private void refreshEditorState()
@@ -154,6 +160,17 @@ public partial class EditorScreen : Screen
         signalStrip.Refresh();
         timelineControls.Refresh();
         inspector.Refresh();
+        refreshPreviewVisuals();
+    }
+
+    private void refreshPreviewVisuals()
+    {
+        double durationMilliseconds = getPreviewDurationMilliseconds();
+        double timeMilliseconds = previewClock.CurrentTimeMilliseconds;
+
+        grid.SetPlayheadTime(timeMilliseconds);
+        signalStrip.SetPlayheadTime(timeMilliseconds);
+        timelineControls.RefreshPlayback(timeMilliseconds, durationMilliseconds, previewClock.IsPlaying);
     }
 
     private void scrollRows(int rowDelta)
@@ -191,6 +208,7 @@ public partial class EditorScreen : Screen
 
     private void playtest()
     {
+        previewClock.Pause();
         this.Push(new GameplayScreen(editableBeatmap.ToBeatmap()));
     }
 
@@ -208,6 +226,7 @@ public partial class EditorScreen : Screen
             cancelWaveformLoad();
             editableBeatmap = OsuManiaBeatmapIO.ReadEditableFromFile(path);
             viewport = new TimelineViewport(0, defaultVisibleRows);
+            previewClock.Stop();
             audioWaveform = EditorAudioWaveform.Missing;
             rebuildWorkspace();
             beginWaveformLoad();
@@ -253,6 +272,64 @@ public partial class EditorScreen : Screen
     }
 
     private static string formatSeconds(double milliseconds) => $"{milliseconds / 1000:0.00}s";
+
+    protected override void Update()
+    {
+        base.Update();
+
+        if (!previewClock.Update(Time.Elapsed, getPreviewDurationMilliseconds()))
+            return;
+
+        ensurePreviewVisible();
+        refreshPreviewVisuals();
+    }
+
+    private void togglePreviewPlayback()
+    {
+        previewClock.Toggle(getPreviewDurationMilliseconds());
+        refreshPreviewVisuals();
+        setStatus(previewClock.IsPlaying ? "Preview playing." : "Preview paused.");
+    }
+
+    private void stopPreviewPlayback()
+    {
+        previewClock.Stop();
+        refreshPreviewVisuals();
+        setStatus("Preview stopped.");
+    }
+
+    private void seekPreview(double timeMilliseconds)
+    {
+        previewClock.Seek(timeMilliseconds, getPreviewDurationMilliseconds());
+        ensurePreviewVisible();
+        refreshPreviewVisuals();
+        setStatus($"Preview {formatSeconds(previewClock.CurrentTimeMilliseconds)}.");
+    }
+
+    private void ensurePreviewVisible()
+    {
+        int row = Math.Max(0, (int)Math.Floor(previewClock.CurrentTimeMilliseconds / editableBeatmap.StepMilliseconds));
+
+        if (row >= viewport.StartRow + 2 && row < viewport.EndRowExclusive - 2)
+            return;
+
+        int previousStart = viewport.StartRow;
+        viewport.MoveToRow(row - viewport.VisibleRows / 4, editableBeatmap.Rows);
+
+        if (viewport.StartRow != previousStart)
+            refreshEditorState();
+    }
+
+    private double getPreviewDurationMilliseconds()
+    {
+        double chartDuration = Math.Max(editableBeatmap.Rows * editableBeatmap.StepMilliseconds, getLastNoteEndMilliseconds() + editableBeatmap.StepMilliseconds * 4);
+        return Math.Max(chartDuration, audioWaveform.DurationMilliseconds);
+    }
+
+    private double getLastNoteEndMilliseconds()
+        => editableBeatmap.Notes.Count == 0
+            ? 0
+            : editableBeatmap.Notes.Max(note => note.EndTimeMilliseconds ?? note.StartTimeMilliseconds);
 
     private void beginWaveformLoad()
     {

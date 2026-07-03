@@ -15,10 +15,14 @@ public partial class EditorTimelineControls : CompositeDrawable
     private readonly EditableBeatmap beatmap;
     private readonly TimelineViewport viewport;
     private readonly SpriteText windowText;
+    private readonly SpriteText playbackText;
+    private readonly EditorStepButton playPauseButton;
 
     public EditorTimelineControls(
         EditableBeatmap beatmap,
         TimelineViewport viewport,
+        Action togglePlayback,
+        Action stopPlayback,
         Action jumpBack,
         Action stepBack,
         Action stepForward,
@@ -51,6 +55,15 @@ public partial class EditorTimelineControls : CompositeDrawable
                 Font = FontUsage.Default.With(size: 14),
                 Colour = YokkoPalette.TextMuted,
             },
+            playbackText = new SpriteText
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                X = -12,
+                Y = 4,
+                Font = FontUsage.Default.With(size: 14),
+                Colour = YokkoPalette.TextMuted,
+            },
             new FillFlowContainer
             {
                 AutoSizeAxes = Axes.Both,
@@ -62,13 +75,15 @@ public partial class EditorTimelineControls : CompositeDrawable
                 Y = -4,
                 Children = new Drawable[]
                 {
-                    new EditorStepButton("-16", jumpBack, 42),
-                    new EditorStepButton("-4", stepBack, 38),
-                    new EditorStepButton("+4", stepForward, 38),
-                    new EditorStepButton("+16", jumpForward, 42),
-                    new EditorStepButton("Zoom +", zoomIn, 58, YokkoPalette.Rose),
-                    new EditorStepButton("Zoom -", zoomOut, 58, YokkoPalette.Rose),
-                    new EditorStepButton("+32 rows", appendRows, 78, YokkoPalette.Lime),
+                    playPauseButton = new EditorStepButton("Play", togglePlayback, 50, YokkoPalette.Lime),
+                    new EditorStepButton("Stop", stopPlayback, 42, YokkoPalette.Rose),
+                    new EditorStepButton("-16", jumpBack, 38),
+                    new EditorStepButton("-4", stepBack, 34),
+                    new EditorStepButton("+4", stepForward, 34),
+                    new EditorStepButton("+16", jumpForward, 38),
+                    new EditorStepButton("Zoom+", zoomIn, 54, YokkoPalette.Rose),
+                    new EditorStepButton("Zoom-", zoomOut, 54, YokkoPalette.Rose),
+                    new EditorStepButton("+32", appendRows, 54, YokkoPalette.Lime),
                 },
             },
         };
@@ -81,11 +96,20 @@ public partial class EditorTimelineControls : CompositeDrawable
         windowText.Text = $"Rows {viewport.StartRow + 1}-{viewport.EndRowExclusive} / {beatmap.Rows}   {formatSeconds(viewport.StartMilliseconds(beatmap.StepMilliseconds))}-{formatSeconds(viewport.EndMilliseconds(beatmap.StepMilliseconds))}   zoom {viewport.VisibleRows}";
     }
 
+    public void RefreshPlayback(double timeMilliseconds, double durationMilliseconds, bool isPlaying)
+    {
+        playPauseButton.SetText(isPlaying ? "Pause" : "Play");
+        playbackText.Text = $"{formatSeconds(timeMilliseconds)} / {formatSeconds(durationMilliseconds)}";
+        playbackText.Colour = isPlaying ? YokkoPalette.Lime : YokkoPalette.TextMuted;
+    }
+
     private static string formatSeconds(double milliseconds) => $"{milliseconds / 1000:0.00}s";
 }
 
 public partial class EditorStepButton : ClickableContainer
 {
+    private readonly SpriteText label;
+
     public EditorStepButton(string text, Action action, float width = 48, Color4? accent = null)
     {
         Action = action;
@@ -106,7 +130,7 @@ public partial class EditorStepButton : ClickableContainer
                 Width = 3,
                 Colour = accent ?? YokkoPalette.Cyan,
             },
-            new SpriteText
+            label = new SpriteText
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
@@ -115,5 +139,10 @@ public partial class EditorStepButton : ClickableContainer
                 Colour = YokkoPalette.Text,
             },
         };
+    }
+
+    public void SetText(string text)
+    {
+        label.Text = text;
     }
 }

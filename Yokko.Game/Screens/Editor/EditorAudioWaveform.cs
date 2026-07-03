@@ -5,7 +5,7 @@ namespace Yokko.Game.Screens.Editor;
 
 public sealed class EditorAudioWaveform
 {
-    public static EditorAudioWaveform Missing { get; } = new(null, WaveformLoadState.Missing, 0, [], [], [], [], "No audio");
+    public static EditorAudioWaveform Missing { get; } = new(string.Empty, WaveformLoadState.Missing, 0, [], [], [], [], "No audio");
 
     private EditorAudioWaveform(
         string audioPath,
