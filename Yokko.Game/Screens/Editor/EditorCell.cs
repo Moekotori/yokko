@@ -43,6 +43,7 @@ public partial class EditorCell : ClickableContainer
             noteFill = new Box
             {
                 RelativeSizeAxes = Axes.Both,
+                Margin = new MarginPadding { Horizontal = 5, Vertical = 3 },
                 Colour = YokkoPalette.Cyan,
                 Alpha = 0,
             },

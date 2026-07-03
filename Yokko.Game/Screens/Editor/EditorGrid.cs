@@ -4,6 +4,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Editing;
@@ -14,36 +15,43 @@ namespace Yokko.Game.Screens.Editor;
 public partial class EditorGrid : CompositeDrawable
 {
     private readonly EditableBeatmap beatmap;
+    private readonly TimelineViewport viewport;
+    private readonly Action<int> scrollByRows;
     private readonly EditorCell[,] cells;
 
-    public EditorGrid(EditableBeatmap beatmap)
+    public EditorGrid(EditableBeatmap beatmap, TimelineViewport viewport, Action<int> scrollByRows)
     {
         this.beatmap = beatmap;
-        cells = new EditorCell[beatmap.LaneCount, beatmap.Rows];
+        this.viewport = viewport;
+        this.scrollByRows = scrollByRows;
+        cells = new EditorCell[beatmap.LaneCount, viewport.VisibleRows];
 
         Width = beatmap.LaneCount == 4 ? 500 : 760;
-        Height = 540;
+        Height = 360;
         Masking = true;
+        CornerRadius = 6;
 
         float laneWidth = Width / beatmap.LaneCount;
-        float rowHeight = Height / beatmap.Rows;
+        float rowHeight = Height / viewport.VisibleRows;
 
-        var gridCells = new Drawable[beatmap.LaneCount * beatmap.Rows];
+        var gridCells = new Drawable[beatmap.LaneCount * viewport.VisibleRows];
         int cellIndex = 0;
 
-        for (int row = 0; row < beatmap.Rows; row++)
+        for (int visualRow = 0; visualRow < viewport.VisibleRows; visualRow++)
         {
+            int row = viewport.StartRow + visualRow;
+
             for (int lane = 0; lane < beatmap.LaneCount; lane++)
             {
                 var cell = new EditorCell(lane, row, toggleNote)
                 {
                     X = lane * laneWidth,
-                    Y = row * rowHeight,
+                    Y = visualRow * rowHeight,
                     Width = laneWidth,
                     Height = rowHeight,
                 };
 
-                cells[lane, row] = cell;
+                cells[lane, visualRow] = cell;
                 gridCells[cellIndex++] = cell;
             }
         }
@@ -77,10 +85,12 @@ public partial class EditorGrid : CompositeDrawable
 
     public void Refresh()
     {
-        for (int row = 0; row < beatmap.Rows; row++)
+        for (int visualRow = 0; visualRow < viewport.VisibleRows; visualRow++)
         {
+            int row = viewport.StartRow + visualRow;
+
             for (int lane = 0; lane < beatmap.LaneCount; lane++)
-                cells[lane, row].SetSelected(beatmap.HasNoteAt(lane, row));
+                cells[lane, visualRow].SetSelected(beatmap.HasNoteAt(lane, row));
         }
     }
 
@@ -104,5 +114,11 @@ public partial class EditorGrid : CompositeDrawable
         beatmap.ToggleNote(lane, row);
         Refresh();
         NotesChanged?.Invoke();
+    }
+
+    protected override bool OnScroll(ScrollEvent e)
+    {
+        scrollByRows(e.ScrollDelta.Y > 0 ? -4 : 4);
+        return true;
     }
 }

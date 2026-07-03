@@ -38,5 +38,29 @@ namespace Yokko.Game.Tests.Core
             Assert.That(playable.HitObjects[1].Lane, Is.EqualTo(3));
             Assert.That(playable.HitObjects[1].StartTimeMilliseconds, Is.EqualTo(1000));
         }
+
+        [Test]
+        public void ToggleNoteExtendsRowsWhenChartingPastEnd()
+        {
+            EditableBeatmap beatmap = EditableBeatmap.Create(KeyMode.FourKey);
+
+            beatmap.ToggleNote(0, 48);
+
+            Assert.That(beatmap.Rows, Is.EqualTo(49));
+            Assert.That(beatmap.HasNoteAt(0, 48), Is.True);
+        }
+
+        [Test]
+        public void TimelineViewportClampsToAvailableRows()
+        {
+            var viewport = new TimelineViewport(0, 24);
+
+            viewport.MoveByRows(100, 32);
+            Assert.That(viewport.StartRow, Is.EqualTo(8));
+            Assert.That(viewport.EndRowExclusive, Is.EqualTo(32));
+
+            viewport.MoveByRows(-100, 32);
+            Assert.That(viewport.StartRow, Is.EqualTo(0));
+        }
     }
 }

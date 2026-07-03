@@ -19,9 +19,17 @@ namespace Yokko.Game.Screens.Editor;
 
 public partial class EditorScreen : Screen
 {
+    private const int visibleRows = 24;
+    private const int rowStep = 4;
+    private const int jumpStep = 16;
+    private const int appendStep = 32;
+
     private FillFlowContainer workspace;
     private EditableBeatmap editableBeatmap;
+    private TimelineViewport viewport;
+    private EditorSignalStrip signalStrip;
     private EditorGrid grid;
+    private EditorTimelineControls timelineControls;
     private EditorInspector inspector;
     private SpriteText statusText;
 
@@ -32,6 +40,7 @@ public partial class EditorScreen : Screen
     private void load()
     {
         editableBeatmap = EditableBeatmap.Create(KeyMode.FourKey);
+        viewport = new TimelineViewport(0, visibleRows);
 
         InternalChildren = new Drawable[]
         {
@@ -57,7 +66,7 @@ public partial class EditorScreen : Screen
                     workspace = new FillFlowContainer
                     {
                         AutoSizeAxes = Axes.X,
-                        Height = 540,
+                        Height = 480,
                         Direction = FillDirection.Horizontal,
                         Spacing = new Vector2(32, 0),
                     },
@@ -77,33 +86,81 @@ public partial class EditorScreen : Screen
     private void loadChart(KeyMode keyMode)
     {
         editableBeatmap = EditableBeatmap.Create(keyMode);
+        viewport = new TimelineViewport(0, visibleRows);
         rebuildWorkspace();
         setStatus($"New {(int)keyMode}K draft created.");
     }
 
     private void rebuildWorkspace()
     {
-        grid = new EditorGrid(editableBeatmap)
+        viewport.MoveToRow(viewport.StartRow, editableBeatmap.Rows);
+
+        signalStrip = new EditorSignalStrip(editableBeatmap, viewport);
+
+        grid = new EditorGrid(editableBeatmap, viewport, scrollRows)
         {
             Anchor = Anchor.TopLeft,
             Origin = Anchor.TopLeft,
         };
-        grid.NotesChanged += refreshInspector;
+        grid.NotesChanged += refreshEditorState;
 
-        inspector = new EditorInspector(editableBeatmap)
+        timelineControls = new EditorTimelineControls(
+            editableBeatmap,
+            viewport,
+            () => scrollRows(-jumpStep),
+            () => scrollRows(-rowStep),
+            () => scrollRows(rowStep),
+            () => scrollRows(jumpStep),
+            appendRows);
+
+        inspector = new EditorInspector(editableBeatmap, viewport)
         {
         };
 
         workspace.Children = new Drawable[]
         {
-            grid,
+            new FillFlowContainer
+            {
+                AutoSizeAxes = Axes.X,
+                Height = 480,
+                Direction = FillDirection.Vertical,
+                Spacing = new Vector2(0, 8),
+                Children = new Drawable[]
+                {
+                    signalStrip,
+                    grid,
+                    timelineControls,
+                },
+            },
             inspector,
         };
     }
 
-    private void refreshInspector()
+    private void refreshEditorState()
     {
+        signalStrip.Refresh();
+        timelineControls.Refresh();
         inspector.Refresh();
+    }
+
+    private void scrollRows(int rowDelta)
+    {
+        int previousStart = viewport.StartRow;
+        viewport.MoveByRows(rowDelta, editableBeatmap.Rows);
+
+        if (viewport.StartRow == previousStart)
+            return;
+
+        rebuildWorkspace();
+        setStatus($"Timeline {formatSeconds(viewport.StartMilliseconds(editableBeatmap.StepMilliseconds))}-{formatSeconds(viewport.EndMilliseconds(editableBeatmap.StepMilliseconds))}");
+    }
+
+    private void appendRows()
+    {
+        editableBeatmap.AppendRows(appendStep);
+        viewport.MoveByRows(appendStep, editableBeatmap.Rows);
+        rebuildWorkspace();
+        setStatus($"Extended chart to {editableBeatmap.Rows} rows.");
     }
 
     private void playtest()
@@ -123,6 +180,7 @@ public partial class EditorScreen : Screen
         try
         {
             editableBeatmap = OsuManiaBeatmapIO.ReadEditableFromFile(path);
+            viewport = new TimelineViewport(0, visibleRows);
             rebuildWorkspace();
             setStatus($"Imported {Path.GetFileName(path)}.");
         }
@@ -164,4 +222,6 @@ public partial class EditorScreen : Screen
     {
         statusText.Text = message;
     }
+
+    private static string formatSeconds(double milliseconds) => $"{milliseconds / 1000:0.00}s";
 }

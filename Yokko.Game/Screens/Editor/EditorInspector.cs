@@ -14,18 +14,22 @@ namespace Yokko.Game.Screens.Editor;
 public partial class EditorInspector : CompositeDrawable
 {
     private readonly EditableBeatmap beatmap;
+    private readonly TimelineViewport viewport;
     private readonly SpriteText modeText;
     private readonly SpriteText noteCountText;
     private readonly SpriteText lengthText;
+    private readonly SpriteText windowText;
     private readonly SpriteText densityText;
+    private readonly SpriteText audioText;
     private readonly SpriteText sourceText;
 
-    public EditorInspector(EditableBeatmap beatmap)
+    public EditorInspector(EditableBeatmap beatmap, TimelineViewport viewport)
     {
         this.beatmap = beatmap;
+        this.viewport = viewport;
 
         Width = 330;
-        Height = 540;
+        Height = 480;
         Masking = true;
 
         InternalChildren = new Drawable[]
@@ -52,7 +56,9 @@ public partial class EditorInspector : CompositeDrawable
                     modeText = createMetric(),
                     noteCountText = createMetric(),
                     lengthText = createMetric(),
+                    windowText = createMetric(),
                     densityText = createMetric(),
+                    audioText = createMetric(),
                     new Box
                     {
                         RelativeSizeAxes = Axes.X,
@@ -80,7 +86,11 @@ public partial class EditorInspector : CompositeDrawable
         modeText.Text = $"Mode {(int)beatmap.KeyMode}K";
         noteCountText.Text = $"Notes {beatmap.Notes.Count}";
         lengthText.Text = $"Length {lengthMilliseconds / 1000:0.00}s";
+        windowText.Text = $"Window {viewport.StartRow + 1}-{viewport.EndRowExclusive}";
         densityText.Text = $"Grid {beatmap.Rows} rows @ {beatmap.StepMilliseconds:0}ms";
+        audioText.Text = beatmap.AudioPath == null
+            ? "Audio not linked"
+            : $"Audio {Path.GetFileName(beatmap.AudioPath)}";
         sourceText.Text = beatmap.SourcePath == null
             ? "Source Yokko draft"
             : $"Source {Path.GetFileName(beatmap.SourcePath)}";

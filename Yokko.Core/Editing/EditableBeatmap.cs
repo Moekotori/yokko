@@ -49,7 +49,7 @@ public sealed class EditableBeatmap
     {
         int rows = Math.Max(32, beatmap.HitObjects.Count == 0
             ? 32
-            : (int)Math.Ceiling(beatmap.HitObjects.Max(hitObject => hitObject.StartTimeMilliseconds) / 125d) + 4);
+            : (int)Math.Ceiling(beatmap.HitObjects.Max(hitObject => hitObject.EndTimeMilliseconds ?? hitObject.StartTimeMilliseconds) / 125d) + 4);
 
         var editable = new EditableBeatmap(beatmap.KeyMode, rows)
         {
@@ -81,8 +81,28 @@ public sealed class EditableBeatmap
     public bool HasNoteAt(int lane, int row)
         => notes.Any(note => note.Lane == lane && note.Row == row);
 
+    public void AppendRows(int rowCount)
+    {
+        if (rowCount <= 0)
+            return;
+
+        EnsureRows(Rows + rowCount);
+    }
+
+    public void EnsureRows(int rows)
+    {
+        if (rows > Rows)
+            Rows = rows;
+    }
+
     public void ToggleNote(int lane, int row)
     {
+        if (lane < 0 || lane >= LaneCount)
+            throw new ArgumentOutOfRangeException(nameof(lane));
+
+        if (row < 0)
+            throw new ArgumentOutOfRangeException(nameof(row));
+
         int existingIndex = notes.FindIndex(note => note.Lane == lane && note.Row == row);
 
         if (existingIndex >= 0)
@@ -91,6 +111,7 @@ public sealed class EditableBeatmap
             return;
         }
 
+        EnsureRows(row + 1);
         notes.Add(new EditableNote(lane, row, rowToTime(row), null, HitObjectKind.Tap));
         sortNotes();
     }
