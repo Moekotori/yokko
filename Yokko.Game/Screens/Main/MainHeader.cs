@@ -10,21 +10,21 @@ public partial class MainHeader : CompositeDrawable
     public MainHeader()
     {
         RelativeSizeAxes = Axes.X;
-        Height = 188;
+        Height = 124;
 
         InternalChildren = new Drawable[]
         {
             new SpriteText
             {
                 Text = "Yokko",
-                Font = FontUsage.Default.With(size: 92),
+                Font = FontUsage.Default.With(size: 68),
                 Colour = YokkoPalette.Text,
             },
             new SpriteText
             {
-                Y = 108,
+                Y = 78,
                 Text = "precision vertical rhythm",
-                Font = FontUsage.Default.With(size: 28),
+                Font = FontUsage.Default.With(size: 24),
                 Colour = YokkoPalette.TextMuted,
             },
             new SpriteText

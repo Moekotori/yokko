@@ -13,7 +13,7 @@ public partial class MainFooter : CompositeDrawable
     public MainFooter()
     {
         RelativeSizeAxes = Axes.X;
-        Height = 72;
+        Height = 50;
 
         InternalChildren = new Drawable[]
         {
@@ -25,9 +25,9 @@ public partial class MainFooter : CompositeDrawable
             },
             new SpriteText
             {
-                Y = 22,
+                Y = 16,
                 Text = $"{KeyMode.FourKey:D}K and {KeyMode.SevenKey:D}K core shell ready",
-                Font = FontUsage.Default.With(size: 22),
+                Font = FontUsage.Default.With(size: 18),
                 Colour = YokkoPalette.TextMuted,
             },
         };

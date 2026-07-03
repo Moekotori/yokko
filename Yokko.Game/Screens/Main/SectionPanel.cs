@@ -13,7 +13,7 @@ public partial class SectionPanel : CompositeDrawable
 {
     public SectionPanel(string title, IReadOnlyList<string> items)
     {
-        Size = new Vector2(545, 202);
+        Size = new Vector2(515, 154);
         Masking = true;
 
         InternalChildren = new Drawable[]
@@ -27,14 +27,14 @@ public partial class SectionPanel : CompositeDrawable
             {
                 RelativeSizeAxes = Axes.Both,
                 Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 16),
-                Padding = new MarginPadding { Horizontal = 24, Vertical = 22 },
+                Spacing = new Vector2(0, 12),
+                Padding = new MarginPadding { Horizontal = 22, Vertical = 18 },
                 Children = new Drawable[]
                 {
                     new SpriteText
                     {
                         Text = title,
-                        Font = FontUsage.Default.With(size: 26),
+                        Font = FontUsage.Default.With(size: 22),
                         Colour = YokkoPalette.Text,
                     },
                     new FillFlowContainer
@@ -52,8 +52,8 @@ public partial class SectionPanel : CompositeDrawable
 
     private static Drawable createItem(string text) => new Container
     {
-        Width = 148,
-        Height = 40,
+        Width = 112,
+        Height = 34,
         Masking = true,
         Children = new Drawable[]
         {
@@ -67,7 +67,7 @@ public partial class SectionPanel : CompositeDrawable
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = text,
-                Font = FontUsage.Default.With(size: 17),
+                Font = FontUsage.Default.With(size: 14),
                 Colour = YokkoPalette.TextMuted,
             },
         }

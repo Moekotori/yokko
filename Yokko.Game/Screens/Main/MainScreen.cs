@@ -6,8 +6,10 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Screens;
 using osuTK;
 using Yokko.Audio;
+using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
 using Yokko.Game.Presentation;
+using Yokko.Game.Screens.Gameplay;
 using Yokko.Import;
 
 namespace Yokko.Game.Screens.Main;
@@ -32,13 +34,14 @@ public partial class MainScreen : Screen
             {
                 RelativeSizeAxes = Axes.Both,
                 Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 30),
-                Padding = new MarginPadding { Horizontal = 72, Vertical = 52 },
+                Spacing = new Vector2(0, 18),
+                Padding = new MarginPadding { Horizontal = 72, Vertical = 36 },
                 Children = new Drawable[]
                 {
                     new MainHeader(),
                     createStatusRow(windows),
                     createCapabilityRow(audioEngine),
+                    createLaunchRow(),
                     new MainFooter(),
                 }
             },
@@ -67,8 +70,35 @@ public partial class MainScreen : Screen
         Spacing = new Vector2(18, 0),
         Children = new Drawable[]
         {
-            new SectionPanel("Import Targets", KnownChartImporters.Capabilities.Select(capability => capability.DisplayName).ToArray()),
-            new SectionPanel("Low Latency Audio", audioEngine.Backends.Select(backend => backend.Kind.ToString()).ToArray()),
+            new SectionPanel("Import Targets", KnownChartImporters.Capabilities.Select(formatDisplayName).ToArray()),
+            new SectionPanel("Low Latency Audio", audioEngine.Backends.Select(backendDisplayName).ToArray()),
         },
+    };
+
+    private Drawable createLaunchRow() => new FillFlowContainer
+    {
+        RelativeSizeAxes = Axes.X,
+        AutoSizeAxes = Axes.Y,
+        Direction = FillDirection.Horizontal,
+        Spacing = new Vector2(18, 0),
+        Children = new Drawable[]
+        {
+            new StartPanel("Start 4K Demo", "D F J K / timing skeleton", () => this.Push(new GameplayScreen(DemoBeatmaps.CreateFourKeyDemo()))),
+            new StartPanel("Start 7K Demo", "S D F Space J K L", () => this.Push(new GameplayScreen(DemoBeatmaps.CreateSevenKeyDemo()))),
+        },
+    };
+
+    private static string formatDisplayName(ChartImportCapability capability) => capability.DisplayName switch
+    {
+        "LR2 library" => "LR2",
+        _ => capability.DisplayName,
+    };
+
+    private static string backendDisplayName(AudioBackendCapabilities backend) => backend.Kind switch
+    {
+        AudioBackendKind.SharedWasapi => "WASAPI Shared",
+        AudioBackendKind.WasapiExclusive => "WASAPI Excl.",
+        AudioBackendKind.Asio => "ASIO",
+        _ => backend.Kind.ToString(),
     };
 }
