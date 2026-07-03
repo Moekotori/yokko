@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Yokko.Resources\Yokko.Resources.csproj" />
+    <ProjectReference Include="..\Yokko.Core\Yokko.Core.csproj" />
+    <ProjectReference Include="..\Yokko.Audio\Yokko.Audio.csproj" />
+    <ProjectReference Include="..\Yokko.Import\Yokko.Import.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ppy.osu.Framework" Version="2026.629.0" />
+  </ItemGroup>
+</Project>

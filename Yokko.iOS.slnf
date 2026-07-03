@@ -1,0 +1,13 @@
+{
+  "solution": {
+    "path": "Yokko.sln",
+    "projects": [
+      "Yokko.Game\\Yokko.Game.csproj",
+      "Yokko.Audio\\Yokko.Audio.csproj",
+      "Yokko.Core\\Yokko.Core.csproj",
+      "Yokko.Import\\Yokko.Import.csproj",
+      "Yokko.Resources\\Yokko.Resources.csproj",
+      "Yokko.iOS\\Yokko.iOS.csproj"
+    ]
+  }
+}
