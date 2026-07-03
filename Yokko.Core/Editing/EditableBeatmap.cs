@@ -7,9 +7,10 @@ public sealed class EditableBeatmap
 {
     private readonly List<EditableNote> notes = [];
 
-    private EditableBeatmap(KeyMode keyMode)
+    private EditableBeatmap(KeyMode keyMode, int rows = 32)
     {
         KeyMode = keyMode;
+        Rows = rows;
     }
 
     public string Title { get; set; } = "Untitled Yokko Chart";
@@ -20,11 +21,15 @@ public sealed class EditableBeatmap
 
     public string DifficultyName { get; set; } = "Draft";
 
+    public string? AudioPath { get; set; }
+
+    public string? SourcePath { get; set; }
+
     public KeyMode KeyMode { get; }
 
     public int LaneCount => (int)KeyMode;
 
-    public int Rows { get; } = 32;
+    public int Rows { get; private set; }
 
     public double StepMilliseconds { get; } = 125;
 
@@ -40,6 +45,39 @@ public sealed class EditableBeatmap
         },
     };
 
+    public static EditableBeatmap FromBeatmap(YokkoBeatmap beatmap, string? sourcePath = null)
+    {
+        int rows = Math.Max(32, beatmap.HitObjects.Count == 0
+            ? 32
+            : (int)Math.Ceiling(beatmap.HitObjects.Max(hitObject => hitObject.StartTimeMilliseconds) / 125d) + 4);
+
+        var editable = new EditableBeatmap(beatmap.KeyMode, rows)
+        {
+            Title = beatmap.Title,
+            Artist = beatmap.Artist,
+            Creator = beatmap.Creator,
+            DifficultyName = beatmap.DifficultyName,
+            AudioPath = beatmap.AudioPath,
+            SourcePath = sourcePath,
+        };
+
+        foreach (YokkoHitObject hitObject in beatmap.HitObjects)
+        {
+            if (hitObject.Kind is not (HitObjectKind.Tap or HitObjectKind.Hold))
+                continue;
+
+            editable.notes.Add(new EditableNote(
+                hitObject.Lane,
+                editable.timeToRow(hitObject.StartTimeMilliseconds),
+                hitObject.StartTimeMilliseconds,
+                hitObject.EndTimeMilliseconds,
+                hitObject.Kind));
+        }
+
+        editable.sortNotes();
+        return editable;
+    }
+
     public bool HasNoteAt(int lane, int row)
         => notes.Any(note => note.Lane == lane && note.Row == row);
 
@@ -53,12 +91,8 @@ public sealed class EditableBeatmap
             return;
         }
 
-        notes.Add(new EditableNote(lane, row, row * StepMilliseconds));
-        notes.Sort(static (left, right) =>
-        {
-            int timeComparison = left.StartTimeMilliseconds.CompareTo(right.StartTimeMilliseconds);
-            return timeComparison != 0 ? timeComparison : left.Lane.CompareTo(right.Lane);
-        });
+        notes.Add(new EditableNote(lane, row, rowToTime(row), null, HitObjectKind.Tap));
+        sortNotes();
     }
 
     public YokkoBeatmap ToBeatmap()
@@ -69,11 +103,24 @@ public sealed class EditableBeatmap
             DifficultyName,
             KeyMode,
             ChartSourceFormat.Yokko,
-            null,
+            AudioPath,
             notes.Select(note => new YokkoHitObject(
                     note.Lane,
                     note.StartTimeMilliseconds,
-                    null,
-                    HitObjectKind.Tap))
+                    note.EndTimeMilliseconds,
+                    note.Kind))
                  .ToArray());
+
+    private double rowToTime(int row) => row * StepMilliseconds;
+
+    private int timeToRow(double timeMilliseconds) => Math.Max(0, (int)Math.Round(timeMilliseconds / StepMilliseconds));
+
+    private void sortNotes()
+    {
+        notes.Sort(static (left, right) =>
+        {
+            int timeComparison = left.StartTimeMilliseconds.CompareTo(right.StartTimeMilliseconds);
+            return timeComparison != 0 ? timeComparison : left.Lane.CompareTo(right.Lane);
+        });
+    }
 }

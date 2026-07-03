@@ -1,13 +1,19 @@
+using System;
+using System.IO;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Sprites;
+using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osuTK;
 using Yokko.Core.Editing;
 using Yokko.Core.Gameplay;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
+using Yokko.Import.Osu;
 
 namespace Yokko.Game.Screens.Editor;
 
@@ -17,6 +23,10 @@ public partial class EditorScreen : Screen
     private EditableBeatmap editableBeatmap;
     private EditorGrid grid;
     private EditorInspector inspector;
+    private SpriteText statusText;
+
+    [Resolved]
+    private GameHost host { get; set; }
 
     [BackgroundDependencyLoader]
     private void load()
@@ -41,6 +51,8 @@ public partial class EditorScreen : Screen
                     new EditorHeader(
                         () => loadChart(KeyMode.FourKey),
                         () => loadChart(KeyMode.SevenKey),
+                        importOsu,
+                        exportOsu,
                         playtest),
                     workspace = new FillFlowContainer
                     {
@@ -48,6 +60,12 @@ public partial class EditorScreen : Screen
                         Height = 540,
                         Direction = FillDirection.Horizontal,
                         Spacing = new Vector2(32, 0),
+                    },
+                    statusText = new SpriteText
+                    {
+                        Text = "Ready. Import osu!mania or start charting from a blank grid.",
+                        Font = FontUsage.Default.With(size: 16),
+                        Colour = YokkoPalette.TextDim,
                     },
                 },
             },
@@ -60,6 +78,7 @@ public partial class EditorScreen : Screen
     {
         editableBeatmap = EditableBeatmap.Create(keyMode);
         rebuildWorkspace();
+        setStatus($"New {(int)keyMode}K draft created.");
     }
 
     private void rebuildWorkspace()
@@ -90,5 +109,59 @@ public partial class EditorScreen : Screen
     private void playtest()
     {
         this.Push(new GameplayScreen(editableBeatmap.ToBeatmap()));
+    }
+
+    private void importOsu()
+    {
+        ISystemFileSelector selector = host.CreateSystemFileSelector([".osu"]);
+        selector.Selected += file => Schedule(() => importOsu(file.FullName));
+        selector.Present();
+    }
+
+    private void importOsu(string path)
+    {
+        try
+        {
+            editableBeatmap = OsuManiaBeatmapIO.ReadEditableFromFile(path);
+            rebuildWorkspace();
+            setStatus($"Imported {Path.GetFileName(path)}.");
+        }
+        catch (Exception ex)
+        {
+            setStatus($"Import failed: {ex.Message}");
+        }
+    }
+
+    private void exportOsu()
+    {
+        try
+        {
+            string outputPath = getExportPath();
+            OsuManiaBeatmapIO.WriteEditableToFile(editableBeatmap, outputPath);
+            editableBeatmap.SourcePath = outputPath;
+            inspector.Refresh();
+            setStatus($"Exported {outputPath}");
+        }
+        catch (Exception ex)
+        {
+            setStatus($"Export failed: {ex.Message}");
+        }
+    }
+
+    private string getExportPath()
+    {
+        string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        string exportDirectory = Path.Combine(documents, "Yokko Exports");
+        string fileName = string.Join("_", editableBeatmap.Title.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries));
+
+        if (string.IsNullOrWhiteSpace(fileName))
+            fileName = "yokko-chart";
+
+        return Path.Combine(exportDirectory, $"{fileName}-{(int)editableBeatmap.KeyMode}K.osu");
+    }
+
+    private void setStatus(string message)
+    {
+        statusText.Text = message;
     }
 }

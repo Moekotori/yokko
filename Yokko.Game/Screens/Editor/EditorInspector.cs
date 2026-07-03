@@ -1,3 +1,4 @@
+using System.IO;
 using System;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -17,6 +18,7 @@ public partial class EditorInspector : CompositeDrawable
     private readonly SpriteText noteCountText;
     private readonly SpriteText lengthText;
     private readonly SpriteText densityText;
+    private readonly SpriteText sourceText;
 
     public EditorInspector(EditableBeatmap beatmap)
     {
@@ -57,9 +59,8 @@ public partial class EditorInspector : CompositeDrawable
                         Height = 1,
                         Colour = new Color4(1f, 1f, 1f, 0.1f),
                     },
-                    new SpriteText
+                    sourceText = new SpriteText
                     {
-                        Text = "Source Yokko draft",
                         Font = FontUsage.Default.With(size: 16),
                         Colour = YokkoPalette.TextDim,
                     },
@@ -80,6 +81,9 @@ public partial class EditorInspector : CompositeDrawable
         noteCountText.Text = $"Notes {beatmap.Notes.Count}";
         lengthText.Text = $"Length {lengthMilliseconds / 1000:0.00}s";
         densityText.Text = $"Grid {beatmap.Rows} rows @ {beatmap.StepMilliseconds:0}ms";
+        sourceText.Text = beatmap.SourcePath == null
+            ? "Source Yokko draft"
+            : $"Source {Path.GetFileName(beatmap.SourcePath)}";
     }
 
     private static SpriteText createMetric() => new()
