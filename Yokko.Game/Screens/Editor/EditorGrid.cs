@@ -27,7 +27,7 @@ public partial class EditorGrid : CompositeDrawable
         cells = new EditorCell[beatmap.LaneCount, viewport.VisibleRows];
 
         Width = beatmap.LaneCount == 4 ? 500 : 760;
-        Height = 360;
+        Height = 336;
         Masking = true;
         CornerRadius = 6;
 
@@ -90,7 +90,10 @@ public partial class EditorGrid : CompositeDrawable
             int row = viewport.StartRow + visualRow;
 
             for (int lane = 0; lane < beatmap.LaneCount; lane++)
+            {
+                cells[lane, visualRow].Bind(lane, row);
                 cells[lane, visualRow].SetSelected(beatmap.HasNoteAt(lane, row));
+            }
         }
     }
 

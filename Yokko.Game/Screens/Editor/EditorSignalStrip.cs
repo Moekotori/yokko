@@ -4,6 +4,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Input.Events;
 using osuTK.Graphics;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Editing;
@@ -17,11 +18,20 @@ public partial class EditorSignalStrip : CompositeDrawable
 
     private readonly EditableBeatmap beatmap;
     private readonly TimelineViewport viewport;
+    private readonly Func<EditorAudioWaveform> waveformProvider;
+    private readonly Action<int> dragRows;
+    private float dragAccumulator;
 
-    public EditorSignalStrip(EditableBeatmap beatmap, TimelineViewport viewport)
+    public EditorSignalStrip(
+        EditableBeatmap beatmap,
+        TimelineViewport viewport,
+        Func<EditorAudioWaveform> waveformProvider,
+        Action<int> dragRows)
     {
         this.beatmap = beatmap;
         this.viewport = viewport;
+        this.waveformProvider = waveformProvider;
+        this.dragRows = dragRows;
 
         Width = beatmap.LaneCount == 4 ? 500 : 760;
         Height = 70;
@@ -60,6 +70,16 @@ public partial class EditorSignalStrip : CompositeDrawable
                 Font = FontUsage.Default.With(size: 14),
                 Colour = YokkoPalette.TextMuted,
             },
+            new SpriteText
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                X = -12,
+                Y = 8,
+                Text = waveformProvider().Label,
+                Font = FontUsage.Default.With(size: 13),
+                Colour = waveformProvider().HasAudio ? YokkoPalette.Lime : YokkoPalette.TextDim,
+            },
         };
     }
 
@@ -89,20 +109,29 @@ public partial class EditorSignalStrip : CompositeDrawable
 
     private Drawable[] createBars()
     {
-        float[] peaks = createPeaks();
+        EditorAudioWaveform waveform = waveformProvider();
+        float[] notePeaks = createNotePeaks();
         var bars = new Drawable[barCount];
         float usableWidth = Width - 24;
         float stepWidth = usableWidth / barCount;
         float barWidth = Math.Max(2, stepWidth - 2);
         float baseY = Height - 12;
+        double startMilliseconds = viewport.StartMilliseconds(beatmap.StepMilliseconds);
+        double endMilliseconds = viewport.EndMilliseconds(beatmap.StepMilliseconds);
+        double windowMilliseconds = Math.Max(1, endMilliseconds - startMilliseconds);
+        double fallbackDuration = Math.Max(beatmap.Rows * beatmap.StepMilliseconds, endMilliseconds);
 
         for (int i = 0; i < barCount; i++)
         {
-            float peak = peaks[i];
-            float barHeight = 7 + peak * 42;
-            Color4 colour = peak > 0.48f
-                ? new Color4(1f, 0.42f, 0.52f, 0.9f)
-                : new Color4(0.2f, 0.88f, 0.95f, 0.68f);
+            double segmentStart = startMilliseconds + i / (double)barCount * windowMilliseconds;
+            double segmentEnd = startMilliseconds + (i + 1) / (double)barCount * windowMilliseconds;
+            EditorWaveformSample audioSample = waveform.Sample(segmentStart, segmentEnd, fallbackDuration);
+            float notePeak = notePeaks[i];
+            float peak = waveform.HasAudio
+                ? Math.Clamp(audioSample.Peak * 0.9f + notePeak * 0.22f, 0.03f, 1f)
+                : notePeak;
+            float barHeight = 6 + peak * 43;
+            Color4 colour = createBarColour(audioSample, notePeak, waveform.HasAudio);
 
             bars[i] = new Box
             {
@@ -117,7 +146,28 @@ public partial class EditorSignalStrip : CompositeDrawable
         return bars;
     }
 
-    private float[] createPeaks()
+    private static Color4 createBarColour(EditorWaveformSample sample, float notePeak, bool hasAudio)
+    {
+        if (!hasAudio)
+        {
+            return notePeak > 0.48f
+                ? new Color4(1f, 0.42f, 0.52f, 0.9f)
+                : new Color4(0.2f, 0.88f, 0.95f, 0.68f);
+        }
+
+        float low = Math.Clamp(sample.Low, 0, 1);
+        float mid = Math.Clamp(sample.Mid, 0, 1);
+        float high = Math.Clamp(sample.High, 0, 1);
+        float noteGlow = Math.Clamp(notePeak, 0, 1);
+
+        return new Color4(
+            0.18f + high * 0.62f + noteGlow * 0.2f,
+            0.58f + low * 0.28f,
+            0.78f + mid * 0.2f,
+            0.72f + noteGlow * 0.18f);
+    }
+
+    private float[] createNotePeaks()
     {
         var peaks = new float[barCount];
         double startMilliseconds = viewport.StartMilliseconds(beatmap.StepMilliseconds);
@@ -153,4 +203,23 @@ public partial class EditorSignalStrip : CompositeDrawable
     }
 
     private static string formatSeconds(double milliseconds) => $"{milliseconds / 1000:0.00}s";
+
+    protected override bool OnDragStart(DragStartEvent e)
+    {
+        dragAccumulator = 0;
+        return true;
+    }
+
+    protected override void OnDrag(DragEvent e)
+    {
+        float pixelsPerRow = Math.Max(1, (Width - 24) / viewport.VisibleRows);
+        dragAccumulator += e.Delta.X;
+        int rowDelta = (int)Math.Truncate(-dragAccumulator / pixelsPerRow);
+
+        if (rowDelta == 0)
+            return;
+
+        dragRows(rowDelta);
+        dragAccumulator += rowDelta * pixelsPerRow;
+    }
 }

@@ -23,13 +23,15 @@ public partial class EditorTimelineControls : CompositeDrawable
         Action stepBack,
         Action stepForward,
         Action jumpForward,
+        Action zoomIn,
+        Action zoomOut,
         Action appendRows)
     {
         this.beatmap = beatmap;
         this.viewport = viewport;
 
         Width = beatmap.LaneCount == 4 ? 500 : 760;
-        Height = 32;
+        Height = 44;
         Masking = true;
         CornerRadius = 6;
 
@@ -42,26 +44,30 @@ public partial class EditorTimelineControls : CompositeDrawable
             },
             windowText = new SpriteText
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.TopLeft,
                 X = 12,
-                Font = FontUsage.Default.With(size: 15),
+                Y = 4,
+                Font = FontUsage.Default.With(size: 14),
                 Colour = YokkoPalette.TextMuted,
             },
             new FillFlowContainer
             {
                 AutoSizeAxes = Axes.Both,
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
+                Anchor = Anchor.BottomRight,
+                Origin = Anchor.BottomRight,
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(6, 0),
                 X = -8,
+                Y = -4,
                 Children = new Drawable[]
                 {
-                    new EditorStepButton("-16", jumpBack),
-                    new EditorStepButton("-4", stepBack),
-                    new EditorStepButton("+4", stepForward),
-                    new EditorStepButton("+16", jumpForward),
+                    new EditorStepButton("-16", jumpBack, 42),
+                    new EditorStepButton("-4", stepBack, 38),
+                    new EditorStepButton("+4", stepForward, 38),
+                    new EditorStepButton("+16", jumpForward, 42),
+                    new EditorStepButton("Zoom +", zoomIn, 58, YokkoPalette.Rose),
+                    new EditorStepButton("Zoom -", zoomOut, 58, YokkoPalette.Rose),
                     new EditorStepButton("+32 rows", appendRows, 78, YokkoPalette.Lime),
                 },
             },
@@ -72,7 +78,7 @@ public partial class EditorTimelineControls : CompositeDrawable
 
     public void Refresh()
     {
-        windowText.Text = $"Rows {viewport.StartRow + 1}-{viewport.EndRowExclusive} / {beatmap.Rows}   {formatSeconds(viewport.StartMilliseconds(beatmap.StepMilliseconds))}-{formatSeconds(viewport.EndMilliseconds(beatmap.StepMilliseconds))}";
+        windowText.Text = $"Rows {viewport.StartRow + 1}-{viewport.EndRowExclusive} / {beatmap.Rows}   {formatSeconds(viewport.StartMilliseconds(beatmap.StepMilliseconds))}-{formatSeconds(viewport.EndMilliseconds(beatmap.StepMilliseconds))}   zoom {viewport.VisibleRows}";
     }
 
     private static string formatSeconds(double milliseconds) => $"{milliseconds / 1000:0.00}s";

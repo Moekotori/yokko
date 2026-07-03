@@ -9,12 +9,20 @@ namespace Yokko.Game.Screens.Editor;
 
 public partial class EditorCell : ClickableContainer
 {
+    private readonly Action<int, int> toggleNote;
     private readonly Box fill;
+    private readonly Box rowLine;
     private readonly Box noteFill;
+    private int lane;
+    private int row;
 
     public EditorCell(int lane, int row, Action<int, int> toggleNote)
     {
-        Action = () => toggleNote(lane, row);
+        this.toggleNote = toggleNote;
+        this.lane = lane;
+        this.row = row;
+
+        Action = () => this.toggleNote(this.lane, this.row);
         Masking = true;
 
         InternalChildren = new Drawable[]
@@ -26,7 +34,7 @@ public partial class EditorCell : ClickableContainer
                     ? new Color4(0.07f, 0.086f, 0.112f, 1f)
                     : new Color4(0.045f, 0.056f, 0.074f, 1f),
             },
-            new Box
+            rowLine = new Box
             {
                 RelativeSizeAxes = Axes.X,
                 Height = 1,
@@ -48,6 +56,19 @@ public partial class EditorCell : ClickableContainer
                 Alpha = 0,
             },
         };
+    }
+
+    public void Bind(int lane, int row)
+    {
+        this.lane = lane;
+        this.row = row;
+
+        fill.Colour = row % 4 == 0
+            ? new Color4(0.07f, 0.086f, 0.112f, 1f)
+            : new Color4(0.045f, 0.056f, 0.074f, 1f);
+        rowLine.Colour = row % 4 == 0
+            ? new Color4(1f, 1f, 1f, 0.14f)
+            : new Color4(1f, 1f, 1f, 0.05f);
     }
 
     public void SetSelected(bool selected)

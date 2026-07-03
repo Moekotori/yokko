@@ -12,7 +12,11 @@ public static class OsuManiaBeatmapIO
     private const int holdType = 128;
 
     public static EditableBeatmap ReadEditableFromFile(string path)
-        => EditableBeatmap.FromBeatmap(ReadBeatmap(File.ReadAllText(path, Encoding.UTF8)), path);
+    {
+        EditableBeatmap editable = EditableBeatmap.FromBeatmap(ReadBeatmap(File.ReadAllText(path, Encoding.UTF8)), path);
+        editable.AudioPath = resolveAudioPath(path, editable.AudioPath);
+        return editable;
+    }
 
     public static YokkoBeatmap ReadBeatmapFromFile(string path)
         => ReadBeatmap(File.ReadAllText(path, Encoding.UTF8));
@@ -65,7 +69,7 @@ public static class OsuManiaBeatmapIO
         builder.AppendLine("osu file format v14");
         builder.AppendLine();
         builder.AppendLine("[General]");
-        builder.AppendLine($"AudioFilename: {beatmap.AudioPath ?? "audio.mp3"}");
+        builder.AppendLine($"AudioFilename: {formatAudioFilename(beatmap.AudioPath)}");
         builder.AppendLine("AudioLeadIn: 0");
         builder.AppendLine("PreviewTime: -1");
         builder.AppendLine("Countdown: 0");
@@ -248,4 +252,25 @@ public static class OsuManiaBeatmapIO
 
     private static string escapeValue(string value)
         => value.ReplaceLineEndings(" ").Trim();
+
+    private static string formatAudioFilename(string? audioPath)
+        => string.IsNullOrWhiteSpace(audioPath)
+            ? "audio.mp3"
+            : escapeValue(Path.GetFileName(audioPath));
+
+    private static string? resolveAudioPath(string beatmapPath, string? audioPath)
+    {
+        if (string.IsNullOrWhiteSpace(audioPath))
+            return audioPath;
+
+        if (Path.IsPathRooted(audioPath))
+            return audioPath;
+
+        string? beatmapDirectory = Path.GetDirectoryName(Path.GetFullPath(beatmapPath));
+        if (beatmapDirectory == null)
+            return audioPath;
+
+        string resolvedAudioPath = Path.GetFullPath(Path.Combine(beatmapDirectory, audioPath));
+        return File.Exists(resolvedAudioPath) ? resolvedAudioPath : audioPath;
+    }
 }

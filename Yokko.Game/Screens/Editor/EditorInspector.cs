@@ -29,7 +29,7 @@ public partial class EditorInspector : CompositeDrawable
         this.viewport = viewport;
 
         Width = 330;
-        Height = 480;
+        Height = 466;
         Masking = true;
 
         InternalChildren = new Drawable[]

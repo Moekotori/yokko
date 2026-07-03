@@ -62,5 +62,21 @@ namespace Yokko.Game.Tests.Core
             viewport.MoveByRows(-100, 32);
             Assert.That(viewport.StartRow, Is.EqualTo(0));
         }
+
+        [Test]
+        public void TimelineViewportZoomKeepsWindowInRange()
+        {
+            var viewport = new TimelineViewport(32, 24);
+
+            viewport.SetVisibleRows(12, 64);
+
+            Assert.That(viewport.VisibleRows, Is.EqualTo(12));
+            Assert.That(viewport.StartRow, Is.EqualTo(38));
+
+            viewport.SetVisibleRows(80, 64);
+
+            Assert.That(viewport.VisibleRows, Is.EqualTo(80));
+            Assert.That(viewport.StartRow, Is.EqualTo(0));
+        }
     }
 }

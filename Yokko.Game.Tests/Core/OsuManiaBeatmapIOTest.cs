@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.IO;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Editing;
 using Yokko.Core.Gameplay;
@@ -43,6 +44,33 @@ namespace Yokko.Game.Tests.Core
             Assert.That(reparsed.HitObjects, Has.Count.EqualTo(3));
             Assert.That(reparsed.HitObjects[1].Kind, Is.EqualTo(HitObjectKind.Hold));
             Assert.That(reparsed.HitObjects[1].EndTimeMilliseconds, Is.EqualTo(1750));
+        }
+
+        [Test]
+        public void ReadEditableFromFileResolvesAdjacentAudio()
+        {
+            string directory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "osu-import", TestContext.CurrentContext.Test.ID);
+            Directory.CreateDirectory(directory);
+            string audioPath = Path.Combine(directory, "audio.mp3");
+            string beatmapPath = Path.Combine(directory, "chart.osu");
+
+            File.WriteAllBytes(audioPath, []);
+            File.WriteAllText(beatmapPath, sampleOsu);
+
+            EditableBeatmap editable = OsuManiaBeatmapIO.ReadEditableFromFile(beatmapPath);
+
+            Assert.That(editable.AudioPath, Is.EqualTo(audioPath));
+        }
+
+        [Test]
+        public void ExportWritesAudioFilenameForAbsoluteAudioPath()
+        {
+            EditableBeatmap editable = EditableBeatmap.FromBeatmap(OsuManiaBeatmapIO.ReadBeatmap(sampleOsu));
+            editable.AudioPath = Path.Combine("C:", "songs", "audio.mp3");
+
+            string exported = OsuManiaBeatmapIO.WriteEditableToString(editable);
+
+            Assert.That(exported, Does.Contain("AudioFilename: audio.mp3"));
         }
 
         private const string sampleOsu = """
