@@ -1,4 +1,5 @@
 using System.Linq;
+using osu.Framework.Audio;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -8,6 +9,7 @@ using osuTK;
 using Yokko.Audio;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
+using Yokko.Game.Audio;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Import;
@@ -16,11 +18,14 @@ namespace Yokko.Game.Screens.Main;
 
 public partial class MainScreen : Screen
 {
+    [Resolved]
+    private AudioManager audioManager { get; set; }
+
     [BackgroundDependencyLoader]
     private void load()
     {
         JudgementWindows windows = JudgementWindows.DefaultMania;
-        var audioEngine = new NullAudioEngine();
+        var audioEngine = new OsuFrameworkAudioEngine(audioManager);
 
         InternalChildren = new Drawable[]
         {

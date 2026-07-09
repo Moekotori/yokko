@@ -1,4 +1,7 @@
 using System.Linq;
+using System;
+using System.Threading.Tasks;
+using osu.Framework.Audio;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -10,6 +13,8 @@ using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
+using Yokko.Audio;
+using Yokko.Game.Audio;
 using Yokko.Game.Presentation;
 
 namespace Yokko.Game.Screens.Gameplay;
@@ -19,6 +24,7 @@ public partial class GameplayScreen : Screen
     private const double leadInMilliseconds = 900;
 
     private readonly YokkoBeatmap beatmap;
+    private IAudioEngine audioEngine;
 
     private BeatmapJudgementState judgementState;
     private GameplayHud hud;
@@ -27,10 +33,16 @@ public partial class GameplayScreen : Screen
     private KeyModeBindings keyBindings;
     private bool[] pressedLanes;
     private double startTimeMilliseconds;
+    private bool hasAudioClock;
+    private SpriteText clockStatusText;
 
-    public GameplayScreen(YokkoBeatmap beatmap)
+    [Resolved]
+    private AudioManager audioManager { get; set; }
+
+    public GameplayScreen(YokkoBeatmap beatmap, IAudioEngine audioEngine = null)
     {
         this.beatmap = beatmap;
+        this.audioEngine = audioEngine;
     }
 
     [BackgroundDependencyLoader]
@@ -39,6 +51,10 @@ public partial class GameplayScreen : Screen
         keyBindings = KeyModeBindings.ForMode(beatmap.KeyMode);
         pressedLanes = new bool[keyBindings.KeyCount];
         judgementState = new BeatmapJudgementState(beatmap, JudgementWindows.DefaultMania);
+        audioEngine ??= string.IsNullOrWhiteSpace(beatmap.AudioPath)
+            ? new NullAudioEngine()
+            : new OsuFrameworkAudioEngine(audioManager);
+        hasAudioClock = !string.IsNullOrWhiteSpace(beatmap.AudioPath);
 
         InternalChildren = new Drawable[]
         {
@@ -73,12 +89,12 @@ public partial class GameplayScreen : Screen
                 Origin = Anchor.Centre,
                 Y = -62,
             },
-            new SpriteText
+            clockStatusText = new SpriteText
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
                 Y = -30,
-                Text = "Press mapped keys. Esc returns.",
+                Text = hasAudioClock ? "Audio clock active. Esc returns." : "Press mapped keys. Esc returns.",
                 Font = FontUsage.Default.With(size: 18),
                 Colour = YokkoPalette.TextDim,
             },
@@ -89,6 +105,9 @@ public partial class GameplayScreen : Screen
     {
         base.LoadComplete();
         startTimeMilliseconds = Time.Current + leadInMilliseconds;
+
+        if (hasAudioClock)
+            _ = startAudioAsync();
     }
 
     protected override void Update()
@@ -108,6 +127,7 @@ public partial class GameplayScreen : Screen
     {
         if (e.Key == Key.Escape)
         {
+            _ = audioEngine.StopAsync();
             this.Exit();
             return true;
         }
@@ -145,7 +165,49 @@ public partial class GameplayScreen : Screen
         playfield.SetLanePressed(lane, false);
     }
 
-    private double currentGameplayTime => Time.Current - startTimeMilliseconds;
+    public override bool OnExiting(ScreenExitEvent e)
+    {
+        _ = audioEngine.StopAsync();
+        return base.OnExiting(e);
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            _ = audioEngine.DisposeAsync();
+
+        base.Dispose(isDisposing);
+    }
+
+    private async Task startAudioAsync()
+    {
+        try
+        {
+            await audioEngine.StartAsync(new AudioEngineStartRequest(
+                beatmap.AudioPath,
+                AudioBackendKind.SharedWasapi,
+                null,
+                0,
+                0,
+                0)).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            hasAudioClock = false;
+            clockStatusText.Text = $"Audio unavailable: {ex.Message}";
+        }
+    }
+
+    private double currentGameplayTime
+    {
+        get
+        {
+            if (hasAudioClock && audioEngine.Status.IsRunning)
+                return audioEngine.PlaybackTimeMilliseconds;
+
+            return Time.Current - startTimeMilliseconds;
+        }
+    }
 
     private void applyJudgement(JudgementEvent judgement)
     {

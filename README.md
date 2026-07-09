@@ -1,31 +1,69 @@
 # Yokko
 
-Yokko is an osu!framework rhythm game prototype focused on 4K/7K play, precise timing, smooth rendering, low-latency audio backends, and chart/skin import compatibility.
+Yokko is a work-in-progress 4K/7K rhythm game prototype built on osu!framework.
 
-## Current Shape
+The goal is a keyboard-first mania-style game with precise judgement, smooth rendering, editable charts, practical import/export tools, and a replaceable audio backend path that can grow from stable shared playback into lower-latency options later.
 
-- `Yokko.Desktop` launches the Windows/Linux/macOS desktop host.
-- `Yokko.Game` owns screens, visuals, and player-facing flow.
-- `Yokko.Core` owns timing, judgement, and internal chart models.
-- `Yokko.Audio` defines the replaceable audio engine boundary for shared WASAPI, WASAPI exclusive, and ASIO.
-- `Yokko.Import` defines chart importer contracts for osu!mania, Malody, BMS, and LR2-oriented BMS libraries.
+## Status
 
-Yokko now starts in a lightweight editor workspace. The first editor pass supports new 4K/7K draft charts, click-to-toggle grid notes, live note/length stats, osu!mania `.osu` import/export, and playtesting the current draft chart in the existing gameplay screen. 4K playtest uses `D F J K`; 7K uses `S D F Space J K L`.
+Yokko is actively being worked on. It is not a finished game yet.
 
-Export currently writes to `Documents\Yokko Exports`. Import/export support covers osu!mania tap notes and long notes for 4K/7K charts.
+Current focus:
+
+- playable 4K/7K gameplay prototypes
+- lightweight chart editor workspace
+- osu!mania `.osu` import and export
+- audio-clock-driven playtesting
+- stable shared audio playback first
+- cleaner timing, judgement, and offset handling
+
+Things are expected to change quickly while the core loop is still being shaped.
+
+## What Works
+
+- Start a desktop build with osu!framework.
+- Create new 4K or 7K draft charts.
+- Toggle notes on a timeline grid.
+- Import and export osu!mania `.osu` files.
+- Preview chart structure with waveform support where audio can be loaded.
+- Playtest charts using keyboard mappings:
+  - 4K: `D F J K`
+  - 7K: `S D F Space J K L`
+
+Exports currently write to `Documents\Yokko Exports`.
+
+## Project Layout
+
+- `Yokko.Desktop` launches the desktop host.
+- `Yokko.Game` owns screens, visuals, editor flow, gameplay flow, and osu!framework integration.
+- `Yokko.Core` owns timing, judgement, editing models, and internal chart data.
+- `Yokko.Audio` defines the replaceable audio engine boundary.
+- `Yokko.Import` converts external chart formats into Yokko chart models.
+- `Yokko.Game.Tests` contains core and visual tests.
 
 ## Development
 
 ```powershell
 dotnet restore .\Yokko.Desktop.slnf
 dotnet build .\Yokko.Desktop.slnf
+dotnet test .\Yokko.Desktop.slnf
 dotnet run --project .\Yokko.Desktop\Yokko.Desktop.csproj
 ```
 
 Use `Yokko.Desktop.slnf` for fast desktop iteration. The full solution also contains the template iOS project for later platform work.
 
-## Architecture Direction
+## Timing Direction
 
-Gameplay judgement must be driven by audio time and input timestamps, not frame time. The render loop can run as fast as the machine allows, while judgement uses the audio clock plus device/user offsets.
+Gameplay judgement should be driven by audio time and input timestamps, not frame time.
 
-The first audio backend target is stable shared playback. WASAPI exclusive and ASIO should be added behind `Yokko.Audio` once the gameplay timing path is measurable and repeatable.
+The intended judgement path is:
+
+```text
+input timestamp - audio playback time - user/device offset
+```
+
+Frame time is only for presentation. A dropped frame may look bad, but it should not shift judgement.
+
+## Audio Direction
+
+The first backend target is stable shared playback through osu!framework/BASS/WASAPI on Windows. WASAPI exclusive and ASIO should come later behind the same `Yokko.Audio` boundary, after the gameplay timing path is measurable and repeatable.
