@@ -13,7 +13,7 @@ public partial class MainFooter : CompositeDrawable
     public MainFooter()
     {
         RelativeSizeAxes = Axes.X;
-        Height = 50;
+        Height = 46;
 
         InternalChildren = new Drawable[]
         {
@@ -26,9 +26,18 @@ public partial class MainFooter : CompositeDrawable
             new SpriteText
             {
                 Y = 16,
-                Text = $"{KeyMode.FourKey:D}K and {KeyMode.SevenKey:D}K core shell ready",
-                Font = FontUsage.Default.With(size: 18),
+                Text = $"{KeyMode.FourKey:D}K + {KeyMode.SevenKey:D}K ready   •   Esc always takes you back",
+                Font = FontUsage.Default.With(size: 15),
                 Colour = YokkoPalette.TextMuted,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Y = 16,
+                Text = "Keyboard first. Mouse friendly.",
+                Font = FontUsage.Default.With(size: 15),
+                Colour = YokkoPalette.TextDim,
             },
         };
     }

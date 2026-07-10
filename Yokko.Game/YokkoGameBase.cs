@@ -3,6 +3,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.IO.Stores;
 using osuTK;
+using Yokko.Game.Presentation;
 using Yokko.Resources;
 
 namespace Yokko.Game
@@ -15,20 +16,25 @@ namespace Yokko.Game
 
         protected override Container<Drawable> Content { get; }
 
+        private readonly DrawSizePreservingFillContainer scalingContainer;
+        private readonly YokkoDisplaySettings displaySettings = new();
+
         protected YokkoGameBase()
         {
             // Ensure game and tests scale with window size and screen DPI.
-            base.Content.Add(Content = new DrawSizePreservingFillContainer
+            base.Content.Add(Content = scalingContainer = new DrawSizePreservingFillContainer
             {
-                // You may want to change TargetDrawSize to your "default" resolution, which will decide how things scale and position when using absolute coordinates.
-                TargetDrawSize = new Vector2(1366, 768)
+                TargetDrawSize = displaySettings.TargetDrawSize,
+                Strategy = DrawSizePreservationStrategy.Minimum,
             });
         }
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(DependencyContainer dependencies)
         {
             Resources.AddStore(new DllResourceStore(typeof(YokkoResources).Assembly));
+            dependencies.Cache(displaySettings);
+            displaySettings.UiScale.BindValueChanged(_ => scalingContainer.TargetDrawSize = displaySettings.TargetDrawSize, true);
         }
     }
 }

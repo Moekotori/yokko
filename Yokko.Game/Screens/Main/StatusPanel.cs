@@ -14,6 +14,9 @@ public partial class StatusPanel : CompositeDrawable
     {
         Size = new Vector2(340, 104);
         Masking = true;
+        CornerRadius = 10;
+        BorderThickness = 1;
+        BorderColour = YokkoPalette.Border;
 
         InternalChildren = new Drawable[]
         {
@@ -25,27 +28,27 @@ public partial class StatusPanel : CompositeDrawable
             new Box
             {
                 RelativeSizeAxes = Axes.Y,
-                Width = 5,
+                Width = 4,
                 Colour = accent,
             },
             new FillFlowContainer
             {
                 RelativeSizeAxes = Axes.Both,
                 Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 6),
-                Padding = new MarginPadding { Left = 22, Right = 18, Top = 14 },
+                Spacing = new Vector2(0, 5),
+                Padding = new MarginPadding { Left = 20, Right = 18, Top = 13 },
                 Children = new Drawable[]
                 {
                     new SpriteText
                     {
                         Text = label,
-                        Font = FontUsage.Default.With(size: 16),
-                        Colour = YokkoPalette.TextDim,
+                        Font = FontUsage.Default.With(size: 12, weight: "Bold"),
+                        Colour = accent,
                     },
                     new SpriteText
                     {
                         Text = value,
-                        Font = FontUsage.Default.With(size: 28),
+                        Font = FontUsage.Default.With(size: 23, weight: "SemiBold"),
                         Colour = YokkoPalette.Text,
                     },
                     new SpriteText

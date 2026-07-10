@@ -9,6 +9,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
 using osu.Framework.Screens;
+using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Core.Beatmaps;
@@ -21,6 +22,8 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public partial class GameplayScreen : Screen
 {
+    private const float designedWidth = 1040;
+    private const float designedHeight = 760;
     private const double leadInMilliseconds = 900;
 
     private readonly YokkoBeatmap beatmap;
@@ -63,40 +66,49 @@ public partial class GameplayScreen : Screen
                 Colour = YokkoPalette.Background,
                 RelativeSizeAxes = Axes.Both,
             },
-            new Box
+            new Container
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Width = 980,
-                Height = 720,
-                Colour = new Color4(0.045f, 0.058f, 0.078f, 0.86f),
-            },
-            playfield = new GameplayPlayfield(beatmap, keyBindings)
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Y = 32,
-            },
-            hud = new GameplayHud(beatmap)
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                Position = new osuTK.Vector2(-42, 42),
-            },
-            judgementReadout = new JudgementReadout
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Y = -62,
-            },
-            clockStatusText = new SpriteText
-            {
-                Anchor = Anchor.BottomCentre,
-                Origin = Anchor.BottomCentre,
-                Y = -30,
-                Text = hasAudioClock ? "Audio clock active. Esc returns." : "Press mapped keys. Esc returns.",
-                Font = FontUsage.Default.With(size: 18),
-                Colour = YokkoPalette.TextDim,
+                Size = new Vector2(designedWidth, designedHeight),
+                Children = new Drawable[]
+                {
+                    new Box
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Width = 980,
+                        Height = 720,
+                        Colour = new Color4(0.045f, 0.058f, 0.078f, 0.86f),
+                    },
+                    playfield = new GameplayPlayfield(beatmap, keyBindings)
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Y = 32,
+                    },
+                    hud = new GameplayHud(beatmap)
+                    {
+                        Anchor = Anchor.TopRight,
+                        Origin = Anchor.TopRight,
+                        Position = new Vector2(-42, 42),
+                    },
+                    judgementReadout = new JudgementReadout
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Y = -62,
+                    },
+                    clockStatusText = new SpriteText
+                    {
+                        Anchor = Anchor.BottomCentre,
+                        Origin = Anchor.BottomCentre,
+                        Y = -30,
+                        Text = hasAudioClock ? "Audio clock active. Esc returns." : "Press mapped keys. Esc returns.",
+                        Font = FontUsage.Default.With(size: 18),
+                        Colour = YokkoPalette.TextDim,
+                    },
+                }
             },
         };
     }

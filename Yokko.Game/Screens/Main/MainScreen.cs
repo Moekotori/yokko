@@ -4,6 +4,7 @@ using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Screens;
 using osuTK;
 using Yokko.Audio;
@@ -11,13 +12,18 @@ using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
 using Yokko.Game.Audio;
 using Yokko.Game.Presentation;
+using Yokko.Game.Screens.Editor;
 using Yokko.Game.Screens.Gameplay;
+using Yokko.Game.Screens.Settings;
 using Yokko.Import;
 
 namespace Yokko.Game.Screens.Main;
 
 public partial class MainScreen : Screen
 {
+    private const float designedWidth = 1120;
+    private const float designedHeight = 660;
+
     [Resolved]
     private AudioManager audioManager { get; set; }
 
@@ -35,20 +41,26 @@ public partial class MainScreen : Screen
                 RelativeSizeAxes = Axes.Both,
             },
             new MainBackdrop(),
-            new FillFlowContainer
+            new Container
             {
-                RelativeSizeAxes = Axes.Both,
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 18),
-                Padding = new MarginPadding { Horizontal = 72, Vertical = 36 },
-                Children = new Drawable[]
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(designedWidth, designedHeight),
+                Child = new FillFlowContainer
                 {
-                    new MainHeader(),
-                    createStatusRow(windows),
-                    createCapabilityRow(audioEngine),
-                    createLaunchRow(),
-                    new MainFooter(),
-                }
+                    RelativeSizeAxes = Axes.Both,
+                    Direction = FillDirection.Vertical,
+                    Spacing = new Vector2(0, 18),
+                    Padding = new MarginPadding { Horizontal = 24, Vertical = 18 },
+                    Children = new Drawable[]
+                    {
+                        new MainHeader(() => this.Push(new SettingsScreen())),
+                        createLaunchRow(),
+                        createStatusRow(windows),
+                        createCapabilityRow(audioEngine),
+                        new MainFooter(),
+                    }
+                },
             },
         };
     }
@@ -61,9 +73,9 @@ public partial class MainScreen : Screen
         Spacing = new Vector2(18, 0),
         Children = new Drawable[]
         {
-            new StatusPanel("Modes", "4K / 7K", "keyboard-first playfield", YokkoPalette.Cyan),
-            new StatusPanel("Judgement", $"P {windows.PerfectMilliseconds:0}ms", "audio-clock accuracy path", YokkoPalette.Rose),
-            new StatusPanel("Renderer", "1000 fps target", "batched 2D gameplay layer", YokkoPalette.Lime),
+            new StatusPanel("CREATE", "4K / 7K editor", "Build notes on a clear timeline", YokkoPalette.Lime),
+            new StatusPanel("PLAY", "DFJK / SDF JKL", "Familiar keys, instant feedback", YokkoPalette.Cyan),
+            new StatusPanel("IMPROVE", $"Perfect ±{windows.PerfectMilliseconds:0}ms", "Timing you can understand", YokkoPalette.Rose),
         },
     };
 
@@ -75,8 +87,17 @@ public partial class MainScreen : Screen
         Spacing = new Vector2(18, 0),
         Children = new Drawable[]
         {
-            new SectionPanel("Import Targets", KnownChartImporters.Capabilities.Select(formatDisplayName).ToArray()),
-            new SectionPanel("Low Latency Audio", audioEngine.Backends.Select(backendDisplayName).ToArray()),
+            new SectionPanel("A simple charting flow", new[]
+            {
+                "New 4K",
+                "New 7K",
+                "Import .osu",
+                "Export .osu",
+                "Playtest",
+            }),
+            new SectionPanel("Works with your setup", KnownChartImporters.Capabilities.Select(formatDisplayName)
+                                                  .Concat(audioEngine.Backends.Select(backendDisplayName))
+                                                  .ToArray()),
         },
     };
 
@@ -88,8 +109,12 @@ public partial class MainScreen : Screen
         Spacing = new Vector2(18, 0),
         Children = new Drawable[]
         {
-            new StartPanel("Start 4K Demo", "D F J K / timing skeleton", () => this.Push(new GameplayScreen(DemoBeatmaps.CreateFourKeyDemo()))),
-            new StartPanel("Start 7K Demo", "S D F Space J K L", () => this.Push(new GameplayScreen(DemoBeatmaps.CreateSevenKeyDemo()))),
+            new StartPanel("START HERE", "Open the editor", "Create from scratch or bring in an osu!mania chart.", FontAwesome.Solid.Pen,
+                () => this.Push(new EditorScreen()), YokkoPalette.Lime, 480, true),
+            new StartPanel("QUICK PLAY", "4K demo", "Use D F J K", FontAwesome.Solid.Keyboard,
+                () => this.Push(new GameplayScreen(DemoBeatmaps.CreateFourKeyDemo())), YokkoPalette.Cyan, 279),
+            new StartPanel("QUICK PLAY", "7K demo", "Use S D F Space J K L", FontAwesome.Solid.Music,
+                () => this.Push(new GameplayScreen(DemoBeatmaps.CreateSevenKeyDemo())), YokkoPalette.Rose, 279),
         },
     };
 

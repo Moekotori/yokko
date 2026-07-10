@@ -22,6 +22,8 @@ namespace Yokko.Game.Screens.Editor;
 
 public partial class EditorScreen : Screen
 {
+    private const float designedWidth = 1122;
+    private const float designedHeight = 620;
     private const int defaultVisibleRows = 24;
     private const int minVisibleRows = 12;
     private const int maxVisibleRows = 64;
@@ -58,34 +60,39 @@ public partial class EditorScreen : Screen
                 RelativeSizeAxes = Axes.Both,
                 Colour = YokkoPalette.Background,
             },
-            new FillFlowContainer
+            new Container
             {
-                RelativeSizeAxes = Axes.Both,
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 16),
-                Padding = new MarginPadding { Horizontal = 46, Vertical = 24 },
-                Children = new Drawable[]
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(designedWidth, designedHeight),
+                Child = new FillFlowContainer
                 {
-                    new EditorHeader(
-                        () => loadChart(KeyMode.FourKey),
-                        () => loadChart(KeyMode.SevenKey),
-                        importOsu,
-                        exportOsu,
-                        playtest),
-                    workspace = new FillFlowContainer
+                    RelativeSizeAxes = Axes.Both,
+                    Direction = FillDirection.Vertical,
+                    Spacing = new Vector2(0, 16),
+                    Children = new Drawable[]
                     {
-                        AutoSizeAxes = Axes.X,
-                        Height = 466,
-                        Direction = FillDirection.Horizontal,
-                        Spacing = new Vector2(32, 0),
-                    },
-                    statusText = new SpriteText
-                    {
-                        Text = "Ready. Import osu!mania or start charting from a blank grid.",
-                        Font = FontUsage.Default.With(size: 16),
-                        Colour = YokkoPalette.TextDim,
-                    },
-                },
+                        new EditorHeader(
+                            () => loadChart(KeyMode.FourKey),
+                            () => loadChart(KeyMode.SevenKey),
+                            importOsu,
+                            exportOsu,
+                            playtest),
+                        workspace = new FillFlowContainer
+                        {
+                            AutoSizeAxes = Axes.X,
+                            Height = 466,
+                            Direction = FillDirection.Horizontal,
+                            Spacing = new Vector2(32, 0),
+                        },
+                        statusText = new SpriteText
+                        {
+                            Text = "Ready. New 4K/7K, Import .osu, click grid cells, then Playtest.",
+                            Font = FontUsage.Default.With(size: 16),
+                            Colour = YokkoPalette.TextDim,
+                        },
+                    }
+                }
             },
         };
 

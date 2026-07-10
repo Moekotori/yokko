@@ -15,6 +15,9 @@ public partial class SectionPanel : CompositeDrawable
     {
         Size = new Vector2(515, 154);
         Masking = true;
+        CornerRadius = 10;
+        BorderThickness = 1;
+        BorderColour = YokkoPalette.Border;
 
         InternalChildren = new Drawable[]
         {
@@ -27,14 +30,14 @@ public partial class SectionPanel : CompositeDrawable
             {
                 RelativeSizeAxes = Axes.Both,
                 Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 12),
+                Spacing = new Vector2(0, 14),
                 Padding = new MarginPadding { Horizontal = 22, Vertical = 18 },
                 Children = new Drawable[]
                 {
                     new SpriteText
                     {
                         Text = title,
-                        Font = FontUsage.Default.With(size: 22),
+                        Font = FontUsage.Default.With(size: 20, weight: "SemiBold"),
                         Colour = YokkoPalette.Text,
                     },
                     new FillFlowContainer
@@ -55,6 +58,9 @@ public partial class SectionPanel : CompositeDrawable
         Width = 112,
         Height = 34,
         Masking = true,
+        CornerRadius = 7,
+        BorderThickness = 1,
+        BorderColour = YokkoPalette.Border,
         Children = new Drawable[]
         {
             new Box
@@ -67,7 +73,7 @@ public partial class SectionPanel : CompositeDrawable
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = text,
-                Font = FontUsage.Default.With(size: 14),
+                Font = FontUsage.Default.With(size: 13),
                 Colour = YokkoPalette.TextMuted,
             },
         }
