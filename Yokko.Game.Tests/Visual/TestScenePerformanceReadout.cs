@@ -27,10 +27,8 @@ public partial class TestScenePerformanceReadout : YokkoTestScene
             "compact target size",
             () => readout.Width
                   == YokkoPerformanceReadout.CardWidth
-                  + YokkoPerformanceReadout.AccentOffset
                   && readout.Height
-                  == YokkoPerformanceReadout.CardHeight
-                  + YokkoPerformanceReadout.AccentOffset);
+                  == YokkoPerformanceReadout.CardHeight);
         AddStep("provide 480 fps frame", () =>
             source.SetFrame(1, 1000.0 / 480));
         AddUntilStep(
@@ -38,10 +36,7 @@ public partial class TestScenePerformanceReadout : YokkoTestScene
             () => readout.DisplayedFrameTime == "2.1 ms");
         AddAssert(
             "shows matching fps",
-            () => readout.DisplayedFramesPerSecond == "480 FPS");
-        AddUntilStep(
-            "normal frame is not an alert",
-            () => readout.StutterBarCount == 0);
+            () => readout.DisplayedFramesPerSecond == "480");
     }
 
     private sealed class FakeFrameTimingSource : IFrameTimingSource

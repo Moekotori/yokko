@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -6,7 +7,6 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Platform;
 using osuTK;
-using osuTK.Graphics;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Presentation;
@@ -47,53 +47,35 @@ internal sealed class GameHostDrawFrameTimingSource : IFrameTimingSource
 
 internal partial class YokkoPerformanceReadout : CompositeDrawable
 {
-    internal const float CardWidth = 150;
-    internal const float CardHeight = 42;
-    internal const float AccentOffset = 3;
+    internal const float CardWidth = 156;
+    internal const float CardHeight = 50;
 
-    private const double display_refresh_milliseconds = 250;
-    private const double graph_refresh_milliseconds = 250;
+    private const double display_refresh_milliseconds = 500;
 
     private readonly FrameTimingTracker tracker = new();
-    private readonly FrameTimingGraphTracker graphTracker = new();
-    private readonly Box[] graphBars = new Box[5];
-    private readonly bool[] graphStutterStates = new bool[5];
-    private readonly double[] displayedGraphHeightRatios =
-        new double[5];
     private IFrameTimingSource timingSource;
     private SpriteText frameTimeText;
     private SpriteText framesPerSecondText;
     private double lastFrameMarker;
     private double elapsedSinceDisplayRefresh;
-    private double elapsedSinceGraphRefresh;
     private double displayedFrameTimeMilliseconds;
 
     internal YokkoPerformanceReadout(
         IFrameTimingSource timingSource = null)
     {
         this.timingSource = timingSource;
-        Size = new Vector2(
-            CardWidth + AccentOffset,
-            CardHeight + AccentOffset);
+        Size = new Vector2(CardWidth, CardHeight);
 
-        InternalChildren = new Drawable[]
-        {
-            createAccentLayer(),
-            createCard(),
-            createCornerDiamond(),
-        };
+        InternalChild = createCard();
     }
 
     internal string DisplayedFrameTime =>
-        frameTimeText?.Text.ToString() ?? string.Empty;
+        frameTimeText == null
+            ? string.Empty
+            : $"{frameTimeText.Text} ms";
 
     internal string DisplayedFramesPerSecond =>
         framesPerSecondText?.Text.ToString() ?? string.Empty;
-
-    internal int StutterBarCount =>
-        Array.FindAll(
-            graphStutterStates,
-            static isStutter => isStutter).Length;
 
     [BackgroundDependencyLoader]
     private void load(GameHost host)
@@ -113,67 +95,21 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
         {
             lastFrameMarker = frameMarker;
             tracker.Record(frameTimeMilliseconds);
-            graphTracker.Record(frameTimeMilliseconds);
         }
 
         elapsedSinceDisplayRefresh += Time.Elapsed;
-        elapsedSinceGraphRefresh += Time.Elapsed;
 
         if (elapsedSinceDisplayRefresh >= display_refresh_milliseconds)
         {
             elapsedSinceDisplayRefresh %= display_refresh_milliseconds;
             refreshDisplay();
         }
-
-        if (elapsedSinceGraphRefresh >= graph_refresh_milliseconds)
-        {
-            elapsedSinceGraphRefresh %= graph_refresh_milliseconds;
-            FrameTimingSnapshot timing = tracker.Snapshot();
-            if (timing.Count > 0)
-            {
-                refreshGraph(graphTracker.CompleteBucket(
-                    timing.FrameTimeMilliseconds));
-            }
-        }
     }
 
     internal void RefreshForTesting() => refreshDisplay();
 
-    private Drawable createAccentLayer() => new Container
-    {
-        Position = new Vector2(AccentOffset),
-        Size = new Vector2(CardWidth, CardHeight),
-        Masking = true,
-        CornerRadius = 8,
-        Child = new Box
-        {
-            RelativeSizeAxes = Axes.Both,
-            Colour = HomeControlColours.Cyan,
-        },
-    };
-
     private Drawable createCard()
     {
-        var graph = new Container
-        {
-            Position = new Vector2(111, 8),
-            Size = new Vector2(31, 27),
-        };
-
-        for (int index = 0; index < graphBars.Length; index++)
-        {
-            displayedGraphHeightRatios[index] = 2.0 / 17;
-            graph.Add(graphBars[index] = new Box
-            {
-                Anchor = Anchor.BottomLeft,
-                Origin = Anchor.BottomLeft,
-                X = index * 6,
-                Width = 4,
-                Height = 9,
-                Colour = HomeControlColours.Cyan,
-            });
-        }
-
         return new Container
         {
             Size = new Vector2(CardWidth, CardHeight),
@@ -190,61 +126,103 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
                 },
                 new Container
                 {
-                    Position = new Vector2(7, 8),
-                    Size = new Vector2(25, 26),
+                    Position = new Vector2(4),
+                    Size = new Vector2(
+                        CardWidth - 8,
+                        CardHeight - 8),
                     Masking = true,
                     CornerRadius = 6,
-                    BorderThickness = 1.5f,
-                    BorderColour = HomeControlColours.Navy,
-                    Children = new Drawable[]
+                    BorderThickness = 1,
+                    BorderColour = HomeControlColours.Cyan,
+                    Child = new Box
                     {
-                        new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Colour = HomeControlColours.PaleCyan,
-                        },
-                        new SpriteIcon
-                        {
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
-                            Size = new Vector2(16),
-                            Icon = FontAwesome.Solid.Heartbeat,
-                            Colour = HomeControlColours.Navy,
-                        },
+                        RelativeSizeAxes = Axes.Both,
+                        Alpha = 0,
                     },
                 },
-                frameTimeText = new SpriteText
+                new SpriteText
                 {
-                    Position = new Vector2(38, 2),
-                    Font = HomeTypography.Display(15),
-                    Colour = HomeControlColours.Navy,
+                    Position = new Vector2(13, 5),
+                    Text = "FPS",
+                    Font = HomeTypography.Display(8),
+                    Spacing = new Vector2(1, 0),
+                    Colour = HomeControlColours.Pink,
                 },
                 framesPerSecondText = new SpriteText
                 {
-                    Position = new Vector2(39, 23),
-                    Font = HomeTypography.Display(7),
-                    Spacing = new Vector2(0.6f, 0),
+                    Position = new Vector2(12, 16),
+                    Width = 58,
+                    Font = HomeTypography.Display(18)
+                        .With(fixedWidth: true),
+                    UseFullGlyphHeight = true,
                     Colour = HomeControlColours.Navy,
                 },
-                graph,
+                new Box
+                {
+                    Position = new Vector2(77, 8),
+                    Size = new Vector2(2, 34),
+                    Colour = HomeControlColours.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(88, 5),
+                    Text = "FRAME",
+                    Font = HomeTypography.Display(8),
+                    Spacing = new Vector2(0.6f, 0),
+                    Colour = HomeControlColours.Cyan,
+                },
+                frameTimeText = new SpriteText
+                {
+                    Position = new Vector2(87, 17),
+                    Width = 40,
+                    Font = HomeTypography.Display(16)
+                        .With(fixedWidth: true),
+                    UseFullGlyphHeight = true,
+                    Colour = HomeControlColours.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(126, 23),
+                    Text = "ms",
+                    Font = HomeTypography.Display(9),
+                    Colour = HomeControlColours.Navy,
+                },
+                createDotField(),
+                createCornerDiamond(),
             },
         };
     }
 
-    private Drawable createCornerDiamond() => new Container
+    private static Drawable createDotField()
     {
-        Position = new Vector2(141, -1),
-        Size = new Vector2(9),
-        Rotation = 45,
-        Masking = true,
-        CornerRadius = 1.5f,
-        BorderThickness = 1.5f,
-        BorderColour = HomeControlColours.Navy,
-        Child = new Box
+        var dots = new Container
         {
-            RelativeSizeAxes = Axes.Both,
-            Colour = HomeControlColours.Yellow,
-        },
+            Position = new Vector2(12, 38),
+            Size = new Vector2(14, 10),
+        };
+
+        for (int row = 0; row < 3; row++)
+        {
+            for (int column = 0; column < 3; column++)
+            {
+                dots.Add(new Circle
+                {
+                    Position = new Vector2(column * 5, row * 4),
+                    Size = new Vector2(2),
+                    Colour = HomeControlColours.Cyan,
+                });
+            }
+        }
+
+        return dots;
+    }
+
+    private static Drawable createCornerDiamond() => new Box
+    {
+        Position = new Vector2(142, 7),
+        Size = new Vector2(7),
+        Rotation = 45,
+        Colour = HomeControlColours.Yellow,
     };
 
     private void refreshDisplay()
@@ -252,8 +230,8 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
         FrameTimingSnapshot snapshot = tracker.Snapshot();
         if (snapshot.Count == 0)
         {
-            frameTimeText.Text = "— ms";
-            framesPerSecondText.Text = "— FPS";
+            setTextIfChanged(frameTimeText, "—");
+            setTextIfChanged(framesPerSecondText, "—");
             return;
         }
 
@@ -264,43 +242,23 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
 
         displayedFrameTimeMilliseconds =
             snapshot.FrameTimeMilliseconds;
-        frameTimeText.Text =
-            $"{displayedFrameTimeMilliseconds:0.0} ms";
-        framesPerSecondText.Text =
-            $"{FrameTimingTracker.QuantizeFramesPerSecond(
-                snapshot.FramesPerSecond)} FPS";
+        setTextIfChanged(
+            frameTimeText,
+            displayedFrameTimeMilliseconds.ToString(
+                "0.0",
+                CultureInfo.InvariantCulture));
+        setTextIfChanged(
+            framesPerSecondText,
+            FrameTimingTracker.QuantizeFramesPerSecond(
+                snapshot.FramesPerSecond).ToString(
+                    CultureInfo.InvariantCulture));
     }
 
-    private void refreshGraph(FrameTimingGraphSnapshot snapshot)
+    private static void setTextIfChanged(
+        SpriteText target,
+        string value)
     {
-        if (snapshot.FrameTimes == null
-            || snapshot.FrameTimes.Length == 0)
-            return;
-
-        for (int index = 0; index < graphBars.Length; index++)
-        {
-            double sample = snapshot.FrameTimes[index];
-            bool isStutter = FrameTimingGraphTracker.IsStutter(
-                sample,
-                snapshot.StutterThresholdMilliseconds);
-            double targetHeightRatio =
-                FrameTimingGraphTracker.HeightRatio(
-                    sample,
-                    snapshot.StutterThresholdMilliseconds);
-            if (!FrameTimingGraphTracker.ShouldUpdateBar(
-                    displayedGraphHeightRatios[index],
-                    targetHeightRatio,
-                    graphStutterStates[index],
-                    isStutter))
-                continue;
-
-            displayedGraphHeightRatios[index] = targetHeightRatio;
-            graphStutterStates[index] = isStutter;
-            graphBars[index].Height =
-                (float)(7 + targetHeightRatio * 17);
-            graphBars[index].Colour = isStutter
-                ? HomeControlColours.Pink
-                : HomeControlColours.Cyan;
-        }
+        if (target.Text.ToString() != value)
+            target.Text = value;
     }
 }
