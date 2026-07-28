@@ -14,6 +14,8 @@ internal static class OsuManiaSkinIniDecoder
         string name = "Unknown";
         string author = string.Empty;
         string version = "1.0";
+        string comboPrefix = "score";
+        int comboOverlap = 0;
         string section = string.Empty;
         Dictionary<string, string> maniaValues = null;
         var configurations = new Dictionary<int, OsuManiaSkinConfiguration>();
@@ -55,12 +57,31 @@ internal static class OsuManiaSkinIniDecoder
                 else if (key.Equals("Version", StringComparison.OrdinalIgnoreCase))
                     version = value;
             }
+            else if (section.Equals("Fonts", StringComparison.OrdinalIgnoreCase))
+            {
+                if (key.Equals("ComboPrefix", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(value))
+                    comboPrefix = value;
+                else if (key.Equals("ComboOverlap", StringComparison.OrdinalIgnoreCase)
+                         && int.TryParse(
+                             value,
+                             NumberStyles.Integer,
+                             CultureInfo.InvariantCulture,
+                             out int parsedOverlap))
+                    comboOverlap = parsedOverlap;
+            }
             else if (maniaValues != null)
                 maniaValues[key] = value;
         }
 
         commitManiaSection(maniaValues, configurations);
-        return new OsuManiaSkinInfo(name, author, version, configurations);
+        return new OsuManiaSkinInfo(
+            name,
+            author,
+            version,
+            comboPrefix,
+            comboOverlap,
+            configurations);
     }
 
     private static void commitManiaSection(
@@ -116,6 +137,8 @@ internal static class OsuManiaSkinIniDecoder
             spacings,
             lineWidths,
             number(values, "HitPosition", defaults.HitPosition),
+            number(values, "ScorePosition", defaults.ScorePosition),
+            number(values, "ComboPosition", defaults.ComboPosition),
             boolean(values, "UpsideDown", defaults.UpsideDown),
             boolean(values, "KeysUnderNotes", defaults.KeysUnderNotes),
             defaultBodyStyle,
@@ -127,7 +150,13 @@ internal static class OsuManiaSkinIniDecoder
             holdHeadImages,
             holdBodyImages,
             holdTailImages,
-            text(values, "StageHint", defaults.StageHint))
+            text(values, "StageHint", defaults.StageHint),
+            text(values, "Hit0", defaults.Hit0),
+            text(values, "Hit50", defaults.Hit50),
+            text(values, "Hit100", defaults.Hit100),
+            text(values, "Hit200", defaults.Hit200),
+            text(values, "Hit300", defaults.Hit300),
+            text(values, "Hit300g", defaults.Hit300g))
         {
             NoteBodyStyles = noteBodyStyles,
             WidthForNoteHeightScale = number(values, "WidthForNoteHeightScale", widths.Min()),

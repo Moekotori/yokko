@@ -114,7 +114,7 @@ public partial class SongSelectScreen : Screen
                     createHeader(logo),
                     detailsHost = new Container
                     {
-                        Position = new Vector2(40, 198),
+                        Position = new Vector2(40, 150),
                         Size = new Vector2(440, 500),
                     },
                     createSongBrowser(),
@@ -295,7 +295,7 @@ public partial class SongSelectScreen : Screen
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y,
                     Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 5),
+                    Spacing = Vector2.Zero,
                 },
             },
             noResults = new SpriteText
@@ -454,7 +454,7 @@ public partial class SongSelectScreen : Screen
                 {
                     Anchor = Anchor.BottomRight,
                     Origin = Anchor.BottomRight,
-                    Size = new Vector2(314, 96),
+                    Size = new Vector2(320, 76),
                     Action = PlaySelected,
                     Children = new Drawable[]
                     {
@@ -462,24 +462,23 @@ public partial class SongSelectScreen : Screen
                         {
                             Anchor = Anchor.CentreLeft,
                             Origin = Anchor.Centre,
-                            Position = new Vector2(14, 48),
-                            Size = new Vector2(30, 100),
-                            Rotation = 10,
+                            Position = new Vector2(19, 38),
+                            Size = new Vector2(30, 82),
+                            Rotation = 12,
                             Colour = SongSelectTheme.Yellow,
                         },
                         new Box
                         {
-                            X = 14,
-                            RelativeSizeAxes = Axes.Both,
-                            Width = 0.96f,
+                            X = 19,
+                            Size = new Vector2(301, 76),
                             Colour = SongSelectTheme.Yellow,
                         },
                         new SpriteIcon
                         {
                             Anchor = Anchor.CentreLeft,
                             Origin = Anchor.CentreLeft,
-                            X = 50,
-                            Size = new Vector2(34),
+                            X = 66,
+                            Size = new Vector2(30),
                             Icon = FontAwesome.Solid.Play,
                             Colour = SongSelectTheme.Navy,
                         },
@@ -487,23 +486,31 @@ public partial class SongSelectScreen : Screen
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            X = 16,
+                            X = 12,
                             Text = "PLAY",
-                            Font = HomeTypography.Display(40),
+                            Font = HomeTypography.Display(36),
                             Colour = SongSelectTheme.Navy,
                         },
-                        new SpriteIcon
+                        new FillFlowContainer
                         {
                             Anchor = Anchor.CentreRight,
                             Origin = Anchor.CentreRight,
-                            X = -10,
-                            Size = new Vector2(12),
-                            Icon = FontAwesome.Solid.EllipsisV,
-                            Colour = new Color4(
-                                SongSelectTheme.Navy.R,
-                                SongSelectTheme.Navy.G,
-                                SongSelectTheme.Navy.B,
-                                0.72f),
+                            X = -13,
+                            AutoSizeAxes = Axes.Both,
+                            Direction = FillDirection.Vertical,
+                            Spacing = new Vector2(0, 4),
+                            Children = Enumerable.Range(0, 7)
+                                                 .Select(_ => (Drawable)new SpriteIcon
+                                                 {
+                                                     Size = new Vector2(2),
+                                                     Icon = FontAwesome.Solid.Circle,
+                                                     Colour = new Color4(
+                                                         SongSelectTheme.Navy.R,
+                                                         SongSelectTheme.Navy.G,
+                                                         SongSelectTheme.Navy.B,
+                                                         0.78f),
+                                                 })
+                                                 .ToArray(),
                         },
                     },
                 },
@@ -639,6 +646,8 @@ public partial class SongSelectScreen : Screen
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.CentreLeft,
                         X = 14,
+                        Width = 292,
+                        Truncate = true,
                         Text = selectedEntry.Beatmap.Title,
                         Font = HomeTypography.Display(36),
                         Colour = SongSelectTheme.Navy,

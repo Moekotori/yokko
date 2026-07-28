@@ -12,9 +12,12 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public partial class LaneColumn : CompositeDrawable
 {
-    private readonly Box pressedOverlay;
     private readonly Sprite idleKey;
     private readonly Sprite pressedKey;
+    private readonly SpriteText keyLabel;
+    private readonly float baseLaneWidth;
+    private readonly bool idleKeyFlipped;
+    private readonly bool pressedKeyFlipped;
     private readonly bool showPressFeedback;
 
     internal Container ReceptorLayer { get; }
@@ -27,6 +30,7 @@ public partial class LaneColumn : CompositeDrawable
         bool showPressFeedback = true)
     {
         this.showPressFeedback = showPressFeedback;
+        baseLaneWidth = laneWidth;
         RelativeSizeAxes = Axes.Y;
 
         if (skin == null)
@@ -44,18 +48,12 @@ public partial class LaneColumn : CompositeDrawable
                     Width = 1,
                     Colour = new Color4(1f, 1f, 1f, 0.08f),
                 },
-                pressedOverlay = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(YokkoPalette.Cyan.R, YokkoPalette.Cyan.G, YokkoPalette.Cyan.B, 0.22f),
-                    Alpha = 0,
-                },
             };
             ReceptorLayer = new Container
             {
                 RelativeSizeAxes = Axes.Y,
                 Width = laneWidth,
-                Child = new SpriteText
+                Child = keyLabel = new SpriteText
                 {
                     Anchor = Anchor.BottomCentre,
                     Origin = Anchor.BottomCentre,
@@ -71,12 +69,6 @@ public partial class LaneColumn : CompositeDrawable
         OsuManiaSkinConfiguration configuration = skin.Configuration;
         Texture idleTexture = skin.GetTexture(configuration.KeyImages[lane]);
         Texture pressedTexture = skin.GetTexture(configuration.PressedKeyImages[lane]);
-        pressedOverlay = new Box
-        {
-            RelativeSizeAxes = Axes.Both,
-            Colour = new Color4(1f, 1f, 1f, 0.12f),
-            Alpha = 0,
-        };
         var backgroundChildren = new System.Collections.Generic.List<Drawable>
         {
             new Box
@@ -90,31 +82,34 @@ public partial class LaneColumn : CompositeDrawable
                 Width = configuration.ColumnLineWidths[lane],
                 Colour = configuration.ColumnLineColour,
             },
-            pressedOverlay,
         };
         var receptorChildren = new System.Collections.Generic.List<Drawable>();
 
         if (idleTexture != null)
         {
+            idleKeyFlipped = configuration.UpsideDown
+                             && configuration.KeyFlipWhenUpsideDown[lane];
             receptorChildren.Add(idleKey = createKeySprite(
                 idleTexture,
                 laneWidth,
                 configuration.UpsideDown,
-                configuration.UpsideDown && configuration.KeyFlipWhenUpsideDown[lane]));
+                idleKeyFlipped));
 
             if (pressedTexture != null)
             {
+                pressedKeyFlipped = configuration.UpsideDown
+                                    && configuration.PressedKeyFlipWhenUpsideDown[lane];
                 receptorChildren.Add(pressedKey = createKeySprite(
                     pressedTexture,
                     laneWidth,
                     configuration.UpsideDown,
-                    configuration.UpsideDown && configuration.PressedKeyFlipWhenUpsideDown[lane]));
+                    pressedKeyFlipped));
                 pressedKey.Alpha = 0;
             }
         }
         else
         {
-            receptorChildren.Add(new SpriteText
+            receptorChildren.Add(keyLabel = new SpriteText
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
@@ -134,12 +129,37 @@ public partial class LaneColumn : CompositeDrawable
         };
     }
 
+    public void SetWidthScale(float value)
+    {
+        value = System.Math.Max(0.01f, value);
+        Width = baseLaneWidth * value;
+        ReceptorLayer.Width = baseLaneWidth * value;
+
+        if (idleKey != null)
+        {
+            idleKey.Scale = new Vector2(
+                value,
+                idleKeyFlipped ? -value : value);
+        }
+
+        if (pressedKey != null)
+        {
+            pressedKey.Scale = new Vector2(
+                value,
+                pressedKeyFlipped ? -value : value);
+        }
+
+        if (keyLabel != null)
+        {
+            keyLabel.Y = -26 * value;
+            keyLabel.Scale = new Vector2(value);
+        }
+    }
+
     public void SetPressed(bool pressed)
     {
         if (!showPressFeedback)
             return;
-
-        pressedOverlay.Alpha = pressed ? 1 : 0;
 
         if (pressedKey != null)
         {

@@ -28,10 +28,11 @@ public partial class DrawableNote : CompositeDrawable
     private readonly Sprite holdBody;
     private readonly Sprite holdHead;
     private readonly Sprite holdTail;
-    private readonly float headHeight;
-    private readonly float tailHeight;
-    private readonly float bodyTextureHeight;
-    private readonly float minimumHeight;
+    private readonly float baseWidth;
+    private readonly float baseHeadHeight;
+    private readonly float baseTailHeight;
+    private readonly float baseBodyTextureHeight;
+    private readonly float baseMinimumHeight;
     private readonly int noteBodyStyle;
     private readonly bool upsideDown;
     private readonly bool flipHoldHead;
@@ -41,7 +42,16 @@ public partial class DrawableNote : CompositeDrawable
     private float holdBodyHeight;
     private float holdHeadY;
     private float holdTailY;
+    private float columnScale = 1;
     private bool resolved;
+
+    private float headHeight => baseHeadHeight * columnScale;
+
+    private float tailHeight => baseTailHeight * columnScale;
+
+    private float bodyTextureHeight => baseBodyTextureHeight * columnScale;
+
+    private float minimumHeight => baseMinimumHeight * columnScale;
 
     internal DrawableNote(
         int hitObjectIndex,
@@ -51,11 +61,12 @@ public partial class DrawableNote : CompositeDrawable
     {
         HitObjectIndex = hitObjectIndex;
         this.hitObject = hitObject;
+        baseWidth = laneWidth;
         Width = laneWidth;
 
         if (skin == null)
         {
-            Height = minimumHeight = 24;
+            Height = baseMinimumHeight = 24;
             Masking = true;
 
             InternalChildren = new Drawable[]
@@ -87,7 +98,7 @@ public partial class DrawableNote : CompositeDrawable
 
             if (noteTexture != null)
             {
-                Height = minimumHeight = scaledHeight(
+                Height = baseMinimumHeight = scaledHeight(
                     noteTexture,
                     configuration.WidthForNoteHeightScale,
                     24);
@@ -104,7 +115,7 @@ public partial class DrawableNote : CompositeDrawable
                 return;
             }
 
-            Height = minimumHeight = 24;
+            Height = baseMinimumHeight = 24;
             Masking = true;
             InternalChild = fallbackBody = new Box
             {
@@ -121,13 +132,13 @@ public partial class DrawableNote : CompositeDrawable
             repeatVertically: noteBodyStyle != 0);
         Texture tailTexture = skin.GetTexture(configuration.HoldTailImages[lane]) ?? headTexture;
 
-        headHeight = scaledHeight(headTexture, configuration.WidthForNoteHeightScale, 12);
-        tailHeight = scaledHeight(tailTexture, configuration.WidthForNoteHeightScale, headHeight);
-        bodyTextureHeight = scaledHeight(bodyTexture, configuration.WidthForNoteHeightScale, 1);
+        baseHeadHeight = scaledHeight(headTexture, configuration.WidthForNoteHeightScale, 12);
+        baseTailHeight = scaledHeight(tailTexture, configuration.WidthForNoteHeightScale, baseHeadHeight);
+        baseBodyTextureHeight = scaledHeight(bodyTexture, configuration.WidthForNoteHeightScale, 1);
         flipHoldHead = upsideDown && configuration.HoldHeadFlipWhenUpsideDown[lane];
         flipHoldBody = upsideDown && configuration.HoldBodyFlipWhenUpsideDown[lane];
         flipHoldTail = upsideDown && configuration.HoldTailFlipWhenUpsideDown[lane];
-        Height = minimumHeight = Math.Max(24, headHeight + tailHeight);
+        Height = baseMinimumHeight = Math.Max(24, baseHeadHeight + baseTailHeight);
         Masking = true;
 
         var children = new System.Collections.Generic.List<Drawable>();
@@ -185,6 +196,20 @@ public partial class DrawableNote : CompositeDrawable
     }
 
     public int HitObjectIndex { get; }
+
+    public void SetColumnScale(float value)
+    {
+        value = Math.Max(0.01f, value);
+        float change = value / columnScale;
+        columnScale = value;
+        Width = baseWidth * value;
+        Height *= change;
+        holdBodyY *= change;
+        holdBodyHeight *= change;
+        holdHeadY *= change;
+        holdTailY *= change;
+        updateHoldBody();
+    }
 
     public void ApplyJudgement(JudgementEvent judgement)
     {

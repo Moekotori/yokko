@@ -28,6 +28,9 @@ namespace Yokko.Game.Screens.Gameplay;
 public partial class GameplayScreen : Screen
 {
     private const double leadInMilliseconds = 900;
+    private const float playfieldZoomStep = 0.1f;
+    private const float minimumPlayfieldZoom = 0.2f;
+    private const float maximumPlayfieldZoom = 2.5f;
 
     private readonly YokkoBeatmap beatmap;
     private IAudioEngine audioEngine;
@@ -61,8 +64,11 @@ public partial class GameplayScreen : Screen
     private readonly double completionTimeMilliseconds;
     private readonly double firstObjectTimeMilliseconds;
     private bool introSkipInProgress;
+    private bool introSkipUsed;
+    private double pendingIntroSkipMilliseconds = double.NaN;
     private int replayInputIndex;
     private GameplayReplay completedReplay;
+    private float playfieldWidthScale = 1;
 
     internal bool GameplayBlocked => gameplayBlocked;
     internal bool GameplayCompleted => gameplayCompleted;
@@ -72,6 +78,7 @@ public partial class GameplayScreen : Screen
         !gameplayBlocked
         && !gameplayCompleted
         && !introSkipInProgress
+        && !introSkipUsed
         && IntroSkipTargetMilliseconds > 0
         && currentGameplayTime < IntroSkipTargetMilliseconds;
     internal double IntroSkipTargetMilliseconds =>
@@ -170,7 +177,11 @@ public partial class GameplayScreen : Screen
         startTimeMilliseconds = Time.Current + leadInMilliseconds;
 
         if (hasAudioClock)
-            _ = startAudioAsync();
+        {
+            Scheduler.AddDelayed(
+                () => _ = startAudioAsync(),
+                leadInMilliseconds);
+        }
     }
 
     protected override void Update()
@@ -208,6 +219,14 @@ public partial class GameplayScreen : Screen
 
         float scale = DrawHeight / playfield.Height;
         playfield.Scale = new Vector2(scale);
+    }
+
+    protected override bool OnScroll(ScrollEvent e)
+    {
+        if (HandlePlayfieldZoom(e.ScrollDelta.Y, e.ControlPressed))
+            return true;
+
+        return base.OnScroll(e);
     }
 
     protected override bool OnKeyDown(KeyDownEvent e)
@@ -324,7 +343,17 @@ public partial class GameplayScreen : Screen
                              .ConfigureAwait(true);
 
             if (!audioEngine.Status.IsRunning)
+            {
                 failAudioStart("The audio engine returned without starting playback.");
+                return;
+            }
+
+            if (double.IsFinite(pendingIntroSkipMilliseconds))
+            {
+                double target = pendingIntroSkipMilliseconds;
+                pendingIntroSkipMilliseconds = double.NaN;
+                await seekToIntroAsync(target).ConfigureAwait(true);
+            }
         }
         catch (Exception ex)
         {
@@ -364,9 +393,20 @@ public partial class GameplayScreen : Screen
     {
         get
         {
-            if (hasAudioClock && audioEngine.Status.IsRunning)
-                return audioEngine.PlaybackTimeMilliseconds
-                       + activeUserOffsetMilliseconds;
+            if (hasAudioClock)
+            {
+                if (audioEngine.Status.IsRunning)
+                {
+                    return audioEngine.PlaybackTimeMilliseconds
+                           + activeUserOffsetMilliseconds;
+                }
+
+                // Hold at zero while the audio device opens so its startup
+                // time cannot consume notes at the beginning of a chart.
+                return Math.Min(
+                    0,
+                    Time.Current - startTimeMilliseconds);
+            }
 
             return Time.Current - startTimeMilliseconds;
         }
@@ -582,12 +622,28 @@ public partial class GameplayScreen : Screen
         return true;
     }
 
+    internal bool HandlePlayfieldZoom(
+        float scrollDelta,
+        bool controlPressed)
+    {
+        if (!controlPressed || scrollDelta == 0)
+            return false;
+
+        playfieldWidthScale = Math.Clamp(
+            playfieldWidthScale + Math.Sign(scrollDelta) * playfieldZoomStep,
+            minimumPlayfieldZoom,
+            maximumPlayfieldZoom);
+        playfield.SetWidthScale(playfieldWidthScale);
+        return true;
+    }
+
     internal bool HandleIntroSkip()
     {
         if (!IntroSkipAvailable)
             return false;
 
         double target = IntroSkipTargetMilliseconds;
+        introSkipUsed = true;
 
         if (!hasAudioClock)
         {
@@ -596,6 +652,13 @@ public partial class GameplayScreen : Screen
         }
 
         introSkipInProgress = true;
+
+        if (!audioEngine.Status.IsRunning)
+        {
+            pendingIntroSkipMilliseconds = target;
+            return true;
+        }
+
         _ = seekToIntroAsync(target);
         return true;
     }

@@ -16,6 +16,7 @@ public sealed class NativeAudioEngine : IAudioEngine
     private AudioEngineStartRequest? activeRequest;
     private NativeAudioOutputStatus outputStatus;
     private AudioEngineStatus status = stoppedStatus;
+    private double playbackBaseMilliseconds;
     private bool disposed;
 
     public static bool IsAvailable => NativeAudioLibrary.IsAvailable;
@@ -86,7 +87,8 @@ public sealed class NativeAudioEngine : IAudioEngine
         {
             try
             {
-                return core?.GetStatus().PlaybackTimeMilliseconds ?? 0;
+                return playbackBaseMilliseconds
+                       + (core?.GetStatus().PlaybackTimeMilliseconds ?? 0);
             }
             catch (ObjectDisposedException)
             {
@@ -258,6 +260,8 @@ public sealed class NativeAudioEngine : IAudioEngine
             source ?? throw new InvalidOperationException("Audio source is not open.");
         AudioEngineStartRequest request =
             activeRequest ?? throw new InvalidOperationException("Audio request is missing.");
+        playbackBaseMilliseconds =
+            currentSource.CurrentTime.TotalMilliseconds;
 
         uint preferredBufferFrames = (uint)Math.Clamp(
             request.PreferredBufferSize <= 0 ? 128 : request.PreferredBufferSize,
@@ -444,6 +448,7 @@ public sealed class NativeAudioEngine : IAudioEngine
         source = null;
         activeRequest = null;
         outputStatus = default;
+        playbackBaseMilliseconds = 0;
         status = stoppedStatus;
     }
 

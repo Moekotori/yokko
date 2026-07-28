@@ -47,9 +47,9 @@ namespace Yokko.Game
                 },
                 performanceReadout = new YokkoPerformanceReadout
                 {
-                    Anchor = Anchor.BottomRight,
-                    Origin = Anchor.BottomRight,
-                    Position = new osuTK.Vector2(-18, -14),
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Position = new osuTK.Vector2(0, 12),
                     Depth = float.MinValue,
                 },
             };

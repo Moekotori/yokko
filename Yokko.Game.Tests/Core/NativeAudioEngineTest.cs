@@ -111,6 +111,13 @@ namespace Yokko.Game.Tests.Core
                 Is.GreaterThan(8),
                 "QPC interpolation should avoid a buffer-sized clock staircase.");
 
+            await engine.SeekAsync(1000);
+            double positionAfterSeek = engine.PlaybackTimeMilliseconds;
+            Assert.That(
+                positionAfterSeek,
+                Is.InRange(950, 1250),
+                "The public playback clock must retain the seek base position.");
+
             await engine.StopAsync();
             Assert.That(engine.Status.IsRunning, Is.False);
         }

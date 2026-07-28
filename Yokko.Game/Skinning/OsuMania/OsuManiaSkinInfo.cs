@@ -6,6 +6,8 @@ internal sealed record OsuManiaSkinInfo(
     string Name,
     string Author,
     string Version,
+    string ComboPrefix,
+    int ComboOverlap,
     IReadOnlyDictionary<int, OsuManiaSkinConfiguration> ManiaConfigurations)
 {
     public OsuManiaSkinConfiguration GetConfiguration(int keys) =>

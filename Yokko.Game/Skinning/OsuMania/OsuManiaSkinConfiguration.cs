@@ -14,6 +14,8 @@ internal sealed class OsuManiaSkinConfiguration
         float[] columnSpacings,
         float[] columnLineWidths,
         float hitPosition,
+        float scorePosition,
+        float comboPosition,
         bool upsideDown,
         bool keysUnderNotes,
         int noteBodyStyle,
@@ -25,13 +27,21 @@ internal sealed class OsuManiaSkinConfiguration
         string[] holdHeadImages,
         string[] holdBodyImages,
         string[] holdTailImages,
-        string stageHint)
+        string stageHint,
+        string hit0,
+        string hit50,
+        string hit100,
+        string hit200,
+        string hit300,
+        string hit300g)
     {
         Keys = keys;
         ColumnWidths = columnWidths;
         ColumnSpacings = columnSpacings;
         ColumnLineWidths = columnLineWidths;
         HitPosition = hitPosition;
+        ScorePosition = scorePosition;
+        ComboPosition = comboPosition;
         UpsideDown = upsideDown;
         KeysUnderNotes = keysUnderNotes;
         NoteBodyStyles = Enumerable.Repeat(noteBodyStyle, keys).ToArray();
@@ -44,6 +54,12 @@ internal sealed class OsuManiaSkinConfiguration
         HoldBodyImages = holdBodyImages;
         HoldTailImages = holdTailImages;
         StageHint = stageHint;
+        Hit0 = hit0;
+        Hit50 = hit50;
+        Hit100 = hit100;
+        Hit200 = hit200;
+        Hit300 = hit300;
+        Hit300g = hit300g;
         WidthForNoteHeightScale = columnWidths.Min();
         KeyFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
         PressedKeyFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
@@ -62,6 +78,10 @@ internal sealed class OsuManiaSkinConfiguration
     public float[] ColumnLineWidths { get; }
 
     public float HitPosition { get; }
+
+    public float ScorePosition { get; }
+
+    public float ComboPosition { get; }
 
     public bool UpsideDown { get; }
 
@@ -100,6 +120,18 @@ internal sealed class OsuManiaSkinConfiguration
     public string[] HoldTailImages { get; }
 
     public string StageHint { get; }
+
+    public string Hit0 { get; }
+
+    public string Hit50 { get; }
+
+    public string Hit100 { get; }
+
+    public string Hit200 { get; }
+
+    public string Hit300 { get; }
+
+    public string Hit300g { get; }
 
     public float PlayfieldWidth
     {
@@ -163,6 +195,8 @@ internal sealed class OsuManiaSkinConfiguration
             spacings,
             lineWidths,
             402,
+            325,
+            111,
             false,
             false,
             1,
@@ -174,7 +208,13 @@ internal sealed class OsuManiaSkinConfiguration
             holdHeadImages,
             holdBodyImages,
             holdTailImages,
-            "mania-stage-hint");
+            "mania-stage-hint",
+            "mania-hit0",
+            "mania-hit50",
+            "mania-hit100",
+            "mania-hit200",
+            "mania-hit300",
+            "mania-hit300g");
     }
 
     private static string[] defaultStyles(int keys)

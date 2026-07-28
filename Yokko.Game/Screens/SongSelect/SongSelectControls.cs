@@ -140,9 +140,15 @@ internal partial class SongSelectSongRow : ClickableContainer
 {
     private readonly Box tint;
     private readonly Box selectionLine;
+    private readonly Box selectionTopCap;
+    private readonly Box selectionBottomCap;
+    private readonly Box selectedTopBorder;
+    private readonly Box selectedBottomBorder;
     private readonly SpriteIcon selectionArrow;
+    private readonly Container thumbnail;
     private readonly SpriteText title;
     private readonly SpriteText metadata;
+    private readonly SpriteText mapper;
     private bool selected;
 
     public SongSelectEntry Entry { get; }
@@ -176,7 +182,7 @@ internal partial class SongSelectSongRow : ClickableContainer
                     },
                 },
             },
-            new Container
+            thumbnail = new Container
             {
                 Position = new Vector2(0, 2),
                 Size = new Vector2(100, 80),
@@ -195,6 +201,20 @@ internal partial class SongSelectSongRow : ClickableContainer
             {
                 RelativeSizeAxes = Axes.Y,
                 Width = 5,
+                Colour = SongSelectTheme.Yellow,
+                Alpha = 0,
+            },
+            selectionTopCap = new Box
+            {
+                Size = new Vector2(20, 4),
+                Colour = SongSelectTheme.Yellow,
+                Alpha = 0,
+            },
+            selectionBottomCap = new Box
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                Size = new Vector2(20, 4),
                 Colour = SongSelectTheme.Yellow,
                 Alpha = 0,
             },
@@ -218,6 +238,8 @@ internal partial class SongSelectSongRow : ClickableContainer
                     title = new SpriteText
                     {
                         Y = 10,
+                        Width = 300,
+                        Truncate = true,
                         Text = entry.Beatmap.Title,
                         Font = HomeTypography.Display(24),
                         Colour = SongSelectTheme.Ivory,

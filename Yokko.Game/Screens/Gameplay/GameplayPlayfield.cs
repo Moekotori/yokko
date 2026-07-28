@@ -25,6 +25,12 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly ScrollSpeedFactorMap[] noteScrollSpeedFactorMaps;
     private readonly float topY;
     private readonly float judgementY;
+    private readonly float basePlayfieldWidth;
+    private readonly float[] baseLaneXs;
+    private readonly float[] baseNoteXs;
+    private readonly Sprite stageHintSprite;
+    private readonly float baseStageHintHeight;
+    private readonly OsuManiaSkinOverlay skinOverlay;
 
     internal float ScrollOrigin => topY;
 
@@ -59,6 +65,9 @@ public partial class GameplayPlayfield : CompositeDrawable
         OsuManiaSkinConfiguration configuration = skin?.Configuration;
         float playfieldWidth = configuration?.PlayfieldWidth ?? (keyCount == 4 ? 424 : 658);
         float laneWidth = skin == null ? playfieldWidth / keyCount : 0;
+        basePlayfieldWidth = playfieldWidth;
+        baseLaneXs = new float[keyCount];
+        baseNoteXs = new float[beatmap.HitObjects.Count];
 
         topY = skin == null
             ? 28
@@ -76,6 +85,7 @@ public partial class GameplayPlayfield : CompositeDrawable
                                 {
                                     float width = configuration?.ColumnWidths[lane] ?? laneWidth;
                                     float x = configuration?.GetLaneX(lane) ?? lane * laneWidth;
+                                    baseLaneXs[lane] = x;
                                     var column = new LaneColumn(
                                         lane,
                                         keyBindings.GetDisplayKey(lane),
@@ -94,9 +104,11 @@ public partial class GameplayPlayfield : CompositeDrawable
         noteDrawables = beatmap.HitObjects.Select((hitObject, index) =>
         {
             float width = configuration?.ColumnWidths[hitObject.Lane] ?? laneWidth - 16;
+            float x = configuration?.GetLaneX(hitObject.Lane) ?? hitObject.Lane * laneWidth + 8;
+            baseNoteXs[index] = x;
             return new DrawableNote(index, hitObject, width, skin)
             {
-                X = configuration?.GetLaneX(hitObject.Lane) ?? hitObject.Lane * laneWidth + 8,
+                X = x,
             };
         }).ToArray();
         noteScrollVelocityMaps = beatmap.HitObjects.Select(hitObject =>
@@ -158,15 +170,16 @@ public partial class GameplayPlayfield : CompositeDrawable
 
         if (stageHint != null)
         {
-            children.Add(new Sprite
+            baseStageHintHeight = stageHint.DisplayWidth > 0
+                ? stageHint.DisplayHeight * playfieldWidth / stageHint.DisplayWidth
+                : 1;
+            children.Add(stageHintSprite = new Sprite
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.Centre,
                 RelativeSizeAxes = Axes.X,
                 Width = 1,
-                Height = stageHint.DisplayWidth > 0
-                    ? stageHint.DisplayHeight * playfieldWidth / stageHint.DisplayWidth
-                    : 1,
+                Height = baseStageHintHeight,
                 Y = judgementY,
                 Texture = stageHint,
             });
@@ -192,6 +205,10 @@ public partial class GameplayPlayfield : CompositeDrawable
                 Colour = new Color4(1f, 1f, 1f, 0.18f),
             });
         }
+        else
+        {
+            children.Add(skinOverlay = new OsuManiaSkinOverlay(skin));
+        }
 
         InternalChildren = children.ToArray();
     }
@@ -210,6 +227,8 @@ public partial class GameplayPlayfield : CompositeDrawable
             or JudgementPhase.HoldBody)
             return;
 
+        skinOverlay?.ShowJudgement(judgement);
+
         if ((uint)judgement.HitObjectIndex >= noteDrawables.Length)
             return;
 
@@ -219,8 +238,35 @@ public partial class GameplayPlayfield : CompositeDrawable
     public void SetApproachTime(double value) =>
         approachTimeMilliseconds = Math.Max(1, value);
 
+    public void SetWidthScale(float value)
+    {
+        value = Math.Max(0.01f, value);
+        Width = basePlayfieldWidth * value;
+
+        for (int i = 0; i < laneColumns.Length; i++)
+        {
+            float x = baseLaneXs[i] * value;
+            laneColumns[i].X = x;
+            laneColumns[i].SetWidthScale(value);
+            laneColumns[i].ReceptorLayer.X = x;
+        }
+
+        for (int i = 0; i < noteDrawables.Length; i++)
+        {
+            noteDrawables[i].X = baseNoteXs[i] * value;
+            noteDrawables[i].SetColumnScale(value);
+        }
+
+        if (stageHintSprite != null)
+            stageHintSprite.Height = baseStageHintHeight * value;
+
+        skinOverlay?.SetPlayfieldScale(value);
+    }
+
     public void UpdateGameplayTime(double gameplayTimeMilliseconds, BeatmapJudgementState state)
     {
+        skinOverlay?.SetCombo(state.Combo);
+
         for (int i = 0; i < noteDrawables.Length; i++)
             noteDrawables[i].UpdatePosition(
                 gameplayTimeMilliseconds,

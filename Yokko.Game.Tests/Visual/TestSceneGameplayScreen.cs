@@ -91,6 +91,90 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestControlScrollZoomsPlayfield()
+        {
+            GameplayScreen gameplayScreen = null;
+            float defaultScale = 0;
+
+            AddUntilStep("gameplay layout loaded", () =>
+                (gameplayScreen = screenStack.CurrentScreen as GameplayScreen)?
+                .ChildrenOfType<GameplayPlayfield>()
+                .SingleOrDefault() != null);
+            AddStep("capture default scale", () =>
+                defaultScale = gameplayScreen
+                               .ChildrenOfType<GameplayPlayfield>()
+                               .Single()
+                               .Scale.X);
+            AddAssert("plain scroll is ignored", () =>
+                gameplayScreen.HandlePlayfieldZoom(1, false) == false);
+            AddAssert("plain scroll keeps scale", () =>
+                Math.Abs(
+                    gameplayScreen
+                    .ChildrenOfType<GameplayPlayfield>()
+                    .Single()
+                    .Scale.X - defaultScale) < 0.001);
+            AddAssert("control scroll up is handled", () =>
+                gameplayScreen.HandlePlayfieldZoom(1, true));
+            AddAssert("playfield becomes larger", () =>
+                gameplayScreen
+                .ChildrenOfType<GameplayPlayfield>()
+                .Single()
+                .Scale.X > defaultScale);
+            AddAssert("control scroll down is handled", () =>
+                gameplayScreen.HandlePlayfieldZoom(-1, true));
+            AddAssert("playfield returns to default scale", () =>
+                Math.Abs(
+                    gameplayScreen
+                    .ChildrenOfType<GameplayPlayfield>()
+                    .Single()
+                    .Scale.X - defaultScale) < 0.001);
+            AddStep("scroll repeatedly towards maximum", () =>
+            {
+                for (int i = 0; i < 100; i++)
+                    gameplayScreen.HandlePlayfieldZoom(1, true);
+            });
+            AddAssert("zoom stops at 250 percent", () =>
+            {
+                GameplayPlayfield playfield = gameplayScreen
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .Single();
+                float maximumScale = playfield.Scale.X;
+                gameplayScreen.HandlePlayfieldZoom(1, true);
+                return Math.Abs(maximumScale - defaultScale * 2.5f) < 0.001
+                       && Math.Abs(playfield.Scale.X - maximumScale) < 0.001
+                       && Math.Abs(playfield.Scale.X - playfield.Scale.Y) < 0.001;
+            });
+            AddStep("scroll repeatedly towards minimum", () =>
+            {
+                for (int i = 0; i < 100; i++)
+                    gameplayScreen.HandlePlayfieldZoom(-1, true);
+            });
+            AddAssert("zoom stops safely at 20 percent", () =>
+            {
+                GameplayPlayfield playfield = gameplayScreen
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .Single();
+                float minimumScale = playfield.Scale.X;
+                gameplayScreen.HandlePlayfieldZoom(-1, true);
+                return Math.Abs(minimumScale - defaultScale * 0.2f) < 0.001
+                       && Math.Abs(playfield.Scale.X - minimumScale) < 0.001
+                       && playfield.Scale.X > 0
+                       && Math.Abs(playfield.Scale.X - playfield.Scale.Y) < 0.001;
+            });
+            AddStep("restore default zoom", () =>
+            {
+                for (int i = 0; i < 8; i++)
+                    gameplayScreen.HandlePlayfieldZoom(1, true);
+            });
+            AddAssert("zoom returns exactly to default", () =>
+                Math.Abs(
+                    gameplayScreen
+                    .ChildrenOfType<GameplayPlayfield>()
+                    .Single()
+                    .Scale.X - defaultScale) < 0.001);
+        }
+
+        [Test]
         public void TestAudioFailureStopsGameplayAndShowsMessage()
         {
             YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
@@ -468,8 +552,27 @@ HitPosition: 400
                 Math.Abs(
                     audioEngine.LastSeekMilliseconds
                     - gameplayScreen.IntroSkipTargetMilliseconds) < 0.01);
+            AddAssert("second skip is rejected", () =>
+                gameplayScreen.HandleIntroSkip() == false);
             AddAssert("intro is no longer skippable", () =>
                 gameplayScreen.IntroSkipAvailable == false);
+        }
+
+        [Test]
+        public void TestAudioStartsAfterGameplayLeadIn()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                AudioPath = "lead-in-fixture.mp3",
+            };
+
+            AddStep("open gameplay with audio", () =>
+                screenStack.Push(new GameplayScreen(beatmap, audioEngine)));
+            AddAssert("audio does not start immediately", () =>
+                audioEngine.StartCount == 0);
+            AddUntilStep("audio starts after lead-in", () =>
+                audioEngine.StartCount == 1);
         }
 
         private static string createTestSkin()
@@ -593,6 +696,8 @@ StageHint: stage-hint
 
             public double LastSeekMilliseconds { get; private set; } = double.NaN;
 
+            public int StartCount { get; private set; }
+
             public IReadOnlyList<AudioBackendCapabilities> Backends => [];
 
             public ValueTask<IReadOnlyList<AudioDeviceInfo>> GetOutputDevicesAsync(
@@ -603,6 +708,7 @@ StageHint: stage-hint
                 AudioEngineStartRequest request,
                 CancellationToken cancellationToken = default)
             {
+                StartCount++;
                 status = createStatus(true);
                 return ValueTask.CompletedTask;
             }
@@ -615,8 +721,11 @@ StageHint: stage-hint
                 double timeMilliseconds,
                 CancellationToken cancellationToken = default)
             {
-                PlaybackTimeMilliseconds =
-                    LastSeekMilliseconds = timeMilliseconds;
+                // Model an engine whose post-seek clock is relative to the
+                // newly-created playback core. Gameplay must still treat the
+                // intro skip as a one-shot action.
+                PlaybackTimeMilliseconds = 0;
+                LastSeekMilliseconds = timeMilliseconds;
                 return ValueTask.CompletedTask;
             }
 
