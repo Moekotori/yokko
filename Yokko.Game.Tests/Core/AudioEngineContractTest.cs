@@ -18,6 +18,7 @@ namespace Yokko.Game.Tests.Core
             await engine.StopAsync();
 
             Assert.That(engine.PlaybackTimeMilliseconds, Is.EqualTo(0));
+            Assert.That(engine.DurationMilliseconds, Is.EqualTo(0));
             Assert.That(engine.Status.IsRunning, Is.False);
         }
 

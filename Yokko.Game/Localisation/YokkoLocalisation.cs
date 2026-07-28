@@ -67,6 +67,8 @@ internal static class YokkoStrings
             ["main.settings"] = new("Settings", "设置", "設定"),
             ["main.lets_play"] = new("Let's play!", "开始吧！", "遊ぼう！"),
             ["main.audio_unavailable"] = new("Audio unavailable", "音频不可用", "オーディオ利用不可"),
+            ["main.music_no_songs"] = new("No imported songs", "暂无导入歌曲", "インポート曲なし"),
+            ["main.music_import_hint"] = new("Drop a chart file to listen", "拖入谱面即可播放", "譜面をドロップして再生"),
             ["main.hold_esc_exit"] = new("Hold Esc 5s to exit", "长按 Esc 5 秒退出", "Esc を5秒長押しで終了"),
             ["main.bubble_again"] = new("Again! Again!", "再来一次！", "もう一回！"),
             ["main.bubble_pick_song"] = new("Pick a song~", "选首歌吧~", "曲を選んで〜"),
@@ -108,6 +110,13 @@ internal static class YokkoStrings
             ["song_select.my_record"] = new("MY RECORD", "个人分数", "MY RECORD"),
             ["song_select.you"] = new("YOU", "你", "自分"),
             ["song_select.length"] = new("LENGTH", "时长", "長さ"),
+
+            ["gameplay.pause.title"] = new("Paused", "暂停中", "一時停止"),
+            ["gameplay.pause.resume"] = new("Resume", "继续游戏", "ゲームに戻る"),
+            ["gameplay.pause.resume_hint"] = new("ESC  RESUME", "ESC  继续", "ESC  再開"),
+            ["gameplay.pause.retry"] = new("Restart", "重新开始", "リスタート"),
+            ["gameplay.pause.settings"] = new("Settings", "设置", "設定"),
+            ["gameplay.pause.exit"] = new("Exit play", "退出游玩", "選曲へ戻る"),
 
             ["gameplay.result.title"] = new("Result", "结算", "リザルト"),
             ["gameplay.result.max_combo"] = new("MAX COMBO", "最大连击", "MAX COMBO"),

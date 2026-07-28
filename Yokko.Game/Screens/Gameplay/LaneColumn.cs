@@ -53,7 +53,7 @@ public partial class LaneColumn : CompositeDrawable
             {
                 RelativeSizeAxes = Axes.Y,
                 Width = laneWidth,
-                Child = keyLabel = new SpriteText
+                Child = this.keyLabel = new SpriteText
                 {
                     Anchor = Anchor.BottomCentre,
                     Origin = Anchor.BottomCentre,
@@ -109,7 +109,7 @@ public partial class LaneColumn : CompositeDrawable
         }
         else
         {
-            receptorChildren.Add(keyLabel = new SpriteText
+            receptorChildren.Add(this.keyLabel = new SpriteText
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,

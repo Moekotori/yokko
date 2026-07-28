@@ -22,6 +22,8 @@ public sealed class NullAudioEngine : IAudioEngine
 
     public double PlaybackTimeMilliseconds => 0;
 
+    public double DurationMilliseconds => 0;
+
     public IReadOnlyList<AudioBackendCapabilities> Backends { get; } =
     [
         new(AudioBackendKind.Fallback, false, false, false, "No native audio backend is available.", false),

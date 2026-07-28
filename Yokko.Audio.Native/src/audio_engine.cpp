@@ -392,8 +392,10 @@ namespace yokko::audio
 
     double AudioEngine::playback_time_milliseconds() const noexcept
     {
-        uint64_t presented_position =
-            device_frames_rendered_.load(std::memory_order_acquire);
+        // Frames submitted to the endpoint are not necessarily audible yet.
+        // Keep the public clock at the stream origin until IAudioClock reports
+        // the first device-presented position.
+        uint64_t presented_position = 0;
 
         if (has_reported_presented_position_.load(std::memory_order_acquire))
         {

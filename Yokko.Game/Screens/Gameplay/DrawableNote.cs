@@ -200,15 +200,11 @@ public partial class DrawableNote : CompositeDrawable
     public void SetColumnScale(float value)
     {
         value = Math.Max(0.01f, value);
-        float change = value / columnScale;
         columnScale = value;
         Width = baseWidth * value;
-        Height *= change;
-        holdBodyY *= change;
-        holdBodyHeight *= change;
-        holdHeadY *= change;
-        holdTailY *= change;
-        updateHoldBody();
+
+        if (hitObject.Kind == HitObjectKind.Tap)
+            Height = minimumHeight;
     }
 
     public void ApplyJudgement(JudgementEvent judgement)

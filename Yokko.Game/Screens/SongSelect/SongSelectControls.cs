@@ -145,6 +145,7 @@ internal partial class SongSelectSongRow : ClickableContainer
     private readonly Box selectedTopBorder;
     private readonly Box selectedBottomBorder;
     private readonly SpriteIcon selectionArrow;
+    private readonly Container rowBackground;
     private readonly Container thumbnail;
     private readonly SpriteText title;
     private readonly SpriteText metadata;
@@ -161,7 +162,7 @@ internal partial class SongSelectSongRow : ClickableContainer
 
         InternalChildren = new Drawable[]
         {
-            new Container
+            rowBackground = new Container
             {
                 RelativeSizeAxes = Axes.Both,
                 Masking = true,
@@ -199,13 +200,16 @@ internal partial class SongSelectSongRow : ClickableContainer
             },
             selectionLine = new Box
             {
+                X = 13,
                 RelativeSizeAxes = Axes.Y,
                 Width = 5,
+                Rotation = 8,
                 Colour = SongSelectTheme.Yellow,
                 Alpha = 0,
             },
             selectionTopCap = new Box
             {
+                X = 13,
                 Size = new Vector2(20, 4),
                 Colour = SongSelectTheme.Yellow,
                 Alpha = 0,
@@ -238,55 +242,78 @@ internal partial class SongSelectSongRow : ClickableContainer
                     title = new SpriteText
                     {
                         Y = 10,
-                        Width = 300,
+                        Width = 255,
                         Truncate = true,
                         Text = entry.Beatmap.Title,
-                        Font = HomeTypography.Display(24),
+                        Font = HomeTypography.Display(22),
                         Colour = SongSelectTheme.Ivory,
                     },
                     new SpriteText
                     {
-                        Y = 42,
+                        Y = 37,
+                        Width = 240,
+                        Truncate = true,
                         Text = entry.Beatmap.Artist,
                         Font = HomeTypography.Body(15),
                         Colour = SongSelectTheme.Ivory,
+                    },
+                    mapper = new SpriteText
+                    {
+                        Y = 58,
+                        Width = 240,
+                        Truncate = true,
+                        Text = $"mapped by {entry.Beatmap.Creator}",
+                        Font = HomeTypography.Body(13),
+                        Colour = SongSelectTheme.PaleCyan,
                     },
                     metadata = new SpriteText
                     {
                         Anchor = Anchor.TopRight,
                         Origin = Anchor.TopRight,
                         Y = 13,
+                        Width = 180,
+                        Truncate = true,
                         Text = $"{(int)entry.Beatmap.KeyMode}K · {entry.Beatmap.DifficultyName}",
                         Font = HomeTypography.Display(14),
-                        Colour = SongSelectTheme.Pink,
+                        Colour = entry.Beatmap.DifficultyName.Contains("Insane", StringComparison.OrdinalIgnoreCase)
+                            ? new Color4(0.55f, 0.36f, 1f, 1f)
+                            : SongSelectTheme.Pink,
                     },
-                    new FillFlowContainer
+                    createRowStarRating(entry.StarRating),
+                    new SpriteIcon
                     {
-                        Anchor = Anchor.BottomRight,
-                        Origin = Anchor.BottomRight,
-                        Y = -10,
-                        AutoSizeAxes = Axes.Both,
-                        Direction = FillDirection.Horizontal,
-                        Spacing = new Vector2(7, 0),
-                        Children = new Drawable[]
-                        {
-                            new SpriteText
-                            {
-                                Text = entry.StarRating.ToString("0.00"),
-                                Font = HomeTypography.Display(18),
-                                Colour = SongSelectTheme.Ivory,
-                            },
-                            new SpriteIcon
-                            {
-                                Anchor = Anchor.CentreLeft,
-                                Origin = Anchor.CentreLeft,
-                                Size = new Vector2(16),
-                                Icon = FontAwesome.Solid.Star,
-                                Colour = SongSelectTheme.Yellow,
-                            },
-                        },
+                        Anchor = Anchor.CentreRight,
+                        Origin = Anchor.CentreRight,
+                        X = -3,
+                        Size = new Vector2(12),
+                        Icon = FontAwesome.Solid.EllipsisV,
+                        Colour = SongSelectTheme.Ivory,
                     },
                 },
+            },
+            new Box
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                RelativeSizeAxes = Axes.X,
+                Height = 1,
+                Colour = new Color4(1f, 1f, 1f, 0.45f),
+            },
+            selectedTopBorder = new Box
+            {
+                RelativeSizeAxes = Axes.X,
+                Height = 2,
+                Colour = SongSelectTheme.Ivory,
+                Alpha = 0,
+            },
+            selectedBottomBorder = new Box
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                RelativeSizeAxes = Axes.X,
+                Height = 2,
+                Colour = SongSelectTheme.Ivory,
+                Alpha = 0,
             },
         };
 
@@ -299,7 +326,13 @@ internal partial class SongSelectSongRow : ClickableContainer
     {
         selected = value;
         selectionLine.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
+        selectionTopCap.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
+        selectionBottomCap.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
+        selectedTopBorder.FadeTo(selected ? 0.9f : 0, 120, Easing.OutQuint);
+        selectedBottomBorder.FadeTo(selected ? 0.9f : 0, 120, Easing.OutQuint);
         selectionArrow.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
+        rowBackground.Shear = selected ? new Vector2(-0.16f, 0) : Vector2.Zero;
+        thumbnail.Shear = selected ? new Vector2(-0.13f, 0) : Vector2.Zero;
         tint.FadeColour(
             selected
                 ? new Color4(SongSelectTheme.Navy.R, SongSelectTheme.Navy.G, SongSelectTheme.Navy.B, 0.56f)
@@ -307,8 +340,10 @@ internal partial class SongSelectSongRow : ClickableContainer
             150,
             Easing.OutQuint);
         this.ResizeHeightTo(selected ? 92 : 84, 170, Easing.OutQuint);
+        thumbnail.ResizeHeightTo(selected ? 88 : 80, 170, Easing.OutQuint);
         this.MoveToX(selected ? -30 : 0, 170, Easing.OutQuint);
-        title.Font = HomeTypography.Display(selected ? 27 : 24);
+        title.Font = HomeTypography.Display(selected ? 25 : 22);
+        mapper.Colour = selected ? SongSelectTheme.Yellow : SongSelectTheme.PaleCyan;
     }
 
     protected override bool OnHover(HoverEvent e)
@@ -323,6 +358,53 @@ internal partial class SongSelectSongRow : ClickableContainer
     {
         DoubleClickAction?.Invoke();
         return true;
+    }
+
+    private static Drawable createRowStarRating(double rating)
+    {
+        var children = new List<Drawable>
+        {
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Text = rating.ToString("0.00"),
+                Font = HomeTypography.Display(18),
+                Colour = SongSelectTheme.Ivory,
+            },
+        };
+
+        for (int i = 0; i < 5; i++)
+        {
+            children.Add(new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Size = new Vector2(16),
+                Icon = FontAwesome.Solid.Star,
+                Colour = SongSelectTheme.Yellow,
+            });
+        }
+
+        children.Add(new SpriteIcon
+        {
+            Anchor = Anchor.CentreLeft,
+            Origin = Anchor.CentreLeft,
+            Size = new Vector2(16),
+            Icon = FontAwesome.Regular.Star,
+            Colour = SongSelectTheme.Ivory,
+        });
+
+        return new FillFlowContainer
+        {
+            Anchor = Anchor.BottomRight,
+            Origin = Anchor.BottomRight,
+            Position = new Vector2(-28, -9),
+            AutoSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+            Spacing = new Vector2(5, 0),
+            Children = children,
+        };
     }
 }
 

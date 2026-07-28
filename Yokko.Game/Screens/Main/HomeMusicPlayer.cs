@@ -1,36 +1,61 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osu.Framework.Logging;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Audio;
+using Yokko.Game.Audio;
+using Yokko.Game.Importing;
+using Yokko.Game.Localisation;
 
 namespace Yokko.Game.Screens.Main;
 
 /// <summary>
-/// 主页角落的紧凑音乐播放器，交互参考 osu!lazer 的 MusicController：
-/// 上一首 / 播放暂停 / 下一首、进度条、播放时漂浮音符。
-/// 目前项目内还没有音频资源，播放进度由内置演示曲目驱动（无声）；
-/// 接入真实音频时，把 <see cref="currentProgress"/> 换成 ITrackStore 的
-/// CurrentTime / Length，并在切歌时加载对应 Track 即可。
+/// 主页角落的紧凑音乐播放器，播放导入谱面所引用的真实歌曲。
 /// </summary>
 public partial class HomeMusicPlayer : CompositeDrawable
 {
-    private sealed record DemoTrack(string Title, string Artist, int Bpm, double Length);
+    private sealed record ImportedHomeTrack(
+        string AudioPath,
+        string Title,
+        string Artist,
+        double Bpm,
+        double FallbackLength);
 
-    private static readonly DemoTrack[] tracks =
-    {
-        new("Pulse Bloom", "Sana Kagano", 174, 154_000),
-        new("Neon Drift", "Yokko Sound Team", 160, 128_000),
-        new("Binary Bloom", "Ctrl+Beat", 148, 141_000),
-    };
+    private static readonly string[] supportedAudioExtensions =
+    [
+        ".mp3",
+        ".ogg",
+        ".wav",
+    ];
 
-    private int trackIndex;
-    private bool isPlaying = true;
-    private double resumedAt;
-    private double progressBeforePause;
+    [Resolved]
+    private ImportedChartLibrary importedChartLibrary { get; set; }
+
+    [Resolved]
+    private YokkoAudioSettings audioSettings { get; set; }
+
+    private readonly object audioQueueLock = new();
+    private IReadOnlyList<ImportedHomeTrack> tracks = [];
+    private Task audioQueue = Task.CompletedTask;
+    private IAudioEngine audioEngine;
+    private int trackIndex = -1;
+    private int playbackGeneration;
+    private bool desiredPlaying = true;
+    private bool screenActive;
+    private bool disposed;
+    private string loadedAudioPath;
+    private double pausedProgress;
+    private double currentLength;
 
     private SpriteText titleText;
     private SpriteText artistText;
@@ -127,7 +152,9 @@ public partial class HomeMusicPlayer : CompositeDrawable
             titleText = new SpriteText
             {
                 Position = new Vector2(74, 10),
-                Text = tracks[0].Title,
+                Width = 230,
+                Truncate = true,
+                Text = YokkoStrings.Get("main.music_no_songs"),
                 Font = HomeTypography.Display(19),
                 Colour = HomeControlColours.Navy,
             },
@@ -150,7 +177,9 @@ public partial class HomeMusicPlayer : CompositeDrawable
                     {
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.CentreLeft,
-                        Text = tracks[0].Artist,
+                        Width = 135,
+                        Truncate = true,
+                        Text = YokkoStrings.Get("main.music_import_hint"),
                         Font = HomeTypography.Body(13),
                         Colour = new Color4(0.18f, 0.28f, 0.58f, 1f),
                     },
@@ -158,7 +187,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
                     {
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.CentreLeft,
-                        Text = $"· {tracks[0].Bpm} BPM",
+                        Text = string.Empty,
                         Font = HomeTypography.Body(13),
                         Colour = new Color4(0.18f, 0.28f, 0.58f, 0.75f),
                     },
@@ -176,7 +205,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
                 Origin = Anchor.Centre,
                 X = -30,
             },
-            playPauseButton = new PlayerButton(FontAwesome.Solid.Pause, togglePlayPause, isPrimary: true)
+            playPauseButton = new PlayerButton(FontAwesome.Solid.Play, togglePlayPause, isPrimary: true)
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.Centre,
@@ -185,57 +214,307 @@ public partial class HomeMusicPlayer : CompositeDrawable
         };
     }
 
+    [BackgroundDependencyLoader]
+    private void load()
+    {
+        audioEngine = AudioEngineFactory.CreateDefault();
+        importedChartLibrary.LibraryChanged += onChartLibraryChanged;
+        refreshPlaylist();
+    }
+
     protected override void LoadComplete()
     {
         base.LoadComplete();
-
-        resumedAt = Time.Current;
-
-        // 播放中周期性飘出音符。
         Scheduler.AddDelayed(spawnNote, 1100, true);
     }
 
-    private double currentProgress => isPlaying
-        ? progressBeforePause + (Time.Current - resumedAt)
-        : progressBeforePause;
+    internal void Activate()
+    {
+        screenActive = true;
+        if (desiredPlaying)
+            startOrResumeCurrentTrack();
+    }
+
+    internal void Deactivate()
+    {
+        screenActive = false;
+        pausePlayback();
+    }
+
+    private double currentProgress =>
+        audioEngine?.Status.IsRunning == true
+            ? audioEngine.PlaybackTimeMilliseconds
+            : pausedProgress;
 
     private void togglePlayPause()
     {
-        if (isPlaying)
-        {
-            progressBeforePause = currentProgress;
-            isPlaying = false;
-            playPauseButton.Icon.Icon = FontAwesome.Solid.Play;
-        }
+        if (tracks.Count == 0 || !screenActive)
+            return;
+
+        desiredPlaying = !desiredPlaying;
+        playPauseButton.Icon.Icon = desiredPlaying
+            ? FontAwesome.Solid.Pause
+            : FontAwesome.Solid.Play;
+
+        if (desiredPlaying)
+            startOrResumeCurrentTrack();
         else
-        {
-            resumedAt = Time.Current;
-            isPlaying = true;
-            playPauseButton.Icon.Icon = FontAwesome.Solid.Pause;
-        }
+            pausePlayback();
     }
 
-    private void nextTrack() => switchTrack((trackIndex + 1) % tracks.Length);
+    private void nextTrack()
+    {
+        if (tracks.Count > 0)
+            switchTrack((trackIndex + 1) % tracks.Count);
+    }
 
-    private void previousTrack() => switchTrack((trackIndex + tracks.Length - 1) % tracks.Length);
+    private void previousTrack()
+    {
+        if (tracks.Count > 0)
+            switchTrack((trackIndex + tracks.Count - 1) % tracks.Count);
+    }
 
     private void switchTrack(int index)
     {
         trackIndex = index;
-        progressBeforePause = 0;
-        resumedAt = Time.Current;
+        pausedProgress = 0;
+        currentLength = tracks[index].FallbackLength;
+        playbackGeneration++;
+        updateTrackDisplay(tracks[index], true);
 
-        titleText.Text = tracks[index].Title;
-        artistText.Text = tracks[index].Artist;
-        bpmText.Text = $"· {tracks[index].Bpm} BPM";
+        if (screenActive && desiredPlaying)
+            startOrResumeCurrentTrack();
+        else
+            playPauseButton.Icon.Icon = FontAwesome.Solid.Play;
+    }
+
+    private void startOrResumeCurrentTrack()
+    {
+        if (disposed
+            || !screenActive
+            || !desiredPlaying
+            || trackIndex < 0
+            || trackIndex >= tracks.Count)
+            return;
+
+        ImportedHomeTrack track = tracks[trackIndex];
+        int generation = playbackGeneration;
+        bool canSeek = pausedProgress > 0
+                       && string.Equals(
+                           loadedAudioPath,
+                           track.AudioPath,
+                           StringComparison.OrdinalIgnoreCase);
+        double resumeAt = canSeek ? pausedProgress : 0;
+
+        playPauseButton.Icon.Icon = FontAwesome.Solid.Pause;
+        enqueueAudioOperation(async () =>
+        {
+            if (generation != playbackGeneration)
+                return;
+
+            if (canSeek)
+                await audioEngine.SeekAsync(resumeAt).ConfigureAwait(false);
+            else
+                await audioEngine.StartAsync(
+                    audioSettings.CreateStartRequest(track.AudioPath))
+                                 .ConfigureAwait(false);
+
+            if (!audioEngine.Status.IsRunning)
+                throw new InvalidOperationException(
+                    "The home music audio engine returned without starting playback.");
+
+            double duration = audioEngine.DurationMilliseconds;
+            Scheduler.Add(() =>
+            {
+                if (disposed || generation != playbackGeneration)
+                    return;
+
+                loadedAudioPath = track.AudioPath;
+                pausedProgress = resumeAt;
+                if (duration > 0)
+                    currentLength = duration;
+            });
+        }, generation);
+    }
+
+    private void pausePlayback()
+    {
+        if (audioEngine == null)
+            return;
+
+        pausedProgress = currentProgress;
+        enqueueAudioOperation(
+            () => audioEngine.PauseAsync().AsTask(),
+            playbackGeneration);
+    }
+
+    private void refreshPlaylist()
+    {
+        if (disposed)
+            return;
+
+        string previousAudioPath = trackIndex >= 0 && trackIndex < tracks.Count
+            ? tracks[trackIndex].AudioPath
+            : null;
+        ImportedHomeTrack[] refreshed = importedChartLibrary
+                                       .GetCharts()
+                                       .Select(chart => chart.Result.Beatmap)
+                                       .Where(beatmap =>
+                                           isPlayableAudioPath(beatmap.AudioPath))
+                                       .GroupBy(
+                                           beatmap => Path.GetFullPath(beatmap.AudioPath),
+                                           StringComparer.OrdinalIgnoreCase)
+                                       .Select(group =>
+                                       {
+                                           var beatmap = group.First();
+                                           double bpm = beatmap.TimingPoints
+                                                               .Where(point =>
+                                                                   point.Uninherited
+                                                                   && point.BeatsPerMinute > 0)
+                                                               .Select(point =>
+                                                                   point.BeatsPerMinute)
+                                                               .FirstOrDefault();
+                                           double length = beatmap.HitObjects.Count == 0
+                                               ? 0
+                                               : beatmap.HitObjects.Max(hitObject =>
+                                                   hitObject.EndTimeMilliseconds
+                                                   ?? hitObject.StartTimeMilliseconds);
+
+                                           return new ImportedHomeTrack(
+                                               group.Key,
+                                               beatmap.Title,
+                                               beatmap.Artist,
+                                               bpm,
+                                               Math.Max(0, length));
+                                       })
+                                       .ToArray();
+
+        tracks = refreshed;
+        if (tracks.Count == 0)
+        {
+            trackIndex = -1;
+            pausedProgress = 0;
+            currentLength = 0;
+            loadedAudioPath = null;
+            playbackGeneration++;
+            showEmptyState();
+            enqueueAudioOperation(
+                () => audioEngine.StopAsync().AsTask(),
+                playbackGeneration);
+            return;
+        }
+
+        int preservedIndex = previousAudioPath == null
+            ? -1
+            : Array.FindIndex(
+                refreshed,
+                track => string.Equals(
+                    track.AudioPath,
+                    previousAudioPath,
+                    StringComparison.OrdinalIgnoreCase));
+        bool trackChanged = preservedIndex < 0;
+        trackIndex = trackChanged ? tracks.Count - 1 : preservedIndex;
+
+        ImportedHomeTrack current = tracks[trackIndex];
+        updateTrackDisplay(current, trackChanged);
+
+        if (trackChanged)
+        {
+            pausedProgress = 0;
+            currentLength = current.FallbackLength;
+            playbackGeneration++;
+        }
+
+        if (screenActive
+            && desiredPlaying
+            && (trackChanged || !audioEngine.Status.IsRunning))
+            startOrResumeCurrentTrack();
+    }
+
+    private void updateTrackDisplay(
+        ImportedHomeTrack track,
+        bool animate)
+    {
+        titleText.Text = string.IsNullOrWhiteSpace(track.Title)
+            ? Path.GetFileNameWithoutExtension(track.AudioPath)
+            : track.Title;
+        artistText.Text = string.IsNullOrWhiteSpace(track.Artist)
+            ? string.Empty
+            : track.Artist;
+        bpmText.Text = track.Bpm > 0
+            ? $"· {Math.Round(track.Bpm):0} BPM"
+            : string.Empty;
+
+        if (!animate)
+            return;
+
         titleText.FadeInFromZero(260);
         artistText.FadeInFromZero(340);
         bpmText.FadeInFromZero(340);
     }
 
+    private void showEmptyState()
+    {
+        titleText.Text = YokkoStrings.Get("main.music_no_songs");
+        artistText.Text = YokkoStrings.Get("main.music_import_hint");
+        bpmText.Text = string.Empty;
+        progressFill.Width = 0;
+        playPauseButton.Icon.Icon = FontAwesome.Solid.Play;
+    }
+
+    private static bool isPlayableAudioPath(string audioPath)
+    {
+        if (string.IsNullOrWhiteSpace(audioPath)
+            || !File.Exists(audioPath))
+            return false;
+
+        return supportedAudioExtensions.Contains(
+            Path.GetExtension(audioPath),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void onChartLibraryChanged() =>
+        Scheduler.Add(refreshPlaylist);
+
+    private void enqueueAudioOperation(
+        Func<Task> operation,
+        int generation)
+    {
+        lock (audioQueueLock)
+        {
+            audioQueue = audioQueue.ContinueWith(
+                async _ =>
+                {
+                    if (disposed)
+                        return;
+
+                    try
+                    {
+                        await operation().ConfigureAwait(false);
+                    }
+                    catch (Exception exception)
+                    {
+                        Logger.Error(
+                            exception,
+                            "Could not update home music playback.",
+                            LoggingTarget.Runtime);
+                        Scheduler.Add(() =>
+                        {
+                            if (disposed || generation != playbackGeneration)
+                                return;
+
+                            desiredPlaying = false;
+                            playPauseButton.Icon.Icon = FontAwesome.Solid.Play;
+                        });
+                    }
+                },
+                TaskScheduler.Default).Unwrap();
+        }
+    }
+
     private void spawnNote()
     {
-        if (!isPlaying)
+        if (!screenActive || audioEngine?.Status.IsRunning != true)
             return;
 
         var note = new SpriteIcon
@@ -257,16 +536,53 @@ public partial class HomeMusicPlayer : CompositeDrawable
     {
         base.Update();
 
-        double length = tracks[trackIndex].Length;
-        if (isPlaying && currentProgress >= length)
+        if (screenActive
+            && desiredPlaying
+            && currentLength > 0
+            && currentProgress >= currentLength)
             nextTrack();
 
-        progressFill.Width = (float)Math.Min(1, currentProgress / length);
+        progressFill.Width = currentLength <= 0
+            ? 0
+            : (float)Math.Clamp(currentProgress / currentLength, 0, 1);
 
         // BPM 圆点平缓呼吸，暂停时定格。
-        pulseDot.Alpha = isPlaying
+        pulseDot.Alpha = screenActive
+                         && audioEngine?.Status.IsRunning == true
             ? 0.55f + 0.45f * MathF.Abs(MathF.Sin((float)(Time.Current / 1200 * Math.PI)))
             : 0.35f;
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+        {
+            disposed = true;
+            if (importedChartLibrary != null)
+                importedChartLibrary.LibraryChanged -= onChartLibraryChanged;
+
+            Task pending;
+            lock (audioQueueLock)
+                pending = audioQueue;
+
+            _ = disposeAudioAfterAsync(pending);
+        }
+
+        base.Dispose(isDisposing);
+    }
+
+    private async Task disposeAudioAfterAsync(Task pending)
+    {
+        try
+        {
+            await pending.ConfigureAwait(false);
+        }
+        catch
+        {
+        }
+
+        if (audioEngine != null)
+            await audioEngine.DisposeAsync().ConfigureAwait(false);
     }
 
     /// <summary>

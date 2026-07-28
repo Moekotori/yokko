@@ -6,6 +6,8 @@ public interface IAudioEngine : IAsyncDisposable
 
     double PlaybackTimeMilliseconds { get; }
 
+    double DurationMilliseconds { get; }
+
     IReadOnlyList<AudioBackendCapabilities> Backends { get; }
 
     ValueTask<IReadOnlyList<AudioDeviceInfo>> GetOutputDevicesAsync(CancellationToken cancellationToken = default);

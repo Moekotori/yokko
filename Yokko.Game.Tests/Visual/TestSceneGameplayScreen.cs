@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -91,87 +92,180 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
-        public void TestControlScrollZoomsPlayfield()
+        public void TestControlScrollResizesPlayfieldWidthOnly()
         {
             GameplayScreen gameplayScreen = null;
-            float defaultScale = 0;
+            float defaultWidth = 0;
+            float defaultHeight = 0;
+            float defaultScreenScale = 0;
+            float defaultNoteWidth = 0;
+            float defaultNoteHeight = 0;
 
             AddUntilStep("gameplay layout loaded", () =>
                 (gameplayScreen = screenStack.CurrentScreen as GameplayScreen)?
                 .ChildrenOfType<GameplayPlayfield>()
                 .SingleOrDefault() != null);
-            AddStep("capture default scale", () =>
-                defaultScale = gameplayScreen
-                               .ChildrenOfType<GameplayPlayfield>()
-                               .Single()
-                               .Scale.X);
+            AddStep("capture default geometry", () =>
+            {
+                GameplayPlayfield playfield = gameplayScreen
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .Single();
+                DrawableNote note = gameplayScreen
+                                    .ChildrenOfType<DrawableNote>()
+                                    .First();
+                defaultWidth = playfield.Width;
+                defaultHeight = playfield.Height;
+                defaultScreenScale = playfield.Scale.X;
+                defaultNoteWidth = note.Width;
+                defaultNoteHeight = note.Height;
+            });
             AddAssert("plain scroll is ignored", () =>
-                gameplayScreen.HandlePlayfieldZoom(1, false) == false);
-            AddAssert("plain scroll keeps scale", () =>
+                gameplayScreen.HandlePlayfieldWidthScroll(1, false) == false);
+            AddAssert("plain scroll keeps width", () =>
                 Math.Abs(
                     gameplayScreen
                     .ChildrenOfType<GameplayPlayfield>()
                     .Single()
-                    .Scale.X - defaultScale) < 0.001);
+                    .Width - defaultWidth) < 0.001);
             AddAssert("control scroll up is handled", () =>
-                gameplayScreen.HandlePlayfieldZoom(1, true));
-            AddAssert("playfield becomes larger", () =>
-                gameplayScreen
-                .ChildrenOfType<GameplayPlayfield>()
-                .Single()
-                .Scale.X > defaultScale);
+                gameplayScreen.HandlePlayfieldWidthScroll(1, true));
+            AddAssert("only playfield width becomes larger", () =>
+            {
+                GameplayPlayfield playfield = gameplayScreen
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .Single();
+                return playfield.Width > defaultWidth
+                       && Math.Abs(playfield.Height - defaultHeight) < 0.001
+                       && Math.Abs(playfield.Scale.X - defaultScreenScale) < 0.001
+                       && Math.Abs(playfield.Scale.X - playfield.Scale.Y) < 0.001;
+            });
+            AddAssert("note keeps its aspect ratio", () =>
+            {
+                DrawableNote note = gameplayScreen
+                                    .ChildrenOfType<DrawableNote>()
+                                    .First();
+                return note.Width > defaultNoteWidth
+                       && note.Height > defaultNoteHeight
+                       && Math.Abs(
+                           note.Width / defaultNoteWidth
+                           - note.Height / defaultNoteHeight) < 0.001;
+            });
             AddAssert("control scroll down is handled", () =>
-                gameplayScreen.HandlePlayfieldZoom(-1, true));
-            AddAssert("playfield returns to default scale", () =>
+                gameplayScreen.HandlePlayfieldWidthScroll(-1, true));
+            AddAssert("playfield returns to default width", () =>
                 Math.Abs(
                     gameplayScreen
                     .ChildrenOfType<GameplayPlayfield>()
                     .Single()
-                    .Scale.X - defaultScale) < 0.001);
+                    .Width - defaultWidth) < 0.001);
             AddStep("scroll repeatedly towards maximum", () =>
             {
                 for (int i = 0; i < 100; i++)
-                    gameplayScreen.HandlePlayfieldZoom(1, true);
+                    gameplayScreen.HandlePlayfieldWidthScroll(1, true);
             });
             AddAssert("zoom stops at 250 percent", () =>
             {
                 GameplayPlayfield playfield = gameplayScreen
                                               .ChildrenOfType<GameplayPlayfield>()
                                               .Single();
-                float maximumScale = playfield.Scale.X;
-                gameplayScreen.HandlePlayfieldZoom(1, true);
-                return Math.Abs(maximumScale - defaultScale * 2.5f) < 0.001
-                       && Math.Abs(playfield.Scale.X - maximumScale) < 0.001
+                float maximumWidth = playfield.Width;
+                gameplayScreen.HandlePlayfieldWidthScroll(1, true);
+                return Math.Abs(maximumWidth - defaultWidth * 2.5f) < 0.001
+                       && Math.Abs(playfield.Width - maximumWidth) < 0.001
+                       && Math.Abs(playfield.Height - defaultHeight) < 0.001
                        && Math.Abs(playfield.Scale.X - playfield.Scale.Y) < 0.001;
             });
             AddStep("scroll repeatedly towards minimum", () =>
             {
                 for (int i = 0; i < 100; i++)
-                    gameplayScreen.HandlePlayfieldZoom(-1, true);
+                    gameplayScreen.HandlePlayfieldWidthScroll(-1, true);
             });
             AddAssert("zoom stops safely at 20 percent", () =>
             {
                 GameplayPlayfield playfield = gameplayScreen
                                               .ChildrenOfType<GameplayPlayfield>()
                                               .Single();
-                float minimumScale = playfield.Scale.X;
-                gameplayScreen.HandlePlayfieldZoom(-1, true);
-                return Math.Abs(minimumScale - defaultScale * 0.2f) < 0.001
-                       && Math.Abs(playfield.Scale.X - minimumScale) < 0.001
-                       && playfield.Scale.X > 0
+                float minimumWidth = playfield.Width;
+                gameplayScreen.HandlePlayfieldWidthScroll(-1, true);
+                return Math.Abs(minimumWidth - defaultWidth * 0.2f) < 0.001
+                       && Math.Abs(playfield.Width - minimumWidth) < 0.001
+                       && playfield.Width > 0
+                       && Math.Abs(playfield.Height - defaultHeight) < 0.001
                        && Math.Abs(playfield.Scale.X - playfield.Scale.Y) < 0.001;
             });
             AddStep("restore default zoom", () =>
             {
                 for (int i = 0; i < 8; i++)
-                    gameplayScreen.HandlePlayfieldZoom(1, true);
+                    gameplayScreen.HandlePlayfieldWidthScroll(1, true);
             });
             AddAssert("zoom returns exactly to default", () =>
                 Math.Abs(
                     gameplayScreen
                     .ChildrenOfType<GameplayPlayfield>()
                     .Single()
-                    .Scale.X - defaultScale) < 0.001);
+                    .Width - defaultWidth) < 0.001);
+        }
+
+        [Test]
+        public void TestControlScrollKeepsSkinnedGameplayFullHeight()
+        {
+            GameplayScreen gameplayScreen = null;
+            float defaultPlayfieldWidth = 0;
+            float defaultPlayfieldHeight = 0;
+            float defaultJudgementPosition = 0;
+            float defaultNoteWidth = 0;
+            float defaultNoteHeight = 0;
+
+            AddStep("open skinned gameplay", () =>
+            {
+                gameplayScreen = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: createTestSkin());
+                screenStack.Push(gameplayScreen);
+            });
+            AddUntilStep("skinned geometry loaded", () =>
+                gameplayScreen
+                .ChildrenOfType<DrawableNote>()
+                .FirstOrDefault()?.Width > 0);
+            AddStep("capture skinned geometry", () =>
+            {
+                GameplayPlayfield playfield = gameplayScreen
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .Single();
+                DrawableNote note = gameplayScreen
+                                    .ChildrenOfType<DrawableNote>()
+                                    .First();
+                defaultPlayfieldWidth = playfield.Width;
+                defaultPlayfieldHeight = playfield.Height;
+                defaultJudgementPosition = playfield.JudgementPosition;
+                defaultNoteWidth = note.Width;
+                defaultNoteHeight = note.Height;
+            });
+            AddStep("widen skinned playfield", () =>
+                gameplayScreen.HandlePlayfieldWidthScroll(1, true));
+            AddAssert("skinned gameplay remains full height", () =>
+            {
+                GameplayPlayfield playfield = gameplayScreen
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .Single();
+                Drawable current = gameplayScreen;
+                return Math.Abs(playfield.Width - defaultPlayfieldWidth * 1.1f) < 0.001
+                       && Math.Abs(playfield.Height - defaultPlayfieldHeight) < 0.001
+                       && Math.Abs(playfield.JudgementPosition - defaultJudgementPosition) < 0.001
+                       && Math.Abs(
+                           playfield.Height * playfield.Scale.Y
+                           - current.DrawHeight) < 0.5;
+            });
+            AddAssert("skinned note stays proportional", () =>
+            {
+                DrawableNote note = gameplayScreen
+                                    .ChildrenOfType<DrawableNote>()
+                                    .First();
+                return Math.Abs(note.Width - defaultNoteWidth * 1.1f) < 0.001
+                       && Math.Abs(note.Height - defaultNoteHeight * 1.1f) < 0.001;
+            });
+            AddStep("restore skinned width", () =>
+                gameplayScreen.HandlePlayfieldWidthScroll(-1, true));
         }
 
         [Test]
@@ -575,6 +669,88 @@ HitPosition: 400
                 audioEngine.StartCount == 1);
         }
 
+        [Test]
+        public void TestPauseOverlayStopsAndResumesAudio()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                AudioPath = "pause-fixture.mp3",
+                Title = "Pulse Bloom",
+                DifficultyName = "4K Normal",
+            };
+            GameplayScreen gameplayScreen = null;
+
+            AddStep("open gameplay with audio", () =>
+            {
+                gameplayScreen = new GameplayScreen(beatmap, audioEngine);
+                screenStack.Push(gameplayScreen);
+            });
+            AddUntilStep("audio starts", () =>
+                audioEngine.StartCount == 1);
+            AddStep("pause gameplay", () =>
+                gameplayScreen.TogglePause());
+            AddUntilStep("pause completes", () =>
+                gameplayScreen.IsPaused
+                && !gameplayScreen.PauseTransitionInProgress
+                && audioEngine.PauseCount == 1);
+            AddAssert("gameplay remains current screen", () =>
+                ReferenceEquals(screenStack.CurrentScreen, gameplayScreen));
+            AddAssert("pause overlay is visible with resume selected", () =>
+            {
+                GameplayPauseOverlay overlay = gameplayScreen
+                                               .ChildrenOfType<GameplayPauseOverlay>()
+                                               .SingleOrDefault();
+                return overlay?.ActionCount == 4
+                       && overlay.SelectedAction == 0;
+            });
+            AddStep("capture pause screen when requested", () =>
+            {
+                string outputPath = Environment.GetEnvironmentVariable(
+                    "YOKKO_PAUSE_SCREENSHOT");
+                if (string.IsNullOrWhiteSpace(outputPath))
+                    return;
+
+                MethodInfo takeScreenshot = renderer.GetType().GetMethod(
+                    "TakeScreenshot",
+                    BindingFlags.Instance
+                    | BindingFlags.Public
+                    | BindingFlags.NonPublic)
+                    ?? throw new InvalidOperationException(
+                        "The active renderer does not expose screenshot capture.");
+                using var screenshot = (Image<Rgba32>)takeScreenshot.Invoke(
+                    renderer,
+                    null);
+                Directory.CreateDirectory(
+                    Path.GetDirectoryName(outputPath)
+                    ?? throw new InvalidOperationException(
+                        "Screenshot path has no parent directory."));
+                screenshot.SaveAsPng(outputPath);
+            });
+            AddStep("move pause selection", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .SelectNext());
+            AddAssert("restart becomes selected", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .SelectedAction == 1);
+            AddStep("resume gameplay", () =>
+                gameplayScreen.TogglePause());
+            AddUntilStep("resume completes", () =>
+                !gameplayScreen.IsPaused
+                && !gameplayScreen.PauseTransitionInProgress
+                && audioEngine.SeekCount == 1);
+            AddAssert("pause overlay is removed", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Any() == false);
+            AddAssert("audio is running again", () =>
+                audioEngine.Status.IsRunning);
+        }
+
         private static string createTestSkin()
             => createTestSkin(string.Empty);
 
@@ -661,6 +837,8 @@ StageHint: stage-hint
 
             public double PlaybackTimeMilliseconds => 0;
 
+            public double DurationMilliseconds => 0;
+
             public IReadOnlyList<AudioBackendCapabilities> Backends => [];
 
             public ValueTask<IReadOnlyList<AudioDeviceInfo>> GetOutputDevicesAsync(
@@ -694,9 +872,15 @@ StageHint: stage-hint
 
             public double PlaybackTimeMilliseconds { get; private set; }
 
+            public double DurationMilliseconds => 0;
+
             public double LastSeekMilliseconds { get; private set; } = double.NaN;
 
             public int StartCount { get; private set; }
+
+            public int PauseCount { get; private set; }
+
+            public int SeekCount { get; private set; }
 
             public IReadOnlyList<AudioBackendCapabilities> Backends => [];
 
@@ -714,8 +898,12 @@ StageHint: stage-hint
             }
 
             public ValueTask PauseAsync(
-                CancellationToken cancellationToken = default) =>
-                ValueTask.CompletedTask;
+                CancellationToken cancellationToken = default)
+            {
+                PauseCount++;
+                status = createStatus(false);
+                return ValueTask.CompletedTask;
+            }
 
             public ValueTask SeekAsync(
                 double timeMilliseconds,
@@ -724,8 +912,10 @@ StageHint: stage-hint
                 // Model an engine whose post-seek clock is relative to the
                 // newly-created playback core. Gameplay must still treat the
                 // intro skip as a one-shot action.
+                SeekCount++;
                 PlaybackTimeMilliseconds = 0;
                 LastSeekMilliseconds = timeMilliseconds;
+                status = createStatus(true);
                 return ValueTask.CompletedTask;
             }
 

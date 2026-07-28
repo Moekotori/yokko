@@ -25,6 +25,24 @@ public sealed class GameplayInputClockTest
         Assert.That(eventTime, Is.EqualTo(1197.5).Within(0.0001));
     }
 
+    [TestCase(60, 1008.333333)]
+    [TestCase(120, 1004.166667)]
+    [TestCase(240, 1002.083333)]
+    [TestCase(0, 1008.333333)]
+    public void VisualClockPredictsWithoutChangingJudgementTime(
+        double refreshRate,
+        double expectedVisualTime)
+    {
+        const double judgementTime = 1000;
+
+        double visualTime = GameplayPresentationClock.EstimateVisualTime(
+            judgementTime,
+            refreshRate);
+
+        Assert.That(judgementTime, Is.EqualTo(1000));
+        Assert.That(visualTime, Is.EqualTo(expectedVisualTime).Within(0.000001));
+    }
+
     [Test]
     public void EventBeforeSongStartRemainsNegative()
     {

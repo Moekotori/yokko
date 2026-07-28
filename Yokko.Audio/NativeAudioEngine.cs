@@ -97,6 +97,9 @@ public sealed class NativeAudioEngine : IAudioEngine
         }
     }
 
+    public double DurationMilliseconds =>
+        source?.TotalTime.TotalMilliseconds ?? 0;
+
     public IReadOnlyList<AudioBackendCapabilities> Backends
         => SupportedBackends;
 

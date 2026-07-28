@@ -172,8 +172,8 @@ namespace
         require(status.device_frames_rendered == 6, "device frame counter");
         require(status.underrun_count == 1, "underrun counter");
         require(
-            std::abs(status.playback_time_milliseconds - 0.125) < 0.000001,
-            "provisional frame clock");
+            status.playback_time_milliseconds == 0,
+            "submitted endpoint frames are not treated as presented");
     }
 
     void test_pause_and_stop_are_deterministic()

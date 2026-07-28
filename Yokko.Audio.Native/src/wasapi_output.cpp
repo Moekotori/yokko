@@ -658,6 +658,64 @@ namespace yokko::audio
             {
                 stream_flags |= AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
                                 | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
+
+                ComPtr<IAudioClient3> audio_client3;
+                if (SUCCEEDED(audio_client.As(&audio_client3)))
+                {
+                    UINT32 default_period = 0;
+                    UINT32 fundamental_period = 0;
+                    UINT32 minimum_period = 0;
+                    UINT32 maximum_period = 0;
+                    HRESULT period_result =
+                        audio_client3->GetSharedModeEnginePeriod(
+                            &format.Format,
+                            &default_period,
+                            &fundamental_period,
+                            &minimum_period,
+                            &maximum_period);
+
+                    if (SUCCEEDED(period_result)
+                        && fundamental_period > 0
+                        && minimum_period > 0
+                        && maximum_period >= minimum_period)
+                    {
+                        UINT32 desired_period = std::clamp(
+                            preferred_buffer_frames_,
+                            minimum_period,
+                            maximum_period);
+                        desired_period = static_cast<UINT32>(
+                            (static_cast<uint64_t>(desired_period)
+                             + fundamental_period / 2)
+                            / fundamental_period
+                            * fundamental_period);
+                        desired_period = std::clamp(
+                            desired_period,
+                            minimum_period,
+                            maximum_period);
+
+                        const HRESULT low_latency_result =
+                            audio_client3->InitializeSharedAudioStream(
+                                stream_flags,
+                                desired_period,
+                                &format.Format,
+                                nullptr);
+                        if (SUCCEEDED(low_latency_result))
+                            return audio_client->GetBufferSize(&buffer_frames);
+
+                        // A shared engine can already be locked to another
+                        // period. Re-activate the client before using the
+                        // compatible legacy shared-mode initialization below.
+                        audio_client.Reset();
+                        const HRESULT reactivate_result = device.Activate(
+                            __uuidof(IAudioClient),
+                            CLSCTX_ALL,
+                            nullptr,
+                            reinterpret_cast<void**>(
+                                audio_client.GetAddressOf()));
+                        if (FAILED(reactivate_result))
+                            return reactivate_result;
+                    }
+                }
             }
 
             HRESULT result = audio_client->Initialize(

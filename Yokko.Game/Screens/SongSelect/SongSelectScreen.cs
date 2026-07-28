@@ -121,8 +121,8 @@ public partial class SongSelectScreen : Screen
                     createFooter(),
                     new Sprite
                     {
-                        Position = new Vector2(8, 598),
-                        Size = new Vector2(108, 122),
+                        Position = new Vector2(0, 557),
+                        Size = new Vector2(144, 163),
                         Texture = mascot,
                     },
                     createDecorations(),

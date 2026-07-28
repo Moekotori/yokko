@@ -52,6 +52,7 @@ public partial class MainScreen : Screen
     private Box heroHighlight;
     private Circle readyDot;
     private HomeMascotBubble bubble;
+    private HomeMusicPlayer musicPlayer;
     private HomeExitHoldIndicator exitIndicator;
     private readonly Box[] stageLines = new Box[2];
     private readonly List<SpriteIcon> decorationIcons = new();
@@ -226,6 +227,7 @@ public partial class MainScreen : Screen
     {
         base.OnEntering(e);
         cancelExitHold();
+        musicPlayer.Activate();
 
         content.FadeInFromZero(240);
         rightStage.Delay(80).FadeIn(520).MoveToX(0, 640, Easing.OutQuint);
@@ -239,6 +241,7 @@ public partial class MainScreen : Screen
     public override void OnResuming(ScreenTransitionEvent e)
     {
         base.OnResuming(e);
+        musicPlayer.Activate();
         this.FadeIn(200, Easing.OutQuint);
     }
 
@@ -246,12 +249,14 @@ public partial class MainScreen : Screen
     {
         base.OnSuspending(e);
         cancelExitHold();
+        musicPlayer.Deactivate();
         this.FadeTo(0.4f, 200, Easing.OutQuint);
     }
 
     public override bool OnExiting(ScreenExitEvent e)
     {
         cancelExitHold();
+        musicPlayer.Deactivate();
         this.FadeOut(200, Easing.OutQuint);
         return base.OnExiting(e);
     }
@@ -551,7 +556,7 @@ public partial class MainScreen : Screen
                     Colour = pink,
                     Alpha = 0.9f,
                 }),
-                new HomeMusicPlayer
+                musicPlayer = new HomeMusicPlayer
                 {
                     Position = new Vector2(788, 624),
                 },

@@ -2,6 +2,7 @@ using System;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Cursor;
 using osu.Framework.Platform;
+using osu.Framework.Screens;
 using osu.Framework.Testing;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
@@ -41,6 +42,25 @@ namespace Yokko.Game.Tests
                     () => { },
                     () => { },
                     () => { }));
+                return;
+            }
+
+            if (Environment.GetEnvironmentVariable(
+                    "YOKKO_PAUSE_PREVIEW") == "1")
+            {
+                var gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo() with
+                    {
+                        Title = "Pulse Bloom",
+                        DifficultyName = "4K Normal",
+                    });
+
+                Add(new ScreenStack(gameplay)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                Add(new CursorContainer());
+                Scheduler.AddDelayed(gameplay.TogglePause, 500);
                 return;
             }
 

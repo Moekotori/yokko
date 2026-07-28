@@ -10,6 +10,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Input.Events;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Logging;
+using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osuTK;
 using osuTK.Input;
@@ -20,6 +21,7 @@ using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Input;
 using Yokko.Game.Presentation;
+using Yokko.Game.Screens.Settings;
 using Yokko.Game.Skinning.OsuMania;
 using Yokko.Game.Scoring;
 
@@ -28,9 +30,9 @@ namespace Yokko.Game.Screens.Gameplay;
 public partial class GameplayScreen : Screen
 {
     private const double leadInMilliseconds = 900;
-    private const float playfieldZoomStep = 0.1f;
-    private const float minimumPlayfieldZoom = 0.2f;
-    private const float maximumPlayfieldZoom = 2.5f;
+    private const float playfieldWidthStep = 0.1f;
+    private const float minimumPlayfieldWidthScale = 0.2f;
+    private const float maximumPlayfieldWidthScale = 2.5f;
 
     private readonly YokkoBeatmap beatmap;
     private IAudioEngine audioEngine;
@@ -69,14 +71,23 @@ public partial class GameplayScreen : Screen
     private int replayInputIndex;
     private GameplayReplay completedReplay;
     private float playfieldWidthScale = 1;
+    private GameHost host;
+    private bool isPaused;
+    private bool pauseTransitionInProgress;
+    private double pausedGameplayTime;
+    private double pausedAudioPosition;
+    private GameplayPauseOverlay pauseOverlay;
 
     internal bool GameplayBlocked => gameplayBlocked;
     internal bool GameplayCompleted => gameplayCompleted;
+    internal bool IsPaused => isPaused;
+    internal bool PauseTransitionInProgress => pauseTransitionInProgress;
     internal ManiaScoreResult CompletedResult => completedResult;
     internal bool ReplayMode => replay != null;
     internal bool IntroSkipAvailable =>
         !gameplayBlocked
         && !gameplayCompleted
+        && !isPaused
         && !introSkipInProgress
         && !introSkipUsed
         && IntroSkipTargetMilliseconds > 0
@@ -119,8 +130,9 @@ public partial class GameplayScreen : Screen
     }
 
     [BackgroundDependencyLoader]
-    private void load(IRenderer renderer)
+    private void load(IRenderer renderer, GameHost host)
     {
+        this.host = host;
         keyBindings = KeyModeBindings.ForMode(
             beatmap.KeyMode,
             gameplaySettings.GetKeys(beatmap.KeyMode));
@@ -189,10 +201,15 @@ public partial class GameplayScreen : Screen
         base.Update();
         updatePlayfieldLayout();
 
-        if (gameplayBlocked || gameplayCompleted)
+        if (gameplayBlocked || gameplayCompleted || isPaused)
             return;
 
         double gameplayTime = currentGameplayTime;
+        double visualGameplayTime = hasAudioClock
+            ? GameplayPresentationClock.EstimateVisualTime(
+                gameplayTime,
+                host.Window?.CurrentDisplayMode.Value.RefreshRate ?? 60)
+            : gameplayTime;
 
         if (ReplayMode)
             drainReplayInput(gameplayTime);
@@ -202,7 +219,7 @@ public partial class GameplayScreen : Screen
         foreach (JudgementEvent missed in judgementState.CollectExpiredMisses(gameplayTime))
             applyJudgement(missed);
 
-        playfield.UpdateGameplayTime(gameplayTime, judgementState);
+        playfield.UpdateGameplayTime(visualGameplayTime, judgementState);
         hud.UpdateState(gameplayTime, judgementState);
 
         if (judgementState.IsComplete
@@ -223,7 +240,10 @@ public partial class GameplayScreen : Screen
 
     protected override bool OnScroll(ScrollEvent e)
     {
-        if (HandlePlayfieldZoom(e.ScrollDelta.Y, e.ControlPressed))
+        if (isPaused)
+            return true;
+
+        if (HandlePlayfieldWidthScroll(e.ScrollDelta.Y, e.ControlPressed))
             return true;
 
         return base.OnScroll(e);
@@ -231,6 +251,9 @@ public partial class GameplayScreen : Screen
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
+        if (isPaused)
+            return pauseOverlay?.HandleKey(e.Key) ?? true;
+
         if (gameplayCompleted)
         {
             switch (e.Key)
@@ -258,8 +281,7 @@ public partial class GameplayScreen : Screen
 
         if (e.Key == Key.Escape)
         {
-            _ = audioEngine.StopAsync();
-            this.Exit();
+            TogglePause();
             return true;
         }
 
@@ -286,7 +308,7 @@ public partial class GameplayScreen : Screen
 
     protected override void OnKeyUp(KeyUpEvent e)
     {
-        if (gameplayCompleted || ReplayMode)
+        if (gameplayCompleted || ReplayMode || isPaused)
             return;
 
         int lane = keyBindings.GetLane(e.Key);
@@ -348,6 +370,15 @@ public partial class GameplayScreen : Screen
                 return;
             }
 
+            if (isPaused)
+            {
+                pausedAudioPosition = Math.Max(
+                    0,
+                    audioEngine.PlaybackTimeMilliseconds);
+                await audioEngine.PauseAsync().ConfigureAwait(true);
+                return;
+            }
+
             if (double.IsFinite(pendingIntroSkipMilliseconds))
             {
                 double target = pendingIntroSkipMilliseconds;
@@ -393,6 +424,9 @@ public partial class GameplayScreen : Screen
     {
         get
         {
+            if (isPaused)
+                return pausedGameplayTime;
+
             if (hasAudioClock)
             {
                 if (audioEngine.Status.IsRunning)
@@ -557,6 +591,128 @@ public partial class GameplayScreen : Screen
             () => this.Exit()));
     }
 
+    internal void TogglePause()
+    {
+        if (pauseTransitionInProgress
+            || gameplayBlocked
+            || gameplayCompleted)
+        {
+            return;
+        }
+
+        if (isPaused)
+            _ = resumeGameplayAsync();
+        else
+            _ = pauseGameplayAsync();
+    }
+
+    private async Task pauseGameplayAsync()
+    {
+        if (isPaused || pauseTransitionInProgress)
+            return;
+
+        pauseTransitionInProgress = true;
+        pausedGameplayTime = currentGameplayTime;
+        pausedAudioPosition = hasAudioClock
+            ? Math.Max(0, audioEngine.PlaybackTimeMilliseconds)
+            : 0;
+        releasePressedLanesForPause();
+        isPaused = true;
+
+        if (!ReplayMode)
+            keyInputTimestamps.EndCapture();
+
+        pauseOverlay = new GameplayPauseOverlay(
+            beatmap,
+            TogglePause,
+            retryGameplay,
+            () => this.Push(new SettingsScreen()),
+            exitPausedGameplay);
+        AddInternal(pauseOverlay);
+
+        try
+        {
+            if (hasAudioClock)
+                await audioEngine.PauseAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(
+                ex,
+                "The audio engine could not pause gameplay.",
+                LoggingTarget.Runtime);
+            cancelFailedPause();
+        }
+        finally
+        {
+            pauseTransitionInProgress = false;
+        }
+    }
+
+    private async Task resumeGameplayAsync()
+    {
+        if (!isPaused || pauseTransitionInProgress)
+            return;
+
+        pauseTransitionInProgress = true;
+
+        try
+        {
+            if (hasAudioClock)
+                await audioEngine.SeekAsync(pausedAudioPosition)
+                                 .ConfigureAwait(true);
+            else
+                startTimeMilliseconds = Time.Current - pausedGameplayTime;
+
+            isPaused = false;
+            pauseOverlay?.FadeOut(140, Easing.OutQuint)
+                         .Expire();
+            pauseOverlay = null;
+
+            if (!ReplayMode)
+                keyInputTimestamps.BeginCapture();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(
+                ex,
+                "The audio engine could not resume paused gameplay.",
+                LoggingTarget.Runtime);
+        }
+        finally
+        {
+            pauseTransitionInProgress = false;
+        }
+    }
+
+    private void cancelFailedPause()
+    {
+        isPaused = false;
+        pauseOverlay?.Expire();
+        pauseOverlay = null;
+
+        if (!ReplayMode)
+            keyInputTimestamps.BeginCapture();
+    }
+
+    private void releasePressedLanesForPause()
+    {
+        if (ReplayMode)
+            return;
+
+        for (int lane = 0; lane < pressedLanes.Length; lane++)
+        {
+            if (pressedLanes[lane])
+                applyLaneRelease(lane, pausedGameplayTime);
+        }
+    }
+
+    private void exitPausedGameplay()
+    {
+        _ = audioEngine.StopAsync();
+        this.Exit();
+    }
+
     private void retryGameplay() =>
         this.Push(new GameplayScreen(
             beatmap,
@@ -622,7 +778,7 @@ public partial class GameplayScreen : Screen
         return true;
     }
 
-    internal bool HandlePlayfieldZoom(
+    internal bool HandlePlayfieldWidthScroll(
         float scrollDelta,
         bool controlPressed)
     {
@@ -630,9 +786,9 @@ public partial class GameplayScreen : Screen
             return false;
 
         playfieldWidthScale = Math.Clamp(
-            playfieldWidthScale + Math.Sign(scrollDelta) * playfieldZoomStep,
-            minimumPlayfieldZoom,
-            maximumPlayfieldZoom);
+            playfieldWidthScale + Math.Sign(scrollDelta) * playfieldWidthStep,
+            minimumPlayfieldWidthScale,
+            maximumPlayfieldWidthScale);
         playfield.SetWidthScale(playfieldWidthScale);
         return true;
     }
