@@ -16,11 +16,10 @@ using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Audio;
-using Yokko.Core.Beatmaps;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Editor;
-using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Settings;
+using Yokko.Game.Screens.SongSelect;
 
 namespace Yokko.Game.Screens.Main;
 
@@ -558,7 +557,7 @@ public partial class MainScreen : Screen
                 YokkoStrings.Get("main.play"),
                 YokkoStrings.Get("main.song_select"),
                 FontAwesome.Solid.Play,
-                () => this.Push(new GameplayScreen(DemoBeatmaps.CreateFourKeyDemo())))
+                () => this.Push(new SongSelectScreen()))
             {
                 Y = 162,
             },
