@@ -11,7 +11,7 @@ namespace Yokko.Game.Screens.Editor;
 
 public partial class EditorHeader : CompositeDrawable
 {
-    public EditorHeader(Action newFourKey, Action newSevenKey, Action importOsu, Action exportOsu, Action playtest)
+    public EditorHeader(Action newFourKey, Action newSevenKey, Action importChart, Action exportOsu, Action playtest)
     {
         Width = 1122;
         Height = 70;
@@ -50,7 +50,7 @@ public partial class EditorHeader : CompositeDrawable
                 {
                     new EditorToolButton("New 4K", newFourKey),
                     new EditorToolButton("New 7K", newSevenKey),
-                    new EditorToolButton("Import", importOsu),
+                    new EditorToolButton("Import", importChart),
                     new EditorToolButton("Export", exportOsu),
                     new EditorToolButton("Playtest", playtest, YokkoPalette.Lime),
                 },

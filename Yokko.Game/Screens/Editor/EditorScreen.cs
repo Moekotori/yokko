@@ -18,6 +18,7 @@ using Yokko.Core.Editing;
 using Yokko.Core.Gameplay;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
+using Yokko.Import;
 using Yokko.Import.Osu;
 
 namespace Yokko.Game.Screens.Editor;
@@ -83,7 +84,7 @@ public partial class EditorScreen : Screen
                         new EditorHeader(
                             () => loadChart(KeyMode.FourKey),
                             () => loadChart(KeyMode.SevenKey),
-                            importOsu,
+                            importChart,
                             exportOsu,
                             playtest),
                         workspace = new FillFlowContainer
@@ -95,7 +96,7 @@ public partial class EditorScreen : Screen
                         },
                         statusText = new SpriteText
                         {
-                            Text = "Ready. New 4K/7K, Import .osu, click grid cells, then Playtest.",
+                            Text = "Ready. New 4K/7K, import a supported chart, click grid cells, then Playtest.",
                             Font = FontUsage.Default.With(size: 16),
                             Colour = YokkoPalette.TextDim,
                         },
@@ -112,7 +113,7 @@ public partial class EditorScreen : Screen
         base.LoadComplete();
 
         if (presentImportOnLoad)
-            Schedule(importOsu);
+            Schedule(importChart);
     }
 
     private void loadChart(KeyMode keyMode)
@@ -235,25 +236,32 @@ public partial class EditorScreen : Screen
         this.Push(new GameplayScreen(editableBeatmap.ToBeatmap()));
     }
 
-    private void importOsu()
+    private void importChart()
     {
-        ISystemFileSelector selector = host.CreateSystemFileSelector([".osu"]);
-        selector.Selected += file => Schedule(() => importOsu(file.FullName));
+        ISystemFileSelector selector = host.CreateSystemFileSelector(KnownChartImporters.FileExtensions);
+        selector.Selected += file => Schedule(() => importChart(file.FullName));
         selector.Present();
     }
 
-    private void importOsu(string path)
+    private void importChart(string path)
     {
         try
         {
             cancelWaveformLoad();
-            editableBeatmap = OsuManiaBeatmapIO.ReadEditableFromFile(path);
+            ChartImportResult result = KnownChartImporters.ImportAsync(new ChartImportRequest(path, true))
+                                                          .AsTask()
+                                                          .GetAwaiter()
+                                                          .GetResult();
+            editableBeatmap = EditableBeatmap.FromBeatmap(result.Beatmap, path);
             viewport = new TimelineViewport(0, defaultVisibleRows);
             previewClock.Stop();
             audioWaveform = EditorAudioWaveform.Missing;
             rebuildWorkspace();
             beginWaveformLoad();
-            setStatus($"Imported {Path.GetFileName(path)}.");
+            string warning = result.Warnings.Count > 0
+                ? $" Warning: {result.Warnings[0]}{(result.Warnings.Count > 1 ? $" (+{result.Warnings.Count - 1} more)" : string.Empty)}"
+                : string.Empty;
+            setStatus($"Imported {Path.GetFileName(path)}.{warning}");
         }
         catch (Exception ex)
         {

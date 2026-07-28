@@ -232,7 +232,7 @@ public partial class MainScreen : Screen
         Spacing = new Vector2(10, 0),
         Children = new Drawable[]
         {
-            new HomeUtilityButton("Import .osu", FontAwesome.Solid.FolderOpen,
+            new HomeUtilityButton("Import chart", FontAwesome.Solid.FolderOpen,
                 () => this.Push(new EditorScreen(true)), 154),
             new HomeUtilityButton(string.Empty, FontAwesome.Solid.Cog,
                 () => this.Push(new SettingsScreen()), 50),

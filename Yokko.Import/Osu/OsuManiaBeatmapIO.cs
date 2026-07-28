@@ -14,13 +14,14 @@ public static class OsuManiaBeatmapIO
 
     public static EditableBeatmap ReadEditableFromFile(string path)
     {
-        EditableBeatmap editable = EditableBeatmap.FromBeatmap(ReadBeatmap(File.ReadAllText(path, Encoding.UTF8)), path);
-        editable.AudioPath = resolveAudioPath(path, editable.AudioPath);
-        return editable;
+        return EditableBeatmap.FromBeatmap(ReadBeatmapFromFile(path), path);
     }
 
     public static YokkoBeatmap ReadBeatmapFromFile(string path)
-        => ReadBeatmap(File.ReadAllText(path, Encoding.UTF8));
+    {
+        YokkoBeatmap beatmap = ReadBeatmap(File.ReadAllText(path, Encoding.UTF8));
+        return beatmap with { AudioPath = resolveAudioPath(path, beatmap.AudioPath) };
+    }
 
     public static YokkoBeatmap ReadBeatmap(string text)
     {
