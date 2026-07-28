@@ -134,12 +134,43 @@ internal static class YokkoStrings
                 "输出、延迟与同步",
                 "出力、レイテンシー、同期"),
             ["settings.audio.description"] = new(
-                "Audio controls will live here without mixing playback state into the settings shell.",
-                "音频控制将集中在此，并与设置界面的状态保持独立。",
-                "再生状態と設定画面を混在させず、オーディオ設定をここにまとめます。"),
+                "Choose the native output path and latency profile used by gameplay.",
+                "选择游玩时使用的原生输出链路与延迟配置。",
+                "ゲームプレイで使用するネイティブ出力とレイテンシー設定を選択します。"),
             ["settings.audio.section_output"] = new("Output device", "输出设备", "出力デバイス"),
             ["settings.audio.section_latency"] = new("Latency & sync", "延迟与同步", "レイテンシーと同期"),
             ["settings.audio.section_volume"] = new("Volume", "音量", "音量"),
+            ["settings.audio.backend"] = new("Output mode", "输出模式", "出力モード"),
+            ["settings.audio.device"] = new("Output device", "输出设备", "出力デバイス"),
+            ["settings.audio.buffer"] = new("Buffer profile", "缓冲配置", "バッファ設定"),
+            ["settings.audio.offset"] = new("Timing offset", "时序偏移", "タイミングオフセット"),
+            ["settings.audio.exclusive"] = new("WASAPI Exclusive", "WASAPI 独占", "WASAPI 排他"),
+            ["settings.audio.shared"] = new("WASAPI Shared", "WASAPI 共享", "WASAPI 共有"),
+            ["settings.audio.frames"] = new("{0} frames", "{0} 帧", "{0} フレーム"),
+            ["settings.audio.default_device"] = new(
+                "Windows default device",
+                "Windows 默认设备",
+                "Windows 既定デバイス"),
+            ["settings.audio.loading_devices"] = new(
+                "Loading devices…",
+                "正在读取设备…",
+                "デバイスを読み込み中…"),
+            ["settings.audio.native_ready"] = new(
+                "Yokko native audio ready",
+                "Yokko 原生音频已就绪",
+                "Yokko ネイティブオーディオ準備完了"),
+            ["settings.audio.native_unavailable"] = new(
+                "Native audio unavailable",
+                "原生音频不可用",
+                "ネイティブオーディオを利用できません"),
+            ["settings.audio.status_metadata"] = new(
+                "{0}  ·  {1} frames requested  ·  {2}",
+                "{0}  ·  请求 {1} 帧  ·  {2}",
+                "{0}  ·  {1} フレーム要求  ·  {2}"),
+            ["settings.audio.apply_next_playback"] = new(
+                "Saved instantly · applies when the next playback starts",
+                "立即保存 · 下次开始播放时生效",
+                "すぐに保存 · 次回の再生開始時に適用"),
 
             ["settings.gameplay.title"] = new("Gameplay", "游玩", "ゲームプレイ"),
             ["settings.gameplay.subtitle"] = new(
@@ -179,6 +210,46 @@ internal static class YokkoStrings
             ["settings.import.section_formats"] = new("Supported formats", "支持的格式", "対応形式"),
             ["settings.import.section_behaviour"] = new("Import behaviour", "导入行为", "インポート動作"),
             ["settings.import.section_locations"] = new("File locations", "文件位置", "ファイルの場所"),
+            ["settings.import.status_title"] = new(
+                "Chart importers are ready",
+                "谱面导入器已就绪",
+                "譜面インポーターは準備完了です"),
+            ["settings.import.status_metadata"] = new(
+                "{0} format families · {1} file types",
+                "{0} 类格式 · {1} 种文件类型",
+                "{0} 形式 · {1} ファイルタイプ"),
+            ["settings.import.ready"] = new("Ready", "可用", "対応"),
+            ["settings.import.partial"] = new("Partial", "部分", "一部"),
+            ["settings.import.prefer_keysounds"] = new(
+                "Preserve keysounds",
+                "保留按键音",
+                "キー音を保持"),
+            ["settings.import.prefer_keysounds_note"] = new(
+                "Keep BMS sample paths",
+                "保留 BMS 采样路径",
+                "BMS サンプルを保持"),
+            ["settings.import.prefer_ssc"] = new(
+                "Prefer SSC",
+                "优先 SSC",
+                "SSC を優先"),
+            ["settings.import.prefer_ssc_note"] = new(
+                "Use richer pack simfiles",
+                "优先更完整的包内谱面",
+                "より詳細な譜面を使用"),
+            ["settings.import.show_warnings"] = new(
+                "Show warnings",
+                "显示兼容提示",
+                "警告を表示"),
+            ["settings.import.show_warnings_note"] = new(
+                "Report downgraded effects",
+                "报告降级处理的效果",
+                "未対応効果を通知"),
+            ["settings.import.enabled"] = new("Enabled", "已启用", "オン"),
+            ["settings.import.disabled"] = new("Disabled", "已关闭", "オフ"),
+            ["settings.import.location_note"] = new(
+                "Packages are safely extracted to Yokko's temporary cache; bundled audio keeps its relative path.",
+                "谱包会安全解压到 Yokko 临时缓存，包内音频保持相对路径。",
+                "パックは一時キャッシュへ安全に展開され、音声の相対パスも維持されます。"),
 
             ["settings.accessibility.title"] = new("Accessibility", "辅助功能", "アクセシビリティ"),
             ["settings.accessibility.subtitle"] = new(

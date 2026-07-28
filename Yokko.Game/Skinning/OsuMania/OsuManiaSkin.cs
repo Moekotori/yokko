@@ -48,28 +48,33 @@ internal sealed class OsuManiaSkin : IDisposable
         }
     }
 
-    public Texture GetTexture(string assetName)
+    public Texture GetTexture(string assetName, bool repeatVertically = false)
     {
         if (string.IsNullOrWhiteSpace(assetName))
             return null;
 
-        if (textureCache.TryGetValue(assetName, out Texture cached))
+        string cacheKey = repeatVertically ? assetName + "\0repeat-y" : assetName;
+
+        if (textureCache.TryGetValue(cacheKey, out Texture cached))
             return cached;
 
         (string resolvedName, bool highResolution) = source.ResolveTextureName(assetName);
 
         if (resolvedName == null)
         {
-            textureCache[assetName] = null;
+            textureCache[cacheKey] = null;
             return null;
         }
 
-        Texture texture = textureStore.Get(resolvedName);
+        Texture texture = textureStore.Get(
+            resolvedName,
+            WrapMode.ClampToEdge,
+            repeatVertically ? WrapMode.Repeat : WrapMode.ClampToEdge);
 
         if (texture != null)
             texture.ScaleAdjust = highResolution ? 2 : 1;
 
-        textureCache[assetName] = texture;
+        textureCache[cacheKey] = texture;
         return texture;
     }
 

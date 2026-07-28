@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using osuTK.Graphics;
 
 namespace Yokko.Game.Skinning.OsuMania;
@@ -80,6 +81,16 @@ internal static class OsuManiaSkinIniDecoder
         var holdHeadImages = new string[keys];
         var holdBodyImages = new string[keys];
         var holdTailImages = new string[keys];
+        var noteBodyStyles = new int[keys];
+        var keyFlips = new bool[keys];
+        var pressedKeyFlips = new bool[keys];
+        var noteFlips = new bool[keys];
+        var holdHeadFlips = new bool[keys];
+        var holdBodyFlips = new bool[keys];
+        var holdTailFlips = new bool[keys];
+        int defaultBodyStyle = Math.Clamp(integer(values, "NoteBodyStyle", 1), 0, 4);
+        bool defaultKeyFlip = boolean(values, "KeyFlipWhenUpsideDown", true);
+        bool defaultNoteFlip = boolean(values, "NoteFlipWhenUpsideDown", true);
 
         for (int lane = 0; lane < keys; lane++)
         {
@@ -90,6 +101,13 @@ internal static class OsuManiaSkinIniDecoder
             holdHeadImages[lane] = text(values, $"NoteImage{lane}H", defaults.HoldHeadImages[lane]);
             holdBodyImages[lane] = text(values, $"NoteImage{lane}L", defaults.HoldBodyImages[lane]);
             holdTailImages[lane] = text(values, $"NoteImage{lane}T", holdHeadImages[lane]);
+            noteBodyStyles[lane] = Math.Clamp(integer(values, $"NoteBodyStyle{lane}", defaultBodyStyle), 0, 4);
+            keyFlips[lane] = boolean(values, $"KeyFlipWhenUpsideDown{lane}", defaultKeyFlip);
+            pressedKeyFlips[lane] = boolean(values, $"KeyFlipWhenUpsideDown{lane}D", keyFlips[lane]);
+            noteFlips[lane] = boolean(values, $"NoteFlipWhenUpsideDown{lane}", defaultNoteFlip);
+            holdHeadFlips[lane] = boolean(values, $"NoteFlipWhenUpsideDown{lane}H", noteFlips[lane]);
+            holdBodyFlips[lane] = boolean(values, $"NoteFlipWhenUpsideDown{lane}L", noteFlips[lane]);
+            holdTailFlips[lane] = boolean(values, $"NoteFlipWhenUpsideDown{lane}T", noteFlips[lane]);
         }
 
         configurations[keys] = new OsuManiaSkinConfiguration(
@@ -100,7 +118,7 @@ internal static class OsuManiaSkinIniDecoder
             number(values, "HitPosition", defaults.HitPosition),
             boolean(values, "UpsideDown", defaults.UpsideDown),
             boolean(values, "KeysUnderNotes", defaults.KeysUnderNotes),
-            integer(values, "NoteBodyStyle", defaults.NoteBodyStyle),
+            defaultBodyStyle,
             laneColours,
             colour(values, "ColourColumnLine", defaults.ColumnLineColour),
             keyImages,
@@ -109,7 +127,17 @@ internal static class OsuManiaSkinIniDecoder
             holdHeadImages,
             holdBodyImages,
             holdTailImages,
-            text(values, "StageHint", defaults.StageHint));
+            text(values, "StageHint", defaults.StageHint))
+        {
+            NoteBodyStyles = noteBodyStyles,
+            WidthForNoteHeightScale = number(values, "WidthForNoteHeightScale", widths.Min()),
+            KeyFlipWhenUpsideDown = keyFlips,
+            PressedKeyFlipWhenUpsideDown = pressedKeyFlips,
+            NoteFlipWhenUpsideDown = noteFlips,
+            HoldHeadFlipWhenUpsideDown = holdHeadFlips,
+            HoldBodyFlipWhenUpsideDown = holdBodyFlips,
+            HoldTailFlipWhenUpsideDown = holdTailFlips,
+        };
     }
 
     private static string text(IReadOnlyDictionary<string, string> values, string key, string fallback) =>

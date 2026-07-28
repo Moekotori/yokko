@@ -5,7 +5,11 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.IO.Stores;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using osuTK;
+using Yokko.Game.Audio;
+using Yokko.Game.Configuration;
+using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Resources;
@@ -23,6 +27,11 @@ namespace Yokko.Game
         private readonly DrawSizePreservingFillContainer scalingContainer;
         [Cached]
         private readonly YokkoDisplaySettings displaySettings = new();
+        [Cached]
+        private readonly YokkoAudioSettings audioSettings = new();
+        [Cached]
+        private readonly YokkoImportSettings importSettings = new();
+        private YokkoConfigManager yokkoConfig;
 
         protected YokkoGameBase()
         {
@@ -43,6 +52,14 @@ namespace Yokko.Game
                 [FrameworkSetting.Locale] = YokkoLocale.English,
             };
 
+        public override void SetHost(GameHost host)
+        {
+            base.SetHost(host);
+            yokkoConfig ??= new YokkoConfigManager(host.Storage);
+            yokkoConfig.BindAudioSettings(audioSettings);
+            yokkoConfig.BindImportSettings(importSettings);
+        }
+
         [BackgroundDependencyLoader]
         private void load(FrameworkConfigManager frameworkConfig)
         {
@@ -56,6 +73,14 @@ namespace Yokko.Game
             AddFont(Resources, @"Fonts/Yokko/Yokko");
             AddFont(Resources, @"Fonts/Yokko/Yokko-Bold");
             displaySettings.UiScale.BindValueChanged(_ => scalingContainer.TargetDrawSize = displaySettings.TargetDrawSize, true);
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+                yokkoConfig?.Dispose();
+
+            base.Dispose(isDisposing);
         }
     }
 }

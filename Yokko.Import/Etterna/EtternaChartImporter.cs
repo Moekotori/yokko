@@ -32,7 +32,10 @@ public sealed partial class EtternaChartImporter : IChartImporter
         IReadOnlyList<string> charts = ChartArchive.ExtractCharts(request.Path, ".sm", ".ssc");
         string[] orderedCharts = charts.OrderBy(static chart => Path.GetDirectoryName(chart), StringComparer.OrdinalIgnoreCase)
                                        .ThenBy(static chart => Path.GetFileNameWithoutExtension(chart), StringComparer.OrdinalIgnoreCase)
-                                       .ThenBy(static chart => Path.GetExtension(chart).Equals(".ssc", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                                       .ThenBy(chart => Path.GetExtension(chart).Equals(".ssc", StringComparison.OrdinalIgnoreCase)
+                                           == request.PreferSscSimfiles
+                                               ? 0
+                                               : 1)
                                        .ToArray();
         var failures = new List<Exception>();
 

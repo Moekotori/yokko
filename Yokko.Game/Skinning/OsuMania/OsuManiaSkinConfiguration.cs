@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using osuTK.Graphics;
 
 namespace Yokko.Game.Skinning.OsuMania;
@@ -31,7 +32,7 @@ internal sealed class OsuManiaSkinConfiguration
         HitPosition = hitPosition;
         UpsideDown = upsideDown;
         KeysUnderNotes = keysUnderNotes;
-        NoteBodyStyle = noteBodyStyle;
+        NoteBodyStyles = Enumerable.Repeat(noteBodyStyle, keys).ToArray();
         LaneColours = laneColours;
         ColumnLineColour = columnLineColour;
         KeyImages = keyImages;
@@ -41,6 +42,13 @@ internal sealed class OsuManiaSkinConfiguration
         HoldBodyImages = holdBodyImages;
         HoldTailImages = holdTailImages;
         StageHint = stageHint;
+        WidthForNoteHeightScale = columnWidths.Min();
+        KeyFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
+        PressedKeyFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
+        NoteFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
+        HoldHeadFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
+        HoldBodyFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
+        HoldTailFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
     }
 
     public int Keys { get; }
@@ -57,7 +65,21 @@ internal sealed class OsuManiaSkinConfiguration
 
     public bool KeysUnderNotes { get; }
 
-    public int NoteBodyStyle { get; }
+    public int[] NoteBodyStyles { get; init; }
+
+    public float WidthForNoteHeightScale { get; init; }
+
+    public bool[] KeyFlipWhenUpsideDown { get; init; }
+
+    public bool[] PressedKeyFlipWhenUpsideDown { get; init; }
+
+    public bool[] NoteFlipWhenUpsideDown { get; init; }
+
+    public bool[] HoldHeadFlipWhenUpsideDown { get; init; }
+
+    public bool[] HoldBodyFlipWhenUpsideDown { get; init; }
+
+    public bool[] HoldTailFlipWhenUpsideDown { get; init; }
 
     public Color4[] LaneColours { get; }
 

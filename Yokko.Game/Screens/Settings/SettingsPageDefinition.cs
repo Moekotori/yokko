@@ -75,16 +75,20 @@ internal static class SettingsPages
             FontAwesome.Solid.VolumeUp,
             new[]
             {
-                YokkoStrings.Get("settings.audio.section_output"),
-                YokkoStrings.Get("settings.audio.section_latency"),
-                YokkoStrings.Get("settings.audio.section_volume"),
+                YokkoStrings.Get("settings.audio.backend"),
+                YokkoStrings.Get("settings.audio.device"),
+                YokkoStrings.Get("settings.audio.buffer"),
+                YokkoStrings.Get("settings.audio.offset"),
             },
             YokkoStrings.SearchTerms(
                 "settings.audio.title",
                 "settings.audio.subtitle",
-                "settings.audio.section_output",
-                "settings.audio.section_latency",
-                "settings.audio.section_volume")),
+                "settings.audio.backend",
+                "settings.audio.device",
+                "settings.audio.buffer",
+                "settings.audio.offset",
+                "settings.audio.exclusive",
+                "settings.audio.shared")),
         SettingsPageKind.Gameplay => new(
             kind,
             YokkoStrings.Get("settings.gameplay.title"),

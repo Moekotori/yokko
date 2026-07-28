@@ -16,6 +16,8 @@ public partial class LaneColumn : CompositeDrawable
     private readonly Sprite idleKey;
     private readonly Sprite pressedKey;
 
+    internal Container ReceptorLayer { get; }
+
     internal LaneColumn(
         int lane,
         string keyLabel,
@@ -45,7 +47,12 @@ public partial class LaneColumn : CompositeDrawable
                     Colour = new Color4(YokkoPalette.Cyan.R, YokkoPalette.Cyan.G, YokkoPalette.Cyan.B, 0.22f),
                     Alpha = 0,
                 },
-                new SpriteText
+            };
+            ReceptorLayer = new Container
+            {
+                RelativeSizeAxes = Axes.Y,
+                Width = laneWidth,
+                Child = new SpriteText
                 {
                     Anchor = Anchor.BottomCentre,
                     Origin = Anchor.BottomCentre,
@@ -67,7 +74,7 @@ public partial class LaneColumn : CompositeDrawable
             Colour = new Color4(1f, 1f, 1f, 0.12f),
             Alpha = 0,
         };
-        var children = new System.Collections.Generic.List<Drawable>
+        var backgroundChildren = new System.Collections.Generic.List<Drawable>
         {
             new Box
             {
@@ -82,20 +89,29 @@ public partial class LaneColumn : CompositeDrawable
             },
             pressedOverlay,
         };
+        var receptorChildren = new System.Collections.Generic.List<Drawable>();
 
         if (idleTexture != null)
         {
-            children.Add(idleKey = createKeySprite(idleTexture, laneWidth));
+            receptorChildren.Add(idleKey = createKeySprite(
+                idleTexture,
+                laneWidth,
+                configuration.UpsideDown,
+                configuration.UpsideDown && configuration.KeyFlipWhenUpsideDown[lane]));
 
             if (pressedTexture != null)
             {
-                children.Add(pressedKey = createKeySprite(pressedTexture, laneWidth));
+                receptorChildren.Add(pressedKey = createKeySprite(
+                    pressedTexture,
+                    laneWidth,
+                    configuration.UpsideDown,
+                    configuration.UpsideDown && configuration.PressedKeyFlipWhenUpsideDown[lane]));
                 pressedKey.Alpha = 0;
             }
         }
         else
         {
-            children.Add(new SpriteText
+            receptorChildren.Add(new SpriteText
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
@@ -106,7 +122,13 @@ public partial class LaneColumn : CompositeDrawable
             });
         }
 
-        InternalChildren = children.ToArray();
+        InternalChildren = backgroundChildren.ToArray();
+        ReceptorLayer = new Container
+        {
+            RelativeSizeAxes = Axes.Y,
+            Width = laneWidth,
+            Children = receptorChildren.ToArray(),
+        };
     }
 
     public void SetPressed(bool pressed)
@@ -120,13 +142,20 @@ public partial class LaneColumn : CompositeDrawable
         }
     }
 
-    private static Sprite createKeySprite(Texture texture, float laneWidth) => new()
+    private static Sprite createKeySprite(
+        Texture texture,
+        float laneWidth,
+        bool upsideDown,
+        bool flip) => new()
     {
-        Anchor = Anchor.BottomLeft,
-        Origin = Anchor.BottomLeft,
+        Anchor = upsideDown ? Anchor.TopLeft : Anchor.BottomLeft,
+        Origin = flip
+            ? upsideDown ? Anchor.BottomLeft : Anchor.TopLeft
+            : upsideDown ? Anchor.TopLeft : Anchor.BottomLeft,
         Size = new Vector2(
             laneWidth,
             texture.DisplayWidth > 0 ? texture.DisplayHeight * laneWidth / texture.DisplayWidth : 1),
+        Scale = new Vector2(1, flip ? -1 : 1),
         Texture = texture,
     };
 }

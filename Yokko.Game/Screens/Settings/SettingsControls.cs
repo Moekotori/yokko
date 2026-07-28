@@ -17,6 +17,11 @@ namespace Yokko.Game.Screens.Settings;
 internal partial class SettingsPanelFooter : CompositeDrawable
 {
     public SettingsPanelFooter()
+        : this(YokkoStrings.Get("settings.changes_apply_instantly"))
+    {
+    }
+
+    public SettingsPanelFooter(LocalisableString message)
     {
         Position = new Vector2(372, 651);
         Size = new Vector2(650, 42);
@@ -39,7 +44,7 @@ internal partial class SettingsPanelFooter : CompositeDrawable
             new SpriteText
             {
                 Position = new Vector2(36, 15),
-                Text = YokkoStrings.Get("settings.changes_apply_instantly"),
+                Text = message,
                 Font = HomeTypography.Body(17),
                 Colour = HomeControlColours.Navy,
             },

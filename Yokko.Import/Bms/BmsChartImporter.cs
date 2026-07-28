@@ -132,7 +132,8 @@ public sealed partial class BmsChartImporter : IChartImporter
         var converter = new BeatTimeConverter(tempoChanges, pauses, audioOffset);
         YokkoHitObject[] hitObjects = beatNotes.Select(note =>
         {
-            string? samplePath = parsed.WavFiles.TryGetValue(note.SampleId, out string? sample)
+            string? samplePath = request.PreferKeysounds
+                                 && parsed.WavFiles.TryGetValue(note.SampleId, out string? sample)
                 ? ImportParsing.ResolveAdjacentAsset(request.Path, sample)
                 : null;
             return new YokkoHitObject(

@@ -15,6 +15,7 @@ using osuTK.Input;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
 using Yokko.Audio;
+using Yokko.Game.Audio;
 using Yokko.Game.Presentation;
 using Yokko.Game.Skinning.OsuMania;
 
@@ -29,6 +30,8 @@ public partial class GameplayScreen : Screen
     private readonly YokkoBeatmap beatmap;
     private IAudioEngine audioEngine;
     private readonly string skinPath;
+    [Resolved]
+    private YokkoAudioSettings audioSettings { get; set; }
 
     private BeatmapJudgementState judgementState;
     private GameplayHud hud;
@@ -41,6 +44,7 @@ public partial class GameplayScreen : Screen
     private SpriteText clockStatusText;
     private OsuManiaSkin maniaSkin;
     private string skinStatusText;
+    private double activeUserOffsetMilliseconds;
 
     public GameplayScreen(
         YokkoBeatmap beatmap,
@@ -212,18 +216,24 @@ public partial class GameplayScreen : Screen
     {
         try
         {
-            await audioEngine.StartAsync(new AudioEngineStartRequest(
-                beatmap.AudioPath,
-                AudioBackendKind.WasapiExclusive,
-                null,
-                48000,
-                64,
-                0)).ConfigureAwait(true);
+            activeUserOffsetMilliseconds =
+                audioSettings.UserOffsetMilliseconds.Value;
+
+            await audioEngine.StartAsync(
+                audioSettings.CreateStartRequest(beatmap.AudioPath))
+                             .ConfigureAwait(true);
 
             if (!audioEngine.Status.IsRunning)
             {
                 hasAudioClock = false;
                 clockStatusText.Text = statusText("Native audio unavailable. Renderer clock active.");
+            }
+            else
+            {
+                AudioEngineStatus status = audioEngine.Status;
+                clockStatusText.Text = statusText(
+                    $"{status.ActiveBackend} · {status.BufferSize} frames · "
+                    + $"{status.EstimatedOutputLatencyMilliseconds:F2} ms");
             }
         }
         catch (Exception ex)
@@ -238,7 +248,8 @@ public partial class GameplayScreen : Screen
         get
         {
             if (hasAudioClock && audioEngine.Status.IsRunning)
-                return audioEngine.PlaybackTimeMilliseconds;
+                return audioEngine.PlaybackTimeMilliseconds
+                       + activeUserOffsetMilliseconds;
 
             return Time.Current - startTimeMilliseconds;
         }

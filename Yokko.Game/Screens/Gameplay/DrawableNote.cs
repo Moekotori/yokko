@@ -1,6 +1,7 @@
 using System;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Primitives;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
@@ -17,10 +18,19 @@ public partial class DrawableNote : CompositeDrawable
 {
     private readonly YokkoHitObject hitObject;
     private readonly Box fallbackBody;
+    private readonly Container holdBodyClip;
     private readonly Sprite holdBody;
+    private readonly Sprite holdHead;
+    private readonly Sprite holdTail;
     private readonly float headHeight;
     private readonly float tailHeight;
+    private readonly float bodyTextureHeight;
     private readonly float minimumHeight;
+    private readonly int noteBodyStyle;
+    private readonly bool upsideDown;
+    private readonly bool flipHoldHead;
+    private readonly bool flipHoldBody;
+    private readonly bool flipHoldTail;
     private bool resolved;
 
     internal DrawableNote(
@@ -59,6 +69,7 @@ public partial class DrawableNote : CompositeDrawable
 
         OsuManiaSkinConfiguration configuration = skin.Configuration;
         int lane = hitObject.Lane;
+        upsideDown = configuration.UpsideDown;
 
         if (hitObject.Kind == HitObjectKind.Tap)
         {
@@ -66,10 +77,18 @@ public partial class DrawableNote : CompositeDrawable
 
             if (noteTexture != null)
             {
-                Height = minimumHeight = scaledHeight(noteTexture, laneWidth, 24);
+                Height = minimumHeight = scaledHeight(
+                    noteTexture,
+                    configuration.WidthForNoteHeightScale,
+                    24);
                 InternalChild = new Sprite
                 {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
                     RelativeSizeAxes = Axes.Both,
+                    Scale = new Vector2(
+                        1,
+                        upsideDown && configuration.NoteFlipWhenUpsideDown[lane] ? -1 : 1),
                     Texture = noteTexture,
                 };
                 return;
@@ -85,22 +104,37 @@ public partial class DrawableNote : CompositeDrawable
             return;
         }
 
+        noteBodyStyle = configuration.NoteBodyStyles[lane];
         Texture headTexture = skin.GetTexture(configuration.HoldHeadImages[lane]);
-        Texture bodyTexture = skin.GetTexture(configuration.HoldBodyImages[lane]);
+        Texture bodyTexture = skin.GetTexture(
+            configuration.HoldBodyImages[lane],
+            repeatVertically: noteBodyStyle != 0);
         Texture tailTexture = skin.GetTexture(configuration.HoldTailImages[lane]) ?? headTexture;
 
-        headHeight = scaledHeight(headTexture, laneWidth, 12);
-        tailHeight = scaledHeight(tailTexture, laneWidth, headHeight);
+        headHeight = scaledHeight(headTexture, configuration.WidthForNoteHeightScale, 12);
+        tailHeight = scaledHeight(tailTexture, configuration.WidthForNoteHeightScale, headHeight);
+        bodyTextureHeight = scaledHeight(bodyTexture, configuration.WidthForNoteHeightScale, 1);
+        flipHoldHead = upsideDown && configuration.HoldHeadFlipWhenUpsideDown[lane];
+        flipHoldBody = upsideDown && configuration.HoldBodyFlipWhenUpsideDown[lane];
+        flipHoldTail = upsideDown && configuration.HoldTailFlipWhenUpsideDown[lane];
         Height = minimumHeight = Math.Max(24, headHeight + tailHeight);
+        Masking = true;
 
         var children = new System.Collections.Generic.List<Drawable>();
 
         if (bodyTexture != null)
         {
-            children.Add(holdBody = new Sprite
+            children.Add(holdBodyClip = new Container
             {
                 Width = laneWidth,
-                Texture = bodyTexture,
+                Masking = true,
+                Child = holdBody = new Sprite
+                {
+                    Anchor = Anchor.TopLeft,
+                    Origin = Anchor.Centre,
+                    Width = laneWidth,
+                    Texture = bodyTexture,
+                },
             });
         }
         else
@@ -114,22 +148,20 @@ public partial class DrawableNote : CompositeDrawable
 
         if (tailTexture != null)
         {
-            children.Add(new Sprite
+            children.Add(holdTail = new Sprite
             {
-                Width = laneWidth,
-                Height = tailHeight,
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.Centre,
                 Texture = tailTexture,
             });
         }
 
         if (headTexture != null)
         {
-            children.Add(new Sprite
+            children.Add(holdHead = new Sprite
             {
-                Anchor = Anchor.BottomLeft,
-                Origin = Anchor.BottomLeft,
-                Width = laneWidth,
-                Height = headHeight,
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.Centre,
                 Texture = headTexture,
             });
         }
@@ -184,7 +216,9 @@ public partial class DrawableNote : CompositeDrawable
             }
 
             Y = Math.Min(headY, tailY);
-            Height = Math.Max(minimumHeight, Math.Abs(headY - tailY) + headHeight);
+            Height = Math.Max(
+                minimumHeight,
+                Math.Abs(headY - tailY) + (upsideDown ? tailHeight : headHeight));
             updateHoldBody();
             Alpha = tailProgress >= -0.08 && headProgress <= 1.22 ? 1 : 0;
             return;
@@ -198,13 +232,48 @@ public partial class DrawableNote : CompositeDrawable
 
     private void updateHoldBody()
     {
-        float bodyY = tailHeight;
+        float bodyY = upsideDown ? headHeight : tailHeight;
         float bodyHeight = Math.Max(0, Height - headHeight - tailHeight);
 
-        if (holdBody != null)
+        if (holdBodyClip != null)
         {
-            holdBody.Y = bodyY;
-            holdBody.Height = bodyHeight;
+            holdBodyClip.Y = bodyY;
+            holdBodyClip.Height = bodyHeight;
+
+            bool repeatBody = noteBodyStyle != 0 && bodyTextureHeight < bodyHeight;
+            bool alignToHead = noteBodyStyle == 2 || noteBodyStyle == 3;
+
+            if (repeatBody)
+            {
+                bool alignTextureEnd = alignToHead ^ flipHoldBody;
+                float textureOffset = alignTextureEnd
+                    ? bodyHeight - MathF.Ceiling(bodyHeight / bodyTextureHeight) * bodyTextureHeight
+                    : 0;
+
+                holdBody.Position = new Vector2(Width / 2, bodyHeight / 2);
+                holdBody.Size = new Vector2(Width, bodyHeight);
+                holdBody.TextureRelativeSizeAxes = Axes.None;
+                holdBody.TextureRectangle = new RectangleF(
+                    0,
+                    textureOffset,
+                    Width,
+                    bodyTextureHeight);
+            }
+            else
+            {
+                float textureHeight = noteBodyStyle == 0 ? bodyHeight : bodyTextureHeight;
+                float textureTop = alignToHead ? bodyHeight - textureHeight : 0;
+
+                if (flipHoldBody)
+                    textureTop = bodyHeight - textureTop - textureHeight;
+
+                holdBody.Position = new Vector2(Width / 2, textureTop + textureHeight / 2);
+                holdBody.Size = new Vector2(Width, textureHeight);
+                holdBody.TextureRelativeSizeAxes = Axes.Both;
+                holdBody.TextureRectangle = new RectangleF(0, 0, 1, 1);
+            }
+
+            holdBody.Scale = new Vector2(1, flipHoldBody ? -1 : 1);
         }
 
         if (fallbackBody != null && hitObject.Kind == HitObjectKind.Hold)
@@ -212,13 +281,36 @@ public partial class DrawableNote : CompositeDrawable
             fallbackBody.Y = bodyY;
             fallbackBody.Height = bodyHeight;
         }
+
+        float headY = upsideDown ? 0 : Height - headHeight;
+        float tailY = upsideDown ? Height - tailHeight : 0;
+        placePart(
+            holdHead,
+            headY,
+            headHeight,
+            flipHoldHead);
+        placePart(
+            holdTail,
+            tailY,
+            tailHeight,
+            flipHoldTail);
     }
 
-    private static float scaledHeight(Texture texture, float width, float fallback)
+    private void placePart(Sprite sprite, float y, float height, bool flip)
+    {
+        if (sprite == null)
+            return;
+
+        sprite.Position = new Vector2(Width / 2, y + height / 2);
+        sprite.Size = new Vector2(Width, height);
+        sprite.Scale = new Vector2(1, flip ? -1 : 1);
+    }
+
+    private static float scaledHeight(Texture texture, float widthForHeightScale, float fallback)
     {
         if (texture == null || texture.DisplayWidth <= 0)
             return fallback;
 
-        return Math.Max(1, texture.DisplayHeight * width / texture.DisplayWidth);
+        return Math.Max(1, texture.DisplayHeight * widthForHeightScale / texture.DisplayWidth);
     }
 }

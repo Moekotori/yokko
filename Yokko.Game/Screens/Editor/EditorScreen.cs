@@ -16,6 +16,7 @@ using osuTK;
 using osuTK.Input;
 using Yokko.Core.Editing;
 using Yokko.Core.Gameplay;
+using Yokko.Game.Importing;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Import;
@@ -55,6 +56,9 @@ public partial class EditorScreen : Screen
 
     [Resolved]
     private GameHost host { get; set; }
+
+    [Resolved]
+    private YokkoImportSettings importSettings { get; set; }
 
     [BackgroundDependencyLoader]
     private void load()
@@ -248,7 +252,10 @@ public partial class EditorScreen : Screen
         try
         {
             cancelWaveformLoad();
-            ChartImportResult result = KnownChartImporters.ImportAsync(new ChartImportRequest(path, true))
+            ChartImportResult result = KnownChartImporters.ImportAsync(new ChartImportRequest(
+                                                              path,
+                                                              importSettings.PreferKeysounds.Value,
+                                                              importSettings.PreferSscSimfiles.Value))
                                                           .AsTask()
                                                           .GetAwaiter()
                                                           .GetResult();
@@ -258,7 +265,8 @@ public partial class EditorScreen : Screen
             audioWaveform = EditorAudioWaveform.Missing;
             rebuildWorkspace();
             beginWaveformLoad();
-            string warning = result.Warnings.Count > 0
+            string warning = importSettings.ShowCompatibilityWarnings.Value
+                             && result.Warnings.Count > 0
                 ? $" Warning: {result.Warnings[0]}{(result.Warnings.Count > 1 ? $" (+{result.Warnings.Count - 1} more)" : string.Empty)}"
                 : string.Empty;
             setStatus($"Imported {Path.GetFileName(path)}.{warning}");

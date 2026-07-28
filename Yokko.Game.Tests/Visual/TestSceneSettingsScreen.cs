@@ -5,6 +5,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
+using Yokko.Audio;
 using Yokko.Game.Screens.Settings;
 
 namespace Yokko.Game.Tests.Visual
@@ -52,10 +53,10 @@ namespace Yokko.Game.Tests.Visual
             });
 
             AddStep("open Audio", () => settingsScreen.OpenPage(SettingsPageKind.Audio));
-            AddAssert("placeholder status icon is centred", () =>
+            AddAssert("audio status icon is centred", () =>
             {
-                Circle badge = settingsScreen.ActivePanel.ChildrenOfType<Circle>().Single(candidate => candidate.Size.X == 70);
-                SpriteIcon icon = settingsScreen.ActivePanel.ChildrenOfType<SpriteIcon>().Single(candidate => candidate.Size.X == 32);
+                Circle badge = settingsScreen.ActivePanel.ChildrenOfType<Circle>().Single(candidate => candidate.Size.X == 56);
+                SpriteIcon icon = settingsScreen.ActivePanel.ChildrenOfType<SpriteIcon>().Single(candidate => candidate.Size.X == 26);
 
                 return badge.Origin == Anchor.Centre &&
                        icon.Origin == Anchor.Centre &&
@@ -92,7 +93,7 @@ namespace Yokko.Game.Tests.Visual
             SettingsPlaceholderPanel placeholder = null;
             DisplaySettingsPanel display = null;
 
-            AddStep("open Audio", () => settingsScreen.OpenPage(SettingsPageKind.Audio));
+            AddStep("open Gameplay", () => settingsScreen.OpenPage(SettingsPageKind.Gameplay));
             AddStep("capture placeholder", () => placeholder = (SettingsPlaceholderPanel)settingsScreen.ActivePanel);
             AddStep("expand first section", () => placeholder.ToggleSection(0));
             AddAssert("first section expanded", () => placeholder.ExpandedSectionIndex == 0);
@@ -124,6 +125,65 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("Japanese selected", () => general.CurrentLocale == "ja");
             AddStep("restore English", () => general.SelectLanguage("en"));
             AddAssert("English restored", () => general.CurrentLocale == "en");
+        }
+
+        [Test]
+        public void TestImportPageShowsCapabilitiesAndUpdatesPreferences()
+        {
+            ImportSettingsPanel import = null;
+
+            AddStep("open Import", () => settingsScreen.OpenPage(SettingsPageKind.Import));
+            AddStep("capture Import", () => import = (ImportSettingsPanel)settingsScreen.ActivePanel);
+            AddAssert("all importer families shown", () => import.FormatFamilyCount == 5);
+            AddAssert("all supported extensions shown", () => import.FileTypeCount == 12);
+
+            AddStep("disable keysounds", () => import.SetPreferKeysounds(false));
+            AddAssert("keysounds disabled", () => !import.PreferKeysounds);
+            AddStep("disable SSC preference", () => import.SetPreferSscSimfiles(false));
+            AddAssert("SSC preference disabled", () => !import.PreferSscSimfiles);
+            AddStep("disable warnings", () => import.SetShowCompatibilityWarnings(false));
+            AddAssert("warnings disabled", () => !import.ShowCompatibilityWarnings);
+
+            AddStep("restore import defaults", () =>
+            {
+                import.SetPreferKeysounds(true);
+                import.SetPreferSscSimfiles(true);
+                import.SetShowCompatibilityWarnings(true);
+            });
+            AddAssert("import defaults restored", () =>
+                import.PreferKeysounds &&
+                import.PreferSscSimfiles &&
+                import.ShowCompatibilityWarnings);
+        }
+
+        [Test]
+        public void TestAudioPreferencesApplyToSharedTruth()
+        {
+            AudioSettingsPanel audio = null;
+            AudioBackendKind originalBackend = default;
+            int originalBuffer = 0;
+            double originalOffset = 0;
+
+            AddStep("open Audio", () => settingsScreen.OpenPage(SettingsPageKind.Audio));
+            AddStep("capture Audio", () =>
+            {
+                audio = (AudioSettingsPanel)settingsScreen.ActivePanel;
+                originalBackend = audio.CurrentBackend;
+                originalBuffer = audio.CurrentBufferSize;
+                originalOffset = audio.CurrentOffsetMilliseconds;
+            });
+            AddStep("select shared output", () => audio.SelectBackend(AudioBackendKind.SharedWasapi));
+            AddAssert("shared output selected", () => audio.CurrentBackend == AudioBackendKind.SharedWasapi);
+            AddStep("select 256-frame profile", () => audio.SelectBufferSize(256));
+            AddAssert("256-frame profile selected", () => audio.CurrentBufferSize == 256);
+            AddStep("set +12 ms offset", () => audio.SetOffset(12));
+            AddAssert("offset selected", () => audio.CurrentOffsetMilliseconds == 12);
+            AddStep("restore audio preferences", () =>
+            {
+                audio.SelectBackend(originalBackend);
+                audio.SelectBufferSize(originalBuffer);
+                audio.SetOffset(originalOffset);
+            });
         }
     }
 }

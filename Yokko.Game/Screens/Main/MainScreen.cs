@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
@@ -32,6 +33,22 @@ public partial class MainScreen : Screen
     private static readonly Color4 mutedNavy = new(0.18f, 0.28f, 0.58f, 1f);
     private static readonly Color4 paleCyan = new(0.54f, 0.91f, 0.98f, 1f);
 
+    private Container content;
+    private Container leftStage;
+    private Container decorationLayer;
+    private Container rightParallax;
+    private Drawable rightStage;
+    private Drawable brandLockup;
+    private Drawable commandArea;
+    private Drawable utilityArea;
+    private Drawable footer;
+    private Sprite mascot;
+    private SpriteText watermark;
+    private SpriteIcon heartbeatIcon;
+    private readonly Box[] stageLines = new Box[2];
+
+    private Vector2 parallaxCurrent;
+
     [BackgroundDependencyLoader]
     private void load(TextureStore textures)
     {
@@ -53,43 +70,152 @@ public partial class MainScreen : Screen
                 Colour = cyan,
             },
             createIvoryStage(),
-            new Container
+            content = new Container
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Size = new Vector2(designedWidth, designedHeight),
                 Children = new Drawable[]
                 {
-                    createRightStage(mascotTexture),
-                    createDecorationIcon(FontAwesome.Solid.Plus, 55, 36, 12, pink),
-                    createDecorationIcon(FontAwesome.Solid.Plus, 116, 29, 10, cyan),
-                    createDecorationIcon(FontAwesome.Solid.Plus, 42, 67, 9, yellow),
-                    new HomeCornerBracket
+                    rightStage = createRightStage(mascotTexture),
+                    decorationLayer = new Container
                     {
-                        Position = new Vector2(30, 218),
-                        Height = 232,
+                        RelativeSizeAxes = Axes.Both,
+                        Alpha = 0,
+                        Children = new Drawable[]
+                        {
+                            createDecorationIcon(FontAwesome.Solid.Plus, 55, 36, 12, pink),
+                            createDecorationIcon(FontAwesome.Solid.Plus, 116, 29, 10, cyan),
+                            createDecorationIcon(FontAwesome.Solid.Plus, 42, 67, 9, yellow),
+                            new HomeCornerBracket
+                            {
+                                Position = new Vector2(30, 218),
+                                Height = 232,
+                            },
+                            new HomeConnectorPlus
+                            {
+                                Position = new Vector2(38, 448),
+                            },
+                            new HomeMicroLine
+                            {
+                                Position = new Vector2(525, 31),
+                                Width = 142,
+                            },
+                            new HomeDotCross
+                            {
+                                Position = new Vector2(-12, 606),
+                                Alpha = 0.62f,
+                            },
+                        },
                     },
-                    new HomeConnectorPlus
+                    leftStage = new Container
                     {
-                        Position = new Vector2(28, 438),
+                        RelativeSizeAxes = Axes.Both,
+                        Children = new Drawable[]
+                        {
+                            brandLockup = createBrandLockup(logoTexture),
+                            commandArea = createCommandArea(),
+                            footer = createFooter(audioStatus),
+                        },
                     },
-                    new HomeMicroLine
-                    {
-                        Position = new Vector2(525, 31),
-                        Width = 142,
-                    },
-                    new HomeDotCross
-                    {
-                        Position = new Vector2(-12, 606),
-                        Alpha = 0.62f,
-                    },
-                    createBrandLockup(logoTexture),
-                    createCommandArea(),
-                    createUtilityArea(),
-                    createFooter(audioStatus),
+                    utilityArea = createUtilityArea(),
                 },
             },
         };
+
+        // 入场初始状态，OnEntering 中归位。
+        brandLockup.X -= 26;
+        brandLockup.Alpha = 0;
+        commandArea.Y += 24;
+        commandArea.Alpha = 0;
+        footer.Y += 20;
+        footer.Alpha = 0;
+        rightStage.X += 44;
+        rightStage.Alpha = 0;
+        utilityArea.Y -= 20;
+        utilityArea.Alpha = 0;
+
+        startAmbientMotion();
+    }
+
+    public override void OnEntering(ScreenTransitionEvent e)
+    {
+        base.OnEntering(e);
+
+        content.FadeInFromZero(240);
+        rightStage.Delay(80).FadeIn(520).MoveToX(0, 640, Easing.OutQuint);
+        decorationLayer.Delay(240).FadeIn(600);
+        brandLockup.Delay(60).FadeIn(420).MoveToX(56, 540, Easing.OutQuint);
+        commandArea.Delay(150).FadeIn(420).MoveToY(208, 540, Easing.OutQuint);
+        footer.Delay(300).FadeIn(420).MoveToY(655, 540, Easing.OutQuint);
+        utilityArea.Delay(340).FadeIn(360).MoveToY(24, 460, Easing.OutQuint);
+    }
+
+    public override void OnResuming(ScreenTransitionEvent e)
+    {
+        base.OnResuming(e);
+        this.FadeIn(200, Easing.OutQuint);
+    }
+
+    public override void OnSuspending(ScreenTransitionEvent e)
+    {
+        base.OnSuspending(e);
+        this.FadeTo(0.4f, 200, Easing.OutQuint);
+    }
+
+    public override void OnExiting(ScreenTransitionEvent e)
+    {
+        base.OnExiting(e);
+        this.FadeOut(200, Easing.OutQuint);
+    }
+
+    protected override void Update()
+    {
+        base.Update();
+
+        var inputManager = GetContainingInputManager();
+        if (inputManager == null)
+            return;
+
+        Vector2 local = ToLocalSpace(inputManager.CurrentState.Mouse.Position);
+        Vector2 target = new Vector2(
+            Math.Clamp(local.X / DrawWidth - 0.5f, -0.65f, 0.65f),
+            Math.Clamp(local.Y / DrawHeight - 0.5f, -0.65f, 0.65f));
+
+        float blend = 1f - MathF.Exp((float)(-Clock.ElapsedFrameTime / 110));
+        parallaxCurrent = Vector2.Lerp(parallaxCurrent, target, blend);
+
+        rightParallax.Position = parallaxCurrent * new Vector2(16, 11);
+        decorationLayer.Position = parallaxCurrent * new Vector2(24, 15);
+        leftStage.Position = parallaxCurrent * new Vector2(-5, -3);
+    }
+
+    private void startAmbientMotion()
+    {
+        mascot.MoveToY(396.5f + 7, 1900, Easing.InOutSine)
+              .Then().MoveToY(396.5f - 7, 1900, Easing.InOutSine)
+              .Loop();
+        mascot.RotateTo(1.1f, 2400, Easing.InOutSine)
+              .Then().RotateTo(-1.1f, 2400, Easing.InOutSine)
+              .Loop();
+
+        watermark.FadeTo(0.22f, 2600, Easing.InOutSine)
+                 .Then().FadeTo(0.1f, 2600, Easing.InOutSine)
+                 .Loop();
+
+        for (int i = 0; i < stageLines.Length; i++)
+        {
+            stageLines[i].FadeTo(0.55f, 1800 + i * 420, Easing.InOutSine)
+                         .Then().FadeTo(1f, 1800 + i * 420, Easing.InOutSine)
+                         .Loop();
+        }
+
+        // 双跳模拟心拍。
+        heartbeatIcon.ScaleTo(1.28f, 110, Easing.Out)
+                     .Then().ScaleTo(1f, 150, Easing.Out)
+                     .Then().ScaleTo(1.16f, 100, Easing.Out)
+                     .Then().ScaleTo(1f, 640, Easing.OutQuint)
+                     .Loop();
     }
 
     private static Drawable createIvoryStage() => new Container
@@ -119,45 +245,49 @@ public partial class MainScreen : Screen
     private Drawable createRightStage(Texture mascotTexture) => new Container
     {
         RelativeSizeAxes = Axes.Both,
-        Children = new Drawable[]
+        Child = rightParallax = new Container
         {
-            new SpriteText
+            RelativeSizeAxes = Axes.Both,
+            Children = new Drawable[]
             {
-                X = 690,
-                Y = 20,
-                Text = "YOKKO",
-                Font = HomeTypography.Brand(102),
-                Colour = new Color4(1f, 1f, 1f, 0.14f),
-            },
-            createDecorationIcon(FontAwesome.Solid.Plus, 730, 166, 18, Color4.White),
-            createDecorationIcon(FontAwesome.Solid.Plus, 1220, 552, 19, Color4.White),
-            createDecorationIcon(FontAwesome.Solid.Plus, 1190, 151, 14, yellow),
-            createDecorationIcon(FontAwesome.Solid.Plus, 1225, 666, 10, pink),
-            createStageLine(1128, 235, 180, -28),
-            createStageLine(1060, 532, 250, -28),
-            new HomeDotField
-            {
-                Position = new Vector2(1186, 16),
-                Size = new Vector2(72, 44),
-                Colour = new Color4(1f, 1f, 1f, 0.24f),
-            },
-            new HomeDotField
-            {
-                Position = new Vector2(1184, 610),
-                Size = new Vector2(72, 58),
-                Colour = new Color4(1f, 1f, 1f, 0.22f),
-            },
-            new Sprite
-            {
-                X = 600,
-                Y = 14,
-                Size = new Vector2(675, 765),
-                Texture = mascotTexture,
-            },
-            new HomeMascotBubble(YokkoStrings.Get("main.lets_play"))
-            {
-                X = 632,
-                Y = 365,
+                watermark = new SpriteText
+                {
+                    X = 690,
+                    Y = 20,
+                    Text = "YOKKO",
+                    Font = HomeTypography.Brand(102),
+                    Colour = new Color4(1f, 1f, 1f, 0.14f),
+                },
+                createDecorationIcon(FontAwesome.Solid.Plus, 730, 166, 18, Color4.White),
+                createDecorationIcon(FontAwesome.Solid.Plus, 1220, 552, 19, Color4.White),
+                createDecorationIcon(FontAwesome.Solid.Plus, 1190, 151, 14, yellow),
+                createDecorationIcon(FontAwesome.Solid.Plus, 1225, 666, 10, pink),
+                stageLines[0] = (Box)createStageLine(1128, 235, 180, -28),
+                stageLines[1] = (Box)createStageLine(1060, 532, 250, -28),
+                new HomeDotField
+                {
+                    Position = new Vector2(1186, 16),
+                    Size = new Vector2(72, 44),
+                    Colour = new Color4(1f, 1f, 1f, 0.24f),
+                },
+                new HomeDotField
+                {
+                    Position = new Vector2(1184, 610),
+                    Size = new Vector2(72, 58),
+                    Colour = new Color4(1f, 1f, 1f, 0.22f),
+                },
+                mascot = new Sprite
+                {
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(937.5f, 396.5f),
+                    Size = new Vector2(675, 765),
+                    Texture = mascotTexture,
+                },
+                new HomeMascotBubble(YokkoStrings.Get("main.lets_play"))
+                {
+                    X = 632,
+                    Y = 365,
+                },
             },
         },
     };
@@ -171,14 +301,30 @@ public partial class MainScreen : Screen
         Colour = new Color4(1f, 1f, 1f, 0.22f),
     };
 
-    private static Drawable createDecorationIcon(IconUsage icon, float x, float y, float size, Color4 colour) => new SpriteIcon
+    private static Drawable createDecorationIcon(IconUsage icon, float x, float y, float size, Color4 colour)
     {
-        Position = new Vector2(x, y),
-        Size = new Vector2(size),
-        Icon = icon,
-        Colour = colour,
-        Alpha = 0.9f,
-    };
+        var sprite = new SpriteIcon
+        {
+            Origin = Anchor.Centre,
+            Position = new Vector2(x + size / 2f, y + size / 2f),
+            Size = new Vector2(size),
+            Icon = icon,
+            Colour = colour,
+            Alpha = 0.9f,
+        };
+
+        // 每个装饰按位置错开呼吸节奏，避免整齐划一。
+        int phase = (((int)(x * 7 + y * 13)) % 5 + 5) % 5;
+        float duration = 1500 + phase * 170;
+        sprite.ScaleTo(1.16f, duration, Easing.InOutSine)
+              .Then().ScaleTo(1f, duration, Easing.InOutSine)
+              .Loop();
+        sprite.RotateTo(7, duration * 1.6f, Easing.InOutSine)
+              .Then().RotateTo(-7, duration * 1.6f, Easing.InOutSine)
+              .Loop();
+
+        return sprite;
+    }
 
     private static Drawable createBrandLockup(Texture logoTexture) => new Sprite
     {
@@ -232,7 +378,7 @@ public partial class MainScreen : Screen
             },
             new HomeConnectorPlus
             {
-                Position = new Vector2(536, 209),
+                Position = new Vector2(546, 219),
             },
             new FillFlowContainer
             {
@@ -259,7 +405,7 @@ public partial class MainScreen : Screen
             () => this.Push(new EditorScreen(true)), 72, FontAwesome.Solid.ArrowRight),
     };
 
-    private static Drawable createFooter(LocalisableString audioStatus) => new Container
+    private Drawable createFooter(LocalisableString audioStatus) => new Container
     {
         Position = new Vector2(60, 655),
         Size = new Vector2(530, 48),
@@ -278,9 +424,10 @@ public partial class MainScreen : Screen
                 X = 116,
                 Colour = new Color4(paleCyan.R, paleCyan.G, paleCyan.B, 0.72f),
             },
-            new SpriteIcon
+            heartbeatIcon = new SpriteIcon
             {
-                Position = new Vector2(260, -10),
+                Origin = Anchor.Centre,
+                Position = new Vector2(271.5f, 1.5f),
                 Size = new Vector2(23),
                 Icon = FontAwesome.Solid.Heartbeat,
                 Colour = navy,

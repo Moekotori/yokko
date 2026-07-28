@@ -10,6 +10,8 @@ using osu.Framework.Input.Events;
 using osu.Framework.Screens;
 using osuTK;
 using osuTK.Input;
+using Yokko.Game.Audio;
+using Yokko.Game.Importing;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
 using RectangleF = osu.Framework.Graphics.Primitives.RectangleF;
@@ -30,6 +32,10 @@ public partial class SettingsScreen : Screen
 
     [Resolved]
     private YokkoDisplaySettings displaySettings { get; set; }
+    [Resolved]
+    private YokkoAudioSettings audioSettings { get; set; }
+    [Resolved]
+    private YokkoImportSettings importSettings { get; set; }
 
     private Bindable<Size> windowedSize;
     private Bindable<WindowMode> windowMode;
@@ -105,6 +111,8 @@ public partial class SettingsScreen : Screen
                 displaySettings.UiScale,
                 size => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, size),
                 mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode)),
+            SettingsPageKind.Audio => new AudioSettingsPanel(audioSettings),
+            SettingsPageKind.Import => new ImportSettingsPanel(importSettings),
             _ => new SettingsPlaceholderPanel(SettingsPages.Get(page)),
         };
 

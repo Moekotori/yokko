@@ -87,6 +87,23 @@ after its first event. A runtime callback failure now marks the core `Faulted`
 and publishes the backend HRESULT/stage instead of leaving a false-running
 state.
 
+## Settings truth
+
+`YokkoAudioSettings` is the application-owned preference source shared by the
+Audio settings panel and `GameplayScreen`. The values are persisted in
+`yokko.ini` and converted into an `AudioEngineStartRequest` when playback
+starts:
+
+- WASAPI Exclusive or Shared output mode;
+- Windows endpoint ID, with the current Windows default represented by an
+  empty ID;
+- requested 64/128/256/512-frame latency profile;
+- global gameplay timing offset from -200 ms to +200 ms.
+
+Opening the settings page only enumerates endpoints. It does not open or reserve
+an output stream. Changes are saved immediately and apply to the next playback
+session, so an active audio clock is never silently replaced mid-song.
+
 Next:
 
 1. Validate 64/128/256-frame profiles per real device and persist the smallest

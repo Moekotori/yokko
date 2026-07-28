@@ -30,6 +30,16 @@ NoteImage0: custom/note-left
 NoteImage0H: custom/hold-head
 NoteImage0L: custom/hold-body
 NoteImage0T: custom/hold-tail
+WidthForNoteHeightScale: 64
+UpsideDown: 1
+KeyFlipWhenUpsideDown: 0
+KeyFlipWhenUpsideDown0D: 1
+NoteFlipWhenUpsideDown: 0
+NoteFlipWhenUpsideDown0H: 1
+NoteFlipWhenUpsideDown0L: 1
+NoteFlipWhenUpsideDown0T: 1
+NoteBodyStyle: 1
+NoteBodyStyle0: 0
 
 [Mania]
 Keys: 7
@@ -54,6 +64,15 @@ HitPosition: 400
         Assert.That(fourKey.HoldHeadImages[0], Is.EqualTo("custom/hold-head"));
         Assert.That(fourKey.HoldBodyImages[0], Is.EqualTo("custom/hold-body"));
         Assert.That(fourKey.HoldTailImages[0], Is.EqualTo("custom/hold-tail"));
+        Assert.That(fourKey.WidthForNoteHeightScale, Is.EqualTo(64));
+        Assert.That(fourKey.UpsideDown, Is.True);
+        Assert.That(fourKey.KeyFlipWhenUpsideDown, Is.EqualTo(new[] { false, false, false, false }));
+        Assert.That(fourKey.PressedKeyFlipWhenUpsideDown, Is.EqualTo(new[] { true, false, false, false }));
+        Assert.That(fourKey.NoteFlipWhenUpsideDown, Is.EqualTo(new[] { false, false, false, false }));
+        Assert.That(fourKey.HoldHeadFlipWhenUpsideDown, Is.EqualTo(new[] { true, false, false, false }));
+        Assert.That(fourKey.HoldBodyFlipWhenUpsideDown, Is.EqualTo(new[] { true, false, false, false }));
+        Assert.That(fourKey.HoldTailFlipWhenUpsideDown, Is.EqualTo(new[] { true, false, false, false }));
+        Assert.That(fourKey.NoteBodyStyles, Is.EqualTo(new[] { 0, 1, 1, 1 }));
     }
 
     [Test]
@@ -79,6 +98,8 @@ NoteImage0H: head
         }));
         Assert.That(configuration.HoldTailImages[0], Is.EqualTo("head"));
         Assert.That(configuration.HitPosition, Is.EqualTo(402));
+        Assert.That(configuration.WidthForNoteHeightScale, Is.EqualTo(30));
+        Assert.That(configuration.NoteBodyStyles, Is.EqualTo(new[] { 1, 1, 1, 1 }));
     }
 
     [Test]

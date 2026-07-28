@@ -22,6 +22,10 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly float topY;
     private readonly float judgementY;
 
+    internal float ScrollOrigin => topY;
+
+    internal float JudgementPosition => judgementY;
+
     internal GameplayPlayfield(
         YokkoBeatmap beatmap,
         KeyModeBindings keyBindings,
@@ -32,8 +36,14 @@ public partial class GameplayPlayfield : CompositeDrawable
         float playfieldWidth = configuration?.PlayfieldWidth ?? (keyCount == 4 ? 424 : 658);
         float laneWidth = skin == null ? playfieldWidth / keyCount : 0;
 
-        topY = skin == null ? 28 : 0;
-        judgementY = skin == null ? 528 : Math.Clamp(configuration.HitPosition, 0, 480);
+        topY = skin == null
+            ? 28
+            : configuration.UpsideDown ? 480 : 0;
+        judgementY = skin == null
+            ? 528
+            : configuration.UpsideDown
+                ? 480 - Math.Clamp(configuration.HitPosition, 0, 480)
+                : Math.Clamp(configuration.HitPosition, 0, 480);
         Size = new Vector2(playfieldWidth, skin == null ? 620 : 480);
         Masking = true;
 
@@ -41,11 +51,14 @@ public partial class GameplayPlayfield : CompositeDrawable
                                 .Select(lane =>
                                 {
                                     float width = configuration?.ColumnWidths[lane] ?? laneWidth;
-                                    return new LaneColumn(lane, keyBindings.GetDisplayKey(lane), width, skin)
+                                    float x = configuration?.GetLaneX(lane) ?? lane * laneWidth;
+                                    var column = new LaneColumn(lane, keyBindings.GetDisplayKey(lane), width, skin)
                                     {
-                                        X = configuration?.GetLaneX(lane) ?? lane * laneWidth,
+                                        X = x,
                                         Width = width,
                                     };
+                                    column.ReceptorLayer.X = x;
+                                    return column;
                                 })
                                 .ToArray();
 
@@ -58,6 +71,21 @@ public partial class GameplayPlayfield : CompositeDrawable
             };
         }).ToArray();
 
+        var laneBackgroundLayer = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Children = laneColumns,
+        };
+        var receptorLayer = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Children = laneColumns.Select(column => column.ReceptorLayer).ToArray(),
+        };
+        var noteLayer = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Children = noteDrawables,
+        };
         var children = new System.Collections.Generic.List<Drawable>
         {
             new Box
@@ -65,17 +93,19 @@ public partial class GameplayPlayfield : CompositeDrawable
                 RelativeSizeAxes = Axes.Both,
                 Colour = new Color4(0.018f, 0.022f, 0.032f, 0.94f),
             },
-            new Container
-            {
-                RelativeSizeAxes = Axes.Both,
-                Children = laneColumns,
-            },
-            new Container
-            {
-                RelativeSizeAxes = Axes.Both,
-                Children = noteDrawables,
-            },
+            laneBackgroundLayer,
         };
+
+        if (configuration?.KeysUnderNotes == true)
+        {
+            children.Add(receptorLayer);
+            children.Add(noteLayer);
+        }
+        else
+        {
+            children.Add(noteLayer);
+            children.Add(receptorLayer);
+        }
 
         Texture stageHint = skin?.GetTexture(configuration.StageHint);
 

@@ -91,12 +91,16 @@ launching Yokko.
 
 The current compatibility slice supports 4K/7K repeated `[Mania]` sections,
 column widths/spacing/colours, hit position, key-up/key-down textures, tap notes,
-long-note heads/bodies/tails, custom asset paths, `.png`/`.jpg`, `@2x` assets,
-and first-frame fallback for animated assets. Missing or invalid resources fall
-back to Yokko's built-in rendering instead of preventing gameplay.
+long-note heads/bodies/tails, custom asset paths, `.png`/`.jpg`/`.jpeg`, `@2x`
+assets, and first-frame fallback for animated assets. Arrow and LN-focused skins
+also honour `UpsideDown`, per-element flip settings, `KeysUnderNotes`,
+`WidthForNoteHeightScale`, and the common stretch/top-crop/bottom-crop
+`NoteBodyStyle` modes. This includes very tall body textures used by Chinese
+community “投皮” variants. Missing or invalid resources fall back to Yokko's
+built-in rendering instead of preventing gameplay.
 
-Animation playback, hit bursts, skin sounds, stage splitting, upside-down
-rendering, and exact long-note body-style behaviour are still in progress.
+Animation playback, hit bursts, skin sounds, stage splitting, and rare extended
+long-note body modes are still in progress.
 
 Editor rows are derived from the active uninherited timing point and beat divisor. They are not fixed-duration rows, so BPM changes remain aligned to the song grid.
 

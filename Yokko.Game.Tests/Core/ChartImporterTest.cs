@@ -391,6 +391,18 @@ HitObjects:
 
             Assert.That(result.Beatmap.Title, Is.EqualTo("SSC Version"));
             Assert.That(result.Warnings[0], Does.Contain("chart.ssc"));
+
+            ChartImportResult smResult = KnownChartImporters.ImportAsync(
+                                                                  new ChartImportRequest(
+                                                                      archivePath,
+                                                                      PreferKeysounds: true,
+                                                                      PreferSscSimfiles: false))
+                                                              .AsTask()
+                                                              .GetAwaiter()
+                                                              .GetResult();
+
+            Assert.That(smResult.Beatmap.Title, Is.EqualTo("SM Version"));
+            Assert.That(smResult.Warnings[0], Does.Contain("chart.sm"));
         }
 
         [Test]
@@ -436,6 +448,20 @@ HitObjects:
             Assert.That(result.Beatmap.TimingPoints, Has.Count.EqualTo(2));
             Assert.That(result.Beatmap.TimingPoints[1].BeatsPerMinute, Is.EqualTo(240).Within(0.001));
             Assert.That(result.Beatmap.AudioPath, Does.EndWith("song.ogg"));
+            Assert.That(result.Beatmap.HitObjects.Any(note => note.SampleKey != null), Is.True);
+
+            ChartImportResult withoutKeysounds = KnownChartImporters.ImportAsync(
+                                                                      new ChartImportRequest(
+                                                                          path,
+                                                                          PreferKeysounds: false))
+                                                                  .AsTask()
+                                                                  .GetAwaiter()
+                                                                  .GetResult();
+
+            Assert.That(withoutKeysounds.Beatmap.HitObjects.All(note => note.SampleKey == null), Is.True);
+            Assert.That(
+                withoutKeysounds.Warnings.Any(warning => warning.Contains("preserved", StringComparison.OrdinalIgnoreCase)),
+                Is.False);
         }
 
         private static ChartImportResult import(string path)

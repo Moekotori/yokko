@@ -47,6 +47,13 @@ public sealed class OsuManiaRealSkinCorpusTest
                 Assert.That(configuration.ColumnSpacings, Has.Length.EqualTo(configuration.Keys));
                 Assert.That(configuration.ColumnLineWidths, Has.Length.EqualTo(configuration.Keys));
                 Assert.That(configuration.LaneColours, Has.Length.EqualTo(configuration.Keys));
+                Assert.That(configuration.NoteBodyStyles, Has.Length.EqualTo(configuration.Keys));
+                Assert.That(configuration.KeyFlipWhenUpsideDown, Has.Length.EqualTo(configuration.Keys));
+                Assert.That(configuration.PressedKeyFlipWhenUpsideDown, Has.Length.EqualTo(configuration.Keys));
+                Assert.That(configuration.NoteFlipWhenUpsideDown, Has.Length.EqualTo(configuration.Keys));
+                Assert.That(configuration.HoldHeadFlipWhenUpsideDown, Has.Length.EqualTo(configuration.Keys));
+                Assert.That(configuration.HoldBodyFlipWhenUpsideDown, Has.Length.EqualTo(configuration.Keys));
+                Assert.That(configuration.HoldTailFlipWhenUpsideDown, Has.Length.EqualTo(configuration.Keys));
 
                 if (configuration.Keys is not (4 or 7))
                     continue;
