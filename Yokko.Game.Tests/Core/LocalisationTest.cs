@@ -1,6 +1,7 @@
 using System.Linq;
 using NUnit.Framework;
 using Yokko.Game.Localisation;
+using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Tests.Core;
 
@@ -26,5 +27,12 @@ public class LocalisationTest
 
         Assert.That(strings.Keys, Is.EquivalentTo(YokkoStrings.Keys));
         Assert.That(strings.Values.All(value => !string.IsNullOrWhiteSpace(value)), Is.True);
+    }
+
+    [Test]
+    public void LatinTypographyKeepsFrameworkFontMetrics()
+    {
+        Assert.That(HomeTypography.Body(16).Family, Is.EqualTo("Roboto"));
+        Assert.That(HomeTypography.Display(16).Family, Is.EqualTo("Roboto"));
     }
 }

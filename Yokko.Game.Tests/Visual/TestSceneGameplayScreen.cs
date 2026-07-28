@@ -6,6 +6,8 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Core.Beatmaps;
 using Yokko.Game.Screens.Gameplay;
 
@@ -61,9 +63,7 @@ NoteImage0T: hold-tail
 StageHint: stage-hint
 """);
 
-            byte[] png = Convert.FromBase64String(
-                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAEElEQVR42mP8z8AARAwMjIACAA0DAAG8D8nWAAAAAElFTkSuQmCC");
-
+            using var image = new Image<Rgba32>(8, 8, new Rgba32(72, 208, 240, 255));
             foreach (string name in new[]
                      {
                          "key.png",
@@ -74,7 +74,7 @@ StageHint: stage-hint
                          "hold-tail.png",
                          "stage-hint.png",
                      })
-                File.WriteAllBytes(Path.Combine(directory, name), png);
+                image.SaveAsPng(Path.Combine(directory, name));
 
             return directory;
         }

@@ -146,12 +146,9 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
 
     private static string findSkinRoot(string path)
     {
-        string directSkinIni = Path.Combine(path, "skin.ini");
-
-        if (File.Exists(directSkinIni))
-            return Path.GetFullPath(path);
-
-        string nestedSkinIni = Directory.EnumerateFiles(path, "skin.ini", SearchOption.AllDirectories)
+        string nestedSkinIni = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories)
+                                        .Where(candidate => Path.GetFileName(candidate)
+                                                                .Equals("skin.ini", StringComparison.OrdinalIgnoreCase))
                                         .OrderBy(candidate => candidate.Count(character => character is '\\' or '/'))
                                         .FirstOrDefault();
 

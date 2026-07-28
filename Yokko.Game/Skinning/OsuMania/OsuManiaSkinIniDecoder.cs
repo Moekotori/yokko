@@ -170,8 +170,8 @@ internal static class OsuManiaSkinIniDecoder
 
         byte alpha = 255;
 
-        if (parts.Length >= 4)
-            byte.TryParse(parts[3].Trim(), out alpha);
+        if (parts.Length >= 4 && byte.TryParse(parts[3].Trim(), out byte parsedAlpha))
+            alpha = parsedAlpha;
 
         return new Color4(red, green, blue, alpha);
     }
