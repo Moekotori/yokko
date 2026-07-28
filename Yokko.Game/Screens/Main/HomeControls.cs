@@ -42,6 +42,7 @@ public partial class HomePrimaryAction : ClickableContainer
     private readonly Box background;
     private readonly Box focusLine;
     private readonly SpriteIcon chevron;
+    private readonly Box shine;
 
     public HomePrimaryAction(LocalisableString title, LocalisableString eyebrow, IconUsage icon, Action action)
     {
@@ -87,6 +88,16 @@ public partial class HomePrimaryAction : ClickableContainer
                     {
                         RelativeSizeAxes = Axes.Both,
                         Colour = HomeControlColours.Navy,
+                    },
+                    shine = new Box
+                    {
+                        Position = new Vector2(-140, -28),
+                        Origin = Anchor.CentreLeft,
+                        Width = 70,
+                        Height = 170,
+                        Rotation = 22,
+                        Colour = Color4.White,
+                        Alpha = 0.13f,
                     },
                     new HomeDotField
                     {
@@ -256,6 +267,14 @@ public partial class HomePrimaryAction : ClickableContainer
         chevron.MoveToX(-19, 170, Easing.OutQuint);
         this.ScaleTo(hover_scale, 130, Easing.OutQuint);
         return true;
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        // 周期性光泽扫过，增加精致感。
+        shine.MoveToX(-140).MoveToX(660, 800, Easing.InOutQuart).Loop(3200);
     }
 
     protected override void OnHoverLost(HoverLostEvent e)
@@ -956,72 +975,6 @@ public partial class HomeKeycap : CompositeDrawable
                 Colour = HomeControlColours.Navy,
             },
         };
-    }
-}
-
-/// <summary>
-/// 心电波形带，扫描点沿波形往复。
-/// </summary>
-public partial class HomeEcgStrip : CompositeDrawable
-{
-    private const double period = 2800;
-
-    private static readonly Vector2[] waveform =
-    {
-        new(0.00f, 0.55f), new(0.16f, 0.55f), new(0.22f, 0.42f), new(0.28f, 0.55f),
-        new(0.36f, 0.55f), new(0.42f, 0.92f), new(0.48f, 0.08f), new(0.54f, 0.74f),
-        new(0.60f, 0.55f), new(0.70f, 0.40f), new(0.78f, 0.55f), new(1.00f, 0.55f),
-    };
-
-    private readonly Circle dot;
-
-    public HomeEcgStrip(float width, float height)
-    {
-        Size = new Vector2(width, height);
-
-        for (int i = 0; i < waveform.Length - 1; i++)
-            AddInternal(createSegment(waveform[i] * Size, waveform[i + 1] * Size));
-
-        AddInternal(dot = new Circle
-        {
-            Origin = Anchor.Centre,
-            Size = new Vector2(5),
-            Colour = Color4.White,
-        });
-    }
-
-    private static Drawable createSegment(Vector2 from, Vector2 to) => new Box
-    {
-        Position = from,
-        Origin = Anchor.CentreLeft,
-        Width = (to - from).Length,
-        Height = 2,
-        Rotation = MathHelper.RadiansToDegrees((float)Math.Atan2(to.Y - from.Y, to.X - from.X)),
-        Colour = Color4.White,
-    };
-
-    protected override void Update()
-    {
-        base.Update();
-
-        float t = (float)(Time.Current % period / period);
-        dot.Position = new Vector2(t * DrawWidth, sampleY(t) * DrawHeight);
-        dot.Alpha = Math.Min(1f, Math.Min(t, 1f - t) / 0.04f);
-    }
-
-    private static float sampleY(float t)
-    {
-        for (int i = 0; i < waveform.Length - 1; i++)
-        {
-            if (t <= waveform[i + 1].X)
-            {
-                float span = waveform[i + 1].X - waveform[i].X;
-                float local = span <= 0 ? 0 : (t - waveform[i].X) / span;
-                return waveform[i].Y + (waveform[i + 1].Y - waveform[i].Y) * local;
-            }
-        }
-
-        return waveform[^1].Y;
     }
 }
 

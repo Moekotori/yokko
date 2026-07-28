@@ -1,5 +1,6 @@
 ﻿using osu.Framework.Platform;
 using osu.Framework;
+using Yokko.Desktop.Input;
 using Yokko.Game;
 
 namespace Yokko.Desktop
@@ -9,7 +10,8 @@ namespace Yokko.Desktop
         public static void Main()
         {
             using (GameHost host = Host.GetSuitableDesktopHost(@"Yokko"))
-            using (osu.Framework.Game game = new YokkoGame())
+            using (osu.Framework.Game game = new YokkoGame(
+                new WindowsRawKeyboardTimestampBackend()))
                 host.Run(game);
         }
     }

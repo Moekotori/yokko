@@ -6,6 +6,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.IO.Stores;
 using osu.Framework.Localisation;
+using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osuTK;
 using Yokko.Game.Audio;
@@ -42,14 +43,16 @@ namespace Yokko.Game
         [Cached]
         private readonly OsuManiaSkinLibrary skinLibrary = new();
         [Cached]
-        private readonly KeyInputTimestampSource keyInputTimestamps = new();
+        private readonly KeyInputTimestampSource keyInputTimestamps;
         private SkinImportNotificationOverlay skinImportOverlay;
         [Cached]
         private YokkoConfigManager yokkoConfig;
         private IWindow window;
 
-        protected YokkoGameBase()
+        protected YokkoGameBase(IKeyInputTimestampBackend keyInputTimestampBackend = null)
         {
+            keyInputTimestamps = new KeyInputTimestampSource(keyInputTimestampBackend);
+
             // Ensure game and tests scale with window size and screen DPI.
             base.Content.Add(Content = scalingContainer = new DrawSizePreservingFillContainer
             {
@@ -83,6 +86,11 @@ namespace Yokko.Game
 
             window = host.Window;
             keyInputTimestamps.Attach(window);
+            Logger.Log(
+                "Input timestamp backend: "
+                + (keyInputTimestamps.IsRawInputAvailable
+                    ? "Windows Raw Input"
+                    : "SDL window fallback"));
 
             if (window != null)
                 window.DragDrop += onFileDropped;

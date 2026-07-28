@@ -1,6 +1,7 @@
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Screens;
+using Yokko.Game.Input;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game
@@ -8,6 +9,11 @@ namespace Yokko.Game
     public partial class YokkoGame : YokkoGameBase
     {
         private ScreenStack screenStack;
+
+        public YokkoGame(IKeyInputTimestampBackend keyInputTimestampBackend = null)
+            : base(keyInputTimestampBackend)
+        {
+        }
 
         [BackgroundDependencyLoader]
         private void load()

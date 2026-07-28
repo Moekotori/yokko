@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 
 namespace Yokko.Game.Gameplay;
@@ -18,16 +17,36 @@ internal static class GameplayInputClock
             ? timestampFrequency
             : Stopwatch.Frequency;
 
+        if (!TryGetEventAgeMilliseconds(
+                eventTimestamp,
+                observationTimestamp,
+                frequency,
+                out double eventAgeMilliseconds))
+            return gameplayTimeAtObservationMilliseconds;
+
+        return gameplayTimeAtObservationMilliseconds - eventAgeMilliseconds;
+    }
+
+    public static bool TryGetEventAgeMilliseconds(
+        long eventTimestamp,
+        long observationTimestamp,
+        long timestampFrequency,
+        out double eventAgeMilliseconds)
+    {
+        long frequency = timestampFrequency > 0
+            ? timestampFrequency
+            : Stopwatch.Frequency;
+
         if (eventTimestamp <= 0
             || observationTimestamp <= eventTimestamp
             || frequency <= 0)
-            return gameplayTimeAtObservationMilliseconds;
+        {
+            eventAgeMilliseconds = 0;
+            return false;
+        }
 
-        double eventAgeMilliseconds =
+        eventAgeMilliseconds =
             (observationTimestamp - eventTimestamp) * 1000.0 / frequency;
-
-        return Math.Max(
-            0,
-            gameplayTimeAtObservationMilliseconds - eventAgeMilliseconds);
+        return true;
     }
 }

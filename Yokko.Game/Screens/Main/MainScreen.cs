@@ -392,11 +392,6 @@ public partial class MainScreen : Screen
                 {
                     Position = new Vector2(768, 10),
                 },
-                new HomeEcgStrip(260, 38)
-                {
-                    Position = new Vector2(940, 674),
-                    Colour = new Color4(1f, 1f, 1f, 0.45f),
-                },
                 new HomeDashedRing(295)
                 {
                     Position = new Vector2(937.5f, 396.5f),
@@ -432,6 +427,10 @@ public partial class MainScreen : Screen
                     Colour = pink,
                     Alpha = 0.9f,
                 }),
+                new HomeMusicPlayer
+                {
+                    Position = new Vector2(788, 624),
+                },
             },
         },
     };

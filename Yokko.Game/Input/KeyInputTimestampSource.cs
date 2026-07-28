@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Reflection;
 using osu.Framework.Platform;
 using osuTK.Input;
 
@@ -12,27 +13,67 @@ namespace Yokko.Game.Input;
 /// </summary>
 internal sealed class KeyInputTimestampSource : IDisposable
 {
+    private const int max_pending_timestamps_per_edge = 16;
+
     private readonly object sync = new();
     private readonly Dictionary<(Key Key, bool IsPressed), Queue<long>> pending = new();
     private readonly HashSet<Key> pressedKeys = new();
 
-    private ISDLWindow window;
+    private object window;
+    private EventInfo keyDownEvent;
+    private EventInfo keyUpEvent;
+    private Action<Key> keyDownHandler;
+    private Action<Key> keyUpHandler;
+    private readonly IKeyInputTimestampBackend platformBackend;
     private bool isCapturing;
     private bool disposed;
 
-    public void Attach(IWindow hostWindow)
+    public KeyInputTimestampSource(IKeyInputTimestampBackend platformBackend = null)
+    {
+        this.platformBackend = platformBackend;
+    }
+
+    public bool IsRawInputAvailable =>
+        platformBackend?.IsAvailable == true;
+
+    public void Attach(IWindow hostWindow) => AttachWindowEvents(hostWindow);
+
+    internal bool AttachWindowEvents(object hostWindow)
     {
         lock (sync)
         {
             throwIfDisposed();
             detachWindow();
-            window = hostWindow as ISDLWindow;
+            window = hostWindow;
+            bool platformAttached =
+                hostWindow is IWindow frameworkWindow
+                && platformBackend?.Attach(frameworkWindow) == true;
 
             if (window == null)
-                return;
+                return platformAttached;
 
-            window.KeyDown += onKeyDown;
-            window.KeyUp += onKeyUp;
+            Type windowType = window.GetType();
+            keyDownEvent = windowType.GetEvent(
+                "KeyDown",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            keyUpEvent = windowType.GetEvent(
+                "KeyUp",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+            if (keyDownEvent?.EventHandlerType != typeof(Action<Key>)
+                || keyUpEvent?.EventHandlerType != typeof(Action<Key>))
+            {
+                keyDownEvent = null;
+                keyUpEvent = null;
+                window = null;
+                return platformAttached;
+            }
+
+            keyDownHandler = onKeyDown;
+            keyUpHandler = onKeyUp;
+            keyDownEvent.AddEventHandler(window, keyDownHandler);
+            keyUpEvent.AddEventHandler(window, keyUpHandler);
+            return true;
         }
     }
 
@@ -44,6 +85,7 @@ internal sealed class KeyInputTimestampSource : IDisposable
             pending.Clear();
             pressedKeys.Clear();
             isCapturing = true;
+            platformBackend?.BeginCapture();
         }
     }
 
@@ -54,10 +96,20 @@ internal sealed class KeyInputTimestampSource : IDisposable
             isCapturing = false;
             pending.Clear();
             pressedKeys.Clear();
+            platformBackend?.EndCapture();
         }
     }
 
     public bool TryTake(Key key, bool isPressed, out long timestamp)
+    {
+        return TryTake(key, isPressed, out timestamp, out _);
+    }
+
+    public bool TryTake(
+        Key key,
+        bool isPressed,
+        out long timestamp,
+        out KeyInputTimestampKind kind)
     {
         lock (sync)
         {
@@ -68,11 +120,22 @@ internal sealed class KeyInputTimestampSource : IDisposable
                 if (timestamps.Count == 0)
                     pending.Remove((key, isPressed));
 
+                kind = KeyInputTimestampKind.FrameworkWindow;
                 return true;
             }
         }
 
         timestamp = 0;
+        kind = KeyInputTimestampKind.None;
+        return false;
+    }
+
+    public bool TryDequeueRaw(out TimestampedKeyInput input)
+    {
+        if (platformBackend?.IsAvailable == true)
+            return platformBackend.TryDequeue(out input);
+
+        input = default;
         return false;
     }
 
@@ -80,7 +143,8 @@ internal sealed class KeyInputTimestampSource : IDisposable
     {
         lock (sync)
         {
-            if (!isCapturing)
+            if (!isCapturing
+                || platformBackend?.IsAvailable == true)
                 return;
 
             bool changed = isPressed
@@ -94,6 +158,9 @@ internal sealed class KeyInputTimestampSource : IDisposable
                 timestamps = new Queue<long>();
                 pending.Add((key, isPressed), timestamps);
             }
+
+            if (timestamps.Count >= max_pending_timestamps_per_edge)
+                timestamps.Dequeue();
 
             timestamps.Enqueue(timestamp);
         }
@@ -111,6 +178,7 @@ internal sealed class KeyInputTimestampSource : IDisposable
             pending.Clear();
             pressedKeys.Clear();
             detachWindow();
+            platformBackend?.Dispose();
         }
     }
 
@@ -125,8 +193,12 @@ internal sealed class KeyInputTimestampSource : IDisposable
         if (window == null)
             return;
 
-        window.KeyDown -= onKeyDown;
-        window.KeyUp -= onKeyUp;
+        keyDownEvent?.RemoveEventHandler(window, keyDownHandler);
+        keyUpEvent?.RemoveEventHandler(window, keyUpHandler);
+        keyDownHandler = null;
+        keyUpHandler = null;
+        keyDownEvent = null;
+        keyUpEvent = null;
         window = null;
     }
 

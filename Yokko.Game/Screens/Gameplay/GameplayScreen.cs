@@ -1,4 +1,3 @@
-using System.Linq;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -6,12 +5,10 @@ using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
-using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Screens;
 using osuTK;
-using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
@@ -19,7 +16,6 @@ using Yokko.Audio;
 using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Input;
-using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Skinning.OsuMania;
 
@@ -27,8 +23,6 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public partial class GameplayScreen : Screen
 {
-    private const float designedWidth = 1040;
-    private const float designedHeight = 760;
     private const double leadInMilliseconds = 900;
 
     private readonly YokkoBeatmap beatmap;
@@ -44,18 +38,14 @@ public partial class GameplayScreen : Screen
     private KeyInputTimestampSource keyInputTimestamps { get; set; }
 
     private BeatmapJudgementState judgementState;
-    private GameplayHud hud;
     private GameplayPlayfield playfield;
-    private JudgementReadout judgementReadout;
     private KeyModeBindings keyBindings;
     private bool[] pressedLanes;
     private double startTimeMilliseconds;
     private bool hasAudioClock;
-    private SpriteText clockStatusText;
-    private SpriteText scrollSpeedText;
     private OsuManiaSkin maniaSkin;
-    private string skinStatusText;
     private double activeUserOffsetMilliseconds;
+    private readonly InputAgeTracker inputAgeTracker = new();
 
     public GameplayScreen(
         YokkoBeatmap beatmap,
@@ -88,71 +78,20 @@ public partial class GameplayScreen : Screen
                 Colour = YokkoPalette.Background,
                 RelativeSizeAxes = Axes.Both,
             },
-            new Container
+            playfield = new GameplayPlayfield(
+                beatmap,
+                keyBindings,
+                maniaSkin,
+                OsuManiaScrollSpeed.ComputeScrollTime(
+                    gameplaySettings.ScrollSpeed.Value),
+                gameplaySettings.ShowLanePressFeedback.Value)
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Size = new Vector2(designedWidth, designedHeight),
-                Children = new Drawable[]
-                {
-                    new Box
-                    {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        Width = 980,
-                        Height = 720,
-                        Colour = new Color4(0.045f, 0.058f, 0.078f, 0.86f),
-                    },
-                    playfield = new GameplayPlayfield(
-                        beatmap,
-                        keyBindings,
-                        maniaSkin,
-                        OsuManiaScrollSpeed.ComputeScrollTime(
-                            gameplaySettings.ScrollSpeed.Value),
-                        gameplaySettings.ShowLanePressFeedback.Value)
-                    {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        Y = 32,
-                        // Legacy osu!mania values already use the skin's
-                        // 480px coordinate space. A second skin-only scale
-                        // makes wide and circle skins visibly oversized.
-                        Scale = Vector2.One,
-                    },
-                    hud = new GameplayHud(beatmap)
-                    {
-                        Anchor = Anchor.TopRight,
-                        Origin = Anchor.TopRight,
-                        Position = new Vector2(-42, 42),
-                        Alpha = gameplaySettings.ShowGameplayHud.Value ? 1 : 0,
-                    },
-                    judgementReadout = new JudgementReadout(
-                        gameplaySettings.ShowHitError.Value)
-                    {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        Y = -62,
-                    },
-                    clockStatusText = new SpriteText
-                    {
-                        Anchor = Anchor.BottomCentre,
-                        Origin = Anchor.BottomCentre,
-                        Y = -30,
-                        Text = statusText(
-                            hasAudioClock ? "Audio clock active. Esc returns." : "Press mapped keys. Esc returns."),
-                        Font = FontUsage.Default.With(size: 18),
-                        Colour = YokkoPalette.TextDim,
-                    },
-                    scrollSpeedText = new SpriteText
-                    {
-                        Anchor = Anchor.TopLeft,
-                        Origin = Anchor.TopLeft,
-                        Position = new Vector2(42, 42),
-                        Font = FontUsage.Default.With(size: 22),
-                        Colour = YokkoPalette.Cyan,
-                        Alpha = 0,
-                    },
-                }
+                // Legacy osu!mania values already use the skin's 480px
+                // coordinate space. Keep the skin at native scale and let the
+                // shared display container handle window/DPI scaling.
+                Scale = Vector2.One,
             },
         };
 
@@ -174,6 +113,7 @@ public partial class GameplayScreen : Screen
     protected override void Update()
     {
         base.Update();
+        drainRawInput();
 
         double gameplayTime = currentGameplayTime;
 
@@ -181,7 +121,6 @@ public partial class GameplayScreen : Screen
             applyJudgement(missed);
 
         playfield.UpdateGameplayTime(gameplayTime, judgementState);
-        hud.UpdateState(gameplayTime, judgementState);
     }
 
     protected override bool OnKeyDown(KeyDownEvent e)
@@ -204,14 +143,12 @@ public partial class GameplayScreen : Screen
         if (pressedLanes[lane])
             return true;
 
-        double inputTime = gameplayTimeForInput(e.Key, true);
-        pressedLanes[lane] = true;
-        playfield.SetLanePressed(lane, true);
-
-        JudgementEvent judgement = judgementState.TryJudgeLanePress(lane, inputTime);
-
-        if (judgement != null)
-            applyJudgement(judgement);
+        if (!keyInputTimestamps.IsRawInputAvailable)
+        {
+            applyLanePress(
+                lane,
+                gameplayTimeForInput(e.Key, true));
+        }
 
         return true;
     }
@@ -226,14 +163,12 @@ public partial class GameplayScreen : Screen
             return;
         }
 
-        double inputTime = gameplayTimeForInput(e.Key, false);
-        pressedLanes[lane] = false;
-        playfield.SetLanePressed(lane, false);
-
-        JudgementEvent judgement = judgementState.TryJudgeLaneRelease(lane, inputTime);
-
-        if (judgement != null)
-            applyJudgement(judgement);
+        if (!keyInputTimestamps.IsRawInputAvailable)
+        {
+            applyLaneRelease(
+                lane,
+                gameplayTimeForInput(e.Key, false));
+        }
     }
 
     public override bool OnExiting(ScreenExitEvent e)
@@ -271,20 +206,12 @@ public partial class GameplayScreen : Screen
             if (!audioEngine.Status.IsRunning)
             {
                 hasAudioClock = false;
-                clockStatusText.Text = statusText("Native audio unavailable. Renderer clock active.");
-            }
-            else
-            {
-                AudioEngineStatus status = audioEngine.Status;
-                clockStatusText.Text = statusText(
-                    $"{status.ActiveBackend} · {status.BufferSize} frames · "
-                    + $"{status.EstimatedOutputLatencyMilliseconds:F2} ms");
             }
         }
         catch (Exception ex)
         {
             hasAudioClock = false;
-            clockStatusText.Text = statusText($"Audio unavailable: {ex.Message}");
+            Debug.WriteLine($"Audio unavailable: {ex.Message}");
         }
     }
 
@@ -303,26 +230,92 @@ public partial class GameplayScreen : Screen
     private double gameplayTimeForInput(Key key, bool isPressed)
     {
         bool hasEventTimestamp =
-            keyInputTimestamps.TryTake(key, isPressed, out long eventTimestamp);
+            keyInputTimestamps.TryTake(
+                key,
+                isPressed,
+                out long eventTimestamp,
+                out KeyInputTimestampKind timestampKind);
+
+        if (!hasEventTimestamp)
+            return currentGameplayTime;
+
+        return gameplayTimeForTimestamp(eventTimestamp, timestampKind);
+    }
+
+    private double gameplayTimeForTimestamp(
+        long eventTimestamp,
+        KeyInputTimestampKind timestampKind)
+    {
         long observationStart = Stopwatch.GetTimestamp();
         double gameplayTime = currentGameplayTime;
         long observationEnd = Stopwatch.GetTimestamp();
 
-        if (!hasEventTimestamp)
-            return gameplayTime;
-
         long observationTimestamp =
             observationStart + (observationEnd - observationStart) / 2;
+        if (GameplayInputClock.TryGetEventAgeMilliseconds(
+                eventTimestamp,
+                observationTimestamp,
+                Stopwatch.Frequency,
+                out double eventAgeMilliseconds))
+        {
+            inputAgeTracker.Record(eventAgeMilliseconds, timestampKind);
+        }
+
         return GameplayInputClock.AtEventTimestamp(
             gameplayTime,
             eventTimestamp,
             observationTimestamp);
     }
 
+    private void drainRawInput()
+    {
+        while (keyInputTimestamps.TryDequeueRaw(out TimestampedKeyInput input))
+        {
+            int lane = keyBindings.GetLane(input.Key);
+            if (lane < 0)
+                continue;
+
+            double inputTime = gameplayTimeForTimestamp(
+                input.Timestamp,
+                KeyInputTimestampKind.RawInput);
+            if (input.IsPressed)
+                applyLanePress(lane, inputTime);
+            else
+                applyLaneRelease(lane, inputTime);
+        }
+    }
+
+    private void applyLanePress(int lane, double inputTime)
+    {
+        if (pressedLanes[lane])
+            return;
+
+        pressedLanes[lane] = true;
+        playfield.SetLanePressed(lane, true);
+
+        JudgementEvent judgement =
+            judgementState.TryJudgeLanePress(lane, inputTime);
+        if (judgement != null)
+            applyJudgement(judgement);
+    }
+
+    private void applyLaneRelease(int lane, double inputTime)
+    {
+        if (!pressedLanes[lane])
+            return;
+
+        pressedLanes[lane] = false;
+        playfield.SetLanePressed(lane, false);
+
+        JudgementEvent judgement =
+            judgementState.TryJudgeLaneRelease(lane, inputTime);
+        if (judgement != null)
+            applyJudgement(judgement);
+    }
+
     private void applyJudgement(JudgementEvent judgement)
     {
         playfield.ApplyJudgement(judgement);
-        judgementReadout.Show(judgement);
     }
 
     private void onScrollSpeedChanged(
@@ -330,12 +323,6 @@ public partial class GameplayScreen : Screen
     {
         playfield.SetApproachTime(
             OsuManiaScrollSpeed.ComputeScrollTime(change.NewValue));
-        scrollSpeedText.Text = YokkoStrings.Get(
-            "gameplay.scroll_speed_status",
-            change.NewValue);
-        scrollSpeedText.FinishTransforms();
-        scrollSpeedText.Alpha = 1;
-        scrollSpeedText.Delay(900).FadeOut(350, Easing.OutQuint);
     }
 
     internal bool HandleScrollSpeedShortcut(
@@ -372,17 +359,10 @@ public partial class GameplayScreen : Screen
         try
         {
             maniaSkin = OsuManiaSkin.Load(resolvedPath, keyBindings.KeyCount, renderer);
-            string name = maniaSkin.Info.Name == "Unknown"
-                ? System.IO.Path.GetFileNameWithoutExtension(resolvedPath)
-                : maniaSkin.Info.Name;
-            skinStatusText = $"osu!mania skin: {name}";
         }
-        catch (Exception ex)
+        catch
         {
-            skinStatusText = $"Skin fallback: {ex.Message}";
+            // Invalid skins fail closed to Yokko's built-in playfield.
         }
     }
-
-    private string statusText(string audioStatus) =>
-        string.IsNullOrWhiteSpace(skinStatusText) ? audioStatus : $"{audioStatus}  {skinStatusText}";
 }

@@ -275,6 +275,14 @@ internal static class YokkoStrings
                 "Scroll speed  {0:0.0}",
                 "流速  {0:0.0}",
                 "スクロール速度  {0:0.0}"),
+            ["gameplay.input_timing_waiting"] = new(
+                "{0} timestamped input · waiting for samples",
+                "{0} 时间戳输入 · 等待采样",
+                "{0} タイムスタンプ入力 · サンプル待機中"),
+            ["gameplay.input_timing_status"] = new(
+                "{0} input age · p50 {1:0.00} · p95 {2:0.00} · p99 {3:0.00} ms",
+                "{0} 输入年龄 · p50 {1:0.00} · p95 {2:0.00} · p99 {3:0.00} ms",
+                "{0} 入力エイジ · p50 {1:0.00} · p95 {2:0.00} · p99 {3:0.00} ms"),
             ["settings.gameplay.speed_presets"] = new("Quick presets", "快捷预设", "クイック設定"),
             ["settings.gameplay.input_offset"] = new("Input offset", "输入偏移", "入力オフセット"),
             ["settings.gameplay.input_offset_note"] = new(
