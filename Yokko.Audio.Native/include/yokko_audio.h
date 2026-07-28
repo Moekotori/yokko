@@ -20,7 +20,7 @@ extern "C"
 {
 #endif
 
-#define YOKKO_AUDIO_ABI_VERSION 2u
+#define YOKKO_AUDIO_ABI_VERSION 3u
 
     typedef struct yokko_audio_engine yokko_audio_engine;
 
@@ -67,6 +67,12 @@ extern "C"
         uint64_t source_frames_rendered;
         uint64_t device_frames_rendered;
         uint64_t underrun_count;
+        uint64_t callback_count;
+        uint64_t callback_deadline_miss_count;
+        uint32_t callback_budget_microseconds;
+        uint32_t callback_max_duration_microseconds;
+        int32_t backend_error;
+        uint32_t backend_error_stage;
         double playback_time_milliseconds;
     } yokko_audio_status;
 
@@ -138,14 +144,29 @@ extern "C"
         uint32_t* source_frames_rendered);
 
     /*
-     * Backends report the device-observed playback position and current output
-     * latency. Until a backend reports a position, the render callback frame
-     * count is used as the provisional monotonic clock.
+     * Backends report the frame currently presented by the endpoint together
+     * with the correlated monotonic timestamp. WASAPI obtains both from
+     * IAudioClock::GetPosition. Output latency is telemetry only and must not
+     * be subtracted from the already-presented position.
+     *
+     * Until a backend reports a position, the render callback frame count is
+     * used as the provisional monotonic clock. Pass zero for the timestamp
+     * when a backend cannot provide a correlated monotonic observation.
      */
-    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_report_device_position(
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_report_presented_position(
         yokko_audio_engine* engine,
-        uint64_t device_frame_position,
-        uint32_t device_latency_frames);
+        uint64_t presented_frame_position,
+        uint32_t output_latency_frames,
+        uint64_t observation_time_100ns);
+
+    /*
+     * Backends report callback work duration against the accepted device
+     * period. This is lock-free telemetry and is safe on the real-time thread.
+     */
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_report_callback_timing(
+        yokko_audio_engine* engine,
+        uint32_t duration_microseconds,
+        uint32_t budget_microseconds);
 
     YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_get_status(
         const yokko_audio_engine* engine,

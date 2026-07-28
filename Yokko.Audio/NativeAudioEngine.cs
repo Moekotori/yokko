@@ -58,6 +58,15 @@ public sealed class NativeAudioEngine : IAudioEngine
                 {
                     IsRunning = native.State == NativeAudioState.Running,
                     HasUnderrun = native.UnderrunCount > 0,
+                    CallbackCount = native.CallbackCount,
+                    CallbackDeadlineMissCount =
+                        native.CallbackDeadlineMissCount,
+                    CallbackBudgetMilliseconds =
+                        native.CallbackBudgetMicroseconds / 1000.0,
+                    MaxCallbackDurationMilliseconds =
+                        native.CallbackMaxDurationMicroseconds / 1000.0,
+                    BackendError = native.BackendError,
+                    BackendErrorStage = native.BackendErrorStage,
                 };
             }
             catch (ObjectDisposedException)
@@ -250,7 +259,7 @@ public sealed class NativeAudioEngine : IAudioEngine
             request.PreferredBufferSize <= 0 ? 128 : request.PreferredBufferSize,
             64,
             2048);
-        uint startupFrames = Math.Max(preferredBufferFrames * 2, 512);
+        uint startupFrames = Math.Max(preferredBufferFrames * 2, 256);
         uint ringFrames = Math.Max(preferredBufferFrames * 32, 8192);
 
         core = new NativeAudioCore(
@@ -313,7 +322,13 @@ public sealed class NativeAudioEngine : IAudioEngine
                   / outputStatus.SampleRate,
             activeBackend == AudioBackendKind.WasapiExclusive,
             true,
-            false);
+            false,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0);
     }
 
     private static async Task feedPcmAsync(
@@ -428,5 +443,11 @@ public sealed class NativeAudioEngine : IAudioEngine
         0,
         false,
         false,
-        false);
+        false,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0);
 }

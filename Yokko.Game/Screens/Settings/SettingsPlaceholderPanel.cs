@@ -1,11 +1,13 @@
+using System.Collections.Generic;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
-using System.Collections.Generic;
 
 namespace Yokko.Game.Screens.Settings;
 
@@ -47,7 +49,7 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
             new SpriteText
             {
                 Position = new Vector2(378, 323),
-                Text = "Planned sections",
+                Text = YokkoStrings.Get("settings.planned_sections"),
                 Font = HomeTypography.Display(20),
                 Colour = HomeControlColours.Navy,
             },
@@ -112,7 +114,7 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
             new Circle
             {
                 Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
+                Origin = Anchor.Centre,
                 X = 58,
                 Size = new Vector2(70),
                 Colour = Color4.White,
@@ -120,8 +122,8 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
             new SpriteIcon
             {
                 Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 42,
+                Origin = Anchor.Centre,
+                X = 58,
                 Size = new Vector2(32),
                 Icon = page.Icon,
                 Colour = HomeControlColours.Navy,
@@ -139,7 +141,7 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
                 {
                     new SpriteText
                     {
-                        Text = "Coming soon",
+                        Text = YokkoStrings.Get("settings.coming_soon"),
                         Font = HomeTypography.Display(22),
                         Colour = HomeControlColours.Navy,
                     },
@@ -170,7 +172,7 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Text = "PLANNED",
+                        Text = YokkoStrings.Get("settings.planned"),
                         Font = HomeTypography.Display(11),
                         Spacing = new Vector2(1.1f, 0),
                         Colour = HomeControlColours.Navy,
@@ -201,7 +203,7 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
             Spacing = new Vector2(0, 10),
         };
 
-        foreach (string section in page.PlannedSections)
+        foreach (LocalisableString section in page.PlannedSections)
         {
             var row = new SettingsPlaceholderSection(section, toggleSection);
             sections.Add(row);
@@ -247,7 +249,7 @@ internal partial class SettingsPlaceholderSection : ClickableContainer
 
     internal bool IsExpanded => expanded;
 
-    public SettingsPlaceholderSection(string title, System.Action<SettingsPlaceholderSection> onToggle)
+    public SettingsPlaceholderSection(LocalisableString title, System.Action<SettingsPlaceholderSection> onToggle)
     {
         Action = () => onToggle(this);
         Size = new Vector2(840, 58);
@@ -275,7 +277,7 @@ internal partial class SettingsPlaceholderSection : ClickableContainer
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
                 Position = new Vector2(-48, 20),
-                Text = "Not available yet",
+                Text = YokkoStrings.Get("settings.not_available"),
                 Font = HomeTypography.Body(12),
                 Colour = SettingsTheme.MutedNavy,
             },
@@ -299,7 +301,7 @@ internal partial class SettingsPlaceholderSection : ClickableContainer
             detail = new SpriteText
             {
                 Position = new Vector2(20, 72),
-                Text = "This section is reserved for a future build. No setting is applied yet.",
+                Text = YokkoStrings.Get("settings.future_section"),
                 Font = HomeTypography.Body(13),
                 Colour = SettingsTheme.MutedNavy,
                 Alpha = 0,

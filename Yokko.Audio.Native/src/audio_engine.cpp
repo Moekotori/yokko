@@ -8,6 +8,11 @@
 #include <new>
 #include <thread>
 
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 namespace
 {
     constexpr uint32_t max_sample_rate = 768000;
@@ -32,6 +37,24 @@ namespace
             return 0.0f;
 
         return std::clamp(sample, -1.0f, 1.0f);
+    }
+
+    uint64_t monotonic_time_100ns() noexcept
+    {
+#if defined(_WIN32)
+        LARGE_INTEGER counter{};
+        LARGE_INTEGER frequency{};
+        if (!QueryPerformanceCounter(&counter)
+            || !QueryPerformanceFrequency(&frequency)
+            || frequency.QuadPart <= 0)
+            return 0;
+
+        return static_cast<uint64_t>(
+            static_cast<long double>(counter.QuadPart) * 10'000'000.0L
+            / static_cast<long double>(frequency.QuadPart));
+#else
+        return 0;
+#endif
     }
 }
 
@@ -104,9 +127,18 @@ namespace yokko::audio
         source_frames_rendered_.store(0, std::memory_order_release);
         device_frames_rendered_.store(0, std::memory_order_release);
         underrun_count_.store(0, std::memory_order_release);
-        reported_device_frame_position_.store(0, std::memory_order_release);
+        reported_position_sequence_.store(0, std::memory_order_release);
+        reported_presented_frame_position_.store(0, std::memory_order_release);
+        reported_position_time_100ns_.store(0, std::memory_order_release);
         device_latency_frames_.store(0, std::memory_order_release);
-        has_reported_device_position_.store(false, std::memory_order_release);
+        has_reported_presented_position_.store(false, std::memory_order_release);
+        callback_count_.store(0, std::memory_order_release);
+        callback_deadline_miss_count_.store(0, std::memory_order_release);
+        callback_budget_microseconds_.store(0, std::memory_order_release);
+        callback_max_duration_microseconds_.store(0, std::memory_order_release);
+        backend_error_.store(0, std::memory_order_release);
+        backend_error_stage_.store(0, std::memory_order_release);
+        last_playback_frame_position_.store(0, std::memory_order_release);
         accepting_submissions_.store(true, std::memory_order_release);
         update_primed_state();
         return YOKKO_AUDIO_OK;
@@ -190,26 +222,69 @@ namespace yokko::audio
         return YOKKO_AUDIO_OK;
     }
 
-    yokko_audio_result AudioEngine::report_device_position(
-        const uint64_t device_frame_position,
-        const uint32_t device_latency_frames) noexcept
+    yokko_audio_result AudioEngine::report_presented_position(
+        const uint64_t presented_frame_position,
+        const uint32_t output_latency_frames,
+        const uint64_t observation_time_100ns) noexcept
     {
         const bool already_reported =
-            has_reported_device_position_.load(std::memory_order_acquire);
+            has_reported_presented_position_.load(std::memory_order_acquire);
         const uint64_t previous =
-            reported_device_frame_position_.load(std::memory_order_acquire);
+            reported_presented_frame_position_.load(std::memory_order_acquire);
 
-        if (already_reported && device_frame_position < previous)
+        if (already_reported && presented_frame_position < previous)
             return YOKKO_AUDIO_INVALID_ARGUMENT;
 
-        reported_device_frame_position_.store(
-            device_frame_position,
-            std::memory_order_release);
+        reported_position_sequence_.fetch_add(1, std::memory_order_acq_rel);
+        reported_position_time_100ns_.store(
+            observation_time_100ns,
+            std::memory_order_relaxed);
+        reported_presented_frame_position_.store(
+            presented_frame_position,
+            std::memory_order_relaxed);
+        reported_position_sequence_.fetch_add(1, std::memory_order_release);
         device_latency_frames_.store(
-            device_latency_frames,
+            output_latency_frames,
             std::memory_order_release);
-        has_reported_device_position_.store(true, std::memory_order_release);
+        has_reported_presented_position_.store(true, std::memory_order_release);
         return YOKKO_AUDIO_OK;
+    }
+
+    void AudioEngine::report_callback_timing(
+        const uint32_t duration_microseconds,
+        const uint32_t budget_microseconds) noexcept
+    {
+        callback_count_.fetch_add(1, std::memory_order_relaxed);
+        callback_budget_microseconds_.store(
+            budget_microseconds,
+            std::memory_order_relaxed);
+        if (budget_microseconds > 0
+            && duration_microseconds >= budget_microseconds)
+            callback_deadline_miss_count_.fetch_add(
+                1,
+                std::memory_order_relaxed);
+
+        uint32_t previous =
+            callback_max_duration_microseconds_.load(std::memory_order_relaxed);
+        while (duration_microseconds > previous
+               && !callback_max_duration_microseconds_.compare_exchange_weak(
+                   previous,
+                   duration_microseconds,
+                   std::memory_order_relaxed,
+                   std::memory_order_relaxed))
+        {
+        }
+    }
+
+    void AudioEngine::report_output_failure(
+        const int32_t backend_error,
+        const uint32_t backend_error_stage) noexcept
+    {
+        backend_error_.store(backend_error, std::memory_order_release);
+        backend_error_stage_.store(
+            backend_error_stage,
+            std::memory_order_release);
+        state_.store(YOKKO_AUDIO_STATE_FAULTED, std::memory_order_release);
     }
 
     void AudioEngine::get_status(yokko_audio_status& status) const noexcept
@@ -232,6 +307,18 @@ namespace yokko::audio
             device_frames_rendered_.load(std::memory_order_acquire);
         status.underrun_count =
             underrun_count_.load(std::memory_order_acquire);
+        status.callback_count =
+            callback_count_.load(std::memory_order_acquire);
+        status.callback_deadline_miss_count =
+            callback_deadline_miss_count_.load(std::memory_order_acquire);
+        status.callback_budget_microseconds =
+            callback_budget_microseconds_.load(std::memory_order_acquire);
+        status.callback_max_duration_microseconds =
+            callback_max_duration_microseconds_.load(std::memory_order_acquire);
+        status.backend_error =
+            backend_error_.load(std::memory_order_acquire);
+        status.backend_error_stage =
+            backend_error_stage_.load(std::memory_order_acquire);
         status.playback_time_milliseconds = playback_time_milliseconds();
     }
 
@@ -274,14 +361,69 @@ namespace yokko::audio
 
     double AudioEngine::playback_time_milliseconds() const noexcept
     {
-        const uint64_t device_position =
-            has_reported_device_position_.load(std::memory_order_acquire)
-                ? reported_device_frame_position_.load(std::memory_order_acquire)
-                : device_frames_rendered_.load(std::memory_order_acquire);
-        const uint64_t latency =
-            device_latency_frames_.load(std::memory_order_acquire);
-        const uint64_t presented_position =
-            device_position > latency ? device_position - latency : 0;
+        uint64_t presented_position =
+            device_frames_rendered_.load(std::memory_order_acquire);
+
+        if (has_reported_presented_position_.load(std::memory_order_acquire))
+        {
+            uint32_t sequence_before = 0;
+            uint32_t sequence_after = 0;
+            uint64_t observation_time = 0;
+            do
+            {
+                sequence_before =
+                    reported_position_sequence_.load(
+                        std::memory_order_acquire);
+                if ((sequence_before & 1u) != 0)
+                    continue;
+
+                presented_position =
+                    reported_presented_frame_position_.load(
+                        std::memory_order_relaxed);
+                observation_time =
+                    reported_position_time_100ns_.load(
+                        std::memory_order_relaxed);
+                sequence_after =
+                    reported_position_sequence_.load(
+                        std::memory_order_acquire);
+            }
+            while (sequence_before != sequence_after
+                   || (sequence_before & 1u) != 0);
+
+            const uint64_t now = monotonic_time_100ns();
+
+            if (state_.load(std::memory_order_acquire)
+                    == YOKKO_AUDIO_STATE_RUNNING
+                && observation_time > 0
+                && now > observation_time)
+            {
+                const uint64_t elapsed_100ns = now - observation_time;
+                const uint64_t interpolated =
+                    presented_position
+                    + static_cast<uint64_t>(
+                        static_cast<long double>(elapsed_100ns) * sample_rate_
+                        / 10'000'000.0L);
+                const uint64_t submitted_to_device =
+                    device_frames_rendered_.load(std::memory_order_acquire);
+                presented_position =
+                    submitted_to_device >= presented_position
+                        ? std::min(interpolated, submitted_to_device)
+                        : interpolated;
+            }
+        }
+
+        uint64_t previous =
+            last_playback_frame_position_.load(std::memory_order_relaxed);
+        while (presented_position > previous
+               && !last_playback_frame_position_.compare_exchange_weak(
+                   previous,
+                   presented_position,
+                   std::memory_order_relaxed,
+                   std::memory_order_relaxed))
+        {
+        }
+        presented_position = std::max(presented_position, previous);
+
         return static_cast<double>(presented_position) * 1000.0
                / static_cast<double>(sample_rate_);
     }
@@ -390,16 +532,32 @@ extern "C"
             *source_frames_rendered);
     }
 
-    yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_report_device_position(
+    yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_report_presented_position(
         yokko_audio_engine* engine,
-        const uint64_t device_frame_position,
-        const uint32_t device_latency_frames)
+        const uint64_t presented_frame_position,
+        const uint32_t output_latency_frames,
+        const uint64_t observation_time_100ns)
     {
         return engine == nullptr
                    ? YOKKO_AUDIO_INVALID_ARGUMENT
-                   : engine->implementation.report_device_position(
-                       device_frame_position,
-                       device_latency_frames);
+                   : engine->implementation.report_presented_position(
+                       presented_frame_position,
+                       output_latency_frames,
+                       observation_time_100ns);
+    }
+
+    yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_report_callback_timing(
+        yokko_audio_engine* engine,
+        const uint32_t duration_microseconds,
+        const uint32_t budget_microseconds)
+    {
+        if (engine == nullptr)
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+
+        engine->implementation.report_callback_timing(
+            duration_microseconds,
+            budget_microseconds);
+        return YOKKO_AUDIO_OK;
     }
 
     yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_get_status(

@@ -272,18 +272,50 @@ namespace
         require(yokko_audio_start(engine) == YOKKO_AUDIO_OK, "clock start");
 
         require(
-            yokko_audio_report_device_position(engine, 4800, 480)
+            yokko_audio_report_presented_position(engine, 4800, 480, 0)
                 == YOKKO_AUDIO_OK,
-            "device clock report");
+            "presented clock report");
         const yokko_audio_status status = status_of(engine);
         require(status.device_latency_frames == 480, "latency report");
         require(
-            std::abs(status.playback_time_milliseconds - 90.0) < 0.000001,
-            "latency-adjusted hardware clock");
+            std::abs(status.playback_time_milliseconds - 100.0) < 0.000001,
+            "presented hardware clock is not latency-adjusted twice");
         require(
-            yokko_audio_report_device_position(engine, 4799, 480)
+            yokko_audio_report_presented_position(engine, 4799, 480, 0)
                 == YOKKO_AUDIO_INVALID_ARGUMENT,
-            "regressing device clock rejected");
+            "regressing presented clock rejected");
+    }
+
+    void test_callback_deadline_telemetry()
+    {
+        EngineHandle engine;
+        require(
+            yokko_audio_report_callback_timing(engine, 80, 100)
+                == YOKKO_AUDIO_OK,
+            "callback timing report");
+        require(
+            yokko_audio_report_callback_timing(engine, 125, 100)
+                == YOKKO_AUDIO_OK,
+            "callback deadline miss report");
+
+        yokko_audio_status status = status_of(engine);
+        require(status.callback_count == 2, "callback count");
+        require(
+            status.callback_deadline_miss_count == 1,
+            "callback deadline miss count");
+        require(
+            status.callback_budget_microseconds == 100,
+            "callback budget");
+        require(
+            status.callback_max_duration_microseconds == 125,
+            "callback maximum duration");
+
+        require(yokko_audio_stop(engine) == YOKKO_AUDIO_OK, "telemetry stop");
+        status = status_of(engine);
+        require(status.callback_count == 0, "stop clears callback count");
+        require(
+            status.callback_deadline_miss_count == 0,
+            "stop clears callback deadline misses");
     }
 
     void test_ring_buffer_is_safe_for_one_producer_and_consumer()
@@ -393,6 +425,7 @@ int main()
     test_pause_and_stop_are_deterministic();
     test_output_safety();
     test_hardware_clock_supersedes_callback_clock();
+    test_callback_deadline_telemetry();
     test_ring_buffer_is_safe_for_one_producer_and_consumer();
     test_stop_can_race_with_output_callback();
 

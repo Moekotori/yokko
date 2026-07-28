@@ -33,6 +33,7 @@ public partial class SettingsScreen : Screen
 
     private Bindable<Size> windowedSize;
     private Bindable<WindowMode> windowMode;
+    private Bindable<string> locale;
     private Texture mascotTexture;
     private SettingsSidebar sidebar;
     private Container contentHost;
@@ -46,6 +47,7 @@ public partial class SettingsScreen : Screen
     {
         windowedSize = frameworkConfig.GetBindable<Size>(FrameworkSetting.WindowedSize);
         windowMode = frameworkConfig.GetBindable<WindowMode>(FrameworkSetting.WindowMode);
+        locale = frameworkConfig.GetBindable<string>(FrameworkSetting.Locale);
         mascotTexture = textures.Get("yokko")
                                 .Crop(new RectangleF(80, 1840, 1200, 1360));
 
@@ -93,15 +95,18 @@ public partial class SettingsScreen : Screen
         CurrentPage = page;
 
         sidebar.SetSelected(page);
-        activePanel = page == SettingsPageKind.Display
-            ? new DisplaySettingsPanel(
+        activePanel = page switch
+        {
+            SettingsPageKind.General => new GeneralSettingsPanel(locale),
+            SettingsPageKind.Display => new DisplaySettingsPanel(
                 mascotTexture,
                 windowedSize,
                 windowMode,
                 displaySettings.UiScale,
                 size => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, size),
-                mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode))
-            : new SettingsPlaceholderPanel(SettingsPages.Get(page));
+                mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode)),
+            _ => new SettingsPlaceholderPanel(SettingsPages.Get(page)),
+        };
 
         activePanel.Alpha = 0;
         activePanel.X = 10;

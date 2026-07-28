@@ -17,3 +17,7 @@ Desktop.ini
 
 # Codex local visual checks
 .codex-*.png
+
+# Local osu!mania skin used by the gameplay preview
+Skins/Current/
+Skins/current.osk

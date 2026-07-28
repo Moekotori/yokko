@@ -16,9 +16,19 @@ cmake `
     -G "Visual Studio 17 2022" `
     -A x64 `
     -DBUILD_TESTING=ON
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 
 cmake --build $buildPath --config $Configuration
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
 ctest --test-dir $buildPath -C $Configuration --output-on-failure
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 
 $nativeLibraryPath = Join-Path $buildPath "$Configuration\yokko_audio_native.dll"
 $env:YOKKO_NATIVE_AUDIO_TEST_DLL = $nativeLibraryPath
@@ -29,3 +39,4 @@ dotnet test `
     --no-restore `
     --nologo `
     --filter "FullyQualifiedName~NativeAudio"
+exit $LASTEXITCODE

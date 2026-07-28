@@ -30,13 +30,19 @@ callback through a preallocated single-producer/single-consumer ring buffer.
 
 ## Clock truth
 
-The playback clock is based on frames observed by the output device, corrected
-by the backend-reported device latency:
+The playback clock is based on the frame that the output endpoint reports as
+currently presented:
 
 ```text
-presented frames = device frame position - device latency frames
 playback milliseconds = presented frames * 1000 / sample rate
 ```
+
+WASAPI's `IAudioClock::GetPosition` already identifies the sample currently
+playing through the speakers, so `GetStreamLatency` is exposed as telemetry and
+is not subtracted a second time. The correlated QPC timestamp returned by
+`GetPosition` is used to interpolate between device callbacks, then clamped to
+frames already submitted to the endpoint. This avoids a buffer-sized staircase
+in the gameplay clock while preserving a monotonic result.
 
 The callback frame count is only a provisional monotonic clock until a backend
 reports a hardware position. Gameplay uses one clock for the whole session and
@@ -54,8 +60,8 @@ The P0 ABI covers:
 - deterministic idle, primed, running and paused states;
 - pre-roll enforcement before playback can start;
 - interleaved float PCM submission and callback rendering;
-- hardware position and device-latency reporting;
-- buffer, clock and underrun telemetry.
+- presented-position/QPC correlation and output-latency reporting;
+- buffer, clock, underrun and callback-deadline telemetry.
 
 The audio callback entry point exists for native output backends. It is not a
 managed callback and must not be called from the gameplay update thread.
@@ -71,6 +77,15 @@ Implemented:
 5. `IAudioClock` position and `GetStreamLatency` reporting.
 6. Worker-thread MP3/WAV/OGG decoding into the native PCM ring.
 7. Gameplay and editor waveform paths independent of osu!framework audio.
+8. Per-stream callback budget, maximum callback duration and deadline-miss
+   counters.
+
+Exclusive event-driven output submits one complete endpoint buffer on every
+device event. Shared mode alone uses `GetCurrentPadding` to calculate writable
+frames; sharing that path with Exclusive can leave the stream waiting forever
+after its first event. A runtime callback failure now marks the core `Faulted`
+and publishes the backend HRESULT/stage instead of leaving a false-running
+state.
 
 Next:
 
@@ -88,9 +103,11 @@ Run the native core tests with:
 ```
 
 Native unit tests validate priming, lifecycle, silence-on-underrun, sample
-safety, counter resets and latency-adjusted device clock behavior. The focused
+safety, counter resets, presented-position clock behavior and callback deadline
+telemetry. The focused
 managed hardware smoke decodes a silent WAV, enumerates active endpoints, opens
-real WASAPI output and verifies the accepted device buffer and latency.
+real WASAPI output and verifies the accepted device buffer, latency and live
+callback timing.
 
 On the July 28 development machine, the smoke opened `Senary Audio` in
 exclusive mode at 48 kHz with a 240-frame buffer and a reported 5.00 ms stream

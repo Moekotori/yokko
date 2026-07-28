@@ -4,6 +4,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 
@@ -35,27 +36,13 @@ public partial class HomePrimaryAction : ClickableContainer
     private readonly Box background;
     private readonly Box focusLine;
 
-    public HomePrimaryAction(string title, string eyebrow, IconUsage icon, Action action)
+    public HomePrimaryAction(LocalisableString title, LocalisableString eyebrow, IconUsage icon, Action action)
     {
         Action = action;
         Size = new Vector2(520, 120);
 
         InternalChildren = new Drawable[]
         {
-            new Container
-            {
-                Position = new Vector2(-3, -3),
-                Size = new Vector2(526, 120),
-                Masking = true,
-                CornerRadius = 12,
-                BorderThickness = 2,
-                BorderColour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.82f),
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Alpha = 0,
-                },
-            },
             new Container
             {
                 Position = new Vector2(0, 6),
@@ -66,6 +53,18 @@ public partial class HomePrimaryAction : ClickableContainer
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = new Color4(0.015f, 0.045f, 0.28f, 0.52f),
+                },
+            },
+            new Container
+            {
+                Position = new Vector2(-3, -3),
+                Size = new Vector2(526, 120),
+                Masking = true,
+                CornerRadius = 12,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.82f),
                 },
             },
             new Container
@@ -84,8 +83,8 @@ public partial class HomePrimaryAction : ClickableContainer
                     },
                     new HomeDotField
                     {
-                        Position = new Vector2(344, 18),
-                        Size = new Vector2(132, 78),
+                        Position = new Vector2(358, 18),
+                        Size = new Vector2(145, 78),
                         Colour = new Color4(0.39f, 0.76f, 1f, 0.34f),
                     },
                     new Container
@@ -106,8 +105,8 @@ public partial class HomePrimaryAction : ClickableContainer
                     {
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.CentreLeft,
-                        X = 25,
-                        Size = new Vector2(68),
+                        X = 30,
+                        Size = new Vector2(72),
                         Masking = true,
                         CornerRadius = 9,
                         BorderThickness = 2,
@@ -123,7 +122,7 @@ public partial class HomePrimaryAction : ClickableContainer
                             {
                                 Anchor = Anchor.Centre,
                                 Origin = Anchor.Centre,
-                                Size = new Vector2(30),
+                                Size = new Vector2(31),
                                 Icon = icon,
                                 Colour = HomeControlColours.Navy,
                             },
@@ -131,11 +130,11 @@ public partial class HomePrimaryAction : ClickableContainer
                     },
                     new FillFlowContainer
                     {
-                        X = 126,
-                        Y = 19,
+                        X = 133,
+                        Y = 25,
                         AutoSizeAxes = Axes.Both,
                         Direction = FillDirection.Vertical,
-                        Spacing = new Vector2(0, -4),
+                        Spacing = new Vector2(0, 0),
                         Children = new Drawable[]
                         {
                             new SpriteText
@@ -148,7 +147,7 @@ public partial class HomePrimaryAction : ClickableContainer
                             new SpriteText
                             {
                                 Text = title,
-                                Font = HomeTypography.Display(50),
+                                Font = HomeTypography.Display(54),
                                 Colour = Color4.White,
                             },
                         },
@@ -249,21 +248,66 @@ public partial class HomeSecondaryAction : ClickableContainer
     private readonly Box background;
     private readonly Box underline;
 
-    public HomeSecondaryAction(string title, IconUsage icon, Action action)
+    public HomeSecondaryAction(LocalisableString title, IconUsage icon, Action action)
     {
         Action = action;
         Size = new Vector2(252, 82);
-        Masking = true;
-        CornerRadius = 9;
-        BorderThickness = 2;
-        BorderColour = HomeControlColours.Navy;
 
         InternalChildren = new Drawable[]
         {
-            background = new Box
+            new Container
             {
-                RelativeSizeAxes = Axes.Both,
-                Colour = Color4.White,
+                Position = new Vector2(0, 5),
+                Size = new Vector2(252, 77),
+                Masking = true,
+                CornerRadius = 9,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.3f),
+                },
+            },
+            new Container
+            {
+                Position = new Vector2(-2, -2),
+                Size = new Vector2(256, 82),
+                Masking = true,
+                CornerRadius = 11,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.5f),
+                },
+            },
+            new Container
+            {
+                Size = new Vector2(252, 78),
+                Masking = true,
+                CornerRadius = 9,
+                BorderThickness = 2,
+                BorderColour = HomeControlColours.Navy,
+                Children = new Drawable[]
+                {
+                    background = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = Color4.White,
+                    },
+                    new Container
+                    {
+                        Position = new Vector2(4),
+                        Size = new Vector2(244, 70),
+                        Masking = true,
+                        CornerRadius = 6,
+                        BorderThickness = 1,
+                        BorderColour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.44f),
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Alpha = 0,
+                        },
+                    },
+                },
             },
             new Container
             {
@@ -334,24 +378,11 @@ public partial class HomeSecondaryAction : ClickableContainer
                 Rotation = 45,
                 Colour = HomeControlColours.Yellow,
             },
-            new Container
-            {
-                Position = new Vector2(4),
-                Size = new Vector2(244, 74),
-                Masking = true,
-                CornerRadius = 6,
-                BorderThickness = 1,
-                BorderColour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.44f),
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Alpha = 0,
-                },
-            },
             underline = new Box
             {
                 Anchor = Anchor.BottomLeft,
                 Origin = Anchor.BottomLeft,
+                Y = -4,
                 Width = 0,
                 Height = 3,
                 Colour = HomeControlColours.Cyan,
@@ -387,18 +418,63 @@ public partial class HomeUtilityButton : ClickableContainer
     public HomeUtilityButton(string text, IconUsage icon, Action action, float width)
     {
         Action = action;
-        Size = new Vector2(width, 58);
-        Masking = true;
-        CornerRadius = 10;
-        BorderThickness = 2;
-        BorderColour = HomeControlColours.Navy;
+        Size = new Vector2(width, 72);
 
         InternalChildren = new Drawable[]
         {
-            background = new Box
+            new Container
             {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(1f, 1f, 1f, 0.94f),
+                Position = new Vector2(0, 5),
+                Size = new Vector2(width, 67),
+                Masking = true,
+                CornerRadius = 11,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.3f),
+                },
+            },
+            new Container
+            {
+                Position = new Vector2(-2, -2),
+                Size = new Vector2(width + 4, 70),
+                Masking = true,
+                CornerRadius = 12,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.58f),
+                },
+            },
+            new Container
+            {
+                Size = new Vector2(width, 68),
+                Masking = true,
+                CornerRadius = 11,
+                BorderThickness = 2,
+                BorderColour = HomeControlColours.Navy,
+                Children = new Drawable[]
+                {
+                    background = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(1f, 1f, 1f, 0.96f),
+                    },
+                    new Container
+                    {
+                        Position = new Vector2(4),
+                        Size = new Vector2(width - 8, 60),
+                        Masking = true,
+                        CornerRadius = 8,
+                        BorderThickness = 1,
+                        BorderColour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.55f),
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Alpha = 0,
+                        },
+                    },
+                },
             },
             new FillFlowContainer
             {
@@ -413,7 +489,7 @@ public partial class HomeUtilityButton : ClickableContainer
                     {
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.CentreLeft,
-                        Size = new Vector2(24),
+                        Size = new Vector2(30),
                         Icon = icon,
                         Colour = HomeControlColours.Navy,
                     },
@@ -431,23 +507,9 @@ public partial class HomeUtilityButton : ClickableContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.Centre,
-                Size = new Vector2(14),
+                Size = new Vector2(17),
                 Rotation = 45,
                 Colour = HomeControlColours.Yellow,
-            },
-            new Container
-            {
-                Position = new Vector2(4),
-                Size = new Vector2(width - 8, 50),
-                Masking = true,
-                CornerRadius = 7,
-                BorderThickness = 1,
-                BorderColour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.55f),
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Alpha = 0,
-                },
             },
         };
     }
@@ -468,17 +530,15 @@ public partial class HomeUtilityButton : ClickableContainer
 
 public partial class HomeMascotBubble : CompositeDrawable
 {
-    public HomeMascotBubble(string text)
+    public HomeMascotBubble(LocalisableString text)
     {
-        string[] words = text.Split(' ', 2);
-
-        Size = new Vector2(122, 94);
+        Size = new Vector2(112, 94);
 
         InternalChildren = new Drawable[]
         {
             new Container
             {
-                Position = new Vector2(84, 72),
+                Position = new Vector2(78, 72),
                 Size = new Vector2(18),
                 Rotation = 45,
                 Masking = true,
@@ -492,7 +552,7 @@ public partial class HomeMascotBubble : CompositeDrawable
             },
             new Container
             {
-                Size = new Vector2(122, 84),
+                Size = new Vector2(112, 84),
                 Masking = true,
                 CornerRadius = 30,
                 BorderThickness = 2,
@@ -504,34 +564,14 @@ public partial class HomeMascotBubble : CompositeDrawable
                         RelativeSizeAxes = Axes.Both,
                         Colour = Color4.White,
                     },
-                    new FillFlowContainer
+                    new SpriteText
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        AutoSizeAxes = Axes.Both,
-                        Direction = FillDirection.Vertical,
-                        Spacing = new Vector2(0, -3),
-                        Children = new Drawable[]
-                        {
-                            new SpriteText
-                            {
-                                Anchor = Anchor.TopCentre,
-                                Origin = Anchor.TopCentre,
-                                Text = words[0],
-                                Font = HomeTypography.Display(23),
-                                Scale = new Vector2(0.94f, 1),
-                                Colour = HomeControlColours.Navy,
-                            },
-                            new SpriteText
-                            {
-                                Anchor = Anchor.TopCentre,
-                                Origin = Anchor.TopCentre,
-                                Text = words.Length > 1 ? words[1] : string.Empty,
-                                Font = HomeTypography.Display(23),
-                                Scale = new Vector2(0.94f, 1),
-                                Colour = HomeControlColours.Navy,
-                            },
-                        },
+                        Text = text,
+                        Font = HomeTypography.Display(20),
+                        Scale = new Vector2(0.94f, 1),
+                        Colour = HomeControlColours.Navy,
                     },
                     new Box
                     {

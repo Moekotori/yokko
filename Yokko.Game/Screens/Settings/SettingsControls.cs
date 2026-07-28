@@ -6,8 +6,10 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Settings;
@@ -37,7 +39,7 @@ internal partial class SettingsPanelFooter : CompositeDrawable
             new SpriteText
             {
                 Position = new Vector2(36, 17),
-                Text = "Changes apply instantly",
+                Text = YokkoStrings.Get("settings.changes_apply_instantly"),
                 Font = HomeTypography.Body(14),
                 Colour = HomeControlColours.Navy,
             },
@@ -68,7 +70,7 @@ internal partial class SettingsPanelFooter : CompositeDrawable
             new SpriteText
             {
                 Position = new Vector2(294, 17),
-                Text = "Esc to return",
+                Text = YokkoStrings.Get("settings.esc_to_return"),
                 Font = HomeTypography.Body(14),
                 Colour = HomeControlColours.Navy,
             },
@@ -86,7 +88,7 @@ internal partial class SettingsSegmentedChoiceButton : ClickableContainer
 
     public object Value { get; init; }
 
-    public SettingsSegmentedChoiceButton(string label, IconUsage itemIcon, Action action, float width)
+    public SettingsSegmentedChoiceButton(LocalisableString label, IconUsage itemIcon, Action action, float width)
     {
         Action = action;
         Size = new Vector2(width, 54);

@@ -7,8 +7,10 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Settings;
@@ -48,12 +50,12 @@ internal partial class SettingsSidebar : CompositeDrawable
             new SpriteText
             {
                 Position = new Vector2(38, 126),
-                Text = "Settings",
+                Text = YokkoStrings.Get("settings.title"),
                 Font = HomeTypography.Display(43),
                 Spacing = new Vector2(0.5f, 0),
                 Colour = HomeControlColours.Navy,
             },
-            new SettingsOutlineButton("Back", FontAwesome.Solid.ArrowLeft, onBack)
+            new SettingsOutlineButton(YokkoStrings.Get("settings.back"), FontAwesome.Solid.ArrowLeft, onBack)
             {
                 Position = new Vector2(38, 182),
             },
@@ -73,7 +75,7 @@ internal partial class SettingsSidebar : CompositeDrawable
             noResults = new SpriteText
             {
                 Position = new Vector2(38, 310),
-                Text = "No matching settings",
+                Text = YokkoStrings.Get("settings.no_matches"),
                 Font = HomeTypography.Body(14),
                 Colour = SettingsTheme.MutedNavy,
                 Alpha = 0,
@@ -93,17 +95,17 @@ internal partial class SettingsSidebar : CompositeDrawable
 
     private Drawable[] createNavigation()
     {
-        var coreHeader = new SettingsNavHeader("CORE");
+        var coreHeader = new SettingsNavHeader(YokkoStrings.Get("settings.group_core"));
         SettingsNavItem general = createNavItem(SettingsPageKind.General);
         SettingsNavItem display = createNavItem(SettingsPageKind.Display);
         SettingsNavItem audio = createNavItem(SettingsPageKind.Audio);
 
-        var creationHeader = new SettingsNavHeader("CREATION");
+        var creationHeader = new SettingsNavHeader(YokkoStrings.Get("settings.group_creation"));
         SettingsNavItem gameplay = createNavItem(SettingsPageKind.Gameplay);
         SettingsNavItem editor = createNavItem(SettingsPageKind.Editor);
         SettingsNavItem import = createNavItem(SettingsPageKind.Import);
 
-        var systemHeader = new SettingsNavHeader("SYSTEM");
+        var systemHeader = new SettingsNavHeader(YokkoStrings.Get("settings.group_system"));
         SettingsNavItem accessibility = createNavItem(SettingsPageKind.Accessibility);
         SettingsNavItem about = createNavItem(SettingsPageKind.About);
 
@@ -137,7 +139,12 @@ internal partial class SettingsSidebar : CompositeDrawable
     private SettingsNavItem createNavItem(SettingsPageKind page)
     {
         SettingsPageDefinition definition = SettingsPages.Get(page);
-        var item = new SettingsNavItem(page, definition.Title, definition.Icon, () => onPageSelected(page));
+        var item = new SettingsNavItem(
+            page,
+            definition.Title,
+            definition.SearchTerms,
+            definition.Icon,
+            () => onPageSelected(page));
         navigationItems.Add(page, item);
         return item;
     }
@@ -154,7 +161,7 @@ internal partial class SettingsSidebar : CompositeDrawable
             foreach (SettingsNavItem item in items)
             {
                 bool visible = normalized.Length == 0 ||
-                               item.Label.Contains(normalized, StringComparison.OrdinalIgnoreCase);
+                               item.SearchTerms.Contains(normalized, StringComparison.OrdinalIgnoreCase);
                 item.SetFiltered(visible);
                 anyVisible |= visible;
             }
@@ -181,7 +188,7 @@ internal partial class SettingsSearchTextBox : BasicTextBox
         BackgroundUnfocused = Color4.White;
         BackgroundFocused = SettingsTheme.PaleCyan;
         FontSize = 15;
-        PlaceholderText = "Search settings";
+        PlaceholderText = YokkoStrings.Get("settings.search");
 
         AddInternal(new SpriteIcon
         {
@@ -228,7 +235,7 @@ internal partial class SettingsOutlineButton : ClickableContainer
     private readonly Box background;
     private readonly float restingX;
 
-    public SettingsOutlineButton(string label, IconUsage icon, Action action)
+    public SettingsOutlineButton(LocalisableString label, IconUsage icon, Action action)
     {
         Action = action;
         Size = new Vector2(244, 44);
@@ -282,7 +289,7 @@ internal partial class SettingsOutlineButton : ClickableContainer
 
 internal partial class SettingsNavHeader : CompositeDrawable
 {
-    public SettingsNavHeader(string label)
+    public SettingsNavHeader(LocalisableString label)
     {
         Size = new Vector2(252, 22);
         InternalChild = new SpriteText
@@ -317,16 +324,17 @@ internal partial class SettingsNavItem : ClickableContainer
     private bool selected;
 
     public SettingsPageKind Page { get; }
-    public string Label { get; }
+    public string SearchTerms { get; }
 
     public SettingsNavItem(
         SettingsPageKind page,
-        string label,
+        LocalisableString label,
+        string searchTerms,
         IconUsage itemIcon,
         Action action)
     {
         Page = page;
-        Label = label;
+        SearchTerms = searchTerms;
         Action = action;
         Size = new Vector2(252, 39);
         Masking = true;

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Localisation;
+using Yokko.Game.Localisation;
 
 namespace Yokko.Game.Screens.Settings;
 
@@ -23,11 +25,12 @@ internal interface ISettingsTransientUi
 
 internal sealed record SettingsPageDefinition(
     SettingsPageKind Kind,
-    string Title,
-    string Subtitle,
-    string Description,
+    LocalisableString Title,
+    LocalisableString Subtitle,
+    LocalisableString Description,
     IconUsage Icon,
-    IReadOnlyList<string> PlannedSections);
+    IReadOnlyList<LocalisableString> PlannedSections,
+    string SearchTerms);
 
 internal static class SettingsPages
 {
@@ -35,60 +38,143 @@ internal static class SettingsPages
     {
         SettingsPageKind.General => new(
             kind,
-            "General",
-            "Language, startup and application behaviour",
-            "The essentials that shape how Yokko starts and behaves.",
+            YokkoStrings.Get("settings.general.title"),
+            YokkoStrings.Get("settings.general.subtitle"),
+            YokkoStrings.Get("settings.general.description"),
             FontAwesome.Solid.Cog,
-            new[] { "Language & region", "Startup behaviour", "Updates" }),
+            new[]
+            {
+                YokkoStrings.Get("settings.general.section_language"),
+                YokkoStrings.Get("settings.general.section_startup"),
+                YokkoStrings.Get("settings.general.section_updates"),
+            },
+            YokkoStrings.SearchTerms(
+                "settings.general.title",
+                "settings.general.subtitle",
+                "settings.general.section_language",
+                "settings.general.section_startup",
+                "settings.general.section_updates")),
         SettingsPageKind.Display => new(
             kind,
-            "Display",
-            "Window, resolution and interface scale",
-            "Display and interface presentation.",
+            YokkoStrings.Get("settings.display.title"),
+            YokkoStrings.Get("settings.display.subtitle"),
+            YokkoStrings.Get("settings.display.description"),
             FontAwesome.Solid.Desktop,
-            Array.Empty<string>()),
+            Array.Empty<LocalisableString>(),
+            YokkoStrings.SearchTerms(
+                "settings.display.title",
+                "settings.display.subtitle",
+                "settings.display.window_mode",
+                "settings.display.resolution",
+                "settings.display.interface_scale")),
         SettingsPageKind.Audio => new(
             kind,
-            "Audio",
-            "Output, latency and synchronisation",
-            "Audio controls will live here without mixing playback state into the settings shell.",
+            YokkoStrings.Get("settings.audio.title"),
+            YokkoStrings.Get("settings.audio.subtitle"),
+            YokkoStrings.Get("settings.audio.description"),
             FontAwesome.Solid.VolumeUp,
-            new[] { "Output device", "Latency & sync", "Volume" }),
+            new[]
+            {
+                YokkoStrings.Get("settings.audio.section_output"),
+                YokkoStrings.Get("settings.audio.section_latency"),
+                YokkoStrings.Get("settings.audio.section_volume"),
+            },
+            YokkoStrings.SearchTerms(
+                "settings.audio.title",
+                "settings.audio.subtitle",
+                "settings.audio.section_output",
+                "settings.audio.section_latency",
+                "settings.audio.section_volume")),
         SettingsPageKind.Gameplay => new(
             kind,
-            "Gameplay",
-            "Input, timing and playfield feedback",
-            "Gameplay preferences will stay separate from chart rules and scoring logic.",
+            YokkoStrings.Get("settings.gameplay.title"),
+            YokkoStrings.Get("settings.gameplay.subtitle"),
+            YokkoStrings.Get("settings.gameplay.description"),
             FontAwesome.Solid.Gamepad,
-            new[] { "Input & key bindings", "Timing & judgement", "Visual feedback" }),
+            new[]
+            {
+                YokkoStrings.Get("settings.gameplay.section_input"),
+                YokkoStrings.Get("settings.gameplay.section_timing"),
+                YokkoStrings.Get("settings.gameplay.section_feedback"),
+            },
+            YokkoStrings.SearchTerms(
+                "settings.gameplay.title",
+                "settings.gameplay.subtitle",
+                "settings.gameplay.section_input",
+                "settings.gameplay.section_timing",
+                "settings.gameplay.section_feedback")),
         SettingsPageKind.Editor => new(
             kind,
-            "Editor",
-            "Workspace, snapping and autosave",
-            "Editor preferences will be grouped into small, collapsible sections.",
+            YokkoStrings.Get("settings.editor.title"),
+            YokkoStrings.Get("settings.editor.subtitle"),
+            YokkoStrings.Get("settings.editor.description"),
             FontAwesome.Solid.Pen,
-            new[] { "Workspace", "Grid & snapping", "Autosave" }),
+            new[]
+            {
+                YokkoStrings.Get("settings.editor.section_workspace"),
+                YokkoStrings.Get("settings.editor.section_grid"),
+                YokkoStrings.Get("settings.editor.section_autosave"),
+            },
+            YokkoStrings.SearchTerms(
+                "settings.editor.title",
+                "settings.editor.subtitle",
+                "settings.editor.section_workspace",
+                "settings.editor.section_grid",
+                "settings.editor.section_autosave")),
         SettingsPageKind.Import => new(
             kind,
-            "Import",
-            "Formats, file handling and conversion",
-            "Import preferences will remain independent from the importer implementations.",
+            YokkoStrings.Get("settings.import.title"),
+            YokkoStrings.Get("settings.import.subtitle"),
+            YokkoStrings.Get("settings.import.description"),
             FontAwesome.Solid.FolderOpen,
-            new[] { "Supported formats", "Import behaviour", "File locations" }),
+            new[]
+            {
+                YokkoStrings.Get("settings.import.section_formats"),
+                YokkoStrings.Get("settings.import.section_behaviour"),
+                YokkoStrings.Get("settings.import.section_locations"),
+            },
+            YokkoStrings.SearchTerms(
+                "settings.import.title",
+                "settings.import.subtitle",
+                "settings.import.section_formats",
+                "settings.import.section_behaviour",
+                "settings.import.section_locations")),
         SettingsPageKind.Accessibility => new(
             kind,
-            "Accessibility",
-            "Visual, motion and input assistance",
-            "Accessibility options will be easy to find and safe to change.",
+            YokkoStrings.Get("settings.accessibility.title"),
+            YokkoStrings.Get("settings.accessibility.subtitle"),
+            YokkoStrings.Get("settings.accessibility.description"),
             FontAwesome.Solid.UniversalAccess,
-            new[] { "Visual assistance", "Input accessibility", "Reduced motion" }),
+            new[]
+            {
+                YokkoStrings.Get("settings.accessibility.section_visual"),
+                YokkoStrings.Get("settings.accessibility.section_input"),
+                YokkoStrings.Get("settings.accessibility.section_motion"),
+            },
+            YokkoStrings.SearchTerms(
+                "settings.accessibility.title",
+                "settings.accessibility.subtitle",
+                "settings.accessibility.section_visual",
+                "settings.accessibility.section_input",
+                "settings.accessibility.section_motion")),
         SettingsPageKind.About => new(
             kind,
-            "About",
-            "Version, credits and licences",
-            "Project information and acknowledgements will be collected here.",
+            YokkoStrings.Get("settings.about.title"),
+            YokkoStrings.Get("settings.about.subtitle"),
+            YokkoStrings.Get("settings.about.description"),
             FontAwesome.Solid.InfoCircle,
-            new[] { "Version & updates", "Credits", "Licences" }),
+            new[]
+            {
+                YokkoStrings.Get("settings.about.section_version"),
+                YokkoStrings.Get("settings.about.section_credits"),
+                YokkoStrings.Get("settings.about.section_licences"),
+            },
+            YokkoStrings.SearchTerms(
+                "settings.about.title",
+                "settings.about.subtitle",
+                "settings.about.section_version",
+                "settings.about.section_credits",
+                "settings.about.section_licences")),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
 }

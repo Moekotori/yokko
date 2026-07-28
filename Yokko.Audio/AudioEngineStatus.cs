@@ -8,4 +8,10 @@ public sealed record AudioEngineStatus(
     double EstimatedOutputLatencyMilliseconds,
     bool IsExclusive,
     bool IsRunning,
-    bool HasUnderrun);
+    bool HasUnderrun,
+    ulong CallbackCount,
+    ulong CallbackDeadlineMissCount,
+    double CallbackBudgetMilliseconds,
+    double MaxCallbackDurationMilliseconds,
+    int BackendError,
+    uint BackendErrorStage);

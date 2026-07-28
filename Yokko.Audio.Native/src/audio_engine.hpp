@@ -28,9 +28,16 @@ namespace yokko::audio
             float* output,
             uint32_t frame_count,
             uint32_t& source_frames_rendered) noexcept;
-        yokko_audio_result report_device_position(
-            uint64_t device_frame_position,
-            uint32_t device_latency_frames) noexcept;
+        yokko_audio_result report_presented_position(
+            uint64_t presented_frame_position,
+            uint32_t output_latency_frames,
+            uint64_t observation_time_100ns) noexcept;
+        void report_callback_timing(
+            uint32_t duration_microseconds,
+            uint32_t budget_microseconds) noexcept;
+        void report_output_failure(
+            int32_t backend_error,
+            uint32_t backend_error_stage) noexcept;
         void get_status(yokko_audio_status& status) const noexcept;
         yokko_audio_result open_wasapi(
             const yokko_audio_output_config& config,
@@ -61,9 +68,18 @@ namespace yokko::audio
         std::atomic<uint64_t> source_frames_rendered_{0};
         std::atomic<uint64_t> device_frames_rendered_{0};
         std::atomic<uint64_t> underrun_count_{0};
-        std::atomic<uint64_t> reported_device_frame_position_{0};
+        std::atomic<uint32_t> reported_position_sequence_{0};
+        std::atomic<uint64_t> reported_presented_frame_position_{0};
+        std::atomic<uint64_t> reported_position_time_100ns_{0};
         std::atomic<uint32_t> device_latency_frames_{0};
-        std::atomic<bool> has_reported_device_position_{false};
+        std::atomic<bool> has_reported_presented_position_{false};
+        std::atomic<uint64_t> callback_count_{0};
+        std::atomic<uint64_t> callback_deadline_miss_count_{0};
+        std::atomic<uint32_t> callback_budget_microseconds_{0};
+        std::atomic<uint32_t> callback_max_duration_microseconds_{0};
+        std::atomic<int32_t> backend_error_{0};
+        std::atomic<uint32_t> backend_error_stage_{0};
+        mutable std::atomic<uint64_t> last_playback_frame_position_{0};
         std::atomic<bool> accepting_submissions_{true};
         std::atomic<uint32_t> active_submit_calls_{0};
         std::atomic<uint32_t> active_render_callbacks_{0};

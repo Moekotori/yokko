@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -24,7 +25,7 @@ namespace Yokko.Game.Tests.Core
                 TestContext.CurrentContext.Test.ID);
             Directory.CreateDirectory(directory);
             string audioPath = Path.Combine(directory, "silence.wav");
-            createSilentWave(audioPath, 48000, 2, 500);
+            createSilentWave(audioPath, 48000, 2, 2000);
 
             await using var engine = new NativeAudioEngine();
             var devices = await engine.GetOutputDevicesAsync();
@@ -48,6 +49,7 @@ namespace Yokko.Game.Tests.Core
                         $"Opened {device.Name}: {engine.Status.ActiveBackend}, "
                         + $"{engine.Status.BufferSize} frames, "
                         + $"{engine.Status.EstimatedOutputLatencyMilliseconds:F2} ms");
+                    await Task.Delay(250);
                     opened = true;
                     break;
                 }
@@ -68,6 +70,13 @@ namespace Yokko.Game.Tests.Core
             }
 
             AudioEngineStatus status = engine.Status;
+            TestContext.Progress.WriteLine(
+                $"Callbacks={status.CallbackCount}, "
+                + $"deadline misses={status.CallbackDeadlineMissCount}, "
+                + $"max={status.MaxCallbackDurationMilliseconds:F3} ms / "
+                + $"budget={status.CallbackBudgetMilliseconds:F3} ms, "
+                + $"backend error=0x{status.BackendError:X8} "
+                + $"at stage {status.BackendErrorStage}");
             Assert.That(
                 status.ActiveBackend,
                 Is.AnyOf(
@@ -77,6 +86,27 @@ namespace Yokko.Game.Tests.Core
             Assert.That(status.BufferSize, Is.GreaterThan(0));
             Assert.That(status.IsRunning, Is.True);
             Assert.That(status.HasUnderrun, Is.False);
+            Assert.That(
+                status.CallbackCount,
+                Is.GreaterThan(1),
+                "The event-driven output callback must continue after startup.");
+            Assert.That(status.CallbackBudgetMilliseconds, Is.GreaterThan(0));
+            Assert.That(status.MaxCallbackDurationMilliseconds, Is.GreaterThanOrEqualTo(0));
+
+            var clockSamples = new List<double>();
+            for (int index = 0; index < 16; index++)
+            {
+                clockSamples.Add(engine.PlaybackTimeMilliseconds);
+                await Task.Delay(1);
+            }
+            Assert.That(
+                clockSamples.Zip(clockSamples.Skip(1), (left, right) => right >= left),
+                Is.All.True,
+                "The hardware playback clock must remain monotonic.");
+            Assert.That(
+                clockSamples.Distinct().Count(),
+                Is.GreaterThan(8),
+                "QPC interpolation should avoid a buffer-sized clock staircase.");
 
             await engine.StopAsync();
             Assert.That(engine.Status.IsRunning, Is.False);

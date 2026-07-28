@@ -1,8 +1,12 @@
+using System.Collections.Generic;
 using osu.Framework.Allocation;
+using osu.Framework.Configuration;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.IO.Stores;
+using osu.Framework.Localisation;
 using osuTK;
+using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Resources;
 
@@ -30,10 +34,27 @@ namespace Yokko.Game
             });
         }
 
+        protected override LocalisationManager CreateLocalisationManager(FrameworkConfigManager frameworkConfig) =>
+            YokkoLocalisation.Create(frameworkConfig);
+
+        protected override IDictionary<FrameworkSetting, object> GetFrameworkConfigDefaults() =>
+            new Dictionary<FrameworkSetting, object>
+            {
+                [FrameworkSetting.Locale] = YokkoLocale.English,
+            };
+
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(FrameworkConfigManager frameworkConfig)
         {
-            Resources.AddStore(new DllResourceStore(typeof(YokkoResources).Assembly));
+            string configuredLocale = frameworkConfig.Get<string>(FrameworkSetting.Locale);
+            string normalizedLocale = YokkoLocale.Normalize(configuredLocale);
+            if (configuredLocale != normalizedLocale)
+                frameworkConfig.SetValue(FrameworkSetting.Locale, normalizedLocale);
+
+            var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
+            Resources.AddStore(resources);
+            AddFont(Resources, @"Fonts/Yokko/Yokko");
+            AddFont(Resources, @"Fonts/Yokko/Yokko-Bold");
             displaySettings.UiScale.BindValueChanged(_ => scalingContainer.TargetDrawSize = displaySettings.TargetDrawSize, true);
         }
     }

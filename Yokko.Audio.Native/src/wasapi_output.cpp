@@ -102,6 +102,23 @@ namespace
             / sample_rate);
     }
 
+    uint32_t callback_duration_microseconds(
+        const LARGE_INTEGER start,
+        const LARGE_INTEGER finish,
+        const LARGE_INTEGER frequency) noexcept
+    {
+        if (frequency.QuadPart <= 0 || finish.QuadPart <= start.QuadPart)
+            return 0;
+
+        const long double microseconds =
+            static_cast<long double>(finish.QuadPart - start.QuadPart)
+            * 1'000'000.0L
+            / static_cast<long double>(frequency.QuadPart);
+        return static_cast<uint32_t>(std::min<long double>(
+            std::ceil(microseconds),
+            std::numeric_limits<uint32_t>::max()));
+    }
+
     template <typename T>
     T clamp_integer(const long double value) noexcept
     {
@@ -422,6 +439,13 @@ namespace yokko::audio
 
             const uint32_t latency_frames =
                 reference_time_to_frames(stream_latency, engine_.sample_rate());
+            const uint32_t callback_budget_microseconds =
+                static_cast<uint32_t>(
+                    (static_cast<uint64_t>(buffer_frames) * 1'000'000
+                     + engine_.sample_rate() - 1)
+                    / engine_.sample_rate());
+            LARGE_INTEGER performance_frequency{};
+            QueryPerformanceFrequency(&performance_frequency);
             std::vector<float> conversion_buffer;
             if (SUCCEEDED(result)
                 && selected_sample_format != YOKKO_AUDIO_SAMPLE_FLOAT32)
@@ -484,30 +508,59 @@ namespace yokko::audio
                     if (wait_result == WAIT_TIMEOUT)
                         continue;
                     if (wait_result != WAIT_OBJECT_0 + 1)
+                    {
+                        engine_.report_output_failure(
+                            HRESULT_FROM_WIN32(GetLastError()),
+                            14);
                         break;
+                    }
 
-                    if (FAILED(fill_available_buffer(
-                            *audio_client.Get(),
-                            *render_client.Get(),
-                            buffer_frames,
-                            selected_sample_format,
-                            conversion_buffer)))
-                        break;
+                    LARGE_INTEGER callback_start{};
+                    LARGE_INTEGER callback_finish{};
+                    QueryPerformanceCounter(&callback_start);
+                    const HRESULT fill_result = fill_available_buffer(
+                        *audio_client.Get(),
+                        *render_client.Get(),
+                        buffer_frames,
+                        selected_sample_format,
+                        conversion_buffer);
 
                     UINT64 device_position = 0;
-                    if (SUCCEEDED(audio_clock->GetPosition(
-                            &device_position,
-                            nullptr))
-                        && clock_frequency > 0)
+                    UINT64 observation_time_100ns = 0;
+                    HRESULT clock_result = audio_clock->GetPosition(
+                        &device_position,
+                        &observation_time_100ns);
+                    if (clock_result == S_FALSE)
                     {
-                        const uint64_t device_frames =
+                        clock_result = audio_clock->GetPosition(
+                            &device_position,
+                            &observation_time_100ns);
+                    }
+                    if (SUCCEEDED(clock_result) && clock_frequency > 0)
+                    {
+                        const uint64_t presented_frames =
                             static_cast<uint64_t>(
                                 static_cast<long double>(device_position)
                                 * engine_.sample_rate()
                                 / clock_frequency);
-                        engine_.report_device_position(
-                            device_frames,
-                            latency_frames);
+                        engine_.report_presented_position(
+                            presented_frames,
+                            latency_frames,
+                            observation_time_100ns);
+                    }
+
+                    QueryPerformanceCounter(&callback_finish);
+                    engine_.report_callback_timing(
+                        callback_duration_microseconds(
+                            callback_start,
+                            callback_finish,
+                            performance_frequency),
+                        callback_budget_microseconds);
+
+                    if (FAILED(fill_result))
+                    {
+                        engine_.report_output_failure(fill_result, 15);
+                        break;
                     }
                 }
             }
@@ -649,16 +702,23 @@ namespace yokko::audio
             const yokko_audio_sample_format sample_format,
             std::vector<float>& conversion_buffer) noexcept
         {
-            UINT32 padding = 0;
-            HRESULT result = audio_client.GetCurrentPadding(&padding);
-            if (FAILED(result))
-                return result;
-            if (padding >= buffer_frames)
-                return S_OK;
+            UINT32 available_frames = buffer_frames;
+            if (backend_ == YOKKO_AUDIO_BACKEND_WASAPI_SHARED)
+            {
+                UINT32 padding = 0;
+                const HRESULT padding_result =
+                    audio_client.GetCurrentPadding(&padding);
+                if (FAILED(padding_result))
+                    return padding_result;
+                if (padding >= buffer_frames)
+                    return S_OK;
 
-            const UINT32 available_frames = buffer_frames - padding;
+                available_frames = buffer_frames - padding;
+            }
+
             BYTE* device_buffer = nullptr;
-            result = render_client.GetBuffer(available_frames, &device_buffer);
+            HRESULT result =
+                render_client.GetBuffer(available_frames, &device_buffer);
             if (FAILED(result))
                 return result;
 
@@ -712,7 +772,8 @@ namespace yokko::audio
                         std::round(
                             static_cast<long double>(input[index])
                             * 8'388'607.0L));
-                    samples[index] = value << 8;
+                    samples[index] = static_cast<int32_t>(
+                        static_cast<int64_t>(value) * 256);
                 }
                 else
                 {

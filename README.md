@@ -74,6 +74,30 @@ input timestamp - audio playback time - user/device offset
 
 Frame time is only for presentation. A dropped frame may look bad, but it should not shift judgement.
 
+## osu!mania skin preview
+
+Yokko can load an initial subset of osu!stable mania skins directly. No Yokko-specific
+skin conversion is performed.
+
+To try an extracted skin, place its `skin.ini` and images under:
+
+```text
+Skins/Current/
+```
+
+Alternatively, place a packaged skin at `Skins/current.osk`, or set
+`YOKKO_OSU_MANIA_SKIN` to an absolute extracted-folder or `.osk` path before
+launching Yokko.
+
+The current compatibility slice supports 4K/7K repeated `[Mania]` sections,
+column widths/spacing/colours, hit position, key-up/key-down textures, tap notes,
+long-note heads/bodies/tails, custom asset paths, `.png`/`.jpg`, `@2x` assets,
+and first-frame fallback for animated assets. Missing or invalid resources fall
+back to Yokko's built-in rendering instead of preventing gameplay.
+
+Animation playback, hit bursts, skin sounds, stage splitting, upside-down
+rendering, and exact long-note body-style behaviour are still in progress.
+
 Editor rows are derived from the active uninherited timing point and beat divisor. They are not fixed-duration rows, so BPM changes remain aligned to the song grid.
 
 ## Audio Direction

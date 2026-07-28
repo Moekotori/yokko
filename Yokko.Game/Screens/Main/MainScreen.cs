@@ -6,11 +6,13 @@ using osu.Framework.Graphics.Primitives;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.Localisation;
 using osu.Framework.Screens;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Audio;
 using Yokko.Core.Beatmaps;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Editor;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Settings;
@@ -23,7 +25,7 @@ public partial class MainScreen : Screen
     private const float designedHeight = 720;
 
     private static readonly Color4 ivory = new(0.992f, 0.992f, 0.988f, 1f);
-    private static readonly Color4 cyan = new(0.29f, 0.84f, 0.96f, 1f);
+    private static readonly Color4 cyan = new(0.29f, 0.81f, 0.94f, 1f);
     private static readonly Color4 navy = new(0.035f, 0.085f, 0.54f, 1f);
     private static readonly Color4 yellow = new(1f, 0.91f, 0.42f, 1f);
     private static readonly Color4 pink = new(1f, 0.22f, 0.65f, 1f);
@@ -33,10 +35,11 @@ public partial class MainScreen : Screen
     [BackgroundDependencyLoader]
     private void load(TextureStore textures)
     {
-        string audioStatus = AudioEngineFactory.AvailableBackends
-                                        .Where(backend => backend.IsAvailable)
-                                        .Select(backendDisplayName)
-                                        .FirstOrDefault() ?? "Audio unavailable";
+        string availableBackend = AudioEngineFactory.AvailableBackends
+                                                    .Where(backend => backend.IsAvailable)
+                                                    .Select(backendDisplayName)
+                                                    .FirstOrDefault();
+        LocalisableString audioStatus = availableBackend ?? YokkoStrings.Get("main.audio_unavailable");
 
         Texture mascotTexture = textures.Get("yokko")
                                         .Crop(new RectangleF(80, 1840, 1200, 1360));
@@ -97,17 +100,17 @@ public partial class MainScreen : Screen
             new Box
             {
                 RelativeSizeAxes = Axes.Y,
-                Width = 520,
+                Width = 510,
                 Colour = ivory,
             },
             new Box
             {
                 RelativeSizeAxes = Axes.Y,
                 Width = 220,
-                X = 520,
+                X = 510,
                 Y = -20,
                 Height = 1.14f,
-                Rotation = 10,
+                Rotation = 11,
                 Colour = ivory,
             },
         },
@@ -120,8 +123,8 @@ public partial class MainScreen : Screen
         {
             new SpriteText
             {
-                X = 738,
-                Y = 15,
+                X = 690,
+                Y = 20,
                 Text = "YOKKO",
                 Font = HomeTypography.Brand(102),
                 Colour = new Color4(1f, 1f, 1f, 0.14f),
@@ -151,9 +154,9 @@ public partial class MainScreen : Screen
                 Size = new Vector2(675, 765),
                 Texture = mascotTexture,
             },
-            new HomeMascotBubble("Let's play!")
+            new HomeMascotBubble(YokkoStrings.Get("main.lets_play"))
             {
-                X = 626,
+                X = 632,
                 Y = 365,
             },
         },
@@ -179,7 +182,7 @@ public partial class MainScreen : Screen
 
     private static Drawable createBrandLockup(Texture logoTexture) => new Sprite
     {
-        Position = new Vector2(72, 46),
+        Position = new Vector2(56, 46),
         Size = new Vector2(500, 169),
         Texture = logoTexture,
     };
@@ -200,28 +203,28 @@ public partial class MainScreen : Screen
                 {
                     new SpriteText
                     {
-                        Text = "Ready for",
+                        Text = YokkoStrings.Get("main.hero_line_1"),
                         Font = HomeTypography.Hero(72),
-                        Scale = new Vector2(0.93f, 1),
+                        Scale = new Vector2(1.08f, 1),
                         Colour = navy,
                     },
                     new SpriteText
                     {
-                        Text = "a check-up?",
+                        Text = YokkoStrings.Get("main.hero_line_2"),
                         Font = HomeTypography.Hero(72),
-                        Scale = new Vector2(0.93f, 1),
+                        Scale = new Vector2(1.08f, 1),
                         Colour = navy,
                     },
                 },
             },
             new HomeDotCross
             {
-                Position = new Vector2(419, 18),
+                Position = new Vector2(480, 18),
             },
-            createDecorationIcon(FontAwesome.Solid.Plus, 447, 67, 15, pink),
+            createDecorationIcon(FontAwesome.Solid.Plus, 508, 67, 15, pink),
             new HomePrimaryAction(
-                "Play",
-                "SONG SELECT",
+                YokkoStrings.Get("main.play"),
+                YokkoStrings.Get("main.song_select"),
                 FontAwesome.Solid.Play,
                 () => this.Push(new GameplayScreen(DemoBeatmaps.CreateFourKeyDemo())))
             {
@@ -229,7 +232,7 @@ public partial class MainScreen : Screen
             },
             new HomeConnectorPlus
             {
-                Position = new Vector2(510, 209),
+                Position = new Vector2(536, 209),
             },
             new FillFlowContainer
             {
@@ -239,9 +242,9 @@ public partial class MainScreen : Screen
                 Spacing = new Vector2(16, 0),
                 Children = new Drawable[]
                 {
-                    new HomeSecondaryAction("Editor", FontAwesome.Solid.Edit,
+                    new HomeSecondaryAction(YokkoStrings.Get("main.editor"), FontAwesome.Solid.Edit,
                         () => this.Push(new EditorScreen())),
-                    new HomeSecondaryAction("Settings", FontAwesome.Solid.Cog,
+                    new HomeSecondaryAction(YokkoStrings.Get("main.settings"), FontAwesome.Solid.Cog,
                         () => this.Push(new SettingsScreen())),
                 },
             },
@@ -250,16 +253,16 @@ public partial class MainScreen : Screen
 
     private Drawable createUtilityArea() => new Container
     {
-        Position = new Vector2(1184, 28),
-        Size = new Vector2(58),
+        Position = new Vector2(1176, 24),
+        Size = new Vector2(72),
         Child = new HomeUtilityButton(string.Empty, FontAwesome.Solid.FolderOpen,
-            () => this.Push(new EditorScreen(true)), 58),
+            () => this.Push(new EditorScreen(true)), 72),
     };
 
-    private static Drawable createFooter(string audioStatus) => new Container
+    private static Drawable createFooter(LocalisableString audioStatus) => new Container
     {
-        Position = new Vector2(72, 648),
-        Size = new Vector2(520, 48),
+        Position = new Vector2(60, 655),
+        Size = new Vector2(530, 48),
         Children = new Drawable[]
         {
             new Box
@@ -277,7 +280,7 @@ public partial class MainScreen : Screen
             },
             new SpriteIcon
             {
-                Position = new Vector2(310, -10),
+                Position = new Vector2(260, -10),
                 Size = new Vector2(23),
                 Icon = FontAwesome.Solid.Heartbeat,
                 Colour = navy,
@@ -291,14 +294,14 @@ public partial class MainScreen : Screen
                 Children = new Drawable[]
                 {
                     createFooterItem(FontAwesome.Solid.Keyboard, "D  F  J  K"),
-                    createFooterItem(FontAwesome.Solid.SignOutAlt, "Esc back"),
+                    createFooterItem(FontAwesome.Solid.SignOutAlt, YokkoStrings.Get("common.esc_back")),
                     createFooterItem(FontAwesome.Solid.VolumeUp, audioStatus),
                 },
             },
         },
     };
 
-    private static Drawable createFooterItem(IconUsage icon, string text) => new FillFlowContainer
+    private static Drawable createFooterItem(IconUsage icon, LocalisableString text) => new FillFlowContainer
     {
         AutoSizeAxes = Axes.Both,
         Direction = FillDirection.Horizontal,

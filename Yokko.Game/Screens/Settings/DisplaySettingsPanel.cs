@@ -9,8 +9,10 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
 
@@ -65,7 +67,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             new SpriteText
             {
                 Position = new Vector2(378, 42),
-                Text = "Display",
+                Text = YokkoStrings.Get("settings.display.title"),
                 Font = HomeTypography.Display(58),
                 Spacing = new Vector2(0.45f, 0),
                 Colour = HomeControlColours.Navy,
@@ -73,7 +75,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             new SpriteText
             {
                 Position = new Vector2(378, 105),
-                Text = "Window, resolution and interface scale",
+                Text = YokkoStrings.Get("settings.display.subtitle"),
                 Font = HomeTypography.Body(17),
                 Spacing = new Vector2(0.2f, 0),
                 Colour = SettingsTheme.MutedNavy,
@@ -81,15 +83,15 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             createMascotCrop(mascotTexture),
             createDisplayStatus(out currentDisplayMetadata),
             createDivider(292),
-            createSettingRow(310, "Window mode", createModeControl()),
+            createSettingRow(310, YokkoStrings.Get("settings.display.window_mode"), createModeControl()),
             createDivider(388),
             createSettingRow(
                 402,
-                "Resolution",
+                YokkoStrings.Get("settings.display.resolution"),
                 resolutionDropdown = new SettingsResolutionDropdown(supportedResolutions, setWindowedSize),
                 -10),
             createDivider(478),
-            createSettingRow(492, "Interface scale", createScaleControl()),
+            createSettingRow(492, YokkoStrings.Get("settings.display.interface_scale"), createScaleControl()),
             new SettingsPanelFooter(),
             new HomeDotCross
             {
@@ -138,7 +140,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             new Circle
             {
                 Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
+                Origin = Anchor.Centre,
                 X = 48,
                 Size = new Vector2(56),
                 Colour = Color4.White,
@@ -146,8 +148,8 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             new SpriteIcon
             {
                 Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 35,
+                Origin = Anchor.Centre,
+                X = 48,
                 Size = new Vector2(26),
                 Icon = FontAwesome.Solid.Desktop,
                 Colour = HomeControlColours.Navy,
@@ -164,7 +166,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
                 {
                     new SpriteText
                     {
-                        Text = "Current display",
+                        Text = YokkoStrings.Get("settings.display.current_display"),
                         Font = HomeTypography.Display(19),
                         Colour = HomeControlColours.Navy,
                     },
@@ -193,12 +195,12 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     {
         var options = new[]
         {
-            (WindowMode.Windowed, "Windowed", FontAwesome.Solid.WindowMaximize),
-            (WindowMode.Borderless, "Borderless", FontAwesome.Solid.Expand),
-            (WindowMode.Fullscreen, "Fullscreen", FontAwesome.Solid.ExpandArrowsAlt),
+            (WindowMode.Windowed, YokkoStrings.Get("settings.display.windowed"), FontAwesome.Solid.WindowMaximize),
+            (WindowMode.Borderless, YokkoStrings.Get("settings.display.borderless"), FontAwesome.Solid.Expand),
+            (WindowMode.Fullscreen, YokkoStrings.Get("settings.display.fullscreen"), FontAwesome.Solid.ExpandArrowsAlt),
         };
 
-        foreach ((WindowMode mode, string label, IconUsage icon) in options)
+        foreach ((WindowMode mode, LocalisableString label, IconUsage icon) in options)
         {
             WindowMode capturedMode = mode;
             modeButtons.Add(new SettingsSegmentedChoiceButton(label, icon, () => setWindowMode(capturedMode), 199)
@@ -214,12 +216,12 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     {
         var options = new[]
         {
-            (YokkoUiScale.Compact, "Compact", FontAwesome.Solid.List),
-            (YokkoUiScale.Comfortable, "Comfortable", FontAwesome.Solid.Bars),
-            (YokkoUiScale.Large, "Spacious", FontAwesome.Solid.ThList),
+            (YokkoUiScale.Compact, YokkoStrings.Get("settings.display.compact"), FontAwesome.Solid.List),
+            (YokkoUiScale.Comfortable, YokkoStrings.Get("settings.display.comfortable"), FontAwesome.Solid.Bars),
+            (YokkoUiScale.Large, YokkoStrings.Get("settings.display.spacious"), FontAwesome.Solid.ThList),
         };
 
-        foreach ((YokkoUiScale scale, string label, IconUsage icon) in options)
+        foreach ((YokkoUiScale scale, LocalisableString label, IconUsage icon) in options)
         {
             YokkoUiScale capturedScale = scale;
             scaleButtons.Add(new SettingsSegmentedChoiceButton(label, icon, () => uiScale.Value = capturedScale, 199)
@@ -246,7 +248,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         },
     };
 
-    private static Drawable createSettingRow(float y, string title, Drawable control, float depth = 0) => new Container
+    private static Drawable createSettingRow(float y, LocalisableString title, Drawable control, float depth = 0) => new Container
     {
         Position = new Vector2(378, y),
         Size = new Vector2(840, 68),
@@ -299,8 +301,10 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
     private void refreshSelection()
     {
-        currentDisplayMetadata.Text =
-            $"Display 1  ·  {windowedSize.Value.Width} × {windowedSize.Value.Height}  ·  60 Hz";
+        currentDisplayMetadata.Text = YokkoStrings.Get(
+            "settings.display.metadata",
+            windowedSize.Value.Width,
+            windowedSize.Value.Height);
         resolutionDropdown.SetSelected(windowedSize.Value);
 
         foreach (SettingsSegmentedChoiceButton button in modeButtons)
