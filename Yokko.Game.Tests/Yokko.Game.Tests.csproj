@@ -5,6 +5,7 @@
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
   <ItemGroup Label="Project References">
+    <ProjectReference Include="..\Yokko.Audio\Yokko.Audio.csproj" />
     <ProjectReference Include="..\Yokko.Game\Yokko.Game.csproj" />
   </ItemGroup>
   <ItemGroup Label="Package References">

@@ -9,9 +9,11 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Input.Events;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osuTK;
+using osuTK.Input;
 using Yokko.Core.Editing;
 using Yokko.Core.Gameplay;
 using Yokko.Game.Presentation;
@@ -411,6 +413,17 @@ public partial class EditorScreen : Screen
         waveformLoadCancellation?.Cancel();
         waveformLoadCancellation?.Dispose();
         waveformLoadCancellation = null;
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key != Key.Escape)
+            return base.OnKeyDown(e);
+
+        cancelWaveformLoad();
+        previewClock.Stop();
+        this.Exit();
+        return true;
     }
 
     private string getExistingAudioPath()

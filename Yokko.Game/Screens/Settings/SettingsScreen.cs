@@ -9,6 +9,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osu.Framework.Screens;
 using osuTK;
@@ -16,11 +17,15 @@ using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
+using RectangleF = osu.Framework.Graphics.Primitives.RectangleF;
 
 namespace Yokko.Game.Screens.Settings;
 
 public partial class SettingsScreen : Screen
 {
+    private const float designedWidth = 1280;
+    private const float designedHeight = 720;
+
     private static readonly Size[] supportedResolutions =
     {
         new(1024, 768),
@@ -31,11 +36,13 @@ public partial class SettingsScreen : Screen
         new(2560, 1440),
     };
 
-    private readonly List<SettingsChoiceButton> resolutionButtons = new();
-    private readonly List<SettingsChoiceButton> modeButtons = new();
-    private readonly List<SettingsChoiceButton> scaleButtons = new();
+    private readonly List<SettingsSegmentedChoiceButton> modeButtons = new();
+    private readonly List<SettingsSegmentedChoiceButton> scaleButtons = new();
+    private readonly List<(SettingsNavHeader Header, SettingsNavItem[] Items)> navigationGroups = new();
 
-    private SpriteText currentDisplayText;
+    private SpriteText currentDisplayMetadata;
+    private SettingsResolutionButton resolutionButton;
+    private SettingsSearchTextBox searchBox;
 
     [Resolved]
     private FrameworkConfigManager frameworkConfig { get; set; }
@@ -47,252 +54,435 @@ public partial class SettingsScreen : Screen
     private Bindable<WindowMode> windowMode;
 
     [BackgroundDependencyLoader]
-    private void load()
+    private void load(TextureStore textures)
     {
         windowedSize = frameworkConfig.GetBindable<Size>(FrameworkSetting.WindowedSize);
         windowMode = frameworkConfig.GetBindable<WindowMode>(FrameworkSetting.WindowMode);
+
+        Texture logoTexture = textures.Get("home-logo");
+        Texture mascotTexture = textures.Get("yokko")
+                                        .Crop(new RectangleF(80, 1840, 1200, 1360));
 
         InternalChildren = new Drawable[]
         {
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = YokkoPalette.Background,
+                Colour = HomeControlColours.Ivory,
             },
-            new MainBackdrop(),
             new Container
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Size = new Vector2(1120, 630),
-                Child = new FillFlowContainer
+                Size = new Vector2(designedWidth, designedHeight),
+                Children = new Drawable[]
                 {
-                    RelativeSizeAxes = Axes.Both,
-                    Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 18),
-                    Children = new Drawable[]
-                    {
-                        createHeader(),
-                        createCurrentDisplayCard(),
-                        createSection("WINDOW MODE", "Choose how Yokko uses your display.", createModeButtons()),
-                        createSection("WINDOW SIZE", "Applied immediately in windowed mode.", createResolutionButtons()),
-                        createSection("INTERFACE SIZE", "Scale every screen consistently.", createScaleButtons()),
-                        createFooter(),
-                    },
+                    createSidebar(logoTexture),
+                    createMainContent(mascotTexture),
                 },
             },
         };
 
+        searchBox.Current.BindValueChanged(e => filterNavigation(e.NewValue), true);
         windowedSize.BindValueChanged(onWindowedSizeChanged, true);
         windowMode.BindValueChanged(onWindowModeChanged, true);
         displaySettings.UiScale.BindValueChanged(onUiScaleChanged, true);
     }
 
-    private Drawable createHeader() => new Container
+    private Drawable createSidebar(Texture logoTexture)
     {
-        RelativeSizeAxes = Axes.X,
-        Height = 76,
+        var coreHeader = new SettingsNavHeader("CORE");
+        var general = new SettingsNavItem("General", FontAwesome.Solid.Cog, false);
+        var display = new SettingsNavItem("Display", FontAwesome.Solid.Desktop, true);
+        var audio = new SettingsNavItem("Audio", FontAwesome.Solid.VolumeUp, false);
+
+        var creationHeader = new SettingsNavHeader("CREATION");
+        var gameplay = new SettingsNavItem("Gameplay", FontAwesome.Solid.Gamepad, false);
+        var editor = new SettingsNavItem("Editor", FontAwesome.Solid.Pen, false);
+        var import = new SettingsNavItem("Import", FontAwesome.Solid.FolderOpen, false);
+
+        var systemHeader = new SettingsNavHeader("SYSTEM");
+        var accessibility = new SettingsNavItem("Accessibility", FontAwesome.Solid.UniversalAccess, false);
+        var about = new SettingsNavItem("About", FontAwesome.Solid.InfoCircle, false);
+
+        navigationGroups.Add((coreHeader, new[] { general, display, audio }));
+        navigationGroups.Add((creationHeader, new[] { gameplay, editor, import }));
+        navigationGroups.Add((systemHeader, new[] { accessibility, about }));
+
+        return new Container
+        {
+            RelativeSizeAxes = Axes.Y,
+            Width = 320,
+            Children = new Drawable[]
+            {
+                new Sprite
+                {
+                    Position = new Vector2(38, 26),
+                    Size = new Vector2(244, 83),
+                    Texture = logoTexture,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(38, 126),
+                    Text = "Settings",
+                    Font = HomeTypography.Display(43),
+                    Spacing = new Vector2(0.5f, 0),
+                    Colour = HomeControlColours.Navy,
+                },
+                new SettingsOutlineButton("Back", FontAwesome.Solid.ArrowLeft, this.Exit)
+                {
+                    Position = new Vector2(38, 182),
+                },
+                searchBox = new SettingsSearchTextBox
+                {
+                    Position = new Vector2(38, 234),
+                },
+                new FillFlowContainer
+                {
+                    Position = new Vector2(30, 292),
+                    Width = 252,
+                    AutoSizeAxes = Axes.Y,
+                    Direction = FillDirection.Vertical,
+                    Spacing = new Vector2(0, 3),
+                    Children = new Drawable[]
+                    {
+                        coreHeader,
+                        general,
+                        display,
+                        audio,
+                        creationHeader,
+                        gameplay,
+                        editor,
+                        import,
+                        systemHeader,
+                        accessibility,
+                        about,
+                    },
+                },
+                new Box
+                {
+                    Position = new Vector2(319, 28),
+                    Width = 1,
+                    Height = 664,
+                    Colour = SettingsTheme.Divider,
+                },
+            },
+        };
+    }
+
+    private Drawable createMainContent(Texture mascotTexture) => new Container
+    {
+        RelativeSizeAxes = Axes.Both,
         Children = new Drawable[]
         {
-            new YokkoButton("Back", FontAwesome.Solid.ArrowLeft, this.Exit, 96, 42, YokkoButtonStyle.Quiet),
+            new SpriteText
+            {
+                Position = new Vector2(378, 42),
+                Text = "Display",
+                Font = HomeTypography.Display(58),
+                Spacing = new Vector2(0.45f, 0),
+                Colour = HomeControlColours.Navy,
+            },
+            new SpriteText
+            {
+                Position = new Vector2(378, 105),
+                Text = "Window, resolution and interface scale",
+                Font = HomeTypography.Body(17),
+                Spacing = new Vector2(0.2f, 0),
+                Colour = SettingsTheme.MutedNavy,
+            },
+            createMascotCrop(mascotTexture),
+            createDisplayStatus(),
+            createDivider(378, 292, 840),
+            createSettingRow(
+                310,
+                "Window mode",
+                createModeControl()),
+            createDivider(378, 388, 840),
+            createSettingRow(
+                402,
+                "Resolution",
+                resolutionButton = new SettingsResolutionButton(
+                    supportedResolutions,
+                    size => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, size))),
+            createDivider(378, 478, 840),
+            createSettingRow(
+                492,
+                "Interface scale",
+                createScaleControl()),
+            createFooter(),
+            new HomeDotCross
+            {
+                Position = new Vector2(1088, 594),
+                Scale = new Vector2(1.1f),
+            },
+            createDecorationIcon(FontAwesome.Solid.Plus, 1172, 601, 16, HomeControlColours.Pink),
+            createDecorationIcon(FontAwesome.Solid.Plus, 1200, 637, 12, HomeControlColours.Yellow),
+        },
+    };
+
+    private static Drawable createMascotCrop(Texture mascotTexture) => new Container
+    {
+        Position = new Vector2(944, -8),
+        Size = new Vector2(252, 182),
+        Masking = true,
+        Child = new Sprite
+        {
+            Position = new Vector2(0, -8),
+            Size = new Vector2(250, 284),
+            Texture = mascotTexture,
+        },
+    };
+
+    private Drawable createDisplayStatus() => new Container
+    {
+        Position = new Vector2(378, 174),
+        Size = new Vector2(840, 86),
+        Masking = true,
+        CornerRadius = 8,
+        Children = new Drawable[]
+        {
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = SettingsTheme.StatusCyan,
+            },
+            new Circle
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 48,
+                Size = new Vector2(56),
+                Colour = Color4.White,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 35,
+                Size = new Vector2(26),
+                Icon = FontAwesome.Solid.Desktop,
+                Colour = HomeControlColours.Navy,
+            },
             new FillFlowContainer
             {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 105,
                 AutoSizeAxes = Axes.Both,
-                X = 120,
                 Direction = FillDirection.Vertical,
                 Spacing = new Vector2(0, 4),
                 Children = new Drawable[]
                 {
                     new SpriteText
                     {
-                        Text = "Display settings",
-                        Font = FontUsage.Default.With(size: 34, weight: "Bold"),
-                        Colour = YokkoPalette.Text,
+                        Text = "Current display",
+                        Font = HomeTypography.Display(19),
+                        Colour = HomeControlColours.Navy,
                     },
-                    new SpriteText
+                    currentDisplayMetadata = new SpriteText
                     {
-                        Text = "Tune the window once; Yokko keeps every screen consistent.",
-                        Font = FontUsage.Default.With(size: 16),
-                        Colour = YokkoPalette.TextMuted,
+                        Font = HomeTypography.Body(15),
+                        Colour = HomeControlColours.Navy,
                     },
                 },
-            },
-        },
-    };
-
-    private Drawable createCurrentDisplayCard() => new Container
-    {
-        RelativeSizeAxes = Axes.X,
-        Height = 68,
-        Masking = true,
-        CornerRadius = 10,
-        BorderThickness = 1,
-        BorderColour = new Color4(YokkoPalette.Cyan.R, YokkoPalette.Cyan.G, YokkoPalette.Cyan.B, 0.4f),
-        Children = new Drawable[]
-        {
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(YokkoPalette.Cyan.R * 0.1f, YokkoPalette.Cyan.G * 0.1f, YokkoPalette.Cyan.B * 0.1f, 0.96f),
             },
             new SpriteIcon
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 22,
-                Size = new Vector2(23),
-                Icon = FontAwesome.Solid.Desktop,
-                Colour = YokkoPalette.Cyan,
-            },
-            currentDisplayText = new SpriteText
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 60,
-                Font = FontUsage.Default.With(size: 18, weight: "SemiBold"),
-                Colour = YokkoPalette.Text,
-            },
-            new SpriteText
-            {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
-                X = -22,
-                Text = "Alt + Enter switches window mode",
-                Font = FontUsage.Default.With(size: 14),
-                Colour = YokkoPalette.TextDim,
+                X = -34,
+                Size = new Vector2(44),
+                Icon = FontAwesome.Solid.Heartbeat,
+                Colour = Color4.White,
             },
         },
     };
 
-    private static Drawable createSection(string title, string description, Drawable choices) => new Container
-    {
-        RelativeSizeAxes = Axes.X,
-        Height = 118,
-        Masking = true,
-        CornerRadius = 10,
-        BorderThickness = 1,
-        BorderColour = YokkoPalette.Border,
-        Children = new Drawable[]
-        {
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = YokkoPalette.PanelAlt,
-            },
-            new FillFlowContainer
-            {
-                RelativeSizeAxes = Axes.Y,
-                Width = 250,
-                Padding = new MarginPadding { Left = 22, Top = 21, Right = 16 },
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 7),
-                Children = new Drawable[]
-                {
-                    new SpriteText
-                    {
-                        Text = title,
-                        Font = FontUsage.Default.With(size: 13, weight: "Bold"),
-                        Colour = YokkoPalette.Cyan,
-                    },
-                    new SpriteText
-                    {
-                        Text = description,
-                        Font = FontUsage.Default.With(size: 14),
-                        Colour = YokkoPalette.TextMuted,
-                        Width = 205,
-                    },
-                },
-            },
-            new Container
-            {
-                RelativeSizeAxes = Axes.Y,
-                X = 268,
-                Width = 834,
-                Padding = new MarginPadding { Vertical = 20 },
-                Child = choices,
-            },
-        },
-    };
-
-    private Drawable createModeButtons()
+    private Drawable createModeControl()
     {
         var options = new[]
         {
-            (WindowMode.Windowed, "Windowed", "Resizable window"),
-            (WindowMode.Borderless, "Borderless", "Uses the full desktop"),
-            (WindowMode.Fullscreen, "Fullscreen", "Exclusive display mode"),
+            (WindowMode.Windowed, "Windowed", FontAwesome.Solid.WindowMaximize),
+            (WindowMode.Borderless, "Borderless", FontAwesome.Solid.Expand),
+            (WindowMode.Fullscreen, "Fullscreen", FontAwesome.Solid.ExpandArrowsAlt),
         };
 
-        foreach ((WindowMode mode, string title, string detail) in options)
+        foreach ((WindowMode mode, string label, IconUsage icon) in options)
         {
             WindowMode capturedMode = mode;
-            modeButtons.Add(new SettingsChoiceButton(title, detail, () => frameworkConfig.SetValue(FrameworkSetting.WindowMode, capturedMode), 258)
+            modeButtons.Add(new SettingsSegmentedChoiceButton(
+                label,
+                icon,
+                () => frameworkConfig.SetValue(FrameworkSetting.WindowMode, capturedMode),
+                199)
             {
                 Value = mode,
             });
         }
 
-        return createChoiceFlow(modeButtons, 12);
+        return createSegmentedControl(modeButtons);
     }
 
-    private Drawable createResolutionButtons()
-    {
-        foreach (Size resolution in supportedResolutions)
-        {
-            Size capturedResolution = resolution;
-            resolutionButtons.Add(new SettingsChoiceButton($"{resolution.Width} × {resolution.Height}", aspectLabel(resolution),
-                () => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, capturedResolution), 124)
-            {
-                Value = resolution,
-            });
-        }
-
-        return createChoiceFlow(resolutionButtons, 10);
-    }
-
-    private Drawable createScaleButtons()
+    private Drawable createScaleControl()
     {
         var options = new[]
         {
-            (YokkoUiScale.Large, "Large", "Best for couch play"),
-            (YokkoUiScale.Comfortable, "Comfortable", "Recommended"),
-            (YokkoUiScale.Compact, "Compact", "More room on screen"),
+            (YokkoUiScale.Compact, "Compact", FontAwesome.Solid.List),
+            (YokkoUiScale.Comfortable, "Comfortable", FontAwesome.Solid.Bars),
+            (YokkoUiScale.Large, "Spacious", FontAwesome.Solid.ThList),
         };
 
-        foreach ((YokkoUiScale scale, string title, string detail) in options)
+        foreach ((YokkoUiScale scale, string label, IconUsage icon) in options)
         {
             YokkoUiScale capturedScale = scale;
-            scaleButtons.Add(new SettingsChoiceButton(title, detail, () => displaySettings.UiScale.Value = capturedScale, 258)
+            scaleButtons.Add(new SettingsSegmentedChoiceButton(
+                label,
+                icon,
+                () => displaySettings.UiScale.Value = capturedScale,
+                199)
             {
                 Value = scale,
             });
         }
 
-        return createChoiceFlow(scaleButtons, 12);
+        return createSegmentedControl(scaleButtons);
     }
 
-    private static Drawable createChoiceFlow(IEnumerable<SettingsChoiceButton> choices, float spacing) => new FillFlowContainer
+    private static Drawable createSegmentedControl(IEnumerable<SettingsSegmentedChoiceButton> buttons) => new Container
     {
-        RelativeSizeAxes = Axes.X,
-        AutoSizeAxes = Axes.Y,
-        Direction = FillDirection.Horizontal,
-        Spacing = new Vector2(spacing, 10),
-        Children = choices.Cast<Drawable>().ToArray(),
+        Size = new Vector2(598, 54),
+        Masking = true,
+        CornerRadius = 7,
+        BorderThickness = 1.4f,
+        BorderColour = HomeControlColours.Navy,
+        Child = new FillFlowContainer
+        {
+            RelativeSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+            Children = buttons.Cast<Drawable>().ToArray(),
+        },
+    };
+
+    private static Drawable createSettingRow(float y, string title, Drawable control) => new Container
+    {
+        Position = new Vector2(378, y),
+        Size = new Vector2(840, 68),
+        Children = new Drawable[]
+        {
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Text = title,
+                Font = HomeTypography.Display(23),
+                Colour = HomeControlColours.Navy,
+            },
+            new Container
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                Size = new Vector2(598, 54),
+                Child = control,
+            },
+        },
+    };
+
+    private static Drawable createDivider(float x, float y, float width) => new Box
+    {
+        Position = new Vector2(x, y),
+        Width = width,
+        Height = 1,
+        Colour = SettingsTheme.Divider,
     };
 
     private static Drawable createFooter() => new Container
     {
-        RelativeSizeAxes = Axes.X,
-        Height = 34,
-        Child = new SpriteText
+        Position = new Vector2(372, 651),
+        Size = new Vector2(650, 42),
+        Children = new Drawable[]
         {
-            Anchor = Anchor.CentreLeft,
-            Origin = Anchor.CentreLeft,
-            Text = "Yokko uses osu!framework's native window configuration and resolution-aware scaling.",
-            Font = FontUsage.Default.With(size: 14),
-            Colour = YokkoPalette.TextDim,
+            new Box
+            {
+                RelativeSizeAxes = Axes.X,
+                Height = 1,
+                Colour = SettingsTheme.Divider,
+            },
+            new SpriteIcon
+            {
+                Position = new Vector2(2, 18),
+                Size = new Vector2(22),
+                Icon = FontAwesome.Solid.CheckSquare,
+                Colour = HomeControlColours.Pink,
+            },
+            new SpriteText
+            {
+                Position = new Vector2(36, 17),
+                Text = "Changes apply instantly",
+                Font = HomeTypography.Body(14),
+                Colour = HomeControlColours.Navy,
+            },
+            new Box
+            {
+                Position = new Vector2(220, 14),
+                Width = 1,
+                Height = 22,
+                Colour = SettingsTheme.Divider,
+            },
+            new Container
+            {
+                Position = new Vector2(252, 14),
+                Size = new Vector2(30, 24),
+                Masking = true,
+                CornerRadius = 4,
+                BorderThickness = 1,
+                BorderColour = SettingsTheme.MutedNavy,
+                Child = new SpriteText
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Text = "Esc",
+                    Font = HomeTypography.Body(11),
+                    Colour = HomeControlColours.Navy,
+                },
+            },
+            new SpriteText
+            {
+                Position = new Vector2(294, 17),
+                Text = "Esc to return",
+                Font = HomeTypography.Body(14),
+                Colour = HomeControlColours.Navy,
+            },
         },
     };
+
+    private static Drawable createDecorationIcon(IconUsage icon, float x, float y, float size, Color4 colour) => new SpriteIcon
+    {
+        Position = new Vector2(x, y),
+        Size = new Vector2(size),
+        Icon = icon,
+        Colour = colour,
+    };
+
+    private void filterNavigation(string query)
+    {
+        string normalized = query?.Trim() ?? string.Empty;
+
+        foreach ((SettingsNavHeader header, SettingsNavItem[] items) in navigationGroups)
+        {
+            bool anyVisible = false;
+
+            foreach (SettingsNavItem item in items)
+            {
+                bool visible = normalized.Length == 0 ||
+                               item.Label.Contains(normalized, StringComparison.OrdinalIgnoreCase);
+                item.SetFiltered(visible);
+                anyVisible |= visible;
+            }
+
+            header.SetFiltered(anyVisible);
+        }
+    }
 
     private void onWindowedSizeChanged(ValueChangedEvent<Size> _) => refreshSelection();
 
@@ -302,18 +492,17 @@ public partial class SettingsScreen : Screen
 
     private void refreshSelection()
     {
-        if (currentDisplayText == null)
+        if (currentDisplayMetadata == null)
             return;
 
-        currentDisplayText.Text = $"{windowedSize.Value.Width} × {windowedSize.Value.Height}  •  {windowMode.Value}  •  {scaleLabel(displaySettings.UiScale.Value)} UI";
+        currentDisplayMetadata.Text =
+            $"Display 1  ·  {windowedSize.Value.Width} × {windowedSize.Value.Height}  ·  60 Hz";
+        resolutionButton.SetSelected(windowedSize.Value);
 
-        foreach (SettingsChoiceButton button in resolutionButtons)
-            button.SetSelected(button.Value is Size size && size == windowedSize.Value);
-
-        foreach (SettingsChoiceButton button in modeButtons)
+        foreach (SettingsSegmentedChoiceButton button in modeButtons)
             button.SetSelected(button.Value is WindowMode mode && mode == windowMode.Value);
 
-        foreach (SettingsChoiceButton button in scaleButtons)
+        foreach (SettingsSegmentedChoiceButton button in scaleButtons)
             button.SetSelected(button.Value is YokkoUiScale scale && scale == displaySettings.UiScale.Value);
     }
 
@@ -341,110 +530,5 @@ public partial class SettingsScreen : Screen
         }
 
         base.Dispose(isDisposing);
-    }
-
-    private static string aspectLabel(Size size)
-    {
-        int divisor = greatestCommonDivisor(size.Width, size.Height);
-        return $"{size.Width / divisor}:{size.Height / divisor}";
-    }
-
-    private static int greatestCommonDivisor(int a, int b)
-    {
-        while (b != 0)
-            (a, b) = (b, a % b);
-
-        return a;
-    }
-
-    private static string scaleLabel(YokkoUiScale scale) => scale switch
-    {
-        YokkoUiScale.Large => "Large",
-        YokkoUiScale.Compact => "Compact",
-        _ => "Comfortable",
-    };
-}
-
-public partial class SettingsChoiceButton : ClickableContainer
-{
-    private readonly Box background;
-    private readonly Box accent;
-    private readonly Color4 idleColour = YokkoPalette.SurfaceElevated;
-    private bool selected;
-
-    public object Value { get; init; }
-
-    public SettingsChoiceButton(string title, string detail, Action action, float width)
-    {
-        Action = action;
-        Size = new Vector2(width, 72);
-        Masking = true;
-        CornerRadius = 8;
-        BorderThickness = 1;
-        BorderColour = YokkoPalette.Border;
-
-        InternalChildren = new Drawable[]
-        {
-            background = new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = idleColour,
-            },
-            accent = new Box
-            {
-                RelativeSizeAxes = Axes.Y,
-                Width = 4,
-                Colour = YokkoPalette.Cyan,
-                Alpha = 0,
-            },
-            new FillFlowContainer
-            {
-                RelativeSizeAxes = Axes.Both,
-                Padding = new MarginPadding { Left = 15, Top = 12, Right = 10 },
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 4),
-                Children = new Drawable[]
-                {
-                    new SpriteText
-                    {
-                        Text = title,
-                        Font = FontUsage.Default.With(size: 15, weight: "SemiBold"),
-                        Colour = YokkoPalette.Text,
-                    },
-                    new SpriteText
-                    {
-                        Text = detail,
-                        Font = FontUsage.Default.With(size: 12),
-                        Colour = YokkoPalette.TextDim,
-                    },
-                },
-            },
-        };
-    }
-
-    public void SetSelected(bool isSelected)
-    {
-        selected = isSelected;
-        accent.FadeTo(selected ? 1 : 0, 120);
-        background.FadeColour(selected
-            ? new Color4(YokkoPalette.Cyan.R * 0.16f, YokkoPalette.Cyan.G * 0.16f, YokkoPalette.Cyan.B * 0.16f, 1f)
-            : idleColour, 120);
-        BorderColour = selected
-            ? new Color4(YokkoPalette.Cyan.R, YokkoPalette.Cyan.G, YokkoPalette.Cyan.B, 0.7f)
-            : YokkoPalette.Border;
-    }
-
-    protected override bool OnHover(HoverEvent e)
-    {
-        if (!selected)
-            background.FadeColour(YokkoPalette.SurfaceHover, 120, Easing.OutQuint);
-
-        return true;
-    }
-
-    protected override void OnHoverLost(HoverLostEvent e)
-    {
-        if (!selected)
-            background.FadeColour(idleColour, 140, Easing.OutQuint);
     }
 }

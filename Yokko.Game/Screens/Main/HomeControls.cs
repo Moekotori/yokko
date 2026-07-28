@@ -15,7 +15,18 @@ internal static class HomeControlColours
     public static readonly Color4 Cyan = new(0.18f, 0.78f, 0.94f, 1f);
     public static readonly Color4 Yellow = new(1f, 0.91f, 0.42f, 1f);
     public static readonly Color4 Pink = new(1f, 0.22f, 0.65f, 1f);
-    public static readonly Color4 Ivory = new(0.986f, 0.982f, 0.956f, 1f);
+    public static readonly Color4 Ivory = new(0.992f, 0.992f, 0.988f, 1f);
+}
+
+internal static class HomeTypography
+{
+    public static FontUsage Display(float size) => new("Roboto", size, "Bold");
+
+    public static FontUsage Hero(float size) => new("Roboto", size, "Bold");
+
+    public static FontUsage Body(float size) => new("Roboto", size);
+
+    public static FontUsage Brand(float size) => new("Roboto", size, "Bold");
 }
 
 public partial class HomePrimaryAction : ClickableContainer
@@ -37,6 +48,20 @@ public partial class HomePrimaryAction : ClickableContainer
             {
                 RelativeSizeAxes = Axes.Both,
                 Colour = HomeControlColours.Navy,
+            },
+            new Container
+            {
+                Position = new Vector2(6),
+                Size = new Vector2(498, 118),
+                Masking = true,
+                CornerRadius = 6,
+                BorderThickness = 1,
+                BorderColour = new Color4(0.55f, 0.78f, 1f, 0.48f),
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Alpha = 0,
+                },
             },
             new Container
             {
@@ -78,13 +103,15 @@ public partial class HomePrimaryAction : ClickableContainer
                     new SpriteText
                     {
                         Text = title,
-                        Font = FontUsage.Default.With(size: 29, weight: "Bold"),
+                        Font = HomeTypography.Display(39),
+                        Spacing = new Vector2(0.5f, 0),
                         Colour = Color4.White,
                     },
                     new SpriteText
                     {
                         Text = detail,
-                        Font = FontUsage.Default.With(size: 16),
+                        Font = HomeTypography.Body(19),
+                        Spacing = new Vector2(0.35f, 0),
                         Colour = new Color4(0.78f, 0.89f, 1f, 1f),
                     },
                 },
@@ -166,13 +193,15 @@ public partial class HomeDemoAction : ClickableContainer
                     new SpriteText
                     {
                         Text = title,
-                        Font = FontUsage.Default.With(size: 17, weight: "Bold"),
+                        Font = HomeTypography.Body(22),
+                        Spacing = new Vector2(0.35f, 0),
                         Colour = HomeControlColours.Navy,
                     },
                     new SpriteText
                     {
                         Text = keyHint,
-                        Font = FontUsage.Default.With(size: 9, weight: "SemiBold"),
+                        Font = HomeTypography.Body(10),
+                        Spacing = new Vector2(1.05f, 0),
                         Colour = new Color4(0.25f, 0.45f, 0.68f, 1f),
                     },
                 },
@@ -251,7 +280,8 @@ public partial class HomeUtilityButton : ClickableContainer
                     new SpriteText
                     {
                         Text = text,
-                        Font = FontUsage.Default.With(size: 15, weight: "SemiBold"),
+                        Font = HomeTypography.Display(18),
+                        Spacing = new Vector2(0.35f, 0),
                         Colour = HomeControlColours.Navy,
                         Alpha = string.IsNullOrEmpty(text) ? 0 : 1,
                     },
@@ -316,7 +346,8 @@ public partial class HomeMascotBubble : CompositeDrawable
                         Anchor = Anchor.TopCentre,
                         Origin = Anchor.TopCentre,
                         Text = words[0],
-                        Font = FontUsage.Default.With(size: 18, weight: "Bold"),
+                        Font = HomeTypography.Display(25),
+                        Spacing = new Vector2(0.35f, 0),
                         Colour = HomeControlColours.Navy,
                     },
                     new SpriteText
@@ -324,7 +355,8 @@ public partial class HomeMascotBubble : CompositeDrawable
                         Anchor = Anchor.TopCentre,
                         Origin = Anchor.TopCentre,
                         Text = words.Length > 1 ? words[1] : string.Empty,
-                        Font = FontUsage.Default.With(size: 18, weight: "Bold"),
+                        Font = HomeTypography.Display(25),
+                        Spacing = new Vector2(0.35f, 0),
                         Colour = HomeControlColours.Navy,
                     },
                 },
@@ -363,5 +395,30 @@ public partial class HomeDotCross : CompositeDrawable
                 });
             }
         }
+    }
+}
+
+public partial class HomeConnectorPlus : CompositeDrawable
+{
+    public HomeConnectorPlus()
+    {
+        Size = new Vector2(20);
+
+        InternalChildren = new Drawable[]
+        {
+            new Circle
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = HomeControlColours.Navy,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(9),
+                Icon = FontAwesome.Solid.Plus,
+                Colour = Color4.White,
+            },
+        };
     }
 }

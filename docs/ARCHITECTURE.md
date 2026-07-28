@@ -16,6 +16,11 @@
 
 `Yokko.Audio` owns device discovery, playback start/stop, latency reporting, and the authoritative playback clock.
 
+The production low-latency path is implemented behind a stable native C ABI.
+The native output callback owns the hardware-facing clock and never calls
+managed code. See [Native Audio](NATIVE_AUDIO.md) for real-time invariants,
+clock truth, fallback policy, and backend rollout gates.
+
 `Yokko.Import` converts outside formats into `Yokko.Core` beatmaps. Format-specific quirks stay in this layer.
 
 ## Beat Timing
