@@ -2,21 +2,21 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
-using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
-namespace Yokko.Game.Skinning.OsuMania;
+namespace Yokko.Game.Importing;
 
-internal partial class SkinImportNotificationOverlay : CompositeDrawable
+internal partial class ImportNotificationOverlay : CompositeDrawable
 {
     private readonly Box accent;
     private readonly SpriteIcon icon;
     private readonly SpriteText title;
     private readonly SpriteText detail;
 
-    public SkinImportNotificationOverlay()
+    public ImportNotificationOverlay()
     {
         Anchor = Anchor.BottomRight;
         Origin = Anchor.BottomRight;
@@ -69,23 +69,30 @@ internal partial class SkinImportNotificationOverlay : CompositeDrawable
         };
     }
 
-    public void ShowImporting(string path)
+    public void ShowImporting(LocalisableString message, string path)
     {
         accent.Colour = HomeControlColours.Cyan;
         icon.Icon = FontAwesome.Solid.Download;
-        title.Text = YokkoStrings.Get("settings.skins.importing");
+        title.Text = message;
         detail.Text = System.IO.Path.GetFileName(path.TrimEnd('\\', '/'));
         show();
     }
 
-    public void ShowResult(SkinImportResult result)
+    public void ShowSuccess(LocalisableString message, string resultDetail)
     {
-        accent.Colour = result.Success ? HomeControlColours.Cyan : HomeControlColours.Pink;
-        icon.Icon = result.Success ? FontAwesome.Solid.Check : FontAwesome.Solid.ExclamationTriangle;
-        title.Text = result.Success
-            ? YokkoStrings.Get("settings.skins.import_success")
-            : YokkoStrings.Get("settings.skins.import_failed");
-        detail.Text = result.Success ? result.Skin?.Name ?? result.Message : result.Message;
+        accent.Colour = HomeControlColours.Cyan;
+        icon.Icon = FontAwesome.Solid.Check;
+        title.Text = message;
+        detail.Text = resultDetail;
+        show();
+    }
+
+    public void ShowFailure(LocalisableString message, string error)
+    {
+        accent.Colour = HomeControlColours.Pink;
+        icon.Icon = FontAwesome.Solid.ExclamationTriangle;
+        title.Text = message;
+        detail.Text = error;
         show();
     }
 

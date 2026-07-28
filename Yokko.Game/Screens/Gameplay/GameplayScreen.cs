@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
@@ -19,6 +20,7 @@ using Yokko.Game.Gameplay;
 using Yokko.Game.Input;
 using Yokko.Game.Presentation;
 using Yokko.Game.Skinning.OsuMania;
+using Yokko.Game.Scoring;
 
 namespace Yokko.Game.Screens.Gameplay;
 
@@ -37,6 +39,8 @@ public partial class GameplayScreen : Screen
     private YokkoGameplaySettings gameplaySettings { get; set; }
     [Resolved]
     private KeyInputTimestampSource keyInputTimestamps { get; set; }
+    [Resolved]
+    private GameplayScoreStore scoreStore { get; set; }
 
     private BeatmapJudgementState judgementState;
     private GameplayPlayfield playfield;
@@ -48,8 +52,14 @@ public partial class GameplayScreen : Screen
     private double activeUserOffsetMilliseconds;
     private readonly InputAgeTracker inputAgeTracker = new();
     private bool gameplayBlocked;
+    private bool gameplayCompleted;
+    private GameplayHud hud;
+    private ManiaScoreResult completedResult;
+    private readonly double completionTimeMilliseconds;
 
     internal bool GameplayBlocked => gameplayBlocked;
+    internal bool GameplayCompleted => gameplayCompleted;
+    internal ManiaScoreResult CompletedResult => completedResult;
 
     public GameplayScreen(
         YokkoBeatmap beatmap,
@@ -59,6 +69,11 @@ public partial class GameplayScreen : Screen
         this.beatmap = beatmap;
         this.audioEngine = audioEngine;
         this.skinPath = skinPath;
+        completionTimeMilliseconds = beatmap.HitObjects.Count == 0
+            ? 0
+            : beatmap.HitObjects.Max(hitObject =>
+                hitObject.EndTimeMilliseconds
+                ?? hitObject.StartTimeMilliseconds);
     }
 
     [BackgroundDependencyLoader]
@@ -68,7 +83,7 @@ public partial class GameplayScreen : Screen
             beatmap.KeyMode,
             gameplaySettings.GetKeys(beatmap.KeyMode));
         pressedLanes = new bool[keyBindings.KeyCount];
-        judgementState = new BeatmapJudgementState(beatmap, JudgementWindows.DefaultMania);
+        judgementState = new BeatmapJudgementState(beatmap);
         loadSkin(renderer);
         audioEngine ??= string.IsNullOrWhiteSpace(beatmap.AudioPath)
             ? new NullAudioEngine()
@@ -98,6 +113,12 @@ public partial class GameplayScreen : Screen
                 // skin geometry.
                 Scale = Vector2.One,
             },
+            hud = new GameplayHud(beatmap)
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(-20, 20),
+            },
         };
 
         gameplaySettings.ScrollSpeed.BindValueChanged(
@@ -120,7 +141,7 @@ public partial class GameplayScreen : Screen
         base.Update();
         updatePlayfieldLayout();
 
-        if (gameplayBlocked)
+        if (gameplayBlocked || gameplayCompleted)
             return;
 
         drainRawInput();
@@ -131,6 +152,13 @@ public partial class GameplayScreen : Screen
             applyJudgement(missed);
 
         playfield.UpdateGameplayTime(gameplayTime, judgementState);
+        hud.UpdateState(gameplayTime, judgementState);
+
+        if (judgementState.IsComplete
+            && gameplayTime >= completionTimeMilliseconds)
+        {
+            completeGameplay();
+        }
     }
 
     private void updatePlayfieldLayout()
@@ -144,6 +172,12 @@ public partial class GameplayScreen : Screen
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
+        if (gameplayCompleted && e.Key is Key.Enter or Key.Escape)
+        {
+            this.Exit();
+            return true;
+        }
+
         if (HandleScrollSpeedShortcut(e.Key, e.ControlPressed))
             return true;
 
@@ -174,6 +208,9 @@ public partial class GameplayScreen : Screen
 
     protected override void OnKeyUp(KeyUpEvent e)
     {
+        if (gameplayCompleted)
+            return;
+
         int lane = keyBindings.GetLane(e.Key);
 
         if (lane < 0)
@@ -338,10 +375,11 @@ public partial class GameplayScreen : Screen
         pressedLanes[lane] = true;
         playfield.SetLanePressed(lane, true);
 
-        JudgementEvent judgement =
-            judgementState.TryJudgeLanePress(lane, inputTime);
-        if (judgement != null)
+        foreach (JudgementEvent judgement in
+                 judgementState.JudgeLanePress(lane, inputTime))
+        {
             applyJudgement(judgement);
+        }
     }
 
     private void applyLaneRelease(int lane, double inputTime)
@@ -352,15 +390,28 @@ public partial class GameplayScreen : Screen
         pressedLanes[lane] = false;
         playfield.SetLanePressed(lane, false);
 
-        JudgementEvent judgement =
-            judgementState.TryJudgeLaneRelease(lane, inputTime);
-        if (judgement != null)
+        foreach (JudgementEvent judgement in
+                 judgementState.JudgeLaneRelease(lane, inputTime))
+        {
             applyJudgement(judgement);
+        }
     }
 
     private void applyJudgement(JudgementEvent judgement)
     {
         playfield.ApplyJudgement(judgement);
+    }
+
+    private void completeGameplay()
+    {
+        if (gameplayCompleted)
+            return;
+
+        gameplayCompleted = true;
+        completedResult = judgementState.CreateResult();
+        bool isNewBest = scoreStore.SaveBest(beatmap, completedResult);
+        _ = audioEngine.StopAsync();
+        AddInternal(new GameplayResultOverlay(completedResult, isNewBest));
     }
 
     private void logInputTimingSummary()

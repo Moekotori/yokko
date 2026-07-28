@@ -7,4 +7,5 @@ public sealed record EditableNote(
     int Row,
     double StartTimeMilliseconds,
     double? EndTimeMilliseconds,
-    HitObjectKind Kind);
+    HitObjectKind Kind,
+    string? ScrollProfileId = null);

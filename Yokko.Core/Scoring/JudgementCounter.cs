@@ -2,49 +2,22 @@ namespace Yokko.Core.Scoring;
 
 public sealed class JudgementCounter
 {
-    public int Perfect { get; private set; }
-    public int Great { get; private set; }
-    public int Good { get; private set; }
-    public int Bad { get; private set; }
-    public int Miss { get; private set; }
+    private readonly Dictionary<JudgementRating, int> counts = [];
 
-    public int Total => Perfect + Great + Good + Bad + Miss;
+    public int Perfect => this[JudgementRating.Perfect];
+    public int Great => this[JudgementRating.Great];
+    public int Good => this[JudgementRating.Good];
+    public int Ok => this[JudgementRating.Ok];
+    public int Meh => this[JudgementRating.Meh];
+    public int Miss => this[JudgementRating.Miss];
+    public int ComboBreak => this[JudgementRating.ComboBreak];
 
-    public double WeightedAccuracy
-    {
-        get
-        {
-            if (Total == 0)
-                return 1;
+    public int TotalBasic => Perfect + Great + Good + Ok + Meh + Miss;
 
-            double weighted = Perfect + Great * 0.8 + Good * 0.5 + Bad * 0.2;
-            return weighted / Total;
-        }
-    }
+    public int this[JudgementRating rating] => counts.GetValueOrDefault(rating);
+
+    public IReadOnlyDictionary<JudgementRating, int> All => counts;
 
     public void Add(JudgementRating rating)
-    {
-        switch (rating)
-        {
-            case JudgementRating.Perfect:
-                Perfect++;
-                break;
-
-            case JudgementRating.Great:
-                Great++;
-                break;
-
-            case JudgementRating.Good:
-                Good++;
-                break;
-
-            case JudgementRating.Bad:
-                Bad++;
-                break;
-
-            case JudgementRating.Miss:
-                Miss++;
-                break;
-        }
-    }
+        => counts[rating] = this[rating] + 1;
 }

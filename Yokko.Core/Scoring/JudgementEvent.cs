@@ -9,5 +9,5 @@ public sealed record JudgementEvent(
     JudgementRating Rating,
     JudgementPhase Phase = JudgementPhase.Tap)
 {
-    public bool IsMiss => Rating == JudgementRating.Miss;
+    public bool IsMiss => Rating.IsMiss();
 }

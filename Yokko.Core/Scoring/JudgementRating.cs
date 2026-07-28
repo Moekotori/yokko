@@ -2,9 +2,14 @@ namespace Yokko.Core.Scoring;
 
 public enum JudgementRating
 {
-    Perfect,
-    Great,
-    Good,
-    Bad,
+    None,
     Miss,
+    Meh,
+    Ok,
+    Good,
+    Great,
+    Perfect,
+    IgnoreMiss,
+    IgnoreHit,
+    ComboBreak,
 }

@@ -68,6 +68,26 @@ internal static class YokkoStrings
             ["main.lets_play"] = new("Let's play!", "开始吧！", "遊ぼう！"),
             ["main.audio_unavailable"] = new("Audio unavailable", "音频不可用", "オーディオ利用不可"),
             ["main.hold_esc_exit"] = new("Hold Esc 5s to exit", "长按 Esc 5 秒退出", "Esc を5秒長押しで終了"),
+
+            ["import.chart.importing"] = new("Importing chart", "正在导入谱面", "譜面をインポート中"),
+            ["import.chart.success"] = new("Chart ready", "谱面已就绪", "譜面の準備完了"),
+            ["import.chart.failed"] = new("Chart import failed", "谱面导入失败", "譜面のインポートに失敗"),
+
+            ["song_select.title"] = new("SONG SELECT", "选择歌曲", "楽曲選択"),
+            ["song_select.search"] = new("Search songs", "搜索歌曲", "楽曲を検索"),
+            ["song_select.all_songs"] = new("ALL SONGS", "全部歌曲", "ALL"),
+            ["song_select.mods"] = new("MODS", "模组", "MOD"),
+            ["song_select.mods_unavailable"] = new("COMING SOON", "即将推出", "近日対応"),
+            ["song_select.play"] = new("PLAY", "开始", "プレイ"),
+            ["song_select.back"] = new("ESC  BACK", "ESC  返回", "ESC  戻る"),
+            ["song_select.no_results"] = new("NO SONGS FOUND", "没有匹配的歌曲", "楽曲が見つかりません"),
+            ["song_select.local_best"] = new("LOCAL BEST", "本地分数", "HIGH SCORE"),
+            ["song_select.mapped_by"] = new("mapped by {0}", "谱面制作 {0}", "譜面 {0}"),
+            ["song_select.global_ranking"] = new("GLOBAL RANKING", "全部排行", "GLOBAL RANKING"),
+            ["song_select.my_record"] = new("MY RECORD", "个人分数", "MY RECORD"),
+            ["song_select.you"] = new("YOU", "你", "自分"),
+            ["song_select.length"] = new("LENGTH", "时长", "長さ"),
+
             ["gameplay.audio_failed_title"] = new(
                 "Audio could not start",
                 "音频启动失败",

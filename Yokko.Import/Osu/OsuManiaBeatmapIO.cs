@@ -43,6 +43,12 @@ public static class OsuManiaBeatmapIO
 
         List<YokkoHitObject> hitObjects = parseHitObjects(sections.GetValueOrDefault("HitObjects") ?? [], keyCount);
         List<YokkoTimingPoint> timingPoints = parseTimingPoints(sections.GetValueOrDefault("TimingPoints") ?? []);
+        ScrollVelocityProfile scrollVelocity =
+            ScrollVelocityConversion.FromOsu(timingPoints, hitObjects);
+        double overallDifficulty =
+            parseDouble(
+                difficulty.GetValueOrDefault("OverallDifficulty"),
+                5);
 
         return new YokkoBeatmap(
             metadata.GetValueOrDefault("Title", "Untitled"),
@@ -53,7 +59,10 @@ public static class OsuManiaBeatmapIO
             ChartSourceFormat.OsuMania,
             timingPoints.Count == 0 ? [YokkoTimingPoint.Default] : timingPoints,
             general.GetValueOrDefault("AudioFilename"),
-            hitObjects);
+            hitObjects,
+            overallDifficulty,
+            scrollVelocity.Changes,
+            scrollVelocity.InitialMultiplier);
     }
 
     public static void WriteEditableToFile(EditableBeatmap beatmap, string path)
@@ -103,7 +112,7 @@ public static class OsuManiaBeatmapIO
         builder.AppendLine("[Difficulty]");
         builder.AppendLine($"HPDrainRate:{keyCount}");
         builder.AppendLine($"CircleSize:{keyCount}");
-        builder.AppendLine("OverallDifficulty:8");
+        builder.AppendLine($"OverallDifficulty:{formatDouble(beatmap.OverallDifficulty)}");
         builder.AppendLine("ApproachRate:5");
         builder.AppendLine("SliderMultiplier:1.4");
         builder.AppendLine("SliderTickRate:1");
@@ -120,9 +129,8 @@ public static class OsuManiaBeatmapIO
         builder.AppendLine();
         builder.AppendLine("[TimingPoints]");
 
-        IReadOnlyList<YokkoTimingPoint> timingPoints = beatmap.TimingPoints.Count == 0
-            ? [YokkoTimingPoint.Default]
-            : beatmap.TimingPoints;
+        IReadOnlyList<YokkoTimingPoint> timingPoints =
+            createTimingPointsForExport(beatmap);
 
         foreach (YokkoTimingPoint timingPoint in timingPoints.OrderBy(static point => point.TimeMilliseconds))
             builder.AppendLine(formatTimingPoint(timingPoint));
@@ -265,6 +273,216 @@ public static class OsuManiaBeatmapIO
         }
 
         return timingPoints;
+    }
+
+    private static IReadOnlyList<YokkoTimingPoint> createTimingPointsForExport(
+        YokkoBeatmap beatmap)
+    {
+        if (beatmap.ScrollProfiles.Count > 0
+            || beatmap.HitObjects.Any(
+                static hitObject => hitObject.ScrollProfileId != null))
+        {
+            throw new InvalidDataException(
+                "osu!mania export cannot represent Quaver per-note timing groups.");
+        }
+
+        if (beatmap.ScrollSpeedFactors.Any(
+                static factor => Math.Abs(factor.Multiplier - 1) > 0.0000001))
+        {
+            throw new InvalidDataException(
+                "osu!mania export cannot represent Quaver scroll speed factors.");
+        }
+
+        IReadOnlyList<YokkoTimingPoint> sourceTimingPoints =
+            beatmap.TimingPoints.Count == 0
+                ? [YokkoTimingPoint.Default]
+                : beatmap.TimingPoints;
+        ScrollVelocityProfile sourceProfile =
+            ScrollVelocityConversion.FromOsu(
+                sourceTimingPoints,
+                beatmap.HitObjects);
+        var targetMap = new ScrollVelocityMap(
+            beatmap.ScrollVelocities,
+            beatmap.InitialScrollVelocity);
+
+        if (profilesMatch(sourceProfile, beatmap))
+            return sourceTimingPoints;
+
+        if (targetMap.InitialMultiplier <= 0
+            || beatmap.ScrollVelocities.Any(
+                static velocity => velocity.Multiplier <= 0))
+        {
+            throw new InvalidDataException(
+                "osu!mania export cannot represent zero or negative scroll velocities.");
+        }
+
+        YokkoTimingPoint[] uninherited = sourceTimingPoints
+                                         .Where(static point => point.Uninherited)
+                                         .OrderBy(static point => point.TimeMilliseconds)
+                                         .ToArray();
+
+        if (uninherited.Length == 0)
+            uninherited = [YokkoTimingPoint.Default];
+
+        double baseBeatLength =
+            ScrollVelocityConversion.MostCommonBeatLength(
+                uninherited,
+                beatmap.HitObjects);
+        YokkoTimingPoint[] inherited = sourceTimingPoints
+                                       .Where(static point => !point.Uninherited)
+                                       .OrderBy(static point => point.TimeMilliseconds)
+                                       .ToArray();
+        double firstTime = Math.Min(
+            uninherited[0].TimeMilliseconds,
+            beatmap.ScrollVelocities.FirstOrDefault()?.TimeMilliseconds
+            ?? uninherited[0].TimeMilliseconds);
+        double[] eventTimes = uninherited
+                              .Select(static point => point.TimeMilliseconds)
+                              .Concat(inherited.Select(static point => point.TimeMilliseconds))
+                              .Concat(beatmap.ScrollVelocities.Select(
+                                  static velocity => velocity.TimeMilliseconds))
+                              .Append(firstTime)
+                              .Distinct()
+                              .Order()
+                              .ToArray();
+        double currentBeatLength =
+            uninherited[0].BeatLengthMilliseconds > 0
+                ? uninherited[0].BeatLengthMilliseconds
+                : YokkoTimingPoint.Default.BeatLengthMilliseconds;
+        double effectiveInheritedMultiplier = 1;
+        var exported = new List<YokkoTimingPoint>();
+
+        foreach (double eventTime in eventTimes)
+        {
+            YokkoTimingPoint[] redPoints = uninherited
+                                           .Where(point =>
+                                               point.TimeMilliseconds
+                                               == eventTime)
+                                           .ToArray();
+
+            if (redPoints.Length > 0)
+            {
+                exported.AddRange(redPoints);
+                YokkoTimingPoint activeRed = redPoints[^1];
+
+                if (activeRed.BeatLengthMilliseconds > 0)
+                {
+                    currentBeatLength =
+                        activeRed.BeatLengthMilliseconds;
+                }
+
+                effectiveInheritedMultiplier = 1;
+            }
+
+            double targetMultiplier = targetMap.MultiplierAt(eventTime);
+            double requiredInheritedMultiplier =
+                targetMultiplier * currentBeatLength / baseBeatLength;
+
+            if (!double.IsFinite(requiredInheritedMultiplier)
+                || requiredInheritedMultiplier is < 0.01 or > 10)
+            {
+                throw new InvalidDataException(
+                    $"osu!mania export cannot represent scroll velocity {targetMultiplier:0.###}x at {eventTime:0.###} ms.");
+            }
+
+            YokkoTimingPoint[] greenPoints = inherited
+                                             .Where(point =>
+                                                 point.TimeMilliseconds
+                                                 == eventTime)
+                                             .ToArray();
+
+            if (greenPoints.Length > 0)
+            {
+                foreach (YokkoTimingPoint greenPoint in greenPoints)
+                {
+                    exported.Add(greenPoint with
+                    {
+                        BeatLengthMilliseconds =
+                            -100 / requiredInheritedMultiplier,
+                    });
+                }
+
+                effectiveInheritedMultiplier =
+                    requiredInheritedMultiplier;
+                continue;
+            }
+
+            if (Math.Abs(
+                    requiredInheritedMultiplier
+                    - effectiveInheritedMultiplier)
+                <= 0.0000001)
+            {
+                continue;
+            }
+
+            YokkoTimingPoint metadata = sourceTimingPoints
+                                        .Where(point =>
+                                            point.TimeMilliseconds
+                                            <= eventTime)
+                                        .LastOrDefault()
+                                        ?? YokkoTimingPoint.Default;
+            exported.Add(new YokkoTimingPoint(
+                eventTime,
+                -100 / requiredInheritedMultiplier,
+                metadata.Meter,
+                metadata.SampleSet,
+                metadata.SampleIndex,
+                metadata.Volume,
+                Uninherited: false,
+                metadata.Effects));
+            effectiveInheritedMultiplier =
+                requiredInheritedMultiplier;
+        }
+
+        return exported.OrderBy(static point => point.TimeMilliseconds)
+                       .ThenByDescending(static point => point.Uninherited)
+                       .ToArray();
+    }
+
+    private static bool profilesMatch(
+        ScrollVelocityProfile sourceProfile,
+        YokkoBeatmap beatmap)
+    {
+        if (Math.Abs(
+                sourceProfile.InitialMultiplier
+                - beatmap.InitialScrollVelocity)
+            > 0.0000001)
+        {
+            return false;
+        }
+
+        YokkoScrollVelocity[] targetChanges = beatmap.ScrollVelocities
+                                                     .OrderBy(
+                                                         static velocity =>
+                                                             velocity.TimeMilliseconds)
+                                                     .GroupBy(
+                                                         static velocity =>
+                                                             velocity.TimeMilliseconds)
+                                                     .Select(
+                                                         static group =>
+                                                             group.Last())
+                                                     .ToArray();
+
+        if (sourceProfile.Changes.Count != targetChanges.Length)
+            return false;
+
+        for (int i = 0; i < targetChanges.Length; i++)
+        {
+            YokkoScrollVelocity source = sourceProfile.Changes[i];
+            YokkoScrollVelocity target = targetChanges[i];
+
+            if (Math.Abs(
+                    source.TimeMilliseconds
+                    - target.TimeMilliseconds)
+                > 0.0000001
+                || Math.Abs(source.Multiplier - target.Multiplier)
+                > 0.0000001)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string formatTimingPoint(YokkoTimingPoint timingPoint)

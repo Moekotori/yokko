@@ -75,12 +75,12 @@ namespace Yokko.Game.Tests.Visual
                            playfield.Height * playfield.Scale.Y -
                            current.DrawHeight) < 0.5;
             });
-            AddAssert("surrounding gameplay text is absent", () =>
+            AddAssert("score hud is visible", () =>
             {
                 Drawable current = screenStack.CurrentScreen as Drawable;
                 return current?
                        .ChildrenOfType<GameplayHud>()
-                       .Any() == false &&
+                       .SingleOrDefault() != null &&
                        current.ChildrenOfType<JudgementReadout>().Any() == false;
             });
         }
@@ -103,6 +103,36 @@ namespace Yokko.Game.Tests.Visual
                 (screenStack.CurrentScreen as Drawable)?
                 .ChildrenOfType<GameplayFailureOverlay>()
                 .SingleOrDefault() != null);
+        }
+
+        [Test]
+        public void TestCompletedPlayShowsResultOverlay()
+        {
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Result Test",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        0,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+
+            AddStep("open short gameplay", () =>
+                screenStack.Push(new GameplayScreen(beatmap)));
+            AddUntilStep("gameplay completes", () =>
+                (screenStack.CurrentScreen as GameplayScreen)?
+                .GameplayCompleted == true);
+            AddAssert("result overlay is visible", () =>
+                (screenStack.CurrentScreen as Drawable)?
+                .ChildrenOfType<GameplayResultOverlay>()
+                .SingleOrDefault() != null);
+            AddAssert("miss result was captured", () =>
+                (screenStack.CurrentScreen as GameplayScreen)?
+                .CompletedResult?.Miss == 1);
         }
 
         [Test]

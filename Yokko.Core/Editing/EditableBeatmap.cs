@@ -7,11 +7,24 @@ namespace Yokko.Core.Editing;
 public sealed class EditableBeatmap
 {
     private readonly List<EditableNote> notes = [];
+    private double overallDifficulty = 5;
 
-    private EditableBeatmap(KeyMode keyMode, IReadOnlyList<YokkoTimingPoint> timingPoints, int rows = 32)
+    private EditableBeatmap(
+        KeyMode keyMode,
+        IReadOnlyList<YokkoTimingPoint> timingPoints,
+        IReadOnlyList<YokkoScrollVelocity>? scrollVelocities = null,
+        double initialScrollVelocity = 1,
+        IReadOnlyList<YokkoScrollSpeedFactor>? scrollSpeedFactors = null,
+        IReadOnlyDictionary<string, YokkoScrollProfile>? scrollProfiles = null,
+        int rows = 32)
     {
         KeyMode = keyMode;
         TimingPoints = timingPoints;
+        ScrollVelocities = scrollVelocities ?? [];
+        InitialScrollVelocity = initialScrollVelocity;
+        ScrollSpeedFactors = scrollSpeedFactors ?? [];
+        ScrollProfiles = scrollProfiles
+                         ?? new Dictionary<string, YokkoScrollProfile>();
         TimingMap = new BeatTimingMap(timingPoints, BeatDivisor);
         Rows = rows;
     }
@@ -23,6 +36,18 @@ public sealed class EditableBeatmap
     public string Creator { get; set; } = "Yokko";
 
     public string DifficultyName { get; set; } = "Draft";
+
+    public double OverallDifficulty
+    {
+        get => overallDifficulty;
+        set
+        {
+            if (!double.IsFinite(value) || value is < 0 or > 10)
+                throw new ArgumentOutOfRangeException(nameof(value));
+
+            overallDifficulty = value;
+        }
+    }
 
     public string? AudioPath { get; set; }
 
@@ -37,6 +62,14 @@ public sealed class EditableBeatmap
     public int BeatDivisor { get; } = 4;
 
     public IReadOnlyList<YokkoTimingPoint> TimingPoints { get; }
+
+    public IReadOnlyList<YokkoScrollVelocity> ScrollVelocities { get; }
+
+    public double InitialScrollVelocity { get; }
+
+    public IReadOnlyList<YokkoScrollSpeedFactor> ScrollSpeedFactors { get; }
+
+    public IReadOnlyDictionary<string, YokkoScrollProfile> ScrollProfiles { get; }
 
     public BeatTimingMap TimingMap { get; }
 
@@ -62,12 +95,21 @@ public sealed class EditableBeatmap
             ? 32
             : timingMap.ClosestRowAt(beatmap.HitObjects.Max(hitObject => hitObject.EndTimeMilliseconds ?? hitObject.StartTimeMilliseconds)) + 4);
 
-        var editable = new EditableBeatmap(beatmap.KeyMode, timingPoints, rows)
+        var editable = new EditableBeatmap(
+            beatmap.KeyMode,
+            timingPoints,
+            beatmap.ScrollVelocities.ToArray(),
+            beatmap.InitialScrollVelocity,
+            beatmap.ScrollSpeedFactors.ToArray(),
+            new Dictionary<string, YokkoScrollProfile>(
+                beatmap.ScrollProfiles),
+            rows)
         {
             Title = beatmap.Title,
             Artist = beatmap.Artist,
             Creator = beatmap.Creator,
             DifficultyName = beatmap.DifficultyName,
+            OverallDifficulty = beatmap.OverallDifficulty,
             AudioPath = beatmap.AudioPath,
             SourcePath = sourcePath,
         };
@@ -82,7 +124,8 @@ public sealed class EditableBeatmap
                 editable.ClosestRowAt(hitObject.StartTimeMilliseconds),
                 hitObject.StartTimeMilliseconds,
                 hitObject.EndTimeMilliseconds,
-                hitObject.Kind));
+                hitObject.Kind,
+                hitObject.ScrollProfileId));
         }
 
         editable.sortNotes();
@@ -145,8 +188,14 @@ public sealed class EditableBeatmap
                     note.Lane,
                     note.StartTimeMilliseconds,
                     note.EndTimeMilliseconds,
-                    note.Kind))
-                 .ToArray());
+                    note.Kind,
+                    ScrollProfileId: note.ScrollProfileId))
+                 .ToArray(),
+            OverallDifficulty,
+            ScrollVelocities,
+            InitialScrollVelocity,
+            ScrollSpeedFactors,
+            ScrollProfiles);
 
     private void sortNotes()
     {

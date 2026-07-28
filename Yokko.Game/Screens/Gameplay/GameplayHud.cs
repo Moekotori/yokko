@@ -57,9 +57,17 @@ public partial class GameplayHud : CompositeDrawable
     public void UpdateState(double gameplayTimeMilliseconds, BeatmapJudgementState state)
     {
         timeText.Text = $"Time {Math.Max(0, gameplayTimeMilliseconds / 1000):0.00}s";
-        comboText.Text = $"Combo {state.Combo} / Max {state.MaxCombo}";
-        accuracyText.Text = $"Accuracy {state.Accuracy * 100:0.00}%";
-        countsText.Text = $"P {state.Counts.Perfect}  G {state.Counts.Great}  Good {state.Counts.Good}  Bad {state.Counts.Bad}  M {state.Counts.Miss}";
+        comboText.Text =
+            $"Score {state.Score:0000000}  Combo {state.Combo} / Max {state.MaxCombo}";
+        string rank = state.Rank == ScoreRank.X
+            ? "SS"
+            : state.Rank.ToString();
+        accuracyText.Text =
+            $"Accuracy {state.Accuracy * 100:0.00}%  Rank {rank}";
+        countsText.Text =
+            $"P {state.Counts.Perfect}  G {state.Counts.Great}  "
+            + $"Good {state.Counts.Good}  Ok {state.Counts.Ok}  "
+            + $"Meh {state.Counts.Meh}  M {state.Counts.Miss}";
     }
 
     private static SpriteText createLine(float size = 18) => new()

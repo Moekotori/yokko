@@ -1,51 +1,48 @@
-# Yokko Settings design QA
+# Yokko Song Select design QA
 
-final result: blocked
+final result: passed
 
 ## Evidence
 
-- Source visual truth: `C:\Users\mochi\.codex\generated_images\019fa749-a8b9-7050-a264-94ab7810ff17\call_rArZo8KxDQF3kWKhW4fPUVQW.png`
-- Source pixels: 1536 x 1024
-- Implementation screenshot: not persisted; final desktop capture was interrupted when Computer Use was stopped with the physical Escape key
-- Inspected implementation viewport: 1280 x 720 app content inside a 1282 x 750 desktop window capture
-- Density normalization: both inspected at device scale 1; layout proportions compared rather than stretching the 3:2 source into the 16:9 application viewport
-- State inspected: Settings / Display, Windowed, 2560 x 1440, Comfortable
+- Reference visual: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-c8ee9a51-8c45-4121-a170-3157ae072f09.png`
+- User-reported broken implementation: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-4df5ee61-f358-4985-9b7c-1a8efb877111.png`
+- Final implementation screenshot: `D:\YOKKO\artifacts\song-select-implementation-v5.png`
+- Side-by-side comparison: `D:\YOKKO\artifacts\song-select-comparison-v5.png`
+- State inspected: Blue Signal selected, Global Ranking selected, five leaderboard rows visible.
 
 ## Full-view comparison
 
-The live implementation reproduced the source hierarchy and major proportions: ivory full-screen surface, 25% navigation rail, logo and Settings header, grouped navigation, selected Display row, main Display header, mascot crop, cyan display summary, three aligned settings rows, footer status, and the navy/cyan/pink/yellow state palette.
+The final screen keeps the reference's strong left-detail/right-browser composition, fixed bottom action bar, chart-driven full-page background, navy glass panels, cyan/pink/yellow accents, and compact rhythm-game typography. The implementation deliberately uses a five-row leaderboard and moves Length/BPM beside the difficulty summary to preserve vertical space.
 
 ## Focused region comparison
 
-- Sidebar: grouping, active-state edge, yellow corner detail, search affordance, icon rhythm, and dividers were visibly present.
-- Main controls: segmented selection, resolution field, aligned checks, row dividers, and status footer were visibly present.
-- Asset fidelity: the implementation uses the project wordmark and mascot texture directly rather than recreating them with code-native approximations.
+- Leaderboard: all five positions are fully visible above the footer. Avatar, rank, player name, grade emblem, score, accuracy, mods, and current-player treatment remain readable without collisions.
+- Selected-song summary: title, artist, mapper, key mode, difficulty, stars, numeric rating, length, and BPM form one compact hierarchy.
+- Mascot/footer: the mascot is reduced and placed below the leaderboard, no longer obscuring the fourth/fifth rows or song statistics.
+- Browser: filter/search controls and five chart rows are visible. Demo rows use the selected chart fallback background; imported charts are expected to provide their own beatmap background.
 
 ## Findings
 
-- [P2] Final post-fix screenshot is missing.
-  - Location: final implementation evidence.
-  - Evidence: the first live capture showed the intended page but the search placeholder rendered too large. `SettingsSearchTextBox.FontSize` was then fixed to 15, after which the final recapture was interrupted.
-  - Impact: typography, spacing, colors, imagery, icons, and copy cannot receive a documented final pass against the exact latest build.
-  - Fix: reopen Yokko, capture the Settings screen unobstructed at 1280 x 720 content size, and compare it with the source in one combined image.
+- No P0, P1, or P2 issue remains in the inspected state.
+- P3 accepted deviation: the implementation uses background strips rather than album-art thumbnails because the current data model is chart-background driven.
+- P3 accepted deviation: the selected chart remains at the top of the list rather than being vertically centered; selection, filtering, and keyboard movement are functional.
 
 ## Comparison history
 
-1. Initial live capture:
-   - No P0/P1 layout or asset failures were visible.
-   - P2: search placeholder was optically oversized relative to the source.
+1. Broken state:
+   - P1: leaderboard rows collided with the mascot and Length/BPM block.
+   - P1: fourth and fifth positions were partially hidden.
+   - P2: grade letters read like unstyled placeholder text.
 2. Fix:
-   - Set the search text box font size explicitly to 15.
-3. Post-fix evidence:
-   - Focused visual test and desktop build passed.
-   - Final live screenshot capture was interrupted before a clean image could be saved.
+   - Moved Length/BPM above the leaderboard.
+   - Reduced leaderboard row/avatar typography and kept five rows.
+   - Replaced grade letters with bordered grade emblems.
+   - Reduced and lowered the mascot.
+3. Post-fix:
+   - Side-by-side visual comparison shows no overlap, clipping, or unreadable hierarchy.
 
 ## Verification
 
-- `dotnet test .\Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-restore --filter "FullyQualifiedName~TestSceneSettingsScreen.TestSettingsScreen" -p:AllowUnsafeBlocks=true`: passed, 1/1.
 - `dotnet build .\Yokko.Desktop.slnf --no-restore -p:AllowUnsafeBlocks=true`: passed with 0 warnings and 0 errors.
-- Primary interactions visibly available in the live build: Back, settings search input, mode selection, resolution cycling, and interface-scale selection.
-
-## Follow-up polish
-
-- No P3 item is recorded until the final screenshot comparison is complete.
+- Focused Song Select and localisation tests: passed, 10/10.
+- Covered interactions: song selection, 7K filter, search/no-results recovery, global/personal ranking switch, and pushing Gameplay from Play.

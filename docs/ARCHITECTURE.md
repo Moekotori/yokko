@@ -32,6 +32,44 @@ clock truth, fallback policy, and backend rollout gates.
 
 The editor must not assume a fixed number of milliseconds per row. New notes are placed using the active timing point and the selected beat divisor.
 
+## Scroll Velocity
+
+`YokkoScrollVelocity` is separate from beat timing: it maps song time onto a
+piecewise-linear visual distance axis through `ScrollVelocityMap`. Multipliers
+may be positive, zero, or negative, so gameplay must position notes from
+integrated distance rather than the active multiplier alone.
+
+osu!mania import combines the inherited timing-point multiplier with the
+current BPM relative to the chart's duration-weighted common BPM. Quaver
+import normalizes both legacy BPM-relative SV and
+`BPMDoesNotAffectScrollVelocity` charts before they enter `Yokko.Core`.
+Quaver scroll-speed factors remain a separate, linearly interpolated current
+speed scale. `$Global` signals are merged into the default and every custom
+timing group, while each hit object selects its named `YokkoScrollProfile`.
+
+Gameplay keeps one integrated map per profile and supports positive, stopped,
+and reversed travel. Hold-note bounds include every direction-change extremum,
+so a long note crossing zero or negative SV is not culled from only its two
+endpoints. The editor signal strip exposes the default SV track and reports SV,
+SSF, and timing-group counts; importing and editing a chart preserves all
+profiles even though Yokko does not yet provide authoring controls for them.
+
+osu!mania export is lossless when its original timing points still describe
+the current profile. Yokko can synthesize positive inherited timing points,
+but fails closed for zero/negative velocity, Quaver SSF, and per-note timing
+groups because the osu!mania timing-point format cannot represent those
+features faithfully.
+
+The integration model and format conversion were adapted from:
+
+- `ppy/osu`, `osu.Game/Rulesets/UI/Scrolling/Algorithms/SequentialScrollAlgorithm.cs`
+  and `osu.Game/Rulesets/Timing/MultiplierControlPoint.cs`, commit
+  `cb3d5da8b441afd8d2cf3e03ceebc6b027e2074d`;
+- `Quaver/Quaver`, `Quaver.Shared/Screens/Gameplay/Rulesets/Keys/HitObjects/ScrollGroupControllerKeys.cs`,
+  commit `f01243247e73d44f8435f3e6e1244409123cc143`;
+- `Quaver/Quaver.API`, `Quaver.API/Maps/Qua.cs` (`NormalizeSVs`), commit
+  `a921d561b2ece7f6bf3682446696c06c17b81649`.
+
 ## Hold Judgement
 
 Hold notes have two scored phases:

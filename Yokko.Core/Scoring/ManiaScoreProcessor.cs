@@ -1,0 +1,160 @@
+using Yokko.Core.Beatmaps;
+
+namespace Yokko.Core.Scoring;
+
+/// <summary>
+/// osu!lazer's default (non-classic) mania score processor.
+/// Ported from ppy/osu
+/// osu.Game.Rulesets.Mania/Scoring/ManiaScoreProcessor.cs and
+/// osu.Game/Rulesets/Scoring/ScoreProcessor.cs
+/// commit cb3d5da8b441afd8d2cf3e03ceebc6b027e2074d (MIT).
+/// </summary>
+public sealed class ManiaScoreProcessor
+{
+    private const double comboBase = 4;
+
+    private readonly int maximumAccuracyJudgementCount;
+    private readonly double maximumComboPortion;
+
+    private double currentBaseScore;
+    private double currentMaximumBaseScore;
+    private int currentAccuracyJudgementCount;
+    private double currentComboPortion;
+
+    public ManiaScoreProcessor(YokkoBeatmap beatmap)
+    {
+        maximumAccuracyJudgementCount = beatmap.HitObjects.Sum(static hitObject => hitObject.Kind switch
+        {
+            HitObjectKind.Tap => 1,
+            HitObjectKind.Hold => 2,
+            _ => 0,
+        });
+
+        for (int combo = 1; combo <= maximumAccuracyJudgementCount; combo++)
+            maximumComboPortion += comboScoreChange(JudgementRating.Perfect, combo);
+    }
+
+    public JudgementCounter Counts { get; } = new();
+
+    public int Combo { get; private set; }
+
+    public int MaxCombo { get; private set; }
+
+    public double Accuracy => currentMaximumBaseScore > 0
+        ? currentBaseScore / currentMaximumBaseScore
+        : 1;
+
+    public long TotalScore { get; private set; }
+
+    public ScoreRank Rank { get; private set; } = ScoreRank.X;
+
+    public void Apply(JudgementRating rating)
+    {
+        if (rating == JudgementRating.None)
+            throw new ArgumentOutOfRangeException(nameof(rating));
+
+        Counts.Add(rating);
+
+        if (rating.IncreasesCombo())
+            Combo++;
+        else if (rating.BreaksCombo())
+            Combo = 0;
+
+        MaxCombo = Math.Max(MaxCombo, Combo);
+
+        if (maximumResultFor(rating).AffectsAccuracy())
+        {
+            currentMaximumBaseScore += baseScoreFor(maximumResultFor(rating));
+            currentAccuracyJudgementCount++;
+        }
+
+        if (rating.AffectsAccuracy())
+            currentBaseScore += baseScoreFor(rating);
+
+        if (rating.IsScorable())
+            currentComboPortion += comboScoreChange(rating, Combo);
+
+        updateScore();
+    }
+
+    public static int BaseScoreFor(JudgementRating rating) => baseScoreFor(rating);
+
+    private void updateScore()
+    {
+        double comboProgress = maximumComboPortion > 0
+            ? currentComboPortion / maximumComboPortion
+            : 1;
+        double accuracyProgress = maximumAccuracyJudgementCount > 0
+            ? (double)currentAccuracyJudgementCount / maximumAccuracyJudgementCount
+            : 1;
+
+        TotalScore = (long)Math.Round(
+            150_000 * comboProgress
+            + 850_000 * Math.Pow(Accuracy, 2 + 2 * Accuracy) * accuracyProgress);
+        Rank = rankFromScore();
+    }
+
+    private ScoreRank rankFromScore()
+    {
+        ScoreRank rank = Accuracy switch
+        {
+            >= 1 => ScoreRank.X,
+            >= 0.95 => ScoreRank.S,
+            >= 0.9 => ScoreRank.A,
+            >= 0.8 => ScoreRank.B,
+            >= 0.7 => ScoreRank.C,
+            _ => ScoreRank.D,
+        };
+
+        if (rank != ScoreRank.S)
+            return rank;
+
+        bool anyImperfect =
+            Counts.Good > 0
+            || Counts.Ok > 0
+            || Counts.Meh > 0
+            || Counts.Miss > 0;
+
+        return anyImperfect ? rank : ScoreRank.X;
+    }
+
+    private static JudgementRating maximumResultFor(JudgementRating rating)
+        => rating switch
+        {
+            JudgementRating.Miss
+                or JudgementRating.Meh
+                or JudgementRating.Ok
+                or JudgementRating.Good
+                or JudgementRating.Great
+                or JudgementRating.Perfect => JudgementRating.Perfect,
+            JudgementRating.IgnoreHit
+                or JudgementRating.IgnoreMiss => JudgementRating.IgnoreHit,
+            JudgementRating.ComboBreak => JudgementRating.IgnoreHit,
+            _ => JudgementRating.None,
+        };
+
+    private static int baseScoreFor(JudgementRating rating) => rating switch
+    {
+        JudgementRating.Meh => 50,
+        JudgementRating.Ok => 100,
+        JudgementRating.Good => 200,
+        JudgementRating.Great => 300,
+        JudgementRating.Perfect => 305,
+        _ => 0,
+    };
+
+    private static int comboBaseScoreFor(JudgementRating rating)
+        => rating == JudgementRating.Perfect ? 300 : baseScoreFor(rating);
+
+    private static double comboScoreChange(JudgementRating rating, int comboAfterJudgement)
+    {
+        int baseScore = comboBaseScoreFor(rating);
+        if (baseScore == 0)
+            return 0;
+
+        double multiplier = Math.Min(
+            Math.Max(0.5, Math.Log(comboAfterJudgement, comboBase)),
+            Math.Log(400, comboBase));
+        return baseScore * multiplier;
+    }
+}

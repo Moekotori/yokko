@@ -161,6 +161,273 @@ HitObjects:
         }
 
         [Test]
+        public void ImportsNormalizedQuaverZeroAndNegativeSliderVelocities()
+        {
+            string path = writeChart("quaver-normalized-sv", ".qua", """
+Mode: Keys4
+Title: Normalized SV
+BPMDoesNotAffectScrollVelocity: true
+InitialScrollVelocity: 1.25
+TimingPoints:
+- StartTime: 0
+  Bpm: 120
+SliderVelocities:
+- StartTime: 500
+  Multiplier: 0
+- StartTime: 1000
+  Multiplier: -2
+HitObjects:
+- StartTime: 1500
+  Lane: 1
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(result.Warnings, Is.Empty);
+            Assert.That(result.Beatmap.InitialScrollVelocity, Is.EqualTo(1.25));
+            Assert.That(result.Beatmap.ScrollVelocities, Has.Count.EqualTo(2));
+            Assert.That(result.Beatmap.ScrollVelocities[0], Is.EqualTo(
+                new Yokko.Core.Timing.YokkoScrollVelocity(500, 0)));
+            Assert.That(result.Beatmap.ScrollVelocities[1], Is.EqualTo(
+                new Yokko.Core.Timing.YokkoScrollVelocity(1000, -2)));
+        }
+
+        [Test]
+        public void NormalizesLegacyQuaverBpmAndSliderVelocityChanges()
+        {
+            string path = writeChart("quaver-denormalized-sv", ".qua", """
+Mode: Keys4
+Title: Legacy SV
+TimingPoints:
+- StartTime: 0
+  Bpm: 120
+- StartTime: 2000
+  Bpm: 240
+SliderVelocities:
+- StartTime: 1000
+  Multiplier: 0.5
+HitObjects:
+- StartTime: 3000
+  Lane: 1
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(result.Beatmap.InitialScrollVelocity, Is.EqualTo(1));
+            Assert.That(result.Beatmap.ScrollVelocities, Has.Count.EqualTo(2));
+            Assert.That(result.Beatmap.ScrollVelocities[0].Multiplier, Is.EqualTo(0.5));
+            Assert.That(result.Beatmap.ScrollVelocities[1].TimeMilliseconds, Is.EqualTo(2000));
+            Assert.That(result.Beatmap.ScrollVelocities[1].Multiplier, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ParsesIndentedQuaverCollectionsWithoutOverwritingItems()
+        {
+            string path = writeChart("quaver-indented", ".qua", """
+Mode: Keys4
+Title: Indented Qua
+BPMDoesNotAffectScrollVelocity: true
+InitialScrollVelocity: 1
+TimingPoints:
+  - StartTime: 0
+    Bpm: 120
+  - StartTime: 2000
+    Bpm: 180
+SliderVelocities:
+  - StartTime: 500
+    Multiplier: 0.5
+  - StartTime: 1000
+    Multiplier: 2
+ScrollSpeedFactors:
+  - StartTime: 250
+    Multiplier: 0.75
+  - StartTime: 1250
+    Multiplier: 1.25
+HitObjects:
+  - StartTime: 1500
+    Lane: 1
+  - StartTime: 2000
+    Lane: 4
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(result.Beatmap.TimingPoints, Has.Count.EqualTo(2));
+            Assert.That(result.Beatmap.ScrollVelocities, Has.Count.EqualTo(2));
+            Assert.That(result.Beatmap.ScrollSpeedFactors, Has.Count.EqualTo(2));
+            Assert.That(
+                result.Beatmap.ScrollSpeedFactors[1].Multiplier,
+                Is.EqualTo(1.25));
+            Assert.That(result.Beatmap.HitObjects, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void NormalizesQuaverSvBeforeFirstTimingPointIntoInitialVelocity()
+        {
+            string path = writeChart("quaver-sv-before-timing", ".qua", """
+Mode: Keys4
+Title: Early SV
+BPMDoesNotAffectScrollVelocity: false
+TimingPoints:
+  - StartTime: 0
+    Bpm: 120
+SliderVelocities:
+  - StartTime: -10
+    Multiplier: 10
+HitObjects: []
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(result.Beatmap.InitialScrollVelocity, Is.EqualTo(10));
+            Assert.That(result.Beatmap.ScrollVelocities, Is.EqualTo(
+            new[]
+            {
+                new Yokko.Core.Timing.YokkoScrollVelocity(0, 1),
+            }));
+        }
+
+        [Test]
+        public void NormalizesQuaverSvAtFirstTimingPointIntoInitialVelocity()
+        {
+            string path = writeChart("quaver-sv-at-timing", ".qua", """
+Mode: Keys4
+Title: Initial SV
+BPMDoesNotAffectScrollVelocity: false
+TimingPoints:
+  - StartTime: 0
+    Bpm: 120
+SliderVelocities:
+  - StartTime: 0
+    Multiplier: 10
+HitObjects: []
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(result.Beatmap.InitialScrollVelocity, Is.EqualTo(10));
+            Assert.That(result.Beatmap.ScrollVelocities, Is.Empty);
+        }
+
+        [Test]
+        public void MatchesQuaverTimingPointOverrideNormalizationCorpus()
+        {
+            string path = writeChart("quaver-timing-overrides-sv", ".qua", """
+Mode: Keys4
+BPMDoesNotAffectScrollVelocity: false
+TimingPoints:
+  - StartTime: 0
+    Bpm: 1
+  - StartTime: 10
+    Bpm: 2
+SliderVelocities:
+  - StartTime: 5
+    Multiplier: 10
+HitObjects:
+  - StartTime: 0
+    Lane: 1
+  - StartTime: 11
+    Lane: 1
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(result.Beatmap.InitialScrollVelocity, Is.EqualTo(1));
+            Assert.That(result.Beatmap.ScrollVelocities, Is.EqualTo(
+            new[]
+            {
+                new Yokko.Core.Timing.YokkoScrollVelocity(5, 10),
+                new Yokko.Core.Timing.YokkoScrollVelocity(10, 2),
+            }));
+        }
+
+        [Test]
+        public void ImportsQuaverTimingGroupsAndMergesGlobalSignals()
+        {
+            string path = writeChart("quaver-timing-groups", ".qua", """
+Mode: Keys4
+Title: Timing Groups
+BPMDoesNotAffectScrollVelocity: true
+InitialScrollVelocity: 1
+TimingPoints:
+  - StartTime: 0
+    Bpm: 120
+SliderVelocities:
+  - StartTime: 500
+    Multiplier: 2
+TimingGroups:
+  "$Global": !ScrollGroup
+    ScrollVelocities:
+      - StartTime: 750
+        Multiplier: 0.5
+  Reverse: !ScrollGroup
+    ScrollVelocities:
+      - StartTime: 750
+        Multiplier: 8
+      - StartTime: 1000
+        Multiplier: -2
+    ScrollSpeedFactors:
+      - StartTime: 0
+        Multiplier: 1.5
+    InitialScrollVelocity: -1
+HitObjects:
+  - StartTime: 1500
+    Lane: 1
+  - StartTime: 1600
+    Lane: 2
+    TimingGroup: Reverse
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(result.Warnings, Is.Empty);
+            Assert.That(result.Beatmap.ScrollVelocities, Is.EqualTo(
+            new[]
+            {
+                new Yokko.Core.Timing.YokkoScrollVelocity(500, 2),
+                new Yokko.Core.Timing.YokkoScrollVelocity(750, 0.5),
+            }));
+            Assert.That(result.Beatmap.ScrollProfiles.Keys, Is.EqualTo(
+                new[] { "Reverse" }));
+            Yokko.Core.Timing.YokkoScrollProfile reverse =
+                result.Beatmap.ScrollProfiles["Reverse"];
+            Assert.That(reverse.InitialScrollVelocity, Is.EqualTo(-1));
+            Assert.That(reverse.ScrollVelocities, Is.EqualTo(
+            new[]
+            {
+                new Yokko.Core.Timing.YokkoScrollVelocity(750, 0.5),
+                new Yokko.Core.Timing.YokkoScrollVelocity(1000, -2),
+            }));
+            Assert.That(reverse.ScrollSpeedFactors.Single().Multiplier,
+                Is.EqualTo(1.5));
+            Assert.That(result.Beatmap.HitObjects[0].ScrollProfileId, Is.Null);
+            Assert.That(result.Beatmap.HitObjects[1].ScrollProfileId,
+                Is.EqualTo("Reverse"));
+        }
+
+        [Test]
+        public void WarnsAndFallsBackWhenQuaverTimingGroupIsMissing()
+        {
+            string path = writeChart("quaver-missing-timing-group", ".qua", """
+Mode: Keys4
+TimingPoints:
+  - StartTime: 0
+    Bpm: 120
+HitObjects:
+  - StartTime: 500
+    Lane: 1
+    TimingGroup: Missing
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(result.Warnings.Single(), Does.Contain("Missing"));
+            Assert.That(result.Beatmap.HitObjects.Single().ScrollProfileId,
+                Is.EqualTo("Missing"));
+            Assert.That(result.Beatmap.ScrollProfiles, Is.Empty);
+        }
+
+        [Test]
         public void ImportsMalodyFractionalBeatsAndAudioOffset()
         {
             string path = writeChart("malody", ".mc", """

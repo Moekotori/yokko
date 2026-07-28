@@ -25,6 +25,10 @@ public static class KnownChartImporters
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
 
+    public static bool CanImport(string path) =>
+        !string.IsNullOrWhiteSpace(path)
+        && Importers.Any(importer => importer.CanImport(path));
+
     public static async ValueTask<ChartImportResult> ImportAsync(ChartImportRequest request)
     {
         IChartImporter? importer = Importers.FirstOrDefault(candidate => candidate.CanImport(request.Path));

@@ -11,8 +11,10 @@ public static class RatingColours
         JudgementRating.Perfect => YokkoPalette.Cyan,
         JudgementRating.Great => YokkoPalette.Lime,
         JudgementRating.Good => new Color4(0.95f, 0.82f, 0.34f, 1f),
-        JudgementRating.Bad => YokkoPalette.Rose,
+        JudgementRating.Ok => new Color4(0.35f, 0.72f, 0.95f, 1f),
+        JudgementRating.Meh => YokkoPalette.Rose,
         JudgementRating.Miss => new Color4(0.7f, 0.72f, 0.78f, 1f),
+        JudgementRating.ComboBreak => YokkoPalette.Rose,
         _ => YokkoPalette.Text,
     };
 }

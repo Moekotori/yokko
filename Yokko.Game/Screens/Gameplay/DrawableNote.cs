@@ -9,6 +9,7 @@ using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
+using Yokko.Core.Timing;
 using Yokko.Game.Presentation;
 using Yokko.Game.Skinning.OsuMania;
 
@@ -16,6 +17,11 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public partial class DrawableNote : CompositeDrawable
 {
+    private static readonly ScrollVelocityMap defaultScrollVelocityMap =
+        new([]);
+    private static readonly ScrollSpeedFactorMap defaultScrollSpeedFactorMap =
+        new([]);
+
     private readonly YokkoHitObject hitObject;
     private readonly Box fallbackBody;
     private readonly Container holdBodyClip;
@@ -31,6 +37,10 @@ public partial class DrawableNote : CompositeDrawable
     private readonly bool flipHoldHead;
     private readonly bool flipHoldBody;
     private readonly bool flipHoldTail;
+    private float holdBodyY;
+    private float holdBodyHeight;
+    private float holdHeadY;
+    private float holdTailY;
     private bool resolved;
 
     internal DrawableNote(
@@ -167,6 +177,10 @@ public partial class DrawableNote : CompositeDrawable
         }
 
         InternalChildren = children.ToArray();
+        holdBodyY = upsideDown ? headHeight : tailHeight;
+        holdBodyHeight = Math.Max(0, Height - headHeight - tailHeight);
+        holdHeadY = upsideDown ? 0 : Height - headHeight;
+        holdTailY = upsideDown ? Height - tailHeight : 0;
         updateHoldBody();
     }
 
@@ -190,8 +204,15 @@ public partial class DrawableNote : CompositeDrawable
         bool holdActive,
         float topY,
         float judgementY,
-        double approachTimeMilliseconds)
+        double approachTimeMilliseconds,
+        ScrollVelocityMap scrollVelocityMap = null,
+        ScrollSpeedFactorMap scrollSpeedFactorMap = null)
     {
+        scrollVelocityMap ??= defaultScrollVelocityMap;
+        scrollSpeedFactorMap ??= defaultScrollSpeedFactorMap;
+        double scrollSpeedFactor =
+            scrollSpeedFactorMap.FactorAt(gameplayTimeMilliseconds);
+
         if (resolved || resolvedByState)
         {
             Alpha = Math.Min(Alpha, 0.18f);
@@ -202,32 +223,103 @@ public partial class DrawableNote : CompositeDrawable
 
         if (hitObject.Kind == HitObjectKind.Hold && hitObject.EndTimeMilliseconds is double endTime)
         {
-            double headProgress = 1 - (hitObject.StartTimeMilliseconds - gameplayTimeMilliseconds) / approachTimeMilliseconds;
-            double tailProgress = 1 - (endTime - gameplayTimeMilliseconds) / approachTimeMilliseconds;
+            double headProgress = 1 - scrollVelocityMap.DistanceBetween(
+                gameplayTimeMilliseconds,
+                hitObject.StartTimeMilliseconds)
+                / approachTimeMilliseconds
+                * scrollSpeedFactor;
+            double tailProgress = 1 - scrollVelocityMap.DistanceBetween(
+                gameplayTimeMilliseconds,
+                endTime)
+                / approachTimeMilliseconds
+                * scrollSpeedFactor;
             float headY = topY + (float)(headProgress * travel);
             float tailY = topY + (float)(tailProgress * travel);
+            double visibleStartTime = hitObject.StartTimeMilliseconds;
 
             if (holdActive && gameplayTimeMilliseconds >= hitObject.StartTimeMilliseconds)
             {
                 headY = judgementY;
+                visibleStartTime = gameplayTimeMilliseconds;
 
                 if (fallbackBody != null)
                     fallbackBody.Colour = YokkoPalette.Lime;
             }
 
-            // Legacy mania pieces use a bottom origin for downscroll and a
-            // top origin for upscroll. Keep the timing anchor on the edge of
-            // the texture instead of treating it as the texture's top-left.
-            Y = upsideDown ? headY : tailY - tailHeight;
+            ScrollPositionRange pathRange = scrollVelocityMap.PositionRangeBetween(
+                visibleStartTime,
+                endTime);
+            double currentPosition =
+                scrollVelocityMap.PositionAt(gameplayTimeMilliseconds);
+            double minimumProgress =
+                1 - (pathRange.Maximum - currentPosition)
+                / approachTimeMilliseconds
+                * scrollSpeedFactor;
+            double maximumProgress =
+                1 - (pathRange.Minimum - currentPosition)
+                / approachTimeMilliseconds
+                * scrollSpeedFactor;
+
+            if (minimumProgress > maximumProgress)
+            {
+                (minimumProgress, maximumProgress) =
+                    (maximumProgress, minimumProgress);
+            }
+            float pathY1 = topY + (float)(minimumProgress * travel);
+            float pathY2 = topY + (float)(maximumProgress * travel);
+            float minimumAnchorY = Math.Min(
+                Math.Min(pathY1, pathY2),
+                Math.Min(headY, tailY));
+            float maximumAnchorY = Math.Max(
+                Math.Max(pathY1, pathY2),
+                Math.Max(headY, tailY));
+            float partPadding = Math.Max(headHeight, tailHeight);
+
+            // Legacy mania pieces anchor on the top edge for upscroll and
+            // the bottom edge for downscroll. Direction-changing SV can put
+            // either endpoint at either side, so position each part from its
+            // actual integrated anchor instead of assuming head > tail.
+            Y = upsideDown ? minimumAnchorY : minimumAnchorY - partPadding;
             Height = Math.Max(
                 minimumHeight,
-                Math.Abs(headY - tailY) + tailHeight);
+                maximumAnchorY - minimumAnchorY + partPadding);
+            float bodyMinimumY = minimumAnchorY;
+            float bodyMaximumY = maximumAnchorY;
+
+            if (upsideDown)
+            {
+                if (headY <= minimumAnchorY + 0.01f)
+                    bodyMinimumY = Math.Max(bodyMinimumY, headY + headHeight);
+
+                if (tailY <= minimumAnchorY + 0.01f)
+                    bodyMinimumY = Math.Max(bodyMinimumY, tailY + tailHeight);
+            }
+            else
+            {
+                if (headY >= maximumAnchorY - 0.01f)
+                    bodyMaximumY = Math.Min(bodyMaximumY, headY - headHeight);
+
+                if (tailY >= maximumAnchorY - 0.01f)
+                    bodyMaximumY = Math.Min(bodyMaximumY, tailY - tailHeight);
+            }
+
+            holdBodyY = bodyMinimumY - Y;
+            holdBodyHeight = Math.Max(0, bodyMaximumY - bodyMinimumY);
+            holdHeadY = (upsideDown ? headY : headY - headHeight) - Y;
+            holdTailY = (upsideDown ? tailY : tailY - tailHeight) - Y;
             updateHoldBody();
-            Alpha = tailProgress >= -0.08 && headProgress <= 1.22 ? 1 : 0;
+            Alpha = maximumProgress >= -0.08
+                    && minimumProgress <= 1.22
+                ? 1
+                : 0;
             return;
         }
 
-        double progress = 1 - (hitObject.StartTimeMilliseconds - gameplayTimeMilliseconds) / approachTimeMilliseconds;
+        double progress = 1 - scrollVelocityMap.DistanceBetween(
+            gameplayTimeMilliseconds,
+            hitObject.StartTimeMilliseconds)
+            / approachTimeMilliseconds
+            * scrollSpeedFactor;
         float anchorY = topY + (float)(progress * travel);
         Y = upsideDown ? anchorY : anchorY - minimumHeight;
         Height = minimumHeight;
@@ -236,26 +328,28 @@ public partial class DrawableNote : CompositeDrawable
 
     private void updateHoldBody()
     {
-        float bodyY = upsideDown ? headHeight : tailHeight;
-        float bodyHeight = Math.Max(0, Height - headHeight - tailHeight);
-
         if (holdBodyClip != null)
         {
-            holdBodyClip.Y = bodyY;
-            holdBodyClip.Height = bodyHeight;
+            holdBodyClip.Y = holdBodyY;
+            holdBodyClip.Height = holdBodyHeight;
 
-            bool repeatBody = noteBodyStyle != 0 && bodyTextureHeight < bodyHeight;
+            bool repeatBody = noteBodyStyle != 0
+                              && bodyTextureHeight < holdBodyHeight;
             bool alignToHead = noteBodyStyle == 2 || noteBodyStyle == 3;
 
             if (repeatBody)
             {
                 bool alignTextureEnd = alignToHead ^ flipHoldBody;
                 float textureOffset = alignTextureEnd
-                    ? bodyHeight - MathF.Ceiling(bodyHeight / bodyTextureHeight) * bodyTextureHeight
+                    ? holdBodyHeight
+                      - MathF.Ceiling(holdBodyHeight / bodyTextureHeight)
+                      * bodyTextureHeight
                     : 0;
 
-                holdBody.Position = new Vector2(Width / 2, bodyHeight / 2);
-                holdBody.Size = new Vector2(Width, bodyHeight);
+                holdBody.Position = new Vector2(
+                    Width / 2,
+                    holdBodyHeight / 2);
+                holdBody.Size = new Vector2(Width, holdBodyHeight);
                 holdBody.TextureRelativeSizeAxes = Axes.None;
                 holdBody.TextureRectangle = new RectangleF(
                     0,
@@ -265,11 +359,18 @@ public partial class DrawableNote : CompositeDrawable
             }
             else
             {
-                float textureHeight = noteBodyStyle == 0 ? bodyHeight : bodyTextureHeight;
-                float textureTop = alignToHead ? bodyHeight - textureHeight : 0;
+                float textureHeight = noteBodyStyle == 0
+                    ? holdBodyHeight
+                    : bodyTextureHeight;
+                float textureTop = alignToHead
+                    ? holdBodyHeight - textureHeight
+                    : 0;
 
                 if (flipHoldBody)
-                    textureTop = bodyHeight - textureTop - textureHeight;
+                {
+                    textureTop =
+                        holdBodyHeight - textureTop - textureHeight;
+                }
 
                 holdBody.Position = new Vector2(Width / 2, textureTop + textureHeight / 2);
                 holdBody.Size = new Vector2(Width, textureHeight);
@@ -282,20 +383,18 @@ public partial class DrawableNote : CompositeDrawable
 
         if (fallbackBody != null && hitObject.Kind == HitObjectKind.Hold)
         {
-            fallbackBody.Y = bodyY;
-            fallbackBody.Height = bodyHeight;
+            fallbackBody.Y = holdBodyY;
+            fallbackBody.Height = holdBodyHeight;
         }
 
-        float headY = upsideDown ? 0 : Height - headHeight;
-        float tailY = upsideDown ? Height - tailHeight : 0;
         placePart(
             holdHead,
-            headY,
+            holdHeadY,
             headHeight,
             flipHoldHead);
         placePart(
             holdTail,
-            tailY,
+            holdTailY,
             tailHeight,
             flipHoldTail);
     }

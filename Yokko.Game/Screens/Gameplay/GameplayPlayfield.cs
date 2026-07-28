@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -9,6 +10,7 @@ using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
+using Yokko.Core.Timing;
 using Yokko.Game.Presentation;
 using Yokko.Game.Skinning.OsuMania;
 
@@ -19,6 +21,8 @@ public partial class GameplayPlayfield : CompositeDrawable
     private double approachTimeMilliseconds;
     private readonly LaneColumn[] laneColumns;
     private readonly DrawableNote[] noteDrawables;
+    private readonly ScrollVelocityMap[] noteScrollVelocityMaps;
+    private readonly ScrollSpeedFactorMap[] noteScrollSpeedFactorMaps;
     private readonly float topY;
     private readonly float judgementY;
 
@@ -36,6 +40,21 @@ public partial class GameplayPlayfield : CompositeDrawable
         bool showLanePressFeedback = true)
     {
         this.approachTimeMilliseconds = approachTimeMilliseconds;
+        var defaultScrollVelocityMap = new ScrollVelocityMap(
+            beatmap.ScrollVelocities,
+            beatmap.InitialScrollVelocity);
+        var defaultScrollSpeedFactorMap = new ScrollSpeedFactorMap(
+            beatmap.ScrollSpeedFactors);
+        Dictionary<string, (ScrollVelocityMap Velocity, ScrollSpeedFactorMap Factor)>
+            profileMaps = beatmap.ScrollProfiles.ToDictionary(
+                static pair => pair.Key,
+                static pair => (
+                    new ScrollVelocityMap(
+                        pair.Value.ScrollVelocities,
+                        pair.Value.InitialScrollVelocity),
+                    new ScrollSpeedFactorMap(
+                        pair.Value.ScrollSpeedFactors)),
+                StringComparer.Ordinal);
         int keyCount = keyBindings.KeyCount;
         OsuManiaSkinConfiguration configuration = skin?.Configuration;
         float playfieldWidth = configuration?.PlayfieldWidth ?? (keyCount == 4 ? 424 : 658);
@@ -79,6 +98,24 @@ public partial class GameplayPlayfield : CompositeDrawable
             {
                 X = configuration?.GetLaneX(hitObject.Lane) ?? hitObject.Lane * laneWidth + 8,
             };
+        }).ToArray();
+        noteScrollVelocityMaps = beatmap.HitObjects.Select(hitObject =>
+        {
+            return hitObject.ScrollProfileId != null
+                   && profileMaps.TryGetValue(
+                       hitObject.ScrollProfileId,
+                       out var profile)
+                ? profile.Velocity
+                : defaultScrollVelocityMap;
+        }).ToArray();
+        noteScrollSpeedFactorMaps = beatmap.HitObjects.Select(hitObject =>
+        {
+            return hitObject.ScrollProfileId != null
+                   && profileMaps.TryGetValue(
+                       hitObject.ScrollProfileId,
+                       out var profile)
+                ? profile.Factor
+                : defaultScrollSpeedFactorMap;
         }).ToArray();
 
         var laneBackgroundLayer = new Container
@@ -169,6 +206,10 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     public void ApplyJudgement(JudgementEvent judgement)
     {
+        if (judgement.Phase is JudgementPhase.Hold
+            or JudgementPhase.HoldBody)
+            return;
+
         if ((uint)judgement.HitObjectIndex >= noteDrawables.Length)
             return;
 
@@ -187,6 +228,8 @@ public partial class GameplayPlayfield : CompositeDrawable
                 state.IsHoldActive(i),
                 topY,
                 judgementY,
-                approachTimeMilliseconds);
+                approachTimeMilliseconds,
+                noteScrollVelocityMaps[i],
+                noteScrollSpeedFactorMaps[i]);
     }
 }

@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Collections.Generic;
 using System.Linq;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Editing;
@@ -74,6 +75,62 @@ namespace Yokko.Game.Tests.Core
             beatmap.ToggleNote(0, 17);
 
             Assert.That(beatmap.Notes.Single().StartTimeMilliseconds, Is.EqualTo(2100).Within(0.001));
+        }
+
+        [Test]
+        public void PreservesScrollVelocityThroughEditingConversion()
+        {
+            var source = new YokkoBeatmap(
+                "SV test",
+                "Yokko",
+                "Yokko",
+                "4K",
+                KeyMode.FourKey,
+                ChartSourceFormat.Quaver,
+                [YokkoTimingPoint.Default],
+                null,
+                [new YokkoHitObject(0, 1000, null, HitObjectKind.Tap)],
+                ScrollVelocities:
+                [
+                    new YokkoScrollVelocity(500, 0),
+                    new YokkoScrollVelocity(750, -1.5),
+                ],
+                InitialScrollVelocity: 1.25,
+                ScrollSpeedFactors:
+                [
+                    new YokkoScrollSpeedFactor(250, 0.75),
+                    new YokkoScrollSpeedFactor(1000, 1.5),
+                ],
+                ScrollProfiles: new Dictionary<string, YokkoScrollProfile>
+                {
+                    ["Reverse"] = new YokkoScrollProfile(
+                        -1,
+                        [new YokkoScrollVelocity(500, -2)],
+                        [new YokkoScrollSpeedFactor(250, 1.25)]),
+                })
+            {
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        1000,
+                        null,
+                        HitObjectKind.Tap,
+                        ScrollProfileId: "Reverse"),
+                ],
+            };
+
+            YokkoBeatmap playable =
+                EditableBeatmap.FromBeatmap(source).ToBeatmap();
+
+            Assert.That(playable.InitialScrollVelocity, Is.EqualTo(1.25));
+            Assert.That(playable.ScrollVelocities, Is.EqualTo(source.ScrollVelocities));
+            Assert.That(playable.ScrollSpeedFactors, Is.EqualTo(
+                source.ScrollSpeedFactors));
+            Assert.That(playable.ScrollProfiles, Is.EqualTo(
+                source.ScrollProfiles));
+            Assert.That(playable.HitObjects.Single().ScrollProfileId,
+                Is.EqualTo("Reverse"));
         }
 
         [Test]

@@ -7,6 +7,7 @@ using osu.Framework.Graphics.Sprites;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Editing;
+using Yokko.Core.Timing;
 using Yokko.Game.Presentation;
 
 namespace Yokko.Game.Screens.Editor;
@@ -20,6 +21,7 @@ public partial class EditorInspector : CompositeDrawable
     private readonly SpriteText lengthText;
     private readonly SpriteText windowText;
     private readonly SpriteText densityText;
+    private readonly SpriteText scrollVelocityText;
     private readonly SpriteText audioText;
     private readonly SpriteText sourceText;
 
@@ -58,6 +60,7 @@ public partial class EditorInspector : CompositeDrawable
                     lengthText = createMetric(),
                     windowText = createMetric(),
                     densityText = createMetric(),
+                    scrollVelocityText = createMetric(),
                     audioText = createMetric(),
                     new Box
                     {
@@ -88,6 +91,12 @@ public partial class EditorInspector : CompositeDrawable
         lengthText.Text = $"Length {lengthMilliseconds / 1000:0.00}s";
         windowText.Text = $"Window {viewport.StartRow + 1}-{viewport.EndRowExclusive}";
         double bpm = beatmap.TimingMap.TimingPointAt(beatmap.TimeAtRow(viewport.StartRow)).BeatsPerMinute;
+        double windowStartTime = beatmap.TimeAtRow(viewport.StartRow);
+        var scrollMap = new ScrollVelocityMap(
+            beatmap.ScrollVelocities,
+            beatmap.InitialScrollVelocity);
+        scrollVelocityText.Text =
+            $"SV {scrollMap.MultiplierAt(windowStartTime):0.###}x · {beatmap.ScrollVelocities.Count} SV / {beatmap.ScrollSpeedFactors.Count} SSF / {beatmap.ScrollProfiles.Count} groups";
         densityText.Text = $"Grid {beatmap.Rows} rows • 1/{beatmap.BeatDivisor} • {bpm:0.##} BPM";
         audioText.Text = beatmap.AudioPath == null
             ? "Audio not linked"
