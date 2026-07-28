@@ -50,7 +50,7 @@ internal static class YokkoStrings
 {
     // System-provided text is not present in the localisation table, but still
     // needs glyphs in Yokko's deliberately subsetted bitmap font.
-    internal const string ExternalTextGlyphs = "扬声器耳机头戴式数字音频线路输出蓝牙";
+    internal const string ExternalTextGlyphs = "扬声器耳机头戴式数字音频线路输出蓝牙【粉投手】";
 
     private sealed record Translation(string English, string Chinese, string Japanese);
 
@@ -89,7 +89,7 @@ internal static class YokkoStrings
             ["settings.group_creation"] = new("CREATION", "创作", "制作"),
             ["settings.group_system"] = new("SYSTEM", "系统", "システム"),
             ["settings.changes_apply_instantly"] = new("Changes apply instantly", "更改会立即生效", "変更はすぐに反映されます"),
-            ["settings.esc_to_return"] = new("Esc to return", "按 Esc 返回", "Esc で戻る"),
+            ["settings.esc_to_return"] = new("Back", "返回", "戻る"),
             ["settings.planned_sections"] = new("Planned sections", "规划功能", "予定セクション"),
             ["settings.coming_soon"] = new("Coming soon", "即将推出", "近日対応"),
             ["settings.planned"] = new("PLANNED", "规划中", "予定"),

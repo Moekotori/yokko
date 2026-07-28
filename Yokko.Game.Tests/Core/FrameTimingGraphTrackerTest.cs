@@ -49,12 +49,12 @@ public sealed class FrameTimingGraphTrackerTest
         double threshold =
             FrameTimingGraphTracker.StutterThreshold(1000.0 / 60);
 
-        Assert.That(threshold, Is.EqualTo(1000.0 / 24).Within(0.001));
+        Assert.That(threshold, Is.EqualTo(1000.0 / 30).Within(0.001));
         Assert.That(
-            FrameTimingGraphTracker.IsStutter(33, threshold),
+            FrameTimingGraphTracker.IsStutter(30, threshold),
             Is.False);
         Assert.That(
-            FrameTimingGraphTracker.IsStutter(42, threshold),
+            FrameTimingGraphTracker.IsStutter(34, threshold),
             Is.True);
     }
 
@@ -67,6 +67,39 @@ public sealed class FrameTimingGraphTrackerTest
         double high = FrameTimingGraphTracker.HeightRatio(2.4, threshold);
 
         Assert.That(high - low, Is.LessThan(0.02));
+        Assert.That(
+            FrameTimingGraphTracker.ShouldUpdateBar(
+                low,
+                high,
+                false,
+                false),
+            Is.False);
+    }
+
+    [Test]
+    public void BarUpdatesOnlyForVisibleChangeOrAlertTransition()
+    {
+        Assert.That(
+            FrameTimingGraphTracker.ShouldUpdateBar(
+                0.08,
+                0.30,
+                false,
+                false),
+            Is.True);
+        Assert.That(
+            FrameTimingGraphTracker.ShouldUpdateBar(
+                0.08,
+                0.08,
+                false,
+                true),
+            Is.True);
+        Assert.That(
+            FrameTimingGraphTracker.ShouldUpdateBar(
+                0.08,
+                0.08,
+                false,
+                false),
+            Is.False);
     }
 
     [Test]

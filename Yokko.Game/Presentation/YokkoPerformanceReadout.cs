@@ -51,19 +51,22 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
     internal const float CardHeight = 42;
     internal const float AccentOffset = 3;
 
-    private const double display_refresh_milliseconds = 100;
-    private const double graph_refresh_milliseconds = 200;
+    private const double display_refresh_milliseconds = 250;
+    private const double graph_refresh_milliseconds = 250;
 
     private readonly FrameTimingTracker tracker = new();
     private readonly FrameTimingGraphTracker graphTracker = new();
     private readonly Box[] graphBars = new Box[5];
     private readonly bool[] graphStutterStates = new bool[5];
+    private readonly double[] displayedGraphHeightRatios =
+        new double[5];
     private IFrameTimingSource timingSource;
     private SpriteText frameTimeText;
     private SpriteText framesPerSecondText;
     private double lastFrameMarker;
     private double elapsedSinceDisplayRefresh;
     private double elapsedSinceGraphRefresh;
+    private double displayedFrameTimeMilliseconds;
 
     internal YokkoPerformanceReadout(
         IFrameTimingSource timingSource = null)
@@ -159,6 +162,7 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
 
         for (int index = 0; index < graphBars.Length; index++)
         {
+            displayedGraphHeightRatios[index] = 2.0 / 17;
             graph.Add(graphBars[index] = new Box
             {
                 Anchor = Anchor.BottomLeft,
@@ -253,10 +257,18 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
             return;
         }
 
+        if (!FrameTimingTracker.ShouldUpdateDisplay(
+                displayedFrameTimeMilliseconds,
+                snapshot.FrameTimeMilliseconds))
+            return;
+
+        displayedFrameTimeMilliseconds =
+            snapshot.FrameTimeMilliseconds;
         frameTimeText.Text =
-            $"{snapshot.FrameTimeMilliseconds:0.0} ms";
+            $"{displayedFrameTimeMilliseconds:0.0} ms";
         framesPerSecondText.Text =
-            $"{snapshot.FramesPerSecond} FPS";
+            $"{FrameTimingTracker.QuantizeFramesPerSecond(
+                snapshot.FramesPerSecond)} FPS";
     }
 
     private void refreshGraph(FrameTimingGraphSnapshot snapshot)
@@ -271,23 +283,24 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
             bool isStutter = FrameTimingGraphTracker.IsStutter(
                 sample,
                 snapshot.StutterThresholdMilliseconds);
-            float targetHeight = (float)(
-                7 + FrameTimingGraphTracker.HeightRatio(
+            double targetHeightRatio =
+                FrameTimingGraphTracker.HeightRatio(
                     sample,
-                    snapshot.StutterThresholdMilliseconds) * 17);
+                    snapshot.StutterThresholdMilliseconds);
+            if (!FrameTimingGraphTracker.ShouldUpdateBar(
+                    displayedGraphHeightRatios[index],
+                    targetHeightRatio,
+                    graphStutterStates[index],
+                    isStutter))
+                continue;
 
+            displayedGraphHeightRatios[index] = targetHeightRatio;
             graphStutterStates[index] = isStutter;
-            graphBars[index].ClearTransforms();
-            graphBars[index].ResizeHeightTo(
-                targetHeight,
-                140,
-                Easing.OutQuint);
-            graphBars[index].FadeColour(
-                isStutter
-                    ? HomeControlColours.Pink
-                    : HomeControlColours.Cyan,
-                120,
-                Easing.OutQuint);
+            graphBars[index].Height =
+                (float)(7 + targetHeightRatio * 17);
+            graphBars[index].Colour = isStutter
+                ? HomeControlColours.Pink
+                : HomeControlColours.Cyan;
         }
     }
 }

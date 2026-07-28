@@ -50,4 +50,36 @@ public sealed class FrameTimingTrackerTest
 
         Assert.That(tracker.Snapshot().Count, Is.Zero);
     }
+
+    [Test]
+    public void DisplayIgnoresSmallNumericNoise()
+    {
+        Assert.That(
+            FrameTimingTracker.ShouldUpdateDisplay(2.1, 2.19),
+            Is.False);
+        Assert.That(
+            FrameTimingTracker.ShouldUpdateDisplay(2.1, 2.31),
+            Is.True);
+        Assert.That(
+            FrameTimingTracker.ShouldUpdateDisplay(16.7, 17.1),
+            Is.False);
+        Assert.That(
+            FrameTimingTracker.ShouldUpdateDisplay(16.7, 17.6),
+            Is.True);
+    }
+
+    [TestCase(478, 480)]
+    [TestCase(482, 480)]
+    [TestCase(239, 240)]
+    [TestCase(121, 120)]
+    [TestCase(60, 60)]
+    public void HighFpsDisplayUsesStableBuckets(
+        int framesPerSecond,
+        int expected)
+    {
+        Assert.That(
+            FrameTimingTracker.QuantizeFramesPerSecond(
+                framesPerSecond),
+            Is.EqualTo(expected));
+    }
 }

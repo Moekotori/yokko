@@ -10,7 +10,8 @@ internal sealed class FrameTimingGraphTracker
 {
     private const int bar_count = 5;
     private const double minimum_stutter_threshold_milliseconds = 25;
-    private const double baseline_stutter_multiplier = 2.5;
+    private const double baseline_stutter_multiplier = 2;
+    private const double minimum_visible_height_change_ratio = 2.0 / 17;
 
     private readonly double[] buckets = new double[bar_count];
     private double currentBucketMaximum;
@@ -98,4 +99,13 @@ internal sealed class FrameTimingGraphTracker
             0,
             1);
     }
+
+    public static bool ShouldUpdateBar(
+        double displayedHeightRatio,
+        double targetHeightRatio,
+        bool displayedAsStutter,
+        bool targetIsStutter) =>
+        displayedAsStutter != targetIsStutter
+        || Math.Abs(targetHeightRatio - displayedHeightRatio)
+        >= minimum_visible_height_change_ratio;
 }

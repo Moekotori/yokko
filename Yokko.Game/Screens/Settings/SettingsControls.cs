@@ -25,7 +25,7 @@ internal partial class SettingsPanelFooter : CompositeDrawable
     public SettingsPanelFooter(LocalisableString message)
     {
         Position = new Vector2(372, 651);
-        Size = new Vector2(650, 42);
+        Size = new Vector2(840, 42);
 
         InternalChildren = new Drawable[]
         {
@@ -35,50 +35,59 @@ internal partial class SettingsPanelFooter : CompositeDrawable
                 Height = 1,
                 Colour = SettingsTheme.Divider,
             },
-            new SpriteIcon
+            new FillFlowContainer
             {
-                Position = new Vector2(2, 18),
-                Size = new Vector2(22),
-                Icon = FontAwesome.Solid.CheckSquare,
-                Colour = HomeControlColours.Pink,
-            },
-            new SpriteText
-            {
-                Position = new Vector2(36, 15),
-                Text = message,
-                Font = HomeTypography.Body(17),
-                Colour = HomeControlColours.Navy,
-            },
-            new Box
-            {
-                Position = new Vector2(220, 14),
-                Width = 1,
-                Height = 22,
-                Colour = SettingsTheme.Divider,
-            },
-            new Container
-            {
-                Position = new Vector2(252, 14),
-                Size = new Vector2(30, 24),
-                Masking = true,
-                CornerRadius = 4,
-                BorderThickness = 1,
-                BorderColour = SettingsTheme.MutedNavy,
-                Child = new SpriteText
+                Position = new Vector2(2, 14),
+                AutoSizeAxes = Axes.Both,
+                Direction = FillDirection.Horizontal,
+                Spacing = new Vector2(12, 0),
+                Children = new Drawable[]
                 {
-                    Anchor = Anchor.Centre,
-                    Origin = Anchor.Centre,
-                    Text = "Esc",
-                    Font = HomeTypography.Body(14),
-                    Colour = HomeControlColours.Navy,
+                    new SpriteIcon
+                    {
+                        Y = 1,
+                        Size = new Vector2(22),
+                        Icon = FontAwesome.Solid.CheckSquare,
+                        Colour = HomeControlColours.Pink,
+                    },
+                    new SpriteText
+                    {
+                        Y = 1,
+                        Text = message,
+                        Font = HomeTypography.Body(17),
+                        Colour = HomeControlColours.Navy,
+                    },
+                    new Box
+                    {
+                        Width = 1,
+                        Height = 22,
+                        Margin = new MarginPadding { Horizontal = 6 },
+                        Colour = SettingsTheme.Divider,
+                    },
+                    new Container
+                    {
+                        Size = new Vector2(30, 24),
+                        Masking = true,
+                        CornerRadius = 4,
+                        BorderThickness = 1,
+                        BorderColour = SettingsTheme.MutedNavy,
+                        Child = new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Text = "Esc",
+                            Font = HomeTypography.Body(14),
+                            Colour = HomeControlColours.Navy,
+                        },
+                    },
+                    new SpriteText
+                    {
+                        Y = 1,
+                        Text = YokkoStrings.Get("settings.esc_to_return"),
+                        Font = HomeTypography.Body(17),
+                        Colour = HomeControlColours.Navy,
+                    },
                 },
-            },
-            new SpriteText
-            {
-                Position = new Vector2(294, 15),
-                Text = YokkoStrings.Get("settings.esc_to_return"),
-                Font = HomeTypography.Body(17),
-                Colour = HomeControlColours.Navy,
             },
         };
     }

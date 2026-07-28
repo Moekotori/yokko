@@ -12,6 +12,8 @@ internal sealed class FrameTimingTracker
 {
     private const int recent_sample_count = 5;
     private const double smoothing_window_milliseconds = 250;
+    private const double minimum_visible_change_milliseconds = 0.2;
+    private const double minimum_visible_change_ratio = 0.05;
 
     private readonly double[] recentFrameTimes =
         new double[recent_sample_count];
@@ -68,5 +70,34 @@ internal sealed class FrameTimingTracker
             smoothedFrameTime,
             Math.Max(1, (int)Math.Round(1000 / smoothedFrameTime)),
             recent);
+    }
+
+    public static bool ShouldUpdateDisplay(
+        double displayedFrameTimeMilliseconds,
+        double candidateFrameTimeMilliseconds)
+    {
+        if (!double.IsFinite(displayedFrameTimeMilliseconds)
+            || displayedFrameTimeMilliseconds <= 0)
+            return true;
+
+        double threshold = Math.Max(
+            minimum_visible_change_milliseconds,
+            displayedFrameTimeMilliseconds
+            * minimum_visible_change_ratio);
+        return Math.Abs(
+            candidateFrameTimeMilliseconds
+            - displayedFrameTimeMilliseconds) >= threshold;
+    }
+
+    public static int QuantizeFramesPerSecond(int framesPerSecond)
+    {
+        int step = framesPerSecond >= 240
+            ? 5
+            : framesPerSecond >= 120
+                ? 2
+                : 1;
+        return Math.Max(
+            1,
+            (int)Math.Round(framesPerSecond / (double)step) * step);
     }
 }
