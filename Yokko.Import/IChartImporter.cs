@@ -7,4 +7,8 @@ public interface IChartImporter
     bool CanImport(string path);
 
     ValueTask<ChartImportResult> ImportAsync(ChartImportRequest request);
+
+    async ValueTask<IReadOnlyList<ChartImportResult>> ImportAllAsync(
+        ChartImportRequest request) =>
+        [await ImportAsync(request)];
 }

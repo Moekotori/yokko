@@ -35,26 +35,23 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         new(2560, 1440),
     };
 
-    private static readonly FrameSync[] supportedFrameSyncModes =
+    private static readonly YokkoFrameLimit[] supportedFrameLimits =
     {
-        FrameSync.VSync,
-        FrameSync.Limit2x,
-        FrameSync.Limit4x,
-        FrameSync.Limit8x,
-        FrameSync.Unlimited,
+        YokkoFrameLimit.RefreshRate,
+        YokkoFrameLimit.Limit2x,
+        YokkoFrameLimit.Limit4x,
+        YokkoFrameLimit.Limit8x,
+        YokkoFrameLimit.Unlimited,
     };
 
     private readonly Bindable<Size> windowedSize;
     private readonly Bindable<WindowMode> windowMode;
-    private readonly Bindable<FrameSync> frameSync;
+    private readonly Bindable<YokkoFrameLimit> frameLimit;
     private readonly IBindable<DisplayMode> currentDisplayMode;
-    private readonly Bindable<YokkoUiScale> uiScale;
     private readonly Action<Size> setWindowedSize;
     private readonly Action<WindowMode> setWindowMode;
-    private readonly Action<FrameSync> setFrameSync;
     private readonly List<SettingsSegmentedChoiceButton> modeButtons = new();
-    private readonly List<SettingsFrameSyncChoiceButton> frameSyncButtons = new();
-    private readonly List<SettingsSegmentedChoiceButton> scaleButtons = new();
+    private readonly List<SettingsFrameLimitChoiceButton> frameLimitButtons = new();
 
     private readonly SpriteText currentDisplayMetadata;
     private readonly SettingsResolutionDropdown resolutionDropdown;
@@ -65,21 +62,17 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         Texture mascotTexture,
         Bindable<Size> windowedSize,
         Bindable<WindowMode> windowMode,
-        Bindable<FrameSync> frameSync,
+        Bindable<YokkoFrameLimit> frameLimit,
         IBindable<DisplayMode> currentDisplayMode,
-        Bindable<YokkoUiScale> uiScale,
         Action<Size> setWindowedSize,
-        Action<WindowMode> setWindowMode,
-        Action<FrameSync> setFrameSync)
+        Action<WindowMode> setWindowMode)
     {
         this.windowedSize = windowedSize;
         this.windowMode = windowMode;
-        this.frameSync = frameSync;
+        this.frameLimit = frameLimit;
         this.currentDisplayMode = currentDisplayMode;
-        this.uiScale = uiScale;
         this.setWindowedSize = setWindowedSize;
         this.setWindowMode = setWindowMode;
-        this.setFrameSync = setFrameSync;
         RelativeSizeAxes = Axes.Both;
 
         InternalChildren = new Drawable[]
@@ -111,9 +104,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
                 resolutionDropdown = new SettingsResolutionDropdown(supportedResolutions, setWindowedSize),
                 -10),
             createDivider(430),
-            createSettingRow(440, YokkoStrings.Get("settings.display.frame_limit"), createFrameSyncControl()),
-            createDivider(504),
-            createSettingRow(514, YokkoStrings.Get("settings.display.interface_scale"), createScaleControl()),
+            createSettingRow(440, YokkoStrings.Get("settings.display.frame_limit"), createFrameLimitControl()),
             new SettingsPanelFooter(),
             new HomeDotCross
             {
@@ -126,9 +117,8 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
         windowedSize.BindValueChanged(onWindowedSizeChanged, true);
         windowMode.BindValueChanged(onWindowModeChanged, true);
-        frameSync.BindValueChanged(onFrameSyncChanged, true);
+        frameLimit.BindValueChanged(onFrameLimitChanged, true);
         currentDisplayMode.BindValueChanged(onCurrentDisplayModeChanged, true);
-        uiScale.BindValueChanged(onUiScaleChanged, true);
     }
 
     private static Drawable createMascotCrop(Texture mascotTexture) => new Container
@@ -236,41 +226,20 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         return createSegmentedControl(modeButtons);
     }
 
-    private Drawable createScaleControl()
-    {
-        var options = new[]
-        {
-            (YokkoUiScale.Compact, YokkoStrings.Get("settings.display.compact"), FontAwesome.Solid.List),
-            (YokkoUiScale.Comfortable, YokkoStrings.Get("settings.display.comfortable"), FontAwesome.Solid.Bars),
-            (YokkoUiScale.Large, YokkoStrings.Get("settings.display.spacious"), FontAwesome.Solid.ThList),
-        };
-
-        foreach ((YokkoUiScale scale, LocalisableString label, IconUsage icon) in options)
-        {
-            YokkoUiScale capturedScale = scale;
-            scaleButtons.Add(new SettingsSegmentedChoiceButton(label, icon, () => uiScale.Value = capturedScale, 199)
-            {
-                Value = scale,
-            });
-        }
-
-        return createSegmentedControl(scaleButtons);
-    }
-
-    private Drawable createFrameSyncControl()
+    private Drawable createFrameLimitControl()
     {
         const float buttonWidth = 598f / 5;
 
-        foreach (FrameSync mode in supportedFrameSyncModes)
+        foreach (YokkoFrameLimit limit in supportedFrameLimits)
         {
-            FrameSync capturedMode = mode;
-            frameSyncButtons.Add(new SettingsFrameSyncChoiceButton(
-                mode,
-                () => setFrameSync(capturedMode),
+            YokkoFrameLimit capturedLimit = limit;
+            frameLimitButtons.Add(new SettingsFrameLimitChoiceButton(
+                limit,
+                () => frameLimit.Value = capturedLimit,
                 buttonWidth));
         }
 
-        return createSegmentedControl(frameSyncButtons);
+        return createSegmentedControl(frameLimitButtons);
     }
 
     private static Drawable createSegmentedControl(IEnumerable<Drawable> buttons) => new Container
@@ -333,11 +302,9 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
     private void onWindowModeChanged(ValueChangedEvent<WindowMode> _) => refreshSelection();
 
-    private void onFrameSyncChanged(ValueChangedEvent<FrameSync> _) => refreshSelection();
+    private void onFrameLimitChanged(ValueChangedEvent<YokkoFrameLimit> _) => refreshSelection();
 
     private void onCurrentDisplayModeChanged(ValueChangedEvent<DisplayMode> _) => refreshSelection();
-
-    private void onUiScaleChanged(ValueChangedEvent<YokkoUiScale> _) => refreshSelection();
 
     internal void ToggleResolutionMenu() => resolutionDropdown.Toggle();
 
@@ -362,26 +329,24 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         foreach (SettingsSegmentedChoiceButton button in modeButtons)
             button.SetSelected(button.Value is WindowMode mode && mode == windowMode.Value);
 
-        foreach (SettingsFrameSyncChoiceButton button in frameSyncButtons)
+        foreach (SettingsFrameLimitChoiceButton button in frameLimitButtons)
         {
             button.SetLabel(FormatFrameLimit(button.Value, refreshRate));
-            button.SetSelected(button.Value == frameSync.Value);
+            button.SetSelected(button.Value == frameLimit.Value);
         }
 
-        foreach (SettingsSegmentedChoiceButton button in scaleButtons)
-            button.SetSelected(button.Value is YokkoUiScale scale && scale == uiScale.Value);
     }
 
-    internal static string FormatFrameLimit(FrameSync mode, float refreshRate)
+    internal static string FormatFrameLimit(YokkoFrameLimit limit, float refreshRate)
     {
-        if (mode == FrameSync.Unlimited)
+        if (limit == YokkoFrameLimit.Unlimited)
             return "∞";
 
-        int multiplier = mode switch
+        int multiplier = limit switch
         {
-            FrameSync.Limit2x => 2,
-            FrameSync.Limit4x => 4,
-            FrameSync.Limit8x => 8,
+            YokkoFrameLimit.Limit2x => 2,
+            YokkoFrameLimit.Limit4x => 4,
+            YokkoFrameLimit.Limit8x => 8,
             _ => 1,
         };
 
@@ -397,9 +362,8 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         {
             windowedSize.ValueChanged -= onWindowedSizeChanged;
             windowMode.ValueChanged -= onWindowModeChanged;
-            frameSync.ValueChanged -= onFrameSyncChanged;
+            frameLimit.ValueChanged -= onFrameLimitChanged;
             currentDisplayMode.ValueChanged -= onCurrentDisplayModeChanged;
-            uiScale.ValueChanged -= onUiScaleChanged;
         }
 
         base.Dispose(isDisposing);

@@ -38,4 +38,15 @@ public static class KnownChartImporters
 
         return await importer.ImportAsync(request);
     }
+
+    public static async ValueTask<IReadOnlyList<ChartImportResult>> ImportAllAsync(
+        ChartImportRequest request)
+    {
+        IChartImporter? importer = Importers.FirstOrDefault(candidate => candidate.CanImport(request.Path));
+
+        if (importer == null)
+            throw new NotSupportedException($"Unsupported chart format: {Path.GetExtension(request.Path)}");
+
+        return await importer.ImportAllAsync(request);
+    }
 }

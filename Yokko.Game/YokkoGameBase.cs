@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Configuration;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -31,7 +32,6 @@ namespace Yokko.Game
 
         protected override Container<Drawable> Content { get; }
 
-        private readonly DrawSizePreservingFillContainer scalingContainer;
         [Cached]
         private readonly YokkoDisplaySettings displaySettings = new();
         [Cached]
@@ -53,6 +53,7 @@ namespace Yokko.Game
         private ImportNotificationOverlay importOverlay;
         [Cached]
         private YokkoConfigManager yokkoConfig;
+        private YokkoFrameRateController frameRateController;
         private IWindow window;
 
         protected YokkoGameBase(IKeyInputTimestampBackend keyInputTimestampBackend = null)
@@ -60,9 +61,9 @@ namespace Yokko.Game
             keyInputTimestamps = new KeyInputTimestampSource(keyInputTimestampBackend);
 
             // Ensure game and tests scale with window size and screen DPI.
-            base.Content.Add(Content = scalingContainer = new DrawSizePreservingFillContainer
+            base.Content.Add(Content = new DrawSizePreservingFillContainer
             {
-                TargetDrawSize = displaySettings.TargetDrawSize,
+                TargetDrawSize = YokkoDisplaySettings.TargetDrawSize,
                 Strategy = DrawSizePreservationStrategy.Minimum,
             });
         }
@@ -104,10 +105,30 @@ namespace Yokko.Game
         }
 
         [BackgroundDependencyLoader]
-        private void load(FrameworkConfigManager frameworkConfig)
+        private void load(
+            FrameworkConfigManager frameworkConfig,
+            GameHost host)
         {
             base.Content.Add(
                 importOverlay = new ImportNotificationOverlay());
+
+            // The framework's first FrameSync mode is VSync, not a true
+            // refresh-rate cap. Keep it disabled and apply Yokko's explicit
+            // draw/update limits so a missed present cannot fall to a fraction
+            // of the display refresh rate.
+            frameworkConfig.SetValue(
+                FrameworkSetting.FrameSync,
+                FrameSync.Unlimited);
+            frameRateController = new YokkoFrameRateController(
+                host,
+                displaySettings.FrameLimit,
+                host.Window?.CurrentDisplayMode
+                ?? new Bindable<DisplayMode>(new DisplayMode(
+                    null,
+                    new System.Drawing.Size(0, 0),
+                    0,
+                    60,
+                    0)));
 
             string configuredLocale = frameworkConfig.Get<string>(FrameworkSetting.Locale);
             string normalizedLocale = YokkoLocale.Normalize(configuredLocale);
@@ -118,7 +139,6 @@ namespace Yokko.Game
             Resources.AddStore(resources);
             AddFont(Resources, @"Fonts/Yokko/Yokko");
             AddFont(Resources, @"Fonts/Yokko/Yokko-Bold");
-            displaySettings.UiScale.BindValueChanged(_ => scalingContainer.TargetDrawSize = displaySettings.TargetDrawSize, true);
         }
 
         protected override void Dispose(bool isDisposing)
@@ -129,6 +149,7 @@ namespace Yokko.Game
                     window.DragDrop -= onFileDropped;
 
                 yokkoConfig?.Dispose();
+                frameRateController?.Dispose();
                 keyInputTimestamps.Dispose();
             }
 
@@ -158,7 +179,7 @@ namespace Yokko.Game
                 YokkoStrings.Get("import.chart.importing"),
                 path));
 
-            _ = Task.Run(async () => await KnownChartImporters.ImportAsync(request))
+            _ = Task.Run(async () => await KnownChartImporters.ImportAllAsync(request))
                     .ContinueWith(
                         task => Scheduler.Add(() =>
                         {
@@ -170,16 +191,28 @@ namespace Yokko.Game
                                 return;
                             }
 
-                            ChartImportResult result = task.Result;
-                            string detail = result.Warnings.Count > 0
-                                && importSettings.ShowCompatibilityWarnings.Value
-                                ? $"{result.Beatmap.Title} · {result.Warnings[0]}"
-                                : result.Beatmap.Title;
+                            IReadOnlyList<ChartImportResult> results = task.Result;
+                            LocalisableString detail;
+
+                            if (results.Count > 1)
+                            {
+                                detail = YokkoStrings.Get(
+                                    "import.chart.success_count",
+                                    results.Count);
+                            }
+                            else
+                            {
+                                ChartImportResult result = results[0];
+                                detail = result.Warnings.Count > 0
+                                    && importSettings.ShowCompatibilityWarnings.Value
+                                    ? $"{result.Beatmap.Title} · {result.Warnings[0]}"
+                                    : result.Beatmap.Title;
+                            }
 
                             importOverlay.ShowSuccess(
                                 YokkoStrings.Get("import.chart.success"),
                                 detail);
-                            importedChartLibrary.AddOrReplace(result, path);
+                            importedChartLibrary.AddOrReplace(results, path);
                         }),
                         TaskScheduler.Default);
         }

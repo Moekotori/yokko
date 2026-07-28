@@ -7,10 +7,10 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
-using osu.Framework.Configuration;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Game.Localisation;
+using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Settings;
@@ -178,15 +178,15 @@ internal partial class SettingsSegmentedChoiceButton : ClickableContainer
     }
 }
 
-internal partial class SettingsFrameSyncChoiceButton : ClickableContainer
+internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
 {
     private readonly Box background;
     private readonly SpriteText text;
     private bool selected;
 
-    public FrameSync Value { get; }
+    public YokkoFrameLimit Value { get; }
 
-    public SettingsFrameSyncChoiceButton(FrameSync value, Action action, float width)
+    public SettingsFrameLimitChoiceButton(YokkoFrameLimit value, Action action, float width)
     {
         Value = value;
         Action = action;

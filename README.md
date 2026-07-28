@@ -62,6 +62,14 @@ dotnet run --project .\Yokko.Desktop\Yokko.Desktop.csproj
 
 Use `Yokko.Desktop.slnf` for fast desktop iteration. The full solution also contains the template iOS project for later platform work.
 
+## Crash Reports
+
+The desktop build writes a timestamped diagnostic report to the `crashes`
+directory in Yokko's user storage when a fatal managed exception reaches the
+process boundary. Each report includes the complete exception chain and stack
+trace, application/runtime/system details, thread context, and the location of
+the related osu!framework logs.
+
 ## Timing Direction
 
 Gameplay judgement should be driven by audio time and input timestamps, not frame time.

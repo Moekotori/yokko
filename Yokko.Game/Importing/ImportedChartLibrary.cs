@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Yokko.Import;
 
 namespace Yokko.Game.Importing;
 
 internal sealed record ImportedChart(
+    string Id,
     string SourcePath,
     ChartImportResult Result);
 
@@ -17,7 +19,7 @@ internal sealed class ImportedChartLibrary
     private readonly List<ImportedChart> charts = [];
     private readonly object syncRoot = new();
 
-    public event Action<ImportedChart> ChartImported;
+    public event Action LibraryChanged;
 
     public IReadOnlyList<ImportedChart> GetCharts()
     {
@@ -28,21 +30,33 @@ internal sealed class ImportedChartLibrary
     public void AddOrReplace(ChartImportResult result, string sourcePath)
     {
         ArgumentNullException.ThrowIfNull(result);
+        AddOrReplace([result], sourcePath);
+    }
+
+    public void AddOrReplace(
+        IReadOnlyList<ChartImportResult> results,
+        string sourcePath)
+    {
+        ArgumentNullException.ThrowIfNull(results);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
 
-        var imported = new ImportedChart(sourcePath, result);
+        if (results.Count == 0)
+            throw new ArgumentException("At least one imported chart is required.", nameof(results));
+
+        ImportedChart[] imported = results
+                                   .Select((result, index) => new ImportedChart(
+                                       $"{sourcePath}\u001f{index}",
+                                       sourcePath,
+                                       result))
+                                   .ToArray();
 
         lock (syncRoot)
         {
-            int existingIndex = charts.FindIndex(chart =>
+            charts.RemoveAll(chart =>
                 chart.SourcePath.Equals(sourcePath, StringComparison.OrdinalIgnoreCase));
-
-            if (existingIndex >= 0)
-                charts[existingIndex] = imported;
-            else
-                charts.Add(imported);
+            charts.AddRange(imported);
         }
 
-        ChartImported?.Invoke(imported);
+        LibraryChanged?.Invoke();
     }
 }

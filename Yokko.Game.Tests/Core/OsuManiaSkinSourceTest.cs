@@ -3,6 +3,9 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using NUnit.Framework;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Tiff;
+using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Game.Skinning.OsuMania;
 
 namespace Yokko.Game.Tests.Core;
@@ -63,6 +66,28 @@ public sealed class OsuManiaSkinSourceTest
         Assert.That(name, Is.EqualTo("custom/note-0@2x.jpeg"));
         Assert.That(highResolution, Is.True);
         Assert.That(source.Get(name), Is.Not.Null);
+    }
+
+    [Test]
+    public void ResizesMislabeledTextureBeyondRendererLimit()
+    {
+        string directory = Path.GetDirectoryName(
+            createPath("hold-body.png"))!;
+        string texturePath = Path.Combine(directory, "hold-body.png");
+
+        using (var image = new Image<Rgba32>(10, 100))
+            image.Save(texturePath, new TiffEncoder());
+
+        using var store = new ConstrainedTextureResourceStore(
+            new OsuManiaSkinSource(directory),
+            64);
+
+        byte[] constrained = store.Get("hold-body.png");
+        ImageInfo info = Image.Identify(constrained);
+
+        Assert.That(info.Width, Is.LessThanOrEqualTo(64));
+        Assert.That(info.Height, Is.EqualTo(64));
+        Assert.That(info.Width / (double)info.Height, Is.EqualTo(0.1).Within(0.02));
     }
 
     private static string createPath(string name)

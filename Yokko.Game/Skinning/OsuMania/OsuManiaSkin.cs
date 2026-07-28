@@ -38,7 +38,13 @@ internal sealed class OsuManiaSkin : IDisposable
         try
         {
             OsuManiaSkinInfo info = OsuManiaSkinIniDecoder.Decode(source.ReadSkinIni());
-            var textureStore = new TextureStore(renderer, new TextureLoaderStore(source), scaleAdjust: 1);
+            var constrainedSource = new ConstrainedTextureResourceStore(
+                source,
+                renderer.MaxTextureSize);
+            var textureStore = new TextureStore(
+                renderer,
+                new TextureLoaderStore(constrainedSource),
+                scaleAdjust: 1);
             return new OsuManiaSkin(path, info, info.GetConfiguration(keys), source, textureStore);
         }
         catch

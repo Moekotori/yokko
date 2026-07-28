@@ -47,8 +47,8 @@ internal sealed class GameHostDrawFrameTimingSource : IFrameTimingSource
 
 internal partial class YokkoPerformanceReadout : CompositeDrawable
 {
-    internal const float CardWidth = 156;
-    internal const float CardHeight = 50;
+    internal const float CardWidth = 118;
+    internal const float CardHeight = 22;
 
     private const double display_refresh_milliseconds = 500;
 
@@ -114,116 +114,68 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
         {
             Size = new Vector2(CardWidth, CardHeight),
             Masking = true,
-            CornerRadius = 8,
-            BorderThickness = 2,
-            BorderColour = HomeControlColours.Navy,
+            CornerRadius = 3,
             Children = new Drawable[]
             {
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = HomeControlColours.Ivory,
+                    Alpha = 0.94f,
                 },
-                new Container
+                new Box
                 {
-                    Position = new Vector2(4),
-                    Size = new Vector2(
-                        CardWidth - 8,
-                        CardHeight - 8),
-                    Masking = true,
-                    CornerRadius = 6,
-                    BorderThickness = 1,
-                    BorderColour = HomeControlColours.Cyan,
-                    Child = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Alpha = 0,
-                    },
+                    Size = new Vector2(CardWidth, 2),
+                    Colour = HomeControlColours.Cyan,
                 },
-                new SpriteText
+                new Box
                 {
-                    Position = new Vector2(13, 5),
-                    Text = "FPS",
-                    Font = HomeTypography.Display(8),
-                    Spacing = new Vector2(1, 0),
+                    Position = new Vector2(7, 10),
+                    Size = new Vector2(3),
                     Colour = HomeControlColours.Pink,
                 },
                 framesPerSecondText = new SpriteText
                 {
-                    Position = new Vector2(12, 16),
-                    Width = 58,
-                    Font = HomeTypography.Display(18)
+                    Position = new Vector2(15, 4),
+                    Width = 22,
+                    Font = HomeTypography.Display(8)
                         .With(fixedWidth: true),
                     UseFullGlyphHeight = true,
+                    Colour = HomeControlColours.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(39, 6),
+                    Text = "FPS",
+                    Font = HomeTypography.Display(5),
+                    Spacing = new Vector2(0.4f, 0),
                     Colour = HomeControlColours.Navy,
                 },
                 new Box
                 {
-                    Position = new Vector2(77, 8),
-                    Size = new Vector2(2, 34),
+                    Position = new Vector2(60, 5),
+                    Size = new Vector2(1, 12),
                     Colour = HomeControlColours.Navy,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(88, 5),
-                    Text = "FRAME",
-                    Font = HomeTypography.Display(8),
-                    Spacing = new Vector2(0.6f, 0),
-                    Colour = HomeControlColours.Cyan,
                 },
                 frameTimeText = new SpriteText
                 {
-                    Position = new Vector2(87, 17),
-                    Width = 40,
-                    Font = HomeTypography.Display(16)
+                    Position = new Vector2(68, 4),
+                    Width = 25,
+                    Font = HomeTypography.Display(8)
                         .With(fixedWidth: true),
                     UseFullGlyphHeight = true,
                     Colour = HomeControlColours.Navy,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(126, 23),
+                    Position = new Vector2(96, 6),
                     Text = "ms",
-                    Font = HomeTypography.Display(9),
+                    Font = HomeTypography.Display(5),
                     Colour = HomeControlColours.Navy,
                 },
-                createDotField(),
-                createCornerDiamond(),
             },
         };
     }
-
-    private static Drawable createDotField()
-    {
-        var dots = new Container
-        {
-            Position = new Vector2(12, 38),
-            Size = new Vector2(14, 10),
-        };
-
-        for (int row = 0; row < 3; row++)
-        {
-            for (int column = 0; column < 3; column++)
-            {
-                dots.Add(new Circle
-                {
-                    Position = new Vector2(column * 5, row * 4),
-                    Size = new Vector2(2),
-                    Colour = HomeControlColours.Cyan,
-                });
-            }
-        }
-
-        return dots;
-    }
-
-    private static Drawable createCornerDiamond() => new Box
-    {
-        Position = new Vector2(142, 7),
-        Size = new Vector2(7),
-        Rotation = 45,
-        Colour = HomeControlColours.Yellow,
-    };
 
     private void refreshDisplay()
     {

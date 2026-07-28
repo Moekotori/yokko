@@ -56,10 +56,24 @@ public partial class GameplayScreen : Screen
     private GameplayHud hud;
     private ManiaScoreResult completedResult;
     private readonly double completionTimeMilliseconds;
+    private readonly double firstObjectTimeMilliseconds;
+    private bool introSkipInProgress;
 
     internal bool GameplayBlocked => gameplayBlocked;
     internal bool GameplayCompleted => gameplayCompleted;
     internal ManiaScoreResult CompletedResult => completedResult;
+    internal bool IntroSkipAvailable =>
+        !gameplayBlocked
+        && !gameplayCompleted
+        && !introSkipInProgress
+        && currentGameplayTime < IntroSkipTargetMilliseconds;
+    internal double IntroSkipTargetMilliseconds =>
+        Math.Max(
+            0,
+            firstObjectTimeMilliseconds
+            - Math.Max(
+                leadInMilliseconds,
+                playfield?.ApproachTimeMilliseconds ?? leadInMilliseconds));
 
     public GameplayScreen(
         YokkoBeatmap beatmap,
@@ -74,6 +88,10 @@ public partial class GameplayScreen : Screen
             : beatmap.HitObjects.Max(hitObject =>
                 hitObject.EndTimeMilliseconds
                 ?? hitObject.StartTimeMilliseconds);
+        firstObjectTimeMilliseconds = beatmap.HitObjects.Count == 0
+            ? 0
+            : beatmap.HitObjects.Min(hitObject =>
+                hitObject.StartTimeMilliseconds);
     }
 
     [BackgroundDependencyLoader]
@@ -177,6 +195,9 @@ public partial class GameplayScreen : Screen
             this.Exit();
             return true;
         }
+
+        if (e.Key == Key.Space && HandleIntroSkip())
+            return true;
 
         if (HandleScrollSpeedShortcut(e.Key, e.ControlPressed))
             return true;
@@ -460,6 +481,44 @@ public partial class GameplayScreen : Screen
 
         gameplaySettings.AdjustScrollSpeed(amount);
         return true;
+    }
+
+    internal bool HandleIntroSkip()
+    {
+        if (!IntroSkipAvailable)
+            return false;
+
+        double target = IntroSkipTargetMilliseconds;
+
+        if (!hasAudioClock)
+        {
+            startTimeMilliseconds = Time.Current - target;
+            return true;
+        }
+
+        introSkipInProgress = true;
+        _ = seekToIntroAsync(target);
+        return true;
+    }
+
+    private async Task seekToIntroAsync(double targetMilliseconds)
+    {
+        try
+        {
+            await audioEngine.SeekAsync(targetMilliseconds)
+                             .ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(
+                ex,
+                "The audio engine could not skip the gameplay intro.",
+                LoggingTarget.Runtime);
+        }
+        finally
+        {
+            introSkipInProgress = false;
+        }
     }
 
     private void loadSkin(IRenderer renderer)

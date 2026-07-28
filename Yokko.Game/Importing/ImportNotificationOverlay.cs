@@ -78,7 +78,7 @@ internal partial class ImportNotificationOverlay : CompositeDrawable
         show();
     }
 
-    public void ShowSuccess(LocalisableString message, string resultDetail)
+    public void ShowSuccess(LocalisableString message, LocalisableString resultDetail)
     {
         accent.Colour = HomeControlColours.Cyan;
         icon.Icon = FontAwesome.Solid.Check;

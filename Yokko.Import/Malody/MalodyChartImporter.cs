@@ -164,6 +164,59 @@ public sealed class MalodyChartImporter : IChartImporter
         return ValueTask.FromResult(new ChartImportResult(beatmap, warnings));
     }
 
+    public ValueTask<IReadOnlyList<ChartImportResult>> ImportAllAsync(
+        ChartImportRequest request)
+    {
+        request.CancellationToken.ThrowIfCancellationRequested();
+
+        if (!Path.GetExtension(request.Path).Equals(".mcz", StringComparison.OrdinalIgnoreCase))
+        {
+            ChartImportResult result = ImportAsync(request)
+                                       .AsTask()
+                                       .GetAwaiter()
+                                       .GetResult();
+            return ValueTask.FromResult<IReadOnlyList<ChartImportResult>>([result]);
+        }
+
+        IReadOnlyList<string> charts = ChartArchive.ExtractCharts(request.Path, ".mc");
+        var results = new List<ChartImportResult>();
+        var failures = new List<Exception>();
+
+        foreach (string chart in charts)
+        {
+            request.CancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                results.Add(ImportAsync(request with { Path = chart })
+                            .AsTask()
+                            .GetAwaiter()
+                            .GetResult());
+            }
+            catch (InvalidDataException ex)
+            {
+                failures.Add(ex);
+            }
+        }
+
+        if (results.Count == 0)
+        {
+            throw new InvalidDataException(
+                "The .mcz package does not contain a supported 4K/7K Malody Key chart.",
+                failures.FirstOrDefault());
+        }
+
+        if (failures.Count > 0)
+        {
+            string warning =
+                $"Skipped {failures.Count} unsupported chart{(failures.Count == 1 ? string.Empty : "s")} in this .mcz package.";
+            for (int i = 0; i < results.Count; i++)
+                results[i] = results[i] with { Warnings = [warning, .. results[i].Warnings] };
+        }
+
+        return ValueTask.FromResult<IReadOnlyList<ChartImportResult>>(results);
+    }
+
     private static double readBeat(JsonElement beat)
     {
         int[] values = beat.EnumerateArray().Select(static value => value.GetInt32()).ToArray();

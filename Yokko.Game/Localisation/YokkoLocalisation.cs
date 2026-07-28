@@ -68,9 +68,19 @@ internal static class YokkoStrings
             ["main.lets_play"] = new("Let's play!", "开始吧！", "遊ぼう！"),
             ["main.audio_unavailable"] = new("Audio unavailable", "音频不可用", "オーディオ利用不可"),
             ["main.hold_esc_exit"] = new("Hold Esc 5s to exit", "长按 Esc 5 秒退出", "Esc を5秒長押しで終了"),
+            ["main.bubble_again"] = new("Again! Again!", "再来一次！", "もう一回！"),
+            ["main.bubble_pick_song"] = new("Pick a song~", "选首歌吧~", "曲を選んで〜"),
+            ["main.bubble_keys"] = new("D F J K, go!", "D F J K，出发！", "D F J K で行こう！"),
+            ["main.utility_exit"] = new("Exit game", "退出游戏", "ゲームを終了"),
+            ["main.utility_folder"] = new("Chart folder", "谱面文件夹", "譜面フォルダー"),
+            ["main.exit_hold"] = new("Exiting… release to cancel", "正在退出… 松开取消", "終了中… 離すとキャンセル"),
 
             ["import.chart.importing"] = new("Importing chart", "正在导入谱面", "譜面をインポート中"),
             ["import.chart.success"] = new("Chart ready", "谱面已就绪", "譜面の準備完了"),
+            ["import.chart.success_count"] = new(
+                "Imported {0} charts",
+                "已导入 {0} 张谱面",
+                "{0} 個の譜面をインポートしました"),
             ["import.chart.failed"] = new("Chart import failed", "谱面导入失败", "譜面のインポートに失敗"),
 
             ["song_select.search"] = new("Search songs", "搜索歌曲", "楽曲を検索"),
@@ -150,9 +160,9 @@ internal static class YokkoStrings
 
             ["settings.display.title"] = new("Display", "显示", "表示"),
             ["settings.display.subtitle"] = new(
-                "Window, resolution, refresh rate and interface scale",
-                "窗口、分辨率、刷新率与界面缩放",
-                "ウィンドウ、解像度、リフレッシュレート、UI スケール"),
+                "Window, resolution and refresh rate",
+                "窗口、分辨率与刷新率",
+                "ウィンドウ、解像度、リフレッシュレート"),
             ["settings.display.description"] = new(
                 "Display and interface presentation.",
                 "调整显示与界面呈现方式。",
@@ -165,13 +175,9 @@ internal static class YokkoStrings
             ["settings.display.window_mode"] = new("Window mode", "窗口模式", "ウィンドウモード"),
             ["settings.display.resolution"] = new("Resolution", "分辨率", "解像度"),
             ["settings.display.frame_limit"] = new("Frame limit", "帧率上限", "フレーム上限"),
-            ["settings.display.interface_scale"] = new("Interface scale", "界面缩放", "UI スケール"),
             ["settings.display.windowed"] = new("Windowed", "窗口化", "ウィンドウ"),
             ["settings.display.borderless"] = new("Borderless", "无边框", "ボーダーレス"),
             ["settings.display.fullscreen"] = new("Fullscreen", "全屏", "フルスクリーン"),
-            ["settings.display.compact"] = new("Compact", "紧凑", "コンパクト"),
-            ["settings.display.comfortable"] = new("Comfortable", "舒适", "標準"),
-            ["settings.display.spacious"] = new("Spacious", "宽大", "広め"),
 
             ["settings.audio.title"] = new("Audio", "音频", "オーディオ"),
             ["settings.audio.subtitle"] = new(

@@ -548,8 +548,10 @@ public partial class HomeUtilityButton : ClickableContainer
     private const float hover_scale = 1.025f;
 
     private readonly Box background;
+    private readonly Container tooltip;
 
-    public HomeUtilityButton(string text, IconUsage icon, Action action, float width, IconUsage? overlayIcon = null)
+    public HomeUtilityButton(string text, IconUsage icon, Action action, float width, IconUsage? overlayIcon = null,
+        LocalisableString tooltipText = default)
     {
         Action = action;
         Size = new Vector2(width, 72);
@@ -660,12 +662,44 @@ public partial class HomeUtilityButton : ClickableContainer
                 Rotation = 45,
                 Colour = HomeControlColours.Yellow,
             },
+            tooltip = createTooltip(tooltipText),
         };
     }
+
+    private static Container createTooltip(LocalisableString text) => new()
+    {
+        Anchor = Anchor.TopCentre,
+        Origin = Anchor.TopCentre,
+        Y = 82,
+        AutoSizeAxes = Axes.Both,
+        Alpha = 0,
+        Children = new Drawable[]
+        {
+            new Container
+            {
+                AutoSizeAxes = Axes.Both,
+                Masking = true,
+                CornerRadius = 8,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = HomeControlColours.Navy,
+                },
+            },
+            new SpriteText
+            {
+                Text = text,
+                Font = HomeTypography.Display(12),
+                Colour = Color4.White,
+                Padding = new MarginPadding { Horizontal = 10, Vertical = 5 },
+            },
+        },
+    };
 
     protected override bool OnHover(HoverEvent e)
     {
         background.FadeColour(new Color4(0.9f, 0.985f, 1f, 1f), 120, Easing.OutQuint);
+        tooltip.FadeIn(150, Easing.OutQuint).MoveToY(86, 150, Easing.OutQuint);
         this.ScaleTo(hover_scale, 120, Easing.OutQuint);
         return true;
     }
@@ -673,6 +707,7 @@ public partial class HomeUtilityButton : ClickableContainer
     protected override void OnHoverLost(HoverLostEvent e)
     {
         background.FadeColour(new Color4(1f, 1f, 1f, rest_alpha), 140, Easing.OutQuint);
+        tooltip.FadeOut(120).MoveToY(82, 120);
         this.ScaleTo(1f, 140, Easing.OutQuint);
     }
 
@@ -692,6 +727,7 @@ public partial class HomeUtilityButton : ClickableContainer
 public partial class HomeMascotBubble : CompositeDrawable
 {
     private readonly Box underline;
+    private readonly SpriteText label;
 
     public HomeMascotBubble(LocalisableString text)
     {
@@ -727,7 +763,7 @@ public partial class HomeMascotBubble : CompositeDrawable
                         RelativeSizeAxes = Axes.Both,
                         Colour = Color4.White,
                     },
-                    new SpriteText
+                    label = new SpriteText
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
@@ -748,6 +784,17 @@ public partial class HomeMascotBubble : CompositeDrawable
                 },
             },
         };
+    }
+
+    /// <summary>
+    /// 换一句台词，文字淡入、气泡轻弹。
+    /// </summary>
+    public void SetText(LocalisableString text)
+    {
+        label.Text = text;
+        label.FadeInFromZero(220);
+        this.ScaleTo(1.07f, 90, Easing.Out)
+            .Then().ScaleTo(1f, 340, Easing.OutBack);
     }
 
     protected override void LoadComplete()
@@ -947,37 +994,81 @@ public partial class HomeMicroLine : CompositeDrawable
 
 /// <summary>
 /// 键盘键帽样式的小标签，用于页脚键位提示。
+/// 支持按下态（真实按键联动）与点击触发。
 /// </summary>
-public partial class HomeKeycap : CompositeDrawable
+public partial class HomeKeycap : ClickableContainer
 {
+    private readonly Container cap;
+    private readonly Box background;
+    private bool isPressed;
+
     public HomeKeycap(string label)
     {
         Size = new Vector2(26, 24);
+        Action = flash;
 
         InternalChildren = new Drawable[]
         {
+            // 键帽底座，按下时帽体下沉贴合它。
             new Container
             {
-                RelativeSizeAxes = Axes.Both,
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                Size = new Vector2(26, 21),
                 Masking = true,
                 CornerRadius = 5,
-                BorderThickness = 1.5f,
-                BorderColour = new Color4(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.55f),
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = Color4.White,
+                    Colour = new Color4(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.3f),
                 },
             },
-            new SpriteText
+            cap = new Container
             {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Text = label,
-                Font = HomeTypography.Display(13),
-                Colour = HomeControlColours.Navy,
+                RelativeSizeAxes = Axes.Both,
+                Height = 21,
+                Children = new Drawable[]
+                {
+                    new Container
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Masking = true,
+                        CornerRadius = 5,
+                        BorderThickness = 1.5f,
+                        BorderColour = new Color4(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.55f),
+                        Child = background = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = Color4.White,
+                        },
+                    },
+                    new SpriteText
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Text = label,
+                        Font = HomeTypography.Display(13),
+                        Colour = HomeControlColours.Navy,
+                    },
+                },
             },
         };
+    }
+
+    public void SetPressed(bool pressed)
+    {
+        if (isPressed == pressed)
+            return;
+
+        isPressed = pressed;
+        cap.MoveToY(pressed ? 3 : 0, 70, Easing.OutQuint);
+        background.FadeColour(pressed ? HomeControlColours.Cyan : Color4.White, 70);
+    }
+
+    private void flash()
+    {
+        SetPressed(true);
+        Scheduler.AddDelayed(() => SetPressed(false), 130);
     }
 }
 

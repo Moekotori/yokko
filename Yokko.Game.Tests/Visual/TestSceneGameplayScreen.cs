@@ -376,6 +376,41 @@ HitPosition: 400
                 gameplaySettings.SetScrollSpeed(originalSpeed));
         }
 
+        [Test]
+        public void TestSpaceSkipsLongIntro()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                AudioPath = "intro-fixture.mp3",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        12_000,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+            GameplayScreen gameplayScreen = null;
+
+            AddStep("open chart with long intro", () =>
+            {
+                gameplayScreen = new GameplayScreen(beatmap, audioEngine);
+                screenStack.Push(gameplayScreen);
+            });
+            AddUntilStep("intro can be skipped", () =>
+                gameplayScreen?.IntroSkipAvailable == true);
+            AddStep("skip intro", () =>
+                gameplayScreen.HandleIntroSkip());
+            AddUntilStep("audio seeks near first note", () =>
+                Math.Abs(
+                    audioEngine.LastSeekMilliseconds
+                    - gameplayScreen.IntroSkipTargetMilliseconds) < 0.01);
+            AddAssert("intro is no longer skippable", () =>
+                gameplayScreen.IntroSkipAvailable == false);
+        }
+
         private static string createTestSkin()
             => createTestSkin(string.Empty);
 
@@ -485,6 +520,73 @@ StageHint: stage-hint
                 ValueTask.CompletedTask;
 
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+
+        private sealed class SeekTrackingAudioEngine : IAudioEngine
+        {
+            private AudioEngineStatus status = createStatus(false);
+
+            public AudioEngineStatus Status => status;
+
+            public double PlaybackTimeMilliseconds { get; private set; }
+
+            public double LastSeekMilliseconds { get; private set; } = double.NaN;
+
+            public IReadOnlyList<AudioBackendCapabilities> Backends => [];
+
+            public ValueTask<IReadOnlyList<AudioDeviceInfo>> GetOutputDevicesAsync(
+                CancellationToken cancellationToken = default) =>
+                ValueTask.FromResult<IReadOnlyList<AudioDeviceInfo>>([]);
+
+            public ValueTask StartAsync(
+                AudioEngineStartRequest request,
+                CancellationToken cancellationToken = default)
+            {
+                status = createStatus(true);
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask PauseAsync(
+                CancellationToken cancellationToken = default) =>
+                ValueTask.CompletedTask;
+
+            public ValueTask SeekAsync(
+                double timeMilliseconds,
+                CancellationToken cancellationToken = default)
+            {
+                PlaybackTimeMilliseconds =
+                    LastSeekMilliseconds = timeMilliseconds;
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask StopAsync(
+                CancellationToken cancellationToken = default)
+            {
+                status = createStatus(false);
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask DisposeAsync() =>
+                ValueTask.CompletedTask;
+
+            private static AudioEngineStatus createStatus(bool running) =>
+                new(
+                    AudioBackendKind.Fallback,
+                    null,
+                    48_000,
+                    128,
+                    0,
+                    false,
+                    running,
+                    false,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0);
         }
     }
 }

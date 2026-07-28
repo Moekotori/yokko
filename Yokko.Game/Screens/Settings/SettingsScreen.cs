@@ -51,7 +51,6 @@ public partial class SettingsScreen : Screen
 
     private Bindable<Size> windowedSize;
     private Bindable<WindowMode> windowMode;
-    private Bindable<FrameSync> frameSync;
     private IBindable<DisplayMode> currentDisplayMode;
     private Bindable<string> locale;
     private Texture mascotTexture;
@@ -70,7 +69,6 @@ public partial class SettingsScreen : Screen
     {
         windowedSize = frameworkConfig.GetBindable<Size>(FrameworkSetting.WindowedSize);
         windowMode = frameworkConfig.GetBindable<WindowMode>(FrameworkSetting.WindowMode);
-        frameSync = frameworkConfig.GetBindable<FrameSync>(FrameworkSetting.FrameSync);
         currentDisplayMode = host.Window?.CurrentDisplayMode
                              ?? new Bindable<DisplayMode>(new DisplayMode(
                                  null,
@@ -137,12 +135,10 @@ public partial class SettingsScreen : Screen
                 mascotTexture,
                 windowedSize,
                 windowMode,
-                frameSync,
+                displaySettings.FrameLimit,
                 currentDisplayMode,
-                displaySettings.UiScale,
                 size => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, size),
-                mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode),
-                sync => frameworkConfig.SetValue(FrameworkSetting.FrameSync, sync)),
+                mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode)),
             SettingsPageKind.Audio => new AudioSettingsPanel(audioSettings),
             SettingsPageKind.Gameplay => new GameplaySettingsPanel(
                 gameplaySettings,

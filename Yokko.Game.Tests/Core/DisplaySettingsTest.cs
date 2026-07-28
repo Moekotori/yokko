@@ -40,7 +40,7 @@ public sealed class DisplaySettingsTest
     }
 
     [Test]
-    public void InterfaceScalePersistsAcrossConfigInstances()
+    public void FrameLimitPersistsAcrossConfigInstances()
     {
         string directory = Path.Combine(
             TestContext.CurrentContext.WorkDirectory,
@@ -54,7 +54,7 @@ public sealed class DisplaySettingsTest
             using (var firstConfig = new YokkoConfigManager(new NativeStorage(directory)))
             {
                 firstConfig.BindDisplaySettings(firstSettings);
-                firstSettings.UiScale.Value = YokkoUiScale.Large;
+                firstSettings.FrameLimit.Value = YokkoFrameLimit.Limit4x;
                 Assert.That(firstConfig.Save(), Is.True);
             }
 
@@ -62,7 +62,9 @@ public sealed class DisplaySettingsTest
             using (var restoredConfig = new YokkoConfigManager(new NativeStorage(directory)))
             {
                 restoredConfig.BindDisplaySettings(restoredSettings);
-                Assert.That(restoredSettings.UiScale.Value, Is.EqualTo(YokkoUiScale.Large));
+                Assert.That(
+                    restoredSettings.FrameLimit.Value,
+                    Is.EqualTo(YokkoFrameLimit.Limit4x));
             }
         }
         finally

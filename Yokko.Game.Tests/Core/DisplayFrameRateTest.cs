@@ -1,5 +1,5 @@
 using NUnit.Framework;
-using osu.Framework.Configuration;
+using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Settings;
 
 namespace Yokko.Game.Tests.Core;
@@ -7,19 +7,38 @@ namespace Yokko.Game.Tests.Core;
 [TestFixture]
 public sealed class DisplayFrameRateTest
 {
-    [TestCase(FrameSync.VSync, 144, "144 FPS")]
-    [TestCase(FrameSync.Limit2x, 144, "288 FPS")]
-    [TestCase(FrameSync.Limit4x, 60, "240 FPS")]
-    [TestCase(FrameSync.Limit8x, 60, "480 FPS")]
-    [TestCase(FrameSync.Unlimited, 60, "∞")]
+    [TestCase(YokkoFrameLimit.RefreshRate, 144, "144 FPS")]
+    [TestCase(YokkoFrameLimit.Limit2x, 144, "288 FPS")]
+    [TestCase(YokkoFrameLimit.Limit4x, 60, "240 FPS")]
+    [TestCase(YokkoFrameLimit.Limit8x, 60, "480 FPS")]
+    [TestCase(YokkoFrameLimit.Unlimited, 60, "∞")]
     public void FrameLimitUsesCurrentDisplayRefreshRate(
-        FrameSync mode,
+        YokkoFrameLimit limit,
         float refreshRate,
         string expected)
     {
         Assert.That(
-            DisplaySettingsPanel.FormatFrameLimit(mode, refreshRate),
+            DisplaySettingsPanel.FormatFrameLimit(limit, refreshRate),
             Is.EqualTo(expected));
+    }
+
+    [TestCase(YokkoFrameLimit.RefreshRate, 165, 165, 330)]
+    [TestCase(YokkoFrameLimit.Limit2x, 165, 330, 660)]
+    [TestCase(YokkoFrameLimit.Limit4x, 165, 660, 1320)]
+    [TestCase(YokkoFrameLimit.Limit8x, 165, 1320, 2640)]
+    [TestCase(YokkoFrameLimit.Unlimited, 165, 0, 0)]
+    public void FrameLimitCalculatesRealHostRates(
+        YokkoFrameLimit limit,
+        float refreshRate,
+        double expectedDrawRate,
+        double expectedUpdateRate)
+    {
+        YokkoFrameRates rates = YokkoFrameRateLimits.Calculate(
+            limit,
+            refreshRate);
+
+        Assert.That(rates.MaximumDrawHz, Is.EqualTo(expectedDrawRate));
+        Assert.That(rates.MaximumUpdateHz, Is.EqualTo(expectedUpdateRate));
     }
 
     [TestCase(59.94f, "60")]

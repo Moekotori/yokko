@@ -51,10 +51,24 @@ public partial class MainScreen : Screen
     private SpriteIcon heartbeatIcon;
     private Box heroHighlight;
     private Circle readyDot;
+    private HomeMascotBubble bubble;
+    private HomeExitHoldIndicator exitIndicator;
     private readonly Box[] stageLines = new Box[2];
     private readonly List<SpriteIcon> decorationIcons = new();
     private readonly List<Drawable> floaters = new();
+    private readonly Dictionary<Key, HomeKeycap> keycapByKey = new();
     private readonly Action requestGameExit;
+
+    private static readonly LocalisableString[] bubbleLines =
+    {
+        YokkoStrings.Get("main.lets_play"),
+        YokkoStrings.Get("main.bubble_again"),
+        YokkoStrings.Get("main.bubble_pick_song"),
+        YokkoStrings.Get("main.bubble_keys"),
+    };
+
+    private int bubbleLineIndex;
+    private float sparkleAngleOffset;
 
     private Vector2 parallaxCurrent;
     private double escapeHoldStartedAt;
@@ -154,6 +168,14 @@ public partial class MainScreen : Screen
                             {
                                 Position = new Vector2(612, 664),
                             },
+                            new SpriteText
+                            {
+                                Position = new Vector2(714, 680),
+                                Text = "EST. 2025 · 4K MANIA",
+                                Font = HomeTypography.Display(10),
+                                Spacing = new Vector2(1.8f, 0),
+                                Colour = new Color4(navy.R, navy.G, navy.B, 0.5f),
+                            },
                             new HomeDotField
                             {
                                 Position = new Vector2(36, 545),
@@ -173,6 +195,10 @@ public partial class MainScreen : Screen
                         },
                     },
                     utilityArea = createUtilityArea(),
+                    exitIndicator = new HomeExitHoldIndicator(YokkoStrings.Get("main.exit_hold"))
+                    {
+                        Position = new Vector2(60, 606),
+                    },
                 },
             },
         };
@@ -233,12 +259,19 @@ public partial class MainScreen : Screen
     protected override bool OnKeyDown(KeyDownEvent e)
     {
         if (e.Key != Key.Escape)
+        {
+            // 页脚键帽与真实键盘联动。
+            if (!e.Repeat && keycapByKey.TryGetValue(e.Key, out HomeKeycap keycap))
+                keycap.SetPressed(true);
+
             return base.OnKeyDown(e);
+        }
 
         if (!isEscapeHeld)
         {
             isEscapeHeld = true;
             escapeHoldStartedAt = Time.Current;
+            exitIndicator.Reveal();
         }
 
         return true;
@@ -248,6 +281,8 @@ public partial class MainScreen : Screen
     {
         if (e.Key == Key.Escape)
             cancelExitHold();
+        else if (keycapByKey.TryGetValue(e.Key, out HomeKeycap keycap))
+            keycap.SetPressed(false);
 
         base.OnKeyUp(e);
     }
@@ -256,10 +291,16 @@ public partial class MainScreen : Screen
     {
         base.Update();
 
-        if (isEscapeHeld && Time.Current - escapeHoldStartedAt >= exitHoldDuration)
+        if (isEscapeHeld)
         {
-            cancelExitHold();
-            requestGameExit?.Invoke();
+            double heldFor = Time.Current - escapeHoldStartedAt;
+            exitIndicator.SetProgress((float)(heldFor / exitHoldDuration));
+
+            if (heldFor >= exitHoldDuration)
+            {
+                cancelExitHold();
+                requestGameExit?.Invoke();
+            }
         }
 
         var inputManager = GetContainingInputManager();
@@ -283,6 +324,7 @@ public partial class MainScreen : Screen
     {
         isEscapeHeld = false;
         escapeHoldStartedAt = 0;
+        exitIndicator?.Conceal();
     }
 
     private void startAmbientMotion()
@@ -347,6 +389,43 @@ public partial class MainScreen : Screen
     {
         floaters.Add(drawable);
         return drawable;
+    }
+
+    private void onMascotTapped()
+    {
+        // 压扁回弹，不影响既有的浮动/旋转循环（它们只动 Y 与 Rotation）。
+        mascot.ScaleTo(new Vector2(1.05f, 0.93f), 90, Easing.Out)
+              .Then().ScaleTo(Vector2.One, 700, Easing.OutElastic);
+
+        bubbleLineIndex = (bubbleLineIndex + 1) % bubbleLines.Length;
+        bubble.SetText(bubbleLines[bubbleLineIndex]);
+
+        spawnSparkles();
+    }
+
+    private void spawnSparkles()
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            float angle = sparkleAngleOffset + i * MathF.PI / 2;
+            var direction = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+
+            var star = new SpriteIcon
+            {
+                Origin = Anchor.Centre,
+                Position = new Vector2(937.5f, 330),
+                Size = new Vector2(14),
+                Icon = FontAwesome.Solid.Star,
+                Colour = i % 2 == 0 ? yellow : Color4.White,
+            };
+
+            rightParallax.Add(star);
+            star.MoveToOffset(direction * 72, 620, Easing.OutQuint);
+            star.RotateTo(140, 620);
+            star.FadeOut(620, Easing.InQuart).Expire();
+        }
+
+        sparkleAngleOffset += MathF.PI / 4;
     }
 
     private static Drawable createIvoryStage() => new Container
@@ -430,7 +509,15 @@ public partial class MainScreen : Screen
                     Size = new Vector2(675, 765),
                     Texture = mascotTexture,
                 },
-                new HomeMascotBubble(YokkoStrings.Get("main.lets_play"))
+                // 点击 mascot：弹跳、换台词、迸发星星。热区避开底部的播放器。
+                new ClickableContainer
+                {
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(937.5f, 355),
+                    Size = new Vector2(420, 470),
+                    Action = onMascotTapped,
+                },
+                bubble = new HomeMascotBubble(bubbleLines[0])
                 {
                     X = 632,
                     Y = 365,
@@ -447,6 +534,11 @@ public partial class MainScreen : Screen
                 {
                     Position = new Vector2(1010, 118),
                     Colour = yellow,
+                },
+                new HomeTwinkle(12, 2600)
+                {
+                    Position = new Vector2(858, 578),
+                    Colour = pink,
                 },
                 new HomeRing(26, 3.5f, yellow)
                 {
@@ -585,20 +677,35 @@ public partial class MainScreen : Screen
     private Drawable createUtilityArea() => new Container
     {
         Position = new Vector2(1016, 24),
-        Size = new Vector2(240, 72),
-        Child = new FillFlowContainer
+        Size = new Vector2(240, 150),
+        Children = new Drawable[]
         {
-            RelativeSizeAxes = Axes.Both,
-            Direction = FillDirection.Horizontal,
-            Spacing = new Vector2(12, 0),
-            Children = new Drawable[]
+            new FillFlowContainer
             {
-                new HomeUtilityButton(string.Empty, FontAwesome.Solid.PowerOff,
-                    exitGame, 72),
-                new HomeUtilityButton(string.Empty, FontAwesome.Solid.Cog,
-                    () => this.Push(new SettingsScreen()), 72),
-                new HomeUtilityButton(string.Empty, FontAwesome.Solid.FolderOpen,
-                    () => this.Push(new EditorScreen(true)), 72, FontAwesome.Solid.ArrowRight),
+                RelativeSizeAxes = Axes.X,
+                Height = 72,
+                // 悬停 tooltip 向下弹出时要盖过下方的时钟卡片。
+                Depth = -1,
+                Direction = FillDirection.Horizontal,
+                Spacing = new Vector2(12, 0),
+                Children = new Drawable[]
+                {
+                    new HomeUtilityButton(string.Empty, FontAwesome.Solid.PowerOff,
+                        exitGame, 72, tooltipText: YokkoStrings.Get("main.utility_exit")),
+                    new HomeUtilityButton(string.Empty, FontAwesome.Solid.Cog,
+                        () => this.Push(new SettingsScreen()), 72, tooltipText: YokkoStrings.Get("main.settings")),
+                    new HomeUtilityButton(string.Empty, FontAwesome.Solid.FolderOpen,
+                        () => this.Push(new EditorScreen(true)), 72, FontAwesome.Solid.ArrowRight,
+                        YokkoStrings.Get("main.utility_folder")),
+                },
+            },
+            new HomeClock
+            {
+                Y = 84,
+            },
+            new HomeHazardStripes(240, new Color4(1f, 1f, 1f, 0.5f))
+            {
+                Y = 142,
             },
         },
     };
@@ -654,38 +761,44 @@ public partial class MainScreen : Screen
         },
     };
 
-    private static Drawable createKeycapCluster() => new FillFlowContainer
+    private Drawable createKeycapCluster()
     {
-        AutoSizeAxes = Axes.Both,
-        Direction = FillDirection.Horizontal,
-        Spacing = new Vector2(8, 0),
-        Children = new Drawable[]
+        keycapByKey.Clear();
+        var keycaps = new FillFlowContainer
         {
-            new SpriteIcon
+            Anchor = Anchor.CentreLeft,
+            Origin = Anchor.CentreLeft,
+            AutoSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+            Spacing = new Vector2(5, 0),
+        };
+
+        foreach ((string label, Key key) in new[] { ("D", Key.D), ("F", Key.F), ("J", Key.J), ("K", Key.K) })
+        {
+            var keycap = new HomeKeycap(label);
+            keycapByKey[key] = keycap;
+            keycaps.Add(keycap);
+        }
+
+        return new FillFlowContainer
+        {
+            AutoSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+            Spacing = new Vector2(8, 0),
+            Children = new Drawable[]
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                Size = new Vector2(14),
-                Icon = FontAwesome.Solid.Keyboard,
-                Colour = navy,
-            },
-            new FillFlowContainer
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                AutoSizeAxes = Axes.Both,
-                Direction = FillDirection.Horizontal,
-                Spacing = new Vector2(5, 0),
-                Children = new Drawable[]
+                new SpriteIcon
                 {
-                    new HomeKeycap("D"),
-                    new HomeKeycap("F"),
-                    new HomeKeycap("J"),
-                    new HomeKeycap("K"),
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    Size = new Vector2(14),
+                    Icon = FontAwesome.Solid.Keyboard,
+                    Colour = navy,
                 },
+                keycaps,
             },
-        },
-    };
+        };
+    }
 
     private Drawable createAudioFooterItem(LocalisableString text) => new FillFlowContainer
     {

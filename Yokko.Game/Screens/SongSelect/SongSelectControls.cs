@@ -151,22 +151,44 @@ internal partial class SongSelectSongRow : ClickableContainer
         Entry = entry;
         Action = select;
         Size = new Vector2(585, 84);
-        Masking = true;
-        CornerRadius = 2;
 
         InternalChildren = new Drawable[]
         {
-            new Sprite
+            new Container
             {
                 RelativeSizeAxes = Axes.Both,
-                Texture = wallpaper,
-                FillMode = FillMode.Fill,
-                Alpha = 0.64f,
+                Masking = true,
+                CornerRadius = 2,
+                Children = new Drawable[]
+                {
+                    new Sprite
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Texture = wallpaper,
+                        FillMode = FillMode.Fill,
+                        Alpha = 0.58f,
+                    },
+                    tint = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(SongSelectTheme.DeepNavy.R, SongSelectTheme.DeepNavy.G, SongSelectTheme.DeepNavy.B, 0.58f),
+                    },
+                },
             },
-            tint = new Box
+            new Container
             {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(SongSelectTheme.DeepNavy.R, SongSelectTheme.DeepNavy.G, SongSelectTheme.DeepNavy.B, 0.58f),
+                Position = new Vector2(0, 2),
+                Size = new Vector2(100, 80),
+                Masking = true,
+                CornerRadius = 2,
+                BorderThickness = 1,
+                BorderColour = new Color4(1f, 1f, 1f, 0.68f),
+                Child = new Sprite
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Texture = wallpaper,
+                    FillMode = FillMode.Fill,
+                },
             },
             selectionLine = new Box
             {
@@ -177,9 +199,9 @@ internal partial class SongSelectSongRow : ClickableContainer
             },
             new Container
             {
-                X = 18,
+                X = 116,
                 RelativeSizeAxes = Axes.Both,
-                Width = 0.94f,
+                Width = 0.78f,
                 Children = new Drawable[]
                 {
                     title = new SpriteText
