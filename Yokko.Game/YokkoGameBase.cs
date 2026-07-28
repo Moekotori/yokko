@@ -17,6 +17,7 @@ using Yokko.Game.Importing;
 using Yokko.Game.Input;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
+using Yokko.Game.Resources;
 using Yokko.Game.Skinning.OsuMania;
 using Yokko.Game.Scoring;
 using Yokko.Import;
@@ -40,6 +41,10 @@ namespace Yokko.Game
         private readonly YokkoImportSettings importSettings = new();
         [Cached]
         private readonly ImportedChartLibrary importedChartLibrary = new();
+        [Cached]
+        private readonly YokkoResourceSettings resourceSettings = new();
+        [Cached]
+        private readonly YokkoResourceStorage resourceStorage = new();
         [Cached]
         private readonly YokkoGameplaySettings gameplaySettings = new();
         [Cached]
@@ -87,9 +92,16 @@ namespace Yokko.Game
             yokkoConfig.BindAudioSettings(audioSettings);
             yokkoConfig.BindDisplaySettings(displaySettings);
             yokkoConfig.BindImportSettings(importSettings);
+            yokkoConfig.BindResourceSettings(resourceSettings);
             yokkoConfig.BindGameplaySettings(gameplaySettings);
             yokkoConfig.BindSkinSettings(skinSettings);
-            skinLibrary.Initialise(host.Storage, skinSettings);
+            resourceStorage.Initialise(
+                host.Storage,
+                resourceSettings,
+                importSettings,
+                importedChartLibrary,
+                skinLibrary,
+                skinSettings);
             scoreStore.Initialise(host.Storage);
 
             window = host.Window;
@@ -139,6 +151,22 @@ namespace Yokko.Game
             Resources.AddStore(resources);
             AddFont(Resources, @"Fonts/Yokko/Yokko");
             AddFont(Resources, @"Fonts/Yokko/Yokko-Bold");
+
+            _ = Task.Run(() => importedChartLibrary.LoadFromDiskAsync(
+                importSettings.PreferKeysounds.Value,
+                importSettings.PreferSscSimfiles.Value))
+                    .ContinueWith(
+                        task =>
+                        {
+                            if (!task.IsCompletedSuccessfully)
+                            {
+                                Logger.Log(
+                                    $"Could not scan persistent beatmaps: {task.Exception?.GetBaseException().Message}",
+                                    LoggingTarget.Runtime,
+                                    LogLevel.Error);
+                            }
+                        },
+                        TaskScheduler.Default);
         }
 
         protected override void Dispose(bool isDisposing)
@@ -179,7 +207,7 @@ namespace Yokko.Game
                 YokkoStrings.Get("import.chart.importing"),
                 path));
 
-            _ = Task.Run(async () => await KnownChartImporters.ImportAllAsync(request))
+            _ = Task.Run(async () => await importedChartLibrary.ImportAsync(request))
                     .ContinueWith(
                         task => Scheduler.Add(() =>
                         {
@@ -212,7 +240,6 @@ namespace Yokko.Game
                             importOverlay.ShowSuccess(
                                 YokkoStrings.Get("import.chart.success"),
                                 detail);
-                            importedChartLibrary.AddOrReplace(results, path);
                         }),
                         TaskScheduler.Default);
         }

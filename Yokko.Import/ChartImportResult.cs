@@ -4,4 +4,5 @@ namespace Yokko.Import;
 
 public sealed record ChartImportResult(
     YokkoBeatmap Beatmap,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings,
+    string? ArtworkPath = null);

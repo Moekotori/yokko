@@ -136,6 +136,7 @@ public partial class SettingsScreen : Screen
                 windowedSize,
                 windowMode,
                 displaySettings.FrameLimit,
+                displaySettings.ShowPerformanceReadout,
                 currentDisplayMode,
                 size => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, size),
                 mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode)),

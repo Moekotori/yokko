@@ -21,7 +21,8 @@ public sealed class OsuManiaChartImporter : IChartImporter
         if (Path.GetExtension(request.Path).Equals(".osu", StringComparison.OrdinalIgnoreCase))
             return ValueTask.FromResult(new ChartImportResult(
                 OsuManiaBeatmapIO.ReadBeatmapFromFile(request.Path),
-                []));
+                [],
+                OsuManiaBeatmapIO.ReadBackgroundPathFromFile(request.Path)));
 
         IReadOnlyList<string> charts = ChartArchive.ExtractCharts(request.Path, ".osu");
         var failures = new List<Exception>();
@@ -34,7 +35,10 @@ public sealed class OsuManiaChartImporter : IChartImporter
                 IReadOnlyList<string> warnings = charts.Count > 1
                     ? [$"This .osz contains {charts.Count} charts; imported {Path.GetFileName(chart)}."]
                     : [];
-                return ValueTask.FromResult(new ChartImportResult(beatmap, warnings));
+                return ValueTask.FromResult(new ChartImportResult(
+                    beatmap,
+                    warnings,
+                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(chart)));
             }
             catch (InvalidDataException ex)
             {
@@ -55,7 +59,8 @@ public sealed class OsuManiaChartImporter : IChartImporter
             return ValueTask.FromResult<IReadOnlyList<ChartImportResult>>(
                 [new ChartImportResult(
                     OsuManiaBeatmapIO.ReadBeatmapFromFile(request.Path),
-                    [])]);
+                    [],
+                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(request.Path))]);
         }
 
         IReadOnlyList<string> charts = ChartArchive.ExtractCharts(request.Path, ".osu");
@@ -70,7 +75,8 @@ public sealed class OsuManiaChartImporter : IChartImporter
             {
                 results.Add(new ChartImportResult(
                     OsuManiaBeatmapIO.ReadBeatmapFromFile(chart),
-                    []));
+                    [],
+                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(chart)));
             }
             catch (InvalidDataException ex)
             {

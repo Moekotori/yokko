@@ -31,6 +31,12 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
     public byte[] Get(string name) =>
         constrain(name, source.Get(name));
 
+    public Stream GetStream(string name)
+    {
+        byte[] data = Get(name);
+        return data == null ? null : new MemoryStream(data, writable: false);
+    }
+
     public async Task<byte[]> GetAsync(
         string name,
         CancellationToken cancellationToken = default) =>

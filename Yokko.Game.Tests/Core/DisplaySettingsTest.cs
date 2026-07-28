@@ -73,4 +73,41 @@ public sealed class DisplaySettingsTest
                 Directory.Delete(directory, true);
         }
     }
+
+    [Test]
+    public void PerformanceReadoutDefaultsOffAndPersists()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "performance-readout-config",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            var firstSettings = new YokkoDisplaySettings();
+            using (var firstConfig = new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                firstConfig.BindDisplaySettings(firstSettings);
+                Assert.That(firstSettings.ShowPerformanceReadout.Value, Is.False);
+
+                firstSettings.ShowPerformanceReadout.Value = true;
+                Assert.That(firstConfig.Save(), Is.True);
+            }
+
+            var restoredSettings = new YokkoDisplaySettings();
+            using (var restoredConfig = new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                restoredConfig.BindDisplaySettings(restoredSettings);
+                Assert.That(
+                    restoredSettings.ShowPerformanceReadout.Value,
+                    Is.True);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
 }

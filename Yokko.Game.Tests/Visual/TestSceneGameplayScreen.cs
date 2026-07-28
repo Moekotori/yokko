@@ -8,6 +8,7 @@ using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
@@ -16,6 +17,7 @@ using osu.Framework.Testing;
 using osuTK;
 using osuTK.Input;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Tiff;
 using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Audio;
 using Yokko.Core.Beatmaps;
@@ -34,6 +36,9 @@ namespace Yokko.Game.Tests.Visual
 
         [Resolved]
         private YokkoGameplaySettings gameplaySettings { get; set; }
+
+        [Resolved]
+        private IRenderer renderer { get; set; }
 
         public TestSceneGameplayScreen()
         {
@@ -133,6 +138,24 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("miss result was captured", () =>
                 (screenStack.CurrentScreen as GameplayScreen)?
                 .CompletedResult?.Miss == 1);
+            AddUntilStep("result mascot GIF decoded", () =>
+                (screenStack.CurrentScreen as Drawable)?
+                .ChildrenOfType<GameplayResultOverlay>()
+                .SingleOrDefault()?
+                .MascotFrameCount == 15);
+            AddAssert("result exposes three actions", () =>
+                (screenStack.CurrentScreen as Drawable)?
+                .ChildrenOfType<GameplayResultOverlay>()
+                .SingleOrDefault()?
+                .ActionCount == 3);
+            AddStep("watch replay", () =>
+                (screenStack.CurrentScreen as Drawable)?
+                .ChildrenOfType<GameplayResultOverlay>()
+                .Single()
+                .TriggerReplay());
+            AddUntilStep("recorded run is replaying", () =>
+                (screenStack.CurrentScreen as GameplayScreen)?
+                .ReplayMode == true);
         }
 
         [Test]
@@ -146,6 +169,44 @@ namespace Yokko.Game.Tests.Visual
                 (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<GameplayPlayfield>().SingleOrDefault()?.Width == 160);
             AddUntilStep("skin sprites loaded", () =>
                 (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null) == true);
+        }
+
+        [Test]
+        public void TestOversizedHoldBodyIsConstrainedBeforeUpload()
+        {
+            string skinPath = null;
+
+            AddStep("create oversized hold body", () =>
+            {
+                skinPath = createTestSkin();
+                string holdBodyPath = Path.Combine(skinPath, "hold-body.png");
+
+                using var image = new Image<Rgba32>(
+                    8,
+                    Math.Max(renderer.MaxTextureSize + 128, 20_000),
+                    new Rgba32(72, 208, 240, 255));
+                image.Save(holdBodyPath, new TiffEncoder());
+            });
+            AddStep("open chart with oversized hold body", () =>
+                screenStack.Push(new GameplayScreen(
+                    createHoldDemo(KeyMode.FourKey),
+                    skinPath: skinPath)));
+            AddUntilStep("hold body is safe for renderer", () =>
+            {
+                DrawableNote hold = (screenStack.CurrentScreen as Drawable)?
+                                    .ChildrenOfType<DrawableNote>()
+                                    .FirstOrDefault();
+                Texture body = hold?
+                               .ChildrenOfType<Sprite>()
+                               .Select(sprite => sprite.Texture)
+                               .Where(texture => texture != null)
+                               .OrderByDescending(texture => texture.DisplayHeight)
+                               .FirstOrDefault();
+
+                return body?.Available == true
+                       && body.DisplayHeight <= renderer.MaxTextureSize
+                       && body.DisplayHeight > 1000;
+            });
         }
 
         [Test]
@@ -281,7 +342,7 @@ namespace Yokko.Game.Tests.Visual
                                     .FirstOrDefault();
                 Sprite longBody = hold?
                                   .ChildrenOfType<Sprite>()
-                                  .FirstOrDefault(sprite => sprite.Texture?.DisplayHeight >= 30000);
+                                  .FirstOrDefault(sprite => sprite.Texture?.DisplayHeight > 1000);
                 return longBody != null &&
                        longBody.Texture.Available &&
                        Math.Abs(longBody.Height - 40000f * 92 / 138) < 1 &&

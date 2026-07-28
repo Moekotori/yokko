@@ -1,4 +1,5 @@
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Screens;
 using Yokko.Game.Input;
@@ -10,6 +11,8 @@ namespace Yokko.Game
     public partial class YokkoGame : YokkoGameBase
     {
         private ScreenStack screenStack;
+        private YokkoPerformanceReadout performanceReadout;
+        private BindableBool showPerformanceReadout;
 
         public YokkoGame(IKeyInputTimestampBackend keyInputTimestampBackend = null)
             : base(keyInputTimestampBackend)
@@ -17,7 +20,7 @@ namespace Yokko.Game
         }
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(YokkoDisplaySettings displaySettings)
         {
             Content.Children = new Drawable[]
             {
@@ -25,7 +28,7 @@ namespace Yokko.Game
                 {
                     RelativeSizeAxes = Axes.Both,
                 },
-                new YokkoPerformanceReadout
+                performanceReadout = new YokkoPerformanceReadout
                 {
                     Anchor = Anchor.BottomRight,
                     Origin = Anchor.BottomRight,
@@ -33,6 +36,11 @@ namespace Yokko.Game
                     Depth = float.MinValue,
                 },
             };
+
+            showPerformanceReadout = displaySettings.ShowPerformanceReadout;
+            showPerformanceReadout.BindValueChanged(
+                onShowPerformanceReadoutChanged,
+                true);
         }
 
         protected override void LoadComplete()
@@ -40,6 +48,21 @@ namespace Yokko.Game
             base.LoadComplete();
 
             screenStack.Push(new MainScreen(RequestExit));
+        }
+
+        private void onShowPerformanceReadoutChanged(
+            ValueChangedEvent<bool> change)
+        {
+            performanceReadout.Alpha = change.NewValue ? 1 : 0;
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            if (isDisposing && showPerformanceReadout != null)
+                showPerformanceReadout.ValueChanged -=
+                    onShowPerformanceReadoutChanged;
+
+            base.Dispose(isDisposing);
         }
     }
 }

@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Primitives;
+using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
@@ -23,6 +25,7 @@ using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Main;
 using Yokko.Game.Scoring;
+using Yokko.Game.Skinning.OsuMania;
 
 namespace Yokko.Game.Screens.SongSelect;
 
@@ -39,6 +42,7 @@ public partial class SongSelectScreen : Screen
     private readonly List<SongSelectSongRow> rows = new();
 
     private TextureStore textures;
+    private TextureStore chartArtworkTextures;
     private Container stage;
     private Sprite backgroundA;
     private Sprite backgroundB;
@@ -61,6 +65,8 @@ public partial class SongSelectScreen : Screen
     private GameplayScoreStore scoreStore { get; set; }
     [Resolved]
     private ImportedChartLibrary importedChartLibrary { get; set; }
+    [Resolved]
+    private IRenderer renderer { get; set; }
 
     internal SongSelectEntry SelectedEntry => selectedEntry;
     internal int VisibleEntryCount => visibleEntries?.Count ?? 0;
@@ -72,10 +78,17 @@ public partial class SongSelectScreen : Screen
     private void load(TextureStore textureStore)
     {
         textures = textureStore;
+        chartArtworkTextures = new TextureStore(
+            renderer,
+            new TextureLoaderStore(
+                new ConstrainedTextureResourceStore(
+                    new ChartArtworkResourceStore(),
+                    renderer.MaxTextureSize)),
+            scaleAdjust: 1);
         synchroniseImportedCharts();
         importedChartLibrary.LibraryChanged += onChartLibraryChanged;
         refreshSavedScores();
-        selectedEntry = importedEntries.Count > 0 ? entries[^1] : entries[0];
+        selectedEntry = entries.LastOrDefault();
         visibleEntries = entries.ToList();
 
         Texture firstWallpaper = textureFor(selectedEntry);
@@ -89,7 +102,7 @@ public partial class SongSelectScreen : Screen
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(0.01f, 0.03f, 0.16f, 0.12f),
+                Colour = new Color4(0.01f, 0.03f, 0.16f, 0.22f),
             },
             stage = new Container
             {
@@ -101,7 +114,7 @@ public partial class SongSelectScreen : Screen
                     createHeader(logo),
                     detailsHost = new Container
                     {
-                        Position = new Vector2(40, 176),
+                        Position = new Vector2(40, 198),
                         Size = new Vector2(440, 500),
                     },
                     createSongBrowser(),
@@ -139,7 +152,9 @@ public partial class SongSelectScreen : Screen
         synchroniseImportedCharts();
         int selectedIndex = Math.Max(0, entries.IndexOf(selectedEntry));
         refreshSavedScores();
-        selectedEntry = entries[Math.Min(selectedIndex, entries.Count - 1)];
+        selectedEntry = entries.Count == 0
+            ? null
+            : entries[Math.Min(selectedIndex, entries.Count - 1)];
         applyFilters();
         rebuildDetails();
         this.FadeIn(180, Easing.OutQuint);
@@ -159,8 +174,13 @@ public partial class SongSelectScreen : Screen
 
     protected override void Dispose(bool isDisposing)
     {
-        if (isDisposing && importedChartLibrary != null)
-            importedChartLibrary.LibraryChanged -= onChartLibraryChanged;
+        if (isDisposing)
+        {
+            if (importedChartLibrary != null)
+                importedChartLibrary.LibraryChanged -= onChartLibraryChanged;
+
+            chartArtworkTextures?.Dispose();
+        }
 
         base.Dispose(isDisposing);
     }
@@ -229,7 +249,7 @@ public partial class SongSelectScreen : Screen
             new Sprite
             {
                 Position = new Vector2(42, 24),
-                Size = new Vector2(270, 91),
+                Size = new Vector2(235, 79),
                 Texture = logo,
             },
             searchBox = new SongSelectSearchBox(SetSearchQuery)
@@ -244,7 +264,7 @@ public partial class SongSelectScreen : Screen
                 Spacing = new Vector2(8, 0),
                 Children = new Drawable[]
                 {
-                    allFilter = new SongSelectFilterButton(YokkoStrings.Get("song_select.all_songs"), 126, () => SetKeyModeFilter(null)),
+                    allFilter = new SongSelectFilterButton("ALL SONGS", 126, () => SetKeyModeFilter(null)),
                     fourKeyFilter = new SongSelectFilterButton("4K", 58, () => SetKeyModeFilter(KeyMode.FourKey)),
                     sevenKeyFilter = new SongSelectFilterButton("7K", 58, () => SetKeyModeFilter(KeyMode.SevenKey)),
                 },
@@ -304,7 +324,7 @@ public partial class SongSelectScreen : Screen
                 {
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
-                    Text = YokkoStrings.Get("song_select.mods"),
+                    Text = "MODS",
                     Font = HomeTypography.Display(17),
                     Colour = SongSelectTheme.Ivory,
                 },
@@ -335,7 +355,7 @@ public partial class SongSelectScreen : Screen
                 },
                 new ClickableContainer
                 {
-                    Position = new Vector2(132, 18),
+                    Position = new Vector2(154, 18),
                     Size = new Vector2(120, 40),
                     Action = this.Exit,
                     Children = new Drawable[]
@@ -420,7 +440,7 @@ public partial class SongSelectScreen : Screen
                 },
                 new Box
                 {
-                    Position = new Vector2(550, 7),
+                    Position = new Vector2(600, 7),
                     Size = new Vector2(1, 62),
                     Rotation = 14,
                     Colour = new Color4(
@@ -468,7 +488,7 @@ public partial class SongSelectScreen : Screen
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
                             X = 16,
-                            Text = YokkoStrings.Get("song_select.play"),
+                            Text = "PLAY",
                             Font = HomeTypography.Display(40),
                             Colour = SongSelectTheme.Navy,
                         },
@@ -596,7 +616,7 @@ public partial class SongSelectScreen : Screen
 
         var ranking = new SongSelectRankingPanel(selectedEntry, textures, newView => scoreView = newView)
         {
-            Position = new Vector2(0, 184),
+            Position = new Vector2(0, 160),
         };
         ranking.SetView(scoreView, textures);
 
@@ -605,7 +625,7 @@ public partial class SongSelectScreen : Screen
             new Container
             {
                 Position = new Vector2(0, 0),
-                Size = new Vector2(392, 54),
+                Size = new Vector2(320, 48),
                 Children = new Drawable[]
                 {
                     new Box
@@ -618,37 +638,37 @@ public partial class SongSelectScreen : Screen
                     {
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.CentreLeft,
-                        X = 18,
+                        X = 14,
                         Text = selectedEntry.Beatmap.Title,
-                        Font = HomeTypography.Display(42),
+                        Font = HomeTypography.Display(36),
                         Colour = SongSelectTheme.Navy,
                     },
                 },
             },
             new SpriteText
             {
-                Position = new Vector2(10, 57),
+                Position = new Vector2(10, 49),
                 Text = selectedEntry.Beatmap.Artist,
                 Font = HomeTypography.Display(19),
                 Colour = SongSelectTheme.Ivory,
             },
             new SpriteText
             {
-                Position = new Vector2(10, 82),
-                Text = YokkoStrings.Get("song_select.mapped_by", selectedEntry.Beatmap.Creator),
+                Position = new Vector2(10, 70),
+                Text = $"mapped by {selectedEntry.Beatmap.Creator}",
                 Font = HomeTypography.Body(15),
                 Colour = SongSelectTheme.PaleCyan,
             },
             new SpriteText
             {
-                Position = new Vector2(10, 111),
+                Position = new Vector2(10, 94),
                 Text = $"{(int)selectedEntry.Beatmap.KeyMode}K  ·  {selectedEntry.Beatmap.DifficultyName}",
                 Font = HomeTypography.Display(17),
                 Colour = SongSelectTheme.Pink,
             },
             createStarRating(selectedEntry.StarRating),
-            createSongStat(258, 136, FontAwesome.Regular.Clock, YokkoStrings.Get("song_select.length"), selectedEntry.Length.ToString(@"mm\:ss")),
-            createSongStat(356, 136, FontAwesome.Solid.WaveSquare, "BPM", selectedEntry.Bpm.ToString("0")),
+            createSongStat(258, 116, FontAwesome.Regular.Clock, "LENGTH", selectedEntry.Length.ToString(@"mm\:ss")),
+            createSongStat(356, 116, FontAwesome.Solid.WaveSquare, "BPM", selectedEntry.Bpm.ToString("0")),
             ranking,
         });
     }
@@ -687,7 +707,7 @@ public partial class SongSelectScreen : Screen
     {
         var flow = new FillFlowContainer
         {
-            Position = new Vector2(18, 140),
+            Position = new Vector2(18, 121),
             AutoSizeAxes = Axes.Both,
             Direction = FillDirection.Horizontal,
             Spacing = new Vector2(7, 0),
@@ -754,9 +774,10 @@ public partial class SongSelectScreen : Screen
             songList.Add(row);
 
             double delay = Math.Min(index, max_staggered_rows) * list_refresh_stagger;
+            float targetX = entry == selectedEntry ? -30 : 0;
             row.Delay(delay)
                .FadeIn(170, Easing.OutQuint)
-               .MoveToX(0, 240, Easing.OutQuint);
+               .MoveToX(targetX, 240, Easing.OutQuint);
         }
 
         noResults.FadeTo(visibleEntries.Count == 0 ? 1 : 0, 140, Easing.OutQuint);
@@ -828,7 +849,27 @@ public partial class SongSelectScreen : Screen
         activeBackground = incoming;
     }
 
-    private Texture textureFor(SongSelectEntry entry) => textures.Get(entry.WallpaperTexture);
+    private Texture textureFor(SongSelectEntry entry)
+    {
+        if (entry != null
+            && Path.IsPathRooted(entry.WallpaperTexture)
+            && File.Exists(entry.WallpaperTexture))
+        {
+            try
+            {
+                Texture artwork = chartArtworkTextures.Get(entry.WallpaperTexture);
+                if (artwork != null)
+                    return artwork;
+            }
+            catch
+            {
+                // Invalid chart artwork falls back to Yokko's bundled image.
+            }
+        }
+
+        return textures.Get(entry?.WallpaperTexture ?? "SongSelect/blue-signal")
+               ?? textures.Get("SongSelect/blue-signal");
+    }
 
     private void refreshSavedScores()
     {
@@ -936,28 +977,7 @@ public partial class SongSelectScreen : Screen
         FillMode = FillMode.Fill,
     };
 
-    private static List<SongSelectEntry> createEntries()
-    {
-        IReadOnlyList<SongSelectScore> ranking =
-        [
-            new(1, "MIKA", "SongSelect/Avatars/mika", ScoreRank.X, 998420, 0.9982, ["HD"]),
-            new(2, "RIN", "SongSelect/Avatars/rin", ScoreRank.S, 992115, 0.9921, ["DT"]),
-            new(3, "AOI", "SongSelect/Avatars/aoi", ScoreRank.S, 990004, 0.9894, []),
-            new(4, "LUNA", "SongSelect/Avatars/luna", ScoreRank.A, 988020, 0.9866, ["HD"]),
-            new(5, "YOKKO", "yokko", ScoreRank.A, 987432, 0.9841, ["HD", "DT"], true),
-        ];
-
-        return
-        [
-            createEntry("Blue Signal", "Asteria", "Yokko Team", "Hyper", KeyMode.FourKey, "SongSelect/blue-signal", 6.42, 138, 178, ranking),
-            // Demo entries use Yokko's fallback art. A real library provider maps
-            // each imported beatmap's own background into WallpaperTexture.
-            createEntry("Neon Pulse", "Synthion", "EchoRay", "Hyper", KeyMode.FourKey, "SongSelect/blue-signal", 6.21, 126, 186, ranking),
-            createEntry("Afterimage", "Nixara", "Zero", "Insane", KeyMode.FourKey, "SongSelect/blue-signal", 6.78, 154, 174, ranking),
-            createEntry("Circuit Bloom", "Lunetia", "Mura", "Hyper", KeyMode.SevenKey, "SongSelect/blue-signal", 6.05, 142, 192, ranking),
-            createEntry("Parallel Hearts", "Koharu", "Rinstar", "Insane", KeyMode.SevenKey, "SongSelect/blue-signal", 6.66, 149, 180, ranking),
-        ];
-    }
+    private static List<SongSelectEntry> createEntries() => [];
 
     private static SongSelectEntry createImportedEntry(ImportedChart imported)
     {
@@ -973,7 +993,7 @@ public partial class SongSelectScreen : Screen
 
         return new SongSelectEntry(
             beatmap,
-            "SongSelect/blue-signal",
+            imported.ArtworkPath ?? "SongSelect/blue-signal",
             beatmap.OverallDifficulty,
             TimeSpan.FromMilliseconds(Math.Max(0, lengthMilliseconds)),
             bpm,
@@ -982,37 +1002,4 @@ public partial class SongSelectScreen : Screen
             []);
     }
 
-    private static SongSelectEntry createEntry(
-        string title,
-        string artist,
-        string creator,
-        string difficulty,
-        KeyMode keyMode,
-        string wallpaper,
-        double stars,
-        int seconds,
-        double bpm,
-        IReadOnlyList<SongSelectScore> ranking)
-    {
-        YokkoBeatmap source = keyMode == KeyMode.FourKey
-            ? DemoBeatmaps.CreateFourKeyDemo()
-            : DemoBeatmaps.CreateSevenKeyDemo();
-        YokkoBeatmap beatmap = source with
-        {
-            Title = title,
-            Artist = artist,
-            Creator = creator,
-            DifficultyName = difficulty,
-        };
-
-        return new SongSelectEntry(
-            beatmap,
-            wallpaper,
-            stars,
-            TimeSpan.FromSeconds(seconds),
-            bpm,
-            987432,
-            0.9841,
-            ranking);
-    }
 }

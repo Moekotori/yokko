@@ -9,6 +9,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osu.Framework.Platform;
 using osuTK;
@@ -63,6 +64,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         Bindable<Size> windowedSize,
         Bindable<WindowMode> windowMode,
         Bindable<YokkoFrameLimit> frameLimit,
+        BindableBool showPerformanceReadout,
         IBindable<DisplayMode> currentDisplayMode,
         Action<Size> setWindowedSize,
         Action<WindowMode> setWindowMode)
@@ -105,6 +107,11 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
                 -10),
             createDivider(430),
             createSettingRow(440, YokkoStrings.Get("settings.display.frame_limit"), createFrameLimitControl()),
+            createDivider(504),
+            createSettingRow(
+                514,
+                YokkoStrings.Get("settings.display.performance_readout"),
+                new DisplayPerformanceReadoutToggle(showPerformanceReadout)),
             new SettingsPanelFooter(),
             new HomeDotCross
             {
@@ -365,6 +372,108 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             frameLimit.ValueChanged -= onFrameLimitChanged;
             currentDisplayMode.ValueChanged -= onCurrentDisplayModeChanged;
         }
+
+        base.Dispose(isDisposing);
+    }
+}
+
+internal partial class DisplayPerformanceReadoutToggle : ClickableContainer
+{
+    private readonly BindableBool value;
+    private readonly Box background;
+    private readonly Box switchTrack;
+    private readonly Circle switchThumb;
+    private readonly SpriteText stateText;
+
+    public DisplayPerformanceReadoutToggle(BindableBool value)
+    {
+        this.value = value;
+        Action = () => value.Value = !value.Value;
+        Size = new Vector2(598, 54);
+        Masking = true;
+        CornerRadius = 7;
+        BorderThickness = 1.4f;
+        BorderColour = HomeControlColours.Navy;
+
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.White,
+            },
+            stateText = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 18,
+                Font = HomeTypography.Display(17),
+                Colour = HomeControlColours.Navy,
+            },
+            new Container
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -16,
+                Size = new Vector2(48, 24),
+                Masking = true,
+                CornerRadius = 12,
+                Children = new Drawable[]
+                {
+                    switchTrack = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = SettingsTheme.Divider,
+                    },
+                    switchThumb = new Circle
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.Centre,
+                        X = 12,
+                        Size = new Vector2(18),
+                        Colour = Color4.White,
+                    },
+                },
+            },
+        };
+
+        value.BindValueChanged(onValueChanged, true);
+    }
+
+    private void onValueChanged(ValueChangedEvent<bool> change)
+    {
+        switchTrack.FadeColour(
+            change.NewValue
+                ? HomeControlColours.Navy
+                : SettingsTheme.Divider,
+            120,
+            Easing.OutQuint);
+        switchThumb.MoveToX(
+            change.NewValue ? 36 : 12,
+            120,
+            Easing.OutQuint);
+        stateText.Text = YokkoStrings.Get(
+            change.NewValue
+                ? "settings.display.enabled"
+                : "settings.display.disabled");
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(
+            SettingsTheme.PaleCyan,
+            120,
+            Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e) =>
+        background.FadeColour(Color4.White, 140, Easing.OutQuint);
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            value.ValueChanged -= onValueChanged;
 
         base.Dispose(isDisposing);
     }

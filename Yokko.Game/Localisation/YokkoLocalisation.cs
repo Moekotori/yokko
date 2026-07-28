@@ -97,6 +97,13 @@ internal static class YokkoStrings
             ["song_select.you"] = new("YOU", "你", "自分"),
             ["song_select.length"] = new("LENGTH", "时长", "長さ"),
 
+            ["gameplay.result.title"] = new("Result", "结算", "リザルト"),
+            ["gameplay.result.max_combo"] = new("MAX COMBO", "最大连击", "MAX COMBO"),
+            ["gameplay.result.new_best"] = new("NEW BEST", "新纪录", "NEW BEST"),
+            ["gameplay.result.retry"] = new("Retry", "再来一次", "リトライ"),
+            ["gameplay.result.watch_replay"] = new("Watch replay", "观看回放", "リプレイを見る"),
+            ["gameplay.result.return"] = new("Song select", "返回选曲", "曲選択へ"),
+
             ["gameplay.audio_failed_title"] = new(
                 "Audio could not start",
                 "音频启动失败",
@@ -175,6 +182,12 @@ internal static class YokkoStrings
             ["settings.display.window_mode"] = new("Window mode", "窗口模式", "ウィンドウモード"),
             ["settings.display.resolution"] = new("Resolution", "分辨率", "解像度"),
             ["settings.display.frame_limit"] = new("Frame limit", "帧率上限", "フレーム上限"),
+            ["settings.display.performance_readout"] = new(
+                "Performance readout",
+                "性能读数",
+                "パフォーマンス表示"),
+            ["settings.display.enabled"] = new("Enabled", "已开启", "オン"),
+            ["settings.display.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.display.windowed"] = new("Windowed", "窗口化", "ウィンドウ"),
             ["settings.display.borderless"] = new("Borderless", "无边框", "ボーダーレス"),
             ["settings.display.fullscreen"] = new("Fullscreen", "全屏", "フルスクリーン"),

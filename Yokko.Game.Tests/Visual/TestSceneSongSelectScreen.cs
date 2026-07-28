@@ -1,9 +1,13 @@
 using NUnit.Framework;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Screens;
+using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Game.Importing;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.SongSelect;
+using Yokko.Import;
 
 namespace Yokko.Game.Tests.Visual;
 
@@ -12,6 +16,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
 {
     private readonly ScreenStack screenStack;
     private readonly SongSelectScreen songSelectScreen;
+    [Resolved]
+    private ImportedChartLibrary importedChartLibrary { get; set; }
 
     public TestSceneSongSelectScreen()
     {
@@ -25,19 +31,25 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     public void TestSongSelectInteractions()
     {
         AddAssert("song select is current", () => screenStack.CurrentScreen is SongSelectScreen);
-        AddAssert("Blue Signal selected by default", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Blue Signal");
-        AddAssert("five demo songs visible", () => songSelectScreen.VisibleEntryCount == 5);
+        AddAssert("no built-in demo songs", () => songSelectScreen.VisibleEntryCount == 0);
+        AddStep("import test charts", () => importedChartLibrary.AddOrReplace(
+            [
+                result("Imported Four", DemoBeatmaps.CreateFourKeyDemo()),
+                result("Imported Seven", DemoBeatmaps.CreateSevenKeyDemo()),
+            ],
+            @"C:\Charts\test-pack.osz"));
+        AddUntilStep("imported charts visible", () => songSelectScreen.VisibleEntryCount == 2);
+        AddAssert("newest import selected", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Seven");
 
         AddStep("select next song", songSelectScreen.SelectNext);
-        AddAssert("Neon Pulse selected", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Neon Pulse");
+        AddAssert("selection wraps", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");
 
         AddStep("filter 7K", () => songSelectScreen.SetKeyModeFilter(KeyMode.SevenKey));
-        AddAssert("two 7K songs visible", () => songSelectScreen.VisibleEntryCount == 2);
+        AddAssert("one 7K song visible", () => songSelectScreen.VisibleEntryCount == 1);
         AddAssert("selection follows filter", () => songSelectScreen.SelectedEntry.Beatmap.KeyMode == KeyMode.SevenKey);
 
-        AddStep("search Circuit", () => songSelectScreen.SetSearchQuery("Circuit"));
+        AddStep("search imported seven", () => songSelectScreen.SetSearchQuery("Imported Seven"));
         AddAssert("one matching song", () => songSelectScreen.VisibleEntryCount == 1);
-        AddAssert("Circuit Bloom selected", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Circuit Bloom");
 
         AddStep("search no results", () => songSelectScreen.SetSearchQuery("not-a-real-song"));
         AddAssert("empty result is stable", () => songSelectScreen.VisibleEntryCount == 0);
@@ -47,7 +59,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             songSelectScreen.SetSearchQuery(string.Empty);
             songSelectScreen.SetKeyModeFilter(null);
         });
-        AddAssert("all songs restored", () => songSelectScreen.VisibleEntryCount == 5);
+        AddAssert("all imports restored", () => songSelectScreen.VisibleEntryCount == 2);
 
         AddAssert("ranking shown by default", () => songSelectScreen.ScoreView == SongSelectScoreView.GlobalRanking);
         AddStep("show personal record", songSelectScreen.ToggleScoreView);
@@ -58,9 +70,16 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     [Test]
     public void TestPlayPushesGameplay()
     {
+        AddStep("ensure playable import", () => importedChartLibrary.AddOrReplace(
+            result("Playable Import", DemoBeatmaps.CreateFourKeyDemo()),
+            @"C:\Charts\playable.osu"));
+        AddUntilStep("playable import selected", () => songSelectScreen.SelectedEntry?.Beatmap.Title == "Playable Import");
         AddStep("play selected song", songSelectScreen.PlaySelected);
         AddAssert("gameplay is pushed", () => screenStack.CurrentScreen is GameplayScreen);
         AddStep("return to song select", () => screenStack.CurrentScreen.Exit());
         AddUntilStep("song select resumes", () => screenStack.CurrentScreen is SongSelectScreen);
     }
+
+    private static ChartImportResult result(string title, YokkoBeatmap beatmap) =>
+        new(beatmap with { Title = title }, []);
 }

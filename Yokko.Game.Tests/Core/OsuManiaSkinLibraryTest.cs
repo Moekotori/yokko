@@ -48,6 +48,36 @@ public sealed class OsuManiaSkinLibraryTest
             Assert.That(library.IsSelected(result.Skin!.Id), Is.True);
             Assert.That(library.CurrentSkinPath, Is.EqualTo(result.Skin.FullPath));
             Assert.That(File.Exists(result.Skin.FullPath), Is.True);
+            Assert.That(
+                library.LibraryPath,
+                Does.EndWith(Path.Combine("Resources", "Skins")));
+        });
+    }
+
+    [Test]
+    public void ExistingTopLevelSkinIsMigratedIntoResourceDirectory()
+    {
+        string legacySkin = Path.Combine(testRoot, "Skins", "legacy");
+        Directory.CreateDirectory(legacySkin);
+        File.WriteAllText(
+            Path.Combine(legacySkin, "skin.ini"),
+            """
+            [General]
+            Name: Legacy
+
+            [Mania]
+            Keys: 4
+            """);
+
+        var library = createLibrary(new YokkoSkinSettings());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(library.GetInstalledSkins().Single().Name, Is.EqualTo("Legacy"));
+            Assert.That(Directory.Exists(legacySkin), Is.False);
+            Assert.That(
+                Directory.Exists(Path.Combine(library.LibraryPath, "legacy")),
+                Is.True);
         });
     }
 

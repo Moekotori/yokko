@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -31,6 +32,8 @@ public partial class GameplayScreen : Screen
     private readonly YokkoBeatmap beatmap;
     private IAudioEngine audioEngine;
     private readonly string skinPath;
+    private readonly GameplayReplay replay;
+    private readonly List<GameplayReplayInput> recordedReplayInputs = new();
     [Resolved]
     private YokkoAudioSettings audioSettings { get; set; }
     [Resolved]
@@ -58,14 +61,18 @@ public partial class GameplayScreen : Screen
     private readonly double completionTimeMilliseconds;
     private readonly double firstObjectTimeMilliseconds;
     private bool introSkipInProgress;
+    private int replayInputIndex;
+    private GameplayReplay completedReplay;
 
     internal bool GameplayBlocked => gameplayBlocked;
     internal bool GameplayCompleted => gameplayCompleted;
     internal ManiaScoreResult CompletedResult => completedResult;
+    internal bool ReplayMode => replay != null;
     internal bool IntroSkipAvailable =>
         !gameplayBlocked
         && !gameplayCompleted
         && !introSkipInProgress
+        && IntroSkipTargetMilliseconds > 0
         && currentGameplayTime < IntroSkipTargetMilliseconds;
     internal double IntroSkipTargetMilliseconds =>
         Math.Max(
@@ -79,10 +86,20 @@ public partial class GameplayScreen : Screen
         YokkoBeatmap beatmap,
         IAudioEngine audioEngine = null,
         string skinPath = null)
+        : this(beatmap, audioEngine, skinPath, null)
+    {
+    }
+
+    private GameplayScreen(
+        YokkoBeatmap beatmap,
+        IAudioEngine audioEngine,
+        string skinPath,
+        GameplayReplay replay)
     {
         this.beatmap = beatmap;
         this.audioEngine = audioEngine;
         this.skinPath = skinPath;
+        this.replay = replay;
         completionTimeMilliseconds = beatmap.HitObjects.Count == 0
             ? 0
             : beatmap.HitObjects.Max(hitObject =>
@@ -147,7 +164,9 @@ public partial class GameplayScreen : Screen
     protected override void LoadComplete()
     {
         base.LoadComplete();
-        keyInputTimestamps.BeginCapture();
+        if (!ReplayMode)
+            keyInputTimestamps.BeginCapture();
+
         startTimeMilliseconds = Time.Current + leadInMilliseconds;
 
         if (hasAudioClock)
@@ -162,9 +181,12 @@ public partial class GameplayScreen : Screen
         if (gameplayBlocked || gameplayCompleted)
             return;
 
-        drainRawInput();
-
         double gameplayTime = currentGameplayTime;
+
+        if (ReplayMode)
+            drainReplayInput(gameplayTime);
+        else
+            drainRawInput();
 
         foreach (JudgementEvent missed in judgementState.CollectExpiredMisses(gameplayTime))
             applyJudgement(missed);
@@ -190,10 +212,23 @@ public partial class GameplayScreen : Screen
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
-        if (gameplayCompleted && e.Key is Key.Enter or Key.Escape)
+        if (gameplayCompleted)
         {
-            this.Exit();
-            return true;
+            switch (e.Key)
+            {
+                case Key.R:
+                    retryGameplay();
+                    return true;
+
+                case Key.V:
+                    watchCompletedReplay();
+                    return true;
+
+                case Key.Enter:
+                case Key.Escape:
+                    this.Exit();
+                    return true;
+            }
         }
 
         if (e.Key == Key.Space && HandleIntroSkip())
@@ -208,6 +243,9 @@ public partial class GameplayScreen : Screen
             this.Exit();
             return true;
         }
+
+        if (ReplayMode)
+            return true;
 
         int lane = keyBindings.GetLane(e.Key);
 
@@ -229,7 +267,7 @@ public partial class GameplayScreen : Screen
 
     protected override void OnKeyUp(KeyUpEvent e)
     {
-        if (gameplayCompleted)
+        if (gameplayCompleted || ReplayMode)
             return;
 
         int lane = keyBindings.GetLane(e.Key);
@@ -251,7 +289,9 @@ public partial class GameplayScreen : Screen
     public override bool OnExiting(ScreenExitEvent e)
     {
         logInputTimingSummary();
-        keyInputTimestamps.EndCapture();
+        if (!ReplayMode)
+            keyInputTimestamps.EndCapture();
+
         _ = audioEngine.StopAsync();
         return base.OnExiting(e);
     }
@@ -260,7 +300,9 @@ public partial class GameplayScreen : Screen
     {
         if (isDisposing)
         {
-            keyInputTimestamps.EndCapture();
+            if (!ReplayMode)
+                keyInputTimestamps.EndCapture();
+
             gameplaySettings.ScrollSpeed.ValueChanged -=
                 onScrollSpeedChanged;
             _ = audioEngine.DisposeAsync();
@@ -388,6 +430,22 @@ public partial class GameplayScreen : Screen
         }
     }
 
+    private void drainReplayInput(double gameplayTime)
+    {
+        IReadOnlyList<GameplayReplayInput> inputs = replay.Inputs;
+
+        while (replayInputIndex < inputs.Count
+               && inputs[replayInputIndex].TimeMilliseconds <= gameplayTime)
+        {
+            GameplayReplayInput input = inputs[replayInputIndex++];
+
+            if (input.IsPressed)
+                applyLanePress(input.Lane, input.TimeMilliseconds);
+            else
+                applyLaneRelease(input.Lane, input.TimeMilliseconds);
+        }
+    }
+
     private void applyLanePress(int lane, double inputTime)
     {
         if (pressedLanes[lane])
@@ -395,6 +453,14 @@ public partial class GameplayScreen : Screen
 
         pressedLanes[lane] = true;
         playfield.SetLanePressed(lane, true);
+
+        if (!ReplayMode)
+        {
+            recordedReplayInputs.Add(new GameplayReplayInput(
+                lane,
+                true,
+                inputTime));
+        }
 
         foreach (JudgementEvent judgement in
                  judgementState.JudgeLanePress(lane, inputTime))
@@ -410,6 +476,14 @@ public partial class GameplayScreen : Screen
 
         pressedLanes[lane] = false;
         playfield.SetLanePressed(lane, false);
+
+        if (!ReplayMode)
+        {
+            recordedReplayInputs.Add(new GameplayReplayInput(
+                lane,
+                false,
+                inputTime));
+        }
 
         foreach (JudgementEvent judgement in
                  judgementState.JudgeLaneRelease(lane, inputTime))
@@ -430,9 +504,34 @@ public partial class GameplayScreen : Screen
 
         gameplayCompleted = true;
         completedResult = judgementState.CreateResult();
-        bool isNewBest = scoreStore.SaveBest(beatmap, completedResult);
+        completedReplay = replay ?? new GameplayReplay(recordedReplayInputs);
+        bool isNewBest = !ReplayMode
+                         && scoreStore.SaveBest(beatmap, completedResult);
         _ = audioEngine.StopAsync();
-        AddInternal(new GameplayResultOverlay(completedResult, isNewBest));
+        AddInternal(new GameplayResultOverlay(
+            beatmap,
+            completedResult,
+            isNewBest,
+            retryGameplay,
+            watchCompletedReplay,
+            () => this.Exit()));
+    }
+
+    private void retryGameplay() =>
+        this.Push(new GameplayScreen(
+            beatmap,
+            skinPath: skinPath));
+
+    private void watchCompletedReplay()
+    {
+        if (completedReplay == null)
+            return;
+
+        this.Push(new GameplayScreen(
+            beatmap,
+            null,
+            skinPath,
+            completedReplay));
     }
 
     private void logInputTimingSummary()

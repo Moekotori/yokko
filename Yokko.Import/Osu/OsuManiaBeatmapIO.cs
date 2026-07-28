@@ -23,6 +23,28 @@ public static class OsuManiaBeatmapIO
         return beatmap with { AudioPath = resolveAudioPath(path, beatmap.AudioPath) };
     }
 
+    public static string? ReadBackgroundPathFromFile(string path)
+    {
+        var sections = parseSections(File.ReadAllText(path, Encoding.UTF8));
+
+        foreach (string rawLine in sections.GetValueOrDefault("Events") ?? [])
+        {
+            string line = rawLine.Trim();
+            if (line.Length == 0 || line.StartsWith("//", StringComparison.Ordinal))
+                continue;
+
+            string[] parts = line.Split(',', 4);
+            if (parts.Length < 3
+                || !parts[0].Trim().Equals("0", StringComparison.Ordinal)
+                || !parts[1].Trim().Equals("0", StringComparison.Ordinal))
+                continue;
+
+            return ImportParsing.ResolveAdjacentAsset(path, parts[2]);
+        }
+
+        return null;
+    }
+
     public static YokkoBeatmap ReadBeatmap(string text)
     {
         var sections = parseSections(text);

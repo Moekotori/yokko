@@ -60,6 +60,9 @@ public partial class EditorScreen : Screen
     [Resolved]
     private YokkoImportSettings importSettings { get; set; }
 
+    [Resolved]
+    private ImportedChartLibrary importedChartLibrary { get; set; }
+
     [BackgroundDependencyLoader]
     private void load()
     {
@@ -252,13 +255,13 @@ public partial class EditorScreen : Screen
         try
         {
             cancelWaveformLoad();
-            ChartImportResult result = KnownChartImporters.ImportAsync(new ChartImportRequest(
-                                                              path,
-                                                              importSettings.PreferKeysounds.Value,
-                                                              importSettings.PreferSscSimfiles.Value))
-                                                          .AsTask()
-                                                          .GetAwaiter()
-                                                          .GetResult();
+            ChartImportResult result = importedChartLibrary.ImportAsync(
+                                                                new ChartImportRequest(
+                                                                    path,
+                                                                    importSettings.PreferKeysounds.Value,
+                                                                    importSettings.PreferSscSimfiles.Value))
+                                                            .GetAwaiter()
+                                                            .GetResult()[0];
             editableBeatmap = EditableBeatmap.FromBeatmap(result.Beatmap, path);
             viewport = new TimelineViewport(0, defaultVisibleRows);
             previewClock.Stop();

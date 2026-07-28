@@ -5,6 +5,7 @@ using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Presentation;
+using Yokko.Game.Resources;
 using Yokko.Game.Skinning.OsuMania;
 
 namespace Yokko.Game.Configuration;
@@ -18,6 +19,7 @@ internal enum YokkoSetting
     ImportPreferKeysounds,
     ImportPreferSscSimfiles,
     ImportShowCompatibilityWarnings,
+    ResourceRootPath,
     GameplayFourKeyLane1,
     GameplayFourKeyLane2,
     GameplayFourKeyLane3,
@@ -32,6 +34,7 @@ internal enum YokkoSetting
     ManiaScrollSpeed,
     GameplayShowLanePressFeedback,
     DisplayFrameLimit,
+    DisplayShowPerformanceReadout,
     SkinSelectedId,
     SettingsLastPage,
 }
@@ -61,6 +64,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(YokkoSetting.ImportPreferKeysounds, true);
         SetDefault(YokkoSetting.ImportPreferSscSimfiles, true);
         SetDefault(YokkoSetting.ImportShowCompatibilityWarnings, true);
+        SetDefault(YokkoSetting.ResourceRootPath, string.Empty);
         SetDefault(YokkoSetting.GameplayFourKeyLane1, osuTK.Input.Key.D);
         SetDefault(YokkoSetting.GameplayFourKeyLane2, osuTK.Input.Key.F);
         SetDefault(YokkoSetting.GameplayFourKeyLane3, osuTK.Input.Key.J);
@@ -82,6 +86,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(
             YokkoSetting.DisplayFrameLimit,
             YokkoFrameLimit.RefreshRate);
+        SetDefault(YokkoSetting.DisplayShowPerformanceReadout, false);
         SetDefault(YokkoSetting.SkinSelectedId, string.Empty);
         SetDefault(YokkoSetting.SettingsLastPage, "Display");
     }
@@ -107,6 +112,11 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             settings.ShowCompatibilityWarnings);
     }
 
+    public void BindResourceSettings(YokkoResourceSettings settings)
+    {
+        BindWith(YokkoSetting.ResourceRootPath, settings.RootPath);
+    }
+
     public void BindGameplaySettings(YokkoGameplaySettings settings)
     {
         BindWith(YokkoSetting.GameplayFourKeyLane1, settings.FourKeyBindings[0]);
@@ -129,6 +139,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
     public void BindDisplaySettings(YokkoDisplaySettings settings)
     {
         BindWith(YokkoSetting.DisplayFrameLimit, settings.FrameLimit);
+        BindWith(
+            YokkoSetting.DisplayShowPerformanceReadout,
+            settings.ShowPerformanceReadout);
     }
 
     public void BindSkinSettings(YokkoSkinSettings settings)

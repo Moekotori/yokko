@@ -67,7 +67,8 @@ internal static class SettingsPages
                 "settings.display.title",
                 "settings.display.subtitle",
                 "settings.display.window_mode",
-                "settings.display.resolution")),
+                "settings.display.resolution",
+                "settings.display.performance_readout")),
         SettingsPageKind.Audio => new(
             kind,
             YokkoStrings.Get("settings.audio.title"),

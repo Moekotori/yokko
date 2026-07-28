@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using osu.Framework.Platform;
+using Yokko.Game.Resources;
 
 namespace Yokko.Game.Skinning.OsuMania;
 
@@ -25,7 +26,7 @@ internal sealed record SkinImportResult(
 /// </summary>
 internal sealed class OsuManiaSkinLibrary
 {
-    private const string skins_directory = "Skins";
+    private const string legacy_skins_directory = "Skins";
 
     private Storage storage;
     private YokkoSkinSettings settings;
@@ -58,9 +59,31 @@ internal sealed class OsuManiaSkinLibrary
     public void Initialise(Storage hostStorage, YokkoSkinSettings skinSettings)
     {
         storage = hostStorage ?? throw new ArgumentNullException(nameof(hostStorage));
+        Initialise(
+            storage.GetFullPath(YokkoResourceDirectories.Skins, true),
+            skinSettings);
+        migrateLegacySkins();
+    }
+
+    public void Initialise(string path, YokkoSkinSettings skinSettings)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
         settings = skinSettings ?? throw new ArgumentNullException(nameof(skinSettings));
-        libraryPath = storage.GetFullPath(skins_directory, true);
+        libraryPath = Path.GetFullPath(path);
         Directory.CreateDirectory(libraryPath);
+    }
+
+    public void ChangeLibraryPath(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        lock (importLock)
+        {
+            libraryPath = Path.GetFullPath(path);
+            Directory.CreateDirectory(libraryPath);
+        }
+
+        LibraryChanged?.Invoke();
     }
 
     public static bool IsSupportedDrop(string path) =>
@@ -307,6 +330,33 @@ internal sealed class OsuManiaSkinLibrary
             File.Delete(path);
         else if (Directory.Exists(path))
             Directory.Delete(path, true);
+    }
+
+    private void migrateLegacySkins()
+    {
+        string legacyPath = storage.GetFullPath(legacy_skins_directory, false);
+
+        if (!Directory.Exists(legacyPath)
+            || Path.GetFullPath(legacyPath).Equals(
+                Path.GetFullPath(libraryPath),
+                StringComparison.OrdinalIgnoreCase))
+            return;
+
+        foreach (string source in Directory.EnumerateFileSystemEntries(legacyPath))
+        {
+            string destination = Path.Combine(libraryPath, Path.GetFileName(source));
+
+            if (File.Exists(destination) || Directory.Exists(destination))
+                continue;
+
+            if (File.Exists(source))
+                File.Move(source, destination);
+            else
+                Directory.Move(source, destination);
+        }
+
+        if (!Directory.EnumerateFileSystemEntries(legacyPath).Any())
+            Directory.Delete(legacyPath);
     }
 
     private void ensureInitialised()

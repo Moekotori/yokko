@@ -41,7 +41,7 @@ public partial class TestSceneImportedChartSongSelectScreen : YokkoTestScene
         AddStep("import seven-chart package", () =>
             importedChartLibrary.AddOrReplace(package, @"C:\Charts\pack.osz"));
         AddUntilStep("all package charts visible", () =>
-            songSelectScreen.VisibleEntryCount == 12);
+            songSelectScreen.VisibleEntryCount == 7);
         AddAssert("newest package chart selected", () =>
             songSelectScreen.SelectedEntry.Beatmap.Title == "Package chart 7");
     }

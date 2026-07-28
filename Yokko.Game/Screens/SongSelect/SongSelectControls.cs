@@ -35,7 +35,7 @@ internal partial class SongSelectSearchBox : BasicTextBox
         BackgroundUnfocused = new Color4(SongSelectTheme.DeepNavy.R, SongSelectTheme.DeepNavy.G, SongSelectTheme.DeepNavy.B, 0.72f);
         BackgroundFocused = new Color4(SongSelectTheme.Navy.R, SongSelectTheme.Navy.G, SongSelectTheme.Navy.B, 0.92f);
         FontSize = 16;
-        PlaceholderText = YokkoStrings.Get("song_select.search");
+        PlaceholderText = "SEARCH";
 
         AddInternal(new SpriteIcon
         {
@@ -140,6 +140,7 @@ internal partial class SongSelectSongRow : ClickableContainer
 {
     private readonly Box tint;
     private readonly Box selectionLine;
+    private readonly SpriteIcon selectionArrow;
     private readonly SpriteText title;
     private readonly SpriteText metadata;
     private bool selected;
@@ -194,6 +195,16 @@ internal partial class SongSelectSongRow : ClickableContainer
             {
                 RelativeSizeAxes = Axes.Y,
                 Width = 5,
+                Colour = SongSelectTheme.Yellow,
+                Alpha = 0,
+            },
+            selectionArrow = new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreRight,
+                X = -7,
+                Size = new Vector2(20),
+                Icon = FontAwesome.Solid.Play,
                 Colour = SongSelectTheme.Yellow,
                 Alpha = 0,
             },
@@ -266,6 +277,7 @@ internal partial class SongSelectSongRow : ClickableContainer
     {
         selected = value;
         selectionLine.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
+        selectionArrow.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
         tint.FadeColour(
             selected
                 ? new Color4(SongSelectTheme.Navy.R, SongSelectTheme.Navy.G, SongSelectTheme.Navy.B, 0.56f)
@@ -273,6 +285,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             150,
             Easing.OutQuint);
         this.ResizeHeightTo(selected ? 92 : 84, 170, Easing.OutQuint);
+        this.MoveToX(selected ? -30 : 0, 170, Easing.OutQuint);
         title.Font = HomeTypography.Display(selected ? 27 : 24);
     }
 
@@ -365,8 +378,8 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
         textures ??= this.textures;
         view = newView;
         selectorText.Text = view == SongSelectScoreView.GlobalRanking
-            ? YokkoStrings.Get("song_select.global_ranking")
-            : YokkoStrings.Get("song_select.my_record");
+            ? "GLOBAL RANKING"
+            : "MY RECORD";
         selectorIcon.RotateTo(view == SongSelectScoreView.GlobalRanking ? 0 : 180, 150, Easing.OutQuint);
         content.Clear();
 
