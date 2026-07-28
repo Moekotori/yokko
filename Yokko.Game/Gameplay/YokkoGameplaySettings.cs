@@ -42,7 +42,8 @@ public sealed class YokkoGameplaySettings
 
     public IReadOnlyList<Bindable<Key>> SevenKeyBindings => sevenKeyBindings;
 
-    public readonly Bindable<double> ScrollSpeed = new(1.0);
+    public readonly Bindable<double> ScrollSpeed =
+        new(OsuManiaScrollSpeed.Default);
 
     public readonly BindableBool ShowGameplayHud = new(true);
 
@@ -99,6 +100,33 @@ public sealed class YokkoGameplaySettings
             bindings[duplicateLane].Value = previous;
     }
 
+    /// <summary>
+    /// Replaces a complete key profile as one validated operation. This is used
+    /// by sequential capture so cancelling halfway never leaves a partial map.
+    /// </summary>
+    public void SetBindings(KeyMode keyMode, IReadOnlyList<Key> keys)
+    {
+        IReadOnlyList<Bindable<Key>> bindings = GetBindableKeys(keyMode);
+
+        if (keys == null || keys.Count != bindings.Count)
+            throw new ArgumentException(
+                $"{keyMode} requires exactly {bindings.Count} keys.",
+                nameof(keys));
+
+        if (keys.Any(key => key == Key.Escape))
+            throw new ArgumentException(
+                "Escape is reserved for navigation.",
+                nameof(keys));
+
+        if (keys.Distinct().Count() != keys.Count)
+            throw new ArgumentException(
+                "A gameplay key profile cannot contain duplicate keys.",
+                nameof(keys));
+
+        for (int index = 0; index < bindings.Count; index++)
+            bindings[index].Value = keys[index];
+    }
+
     public void ResetBindings(KeyMode keyMode)
     {
         Key[] defaults = keyMode switch
@@ -116,11 +144,13 @@ public sealed class YokkoGameplaySettings
             bindings[index].Value = defaults[index];
     }
 
-    public void SetScrollSpeed(double multiplier) =>
-        ScrollSpeed.Value = Math.Clamp(
-            Math.Round(multiplier / 0.05) * 0.05,
-            0.5,
-            2.0);
+    public void SetScrollSpeed(double speed) =>
+        ScrollSpeed.Value = OsuManiaScrollSpeed.Clamp(speed);
+
+    public void AdjustScrollSpeed(double amount) =>
+        ScrollSpeed.Value = OsuManiaScrollSpeed.Adjust(
+            ScrollSpeed.Value,
+            amount);
 
     private static Bindable<Key>[] createBindings(IEnumerable<Key> defaults) =>
         defaults.Select(key => new Bindable<Key>(key)).ToArray();

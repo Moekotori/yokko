@@ -215,17 +215,21 @@ public partial class DrawableNote : CompositeDrawable
                     fallbackBody.Colour = YokkoPalette.Lime;
             }
 
-            Y = Math.Min(headY, tailY);
+            // Legacy mania pieces use a bottom origin for downscroll and a
+            // top origin for upscroll. Keep the timing anchor on the edge of
+            // the texture instead of treating it as the texture's top-left.
+            Y = upsideDown ? headY : tailY - tailHeight;
             Height = Math.Max(
                 minimumHeight,
-                Math.Abs(headY - tailY) + (upsideDown ? tailHeight : headHeight));
+                Math.Abs(headY - tailY) + tailHeight);
             updateHoldBody();
             Alpha = tailProgress >= -0.08 && headProgress <= 1.22 ? 1 : 0;
             return;
         }
 
         double progress = 1 - (hitObject.StartTimeMilliseconds - gameplayTimeMilliseconds) / approachTimeMilliseconds;
-        Y = topY + (float)(progress * travel);
+        float anchorY = topY + (float)(progress * travel);
+        Y = upsideDown ? anchorY : anchorY - minimumHeight;
         Height = minimumHeight;
         Alpha = progress is >= -0.08 and <= 1.22 ? 1 : 0;
     }

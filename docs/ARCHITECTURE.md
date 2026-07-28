@@ -49,4 +49,14 @@ The gameplay path should calculate hit error as:
 input timestamp - audio playback time - user/device offset
 ```
 
+Keyboard edges are timestamped from the SDL window callback before
+osu!framework drains them on the update thread. When gameplay consumes an
+edge, its monotonic timestamp is correlated with the presented audio clock at
+the time of observation. Update-thread delay is therefore removed from the
+judgement time instead of being mistaken for player error.
+
+On Windows, both the managed monotonic timestamp and native WASAPI clock
+correlation use QPC. A missing timestamp falls back to the observed gameplay
+clock for that edge; it never changes the authoritative audio clock mid-song.
+
 Frame time is only for presentation. A dropped frame may look bad, but it must not shift judgement.

@@ -15,6 +15,7 @@ using Yokko.Core.Gameplay;
 using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Localisation;
+using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Settings;
@@ -32,9 +33,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private readonly YokkoAudioSettings audioSettings;
     private readonly List<GameplaySectionTab> sectionTabs = new();
     private readonly List<GameplayBindingCard> bindingCards = new();
+    private readonly List<Key> sequentialKeys = new();
     private readonly SpriteText statusMetadata;
     private readonly Container contentHost;
     private GameplayBindingCard capturingCard;
+    private SpriteText keyCaptureHint;
+    private bool sequentialCapture;
     private KeyMode selectedKeyMode = KeyMode.FourKey;
 
     internal GameplaySettingsSection CurrentSection { get; private set; } =
@@ -43,6 +47,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal KeyMode SelectedKeyMode => selectedKeyMode;
 
     internal bool IsCapturingKey => capturingCard != null;
+
+    internal bool IsSequentialCapture => sequentialCapture;
+
+    internal int SequentialCaptureIndex => sequentialKeys.Count;
 
     internal double CurrentScrollSpeed => settings.ScrollSpeed.Value;
 
@@ -194,9 +202,22 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         if ((uint)lane >= bindingCards.Count)
             throw new ArgumentOutOfRangeException(nameof(lane));
 
-        capturingCard?.SetCapturing(false);
+        cancelCapture();
         capturingCard = bindingCards[lane];
         capturingCard.SetCapturing(true);
+    }
+
+    internal void BeginSequentialKeyCapture()
+    {
+        if (CurrentSection != GameplaySettingsSection.Input)
+            showSection(GameplaySettingsSection.Input, false);
+
+        cancelCapture();
+        sequentialCapture = true;
+        sequentialKeys.Clear();
+        capturingCard = bindingCards[0];
+        capturingCard.SetCapturing(true);
+        refreshSequentialHint();
     }
 
     internal void ResetSelectedBindings()
@@ -205,8 +226,11 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         settings.ResetBindings(selectedKeyMode);
     }
 
-    internal void SetScrollSpeed(double multiplier) =>
-        settings.SetScrollSpeed(multiplier);
+    internal void SetScrollSpeed(double speed) =>
+        settings.SetScrollSpeed(speed);
+
+    internal Key GetBinding(KeyMode keyMode, int lane) =>
+        settings.GetKeys(keyMode)[lane];
 
     internal void SetFeedback(
         bool? showHud = null,
@@ -230,6 +254,42 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         if (key == Key.Escape)
         {
             cancelCapture();
+            return true;
+        }
+
+        if (sequentialCapture)
+        {
+            if (sequentialKeys.Contains(key))
+            {
+                keyCaptureHint.Text = YokkoStrings.Get(
+                    "settings.gameplay.sequence_duplicate");
+                capturingCard.ShowDuplicate();
+                return true;
+            }
+
+            int sequenceLane = sequentialKeys.Count;
+            sequentialKeys.Add(key);
+            bindingCards[sequenceLane].SetPreviewKey(key);
+
+            if (sequentialKeys.Count == bindingCards.Count)
+            {
+                settings.SetBindings(selectedKeyMode, sequentialKeys);
+                sequentialCapture = false;
+                capturingCard = null;
+
+                foreach (GameplayBindingCard card in bindingCards)
+                    card.SetCapturing(false);
+
+                keyCaptureHint.Text = YokkoStrings.Get(
+                    "settings.gameplay.sequence_saved",
+                    selectedKeyMode == KeyMode.FourKey ? 4 : 7,
+                    formatKeys(settings.GetBindableKeys(selectedKeyMode)));
+                return true;
+            }
+
+            capturingCard = bindingCards[sequentialKeys.Count];
+            capturingCard.SetCapturing(true);
+            refreshSequentialHint();
             return true;
         }
 
@@ -350,6 +410,14 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 IsSelected = selectedKeyMode == KeyMode.SevenKey,
             },
             new GameplayCompactButton(
+                YokkoStrings.Get("settings.gameplay.edit_all"),
+                BeginSequentialKeyCapture,
+                150,
+                FontAwesome.Solid.Keyboard)
+            {
+                Position = new Vector2(538, 10),
+            },
+            new GameplayCompactButton(
                 YokkoStrings.Get("settings.gameplay.reset"),
                 ResetSelectedBindings,
                 122,
@@ -357,7 +425,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             {
                 Position = new Vector2(698, 10),
             },
-            new SpriteText
+            keyCaptureHint = new SpriteText
             {
                 Position = new Vector2(20, 66),
                 Text = YokkoStrings.Get(
@@ -422,10 +490,11 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 18),
             new GameplayValueStepper(
                 settings.ScrollSpeed,
-                0.05,
-                0.5,
-                2.0,
-                value => $"{value:0.00}×")
+                OsuManiaScrollSpeed.ShortcutStep,
+                OsuManiaScrollSpeed.Minimum,
+                OsuManiaScrollSpeed.Maximum,
+                value =>
+                    $"{(int)OsuManiaScrollSpeed.ComputeScrollTime(value)} ms  ·  {value:0.0}")
             {
                 Position = new Vector2(430, 14),
             },
@@ -466,7 +535,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     private Drawable createSpeedPresets()
     {
-        double[] speeds = { 0.75, 1.0, 1.25, 1.5 };
+        double[] speeds = { 8, 15, 20, 30 };
         var flow = new FillFlowContainer
         {
             Position = new Vector2(180, 78),
@@ -479,7 +548,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         {
             double capturedSpeed = speed;
             flow.Add(new GameplayCompactButton(
-                $"{speed:0.00}×",
+                $"{speed:0}",
                 () => settings.SetScrollSpeed(capturedSpeed),
                 154));
         }
@@ -679,15 +748,33 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private static string formatKeys(
         IEnumerable<Bindable<Key>> bindings) =>
         string.Join("  ", bindings.Select(binding =>
-            binding.Value == Key.Space ? "SPACE" : binding.Value.ToString().ToUpperInvariant()));
+            KeyModeBindings.FormatKey(binding.Value).ToUpperInvariant()));
 
     private void onBindingChanged(ValueChangedEvent<Key> _) =>
         refreshStatusMetadata();
 
     private void cancelCapture()
     {
-        capturingCard?.SetCapturing(false);
+        foreach (GameplayBindingCard card in bindingCards)
+            card.SetCapturing(false);
+
         capturingCard = null;
+        sequentialCapture = false;
+        sequentialKeys.Clear();
+
+        if (keyCaptureHint != null)
+        {
+            keyCaptureHint.Text = YokkoStrings.Get(
+                "settings.gameplay.key_capture_hint");
+        }
+    }
+
+    private void refreshSequentialHint()
+    {
+        keyCaptureHint.Text = YokkoStrings.Get(
+            "settings.gameplay.sequence_hint",
+            sequentialKeys.Count + 1,
+            bindingCards.Count);
     }
 
     private static Drawable createDecorationIcon(
@@ -905,6 +992,43 @@ internal partial class GameplayBindingCard : ClickableContainer
             this.ScaleTo(1, 130, Easing.OutQuint);
     }
 
+    public void SetPreviewKey(Key key)
+    {
+        capturing = false;
+        background.FadeColour(
+            SettingsTheme.PaleCyan,
+            120,
+            Easing.OutQuint);
+        laneText.FadeColour(
+            SettingsTheme.MutedNavy,
+            120,
+            Easing.OutQuint);
+        keyText.Text = displayKey(key);
+        keyText.Font = HomeTypography.Display(28);
+        keyText.FadeColour(
+            HomeControlColours.Navy,
+            120,
+            Easing.OutQuint);
+        actionText.Text = YokkoStrings.Get(
+            "settings.gameplay.sequence_captured");
+        actionText.FadeColour(
+            HomeControlColours.Pink,
+            120,
+            Easing.OutQuint);
+        this.ScaleTo(1, 120, Easing.OutQuint);
+    }
+
+    public void ShowDuplicate()
+    {
+        this.FlashColour(
+            HomeControlColours.Pink,
+            260,
+            Easing.OutQuint);
+        this.ScaleTo(1.05f, 80, Easing.OutQuint)
+            .Then()
+            .ScaleTo(1.035f, 110, Easing.OutQuint);
+    }
+
     private void onBindingChanged(ValueChangedEvent<Key> change)
     {
         if (!capturing)
@@ -912,7 +1036,7 @@ internal partial class GameplayBindingCard : ClickableContainer
     }
 
     private static string displayKey(Key key) =>
-        key == Key.Space ? "SPACE" : key.ToString().ToUpperInvariant();
+        KeyModeBindings.FormatKey(key).ToUpperInvariant();
 
     protected override bool OnHover(HoverEvent e)
     {

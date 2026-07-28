@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Platform;
 using Yokko.Game.Configuration;
@@ -117,6 +118,31 @@ public sealed class OsuManiaSkinLibraryTest
             Assert.That(result.Message, Does.Contain("osu!mania"));
             Assert.That(library.GetInstalledSkins(), Is.Empty);
         });
+    }
+
+    [Test]
+    [Category("Integration")]
+    public void ImportsConfiguredRealSkinCorpus()
+    {
+        string corpus = Environment.GetEnvironmentVariable("YOKKO_OSU_MANIA_SKIN_CORPUS");
+
+        if (string.IsNullOrWhiteSpace(corpus) || !Directory.Exists(corpus))
+            Assert.Ignore("Set YOKKO_OSU_MANIA_SKIN_CORPUS to a directory containing real osu! skins.");
+
+        string[] packages = Directory.EnumerateFiles(corpus, "*.osk", SearchOption.TopDirectoryOnly)
+                                     .Concat(Directory.EnumerateDirectories(corpus))
+                                     .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+                                     .ToArray();
+        var library = createLibrary(new YokkoSkinSettings());
+
+        foreach (string package in packages)
+        {
+            SkinImportResult result = library.Import(package);
+            Assert.That(result.Success, Is.True, $"{Path.GetFileName(package)}: {result.Message}");
+        }
+
+        Assert.That(library.GetInstalledSkins(), Has.Count.EqualTo(packages.Length));
+        Assert.That(library.CurrentSkinPath, Is.Not.Null);
     }
 
     private OsuManiaSkinLibrary createLibrary(YokkoSkinSettings settings)

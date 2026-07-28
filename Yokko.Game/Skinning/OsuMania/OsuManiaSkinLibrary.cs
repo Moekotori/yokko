@@ -30,6 +30,7 @@ internal sealed class OsuManiaSkinLibrary
     private Storage storage;
     private YokkoSkinSettings settings;
     private string libraryPath;
+    private readonly object importLock = new();
 
     public event Action LibraryChanged;
 
@@ -90,6 +91,12 @@ internal sealed class OsuManiaSkinLibrary
     }
 
     public SkinImportResult Import(string sourcePath)
+    {
+        lock (importLock)
+            return import(sourcePath);
+    }
+
+    private SkinImportResult import(string sourcePath)
     {
         ensureInitialised();
 

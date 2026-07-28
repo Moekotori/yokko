@@ -16,7 +16,7 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public partial class GameplayPlayfield : CompositeDrawable
 {
-    private readonly double approachTimeMilliseconds;
+    private double approachTimeMilliseconds;
     private readonly LaneColumn[] laneColumns;
     private readonly DrawableNote[] noteDrawables;
     private readonly float topY;
@@ -26,6 +26,8 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     internal float JudgementPosition => judgementY;
 
+    internal double ApproachTimeMilliseconds => approachTimeMilliseconds;
+
     internal GameplayPlayfield(
         YokkoBeatmap beatmap,
         KeyModeBindings keyBindings,
@@ -33,10 +35,7 @@ public partial class GameplayPlayfield : CompositeDrawable
         double approachTimeMilliseconds = 1800,
         bool showLanePressFeedback = true)
     {
-        this.approachTimeMilliseconds = Math.Clamp(
-            approachTimeMilliseconds,
-            900,
-            3600);
+        this.approachTimeMilliseconds = approachTimeMilliseconds;
         int keyCount = keyBindings.KeyCount;
         OsuManiaSkinConfiguration configuration = skin?.Configuration;
         float playfieldWidth = configuration?.PlayfieldWidth ?? (keyCount == 4 ? 424 : 658);
@@ -175,6 +174,9 @@ public partial class GameplayPlayfield : CompositeDrawable
 
         noteDrawables[judgement.HitObjectIndex].ApplyJudgement(judgement);
     }
+
+    public void SetApproachTime(double value) =>
+        approachTimeMilliseconds = Math.Max(1, value);
 
     public void UpdateGameplayTime(double gameplayTimeMilliseconds, BeatmapJudgementState state)
     {

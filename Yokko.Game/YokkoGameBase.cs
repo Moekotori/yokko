@@ -12,6 +12,7 @@ using Yokko.Game.Audio;
 using Yokko.Game.Configuration;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
+using Yokko.Game.Input;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Skinning.OsuMania;
@@ -40,7 +41,10 @@ namespace Yokko.Game
         private readonly YokkoSkinSettings skinSettings = new();
         [Cached]
         private readonly OsuManiaSkinLibrary skinLibrary = new();
+        [Cached]
+        private readonly KeyInputTimestampSource keyInputTimestamps = new();
         private SkinImportNotificationOverlay skinImportOverlay;
+        [Cached]
         private YokkoConfigManager yokkoConfig;
         private IWindow window;
 
@@ -71,12 +75,14 @@ namespace Yokko.Game
             base.SetHost(host);
             yokkoConfig ??= new YokkoConfigManager(host.Storage);
             yokkoConfig.BindAudioSettings(audioSettings);
+            yokkoConfig.BindDisplaySettings(displaySettings);
             yokkoConfig.BindImportSettings(importSettings);
             yokkoConfig.BindGameplaySettings(gameplaySettings);
             yokkoConfig.BindSkinSettings(skinSettings);
             skinLibrary.Initialise(host.Storage, skinSettings);
 
             window = host.Window;
+            keyInputTimestamps.Attach(window);
 
             if (window != null)
                 window.DragDrop += onFileDropped;
@@ -108,6 +114,7 @@ namespace Yokko.Game
                     window.DragDrop -= onFileDropped;
 
                 yokkoConfig?.Dispose();
+                keyInputTimestamps.Dispose();
             }
 
             base.Dispose(isDisposing);

@@ -1,0 +1,33 @@
+using System;
+
+namespace Yokko.Game.Gameplay;
+
+/// <summary>
+/// osu!mania-compatible scroll-speed semantics shared by settings and gameplay.
+/// </summary>
+internal static class OsuManiaScrollSpeed
+{
+    public const double Minimum = 1;
+    public const double Maximum = 40;
+    public const double Default = 8;
+    public const double SettingsPrecision = 0.1;
+    public const double ShortcutStep = 1;
+
+    private const double maximumTimeRangeMilliseconds = 11485;
+
+    /// <remarks>
+    /// Matches ppy/osu's ManiaRulesetConfigManager and DrawableManiaRuleset at
+    /// commit 82056109080329928c572db8851f4bcf8e04362b (MIT).
+    /// </remarks>
+    public static double ComputeScrollTime(double scrollSpeed) =>
+        maximumTimeRangeMilliseconds / Clamp(scrollSpeed);
+
+    public static double Clamp(double scrollSpeed) =>
+        Math.Clamp(
+            Math.Round(scrollSpeed / SettingsPrecision) * SettingsPrecision,
+            Minimum,
+            Maximum);
+
+    public static double Adjust(double scrollSpeed, double amount) =>
+        Clamp(scrollSpeed + amount);
+}

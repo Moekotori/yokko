@@ -4,6 +4,7 @@ using Yokko.Audio;
 using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
+using Yokko.Game.Presentation;
 using Yokko.Game.Skinning.OsuMania;
 
 namespace Yokko.Game.Configuration;
@@ -28,11 +29,13 @@ internal enum YokkoSetting
     GameplaySevenKeyLane5,
     GameplaySevenKeyLane6,
     GameplaySevenKeyLane7,
-    GameplayScrollSpeed,
+    ManiaScrollSpeed,
     GameplayShowHud,
     GameplayShowHitError,
     GameplayShowLanePressFeedback,
+    DisplayUiScale,
     SkinSelectedId,
+    SettingsLastPage,
 }
 
 internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
@@ -71,11 +74,18 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(YokkoSetting.GameplaySevenKeyLane5, osuTK.Input.Key.J);
         SetDefault(YokkoSetting.GameplaySevenKeyLane6, osuTK.Input.Key.K);
         SetDefault(YokkoSetting.GameplaySevenKeyLane7, osuTK.Input.Key.L);
-        SetDefault(YokkoSetting.GameplayScrollSpeed, 1.0, 0.5, 2.0, 0.05);
+        SetDefault(
+            YokkoSetting.ManiaScrollSpeed,
+            OsuManiaScrollSpeed.Default,
+            OsuManiaScrollSpeed.Minimum,
+            OsuManiaScrollSpeed.Maximum,
+            OsuManiaScrollSpeed.SettingsPrecision);
         SetDefault(YokkoSetting.GameplayShowHud, true);
         SetDefault(YokkoSetting.GameplayShowHitError, true);
         SetDefault(YokkoSetting.GameplayShowLanePressFeedback, true);
+        SetDefault(YokkoSetting.DisplayUiScale, YokkoUiScale.Comfortable);
         SetDefault(YokkoSetting.SkinSelectedId, string.Empty);
+        SetDefault(YokkoSetting.SettingsLastPage, "Display");
     }
 
     public void BindAudioSettings(YokkoAudioSettings settings)
@@ -112,7 +122,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(YokkoSetting.GameplaySevenKeyLane5, settings.SevenKeyBindings[4]);
         BindWith(YokkoSetting.GameplaySevenKeyLane6, settings.SevenKeyBindings[5]);
         BindWith(YokkoSetting.GameplaySevenKeyLane7, settings.SevenKeyBindings[6]);
-        BindWith(YokkoSetting.GameplayScrollSpeed, settings.ScrollSpeed);
+        BindWith(YokkoSetting.ManiaScrollSpeed, settings.ScrollSpeed);
         BindWith(YokkoSetting.GameplayShowHud, settings.ShowGameplayHud);
         BindWith(YokkoSetting.GameplayShowHitError, settings.ShowHitError);
         BindWith(
@@ -120,8 +130,22 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             settings.ShowLanePressFeedback);
     }
 
+    public void BindDisplaySettings(YokkoDisplaySettings settings)
+    {
+        BindWith(YokkoSetting.DisplayUiScale, settings.UiScale);
+    }
+
     public void BindSkinSettings(YokkoSkinSettings settings)
     {
         BindWith(YokkoSetting.SkinSelectedId, settings.SelectedSkinId);
+    }
+
+    public string GetLastSettingsPage() =>
+        Get<string>(YokkoSetting.SettingsLastPage);
+
+    public void SetLastSettingsPage(string page)
+    {
+        SetValue(YokkoSetting.SettingsLastPage, page);
+        Save();
     }
 }

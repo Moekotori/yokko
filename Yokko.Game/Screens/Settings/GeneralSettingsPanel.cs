@@ -9,6 +9,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
@@ -21,14 +22,21 @@ namespace Yokko.Game.Screens.Settings;
 internal partial class GeneralSettingsPanel : CompositeDrawable
 {
     private readonly Bindable<string> locale;
+    private readonly YokkoGameplaySettings gameplaySettings;
     private readonly List<SettingsSegmentedChoiceButton> languageButtons = new();
     private readonly SpriteText currentLanguage;
 
     internal string CurrentLocale => locale.Value;
 
-    public GeneralSettingsPanel(Bindable<string> locale)
+    internal double CurrentScrollSpeed =>
+        gameplaySettings.ScrollSpeed.Value;
+
+    public GeneralSettingsPanel(
+        Bindable<string> locale,
+        YokkoGameplaySettings gameplaySettings)
     {
         this.locale = locale;
+        this.gameplaySettings = gameplaySettings;
         RelativeSizeAxes = Axes.Both;
 
         InternalChildren = new Drawable[]
@@ -56,12 +64,35 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                 YokkoStrings.Get("settings.general.language"),
                 createLanguageControl()),
             createDivider(406),
+            createSettingRow(
+                424,
+                YokkoStrings.Get(
+                    "settings.general.mania_scroll_speed"),
+                new GameplayValueStepper(
+                    gameplaySettings.ScrollSpeed,
+                    OsuManiaScrollSpeed.ShortcutStep,
+                    OsuManiaScrollSpeed.Minimum,
+                    OsuManiaScrollSpeed.Maximum,
+                    formatScrollSpeed)
+                {
+                    Anchor = Anchor.CentreRight,
+                    Origin = Anchor.CentreRight,
+                }),
             new SpriteText
             {
-                Position = new Vector2(378, 433),
+                Position = new Vector2(378, 496),
                 Width = 840,
                 Text = YokkoStrings.Get("settings.general.language_note"),
-                Font = HomeTypography.Body(18),
+                Font = HomeTypography.Body(15),
+                Colour = SettingsTheme.MutedNavy,
+            },
+            new SpriteText
+            {
+                Position = new Vector2(378, 521),
+                Width = 840,
+                Text = YokkoStrings.Get(
+                    "settings.general.mania_scroll_speed_note"),
+                Font = HomeTypography.Body(15),
                 Colour = SettingsTheme.MutedNavy,
             },
             new SettingsPanelFooter(),
@@ -84,6 +115,12 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
 
         locale.Value = language;
     }
+
+    internal void SetScrollSpeed(double speed) =>
+        gameplaySettings.SetScrollSpeed(speed);
+
+    private static string formatScrollSpeed(double speed) =>
+        $"{(int)OsuManiaScrollSpeed.ComputeScrollTime(speed)} ms  ·  {speed:0.0}";
 
     private Drawable createLanguageControl()
     {

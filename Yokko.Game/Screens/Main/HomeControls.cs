@@ -22,13 +22,17 @@ internal static class HomeControlColours
 
 internal static class HomeTypography
 {
-    public static FontUsage Display(float size) => new("Roboto", size, "Bold");
+    public static FontUsage Display(float size) => new("Roboto", readableSize(size), "Bold");
 
-    public static FontUsage Hero(float size) => new("Roboto", size, "Bold");
+    public static FontUsage Hero(float size) => new("Roboto", readableSize(size), "Bold");
 
-    public static FontUsage Body(float size) => new("Roboto", size);
+    public static FontUsage Body(float size) => new("Roboto", readableSize(size));
 
-    public static FontUsage Brand(float size) => new("Roboto", size, "Bold");
+    public static FontUsage Brand(float size) => new("Roboto", readableSize(size), "Bold");
+
+    // At high-DPI desktop resolutions the framework renders in physical pixels.
+    // Give compact labels a meaningful readability floor without inflating hero text.
+    private static float readableSize(float size) => size <= 22 ? size + 3 : size;
 }
 
 public partial class HomePrimaryAction : ClickableContainer
@@ -916,5 +920,269 @@ public partial class HomeMicroLine : CompositeDrawable
         dot.MoveToX(DrawWidth, 1700, Easing.InOutSine)
            .Then().FadeOut(140).MoveToX(0).FadeIn(140)
            .Loop();
+    }
+}
+
+/// <summary>
+/// 键盘键帽样式的小标签，用于页脚键位提示。
+/// </summary>
+public partial class HomeKeycap : CompositeDrawable
+{
+    public HomeKeycap(string label)
+    {
+        Size = new Vector2(26, 24);
+
+        InternalChildren = new Drawable[]
+        {
+            new Container
+            {
+                RelativeSizeAxes = Axes.Both,
+                Masking = true,
+                CornerRadius = 5,
+                BorderThickness = 1.5f,
+                BorderColour = new Color4(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.55f),
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Text = label,
+                Font = HomeTypography.Display(13),
+                Colour = HomeControlColours.Navy,
+            },
+        };
+    }
+}
+
+/// <summary>
+/// 心电波形带，扫描点沿波形往复。
+/// </summary>
+public partial class HomeEcgStrip : CompositeDrawable
+{
+    private const double period = 2800;
+
+    private static readonly Vector2[] waveform =
+    {
+        new(0.00f, 0.55f), new(0.16f, 0.55f), new(0.22f, 0.42f), new(0.28f, 0.55f),
+        new(0.36f, 0.55f), new(0.42f, 0.92f), new(0.48f, 0.08f), new(0.54f, 0.74f),
+        new(0.60f, 0.55f), new(0.70f, 0.40f), new(0.78f, 0.55f), new(1.00f, 0.55f),
+    };
+
+    private readonly Circle dot;
+
+    public HomeEcgStrip(float width, float height)
+    {
+        Size = new Vector2(width, height);
+
+        for (int i = 0; i < waveform.Length - 1; i++)
+            AddInternal(createSegment(waveform[i] * Size, waveform[i + 1] * Size));
+
+        AddInternal(dot = new Circle
+        {
+            Origin = Anchor.Centre,
+            Size = new Vector2(5),
+            Colour = Color4.White,
+        });
+    }
+
+    private static Drawable createSegment(Vector2 from, Vector2 to) => new Box
+    {
+        Position = from,
+        Origin = Anchor.CentreLeft,
+        Width = (to - from).Length,
+        Height = 2,
+        Rotation = MathHelper.RadiansToDegrees((float)Math.Atan2(to.Y - from.Y, to.X - from.X)),
+        Colour = Color4.White,
+    };
+
+    protected override void Update()
+    {
+        base.Update();
+
+        float t = (float)(Time.Current % period / period);
+        dot.Position = new Vector2(t * DrawWidth, sampleY(t) * DrawHeight);
+        dot.Alpha = Math.Min(1f, Math.Min(t, 1f - t) / 0.04f);
+    }
+
+    private static float sampleY(float t)
+    {
+        for (int i = 0; i < waveform.Length - 1; i++)
+        {
+            if (t <= waveform[i + 1].X)
+            {
+                float span = waveform[i + 1].X - waveform[i].X;
+                float local = span <= 0 ? 0 : (t - waveform[i].X) / span;
+                return waveform[i].Y + (waveform[i + 1].Y - waveform[i].Y) * local;
+            }
+        }
+
+        return waveform[^1].Y;
+    }
+}
+
+/// <summary>
+/// 缓慢旋转的虚线圆环，衬在 mascot 背后。
+/// </summary>
+public partial class HomeDashedRing : CompositeDrawable
+{
+    public HomeDashedRing(float radius, int dashes = 26)
+    {
+        Size = new Vector2(radius * 2);
+        Origin = Anchor.Centre;
+
+        for (int i = 0; i < dashes; i++)
+        {
+            float angle = i / (float)dashes * MathF.PI * 2;
+            AddInternal(new Box
+            {
+                Origin = Anchor.Centre,
+                Position = new Vector2(radius + MathF.Cos(angle) * radius, radius + MathF.Sin(angle) * radius),
+                Size = new Vector2(16, 3),
+                Rotation = i / (float)dashes * 360 + 90,
+                Colour = Color4.White,
+            });
+        }
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        this.RotateTo(0).RotateTo(360, 60000).Loop();
+    }
+}
+
+/// <summary>
+/// 青色舞台顶缘的刻度尺。
+/// </summary>
+public partial class HomeTickRuler : CompositeDrawable
+{
+    public HomeTickRuler(float width, float spacing = 24)
+    {
+        Width = width;
+        Height = 12;
+
+        int count = (int)(width / spacing);
+        for (int i = 0; i <= count; i++)
+        {
+            bool major = i % 4 == 0;
+            AddInternal(new Box
+            {
+                X = i * spacing,
+                Width = 2,
+                Height = major ? 11 : 6,
+                Colour = Color4.White,
+                Alpha = major ? 0.5f : 0.3f,
+            });
+        }
+    }
+}
+
+/// <summary>
+/// 套准十字标记，带缓慢呼吸。
+/// </summary>
+public partial class HomeCrosshairMark : CompositeDrawable
+{
+    private static readonly Color4 markColour = new(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.42f);
+
+    public HomeCrosshairMark()
+    {
+        Size = new Vector2(26);
+
+        InternalChild = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Children = new Drawable[]
+            {
+                new Container
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(18),
+                    Masking = true,
+                    CornerRadius = 9,
+                    BorderThickness = 1.5f,
+                    BorderColour = markColour,
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Alpha = 0,
+                    },
+                },
+                new Circle
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(3),
+                    Colour = new Color4(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.5f),
+                },
+                createTick(Anchor.TopCentre),
+                createTick(Anchor.BottomCentre),
+                createTick(Anchor.CentreLeft),
+                createTick(Anchor.CentreRight),
+            },
+        };
+    }
+
+    private static Drawable createTick(Anchor anchor)
+    {
+        bool horizontal = anchor is Anchor.CentreLeft or Anchor.CentreRight;
+        return new Box
+        {
+            Anchor = anchor,
+            Origin = anchor,
+            Position = horizontal ? new Vector2(anchor == Anchor.CentreLeft ? 1 : -1, 0) : new Vector2(0, anchor == Anchor.TopCentre ? 1 : -1),
+            Size = horizontal ? new Vector2(5, 1.5f) : new Vector2(1.5f, 5),
+            Colour = markColour,
+        };
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        InternalChild.FadeTo(0.55f, 1900, Easing.InOutSine)
+                     .Then().FadeTo(1f, 1900, Easing.InOutSine)
+                     .Loop();
+    }
+}
+
+/// <summary>
+/// 描边圆环装饰，带呼吸缩放。Position 视为圆心。
+/// </summary>
+public partial class HomeRing : CompositeDrawable
+{
+    public HomeRing(float size, float thickness, Color4 colour)
+    {
+        Size = new Vector2(size);
+        Origin = Anchor.Centre;
+
+        InternalChild = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Masking = true,
+            CornerRadius = size / 2f,
+            BorderThickness = thickness,
+            BorderColour = colour,
+            Child = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Alpha = 0,
+            },
+        };
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        this.ScaleTo(1.14f, 1700, Easing.InOutSine)
+            .Then().ScaleTo(1f, 1700, Easing.InOutSine)
+            .Loop();
     }
 }

@@ -8,6 +8,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
@@ -18,7 +19,7 @@ using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Settings;
 
-internal partial class AudioSettingsPanel : CompositeDrawable
+internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransientUi
 {
     private static readonly int[] bufferSizes = { 64, 128, 256, 512 };
 
@@ -39,6 +40,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable
     internal int CurrentBufferSize => settings.PreferredBufferSize.Value;
     internal double CurrentOffsetMilliseconds =>
         settings.UserOffsetMilliseconds.Value;
+    internal bool IsDeviceMenuOpen => deviceSelector.IsOpen;
 
     public AudioSettingsPanel(YokkoAudioSettings settings)
     {
@@ -75,7 +77,8 @@ internal partial class AudioSettingsPanel : CompositeDrawable
                 376,
                 YokkoStrings.Get("settings.audio.device"),
                 deviceSelector = new SettingsAudioDeviceSelector(
-                    settings.DeviceId)),
+                    settings.DeviceId),
+                -10),
             createDivider(456),
             createSettingRow(
                 468,
@@ -131,6 +134,10 @@ internal partial class AudioSettingsPanel : CompositeDrawable
         settings.UserOffsetMilliseconds.Value =
             Math.Clamp(Math.Round(milliseconds), -200, 200);
     }
+
+    internal void ToggleDeviceMenu() => deviceSelector.Toggle();
+
+    public bool DismissTransientUi() => deviceSelector.Dismiss();
 
     private Drawable createBackendControl()
     {
@@ -319,11 +326,13 @@ internal partial class AudioSettingsPanel : CompositeDrawable
     private static Drawable createSettingRow(
         float y,
         LocalisableString title,
-        Drawable control) =>
+        Drawable control,
+        float depth = 0) =>
         new Container
         {
             Position = new Vector2(378, y),
             Size = new Vector2(840, 68),
+            Depth = depth,
             Children = new Drawable[]
             {
                 new SpriteText
@@ -413,9 +422,16 @@ internal sealed record AudioDeviceOption(string Id, string Name);
 internal partial class SettingsAudioDeviceSelector : CompositeDrawable
 {
     private readonly Bindable<string> deviceId;
+    private readonly Box headerBackground;
     private readonly SpriteText valueText;
+    private readonly SpriteIcon chevron;
+    private readonly Container menu;
+    private readonly FillFlowContainer optionFlow;
+    private bool open;
     private IReadOnlyList<AudioDeviceOption> devices =
         new[] { new AudioDeviceOption(string.Empty, string.Empty) };
+
+    internal bool IsOpen => open;
 
     internal LocalisableString SelectedName
     {
@@ -433,32 +449,82 @@ internal partial class SettingsAudioDeviceSelector : CompositeDrawable
     {
         this.deviceId = deviceId;
         Size = new Vector2(598, 54);
-        Masking = true;
-        CornerRadius = 7;
-        BorderThickness = 1.4f;
-        BorderColour = HomeControlColours.Navy;
 
-        InternalChildren = new Drawable[]
+        var header = new SettingsDropdownHeader(
+            () => open,
+            Toggle)
         {
-            new Box
+            RelativeSizeAxes = Axes.Both,
+            Masking = true,
+            CornerRadius = 7,
+            BorderThickness = 1.4f,
+            BorderColour = HomeControlColours.Navy,
+            Children = new Drawable[]
             {
-                RelativeSizeAxes = Axes.Both,
-                Colour = Color4.White,
+                headerBackground = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
+                valueText = new SpriteText
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    X = 18,
+                    Width = 520,
+                    Truncate = true,
+                    Font = HomeTypography.Body(18),
+                    Colour = HomeControlColours.Navy,
+                },
+                chevron = new SpriteIcon
+                {
+                    Anchor = Anchor.CentreRight,
+                    Origin = Anchor.CentreRight,
+                    X = -20,
+                    Size = new Vector2(15),
+                    Icon = FontAwesome.Solid.ChevronDown,
+                    Colour = HomeControlColours.Pink,
+                },
             },
-            createArrow(FontAwesome.Solid.ChevronLeft, Anchor.CentreLeft, next: false),
-            valueText = new SpriteText
+        };
+        header.Background = headerBackground;
+
+        optionFlow = new FillFlowContainer
+        {
+            RelativeSizeAxes = Axes.X,
+            AutoSizeAxes = Axes.Y,
+            Direction = FillDirection.Vertical,
+        };
+        menu = new Container
+        {
+            Y = 59,
+            Width = 598,
+            Masking = true,
+            CornerRadius = 7,
+            BorderThickness = 1.4f,
+            BorderColour = HomeControlColours.Navy,
+            Alpha = 0,
+            Scale = new Vector2(1, 0.96f),
+            Depth = -20,
+            Children = new Drawable[]
             {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Width = 450,
-                Truncate = true,
-                Font = HomeTypography.Body(18),
-                Colour = HomeControlColours.Navy,
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
+                new BasicScrollContainer
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    ScrollbarVisible = false,
+                    Child = optionFlow,
+                },
             },
-            createArrow(FontAwesome.Solid.ChevronRight, Anchor.CentreRight, next: true),
         };
 
+        InternalChildren = new Drawable[] { header, menu };
         deviceId.BindValueChanged(onDeviceChanged, true);
+        rebuildOptions();
     }
 
     public void SetDevices(IReadOnlyList<AudioDeviceOption> availableDevices)
@@ -468,40 +534,79 @@ internal partial class SettingsAudioDeviceSelector : CompositeDrawable
                   .ToArray();
         if (!devices.Any(device => device.Id == deviceId.Value))
             deviceId.Value = string.Empty;
+        rebuildOptions();
         refresh();
     }
 
-    private Drawable createArrow(IconUsage icon, Anchor anchor, bool next) =>
-        new ClickableContainer
-        {
-            Anchor = anchor,
-            Origin = anchor,
-            Width = 58,
-            RelativeSizeAxes = Axes.Y,
-            Action = () => move(next ? 1 : -1),
-            Child = new SpriteIcon
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(15),
-                Icon = icon,
-                Colour = HomeControlColours.Pink,
-            },
-        };
+    internal void Toggle() => setOpen(!open);
 
-    private void move(int direction)
+    public bool Dismiss()
     {
-        int index = devices
-                    .Select((device, position) => (device, position))
-                    .FirstOrDefault(item => item.device.Id == deviceId.Value)
-                    .position;
-        index = (index + direction + devices.Count) % devices.Count;
-        deviceId.Value = devices[index].Id;
+        if (!open)
+            return false;
+
+        setOpen(false);
+        return true;
+    }
+
+    private void setOpen(bool shouldOpen)
+    {
+        open = shouldOpen;
+        headerBackground.FadeColour(
+            open ? SettingsTheme.PaleCyan : Color4.White,
+            120,
+            Easing.OutQuint);
+        chevron.RotateTo(open ? 180 : 0, 160, Easing.OutQuint);
+
+        if (open)
+        {
+            menu.Show();
+            menu.FadeTo(1, 140, Easing.OutQuint);
+            menu.ScaleTo(1, 140, Easing.OutQuint);
+        }
+        else
+        {
+            menu.FadeOut(100, Easing.OutQuint);
+            menu.ScaleTo(new Vector2(1, 0.96f), 100, Easing.OutQuint);
+        }
+    }
+
+    private void rebuildOptions()
+    {
+        optionFlow.Children = devices
+                              .Select(device =>
+                              {
+                                  AudioDeviceOption captured = device;
+                                  return (Drawable)new SettingsAudioDeviceOption(
+                                      device.Id,
+                                      string.IsNullOrEmpty(device.Id)
+                                          ? YokkoStrings.Get("settings.audio.default_device")
+                                          : device.Name,
+                                      () => select(captured.Id));
+                              })
+                              .ToArray();
+        menu.Height = Math.Min(
+            devices.Count * SettingsAudioDeviceOption.RowHeight,
+            SettingsAudioDeviceOption.RowHeight * 5);
+        refreshOptions();
+    }
+
+    private void select(string id)
+    {
+        deviceId.Value = id;
+        setOpen(false);
     }
 
     private void refresh()
     {
         valueText.Text = SelectedName;
+        refreshOptions();
+    }
+
+    private void refreshOptions()
+    {
+        foreach (SettingsAudioDeviceOption option in optionFlow.Children)
+            option.SetSelected(option.Value == deviceId.Value);
     }
 
     private void onDeviceChanged(ValueChangedEvent<string> _) => refresh();
@@ -513,6 +618,80 @@ internal partial class SettingsAudioDeviceSelector : CompositeDrawable
 
         base.Dispose(isDisposing);
     }
+}
+
+internal partial class SettingsAudioDeviceOption : ClickableContainer
+{
+    public const float RowHeight = 40;
+
+    private readonly Box background;
+    private readonly SpriteIcon check;
+
+    public string Value { get; }
+
+    public SettingsAudioDeviceOption(
+        string value,
+        LocalisableString label,
+        Action action)
+    {
+        Value = value;
+        Action = action;
+        RelativeSizeAxes = Axes.X;
+        Height = RowHeight;
+
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.White,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 18,
+                Width = 520,
+                Truncate = true,
+                Text = label,
+                Font = HomeTypography.Body(17),
+                Colour = HomeControlColours.Navy,
+            },
+            check = new SpriteIcon
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -20,
+                Size = new Vector2(13),
+                Icon = FontAwesome.Solid.Check,
+                Colour = HomeControlColours.Pink,
+                Alpha = 0,
+            },
+            new Box
+            {
+                Anchor = Anchor.BottomCentre,
+                Origin = Anchor.BottomCentre,
+                RelativeSizeAxes = Axes.X,
+                Height = 1,
+                Colour = SettingsTheme.Divider,
+            },
+        };
+    }
+
+    public void SetSelected(bool selected) =>
+        check.FadeTo(selected ? 1 : 0, 100, Easing.OutQuint);
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(
+            SettingsTheme.PaleCyan,
+            100,
+            Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e) =>
+        background.FadeColour(Color4.White, 120, Easing.OutQuint);
 }
 
 internal partial class SettingsOffsetStepper : CompositeDrawable

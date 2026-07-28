@@ -4,6 +4,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Skinning.OsuMania;
@@ -72,7 +73,7 @@ internal partial class SkinImportNotificationOverlay : CompositeDrawable
     {
         accent.Colour = HomeControlColours.Cyan;
         icon.Icon = FontAwesome.Solid.Download;
-        title.Text = "Importing osu!mania skin";
+        title.Text = YokkoStrings.Get("settings.skins.importing");
         detail.Text = System.IO.Path.GetFileName(path.TrimEnd('\\', '/'));
         show();
     }
@@ -81,8 +82,10 @@ internal partial class SkinImportNotificationOverlay : CompositeDrawable
     {
         accent.Colour = result.Success ? HomeControlColours.Cyan : HomeControlColours.Pink;
         icon.Icon = result.Success ? FontAwesome.Solid.Check : FontAwesome.Solid.ExclamationTriangle;
-        title.Text = result.Success ? "Skin ready" : "Skin import failed";
-        detail.Text = result.Message;
+        title.Text = result.Success
+            ? YokkoStrings.Get("settings.skins.import_success")
+            : YokkoStrings.Get("settings.skins.import_failed");
+        detail.Text = result.Success ? result.Skin?.Name ?? result.Message : result.Message;
         show();
     }
 

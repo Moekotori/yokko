@@ -8,10 +8,13 @@ using osu.Framework.Graphics.Primitives;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osuTK;
 using osuTK.Graphics;
+using osuTK.Input;
 using Yokko.Audio;
 using Yokko.Core.Beatmaps;
 using Yokko.Game.Localisation;
@@ -25,6 +28,7 @@ public partial class MainScreen : Screen
 {
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
+    private const double exitHoldDuration = 5000;
 
     private static readonly Color4 ivory = new(0.992f, 0.992f, 0.988f, 1f);
     private static readonly Color4 cyan = new(0.29f, 0.81f, 0.94f, 1f);
@@ -46,10 +50,24 @@ public partial class MainScreen : Screen
     private Sprite mascot;
     private SpriteText watermark;
     private SpriteIcon heartbeatIcon;
+    private Box heroHighlight;
+    private Circle readyDot;
     private readonly Box[] stageLines = new Box[2];
     private readonly List<SpriteIcon> decorationIcons = new();
+    private readonly List<Drawable> floaters = new();
+    private readonly Action requestGameExit;
 
     private Vector2 parallaxCurrent;
+    private double escapeHoldStartedAt;
+    private bool isEscapeHeld;
+
+    [Resolved]
+    private GameHost host { get; set; }
+
+    public MainScreen(Action requestGameExit = null)
+    {
+        this.requestGameExit = requestGameExit;
+    }
 
     [BackgroundDependencyLoader]
     private void load(TextureStore textures)
@@ -108,6 +126,21 @@ public partial class MainScreen : Screen
                                 Position = new Vector2(-12, 606),
                                 Alpha = 0.62f,
                             },
+                            new HomeCrosshairMark
+                            {
+                                Position = new Vector2(606, 244),
+                            },
+                            new HomeCrosshairMark
+                            {
+                                Position = new Vector2(648, 612),
+                            },
+                            new Circle
+                            {
+                                Position = new Vector2(624, 556),
+                                Size = new Vector2(7),
+                                Colour = pink,
+                                Alpha = 0.85f,
+                            },
                         },
                     },
                     leftStage = new Container
@@ -147,6 +180,7 @@ public partial class MainScreen : Screen
     public override void OnEntering(ScreenTransitionEvent e)
     {
         base.OnEntering(e);
+        cancelExitHold();
 
         content.FadeInFromZero(240);
         rightStage.Delay(80).FadeIn(520).MoveToX(0, 640, Easing.OutQuint);
@@ -166,18 +200,48 @@ public partial class MainScreen : Screen
     public override void OnSuspending(ScreenTransitionEvent e)
     {
         base.OnSuspending(e);
+        cancelExitHold();
         this.FadeTo(0.4f, 200, Easing.OutQuint);
     }
 
     public override bool OnExiting(ScreenExitEvent e)
     {
+        cancelExitHold();
         this.FadeOut(200, Easing.OutQuint);
         return base.OnExiting(e);
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key != Key.Escape)
+            return base.OnKeyDown(e);
+
+        if (!isEscapeHeld)
+        {
+            isEscapeHeld = true;
+            escapeHoldStartedAt = Time.Current;
+        }
+
+        return true;
+    }
+
+    protected override void OnKeyUp(KeyUpEvent e)
+    {
+        if (e.Key == Key.Escape)
+            cancelExitHold();
+
+        base.OnKeyUp(e);
     }
 
     protected override void Update()
     {
         base.Update();
+
+        if (isEscapeHeld && Time.Current - escapeHoldStartedAt >= exitHoldDuration)
+        {
+            cancelExitHold();
+            requestGameExit?.Invoke();
+        }
 
         var inputManager = GetContainingInputManager();
         if (inputManager == null)
@@ -194,6 +258,12 @@ public partial class MainScreen : Screen
         rightParallax.Position = parallaxCurrent * new Vector2(16, 11);
         decorationLayer.Position = parallaxCurrent * new Vector2(24, 15);
         leftStage.Position = parallaxCurrent * new Vector2(-5, -3);
+    }
+
+    private void cancelExitHold()
+    {
+        isEscapeHeld = false;
+        escapeHoldStartedAt = 0;
     }
 
     private void startAmbientMotion()
@@ -234,6 +304,30 @@ public partial class MainScreen : Screen
                               .Then().RotateTo(-7, duration * 1.6f, Easing.InOutSine)
                               .Loop();
         }
+
+        // 标题高亮标记在入场后刷出。
+        heroHighlight.Delay(650).ScaleTo(Vector2.One, 380, Easing.OutQuint);
+
+        // 就绪指示灯呼吸。
+        readyDot.FadeTo(0.25f, 700, Easing.InOutSine)
+                .Then().FadeTo(1f, 700, Easing.InOutSine)
+                .Loop();
+
+        // 小形状缓慢浮沉。
+        for (int i = 0; i < floaters.Count; i++)
+        {
+            float y = floaters[i].Y;
+            float duration = 2100 + i * 350;
+            floaters[i].MoveToY(y - 5, duration, Easing.InOutSine)
+                       .Then().MoveToY(y + 5, duration, Easing.InOutSine)
+                       .Loop();
+        }
+    }
+
+    private Drawable registerFloater(Drawable drawable)
+    {
+        floaters.Add(drawable);
+        return drawable;
     }
 
     private static Drawable createIvoryStage() => new Container
@@ -294,6 +388,27 @@ public partial class MainScreen : Screen
                     Size = new Vector2(72, 58),
                     Colour = new Color4(1f, 1f, 1f, 0.22f),
                 },
+                new HomeTickRuler(460)
+                {
+                    Position = new Vector2(768, 10),
+                },
+                new HomeEcgStrip(260, 38)
+                {
+                    Position = new Vector2(940, 674),
+                    Colour = new Color4(1f, 1f, 1f, 0.45f),
+                },
+                new HomeDashedRing(295)
+                {
+                    Position = new Vector2(937.5f, 396.5f),
+                    Colour = new Color4(1f, 1f, 1f, 0.3f),
+                },
+                registerFloater(new osu.Framework.Graphics.Shapes.Triangle
+                {
+                    Position = new Vector2(760, 120),
+                    Size = new Vector2(19, 17),
+                    Rotation = 90,
+                    Colour = new Color4(1f, 1f, 1f, 0.28f),
+                }),
                 mascot = new Sprite
                 {
                     Origin = Anchor.Centre,
@@ -306,6 +421,17 @@ public partial class MainScreen : Screen
                     X = 632,
                     Y = 365,
                 },
+                new HomeRing(26, 3.5f, yellow)
+                {
+                    Position = new Vector2(1248, 420),
+                },
+                registerFloater(new Circle
+                {
+                    Position = new Vector2(712, 648),
+                    Size = new Vector2(8),
+                    Colour = pink,
+                    Alpha = 0.9f,
+                }),
             },
         },
     };
@@ -363,12 +489,31 @@ public partial class MainScreen : Screen
                         Scale = new Vector2(1.08f, 1),
                         Colour = navy,
                     },
-                    new SpriteText
+                    new Container
                     {
-                        Text = YokkoStrings.Get("main.hero_line_2"),
-                        Font = HomeTypography.Hero(72),
-                        Scale = new Vector2(1.08f, 1),
-                        Colour = navy,
+                        AutoSizeAxes = Axes.Both,
+                        Children = new Drawable[]
+                        {
+                            heroHighlight = new Box
+                            {
+                                Anchor = Anchor.BottomLeft,
+                                Origin = Anchor.BottomLeft,
+                                RelativeSizeAxes = Axes.X,
+                                Width = 1.04f,
+                                Height = 26,
+                                Y = 2,
+                                Rotation = -1.2f,
+                                Colour = new Color4(yellow.R, yellow.G, yellow.B, 0.5f),
+                                Scale = new Vector2(0, 1),
+                            },
+                            new SpriteText
+                            {
+                                Text = YokkoStrings.Get("main.hero_line_2"),
+                                Font = HomeTypography.Hero(72),
+                                Scale = new Vector2(1.08f, 1),
+                                Colour = navy,
+                            },
+                        },
                     },
                 },
             },
@@ -408,11 +553,32 @@ public partial class MainScreen : Screen
 
     private Drawable createUtilityArea() => new Container
     {
-        Position = new Vector2(1176, 24),
-        Size = new Vector2(72),
-        Child = new HomeUtilityButton(string.Empty, FontAwesome.Solid.FolderOpen,
-            () => this.Push(new EditorScreen(true)), 72, FontAwesome.Solid.ArrowRight),
+        Position = new Vector2(1016, 24),
+        Size = new Vector2(240, 72),
+        Child = new FillFlowContainer
+        {
+            RelativeSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+            Spacing = new Vector2(12, 0),
+            Children = new Drawable[]
+            {
+                new HomeUtilityButton(string.Empty, FontAwesome.Solid.PowerOff,
+                    exitGame, 72),
+                new HomeUtilityButton(string.Empty, FontAwesome.Solid.Cog,
+                    () => this.Push(new SettingsScreen()), 72),
+                new HomeUtilityButton(string.Empty, FontAwesome.Solid.FolderOpen,
+                    () => this.Push(new EditorScreen(true)), 72, FontAwesome.Solid.ArrowRight),
+            },
+        },
     };
+
+    private void exitGame()
+    {
+        if (requestGameExit != null)
+            requestGameExit();
+        else
+            host.Exit();
+    }
 
     private Drawable createFooter(LocalisableString audioStatus) => new Container
     {
@@ -449,10 +615,76 @@ public partial class MainScreen : Screen
                 Spacing = new Vector2(25, 0),
                 Children = new Drawable[]
                 {
-                    createFooterItem(FontAwesome.Solid.Keyboard, "D  F  J  K"),
-                    createFooterItem(FontAwesome.Solid.SignOutAlt, YokkoStrings.Get("common.esc_back")),
-                    createFooterItem(FontAwesome.Solid.VolumeUp, audioStatus),
+                    createKeycapCluster(),
+                    createFooterItem(FontAwesome.Solid.SignOutAlt, YokkoStrings.Get("main.hold_esc_exit")),
+                    createAudioFooterItem(audioStatus),
                 },
+            },
+        },
+    };
+
+    private static Drawable createKeycapCluster() => new FillFlowContainer
+    {
+        AutoSizeAxes = Axes.Both,
+        Direction = FillDirection.Horizontal,
+        Spacing = new Vector2(8, 0),
+        Children = new Drawable[]
+        {
+            new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Size = new Vector2(14),
+                Icon = FontAwesome.Solid.Keyboard,
+                Colour = navy,
+            },
+            new FillFlowContainer
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                AutoSizeAxes = Axes.Both,
+                Direction = FillDirection.Horizontal,
+                Spacing = new Vector2(5, 0),
+                Children = new Drawable[]
+                {
+                    new HomeKeycap("D"),
+                    new HomeKeycap("F"),
+                    new HomeKeycap("J"),
+                    new HomeKeycap("K"),
+                },
+            },
+        },
+    };
+
+    private Drawable createAudioFooterItem(LocalisableString text) => new FillFlowContainer
+    {
+        AutoSizeAxes = Axes.Both,
+        Direction = FillDirection.Horizontal,
+        Spacing = new Vector2(8, 0),
+        Children = new Drawable[]
+        {
+            readyDot = new Circle
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Size = new Vector2(7),
+                Colour = pink,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Size = new Vector2(14),
+                Icon = FontAwesome.Solid.VolumeUp,
+                Colour = navy,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Text = text,
+                Font = HomeTypography.Display(14),
+                Colour = mutedNavy,
             },
         },
     };

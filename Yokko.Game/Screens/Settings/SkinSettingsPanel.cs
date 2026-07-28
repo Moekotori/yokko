@@ -19,7 +19,7 @@ internal partial class SkinSettingsPanel : CompositeDrawable
     private readonly OsuManiaSkinLibrary library;
     private readonly FillFlowContainer skinList;
 
-    internal int SkinCount => skinList.Children.Count;
+    internal int SkinCount { get; private set; }
 
     public SkinSettingsPanel(OsuManiaSkinLibrary library)
     {
@@ -151,6 +151,7 @@ internal partial class SkinSettingsPanel : CompositeDrawable
     {
         skinList.Clear();
         var entries = library.GetInstalledSkins();
+        SkinCount = entries.Count;
 
         if (entries.Count == 0)
         {

@@ -7,6 +7,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
+using osu.Framework.Configuration;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Game.Localisation;
@@ -151,6 +152,69 @@ internal partial class SettingsSegmentedChoiceButton : ClickableContainer
         icon.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 120, Easing.OutQuint);
         text.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 120, Easing.OutQuint);
         check.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        if (!selected)
+            background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
+
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        if (!selected)
+            background.FadeColour(Color4.White, 140, Easing.OutQuint);
+    }
+}
+
+internal partial class SettingsFrameSyncChoiceButton : ClickableContainer
+{
+    private readonly Box background;
+    private readonly SpriteText text;
+    private bool selected;
+
+    public FrameSync Value { get; }
+
+    public SettingsFrameSyncChoiceButton(FrameSync value, Action action, float width)
+    {
+        Value = value;
+        Action = action;
+        Size = new Vector2(width, 54);
+
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.White,
+            },
+            new Box
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                Width = 1,
+                RelativeSizeAxes = Axes.Y,
+                Colour = SettingsTheme.Divider,
+            },
+            text = new SpriteText
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Font = HomeTypography.Body(16),
+                Colour = HomeControlColours.Navy,
+            },
+        };
+    }
+
+    public void SetLabel(string label) => text.Text = label;
+
+    public void SetSelected(bool isSelected)
+    {
+        selected = isSelected;
+        background.FadeColour(selected ? HomeControlColours.Navy : Color4.White, 120, Easing.OutQuint);
+        text.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 120, Easing.OutQuint);
     }
 
     protected override bool OnHover(HoverEvent e)

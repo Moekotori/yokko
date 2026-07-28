@@ -1,5 +1,6 @@
 using System.Linq;
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
@@ -17,6 +18,8 @@ using Yokko.Core.Scoring;
 using Yokko.Audio;
 using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Input;
+using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Skinning.OsuMania;
 
@@ -37,6 +40,8 @@ public partial class GameplayScreen : Screen
     private OsuManiaSkinLibrary skinLibrary { get; set; }
     [Resolved]
     private YokkoGameplaySettings gameplaySettings { get; set; }
+    [Resolved]
+    private KeyInputTimestampSource keyInputTimestamps { get; set; }
 
     private BeatmapJudgementState judgementState;
     private GameplayHud hud;
@@ -47,6 +52,7 @@ public partial class GameplayScreen : Screen
     private double startTimeMilliseconds;
     private bool hasAudioClock;
     private SpriteText clockStatusText;
+    private SpriteText scrollSpeedText;
     private OsuManiaSkin maniaSkin;
     private string skinStatusText;
     private double activeUserOffsetMilliseconds;
@@ -101,13 +107,17 @@ public partial class GameplayScreen : Screen
                         beatmap,
                         keyBindings,
                         maniaSkin,
-                        1800 / gameplaySettings.ScrollSpeed.Value,
+                        OsuManiaScrollSpeed.ComputeScrollTime(
+                            gameplaySettings.ScrollSpeed.Value),
                         gameplaySettings.ShowLanePressFeedback.Value)
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
                         Y = 32,
-                        Scale = maniaSkin == null ? Vector2.One : new Vector2(1.25f),
+                        // Legacy osu!mania values already use the skin's
+                        // 480px coordinate space. A second skin-only scale
+                        // makes wide and circle skins visibly oversized.
+                        Scale = Vector2.One,
                     },
                     hud = new GameplayHud(beatmap)
                     {
@@ -133,14 +143,28 @@ public partial class GameplayScreen : Screen
                         Font = FontUsage.Default.With(size: 18),
                         Colour = YokkoPalette.TextDim,
                     },
+                    scrollSpeedText = new SpriteText
+                    {
+                        Anchor = Anchor.TopLeft,
+                        Origin = Anchor.TopLeft,
+                        Position = new Vector2(42, 42),
+                        Font = FontUsage.Default.With(size: 22),
+                        Colour = YokkoPalette.Cyan,
+                        Alpha = 0,
+                    },
                 }
             },
         };
+
+        gameplaySettings.ScrollSpeed.BindValueChanged(
+            onScrollSpeedChanged,
+            true);
     }
 
     protected override void LoadComplete()
     {
         base.LoadComplete();
+        keyInputTimestamps.BeginCapture();
         startTimeMilliseconds = Time.Current + leadInMilliseconds;
 
         if (hasAudioClock)
@@ -162,6 +186,9 @@ public partial class GameplayScreen : Screen
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
+        if (HandleScrollSpeedShortcut(e.Key, e.ControlPressed))
+            return true;
+
         if (e.Key == Key.Escape)
         {
             _ = audioEngine.StopAsync();
@@ -169,7 +196,6 @@ public partial class GameplayScreen : Screen
             return true;
         }
 
-        double inputTime = currentGameplayTime;
         int lane = keyBindings.GetLane(e.Key);
 
         if (lane < 0)
@@ -178,6 +204,7 @@ public partial class GameplayScreen : Screen
         if (pressedLanes[lane])
             return true;
 
+        double inputTime = gameplayTimeForInput(e.Key, true);
         pressedLanes[lane] = true;
         playfield.SetLanePressed(lane, true);
 
@@ -191,7 +218,6 @@ public partial class GameplayScreen : Screen
 
     protected override void OnKeyUp(KeyUpEvent e)
     {
-        double inputTime = currentGameplayTime;
         int lane = keyBindings.GetLane(e.Key);
 
         if (lane < 0)
@@ -200,6 +226,7 @@ public partial class GameplayScreen : Screen
             return;
         }
 
+        double inputTime = gameplayTimeForInput(e.Key, false);
         pressedLanes[lane] = false;
         playfield.SetLanePressed(lane, false);
 
@@ -211,6 +238,7 @@ public partial class GameplayScreen : Screen
 
     public override bool OnExiting(ScreenExitEvent e)
     {
+        keyInputTimestamps.EndCapture();
         _ = audioEngine.StopAsync();
         return base.OnExiting(e);
     }
@@ -219,6 +247,9 @@ public partial class GameplayScreen : Screen
     {
         if (isDisposing)
         {
+            keyInputTimestamps.EndCapture();
+            gameplaySettings.ScrollSpeed.ValueChanged -=
+                onScrollSpeedChanged;
             _ = audioEngine.DisposeAsync();
             maniaSkin?.Dispose();
         }
@@ -269,10 +300,64 @@ public partial class GameplayScreen : Screen
         }
     }
 
+    private double gameplayTimeForInput(Key key, bool isPressed)
+    {
+        bool hasEventTimestamp =
+            keyInputTimestamps.TryTake(key, isPressed, out long eventTimestamp);
+        long observationStart = Stopwatch.GetTimestamp();
+        double gameplayTime = currentGameplayTime;
+        long observationEnd = Stopwatch.GetTimestamp();
+
+        if (!hasEventTimestamp)
+            return gameplayTime;
+
+        long observationTimestamp =
+            observationStart + (observationEnd - observationStart) / 2;
+        return GameplayInputClock.AtEventTimestamp(
+            gameplayTime,
+            eventTimestamp,
+            observationTimestamp);
+    }
+
     private void applyJudgement(JudgementEvent judgement)
     {
         playfield.ApplyJudgement(judgement);
         judgementReadout.Show(judgement);
+    }
+
+    private void onScrollSpeedChanged(
+        osu.Framework.Bindables.ValueChangedEvent<double> change)
+    {
+        playfield.SetApproachTime(
+            OsuManiaScrollSpeed.ComputeScrollTime(change.NewValue));
+        scrollSpeedText.Text = YokkoStrings.Get(
+            "gameplay.scroll_speed_status",
+            change.NewValue);
+        scrollSpeedText.FinishTransforms();
+        scrollSpeedText.Alpha = 1;
+        scrollSpeedText.Delay(900).FadeOut(350, Easing.OutQuint);
+    }
+
+    internal bool HandleScrollSpeedShortcut(
+        Key key,
+        bool controlPressed)
+    {
+        double amount = key switch
+        {
+            Key.F4 => OsuManiaScrollSpeed.ShortcutStep,
+            Key.F3 => -OsuManiaScrollSpeed.ShortcutStep,
+            Key.Plus or Key.KeypadPlus when controlPressed =>
+                OsuManiaScrollSpeed.ShortcutStep,
+            Key.Minus or Key.KeypadMinus when controlPressed =>
+                -OsuManiaScrollSpeed.ShortcutStep,
+            _ => 0,
+        };
+
+        if (amount == 0)
+            return false;
+
+        gameplaySettings.AdjustScrollSpeed(amount);
+        return true;
     }
 
     private void loadSkin(IRenderer renderer)

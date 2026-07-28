@@ -8,6 +8,7 @@ using osu.Framework.Testing;
 using osuTK.Input;
 using Yokko.Audio;
 using Yokko.Core.Gameplay;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Screens.Settings;
 
 namespace Yokko.Game.Tests.Visual
@@ -114,7 +115,7 @@ namespace Yokko.Game.Tests.Visual
         public void TestGameplayPreferencesAreInteractive()
         {
             GameplaySettingsPanel gameplay = null;
-            double originalSpeed = 1;
+            double originalSpeed = OsuManiaScrollSpeed.Default;
             bool originalHud = true;
             bool originalHitError = true;
             bool originalLaneFeedback = true;
@@ -132,9 +133,10 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SelectSection(GameplaySettingsSection.Timing));
             AddAssert("timing selected", () =>
                 gameplay.CurrentSection == GameplaySettingsSection.Timing);
-            AddStep("set 1.35 speed", () => gameplay.SetScrollSpeed(1.35));
+            AddStep("set osu mania speed 26", () =>
+                gameplay.SetScrollSpeed(26));
             AddAssert("speed changed", () =>
-                gameplay.CurrentScrollSpeed == 1.35);
+                gameplay.CurrentScrollSpeed == 26);
             AddStep("open feedback", () =>
                 gameplay.SelectSection(GameplaySettingsSection.Feedback));
             AddStep("disable feedback", () =>
@@ -167,6 +169,51 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestGameplayKeysCanBeCapturedAsASequence()
+        {
+            GameplaySettingsPanel gameplay = null;
+
+            AddStep("open Gameplay", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Gameplay));
+            AddStep("capture Gameplay", () =>
+                gameplay = (GameplaySettingsPanel)settingsScreen.ActivePanel);
+            AddStep("select 4K", () =>
+                gameplay.SelectKeyMode(KeyMode.FourKey));
+            AddStep("start sequential capture", () =>
+                gameplay.BeginSequentialKeyCapture());
+            AddAssert("sequence starts at first lane", () =>
+                gameplay.IsSequentialCapture &&
+                gameplay.SequentialCaptureIndex == 0);
+            AddStep("capture Z and X", () =>
+            {
+                gameplay.HandleKeyDown(Key.Z);
+                gameplay.HandleKeyDown(Key.X);
+            });
+            AddAssert("sequence advances to third lane", () =>
+                gameplay.IsSequentialCapture &&
+                gameplay.SequentialCaptureIndex == 2);
+            AddStep("duplicate key is ignored", () =>
+                gameplay.HandleKeyDown(Key.X));
+            AddAssert("duplicate keeps current lane active", () =>
+                gameplay.SequentialCaptureIndex == 2);
+            AddStep("finish with period and slash", () =>
+            {
+                gameplay.HandleKeyDown(Key.Period);
+                gameplay.HandleKeyDown(Key.Slash);
+            });
+            AddAssert("sequence completes", () =>
+                !gameplay.IsCapturingKey &&
+                !gameplay.IsSequentialCapture);
+            AddAssert("whole profile saved in order", () =>
+                gameplay.GetBinding(KeyMode.FourKey, 0) == Key.Z &&
+                gameplay.GetBinding(KeyMode.FourKey, 1) == Key.X &&
+                gameplay.GetBinding(KeyMode.FourKey, 2) == Key.Period &&
+                gameplay.GetBinding(KeyMode.FourKey, 3) == Key.Slash);
+            AddStep("restore 4K defaults", () =>
+                gameplay.ResetSelectedBindings());
+        }
+
+        [Test]
         public void TestLanguageCanBeChangedImmediately()
         {
             GeneralSettingsPanel general = null;
@@ -181,6 +228,27 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("Japanese selected", () => general.CurrentLocale == "ja");
             AddStep("restore English", () => general.SelectLanguage("en"));
             AddAssert("English restored", () => general.CurrentLocale == "en");
+        }
+
+        [Test]
+        public void TestScrollSpeedCanBeAdjustedFromGeneral()
+        {
+            GeneralSettingsPanel general = null;
+            double originalSpeed = OsuManiaScrollSpeed.Default;
+
+            AddStep("open General", () =>
+                settingsScreen.OpenPage(SettingsPageKind.General));
+            AddStep("capture General", () =>
+            {
+                general = (GeneralSettingsPanel)settingsScreen.ActivePanel;
+                originalSpeed = general.CurrentScrollSpeed;
+            });
+            AddStep("set osu mania speed 24", () =>
+                general.SetScrollSpeed(24));
+            AddAssert("general speed changed", () =>
+                general.CurrentScrollSpeed == 24);
+            AddStep("restore speed", () =>
+                general.SetScrollSpeed(originalSpeed));
         }
 
         [Test]

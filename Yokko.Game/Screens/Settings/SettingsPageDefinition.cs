@@ -54,7 +54,8 @@ internal static class SettingsPages
                 "settings.general.subtitle",
                 "settings.general.section_language",
                 "settings.general.section_startup",
-                "settings.general.section_updates")),
+                "settings.general.section_updates",
+                "settings.general.mania_scroll_speed")),
         SettingsPageKind.Display => new(
             kind,
             YokkoStrings.Get("settings.display.title"),

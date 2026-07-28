@@ -2,17 +2,21 @@ using System;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
+using osuTK;
+using osuTK.Input;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Timing;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Screens.Gameplay;
 
 namespace Yokko.Game.Tests.Visual
@@ -21,6 +25,9 @@ namespace Yokko.Game.Tests.Visual
     public partial class TestSceneGameplayScreen : YokkoTestScene
     {
         private readonly ScreenStack screenStack;
+
+        [Resolved]
+        private YokkoGameplaySettings gameplaySettings { get; set; }
 
         public TestSceneGameplayScreen()
         {
@@ -62,6 +69,65 @@ namespace Yokko.Game.Tests.Visual
                 (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<GameplayPlayfield>().SingleOrDefault() != null);
             AddUntilStep("real skin textures decoded", () =>
                 (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null) == true);
+        }
+
+        [Test]
+        [Category("Integration")]
+        public void TestCircleSkinUsesLegacyGeometryWithoutExtraScaling()
+        {
+            string skinPath = Environment.GetEnvironmentVariable("YOKKO_OSU_MANIA_CIRCLE_SKIN_SAMPLE");
+
+            if (string.IsNullOrWhiteSpace(skinPath) || !File.Exists(skinPath))
+                Assert.Ignore("Set YOKKO_OSU_MANIA_CIRCLE_SKIN_SAMPLE to a real circle skin package.");
+
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+
+            AddStep("open real circle skin", () =>
+                screenStack.Push(new GameplayScreen(beatmap, skinPath: skinPath)));
+            AddUntilStep("circle skin geometry loaded", () =>
+            {
+                GameplayPlayfield playfield = (screenStack.CurrentScreen as Drawable)?
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .SingleOrDefault();
+                DrawableNote firstNote = (screenStack.CurrentScreen as Drawable)?
+                                         .ChildrenOfType<DrawableNote>()
+                                         .FirstOrDefault();
+                LaneColumn firstLane = (screenStack.CurrentScreen as Drawable)?
+                                       .ChildrenOfType<LaneColumn>()
+                                       .FirstOrDefault();
+                Sprite idleReceptor = firstLane?
+                                      .ReceptorLayer
+                                      .ChildrenOfType<Sprite>()
+                                      .FirstOrDefault();
+
+                return playfield != null &&
+                       firstNote != null &&
+                       idleReceptor != null &&
+                       Math.Abs(playfield.Width - 286) < 0.01 &&
+                       playfield.Scale == Vector2.One &&
+                       Math.Abs(firstNote.Width - 70) < 0.01 &&
+                       Math.Abs(firstNote.Height - 70 * 146f / 150f) < 0.01 &&
+                       Math.Abs(idleReceptor.Width - 70) < 0.01 &&
+                       Math.Abs(idleReceptor.Height - 175) < 0.01;
+            });
+            AddAssert("downscroll note bottom meets hit position", () =>
+            {
+                DrawableNote firstNote = (screenStack.CurrentScreen as Drawable)?
+                                         .ChildrenOfType<DrawableNote>()
+                                         .FirstOrDefault();
+
+                if (firstNote == null)
+                    return false;
+
+                firstNote.UpdatePosition(
+                    beatmap.HitObjects[0].StartTimeMilliseconds,
+                    false,
+                    false,
+                    0,
+                    460,
+                    1800);
+                return Math.Abs(firstNote.Y + firstNote.Height - 460) < 0.01;
+            });
         }
 
         [Test]
@@ -153,6 +219,60 @@ HitPosition: 400
                                   .Any(sprite => sprite.Scale.Y < 0) == true;
                 return noteFlipped && keyFlipped;
             });
+        }
+
+        [Test]
+        public void TestOsuManiaScrollSpeedShortcuts()
+        {
+            double originalSpeed = OsuManiaScrollSpeed.Default;
+            GameplayScreen gameplayScreen = null;
+
+            AddStep("save and reset scroll speed", () =>
+            {
+                originalSpeed = gameplaySettings.ScrollSpeed.Value;
+                gameplaySettings.SetScrollSpeed(8);
+                gameplayScreen =
+                    (GameplayScreen)screenStack.CurrentScreen;
+            });
+            AddStep("plain plus is ignored", () =>
+                gameplayScreen.HandleScrollSpeedShortcut(
+                    Key.Plus,
+                    false));
+            AddAssert("plain plus keeps speed 8", () =>
+                gameplaySettings.ScrollSpeed.Value == 8);
+            AddStep("ctrl plus increases speed", () =>
+                gameplayScreen.HandleScrollSpeedShortcut(
+                    Key.Plus,
+                    true));
+            AddAssert("speed is 9", () =>
+                gameplaySettings.ScrollSpeed.Value == 9);
+            AddAssert("playfield uses osu time range", () =>
+                Math.Abs(
+                    ((Drawable)screenStack.CurrentScreen)
+                               .ChildrenOfType<GameplayPlayfield>()
+                               .Single()
+                               .ApproachTimeMilliseconds -
+                    OsuManiaScrollSpeed.ComputeScrollTime(9)) < 0.001);
+            AddStep("ctrl minus decreases speed", () =>
+                gameplayScreen.HandleScrollSpeedShortcut(
+                    Key.Minus,
+                    true));
+            AddAssert("speed is 8 again", () =>
+                gameplaySettings.ScrollSpeed.Value == 8);
+            AddStep("F4 matches osu gameplay shortcut", () =>
+                gameplayScreen.HandleScrollSpeedShortcut(
+                    Key.F4,
+                    false));
+            AddAssert("F4 speed is 9", () =>
+                gameplaySettings.ScrollSpeed.Value == 9);
+            AddStep("F3 restores speed 8", () =>
+                gameplayScreen.HandleScrollSpeedShortcut(
+                    Key.F3,
+                    false));
+            AddAssert("F3 speed is 8", () =>
+                gameplaySettings.ScrollSpeed.Value == 8);
+            AddStep("restore scroll speed", () =>
+                gameplaySettings.SetScrollSpeed(originalSpeed));
         }
 
         private static string createTestSkin()

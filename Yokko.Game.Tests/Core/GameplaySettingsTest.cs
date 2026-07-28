@@ -33,7 +33,9 @@ public sealed class GameplaySettingsTest
                 Key.K,
                 Key.L,
             }));
-        Assert.That(settings.ScrollSpeed.Value, Is.EqualTo(1.0));
+        Assert.That(
+            settings.ScrollSpeed.Value,
+            Is.EqualTo(OsuManiaScrollSpeed.Default));
         Assert.That(settings.ShowGameplayHud.Value, Is.True);
         Assert.That(settings.ShowHitError.Value, Is.True);
         Assert.That(settings.ShowLanePressFeedback.Value, Is.True);
@@ -49,6 +51,35 @@ public sealed class GameplaySettingsTest
         Assert.That(
             settings.GetKeys(KeyMode.FourKey),
             Is.EqualTo(new[] { Key.F, Key.D, Key.J, Key.K }));
+    }
+
+    [Test]
+    public void CompleteProfileCanBeReplacedAtomically()
+    {
+        var settings = new YokkoGameplaySettings();
+
+        settings.SetBindings(
+            KeyMode.FourKey,
+            new[] { Key.Z, Key.X, Key.Period, Key.Slash });
+
+        Assert.That(
+            settings.GetKeys(KeyMode.FourKey),
+            Is.EqualTo(new[] { Key.Z, Key.X, Key.Period, Key.Slash }));
+    }
+
+    [Test]
+    public void CompleteProfileRejectsDuplicateKeys()
+    {
+        var settings = new YokkoGameplaySettings();
+
+        Assert.That(
+            () => settings.SetBindings(
+                KeyMode.FourKey,
+                new[] { Key.Z, Key.X, Key.X, Key.Slash }),
+            Throws.ArgumentException);
+        Assert.That(
+            settings.GetKeys(KeyMode.FourKey),
+            Is.EqualTo(new[] { Key.D, Key.F, Key.J, Key.K }));
     }
 
     [Test]
@@ -83,7 +114,7 @@ public sealed class GameplaySettingsTest
                 firstConfig.BindGameplaySettings(firstSettings);
                 firstSettings.SetBinding(KeyMode.FourKey, 0, Key.A);
                 firstSettings.SetBinding(KeyMode.SevenKey, 3, Key.V);
-                firstSettings.SetScrollSpeed(1.35);
+                firstSettings.SetScrollSpeed(26.4);
                 firstSettings.ShowGameplayHud.Value = false;
                 firstSettings.ShowHitError.Value = false;
                 firstSettings.ShowLanePressFeedback.Value = false;
@@ -103,7 +134,7 @@ public sealed class GameplaySettingsTest
                     Is.EqualTo(Key.V));
                 Assert.That(
                     restoredSettings.ScrollSpeed.Value,
-                    Is.EqualTo(1.35).Within(0.001));
+                    Is.EqualTo(26.4).Within(0.001));
                 Assert.That(restoredSettings.ShowGameplayHud.Value, Is.False);
                 Assert.That(restoredSettings.ShowHitError.Value, Is.False);
                 Assert.That(
@@ -116,5 +147,34 @@ public sealed class GameplaySettingsTest
             if (Directory.Exists(directory))
                 Directory.Delete(directory, true);
         }
+    }
+
+    [Test]
+    public void ScrollSpeedMatchesOsuManiaScaleAndTiming()
+    {
+        var settings = new YokkoGameplaySettings();
+
+        Assert.That(
+            OsuManiaScrollSpeed.ComputeScrollTime(1),
+            Is.EqualTo(11485));
+        Assert.That(
+            OsuManiaScrollSpeed.ComputeScrollTime(40),
+            Is.EqualTo(287.125));
+
+        settings.SetScrollSpeed(20.04);
+        Assert.That(settings.ScrollSpeed.Value, Is.EqualTo(20));
+
+        settings.AdjustScrollSpeed(1);
+        Assert.That(settings.ScrollSpeed.Value, Is.EqualTo(21));
+
+        settings.SetScrollSpeed(100);
+        Assert.That(
+            settings.ScrollSpeed.Value,
+            Is.EqualTo(OsuManiaScrollSpeed.Maximum));
+
+        settings.SetScrollSpeed(-100);
+        Assert.That(
+            settings.ScrollSpeed.Value,
+            Is.EqualTo(OsuManiaScrollSpeed.Minimum));
     }
 }

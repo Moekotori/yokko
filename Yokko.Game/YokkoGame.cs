@@ -19,7 +19,7 @@ namespace Yokko.Game
         {
             base.LoadComplete();
 
-            screenStack.Push(new MainScreen());
+            screenStack.Push(new MainScreen(RequestExit));
         }
     }
 }

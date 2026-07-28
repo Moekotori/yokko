@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -7,10 +8,12 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
+using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osuTK;
 using osuTK.Input;
 using Yokko.Game.Audio;
+using Yokko.Game.Configuration;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Presentation;
@@ -33,6 +36,9 @@ public partial class SettingsScreen : Screen
     private FrameworkConfigManager frameworkConfig { get; set; }
 
     [Resolved]
+    private YokkoConfigManager yokkoConfig { get; set; }
+
+    [Resolved]
     private YokkoDisplaySettings displaySettings { get; set; }
     [Resolved]
     private YokkoAudioSettings audioSettings { get; set; }
@@ -45,11 +51,16 @@ public partial class SettingsScreen : Screen
 
     private Bindable<Size> windowedSize;
     private Bindable<WindowMode> windowMode;
+    private Bindable<FrameSync> frameSync;
+    private IBindable<DisplayMode> currentDisplayMode;
     private Bindable<string> locale;
     private Texture mascotTexture;
     private SettingsSidebar sidebar;
     private Container contentHost;
     private Drawable activePanel;
+
+    [Resolved]
+    private GameHost host { get; set; }
 
     internal SettingsPageKind CurrentPage { get; private set; } = SettingsPageKind.Display;
     internal Drawable ActivePanel => activePanel;
@@ -59,9 +70,18 @@ public partial class SettingsScreen : Screen
     {
         windowedSize = frameworkConfig.GetBindable<Size>(FrameworkSetting.WindowedSize);
         windowMode = frameworkConfig.GetBindable<WindowMode>(FrameworkSetting.WindowMode);
+        frameSync = frameworkConfig.GetBindable<FrameSync>(FrameworkSetting.FrameSync);
+        currentDisplayMode = host.Window?.CurrentDisplayMode
+                             ?? new Bindable<DisplayMode>(new DisplayMode(
+                                 null,
+                                 windowedSize.Value,
+                                 0,
+                                 60,
+                                 0));
         locale = frameworkConfig.GetBindable<string>(FrameworkSetting.Locale);
         mascotTexture = textures.Get("yokko")
                                 .Crop(new RectangleF(80, 1840, 1200, 1360));
+        CurrentPage = parseRememberedPage(yokkoConfig.GetLastSettingsPage());
 
         sidebar = new SettingsSidebar(
             textures.Get("home-logo"),
@@ -105,18 +125,24 @@ public partial class SettingsScreen : Screen
             return;
 
         CurrentPage = page;
+        yokkoConfig.SetLastSettingsPage(page.ToString());
 
         sidebar.SetSelected(page);
         activePanel = page switch
         {
-            SettingsPageKind.General => new GeneralSettingsPanel(locale),
+            SettingsPageKind.General => new GeneralSettingsPanel(
+                locale,
+                gameplaySettings),
             SettingsPageKind.Display => new DisplaySettingsPanel(
                 mascotTexture,
                 windowedSize,
                 windowMode,
+                frameSync,
+                currentDisplayMode,
                 displaySettings.UiScale,
                 size => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, size),
-                mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode)),
+                mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode),
+                sync => frameworkConfig.SetValue(FrameworkSetting.FrameSync, sync)),
             SettingsPageKind.Audio => new AudioSettingsPanel(audioSettings),
             SettingsPageKind.Gameplay => new GameplaySettingsPanel(
                 gameplaySettings,
@@ -141,6 +167,13 @@ public partial class SettingsScreen : Screen
         return sidebar?.DismissTransientUi() == true;
     }
 
+    public override bool OnExiting(ScreenExitEvent e)
+    {
+        yokkoConfig.Save();
+        frameworkConfig.Save();
+        return base.OnExiting(e);
+    }
+
     protected override bool OnKeyDown(KeyDownEvent e)
     {
         if (activePanel is GameplaySettingsPanel gameplayPanel &&
@@ -156,4 +189,9 @@ public partial class SettingsScreen : Screen
         this.Exit();
         return true;
     }
+
+    private static SettingsPageKind parseRememberedPage(string page) =>
+        Enum.TryParse(page, out SettingsPageKind remembered)
+            ? remembered
+            : SettingsPageKind.Display;
 }

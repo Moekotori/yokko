@@ -63,7 +63,14 @@ public sealed class KeyModeBindings
 
     public string GetDisplayKey(int lane)
     {
-        Key key = keys[lane];
-        return key == Key.Space ? "Space" : key.ToString();
+        return FormatKey(keys[lane]);
     }
+
+    public static string FormatKey(Key key) => key switch
+    {
+        Key.Space => "Space",
+        Key.Period => ".",
+        Key.Slash => "/",
+        _ => key.ToString(),
+    };
 }

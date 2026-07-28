@@ -63,6 +63,7 @@ internal static class YokkoStrings
             ["main.settings"] = new("Settings", "设置", "設定"),
             ["main.lets_play"] = new("Let's play!", "开始吧！", "遊ぼう！"),
             ["main.audio_unavailable"] = new("Audio unavailable", "音频不可用", "オーディオ利用不可"),
+            ["main.hold_esc_exit"] = new("Hold Esc 5s to exit", "长按 Esc 5 秒退出", "Esc を5秒長押しで終了"),
 
             ["settings.title"] = new("Settings", "设置", "設定"),
             ["settings.back"] = new("Back", "返回", "戻る"),
@@ -82,11 +83,11 @@ internal static class YokkoStrings
                 "此区域为后续版本预留，目前不会应用任何设置。",
                 "この項目は今後のバージョン向けです。現在は設定を適用しません。"),
 
-            ["settings.general.title"] = new("General", "常规", "一般"),
+            ["settings.general.title"] = new("General", "通用", "一般"),
             ["settings.general.subtitle"] = new(
-                "Language, startup and application behaviour",
-                "语言、启动与应用行为",
-                "言語、起動、アプリの動作"),
+                "Language, scroll speed and application behaviour",
+                "语言、流速与应用行为",
+                "言語、スクロール速度、アプリの動作"),
             ["settings.general.description"] = new(
                 "The essentials that shape how Yokko starts and behaves.",
                 "控制 Yokko 启动方式与基础行为。",
@@ -100,26 +101,35 @@ internal static class YokkoStrings
                 "Language changes apply immediately and are saved automatically.",
                 "语言更改会立即生效并自动保存。",
                 "言語の変更はすぐに反映され、自動的に保存されます。"),
+            ["settings.general.mania_scroll_speed"] = new(
+                "osu!mania scroll speed",
+                "osu!mania 流速",
+                "osu!mania スクロール速度"),
+            ["settings.general.mania_scroll_speed_note"] = new(
+                "Uses osu!mania's 1–40 scale · Ctrl + / Ctrl − or F3 / F4 during gameplay.",
+                "使用 osu!mania 的 1–40 档位 · 游玩时按 Ctrl + / Ctrl − 或 F3 / F4 调节。",
+                "osu!mania と同じ 1–40 段階 · プレイ中は Ctrl + / Ctrl − または F3 / F4。"),
             ["settings.language.english"] = new("English", "English", "English"),
             ["settings.language.chinese"] = new("简体中文", "简体中文", "简体中文"),
             ["settings.language.japanese"] = new("日本語", "日本語", "日本語"),
 
             ["settings.display.title"] = new("Display", "显示", "表示"),
             ["settings.display.subtitle"] = new(
-                "Window, resolution and interface scale",
-                "窗口、分辨率与界面缩放",
-                "ウィンドウ、解像度、UI スケール"),
+                "Window, resolution, refresh rate and interface scale",
+                "窗口、分辨率、刷新率与界面缩放",
+                "ウィンドウ、解像度、リフレッシュレート、UI スケール"),
             ["settings.display.description"] = new(
                 "Display and interface presentation.",
                 "调整显示与界面呈现方式。",
                 "画面とインターフェースの表示を調整します。"),
             ["settings.display.current_display"] = new("Current display", "当前显示", "現在のディスプレイ"),
             ["settings.display.metadata"] = new(
-                "Display 1  ·  {0} × {1}  ·  60 Hz",
-                "显示器 1  ·  {0} × {1}  ·  60 Hz",
-                "ディスプレイ 1  ·  {0} × {1}  ·  60 Hz"),
+                "Display {0}  ·  {1} × {2}  ·  {3} Hz",
+                "显示器 {0}  ·  {1} × {2}  ·  {3} Hz",
+                "ディスプレイ {0}  ·  {1} × {2}  ·  {3} Hz"),
             ["settings.display.window_mode"] = new("Window mode", "窗口模式", "ウィンドウモード"),
             ["settings.display.resolution"] = new("Resolution", "分辨率", "解像度"),
+            ["settings.display.frame_limit"] = new("Frame limit", "帧率上限", "フレーム上限"),
             ["settings.display.interface_scale"] = new("Interface scale", "界面缩放", "UI スケール"),
             ["settings.display.windowed"] = new("Windowed", "窗口化", "ウィンドウ"),
             ["settings.display.borderless"] = new("Borderless", "无边框", "ボーダーレス"),
@@ -213,6 +223,9 @@ internal static class YokkoStrings
             ["settings.skins.delete"] = new("DELETE", "删除", "削除"),
             ["settings.skins.confirm_delete"] = new("CONFIRM", "确认", "確認"),
             ["settings.skins.keys"] = new("{0}K", "{0}K", "{0}K"),
+            ["settings.skins.importing"] = new("Importing osu!mania skin", "正在导入 osu!mania 皮肤", "osu!mania スキンを導入中"),
+            ["settings.skins.import_success"] = new("Skin ready", "皮肤已就绪", "スキンの準備完了"),
+            ["settings.skins.import_failed"] = new("Skin import failed", "皮肤导入失败", "スキンの導入に失敗"),
             ["settings.gameplay.ready"] = new(
                 "Gameplay controls are live",
                 "游玩控制已实装",
@@ -223,6 +236,7 @@ internal static class YokkoStrings
                 "4K  {0}   ·   7K  {1}"),
             ["settings.gameplay.live"] = new("LIVE", "已启用", "有効"),
             ["settings.gameplay.key_profile"] = new("Key profile", "键位配置", "キープロファイル"),
+            ["settings.gameplay.edit_all"] = new("Edit all keys", "修改键位", "キーを一括変更"),
             ["settings.gameplay.reset"] = new("Reset keys", "重置键位", "キーをリセット"),
             ["settings.gameplay.key_capture_hint"] = new(
                 "Choose a lane, then press the key you want to use.",
@@ -236,11 +250,31 @@ internal static class YokkoStrings
             ["settings.gameplay.click_to_change"] = new("Change key", "修改按键", "キーを変更"),
             ["settings.gameplay.press_key"] = new("PRESS KEY", "请按键", "キーを入力"),
             ["settings.gameplay.esc_cancel"] = new("Esc to cancel", "Esc 取消", "Esc でキャンセル"),
+            ["settings.gameplay.sequence_hint"] = new(
+                "Press key {0} of {1} · Esc cancels the whole set",
+                "请输入第 {0}/{1} 个按键 · Esc 取消整组修改",
+                "{0}/{1} 個目のキーを入力 · Esc で全体をキャンセル"),
+            ["settings.gameplay.sequence_duplicate"] = new(
+                "That key is already used · press a different key",
+                "这个按键已经使用 · 请按其他按键",
+                "そのキーは使用済みです · 別のキーを入力してください"),
+            ["settings.gameplay.sequence_captured"] = new(
+                "Captured",
+                "已录入",
+                "入力済み"),
+            ["settings.gameplay.sequence_saved"] = new(
+                "{0}K profile saved · {1}",
+                "{0}K 键位已保存 · {1}",
+                "{0}K プロファイルを保存しました · {1}"),
             ["settings.gameplay.scroll_speed"] = new("Note speed", "音符速度", "ノーツ速度"),
             ["settings.gameplay.scroll_speed_note"] = new(
-                "Controls approach time without changing chart timing.",
-                "调整下落时间，不改变谱面时序。",
-                "譜面タイミングを変えずに接近時間を調整します。"),
+                "osu!mania 1–40 scale · Ctrl + / Ctrl − or F3 / F4.",
+                "osu!mania 1–40 档位 · Ctrl + / Ctrl − 或 F3 / F4。",
+                "osu!mania の 1–40 段階 · Ctrl + / Ctrl − または F3 / F4。"),
+            ["gameplay.scroll_speed_status"] = new(
+                "Scroll speed  {0:0.0}",
+                "流速  {0:0.0}",
+                "スクロール速度  {0:0.0}"),
             ["settings.gameplay.speed_presets"] = new("Quick presets", "快捷预设", "クイック設定"),
             ["settings.gameplay.input_offset"] = new("Input offset", "输入偏移", "入力オフセット"),
             ["settings.gameplay.input_offset_note"] = new(
