@@ -10,7 +10,15 @@ add_library(yokko_audio_native SHARED
     src/audio_engine.cpp
     src/audio_engine.hpp
     src/spsc_pcm_ring_buffer.hpp
+    src/wasapi_output.hpp
 )
+
+if(WIN32)
+    target_sources(yokko_audio_native PRIVATE src/wasapi_output.cpp)
+    target_link_libraries(yokko_audio_native PRIVATE avrt ole32 uuid)
+else()
+    target_sources(yokko_audio_native PRIVATE src/wasapi_output_stub.cpp)
+endif()
 
 target_compile_features(yokko_audio_native PRIVATE cxx_std_20)
 target_compile_definitions(yokko_audio_native PRIVATE YOKKO_AUDIO_NATIVE_BUILD)

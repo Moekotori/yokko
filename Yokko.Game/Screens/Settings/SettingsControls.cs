@@ -5,7 +5,6 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
-using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
@@ -13,255 +12,71 @@ using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Settings;
 
-internal static class SettingsTheme
+internal partial class SettingsPanelFooter : CompositeDrawable
 {
-    public static readonly Color4 MutedNavy = new(0.34f, 0.39f, 0.64f, 1f);
-    public static readonly Color4 Divider = new(0.12f, 0.22f, 0.55f, 0.18f);
-    public static readonly Color4 StatusCyan = new(0.36f, 0.84f, 0.96f, 1f);
-    public static readonly Color4 PaleCyan = new(0.87f, 0.98f, 1f, 1f);
-}
-
-public partial class SettingsSearchTextBox : BasicTextBox
-{
-    protected override float LeftRightPadding => 42;
-
-    public SettingsSearchTextBox()
+    public SettingsPanelFooter()
     {
-        Size = new Vector2(244, 44);
-        Masking = true;
-        CornerRadius = 7;
-        BorderThickness = 1.2f;
-        BorderColour = SettingsTheme.MutedNavy;
-        BackgroundUnfocused = Color4.White;
-        BackgroundFocused = SettingsTheme.PaleCyan;
-        FontSize = 15;
-        PlaceholderText = "Search settings";
-
-        AddInternal(new SpriteIcon
-        {
-            Anchor = Anchor.CentreLeft,
-            Origin = Anchor.CentreLeft,
-            X = 15,
-            Size = new Vector2(17),
-            Icon = FontAwesome.Solid.Search,
-            Colour = SettingsTheme.MutedNavy,
-            Depth = -2,
-        });
-    }
-
-    protected override Drawable GetDrawableCharacter(char c) => new SpriteText
-    {
-        Text = c.ToString(),
-        Font = HomeTypography.Body(15),
-        Colour = HomeControlColours.Navy,
-    };
-
-    protected override SpriteText CreatePlaceholder() => new SpriteText
-    {
-        Font = HomeTypography.Body(15),
-        Colour = SettingsTheme.MutedNavy,
-    };
-
-    protected override void OnFocus(FocusEvent e)
-    {
-        base.OnFocus(e);
-        BorderColour = HomeControlColours.Cyan;
-        BorderThickness = 2;
-    }
-
-    protected override void OnFocusLost(FocusLostEvent e)
-    {
-        base.OnFocusLost(e);
-        BorderColour = SettingsTheme.MutedNavy;
-        BorderThickness = 1.2f;
-    }
-}
-
-public partial class SettingsOutlineButton : ClickableContainer
-{
-    private readonly Box background;
-
-    public SettingsOutlineButton(string label, IconUsage icon, Action action)
-    {
-        Action = action;
-        Size = new Vector2(244, 44);
-        Masking = true;
-        CornerRadius = 7;
-        BorderThickness = 1.2f;
-        BorderColour = SettingsTheme.MutedNavy;
+        Position = new Vector2(372, 651);
+        Size = new Vector2(650, 42);
 
         InternalChildren = new Drawable[]
         {
-            background = new Box
+            new Box
             {
-                RelativeSizeAxes = Axes.Both,
-                Colour = Color4.White,
+                RelativeSizeAxes = Axes.X,
+                Height = 1,
+                Colour = SettingsTheme.Divider,
             },
             new SpriteIcon
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 16,
-                Size = new Vector2(17),
-                Icon = icon,
-                Colour = HomeControlColours.Navy,
+                Position = new Vector2(2, 18),
+                Size = new Vector2(22),
+                Icon = FontAwesome.Solid.CheckSquare,
+                Colour = HomeControlColours.Pink,
             },
             new SpriteText
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 51,
-                Text = label,
-                Font = HomeTypography.Display(16),
+                Position = new Vector2(36, 17),
+                Text = "Changes apply instantly",
+                Font = HomeTypography.Body(14),
+                Colour = HomeControlColours.Navy,
+            },
+            new Box
+            {
+                Position = new Vector2(220, 14),
+                Width = 1,
+                Height = 22,
+                Colour = SettingsTheme.Divider,
+            },
+            new Container
+            {
+                Position = new Vector2(252, 14),
+                Size = new Vector2(30, 24),
+                Masking = true,
+                CornerRadius = 4,
+                BorderThickness = 1,
+                BorderColour = SettingsTheme.MutedNavy,
+                Child = new SpriteText
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Text = "Esc",
+                    Font = HomeTypography.Body(11),
+                    Colour = HomeControlColours.Navy,
+                },
+            },
+            new SpriteText
+            {
+                Position = new Vector2(294, 17),
+                Text = "Esc to return",
+                Font = HomeTypography.Body(14),
                 Colour = HomeControlColours.Navy,
             },
         };
     }
-
-    protected override bool OnHover(HoverEvent e)
-    {
-        background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
-        this.MoveToX(DrawPosition.X + 2, 120, Easing.OutQuint);
-        return true;
-    }
-
-    protected override void OnHoverLost(HoverLostEvent e)
-    {
-        background.FadeColour(Color4.White, 140, Easing.OutQuint);
-        this.MoveToX(38, 140, Easing.OutQuint);
-    }
 }
 
-public partial class SettingsNavHeader : CompositeDrawable
-{
-    public SettingsNavHeader(string label)
-    {
-        Size = new Vector2(252, 22);
-        InternalChild = new SpriteText
-        {
-            Anchor = Anchor.BottomLeft,
-            Origin = Anchor.BottomLeft,
-            X = 8,
-            Text = label,
-            Font = HomeTypography.Display(11),
-            Spacing = new Vector2(1.3f, 0),
-            Colour = new Color4(SettingsTheme.MutedNavy.R, SettingsTheme.MutedNavy.G, SettingsTheme.MutedNavy.B, 0.75f),
-        };
-    }
-
-    public void SetFiltered(bool visible)
-    {
-        if (visible)
-            Show();
-        else
-            Hide();
-    }
-}
-
-public partial class SettingsNavItem : ClickableContainer
-{
-    private readonly Box background;
-    private readonly SpriteIcon icon;
-    private readonly SpriteText text;
-    private readonly SpriteIcon plus;
-    private readonly bool selected;
-
-    public string Label { get; }
-
-    public SettingsNavItem(string label, IconUsage itemIcon, bool selected)
-    {
-        Label = label;
-        this.selected = selected;
-        Size = new Vector2(252, 39);
-        Masking = true;
-        CornerRadius = 7;
-
-        InternalChildren = new Drawable[]
-        {
-            background = new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = selected ? HomeControlColours.Navy : Color4.Transparent,
-            },
-            new Box
-            {
-                RelativeSizeAxes = Axes.Y,
-                Width = 5,
-                Colour = HomeControlColours.Cyan,
-                Alpha = selected ? 1 : 0,
-            },
-            icon = new SpriteIcon
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 22,
-                Size = new Vector2(18),
-                Icon = itemIcon,
-                Colour = selected ? Color4.White : HomeControlColours.Navy,
-            },
-            text = new SpriteText
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 57,
-                Text = label,
-                Font = HomeTypography.Display(16),
-                Colour = selected ? Color4.White : HomeControlColours.Navy,
-            },
-            plus = new SpriteIcon
-            {
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
-                X = -17,
-                Size = new Vector2(12),
-                Icon = FontAwesome.Solid.Plus,
-                Colour = selected ? HomeControlColours.Yellow : HomeControlColours.Pink,
-            },
-            new Box
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.Centre,
-                Size = new Vector2(14),
-                Rotation = 45,
-                Colour = HomeControlColours.Yellow,
-                Alpha = selected ? 1 : 0,
-            },
-        };
-    }
-
-    public void SetFiltered(bool visible)
-    {
-        if (visible)
-            Show();
-        else
-            Hide();
-    }
-
-    protected override bool OnHover(HoverEvent e)
-    {
-        if (!selected)
-        {
-            background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
-            icon.FadeColour(HomeControlColours.Cyan, 120, Easing.OutQuint);
-            plus.RotateTo(90, 120, Easing.OutQuint);
-        }
-        else
-        {
-            background.FadeColour(new Color4(0.055f, 0.15f, 0.7f, 1f), 120, Easing.OutQuint);
-        }
-
-        return true;
-    }
-
-    protected override void OnHoverLost(HoverLostEvent e)
-    {
-        background.FadeColour(selected ? HomeControlColours.Navy : Color4.Transparent, 140, Easing.OutQuint);
-        icon.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 140, Easing.OutQuint);
-        plus.RotateTo(0, 140, Easing.OutQuint);
-    }
-}
-
-public partial class SettingsSegmentedChoiceButton : ClickableContainer
+internal partial class SettingsSegmentedChoiceButton : ClickableContainer
 {
     private readonly Box background;
     private readonly SpriteIcon icon;
@@ -346,25 +161,182 @@ public partial class SettingsSegmentedChoiceButton : ClickableContainer
     }
 }
 
-public partial class SettingsResolutionButton : ClickableContainer
+/// <summary>
+/// Resolution selector with an explicit option list. It deliberately does not
+/// cycle values so the interaction remains predictable as the list grows.
+/// </summary>
+internal partial class SettingsResolutionDropdown : CompositeDrawable
 {
     private readonly IReadOnlyList<Size> options;
     private readonly Action<Size> onSelected;
-    private readonly Box background;
+    private readonly Box headerBackground;
     private readonly SpriteText valueText;
     private readonly SpriteIcon chevron;
-    private Size selected;
+    private readonly Container menu;
+    private readonly List<SettingsResolutionOption> optionRows = new();
+    private bool open;
 
-    public SettingsResolutionButton(IReadOnlyList<Size> options, Action<Size> onSelected)
+    public SettingsResolutionDropdown(IReadOnlyList<Size> options, Action<Size> onSelected)
     {
         this.options = options;
         this.onSelected = onSelected;
-        Action = selectNext;
         Size = new Vector2(598, 54);
-        Masking = true;
-        CornerRadius = 7;
-        BorderThickness = 1.4f;
-        BorderColour = HomeControlColours.Navy;
+
+        var header = new SettingsDropdownHeader(
+            () => open,
+            toggle)
+        {
+            RelativeSizeAxes = Axes.Both,
+            Masking = true,
+            CornerRadius = 7,
+            BorderThickness = 1.4f,
+            BorderColour = HomeControlColours.Navy,
+            Children = new Drawable[]
+            {
+                headerBackground = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
+                valueText = new SpriteText
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    X = 18,
+                    Font = HomeTypography.Body(17),
+                    Colour = HomeControlColours.Navy,
+                },
+                chevron = new SpriteIcon
+                {
+                    Anchor = Anchor.CentreRight,
+                    Origin = Anchor.CentreRight,
+                    X = -20,
+                    Size = new Vector2(15),
+                    Icon = FontAwesome.Solid.ChevronDown,
+                    Colour = HomeControlColours.Pink,
+                },
+            },
+        };
+
+        header.Background = headerBackground;
+
+        var flow = new FillFlowContainer
+        {
+            RelativeSizeAxes = Axes.X,
+            AutoSizeAxes = Axes.Y,
+            Direction = FillDirection.Vertical,
+        };
+
+        foreach (Size option in options)
+        {
+            Size captured = option;
+            var row = new SettingsResolutionOption(option, () => select(captured));
+            optionRows.Add(row);
+            flow.Add(row);
+        }
+
+        menu = new Container
+        {
+            Y = 59,
+            Width = 598,
+            Height = options.Count * SettingsResolutionOption.RowHeight,
+            Masking = true,
+            CornerRadius = 7,
+            BorderThickness = 1.4f,
+            BorderColour = HomeControlColours.Navy,
+            Alpha = 0,
+            Scale = new Vector2(1, 0.96f),
+            Depth = -20,
+            Children = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
+                flow,
+            },
+        };
+
+        InternalChildren = new Drawable[] { header, menu };
+    }
+
+    public void SetSelected(Size size)
+    {
+        valueText.Text = $"{size.Width} × {size.Height}";
+
+        foreach (SettingsResolutionOption option in optionRows)
+            option.SetSelected(option.Value == size);
+    }
+
+    private void toggle()
+    {
+        open = !open;
+        headerBackground.FadeColour(open ? SettingsTheme.PaleCyan : Color4.White, 120, Easing.OutQuint);
+        chevron.RotateTo(open ? 180 : 0, 160, Easing.OutQuint);
+
+        if (open)
+        {
+            menu.Show();
+            menu.FadeTo(1, 140, Easing.OutQuint);
+            menu.ScaleTo(1, 140, Easing.OutQuint);
+        }
+        else
+        {
+            menu.FadeOut(100, Easing.OutQuint);
+            menu.ScaleTo(new Vector2(1, 0.96f), 100, Easing.OutQuint);
+        }
+    }
+
+    private void select(Size size)
+    {
+        onSelected(size);
+
+        if (open)
+            toggle();
+    }
+}
+
+internal partial class SettingsDropdownHeader : ClickableContainer
+{
+    private readonly Func<bool> isOpen;
+
+    public Box Background { private get; set; }
+
+    public SettingsDropdownHeader(Func<bool> isOpen, Action action)
+    {
+        this.isOpen = isOpen;
+        Action = action;
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        Background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        if (!isOpen())
+            Background.FadeColour(Color4.White, 140, Easing.OutQuint);
+    }
+}
+
+internal partial class SettingsResolutionOption : ClickableContainer
+{
+    public const float RowHeight = 36;
+
+    private readonly Box background;
+    private readonly SpriteIcon check;
+
+    public Size Value { get; }
+
+    public SettingsResolutionOption(Size value, Action action)
+    {
+        Value = value;
+        Action = action;
+        RelativeSizeAxes = Axes.X;
+        Height = RowHeight;
 
         InternalChildren = new Drawable[]
         {
@@ -373,59 +345,44 @@ public partial class SettingsResolutionButton : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.White,
             },
-            valueText = new SpriteText
+            new SpriteText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = 18,
-                Font = HomeTypography.Body(17),
+                Text = $"{value.Width} × {value.Height}",
+                Font = HomeTypography.Body(14),
                 Colour = HomeControlColours.Navy,
             },
-            chevron = new SpriteIcon
+            check = new SpriteIcon
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
                 X = -20,
-                Size = new Vector2(15),
-                Icon = FontAwesome.Solid.ChevronDown,
+                Size = new Vector2(13),
+                Icon = FontAwesome.Solid.Check,
                 Colour = HomeControlColours.Pink,
+                Alpha = 0,
+            },
+            new Box
+            {
+                Anchor = Anchor.BottomCentre,
+                Origin = Anchor.BottomCentre,
+                RelativeSizeAxes = Axes.X,
+                Height = 1,
+                Colour = SettingsTheme.Divider,
             },
         };
     }
 
-    public void SetSelected(Size size)
-    {
-        selected = size;
-        valueText.Text = $"{size.Width} × {size.Height}";
-    }
-
-    private void selectNext()
-    {
-        int currentIndex = -1;
-
-        for (int i = 0; i < options.Count; i++)
-        {
-            if (options[i] == selected)
-            {
-                currentIndex = i;
-                break;
-            }
-        }
-
-        Size next = options[(currentIndex + 1 + options.Count) % options.Count];
-        onSelected(next);
-    }
+    public void SetSelected(bool selected) => check.FadeTo(selected ? 1 : 0, 100, Easing.OutQuint);
 
     protected override bool OnHover(HoverEvent e)
     {
-        background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
-        chevron.MoveToY(3, 120, Easing.OutQuint);
+        background.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
         return true;
     }
 
-    protected override void OnHoverLost(HoverLostEvent e)
-    {
-        background.FadeColour(Color4.White, 140, Easing.OutQuint);
-        chevron.MoveToY(0, 140, Easing.OutQuint);
-    }
+    protected override void OnHoverLost(HoverLostEvent e) =>
+        background.FadeColour(Color4.White, 120, Easing.OutQuint);
 }

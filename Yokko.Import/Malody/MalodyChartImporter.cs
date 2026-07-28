@@ -7,14 +7,42 @@ namespace Yokko.Import.Malody;
 public sealed class MalodyChartImporter : IChartImporter
 {
     public ChartImportCapability Capability { get; } =
-        new(ChartSourceFormat.Malody, "Malody Key", [".mc"], true, false);
+        new(ChartSourceFormat.Malody, "Malody Key", [".mc", ".mcz"], true, false);
 
     public bool CanImport(string path)
-        => string.Equals(Path.GetExtension(path), ".mc", StringComparison.OrdinalIgnoreCase);
+    {
+        string extension = Path.GetExtension(path);
+        return extension.Equals(".mc", StringComparison.OrdinalIgnoreCase)
+               || extension.Equals(".mcz", StringComparison.OrdinalIgnoreCase);
+    }
 
     public ValueTask<ChartImportResult> ImportAsync(ChartImportRequest request)
     {
         request.CancellationToken.ThrowIfCancellationRequested();
+
+        if (Path.GetExtension(request.Path).Equals(".mcz", StringComparison.OrdinalIgnoreCase))
+        {
+            IReadOnlyList<string> charts = ChartArchive.ExtractCharts(request.Path, ".mc");
+            var failures = new List<Exception>();
+
+            foreach (string chart in charts)
+            {
+                try
+                {
+                    ChartImportResult result = ImportAsync(request with { Path = chart }).AsTask().GetAwaiter().GetResult();
+                    IReadOnlyList<string> packageWarnings = charts.Count > 1
+                        ? [$"This .mcz contains {charts.Count} charts; imported {Path.GetFileName(chart)}.", .. result.Warnings]
+                        : result.Warnings;
+                    return ValueTask.FromResult(result with { Warnings = packageWarnings });
+                }
+                catch (InvalidDataException ex)
+                {
+                    failures.Add(ex);
+                }
+            }
+
+            throw new InvalidDataException("The .mcz package does not contain a supported 4K/7K Malody Key chart.", failures.FirstOrDefault());
+        }
 
         using JsonDocument document = JsonDocument.Parse(File.ReadAllText(request.Path));
         JsonElement root = document.RootElement;

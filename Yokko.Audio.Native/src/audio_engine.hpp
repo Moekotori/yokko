@@ -5,13 +5,17 @@
 
 #include <atomic>
 #include <cstdint>
+#include <memory>
 
 namespace yokko::audio
 {
+    class WasapiOutput;
+
     class AudioEngine
     {
     public:
         explicit AudioEngine(const yokko_audio_config& config);
+        ~AudioEngine();
 
         yokko_audio_result start() noexcept;
         yokko_audio_result pause() noexcept;
@@ -28,6 +32,20 @@ namespace yokko::audio
             uint64_t device_frame_position,
             uint32_t device_latency_frames) noexcept;
         void get_status(yokko_audio_status& status) const noexcept;
+        yokko_audio_result open_wasapi(
+            const yokko_audio_output_config& config,
+            yokko_audio_output_status& status) noexcept;
+        void close_output() noexcept;
+
+        [[nodiscard]] uint32_t sample_rate() const noexcept
+        {
+            return sample_rate_;
+        }
+
+        [[nodiscard]] uint32_t channels() const noexcept
+        {
+            return channels_;
+        }
 
     private:
         [[nodiscard]] double playback_time_milliseconds() const noexcept;
@@ -49,6 +67,7 @@ namespace yokko::audio
         std::atomic<bool> accepting_submissions_{true};
         std::atomic<uint32_t> active_submit_calls_{0};
         std::atomic<uint32_t> active_render_callbacks_{0};
+        std::unique_ptr<WasapiOutput> output_;
     };
 }
 

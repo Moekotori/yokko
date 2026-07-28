@@ -11,7 +11,7 @@ public sealed partial class BmsChartImporter : IChartImporter
     private static readonly string[] sevenKeyChannels = ["11", "12", "13", "14", "15", "18", "19"];
 
     public ChartImportCapability Capability { get; } =
-        new(ChartSourceFormat.Bms, "BMS / BME / BML", [".bms", ".bme", ".bml"], true, true);
+        new(ChartSourceFormat.Bms, "BMS / BME / BML", [".bms", ".bme", ".bml"], true, false);
 
     public bool CanImport(string path)
     {
@@ -73,7 +73,6 @@ public sealed partial class BmsChartImporter : IChartImporter
         if (pauses.Count > 0)
             warnings.Add("BMS STOP events were baked into absolute note times; editor beat rows cannot display the stopped span exactly yet.");
 
-        var converter = new BeatTimeConverter(tempoChanges, pauses);
         Dictionary<string, int> laneMap = createLaneMap(events, warnings);
         KeyMode keyMode = laneMap.Count > 4 ? KeyMode.SevenKey : KeyMode.FourKey;
         var beatNotes = new List<MutableBeatNote>();
@@ -124,7 +123,13 @@ public sealed partial class BmsChartImporter : IChartImporter
             warnings.Add("BMS scratch objects are not supported by Yokko's 4K/7K layout and were ignored.");
         if (events.Any(static value => value.Channel is "04" or "06" or "07"))
             warnings.Add("BMS BGA events are not represented by Yokko yet and were ignored.");
+        if (parsed.Headers.GetValueOrDefault("LNTYPE") == "2")
+            warnings.Add("BMS LNTYPE 2 continuation semantics are not fully supported; long notes may differ from the source.");
 
+        var unshiftedConverter = new BeatTimeConverter(tempoChanges, pauses);
+        string? audioPath = resolveBackgroundAudio(request.Path, parsed, events, warnings, out double audioStartBeat);
+        double audioOffset = audioPath == null ? 0 : -unshiftedConverter.ToMilliseconds(audioStartBeat);
+        var converter = new BeatTimeConverter(tempoChanges, pauses, audioOffset);
         YokkoHitObject[] hitObjects = beatNotes.Select(note =>
         {
             string? samplePath = parsed.WavFiles.TryGetValue(note.SampleId, out string? sample)
@@ -143,7 +148,6 @@ public sealed partial class BmsChartImporter : IChartImporter
         if (hitObjects.Any(static note => note.SampleKey != null))
             warnings.Add("BMS keysound references were preserved on notes, but runtime keysound playback is not available yet.");
 
-        string? audioPath = resolveBackgroundAudio(request.Path, parsed, events, warnings);
         string difficulty = parsed.Headers.GetValueOrDefault(
             "SUBTITLE",
             parsed.Headers.TryGetValue("PLAYLEVEL", out string? level) ? $"Level {level}" : $"{(int)keyMode}K");
@@ -167,9 +171,7 @@ public sealed partial class BmsChartImporter : IChartImporter
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         byte[] bytes = File.ReadAllBytes(path);
-        string text = hasUtf8Bom(bytes)
-            ? Encoding.UTF8.GetString(bytes)
-            : Encoding.GetEncoding(932).GetString(bytes);
+        string text = decodeText(bytes);
         var parsed = new ParsedBms();
         bool active = true;
         var randomContexts = new Stack<RandomContext>();
@@ -317,22 +319,32 @@ public sealed partial class BmsChartImporter : IChartImporter
         string chartPath,
         ParsedBms parsed,
         IReadOnlyList<RawEvent> events,
-        ICollection<string> warnings)
+        ICollection<string> warnings,
+        out double startBeat)
     {
-        string[] backgroundSamples = events.Where(static value => value.Channel == "01")
-                                           .Select(static value => value.Value)
-                                           .Distinct(StringComparer.OrdinalIgnoreCase)
-                                           .ToArray();
+        RawEvent[] backgroundEvents = events.Where(static value => value.Channel == "01").ToArray();
+        string[] backgroundSamples = backgroundEvents.Select(static value => value.Value)
+                                                      .Distinct(StringComparer.OrdinalIgnoreCase)
+                                                      .ToArray();
 
-        if (backgroundSamples.Length == 1
+        if (backgroundEvents.Length == 1
+            && backgroundSamples.Length == 1
             && parsed.WavFiles.TryGetValue(backgroundSamples[0], out string? file))
-            return ImportParsing.ResolveAdjacentAsset(chartPath, file);
+        {
+            string? path = ImportParsing.ResolveAdjacentAsset(chartPath, file);
+            if (path != null)
+            {
+                startBeat = backgroundEvents[0].Beat;
+                return path;
+            }
+        }
 
-        if (backgroundSamples.Length > 1)
-            warnings.Add($"BMS uses {backgroundSamples.Length} background audio samples; runtime BMS sample mixing is not available yet.");
+        if (backgroundEvents.Length > 1)
+            warnings.Add($"BMS uses {backgroundEvents.Length} background audio events; runtime BMS sample mixing is not available yet.");
         else
             warnings.Add("No directly playable background audio file was found for this BMS chart.");
 
+        startBeat = 0;
         return null;
     }
 
@@ -344,6 +356,21 @@ public sealed partial class BmsChartImporter : IChartImporter
 
     private static bool hasUtf8Bom(IReadOnlyList<byte> bytes)
         => bytes.Count >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
+
+    private static string decodeText(byte[] bytes)
+    {
+        if (hasUtf8Bom(bytes))
+            return Encoding.UTF8.GetString(bytes);
+
+        try
+        {
+            return new UTF8Encoding(false, true).GetString(bytes);
+        }
+        catch (DecoderFallbackException)
+        {
+            return Encoding.GetEncoding(932).GetString(bytes);
+        }
+    }
 
     [GeneratedRegex(@"^#(?<measure>\d{3})(?<channel>[0-9A-Za-z]{2}):(?<data>.+)$")]
     private static partial Regex channelRegex();

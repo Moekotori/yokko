@@ -12,7 +12,8 @@ Current focus:
 
 - playable 4K/7K gameplay prototypes
 - lightweight chart editor workspace
-- osu!mania `.osu` import and export
+- osu!mania, Quaver, Malody Key, Etterna/StepMania, and BMS-family import
+- osu!mania `.osu` export
 - audio-clock-driven playtesting
 - stable shared audio playback first
 - cleaner timing, judgement, and offset handling
@@ -24,7 +25,9 @@ Things are expected to change quickly while the core loop is still being shaped.
 - Start a desktop build with osu!framework.
 - Create new 4K or 7K draft charts.
 - Toggle notes on a timeline grid.
-- Import and export osu!mania `.osu` files.
+- Import osu!mania `.osu` / `.osz`, Quaver `.qua`, Malody Key `.mc` / `.mcz`, Etterna/StepMania
+  `.sm` / `.ssc`, and BMS `.bms` / `.bme` / `.bml` charts.
+- Export editable charts as osu!mania `.osu` files.
 - Preserve osu! timing points, including BPM changes and inherited timing data.
 - Preview chart structure with waveform support where audio can be loaded.
 - Judge hold-note heads and releases as separate gameplay events.
@@ -33,6 +36,11 @@ Things are expected to change quickly while the core loop is still being shaped.
   - 7K: `S D F Space J K L`
 
 Exports currently write to `Documents\Yokko Exports`.
+
+Import currently targets playable 4K/7K tap, hold, offset, and BPM semantics.
+Unsupported source features such as scratch lanes, BGA, warps, special scroll
+effects, or runtime keysound mixing are reported as import warnings instead of
+being silently discarded.
 
 ## Project Layout
 

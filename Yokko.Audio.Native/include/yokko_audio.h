@@ -19,7 +19,7 @@ extern "C"
 {
 #endif
 
-#define YOKKO_AUDIO_ABI_VERSION 1u
+#define YOKKO_AUDIO_ABI_VERSION 2u
 
     typedef struct yokko_audio_engine yokko_audio_engine;
 
@@ -31,6 +31,7 @@ extern "C"
         YOKKO_AUDIO_NOT_READY = 3,
         YOKKO_AUDIO_OUT_OF_MEMORY = 4,
         YOKKO_AUDIO_INTERNAL_ERROR = 5,
+        YOKKO_AUDIO_BACKEND_UNAVAILABLE = 6,
     } yokko_audio_result;
 
     typedef enum yokko_audio_state
@@ -67,6 +68,40 @@ extern "C"
         uint64_t underrun_count;
         double playback_time_milliseconds;
     } yokko_audio_status;
+
+    typedef enum yokko_audio_backend_mode
+    {
+        YOKKO_AUDIO_BACKEND_WASAPI_SHARED = 1,
+        YOKKO_AUDIO_BACKEND_WASAPI_EXCLUSIVE = 2,
+    } yokko_audio_backend_mode;
+
+    typedef enum yokko_audio_sample_format
+    {
+        YOKKO_AUDIO_SAMPLE_FLOAT32 = 1,
+        YOKKO_AUDIO_SAMPLE_PCM32 = 2,
+        YOKKO_AUDIO_SAMPLE_PCM24_IN_32 = 3,
+        YOKKO_AUDIO_SAMPLE_PCM16 = 4,
+    } yokko_audio_sample_format;
+
+    typedef struct yokko_audio_output_config
+    {
+        uint32_t struct_size;
+        yokko_audio_backend_mode backend;
+        const wchar_t* device_id;
+        uint32_t preferred_buffer_frames;
+    } yokko_audio_output_config;
+
+    typedef struct yokko_audio_output_status
+    {
+        uint32_t struct_size;
+        yokko_audio_backend_mode backend;
+        yokko_audio_sample_format sample_format;
+        uint32_t sample_rate;
+        uint32_t channels;
+        uint32_t buffer_frames;
+        uint32_t latency_frames;
+        uint32_t is_active;
+    } yokko_audio_output_status;
 
     YOKKO_AUDIO_API uint32_t YOKKO_AUDIO_CALL yokko_audio_get_abi_version(void);
 
@@ -112,6 +147,19 @@ extern "C"
     YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_get_status(
         const yokko_audio_engine* engine,
         yokko_audio_status* status);
+
+    /*
+     * Opens an event-driven WASAPI stream owned entirely by the native engine.
+     * The engine must already be primed and running. The device callback reads
+     * directly from the native PCM ring and never enters managed code.
+     */
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_open_wasapi(
+        yokko_audio_engine* engine,
+        const yokko_audio_output_config* config,
+        yokko_audio_output_status* status);
+
+    YOKKO_AUDIO_API void YOKKO_AUDIO_CALL yokko_audio_close_output(
+        yokko_audio_engine* engine);
 
 #ifdef __cplusplus
 }

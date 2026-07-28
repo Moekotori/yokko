@@ -30,6 +30,7 @@ public partial class MainScreen : Screen
     private static readonly Color4 yellow = new(1f, 0.91f, 0.42f, 1f);
     private static readonly Color4 pink = new(1f, 0.22f, 0.65f, 1f);
     private static readonly Color4 mutedNavy = new(0.18f, 0.28f, 0.58f, 1f);
+    private static readonly Color4 paleCyan = new(0.54f, 0.91f, 0.98f, 1f);
 
     [Resolved]
     private AudioManager audioManager { get; set; }
@@ -63,11 +64,26 @@ public partial class MainScreen : Screen
                 Children = new Drawable[]
                 {
                     createRightStage(mascotTexture),
-                    createDecorationIcon(FontAwesome.Solid.Plus, 54, 28, 10, pink),
-                    createDecorationIcon(FontAwesome.Solid.Plus, 116, 28, 10, cyan),
+                    createDecorationIcon(FontAwesome.Solid.Plus, 55, 36, 12, pink),
+                    createDecorationIcon(FontAwesome.Solid.Plus, 116, 29, 10, cyan),
+                    createDecorationIcon(FontAwesome.Solid.Plus, 42, 67, 9, yellow),
+                    new HomeCornerBracket
+                    {
+                        Position = new Vector2(30, 218),
+                        Height = 232,
+                    },
+                    new HomeConnectorPlus
+                    {
+                        Position = new Vector2(28, 438),
+                    },
+                    new HomeMicroLine
+                    {
+                        Position = new Vector2(525, 31),
+                        Width = 142,
+                    },
                     new HomeDotCross
                     {
-                        Position = new Vector2(-12, 610),
+                        Position = new Vector2(-12, 606),
                         Alpha = 0.62f,
                     },
                     createBrandLockup(logoTexture),
@@ -93,11 +109,11 @@ public partial class MainScreen : Screen
             new Box
             {
                 RelativeSizeAxes = Axes.Y,
-                Width = 218,
-                X = 410,
-                Y = -36,
+                Width = 220,
+                X = 520,
+                Y = -20,
                 Height = 1.14f,
-                Rotation = -6,
+                Rotation = 10,
                 Colour = ivory,
             },
         },
@@ -110,28 +126,41 @@ public partial class MainScreen : Screen
         {
             new SpriteText
             {
-                X = 684,
-                Y = 18,
+                X = 738,
+                Y = 15,
                 Text = "YOKKO",
-                Font = HomeTypography.Brand(108),
+                Font = HomeTypography.Brand(102),
                 Colour = new Color4(1f, 1f, 1f, 0.14f),
             },
-            createDecorationIcon(FontAwesome.Solid.Plus, 680, 176, 18, Color4.White),
-            createDecorationIcon(FontAwesome.Solid.Plus, 1214, 543, 19, Color4.White),
-            createDecorationIcon(FontAwesome.Solid.Plus, 1176, 154, 14, yellow),
-            createStageLine(1126, 238, 180, -28),
-            createStageLine(1070, 530, 250, -28),
+            createDecorationIcon(FontAwesome.Solid.Plus, 730, 166, 18, Color4.White),
+            createDecorationIcon(FontAwesome.Solid.Plus, 1220, 552, 19, Color4.White),
+            createDecorationIcon(FontAwesome.Solid.Plus, 1190, 151, 14, yellow),
+            createDecorationIcon(FontAwesome.Solid.Plus, 1225, 666, 10, pink),
+            createStageLine(1128, 235, 180, -28),
+            createStageLine(1060, 532, 250, -28),
+            new HomeDotField
+            {
+                Position = new Vector2(1186, 16),
+                Size = new Vector2(72, 44),
+                Colour = new Color4(1f, 1f, 1f, 0.24f),
+            },
+            new HomeDotField
+            {
+                Position = new Vector2(1184, 610),
+                Size = new Vector2(72, 58),
+                Colour = new Color4(1f, 1f, 1f, 0.22f),
+            },
             new Sprite
             {
-                X = 620,
-                Y = 50,
-                Size = new Vector2(650, 737),
+                X = 640,
+                Y = 10,
+                Size = new Vector2(720, 816),
                 Texture = mascotTexture,
             },
-            new HomeMascotBubble("Let's chart!")
+            new HomeMascotBubble("Let's play!")
             {
-                X = 570,
-                Y = 408,
+                X = 626,
+                Y = 365,
             },
         },
     };
@@ -156,92 +185,82 @@ public partial class MainScreen : Screen
 
     private static Drawable createBrandLockup(Texture logoTexture) => new Sprite
     {
-        Position = new Vector2(48, 42),
-        Size = new Vector2(450, 153),
+        Position = new Vector2(72, 46),
+        Size = new Vector2(500, 169),
         Texture = logoTexture,
     };
 
     private Drawable createCommandArea() => new Container
     {
-        Position = new Vector2(58, 195),
-        Size = new Vector2(520, 385),
+        Position = new Vector2(72, 208),
+        Size = new Vector2(520, 394),
         Children = new Drawable[]
         {
             new FillFlowContainer
             {
+                X = 34,
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, -8),
+                Spacing = new Vector2(0, -11),
                 Children = new Drawable[]
                 {
                     new SpriteText
                     {
                         Text = "Ready for",
-                        Font = HomeTypography.Hero(76),
-                        Spacing = new Vector2(0.6f, 0),
+                        Font = HomeTypography.Hero(72),
+                        Scale = new Vector2(0.93f, 1),
                         Colour = navy,
                     },
                     new SpriteText
                     {
                         Text = "a check-up?",
-                        Font = HomeTypography.Hero(76),
-                        Spacing = new Vector2(0.6f, 0),
+                        Font = HomeTypography.Hero(72),
+                        Scale = new Vector2(0.93f, 1),
                         Colour = navy,
                     },
                 },
             },
             new HomeDotCross
             {
-                Position = new Vector2(410, 12),
+                Position = new Vector2(419, 18),
             },
-            createDecorationIcon(FontAwesome.Solid.Plus, 438, 58, 15, pink),
+            createDecorationIcon(FontAwesome.Solid.Plus, 447, 67, 15, pink),
             new HomePrimaryAction(
-                "Open the editor",
-                "Untitled chart  ·  4K",
-                FontAwesome.Solid.Plus,
-                () => this.Push(new EditorScreen()))
+                "Play",
+                "SONG SELECT",
+                FontAwesome.Solid.Play,
+                () => this.Push(new GameplayScreen(DemoBeatmaps.CreateFourKeyDemo())))
             {
-                Y = 150,
+                Y = 162,
             },
             new FillFlowContainer
             {
-                Y = 295,
+                Y = 302,
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
-                Spacing = new Vector2(10, 0),
+                Spacing = new Vector2(16, 0),
                 Children = new Drawable[]
                 {
-                    new HomeDemoAction("Play 4K demo", "D F J K",
-                        () => this.Push(new GameplayScreen(DemoBeatmaps.CreateFourKeyDemo()))),
-                    new HomeDemoAction("Play 7K demo", "S D F  SPACE  J K L",
-                        () => this.Push(new GameplayScreen(DemoBeatmaps.CreateSevenKeyDemo()))),
+                    new HomeSecondaryAction("Editor", FontAwesome.Solid.Edit,
+                        () => this.Push(new EditorScreen())),
+                    new HomeSecondaryAction("Settings", FontAwesome.Solid.Cog,
+                        () => this.Push(new SettingsScreen())),
                 },
-            },
-            new HomeConnectorPlus
-            {
-                Position = new Vector2(250, 323),
             },
         },
     };
 
-    private Drawable createUtilityArea() => new FillFlowContainer
+    private Drawable createUtilityArea() => new Container
     {
-        Position = new Vector2(1002, 30),
-        AutoSizeAxes = Axes.Both,
-        Direction = FillDirection.Horizontal,
-        Spacing = new Vector2(10, 0),
-        Children = new Drawable[]
-        {
-            new HomeUtilityButton("Import chart", FontAwesome.Solid.FolderOpen,
-                () => this.Push(new EditorScreen(true)), 154),
-            new HomeUtilityButton(string.Empty, FontAwesome.Solid.Cog,
-                () => this.Push(new SettingsScreen()), 50),
-        },
+        Position = new Vector2(1184, 28),
+        Size = new Vector2(58),
+        Child = new HomeUtilityButton(string.Empty, FontAwesome.Solid.FolderOpen,
+            () => this.Push(new EditorScreen(true)), 58),
     };
 
     private static Drawable createFooter(string audioStatus) => new Container
     {
-        Position = new Vector2(58, 648),
+        Position = new Vector2(72, 648),
         Size = new Vector2(520, 48),
         Children = new Drawable[]
         {
@@ -250,6 +269,13 @@ public partial class MainScreen : Screen
                 RelativeSizeAxes = Axes.X,
                 Height = 1,
                 Colour = new Color4(navy.R, navy.G, navy.B, 0.24f),
+            },
+            new Box
+            {
+                Width = 165,
+                Height = 1,
+                X = 116,
+                Colour = new Color4(paleCyan.R, paleCyan.G, paleCyan.B, 0.72f),
             },
             new SpriteIcon
             {
@@ -263,7 +289,7 @@ public partial class MainScreen : Screen
                 Y = 17,
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
-                Spacing = new Vector2(28, 0),
+                Spacing = new Vector2(25, 0),
                 Children = new Drawable[]
                 {
                     createFooterItem(FontAwesome.Solid.Keyboard, "D  F  J  K"),

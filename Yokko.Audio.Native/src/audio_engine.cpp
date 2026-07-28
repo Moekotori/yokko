@@ -1,4 +1,5 @@
 #include "audio_engine.hpp"
+#include "wasapi_output.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -45,6 +46,11 @@ namespace yokko::audio
         update_primed_state();
     }
 
+    AudioEngine::~AudioEngine()
+    {
+        close_output();
+    }
+
     yokko_audio_result AudioEngine::start() noexcept
     {
         const yokko_audio_state current = state_.load(std::memory_order_acquire);
@@ -79,6 +85,7 @@ namespace yokko::audio
 
     yokko_audio_result AudioEngine::stop() noexcept
     {
+        close_output();
         accepting_submissions_.store(false, std::memory_order_release);
         state_.store(YOKKO_AUDIO_STATE_IDLE, std::memory_order_release);
 
@@ -228,6 +235,43 @@ namespace yokko::audio
         status.playback_time_milliseconds = playback_time_milliseconds();
     }
 
+    yokko_audio_result AudioEngine::open_wasapi(
+        const yokko_audio_output_config& config,
+        yokko_audio_output_status& status) noexcept
+    {
+        if (state_.load(std::memory_order_acquire) != YOKKO_AUDIO_STATE_RUNNING)
+            return YOKKO_AUDIO_NOT_READY;
+
+        close_output();
+        try
+        {
+            output_ = std::make_unique<WasapiOutput>(*this);
+            const yokko_audio_result result = output_->open(config, status);
+            if (result != YOKKO_AUDIO_OK)
+                output_.reset();
+            return result;
+        }
+        catch (const std::bad_alloc&)
+        {
+            output_.reset();
+            return YOKKO_AUDIO_OUT_OF_MEMORY;
+        }
+        catch (...)
+        {
+            output_.reset();
+            return YOKKO_AUDIO_INTERNAL_ERROR;
+        }
+    }
+
+    void AudioEngine::close_output() noexcept
+    {
+        if (output_ != nullptr)
+        {
+            output_->close();
+            output_.reset();
+        }
+    }
+
     double AudioEngine::playback_time_milliseconds() const noexcept
     {
         const uint64_t device_position =
@@ -370,5 +414,28 @@ extern "C"
 
         engine->implementation.get_status(*status);
         return YOKKO_AUDIO_OK;
+    }
+
+    yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_open_wasapi(
+        yokko_audio_engine* engine,
+        const yokko_audio_output_config* config,
+        yokko_audio_output_status* status)
+    {
+        if (engine == nullptr || config == nullptr || status == nullptr)
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+        if (config->struct_size < sizeof(yokko_audio_output_config)
+            || status->struct_size < sizeof(yokko_audio_output_status))
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+        if (config->backend != YOKKO_AUDIO_BACKEND_WASAPI_SHARED
+            && config->backend != YOKKO_AUDIO_BACKEND_WASAPI_EXCLUSIVE)
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+
+        return engine->implementation.open_wasapi(*config, *status);
+    }
+
+    void YOKKO_AUDIO_CALL yokko_audio_close_output(yokko_audio_engine* engine)
+    {
+        if (engine != nullptr)
+            engine->implementation.close_output();
     }
 }

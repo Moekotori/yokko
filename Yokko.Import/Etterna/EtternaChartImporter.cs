@@ -7,7 +7,7 @@ namespace Yokko.Import.Etterna;
 public sealed partial class EtternaChartImporter : IChartImporter
 {
     public ChartImportCapability Capability { get; } =
-        new(ChartSourceFormat.Etterna, "Etterna / StepMania", [".sm", ".ssc"], true, true);
+        new(ChartSourceFormat.Etterna, "Etterna / StepMania", [".sm", ".ssc"], false, false);
 
     public bool CanImport(string path)
     {

@@ -37,10 +37,13 @@ internal static class ImportParsing
         if (Path.IsPathRooted(assetPath))
             return File.Exists(assetPath) ? assetPath : null;
 
-        string directory = Path.GetDirectoryName(Path.GetFullPath(chartPath))!;
+        string directory = Path.GetFullPath(Path.GetDirectoryName(Path.GetFullPath(chartPath))!);
         string candidate = Path.GetFullPath(Path.Combine(directory, assetPath.Replace('/', Path.DirectorySeparatorChar)));
+        string directoryPrefix = directory.EndsWith(Path.DirectorySeparatorChar)
+            ? directory
+            : directory + Path.DirectorySeparatorChar;
 
-        if (!candidate.StartsWith(directory, StringComparison.OrdinalIgnoreCase))
+        if (!candidate.StartsWith(directoryPrefix, StringComparison.OrdinalIgnoreCase))
             return null;
 
         if (File.Exists(candidate))

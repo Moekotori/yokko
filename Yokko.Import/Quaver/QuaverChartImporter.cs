@@ -119,7 +119,7 @@ public sealed class QuaverChartImporter : IChartImporter
 
             string key = trimmed.TrimStart('-').Trim()[..trimmed.TrimStart('-').Trim().IndexOf(':')].Trim();
             string value = ImportParsing.Scalar(trimmed[(separator + 1)..]);
-            bool startsItem = trimmed.StartsWith('-');
+            bool startsItem = rawLine.Length == trimmed.Length && trimmed.StartsWith('-');
 
             if (section.Equals("SliderVelocities", StringComparison.OrdinalIgnoreCase))
             {

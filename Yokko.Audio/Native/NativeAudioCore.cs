@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace Yokko.Audio.Native;
 
 internal sealed class NativeAudioCore : IDisposable
@@ -11,6 +13,7 @@ internal sealed class NativeAudioCore : IDisposable
         uint ringCapacityFrames,
         uint startupThresholdFrames)
     {
+        NativeAudioLibrary.EnsureLoaded();
         if (NativeAudioInterop.GetAbiVersion() != NativeAudioInterop.AbiVersion)
             throw new NativeAudioException("The native audio ABI version is incompatible.");
 
@@ -67,6 +70,40 @@ internal sealed class NativeAudioCore : IDisposable
             "get status");
         return status;
     }
+
+    internal NativeAudioOutputStatus OpenWasapi(
+        NativeAudioBackendMode backend,
+        string? deviceId,
+        uint preferredBufferFrames)
+    {
+        nint nativeDeviceId = 0;
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(deviceId))
+                nativeDeviceId = Marshal.StringToCoTaskMemUni(deviceId);
+
+            var config = new NativeAudioOutputConfig(
+                backend,
+                nativeDeviceId,
+                preferredBufferFrames);
+            NativeAudioOutputStatus status = NativeAudioOutputStatus.Create();
+            throwForResult(
+                NativeAudioInterop.OpenWasapi(
+                    getHandle(),
+                    config,
+                    ref status),
+                $"open {backend}");
+            return status;
+        }
+        finally
+        {
+            if (nativeDeviceId != 0)
+                Marshal.FreeCoTaskMem(nativeDeviceId);
+        }
+    }
+
+    internal void CloseOutput()
+        => NativeAudioInterop.CloseOutput(getHandle());
 
     public void Dispose()
     {

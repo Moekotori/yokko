@@ -5,7 +5,7 @@ namespace Yokko.Audio.Native;
 
 internal static partial class NativeAudioInterop
 {
-    internal const uint AbiVersion = 1;
+    internal const uint AbiVersion = 2;
     internal const string LibraryName = "yokko_audio_native";
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_abi_version")]
@@ -47,6 +47,17 @@ internal static partial class NativeAudioInterop
     internal static partial NativeAudioResult GetStatus(
         NativeAudioSafeHandle engine,
         ref NativeAudioStatus status);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_open_wasapi")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult OpenWasapi(
+        NativeAudioSafeHandle engine,
+        in NativeAudioOutputConfig config,
+        ref NativeAudioOutputStatus status);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_close_output")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial void CloseOutput(NativeAudioSafeHandle engine);
 }
 
 internal sealed class NativeAudioSafeHandle : SafeHandleZeroOrMinusOneIsInvalid
@@ -111,6 +122,45 @@ internal struct NativeAudioStatus
         };
 }
 
+[StructLayout(LayoutKind.Sequential)]
+internal readonly struct NativeAudioOutputConfig
+{
+    internal NativeAudioOutputConfig(
+        NativeAudioBackendMode backend,
+        nint deviceId,
+        uint preferredBufferFrames)
+    {
+        StructSize = (uint)Marshal.SizeOf<NativeAudioOutputConfig>();
+        Backend = backend;
+        DeviceId = deviceId;
+        PreferredBufferFrames = preferredBufferFrames;
+    }
+
+    internal readonly uint StructSize;
+    internal readonly NativeAudioBackendMode Backend;
+    internal readonly nint DeviceId;
+    internal readonly uint PreferredBufferFrames;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeAudioOutputStatus
+{
+    internal uint StructSize;
+    internal NativeAudioBackendMode Backend;
+    internal NativeAudioSampleFormat SampleFormat;
+    internal uint SampleRate;
+    internal uint Channels;
+    internal uint BufferFrames;
+    internal uint LatencyFrames;
+    internal uint IsActive;
+
+    internal static NativeAudioOutputStatus Create()
+        => new()
+        {
+            StructSize = (uint)Marshal.SizeOf<NativeAudioOutputStatus>(),
+        };
+}
+
 internal enum NativeAudioResult
 {
     Ok = 0,
@@ -119,6 +169,7 @@ internal enum NativeAudioResult
     NotReady = 3,
     OutOfMemory = 4,
     InternalError = 5,
+    BackendUnavailable = 6,
 }
 
 internal enum NativeAudioState
@@ -128,4 +179,18 @@ internal enum NativeAudioState
     Running = 2,
     Paused = 3,
     Faulted = 4,
+}
+
+internal enum NativeAudioBackendMode
+{
+    WasapiShared = 1,
+    WasapiExclusive = 2,
+}
+
+internal enum NativeAudioSampleFormat
+{
+    Float32 = 1,
+    Pcm32 = 2,
+    Pcm24In32 = 3,
+    Pcm16 = 4,
 }

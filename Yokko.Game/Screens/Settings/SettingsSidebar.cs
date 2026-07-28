@@ -1,0 +1,407 @@
+using System;
+using System.Collections.Generic;
+using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Textures;
+using osu.Framework.Graphics.UserInterface;
+using osu.Framework.Input.Events;
+using osuTK;
+using osuTK.Graphics;
+using Yokko.Game.Screens.Main;
+
+namespace Yokko.Game.Screens.Settings;
+
+/// <summary>
+/// Self-contained navigation rail. Search and category visibility remain local
+/// so adding settings sections only requires adding another group here.
+/// </summary>
+internal partial class SettingsSidebar : CompositeDrawable
+{
+    private readonly List<(SettingsNavHeader Header, SettingsNavItem[] Items)> navigationGroups = new();
+    private readonly Dictionary<SettingsPageKind, SettingsNavItem> navigationItems = new();
+    private readonly Action<SettingsPageKind> onPageSelected;
+    private readonly SettingsSearchTextBox searchBox;
+
+    public SettingsSidebar(
+        Texture logoTexture,
+        Action onBack,
+        SettingsPageKind selectedPage,
+        Action<SettingsPageKind> onPageSelected)
+    {
+        this.onPageSelected = onPageSelected;
+        RelativeSizeAxes = Axes.Y;
+        Width = 320;
+
+        Drawable[] navigation = createNavigation();
+
+        InternalChildren = new Drawable[]
+        {
+            new Sprite
+            {
+                Position = new Vector2(38, 26),
+                Size = new Vector2(244, 83),
+                Texture = logoTexture,
+            },
+            new SpriteText
+            {
+                Position = new Vector2(38, 126),
+                Text = "Settings",
+                Font = HomeTypography.Display(43),
+                Spacing = new Vector2(0.5f, 0),
+                Colour = HomeControlColours.Navy,
+            },
+            new SettingsOutlineButton("Back", FontAwesome.Solid.ArrowLeft, onBack)
+            {
+                Position = new Vector2(38, 182),
+            },
+            searchBox = new SettingsSearchTextBox
+            {
+                Position = new Vector2(38, 234),
+            },
+            new FillFlowContainer
+            {
+                Position = new Vector2(30, 292),
+                Width = 252,
+                AutoSizeAxes = Axes.Y,
+                Direction = FillDirection.Vertical,
+                Spacing = new Vector2(0, 3),
+                Children = navigation,
+            },
+            new Box
+            {
+                Position = new Vector2(319, 28),
+                Width = 1,
+                Height = 664,
+                Colour = SettingsTheme.Divider,
+            },
+        };
+
+        searchBox.Current.BindValueChanged(e => filterNavigation(e.NewValue), true);
+        SetSelected(selectedPage);
+    }
+
+    private Drawable[] createNavigation()
+    {
+        var coreHeader = new SettingsNavHeader("CORE");
+        SettingsNavItem general = createNavItem(SettingsPageKind.General);
+        SettingsNavItem display = createNavItem(SettingsPageKind.Display);
+        SettingsNavItem audio = createNavItem(SettingsPageKind.Audio);
+
+        var creationHeader = new SettingsNavHeader("CREATION");
+        SettingsNavItem gameplay = createNavItem(SettingsPageKind.Gameplay);
+        SettingsNavItem editor = createNavItem(SettingsPageKind.Editor);
+        SettingsNavItem import = createNavItem(SettingsPageKind.Import);
+
+        var systemHeader = new SettingsNavHeader("SYSTEM");
+        SettingsNavItem accessibility = createNavItem(SettingsPageKind.Accessibility);
+        SettingsNavItem about = createNavItem(SettingsPageKind.About);
+
+        navigationGroups.Add((coreHeader, new[] { general, display, audio }));
+        navigationGroups.Add((creationHeader, new[] { gameplay, editor, import }));
+        navigationGroups.Add((systemHeader, new[] { accessibility, about }));
+
+        return new Drawable[]
+        {
+            coreHeader, general, display, audio,
+            creationHeader, gameplay, editor, import,
+            systemHeader, accessibility, about,
+        };
+    }
+
+    public void SetSelected(SettingsPageKind page)
+    {
+        foreach ((SettingsPageKind kind, SettingsNavItem item) in navigationItems)
+            item.SetSelected(kind == page);
+    }
+
+    private SettingsNavItem createNavItem(SettingsPageKind page)
+    {
+        SettingsPageDefinition definition = SettingsPages.Get(page);
+        var item = new SettingsNavItem(page, definition.Title, definition.Icon, () => onPageSelected(page));
+        navigationItems.Add(page, item);
+        return item;
+    }
+
+    private void filterNavigation(string query)
+    {
+        string normalized = query?.Trim() ?? string.Empty;
+
+        foreach ((SettingsNavHeader header, SettingsNavItem[] items) in navigationGroups)
+        {
+            bool anyVisible = false;
+
+            foreach (SettingsNavItem item in items)
+            {
+                bool visible = normalized.Length == 0 ||
+                               item.Label.Contains(normalized, StringComparison.OrdinalIgnoreCase);
+                item.SetFiltered(visible);
+                anyVisible |= visible;
+            }
+
+            header.SetFiltered(anyVisible);
+        }
+    }
+}
+
+internal partial class SettingsSearchTextBox : BasicTextBox
+{
+    protected override float LeftRightPadding => 42;
+
+    public SettingsSearchTextBox()
+    {
+        Size = new Vector2(244, 44);
+        Masking = true;
+        CornerRadius = 7;
+        BorderThickness = 1.2f;
+        BorderColour = SettingsTheme.MutedNavy;
+        BackgroundUnfocused = Color4.White;
+        BackgroundFocused = SettingsTheme.PaleCyan;
+        FontSize = 15;
+        PlaceholderText = "Search settings";
+
+        AddInternal(new SpriteIcon
+        {
+            Anchor = Anchor.CentreLeft,
+            Origin = Anchor.CentreLeft,
+            X = 15,
+            Size = new Vector2(17),
+            Icon = FontAwesome.Solid.Search,
+            Colour = SettingsTheme.MutedNavy,
+            Depth = -2,
+        });
+    }
+
+    protected override Drawable GetDrawableCharacter(char c) => new SpriteText
+    {
+        Text = c.ToString(),
+        Font = HomeTypography.Body(15),
+        Colour = HomeControlColours.Navy,
+    };
+
+    protected override SpriteText CreatePlaceholder() => new SpriteText
+    {
+        Font = HomeTypography.Body(15),
+        Colour = SettingsTheme.MutedNavy,
+    };
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderColour = HomeControlColours.Cyan;
+        BorderThickness = 2;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderColour = SettingsTheme.MutedNavy;
+        BorderThickness = 1.2f;
+    }
+}
+
+internal partial class SettingsOutlineButton : ClickableContainer
+{
+    private readonly Box background;
+    private readonly float restingX;
+
+    public SettingsOutlineButton(string label, IconUsage icon, Action action)
+    {
+        Action = action;
+        Size = new Vector2(244, 44);
+        Masking = true;
+        CornerRadius = 7;
+        BorderThickness = 1.2f;
+        BorderColour = SettingsTheme.MutedNavy;
+        restingX = 38;
+
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.White,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 16,
+                Size = new Vector2(17),
+                Icon = icon,
+                Colour = HomeControlColours.Navy,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 51,
+                Text = label,
+                Font = HomeTypography.Display(16),
+                Colour = HomeControlColours.Navy,
+            },
+        };
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
+        this.MoveToX(restingX + 2, 120, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        background.FadeColour(Color4.White, 140, Easing.OutQuint);
+        this.MoveToX(restingX, 140, Easing.OutQuint);
+    }
+}
+
+internal partial class SettingsNavHeader : CompositeDrawable
+{
+    public SettingsNavHeader(string label)
+    {
+        Size = new Vector2(252, 22);
+        InternalChild = new SpriteText
+        {
+            Anchor = Anchor.BottomLeft,
+            Origin = Anchor.BottomLeft,
+            X = 8,
+            Text = label,
+            Font = HomeTypography.Display(11),
+            Spacing = new Vector2(1.3f, 0),
+            Colour = new Color4(SettingsTheme.MutedNavy.R, SettingsTheme.MutedNavy.G, SettingsTheme.MutedNavy.B, 0.75f),
+        };
+    }
+
+    public void SetFiltered(bool visible)
+    {
+        if (visible)
+            Show();
+        else
+            Hide();
+    }
+}
+
+internal partial class SettingsNavItem : ClickableContainer
+{
+    private readonly Box background;
+    private readonly Box selectionBar;
+    private readonly Box selectionCorner;
+    private readonly SpriteIcon icon;
+    private readonly SpriteText text;
+    private readonly SpriteIcon plus;
+    private bool selected;
+
+    public SettingsPageKind Page { get; }
+    public string Label { get; }
+
+    public SettingsNavItem(
+        SettingsPageKind page,
+        string label,
+        IconUsage itemIcon,
+        Action action)
+    {
+        Page = page;
+        Label = label;
+        Action = action;
+        Size = new Vector2(252, 39);
+        Masking = true;
+        CornerRadius = 7;
+
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.Transparent,
+            },
+            selectionBar = new Box
+            {
+                RelativeSizeAxes = Axes.Y,
+                Width = 5,
+                Colour = HomeControlColours.Cyan,
+                Alpha = 0,
+            },
+            icon = new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 22,
+                Size = new Vector2(18),
+                Icon = itemIcon,
+                Colour = HomeControlColours.Navy,
+            },
+            text = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 57,
+                Text = label,
+                Font = HomeTypography.Display(16),
+                Colour = HomeControlColours.Navy,
+            },
+            plus = new SpriteIcon
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -17,
+                Size = new Vector2(12),
+                Icon = FontAwesome.Solid.Plus,
+                Colour = HomeControlColours.Pink,
+            },
+            selectionCorner = new Box
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.Centre,
+                Size = new Vector2(14),
+                Rotation = 45,
+                Colour = HomeControlColours.Yellow,
+                Alpha = 0,
+            },
+        };
+    }
+
+    public void SetSelected(bool isSelected)
+    {
+        selected = isSelected;
+        background.FadeColour(selected ? HomeControlColours.Navy : Color4.Transparent, 120, Easing.OutQuint);
+        selectionBar.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
+        selectionCorner.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
+        icon.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 120, Easing.OutQuint);
+        text.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 120, Easing.OutQuint);
+        plus.FadeColour(selected ? HomeControlColours.Yellow : HomeControlColours.Pink, 120, Easing.OutQuint);
+    }
+
+    public void SetFiltered(bool visible)
+    {
+        if (visible)
+            Show();
+        else
+            Hide();
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        if (!selected)
+        {
+            background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
+            icon.FadeColour(HomeControlColours.Cyan, 120, Easing.OutQuint);
+            plus.RotateTo(90, 120, Easing.OutQuint);
+        }
+        else
+        {
+            background.FadeColour(SettingsTheme.HoverNavy, 120, Easing.OutQuint);
+        }
+
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        background.FadeColour(selected ? HomeControlColours.Navy : Color4.Transparent, 140, Easing.OutQuint);
+        icon.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 140, Easing.OutQuint);
+        plus.RotateTo(0, 140, Easing.OutQuint);
+    }
+}
