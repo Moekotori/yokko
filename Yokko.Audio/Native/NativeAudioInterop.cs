@@ -5,7 +5,7 @@ namespace Yokko.Audio.Native;
 
 internal static partial class NativeAudioInterop
 {
-    internal const uint AbiVersion = 3;
+    internal const uint AbiVersion = 4;
     internal const string LibraryName = "yokko_audio_native";
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_abi_version")]
@@ -135,6 +135,8 @@ internal struct NativeAudioStatus
     internal int BackendError;
     internal uint BackendErrorStage;
     internal double PlaybackTimeMilliseconds;
+    internal ulong CallbackCadenceMissCount;
+    internal uint CallbackMaxIntervalMicroseconds;
 
     internal static NativeAudioStatus Create()
         => new()

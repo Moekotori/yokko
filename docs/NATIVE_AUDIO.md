@@ -61,7 +61,7 @@ The P0 ABI covers:
 - pre-roll enforcement before playback can start;
 - interleaved float PCM submission and callback rendering;
 - presented-position/QPC correlation and output-latency reporting;
-- buffer, clock, underrun and callback-deadline telemetry.
+- buffer, clock, underrun, callback-work and callback-cadence telemetry.
 
 The audio callback entry point exists for native output backends. It is not a
 managed callback and must not be called from the gameplay update thread.
@@ -77,8 +77,8 @@ Implemented:
 5. `IAudioClock` position and `GetStreamLatency` reporting.
 6. Worker-thread MP3/WAV/OGG decoding into the native PCM ring.
 7. Gameplay and editor waveform paths independent of osu!framework audio.
-8. Per-stream callback budget, maximum callback duration and deadline-miss
-   counters.
+8. Per-stream callback budget, maximum callback duration, late-event interval
+   and separate work/cadence miss counters.
 
 Exclusive event-driven output submits one complete endpoint buffer on every
 device event. Shared mode alone uses `GetCurrentPadding` to calculate writable
@@ -106,8 +106,8 @@ session, so an active audio clock is never silently replaced mid-song.
 
 Next:
 
-1. Validate 64/128/256-frame profiles per real device and persist the smallest
-   stable profile.
+1. Persist per-endpoint validation results and warn before selecting a driver
+   whose Exclusive event cadence fails the rhythm-game gate.
 2. Add ASIO behind the same engine state, clock and telemetry contract.
 3. Add long-running underrun, hot-unplug, seek and device-loss tests.
 
@@ -119,6 +119,12 @@ Run the native core tests with:
 .\scripts\test-native-audio.ps1
 ```
 
+Run the opt-in real-device matrix with:
+
+```powershell
+.\scripts\test-audio-hardware.ps1 -StabilitySeconds 12 -DeviceId '<endpoint id>'
+```
+
 Native unit tests validate priming, lifecycle, silence-on-underrun, sample
 safety, counter resets, presented-position clock behavior and callback deadline
 telemetry. The focused
@@ -126,6 +132,19 @@ managed hardware smoke decodes a silent WAV, enumerates active endpoints, opens
 real WASAPI output and verifies the accepted device buffer, latency and live
 callback timing.
 
-On the July 28 development machine, the smoke opened `Senary Audio` in
-exclusive mode at 48 kHz with a 240-frame buffer and a reported 5.00 ms stream
-latency. This is device-specific evidence, not a universal latency guarantee.
+On the July 28 development machine, `FiiO KA13` passed Exclusive mode at
+44.1/48/96 kHz. At 48 kHz the 64-frame request was aligned by the driver to
+144 frames and `GetStreamLatency` reported 3.00 ms. A 12-second run delivered
+4008 callbacks with no underrun, callback-work miss or late-event cadence miss;
+the maximum callback work was 0.368 ms, the maximum event interval was
+4.033 ms and device-clock drift against QPC was 0.848 ms.
+
+The internal `Senary Audio` endpoint opened Exclusive at 48 kHz/240 frames and
+reported 5.00 ms, but failed the stability gate: a 1.5-second formal run
+recorded 72 late-event cadence misses, a 10.679 ms maximum interval and
+439.688 ms of clock drift. The endpoint must not be described as
+rhythm-game-safe merely because Exclusive mode opened successfully.
+
+These are endpoint/driver-specific stream measurements. `GetStreamLatency`
+does not measure the analogue DAC, amplifier or acoustic path; a physical
+loopback rig is still required for total click-to-sound latency.

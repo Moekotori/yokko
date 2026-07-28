@@ -136,4 +136,9 @@ internal sealed class NativeAudioException : Exception
         : base(message)
     {
     }
+
+    internal NativeAudioException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
 }

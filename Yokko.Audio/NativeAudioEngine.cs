@@ -65,6 +65,10 @@ public sealed class NativeAudioEngine : IAudioEngine
                         native.CallbackBudgetMicroseconds / 1000.0,
                     MaxCallbackDurationMilliseconds =
                         native.CallbackMaxDurationMicroseconds / 1000.0,
+                    CallbackCadenceMissCount =
+                        native.CallbackCadenceMissCount,
+                    MaxCallbackIntervalMilliseconds =
+                        native.CallbackMaxIntervalMicroseconds / 1000.0,
                     BackendError = native.BackendError,
                     BackendErrorStage = native.BackendErrorStage,
                 };
@@ -299,14 +303,25 @@ public sealed class NativeAudioEngine : IAudioEngine
                     ? AudioBackendKind.WasapiExclusive
                     : AudioBackendKind.SharedWasapi;
         }
-        catch (NativeAudioException)
+        catch (NativeAudioException exclusiveFailure)
             when (requestedMode == NativeAudioBackendMode.WasapiExclusive)
         {
-            outputStatus = core.OpenWasapi(
-                NativeAudioBackendMode.WasapiShared,
-                request.DeviceId,
-                preferredBufferFrames);
-            activeBackend = AudioBackendKind.SharedWasapi;
+            try
+            {
+                outputStatus = core.OpenWasapi(
+                    NativeAudioBackendMode.WasapiShared,
+                    request.DeviceId,
+                    preferredBufferFrames);
+                activeBackend = AudioBackendKind.SharedWasapi;
+            }
+            catch (NativeAudioException sharedFailure)
+            {
+                throw new NativeAudioException(
+                    "WASAPI Exclusive and Shared fallback both failed. "
+                    + $"Exclusive: {exclusiveFailure.Message} "
+                    + $"Shared: {sharedFailure.Message}",
+                    sharedFailure);
+            }
         }
 
         status = new AudioEngineStatus(
@@ -323,6 +338,8 @@ public sealed class NativeAudioEngine : IAudioEngine
             activeBackend == AudioBackendKind.WasapiExclusive,
             true,
             false,
+            0,
+            0,
             0,
             0,
             0,
@@ -444,6 +461,8 @@ public sealed class NativeAudioEngine : IAudioEngine
         false,
         false,
         false,
+        0,
+        0,
         0,
         0,
         0,

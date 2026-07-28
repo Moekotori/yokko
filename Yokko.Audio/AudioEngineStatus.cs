@@ -13,5 +13,7 @@ public sealed record AudioEngineStatus(
     ulong CallbackDeadlineMissCount,
     double CallbackBudgetMilliseconds,
     double MaxCallbackDurationMilliseconds,
+    ulong CallbackCadenceMissCount,
+    double MaxCallbackIntervalMilliseconds,
     int BackendError,
     uint BackendErrorStage);

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Configuration;
 using osu.Framework.Graphics;
@@ -9,9 +10,11 @@ using osu.Framework.Platform;
 using osuTK;
 using Yokko.Game.Audio;
 using Yokko.Game.Configuration;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
+using Yokko.Game.Skinning.OsuMania;
 using Yokko.Resources;
 
 namespace Yokko.Game
@@ -31,7 +34,15 @@ namespace Yokko.Game
         private readonly YokkoAudioSettings audioSettings = new();
         [Cached]
         private readonly YokkoImportSettings importSettings = new();
+        [Cached]
+        private readonly YokkoGameplaySettings gameplaySettings = new();
+        [Cached]
+        private readonly YokkoSkinSettings skinSettings = new();
+        [Cached]
+        private readonly OsuManiaSkinLibrary skinLibrary = new();
+        private SkinImportNotificationOverlay skinImportOverlay;
         private YokkoConfigManager yokkoConfig;
+        private IWindow window;
 
         protected YokkoGameBase()
         {
@@ -54,15 +65,29 @@ namespace Yokko.Game
 
         public override void SetHost(GameHost host)
         {
+            if (window != null)
+                window.DragDrop -= onFileDropped;
+
             base.SetHost(host);
             yokkoConfig ??= new YokkoConfigManager(host.Storage);
             yokkoConfig.BindAudioSettings(audioSettings);
             yokkoConfig.BindImportSettings(importSettings);
+            yokkoConfig.BindGameplaySettings(gameplaySettings);
+            yokkoConfig.BindSkinSettings(skinSettings);
+            skinLibrary.Initialise(host.Storage, skinSettings);
+
+            window = host.Window;
+
+            if (window != null)
+                window.DragDrop += onFileDropped;
         }
 
         [BackgroundDependencyLoader]
         private void load(FrameworkConfigManager frameworkConfig)
         {
+            base.Content.Add(
+                skinImportOverlay = new SkinImportNotificationOverlay());
+
             string configuredLocale = frameworkConfig.Get<string>(FrameworkSetting.Locale);
             string normalizedLocale = YokkoLocale.Normalize(configuredLocale);
             if (configuredLocale != normalizedLocale)
@@ -78,9 +103,35 @@ namespace Yokko.Game
         protected override void Dispose(bool isDisposing)
         {
             if (isDisposing)
+            {
+                if (window != null)
+                    window.DragDrop -= onFileDropped;
+
                 yokkoConfig?.Dispose();
+            }
 
             base.Dispose(isDisposing);
+        }
+
+        private void onFileDropped(string path)
+        {
+            if (!OsuManiaSkinLibrary.IsSupportedDrop(path))
+                return;
+
+            Scheduler.Add(() => skinImportOverlay.ShowImporting(path));
+
+            _ = Task.Run(() => skinLibrary.Import(path))
+                    .ContinueWith(
+                        task => Scheduler.Add(() =>
+                        {
+                            SkinImportResult result = task.IsCompletedSuccessfully
+                                ? task.Result
+                                : new SkinImportResult(
+                                    false,
+                                    task.Exception?.GetBaseException().Message ?? "Unknown import error.");
+                            skinImportOverlay.ShowResult(result);
+                        }),
+                        TaskScheduler.Default);
         }
     }
 }

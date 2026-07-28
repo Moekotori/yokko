@@ -290,11 +290,11 @@ namespace
     {
         EngineHandle engine;
         require(
-            yokko_audio_report_callback_timing(engine, 80, 100)
+            yokko_audio_report_callback_timing(engine, 80, 100, 100)
                 == YOKKO_AUDIO_OK,
             "callback timing report");
         require(
-            yokko_audio_report_callback_timing(engine, 125, 100)
+            yokko_audio_report_callback_timing(engine, 125, 100, 160)
                 == YOKKO_AUDIO_OK,
             "callback deadline miss report");
 
@@ -309,6 +309,12 @@ namespace
         require(
             status.callback_max_duration_microseconds == 125,
             "callback maximum duration");
+        require(
+            status.callback_cadence_miss_count == 1,
+            "callback cadence miss count");
+        require(
+            status.callback_max_interval_microseconds == 160,
+            "callback maximum interval");
 
         require(yokko_audio_stop(engine) == YOKKO_AUDIO_OK, "telemetry stop");
         status = status_of(engine);
@@ -316,6 +322,12 @@ namespace
         require(
             status.callback_deadline_miss_count == 0,
             "stop clears callback deadline misses");
+        require(
+            status.callback_cadence_miss_count == 0,
+            "stop clears callback cadence misses");
+        require(
+            status.callback_max_interval_microseconds == 0,
+            "stop clears callback maximum interval");
     }
 
     void test_ring_buffer_is_safe_for_one_producer_and_consumer()

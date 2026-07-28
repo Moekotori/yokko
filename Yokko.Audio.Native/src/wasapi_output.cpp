@@ -499,6 +499,7 @@ namespace yokko::audio
             if (SUCCEEDED(result))
             {
                 HANDLE events[]{stop_event_, audio_event_};
+                LARGE_INTEGER previous_callback_start{};
                 while (true)
                 {
                     const DWORD wait_result =
@@ -518,6 +519,14 @@ namespace yokko::audio
                     LARGE_INTEGER callback_start{};
                     LARGE_INTEGER callback_finish{};
                     QueryPerformanceCounter(&callback_start);
+                    const uint32_t callback_interval_microseconds =
+                        previous_callback_start.QuadPart == 0
+                            ? 0
+                            : callback_duration_microseconds(
+                                previous_callback_start,
+                                callback_start,
+                                performance_frequency);
+                    previous_callback_start = callback_start;
                     const HRESULT fill_result = fill_available_buffer(
                         *audio_client.Get(),
                         *render_client.Get(),
@@ -555,7 +564,8 @@ namespace yokko::audio
                             callback_start,
                             callback_finish,
                             performance_frequency),
-                        callback_budget_microseconds);
+                        callback_budget_microseconds,
+                        callback_interval_microseconds);
 
                     if (FAILED(fill_result))
                     {

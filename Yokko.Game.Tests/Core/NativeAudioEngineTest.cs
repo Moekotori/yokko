@@ -73,8 +73,10 @@ namespace Yokko.Game.Tests.Core
             TestContext.Progress.WriteLine(
                 $"Callbacks={status.CallbackCount}, "
                 + $"deadline misses={status.CallbackDeadlineMissCount}, "
+                + $"cadence misses={status.CallbackCadenceMissCount}, "
                 + $"max={status.MaxCallbackDurationMilliseconds:F3} ms / "
                 + $"budget={status.CallbackBudgetMilliseconds:F3} ms, "
+                + $"interval={status.MaxCallbackIntervalMilliseconds:F3} ms, "
                 + $"backend error=0x{status.BackendError:X8} "
                 + $"at stage {status.BackendErrorStage}");
             Assert.That(
@@ -92,6 +94,7 @@ namespace Yokko.Game.Tests.Core
                 "The event-driven output callback must continue after startup.");
             Assert.That(status.CallbackBudgetMilliseconds, Is.GreaterThan(0));
             Assert.That(status.MaxCallbackDurationMilliseconds, Is.GreaterThanOrEqualTo(0));
+            Assert.That(status.MaxCallbackIntervalMilliseconds, Is.GreaterThanOrEqualTo(0));
 
             var clockSamples = new List<double>();
             for (int index = 0; index < 16; index++)

@@ -11,9 +11,11 @@ using osu.Framework.Screens;
 using osuTK;
 using osuTK.Input;
 using Yokko.Game.Audio;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
+using Yokko.Game.Skinning.OsuMania;
 using RectangleF = osu.Framework.Graphics.Primitives.RectangleF;
 
 namespace Yokko.Game.Screens.Settings;
@@ -36,6 +38,10 @@ public partial class SettingsScreen : Screen
     private YokkoAudioSettings audioSettings { get; set; }
     [Resolved]
     private YokkoImportSettings importSettings { get; set; }
+    [Resolved]
+    private YokkoGameplaySettings gameplaySettings { get; set; }
+    [Resolved]
+    private OsuManiaSkinLibrary skinLibrary { get; set; }
 
     private Bindable<Size> windowedSize;
     private Bindable<WindowMode> windowMode;
@@ -112,6 +118,10 @@ public partial class SettingsScreen : Screen
                 size => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, size),
                 mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode)),
             SettingsPageKind.Audio => new AudioSettingsPanel(audioSettings),
+            SettingsPageKind.Gameplay => new GameplaySettingsPanel(
+                gameplaySettings,
+                audioSettings),
+            SettingsPageKind.Skins => new SkinSettingsPanel(skinLibrary),
             SettingsPageKind.Import => new ImportSettingsPanel(importSettings),
             _ => new SettingsPlaceholderPanel(SettingsPages.Get(page)),
         };
@@ -133,6 +143,10 @@ public partial class SettingsScreen : Screen
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
+        if (activePanel is GameplaySettingsPanel gameplayPanel &&
+            gameplayPanel.HandleKeyDown(e.Key))
+            return true;
+
         if (e.Key != Key.Escape)
             return base.OnKeyDown(e);
 

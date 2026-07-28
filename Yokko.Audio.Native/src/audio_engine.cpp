@@ -136,6 +136,8 @@ namespace yokko::audio
         callback_deadline_miss_count_.store(0, std::memory_order_release);
         callback_budget_microseconds_.store(0, std::memory_order_release);
         callback_max_duration_microseconds_.store(0, std::memory_order_release);
+        callback_cadence_miss_count_.store(0, std::memory_order_release);
+        callback_max_interval_microseconds_.store(0, std::memory_order_release);
         backend_error_.store(0, std::memory_order_release);
         backend_error_stage_.store(0, std::memory_order_release);
         last_playback_frame_position_.store(0, std::memory_order_release);
@@ -252,7 +254,8 @@ namespace yokko::audio
 
     void AudioEngine::report_callback_timing(
         const uint32_t duration_microseconds,
-        const uint32_t budget_microseconds) noexcept
+        const uint32_t budget_microseconds,
+        const uint32_t interval_microseconds) noexcept
     {
         callback_count_.fetch_add(1, std::memory_order_relaxed);
         callback_budget_microseconds_.store(
@@ -270,6 +273,30 @@ namespace yokko::audio
                && !callback_max_duration_microseconds_.compare_exchange_weak(
                    previous,
                    duration_microseconds,
+                   std::memory_order_relaxed,
+                   std::memory_order_relaxed))
+        {
+        }
+
+        if (interval_microseconds == 0)
+            return;
+
+        const uint64_t cadence_limit =
+            static_cast<uint64_t>(budget_microseconds) * 3 / 2;
+        if (budget_microseconds > 0
+            && interval_microseconds >= cadence_limit)
+        {
+            callback_cadence_miss_count_.fetch_add(
+                1,
+                std::memory_order_relaxed);
+        }
+
+        previous =
+            callback_max_interval_microseconds_.load(std::memory_order_relaxed);
+        while (interval_microseconds > previous
+               && !callback_max_interval_microseconds_.compare_exchange_weak(
+                   previous,
+                   interval_microseconds,
                    std::memory_order_relaxed,
                    std::memory_order_relaxed))
         {
@@ -320,6 +347,10 @@ namespace yokko::audio
         status.backend_error_stage =
             backend_error_stage_.load(std::memory_order_acquire);
         status.playback_time_milliseconds = playback_time_milliseconds();
+        status.callback_cadence_miss_count =
+            callback_cadence_miss_count_.load(std::memory_order_acquire);
+        status.callback_max_interval_microseconds =
+            callback_max_interval_microseconds_.load(std::memory_order_acquire);
     }
 
     yokko_audio_result AudioEngine::open_wasapi(
@@ -549,14 +580,16 @@ extern "C"
     yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_report_callback_timing(
         yokko_audio_engine* engine,
         const uint32_t duration_microseconds,
-        const uint32_t budget_microseconds)
+        const uint32_t budget_microseconds,
+        const uint32_t interval_microseconds)
     {
         if (engine == nullptr)
             return YOKKO_AUDIO_INVALID_ARGUMENT;
 
         engine->implementation.report_callback_timing(
             duration_microseconds,
-            budget_microseconds);
+            budget_microseconds,
+            interval_microseconds);
         return YOKKO_AUDIO_OK;
     }
 

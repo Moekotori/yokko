@@ -34,7 +34,8 @@ namespace yokko::audio
             uint64_t observation_time_100ns) noexcept;
         void report_callback_timing(
             uint32_t duration_microseconds,
-            uint32_t budget_microseconds) noexcept;
+            uint32_t budget_microseconds,
+            uint32_t interval_microseconds = 0) noexcept;
         void report_output_failure(
             int32_t backend_error,
             uint32_t backend_error_stage) noexcept;
@@ -77,6 +78,8 @@ namespace yokko::audio
         std::atomic<uint64_t> callback_deadline_miss_count_{0};
         std::atomic<uint32_t> callback_budget_microseconds_{0};
         std::atomic<uint32_t> callback_max_duration_microseconds_{0};
+        std::atomic<uint64_t> callback_cadence_miss_count_{0};
+        std::atomic<uint32_t> callback_max_interval_microseconds_{0};
         std::atomic<int32_t> backend_error_{0};
         std::atomic<uint32_t> backend_error_stage_{0};
         mutable std::atomic<uint64_t> last_playback_frame_position_{0};

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
@@ -46,6 +47,7 @@ public partial class MainScreen : Screen
     private SpriteText watermark;
     private SpriteIcon heartbeatIcon;
     private readonly Box[] stageLines = new Box[2];
+    private readonly List<SpriteIcon> decorationIcons = new();
 
     private Vector2 parallaxCurrent;
 
@@ -134,7 +136,11 @@ public partial class MainScreen : Screen
         rightStage.Alpha = 0;
         utilityArea.Y -= 20;
         utilityArea.Alpha = 0;
+    }
 
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
         startAmbientMotion();
     }
 
@@ -163,10 +169,10 @@ public partial class MainScreen : Screen
         this.FadeTo(0.4f, 200, Easing.OutQuint);
     }
 
-    public override void OnExiting(ScreenTransitionEvent e)
+    public override bool OnExiting(ScreenExitEvent e)
     {
-        base.OnExiting(e);
         this.FadeOut(200, Easing.OutQuint);
+        return base.OnExiting(e);
     }
 
     protected override void Update()
@@ -216,6 +222,18 @@ public partial class MainScreen : Screen
                      .Then().ScaleTo(1.16f, 100, Easing.Out)
                      .Then().ScaleTo(1f, 640, Easing.OutQuint)
                      .Loop();
+
+        // 每个装饰按不同周期呼吸、轻摆，避免整齐划一。
+        for (int i = 0; i < decorationIcons.Count; i++)
+        {
+            float duration = 1500 + i % 5 * 170;
+            decorationIcons[i].ScaleTo(1.16f, duration, Easing.InOutSine)
+                              .Then().ScaleTo(1f, duration, Easing.InOutSine)
+                              .Loop();
+            decorationIcons[i].RotateTo(7, duration * 1.6f, Easing.InOutSine)
+                              .Then().RotateTo(-7, duration * 1.6f, Easing.InOutSine)
+                              .Loop();
+        }
     }
 
     private static Drawable createIvoryStage() => new Container
@@ -301,7 +319,7 @@ public partial class MainScreen : Screen
         Colour = new Color4(1f, 1f, 1f, 0.22f),
     };
 
-    private static Drawable createDecorationIcon(IconUsage icon, float x, float y, float size, Color4 colour)
+    private Drawable createDecorationIcon(IconUsage icon, float x, float y, float size, Color4 colour)
     {
         var sprite = new SpriteIcon
         {
@@ -313,16 +331,7 @@ public partial class MainScreen : Screen
             Alpha = 0.9f,
         };
 
-        // 每个装饰按位置错开呼吸节奏，避免整齐划一。
-        int phase = (((int)(x * 7 + y * 13)) % 5 + 5) % 5;
-        float duration = 1500 + phase * 170;
-        sprite.ScaleTo(1.16f, duration, Easing.InOutSine)
-              .Then().ScaleTo(1f, duration, Easing.InOutSine)
-              .Loop();
-        sprite.RotateTo(7, duration * 1.6f, Easing.InOutSine)
-              .Then().RotateTo(-7, duration * 1.6f, Easing.InOutSine)
-              .Loop();
-
+        decorationIcons.Add(sprite);
         return sprite;
     }
 

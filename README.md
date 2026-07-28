@@ -76,10 +76,13 @@ Frame time is only for presentation. A dropped frame may look bad, but it should
 
 ## osu!mania skin preview
 
-Yokko can load an initial subset of osu!stable mania skins directly. No Yokko-specific
-skin conversion is performed.
+Yokko can load an initial subset of osu!stable mania skins directly. No
+Yokko-specific skin conversion is performed. Drop an `.osk` package, a
+`skin.ini`, or an extracted skin folder anywhere in the Yokko window to import
+and enable it. Installed skins can be selected or removed from
+`Settings > Skins`; the active selection persists across restarts.
 
-To try an extracted skin, place its `skin.ini` and images under:
+For development overrides, an extracted skin can still be placed under:
 
 ```text
 Skins/Current/

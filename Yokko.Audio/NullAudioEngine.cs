@@ -16,6 +16,8 @@ public sealed class NullAudioEngine : IAudioEngine
         0,
         0,
         0,
+        0,
+        0,
         0);
 
     public double PlaybackTimeMilliseconds => 0;

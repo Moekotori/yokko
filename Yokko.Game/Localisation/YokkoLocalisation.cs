@@ -185,6 +185,94 @@ internal static class YokkoStrings
             ["settings.gameplay.section_timing"] = new("Timing & judgement", "时序与判定", "タイミングと判定"),
             ["settings.gameplay.section_feedback"] = new("Visual feedback", "视觉反馈", "視覚フィードバック"),
 
+            ["settings.skins.title"] = new("Skins", "皮肤", "スキン"),
+            ["settings.skins.subtitle"] = new(
+                "Your osu!mania skin library",
+                "管理你的 osu!mania 皮肤库",
+                "osu!mania スキンライブラリ"),
+            ["settings.skins.description"] = new(
+                "Import, select and manage osu!mania skins.",
+                "导入、启用和管理 osu!mania 皮肤。",
+                "osu!mania スキンを導入・選択・管理します。"),
+            ["settings.skins.section_library"] = new("Installed skins", "已安装皮肤", "インストール済み"),
+            ["settings.skins.section_import"] = new("Drag & drop import", "拖拽导入", "ドラッグ＆ドロップ"),
+            ["settings.skins.drop_hint"] = new(
+                "Drop an .osk package or a skin folder anywhere in Yokko",
+                "把 .osk 文件或皮肤文件夹拖到 Yokko 的任意位置",
+                ".osk またはスキンフォルダーを Yokko の任意の場所へドロップ"),
+            ["settings.skins.empty"] = new(
+                "No skins installed yet",
+                "还没有安装皮肤",
+                "スキンはまだありません"),
+            ["settings.skins.empty_note"] = new(
+                "Your first imported skin will be enabled automatically.",
+                "导入第一款皮肤后会自动启用。",
+                "最初に導入したスキンは自動的に有効になります。"),
+            ["settings.skins.active"] = new("ACTIVE", "使用中", "使用中"),
+            ["settings.skins.use"] = new("USE", "启用", "使用"),
+            ["settings.skins.delete"] = new("DELETE", "删除", "削除"),
+            ["settings.skins.confirm_delete"] = new("CONFIRM", "确认", "確認"),
+            ["settings.skins.keys"] = new("{0}K", "{0}K", "{0}K"),
+            ["settings.gameplay.ready"] = new(
+                "Gameplay controls are live",
+                "游玩控制已实装",
+                "ゲームプレイ設定が有効です"),
+            ["settings.gameplay.ready_metadata"] = new(
+                "4K  {0}   ·   7K  {1}",
+                "4K  {0}   ·   7K  {1}",
+                "4K  {0}   ·   7K  {1}"),
+            ["settings.gameplay.live"] = new("LIVE", "已启用", "有効"),
+            ["settings.gameplay.key_profile"] = new("Key profile", "键位配置", "キープロファイル"),
+            ["settings.gameplay.reset"] = new("Reset keys", "重置键位", "キーをリセット"),
+            ["settings.gameplay.key_capture_hint"] = new(
+                "Choose a lane, then press the key you want to use.",
+                "选择一个轨道，然后按下你想使用的按键。",
+                "レーンを選び、割り当てたいキーを押してください。"),
+            ["settings.gameplay.key_swap_hint"] = new(
+                "Duplicate keys swap lanes automatically · Esc cancels capture",
+                "重复按键会自动交换轨道 · Esc 取消录入",
+                "重複したキーは自動で入れ替わります · Esc でキャンセル"),
+            ["settings.gameplay.lane"] = new("LANE {0}", "轨道 {0}", "レーン {0}"),
+            ["settings.gameplay.click_to_change"] = new("Change key", "修改按键", "キーを変更"),
+            ["settings.gameplay.press_key"] = new("PRESS KEY", "请按键", "キーを入力"),
+            ["settings.gameplay.esc_cancel"] = new("Esc to cancel", "Esc 取消", "Esc でキャンセル"),
+            ["settings.gameplay.scroll_speed"] = new("Note speed", "音符速度", "ノーツ速度"),
+            ["settings.gameplay.scroll_speed_note"] = new(
+                "Controls approach time without changing chart timing.",
+                "调整下落时间，不改变谱面时序。",
+                "譜面タイミングを変えずに接近時間を調整します。"),
+            ["settings.gameplay.speed_presets"] = new("Quick presets", "快捷预设", "クイック設定"),
+            ["settings.gameplay.input_offset"] = new("Input offset", "输入偏移", "入力オフセット"),
+            ["settings.gameplay.input_offset_note"] = new(
+                "Shared with Audio so timing has one source of truth.",
+                "与音频设置共享，确保时序只有一个真源。",
+                "オーディオ設定と共有し、タイミングを一元管理します。"),
+            ["settings.gameplay.feedback_heading"] = new(
+                "Playfield feedback",
+                "游玩界面反馈",
+                "プレイ画面のフィードバック"),
+            ["settings.gameplay.feedback_note"] = new(
+                "Keep the information you need and remove everything you do not.",
+                "保留需要的信息，关闭不需要的干扰。",
+                "必要な情報だけを表示できます。"),
+            ["settings.gameplay.show_hud"] = new("Gameplay HUD", "游玩 HUD", "ゲーム HUD"),
+            ["settings.gameplay.show_hud_note"] = new(
+                "Time · combo · accuracy",
+                "时间、连击与准确率",
+                "時間、コンボ、精度"),
+            ["settings.gameplay.show_hit_error"] = new("Hit error", "判定误差", "判定誤差"),
+            ["settings.gameplay.show_hit_error_note"] = new(
+                "Early / late milliseconds",
+                "显示提前 / 延后毫秒数",
+                "早い / 遅いを表示"),
+            ["settings.gameplay.show_lane_feedback"] = new("Lane lighting", "轨道亮灯", "レーン点灯"),
+            ["settings.gameplay.show_lane_feedback_note"] = new(
+                "Light lanes on key press",
+                "按住按键时提供反馈",
+                "キー入力時に反応"),
+            ["settings.gameplay.enabled"] = new("Enabled", "已启用", "オン"),
+            ["settings.gameplay.disabled"] = new("Disabled", "已关闭", "オフ"),
+
             ["settings.editor.title"] = new("Editor", "编辑器", "エディター"),
             ["settings.editor.subtitle"] = new(
                 "Workspace, snapping and autosave",

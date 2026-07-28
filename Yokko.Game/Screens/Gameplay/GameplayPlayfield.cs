@@ -16,7 +16,7 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public partial class GameplayPlayfield : CompositeDrawable
 {
-    private const double approachTimeMilliseconds = 1800;
+    private readonly double approachTimeMilliseconds;
     private readonly LaneColumn[] laneColumns;
     private readonly DrawableNote[] noteDrawables;
     private readonly float topY;
@@ -29,8 +29,14 @@ public partial class GameplayPlayfield : CompositeDrawable
     internal GameplayPlayfield(
         YokkoBeatmap beatmap,
         KeyModeBindings keyBindings,
-        OsuManiaSkin skin = null)
+        OsuManiaSkin skin = null,
+        double approachTimeMilliseconds = 1800,
+        bool showLanePressFeedback = true)
     {
+        this.approachTimeMilliseconds = Math.Clamp(
+            approachTimeMilliseconds,
+            900,
+            3600);
         int keyCount = keyBindings.KeyCount;
         OsuManiaSkinConfiguration configuration = skin?.Configuration;
         float playfieldWidth = configuration?.PlayfieldWidth ?? (keyCount == 4 ? 424 : 658);
@@ -52,7 +58,12 @@ public partial class GameplayPlayfield : CompositeDrawable
                                 {
                                     float width = configuration?.ColumnWidths[lane] ?? laneWidth;
                                     float x = configuration?.GetLaneX(lane) ?? lane * laneWidth;
-                                    var column = new LaneColumn(lane, keyBindings.GetDisplayKey(lane), width, skin)
+                                    var column = new LaneColumn(
+                                        lane,
+                                        keyBindings.GetDisplayKey(lane),
+                                        width,
+                                        skin,
+                                        showLanePressFeedback)
                                     {
                                         X = x,
                                         Width = width,

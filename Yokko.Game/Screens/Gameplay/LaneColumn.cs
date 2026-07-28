@@ -15,6 +15,7 @@ public partial class LaneColumn : CompositeDrawable
     private readonly Box pressedOverlay;
     private readonly Sprite idleKey;
     private readonly Sprite pressedKey;
+    private readonly bool showPressFeedback;
 
     internal Container ReceptorLayer { get; }
 
@@ -22,8 +23,10 @@ public partial class LaneColumn : CompositeDrawable
         int lane,
         string keyLabel,
         float laneWidth,
-        OsuManiaSkin skin = null)
+        OsuManiaSkin skin = null,
+        bool showPressFeedback = true)
     {
+        this.showPressFeedback = showPressFeedback;
         RelativeSizeAxes = Axes.Y;
 
         if (skin == null)
@@ -133,6 +136,9 @@ public partial class LaneColumn : CompositeDrawable
 
     public void SetPressed(bool pressed)
     {
+        if (!showPressFeedback)
+            return;
+
         pressedOverlay.Alpha = pressed ? 1 : 0;
 
         if (pressedKey != null)

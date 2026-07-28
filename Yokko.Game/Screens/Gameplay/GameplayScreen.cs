@@ -16,6 +16,7 @@ using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
 using Yokko.Audio;
 using Yokko.Game.Audio;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
 using Yokko.Game.Skinning.OsuMania;
 
@@ -32,6 +33,10 @@ public partial class GameplayScreen : Screen
     private readonly string skinPath;
     [Resolved]
     private YokkoAudioSettings audioSettings { get; set; }
+    [Resolved]
+    private OsuManiaSkinLibrary skinLibrary { get; set; }
+    [Resolved]
+    private YokkoGameplaySettings gameplaySettings { get; set; }
 
     private BeatmapJudgementState judgementState;
     private GameplayHud hud;
@@ -59,7 +64,9 @@ public partial class GameplayScreen : Screen
     [BackgroundDependencyLoader]
     private void load(IRenderer renderer)
     {
-        keyBindings = KeyModeBindings.ForMode(beatmap.KeyMode);
+        keyBindings = KeyModeBindings.ForMode(
+            beatmap.KeyMode,
+            gameplaySettings.GetKeys(beatmap.KeyMode));
         pressedLanes = new bool[keyBindings.KeyCount];
         judgementState = new BeatmapJudgementState(beatmap, JudgementWindows.DefaultMania);
         loadSkin(renderer);
@@ -90,7 +97,12 @@ public partial class GameplayScreen : Screen
                         Height = 720,
                         Colour = new Color4(0.045f, 0.058f, 0.078f, 0.86f),
                     },
-                    playfield = new GameplayPlayfield(beatmap, keyBindings, maniaSkin)
+                    playfield = new GameplayPlayfield(
+                        beatmap,
+                        keyBindings,
+                        maniaSkin,
+                        1800 / gameplaySettings.ScrollSpeed.Value,
+                        gameplaySettings.ShowLanePressFeedback.Value)
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
@@ -102,8 +114,10 @@ public partial class GameplayScreen : Screen
                         Anchor = Anchor.TopRight,
                         Origin = Anchor.TopRight,
                         Position = new Vector2(-42, 42),
+                        Alpha = gameplaySettings.ShowGameplayHud.Value ? 1 : 0,
                     },
-                    judgementReadout = new JudgementReadout
+                    judgementReadout = new JudgementReadout(
+                        gameplaySettings.ShowHitError.Value)
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
@@ -263,9 +277,9 @@ public partial class GameplayScreen : Screen
 
     private void loadSkin(IRenderer renderer)
     {
-        string resolvedPath = string.IsNullOrWhiteSpace(skinPath)
-            ? OsuManiaSkinLocator.FindConfiguredPath()
-            : skinPath;
+        string resolvedPath = !string.IsNullOrWhiteSpace(skinPath)
+            ? skinPath
+            : skinLibrary.CurrentSkinPath ?? OsuManiaSkinLocator.FindConfiguredPath();
 
         if (string.IsNullOrWhiteSpace(resolvedPath))
             return;

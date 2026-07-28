@@ -5,7 +5,9 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
+using osuTK.Input;
 using Yokko.Audio;
+using Yokko.Core.Gameplay;
 using Yokko.Game.Screens.Settings;
 
 namespace Yokko.Game.Tests.Visual
@@ -90,17 +92,15 @@ namespace Yokko.Game.Tests.Visual
         [Test]
         public void TestTransientInteractionsDismissInOrder()
         {
-            SettingsPlaceholderPanel placeholder = null;
+            GameplaySettingsPanel gameplay = null;
             DisplaySettingsPanel display = null;
 
             AddStep("open Gameplay", () => settingsScreen.OpenPage(SettingsPageKind.Gameplay));
-            AddStep("capture placeholder", () => placeholder = (SettingsPlaceholderPanel)settingsScreen.ActivePanel);
-            AddStep("expand first section", () => placeholder.ToggleSection(0));
-            AddAssert("first section expanded", () => placeholder.ExpandedSectionIndex == 0);
-            AddStep("expand second section", () => placeholder.ToggleSection(1));
-            AddAssert("only second section expanded", () => placeholder.ExpandedSectionIndex == 1);
-            AddAssert("Esc layer dismisses section", settingsScreen.DismissTransientUi);
-            AddAssert("all sections collapsed", () => placeholder.ExpandedSectionIndex == -1);
+            AddStep("capture Gameplay", () => gameplay = (GameplaySettingsPanel)settingsScreen.ActivePanel);
+            AddStep("capture first lane", () => gameplay.BeginKeyCapture(0));
+            AddAssert("key capture active", () => gameplay.IsCapturingKey);
+            AddAssert("Esc layer dismisses capture", settingsScreen.DismissTransientUi);
+            AddAssert("key capture dismissed", () => !gameplay.IsCapturingKey);
 
             AddStep("open Display", () => settingsScreen.OpenPage(SettingsPageKind.Display));
             AddStep("capture display", () => display = (DisplaySettingsPanel)settingsScreen.ActivePanel);
@@ -108,6 +108,62 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("resolution menu open", () => display.IsResolutionMenuOpen);
             AddAssert("Esc layer dismisses menu", settingsScreen.DismissTransientUi);
             AddAssert("resolution menu closed", () => !display.IsResolutionMenuOpen);
+        }
+
+        [Test]
+        public void TestGameplayPreferencesAreInteractive()
+        {
+            GameplaySettingsPanel gameplay = null;
+            double originalSpeed = 1;
+            bool originalHud = true;
+            bool originalHitError = true;
+            bool originalLaneFeedback = true;
+
+            AddStep("open Gameplay", () => settingsScreen.OpenPage(SettingsPageKind.Gameplay));
+            AddStep("capture Gameplay preferences", () =>
+            {
+                gameplay = (GameplaySettingsPanel)settingsScreen.ActivePanel;
+                originalSpeed = gameplay.CurrentScrollSpeed;
+                originalHud = gameplay.ShowGameplayHud;
+                originalHitError = gameplay.ShowHitError;
+                originalLaneFeedback = gameplay.ShowLanePressFeedback;
+            });
+            AddStep("open timing", () =>
+                gameplay.SelectSection(GameplaySettingsSection.Timing));
+            AddAssert("timing selected", () =>
+                gameplay.CurrentSection == GameplaySettingsSection.Timing);
+            AddStep("set 1.35 speed", () => gameplay.SetScrollSpeed(1.35));
+            AddAssert("speed changed", () =>
+                gameplay.CurrentScrollSpeed == 1.35);
+            AddStep("open feedback", () =>
+                gameplay.SelectSection(GameplaySettingsSection.Feedback));
+            AddStep("disable feedback", () =>
+                gameplay.SetFeedback(false, false, false));
+            AddAssert("feedback disabled", () =>
+                !gameplay.ShowGameplayHud &&
+                !gameplay.ShowHitError &&
+                !gameplay.ShowLanePressFeedback);
+            AddStep("open 7K bindings", () =>
+            {
+                gameplay.SelectSection(GameplaySettingsSection.Input);
+                gameplay.SelectKeyMode(KeyMode.SevenKey);
+            });
+            AddAssert("7K selected", () =>
+                gameplay.SelectedKeyMode == KeyMode.SevenKey);
+            AddStep("start binding capture", () =>
+                gameplay.BeginKeyCapture(3));
+            AddStep("bind centre lane", () =>
+                gameplay.HandleKeyDown(Key.V));
+            AddAssert("capture completes", () => !gameplay.IsCapturingKey);
+            AddStep("restore preferences", () =>
+            {
+                gameplay.ResetSelectedBindings();
+                gameplay.SetScrollSpeed(originalSpeed);
+                gameplay.SetFeedback(
+                    originalHud,
+                    originalHitError,
+                    originalLaneFeedback);
+            });
         }
 
         [Test]

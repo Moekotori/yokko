@@ -20,7 +20,7 @@ extern "C"
 {
 #endif
 
-#define YOKKO_AUDIO_ABI_VERSION 3u
+#define YOKKO_AUDIO_ABI_VERSION 4u
 
     typedef struct yokko_audio_engine yokko_audio_engine;
 
@@ -74,6 +74,8 @@ extern "C"
         int32_t backend_error;
         uint32_t backend_error_stage;
         double playback_time_milliseconds;
+        uint64_t callback_cadence_miss_count;
+        uint32_t callback_max_interval_microseconds;
     } yokko_audio_status;
 
     typedef enum yokko_audio_backend_mode
@@ -166,7 +168,8 @@ extern "C"
     YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_report_callback_timing(
         yokko_audio_engine* engine,
         uint32_t duration_microseconds,
-        uint32_t budget_microseconds);
+        uint32_t budget_microseconds,
+        uint32_t interval_microseconds);
 
     YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_get_status(
         const yokko_audio_engine* engine,

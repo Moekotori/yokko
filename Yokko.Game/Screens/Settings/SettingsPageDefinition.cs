@@ -12,6 +12,7 @@ internal enum SettingsPageKind
     Display,
     Audio,
     Gameplay,
+    Skins,
     Editor,
     Import,
     Accessibility,
@@ -107,6 +108,22 @@ internal static class SettingsPages
                 "settings.gameplay.section_input",
                 "settings.gameplay.section_timing",
                 "settings.gameplay.section_feedback")),
+        SettingsPageKind.Skins => new(
+            kind,
+            YokkoStrings.Get("settings.skins.title"),
+            YokkoStrings.Get("settings.skins.subtitle"),
+            YokkoStrings.Get("settings.skins.description"),
+            FontAwesome.Solid.PaintBrush,
+            new[]
+            {
+                YokkoStrings.Get("settings.skins.section_library"),
+                YokkoStrings.Get("settings.skins.section_import"),
+            },
+            YokkoStrings.SearchTerms(
+                "settings.skins.title",
+                "settings.skins.subtitle",
+                "settings.skins.section_library",
+                "settings.skins.section_import")),
         SettingsPageKind.Editor => new(
             kind,
             YokkoStrings.Get("settings.editor.title"),

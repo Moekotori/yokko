@@ -69,7 +69,7 @@ internal partial class SettingsSidebar : CompositeDrawable
                 Width = 252,
                 AutoSizeAxes = Axes.Y,
                 Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 3),
+                Spacing = new Vector2(0, 2),
                 Children = navigation,
             },
             noResults = new SpriteText
@@ -102,6 +102,7 @@ internal partial class SettingsSidebar : CompositeDrawable
 
         var creationHeader = new SettingsNavHeader(YokkoStrings.Get("settings.group_creation"));
         SettingsNavItem gameplay = createNavItem(SettingsPageKind.Gameplay);
+        SettingsNavItem skins = createNavItem(SettingsPageKind.Skins);
         SettingsNavItem editor = createNavItem(SettingsPageKind.Editor);
         SettingsNavItem import = createNavItem(SettingsPageKind.Import);
 
@@ -110,13 +111,13 @@ internal partial class SettingsSidebar : CompositeDrawable
         SettingsNavItem about = createNavItem(SettingsPageKind.About);
 
         navigationGroups.Add((coreHeader, new[] { general, display, audio }));
-        navigationGroups.Add((creationHeader, new[] { gameplay, editor, import }));
+        navigationGroups.Add((creationHeader, new[] { gameplay, skins, editor, import }));
         navigationGroups.Add((systemHeader, new[] { accessibility, about }));
 
         return new Drawable[]
         {
             coreHeader, general, display, audio,
-            creationHeader, gameplay, editor, import,
+            creationHeader, gameplay, skins, editor, import,
             systemHeader, accessibility, about,
         };
     }
@@ -291,7 +292,7 @@ internal partial class SettingsNavHeader : CompositeDrawable
 {
     public SettingsNavHeader(LocalisableString label)
     {
-        Size = new Vector2(252, 22);
+        Size = new Vector2(252, 18);
         InternalChild = new SpriteText
         {
             Anchor = Anchor.BottomLeft,
@@ -336,7 +337,7 @@ internal partial class SettingsNavItem : ClickableContainer
         Page = page;
         SearchTerms = searchTerms;
         Action = action;
-        Size = new Vector2(252, 39);
+        Size = new Vector2(252, 35);
         Masking = true;
         CornerRadius = 7;
 
@@ -359,7 +360,7 @@ internal partial class SettingsNavItem : ClickableContainer
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = 22,
-                Size = new Vector2(18),
+                Size = new Vector2(17),
                 Icon = itemIcon,
                 Colour = HomeControlColours.Navy,
             },
@@ -369,7 +370,7 @@ internal partial class SettingsNavItem : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 57,
                 Text = label,
-                Font = HomeTypography.Display(19),
+                Font = HomeTypography.Display(18),
                 Colour = HomeControlColours.Navy,
             },
             plus = new SpriteIcon

@@ -33,8 +33,11 @@ internal static class HomeTypography
 
 public partial class HomePrimaryAction : ClickableContainer
 {
+    private const float hover_scale = 1.008f;
+
     private readonly Box background;
     private readonly Box focusLine;
+    private readonly SpriteIcon chevron;
 
     public HomePrimaryAction(LocalisableString title, LocalisableString eyebrow, IconUsage icon, Action action)
     {
@@ -167,7 +170,7 @@ public partial class HomePrimaryAction : ClickableContainer
                             },
                         },
                     },
-                    new SpriteIcon
+                    chevron = new SpriteIcon
                     {
                         Anchor = Anchor.CentreRight,
                         Origin = Anchor.CentreRight,
@@ -246,7 +249,8 @@ public partial class HomePrimaryAction : ClickableContainer
     {
         background.FadeColour(new Color4(0.055f, 0.15f, 0.7f, 1f), 130, Easing.OutQuint);
         focusLine.ResizeWidthTo(340, 160, Easing.OutQuint);
-        this.ScaleTo(1.008f, 130, Easing.OutQuint);
+        chevron.MoveToX(-19, 170, Easing.OutQuint);
+        this.ScaleTo(hover_scale, 130, Easing.OutQuint);
         return true;
     }
 
@@ -254,7 +258,20 @@ public partial class HomePrimaryAction : ClickableContainer
     {
         background.FadeColour(HomeControlColours.Navy, 150, Easing.OutQuint);
         focusLine.ResizeWidthTo(188, 150, Easing.OutQuint);
+        chevron.MoveToX(-27, 180, Easing.OutQuint);
         this.ScaleTo(1f, 150, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        this.ScaleTo(0.985f, 500, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        this.ScaleTo(IsHovered ? hover_scale : 1f, 260, Easing.OutQuint);
+        base.OnMouseUp(e);
     }
 }
 
@@ -262,6 +279,7 @@ public partial class HomeSecondaryAction : ClickableContainer
 {
     private readonly Box background;
     private readonly Box underline;
+    private readonly SpriteIcon chevron;
 
     public HomeSecondaryAction(LocalisableString title, IconUsage icon, Action action, IconUsage? overlayIcon = null)
     {
@@ -361,7 +379,7 @@ public partial class HomeSecondaryAction : ClickableContainer
                 Scale = new Vector2(0.94f, 1),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteIcon
+            chevron = new SpriteIcon
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
@@ -474,6 +492,7 @@ public partial class HomeSecondaryAction : ClickableContainer
     {
         background.FadeColour(new Color4(0.9f, 0.985f, 1f, 1f), 120, Easing.OutQuint);
         underline.ResizeWidthTo(252, 150, Easing.OutQuint);
+        chevron.MoveToX(-11, 160, Easing.OutQuint);
         return true;
     }
 
@@ -481,11 +500,27 @@ public partial class HomeSecondaryAction : ClickableContainer
     {
         background.FadeColour(Color4.White, 140, Easing.OutQuint);
         underline.ResizeWidthTo(0, 140, Easing.OutQuint);
+        chevron.MoveToX(-16, 170, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        this.ScaleTo(0.97f, 450, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        this.ScaleTo(1f, 240, Easing.OutQuint);
+        base.OnMouseUp(e);
     }
 }
 
 public partial class HomeUtilityButton : ClickableContainer
 {
+    private const float rest_alpha = 0.96f;
+    private const float hover_scale = 1.025f;
+
     private readonly Box background;
 
     public HomeUtilityButton(string text, IconUsage icon, Action action, float width, IconUsage? overlayIcon = null)
@@ -531,7 +566,7 @@ public partial class HomeUtilityButton : ClickableContainer
                     background = new Box
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Colour = new Color4(1f, 1f, 1f, 0.96f),
+                        Colour = new Color4(1f, 1f, 1f, rest_alpha),
                     },
                     new Container
                     {
@@ -605,19 +640,33 @@ public partial class HomeUtilityButton : ClickableContainer
     protected override bool OnHover(HoverEvent e)
     {
         background.FadeColour(new Color4(0.9f, 0.985f, 1f, 1f), 120, Easing.OutQuint);
-        this.ScaleTo(1.025f, 120, Easing.OutQuint);
+        this.ScaleTo(hover_scale, 120, Easing.OutQuint);
         return true;
     }
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
-        background.FadeColour(new Color4(1f, 1f, 1f, 0.94f), 140, Easing.OutQuint);
+        background.FadeColour(new Color4(1f, 1f, 1f, rest_alpha), 140, Easing.OutQuint);
         this.ScaleTo(1f, 140, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        this.ScaleTo(0.96f, 450, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        this.ScaleTo(IsHovered ? hover_scale : 1f, 240, Easing.OutQuint);
+        base.OnMouseUp(e);
     }
 }
 
 public partial class HomeMascotBubble : CompositeDrawable
 {
+    private readonly Box underline;
+
     public HomeMascotBubble(LocalisableString text)
     {
         Size = new Vector2(112, 94);
@@ -661,7 +710,7 @@ public partial class HomeMascotBubble : CompositeDrawable
                         Scale = new Vector2(0.94f, 1),
                         Colour = HomeControlColours.Navy,
                     },
-                    new Box
+                    underline = new Box
                     {
                         Anchor = Anchor.BottomCentre,
                         Origin = Anchor.BottomCentre,
@@ -674,6 +723,18 @@ public partial class HomeMascotBubble : CompositeDrawable
             },
         };
     }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        this.MoveToOffset(new Vector2(0, 5), 1500, Easing.InOutSine)
+            .Then().MoveToOffset(new Vector2(0, -5), 1500, Easing.InOutSine)
+            .Loop();
+        underline.ResizeWidthTo(60, 1100, Easing.InOutSine)
+                 .Then().ResizeWidthTo(48, 1100, Easing.InOutSine)
+                 .Loop();
+    }
 }
 
 public partial class HomeDotCross : CompositeDrawable
@@ -682,6 +743,11 @@ public partial class HomeDotCross : CompositeDrawable
     {
         Size = new Vector2(70);
 
+        var grid = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+        };
+
         for (int row = 0; row < 7; row++)
         {
             for (int column = 0; column < 7; column++)
@@ -689,7 +755,7 @@ public partial class HomeDotCross : CompositeDrawable
                 if (row is not (2 or 3 or 4) && column is not (2 or 3 or 4))
                     continue;
 
-                AddInternal(new Circle
+                grid.Add(new Circle
                 {
                     Position = new Vector2(column * 9, row * 9),
                     Size = new Vector2(4),
@@ -697,6 +763,17 @@ public partial class HomeDotCross : CompositeDrawable
                 });
             }
         }
+
+        InternalChild = grid;
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        InternalChild.FadeTo(0.55f, 2100, Easing.InOutSine)
+                     .Then().FadeTo(1f, 2100, Easing.InOutSine)
+                     .Loop();
     }
 }
 
@@ -705,6 +782,7 @@ public partial class HomeConnectorPlus : CompositeDrawable
     public HomeConnectorPlus()
     {
         Size = new Vector2(20);
+        Origin = Anchor.Centre;
 
         InternalChildren = new Drawable[]
         {
@@ -722,6 +800,15 @@ public partial class HomeConnectorPlus : CompositeDrawable
                 Colour = Color4.White,
             },
         };
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        this.ScaleTo(1.14f, 1800, Easing.InOutSine)
+            .Then().ScaleTo(1f, 1800, Easing.InOutSine)
+            .Loop();
     }
 }
 
@@ -741,6 +828,20 @@ public partial class HomeDotField : CompositeDrawable
                     Colour = Color4.White,
                 });
             }
+        }
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        // 周期各不相同的呼吸，错开后形成细碎的闪烁。
+        for (int i = 0; i < InternalChildren.Count; i++)
+        {
+            float duration = 900 + (i * 17) % 7 * 130;
+            InternalChildren[i].FadeTo(0.45f, duration, Easing.InOutSine)
+                               .Then().FadeTo(1f, duration, Easing.InOutSine)
+                               .Loop();
         }
     }
 }
@@ -781,6 +882,8 @@ public partial class HomeCornerBracket : CompositeDrawable
 
 public partial class HomeMicroLine : CompositeDrawable
 {
+    private readonly Circle dot;
+
     public HomeMicroLine()
     {
         Height = 4;
@@ -795,7 +898,7 @@ public partial class HomeMicroLine : CompositeDrawable
                 Colour = HomeControlColours.Cyan,
                 Alpha = 0.7f,
             },
-            new Circle
+            dot = new Circle
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.Centre,
@@ -803,5 +906,15 @@ public partial class HomeMicroLine : CompositeDrawable
                 Colour = HomeControlColours.Cyan,
             },
         };
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        // 扫描点沿线往复，到端点隐去后回到起点。
+        dot.MoveToX(DrawWidth, 1700, Easing.InOutSine)
+           .Then().FadeOut(140).MoveToX(0).FadeIn(140)
+           .Loop();
     }
 }
