@@ -1,7 +1,5 @@
 using System;
 using System.IO;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using NUnit.Framework;
 using Yokko.Audio.Native;
 
@@ -10,11 +8,9 @@ namespace Yokko.Game.Tests.Core
     [TestFixture]
     public sealed class NativeAudioInteropTest
     {
-        private static readonly object resolverLock = new();
-        private static bool resolverInstalled;
-
         [Test]
         [Platform(Include = "Win")]
+        [NonParallelizable]
         public void ManagedBoundaryMatchesNativeAbiAndLifecycle()
         {
             string nativeLibraryPath =
@@ -24,7 +20,9 @@ namespace Yokko.Game.Tests.Core
             if (!File.Exists(nativeLibraryPath))
                 Assert.Ignore($"Native audio library is not built: {nativeLibraryPath}");
 
-            installResolver(nativeLibraryPath);
+            Environment.SetEnvironmentVariable(
+                "YOKKO_NATIVE_AUDIO_TEST_DLL",
+                nativeLibraryPath);
 
             using var core = new NativeAudioCore(
                 sampleRate: 48000,
@@ -61,25 +59,5 @@ namespace Yokko.Game.Tests.Core
                 "yokko_audio_native.dll");
         }
 
-        private static void installResolver(string nativeLibraryPath)
-        {
-            lock (resolverLock)
-            {
-                if (resolverInstalled)
-                    return;
-
-                Assembly audioAssembly = typeof(NativeAudioInterop).Assembly;
-                NativeLibrary.SetDllImportResolver(
-                    audioAssembly,
-                    (libraryName, _, _) =>
-                        string.Equals(
-                            libraryName,
-                            NativeAudioInterop.LibraryName,
-                            StringComparison.Ordinal)
-                            ? NativeLibrary.Load(nativeLibraryPath)
-                            : IntPtr.Zero);
-                resolverInstalled = true;
-            }
-        }
     }
 }

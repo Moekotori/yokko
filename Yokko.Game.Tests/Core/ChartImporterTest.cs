@@ -23,6 +23,8 @@ namespace Yokko.Game.Tests.Core
             Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".mcz"));
             Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".sm"));
             Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".ssc"));
+            Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".zip"));
+            Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".smzip"));
             Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".bms"));
             Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".bme"));
             Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".bml"));
@@ -70,6 +72,55 @@ CircleSize:4
             Assert.That(result.Beatmap.Title, Is.EqualTo("Packaged"));
             Assert.That(result.Beatmap.AudioPath, Does.EndWith("audio.ogg"));
             Assert.That(File.Exists(result.Beatmap.AudioPath), Is.True);
+        }
+
+        [Test]
+        public void OsuPackageSkipsUnsupportedChartsAndImportsCompatibleManiaChart()
+        {
+            string archivePath = createArchivePath("mixed-osu", ".osz");
+
+            using (ZipArchive archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            {
+                writeEntry(archive, "00-standard.osu", """
+osu file format v14
+
+[General]
+Mode: 0
+
+[Difficulty]
+CircleSize:4
+""");
+                writeEntry(archive, "01-mania.osu", """
+osu file format v14
+
+[General]
+AudioFilename: audio.ogg
+Mode: 3
+
+[Metadata]
+Title:Mania Package
+Artist:Artist
+Creator:Mapper
+Version:7K
+
+[Difficulty]
+CircleSize:7
+
+[TimingPoints]
+0,500,4,2,0,100,1,0
+
+[HitObjects]
+36,192,500,1,0,0:0:0:0:
+""");
+                writeEntry(archive, "audio.ogg", string.Empty);
+            }
+
+            ChartImportResult result = import(archivePath);
+
+            Assert.That(result.Beatmap.Title, Is.EqualTo("Mania Package"));
+            Assert.That(result.Beatmap.KeyMode, Is.EqualTo(KeyMode.SevenKey));
+            Assert.That(result.Beatmap.AudioPath, Does.EndWith("audio.ogg"));
+            Assert.That(result.Warnings.Single(), Does.Contain("01-mania.osu"));
         }
 
         [Test]
@@ -217,6 +268,145 @@ HitObjects:
         }
 
         [Test]
+        public void UsesDifficultyAndMeterWhenSscChartNameIsEmpty()
+        {
+            string path = writeChart("etterna-ssc-name", ".ssc", """
+#TITLE:Test SSC;
+#ARTIST:Artist;
+#BPMS:0=120;
+#NOTEDATA:;
+#CHARTNAME:;
+#DESCRIPTION:;
+#STEPSTYPE:dance-single;
+#DIFFICULTY:Challenge;
+#METER:12;
+#NOTES:
+1000
+0000
+0000
+0000
+;
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(result.Beatmap.DifficultyName, Is.EqualTo("Challenge 12"));
+        }
+
+        [TestCase(".zip")]
+        [TestCase(".smzip")]
+        public void ImportsEtternaPackageAndResolvesNestedAudio(string extension)
+        {
+            string archivePath = createArchivePath("etterna-package", extension);
+
+            using (ZipArchive archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            {
+                writeEntry(archive, "Pack/Song/00-unsupported.sm", """
+#TITLE:Unsupported 6K;
+#ARTIST:Artist;
+#BPMS:0=120;
+#NOTES:
+     dance-solo:
+     :
+     Hard:
+     9:
+     0,0,0,0,0:
+100000
+000001
+;
+""");
+                writeEntry(archive, "Pack/Song/01-supported.ssc", """
+#TITLE:Packaged SSC;
+#ARTIST:Artist;
+#MUSIC:audio.ogg;
+#BPMS:0=150;
+#NOTEDATA:;
+#CHARTNAME:;
+#STEPSTYPE:dance-single;
+#DIFFICULTY:Challenge;
+#METER:11;
+#CREDIT:Mapper;
+#NOTES:
+1000
+0000
+0001
+0000
+;
+""");
+                writeEntry(archive, "Pack/Song/audio.ogg", string.Empty);
+            }
+
+            ChartImportResult result = import(archivePath);
+
+            Assert.That(result.Beatmap.Title, Is.EqualTo("Packaged SSC"));
+            Assert.That(result.Beatmap.DifficultyName, Is.EqualTo("Challenge 11"));
+            Assert.That(result.Beatmap.HitObjects, Has.Count.EqualTo(2));
+            Assert.That(result.Beatmap.AudioPath, Does.EndWith("audio.ogg"));
+            Assert.That(File.Exists(result.Beatmap.AudioPath), Is.True);
+            Assert.That(result.Warnings[0], Does.Contain("2 simfiles"));
+            Assert.That(result.Warnings[0], Does.Contain("01-supported.ssc"));
+        }
+
+        [Test]
+        public void EtternaPackagePrefersSscOverMatchingSmFile()
+        {
+            string archivePath = createArchivePath("etterna-prefer-ssc", ".zip");
+
+            using (ZipArchive archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            {
+                writeEntry(archive, "Pack/Song/chart.sm", """
+#TITLE:SM Version;
+#ARTIST:Artist;
+#BPMS:0=120;
+#NOTES:
+     dance-single:
+     :
+     Hard:
+     8:
+     0,0,0,0,0:
+1000
+0000
+0000
+0000
+;
+""");
+                writeEntry(archive, "Pack/Song/chart.ssc", """
+#TITLE:SSC Version;
+#ARTIST:Artist;
+#BPMS:0=120;
+#NOTEDATA:;
+#STEPSTYPE:dance-single;
+#DIFFICULTY:Hard;
+#METER:9;
+#NOTES:
+0001
+0000
+0000
+0000
+;
+""");
+            }
+
+            ChartImportResult result = import(archivePath);
+
+            Assert.That(result.Beatmap.Title, Is.EqualTo("SSC Version"));
+            Assert.That(result.Warnings[0], Does.Contain("chart.ssc"));
+        }
+
+        [Test]
+        public void RejectsUnsafeEtternaPackagePaths()
+        {
+            string archivePath = createArchivePath("unsafe-etterna", ".zip");
+
+            using (ZipArchive archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+                writeEntry(archive, "../outside.ssc", "#TITLE:Unsafe;");
+
+            Assert.That(
+                () => import(archivePath),
+                Throws.TypeOf<InvalidDataException>().With.Message.Contains("Unsafe path"));
+        }
+
+        [Test]
         public void ImportsBmsFourKeyLongNoteAndBpmChange()
         {
             string path = writeChart("bms", ".bms", """
@@ -264,6 +454,16 @@ HitObjects:
             string path = Path.Combine(directory, name + extension);
             File.WriteAllText(path, content, encoding ?? new UTF8Encoding(false));
             return path;
+        }
+
+        private static string createArchivePath(string name, string extension)
+        {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "chart-import",
+                TestContext.CurrentContext.Test.ID);
+            Directory.CreateDirectory(directory);
+            return Path.Combine(directory, $"{name}-{Guid.NewGuid():N}{extension}");
         }
 
         private static void writeEntry(ZipArchive archive, string name, string content)

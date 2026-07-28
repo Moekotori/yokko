@@ -36,8 +36,10 @@ public partial class SettingsScreen : Screen
     private Texture mascotTexture;
     private SettingsSidebar sidebar;
     private Container contentHost;
+    private Drawable activePanel;
 
     internal SettingsPageKind CurrentPage { get; private set; } = SettingsPageKind.Display;
+    internal Drawable ActivePanel => activePanel;
 
     [BackgroundDependencyLoader]
     private void load(TextureStore textures)
@@ -79,13 +81,19 @@ public partial class SettingsScreen : Screen
 
     internal void OpenPage(SettingsPageKind page)
     {
-        CurrentPage = page;
-
         if (contentHost == null)
+        {
+            CurrentPage = page;
+            return;
+        }
+
+        if (CurrentPage == page && activePanel != null)
             return;
 
+        CurrentPage = page;
+
         sidebar.SetSelected(page);
-        contentHost.Child = page == SettingsPageKind.Display
+        activePanel = page == SettingsPageKind.Display
             ? new DisplaySettingsPanel(
                 mascotTexture,
                 windowedSize,
@@ -94,12 +102,29 @@ public partial class SettingsScreen : Screen
                 size => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, size),
                 mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode))
             : new SettingsPlaceholderPanel(SettingsPages.Get(page));
+
+        activePanel.Alpha = 0;
+        activePanel.X = 10;
+        contentHost.Child = activePanel;
+        activePanel.FadeIn(180, Easing.OutQuint);
+        activePanel.MoveToX(0, 180, Easing.OutQuint);
+    }
+
+    internal bool DismissTransientUi()
+    {
+        if (activePanel is ISettingsTransientUi transientUi && transientUi.DismissTransientUi())
+            return true;
+
+        return sidebar?.DismissTransientUi() == true;
     }
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
         if (e.Key != Key.Escape)
             return base.OnKeyDown(e);
+
+        if (DismissTransientUi())
+            return true;
 
         this.Exit();
         return true;

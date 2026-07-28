@@ -6,7 +6,8 @@
 - Frame-rate independent judgement using audio-clock time.
 - Renderer designed for very high frame rates with no per-frame gameplay allocations.
 - Import boundaries for osu!mania, Malody, BMS, and LR2-style BMS folders.
-- Replaceable audio backends: shared WASAPI first, then WASAPI exclusive and ASIO.
+- Yokko-owned audio backends: event-driven WASAPI exclusive with shared fallback,
+  followed by ASIO.
 
 ## Layering
 
@@ -15,6 +16,8 @@
 `Yokko.Core` contains portable gameplay data and timing rules. This layer should stay free of rendering and platform dependencies.
 
 `Yokko.Audio` owns device discovery, playback start/stop, latency reporting, and the authoritative playback clock.
+It may use codec libraries on decoder worker threads, but output, buffering,
+device access, and clock truth must not depend on osu!framework.
 
 The production low-latency path is implemented behind a stable native C ABI.
 The native output callback owns the hardware-facing clock and never calls

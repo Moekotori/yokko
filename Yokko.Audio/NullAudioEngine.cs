@@ -16,9 +16,7 @@ public sealed class NullAudioEngine : IAudioEngine
 
     public IReadOnlyList<AudioBackendCapabilities> Backends { get; } =
     [
-        new(AudioBackendKind.SharedWasapi, false, false, false, "Default Windows shared playback path."),
-        new(AudioBackendKind.WasapiExclusive, true, true, false, "Exclusive Windows endpoint access for lower latency."),
-        new(AudioBackendKind.Asio, true, true, true, "Pro-audio driver path for devices with native ASIO support."),
+        new(AudioBackendKind.Fallback, false, false, false, "No native audio backend is available.", false),
     ];
 
     public ValueTask<IReadOnlyList<AudioDeviceInfo>> GetOutputDevicesAsync(CancellationToken cancellationToken = default)

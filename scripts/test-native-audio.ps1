@@ -28,4 +28,4 @@ dotnet test `
     -c $Configuration `
     --no-restore `
     --nologo `
-    --filter "FullyQualifiedName~NativeAudioInteropTest"
+    --filter "FullyQualifiedName~NativeAudio"

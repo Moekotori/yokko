@@ -1,6 +1,5 @@
 using System.Linq;
 using osu.Framework.Allocation;
-using osu.Framework.Audio;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Primitives;
@@ -12,7 +11,6 @@ using osuTK;
 using osuTK.Graphics;
 using Yokko.Audio;
 using Yokko.Core.Beatmaps;
-using Yokko.Game.Audio;
 using Yokko.Game.Screens.Editor;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Settings;
@@ -32,14 +30,10 @@ public partial class MainScreen : Screen
     private static readonly Color4 mutedNavy = new(0.18f, 0.28f, 0.58f, 1f);
     private static readonly Color4 paleCyan = new(0.54f, 0.91f, 0.98f, 1f);
 
-    [Resolved]
-    private AudioManager audioManager { get; set; }
-
     [BackgroundDependencyLoader]
     private void load(TextureStore textures)
     {
-        var audioEngine = new OsuFrameworkAudioEngine(audioManager);
-        string audioStatus = audioEngine.Backends
+        string audioStatus = AudioEngineFactory.AvailableBackends
                                         .Where(backend => backend.IsAvailable)
                                         .Select(backendDisplayName)
                                         .FirstOrDefault() ?? "Audio unavailable";
@@ -152,9 +146,9 @@ public partial class MainScreen : Screen
             },
             new Sprite
             {
-                X = 640,
-                Y = 10,
-                Size = new Vector2(720, 816),
+                X = 600,
+                Y = 14,
+                Size = new Vector2(675, 765),
                 Texture = mascotTexture,
             },
             new HomeMascotBubble("Let's play!")
@@ -232,6 +226,10 @@ public partial class MainScreen : Screen
                 () => this.Push(new GameplayScreen(DemoBeatmaps.CreateFourKeyDemo())))
             {
                 Y = 162,
+            },
+            new HomeConnectorPlus
+            {
+                Position = new Vector2(510, 209),
             },
             new FillFlowContainer
             {

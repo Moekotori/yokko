@@ -176,6 +176,8 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
     private readonly List<SettingsResolutionOption> optionRows = new();
     private bool open;
 
+    internal bool IsOpen => open;
+
     public SettingsResolutionDropdown(IReadOnlyList<Size> options, Action<Size> onSelected)
     {
         this.options = options;
@@ -184,7 +186,7 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
 
         var header = new SettingsDropdownHeader(
             () => open,
-            toggle)
+            Toggle)
         {
             RelativeSizeAxes = Axes.Both,
             Masking = true,
@@ -269,9 +271,23 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
             option.SetSelected(option.Value == size);
     }
 
-    private void toggle()
+    internal void Toggle()
     {
-        open = !open;
+        setOpen(!open);
+    }
+
+    public bool Dismiss()
+    {
+        if (!open)
+            return false;
+
+        setOpen(false);
+        return true;
+    }
+
+    private void setOpen(bool shouldOpen)
+    {
+        open = shouldOpen;
         headerBackground.FadeColour(open ? SettingsTheme.PaleCyan : Color4.White, 120, Easing.OutQuint);
         chevron.RotateTo(open ? 180 : 0, 160, Easing.OutQuint);
 
@@ -293,7 +309,7 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
         onSelected(size);
 
         if (open)
-            toggle();
+            Toggle();
     }
 }
 

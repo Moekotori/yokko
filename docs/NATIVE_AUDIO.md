@@ -3,10 +3,11 @@
 Yokko's production gameplay audio path is moving towards a native,
 low-latency engine owned by `Yokko.Audio`.
 
-The existing osu!framework/BASS backend remains the safe fallback while the
-native engine is built and validated. Gameplay must not switch to the native
-path until the selected output backend has successfully opened, primed its
-buffer, and exposed a monotonic device-backed clock.
+Gameplay audio is owned by `Yokko.Audio`; it no longer uses the
+osu!framework/BASS audio types. Compressed files are decoded on a managed
+worker, while device output, PCM buffering, MMCSS scheduling and the playback
+clock remain native-owned. WASAPI shared mode is the safe fallback when the
+requested endpoint rejects exclusive mode.
 
 ## Real-time invariants
 
@@ -59,17 +60,24 @@ The P0 ABI covers:
 The audio callback entry point exists for native output backends. It is not a
 managed callback and must not be called from the gameplay update thread.
 
-## Backend sequence
+## Backend state
 
-1. Implement event-driven WASAPI Exclusive output and endpoint enumeration.
-2. Report the accepted sample rate, buffer frames, device latency and hardware
-   clock rather than echoing requested values.
-3. Validate 64/128/256-frame profiles on real devices and choose the smallest
+Implemented:
+
+1. Event-driven WASAPI Exclusive and shared output.
+2. Native endpoint enumeration and endpoint-id selection.
+3. `Pro Audio` MMCSS registration on the device thread.
+4. Float/PCM32/24-in-32/PCM16 format negotiation without callback allocation.
+5. `IAudioClock` position and `GetStreamLatency` reporting.
+6. Worker-thread MP3/WAV/OGG decoding into the native PCM ring.
+7. Gameplay and editor waveform paths independent of osu!framework audio.
+
+Next:
+
+1. Validate 64/128/256-frame profiles per real device and persist the smallest
    stable profile.
-4. Wire decoded chart audio into the native ring buffer.
-5. Add ASIO behind the same engine state, clock and telemetry contract.
-6. Switch gameplay only after focused native, integration and real-device
-   tests pass.
+2. Add ASIO behind the same engine state, clock and telemetry contract.
+3. Add long-running underrun, hot-unplug, seek and device-loss tests.
 
 ## Focused validation
 
@@ -80,5 +88,10 @@ Run the native core tests with:
 ```
 
 Native unit tests validate priming, lifecycle, silence-on-underrun, sample
-safety, counter resets and latency-adjusted device clock behavior. Real
-WASAPI/ASIO validation is a separate required gate once those backends exist.
+safety, counter resets and latency-adjusted device clock behavior. The focused
+managed hardware smoke decodes a silent WAV, enumerates active endpoints, opens
+real WASAPI output and verifies the accepted device buffer and latency.
+
+On the July 28 development machine, the smoke opened `Senary Audio` in
+exclusive mode at 48 kHz with a 240-frame buffer and a reported 5.00 ms stream
+latency. This is device-specific evidence, not a universal latency guarantee.

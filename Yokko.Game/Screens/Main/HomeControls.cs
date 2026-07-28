@@ -39,135 +39,190 @@ public partial class HomePrimaryAction : ClickableContainer
     {
         Action = action;
         Size = new Vector2(520, 120);
-        Masking = true;
-        CornerRadius = 10;
-        BorderThickness = 2;
-        BorderColour = HomeControlColours.Navy;
 
         InternalChildren = new Drawable[]
         {
-            background = new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = HomeControlColours.Navy,
-            },
             new Container
             {
-                Position = new Vector2(5),
-                Size = new Vector2(510, 110),
+                Position = new Vector2(-3, -3),
+                Size = new Vector2(526, 120),
                 Masking = true,
-                CornerRadius = 7,
-                BorderThickness = 1,
-                BorderColour = new Color4(0.56f, 0.88f, 1f, 0.72f),
+                CornerRadius = 12,
+                BorderThickness = 2,
+                BorderColour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.82f),
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                     Alpha = 0,
                 },
             },
-            new HomeDotField
+            new Container
             {
-                Position = new Vector2(344, 18),
-                Size = new Vector2(132, 78),
-                Colour = new Color4(0.39f, 0.76f, 1f, 0.34f),
+                Position = new Vector2(0, 6),
+                Size = new Vector2(520, 114),
+                Masking = true,
+                CornerRadius = 10,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.52f),
+                },
             },
             new Container
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 25,
-                Size = new Vector2(64),
+                Size = new Vector2(520, 114),
                 Masking = true,
-                CornerRadius = 9,
+                CornerRadius = 10,
                 BorderThickness = 2,
-                BorderColour = Color4.White,
+                BorderColour = HomeControlColours.Navy,
                 Children = new Drawable[]
                 {
-                    new Box
+                    background = new Box
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Colour = Color4.White,
+                        Colour = HomeControlColours.Navy,
+                    },
+                    new HomeDotField
+                    {
+                        Position = new Vector2(344, 18),
+                        Size = new Vector2(132, 78),
+                        Colour = new Color4(0.39f, 0.76f, 1f, 0.34f),
+                    },
+                    new Container
+                    {
+                        Position = new Vector2(5),
+                        Size = new Vector2(510, 104),
+                        Masking = true,
+                        CornerRadius = 7,
+                        BorderThickness = 1,
+                        BorderColour = new Color4(0.56f, 0.88f, 1f, 0.72f),
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Alpha = 0,
+                        },
+                    },
+                    new Container
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        X = 25,
+                        Size = new Vector2(68),
+                        Masking = true,
+                        CornerRadius = 9,
+                        BorderThickness = 2,
+                        BorderColour = Color4.White,
+                        Children = new Drawable[]
+                        {
+                            new Box
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                Colour = Color4.White,
+                            },
+                            new SpriteIcon
+                            {
+                                Anchor = Anchor.Centre,
+                                Origin = Anchor.Centre,
+                                Size = new Vector2(30),
+                                Icon = icon,
+                                Colour = HomeControlColours.Navy,
+                            },
+                        },
+                    },
+                    new FillFlowContainer
+                    {
+                        X = 126,
+                        Y = 19,
+                        AutoSizeAxes = Axes.Both,
+                        Direction = FillDirection.Vertical,
+                        Spacing = new Vector2(0, -4),
+                        Children = new Drawable[]
+                        {
+                            new SpriteText
+                            {
+                                Text = eyebrow,
+                                Font = HomeTypography.Display(13),
+                                Spacing = new Vector2(2.4f, 0),
+                                Colour = HomeControlColours.Cyan,
+                            },
+                            new SpriteText
+                            {
+                                Text = title,
+                                Font = HomeTypography.Display(50),
+                                Colour = Color4.White,
+                            },
+                        },
                     },
                     new SpriteIcon
                     {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        Size = new Vector2(28),
-                        Icon = icon,
-                        Colour = HomeControlColours.Navy,
+                        Anchor = Anchor.CentreRight,
+                        Origin = Anchor.CentreRight,
+                        X = -27,
+                        Size = new Vector2(27),
+                        Icon = FontAwesome.Solid.ChevronRight,
+                        Colour = HomeControlColours.Yellow,
                     },
-                },
-            },
-            new FillFlowContainer
-            {
-                X = 118,
-                Y = 24,
-                AutoSizeAxes = Axes.Both,
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, -4),
-                Children = new Drawable[]
-                {
-                    new SpriteText
+                    new Box
                     {
-                        Text = eyebrow,
-                        Font = HomeTypography.Display(13),
-                        Spacing = new Vector2(2.4f, 0),
+                        Anchor = Anchor.TopRight,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(19),
+                        Rotation = 45,
+                        Colour = HomeControlColours.Yellow,
+                    },
+                    new Box
+                    {
+                        Anchor = Anchor.BottomLeft,
+                        Origin = Anchor.BottomLeft,
+                        X = 18,
+                        Width = 111,
+                        Height = 4,
+                        Colour = HomeControlColours.Pink,
+                    },
+                    focusLine = new Box
+                    {
+                        Anchor = Anchor.BottomLeft,
+                        Origin = Anchor.BottomLeft,
+                        X = 129,
+                        Width = 188,
+                        Height = 2,
                         Colour = HomeControlColours.Cyan,
                     },
-                    new SpriteText
-                    {
-                        Text = title,
-                        Font = HomeTypography.Display(43),
-                        Scale = new Vector2(0.9f, 1),
-                        Colour = Color4.White,
-                    },
                 },
             },
-            new SpriteIcon
-            {
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
-                X = -27,
-                Size = new Vector2(25),
-                Icon = FontAwesome.Solid.ChevronRight,
-                Colour = HomeControlColours.Yellow,
-            },
             new Box
             {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.Centre,
-                Size = new Vector2(19),
-                Rotation = 45,
-                Colour = HomeControlColours.Yellow,
-            },
-            new Box
-            {
-                Anchor = Anchor.BottomLeft,
-                Origin = Anchor.BottomLeft,
-                X = 18,
-                Width = 111,
-                Height = 4,
-                Colour = HomeControlColours.Pink,
-            },
-            focusLine = new Box
-            {
-                Anchor = Anchor.BottomLeft,
-                Origin = Anchor.BottomLeft,
-                X = 129,
-                Width = 188,
-                Height = 2,
+                Position = new Vector2(-3, 15),
+                Size = new Vector2(3, 83),
                 Colour = HomeControlColours.Cyan,
             },
             new Box
             {
-                Position = new Vector2(14, 13),
-                Size = new Vector2(16, 2),
+                Position = new Vector2(8, -3),
+                Size = new Vector2(494, 3),
+                Colour = HomeControlColours.Cyan,
+                Alpha = 0.75f,
+            },
+            new Box
+            {
+                Anchor = Anchor.BottomRight,
+                Origin = Anchor.BottomRight,
+                X = 3,
+                Y = -6,
+                Size = new Vector2(3, 82),
+                Colour = HomeControlColours.Cyan,
+                Alpha = 0.72f,
+            },
+            new Box
+            {
+                Position = new Vector2(12, 11),
+                Size = new Vector2(16, 3),
                 Colour = HomeControlColours.Cyan,
             },
             new Box
             {
-                Position = new Vector2(14, 13),
-                Size = new Vector2(2, 16),
+                Position = new Vector2(12, 11),
+                Size = new Vector2(3, 16),
                 Colour = HomeControlColours.Cyan,
             },
         };

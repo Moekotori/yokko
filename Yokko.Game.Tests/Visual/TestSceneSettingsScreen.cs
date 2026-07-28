@@ -32,5 +32,28 @@ namespace Yokko.Game.Tests.Visual
                 AddAssert($"{page} is current", () => settingsScreen.CurrentPage == capturedPage);
             }
         }
+
+        [Test]
+        public void TestTransientInteractionsDismissInOrder()
+        {
+            SettingsPlaceholderPanel placeholder = null;
+            DisplaySettingsPanel display = null;
+
+            AddStep("open General", () => settingsScreen.OpenPage(SettingsPageKind.General));
+            AddStep("capture placeholder", () => placeholder = (SettingsPlaceholderPanel)settingsScreen.ActivePanel);
+            AddStep("expand first section", () => placeholder.ToggleSection(0));
+            AddAssert("first section expanded", () => placeholder.ExpandedSectionIndex == 0);
+            AddStep("expand second section", () => placeholder.ToggleSection(1));
+            AddAssert("only second section expanded", () => placeholder.ExpandedSectionIndex == 1);
+            AddAssert("Esc layer dismisses section", settingsScreen.DismissTransientUi);
+            AddAssert("all sections collapsed", () => placeholder.ExpandedSectionIndex == -1);
+
+            AddStep("open Display", () => settingsScreen.OpenPage(SettingsPageKind.Display));
+            AddStep("capture display", () => display = (DisplaySettingsPanel)settingsScreen.ActivePanel);
+            AddStep("open resolution menu", () => display.ToggleResolutionMenu());
+            AddAssert("resolution menu open", () => display.IsResolutionMenuOpen);
+            AddAssert("Esc layer dismisses menu", settingsScreen.DismissTransientUi);
+            AddAssert("resolution menu closed", () => !display.IsResolutionMenuOpen);
+        }
     }
 }

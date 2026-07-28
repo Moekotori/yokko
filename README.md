@@ -26,7 +26,7 @@ Things are expected to change quickly while the core loop is still being shaped.
 - Create new 4K or 7K draft charts.
 - Toggle notes on a timeline grid.
 - Import osu!mania `.osu` / `.osz`, Quaver `.qua`, Malody Key `.mc` / `.mcz`, Etterna/StepMania
-  `.sm` / `.ssc`, and BMS `.bms` / `.bme` / `.bml` charts.
+  `.sm` / `.ssc` / `.zip` / `.smzip`, and BMS `.bms` / `.bme` / `.bml` charts.
 - Export editable charts as osu!mania `.osu` files.
 - Preserve osu! timing points, including BPM changes and inherited timing data.
 - Preview chart structure with waveform support where audio can be loaded.

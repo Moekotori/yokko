@@ -1,7 +1,6 @@
 using System.Linq;
 using System;
 using System.Threading.Tasks;
-using osu.Framework.Audio;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -15,7 +14,6 @@ using osuTK.Input;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
 using Yokko.Audio;
-using Yokko.Game.Audio;
 using Yokko.Game.Presentation;
 
 namespace Yokko.Game.Screens.Gameplay;
@@ -39,9 +37,6 @@ public partial class GameplayScreen : Screen
     private bool hasAudioClock;
     private SpriteText clockStatusText;
 
-    [Resolved]
-    private AudioManager audioManager { get; set; }
-
     public GameplayScreen(YokkoBeatmap beatmap, IAudioEngine audioEngine = null)
     {
         this.beatmap = beatmap;
@@ -56,7 +51,7 @@ public partial class GameplayScreen : Screen
         judgementState = new BeatmapJudgementState(beatmap, JudgementWindows.DefaultMania);
         audioEngine ??= string.IsNullOrWhiteSpace(beatmap.AudioPath)
             ? new NullAudioEngine()
-            : new OsuFrameworkAudioEngine(audioManager);
+            : AudioEngineFactory.CreateDefault();
         hasAudioClock = !string.IsNullOrWhiteSpace(beatmap.AudioPath);
 
         InternalChildren = new Drawable[]
@@ -202,11 +197,17 @@ public partial class GameplayScreen : Screen
         {
             await audioEngine.StartAsync(new AudioEngineStartRequest(
                 beatmap.AudioPath,
-                AudioBackendKind.SharedWasapi,
+                AudioBackendKind.WasapiExclusive,
                 null,
-                0,
-                0,
+                48000,
+                128,
                 0)).ConfigureAwait(true);
+
+            if (!audioEngine.Status.IsRunning)
+            {
+                hasAudioClock = false;
+                clockStatusText.Text = "Native audio unavailable. Renderer clock active.";
+            }
         }
         catch (Exception ex)
         {

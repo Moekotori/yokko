@@ -23,6 +23,7 @@ internal partial class SettingsSidebar : CompositeDrawable
     private readonly Dictionary<SettingsPageKind, SettingsNavItem> navigationItems = new();
     private readonly Action<SettingsPageKind> onPageSelected;
     private readonly SettingsSearchTextBox searchBox;
+    private readonly SpriteText noResults;
 
     public SettingsSidebar(
         Texture logoTexture,
@@ -68,6 +69,14 @@ internal partial class SettingsSidebar : CompositeDrawable
                 Direction = FillDirection.Vertical,
                 Spacing = new Vector2(0, 3),
                 Children = navigation,
+            },
+            noResults = new SpriteText
+            {
+                Position = new Vector2(38, 310),
+                Text = "No matching settings",
+                Font = HomeTypography.Body(14),
+                Colour = SettingsTheme.MutedNavy,
+                Alpha = 0,
             },
             new Box
             {
@@ -116,6 +125,15 @@ internal partial class SettingsSidebar : CompositeDrawable
             item.SetSelected(kind == page);
     }
 
+    public bool DismissTransientUi()
+    {
+        if (string.IsNullOrEmpty(searchBox.Current.Value))
+            return false;
+
+        searchBox.Current.Value = string.Empty;
+        return true;
+    }
+
     private SettingsNavItem createNavItem(SettingsPageKind page)
     {
         SettingsPageDefinition definition = SettingsPages.Get(page);
@@ -127,6 +145,7 @@ internal partial class SettingsSidebar : CompositeDrawable
     private void filterNavigation(string query)
     {
         string normalized = query?.Trim() ?? string.Empty;
+        bool anyResults = false;
 
         foreach ((SettingsNavHeader header, SettingsNavItem[] items) in navigationGroups)
         {
@@ -141,7 +160,10 @@ internal partial class SettingsSidebar : CompositeDrawable
             }
 
             header.SetFiltered(anyVisible);
+            anyResults |= anyVisible;
         }
+
+        noResults.FadeTo(normalized.Length > 0 && !anyResults ? 1 : 0, 120, Easing.OutQuint);
     }
 }
 

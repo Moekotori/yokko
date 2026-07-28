@@ -5,6 +5,7 @@ using osu.Framework.Graphics.Sprites;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Game.Screens.Main;
+using System.Collections.Generic;
 
 namespace Yokko.Game.Screens.Settings;
 
@@ -12,8 +13,13 @@ namespace Yokko.Game.Screens.Settings;
 /// Honest placeholder for settings categories whose behaviour is not implemented
 /// yet. The collapsed section layout is also the structure future controls plug into.
 /// </summary>
-internal partial class SettingsPlaceholderPanel : CompositeDrawable
+internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTransientUi
 {
+    private readonly List<SettingsPlaceholderSection> sections = new();
+    private SettingsPlaceholderSection expandedSection;
+
+    internal int ExpandedSectionIndex => expandedSection == null ? -1 : sections.IndexOf(expandedSection);
+
     public SettingsPlaceholderPanel(SettingsPageDefinition page)
     {
         RelativeSizeAxes = Axes.Both;
@@ -174,7 +180,17 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable
         },
     };
 
-    private static Drawable createSectionList(SettingsPageDefinition page)
+    public bool DismissTransientUi()
+    {
+        if (expandedSection == null)
+            return false;
+
+        expandedSection.SetExpanded(false);
+        expandedSection = null;
+        return true;
+    }
+
+    private Drawable createSectionList(SettingsPageDefinition page)
     {
         var flow = new FillFlowContainer
         {
@@ -186,9 +202,29 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable
         };
 
         foreach (string section in page.PlannedSections)
-            flow.Add(new SettingsPlaceholderSection(section));
+        {
+            var row = new SettingsPlaceholderSection(section, toggleSection);
+            sections.Add(row);
+            flow.Add(row);
+        }
 
         return flow;
+    }
+
+    internal void ToggleSection(int index) => toggleSection(sections[index]);
+
+    private void toggleSection(SettingsPlaceholderSection section)
+    {
+        if (expandedSection == section)
+        {
+            section.SetExpanded(false);
+            expandedSection = null;
+            return;
+        }
+
+        expandedSection?.SetExpanded(false);
+        expandedSection = section;
+        expandedSection.SetExpanded(true);
     }
 
     private static Drawable createDecorationIcon(IconUsage icon, float x, float y, float size, Color4 colour) => new SpriteIcon
@@ -200,10 +236,20 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable
     };
 }
 
-internal partial class SettingsPlaceholderSection : CompositeDrawable
+internal partial class SettingsPlaceholderSection : ClickableContainer
 {
-    public SettingsPlaceholderSection(string title)
+    private readonly Box background;
+    private readonly Box divider;
+    private readonly SpriteText detail;
+    private readonly SpriteText stateText;
+    private readonly SpriteIcon plus;
+    private bool expanded;
+
+    internal bool IsExpanded => expanded;
+
+    public SettingsPlaceholderSection(string title, System.Action<SettingsPlaceholderSection> onToggle)
     {
+        Action = () => onToggle(this);
         Size = new Vector2(840, 58);
         Masking = true;
         CornerRadius = 7;
@@ -212,38 +258,77 @@ internal partial class SettingsPlaceholderSection : CompositeDrawable
 
         InternalChildren = new Drawable[]
         {
-            new Box
+            background = new Box
             {
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.White,
             },
             new SpriteText
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 20,
+                Position = new Vector2(20, 18),
                 Text = title,
                 Font = HomeTypography.Display(16),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            stateText = new SpriteText
             {
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
-                X = -48,
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(-48, 20),
                 Text = "Not available yet",
                 Font = HomeTypography.Body(12),
                 Colour = SettingsTheme.MutedNavy,
             },
-            new SpriteIcon
+            plus = new SpriteIcon
             {
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
-                X = -18,
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(-18, 22),
                 Size = new Vector2(12),
                 Icon = FontAwesome.Solid.Plus,
                 Colour = HomeControlColours.Pink,
             },
+            divider = new Box
+            {
+                Position = new Vector2(20, 57),
+                Width = 800,
+                Height = 1,
+                Colour = SettingsTheme.Divider,
+                Alpha = 0,
+            },
+            detail = new SpriteText
+            {
+                Position = new Vector2(20, 72),
+                Text = "This section is reserved for a future build. No setting is applied yet.",
+                Font = HomeTypography.Body(13),
+                Colour = SettingsTheme.MutedNavy,
+                Alpha = 0,
+            },
         };
+    }
+
+    public void SetExpanded(bool isExpanded)
+    {
+        expanded = isExpanded;
+        this.ResizeHeightTo(expanded ? 106 : 58, 180, Easing.OutQuint);
+        background.FadeColour(expanded ? SettingsTheme.PaleCyan : Color4.White, 150, Easing.OutQuint);
+        divider.FadeTo(expanded ? 1 : 0, 120, Easing.OutQuint);
+        detail.FadeTo(expanded ? 1 : 0, 140, Easing.OutQuint);
+        stateText.FadeTo(expanded ? 0 : 1, 100, Easing.OutQuint);
+        plus.RotateTo(expanded ? 45 : 0, 160, Easing.OutQuint);
+    }
+
+    protected override bool OnHover(osu.Framework.Input.Events.HoverEvent e)
+    {
+        if (!expanded)
+            background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
+
+        return true;
+    }
+
+    protected override void OnHoverLost(osu.Framework.Input.Events.HoverLostEvent e)
+    {
+        if (!expanded)
+            background.FadeColour(Color4.White, 140, Easing.OutQuint);
     }
 }

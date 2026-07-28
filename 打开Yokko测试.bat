@@ -18,6 +18,17 @@ if errorlevel 1 (
     goto failed
 )
 
+where cmake >nul 2>nul
+if errorlevel 1 (
+    echo [Yokko] CMake was not found on PATH.
+    echo Install Visual Studio C++ desktop tools with CMake support.
+    goto failed
+)
+
+echo [Yokko] Building the native audio engine...
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\build-native-audio.ps1" -Configuration Debug
+if errorlevel 1 goto failed
+
 echo [Yokko] Restoring desktop solution...
 dotnet restore ".\Yokko.Desktop.slnf"
 if errorlevel 1 goto failed

@@ -1,9 +1,6 @@
-using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Yokko.Audio;
-using Yokko.Game.Audio;
 
 namespace Yokko.Game.Tests.Core
 {
@@ -25,19 +22,14 @@ namespace Yokko.Game.Tests.Core
         }
 
         [Test]
-        public async Task SingleFileResourceStoreExposesOnlyRequestedFile()
+        public void AvailableAudioBackendsAreOwnedByYokko()
         {
-            string directory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "audio-store", TestContext.CurrentContext.Test.ID);
-            Directory.CreateDirectory(directory);
-            string audioPath = Path.Combine(directory, "tone.wav");
-            await File.WriteAllBytesAsync(audioPath, [1, 2, 3, 4]);
-
-            using var store = new SingleFileResourceStore(audioPath);
-
-            Assert.That(store.GetAvailableResources().Single(), Is.EqualTo("tone.wav"));
-            Assert.That(store.Get("tone.wav"), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
-            Assert.That(store.Get(Path.GetFullPath(audioPath)), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
-            Assert.That(store.Get("other.wav"), Is.Null);
+            Assert.That(
+                AudioEngineFactory.AvailableBackends,
+                Has.None.Matches<AudioBackendCapabilities>(
+                    backend => backend.Description.Contains(
+                        "osu!framework",
+                        System.StringComparison.OrdinalIgnoreCase)));
         }
     }
 }

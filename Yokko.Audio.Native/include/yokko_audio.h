@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <wchar.h>
 
 #if defined(_WIN32)
 #if defined(YOKKO_AUDIO_NATIVE_BUILD)
@@ -101,6 +102,8 @@ extern "C"
         uint32_t buffer_frames;
         uint32_t latency_frames;
         uint32_t is_active;
+        int32_t backend_error;
+        uint32_t backend_error_stage;
     } yokko_audio_output_status;
 
     YOKKO_AUDIO_API uint32_t YOKKO_AUDIO_CALL yokko_audio_get_abi_version(void);
@@ -160,6 +163,18 @@ extern "C"
 
     YOKKO_AUDIO_API void YOKKO_AUDIO_CALL yokko_audio_close_output(
         yokko_audio_engine* engine);
+
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_get_wasapi_device_count(uint32_t* device_count);
+
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_get_wasapi_device_info(
+            uint32_t device_index,
+            wchar_t* device_id,
+            uint32_t device_id_capacity,
+            wchar_t* device_name,
+            uint32_t device_name_capacity,
+            uint32_t* is_default);
 
 #ifdef __cplusplus
 }

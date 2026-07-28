@@ -16,6 +16,11 @@ internal enum SettingsPageKind
     About,
 }
 
+internal interface ISettingsTransientUi
+{
+    bool DismissTransientUi();
+}
+
 internal sealed record SettingsPageDefinition(
     SettingsPageKind Kind,
     string Title,

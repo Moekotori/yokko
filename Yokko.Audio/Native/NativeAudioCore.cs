@@ -87,12 +87,16 @@ internal sealed class NativeAudioCore : IDisposable
                 nativeDeviceId,
                 preferredBufferFrames);
             NativeAudioOutputStatus status = NativeAudioOutputStatus.Create();
-            throwForResult(
-                NativeAudioInterop.OpenWasapi(
-                    getHandle(),
-                    config,
-                    ref status),
-                $"open {backend}");
+            NativeAudioResult result = NativeAudioInterop.OpenWasapi(
+                getHandle(),
+                config,
+                ref status);
+            if (result != NativeAudioResult.Ok)
+            {
+                throw new NativeAudioException(
+                    $"Native audio operation 'open {backend}' failed with {result} "
+                    + $"(HRESULT 0x{status.BackendError:X8}, stage {status.BackendErrorStage}).");
+            }
             return status;
         }
         finally

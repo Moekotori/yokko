@@ -6,6 +6,8 @@
 #include <Windows.h>
 #include <audioclient.h>
 #include <avrt.h>
+#include <propkey.h>
+#include <functiondiscoverykeys_devpkey.h>
 #include <ksmedia.h>
 #include <mmdeviceapi.h>
 #include <wrl/client.h>
@@ -108,6 +110,130 @@ namespace
             static_cast<long double>(std::numeric_limits<T>::min()),
             static_cast<long double>(std::numeric_limits<T>::max())));
     }
+
+    bool begin_com(bool& must_uninitialize) noexcept
+    {
+        const HRESULT result =
+            CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        must_uninitialize = SUCCEEDED(result);
+        return SUCCEEDED(result) || result == RPC_E_CHANGED_MODE;
+    }
+
+    yokko_audio_result enumerate_devices(
+        const uint32_t requested_index,
+        const bool read_info,
+        uint32_t* device_count,
+        wchar_t* device_id,
+        const uint32_t device_id_capacity,
+        wchar_t* device_name,
+        const uint32_t device_name_capacity,
+        uint32_t* is_default) noexcept
+    {
+        bool must_uninitialize = false;
+        if (!begin_com(must_uninitialize))
+            return YOKKO_AUDIO_BACKEND_UNAVAILABLE;
+
+        ComPtr<IMMDeviceEnumerator> enumerator;
+        ComPtr<IMMDeviceCollection> collection;
+        HRESULT result = CoCreateInstance(
+            __uuidof(MMDeviceEnumerator),
+            nullptr,
+            CLSCTX_ALL,
+            IID_PPV_ARGS(&enumerator));
+        if (SUCCEEDED(result))
+        {
+            result = enumerator->EnumAudioEndpoints(
+                eRender,
+                DEVICE_STATE_ACTIVE,
+                &collection);
+        }
+
+        UINT count = 0;
+        if (SUCCEEDED(result))
+            result = collection->GetCount(&count);
+        if (device_count != nullptr)
+            *device_count = count;
+
+        if (SUCCEEDED(result) && read_info)
+        {
+            if (requested_index >= count
+                || device_id == nullptr
+                || device_name == nullptr
+                || is_default == nullptr
+                || device_id_capacity == 0
+                || device_name_capacity == 0)
+            {
+                result = E_INVALIDARG;
+            }
+            else
+            {
+                ComPtr<IMMDevice> device;
+                ComPtr<IMMDevice> default_device;
+                ComPtr<IPropertyStore> properties;
+                LPWSTR raw_id = nullptr;
+                LPWSTR raw_default_id = nullptr;
+                PROPVARIANT friendly_name;
+                PropVariantInit(&friendly_name);
+
+                result = collection->Item(requested_index, &device);
+                if (SUCCEEDED(result))
+                    result = device->GetId(&raw_id);
+                if (SUCCEEDED(result))
+                {
+                    result = device->OpenPropertyStore(
+                        STGM_READ,
+                        &properties);
+                }
+                if (SUCCEEDED(result))
+                {
+                    result = properties->GetValue(
+                        PKEY_Device_FriendlyName,
+                        &friendly_name);
+                }
+                if (SUCCEEDED(result))
+                {
+                    result = enumerator->GetDefaultAudioEndpoint(
+                        eRender,
+                        eConsole,
+                        &default_device);
+                }
+                if (SUCCEEDED(result))
+                    result = default_device->GetId(&raw_default_id);
+
+                if (SUCCEEDED(result)
+                    && friendly_name.vt == VT_LPWSTR
+                    && friendly_name.pwszVal != nullptr)
+                {
+                    wcsncpy_s(
+                        device_id,
+                        device_id_capacity,
+                        raw_id,
+                        _TRUNCATE);
+                    wcsncpy_s(
+                        device_name,
+                        device_name_capacity,
+                        friendly_name.pwszVal,
+                        _TRUNCATE);
+                    *is_default =
+                        wcscmp(raw_id, raw_default_id) == 0 ? 1u : 0u;
+                }
+                else if (SUCCEEDED(result))
+                {
+                    result = E_UNEXPECTED;
+                }
+
+                PropVariantClear(&friendly_name);
+                CoTaskMemFree(raw_id);
+                CoTaskMemFree(raw_default_id);
+            }
+        }
+
+        if (must_uninitialize)
+            CoUninitialize();
+        return SUCCEEDED(result)
+                   ? YOKKO_AUDIO_OK
+                   : YOKKO_AUDIO_BACKEND_UNAVAILABLE;
+    }
 }
 
 namespace yokko::audio
@@ -167,8 +293,7 @@ namespace yokko::audio
                 lock,
                 [this] { return initialization_complete_; });
             const yokko_audio_result result = initialization_result_;
-            if (result == YOKKO_AUDIO_OK)
-                status = initialized_status_;
+            status = initialized_status_;
             lock.unlock();
 
             if (result != YOKKO_AUDIO_OK)
@@ -202,6 +327,7 @@ namespace yokko::audio
             ComPtr<IAudioClient> audio_client;
             ComPtr<IAudioRenderClient> render_client;
             ComPtr<IAudioClock> audio_clock;
+            uint32_t error_stage = 1;
 
             HRESULT result = CoCreateInstance(
                 __uuidof(MMDeviceEnumerator),
@@ -210,6 +336,7 @@ namespace yokko::audio
                 IID_PPV_ARGS(&enumerator));
             if (SUCCEEDED(result))
             {
+                error_stage = 2;
                 result = device_id_.empty()
                              ? enumerator->GetDefaultAudioEndpoint(
                                    eRender,
@@ -219,6 +346,7 @@ namespace yokko::audio
             }
             if (SUCCEEDED(result))
             {
+                error_stage = 3;
                 result = device->Activate(
                     __uuidof(IAudioClient),
                     CLSCTX_ALL,
@@ -231,6 +359,7 @@ namespace yokko::audio
                 YOKKO_AUDIO_SAMPLE_FLOAT32;
             if (SUCCEEDED(result))
             {
+                error_stage = 4;
                 result = select_format(
                     *audio_client.Get(),
                     selected_format,
@@ -241,6 +370,7 @@ namespace yokko::audio
             REFERENCE_TIME stream_latency = 0;
             if (SUCCEEDED(result))
             {
+                error_stage = 5;
                 result = initialize_client(
                     *device.Get(),
                     audio_client,
@@ -248,17 +378,25 @@ namespace yokko::audio
                     buffer_frames);
             }
             if (SUCCEEDED(result))
+            {
+                error_stage = 6;
                 result = audio_client->SetEventHandle(audio_event_);
-            if (SUCCEEDED(result))
-                result = audio_client->GetStreamLatency(&stream_latency);
+            }
             if (SUCCEEDED(result))
             {
+                error_stage = 7;
+                result = audio_client->GetStreamLatency(&stream_latency);
+            }
+            if (SUCCEEDED(result))
+            {
+                error_stage = 8;
                 result = audio_client->GetService(
                     __uuidof(IAudioRenderClient),
                     reinterpret_cast<void**>(render_client.GetAddressOf()));
             }
             if (SUCCEEDED(result))
             {
+                error_stage = 9;
                 result = audio_client->GetService(
                     __uuidof(IAudioClock),
                     reinterpret_cast<void**>(audio_clock.GetAddressOf()));
@@ -266,12 +404,16 @@ namespace yokko::audio
 
             UINT64 clock_frequency = 0;
             if (SUCCEEDED(result))
+            {
+                error_stage = 10;
                 result = audio_clock->GetFrequency(&clock_frequency);
+            }
 
             DWORD task_index = 0;
             HANDLE mmcss_task = nullptr;
             if (SUCCEEDED(result))
             {
+                error_stage = 11;
                 mmcss_task =
                     AvSetMmThreadCharacteristicsW(L"Pro Audio", &task_index);
                 if (mmcss_task == nullptr)
@@ -297,6 +439,7 @@ namespace yokko::audio
 
             if (SUCCEEDED(result))
             {
+                error_stage = 12;
                 result = fill_available_buffer(
                     *audio_client.Get(),
                     *render_client.Get(),
@@ -305,7 +448,10 @@ namespace yokko::audio
                     conversion_buffer);
             }
             if (SUCCEEDED(result))
+            {
+                error_stage = 13;
                 result = audio_client->Start();
+            }
 
             yokko_audio_output_status output_status{};
             output_status.struct_size = sizeof(output_status);
@@ -316,6 +462,9 @@ namespace yokko::audio
             output_status.buffer_frames = buffer_frames;
             output_status.latency_frames = latency_frames;
             output_status.is_active = SUCCEEDED(result) ? 1u : 0u;
+            output_status.backend_error = result;
+            output_status.backend_error_stage =
+                SUCCEEDED(result) ? 0u : error_stage;
 
             finish_initialization(
                 SUCCEEDED(result)
@@ -633,5 +782,45 @@ namespace yokko::audio
     void WasapiOutput::close() noexcept
     {
         implementation_->close();
+    }
+}
+
+extern "C"
+{
+    yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_get_wasapi_device_count(uint32_t* device_count)
+    {
+        if (device_count == nullptr)
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+        *device_count = 0;
+        return enumerate_devices(
+            0,
+            false,
+            device_count,
+            nullptr,
+            0,
+            nullptr,
+            0,
+            nullptr);
+    }
+
+    yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_get_wasapi_device_info(
+            const uint32_t device_index,
+            wchar_t* device_id,
+            const uint32_t device_id_capacity,
+            wchar_t* device_name,
+            const uint32_t device_name_capacity,
+            uint32_t* is_default)
+    {
+        return enumerate_devices(
+            device_index,
+            true,
+            nullptr,
+            device_id,
+            device_id_capacity,
+            device_name,
+            device_name_capacity,
+            is_default);
     }
 }

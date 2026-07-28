@@ -7,8 +7,12 @@ internal static class ChartArchive
     private const int maximumEntries = 10_000;
     private const long maximumExpandedBytes = 512L * 1024 * 1024;
 
-    public static IReadOnlyList<string> ExtractCharts(string archivePath, string chartExtension)
+    public static IReadOnlyList<string> ExtractCharts(string archivePath, params string[] chartExtensions)
     {
+        if (chartExtensions.Length == 0)
+            throw new ArgumentException("At least one chart extension is required.", nameof(chartExtensions));
+
+        var supportedExtensions = chartExtensions.ToHashSet(StringComparer.OrdinalIgnoreCase);
         string root = Path.Combine(
             Path.GetTempPath(),
             "Yokko",
@@ -45,7 +49,7 @@ internal static class ChartArchive
                 Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
                 entry.ExtractToFile(destination, false);
 
-                if (Path.GetExtension(destination).Equals(chartExtension, StringComparison.OrdinalIgnoreCase))
+                if (supportedExtensions.Contains(Path.GetExtension(destination)))
                     charts.Add(destination);
             }
         }
@@ -58,7 +62,8 @@ internal static class ChartArchive
         if (charts.Count == 0)
         {
             Directory.Delete(root, true);
-            throw new InvalidDataException($"Chart package does not contain a {chartExtension} chart.");
+            throw new InvalidDataException(
+                $"Chart package does not contain a supported chart ({string.Join(", ", chartExtensions)}).");
         }
 
         charts.Sort(StringComparer.OrdinalIgnoreCase);

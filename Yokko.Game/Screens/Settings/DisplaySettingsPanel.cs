@@ -20,7 +20,7 @@ namespace Yokko.Game.Screens.Settings;
 /// Display-specific presentation and state binding. This panel can be replaced by
 /// another category without changing the settings shell.
 /// </summary>
-public partial class DisplaySettingsPanel : CompositeDrawable
+internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransientUi
 {
     private static readonly Size[] supportedResolutions =
     {
@@ -42,6 +42,8 @@ public partial class DisplaySettingsPanel : CompositeDrawable
 
     private readonly SpriteText currentDisplayMetadata;
     private readonly SettingsResolutionDropdown resolutionDropdown;
+
+    internal bool IsResolutionMenuOpen => resolutionDropdown.IsOpen;
 
     public DisplaySettingsPanel(
         Texture mascotTexture,
@@ -290,6 +292,10 @@ public partial class DisplaySettingsPanel : CompositeDrawable
     private void onWindowModeChanged(ValueChangedEvent<WindowMode> _) => refreshSelection();
 
     private void onUiScaleChanged(ValueChangedEvent<YokkoUiScale> _) => refreshSelection();
+
+    internal void ToggleResolutionMenu() => resolutionDropdown.Toggle();
+
+    public bool DismissTransientUi() => resolutionDropdown.Dismiss();
 
     private void refreshSelection()
     {

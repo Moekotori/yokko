@@ -7,21 +7,65 @@ namespace Yokko.Import.Etterna;
 public sealed partial class EtternaChartImporter : IChartImporter
 {
     public ChartImportCapability Capability { get; } =
-        new(ChartSourceFormat.Etterna, "Etterna / StepMania", [".sm", ".ssc"], false, false);
+        new(ChartSourceFormat.Etterna, "Etterna / StepMania", [".sm", ".ssc", ".zip", ".smzip"], false, false);
 
     public bool CanImport(string path)
     {
         string extension = Path.GetExtension(path);
         return extension.Equals(".sm", StringComparison.OrdinalIgnoreCase)
-               || extension.Equals(".ssc", StringComparison.OrdinalIgnoreCase);
+               || extension.Equals(".ssc", StringComparison.OrdinalIgnoreCase)
+               || extension.Equals(".zip", StringComparison.OrdinalIgnoreCase)
+               || extension.Equals(".smzip", StringComparison.OrdinalIgnoreCase);
     }
 
     public ValueTask<ChartImportResult> ImportAsync(ChartImportRequest request)
     {
         request.CancellationToken.ThrowIfCancellationRequested();
-        string text = File.ReadAllText(request.Path);
+        string extension = Path.GetExtension(request.Path);
+
+        if (extension.Equals(".sm", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".ssc", StringComparison.OrdinalIgnoreCase))
+        {
+            return ValueTask.FromResult(importChartFile(request.Path));
+        }
+
+        IReadOnlyList<string> charts = ChartArchive.ExtractCharts(request.Path, ".sm", ".ssc");
+        string[] orderedCharts = charts.OrderBy(static chart => Path.GetDirectoryName(chart), StringComparer.OrdinalIgnoreCase)
+                                       .ThenBy(static chart => Path.GetFileNameWithoutExtension(chart), StringComparer.OrdinalIgnoreCase)
+                                       .ThenBy(static chart => Path.GetExtension(chart).Equals(".ssc", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                                       .ToArray();
+        var failures = new List<Exception>();
+
+        foreach (string chart in orderedCharts)
+        {
+            request.CancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                ChartImportResult result = importChartFile(chart);
+                var warnings = new List<string>
+                {
+                    $"This package contains {charts.Count} simfiles; imported {Path.GetFileName(chart)}.",
+                };
+                warnings.AddRange(result.Warnings);
+                return ValueTask.FromResult(result with { Warnings = warnings });
+            }
+            catch (InvalidDataException ex)
+            {
+                failures.Add(ex);
+            }
+        }
+
+        throw new InvalidDataException(
+            "The Etterna/StepMania package does not contain a supported 4K/7K chart.",
+            failures.FirstOrDefault());
+    }
+
+    private static ChartImportResult importChartFile(string path)
+    {
+        string text = File.ReadAllText(path);
         List<SimfileTag> tags = parseTags(text);
-        bool isSsc = Path.GetExtension(request.Path).Equals(".ssc", StringComparison.OrdinalIgnoreCase);
+        bool isSsc = Path.GetExtension(path).Equals(".ssc", StringComparison.OrdinalIgnoreCase);
 
         Dictionary<string, string> global = collectGlobalTags(tags, isSsc);
         List<ChartBlock> candidates = isSsc ? collectSscCharts(tags) : collectSmCharts(tags);
@@ -94,10 +138,10 @@ public sealed partial class EtternaChartImporter : IChartImporter
             keyMode,
             ChartSourceFormat.Etterna,
             converter.ToTimingPoints(),
-            ImportParsing.ResolveAdjacentAsset(request.Path, audio),
+            ImportParsing.ResolveAdjacentAsset(path, audio),
             hitObjects);
 
-        return ValueTask.FromResult(new ChartImportResult(beatmap, warnings.Distinct().ToArray()));
+        return new ChartImportResult(beatmap, warnings.Distinct().ToArray());
     }
 
     private static List<SimfileTag> parseTags(string text)
@@ -178,11 +222,14 @@ public sealed partial class EtternaChartImporter : IChartImporter
             string notes = values.GetValueOrDefault("NOTES", values.GetValueOrDefault("NOTES2", string.Empty));
             int laneCount = detectLaneCount(notes);
             string description = values.GetValueOrDefault("DESCRIPTION", string.Empty);
-            string displayName = values.GetValueOrDefault(
-                "CHARTNAME",
-                string.IsNullOrWhiteSpace(description)
-                    ? $"{values.GetValueOrDefault("DIFFICULTY", "Chart")} {values.GetValueOrDefault("METER", string.Empty)}".Trim()
-                    : description);
+            string chartName = values.GetValueOrDefault("CHARTNAME", string.Empty);
+            string difficultyAndMeter =
+                $"{values.GetValueOrDefault("DIFFICULTY", "Chart")} {values.GetValueOrDefault("METER", string.Empty)}".Trim();
+            string displayName = !string.IsNullOrWhiteSpace(chartName)
+                ? chartName
+                : !string.IsNullOrWhiteSpace(description)
+                    ? description
+                    : difficultyAndMeter;
 
             charts.Add(new ChartBlock(values, notes, laneCount, description, displayName));
         }

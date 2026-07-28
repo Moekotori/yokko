@@ -58,6 +58,21 @@ internal static partial class NativeAudioInterop
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_close_output")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     internal static partial void CloseOutput(NativeAudioSafeHandle engine);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_wasapi_device_count")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult GetWasapiDeviceCount(
+        out uint deviceCount);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_wasapi_device_info")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static unsafe partial NativeAudioResult GetWasapiDeviceInfo(
+        uint deviceIndex,
+        char* deviceId,
+        uint deviceIdCapacity,
+        char* deviceName,
+        uint deviceNameCapacity,
+        out uint isDefault);
 }
 
 internal sealed class NativeAudioSafeHandle : SafeHandleZeroOrMinusOneIsInvalid
@@ -153,6 +168,8 @@ internal struct NativeAudioOutputStatus
     internal uint BufferFrames;
     internal uint LatencyFrames;
     internal uint IsActive;
+    internal int BackendError;
+    internal uint BackendErrorStage;
 
     internal static NativeAudioOutputStatus Create()
         => new()
