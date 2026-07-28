@@ -36,6 +36,7 @@ namespace Yokko.Game
 
         protected override Container<Drawable> Content { get; }
 
+        private readonly DrawSizePreservingFillContainer scalingContainer;
         [Cached]
         private readonly YokkoDisplaySettings displaySettings = new();
         [Cached]
@@ -64,14 +65,16 @@ namespace Yokko.Game
         private YokkoFrameRateController frameRateController;
         private IWindow window;
 
+        protected YokkoDisplaySettings DisplaySettings => displaySettings;
+
         protected YokkoGameBase(IKeyInputTimestampBackend keyInputTimestampBackend = null)
         {
             keyInputTimestamps = new KeyInputTimestampSource(keyInputTimestampBackend);
 
             // Ensure game and tests scale with window size and screen DPI.
-            base.Content.Add(Content = new DrawSizePreservingFillContainer
+            base.Content.Add(Content = scalingContainer = new DrawSizePreservingFillContainer
             {
-                TargetDrawSize = YokkoDisplaySettings.TargetDrawSize,
+                TargetDrawSize = displaySettings.TargetDrawSize,
                 Strategy = DrawSizePreservationStrategy.Minimum,
             });
         }
@@ -154,6 +157,7 @@ namespace Yokko.Game
             Resources.AddStore(resources);
             AddFont(Resources, @"Fonts/Yokko/Yokko");
             AddFont(Resources, @"Fonts/Yokko/Yokko-Bold");
+            displaySettings.UiScale.BindValueChanged(onUiScaleChanged, true);
 
             _ = Task.Run(() => importedChartLibrary.LoadFromDiskAsync(
                 importSettings.PreferKeysounds.Value,
@@ -181,11 +185,15 @@ namespace Yokko.Game
 
                 yokkoConfig?.Dispose();
                 frameRateController?.Dispose();
+                displaySettings.UiScale.ValueChanged -= onUiScaleChanged;
                 keyInputTimestamps.Dispose();
             }
 
             base.Dispose(isDisposing);
         }
+
+        private void onUiScaleChanged(ValueChangedEvent<YokkoUiScale> _) =>
+            scalingContainer.TargetDrawSize = displaySettings.TargetDrawSize;
 
         private void onFileDropped(string path)
         {

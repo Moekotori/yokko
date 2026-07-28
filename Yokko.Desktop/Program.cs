@@ -18,15 +18,12 @@ namespace Yokko.Desktop
             try
             {
                 using (GameHost host = Host.GetSuitableDesktopHost(@"Yokko"))
-                {
-                    crashReports.SetStoragePaths(
-                        host.Storage.GetFullPath("crashes", true),
-                        host.Storage.GetFullPath("logs", true));
-
-                    using (osu.Framework.Game game = new YokkoGame(
-                               new WindowsRawKeyboardTimestampBackend()))
-                        host.Run(game);
-                }
+                using (osu.Framework.Game game = new YokkoGame(
+                           new WindowsRawKeyboardTimestampBackend(),
+                           gameStorage => crashReports.SetStoragePaths(
+                               gameStorage.GetFullPath("crashes", true),
+                               gameStorage.GetFullPath("logs", true))))
+                    host.Run(game);
             }
             catch (Exception exception)
             {

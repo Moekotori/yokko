@@ -194,6 +194,7 @@ internal static class YokkoStrings
             ["settings.display.window_mode"] = new("Window mode", "窗口模式", "ウィンドウモード"),
             ["settings.display.resolution"] = new("Resolution", "分辨率", "解像度"),
             ["settings.display.frame_limit"] = new("Frame limit", "帧率上限", "フレーム上限"),
+            ["settings.display.interface_scale"] = new("Interface scale", "界面缩放", "UI スケール"),
             ["settings.display.performance_readout"] = new(
                 "Performance readout",
                 "性能读数",
@@ -203,6 +204,9 @@ internal static class YokkoStrings
             ["settings.display.windowed"] = new("Windowed", "窗口化", "ウィンドウ"),
             ["settings.display.borderless"] = new("Borderless", "无边框", "ボーダーレス"),
             ["settings.display.fullscreen"] = new("Fullscreen", "全屏", "フルスクリーン"),
+            ["settings.display.compact"] = new("Compact", "紧凑", "コンパクト"),
+            ["settings.display.comfortable"] = new("Comfortable", "舒适", "標準"),
+            ["settings.display.spacious"] = new("Large", "大", "大"),
 
             ["settings.audio.title"] = new("Audio", "音频", "オーディオ"),
             ["settings.audio.subtitle"] = new(

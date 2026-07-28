@@ -40,6 +40,62 @@ public sealed class DisplaySettingsTest
     }
 
     [Test]
+    public void InterfaceScalePersistsAcrossConfigInstances()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "interface-scale-config",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            var firstSettings = new YokkoDisplaySettings();
+            using (var firstConfig = new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                firstConfig.BindDisplaySettings(firstSettings);
+                Assert.That(firstSettings.UiScale.Value, Is.EqualTo(YokkoUiScale.Comfortable));
+                firstSettings.UiScale.Value = YokkoUiScale.Large;
+                Assert.That(firstConfig.Save(), Is.True);
+            }
+
+            var restoredSettings = new YokkoDisplaySettings();
+            using (var restoredConfig = new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                restoredConfig.BindDisplaySettings(restoredSettings);
+                Assert.That(restoredSettings.UiScale.Value, Is.EqualTo(YokkoUiScale.Large));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
+    public void InterfaceScaleTargetsRemainSixteenByNineAndOrdered()
+    {
+        var settings = new YokkoDisplaySettings();
+
+        settings.UiScale.Value = YokkoUiScale.Large;
+        var large = settings.TargetDrawSize;
+        settings.UiScale.Value = YokkoUiScale.Comfortable;
+        var comfortable = settings.TargetDrawSize;
+        settings.UiScale.Value = YokkoUiScale.Compact;
+        var compact = settings.TargetDrawSize;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(large.X / large.Y, Is.EqualTo(16f / 9f).Within(0.001f));
+            Assert.That(comfortable.X / comfortable.Y, Is.EqualTo(16f / 9f).Within(0.001f));
+            Assert.That(compact.X / compact.Y, Is.EqualTo(16f / 9f).Within(0.001f));
+            Assert.That(large.X, Is.LessThan(comfortable.X));
+            Assert.That(comfortable.X, Is.LessThan(compact.X));
+        });
+    }
+
+    [Test]
     public void FrameLimitPersistsAcrossConfigInstances()
     {
         string directory = Path.Combine(

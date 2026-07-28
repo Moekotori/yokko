@@ -1,6 +1,7 @@
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Screens;
@@ -9,6 +10,7 @@ using osuTK.Input;
 using Yokko.Audio;
 using Yokko.Core.Gameplay;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Settings;
 
 namespace Yokko.Game.Tests.Visual
@@ -88,6 +90,36 @@ namespace Yokko.Game.Tests.Visual
                 AddAssert($"{page} has no tiny text", () =>
                     settingsScreen.ChildrenOfType<SpriteText>().All(text => text.Font.Size >= 14));
             }
+        }
+
+        [Test]
+        public void TestInterfaceScaleIsInteractive()
+        {
+            DisplaySettingsPanel display = null;
+            YokkoUiScale originalScale = YokkoUiScale.Comfortable;
+
+            AddStep("open Display", () => settingsScreen.OpenPage(SettingsPageKind.Display));
+            AddStep("capture display scale", () =>
+            {
+                display = (DisplaySettingsPanel)settingsScreen.ActivePanel;
+                originalScale = display.CurrentUiScale;
+            });
+            AddStep("select large interface", () => display.SelectUiScale(YokkoUiScale.Large));
+            AddAssert("large interface selected", () => display.CurrentUiScale == YokkoUiScale.Large);
+            AddAssert("five display rows fit above footer", () =>
+            {
+                Container[] rows = display.ChildrenOfType<Container>()
+                                          .Where(container =>
+                                              container.Position.X == 378
+                                              && container.Size.X == 840
+                                              && container.Size.Y == 60)
+                                          .ToArray();
+                return rows.Length == 5
+                       && rows.All(row => row.Y + row.Height < 651);
+            });
+            AddStep("select compact interface", () => display.SelectUiScale(YokkoUiScale.Compact));
+            AddAssert("compact interface selected", () => display.CurrentUiScale == YokkoUiScale.Compact);
+            AddStep("restore interface scale", () => display.SelectUiScale(originalScale));
         }
 
         [Test]

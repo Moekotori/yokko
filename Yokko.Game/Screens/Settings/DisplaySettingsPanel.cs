@@ -47,22 +47,26 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
     private readonly Bindable<Size> windowedSize;
     private readonly Bindable<WindowMode> windowMode;
+    private readonly Bindable<YokkoUiScale> uiScale;
     private readonly Bindable<YokkoFrameLimit> frameLimit;
     private readonly IBindable<DisplayMode> currentDisplayMode;
     private readonly Action<Size> setWindowedSize;
     private readonly Action<WindowMode> setWindowMode;
     private readonly List<SettingsSegmentedChoiceButton> modeButtons = new();
+    private readonly List<SettingsSegmentedChoiceButton> scaleButtons = new();
     private readonly List<SettingsFrameLimitChoiceButton> frameLimitButtons = new();
 
     private readonly SpriteText currentDisplayMetadata;
     private readonly SettingsResolutionDropdown resolutionDropdown;
 
     internal bool IsResolutionMenuOpen => resolutionDropdown.IsOpen;
+    internal YokkoUiScale CurrentUiScale => uiScale.Value;
 
     public DisplaySettingsPanel(
         Texture mascotTexture,
         Bindable<Size> windowedSize,
         Bindable<WindowMode> windowMode,
+        Bindable<YokkoUiScale> uiScale,
         Bindable<YokkoFrameLimit> frameLimit,
         BindableBool showPerformanceReadout,
         IBindable<DisplayMode> currentDisplayMode,
@@ -71,6 +75,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     {
         this.windowedSize = windowedSize;
         this.windowMode = windowMode;
+        this.uiScale = uiScale;
         this.frameLimit = frameLimit;
         this.currentDisplayMode = currentDisplayMode;
         this.setWindowedSize = setWindowedSize;
@@ -97,33 +102,29 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             },
             createMascotCrop(mascotTexture),
             createDisplayStatus(out currentDisplayMetadata),
-            createDivider(282),
-            createSettingRow(292, YokkoStrings.Get("settings.display.window_mode"), createModeControl()),
-            createDivider(356),
+            createDivider(270),
+            createSettingRow(276, YokkoStrings.Get("settings.display.window_mode"), createModeControl()),
+            createDivider(340),
             createSettingRow(
-                366,
+                346,
                 YokkoStrings.Get("settings.display.resolution"),
                 resolutionDropdown = new SettingsResolutionDropdown(supportedResolutions, setWindowedSize),
                 -10),
-            createDivider(430),
-            createSettingRow(440, YokkoStrings.Get("settings.display.frame_limit"), createFrameLimitControl()),
-            createDivider(504),
+            createDivider(410),
+            createSettingRow(416, YokkoStrings.Get("settings.display.frame_limit"), createFrameLimitControl()),
+            createDivider(480),
+            createSettingRow(486, YokkoStrings.Get("settings.display.interface_scale"), createScaleControl()),
+            createDivider(550),
             createSettingRow(
-                514,
+                556,
                 YokkoStrings.Get("settings.display.performance_readout"),
                 new DisplayPerformanceReadoutToggle(showPerformanceReadout)),
             new SettingsPanelFooter(),
-            new HomeDotCross
-            {
-                Position = new Vector2(1088, 594),
-                Scale = new Vector2(1.1f),
-            },
-            createDecorationIcon(FontAwesome.Solid.Plus, 1172, 601, 16, HomeControlColours.Pink),
-            createDecorationIcon(FontAwesome.Solid.Plus, 1200, 637, 12, HomeControlColours.Yellow),
         };
 
         windowedSize.BindValueChanged(onWindowedSizeChanged, true);
         windowMode.BindValueChanged(onWindowModeChanged, true);
+        uiScale.BindValueChanged(onUiScaleChanged, true);
         frameLimit.BindValueChanged(onFrameLimitChanged, true);
         currentDisplayMode.BindValueChanged(onCurrentDisplayModeChanged, true);
     }
@@ -249,6 +250,31 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         return createSegmentedControl(frameLimitButtons);
     }
 
+    private Drawable createScaleControl()
+    {
+        var options = new[]
+        {
+            (YokkoUiScale.Compact, YokkoStrings.Get("settings.display.compact"), FontAwesome.Solid.List),
+            (YokkoUiScale.Comfortable, YokkoStrings.Get("settings.display.comfortable"), FontAwesome.Solid.Bars),
+            (YokkoUiScale.Large, YokkoStrings.Get("settings.display.spacious"), FontAwesome.Solid.ThList),
+        };
+
+        foreach ((YokkoUiScale scale, LocalisableString label, IconUsage icon) in options)
+        {
+            YokkoUiScale capturedScale = scale;
+            scaleButtons.Add(new SettingsSegmentedChoiceButton(
+                label,
+                icon,
+                () => uiScale.Value = capturedScale,
+                199)
+            {
+                Value = scale,
+            });
+        }
+
+        return createSegmentedControl(scaleButtons);
+    }
+
     private static Drawable createSegmentedControl(IEnumerable<Drawable> buttons) => new Container
     {
         Size = new Vector2(598, 54),
@@ -267,7 +293,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     private static Drawable createSettingRow(float y, LocalisableString title, Drawable control, float depth = 0) => new Container
     {
         Position = new Vector2(378, y),
-        Size = new Vector2(840, 68),
+        Size = new Vector2(840, 60),
         Depth = depth,
         Children = new Drawable[]
         {
@@ -297,17 +323,11 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         Colour = SettingsTheme.Divider,
     };
 
-    private static Drawable createDecorationIcon(IconUsage icon, float x, float y, float size, Color4 colour) => new SpriteIcon
-    {
-        Position = new Vector2(x, y),
-        Size = new Vector2(size),
-        Icon = icon,
-        Colour = colour,
-    };
-
     private void onWindowedSizeChanged(ValueChangedEvent<Size> _) => refreshSelection();
 
     private void onWindowModeChanged(ValueChangedEvent<WindowMode> _) => refreshSelection();
+
+    private void onUiScaleChanged(ValueChangedEvent<YokkoUiScale> _) => refreshSelection();
 
     private void onFrameLimitChanged(ValueChangedEvent<YokkoFrameLimit> _) => refreshSelection();
 
@@ -336,6 +356,9 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         foreach (SettingsSegmentedChoiceButton button in modeButtons)
             button.SetSelected(button.Value is WindowMode mode && mode == windowMode.Value);
 
+        foreach (SettingsSegmentedChoiceButton button in scaleButtons)
+            button.SetSelected(button.Value is YokkoUiScale scale && scale == uiScale.Value);
+
         foreach (SettingsFrameLimitChoiceButton button in frameLimitButtons)
         {
             button.SetLabel(FormatFrameLimit(button.Value, refreshRate));
@@ -363,12 +386,15 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     internal static string FormatRefreshRate(float refreshRate) =>
         $"{MathF.Round(MathF.Max(refreshRate, 1)):0}";
 
+    internal void SelectUiScale(YokkoUiScale scale) => uiScale.Value = scale;
+
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
         {
             windowedSize.ValueChanged -= onWindowedSizeChanged;
             windowMode.ValueChanged -= onWindowModeChanged;
+            uiScale.ValueChanged -= onUiScaleChanged;
             frameLimit.ValueChanged -= onFrameLimitChanged;
             currentDisplayMode.ValueChanged -= onCurrentDisplayModeChanged;
         }

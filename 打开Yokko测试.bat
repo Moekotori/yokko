@@ -41,7 +41,7 @@ if errorlevel 1 goto failed
 echo.
 echo [Yokko] Starting desktop playtest...
 dotnet run --project ".\Yokko.Desktop\Yokko.Desktop.csproj" --no-build
-if errorlevel 1 goto failed
+if not "%errorlevel%"=="0" goto failed
 
 goto done
 

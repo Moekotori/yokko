@@ -1,6 +1,8 @@
+using System;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Framework.Platform;
 using osu.Framework.Screens;
 using Yokko.Game.Input;
 using Yokko.Game.Gameplay;
@@ -16,14 +18,26 @@ namespace Yokko.Game
         private ScreenStack screenStack;
         private YokkoPerformanceReadout performanceReadout;
         private BindableBool showPerformanceReadout;
+        private readonly Action<Storage> storageReady;
 
-        public YokkoGame(IKeyInputTimestampBackend keyInputTimestampBackend = null)
+        public YokkoGame(
+            IKeyInputTimestampBackend keyInputTimestampBackend = null,
+            Action<Storage> storageReady = null)
             : base(keyInputTimestampBackend)
         {
+            this.storageReady = storageReady;
+        }
+
+        public override void SetupLogging(
+            Storage gameStorage,
+            Storage cacheStorage)
+        {
+            storageReady?.Invoke(gameStorage);
+            base.SetupLogging(gameStorage, cacheStorage);
         }
 
         [BackgroundDependencyLoader]
-        private void load(YokkoDisplaySettings displaySettings)
+        private void load()
         {
             Content.Children = new Drawable[]
             {
@@ -40,7 +54,7 @@ namespace Yokko.Game
                 },
             };
 
-            showPerformanceReadout = displaySettings.ShowPerformanceReadout;
+            showPerformanceReadout = DisplaySettings.ShowPerformanceReadout;
             showPerformanceReadout.BindValueChanged(
                 onShowPerformanceReadoutChanged,
                 true);

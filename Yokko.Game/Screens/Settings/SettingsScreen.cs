@@ -138,6 +138,7 @@ public partial class SettingsScreen : Screen
                 mascotTexture,
                 windowedSize,
                 windowMode,
+                displaySettings.UiScale,
                 displaySettings.FrameLimit,
                 displaySettings.ShowPerformanceReadout,
                 currentDisplayMode,
