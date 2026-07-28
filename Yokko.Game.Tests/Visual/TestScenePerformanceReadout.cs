@@ -39,6 +39,9 @@ public partial class TestScenePerformanceReadout : YokkoTestScene
         AddAssert(
             "shows matching fps",
             () => readout.DisplayedFramesPerSecond == "480 FPS");
+        AddUntilStep(
+            "normal frame is not an alert",
+            () => readout.StutterBarCount == 0);
     }
 
     private sealed class FakeFrameTimingSource : IFrameTimingSource

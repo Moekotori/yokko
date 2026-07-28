@@ -52,14 +52,18 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
     internal const float AccentOffset = 3;
 
     private const double display_refresh_milliseconds = 100;
+    private const double graph_refresh_milliseconds = 200;
 
     private readonly FrameTimingTracker tracker = new();
+    private readonly FrameTimingGraphTracker graphTracker = new();
     private readonly Box[] graphBars = new Box[5];
+    private readonly bool[] graphStutterStates = new bool[5];
     private IFrameTimingSource timingSource;
     private SpriteText frameTimeText;
     private SpriteText framesPerSecondText;
     private double lastFrameMarker;
     private double elapsedSinceDisplayRefresh;
+    private double elapsedSinceGraphRefresh;
 
     internal YokkoPerformanceReadout(
         IFrameTimingSource timingSource = null)
@@ -83,6 +87,11 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
     internal string DisplayedFramesPerSecond =>
         framesPerSecondText?.Text.ToString() ?? string.Empty;
 
+    internal int StutterBarCount =>
+        Array.FindAll(
+            graphStutterStates,
+            static isStutter => isStutter).Length;
+
     [BackgroundDependencyLoader]
     private void load(GameHost host)
     {
@@ -101,14 +110,28 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
         {
             lastFrameMarker = frameMarker;
             tracker.Record(frameTimeMilliseconds);
+            graphTracker.Record(frameTimeMilliseconds);
         }
 
         elapsedSinceDisplayRefresh += Time.Elapsed;
-        if (elapsedSinceDisplayRefresh < display_refresh_milliseconds)
-            return;
+        elapsedSinceGraphRefresh += Time.Elapsed;
 
-        elapsedSinceDisplayRefresh %= display_refresh_milliseconds;
-        refreshDisplay();
+        if (elapsedSinceDisplayRefresh >= display_refresh_milliseconds)
+        {
+            elapsedSinceDisplayRefresh %= display_refresh_milliseconds;
+            refreshDisplay();
+        }
+
+        if (elapsedSinceGraphRefresh >= graph_refresh_milliseconds)
+        {
+            elapsedSinceGraphRefresh %= graph_refresh_milliseconds;
+            FrameTimingSnapshot timing = tracker.Snapshot();
+            if (timing.Count > 0)
+            {
+                refreshGraph(graphTracker.CompleteBucket(
+                    timing.FrameTimeMilliseconds));
+            }
+        }
     }
 
     internal void RefreshForTesting() => refreshDisplay();
@@ -142,10 +165,8 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
                 Origin = Anchor.BottomLeft,
                 X = index * 6,
                 Width = 4,
-                Height = 7 + index * 3,
-                Colour = index == 2
-                    ? HomeControlColours.Pink
-                    : HomeControlColours.Cyan,
+                Height = 9,
+                Colour = HomeControlColours.Cyan,
             });
         }
 
@@ -236,34 +257,37 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
             $"{snapshot.FrameTimeMilliseconds:0.0} ms";
         framesPerSecondText.Text =
             $"{snapshot.FramesPerSecond} FPS";
-        refreshGraph(snapshot.RecentFrameTimes);
     }
 
-    private void refreshGraph(double[] samples)
+    private void refreshGraph(FrameTimingGraphSnapshot snapshot)
     {
-        if (samples.Length == 0)
+        if (snapshot.FrameTimes == null
+            || snapshot.FrameTimes.Length == 0)
             return;
-
-        double minimum = double.MaxValue;
-        double maximum = double.MinValue;
-        foreach (double sample in samples)
-        {
-            minimum = Math.Min(minimum, sample);
-            maximum = Math.Max(maximum, sample);
-        }
 
         for (int index = 0; index < graphBars.Length; index++)
         {
-            double sample = samples[
-                Math.Max(0, samples.Length - graphBars.Length + index)];
-            double normalized = maximum - minimum < 0.05
-                ? 0.45
-                : (sample - minimum) / (maximum - minimum);
-            graphBars[index].Height = (float)(7 + normalized * 17);
-            graphBars[index].Colour =
-                sample == maximum && maximum - minimum >= 0.05
+            double sample = snapshot.FrameTimes[index];
+            bool isStutter = FrameTimingGraphTracker.IsStutter(
+                sample,
+                snapshot.StutterThresholdMilliseconds);
+            float targetHeight = (float)(
+                7 + FrameTimingGraphTracker.HeightRatio(
+                    sample,
+                    snapshot.StutterThresholdMilliseconds) * 17);
+
+            graphStutterStates[index] = isStutter;
+            graphBars[index].ClearTransforms();
+            graphBars[index].ResizeHeightTo(
+                targetHeight,
+                140,
+                Easing.OutQuint);
+            graphBars[index].FadeColour(
+                isStutter
                     ? HomeControlColours.Pink
-                    : HomeControlColours.Cyan;
+                    : HomeControlColours.Cyan,
+                120,
+                Easing.OutQuint);
         }
     }
 }

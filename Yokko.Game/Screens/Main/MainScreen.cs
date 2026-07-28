@@ -80,7 +80,7 @@ public partial class MainScreen : Screen
 
         Texture mascotTexture = textures.Get("yokko")
                                         .Crop(new RectangleF(80, 1840, 1200, 1360));
-        Texture logoTexture = textures.Get("home-logo");
+        Texture logoTexture = textures.Get("home-logo-hd");
 
         InternalChildren = new Drawable[]
         {
