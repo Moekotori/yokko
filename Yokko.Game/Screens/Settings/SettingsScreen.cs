@@ -17,6 +17,7 @@ using Yokko.Game.Configuration;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Presentation;
+using Yokko.Game.Resources;
 using Yokko.Game.Screens.Main;
 using Yokko.Game.Skinning.OsuMania;
 using RectangleF = osu.Framework.Graphics.Primitives.RectangleF;
@@ -48,6 +49,8 @@ public partial class SettingsScreen : Screen
     private YokkoGameplaySettings gameplaySettings { get; set; }
     [Resolved]
     private OsuManiaSkinLibrary skinLibrary { get; set; }
+    [Resolved]
+    private YokkoResourceStorage resourceStorage { get; set; }
 
     private Bindable<Size> windowedSize;
     private Bindable<WindowMode> windowMode;
@@ -145,7 +148,10 @@ public partial class SettingsScreen : Screen
                 gameplaySettings,
                 audioSettings),
             SettingsPageKind.Skins => new SkinSettingsPanel(skinLibrary),
-            SettingsPageKind.Import => new ImportSettingsPanel(importSettings),
+            SettingsPageKind.Import => new ImportSettingsPanel(
+                importSettings,
+                resourceStorage,
+                yokkoConfig),
             _ => new SettingsPlaceholderPanel(SettingsPages.Get(page)),
         };
 

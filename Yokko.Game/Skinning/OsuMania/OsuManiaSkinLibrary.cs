@@ -361,7 +361,7 @@ internal sealed class OsuManiaSkinLibrary
 
     private void ensureInitialised()
     {
-        if (storage == null || settings == null || libraryPath == null)
+        if (settings == null || libraryPath == null)
             throw new InvalidOperationException("The skin library has not been initialised.");
     }
 }

@@ -30,6 +30,7 @@ internal sealed class YokkoResourceStorage
     private YokkoImportSettings importSettings;
     private ImportedChartLibrary chartLibrary;
     private OsuManiaSkinLibrary skinLibrary;
+    private YokkoSkinSettings skinSettings;
     private string defaultRootPath;
 
     public event Action LocationChanged;
@@ -52,6 +53,7 @@ internal sealed class YokkoResourceStorage
         importSettings = yokkoImportSettings ?? throw new ArgumentNullException(nameof(yokkoImportSettings));
         chartLibrary = importedChartLibrary ?? throw new ArgumentNullException(nameof(importedChartLibrary));
         skinLibrary = osuManiaSkinLibrary ?? throw new ArgumentNullException(nameof(osuManiaSkinLibrary));
+        this.skinSettings = skinSettings ?? throw new ArgumentNullException(nameof(skinSettings));
         defaultRootPath = Path.GetFullPath(storage.GetFullPath(YokkoResourceDirectories.Root, true));
 
         try
@@ -131,10 +133,19 @@ internal sealed class YokkoResourceStorage
                             Path.Combine(previousRoot, "Beatmaps"),
                             Path.Combine(destinationRoot, "Beatmaps"),
                             keepLooseFilesTogether: true);
-                        migrateCategory(
-                            Path.Combine(previousRoot, "Skins"),
-                            Path.Combine(destinationRoot, "Skins"),
-                            keepLooseFilesTogether: false);
+                        IReadOnlyDictionary<string, string> migratedSkins =
+                            migrateCategory(
+                                Path.Combine(previousRoot, "Skins"),
+                                Path.Combine(destinationRoot, "Skins"),
+                                keepLooseFilesTogether: false);
+
+                        if (migratedSkins.TryGetValue(
+                                this.skinSettings.SelectedSkinId.Value,
+                                out string migratedSelectedId))
+                        {
+                            this.skinSettings.SelectedSkinId.Value =
+                                migratedSelectedId;
+                        }
                     },
                     cancellationToken).ConfigureAwait(false);
 
@@ -231,13 +242,16 @@ internal sealed class YokkoResourceStorage
         File.Delete(probe);
     }
 
-    private static void migrateCategory(
+    private static IReadOnlyDictionary<string, string> migrateCategory(
         string source,
         string destination,
         bool keepLooseFilesTogether)
     {
+        var migratedNames = new Dictionary<string, string>(
+            StringComparer.OrdinalIgnoreCase);
+
         if (!Directory.Exists(source))
-            return;
+            return migratedNames;
 
         Directory.CreateDirectory(destination);
         string[] looseFiles = Directory.EnumerateFiles(source).ToArray();
@@ -250,7 +264,10 @@ internal sealed class YokkoResourceStorage
 
             Directory.CreateDirectory(looseDestination);
             foreach (string file in looseFiles)
-                copyFileToAvailablePath(file, looseDestination);
+            {
+                string target = copyFileToAvailablePath(file, looseDestination);
+                migratedNames[Path.GetFileName(file)] = Path.GetFileName(target);
+            }
         }
 
         foreach (string directory in Directory.EnumerateDirectories(source))
@@ -260,7 +277,10 @@ internal sealed class YokkoResourceStorage
                 Path.GetFileName(directory),
                 string.Empty);
             copyDirectory(directory, target);
+            migratedNames[Path.GetFileName(directory)] = Path.GetFileName(target);
         }
+
+        return migratedNames;
     }
 
     private static string findAvailablePath(
@@ -282,12 +302,13 @@ internal sealed class YokkoResourceStorage
         return candidate;
     }
 
-    private static void copyFileToAvailablePath(string source, string destination)
+    private static string copyFileToAvailablePath(string source, string destination)
     {
         string extension = Path.GetExtension(source);
         string baseName = Path.GetFileNameWithoutExtension(source);
         string target = findAvailablePath(destination, baseName, extension);
         File.Copy(source, target);
+        return target;
     }
 
     private static void copyDirectory(string source, string destination)
@@ -349,7 +370,13 @@ internal sealed class YokkoResourceStorage
     private void migrateLegacySkinDirectory()
     {
         string legacy = storage.GetFullPath("Skins", false);
-        migrateCategory(legacy, SkinsPath, keepLooseFilesTogether: false);
+        IReadOnlyDictionary<string, string> migrated =
+            migrateCategory(legacy, SkinsPath, keepLooseFilesTogether: false);
+
+        if (migrated.TryGetValue(
+                skinSettings.SelectedSkinId.Value,
+                out string selectedId))
+            skinSettings.SelectedSkinId.Value = selectedId;
 
         if (Directory.Exists(legacy))
             deleteIfExists(legacy);
@@ -361,6 +388,7 @@ internal sealed class YokkoResourceStorage
             || settings == null
             || chartLibrary == null
             || skinLibrary == null
+            || skinSettings == null
             || string.IsNullOrWhiteSpace(RootPath))
         {
             throw new InvalidOperationException(

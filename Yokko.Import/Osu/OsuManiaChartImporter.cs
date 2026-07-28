@@ -1,4 +1,5 @@
 using Yokko.Core.Beatmaps;
+using System.Security.Cryptography;
 
 namespace Yokko.Import.Osu;
 
@@ -22,7 +23,8 @@ public sealed class OsuManiaChartImporter : IChartImporter
             return ValueTask.FromResult(new ChartImportResult(
                 OsuManiaBeatmapIO.ReadBeatmapFromFile(request.Path),
                 [],
-                OsuManiaBeatmapIO.ReadBackgroundPathFromFile(request.Path)));
+                OsuManiaBeatmapIO.ReadBackgroundPathFromFile(request.Path),
+                computeMd5(request.Path)));
 
         IReadOnlyList<string> charts = ChartArchive.ExtractCharts(request.Path, ".osu");
         var failures = new List<Exception>();
@@ -38,7 +40,8 @@ public sealed class OsuManiaChartImporter : IChartImporter
                 return ValueTask.FromResult(new ChartImportResult(
                     beatmap,
                     warnings,
-                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(chart)));
+                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(chart),
+                    computeMd5(chart)));
             }
             catch (InvalidDataException ex)
             {
@@ -60,7 +63,8 @@ public sealed class OsuManiaChartImporter : IChartImporter
                 [new ChartImportResult(
                     OsuManiaBeatmapIO.ReadBeatmapFromFile(request.Path),
                     [],
-                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(request.Path))]);
+                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(request.Path),
+                    computeMd5(request.Path))]);
         }
 
         IReadOnlyList<string> charts = ChartArchive.ExtractCharts(request.Path, ".osu");
@@ -76,7 +80,8 @@ public sealed class OsuManiaChartImporter : IChartImporter
                 results.Add(new ChartImportResult(
                     OsuManiaBeatmapIO.ReadBeatmapFromFile(chart),
                     [],
-                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(chart)));
+                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(chart),
+                    computeMd5(chart)));
             }
             catch (InvalidDataException ex)
             {
@@ -100,5 +105,11 @@ public sealed class OsuManiaChartImporter : IChartImporter
         }
 
         return ValueTask.FromResult<IReadOnlyList<ChartImportResult>>(results);
+    }
+
+    private static string computeMd5(string path)
+    {
+        using FileStream stream = File.OpenRead(path);
+        return Convert.ToHexString(MD5.HashData(stream)).ToLowerInvariant();
     }
 }

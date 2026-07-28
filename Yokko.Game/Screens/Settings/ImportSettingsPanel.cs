@@ -9,8 +9,10 @@ using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Game.Configuration;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
+using Yokko.Game.Resources;
 using Yokko.Game.Screens.Main;
 using Yokko.Import;
 
@@ -20,9 +22,15 @@ namespace Yokko.Game.Screens.Settings;
 /// Presents importer capabilities from the registry and owns the preferences
 /// that affect package selection, keysound preservation and warning display.
 /// </summary>
-internal partial class ImportSettingsPanel : CompositeDrawable
+internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransientUi
 {
     private readonly YokkoImportSettings settings;
+    private readonly YokkoResourceStorage resourceStorage;
+    private readonly YokkoConfigManager yokkoConfig;
+    private SpriteText locationPathText;
+    private SpriteText migrationStatusText;
+    private readonly ResourceDirectorySelectorOverlay directorySelector;
+    private bool migrationInProgress;
 
     internal int FormatFamilyCount => KnownChartImporters.Capabilities.Count;
     internal int FileTypeCount => KnownChartImporters.FileExtensions.Length;
@@ -30,9 +38,14 @@ internal partial class ImportSettingsPanel : CompositeDrawable
     internal bool PreferSscSimfiles => settings.PreferSscSimfiles.Value;
     internal bool ShowCompatibilityWarnings => settings.ShowCompatibilityWarnings.Value;
 
-    public ImportSettingsPanel(YokkoImportSettings settings)
+    public ImportSettingsPanel(
+        YokkoImportSettings settings,
+        YokkoResourceStorage resourceStorage,
+        YokkoConfigManager yokkoConfig)
     {
         this.settings = settings;
+        this.resourceStorage = resourceStorage;
+        this.yokkoConfig = yokkoConfig;
         RelativeSizeAxes = Axes.Both;
 
         InternalChildren = new Drawable[]
@@ -71,7 +84,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable
                 Colour = HomeControlColours.Navy,
             },
             createBehaviourCards(),
-            createLocationNote(),
+            createLocationCard(),
             new SettingsPanelFooter(),
             new HomeDotCross
             {
@@ -80,7 +93,14 @@ internal partial class ImportSettingsPanel : CompositeDrawable
             },
             createDecorationIcon(FontAwesome.Solid.Plus, 1172, 601, 16, HomeControlColours.Pink),
             createDecorationIcon(FontAwesome.Solid.Plus, 1200, 637, 12, HomeControlColours.Yellow),
+            directorySelector = new ResourceDirectorySelectorOverlay(
+                migrateTo,
+                migrateToDefault),
         };
+
+        locationPathText.Text = resourceStorage.RootPath;
+        migrationStatusText.Text = YokkoStrings.Get(
+            "settings.import.resource_change");
     }
 
     internal void SetPreferKeysounds(bool value) => settings.PreferKeysounds.Value = value;
@@ -263,10 +283,13 @@ internal partial class ImportSettingsPanel : CompositeDrawable
         },
     };
 
-    private static Drawable createLocationNote() => new Container
+    public bool DismissTransientUi() => directorySelector.Dismiss();
+
+    private Drawable createLocationCard() => new ClickableContainer
     {
         Position = new Vector2(378, 543),
         Size = new Vector2(840, 62),
+        Action = openDirectorySelector,
         Masking = true,
         CornerRadius = 7,
         BorderThickness = 1,
@@ -287,14 +310,12 @@ internal partial class ImportSettingsPanel : CompositeDrawable
                 Icon = FontAwesome.Solid.FolderOpen,
                 Colour = HomeControlColours.Pink,
             },
-            new FillFlowContainer
+            new Container
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = 58,
-                AutoSizeAxes = Axes.Both,
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 2),
+                Size = new Vector2(635, 48),
                 Children = new Drawable[]
                 {
                     new SpriteText
@@ -303,16 +324,76 @@ internal partial class ImportSettingsPanel : CompositeDrawable
                         Font = HomeTypography.Display(17),
                         Colour = HomeControlColours.Navy,
                     },
-                    new SpriteText
+                    locationPathText = new SpriteText
                     {
-                        Text = YokkoStrings.Get("settings.import.location_note"),
+                        Y = 24,
+                        Width = 635,
+                        Truncate = true,
                         Font = HomeTypography.Body(14),
                         Colour = SettingsTheme.MutedNavy,
                     },
                 },
             },
+            migrationStatusText = new SpriteText
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -24,
+                Width = 135,
+                Truncate = true,
+                Text = YokkoStrings.Get("settings.import.resource_change"),
+                Font = HomeTypography.Display(14),
+                Colour = HomeControlColours.Pink,
+            },
         },
     };
+
+    private void openDirectorySelector()
+    {
+        if (!migrationInProgress)
+            directorySelector.Open(resourceStorage.RootPath);
+    }
+
+    private void migrateTo(string path) => beginMigration(
+        resourceStorage.MigrateAsync(path));
+
+    private void migrateToDefault() => beginMigration(
+        resourceStorage.MigrateToDefaultAsync());
+
+    private void beginMigration(System.Threading.Tasks.Task<ResourceMigrationResult> migration)
+    {
+        if (migrationInProgress)
+            return;
+
+        migrationInProgress = true;
+        migrationStatusText.Text = YokkoStrings.Get(
+            "settings.import.resource_migrating");
+
+        _ = migration.ContinueWith(task => Schedule(() =>
+        {
+            migrationInProgress = false;
+
+            if (!task.IsCompletedSuccessfully)
+            {
+                migrationStatusText.Text = YokkoStrings.Get(
+                    "settings.import.resource_failed");
+                return;
+            }
+
+            ResourceMigrationResult result = task.Result;
+            locationPathText.Text = result.RootPath;
+            if (result.Success)
+                yokkoConfig.Save();
+
+            migrationStatusText.Text = result.Success
+                ? result.PreviousDataRetained
+                    ? YokkoStrings.Get(
+                        "settings.import.resource_migrated_retained")
+                    : YokkoStrings.Get(
+                        "settings.import.resource_migrated")
+                : YokkoStrings.Get("settings.import.resource_failed");
+        }));
+    }
 
     private static Drawable createDecorationIcon(IconUsage icon, float x, float y, float size, Color4 colour) => new SpriteIcon
     {

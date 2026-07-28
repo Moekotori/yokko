@@ -82,6 +82,18 @@ internal static class YokkoStrings
                 "已导入 {0} 张谱面",
                 "{0} 個の譜面をインポートしました"),
             ["import.chart.failed"] = new("Chart import failed", "谱面导入失败", "譜面のインポートに失敗"),
+            ["import.replay.importing"] = new(
+                "Importing osu! replay",
+                "正在导入 osu! 回放",
+                "osu! リプレイをインポート中"),
+            ["import.replay.success"] = new(
+                "Replay ready",
+                "回放已就绪",
+                "リプレイの準備完了"),
+            ["import.replay.failed"] = new(
+                "Replay import failed",
+                "回放导入失败",
+                "リプレイのインポートに失敗"),
 
             ["song_select.search"] = new("Search songs", "搜索歌曲", "楽曲を検索"),
             ["song_select.all_songs"] = new("ALL SONGS", "全部歌曲", "ALL"),
@@ -424,6 +436,41 @@ internal static class YokkoStrings
                 "Packages are safely extracted to Yokko's temporary cache; bundled audio keeps its relative path.",
                 "谱包会安全解压到 Yokko 临时缓存，包内音频保持相对路径。",
                 "パックは一時キャッシュへ安全に展開され、音声の相対パスも維持されます。"),
+            ["settings.import.resource_selector_title"] = new(
+                "Choose resource directory",
+                "选择资源文件夹",
+                "リソースフォルダーを選択"),
+            ["settings.import.resource_change"] = new("Change", "更改", "変更"),
+            ["settings.import.resource_select"] = new("Select", "选择", "選択"),
+            ["settings.import.resource_cancel"] = new("Cancel", "取消", "キャンセル"),
+            ["settings.import.resource_default"] = new(
+                "Use default",
+                "使用默认位置",
+                "既定の場所を使用"),
+            ["settings.import.resource_custom"] = new(
+                "Custom folder",
+                "自定义文件夹",
+                "カスタムフォルダー"),
+            ["settings.import.resource_default_active"] = new(
+                "Default folder",
+                "默认文件夹",
+                "既定のフォルダー"),
+            ["settings.import.resource_migrating"] = new(
+                "Migrating...",
+                "正在迁移…",
+                "移行中…"),
+            ["settings.import.resource_migrated"] = new(
+                "Migrated",
+                "迁移完成",
+                "移行完了"),
+            ["settings.import.resource_migrated_retained"] = new(
+                "Migrated · old files retained",
+                "已迁移 · 旧文件已保留",
+                "移行完了 · 旧ファイルを保持"),
+            ["settings.import.resource_failed"] = new(
+                "Migration failed",
+                "迁移失败",
+                "移行失敗"),
 
             ["settings.accessibility.title"] = new("Accessibility", "辅助功能", "アクセシビリティ"),
             ["settings.accessibility.subtitle"] = new(

@@ -3,8 +3,11 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Screens;
 using Yokko.Game.Input;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
+using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Main;
+using Yokko.Core.Beatmaps;
 
 namespace Yokko.Game
 {
@@ -48,6 +51,17 @@ namespace Yokko.Game
             base.LoadComplete();
 
             screenStack.Push(new MainScreen(RequestExit));
+        }
+
+        private protected override void OpenImportedReplay(
+            YokkoBeatmap beatmap,
+            GameplayReplay replay)
+        {
+            screenStack.Push(new GameplayScreen(
+                beatmap,
+                null,
+                null,
+                replay));
         }
 
         private void onShowPerformanceReadoutChanged(

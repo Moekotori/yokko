@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using Yokko.Import.Osu;
 
 namespace Yokko.Game.Gameplay;
 
@@ -38,5 +40,45 @@ internal sealed class GameplayReplay
                     nameof(inputs));
             }
         }
+    }
+
+    public static GameplayReplay FromOsuReplay(
+        OsuReplay replay,
+        int keyCount)
+    {
+        ArgumentNullException.ThrowIfNull(replay);
+        if (keyCount is < 1 or > 20)
+            throw new ArgumentOutOfRangeException(nameof(keyCount));
+
+        int supportedKeys = (1 << keyCount) - 1;
+        int previousKeys = 0;
+        var converted = new List<GameplayReplayInput>();
+
+        foreach (OsuReplayFrame frame in replay.Frames)
+        {
+            if ((frame.PressedKeys & ~supportedKeys) != 0)
+            {
+                throw new InvalidDataException(
+                    $"The replay uses keys outside this {keyCount}K beatmap.");
+            }
+
+            int changedKeys = previousKeys ^ frame.PressedKeys;
+
+            for (int lane = 0; lane < keyCount; lane++)
+            {
+                int laneMask = 1 << lane;
+                if ((changedKeys & laneMask) == 0)
+                    continue;
+
+                converted.Add(new GameplayReplayInput(
+                    lane,
+                    (frame.PressedKeys & laneMask) != 0,
+                    frame.TimeMilliseconds));
+            }
+
+            previousKeys = frame.PressedKeys;
+        }
+
+        return new GameplayReplay(converted);
     }
 }

@@ -90,7 +90,7 @@ public partial class GameplayScreen : Screen
     {
     }
 
-    private GameplayScreen(
+    internal GameplayScreen(
         YokkoBeatmap beatmap,
         IAudioEngine audioEngine,
         string skinPath,

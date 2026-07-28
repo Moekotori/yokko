@@ -51,6 +51,21 @@ internal sealed class ImportedChartLibrary
             return charts.ToArray();
     }
 
+    public ImportedChart FindBySourceHash(string sourceHash)
+    {
+        if (string.IsNullOrWhiteSpace(sourceHash))
+            return null;
+
+        lock (syncRoot)
+        {
+            return charts.FirstOrDefault(chart =>
+                string.Equals(
+                    chart.Result.SourceHash,
+                    sourceHash,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     public async Task<IReadOnlyList<ChartImportResult>> ImportAsync(
         ChartImportRequest request)
     {

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -21,6 +23,7 @@ using Yokko.Game.Resources;
 using Yokko.Game.Skinning.OsuMania;
 using Yokko.Game.Scoring;
 using Yokko.Import;
+using Yokko.Import.Osu;
 using Yokko.Resources;
 
 namespace Yokko.Game
@@ -186,6 +189,14 @@ namespace Yokko.Game
 
         private void onFileDropped(string path)
         {
+            if (Path.GetExtension(path).Equals(
+                    ".osr",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                importReplay(path);
+                return;
+            }
+
             if (KnownChartImporters.CanImport(path))
             {
                 importChart(path);
@@ -194,6 +205,59 @@ namespace Yokko.Game
 
             if (OsuManiaSkinLibrary.IsSupportedDrop(path))
                 importSkin(path);
+        }
+
+        private void importReplay(string path)
+        {
+            Scheduler.Add(() => importOverlay.ShowImporting(
+                YokkoStrings.Get("import.replay.importing"),
+                path));
+
+            _ = Task.Run(() =>
+                {
+                    OsuReplay osuReplay = OsuReplayIO.ReadFromFile(path);
+                    ImportedChart chart =
+                        importedChartLibrary.FindBySourceHash(
+                            osuReplay.BeatmapHash)
+                        ?? throw new InvalidDataException(
+                            "Import the matching osu!mania beatmap before its replay.");
+                    GameplayReplay replay = GameplayReplay.FromOsuReplay(
+                        osuReplay,
+                        (int)chart.Result.Beatmap.KeyMode);
+
+                    return (
+                        Beatmap: chart.Result.Beatmap,
+                        Replay: replay,
+                        PlayerName: osuReplay.PlayerName);
+                })
+                .ContinueWith(
+                    task => Scheduler.Add(() =>
+                    {
+                        if (!task.IsCompletedSuccessfully)
+                        {
+                            importOverlay.ShowFailure(
+                                YokkoStrings.Get("import.replay.failed"),
+                                task.Exception?.GetBaseException().Message
+                                ?? "Unknown replay import error.");
+                            return;
+                        }
+
+                        importOverlay.ShowSuccess(
+                            YokkoStrings.Get("import.replay.success"),
+                            string.IsNullOrWhiteSpace(task.Result.PlayerName)
+                                ? task.Result.Beatmap.Title
+                                : $"{task.Result.Beatmap.Title} · {task.Result.PlayerName}");
+                        OpenImportedReplay(
+                            task.Result.Beatmap,
+                            task.Result.Replay);
+                    }),
+                    TaskScheduler.Default);
+        }
+
+        private protected virtual void OpenImportedReplay(
+            Yokko.Core.Beatmaps.YokkoBeatmap beatmap,
+            GameplayReplay replay)
+        {
         }
 
         private void importChart(string path)
