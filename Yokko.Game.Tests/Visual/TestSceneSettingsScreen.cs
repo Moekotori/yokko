@@ -116,8 +116,6 @@ namespace Yokko.Game.Tests.Visual
         {
             GameplaySettingsPanel gameplay = null;
             double originalSpeed = OsuManiaScrollSpeed.Default;
-            bool originalHud = true;
-            bool originalHitError = true;
             bool originalLaneFeedback = true;
 
             AddStep("open Gameplay", () => settingsScreen.OpenPage(SettingsPageKind.Gameplay));
@@ -125,8 +123,6 @@ namespace Yokko.Game.Tests.Visual
             {
                 gameplay = (GameplaySettingsPanel)settingsScreen.ActivePanel;
                 originalSpeed = gameplay.CurrentScrollSpeed;
-                originalHud = gameplay.ShowGameplayHud;
-                originalHitError = gameplay.ShowHitError;
                 originalLaneFeedback = gameplay.ShowLanePressFeedback;
             });
             AddStep("open timing", () =>
@@ -139,11 +135,9 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.CurrentScrollSpeed == 26);
             AddStep("open feedback", () =>
                 gameplay.SelectSection(GameplaySettingsSection.Feedback));
-            AddStep("disable feedback", () =>
-                gameplay.SetFeedback(false, false, false));
+            AddStep("disable lane feedback", () =>
+                gameplay.SetLanePressFeedback(false));
             AddAssert("feedback disabled", () =>
-                !gameplay.ShowGameplayHud &&
-                !gameplay.ShowHitError &&
                 !gameplay.ShowLanePressFeedback);
             AddStep("open 7K bindings", () =>
             {
@@ -161,10 +155,7 @@ namespace Yokko.Game.Tests.Visual
             {
                 gameplay.ResetSelectedBindings();
                 gameplay.SetScrollSpeed(originalSpeed);
-                gameplay.SetFeedback(
-                    originalHud,
-                    originalHitError,
-                    originalLaneFeedback);
+                gameplay.SetLanePressFeedback(originalLaneFeedback);
             });
         }
 

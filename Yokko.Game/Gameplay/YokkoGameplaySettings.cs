@@ -45,10 +45,6 @@ public sealed class YokkoGameplaySettings
     public readonly Bindable<double> ScrollSpeed =
         new(OsuManiaScrollSpeed.Default);
 
-    public readonly BindableBool ShowGameplayHud = new(true);
-
-    public readonly BindableBool ShowHitError = new(true);
-
     public readonly BindableBool ShowLanePressFeedback = new(true);
 
     public IReadOnlyList<Bindable<Key>> GetBindableKeys(KeyMode keyMode) =>

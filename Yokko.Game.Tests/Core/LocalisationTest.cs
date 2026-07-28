@@ -57,6 +57,7 @@ public class LocalisationTest
         char[] missing = YokkoLocale.SUPPORTED
                                     .SelectMany(locale => YokkoStrings.ForLocale(locale).Values)
                                     .SelectMany(value => value)
+                                    .Concat(YokkoStrings.ExternalTextGlyphs)
                                     .Where(character => character >= 127 && !glyphs.Contains(character))
                                     .Distinct()
                                     .OrderBy(character => character)

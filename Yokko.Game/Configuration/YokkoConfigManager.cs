@@ -30,8 +30,6 @@ internal enum YokkoSetting
     GameplaySevenKeyLane6,
     GameplaySevenKeyLane7,
     ManiaScrollSpeed,
-    GameplayShowHud,
-    GameplayShowHitError,
     GameplayShowLanePressFeedback,
     DisplayUiScale,
     SkinSelectedId,
@@ -80,8 +78,6 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             OsuManiaScrollSpeed.Minimum,
             OsuManiaScrollSpeed.Maximum,
             OsuManiaScrollSpeed.SettingsPrecision);
-        SetDefault(YokkoSetting.GameplayShowHud, true);
-        SetDefault(YokkoSetting.GameplayShowHitError, true);
         SetDefault(YokkoSetting.GameplayShowLanePressFeedback, true);
         SetDefault(YokkoSetting.DisplayUiScale, YokkoUiScale.Comfortable);
         SetDefault(YokkoSetting.SkinSelectedId, string.Empty);
@@ -123,8 +119,6 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(YokkoSetting.GameplaySevenKeyLane6, settings.SevenKeyBindings[5]);
         BindWith(YokkoSetting.GameplaySevenKeyLane7, settings.SevenKeyBindings[6]);
         BindWith(YokkoSetting.ManiaScrollSpeed, settings.ScrollSpeed);
-        BindWith(YokkoSetting.GameplayShowHud, settings.ShowGameplayHud);
-        BindWith(YokkoSetting.GameplayShowHitError, settings.ShowHitError);
         BindWith(
             YokkoSetting.GameplayShowLanePressFeedback,
             settings.ShowLanePressFeedback);

@@ -54,10 +54,6 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal double CurrentScrollSpeed => settings.ScrollSpeed.Value;
 
-    internal bool ShowGameplayHud => settings.ShowGameplayHud.Value;
-
-    internal bool ShowHitError => settings.ShowHitError.Value;
-
     internal bool ShowLanePressFeedback =>
         settings.ShowLanePressFeedback.Value;
 
@@ -232,19 +228,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal Key GetBinding(KeyMode keyMode, int lane) =>
         settings.GetKeys(keyMode)[lane];
 
-    internal void SetFeedback(
-        bool? showHud = null,
-        bool? showHitError = null,
-        bool? showLanePressFeedback = null)
-    {
-        if (showHud.HasValue)
-            settings.ShowGameplayHud.Value = showHud.Value;
-        if (showHitError.HasValue)
-            settings.ShowHitError.Value = showHitError.Value;
-        if (showLanePressFeedback.HasValue)
-            settings.ShowLanePressFeedback.Value =
-                showLanePressFeedback.Value;
-    }
+    internal void SetLanePressFeedback(bool enabled) =>
+        settings.ShowLanePressFeedback.Value = enabled;
 
     internal bool HandleKeyDown(Key key)
     {
@@ -580,25 +565,11 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             new FillFlowContainer
             {
                 Position = new Vector2(20, 88),
-                Size = new Vector2(800, 158),
+                Size = new Vector2(252, 158),
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(14, 0),
                 Children = new Drawable[]
                 {
-                    new GameplayToggleCard(
-                        YokkoStrings.Get(
-                            "settings.gameplay.show_hud"),
-                        YokkoStrings.Get(
-                            "settings.gameplay.show_hud_note"),
-                        FontAwesome.Solid.Bars,
-                        settings.ShowGameplayHud),
-                    new GameplayToggleCard(
-                        YokkoStrings.Get(
-                            "settings.gameplay.show_hit_error"),
-                        YokkoStrings.Get(
-                            "settings.gameplay.show_hit_error_note"),
-                        FontAwesome.Solid.WaveSquare,
-                        settings.ShowHitError),
                     new GameplayToggleCard(
                         YokkoStrings.Get(
                             "settings.gameplay.show_lane_feedback"),

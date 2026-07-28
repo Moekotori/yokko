@@ -160,7 +160,10 @@ public partial class LaneColumn : CompositeDrawable
             : upsideDown ? Anchor.TopLeft : Anchor.BottomLeft,
         Size = new Vector2(
             laneWidth,
-            texture.DisplayWidth > 0 ? texture.DisplayHeight * laneWidth / texture.DisplayWidth : 1),
+            texture.DisplayHeight > 0
+                ? texture.DisplayHeight /
+                  OsuManiaSkinConfiguration.LegacyPositionScaleFactor
+                : 1),
         Scale = new Vector2(1, flip ? -1 : 1),
         Texture = texture,
     };

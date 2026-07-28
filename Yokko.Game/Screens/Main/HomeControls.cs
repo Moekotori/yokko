@@ -303,6 +303,7 @@ public partial class HomeSecondaryAction : ClickableContainer
     private readonly Box background;
     private readonly Box underline;
     private readonly SpriteIcon chevron;
+    private readonly Container iconTile;
 
     public HomeSecondaryAction(LocalisableString title, IconUsage icon, Action action, IconUsage? overlayIcon = null)
     {
@@ -380,7 +381,7 @@ public partial class HomeSecondaryAction : ClickableContainer
                     Colour = new Color4(0.035f, 0.085f, 0.54f, 0.28f),
                 },
             },
-            new Container
+            iconTile = new Container
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -516,6 +517,7 @@ public partial class HomeSecondaryAction : ClickableContainer
         background.FadeColour(new Color4(0.9f, 0.985f, 1f, 1f), 120, Easing.OutQuint);
         underline.ResizeWidthTo(252, 150, Easing.OutQuint);
         chevron.MoveToX(-11, 160, Easing.OutQuint);
+        iconTile.RotateTo(-7, 140, Easing.OutQuint);
         return true;
     }
 
@@ -524,6 +526,7 @@ public partial class HomeSecondaryAction : ClickableContainer
         background.FadeColour(Color4.White, 140, Easing.OutQuint);
         underline.ResizeWidthTo(0, 140, Easing.OutQuint);
         chevron.MoveToX(-16, 170, Easing.OutQuint);
+        iconTile.RotateTo(0, 240, Easing.OutQuint);
     }
 
     protected override bool OnMouseDown(MouseDownEvent e)
@@ -1136,6 +1139,102 @@ public partial class HomeRing : CompositeDrawable
 
         this.ScaleTo(1.14f, 1700, Easing.InOutSine)
             .Then().ScaleTo(1f, 1700, Easing.InOutSine)
+            .Loop();
+    }
+}
+
+/// <summary>
+/// 四点星光，周期性弹出收回。Position 视为中心。
+/// </summary>
+public partial class HomeTwinkle : CompositeDrawable
+{
+    private readonly double loopPause;
+
+    public HomeTwinkle(float size = 14, double loopPause = 1700)
+    {
+        this.loopPause = loopPause;
+
+        Size = new Vector2(size);
+        Origin = Anchor.Centre;
+        Scale = Vector2.Zero;
+
+        InternalChildren = new Drawable[]
+        {
+            new Box
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(size, size * 0.22f),
+                Colour = Color4.White,
+            },
+            new Box
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(size * 0.22f, size),
+                Colour = Color4.White,
+            },
+        };
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        this.ScaleTo(1f, 480, Easing.OutBack)
+            .Then().ScaleTo(0f, 380, Easing.InBack)
+            .Loop(loopPause);
+    }
+}
+
+/// <summary>
+/// 印刷标签风格的条形码与编号。
+/// </summary>
+public partial class HomeBarcode : CompositeDrawable
+{
+    private static readonly int[] barWidths = { 2, 1, 3, 1, 1, 2, 1, 4, 1, 2, 2, 1, 3, 1, 2, 1, 1, 3, 2, 1, 2, 2 };
+
+    public HomeBarcode(string label)
+    {
+        AutoSizeAxes = Axes.Both;
+
+        var bars = new FillFlowContainer
+        {
+            AutoSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+            Spacing = new Vector2(2, 0),
+        };
+
+        foreach (int width in barWidths)
+        {
+            bars.Add(new Box
+            {
+                Width = width,
+                Height = 24,
+                Colour = new Color4(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.72f),
+            });
+        }
+
+        InternalChildren = new Drawable[]
+        {
+            bars,
+            new SpriteText
+            {
+                Y = 29,
+                Text = label,
+                Font = HomeTypography.Display(10),
+                Spacing = new Vector2(1.6f, 0),
+                Colour = new Color4(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.5f),
+            },
+        };
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        this.FadeTo(0.7f, 2400, Easing.InOutSine)
+            .Then().FadeTo(1f, 2400, Easing.InOutSine)
             .Loop();
     }
 }

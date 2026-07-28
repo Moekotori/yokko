@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
@@ -14,11 +17,13 @@ using osuTK;
 using osuTK.Input;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using Yokko.Audio;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Timing;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Screens.Gameplay;
+using Yokko.Game.Skinning.OsuMania;
 
 namespace Yokko.Game.Tests.Visual
 {
@@ -54,16 +59,21 @@ namespace Yokko.Game.Tests.Visual
                            ReferenceEquals(box.Parent, current) &&
                            box.RelativeSizeAxes == Axes.Both) == true;
             });
-            AddAssert("playfield is centred at native scale", () =>
+            AddAssert("playfield is grounded and uniformly fills height", () =>
             {
+                Drawable current = screenStack.CurrentScreen as Drawable;
                 GameplayPlayfield playfield = (screenStack.CurrentScreen as Drawable)?
                                               .ChildrenOfType<GameplayPlayfield>()
                                               .SingleOrDefault();
-                return playfield != null &&
-                       playfield.Anchor == Anchor.Centre &&
-                       playfield.Origin == Anchor.Centre &&
+                return current != null &&
+                       playfield != null &&
+                       playfield.Anchor == Anchor.BottomCentre &&
+                       playfield.Origin == Anchor.BottomCentre &&
                        playfield.Position == Vector2.Zero &&
-                       playfield.Scale == Vector2.One;
+                       Math.Abs(playfield.Scale.X - playfield.Scale.Y) < 0.001 &&
+                       Math.Abs(
+                           playfield.Height * playfield.Scale.Y -
+                           current.DrawHeight) < 0.5;
             });
             AddAssert("surrounding gameplay text is absent", () =>
             {
@@ -73,6 +83,26 @@ namespace Yokko.Game.Tests.Visual
                        .Any() == false &&
                        current.ChildrenOfType<JudgementReadout>().Any() == false;
             });
+        }
+
+        [Test]
+        public void TestAudioFailureStopsGameplayAndShowsMessage()
+        {
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                AudioPath = "missing-audio.wav",
+            };
+
+            AddStep("open gameplay with failing audio", () =>
+                screenStack.Push(new GameplayScreen(
+                    beatmap,
+                    new FailingAudioEngine())));
+            AddUntilStep("gameplay is blocked", () =>
+                (screenStack.CurrentScreen as GameplayScreen)?.GameplayBlocked == true);
+            AddAssert("audio failure is visible", () =>
+                (screenStack.CurrentScreen as Drawable)?
+                .ChildrenOfType<GameplayFailureOverlay>()
+                .SingleOrDefault() != null);
         }
 
         [Test]
@@ -142,11 +172,14 @@ namespace Yokko.Game.Tests.Visual
                        firstNote != null &&
                        idleReceptor != null &&
                        Math.Abs(playfield.Width - 286) < 0.01 &&
-                       playfield.Scale == Vector2.One &&
+                       Math.Abs(playfield.Scale.X - playfield.Scale.Y) < 0.001 &&
                        Math.Abs(firstNote.Width - 70) < 0.01 &&
                        Math.Abs(firstNote.Height - 70 * 146f / 150f) < 0.01 &&
                        Math.Abs(idleReceptor.Width - 70) < 0.01 &&
-                       Math.Abs(idleReceptor.Height - 175) < 0.01;
+                       Math.Abs(
+                           idleReceptor.Height -
+                           187.5f /
+                           OsuManiaSkinConfiguration.LegacyPositionScaleFactor) < 0.01;
             });
             AddAssert("downscroll note bottom meets hit position", () =>
             {
@@ -375,6 +408,53 @@ StageHint: stage-hint
                 [YokkoTimingPoint.Default],
                 null,
                 hitObjects);
+        }
+
+        private sealed class FailingAudioEngine : IAudioEngine
+        {
+            public AudioEngineStatus Status { get; } = new(
+                AudioBackendKind.Fallback,
+                null,
+                0,
+                0,
+                0,
+                false,
+                false,
+                false,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0);
+
+            public double PlaybackTimeMilliseconds => 0;
+
+            public IReadOnlyList<AudioBackendCapabilities> Backends => [];
+
+            public ValueTask<IReadOnlyList<AudioDeviceInfo>> GetOutputDevicesAsync(
+                CancellationToken cancellationToken = default) =>
+                ValueTask.FromResult<IReadOnlyList<AudioDeviceInfo>>([]);
+
+            public ValueTask StartAsync(
+                AudioEngineStartRequest request,
+                CancellationToken cancellationToken = default) =>
+                ValueTask.FromException(new InvalidOperationException("Audio fixture failed."));
+
+            public ValueTask PauseAsync(CancellationToken cancellationToken = default) =>
+                ValueTask.CompletedTask;
+
+            public ValueTask SeekAsync(
+                double timeMilliseconds,
+                CancellationToken cancellationToken = default) =>
+                ValueTask.CompletedTask;
+
+            public ValueTask StopAsync(CancellationToken cancellationToken = default) =>
+                ValueTask.CompletedTask;
+
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
     }
 }

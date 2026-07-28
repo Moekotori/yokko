@@ -47,6 +47,9 @@ public partial class GameplayScreen : Screen
     private OsuManiaSkin maniaSkin;
     private double activeUserOffsetMilliseconds;
     private readonly InputAgeTracker inputAgeTracker = new();
+    private bool gameplayBlocked;
+
+    internal bool GameplayBlocked => gameplayBlocked;
 
     public GameplayScreen(
         YokkoBeatmap beatmap,
@@ -87,11 +90,12 @@ public partial class GameplayScreen : Screen
                     gameplaySettings.ScrollSpeed.Value),
                 gameplaySettings.ShowLanePressFeedback.Value)
             {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
+                Anchor = Anchor.BottomCentre,
+                Origin = Anchor.BottomCentre,
                 // Legacy osu!mania values already use the skin's 480px
-                // coordinate space. Keep the skin at native scale and let the
-                // shared display container handle window/DPI scaling.
+                // coordinate space. Scale the complete stage uniformly to the
+                // available height so it stays grounded without distorting
+                // skin geometry.
                 Scale = Vector2.One,
             },
         };
@@ -114,6 +118,11 @@ public partial class GameplayScreen : Screen
     protected override void Update()
     {
         base.Update();
+        updatePlayfieldLayout();
+
+        if (gameplayBlocked)
+            return;
+
         drainRawInput();
 
         double gameplayTime = currentGameplayTime;
@@ -122,6 +131,15 @@ public partial class GameplayScreen : Screen
             applyJudgement(missed);
 
         playfield.UpdateGameplayTime(gameplayTime, judgementState);
+    }
+
+    private void updatePlayfieldLayout()
+    {
+        if (DrawHeight <= 0 || playfield.Height <= 0)
+            return;
+
+        float scale = DrawHeight / playfield.Height;
+        playfield.Scale = new Vector2(scale);
     }
 
     protected override bool OnKeyDown(KeyDownEvent e)
@@ -206,15 +224,40 @@ public partial class GameplayScreen : Screen
                              .ConfigureAwait(true);
 
             if (!audioEngine.Status.IsRunning)
-            {
-                hasAudioClock = false;
-            }
+                failAudioStart("The audio engine returned without starting playback.");
         }
         catch (Exception ex)
         {
-            hasAudioClock = false;
-            Debug.WriteLine($"Audio unavailable: {ex.Message}");
+            failAudioStart("The audio engine could not start playback.", ex);
         }
+    }
+
+    private void failAudioStart(string reason, Exception exception = null)
+    {
+        if (exception == null)
+        {
+            Logger.Log(
+                reason,
+                LoggingTarget.Runtime,
+                LogLevel.Error);
+        }
+        else
+        {
+            Logger.Error(
+                exception,
+                reason,
+                LoggingTarget.Runtime);
+        }
+
+        Scheduler.Add(() =>
+        {
+            if (gameplayBlocked)
+                return;
+
+            hasAudioClock = false;
+            gameplayBlocked = true;
+            AddInternal(new GameplayFailureOverlay());
+        });
     }
 
     private double currentGameplayTime
@@ -381,9 +424,13 @@ public partial class GameplayScreen : Screen
         {
             maniaSkin = OsuManiaSkin.Load(resolvedPath, keyBindings.KeyCount, renderer);
         }
-        catch
+        catch (Exception ex)
         {
             // Invalid skins fail closed to Yokko's built-in playfield.
+            Logger.Error(
+                ex,
+                $"Failed to load osu!mania skin '{resolvedPath}'. Falling back to the built-in playfield.",
+                LoggingTarget.Runtime);
         }
     }
 }

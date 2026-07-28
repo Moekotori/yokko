@@ -141,6 +141,26 @@ public partial class MainScreen : Screen
                                 Colour = pink,
                                 Alpha = 0.85f,
                             },
+                            new SpriteText
+                            {
+                                Origin = Anchor.Centre,
+                                Position = new Vector2(22, 380),
+                                Rotation = -90,
+                                Text = "RHYTHM CHART STUDIO · VOL.01",
+                                Font = HomeTypography.Display(13),
+                                Spacing = new Vector2(3, 0),
+                                Colour = new Color4(navy.R, navy.G, navy.B, 0.32f),
+                            },
+                            new HomeBarcode("NO.004-KEY")
+                            {
+                                Position = new Vector2(612, 664),
+                            },
+                            new HomeDotField
+                            {
+                                Position = new Vector2(36, 545),
+                                Size = new Vector2(84, 52),
+                                Colour = new Color4(navy.R, navy.G, navy.B, 0.13f),
+                            },
                         },
                     },
                     leftStage = new Container
@@ -415,6 +435,19 @@ public partial class MainScreen : Screen
                 {
                     X = 632,
                     Y = 365,
+                },
+                new HomeTwinkle(14, 1700)
+                {
+                    Position = new Vector2(706, 300),
+                },
+                new HomeTwinkle(11, 2300)
+                {
+                    Position = new Vector2(1238, 252),
+                },
+                new HomeTwinkle(10, 2000)
+                {
+                    Position = new Vector2(1010, 118),
+                    Colour = yellow,
                 },
                 new HomeRing(26, 3.5f, yellow)
                 {

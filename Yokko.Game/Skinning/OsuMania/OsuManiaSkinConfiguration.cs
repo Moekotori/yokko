@@ -6,6 +6,8 @@ namespace Yokko.Game.Skinning.OsuMania;
 
 internal sealed class OsuManiaSkinConfiguration
 {
+    public const float LegacyPositionScaleFactor = 1.6f;
+
     public OsuManiaSkinConfiguration(
         int keys,
         float[] columnWidths,

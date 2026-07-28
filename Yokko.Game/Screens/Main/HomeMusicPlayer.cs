@@ -18,13 +18,13 @@ namespace Yokko.Game.Screens.Main;
 /// </summary>
 public partial class HomeMusicPlayer : CompositeDrawable
 {
-    private sealed record DemoTrack(string Title, string Artist, double Length);
+    private sealed record DemoTrack(string Title, string Artist, int Bpm, double Length);
 
     private static readonly DemoTrack[] tracks =
     {
-        new("Pulse Bloom", "Sana Kagano", 154_000),
-        new("Neon Drift", "Yokko Sound Team", 128_000),
-        new("Binary Bloom", "Ctrl+Beat", 141_000),
+        new("Pulse Bloom", "Sana Kagano", 174, 154_000),
+        new("Neon Drift", "Yokko Sound Team", 160, 128_000),
+        new("Binary Bloom", "Ctrl+Beat", 148, 141_000),
     };
 
     private int trackIndex;
@@ -34,9 +34,9 @@ public partial class HomeMusicPlayer : CompositeDrawable
 
     private SpriteText titleText;
     private SpriteText artistText;
+    private SpriteText bpmText;
+    private Circle pulseDot;
     private Box progressFill;
-    private SpriteIcon albumIcon;
-    private Container albumTile;
     private PlayerButton playPauseButton;
 
     public HomeMusicPlayer()
@@ -99,7 +99,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
                     },
                 },
             },
-            albumTile = new Container
+            new Container
             {
                 Position = new Vector2(12, 12),
                 Size = new Vector2(48),
@@ -114,7 +114,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
                         RelativeSizeAxes = Axes.Both,
                         Colour = HomeControlColours.Navy,
                     },
-                    albumIcon = new SpriteIcon
+                    new SpriteIcon
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
@@ -131,31 +131,56 @@ public partial class HomeMusicPlayer : CompositeDrawable
                 Font = HomeTypography.Display(19),
                 Colour = HomeControlColours.Navy,
             },
-            artistText = new SpriteText
+            new FillFlowContainer
             {
-                Position = new Vector2(74, 36),
-                Text = tracks[0].Artist,
-                Font = HomeTypography.Body(13),
-                Colour = new Color4(0.18f, 0.28f, 0.58f, 1f),
+                Position = new Vector2(74, 37),
+                AutoSizeAxes = Axes.Both,
+                Direction = FillDirection.Horizontal,
+                Spacing = new Vector2(7, 0),
+                Children = new Drawable[]
+                {
+                    pulseDot = new Circle
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        Size = new Vector2(5),
+                        Colour = HomeControlColours.Pink,
+                    },
+                    artistText = new SpriteText
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        Text = tracks[0].Artist,
+                        Font = HomeTypography.Body(13),
+                        Colour = new Color4(0.18f, 0.28f, 0.58f, 1f),
+                    },
+                    bpmText = new SpriteText
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        Text = $"· {tracks[0].Bpm} BPM",
+                        Font = HomeTypography.Body(13),
+                        Colour = new Color4(0.18f, 0.28f, 0.58f, 0.75f),
+                    },
+                },
             },
             new PlayerButton(FontAwesome.Solid.StepBackward, previousTrack)
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.Centre,
-                X = -92,
+                X = -114,
             },
             new PlayerButton(FontAwesome.Solid.StepForward, nextTrack)
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.Centre,
-                X = -16,
+                X = -30,
             },
             playPauseButton = new PlayerButton(FontAwesome.Solid.Pause, togglePlayPause, isPrimary: true)
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.Centre,
-                X = -52,
-                Size = new Vector2(38),
+                X = -72,
             },
         };
     }
@@ -181,14 +206,12 @@ public partial class HomeMusicPlayer : CompositeDrawable
             progressBeforePause = currentProgress;
             isPlaying = false;
             playPauseButton.Icon.Icon = FontAwesome.Solid.Play;
-            albumIcon.FadeColour(Color4.White, 200);
         }
         else
         {
             resumedAt = Time.Current;
             isPlaying = true;
             playPauseButton.Icon.Icon = FontAwesome.Solid.Pause;
-            albumIcon.FadeColour(HomeControlColours.Cyan, 200);
         }
     }
 
@@ -204,10 +227,10 @@ public partial class HomeMusicPlayer : CompositeDrawable
 
         titleText.Text = tracks[index].Title;
         artistText.Text = tracks[index].Artist;
+        bpmText.Text = $"· {tracks[index].Bpm} BPM";
         titleText.FadeInFromZero(260);
         artistText.FadeInFromZero(340);
-        albumTile.ScaleTo(0.86f, 90, Easing.Out)
-                 .Then().ScaleTo(1f, 220, Easing.OutBack);
+        bpmText.FadeInFromZero(340);
     }
 
     private void spawnNote()
@@ -240,12 +263,14 @@ public partial class HomeMusicPlayer : CompositeDrawable
 
         progressFill.Width = (float)Math.Min(1, currentProgress / length);
 
-        if (isPlaying)
-            albumIcon.Rotation = (float)(Time.Current / 1000 * 40 % 360);
+        // BPM 圆点平缓呼吸，暂停时定格。
+        pulseDot.Alpha = isPlaying
+            ? 0.55f + 0.45f * MathF.Abs(MathF.Sin((float)(Time.Current / 1200 * Math.PI)))
+            : 0.35f;
     }
 
     /// <summary>
-    /// 播放器专用小圆钮，主按钮为实心藏青底。
+    /// 播放器专用圆形按钮，主按钮为实心藏青底。
     /// </summary>
     private partial class PlayerButton : ClickableContainer
     {
@@ -258,7 +283,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
         {
             Action = action;
             IsPrimary = isPrimary;
-            Size = new Vector2(30);
+            Size = new Vector2(isPrimary ? 36 : 28);
 
             InternalChildren = new Drawable[]
             {
@@ -266,7 +291,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
                 {
                     RelativeSizeAxes = Axes.Both,
                     Masking = true,
-                    CornerRadius = 8,
+                    CornerRadius = Size.X / 2,
                     BorderThickness = isPrimary ? 0 : 1.5f,
                     BorderColour = new Color4(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.45f),
                     Children = new Drawable[]
@@ -280,7 +305,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            Size = new Vector2(isPrimary ? 15 : 13),
+                            Size = new Vector2(isPrimary ? 14 : 12),
                             Icon = icon,
                             Colour = isPrimary ? Color4.White : HomeControlColours.Navy,
                         },

@@ -36,8 +36,6 @@ public sealed class GameplaySettingsTest
         Assert.That(
             settings.ScrollSpeed.Value,
             Is.EqualTo(OsuManiaScrollSpeed.Default));
-        Assert.That(settings.ShowGameplayHud.Value, Is.True);
-        Assert.That(settings.ShowHitError.Value, Is.True);
         Assert.That(settings.ShowLanePressFeedback.Value, Is.True);
     }
 
@@ -115,8 +113,6 @@ public sealed class GameplaySettingsTest
                 firstSettings.SetBinding(KeyMode.FourKey, 0, Key.A);
                 firstSettings.SetBinding(KeyMode.SevenKey, 3, Key.V);
                 firstSettings.SetScrollSpeed(26.4);
-                firstSettings.ShowGameplayHud.Value = false;
-                firstSettings.ShowHitError.Value = false;
                 firstSettings.ShowLanePressFeedback.Value = false;
                 Assert.That(firstConfig.Save(), Is.True);
             }
@@ -135,8 +131,6 @@ public sealed class GameplaySettingsTest
                 Assert.That(
                     restoredSettings.ScrollSpeed.Value,
                     Is.EqualTo(26.4).Within(0.001));
-                Assert.That(restoredSettings.ShowGameplayHud.Value, Is.False);
-                Assert.That(restoredSettings.ShowHitError.Value, Is.False);
                 Assert.That(
                     restoredSettings.ShowLanePressFeedback.Value,
                     Is.False);

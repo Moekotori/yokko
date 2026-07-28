@@ -48,6 +48,10 @@ internal static class YokkoLocalisation
 
 internal static class YokkoStrings
 {
+    // System-provided text is not present in the localisation table, but still
+    // needs glyphs in Yokko's deliberately subsetted bitmap font.
+    internal const string ExternalTextGlyphs = "扬声器耳机头戴式数字音频线路输出蓝牙";
+
     private sealed record Translation(string English, string Chinese, string Japanese);
 
     private static readonly IReadOnlyDictionary<string, Translation> translations =
@@ -64,6 +68,18 @@ internal static class YokkoStrings
             ["main.lets_play"] = new("Let's play!", "开始吧！", "遊ぼう！"),
             ["main.audio_unavailable"] = new("Audio unavailable", "音频不可用", "オーディオ利用不可"),
             ["main.hold_esc_exit"] = new("Hold Esc 5s to exit", "长按 Esc 5 秒退出", "Esc を5秒長押しで終了"),
+            ["gameplay.audio_failed_title"] = new(
+                "Audio could not start",
+                "音频启动失败",
+                "オーディオを開始できません"),
+            ["gameplay.audio_failed_message"] = new(
+                "Gameplay has been stopped to prevent a silent, unsynchronised run.",
+                "已停止游玩，避免在无声且不同步的状态下继续。",
+                "無音で同期しないプレイを防ぐため、ゲームを停止しました。"),
+            ["gameplay.audio_failed_return"] = new(
+                "Press Esc to return",
+                "按 Esc 返回",
+                "Esc で戻る"),
 
             ["settings.title"] = new("Settings", "设置", "設定"),
             ["settings.back"] = new("Back", "返回", "戻る"),
@@ -294,19 +310,9 @@ internal static class YokkoStrings
                 "游玩界面反馈",
                 "プレイ画面のフィードバック"),
             ["settings.gameplay.feedback_note"] = new(
-                "Keep the information you need and remove everything you do not.",
-                "保留需要的信息，关闭不需要的干扰。",
-                "必要な情報だけを表示できます。"),
-            ["settings.gameplay.show_hud"] = new("Gameplay HUD", "游玩 HUD", "ゲーム HUD"),
-            ["settings.gameplay.show_hud_note"] = new(
-                "Time · combo · accuracy",
-                "时间、连击与准确率",
-                "時間、コンボ、精度"),
-            ["settings.gameplay.show_hit_error"] = new("Hit error", "判定误差", "判定誤差"),
-            ["settings.gameplay.show_hit_error_note"] = new(
-                "Early / late milliseconds",
-                "显示提前 / 延后毫秒数",
-                "早い / 遅いを表示"),
+                "Control whether key presses light the lanes.",
+                "控制按键时是否点亮对应轨道。",
+                "キー入力時にレーンを点灯するか設定します。"),
             ["settings.gameplay.show_lane_feedback"] = new("Lane lighting", "轨道亮灯", "レーン点灯"),
             ["settings.gameplay.show_lane_feedback_note"] = new(
                 "Light lanes on key press",

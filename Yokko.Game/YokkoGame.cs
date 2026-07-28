@@ -2,6 +2,7 @@ using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Screens;
 using Yokko.Game.Input;
+using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game
@@ -18,7 +19,20 @@ namespace Yokko.Game
         [BackgroundDependencyLoader]
         private void load()
         {
-            Child = screenStack = new ScreenStack { RelativeSizeAxes = Axes.Both };
+            Content.Children = new Drawable[]
+            {
+                screenStack = new ScreenStack
+                {
+                    RelativeSizeAxes = Axes.Both,
+                },
+                new YokkoPerformanceReadout
+                {
+                    Anchor = Anchor.BottomRight,
+                    Origin = Anchor.BottomRight,
+                    Position = new osuTK.Vector2(-18, -14),
+                    Depth = float.MinValue,
+                },
+            };
         }
 
         protected override void LoadComplete()
