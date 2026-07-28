@@ -43,6 +43,12 @@ public partial class EditorScreen : Screen
     private SpriteText statusText;
     private CancellationTokenSource waveformLoadCancellation;
     private readonly Dictionary<string, EditorAudioWaveform> waveformCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly bool presentImportOnLoad;
+
+    public EditorScreen(bool presentImportOnLoad = false)
+    {
+        this.presentImportOnLoad = presentImportOnLoad;
+    }
 
     [Resolved]
     private GameHost host { get; set; }
@@ -97,6 +103,14 @@ public partial class EditorScreen : Screen
         };
 
         rebuildWorkspace();
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        if (presentImportOnLoad)
+            Schedule(importOsu);
     }
 
     private void loadChart(KeyMode keyMode)
@@ -189,7 +203,7 @@ public partial class EditorScreen : Screen
             return;
 
         refreshEditorState();
-        setStatus($"Timeline {formatSeconds(viewport.StartMilliseconds(editableBeatmap.StepMilliseconds))}-{formatSeconds(viewport.EndMilliseconds(editableBeatmap.StepMilliseconds))}");
+        setStatus($"Timeline {formatSeconds(editableBeatmap.TimeAtRow(viewport.StartRow))}-{formatSeconds(editableBeatmap.TimeAtRow(viewport.EndRowExclusive))}");
     }
 
     private void zoomTimeline(int visibleRowDelta)
@@ -315,7 +329,7 @@ public partial class EditorScreen : Screen
 
     private void ensurePreviewVisible()
     {
-        int row = Math.Max(0, (int)Math.Floor(previewClock.CurrentTimeMilliseconds / editableBeatmap.StepMilliseconds));
+        int row = editableBeatmap.ClosestRowAt(previewClock.CurrentTimeMilliseconds);
 
         if (row >= viewport.StartRow + 2 && row < viewport.EndRowExclusive - 2)
             return;
@@ -329,7 +343,10 @@ public partial class EditorScreen : Screen
 
     private double getPreviewDurationMilliseconds()
     {
-        double chartDuration = Math.Max(editableBeatmap.Rows * editableBeatmap.StepMilliseconds, getLastNoteEndMilliseconds() + editableBeatmap.StepMilliseconds * 4);
+        double lastNoteEnd = getLastNoteEndMilliseconds();
+        double chartDuration = Math.Max(
+            editableBeatmap.TimeAtRow(editableBeatmap.Rows),
+            lastNoteEnd + editableBeatmap.TimingMap.StepAtTime(lastNoteEnd) * 4);
         return Math.Max(chartDuration, audioWaveform.DurationMilliseconds);
     }
 

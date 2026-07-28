@@ -17,6 +17,7 @@ namespace Yokko.Game
         protected override Container<Drawable> Content { get; }
 
         private readonly DrawSizePreservingFillContainer scalingContainer;
+        [Cached]
         private readonly YokkoDisplaySettings displaySettings = new();
 
         protected YokkoGameBase()
@@ -30,10 +31,9 @@ namespace Yokko.Game
         }
 
         [BackgroundDependencyLoader]
-        private void load(DependencyContainer dependencies)
+        private void load()
         {
             Resources.AddStore(new DllResourceStore(typeof(YokkoResources).Assembly));
-            dependencies.Cache(displaySettings);
             displaySettings.UiScale.BindValueChanged(_ => scalingContainer.TargetDrawSize = displaySettings.TargetDrawSize, true);
         }
     }

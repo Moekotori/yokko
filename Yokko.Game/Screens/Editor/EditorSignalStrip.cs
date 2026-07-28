@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -74,7 +75,7 @@ public partial class EditorSignalStrip : CompositeDrawable
                 Origin = Anchor.TopLeft,
                 X = 12,
                 Y = 8,
-                Text = $"{formatSeconds(viewport.StartMilliseconds(beatmap.StepMilliseconds))} - {formatSeconds(viewport.EndMilliseconds(beatmap.StepMilliseconds))}",
+                Text = $"{formatSeconds(beatmap.TimeAtRow(viewport.StartRow))} - {formatSeconds(beatmap.TimeAtRow(viewport.EndRowExclusive))}",
                 Font = FontUsage.Default.With(size: 14),
                 Colour = YokkoPalette.TextMuted,
             },
@@ -93,8 +94,8 @@ public partial class EditorSignalStrip : CompositeDrawable
 
     public void SetPlayheadTime(double timeMilliseconds)
     {
-        double startMilliseconds = viewport.StartMilliseconds(beatmap.StepMilliseconds);
-        double endMilliseconds = viewport.EndMilliseconds(beatmap.StepMilliseconds);
+        double startMilliseconds = beatmap.TimeAtRow(viewport.StartRow);
+        double endMilliseconds = beatmap.TimeAtRow(viewport.EndRowExclusive);
 
         if (timeMilliseconds < startMilliseconds || timeMilliseconds > endMilliseconds)
         {
@@ -109,26 +110,26 @@ public partial class EditorSignalStrip : CompositeDrawable
 
     private Drawable[] createBeatMarkers()
     {
-        int firstRow = viewport.StartRow + (4 - viewport.StartRow % 4) % 4;
-        int markerCount = Math.Max(0, (viewport.EndRowExclusive - firstRow + 3) / 4);
-        var markers = new Drawable[markerCount];
+        var markers = new List<Drawable>();
 
-        for (int i = 0; i < markerCount; i++)
+        for (int row = viewport.StartRow; row < viewport.EndRowExclusive; row++)
         {
-            int row = firstRow + i * 4;
-            float x = rowToX(row);
-            bool strong = row % 16 == 0;
+            if (!beatmap.TimingMap.IsBeatRow(row))
+                continue;
 
-            markers[i] = new Box
+            float x = rowToX(row);
+            bool strong = beatmap.TimingMap.IsMeasureRow(row);
+
+            markers.Add(new Box
             {
                 X = x,
                 Width = strong ? 2 : 1,
                 RelativeSizeAxes = Axes.Y,
                 Colour = new Color4(1f, 1f, 1f, strong ? 0.16f : 0.08f),
-            };
+            });
         }
 
-        return markers;
+        return markers.ToArray();
     }
 
     private Drawable[] createBars()
@@ -140,10 +141,10 @@ public partial class EditorSignalStrip : CompositeDrawable
         float stepWidth = usableWidth / barCount;
         float barWidth = Math.Max(2, stepWidth - 2);
         float baseY = Height - 12;
-        double startMilliseconds = viewport.StartMilliseconds(beatmap.StepMilliseconds);
-        double endMilliseconds = viewport.EndMilliseconds(beatmap.StepMilliseconds);
+        double startMilliseconds = beatmap.TimeAtRow(viewport.StartRow);
+        double endMilliseconds = beatmap.TimeAtRow(viewport.EndRowExclusive);
         double windowMilliseconds = Math.Max(1, endMilliseconds - startMilliseconds);
-        double fallbackDuration = Math.Max(beatmap.Rows * beatmap.StepMilliseconds, endMilliseconds);
+        double fallbackDuration = Math.Max(beatmap.TimeAtRow(beatmap.Rows), endMilliseconds);
 
         for (int i = 0; i < barCount; i++)
         {
@@ -194,8 +195,8 @@ public partial class EditorSignalStrip : CompositeDrawable
     private float[] createNotePeaks()
     {
         var peaks = new float[barCount];
-        double startMilliseconds = viewport.StartMilliseconds(beatmap.StepMilliseconds);
-        double endMilliseconds = viewport.EndMilliseconds(beatmap.StepMilliseconds);
+        double startMilliseconds = beatmap.TimeAtRow(viewport.StartRow);
+        double endMilliseconds = beatmap.TimeAtRow(viewport.EndRowExclusive);
         double windowMilliseconds = Math.Max(1, endMilliseconds - startMilliseconds);
 
         foreach (EditableNote note in beatmap.Notes)
@@ -246,8 +247,8 @@ public partial class EditorSignalStrip : CompositeDrawable
     {
         Vector2 localPosition = ToLocalSpace(screenSpacePosition);
         float progress = Math.Clamp((localPosition.X - 12) / Math.Max(1, Width - 24), 0, 1);
-        double startMilliseconds = viewport.StartMilliseconds(beatmap.StepMilliseconds);
-        double endMilliseconds = viewport.EndMilliseconds(beatmap.StepMilliseconds);
+        double startMilliseconds = beatmap.TimeAtRow(viewport.StartRow);
+        double endMilliseconds = beatmap.TimeAtRow(viewport.EndRowExclusive);
 
         seekPreview(startMilliseconds + progress * (endMilliseconds - startMilliseconds));
     }

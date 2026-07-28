@@ -1,4 +1,5 @@
 using Yokko.Core.Gameplay;
+using Yokko.Core.Timing;
 
 namespace Yokko.Core.Beatmaps;
 
@@ -60,6 +61,7 @@ public static class DemoBeatmaps
             difficultyName,
             keyMode,
             ChartSourceFormat.Yokko,
+            [YokkoTimingPoint.Default],
             null,
             hitObjects);
     }

@@ -1,5 +1,6 @@
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Timing;
 
 namespace Yokko.Core.Editing;
 
@@ -7,9 +8,11 @@ public sealed class EditableBeatmap
 {
     private readonly List<EditableNote> notes = [];
 
-    private EditableBeatmap(KeyMode keyMode, int rows = 32)
+    private EditableBeatmap(KeyMode keyMode, IReadOnlyList<YokkoTimingPoint> timingPoints, int rows = 32)
     {
         KeyMode = keyMode;
+        TimingPoints = timingPoints;
+        TimingMap = new BeatTimingMap(timingPoints, BeatDivisor);
         Rows = rows;
     }
 
@@ -31,11 +34,15 @@ public sealed class EditableBeatmap
 
     public int Rows { get; private set; }
 
-    public double StepMilliseconds { get; } = 125;
+    public int BeatDivisor { get; } = 4;
+
+    public IReadOnlyList<YokkoTimingPoint> TimingPoints { get; }
+
+    public BeatTimingMap TimingMap { get; }
 
     public IReadOnlyList<EditableNote> Notes => notes;
 
-    public static EditableBeatmap Create(KeyMode keyMode) => new(keyMode)
+    public static EditableBeatmap Create(KeyMode keyMode) => new(keyMode, [YokkoTimingPoint.Default])
     {
         DifficultyName = keyMode switch
         {
@@ -47,11 +54,15 @@ public sealed class EditableBeatmap
 
     public static EditableBeatmap FromBeatmap(YokkoBeatmap beatmap, string? sourcePath = null)
     {
+        IReadOnlyList<YokkoTimingPoint> timingPoints = beatmap.TimingPoints.Count == 0
+            ? [YokkoTimingPoint.Default]
+            : beatmap.TimingPoints.ToArray();
+        var timingMap = new BeatTimingMap(timingPoints);
         int rows = Math.Max(32, beatmap.HitObjects.Count == 0
             ? 32
-            : (int)Math.Ceiling(beatmap.HitObjects.Max(hitObject => hitObject.EndTimeMilliseconds ?? hitObject.StartTimeMilliseconds) / 125d) + 4);
+            : timingMap.ClosestRowAt(beatmap.HitObjects.Max(hitObject => hitObject.EndTimeMilliseconds ?? hitObject.StartTimeMilliseconds)) + 4);
 
-        var editable = new EditableBeatmap(beatmap.KeyMode, rows)
+        var editable = new EditableBeatmap(beatmap.KeyMode, timingPoints, rows)
         {
             Title = beatmap.Title,
             Artist = beatmap.Artist,
@@ -68,7 +79,7 @@ public sealed class EditableBeatmap
 
             editable.notes.Add(new EditableNote(
                 hitObject.Lane,
-                editable.timeToRow(hitObject.StartTimeMilliseconds),
+                editable.ClosestRowAt(hitObject.StartTimeMilliseconds),
                 hitObject.StartTimeMilliseconds,
                 hitObject.EndTimeMilliseconds,
                 hitObject.Kind));
@@ -112,9 +123,13 @@ public sealed class EditableBeatmap
         }
 
         EnsureRows(row + 1);
-        notes.Add(new EditableNote(lane, row, rowToTime(row), null, HitObjectKind.Tap));
+        notes.Add(new EditableNote(lane, row, TimeAtRow(row), null, HitObjectKind.Tap));
         sortNotes();
     }
+
+    public double TimeAtRow(int row) => TimingMap.TimeAtRow(row);
+
+    public int ClosestRowAt(double timeMilliseconds) => TimingMap.ClosestRowAt(timeMilliseconds);
 
     public YokkoBeatmap ToBeatmap()
         => new(
@@ -124,6 +139,7 @@ public sealed class EditableBeatmap
             DifficultyName,
             KeyMode,
             ChartSourceFormat.Yokko,
+            TimingPoints,
             AudioPath,
             notes.Select(note => new YokkoHitObject(
                     note.Lane,
@@ -131,10 +147,6 @@ public sealed class EditableBeatmap
                     note.EndTimeMilliseconds,
                     note.Kind))
                  .ToArray());
-
-    private double rowToTime(int row) => row * StepMilliseconds;
-
-    private int timeToRow(double timeMilliseconds) => Math.Max(0, (int)Math.Round(timeMilliseconds / StepMilliseconds));
 
     private void sortNotes()
     {

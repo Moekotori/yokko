@@ -3,6 +3,7 @@ using System.Text;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Editing;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Timing;
 
 namespace Yokko.Import.Osu;
 
@@ -40,6 +41,7 @@ public static class OsuManiaBeatmapIO
         };
 
         List<YokkoHitObject> hitObjects = parseHitObjects(sections.GetValueOrDefault("HitObjects") ?? [], keyCount);
+        List<YokkoTimingPoint> timingPoints = parseTimingPoints(sections.GetValueOrDefault("TimingPoints") ?? []);
 
         return new YokkoBeatmap(
             metadata.GetValueOrDefault("Title", "Untitled"),
@@ -48,6 +50,7 @@ public static class OsuManiaBeatmapIO
             metadata.GetValueOrDefault("Version", $"{keyCount}K"),
             keyMode,
             ChartSourceFormat.OsuMania,
+            timingPoints.Count == 0 ? [YokkoTimingPoint.Default] : timingPoints,
             general.GetValueOrDefault("AudioFilename"),
             hitObjects);
     }
@@ -115,7 +118,14 @@ public static class OsuManiaBeatmapIO
         builder.AppendLine("//Storyboard Sound Samples");
         builder.AppendLine();
         builder.AppendLine("[TimingPoints]");
-        builder.AppendLine("0,500,4,2,0,100,1,0");
+
+        IReadOnlyList<YokkoTimingPoint> timingPoints = beatmap.TimingPoints.Count == 0
+            ? [YokkoTimingPoint.Default]
+            : beatmap.TimingPoints;
+
+        foreach (YokkoTimingPoint timingPoint in timingPoints.OrderBy(static point => point.TimeMilliseconds))
+            builder.AppendLine(formatTimingPoint(timingPoint));
+
         builder.AppendLine();
         builder.AppendLine("[HitObjects]");
 
@@ -224,6 +234,49 @@ public static class OsuManiaBeatmapIO
         return hitObjects;
     }
 
+    private static List<YokkoTimingPoint> parseTimingPoints(IReadOnlyList<string> lines)
+    {
+        var timingPoints = new List<YokkoTimingPoint>();
+
+        foreach (string line in lines)
+        {
+            if (line.StartsWith("//", StringComparison.Ordinal))
+                continue;
+
+            string[] parts = line.Split(',');
+            if (parts.Length < 2)
+                continue;
+
+            if (!double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double time)
+                || !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double beatLength)
+                || Math.Abs(beatLength) < double.Epsilon)
+                continue;
+
+            timingPoints.Add(new YokkoTimingPoint(
+                time,
+                beatLength,
+                Math.Max(1, parseInt(parts.ElementAtOrDefault(2), 4)),
+                parseInt(parts.ElementAtOrDefault(3), 2),
+                parseInt(parts.ElementAtOrDefault(4), 0),
+                Math.Clamp(parseInt(parts.ElementAtOrDefault(5), 100), 0, 100),
+                parseInt(parts.ElementAtOrDefault(6), 1) != 0,
+                parseInt(parts.ElementAtOrDefault(7), 0)));
+        }
+
+        return timingPoints;
+    }
+
+    private static string formatTimingPoint(YokkoTimingPoint timingPoint)
+        => string.Join(",",
+            formatDouble(timingPoint.TimeMilliseconds),
+            formatDouble(timingPoint.BeatLengthMilliseconds),
+            timingPoint.Meter.ToString(CultureInfo.InvariantCulture),
+            timingPoint.SampleSet.ToString(CultureInfo.InvariantCulture),
+            timingPoint.SampleIndex.ToString(CultureInfo.InvariantCulture),
+            timingPoint.Volume.ToString(CultureInfo.InvariantCulture),
+            timingPoint.Uninherited ? "1" : "0",
+            timingPoint.Effects.ToString(CultureInfo.InvariantCulture));
+
     private static string formatHitObject(YokkoHitObject hitObject, int keyCount)
     {
         int x = laneToX(hitObject.Lane, keyCount);
@@ -243,6 +296,9 @@ public static class OsuManiaBeatmapIO
 
     private static int roundMilliseconds(double value)
         => (int)Math.Round(value, MidpointRounding.AwayFromZero);
+
+    private static string formatDouble(double value)
+        => value.ToString("0.###############", CultureInfo.InvariantCulture);
 
     private static int parseInt(string? value, int fallback)
         => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) ? parsed : fallback;

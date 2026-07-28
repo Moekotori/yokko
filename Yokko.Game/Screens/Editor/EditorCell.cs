@@ -30,17 +30,13 @@ public partial class EditorCell : ClickableContainer
             fill = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = row % 4 == 0
-                    ? new Color4(0.07f, 0.086f, 0.112f, 1f)
-                    : new Color4(0.045f, 0.056f, 0.074f, 1f),
+                Colour = new Color4(0.045f, 0.056f, 0.074f, 1f),
             },
             rowLine = new Box
             {
                 RelativeSizeAxes = Axes.X,
                 Height = 1,
-                Colour = row % 4 == 0
-                    ? new Color4(1f, 1f, 1f, 0.14f)
-                    : new Color4(1f, 1f, 1f, 0.05f),
+                Colour = new Color4(1f, 1f, 1f, 0.05f),
             },
             new Box
             {
@@ -58,16 +54,18 @@ public partial class EditorCell : ClickableContainer
         };
     }
 
-    public void Bind(int lane, int row)
+    public void Bind(int lane, int row, bool isBeat, bool isMeasure)
     {
         this.lane = lane;
         this.row = row;
 
-        fill.Colour = row % 4 == 0
+        fill.Colour = isBeat
             ? new Color4(0.07f, 0.086f, 0.112f, 1f)
             : new Color4(0.045f, 0.056f, 0.074f, 1f);
-        rowLine.Colour = row % 4 == 0
-            ? new Color4(1f, 1f, 1f, 0.14f)
+        rowLine.Colour = isMeasure
+            ? new Color4(1f, 1f, 1f, 0.2f)
+            : isBeat
+                ? new Color4(1f, 1f, 1f, 0.14f)
             : new Color4(1f, 1f, 1f, 0.05f);
     }
 

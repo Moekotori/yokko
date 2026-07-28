@@ -5,4 +5,5 @@ public sealed record AudioBackendCapabilities(
     bool SupportsExclusiveMode,
     bool SupportsLowLatencyBuffers,
     bool RequiresNativeDriver,
-    string Description);
+    string Description,
+    bool IsAvailable = true);

@@ -93,7 +93,7 @@ public partial class EditorTimelineControls : CompositeDrawable
 
     public void Refresh()
     {
-        windowText.Text = $"Rows {viewport.StartRow + 1}-{viewport.EndRowExclusive} / {beatmap.Rows}   {formatSeconds(viewport.StartMilliseconds(beatmap.StepMilliseconds))}-{formatSeconds(viewport.EndMilliseconds(beatmap.StepMilliseconds))}   zoom {viewport.VisibleRows}";
+        windowText.Text = $"Rows {viewport.StartRow + 1}-{viewport.EndRowExclusive} / {beatmap.Rows}   {formatSeconds(beatmap.TimeAtRow(viewport.StartRow))}-{formatSeconds(beatmap.TimeAtRow(viewport.EndRowExclusive))}   1/{beatmap.BeatDivisor}   zoom {viewport.VisibleRows}";
     }
 
     public void RefreshPlayback(double timeMilliseconds, double durationMilliseconds, bool isPlaying)

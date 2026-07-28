@@ -81,13 +81,14 @@ public partial class EditorInspector : CompositeDrawable
     {
         double lengthMilliseconds = beatmap.Notes.Count == 0
             ? 0
-            : beatmap.Notes[^1].StartTimeMilliseconds + beatmap.StepMilliseconds;
+            : beatmap.Notes[^1].StartTimeMilliseconds + beatmap.TimingMap.StepAtTime(beatmap.Notes[^1].StartTimeMilliseconds);
 
         modeText.Text = $"Mode {(int)beatmap.KeyMode}K";
         noteCountText.Text = $"Notes {beatmap.Notes.Count}";
         lengthText.Text = $"Length {lengthMilliseconds / 1000:0.00}s";
         windowText.Text = $"Window {viewport.StartRow + 1}-{viewport.EndRowExclusive}";
-        densityText.Text = $"Grid {beatmap.Rows} rows @ {beatmap.StepMilliseconds:0}ms";
+        double bpm = beatmap.TimingMap.TimingPointAt(beatmap.TimeAtRow(viewport.StartRow)).BeatsPerMinute;
+        densityText.Text = $"Grid {beatmap.Rows} rows • 1/{beatmap.BeatDivisor} • {bpm:0.##} BPM";
         audioText.Text = beatmap.AudioPath == null
             ? "Audio not linked"
             : $"Audio {Path.GetFileName(beatmap.AudioPath)}";

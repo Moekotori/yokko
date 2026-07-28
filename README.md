@@ -25,7 +25,9 @@ Things are expected to change quickly while the core loop is still being shaped.
 - Create new 4K or 7K draft charts.
 - Toggle notes on a timeline grid.
 - Import and export osu!mania `.osu` files.
+- Preserve osu! timing points, including BPM changes and inherited timing data.
 - Preview chart structure with waveform support where audio can be loaded.
+- Judge hold-note heads and releases as separate gameplay events.
 - Playtest charts using keyboard mappings:
   - 4K: `D F J K`
   - 7K: `S D F Space J K L`
@@ -63,6 +65,8 @@ input timestamp - audio playback time - user/device offset
 ```
 
 Frame time is only for presentation. A dropped frame may look bad, but it should not shift judgement.
+
+Editor rows are derived from the active uninherited timing point and beat divisor. They are not fixed-duration rows, so BPM changes remain aligned to the song grid.
 
 ## Audio Direction
 

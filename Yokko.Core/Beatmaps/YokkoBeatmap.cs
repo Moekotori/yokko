@@ -1,4 +1,5 @@
 using Yokko.Core.Gameplay;
+using Yokko.Core.Timing;
 
 namespace Yokko.Core.Beatmaps;
 
@@ -9,6 +10,7 @@ public sealed record YokkoBeatmap(
     string DifficultyName,
     KeyMode KeyMode,
     ChartSourceFormat SourceFormat,
+    IReadOnlyList<YokkoTimingPoint> TimingPoints,
     string? AudioPath,
     IReadOnlyList<YokkoHitObject> HitObjects)
 {

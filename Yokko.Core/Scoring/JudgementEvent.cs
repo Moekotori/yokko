@@ -6,7 +6,8 @@ public sealed record JudgementEvent(
     double ObjectTimeMilliseconds,
     double? HitTimeMilliseconds,
     double HitErrorMilliseconds,
-    JudgementRating Rating)
+    JudgementRating Rating,
+    JudgementPhase Phase = JudgementPhase.Tap)
 {
     public bool IsMiss => Rating == JudgementRating.Miss;
 }

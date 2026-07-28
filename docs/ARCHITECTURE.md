@@ -18,6 +18,21 @@
 
 `Yokko.Import` converts outside formats into `Yokko.Core` beatmaps. Format-specific quirks stay in this layer.
 
+## Beat Timing
+
+`YokkoTimingPoint` preserves the timing-point fields required for osu!mania round trips, including inherited points. `BeatTimingMap` uses uninherited positive beat lengths as the authoritative beat grid and converts editor rows to song time through the active timing segment.
+
+The editor must not assume a fixed number of milliseconds per row. New notes are placed using the active timing point and the selected beat divisor.
+
+## Hold Judgement
+
+Hold notes have two scored phases:
+
+- the head is judged on key press;
+- the tail is judged on key release.
+
+The hold remains active between those phases. Releasing outside the tail window or holding beyond it resolves the tail as a miss. A hold is complete only after both phases resolve.
+
 ## Timing Contract
 
 The gameplay path should calculate hit error as:

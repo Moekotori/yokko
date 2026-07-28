@@ -1,6 +1,9 @@
 using NUnit.Framework;
+using System.Linq;
+using Yokko.Core.Beatmaps;
 using Yokko.Core.Editing;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Timing;
 
 namespace Yokko.Game.Tests.Core
 {
@@ -48,6 +51,29 @@ namespace Yokko.Game.Tests.Core
 
             Assert.That(beatmap.Rows, Is.EqualTo(49));
             Assert.That(beatmap.HasNoteAt(0, 48), Is.True);
+        }
+
+        [Test]
+        public void AddedNoteUsesTimingPointActiveAtGridRow()
+        {
+            var source = new YokkoBeatmap(
+                "Timing test",
+                "Yokko",
+                "Yokko",
+                "4K",
+                KeyMode.FourKey,
+                ChartSourceFormat.Yokko,
+                [
+                    new YokkoTimingPoint(0, 500),
+                    new YokkoTimingPoint(2000, 400),
+                ],
+                null,
+                []);
+            EditableBeatmap beatmap = EditableBeatmap.FromBeatmap(source);
+
+            beatmap.ToggleNote(0, 17);
+
+            Assert.That(beatmap.Notes.Single().StartTimeMilliseconds, Is.EqualTo(2100).Within(0.001));
         }
 
         [Test]

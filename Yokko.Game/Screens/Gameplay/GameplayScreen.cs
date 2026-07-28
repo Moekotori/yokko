@@ -175,6 +175,11 @@ public partial class GameplayScreen : Screen
 
         pressedLanes[lane] = false;
         playfield.SetLanePressed(lane, false);
+
+        JudgementEvent judgement = judgementState.TryJudgeLaneRelease(lane, currentGameplayTime);
+
+        if (judgement != null)
+            applyJudgement(judgement);
     }
 
     public override bool OnExiting(ScreenExitEvent e)

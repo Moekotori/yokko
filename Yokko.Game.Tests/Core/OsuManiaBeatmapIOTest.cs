@@ -21,6 +21,10 @@ namespace Yokko.Game.Tests.Core
             Assert.That(beatmap.DifficultyName, Is.EqualTo("4K"));
             Assert.That(beatmap.KeyMode, Is.EqualTo(KeyMode.FourKey));
             Assert.That(beatmap.AudioPath, Is.EqualTo("audio.mp3"));
+            Assert.That(beatmap.TimingPoints, Has.Count.EqualTo(3));
+            Assert.That(beatmap.TimingPoints[0].BeatLengthMilliseconds, Is.EqualTo(500));
+            Assert.That(beatmap.TimingPoints[1].Uninherited, Is.False);
+            Assert.That(beatmap.TimingPoints[2].BeatLengthMilliseconds, Is.EqualTo(400));
             Assert.That(beatmap.HitObjects, Has.Count.EqualTo(3));
             Assert.That(beatmap.HitObjects[0].Lane, Is.EqualTo(0));
             Assert.That(beatmap.HitObjects[0].Kind, Is.EqualTo(HitObjectKind.Tap));
@@ -44,6 +48,7 @@ namespace Yokko.Game.Tests.Core
             Assert.That(reparsed.HitObjects, Has.Count.EqualTo(3));
             Assert.That(reparsed.HitObjects[1].Kind, Is.EqualTo(HitObjectKind.Hold));
             Assert.That(reparsed.HitObjects[1].EndTimeMilliseconds, Is.EqualTo(1750));
+            Assert.That(reparsed.TimingPoints, Is.EqualTo(editable.TimingPoints));
         }
 
         [Test]
@@ -89,6 +94,11 @@ Version:4K
 [Difficulty]
 CircleSize:4
 OverallDifficulty:8
+
+[TimingPoints]
+0,500,4,2,0,100,1,0
+1000,-50,4,2,0,80,0,1
+2000,400,3,2,1,70,1,0
 
 [HitObjects]
 64,192,1000,1,0,0:0:0:0:

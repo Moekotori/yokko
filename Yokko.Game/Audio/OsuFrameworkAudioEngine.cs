@@ -28,8 +28,8 @@ public sealed class OsuFrameworkAudioEngine : IAudioEngine
     public IReadOnlyList<AudioBackendCapabilities> Backends { get; } =
     [
         new(AudioBackendKind.SharedWasapi, false, false, false, "osu!framework shared output path backed by BASS/WASAPI on Windows."),
-        new(AudioBackendKind.WasapiExclusive, true, true, false, "Planned exclusive Windows endpoint access for lower latency."),
-        new(AudioBackendKind.Asio, true, true, true, "Planned pro-audio driver path for devices with native ASIO support."),
+        new(AudioBackendKind.WasapiExclusive, true, true, false, "Planned exclusive Windows endpoint access for lower latency.", false),
+        new(AudioBackendKind.Asio, true, true, true, "Planned pro-audio driver path for devices with native ASIO support.", false),
     ];
 
     public ValueTask<IReadOnlyList<AudioDeviceInfo>> GetOutputDevicesAsync(CancellationToken cancellationToken = default)

@@ -93,8 +93,8 @@ public partial class EditorGrid : CompositeDrawable
 
     public void SetPlayheadTime(double timeMilliseconds)
     {
-        double startMilliseconds = viewport.StartMilliseconds(beatmap.StepMilliseconds);
-        double endMilliseconds = viewport.EndMilliseconds(beatmap.StepMilliseconds);
+        double startMilliseconds = beatmap.TimeAtRow(viewport.StartRow);
+        double endMilliseconds = beatmap.TimeAtRow(viewport.EndRowExclusive);
 
         if (timeMilliseconds < startMilliseconds || timeMilliseconds > endMilliseconds)
         {
@@ -115,7 +115,11 @@ public partial class EditorGrid : CompositeDrawable
 
             for (int lane = 0; lane < beatmap.LaneCount; lane++)
             {
-                cells[lane, visualRow].Bind(lane, row);
+                cells[lane, visualRow].Bind(
+                    lane,
+                    row,
+                    beatmap.TimingMap.IsBeatRow(row),
+                    beatmap.TimingMap.IsMeasureRow(row));
                 cells[lane, visualRow].SetSelected(beatmap.HasNoteAt(lane, row));
             }
         }

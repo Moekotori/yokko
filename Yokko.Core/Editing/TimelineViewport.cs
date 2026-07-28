@@ -35,8 +35,4 @@ public sealed class TimelineViewport
         VisibleRows = visibleRows;
         MoveToRow(centreRow - VisibleRows / 2, totalRows);
     }
-
-    public double StartMilliseconds(double stepMilliseconds) => StartRow * stepMilliseconds;
-
-    public double EndMilliseconds(double stepMilliseconds) => EndRowExclusive * stepMilliseconds;
 }

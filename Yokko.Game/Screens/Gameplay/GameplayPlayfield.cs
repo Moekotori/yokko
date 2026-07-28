@@ -90,12 +90,18 @@ public partial class GameplayPlayfield : CompositeDrawable
         if ((uint)judgement.HitObjectIndex >= noteDrawables.Length)
             return;
 
-        noteDrawables[judgement.HitObjectIndex].Resolve(judgement.Rating);
+        noteDrawables[judgement.HitObjectIndex].ApplyJudgement(judgement);
     }
 
     public void UpdateGameplayTime(double gameplayTimeMilliseconds, BeatmapJudgementState state)
     {
         for (int i = 0; i < noteDrawables.Length; i++)
-            noteDrawables[i].UpdatePosition(gameplayTimeMilliseconds, state.IsResolved(i), topY, judgementY, approachTimeMilliseconds);
+            noteDrawables[i].UpdatePosition(
+                gameplayTimeMilliseconds,
+                state.IsResolved(i),
+                state.IsHoldActive(i),
+                topY,
+                judgementY,
+                approachTimeMilliseconds);
     }
 }
