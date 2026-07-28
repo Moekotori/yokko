@@ -96,6 +96,42 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
         return filePaths.ContainsKey(normalized) || archiveEntries.ContainsKey(normalized);
     }
 
+    public (string Name, bool HighResolution) ResolveTextureName(string assetName)
+    {
+        if (string.IsNullOrWhiteSpace(assetName))
+            return (null, false);
+
+        string normalized = normalize(assetName.Trim());
+        string extension = Path.GetExtension(normalized);
+        string withoutExtension = extension.Length > 0 ? normalized[..^extension.Length] : normalized;
+        string[] extensions = extension.Length > 0 ? [extension] : [".png", ".jpg", ".jpeg"];
+
+        foreach (string candidateExtension in extensions)
+        {
+            string highResolution = withoutExtension + "@2x" + candidateExtension;
+
+            if (Contains(highResolution))
+                return (highResolution, true);
+
+            string animatedHighResolution = withoutExtension + "-0@2x" + candidateExtension;
+
+            if (Contains(animatedHighResolution))
+                return (animatedHighResolution, true);
+
+            string standard = withoutExtension + candidateExtension;
+
+            if (Contains(standard))
+                return (standard, false);
+
+            string animatedStandard = withoutExtension + "-0" + candidateExtension;
+
+            if (Contains(animatedStandard))
+                return (animatedStandard, false);
+        }
+
+        return (null, false);
+    }
+
     public byte[] Get(string name)
     {
         using Stream stream = GetStream(name);

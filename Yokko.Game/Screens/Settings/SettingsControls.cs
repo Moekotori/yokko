@@ -38,9 +38,9 @@ internal partial class SettingsPanelFooter : CompositeDrawable
             },
             new SpriteText
             {
-                Position = new Vector2(36, 17),
+                Position = new Vector2(36, 15),
                 Text = YokkoStrings.Get("settings.changes_apply_instantly"),
-                Font = HomeTypography.Body(14),
+                Font = HomeTypography.Body(17),
                 Colour = HomeControlColours.Navy,
             },
             new Box
@@ -63,15 +63,15 @@ internal partial class SettingsPanelFooter : CompositeDrawable
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Text = "Esc",
-                    Font = HomeTypography.Body(11),
+                    Font = HomeTypography.Body(14),
                     Colour = HomeControlColours.Navy,
                 },
             },
             new SpriteText
             {
-                Position = new Vector2(294, 17),
+                Position = new Vector2(294, 15),
                 Text = YokkoStrings.Get("settings.esc_to_return"),
-                Font = HomeTypography.Body(14),
+                Font = HomeTypography.Body(17),
                 Colour = HomeControlColours.Navy,
             },
         };
@@ -123,7 +123,7 @@ internal partial class SettingsSegmentedChoiceButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 59,
                 Text = label,
-                Font = HomeTypography.Body(16),
+                Font = HomeTypography.Body(18),
                 Colour = HomeControlColours.Navy,
             },
             check = new SpriteIcon
@@ -207,7 +207,7 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
                     X = 18,
-                    Font = HomeTypography.Body(17),
+                    Font = HomeTypography.Body(19),
                     Colour = HomeControlColours.Navy,
                 },
                 chevron = new SpriteIcon
@@ -342,7 +342,7 @@ internal partial class SettingsDropdownHeader : ClickableContainer
 
 internal partial class SettingsResolutionOption : ClickableContainer
 {
-    public const float RowHeight = 36;
+    public const float RowHeight = 40;
 
     private readonly Box background;
     private readonly SpriteIcon check;
@@ -369,7 +369,7 @@ internal partial class SettingsResolutionOption : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 18,
                 Text = $"{value.Width} × {value.Height}",
-                Font = HomeTypography.Body(14),
+                Font = HomeTypography.Body(17),
                 Colour = HomeControlColours.Navy,
             },
             check = new SpriteIcon

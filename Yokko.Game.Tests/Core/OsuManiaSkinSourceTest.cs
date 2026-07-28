@@ -45,6 +45,26 @@ public sealed class OsuManiaSkinSourceTest
         Assert.That(source.Get("../outside.png"), Is.Null);
     }
 
+    [Test]
+    public void ResolvesJpegAnimationFrameAtHighResolution()
+    {
+        string archivePath = createPath("jpeg.osk");
+
+        using (ZipArchive archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+        {
+            writeEntry(archive, "skin.ini", "[General]\nName: JPEG");
+            writeEntry(archive, "Custom/Note-0@2x.JPEG", "image");
+        }
+
+        using var source = new OsuManiaSkinSource(archivePath);
+
+        (string name, bool highResolution) = source.ResolveTextureName(@"custom\note");
+
+        Assert.That(name, Is.EqualTo("custom/note-0@2x.jpeg"));
+        Assert.That(highResolution, Is.True);
+        Assert.That(source.Get(name), Is.Not.Null);
+    }
+
     private static string createPath(string name)
     {
         string directory = Path.Combine(

@@ -40,7 +40,7 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
             {
                 Position = new Vector2(378, 105),
                 Text = page.Subtitle,
-                Font = HomeTypography.Body(17),
+                Font = HomeTypography.Body(20),
                 Spacing = new Vector2(0.2f, 0),
                 Colour = SettingsTheme.MutedNavy,
             },
@@ -50,7 +50,7 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
             {
                 Position = new Vector2(378, 323),
                 Text = YokkoStrings.Get("settings.planned_sections"),
-                Font = HomeTypography.Display(20),
+                Font = HomeTypography.Display(24),
                 Colour = HomeControlColours.Navy,
             },
             createSectionList(page),
@@ -142,13 +142,13 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
                     new SpriteText
                     {
                         Text = YokkoStrings.Get("settings.coming_soon"),
-                        Font = HomeTypography.Display(22),
+                        Font = HomeTypography.Display(25),
                         Colour = HomeControlColours.Navy,
                     },
                     new SpriteText
                     {
                         Text = page.Description,
-                        Font = HomeTypography.Body(14),
+                        Font = HomeTypography.Body(18),
                         Colour = HomeControlColours.Navy,
                     },
                 },
@@ -173,7 +173,7 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
                         Text = YokkoStrings.Get("settings.planned"),
-                        Font = HomeTypography.Display(11),
+                        Font = HomeTypography.Display(14),
                         Spacing = new Vector2(1.1f, 0),
                         Colour = HomeControlColours.Navy,
                     },
@@ -267,18 +267,18 @@ internal partial class SettingsPlaceholderSection : ClickableContainer
             },
             new SpriteText
             {
-                Position = new Vector2(20, 18),
+                Position = new Vector2(20, 17),
                 Text = title,
-                Font = HomeTypography.Display(16),
+                Font = HomeTypography.Display(19),
                 Colour = HomeControlColours.Navy,
             },
             stateText = new SpriteText
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-48, 20),
+                Position = new Vector2(-48, 18),
                 Text = YokkoStrings.Get("settings.not_available"),
-                Font = HomeTypography.Body(12),
+                Font = HomeTypography.Body(15),
                 Colour = SettingsTheme.MutedNavy,
             },
             plus = new SpriteIcon
@@ -302,7 +302,7 @@ internal partial class SettingsPlaceholderSection : ClickableContainer
             {
                 Position = new Vector2(20, 72),
                 Text = YokkoStrings.Get("settings.future_section"),
-                Font = HomeTypography.Body(13),
+                Font = HomeTypography.Body(16),
                 Colour = SettingsTheme.MutedNavy,
                 Alpha = 0,
             },

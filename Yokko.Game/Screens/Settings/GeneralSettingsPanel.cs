@@ -45,7 +45,7 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
             {
                 Position = new Vector2(378, 105),
                 Text = YokkoStrings.Get("settings.general.subtitle"),
-                Font = HomeTypography.Body(17),
+                Font = HomeTypography.Body(20),
                 Spacing = new Vector2(0.2f, 0),
                 Colour = SettingsTheme.MutedNavy,
             },
@@ -61,7 +61,7 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                 Position = new Vector2(378, 433),
                 Width = 840,
                 Text = YokkoStrings.Get("settings.general.language_note"),
-                Font = HomeTypography.Body(15),
+                Font = HomeTypography.Body(18),
                 Colour = SettingsTheme.MutedNavy,
             },
             new SettingsPanelFooter(),
@@ -170,12 +170,12 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                     new SpriteText
                     {
                         Text = YokkoStrings.Get("settings.general.current_language"),
-                        Font = HomeTypography.Display(19),
+                        Font = HomeTypography.Display(22),
                         Colour = HomeControlColours.Navy,
                     },
                     value = new SpriteText
                     {
-                        Font = HomeTypography.Body(15),
+                        Font = HomeTypography.Body(18),
                         Colour = HomeControlColours.Navy,
                     },
                 },
@@ -205,7 +205,7 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 Text = title,
-                Font = HomeTypography.Display(23),
+                Font = HomeTypography.Display(25),
                 Colour = HomeControlColours.Navy,
             },
             new Container

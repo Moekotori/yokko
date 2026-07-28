@@ -39,6 +39,27 @@ namespace Yokko.Game.Tests.Visual
                 (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null) == true);
         }
 
+        [Test]
+        [Category("Integration")]
+        public void TestLoadsRealOsuManiaSkinSample()
+        {
+            string skinPath = Environment.GetEnvironmentVariable("YOKKO_OSU_MANIA_SKIN_SAMPLE");
+
+            if (string.IsNullOrWhiteSpace(skinPath) || (!File.Exists(skinPath) && !Directory.Exists(skinPath)))
+                Assert.Ignore("Set YOKKO_OSU_MANIA_SKIN_SAMPLE to a real osu! skin package.");
+
+            bool sevenKey = Environment.GetEnvironmentVariable("YOKKO_OSU_MANIA_SKIN_SAMPLE_KEYS") == "7";
+
+            AddStep($"open real {(sevenKey ? 7 : 4)}K skin", () =>
+                screenStack.Push(new GameplayScreen(
+                    sevenKey ? DemoBeatmaps.CreateSevenKeyDemo() : DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath)));
+            AddUntilStep("real skin playfield loaded", () =>
+                (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<GameplayPlayfield>().SingleOrDefault() != null);
+            AddUntilStep("real skin textures decoded", () =>
+                (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null) == true);
+        }
+
         private static string createTestSkin()
         {
             string directory = Path.Combine(

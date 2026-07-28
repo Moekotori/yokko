@@ -76,7 +76,7 @@ internal partial class SettingsSidebar : CompositeDrawable
             {
                 Position = new Vector2(38, 310),
                 Text = YokkoStrings.Get("settings.no_matches"),
-                Font = HomeTypography.Body(14),
+                Font = HomeTypography.Body(17),
                 Colour = SettingsTheme.MutedNavy,
                 Alpha = 0,
             },
@@ -187,7 +187,7 @@ internal partial class SettingsSearchTextBox : BasicTextBox
         BorderColour = SettingsTheme.MutedNavy;
         BackgroundUnfocused = Color4.White;
         BackgroundFocused = SettingsTheme.PaleCyan;
-        FontSize = 15;
+        FontSize = 18;
         PlaceholderText = YokkoStrings.Get("settings.search");
 
         AddInternal(new SpriteIcon
@@ -205,13 +205,13 @@ internal partial class SettingsSearchTextBox : BasicTextBox
     protected override Drawable GetDrawableCharacter(char c) => new SpriteText
     {
         Text = c.ToString(),
-        Font = HomeTypography.Body(15),
+        Font = HomeTypography.Body(18),
         Colour = HomeControlColours.Navy,
     };
 
     protected override SpriteText CreatePlaceholder() => new SpriteText
     {
-        Font = HomeTypography.Body(15),
+        Font = HomeTypography.Body(18),
         Colour = SettingsTheme.MutedNavy,
     };
 
@@ -267,7 +267,7 @@ internal partial class SettingsOutlineButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 51,
                 Text = label,
-                Font = HomeTypography.Display(16),
+                Font = HomeTypography.Display(19),
                 Colour = HomeControlColours.Navy,
             },
         };
@@ -298,7 +298,7 @@ internal partial class SettingsNavHeader : CompositeDrawable
             Origin = Anchor.BottomLeft,
             X = 8,
             Text = label,
-            Font = HomeTypography.Display(11),
+            Font = HomeTypography.Display(14),
             Spacing = new Vector2(1.3f, 0),
             Colour = new Color4(SettingsTheme.MutedNavy.R, SettingsTheme.MutedNavy.G, SettingsTheme.MutedNavy.B, 0.75f),
         };
@@ -369,7 +369,7 @@ internal partial class SettingsNavItem : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 57,
                 Text = label,
-                Font = HomeTypography.Display(16),
+                Font = HomeTypography.Display(19),
                 Colour = HomeControlColours.Navy,
             },
             plus = new SpriteIcon

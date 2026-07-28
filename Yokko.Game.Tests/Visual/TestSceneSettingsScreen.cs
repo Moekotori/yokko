@@ -75,6 +75,18 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestSettingsTypographyHasReadableMinimumSize()
+        {
+            foreach (SettingsPageKind page in System.Enum.GetValues<SettingsPageKind>())
+            {
+                SettingsPageKind capturedPage = page;
+                AddStep($"open {page}", () => settingsScreen.OpenPage(capturedPage));
+                AddAssert($"{page} has no tiny text", () =>
+                    settingsScreen.ChildrenOfType<SpriteText>().All(text => text.Font.Size >= 14));
+            }
+        }
+
+        [Test]
         public void TestTransientInteractionsDismissInOrder()
         {
             SettingsPlaceholderPanel placeholder = null;

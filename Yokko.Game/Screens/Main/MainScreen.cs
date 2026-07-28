@@ -242,8 +242,8 @@ public partial class MainScreen : Screen
                 Spacing = new Vector2(16, 0),
                 Children = new Drawable[]
                 {
-                    new HomeSecondaryAction(YokkoStrings.Get("main.editor"), FontAwesome.Solid.Edit,
-                        () => this.Push(new EditorScreen())),
+                    new HomeSecondaryAction(YokkoStrings.Get("main.editor"), FontAwesome.Solid.WindowMaximize,
+                        () => this.Push(new EditorScreen()), FontAwesome.Solid.Pen),
                     new HomeSecondaryAction(YokkoStrings.Get("main.settings"), FontAwesome.Solid.Cog,
                         () => this.Push(new SettingsScreen())),
                 },
@@ -256,7 +256,7 @@ public partial class MainScreen : Screen
         Position = new Vector2(1176, 24),
         Size = new Vector2(72),
         Child = new HomeUtilityButton(string.Empty, FontAwesome.Solid.FolderOpen,
-            () => this.Push(new EditorScreen(true)), 72),
+            () => this.Push(new EditorScreen(true)), 72, FontAwesome.Solid.ArrowRight),
     };
 
     private static Drawable createFooter(LocalisableString audioStatus) => new Container

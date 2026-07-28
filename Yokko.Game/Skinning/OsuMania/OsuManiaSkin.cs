@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Textures;
 
@@ -57,7 +56,7 @@ internal sealed class OsuManiaSkin : IDisposable
         if (textureCache.TryGetValue(assetName, out Texture cached))
             return cached;
 
-        (string resolvedName, bool highResolution) = resolveTextureName(assetName);
+        (string resolvedName, bool highResolution) = source.ResolveTextureName(assetName);
 
         if (resolvedName == null)
         {
@@ -77,38 +76,5 @@ internal sealed class OsuManiaSkin : IDisposable
     public void Dispose()
     {
         textureStore.Dispose();
-    }
-
-    private (string Name, bool HighResolution) resolveTextureName(string assetName)
-    {
-        string normalized = assetName.Trim().Replace('\\', '/');
-        string extension = Path.GetExtension(normalized);
-        string withoutExtension = extension.Length > 0 ? normalized[..^extension.Length] : normalized;
-        string[] extensions = extension.Length > 0 ? [extension] : [".png", ".jpg"];
-
-        foreach (string candidateExtension in extensions)
-        {
-            string highResolution = withoutExtension + "@2x" + candidateExtension;
-
-            if (source.Contains(highResolution))
-                return (highResolution, true);
-
-            string animatedHighResolution = withoutExtension + "-0@2x" + candidateExtension;
-
-            if (source.Contains(animatedHighResolution))
-                return (animatedHighResolution, true);
-
-            string standard = withoutExtension + candidateExtension;
-
-            if (source.Contains(standard))
-                return (standard, false);
-
-            string animatedStandard = withoutExtension + "-0" + candidateExtension;
-
-            if (source.Contains(animatedStandard))
-                return (animatedStandard, false);
-        }
-
-        return (null, false);
     }
 }

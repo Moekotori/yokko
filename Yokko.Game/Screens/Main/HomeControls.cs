@@ -105,6 +105,21 @@ public partial class HomePrimaryAction : ClickableContainer
                     {
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.CentreLeft,
+                        X = 33,
+                        Y = 4,
+                        Size = new Vector2(72),
+                        Masking = true,
+                        CornerRadius = 9,
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.7f),
+                        },
+                    },
+                    new Container
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
                         X = 30,
                         Size = new Vector2(72),
                         Masking = true,
@@ -248,7 +263,7 @@ public partial class HomeSecondaryAction : ClickableContainer
     private readonly Box background;
     private readonly Box underline;
 
-    public HomeSecondaryAction(LocalisableString title, IconUsage icon, Action action)
+    public HomeSecondaryAction(LocalisableString title, IconUsage icon, Action action, IconUsage? overlayIcon = null)
     {
         Action = action;
         Size = new Vector2(252, 82);
@@ -313,28 +328,28 @@ public partial class HomeSecondaryAction : ClickableContainer
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
+                X = 17,
+                Y = 4,
+                Size = new Vector2(56),
+                Masking = true,
+                CornerRadius = 9,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(0.035f, 0.085f, 0.54f, 0.28f),
+                },
+            },
+            new Container
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
                 X = 14,
                 Size = new Vector2(56),
                 Masking = true,
                 CornerRadius = 9,
                 BorderThickness = 2,
                 BorderColour = HomeControlColours.Navy,
-                Children = new Drawable[]
-                {
-                    new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = HomeControlColours.PaleCyan,
-                    },
-                    new SpriteIcon
-                    {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        Size = new Vector2(27),
-                        Icon = icon,
-                        Colour = HomeControlColours.Navy,
-                    },
-                },
+                Children = createIconContents(icon, overlayIcon),
             },
             new SpriteText
             {
@@ -390,6 +405,64 @@ public partial class HomeSecondaryAction : ClickableContainer
         };
     }
 
+    private static Drawable[] createIconContents(IconUsage icon, IconUsage? overlayIcon)
+    {
+        if (overlayIcon == null)
+        {
+            return new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = HomeControlColours.PaleCyan,
+                },
+                new SpriteIcon
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(29),
+                    Icon = icon,
+                    Colour = HomeControlColours.Navy,
+                },
+            };
+        }
+
+        return new Drawable[]
+        {
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = HomeControlColours.PaleCyan,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Position = new Vector2(-2, -2),
+                Size = new Vector2(31),
+                Icon = icon,
+                Colour = HomeControlColours.Navy,
+            },
+            new Circle
+            {
+                Anchor = Anchor.BottomRight,
+                Origin = Anchor.BottomRight,
+                Position = new Vector2(-4, -4),
+                Size = new Vector2(22),
+                Colour = Color4.White,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.BottomRight,
+                Origin = Anchor.BottomRight,
+                Position = new Vector2(-7, -7),
+                Size = new Vector2(15),
+                Icon = overlayIcon.Value,
+                Colour = HomeControlColours.Navy,
+            },
+        };
+    }
+
     private static Drawable createDetailDot() => new Circle
     {
         Size = new Vector2(3),
@@ -415,7 +488,7 @@ public partial class HomeUtilityButton : ClickableContainer
 {
     private readonly Box background;
 
-    public HomeUtilityButton(string text, IconUsage icon, Action action, float width)
+    public HomeUtilityButton(string text, IconUsage icon, Action action, float width, IconUsage? overlayIcon = null)
     {
         Action = action;
         Size = new Vector2(width, 72);
@@ -485,13 +558,28 @@ public partial class HomeUtilityButton : ClickableContainer
                 Spacing = new Vector2(9, 0),
                 Children = new Drawable[]
                 {
-                    new SpriteIcon
+                    new Container
                     {
-                        Anchor = Anchor.CentreLeft,
-                        Origin = Anchor.CentreLeft,
                         Size = new Vector2(30),
-                        Icon = icon,
-                        Colour = HomeControlColours.Navy,
+                        Children = new Drawable[]
+                        {
+                            new SpriteIcon
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                Icon = icon,
+                                Colour = HomeControlColours.Navy,
+                            },
+                            new SpriteIcon
+                            {
+                                Anchor = Anchor.BottomRight,
+                                Origin = Anchor.BottomRight,
+                                Position = new Vector2(-1, -4),
+                                Size = new Vector2(13),
+                                Icon = overlayIcon ?? icon,
+                                Colour = Color4.White,
+                                Alpha = overlayIcon == null ? 0 : 1,
+                            },
+                        },
                     },
                     new SpriteText
                     {

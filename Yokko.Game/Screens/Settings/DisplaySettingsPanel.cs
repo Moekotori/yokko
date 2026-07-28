@@ -76,7 +76,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             {
                 Position = new Vector2(378, 105),
                 Text = YokkoStrings.Get("settings.display.subtitle"),
-                Font = HomeTypography.Body(17),
+                Font = HomeTypography.Body(20),
                 Spacing = new Vector2(0.2f, 0),
                 Colour = SettingsTheme.MutedNavy,
             },
@@ -167,12 +167,12 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
                     new SpriteText
                     {
                         Text = YokkoStrings.Get("settings.display.current_display"),
-                        Font = HomeTypography.Display(19),
+                        Font = HomeTypography.Display(22),
                         Colour = HomeControlColours.Navy,
                     },
                     metadata = new SpriteText
                     {
-                        Font = HomeTypography.Body(15),
+                        Font = HomeTypography.Body(18),
                         Colour = HomeControlColours.Navy,
                     },
                 },
@@ -260,7 +260,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 Text = title,
-                Font = HomeTypography.Display(23),
+                Font = HomeTypography.Display(25),
                 Colour = HomeControlColours.Navy,
             },
             new Container
