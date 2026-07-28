@@ -28,7 +28,8 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
     private readonly object sync = new();
     private const int max_pending_edges = 1024;
 
-    private readonly Queue<TimestampedKeyInput> pending = new();
+    private readonly TimestampedKeyInputBuffer pending =
+        new(max_pending_edges);
     private readonly HashSet<RawKeyIdentity> pressedKeys = new();
     private readonly SubclassProcedure subclassProcedure;
 
@@ -50,6 +51,23 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
         {
             lock (sync)
                 return isAvailable;
+        }
+    }
+
+    public KeyInputTimestampBackendStatus Status
+    {
+        get
+        {
+            lock (sync)
+            {
+                return new KeyInputTimestampBackendStatus(
+                    Name,
+                    isAvailable,
+                    isCapturing,
+                    pending.Count,
+                    pending.CapturedEdgeCount,
+                    pending.DroppedEdgeCount);
+            }
         }
     }
 
@@ -114,7 +132,7 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
         lock (sync)
         {
             throwIfDisposed();
-            pending.Clear();
+            pending.Reset();
             pressedKeys.Clear();
             isCapturing = isAvailable;
         }
@@ -134,15 +152,8 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
     {
         lock (sync)
         {
-            if (pending.Count > 0)
-            {
-                input = pending.Dequeue();
-                return true;
-            }
+            return pending.TryDequeue(out input);
         }
-
-        input = default;
-        return false;
     }
 
     public void Dispose()
@@ -229,9 +240,6 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
                 : pressedKeys.Remove(identity);
             if (!changed)
                 return;
-
-            if (pending.Count >= max_pending_edges)
-                pending.Dequeue();
 
             pending.Enqueue(new TimestampedKeyInput(
                 key,

@@ -150,16 +150,12 @@ public partial class HomeMusicPlayer : CompositeDrawable
                 Origin = Anchor.Centre,
                 X = -16,
             },
-            new Container
+            playPauseButton = new PlayerButton(FontAwesome.Solid.Pause, togglePlayPause, isPrimary: true)
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.Centre,
                 X = -52,
                 Size = new Vector2(38),
-                Child = playPauseButton = new PlayerButton(FontAwesome.Solid.Pause, togglePlayPause, isPrimary: true)
-                {
-                    RelativeSizeAxes = Axes.Both,
-                },
             },
         };
     }

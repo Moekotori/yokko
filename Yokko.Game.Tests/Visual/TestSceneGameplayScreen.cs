@@ -5,6 +5,7 @@ using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Screens;
@@ -34,6 +35,43 @@ namespace Yokko.Game.Tests.Visual
             Add(screenStack = new ScreenStack(new GameplayScreen(DemoBeatmaps.CreateFourKeyDemo()))
             {
                 RelativeSizeAxes = Axes.Both,
+            });
+        }
+
+        [Test]
+        public void TestGameplaySurfaceFillsAndPlayfieldIsCentred()
+        {
+            AddUntilStep("gameplay layout loaded", () =>
+                (screenStack.CurrentScreen as Drawable)?
+                .ChildrenOfType<GameplayPlayfield>()
+                .SingleOrDefault() != null);
+            AddAssert("surface fills the screen", () =>
+            {
+                Drawable current = screenStack.CurrentScreen as Drawable;
+                return current?
+                       .ChildrenOfType<Box>()
+                       .Any(box =>
+                           ReferenceEquals(box.Parent, current) &&
+                           box.RelativeSizeAxes == Axes.Both) == true;
+            });
+            AddAssert("playfield is centred at native scale", () =>
+            {
+                GameplayPlayfield playfield = (screenStack.CurrentScreen as Drawable)?
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .SingleOrDefault();
+                return playfield != null &&
+                       playfield.Anchor == Anchor.Centre &&
+                       playfield.Origin == Anchor.Centre &&
+                       playfield.Position == Vector2.Zero &&
+                       playfield.Scale == Vector2.One;
+            });
+            AddAssert("surrounding gameplay text is absent", () =>
+            {
+                Drawable current = screenStack.CurrentScreen as Drawable;
+                return current?
+                       .ChildrenOfType<GameplayHud>()
+                       .Any() == false &&
+                       current.ChildrenOfType<JudgementReadout>().Any() == false;
             });
         }
 

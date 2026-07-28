@@ -7,6 +7,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Input.Events;
 using osu.Framework.Graphics.Rendering;
+using osu.Framework.Logging;
 using osu.Framework.Screens;
 using osuTK;
 using osuTK.Input;
@@ -173,6 +174,7 @@ public partial class GameplayScreen : Screen
 
     public override bool OnExiting(ScreenExitEvent e)
     {
+        logInputTimingSummary();
         keyInputTimestamps.EndCapture();
         _ = audioEngine.StopAsync();
         return base.OnExiting(e);
@@ -316,6 +318,25 @@ public partial class GameplayScreen : Screen
     private void applyJudgement(JudgementEvent judgement)
     {
         playfield.ApplyJudgement(judgement);
+    }
+
+    private void logInputTimingSummary()
+    {
+        KeyInputTimestampBackendStatus backend =
+            keyInputTimestamps.Status;
+        InputAgeStatistics ages = inputAgeTracker.Snapshot();
+        string ageSummary = ages.Count == 0
+            ? "no scored input samples"
+            : $"input age p50={ages.P50Milliseconds:0.00} ms, "
+              + $"p95={ages.P95Milliseconds:0.00} ms, "
+              + $"p99={ages.P99Milliseconds:0.00} ms";
+
+        Logger.Log(
+            $"Gameplay input timing: {backend.Name}; "
+            + $"captured={backend.CapturedEdgeCount}, "
+            + $"pending={backend.PendingEdgeCount}, "
+            + $"dropped={backend.DroppedEdgeCount}; "
+            + ageSummary);
     }
 
     private void onScrollSpeedChanged(

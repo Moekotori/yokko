@@ -27,6 +27,8 @@ internal sealed class KeyInputTimestampSource : IDisposable
     private readonly IKeyInputTimestampBackend platformBackend;
     private bool isCapturing;
     private bool disposed;
+    private long frameworkCapturedEdgeCount;
+    private long frameworkDroppedEdgeCount;
 
     public KeyInputTimestampSource(IKeyInputTimestampBackend platformBackend = null)
     {
@@ -35,6 +37,30 @@ internal sealed class KeyInputTimestampSource : IDisposable
 
     public bool IsRawInputAvailable =>
         platformBackend?.IsAvailable == true;
+
+    internal KeyInputTimestampBackendStatus Status
+    {
+        get
+        {
+            if (platformBackend?.IsAvailable == true)
+                return platformBackend.Status;
+
+            lock (sync)
+            {
+                int pendingEdgeCount = 0;
+                foreach (Queue<long> timestamps in pending.Values)
+                    pendingEdgeCount += timestamps.Count;
+
+                return new KeyInputTimestampBackendStatus(
+                    "SDL window fallback",
+                    window != null,
+                    isCapturing,
+                    pendingEdgeCount,
+                    frameworkCapturedEdgeCount,
+                    frameworkDroppedEdgeCount);
+            }
+        }
+    }
 
     public void Attach(IWindow hostWindow) => AttachWindowEvents(hostWindow);
 
@@ -84,6 +110,8 @@ internal sealed class KeyInputTimestampSource : IDisposable
             throwIfDisposed();
             pending.Clear();
             pressedKeys.Clear();
+            frameworkCapturedEdgeCount = 0;
+            frameworkDroppedEdgeCount = 0;
             isCapturing = true;
             platformBackend?.BeginCapture();
         }
@@ -160,9 +188,13 @@ internal sealed class KeyInputTimestampSource : IDisposable
             }
 
             if (timestamps.Count >= max_pending_timestamps_per_edge)
+            {
                 timestamps.Dequeue();
+                frameworkDroppedEdgeCount++;
+            }
 
             timestamps.Enqueue(timestamp);
+            frameworkCapturedEdgeCount++;
         }
     }
 

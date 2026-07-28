@@ -63,11 +63,15 @@ The desktop host registers a foreground-only Raw Input keyboard target on the
 osu!framework window and records QPC at `WM_INPUT`. Raw Input does not disable
 legacy keyboard messages, so framework navigation and text input remain
 unchanged. Gameplay consumes the earlier Raw Input timestamp by resolved key;
-unsupported or synthetic edges fall back to the SDL callback timestamp.
+the ordered Raw Input edge queue is drained before expired misses are
+collected. If Raw Input cannot attach when the host starts, the whole gameplay
+session uses SDL callback timestamps instead, avoiding two timestamp queues
+that could drift out of alignment.
 
 The gameplay diagnostic reports input-event age as rolling p50/p95/p99 values
-and identifies whether samples came from Raw Input or the SDL fallback. This is
-queue age from platform capture to gameplay consumption, not total
-keyboard-to-photon latency.
+and identifies whether samples came from Raw Input or the SDL fallback.
+Captured, pending, and dropped edge counts are retained for the whole session,
+so queue loss cannot fail silently. This is queue age from platform capture to
+gameplay consumption, not total keyboard-to-photon latency.
 
 Frame time is only for presentation. A dropped frame may look bad, but it must not shift judgement.

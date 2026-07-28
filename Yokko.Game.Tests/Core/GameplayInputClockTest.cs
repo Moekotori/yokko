@@ -1,6 +1,10 @@
 using System;
 using NUnit.Framework;
 using osuTK.Input;
+using Yokko.Core.Beatmaps;
+using Yokko.Core.Gameplay;
+using Yokko.Core.Scoring;
+using Yokko.Core.Timing;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Input;
 
@@ -126,6 +130,69 @@ public sealed class GameplayInputClockTest
         Assert.That(statistics.P99Milliseconds, Is.EqualTo(99));
     }
 
+    [TestCase(1000.5)]
+    [TestCase(1002.083333)]
+    [TestCase(1008.333333)]
+    [TestCase(1033.0)]
+    public void TimestampedJudgementIsIndependentOfObservationDelay(
+        double gameplayTimeAtObservation)
+    {
+        const long frequency = 1_000_000;
+        const long eventTimestamp = 10_000_000;
+        long observationTimestamp = eventTimestamp
+                                    + (long)Math.Round(
+                                        (gameplayTimeAtObservation - 1000)
+                                        * frequency
+                                        / 1000);
+        double inputTime = GameplayInputClock.AtEventTimestamp(
+            gameplayTimeAtObservation,
+            eventTimestamp,
+            observationTimestamp,
+            frequency);
+        var state = new BeatmapJudgementState(
+            createSingleTapBeatmap(),
+            JudgementWindows.DefaultMania);
+
+        JudgementEvent judgement =
+            state.TryJudgeLanePress(0, inputTime);
+
+        Assert.That(inputTime, Is.EqualTo(1000).Within(0.001));
+        Assert.That(judgement, Is.Not.Null);
+        Assert.That(judgement.Rating, Is.EqualTo(JudgementRating.Perfect));
+        Assert.That(judgement.HitErrorMilliseconds, Is.EqualTo(0).Within(0.001));
+    }
+
+    [Test]
+    public void TimestampSourceReportsFallbackQueueOverflow()
+    {
+        using var source = new KeyInputTimestampSource();
+        source.BeginCapture();
+
+        for (int index = 0; index < 17; index++)
+        {
+            source.Record(Key.D, true, index * 2 + 1);
+            source.Record(Key.D, false, index * 2 + 2);
+        }
+
+        KeyInputTimestampBackendStatus status = source.Status;
+
+        Assert.That(status.Name, Is.EqualTo("SDL window fallback"));
+        Assert.That(status.CapturedEdgeCount, Is.EqualTo(34));
+        Assert.That(status.PendingEdgeCount, Is.EqualTo(32));
+        Assert.That(status.DroppedEdgeCount, Is.EqualTo(2));
+    }
+
+    private static YokkoBeatmap createSingleTapBeatmap() => new(
+        "Input clock test",
+        "Yokko",
+        "Yokko",
+        "4K",
+        KeyMode.FourKey,
+        ChartSourceFormat.Yokko,
+        [YokkoTimingPoint.Default],
+        null,
+        [new YokkoHitObject(0, 1000, null, HitObjectKind.Tap)]);
+
     private sealed class FakeWindowEvents
     {
         public event Action<Key> KeyDown;
@@ -145,6 +212,14 @@ public sealed class GameplayInputClockTest
         public string Name => "Fake raw input";
 
         public bool IsAvailable => true;
+
+        public KeyInputTimestampBackendStatus Status => new(
+            Name,
+            IsAvailable,
+            true,
+            pending.Count,
+            pending.Count,
+            0);
 
         public bool Attach(osu.Framework.Platform.IWindow window) => true;
 
