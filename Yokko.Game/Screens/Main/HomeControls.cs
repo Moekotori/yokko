@@ -25,7 +25,7 @@ public partial class HomePrimaryAction : ClickableContainer
     public HomePrimaryAction(string title, string detail, IconUsage icon, Action action)
     {
         Action = action;
-        Size = new Vector2(510, 122);
+        Size = new Vector2(510, 130);
         Masking = true;
         CornerRadius = 9;
         BorderThickness = 2;
@@ -101,8 +101,9 @@ public partial class HomePrimaryAction : ClickableContainer
             new Box
             {
                 Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                Size = new Vector2(24, 5),
+                Origin = Anchor.Centre,
+                Size = new Vector2(24),
+                Rotation = 45,
                 Colour = HomeControlColours.Yellow,
             },
         };
@@ -259,8 +260,9 @@ public partial class HomeUtilityButton : ClickableContainer
             new Box
             {
                 Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                Size = new Vector2(18, 4),
+                Origin = Anchor.Centre,
+                Size = new Vector2(16),
+                Rotation = 45,
                 Colour = HomeControlColours.Yellow,
                 Alpha = string.IsNullOrEmpty(text) ? 0 : 1,
             },
@@ -285,9 +287,11 @@ public partial class HomeMascotBubble : CompositeDrawable
 {
     public HomeMascotBubble(string text)
     {
-        Size = new Vector2(126, 72);
+        string[] words = text.Split(' ', 2);
+
+        Size = new Vector2(132, 84);
         Masking = true;
-        CornerRadius = 28;
+        CornerRadius = 32;
         BorderThickness = 2;
         BorderColour = HomeControlColours.Navy;
 
@@ -298,13 +302,32 @@ public partial class HomeMascotBubble : CompositeDrawable
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.White,
             },
-            new SpriteText
+            new FillFlowContainer
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Text = text,
-                Font = FontUsage.Default.With(size: 18, weight: "Bold"),
-                Colour = HomeControlColours.Navy,
+                AutoSizeAxes = Axes.Both,
+                Direction = FillDirection.Vertical,
+                Spacing = new Vector2(0, -2),
+                Children = new Drawable[]
+                {
+                    new SpriteText
+                    {
+                        Anchor = Anchor.TopCentre,
+                        Origin = Anchor.TopCentre,
+                        Text = words[0],
+                        Font = FontUsage.Default.With(size: 18, weight: "Bold"),
+                        Colour = HomeControlColours.Navy,
+                    },
+                    new SpriteText
+                    {
+                        Anchor = Anchor.TopCentre,
+                        Origin = Anchor.TopCentre,
+                        Text = words.Length > 1 ? words[1] : string.Empty,
+                        Font = FontUsage.Default.With(size: 18, weight: "Bold"),
+                        Colour = HomeControlColours.Navy,
+                    },
+                },
             },
             new Box
             {
@@ -316,5 +339,29 @@ public partial class HomeMascotBubble : CompositeDrawable
                 Colour = HomeControlColours.Pink,
             },
         };
+    }
+}
+
+public partial class HomeDotCross : CompositeDrawable
+{
+    public HomeDotCross()
+    {
+        Size = new Vector2(70);
+
+        for (int row = 0; row < 7; row++)
+        {
+            for (int column = 0; column < 7; column++)
+            {
+                if (row is not (2 or 3 or 4) && column is not (2 or 3 or 4))
+                    continue;
+
+                AddInternal(new Circle
+                {
+                    Position = new Vector2(column * 9, row * 9),
+                    Size = new Vector2(4),
+                    Colour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.28f),
+                });
+            }
+        }
     }
 }

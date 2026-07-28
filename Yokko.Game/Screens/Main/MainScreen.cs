@@ -26,7 +26,6 @@ public partial class MainScreen : Screen
 
     private static readonly Color4 ivory = new(0.986f, 0.982f, 0.956f, 1f);
     private static readonly Color4 cyan = new(0.29f, 0.84f, 0.96f, 1f);
-    private static readonly Color4 cyanSoft = new(0.69f, 0.94f, 0.98f, 1f);
     private static readonly Color4 navy = new(0.035f, 0.085f, 0.54f, 1f);
     private static readonly Color4 yellow = new(1f, 0.91f, 0.42f, 1f);
     private static readonly Color4 pink = new(1f, 0.22f, 0.65f, 1f);
@@ -80,14 +79,14 @@ public partial class MainScreen : Screen
             new Box
             {
                 RelativeSizeAxes = Axes.Y,
-                Width = 585,
+                Width = 520,
                 Colour = ivory,
             },
             new Box
             {
                 RelativeSizeAxes = Axes.Y,
-                Width = 185,
-                X = 525,
+                Width = 218,
+                X = 410,
                 Y = -36,
                 Height = 1.14f,
                 Rotation = -6,
@@ -114,15 +113,15 @@ public partial class MainScreen : Screen
             createDecorationIcon(FontAwesome.Solid.Plus, 1176, 154, 14, yellow),
             new Sprite
             {
-                X = 708,
-                Y = 118,
-                Size = new Vector2(500, 567),
+                X = 620,
+                Y = 50,
+                Size = new Vector2(650, 737),
                 Texture = mascotTexture,
             },
-            new HomeMascotBubble("Let's\nchart!")
+            new HomeMascotBubble("Let's chart!")
             {
-                X = 600,
-                Y = 395,
+                X = 570,
+                Y = 408,
             },
         },
     };
@@ -138,7 +137,7 @@ public partial class MainScreen : Screen
 
     private static Drawable createBrandLockup() => new Container
     {
-        Position = new Vector2(58, 63),
+        Position = new Vector2(58, 50),
         Size = new Vector2(440, 132),
         Children = new Drawable[]
         {
@@ -148,6 +147,8 @@ public partial class MainScreen : Screen
                 Font = FontUsage.Default.With(size: 70, weight: "Bold"),
                 Colour = navy,
             },
+            createDecorationIcon(FontAwesome.Solid.Plus, 63, 33, 10, yellow),
+            createDecorationIcon(FontAwesome.Solid.Plus, 166, 33, 10, navy),
             new FillFlowContainer
             {
                 Y = 80,
@@ -180,15 +181,34 @@ public partial class MainScreen : Screen
 
     private Drawable createCommandArea() => new Container
     {
-        Position = new Vector2(58, 218),
+        Position = new Vector2(58, 205),
         Size = new Vector2(520, 385),
         Children = new Drawable[]
         {
-            new SpriteText
+            new FillFlowContainer
             {
-                Text = "Ready for\na check-up?",
-                Font = FontUsage.Default.With(size: 49, weight: "Bold"),
-                Colour = navy,
+                AutoSizeAxes = Axes.Both,
+                Direction = FillDirection.Vertical,
+                Spacing = new Vector2(0, -5),
+                Children = new Drawable[]
+                {
+                    new SpriteText
+                    {
+                        Text = "Ready for",
+                        Font = FontUsage.Default.With(size: 49, weight: "Bold"),
+                        Colour = navy,
+                    },
+                    new SpriteText
+                    {
+                        Text = "a check-up?",
+                        Font = FontUsage.Default.With(size: 49, weight: "Bold"),
+                        Colour = navy,
+                    },
+                },
+            },
+            new HomeDotCross
+            {
+                Position = new Vector2(410, 12),
             },
             createDecorationIcon(FontAwesome.Solid.Plus, 438, 58, 15, pink),
             new HomePrimaryAction(
@@ -201,7 +221,7 @@ public partial class MainScreen : Screen
             },
             new FillFlowContainer
             {
-                Y = 278,
+                Y = 286,
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(10, 0),
@@ -243,12 +263,12 @@ public partial class MainScreen : Screen
                 Height = 1,
                 Colour = new Color4(navy.R, navy.G, navy.B, 0.24f),
             },
-            new Box
+            new SpriteIcon
             {
-                X = 312,
-                Width = 38,
-                Height = 3,
-                Colour = pink,
+                Position = new Vector2(310, -10),
+                Size = new Vector2(23),
+                Icon = FontAwesome.Solid.Heartbeat,
+                Colour = navy,
             },
             new FillFlowContainer
             {
