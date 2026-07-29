@@ -23,7 +23,8 @@ public sealed record YokkoBeatmap
         double DrainRate = 5,
         ManiaConversionSource? ConversionSource = null,
         int StageCount = 1,
-        double PreviewTimeMilliseconds = -1)
+        double PreviewTimeMilliseconds = -1,
+        IReadOnlyList<YokkoBreakPeriod>? BreakPeriods = null)
     {
         if (!double.IsFinite(OverallDifficulty)
             || OverallDifficulty is < -15 or > 15)
@@ -71,6 +72,7 @@ public sealed record YokkoBeatmap
         }
         this.StageCount = StageCount;
         this.PreviewTimeMilliseconds = PreviewTimeMilliseconds;
+        this.BreakPeriods = BreakPeriods ?? [];
     }
 
     public string Title { get; init; }
@@ -102,6 +104,8 @@ public sealed record YokkoBeatmap
     /// source chart did not provide one.
     /// </summary>
     public double PreviewTimeMilliseconds { get; init; }
+
+    public IReadOnlyList<YokkoBreakPeriod> BreakPeriods { get; init; }
 
     public int KeysPerStage => (int)KeyMode / StageCount;
 

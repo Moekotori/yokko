@@ -51,7 +51,7 @@ internal partial class GameplayFailOverlay : CompositeDrawable
             ManiaFailReason.SuddenDeath =>
                 "Sudden Death ends the run on the first combo-breaking miss.",
             ManiaFailReason.PerfectBroken =>
-                "Perfect requires the highest judgement on every scoring object.",
+                "Perfect requires Great or better on every scoring object.",
             ManiaFailReason.AccuracyChallenge =>
                 $"Accuracy can no longer stay above "
                 + $"{mods.AccuracyChallengeMinimum * 100:0.0}%.",

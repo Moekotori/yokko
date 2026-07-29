@@ -101,6 +101,38 @@ public sealed class ManiaScoreProcessor
 
     public static int BaseScoreFor(JudgementRating rating) => baseScoreFor(rating);
 
+    /// <summary>
+    /// Resolves a Mania rank from accuracy and result counts using the pinned
+    /// osu!lazer ManiaScoreProcessor rules.
+    /// </summary>
+    public static ScoreRank RankFromScore(
+        double accuracy,
+        JudgementCounter counts)
+    {
+        ArgumentNullException.ThrowIfNull(counts);
+
+        ScoreRank rank = accuracy switch
+        {
+            1 => ScoreRank.X,
+            >= 0.95 => ScoreRank.S,
+            >= 0.9 => ScoreRank.A,
+            >= 0.8 => ScoreRank.B,
+            >= 0.7 => ScoreRank.C,
+            _ => ScoreRank.D,
+        };
+
+        if (rank != ScoreRank.S)
+            return rank;
+
+        bool anyImperfect =
+            counts.Good > 0
+            || counts.Ok > 0
+            || counts.Meh > 0
+            || counts.Miss > 0;
+
+        return anyImperfect ? rank : ScoreRank.X;
+    }
+
     private void updateScore()
     {
         double comboProgress = maximumComboPortion > 0
@@ -113,31 +145,7 @@ public sealed class ManiaScoreProcessor
         TotalScore = (long)Math.Round(
             150_000 * comboProgress
             + 850_000 * Math.Pow(Accuracy, 2 + 2 * Accuracy) * accuracyProgress);
-        Rank = rankFromScore();
-    }
-
-    private ScoreRank rankFromScore()
-    {
-        ScoreRank rank = Accuracy switch
-        {
-            >= 1 => ScoreRank.X,
-            >= 0.95 => ScoreRank.S,
-            >= 0.9 => ScoreRank.A,
-            >= 0.8 => ScoreRank.B,
-            >= 0.7 => ScoreRank.C,
-            _ => ScoreRank.D,
-        };
-
-        if (rank != ScoreRank.S)
-            return rank;
-
-        bool anyImperfect =
-            Counts.Good > 0
-            || Counts.Ok > 0
-            || Counts.Meh > 0
-            || Counts.Miss > 0;
-
-        return anyImperfect ? rank : ScoreRank.X;
+        Rank = RankFromScore(Accuracy, Counts);
     }
 
     private static JudgementRating maximumResultFor(JudgementRating rating)

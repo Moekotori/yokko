@@ -181,6 +181,8 @@ public static class ManiaBeatmapModTransformer
             mods.EffectiveDrainRate(
                 structurallyApplied.DrainRate),
             structurallyApplied.ConversionSource,
-            structurallyApplied.StageCount);
+            structurallyApplied.StageCount,
+            structurallyApplied.PreviewTimeMilliseconds,
+            structurallyApplied.BreakPeriods);
     }
 }

@@ -1,4 +1,5 @@
 using System.Linq;
+using System;
 using NUnit.Framework;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
@@ -23,13 +24,60 @@ public sealed class ManiaHealthStateTest
         health.Apply(judgement(JudgementRating.Perfect));
         Assert.Multiple(() =>
         {
+            double expectedRecoveryMultiplier =
+                Math.Pow(1.01, 191);
             Assert.That(
                 health.RecoveryMultiplier,
-                Is.EqualTo(20d / 3).Within(1e-12));
+                Is.EqualTo(expectedRecoveryMultiplier).Within(1e-12));
             Assert.That(
                 health.Health,
-                Is.EqualTo(0.975).Within(1e-12));
+                Is.EqualTo(
+                    0.955
+                    + expectedRecoveryMultiplier * 0.003)
+                  .Within(1e-12));
         });
+    }
+
+    [Test]
+    public void BreakPeriodsMatchLazerRecoverySimulation()
+    {
+        YokkoBeatmap withoutBreak = new(
+            "Health gap test",
+            "Yokko",
+            "Tests",
+            "4K",
+            KeyMode.FourKey,
+            ChartSourceFormat.OsuMania,
+            [YokkoTimingPoint.Default],
+            null,
+            [
+                new YokkoHitObject(
+                    0,
+                    1000,
+                    null,
+                    HitObjectKind.Tap),
+                new YokkoHitObject(
+                    1,
+                    10_000,
+                    null,
+                    HitObjectKind.Tap),
+            ],
+            DrainRate: 5.5);
+        YokkoBeatmap withBreak = withoutBreak with
+        {
+            BreakPeriods =
+            [
+                new YokkoBreakPeriod(2000, 9000),
+            ],
+        };
+
+        var uninterruptedHealth =
+            new ManiaHealthState(withoutBreak);
+        var breakHealth = new ManiaHealthState(withBreak);
+
+        Assert.That(
+            breakHealth.RecoveryMultiplier,
+            Is.LessThan(uninterruptedHealth.RecoveryMultiplier));
     }
 
     [Test]
@@ -75,32 +123,63 @@ public sealed class ManiaHealthStateTest
 
         ManiaHealthUpdate good =
             health.Apply(judgement(JudgementRating.Good));
-        ManiaHealthUpdate miss =
-            health.Apply(judgement(JudgementRating.Miss));
+        ManiaHealthUpdate ignored =
+            health.Apply(judgement(JudgementRating.IgnoreHit));
+        ManiaHealthUpdate comboBreak =
+            health.Apply(judgement(JudgementRating.ComboBreak));
 
         Assert.Multiple(() =>
         {
             Assert.That(good.Failed, Is.False);
-            Assert.That(miss.Failed, Is.True);
+            Assert.That(ignored.Failed, Is.False);
+            Assert.That(comboBreak.Failed, Is.True);
             Assert.That(
-                miss.FailReason,
+                comboBreak.FailReason,
                 Is.EqualTo(ManiaFailReason.SuddenDeath));
         });
     }
 
     [Test]
-    public void PerfectFailsOnAnyNonMaximumRelevantResult()
+    public void PerfectUsesLazerManiaDefaultGreatThreshold()
     {
         YokkoBeatmap beatmap = createBeatmap();
         var health = new ManiaHealthState(
             beatmap,
             new ManiaModSet([ManiaModId.Perfect]));
 
-        ManiaHealthUpdate update =
+        ManiaHealthUpdate great =
             health.Apply(judgement(JudgementRating.Great));
+        ManiaHealthUpdate ignored =
+            health.Apply(judgement(JudgementRating.IgnoreHit));
+        ManiaHealthUpdate good =
+            health.Apply(judgement(JudgementRating.Good));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(great.Failed, Is.False);
+            Assert.That(ignored.Failed, Is.False);
+            Assert.That(good.Failed, Is.True);
+            Assert.That(
+                good.FailReason,
+                Is.EqualTo(ManiaFailReason.PerfectBroken));
+        });
+    }
+
+    [Test]
+    public void PerfectFailsOnHoldBodyComboBreak()
+    {
+        YokkoBeatmap beatmap = createBeatmap();
+        var health = new ManiaHealthState(
+            beatmap,
+            new ManiaModSet([ManiaModId.Perfect]));
+
+        ManiaHealthUpdate comboBreak = health.Apply(
+            judgement(
+                JudgementRating.ComboBreak,
+                JudgementPhase.HoldBody));
 
         Assert.That(
-            update.FailReason,
+            comboBreak.FailReason,
             Is.EqualTo(ManiaFailReason.PerfectBroken));
     }
 

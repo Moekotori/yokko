@@ -106,7 +106,7 @@ public sealed class ManiaHealthState
         if (mods.Contains(ManiaModId.Perfect)
             && (judgement.Rating.AffectsAccuracy()
                 || judgement.Rating.AffectsCombo())
-            && judgement.Rating != JudgementRating.Perfect)
+            && judgement.Rating < JudgementRating.Great)
         {
             return ManiaFailReason.PerfectBroken;
         }
@@ -170,20 +170,11 @@ public sealed class ManiaHealthState
         YokkoBeatmap beatmap,
         double drainRate)
     {
-        int topLevelCount = beatmap.HitObjects.Count(
-            static hitObject => hitObject.Kind is
-                HitObjectKind.Tap or HitObjectKind.Hold);
-        if (topLevelCount == 0)
-            return 1;
-
-        int healthJudgementCount = beatmap.HitObjects.Sum(
-            static hitObject => hitObject.Kind switch
-            {
-                HitObjectKind.Tap => 1,
-                HitObjectKind.Hold => 2,
-                _ => 0,
-            });
-        if (healthJudgementCount == 0)
+        YokkoHitObject[] hitObjects = beatmap.HitObjects
+            .Where(static hitObject => hitObject.Kind is
+                HitObjectKind.Tap or HitObjectKind.Hold)
+            .ToArray();
+        if (hitObjects.Length == 0)
             return 1;
 
         double basePerfectIncrease =
@@ -191,15 +182,133 @@ public sealed class ManiaHealthState
         if (basePerfectIncrease <= 0)
             return 1;
 
-        double targetRecovery = difficultyRange(
+        double lowestHealthEver = difficultyRange(
+            drainRate,
+            0.975,
+            0.8,
+            0.3);
+        double lowestHealthEnd = difficultyRange(
+            drainRate,
+            0.99,
+            0.9,
+            0.4);
+        double recoveryRequired = difficultyRange(
             drainRate,
             0.04,
             0.02,
             0);
-        return Math.Max(
-            1,
-            targetRecovery * topLevelCount
-            / (basePerfectIncrease * healthJudgementCount));
+        YokkoBreakPeriod[] breaks = beatmap.BreakPeriods
+            .OrderBy(static period => period.StartTimeMilliseconds)
+            .ThenBy(static period => period.EndTimeMilliseconds)
+            .ToArray();
+
+        double testDrop = 0.00025;
+        double recoveryMultiplier = 1;
+        double drainStartTime =
+            hitObjects[0].StartTimeMilliseconds;
+
+        while (true)
+        {
+            double currentHealth = 1;
+            double uncappedHealth = 1;
+            double lastTime = drainStartTime;
+            int currentBreak = 0;
+            bool failedIteration = false;
+
+            foreach (YokkoHitObject hitObject in hitObjects)
+            {
+                while (currentBreak < breaks.Length
+                       && breaks[currentBreak].EndTimeMilliseconds
+                       <= hitObject.StartTimeMilliseconds)
+                {
+                    lastTime = hitObject.StartTimeMilliseconds;
+                    currentBreak++;
+                }
+
+                reduceHealth(
+                    testDrop
+                    * (hitObject.StartTimeMilliseconds - lastTime));
+
+                double endTime =
+                    hitObject.EndTimeMilliseconds
+                    ?? hitObject.StartTimeMilliseconds;
+                lastTime = endTime;
+
+                if (currentHealth <= lowestHealthEver)
+                {
+                    failedIteration = true;
+                    testDrop *= 0.96;
+                    break;
+                }
+
+                double healthReduction =
+                    testDrop
+                    * (endTime - hitObject.StartTimeMilliseconds);
+                double healthOverkill = Math.Max(
+                    0,
+                    healthReduction - currentHealth);
+                reduceHealth(healthReduction);
+
+                int perfectJudgementCount =
+                    hitObject.Kind == HitObjectKind.Hold ? 2 : 1;
+                increaseHealth(
+                    perfectJudgementCount
+                    * recoveryMultiplier
+                    * basePerfectIncrease);
+
+                if (healthOverkill > 0
+                    && currentHealth - healthOverkill
+                    <= lowestHealthEver)
+                {
+                    failedIteration = true;
+                    testDrop *= 0.96;
+                    break;
+                }
+            }
+
+            if (!failedIteration
+                && currentHealth < lowestHealthEnd)
+            {
+                failedIteration = true;
+                testDrop *= 0.94;
+                recoveryMultiplier *= 1.01;
+            }
+
+            double recovery =
+                (uncappedHealth - 1)
+                / Math.Max(1, hitObjects.Length);
+            if (!failedIteration
+                && recovery < recoveryRequired)
+            {
+                failedIteration = true;
+                testDrop *= 0.96;
+                recoveryMultiplier *= 1.01;
+            }
+
+            if (!failedIteration
+                && double.IsInfinity(recoveryMultiplier))
+            {
+                return 1;
+            }
+
+            if (!failedIteration)
+                return recoveryMultiplier;
+
+            void reduceHealth(double amount)
+            {
+                uncappedHealth = Math.Max(0, uncappedHealth - amount);
+                currentHealth = Math.Max(0, currentHealth - amount);
+            }
+
+            void increaseHealth(double amount)
+            {
+                uncappedHealth += amount;
+                currentHealth = Math.Clamp(
+                    currentHealth + amount,
+                    0,
+                    1);
+            }
+        }
     }
 
     private static double difficultyRange(

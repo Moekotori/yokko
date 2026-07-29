@@ -24,7 +24,7 @@ public sealed record ManiaModDefinition(
         ManiaModId.NoRelease => "Ignore judgements when hold notes are released.",
         ManiaModId.HardRock => "Raise the difficulty and health drain.",
         ManiaModId.SuddenDeath => "A single miss ends the run.",
-        ManiaModId.Perfect => "Any non-perfect judgement ends the run.",
+        ManiaModId.Perfect => "Any judgement below Great ends the run.",
         ManiaModId.DoubleTime => "Speed the song up to 150%.",
         ManiaModId.Nightcore => "Speed up with a higher-pitched soundtrack.",
         ManiaModId.FadeIn => "Notes appear gradually as they approach.",

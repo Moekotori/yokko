@@ -66,6 +66,10 @@ public sealed class EditableBeatmap
 
     public string? SourcePath { get; set; }
 
+    public double PreviewTimeMilliseconds { get; set; } = -1;
+
+    public IReadOnlyList<YokkoBreakPeriod> BreakPeriods { get; private set; } = [];
+
     public KeyMode KeyMode { get; }
 
     public int LaneCount => (int)KeyMode;
@@ -121,6 +125,8 @@ public sealed class EditableBeatmap
             DrainRate = beatmap.DrainRate,
             AudioPath = beatmap.AudioPath,
             SourcePath = sourcePath,
+            PreviewTimeMilliseconds = beatmap.PreviewTimeMilliseconds,
+            BreakPeriods = beatmap.BreakPeriods.ToArray(),
         };
 
         foreach (YokkoHitObject hitObject in beatmap.HitObjects)
@@ -205,7 +211,9 @@ public sealed class EditableBeatmap
             InitialScrollVelocity,
             ScrollSpeedFactors,
             ScrollProfiles,
-            DrainRate);
+            DrainRate,
+            PreviewTimeMilliseconds: PreviewTimeMilliseconds,
+            BreakPeriods: BreakPeriods);
 
     private void sortNotes()
     {

@@ -84,6 +84,8 @@ public static class OsuManiaBeatmapIO
             parseDouble(
                 difficulty.GetValueOrDefault("ApproachRate"),
                 overallDifficulty);
+        List<YokkoBreakPeriod> breakPeriods = parseBreakPeriods(
+            sections.GetValueOrDefault("Events") ?? []);
         ManiaConversionSource? conversionSource = null;
         int keyCount;
         int stageCount = 1;
@@ -120,8 +122,8 @@ public static class OsuManiaBeatmapIO
                     parseDouble(
                         difficulty.GetValueOrDefault("SliderMultiplier"),
                         1.4)),
-                parseBreakTime(
-                    sections.GetValueOrDefault("Events") ?? []));
+                breakPeriods.Sum(static period =>
+                    period.DurationMilliseconds));
             keyCount =
                 OsuStandardManiaConverter.DetermineDefaultColumnCount(
                     conversionSource);
@@ -155,7 +157,8 @@ public static class OsuManiaBeatmapIO
             StageCount: stageCount,
             PreviewTimeMilliseconds: parseDouble(
                 general.GetValueOrDefault("PreviewTime"),
-                -1));
+                -1),
+            BreakPeriods: breakPeriods);
     }
 
     private static string preferredMetadataValue(
@@ -191,7 +194,8 @@ public static class OsuManiaBeatmapIO
         builder.AppendLine("[General]");
         builder.AppendLine($"AudioFilename: {formatAudioFilename(beatmap.AudioPath)}");
         builder.AppendLine("AudioLeadIn: 0");
-        builder.AppendLine("PreviewTime: -1");
+        builder.AppendLine(
+            $"PreviewTime: {formatDouble(beatmap.PreviewTimeMilliseconds)}");
         builder.AppendLine("Countdown: 0");
         builder.AppendLine("SampleSet: Normal");
         builder.AppendLine("StackLeniency: 0.7");
@@ -227,6 +231,14 @@ public static class OsuManiaBeatmapIO
         builder.AppendLine("[Events]");
         builder.AppendLine("//Background and Video events");
         builder.AppendLine("//Break Periods");
+        foreach (YokkoBreakPeriod breakPeriod in
+                 beatmap.BreakPeriods.OrderBy(static period =>
+                     period.StartTimeMilliseconds))
+        {
+            builder.AppendLine(
+                $"2,{formatDouble(breakPeriod.StartTimeMilliseconds)},"
+                + formatDouble(breakPeriod.EndTimeMilliseconds));
+        }
         builder.AppendLine("//Storyboard Layer 0 (Background)");
         builder.AppendLine("//Storyboard Layer 1 (Fail)");
         builder.AppendLine("//Storyboard Layer 2 (Pass)");
@@ -439,10 +451,10 @@ public static class OsuManiaBeatmapIO
                .ToArray();
     }
 
-    private static double parseBreakTime(
+    private static List<YokkoBreakPeriod> parseBreakPeriods(
         IReadOnlyList<string> lines)
     {
-        double total = 0;
+        var periods = new List<YokkoBreakPeriod>();
         foreach (string line in lines)
         {
             string[] parts = line.Split(',');
@@ -456,9 +468,22 @@ public static class OsuManiaBeatmapIO
 
             double start = parseDouble(parts[1], 0);
             double end = parseDouble(parts[2], start);
-            total += Math.Max(0, end - start);
+            if (!double.IsFinite(start)
+                || !double.IsFinite(end)
+                || end < start)
+            {
+                continue;
+            }
+
+            periods.Add(new YokkoBreakPeriod(start, end));
         }
-        return total;
+
+        return periods
+               .OrderBy(static period =>
+                   period.StartTimeMilliseconds)
+               .ThenBy(static period =>
+                   period.EndTimeMilliseconds)
+               .ToList();
     }
 
     private static double sliderDuration(

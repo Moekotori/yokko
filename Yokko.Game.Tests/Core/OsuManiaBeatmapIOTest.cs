@@ -154,6 +154,55 @@ namespace Yokko.Game.Tests.Core
         }
 
         [Test]
+        public void EditableRoundTripPreservesPreviewTimeAndBreakPeriods()
+        {
+            string source = sampleOsu.Replace(
+                "[TimingPoints]",
+                "[Events]\n2,1100,1400\n2,1900,2100\n\n[TimingPoints]");
+            YokkoBeatmap imported =
+                OsuManiaBeatmapIO.ReadBeatmap(source);
+            EditableBeatmap editable =
+                EditableBeatmap.FromBeatmap(imported);
+
+            string exported =
+                OsuManiaBeatmapIO.WriteEditableToString(editable);
+            YokkoBeatmap reparsed =
+                OsuManiaBeatmapIO.ReadBeatmap(exported);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    imported.BreakPeriods,
+                    Is.EqualTo(new[]
+                    {
+                        new YokkoBreakPeriod(1100, 1400),
+                        new YokkoBreakPeriod(1900, 2100),
+                    }));
+                Assert.That(
+                    editable.PreviewTimeMilliseconds,
+                    Is.EqualTo(12345));
+                Assert.That(
+                    editable.BreakPeriods,
+                    Is.EqualTo(imported.BreakPeriods));
+                Assert.That(
+                    exported,
+                    Does.Contain("PreviewTime: 12345"));
+                Assert.That(
+                    exported,
+                    Does.Contain("2,1100,1400"));
+                Assert.That(
+                    exported,
+                    Does.Contain("2,1900,2100"));
+                Assert.That(
+                    reparsed.PreviewTimeMilliseconds,
+                    Is.EqualTo(12345));
+                Assert.That(
+                    reparsed.BreakPeriods,
+                    Is.EqualTo(imported.BreakPeriods));
+            });
+        }
+
+        [Test]
         public void ExportsPositiveNormalizedScrollVelocitiesAsInheritedPoints()
         {
             var source = new YokkoBeatmap(
