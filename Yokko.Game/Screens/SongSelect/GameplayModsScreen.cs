@@ -89,9 +89,12 @@ internal partial class GameplayModsScreen : Screen
     private ManiaModSet selectedMods;
     private bool loadComplete;
     private bool selectionDirty;
+    private bool pageTransitioning;
     private double lastGlobalScrollAt = double.NegativeInfinity;
     private int modColumnCount = 2;
     private Vector2 lastResponsiveLayoutSize = new(-1);
+    private float modBrowserRestingY = 119;
+    private float detailPanelRestingY = 118;
     [Resolved]
     private YokkoManiaModPreferences modPreferences { get; set; }
 
@@ -139,6 +142,7 @@ internal partial class GameplayModsScreen : Screen
         || fixedRateMaximum?.Alpha > 0;
     internal bool NavigationHintVisible =>
         navigationHint?.Alpha > 0;
+    internal bool IsPageTransitioning => pageTransitioning;
     internal Color4 ConfigurablePanelColour =>
         configurablePanelBackground?.Colour ?? Color4.Transparent;
     internal bool ResetEnabled => resetButton?.IsEnabled ?? false;
@@ -236,9 +240,14 @@ internal partial class GameplayModsScreen : Screen
             detailLeft - browser_left - browser_detail_gap);
 
         categoryRail.Y = contentY + 8;
-        modBrowser.Y = contentY + 1;
+        modBrowserRestingY = contentY + 1;
+        detailPanelRestingY = contentY;
+        if (!pageTransitioning)
+        {
+            modBrowser.Y = modBrowserRestingY;
+            detailPanel.Y = detailPanelRestingY;
+        }
         modBrowser.Width = browserWidth;
-        detailPanel.Y = contentY;
         detailPanelDivider.Y = contentY - 8;
 
         foreach (Box divider in sectionDividers)
@@ -278,7 +287,7 @@ internal partial class GameplayModsScreen : Screen
                 return true;
 
             case Key.Tab:
-                CycleCategory(shiftPressed ? -1 : 1);
+                NavigateCategoryPage(shiftPressed ? -1 : 1, true);
                 showInteractionHint(
                     shiftPressed
                         ? "SHIFT+TAB · PREVIOUS CATEGORY"
@@ -358,13 +367,144 @@ internal partial class GameplayModsScreen : Screen
 
         lastGlobalScrollAt = Time.Current;
         NavigatePageByScroll(e.ScrollDelta.Y);
-        showInteractionHint(
-            "WHEEL · CHANGE CATEGORY   ARROWS · SELECT MOD");
         return true;
     }
 
     internal void NavigatePageByScroll(double delta) =>
-        CycleCategory(delta > 0 ? -1 : 1);
+        NavigateCategoryPage(delta > 0 ? -1 : 1, false);
+
+    private void NavigateCategoryPage(int offset, bool wrap)
+    {
+        if (pageTransitioning || offset == 0)
+            return;
+
+        int currentIndex = Array.IndexOf(
+            visible_categories,
+            activeCategory);
+        int nextIndex = currentIndex + Math.Sign(offset);
+        if (wrap)
+        {
+            nextIndex = (nextIndex + visible_categories.Length)
+                        % visible_categories.Length;
+        }
+        else
+        {
+            nextIndex = Math.Clamp(
+                nextIndex,
+                0,
+                visible_categories.Length - 1);
+        }
+
+        if (nextIndex == currentIndex)
+        {
+            playPageEdgeFeedback(offset);
+            return;
+        }
+
+        transitionToCategoryPage(
+            visible_categories[nextIndex],
+            Math.Sign(offset));
+    }
+
+    private void NavigateToCategoryPage(ManiaModCategory category)
+    {
+        int currentIndex = Array.IndexOf(
+            visible_categories,
+            activeCategory);
+        int targetIndex = Array.IndexOf(
+            visible_categories,
+            category);
+        if (targetIndex < 0 || targetIndex == currentIndex)
+            return;
+
+        transitionToCategoryPage(
+            category,
+            Math.Sign(targetIndex - currentIndex));
+    }
+
+    private void transitionToCategoryPage(
+        ManiaModCategory category,
+        int direction)
+    {
+        if (pageTransitioning)
+            return;
+
+        pageTransitioning = true;
+        float travel = Math.Clamp(DrawHeight * 0.1f, 58, 92);
+        float outgoingY = -direction * travel;
+
+        modBrowser.ClearTransforms();
+        detailPanel.ClearTransforms();
+        modBrowser.MoveToY(
+                      modBrowserRestingY + outgoingY,
+                      125,
+                      Easing.InCubic)
+                  .FadeOut(95, Easing.OutQuint);
+        detailPanel.Delay(18)
+                   .MoveToY(
+                       detailPanelRestingY + outgoingY,
+                       125,
+                       Easing.InCubic)
+                   .FadeOut(95, Easing.OutQuint);
+
+        Scheduler.AddDelayed(() =>
+        {
+            SetCategory(category);
+
+            float incomingY = direction * travel;
+            modBrowser.ClearTransforms();
+            detailPanel.ClearTransforms();
+            modBrowser.Y = modBrowserRestingY + incomingY;
+            detailPanel.Y = detailPanelRestingY + incomingY;
+            modBrowser.Alpha = 0;
+            detailPanel.Alpha = 0;
+
+            modBrowser.FadeIn(145, Easing.OutQuint)
+                      .MoveToY(
+                          modBrowserRestingY,
+                          220,
+                          Easing.OutQuint);
+            detailPanel.Delay(22)
+                       .FadeIn(145, Easing.OutQuint)
+                       .MoveToY(
+                           detailPanelRestingY,
+                           220,
+                           Easing.OutQuint);
+
+            Scheduler.AddDelayed(
+                () => pageTransitioning = false,
+                225);
+        }, 125);
+    }
+
+    private void playPageEdgeFeedback(int direction)
+    {
+        float offset = -Math.Sign(direction) * 8;
+        modBrowser.ClearTransforms();
+        detailPanel.ClearTransforms();
+        modBrowser.MoveToY(
+                      modBrowserRestingY + offset,
+                      65,
+                      Easing.OutQuint)
+                  .Then()
+                  .MoveToY(
+                      modBrowserRestingY,
+                      150,
+                      Easing.OutBack);
+        detailPanel.MoveToY(
+                       detailPanelRestingY + offset,
+                       65,
+                       Easing.OutQuint)
+                   .Then()
+                   .MoveToY(
+                       detailPanelRestingY,
+                       150,
+                       Easing.OutBack);
+        showInteractionHint(
+            direction < 0
+                ? "FIRST PAGE"
+                : "LAST PAGE");
+    }
 
     internal void SetCategory(ManiaModCategory category)
     {
@@ -743,7 +883,7 @@ internal partial class GameplayModsScreen : Screen
                 categoryLabel(category),
                 categoryIcon(category),
                 categoryAccent(category),
-                () => SetCategory(category));
+                () => NavigateToCategoryPage(category));
             button.SetSelected(category == activeCategory);
             categoryButtons[category] = button;
             flow.Add(button);

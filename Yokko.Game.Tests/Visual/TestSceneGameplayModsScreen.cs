@@ -118,16 +118,24 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             && modsScreen.DetailMod == ManiaModId.Random);
         AddStep("global wheel moves to next category", () =>
             modsScreen.NavigatePageByScroll(-1));
-        AddAssert("wheel changes page instead of focused Mod", () =>
-            modsScreen.ActiveCategory == ManiaModCategory.Automation
+        AddAssert("wheel starts a real page transition", () =>
+            modsScreen.IsPageTransitioning
+            && modsScreen.ActiveCategory == ManiaModCategory.Conversion
+            && modsScreen.DetailMod == ManiaModId.Random);
+        AddWaitStep("wait for wheel page transition", 25);
+        AddAssert("wheel enters next page instead of focused Mod", () =>
+            !modsScreen.IsPageTransitioning
+            && modsScreen.ActiveCategory == ManiaModCategory.Automation
             && modsScreen.DetailMod == ManiaModId.Autoplay);
         AddStep("Tab category cycle", () =>
-            modsScreen.CycleCategory(1));
+            modsScreen.HandleInteractionKey(Key.Tab));
+        AddWaitStep("wait for Tab page transition", 25);
         AddAssert("category cycle focuses relevant first Mod", () =>
             modsScreen.ActiveCategory == ManiaModCategory.Fun
             && modsScreen.DetailMod == ManiaModId.WindUp);
         AddStep("Shift Tab category cycle", () =>
             modsScreen.HandleInteractionKey(Key.Tab, true));
+        AddWaitStep("wait for reverse page transition", 25);
         AddAssert("reverse category cycle is predictable", () =>
             modsScreen.ActiveCategory == ManiaModCategory.Automation
             && modsScreen.DetailMod == ManiaModId.Autoplay);
