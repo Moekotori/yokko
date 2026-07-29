@@ -140,9 +140,8 @@ internal partial class SongSelectFilterButton : ClickableContainer
 internal partial class SongSelectSongRow : ClickableContainer
 {
     private readonly Box tint;
-    private readonly Box selectionLine;
-    private readonly Box selectionTopCap;
-    private readonly Box selectionBottomCap;
+    private readonly Box selectionCornerH;
+    private readonly Box selectionCornerV;
     private readonly Box selectedTopBorder;
     private readonly Box selectedBottomBorder;
     private readonly Box selectedLeftBorder;

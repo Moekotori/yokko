@@ -112,6 +112,8 @@ internal static class YokkoStrings
             ["song_select.length"] = new("LENGTH", "时长", "長さ"),
 
             ["gameplay.pause.title"] = new("Paused", "暂停中", "一時停止"),
+            ["gameplay.pause.subtitle"] = new("Catch your breath.", "先喘口气。", "ひと休み。"),
+            ["gameplay.pause.bubble"] = new("Take a break!", "休息一下！", "ひと休み！"),
             ["gameplay.pause.resume"] = new("Resume", "继续游戏", "ゲームに戻る"),
             ["gameplay.pause.resume_hint"] = new("ESC  RESUME", "ESC  继续", "ESC  再開"),
             ["gameplay.pause.retry"] = new("Restart", "重新开始", "リスタート"),

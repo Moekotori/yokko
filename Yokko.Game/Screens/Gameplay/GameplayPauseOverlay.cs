@@ -60,10 +60,10 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             {
                 RelativeSizeAxes = Axes.Both,
                 Colour = new Color4(
-                    HomeControlColours.Navy.R,
-                    HomeControlColours.Navy.G,
-                    HomeControlColours.Navy.B,
-                    0.78f),
+                    HomeControlColours.Cyan.R,
+                    HomeControlColours.Cyan.G,
+                    HomeControlColours.Cyan.B,
+                    0.82f),
             },
             stage = new Container
             {
@@ -78,6 +78,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     createHeader(textures.Get("home-logo-hd")),
                     createActionColumn(),
                     createSongBadge(),
+                    createMascot(textures.Get("yokko")),
                 },
             },
         };
@@ -140,18 +141,28 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 new Box
                 {
                     RelativeSizeAxes = Axes.Y,
-                    Width = 455,
+                    Width = 470,
                     Colour = HomeControlColours.Ivory,
                 },
                 new Box
                 {
                     RelativeSizeAxes = Axes.Y,
-                    Width = 235,
+                    Width = 220,
                     X = 420,
-                    Y = -24,
-                    Height = 1.16f,
-                    Rotation = 12,
+                    Y = -40,
+                    Height = 1.2f,
+                    Rotation = 7.5f,
                     Colour = HomeControlColours.Ivory,
+                },
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Y,
+                    X = 590,
+                    Y = -18,
+                    Width = 2,
+                    Height = 1.1f,
+                    Rotation = 7.5f,
+                    Colour = HomeControlColours.Navy,
                 },
             },
         };
@@ -159,14 +170,28 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     private Drawable createHeader(Texture logoTexture) =>
         new Container
         {
-            Position = new Vector2(58, 38),
-            Size = new Vector2(520, 272),
+            Position = new Vector2(68, 40),
+            Size = new Vector2(430, 310),
             Children = new Drawable[]
             {
+                new SpriteIcon
+                {
+                    Position = new Vector2(0, 4),
+                    Size = new Vector2(12),
+                    Icon = FontAwesome.Solid.Plus,
+                    Colour = HomeControlColours.Pink,
+                },
+                new SpriteIcon
+                {
+                    Position = new Vector2(43, 4),
+                    Size = new Vector2(10),
+                    Icon = FontAwesome.Solid.Plus,
+                    Colour = HomeControlColours.Cyan,
+                },
                 new Sprite
                 {
-                    Position = new Vector2(0, 0),
-                    Size = new Vector2(290, 96),
+                    Position = new Vector2(0, 28),
+                    Size = new Vector2(236, 74),
                     FillMode = FillMode.Fit,
                     Anchor = Anchor.TopLeft,
                     Origin = Anchor.TopLeft,
@@ -174,39 +199,35 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(0, 125),
+                    Position = new Vector2(0, 146),
                     Text = YokkoStrings.Get("gameplay.pause.title"),
-                    Font = HomeTypography.Hero(62),
+                    Font = HomeTypography.Hero(54),
+                    Colour = HomeControlColours.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(2, 212),
+                    Text = YokkoStrings.Get("gameplay.pause.subtitle"),
+                    Font = HomeTypography.Display(32),
                     Colour = HomeControlColours.Navy,
                 },
                 new Box
                 {
-                    Position = new Vector2(4, 189),
-                    Size = new Vector2(246, 15),
-                    Colour = new Color4(
-                        HomeControlColours.Yellow.R,
-                        HomeControlColours.Yellow.G,
-                        HomeControlColours.Yellow.B,
-                        0.58f),
+                    Position = new Vector2(2, 252),
+                    Size = new Vector2(190, 5),
+                    Colour = HomeControlColours.Yellow,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(4, 218),
+                    Position = new Vector2(2, 278),
                     Text = "P A U S E D",
-                    Font = HomeTypography.Display(18),
+                    Font = HomeTypography.Display(16),
                     Colour = HomeControlColours.Cyan,
                 },
-                new Box
+                new HomeMicroLine
                 {
-                    Position = new Vector2(232, 241),
-                    Size = new Vector2(116, 2),
-                    Colour = HomeControlColours.Cyan,
-                },
-                new SpriteIcon
-                {
-                    Position = new Vector2(342, 228),
-                    Size = new Vector2(28),
-                    Icon = FontAwesome.Solid.Heartbeat,
+                    Position = new Vector2(272, 286),
+                    Width = 108,
                     Colour = HomeControlColours.Cyan,
                 },
             },
@@ -219,46 +240,109 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             YokkoStrings.Get("gameplay.pause.resume_hint"),
             FontAwesome.Solid.Play,
             true,
+            HomeControlColours.Pink,
             resume,
             () => selectAction(0))
         {
-            Position = new Vector2(58, 319),
+            Position = new Vector2(68, 360),
         };
         actions[1] = new PauseActionButton(
             YokkoStrings.Get("gameplay.pause.retry"),
             string.Empty,
             FontAwesome.Solid.Redo,
             false,
+            HomeControlColours.Pink,
             retry,
             () => selectAction(1))
         {
-            Position = new Vector2(58, 454),
+            Position = new Vector2(68, 490),
         };
         actions[2] = new PauseActionButton(
             YokkoStrings.Get("gameplay.pause.settings"),
             string.Empty,
             FontAwesome.Solid.Cog,
             false,
+            HomeControlColours.Cyan,
             openSettings,
             () => selectAction(2))
         {
-            Position = new Vector2(58, 519),
+            Position = new Vector2(221.3f, 490),
         };
         actions[3] = new PauseActionButton(
             YokkoStrings.Get("gameplay.pause.exit"),
             string.Empty,
             FontAwesome.Solid.SignOutAlt,
             false,
+            HomeControlColours.Pink,
             exitGameplay,
             () => selectAction(3))
         {
-            Position = new Vector2(58, 584),
+            Position = new Vector2(374.6f, 490),
         };
 
         return new Container
         {
             RelativeSizeAxes = Axes.Both,
-            Children = actions,
+            Children = new Drawable[]
+            {
+                new Container
+                {
+                    Position = new Vector2(68, 496),
+                    Size = new Vector2(460, 68),
+                    Masking = true,
+                    CornerRadius = 10,
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(
+                            HomeControlColours.Navy.R,
+                            HomeControlColours.Navy.G,
+                            HomeControlColours.Navy.B,
+                            0.22f),
+                    },
+                },
+                new Container
+                {
+                    Position = new Vector2(68, 490),
+                    Size = new Vector2(460, 68),
+                    Masking = true,
+                    CornerRadius = 10,
+                    BorderThickness = 2,
+                    BorderColour = HomeControlColours.Navy,
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = HomeControlColours.Ivory,
+                        },
+                        new Box
+                        {
+                            Position = new Vector2(153.3f, 14),
+                            Size = new Vector2(1.5f, 40),
+                            Colour = new Color4(
+                                HomeControlColours.Navy.R,
+                                HomeControlColours.Navy.G,
+                                HomeControlColours.Navy.B,
+                                0.55f),
+                        },
+                        new Box
+                        {
+                            Position = new Vector2(306.6f, 14),
+                            Size = new Vector2(1.5f, 40),
+                            Colour = new Color4(
+                                HomeControlColours.Navy.R,
+                                HomeControlColours.Navy.G,
+                                HomeControlColours.Navy.B,
+                                0.55f),
+                        },
+                    },
+                },
+                actions[0],
+                actions[1],
+                actions[2],
+                actions[3],
+            },
         };
     }
 
@@ -272,29 +356,48 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         {
             Anchor = Anchor.TopRight,
             Origin = Anchor.TopRight,
-            Position = new Vector2(-36, 34),
-            Size = new Vector2(300, 76),
-            Masking = true,
-            CornerRadius = 10,
-            BorderThickness = 2,
-            BorderColour = HomeControlColours.Cyan,
+            Position = new Vector2(-28, 22),
+            Size = new Vector2(350, 76),
             Children = new Drawable[]
             {
-                new Box
+                new Container
                 {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(
-                        HomeControlColours.Navy.R,
-                        HomeControlColours.Navy.G,
-                        HomeControlColours.Navy.B,
-                        0.9f),
+                    Position = new Vector2(2, 6),
+                    Size = new Vector2(348, 70),
+                    Masking = true,
+                    CornerRadius = 14,
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(
+                            HomeControlColours.Navy.R,
+                            HomeControlColours.Navy.G,
+                            HomeControlColours.Navy.B,
+                            0.22f),
+                    },
                 },
                 new Container
                 {
-                    Position = new Vector2(15, 13),
+                    Size = new Vector2(350, 70),
+                    Masking = true,
+                    CornerRadius = 14,
+                    BorderThickness = 2,
+                    BorderColour = HomeControlColours.Navy,
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = HomeControlColours.Ivory,
+                        },
+                    },
+                },
+                new Container
+                {
+                    Position = new Vector2(14, 11),
                     Size = new Vector2(48),
                     Masking = true,
-                    CornerRadius = 8,
+                    CornerRadius = 9,
                     Children = new Drawable[]
                     {
                         new Box
@@ -304,7 +407,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                                 HomeControlColours.Cyan.R,
                                 HomeControlColours.Cyan.G,
                                 HomeControlColours.Cyan.B,
-                                0.16f),
+                                0.18f),
                         },
                         new SpriteIcon
                         {
@@ -318,29 +421,81 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(78, 13),
+                    Position = new Vector2(78, 12),
                     Text = beatmap.Title,
                     Font = HomeTypography.Display(18),
-                    Colour = Color4.White,
+                    Colour = HomeControlColours.Navy,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(78, 42),
+                    Position = new Vector2(78, 41),
                     Text = difficulty,
-                    Font = HomeTypography.Body(13),
-                    Colour = HomeControlColours.PaleCyan,
+                    Font = HomeTypography.Body(12),
+                    Colour = new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.78f),
                 },
-                new Box
+                new Container
                 {
-                    Anchor = Anchor.TopRight,
-                    Origin = Anchor.Centre,
-                    Size = new Vector2(17),
-                    Rotation = 45,
-                    Colour = HomeControlColours.Yellow,
+                    Anchor = Anchor.CentreRight,
+                    Origin = Anchor.CentreRight,
+                    X = -22,
+                    Size = new Vector2(55, 8),
+                    Children = new Drawable[]
+                    {
+                        new Circle
+                        {
+                            Position = new Vector2(0, 1),
+                            Size = new Vector2(6),
+                            Colour = HomeControlColours.Cyan,
+                        },
+                        new Circle
+                        {
+                            Position = new Vector2(13, 1),
+                            Size = new Vector2(6),
+                            Colour = HomeControlColours.Cyan,
+                        },
+                        new Circle
+                        {
+                            Position = new Vector2(26, 1),
+                            Size = new Vector2(6),
+                            Colour = HomeControlColours.Cyan,
+                        },
+                        new Circle
+                        {
+                            Position = new Vector2(39, 1),
+                            Size = new Vector2(6),
+                            Colour = HomeControlColours.Pink,
+                        },
+                    },
                 },
             },
         };
     }
+
+    private Drawable createMascot(Texture mascotTexture) =>
+        new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Children = new Drawable[]
+            {
+                new Sprite
+                {
+                    Anchor = Anchor.BottomRight,
+                    Origin = Anchor.BottomRight,
+                    Position = new Vector2(-18, -2),
+                    Size = new Vector2(470, 535),
+                    Texture = mascotTexture,
+                },
+                new HomeMascotBubble(
+                    YokkoStrings.Get("gameplay.pause.bubble"))
+                {
+                    Position = new Vector2(858, 403),
+                },
+            },
+        };
 
     private Drawable createDecorations() =>
         new Container
@@ -348,45 +503,74 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             RelativeSizeAxes = Axes.Both,
             Children = new Drawable[]
             {
+                new Box
+                {
+                    Position = new Vector2(635, 34),
+                    Size = new Vector2(2, 560),
+                    Colour = new Color4(1f, 1f, 1f, 0.22f),
+                },
+                new Box
+                {
+                    Position = new Vector2(730, 34),
+                    Size = new Vector2(2, 560),
+                    Colour = new Color4(1f, 1f, 1f, 0.22f),
+                },
+                new Box
+                {
+                    Position = new Vector2(825, 34),
+                    Size = new Vector2(2, 560),
+                    Colour = new Color4(1f, 1f, 1f, 0.22f),
+                },
+                new Box
+                {
+                    Position = new Vector2(920, 34),
+                    Size = new Vector2(2, 560),
+                    Colour = new Color4(1f, 1f, 1f, 0.22f),
+                },
+                new Box
+                {
+                    Position = new Vector2(610, 558),
+                    Size = new Vector2(392, 2),
+                    Colour = new Color4(1f, 1f, 1f, 0.34f),
+                },
+                new HomeRing(72, 3, new Color4(1f, 1f, 1f, 0.55f))
+                {
+                    Position = new Vector2(658, 558),
+                },
+                new HomeRing(72, 3, new Color4(1f, 1f, 1f, 0.55f))
+                {
+                    Position = new Vector2(753, 558),
+                },
+                new HomeRing(72, 3, new Color4(1f, 1f, 1f, 0.55f))
+                {
+                    Position = new Vector2(848, 558),
+                },
+                new HomeRing(72, 3, new Color4(1f, 1f, 1f, 0.55f))
+                {
+                    Position = new Vector2(943, 558),
+                },
                 new HomeDotField
                 {
-                    Position = new Vector2(374, 53),
-                    Size = new Vector2(72, 48),
+                    Position = new Vector2(366, 625),
+                    Size = new Vector2(68, 42),
                     Colour = new Color4(
                         HomeControlColours.Cyan.R,
                         HomeControlColours.Cyan.G,
                         HomeControlColours.Cyan.B,
-                        0.25f),
-                },
-                new HomeMicroLine
-                {
-                    Position = new Vector2(340, 30),
-                    Width = 170,
+                        0.36f),
                 },
                 new HomeBarcode("NO.004-KEY")
                 {
-                    Position = new Vector2(470, 660),
+                    Position = new Vector2(68, 628),
                 },
-                new SpriteIcon
+                new Box
                 {
-                    Position = new Vector2(470, 500),
-                    Size = new Vector2(15),
-                    Icon = FontAwesome.Solid.Plus,
-                    Colour = HomeControlColours.Pink,
-                },
-                new SpriteIcon
-                {
-                    Position = new Vector2(1188, 612),
-                    Size = new Vector2(18),
-                    Icon = FontAwesome.Solid.Plus,
-                    Colour = HomeControlColours.Pink,
-                },
-                new HomeTickRuler(410)
-                {
-                    Anchor = Anchor.BottomCentre,
-                    Origin = Anchor.BottomCentre,
-                    Y = -17,
-                    Colour = HomeControlColours.Cyan,
+                    Position = new Vector2(582, 266),
+                    Size = new Vector2(14),
+                    Rotation = 45,
+                    BorderThickness = 2,
+                    BorderColour = HomeControlColours.Navy,
+                    Colour = HomeControlColours.Yellow,
                 },
             },
         };
