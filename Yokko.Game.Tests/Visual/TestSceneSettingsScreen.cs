@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Graphics;
@@ -127,6 +128,8 @@ namespace Yokko.Game.Tests.Visual
         {
             AudioSettingsPanel audio = null;
             double originalVolume = 1;
+            double originalMusicVolume = 1;
+            double originalHitSoundVolume = 1;
             bool originalHitSounds = true;
 
             AddStep("open Audio", () =>
@@ -135,30 +138,44 @@ namespace Yokko.Game.Tests.Visual
             {
                 audio = (AudioSettingsPanel)settingsScreen.ActivePanel;
                 originalVolume = audio.CurrentMasterVolume;
+                originalMusicVolume = audio.CurrentMusicVolume;
+                originalHitSoundVolume = audio.CurrentHitSoundVolume;
                 originalHitSounds = audio.HitSoundsEnabled;
             });
             AddStep("set master volume to 65%", () =>
                 audio.SetMasterVolume(0.65));
             AddAssert("master volume changed", () =>
                 audio.CurrentMasterVolume == 0.65);
+            AddStep("set music volume to 55%", () =>
+                audio.SetMusicVolume(0.55));
+            AddAssert("music volume changed", () =>
+                audio.CurrentMusicVolume == 0.55);
+            AddStep("set hitsound volume to 40%", () =>
+                audio.SetHitSoundVolume(0.4));
+            AddAssert("hitsound volume changed", () =>
+                audio.CurrentHitSoundVolume == 0.4);
             AddStep("disable hitsounds", () =>
                 audio.SetHitSoundsEnabled(false));
             AddAssert("hitsounds disabled", () =>
                 !audio.HitSoundsEnabled);
-            AddAssert("six audio rows fit above footer", () =>
+            AddAssert("three volume sliders are visible", () =>
+                audio.ChildrenOfType<SettingsVolumeSlider>().Count() == 3);
+            AddAssert("seven audio rows fit above footer", () =>
             {
                 Container[] rows = audio.ChildrenOfType<Container>()
                                         .Where(container =>
                                             container.Position.X == 378
                                             && container.Size.X == 840
-                                            && container.Size.Y == 68)
+                                            && container.Size.Y == 54)
                                         .ToArray();
-                return rows.Length == 6
+                return rows.Length == 7
                        && rows.All(row => row.Y + row.Height < 651);
             });
             AddStep("restore audio preferences", () =>
             {
                 audio.SetMasterVolume(originalVolume);
+                audio.SetMusicVolume(originalMusicVolume);
+                audio.SetHitSoundVolume(originalHitSoundVolume);
                 audio.SetHitSoundsEnabled(originalHitSounds);
             });
         }
@@ -291,6 +308,78 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.GetBinding(KeyMode.FourKey, 3) == Key.Slash);
             AddStep("restore 4K defaults", () =>
                 gameplay.ResetSelectedBindings());
+        }
+
+        [Test]
+        public void TestGameplayInputMonitorPresetsAndCalibrationState()
+        {
+            GameplaySettingsPanel gameplay = null;
+            IReadOnlyList<Key> originalFour = null;
+            IReadOnlyList<Key> originalSeven = null;
+
+            AddStep("open Gameplay input", () =>
+            {
+                settingsScreen.OpenPage(SettingsPageKind.Gameplay);
+                gameplay =
+                    (GameplaySettingsPanel)settingsScreen.ActivePanel;
+                gameplay.SelectSection(GameplaySettingsSection.Input);
+                gameplay.SelectKeyMode(KeyMode.FourKey);
+                originalFour = Enumerable.Range(0, 4)
+                    .Select(lane =>
+                        gameplay.GetBinding(KeyMode.FourKey, lane))
+                    .ToArray();
+                originalSeven = Enumerable.Range(0, 7)
+                    .Select(lane =>
+                        gameplay.GetBinding(KeyMode.SevenKey, lane))
+                    .ToArray();
+            });
+            AddStep("press a bound key", () =>
+                gameplay.HandleKeyDown(originalFour[0]));
+            AddAssert("live monitor tracks key down", () =>
+                gameplay.PressedKeyCount == 1);
+            AddStep("release the bound key", () =>
+                gameplay.HandleKeyUp(originalFour[0]));
+            AddAssert("live monitor clears key up", () =>
+                gameplay.PressedKeyCount == 0);
+            AddStep("bind lane one to lane two key", () =>
+            {
+                gameplay.BeginKeyCapture(0);
+                gameplay.HandleKeyDown(originalFour[1]);
+            });
+            AddAssert("duplicate binding swaps lanes", () =>
+                gameplay.GetBinding(KeyMode.FourKey, 0) == originalFour[1]
+                && gameplay.GetBinding(KeyMode.FourKey, 1) ==
+                originalFour[0]);
+            AddStep("apply split preset", () =>
+                gameplay.ApplyBindingPreset(GameplayKeyPreset.Split));
+            AddAssert("split preset applied", () =>
+                gameplay.GetBinding(KeyMode.FourKey, 0) == Key.Z
+                && gameplay.GetBinding(KeyMode.FourKey, 3) == Key.Slash);
+            AddStep("copy 4K to 7K", gameplay.CopySelectedBindings);
+            AddAssert("central lanes copied to 7K", () =>
+                gameplay.GetBinding(KeyMode.SevenKey, 1) == Key.Z
+                && gameplay.GetBinding(KeyMode.SevenKey, 2) == Key.X
+                && gameplay.GetBinding(KeyMode.SevenKey, 4) == Key.Period
+                && gameplay.GetBinding(KeyMode.SevenKey, 5) == Key.Slash);
+            AddStep("start calibration state", () =>
+                gameplay.StartCalibrationForTest(0));
+            AddAssert("calibration is active", () =>
+                gameplay.IsCalibrationActive);
+            AddAssert("Esc layer cancels calibration", () =>
+                gameplay.DismissTransientUi());
+            AddAssert("calibration is cancelled", () =>
+                !gameplay.IsCalibrationActive);
+            AddStep("restore original profiles", () =>
+            {
+                gameplay.SelectKeyMode(KeyMode.FourKey);
+                gameplay.BeginSequentialKeyCapture();
+                foreach (Key key in originalFour)
+                    gameplay.HandleKeyDown(key);
+                gameplay.SelectKeyMode(KeyMode.SevenKey);
+                gameplay.BeginSequentialKeyCapture();
+                foreach (Key key in originalSeven)
+                    gameplay.HandleKeyDown(key);
+            });
         }
 
         [Test]

@@ -597,18 +597,25 @@ public sealed class QuaverChartImporter : IChartImporter
             ScrollVelocityProfile defaultVelocity,
             IReadOnlyList<YokkoScrollSpeedFactor> defaultFactors)
     {
-        YokkoScrollProfile? globalProfile = null;
+        YokkoScrollProfile? globalOverlay = null;
+        YokkoScrollProfile? standaloneGlobalProfile = null;
 
         if (parsed.ScrollGroups.TryGetValue(
                 "$Global",
                 out QuaScrollGroup? globalGroup))
         {
-            globalProfile = createScrollProfile(
+            globalOverlay = createScrollProfile(
                 globalGroup,
                 timingPoints,
                 hitObjects,
-                normalized,
+                normalized: true,
                 globalInitialIsIgnored: true);
+            standaloneGlobalProfile = createScrollProfile(
+                globalGroup,
+                timingPoints,
+                hitObjects,
+                normalized: true,
+                globalInitialIsIgnored: false);
         }
 
         YokkoScrollProfile defaultProfile = mergeGlobalProfile(
@@ -616,10 +623,13 @@ public sealed class QuaverChartImporter : IChartImporter
                 defaultVelocity.InitialMultiplier,
                 defaultVelocity.Changes,
                 defaultFactors),
-            globalProfile);
+            globalOverlay);
         var profiles =
             new Dictionary<string, YokkoScrollProfile>(
                 StringComparer.Ordinal);
+
+        if (standaloneGlobalProfile != null)
+            profiles["$Global"] = standaloneGlobalProfile;
 
         foreach ((string id, QuaScrollGroup group) in parsed.ScrollGroups)
         {
@@ -631,9 +641,9 @@ public sealed class QuaverChartImporter : IChartImporter
                     group,
                     timingPoints,
                     hitObjects,
-                    normalized,
+                    normalized: true,
                     globalInitialIsIgnored: false),
-                globalProfile);
+                globalOverlay);
         }
 
         return (defaultProfile, profiles);

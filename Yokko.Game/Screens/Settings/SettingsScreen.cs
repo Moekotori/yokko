@@ -32,6 +32,7 @@ public partial class SettingsScreen : Screen
 {
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
+    internal const float ReferenceLayoutScale = 1.25f;
 
     [Resolved]
     private FrameworkConfigManager frameworkConfig { get; set; }
@@ -63,6 +64,8 @@ public partial class SettingsScreen : Screen
 
     [Resolved]
     private GameHost host { get; set; }
+    [Resolved]
+    private Clipboard clipboard { get; set; }
 
     internal SettingsPageKind CurrentPage { get; private set; } = SettingsPageKind.Display;
     internal Drawable ActivePanel => activePanel;
@@ -103,6 +106,7 @@ public partial class SettingsScreen : Screen
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Size = new Vector2(designedWidth, designedHeight),
+                Scale = new Vector2(ReferenceLayoutScale),
                 Children = new Drawable[]
                 {
                     sidebar,
@@ -146,10 +150,13 @@ public partial class SettingsScreen : Screen
                 mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode)),
             SettingsPageKind.Audio => new AudioSettingsPanel(
                 audioSettings,
-                gameplaySettings),
+                gameplaySettings,
+                host.Storage.GetFullPath("audio-tests", true)),
             SettingsPageKind.Gameplay => new GameplaySettingsPanel(
                 gameplaySettings,
-                audioSettings),
+                audioSettings,
+                host.Storage.GetFullPath("audio-tests", true),
+                clipboard),
             SettingsPageKind.Skins => new SkinSettingsPanel(skinLibrary),
             SettingsPageKind.Import => new ImportSettingsPanel(
                 importSettings,
@@ -194,6 +201,14 @@ public partial class SettingsScreen : Screen
 
         this.Exit();
         return true;
+    }
+
+    protected override void OnKeyUp(KeyUpEvent e)
+    {
+        if (activePanel is GameplaySettingsPanel gameplayPanel)
+            gameplayPanel.HandleKeyUp(e.Key);
+
+        base.OnKeyUp(e);
     }
 
     private static SettingsPageKind parseRememberedPage(string page) =>

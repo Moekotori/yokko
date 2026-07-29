@@ -88,6 +88,7 @@ internal sealed class OsuStandardPatternGenerator
             {
                 case ManiaConversionObjectKind.Circle:
                     pattern = generateCircle(hitObject);
+                    nextPrevious = pattern;
                     break;
 
                 case ManiaConversionObjectKind.Spinner:
@@ -120,7 +121,8 @@ internal sealed class OsuStandardPatternGenerator
                     break;
             }
             output.AddRange(pattern.Objects);
-            previous = nextPrevious ?? pattern;
+            if (nextPrevious is not null)
+                previous = nextPrevious;
         }
 
         return output

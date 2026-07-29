@@ -50,6 +50,14 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddAssert("initial mods are preserved", () =>
             modsScreen.SelectedMods.Contains(ManiaModId.HalfTime)
             && modsScreen.SelectedMods.Contains(ManiaModId.Hidden));
+        AddStep("configure Half Time", () =>
+        {
+            modsScreen.SetFixedRateSpeedChange(0.80);
+            modsScreen.SetFixedRateAdjustPitch(true);
+        });
+        AddAssert("fixed-rate configuration reaches callback", () =>
+            observedMods.PlaybackRate == 0.80
+            && observedMods.FixedRateAdjustPitch);
         AddStep("enable No Fail", () =>
             modsScreen.ToggleMod(ManiaModId.NoFail));
         AddAssert("selection callback receives No Fail", () =>

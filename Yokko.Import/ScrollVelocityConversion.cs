@@ -104,7 +104,7 @@ internal static class ScrollVelocityConversion
                                                         .OrderBy(static velocity =>
                                                             velocity.TimeMilliseconds)
                                                         .ToArray();
-        double baseBeatLength = MostCommonBeatLength(
+        double baseBeatLength = mostCommonQuaverBeatLength(
             relevantPoints,
             hitObjects);
         double currentBeatLength =
@@ -295,6 +295,56 @@ internal static class ScrollVelocityConversion
                        .Value.BeatLength;
     }
 
+    private static double mostCommonQuaverBeatLength(
+        IReadOnlyList<YokkoTimingPoint> timingPoints,
+        IReadOnlyList<YokkoHitObject> hitObjects)
+    {
+        YokkoTimingPoint[] activePoints = timingPoints
+                                          .Where(static point =>
+                                              point.Uninherited
+                                              && !double.IsNaN(
+                                                  point.BeatLengthMilliseconds)
+                                              && point.BeatLengthMilliseconds
+                                              >= 0)
+                                          .OrderBy(static point =>
+                                              point.TimeMilliseconds)
+                                          .ToArray();
+
+        if (activePoints.Length == 0)
+            return YokkoTimingPoint.Default.BeatLengthMilliseconds;
+
+        if (hitObjects.Count == 0)
+            return activePoints[0].BeatLengthMilliseconds;
+
+        double lastTime = hitObjects.Max(static hitObject =>
+            hitObject.EndTimeMilliseconds ?? hitObject.StartTimeMilliseconds);
+        var durations = new Dictionary<double, int>();
+
+        // Quaver walks timing points backwards. Dictionary insertion order is
+        // therefore also its tie-breaker: the latest equally-long BPM wins.
+        for (int i = activePoints.Length - 1; i >= 0; i--)
+        {
+            YokkoTimingPoint point = activePoints[i];
+
+            if (point.TimeMilliseconds > lastTime)
+                continue;
+
+            int duration = (int)(
+                lastTime - (i == 0 ? 0 : point.TimeMilliseconds));
+            lastTime = point.TimeMilliseconds;
+            durations[point.BeatLengthMilliseconds] =
+                durations.GetValueOrDefault(
+                    point.BeatLengthMilliseconds)
+                + duration;
+        }
+
+        return durations.Count == 0
+            ? activePoints[0].BeatLengthMilliseconds
+            : durations.OrderByDescending(static pair => pair.Value)
+                       .First()
+                       .Key;
+    }
+
     private static double adjustedQuaverMultiplier(
         double sliderVelocity,
         double baseBeatLength,
@@ -314,7 +364,20 @@ internal static class ScrollVelocityConversion
         if (baseBeatLength == 0)
             return 0;
 
-        return sliderVelocity * baseBeatLength / currentBeatLength;
+        double multiplier =
+            sliderVelocity * baseBeatLength / currentBeatLength;
+
+        // A zero common BPM makes finite BPM sections infinitely fast in
+        // Quaver's normalized representation. Yokko's timing model is
+        // intentionally finite, so retain direction and use the same 128x
+        // sentinel Quaver uses for infinite-BPM sections.
+        if (double.IsInfinity(multiplier))
+            return sliderVelocity < 0 ? -128 : 128;
+
+        if (double.IsNaN(multiplier))
+            return 0;
+
+        return multiplier;
     }
 }
 

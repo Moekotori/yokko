@@ -25,8 +25,11 @@ namespace Yokko.Game.Screens.SongSelect;
 /// </summary>
 internal partial class GameplayModsScreen : Screen
 {
-    private const float designed_width = 1280;
-    private const float designed_height = 720;
+    private const float designed_width = 1600;
+    private const float designed_height = 900;
+    private const float authored_width = 1280;
+    private const float authored_height = 720;
+    private const float authored_scale = designed_width / authored_width;
 
     private static readonly ManiaModCategory[] visible_categories =
     [
@@ -54,11 +57,13 @@ internal partial class GameplayModsScreen : Screen
     private SpriteText detailName;
     private SpriteText detailHint;
     private TextFlowContainer detailDescription;
+    private SpriteText settingsHeader;
+    private Box settingsDivider;
     private SpriteText activeModsHeader;
     private SpriteText fixedRateLabel;
     private SpriteText fixedRateValue;
-    private Box fixedRateFill;
-    private Circle fixedRateMarker;
+    private GameplayModsRateSlider fixedRateSlider;
+    private GameplayModsPitchButton fixedRatePitch;
     private SongSelectModSettingsHost settingsHost;
     private ManiaModCategory activeCategory =
         ManiaModCategory.DifficultyReduction;
@@ -111,14 +116,19 @@ internal partial class GameplayModsScreen : Screen
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Size = new Vector2(designed_width, designed_height),
-                Children = new Drawable[]
+                Child = new Container
                 {
-                    createHeader(logo),
-                    createCategoryRail(),
-                    createModBrowser(),
-                    createDetailPanel(),
-                    createDecorations(),
-                    createFooter(),
+                    Size = new Vector2(authored_width, authored_height),
+                    Scale = new Vector2(authored_scale),
+                    Children = new Drawable[]
+                    {
+                        createHeader(logo),
+                        createCategoryRail(),
+                        createModBrowser(),
+                        createDetailPanel(),
+                        createDecorations(),
+                        createFooter(),
+                    },
                 },
             },
         };
@@ -168,9 +178,21 @@ internal partial class GameplayModsScreen : Screen
                 ToggleMod(detailMod);
                 return true;
 
+            case Key.P:
+                if (isPitchAdjustableFixedRate(detailMod)
+                    && selectedMods.FixedRateMod == detailMod)
+                {
+                    SetFixedRateAdjustPitch(
+                        !selectedMods.FixedRateAdjustPitch);
+                    return true;
+                }
+                break;
+
             default:
-                return base.OnKeyDown(e);
+                break;
         }
+
+        return base.OnKeyDown(e);
     }
 
     internal void SetCategory(ManiaModCategory category)
@@ -249,6 +271,7 @@ internal partial class GameplayModsScreen : Screen
             value,
             selectedMods.FixedRateAdjustPitch);
         updateSelection();
+        selectDetail(detailMod);
     }
 
     internal void SetFixedRateAdjustPitch(bool value)
@@ -261,6 +284,7 @@ internal partial class GameplayModsScreen : Screen
             selectedMods.FixedRateSpeedChange,
             value);
         updateSelection();
+        selectDetail(detailMod);
     }
 
     internal void SetDifficultyAdjustDrainRate(double? value)
@@ -536,7 +560,7 @@ internal partial class GameplayModsScreen : Screen
                 },
                 new Container
                 {
-                    Position = new Vector2(5, 35),
+                    Position = new Vector2(5, 40),
                     Size = new Vector2(78),
                     Masking = true,
                     CornerRadius = 8,
@@ -560,7 +584,7 @@ internal partial class GameplayModsScreen : Screen
                 },
                 detailName = new SpriteText
                 {
-                    Position = new Vector2(100, 45),
+                    Position = new Vector2(100, 50),
                     Font = HomeTypography.Display(17),
                     Colour = HomeControlColours.Navy,
                 },
@@ -574,13 +598,13 @@ internal partial class GameplayModsScreen : Screen
                         0.7f);
                 })
                 {
-                    Position = new Vector2(100, 75),
+                    Position = new Vector2(100, 80),
                     Width = 208,
                     AutoSizeAxes = Axes.Y,
                 },
                 detailHint = new SpriteText
                 {
-                    Position = new Vector2(7, 108),
+                    Position = new Vector2(7, 130),
                     Text = "SPACE TO TOGGLE",
                     Font = HomeTypography.Display(9),
                     Spacing = new Vector2(1.1f, 0),
@@ -588,11 +612,11 @@ internal partial class GameplayModsScreen : Screen
                 },
                 new HomeDotField
                 {
-                    Position = new Vector2(303, 57),
+                    Position = new Vector2(303, 62),
                     Size = new Vector2(9, 58),
                     Colour = HomeControlColours.Cyan,
                 },
-                new SpriteText
+                settingsHeader = new SpriteText
                 {
                     Position = new Vector2(7, 127),
                     Text = "SETTINGS",
@@ -600,7 +624,7 @@ internal partial class GameplayModsScreen : Screen
                     Spacing = new Vector2(1.8f, 0),
                     Colour = HomeControlColours.Cyan,
                 },
-                new Box
+                settingsDivider = new Box
                 {
                     Position = new Vector2(84, 136),
                     Size = new Vector2(206, 1),
@@ -680,30 +704,10 @@ internal partial class GameplayModsScreen : Screen
                 Font = HomeTypography.Display(12),
                 Colour = HomeControlColours.Cyan,
             },
-            new Box
+            fixedRateSlider = new GameplayModsRateSlider(
+                SetFixedRateSpeedChange)
             {
                 Position = new Vector2(0, 45),
-                Size = new Vector2(284, 6),
-                Colour = new Color4(0.78f, 0.81f, 0.88f, 1f),
-            },
-            fixedRateFill = new Box
-            {
-                Position = new Vector2(0, 45),
-                Height = 6,
-                Colour = HomeControlColours.Cyan,
-            },
-            fixedRateMarker = new Circle
-            {
-                Origin = Anchor.Centre,
-                Position = new Vector2(0, 48),
-                Size = new Vector2(16),
-                BorderThickness = 3,
-                BorderColour = HomeControlColours.Cyan,
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = Color4.White,
-                },
             },
             new SpriteText
             {
@@ -742,16 +746,11 @@ internal partial class GameplayModsScreen : Screen
                     HomeControlColours.Navy.B,
                     0.58f),
             },
-            new SpriteText
+            fixedRatePitch = new GameplayModsPitchButton(
+                () => SetFixedRateAdjustPitch(
+                    !selectedMods.FixedRateAdjustPitch))
             {
                 Y = 96,
-                Text = "Fixed by this mod",
-                Font = HomeTypography.Display(9),
-                Colour = new Color4(
-                    HomeControlColours.Navy.R,
-                    HomeControlColours.Navy.G,
-                    HomeControlColours.Navy.B,
-                    0.45f),
             },
         };
         return panel;
@@ -1009,7 +1008,8 @@ internal partial class GameplayModsScreen : Screen
                 ? definition.Description
                 : "Available only for charts imported from osu!standard.");
 
-        bool configurable = isConfigurable(mod);
+        bool fixedRateMod = isFixedRateMod(mod);
+        bool configurable = isConfigurable(mod) && !fixedRateMod;
         configurablePanel.Alpha = configurable ? 1 : 0;
         fixedRatePanel.Alpha = configurable ? 0 : 1;
         activeModsHeader.Alpha = configurable ? 0 : 1;
@@ -1024,21 +1024,30 @@ internal partial class GameplayModsScreen : Screen
         }
         else
         {
-            double rate = fixedRateFor(mod);
-            bool rateMod = isRateMod(mod);
-            fixedRateLabel.Text = rateMod
+            bool enabledRateMod =
+                fixedRateMod && selectedMods.FixedRateMod == mod;
+            double rate = enabledRateMod
+                ? selectedMods.FixedRateSpeedChange
+                : fixedRateFor(mod);
+            fixedRateLabel.Text = fixedRateMod
                 ? "SPEED MULTIPLIER"
                 : "NO EXTRA SETTINGS";
-            fixedRateValue.Text = rateMod
+            fixedRateValue.Text = fixedRateMod
                 ? $"{rate:0.##}x"
                 : "—";
-            float progress = rateMod
-                ? (float)Math.Clamp((rate - 0.25) / 1.75, 0, 1)
-                : 0;
-            fixedRateFill.Width = 284 * progress;
-            fixedRateMarker.X = 284 * progress;
-            fixedRateFill.Alpha = rateMod ? 1 : 0;
-            fixedRateMarker.Alpha = rateMod ? 1 : 0;
+            double minimum = isSlowFixedRateMod(mod) ? 0.5 : 1.01;
+            double maximum = isSlowFixedRateMod(mod) ? 0.99 : 2;
+            fixedRateSlider.SetState(
+                fixedRateMod && enabledRateMod,
+                minimum,
+                maximum,
+                rate);
+            fixedRateSlider.Alpha = fixedRateMod ? 1 : 0;
+            fixedRatePitch.SetState(
+                fixedRateMod && enabledRateMod,
+                isPitchAdjustableFixedRate(mod),
+                enabledRateMod && selectedMods.FixedRateAdjustPitch);
+            fixedRatePitch.Alpha = fixedRateMod ? 1 : 0;
         }
     }
 
@@ -1071,6 +1080,18 @@ internal partial class GameplayModsScreen : Screen
             or ManiaModId.WindUp
             or ManiaModId.WindDown
             or ManiaModId.AdaptiveSpeed;
+
+    private static bool isFixedRateMod(ManiaModId mod) =>
+        mod is ManiaModId.HalfTime
+            or ManiaModId.Daycore
+            or ManiaModId.DoubleTime
+            or ManiaModId.Nightcore;
+
+    private static bool isSlowFixedRateMod(ManiaModId mod) =>
+        mod is ManiaModId.HalfTime or ManiaModId.Daycore;
+
+    private static bool isPitchAdjustableFixedRate(ManiaModId mod) =>
+        mod is ManiaModId.HalfTime or ManiaModId.DoubleTime;
 
     private static double fixedRateFor(ManiaModId mod) =>
         mod switch

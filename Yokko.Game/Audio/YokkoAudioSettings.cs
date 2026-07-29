@@ -14,6 +14,10 @@ public sealed class YokkoAudioSettings
 
     public readonly Bindable<double> MasterVolume = new(1);
 
+    public readonly Bindable<double> MusicVolume = new(1);
+
+    public readonly Bindable<double> HitSoundVolume = new(1);
+
     public readonly Bindable<AudioBackendKind> PreferredBackend =
         new(AudioBackendKind.WasapiExclusive);
 
@@ -23,16 +27,24 @@ public sealed class YokkoAudioSettings
 
     public readonly Bindable<double> UserOffsetMilliseconds = new(0);
 
+    public double EffectiveMusicVolume =>
+        clampVolume(MasterVolume.Value) * clampVolume(MusicVolume.Value);
+
+    public double EffectiveHitSoundVolume =>
+        clampVolume(MasterVolume.Value) * clampVolume(HitSoundVolume.Value);
+
     public void ApplyMixSettings(
         IAudioMixControl audio,
         bool hitSoundsEnabled = true)
     {
-        double volume = Math.Clamp(MasterVolume.Value, 0, 1);
         audio.SetMixVolumes(
-            volume,
-            hitSoundsEnabled ? volume : 0,
+            EffectiveMusicVolume,
+            hitSoundsEnabled ? EffectiveHitSoundVolume : 0,
             0);
     }
+
+    private static double clampVolume(double volume) =>
+        Math.Clamp(volume, 0, 1);
 
     public AudioEngineStartRequest CreateStartRequest(
         string audioPath,

@@ -168,19 +168,39 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.ModInfoTitle.Contains("HT")
             && songSelectScreen.ModInfoDescription.Contains(
                 "Replaced DT"));
+        AddStep("configure HT like lazer", () =>
+        {
+            songSelectScreen.SetFixedRateSpeedChange(0.80);
+            songSelectScreen.SetFixedRateAdjustPitch(true);
+        });
+        AddAssert("HT rate and pitch settings are reflected", () =>
+            songSelectScreen.SelectedMods.PlaybackRate == 0.80
+            && songSelectScreen.SelectedMods.FixedRateAdjustPitch
+            && songSelectScreen.FixedRateSettings.SpeedChange == 0.80
+            && songSelectScreen.FixedRateSettings.AdjustPitch);
         AddStep("replace HT with DC", () =>
             songSelectScreen.ToggleMod(ManiaModId.Daycore));
-        AddAssert("DC changes pitch", () =>
+        AddStep("configure DC speed", () =>
+            songSelectScreen.SetFixedRateSpeedChange(0.60));
+        AddAssert("DC keeps lazer fixed frequency", () =>
             songSelectScreen.SelectedMods.Contains(
                 ManiaModId.Daycore)
-            && songSelectScreen.SelectedMods.ChangesAudioPitch);
+            && songSelectScreen.SelectedMods.PlaybackRate == 0.60
+            && songSelectScreen.SelectedMods.FixedAudioFrequencyScale
+               == 0.75
+            && songSelectScreen.FixedRateSettings.SpeedChange == 0.60);
         AddStep("replace DT with NC", () =>
             songSelectScreen.ToggleMod(ManiaModId.Nightcore));
+        AddStep("configure NC speed", () =>
+            songSelectScreen.SetFixedRateSpeedChange(1.25));
         AddAssert("NC replaces slow rate", () =>
             songSelectScreen.SelectedMods.Contains(
                 ManiaModId.Nightcore)
             && !songSelectScreen.SelectedMods.Contains(
-                ManiaModId.Daycore));
+                ManiaModId.Daycore)
+            && songSelectScreen.SelectedMods.PlaybackRate == 1.25
+            && songSelectScreen.SelectedMods.FixedAudioFrequencyScale
+               == 1.5);
         AddStep("replace NC with Adaptive Speed", () =>
             songSelectScreen.ToggleMod(
                 ManiaModId.AdaptiveSpeed));

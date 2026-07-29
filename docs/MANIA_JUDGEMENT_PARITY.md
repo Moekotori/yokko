@@ -33,6 +33,9 @@ edges consumed by the parity-tested Core rules without changing those rules.
   `osu.Game/Rulesets/Scoring/ScoreProcessor.cs`
 - Mod score multipliers:
   `osu.Game.Rulesets.Mania/Scoring/ManiaScoreMultiplierCalculator.cs`
+- fixed-rate Mod configuration and audio:
+  `osu.Game/Rulesets/Mods/ModHalfTime.cs`, `ModDaycore.cs`,
+  `ModDoubleTime.cs`, `ModNightcore.cs`, and `ModRateAdjust.cs`
 - health:
   `osu.Game.Rulesets.Mania/Scoring/ManiaHealthProcessor.cs` and
   `osu.Game/Rulesets/Scoring/LegacyDrainingHealthProcessor.cs`
@@ -41,6 +44,9 @@ edges consumed by the parity-tested Core rules without changing those rules.
   `osu.Game/Rulesets/Mods/ModSuddenDeath.cs`
 - primary hold golden cases:
   `osu.Game.Rulesets.Mania.Tests/TestSceneHoldNoteInput.cs`
+- legacy replay Mod conversion:
+  `osu.Game.Rulesets.Mania/ManiaRuleset.cs` and
+  `osu.Game.Rulesets.Mania.Tests/ManiaLegacyModConversionTest.cs`
 
 Every path above is read from the pinned `ppy/osu` **lazer** repository and
 commit. `LegacyDrainingHealthProcessor` is a class used by lazer's current
@@ -71,12 +77,14 @@ judgement/scoring paths relative to the pinned baseline.
 | Mania SS rule | `JudgementStateTest.AllGreatsReceiveLazerSsRank` | Covered |
 | Complete Mania rank matrix | Thirteen `LazerManiaJudgementParityTest` rank cases mirror `ManiaScoreProcessorTest` | Covered |
 | Current Mod score multipliers | `ManiaScoreMultiplierParityTest` mirrors the complete current-score matrix from lazer's `ManiaScoreMultiplierTest` | Covered |
+| Configurable HT/DC/DT/NC | Complete pinned-lazer speed/multiplier matrix, decoded frequency-duration test, Song Select/headless gameplay request tests | Covered |
 | Health recovery multiplier | `ManiaHealthStateTest.ManiaHealthUsesLazerDrainAndRecoveryValues` ports lazer's iterative recovery calculation | Covered |
 | Break-aware health simulation | `ManiaHealthStateTest.BreakPeriodsMatchLazerRecoverySimulation` plus editable osu round-trip coverage | Covered |
 | Sudden Death | `ManiaHealthStateTest.SuddenDeathOnlyFailsOnComboBreakingResult` | Covered |
 | Mania Perfect default and strict setting | Core default/strict Great-boundary tests plus `TestPerfectStrictSettingMatchesLazerGreatBoundary` | Covered |
 | Easy lives, No Fail, Accuracy Challenge | Focused `ManiaHealthStateTest` cases | Covered |
 | Initial standard→Mania object-shape corpus | `LazerStandardConversionGoldenTest` ports lazer's repeated-slider, short-repeat stair, and spinner fixtures | Covered |
+| Legacy `.osr` Mania Mods | Complete lazer legacy flag mapping/precedence corpus plus replay-owned `ManiaModSet` gameplay request test | Covered |
 
 ## Remaining proof work
 
@@ -87,8 +95,9 @@ The following must still be closed before claiming complete ruleset parity:
    judgement parity gate is not yet a claim that every lazer Mania Mod and
    conversion detail is complete.
 
-Latest gate: 164 focused Core cases and 6 related headless gameplay cases pass
-against the pinned lazer-derived expectations.
+Latest gate: 286 focused Core/audio cases and 9 related headless gameplay
+cases pass against the pinned lazer-derived expectations. One hardware-only
+native-output case is skipped when no compatible endpoint is available.
 
 Custom Yokko judgement behaviour must eventually live behind an explicit
 ruleset or option. It must not silently modify the default lazer-parity path.

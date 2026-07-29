@@ -237,6 +237,12 @@ internal static class YokkoStrings
             ["settings.audio.buffer"] = new("Buffer profile", "缓冲配置", "バッファ設定"),
             ["settings.audio.master_volume"] = new("Master volume", "音量", "マスター音量"),
             ["settings.audio.hitsounds"] = new("Hitsounds", "按键音", "ヒットサウンド"),
+            ["settings.audio.test"] = new("Test playback", "播放", "テスト再生"),
+            ["settings.audio.test_failed"] = new("Audio test failed", "音频播放失败", "オーディオテスト失敗"),
+            ["settings.audio.hitsounds_disabled"] = new(
+                "Enable hitsounds before testing",
+                "按键音已关闭",
+                "ヒットサウンドはオフです"),
             ["settings.audio.enabled"] = new("Enabled", "已开启", "オン"),
             ["settings.audio.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.audio.offset"] = new("Timing offset", "时序偏移", "タイミングオフセット"),
@@ -320,10 +326,128 @@ internal static class YokkoStrings
                 "4K  {0}   ·   7K  {1}",
                 "4K  {0}   ·   7K  {1}",
                 "4K  {0}   ·   7K  {1}"),
+            ["settings.gameplay.input_monitor"] = new(
+                "Live input monitor",
+                "实时输入监测",
+                "リアルタイム入力モニター"),
             ["settings.gameplay.live"] = new("LIVE", "已启用", "有効"),
+            ["settings.gameplay.calibration_start"] = new(
+                "30s calibration",
+                "30 秒校准",
+                "30秒キャリブレーション"),
+            ["settings.gameplay.calibration_wait"] = new(
+                "Preparing…",
+                "准备中…",
+                "準備中…"),
+            ["settings.gameplay.calibration_preparing"] = new(
+                "Preparing the timing test",
+                "正在准备时序测试",
+                "タイミングテストを準備中"),
+            ["settings.gameplay.calibration_preparing_note"] = new(
+                "The configured audio output will play a generated click track.",
+                "将通过当前音频输出播放生成的节拍音。",
+                "現在の出力で生成したクリック音を再生します。"),
+            ["settings.gameplay.calibration_running"] = new(
+                "Tap any bound key with the beat",
+                "跟随节拍按任意已绑定按键",
+                "拍に合わせて割り当て済みキーを押してください"),
+            ["settings.gameplay.calibration_running_note"] = new(
+                "The first beat is a one-second lead-in · Esc cancels",
+                "第一拍前有 1 秒准备时间 · Esc 取消",
+                "最初の拍まで1秒 · Escでキャンセル"),
+            ["settings.gameplay.calibration_sample"] = new(
+                "{0} samples · latest {1:+0;-0;0} ms",
+                "{0} 个采样 · 本次 {1:+0;-0;0} ms",
+                "{0} サンプル · 最新 {1:+0;-0;0} ms"),
+            ["settings.gameplay.calibration_countdown"] = new(
+                "{0}s remaining",
+                "剩余 {0} 秒",
+                "残り {0} 秒"),
+            ["settings.gameplay.calibration_complete"] = new(
+                "Calibration complete",
+                "校准完成",
+                "キャリブレーション完了"),
+            ["settings.gameplay.calibration_result"] = new(
+                "Suggested input offset {0:+0;-0;0} ms · based on {1} taps",
+                "建议输入偏移 {0:+0;-0;0} ms · 基于 {1} 次按键",
+                "推奨入力オフセット {0:+0;-0;0} ms · {1} 回の入力"),
+            ["settings.gameplay.calibration_apply"] = new(
+                "Apply {0:+0;-0;0} ms",
+                "应用 {0:+0;-0;0} ms",
+                "{0:+0;-0;0} msを適用"),
+            ["settings.gameplay.calibration_applied"] = new(
+                "Timing offset applied",
+                "已应用时序偏移",
+                "タイミングオフセットを適用しました"),
+            ["settings.gameplay.calibration_applied_note"] = new(
+                "Input offset is now {0:+0;-0;0} ms and shared with Audio.",
+                "输入偏移现为 {0:+0;-0;0} ms，并与音频设置共享。",
+                "入力オフセットは {0:+0;-0;0} ms でオーディオ設定と共有されます。"),
+            ["settings.gameplay.calibration_again"] = new(
+                "Run again",
+                "重新校准",
+                "もう一度"),
+            ["settings.gameplay.calibration_incomplete"] = new(
+                "More taps are needed",
+                "需要更多按键采样",
+                "入力サンプルが不足しています"),
+            ["settings.gameplay.calibration_incomplete_note"] = new(
+                "Captured {0} taps · at least {1} are needed for a recommendation.",
+                "已采集 {0} 次 · 至少需要 {1} 次才能给出建议。",
+                "{0} 回取得 · 推奨には最低 {1} 回必要です。"),
+            ["settings.gameplay.calibration_failed"] = new(
+                "Calibration audio failed",
+                "校准音频播放失败",
+                "キャリブレーション音声の再生に失敗"),
+            ["settings.gameplay.calibration_failed_note"] = new(
+                "Check the selected output device, then try again.",
+                "请检查当前输出设备后重试。",
+                "出力デバイスを確認して再試行してください。"),
+            ["settings.gameplay.calibration_cancelled"] = new(
+                "Calibration cancelled",
+                "已取消校准",
+                "キャリブレーションをキャンセルしました"),
+            ["settings.gameplay.calibration_cancelled_note"] = new(
+                "Your existing input offset was not changed.",
+                "现有输入偏移没有改变。",
+                "現在の入力オフセットは変更されていません。"),
             ["settings.gameplay.key_profile"] = new("Key profile", "键位配置", "キープロファイル"),
             ["settings.gameplay.edit_all"] = new("Edit all keys", "修改键位", "キーを一括変更"),
             ["settings.gameplay.reset"] = new("Reset keys", "重置键位", "キーをリセット"),
+            ["settings.gameplay.presets"] = new("Presets", "预设", "プリセット"),
+            ["settings.gameplay.preset_standard"] = new("Standard", "标准", "標準"),
+            ["settings.gameplay.preset_left"] = new("Left hand", "左手", "左手"),
+            ["settings.gameplay.preset_split"] = new("Split", "双手", "両手"),
+            ["settings.gameplay.copy_other_mode"] = new(
+                "Copy to other",
+                "复制到另一模式",
+                "他モードへコピー"),
+            ["settings.gameplay.all_modes_hint"] = new(
+                "All osu!mania layouts are editable · dual stages use two rows",
+                "全部 osu!mania 键位均可修改 · 双舞台分两行显示",
+                "すべての osu!mania 配列を編集可能 · デュアルは2段表示"),
+            ["settings.gameplay.export_profile"] = new("Export", "导出", "書き出し"),
+            ["settings.gameplay.import_profile"] = new("Import", "导入", "読み込み"),
+            ["settings.gameplay.preset_applied"] = new(
+                "{0} preset applied.",
+                "已应用“{0}”预设。",
+                "「{0}」プリセットを適用しました。"),
+            ["settings.gameplay.profile_copied"] = new(
+                "{0} central lanes copied to {1}.",
+                "已将 {0} 中央轨道复制到 {1}。",
+                "{0} の中央レーンを {1} にコピーしました。"),
+            ["settings.gameplay.profile_exported"] = new(
+                "All mania key profiles copied to the clipboard.",
+                "全部 Mania 键位方案已复制到剪贴板。",
+                "すべてのManiaキー設定をクリップボードへコピーしました。"),
+            ["settings.gameplay.profile_imported"] = new(
+                "All mania key profiles imported.",
+                "已导入全部 Mania 键位方案。",
+                "すべてのManiaキー設定を読み込みました。"),
+            ["settings.gameplay.profile_import_failed"] = new(
+                "Clipboard does not contain a valid Yokko key profile.",
+                "剪贴板中没有有效的 Yokko 键位方案。",
+                "クリップボードに有効なYokkoキー設定がありません。"),
             ["settings.gameplay.key_capture_hint"] = new(
                 "Choose a lane, then press the key you want to use.",
                 "选择一个轨道，然后按下你想使用的按键。",
@@ -352,6 +476,28 @@ internal static class YokkoStrings
                 "{0}K profile saved · {1}",
                 "{0}K 键位已保存 · {1}",
                 "{0}K プロファイルを保存しました · {1}"),
+            ["settings.gameplay.single_saved"] = new(
+                "Lane {0} is now {1}.",
+                "轨道 {0} 已设为 {1}。",
+                "レーン {0} を {1} に設定しました。"),
+            ["settings.gameplay.key_swap_notice"] = new(
+                "{0} was on lane {1}; lanes {1} and {2} were swapped.",
+                "{0} 原本属于轨道 {1}；已交换轨道 {1} 与 {2}。",
+                "{0} はレーン {1} にあり、レーン {1} と {2} を入れ替えました。"),
+            ["settings.gameplay.key_swapped"] = new("Swapped", "已交换", "入れ替え済み"),
+            ["settings.gameplay.input_active"] = new("Detected", "已检测", "検出"),
+            ["settings.gameplay.input_detected"] = new(
+                "{0} detected · lane {1}",
+                "检测到 {0} · 轨道 {1}",
+                "{0} を検出 · レーン {1}"),
+            ["settings.gameplay.input_unbound"] = new(
+                "{0} is not bound in this profile",
+                "{0} 未绑定到当前方案",
+                "{0} は現在の設定に割り当てられていません"),
+            ["settings.gameplay.input_chord"] = new(
+                "{0}/{1} keys currently detected · hold combinations to check rollover",
+                "当前检测到 {0}/{1} 键 · 可按住组合键检查多键识别",
+                "現在 {0}/{1} キーを検出 · 同時押しでロールオーバーを確認"),
             ["settings.gameplay.scroll_speed"] = new("Note speed", "音符速度", "ノーツ速度"),
             ["settings.gameplay.scroll_speed_note"] = new(
                 "osu!mania 1–40 scale · Ctrl + / Ctrl − or F3 / F4.",

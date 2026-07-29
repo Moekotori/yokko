@@ -473,6 +473,72 @@ HitObjects:
         }
 
         [Test]
+        public void MatchesQuaverLatestCommonBpmTieBreaker()
+        {
+            string path = writeChart(
+                "quaver-common-bpm-tie",
+                ".qua",
+                """
+Mode: Keys4
+BPMDoesNotAffectScrollVelocity: false
+TimingPoints:
+  - StartTime: 0
+    Bpm: 120
+  - StartTime: 1000
+    Bpm: 240
+SliderVelocities: []
+HitObjects:
+  - StartTime: 0
+    Lane: 1
+  - StartTime: 2000
+    Lane: 1
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(
+                result.Beatmap.InitialScrollVelocity,
+                Is.EqualTo(0.5));
+            Assert.That(result.Beatmap.ScrollVelocities, Is.EqualTo(
+            new[]
+            {
+                new Yokko.Core.Timing.YokkoScrollVelocity(1000, 1),
+            }));
+        }
+
+        [Test]
+        public void KeepsZeroCommonBpmNormalizationFinite()
+        {
+            string path = writeChart(
+                "quaver-zero-common-bpm",
+                ".qua",
+                """
+Mode: Keys4
+BPMDoesNotAffectScrollVelocity: false
+TimingPoints:
+  - StartTime: 0
+    Bpm: 0
+  - StartTime: 2000
+    Bpm: 120
+SliderVelocities: []
+HitObjects:
+  - StartTime: 0
+    Lane: 1
+  - StartTime: 3000
+    Lane: 1
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(result.Beatmap.InitialScrollVelocity, Is.Zero);
+            Assert.That(result.Beatmap.ScrollVelocities, Is.EqualTo(
+            new[]
+            {
+                new Yokko.Core.Timing.YokkoScrollVelocity(2000, 128),
+            }));
+        }
+
+        [Test]
         public void ImportsQuaverLegacyLongNoteRendering()
         {
             string path = writeChart(
@@ -513,6 +579,7 @@ SliderVelocities:
     Multiplier: 2
 TimingGroups:
   "$Global": !ScrollGroup
+    InitialScrollVelocity: -0.75
     ScrollVelocities:
       - StartTime: 750
         Multiplier: 0.5
@@ -532,6 +599,9 @@ HitObjects:
   - StartTime: 1600
     Lane: 2
     TimingGroup: Reverse
+  - StartTime: 1700
+    Lane: 3
+    TimingGroup: "$Global"
 """);
 
             ChartImportResult result = import(path);
@@ -543,8 +613,16 @@ HitObjects:
                 new Yokko.Core.Timing.YokkoScrollVelocity(500, 2),
                 new Yokko.Core.Timing.YokkoScrollVelocity(750, 0.5),
             }));
-            Assert.That(result.Beatmap.ScrollProfiles.Keys, Is.EqualTo(
-                new[] { "Reverse" }));
+            Assert.That(result.Beatmap.ScrollProfiles.Keys, Is.EquivalentTo(
+                new[] { "$Global", "Reverse" }));
+            Yokko.Core.Timing.YokkoScrollProfile global =
+                result.Beatmap.ScrollProfiles["$Global"];
+            Assert.That(global.InitialScrollVelocity, Is.EqualTo(-0.75));
+            Assert.That(global.ScrollVelocities, Is.EqualTo(
+            new[]
+            {
+                new Yokko.Core.Timing.YokkoScrollVelocity(750, 0.5),
+            }));
             Yokko.Core.Timing.YokkoScrollProfile reverse =
                 result.Beatmap.ScrollProfiles["Reverse"];
             Assert.That(reverse.InitialScrollVelocity, Is.EqualTo(-1));
@@ -559,6 +637,46 @@ HitObjects:
             Assert.That(result.Beatmap.HitObjects[0].ScrollProfileId, Is.Null);
             Assert.That(result.Beatmap.HitObjects[1].ScrollProfileId,
                 Is.EqualTo("Reverse"));
+            Assert.That(result.Beatmap.HitObjects[2].ScrollProfileId,
+                Is.EqualTo("$Global"));
+        }
+
+        [Test]
+        public void KeepsLegacyQuaverTimingGroupVelocitiesNormalized()
+        {
+            string path = writeChart(
+                "quaver-legacy-timing-group",
+                ".qua",
+                """
+Mode: Keys4
+BPMDoesNotAffectScrollVelocity: false
+TimingPoints:
+  - StartTime: 0
+    Bpm: 120
+  - StartTime: 1500
+    Bpm: 180
+TimingGroups:
+  Legacy: !ScrollGroup
+    InitialScrollVelocity: 1
+    ScrollVelocities:
+      - StartTime: 500
+        Multiplier: 3
+HitObjects:
+  - StartTime: 2000
+    Lane: 1
+    TimingGroup: Legacy
+""");
+
+            ChartImportResult result = import(path);
+            Yokko.Core.Timing.YokkoScrollProfile legacy =
+                result.Beatmap.ScrollProfiles["Legacy"];
+
+            Assert.That(legacy.InitialScrollVelocity, Is.EqualTo(1));
+            Assert.That(legacy.ScrollVelocities, Is.EqualTo(
+            new[]
+            {
+                new Yokko.Core.Timing.YokkoScrollVelocity(500, 3),
+            }));
         }
 
         [Test]

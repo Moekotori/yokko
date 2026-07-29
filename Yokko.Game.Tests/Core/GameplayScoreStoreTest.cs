@@ -153,6 +153,42 @@ public class GameplayScoreStoreTest
         });
     }
 
+    [Test]
+    public void FixedRateConfigurationKeepsIndependentBestScores()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var store = new GameplayScoreStore();
+        store.Initialise(new NativeStorage(testRoot));
+        ManiaModSet defaultHalfTime =
+            ManiaModSet.Empty.With(ManiaModId.HalfTime, true);
+        ManiaModSet customHalfTime = ManiaModSet.Empty.WithFixedRate(
+            ManiaModId.HalfTime,
+            0.80);
+
+        Assert.That(
+            store.SaveBest(
+                beatmap,
+                defaultHalfTime,
+                result(900_000, 0.95)),
+            Is.True);
+        Assert.That(
+            store.SaveBest(
+                beatmap,
+                customHalfTime,
+                result(800_000, 0.90)),
+            Is.True);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                store.GetBest(beatmap, defaultHalfTime).Score,
+                Is.EqualTo(900_000));
+            Assert.That(
+                store.GetBest(beatmap, customHalfTime).Score,
+                Is.EqualTo(800_000));
+        });
+    }
+
     private static ManiaScoreResult result(long score, double accuracy) => new(
         score,
         accuracy,

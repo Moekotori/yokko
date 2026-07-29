@@ -47,6 +47,7 @@ public partial class GameplayScreen : Screen
     private readonly ManiaModSet mods;
     private readonly GameplayReplay replay;
     private readonly string cinemaArtworkPath;
+    private readonly bool quaverHasSignificantScrollVelocities;
     private TextureStore cinemaArtworkTextures;
     private readonly List<GameplayReplayInput> recordedReplayInputs = new();
     private readonly List<JudgementEvent> expiredJudgements = new();
@@ -173,13 +174,19 @@ public partial class GameplayScreen : Screen
         originalBeatmap = beatmap;
         this.audioEngine = audioEngine;
         this.skinPath = skinPath;
-        this.mods = mods ?? ManiaModSet.Empty;
+        this.mods = mods ?? replay?.Mods ?? ManiaModSet.Empty;
         this.beatmap = ManiaBeatmapModTransformer.Apply(
             beatmap,
             this.mods);
+        quaverHasSignificantScrollVelocities =
+            this.beatmap.SourceFormat == ChartSourceFormat.Quaver
+            && !this.mods.Contains(ManiaModId.ConstantSpeed)
+            && hasSignificantScrollVelocities(this.beatmap);
         this.replay = replay
                       ?? (this.mods.IsAutomation
-                          ? GameplayAutoGenerator.Generate(this.beatmap)
+                          ? GameplayAutoGenerator.Generate(
+                              this.beatmap,
+                              this.mods)
                           : null);
         this.cinemaArtworkPath = cinemaArtworkPath;
         completionTimeMilliseconds = this.beatmap.HitObjects.Count == 0
@@ -197,9 +204,8 @@ public partial class GameplayScreen : Screen
     private void load(IRenderer renderer, GameHost host)
     {
         this.host = host;
-        keyBindings = beatmap.StageCount == 1
-                      && beatmap.KeyMode is KeyMode.FourKey
-                          or KeyMode.SevenKey
+        keyBindings = gameplaySettings.SupportedKeyModes.Contains(
+            beatmap.KeyMode)
             ? KeyModeBindings.ForMode(
                 beatmap.KeyMode,
                 gameplaySettings.GetKeys(beatmap.KeyMode))
@@ -240,16 +246,15 @@ public partial class GameplayScreen : Screen
         {
             if (mods.Contains(ManiaModId.Muted))
             {
-                double masterVolume = audioSettings.MasterVolume.Value;
                 mutedAudio = new GameplayMutedAudioController(
                     beatmap,
                     mods,
                     mixControl,
-                    masterVolume,
+                    audioSettings.EffectiveMusicVolume,
                     gameplaySettings.KeysoundsEnabled.Value
-                        ? masterVolume
+                        ? audioSettings.EffectiveHitSoundVolume
                         : 0,
-                    masterVolume);
+                    Math.Clamp(audioSettings.MasterVolume.Value, 0, 1));
             }
             else
             {
@@ -1009,7 +1014,10 @@ public partial class GameplayScreen : Screen
         {
             Rank = mods.AdjustRank(rawResult.Rank),
         };
-        completedReplay = replay ?? new GameplayReplay(recordedReplayInputs);
+        completedReplay = replay
+                          ?? new GameplayReplay(
+                              recordedReplayInputs,
+                              mods);
         bool isNewBest = !ReplayMode
                          && scoreStore.SaveBest(
                              originalBeatmap,
@@ -1292,7 +1300,8 @@ public partial class GameplayScreen : Screen
             baseApproachTime,
             beatmap.SourceFormat,
             playbackRate,
-            gameplaySettings.QuaverScrollRateNormalization.Value);
+            gameplaySettings.QuaverScrollRateNormalization.Value,
+            quaverHasSignificantScrollVelocities);
     }
 
     private void updateQuaverScrollRate(double gameplayTime)
@@ -1309,7 +1318,8 @@ public partial class GameplayScreen : Screen
         double baseApproachTime,
         ChartSourceFormat sourceFormat,
         double playbackRate,
-        double quaverNormalizationPercentage = 0)
+        double quaverNormalizationPercentage = 0,
+        bool hasSignificantScrollVelocities = true)
     {
         if (!double.IsFinite(baseApproachTime)
             || baseApproachTime <= 0)
@@ -1335,12 +1345,26 @@ public partial class GameplayScreen : Screen
         // Mirrors Quaver's NormaliseScrollVelocityByRatePercentage:
         // 0% divides visual speed by the full audio rate, while 100%
         // cancels that division and lets rate mods scale approach time.
+        double normalization = hasSignificantScrollVelocities
+            ? quaverNormalizationPercentage
+            : 0;
         double rateScaling = 1
                              + (playbackRate - 1)
-                             * quaverNormalizationPercentage
+                             * normalization
                              / 100;
         return baseApproachTime * playbackRate / rateScaling;
     }
+
+    private static bool hasSignificantScrollVelocities(
+        YokkoBeatmap beatmap) =>
+        beatmap.ScrollVelocities.Any(isSignificantScrollVelocity)
+        || beatmap.ScrollProfiles.Values.Any(profile =>
+            profile.ScrollVelocities.Any(isSignificantScrollVelocity));
+
+    private static bool isSignificantScrollVelocity(
+        Yokko.Core.Timing.YokkoScrollVelocity velocity) =>
+        velocity.Multiplier > 1.01
+        || velocity.Multiplier < 0.99;
 
     internal bool HandleScrollSpeedShortcut(
         Key key,

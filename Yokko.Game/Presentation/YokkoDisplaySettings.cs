@@ -50,7 +50,7 @@ public sealed class YokkoDisplaySettings
     };
 
     /// <summary>
-    /// Calculates the physical scale applied to Yokko's authored 1280x720 UI.
+    /// Calculates the physical scale applied to Yokko's shared 1600x900 UI.
     /// The 100% setting fits Yokko's shared 1600x900 layout space to the
     /// full client resolution. Rendering still occurs at the native client
     /// resolution; 90% and 80% expose proportionally more layout space.

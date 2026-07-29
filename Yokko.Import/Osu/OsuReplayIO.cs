@@ -12,7 +12,7 @@ public sealed record OsuReplay(
     int GameVersion,
     string BeatmapHash,
     string PlayerName,
-    int Mods,
+    OsuLegacyMods Mods,
     IReadOnlyList<OsuReplayFrame> Frames);
 
 /// <summary>
@@ -66,7 +66,8 @@ public static class OsuReplayIO
             reader.ReadInt32();
             reader.ReadUInt16();
             reader.ReadBoolean();
-            int mods = reader.ReadInt32();
+            OsuLegacyMods mods =
+                (OsuLegacyMods)reader.ReadInt32();
             readLegacyString(reader);
             reader.ReadInt64();
 

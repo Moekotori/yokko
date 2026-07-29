@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Mods;
 
 namespace Yokko.Game.Gameplay;
 
@@ -16,7 +17,9 @@ internal static class GameplayAutoGenerator
 {
     internal const double ReleaseDelayMilliseconds = 20;
 
-    public static GameplayReplay Generate(YokkoBeatmap beatmap)
+    public static GameplayReplay Generate(
+        YokkoBeatmap beatmap,
+        ManiaModSet mods = null)
     {
         ArgumentNullException.ThrowIfNull(beatmap);
 
@@ -56,7 +59,8 @@ internal static class GameplayAutoGenerator
                         .Select(static point => new GameplayReplayInput(
                             point.Lane,
                             point.IsPressed,
-                            point.TimeMilliseconds)));
+                            point.TimeMilliseconds)),
+            mods);
     }
 
     private static YokkoHitObject findNextInLane(

@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using NUnit.Framework;
 using SharpCompress.Compressors.LZMA;
+using Yokko.Core.Mods;
 using Yokko.Game.Gameplay;
 using Yokko.Import;
 using Yokko.Import.Osu;
@@ -22,7 +23,11 @@ public sealed class OsuReplayIOTest
             "Yokko Player",
             """
             0|0|0|0,100|3|0|0,25|2|0|0,25|0|0|0,-12345|0|0|0
-            """);
+            """,
+            OsuLegacyMods.Nightcore
+            | OsuLegacyMods.DoubleTime
+            | OsuLegacyMods.Perfect
+            | OsuLegacyMods.SuddenDeath);
 
         OsuReplay replay = OsuReplayIO.Read(stream);
         GameplayReplay gameplayReplay =
@@ -35,6 +40,13 @@ public sealed class OsuReplayIOTest
                 replay.BeatmapHash,
                 Is.EqualTo("0123456789abcdef0123456789abcdef"));
             Assert.That(replay.PlayerName, Is.EqualTo("Yokko Player"));
+            Assert.That(
+                gameplayReplay.Mods.Mods,
+                Is.EqualTo(new[]
+                {
+                    ManiaModId.Perfect,
+                    ManiaModId.Nightcore,
+                }));
             Assert.That(replay.Frames.Select(frame => frame.TimeMilliseconds),
                 Is.EqualTo(new[] { 0, 100, 125, 150 }));
             Assert.That(
@@ -72,7 +84,7 @@ public sealed class OsuReplayIOTest
             20260728,
             "hash",
             "Player",
-            0,
+            OsuLegacyMods.None,
             [new OsuReplayFrame(100, 1 << 4)]);
 
         Assert.That(
@@ -134,7 +146,8 @@ public sealed class OsuReplayIOTest
     private static Stream createReplay(
         string beatmapHash,
         string playerName,
-        string replayFrames)
+        string replayFrames,
+        OsuLegacyMods mods = OsuLegacyMods.None)
     {
         byte[] compressedFrames = compress(replayFrames);
         var stream = new MemoryStream();
@@ -154,7 +167,7 @@ public sealed class OsuReplayIOTest
             writer.Write(123456);
             writer.Write((ushort)42);
             writer.Write(false);
-            writer.Write(0);
+            writer.Write((int)mods);
             writeLegacyString(writer, string.Empty);
             writer.Write(DateTime.UnixEpoch.Ticks);
             writer.Write(compressedFrames.Length);

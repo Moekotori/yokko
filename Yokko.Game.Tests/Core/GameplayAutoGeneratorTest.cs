@@ -2,6 +2,7 @@ using System.Linq;
 using NUnit.Framework;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Mods;
 using Yokko.Core.Timing;
 using Yokko.Game.Gameplay;
 
@@ -68,6 +69,24 @@ public sealed class GameplayAutoGeneratorTest
             Assert.That(state.Accuracy, Is.EqualTo(1));
             Assert.That(state.Counts.Miss, Is.Zero);
         });
+    }
+
+    [Test]
+    public void GeneratedReplayCarriesExactModConfiguration()
+    {
+        ManiaModSet mods = ManiaModSet.Empty.WithFixedRate(
+            ManiaModId.Nightcore,
+            1.25);
+
+        GameplayReplay replay = GameplayAutoGenerator.Generate(
+            beatmap(new YokkoHitObject(
+                0,
+                100,
+                null,
+                HitObjectKind.Tap)),
+            mods);
+
+        Assert.That(replay.Mods, Is.EqualTo(mods));
     }
 
     private static YokkoBeatmap beatmap(

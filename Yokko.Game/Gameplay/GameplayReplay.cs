@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Yokko.Core.Mods;
 using Yokko.Import.Osu;
 
 namespace Yokko.Game.Gameplay;
@@ -17,9 +18,14 @@ internal sealed class GameplayReplay
 
     public IReadOnlyList<GameplayReplayInput> Inputs => inputs;
 
-    public GameplayReplay(IEnumerable<GameplayReplayInput> inputs)
+    public ManiaModSet Mods { get; }
+
+    public GameplayReplay(
+        IEnumerable<GameplayReplayInput> inputs,
+        ManiaModSet mods = null)
     {
         this.inputs = inputs.ToArray();
+        Mods = mods ?? ManiaModSet.Empty;
 
         for (int i = 0; i < this.inputs.Length; i++)
         {
@@ -79,6 +85,8 @@ internal sealed class GameplayReplay
             previousKeys = frame.PressedKeys;
         }
 
-        return new GameplayReplay(converted);
+        return new GameplayReplay(
+            converted,
+            OsuLegacyManiaModConverter.Convert(replay.Mods));
     }
 }

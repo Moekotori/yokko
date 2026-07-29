@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osuTK.Input;
 using Yokko.Core.Gameplay;
+using Yokko.Game.Gameplay;
 
 namespace Yokko.Game.Screens.Gameplay;
 
@@ -26,7 +27,7 @@ public sealed class KeyModeBindings
     public int KeyCount => keys.Length;
 
     public static KeyModeBindings ForMode(KeyMode keyMode) =>
-        new(keyMode, defaultKeys(keyMode));
+        new(keyMode, OsuManiaKeyLayout.GetDefaultKeys(keyMode));
 
     public static KeyModeBindings ForMode(
         KeyMode keyMode,
@@ -39,7 +40,7 @@ public sealed class KeyModeBindings
 
         return new KeyModeBindings(
             keyMode,
-            dualStageKeys((int)keyMode / 2));
+            OsuManiaKeyLayout.GetDefaultKeys(keyMode, stageCount));
     }
 
     public static KeyModeBindings ForMode(
@@ -76,93 +77,16 @@ public sealed class KeyModeBindings
         _ => key.ToString(),
     };
 
-    private static Key[] defaultKeys(KeyMode keyMode) => keyMode switch
-    {
-        KeyMode.OneKey => [Key.Space],
-        KeyMode.TwoKey => [Key.F, Key.J],
-        KeyMode.ThreeKey => [Key.F, Key.Space, Key.J],
-        KeyMode.FourKey => [Key.D, Key.F, Key.J, Key.K],
-        KeyMode.FiveKey => [Key.D, Key.F, Key.Space, Key.J, Key.K],
-        KeyMode.SixKey => [Key.S, Key.D, Key.F, Key.J, Key.K, Key.L],
-        KeyMode.SevenKey => [Key.S, Key.D, Key.F, Key.Space, Key.J, Key.K, Key.L],
-        KeyMode.EightKey => [Key.A, Key.S, Key.D, Key.F, Key.J, Key.K, Key.L, Key.Semicolon],
-        KeyMode.NineKey => [Key.A, Key.S, Key.D, Key.F, Key.Space, Key.J, Key.K, Key.L, Key.Semicolon],
-        KeyMode.TenKey => [Key.A, Key.S, Key.D, Key.F, Key.V, Key.N, Key.J, Key.K, Key.L, Key.Semicolon],
-        KeyMode.TwelveKey
-            or KeyMode.FourteenKey
-            or KeyMode.SixteenKey
-            or KeyMode.EighteenKey
-            or KeyMode.TwentyKey =>
-                dualStageKeys((int)keyMode / 2),
-        _ => throw new ArgumentOutOfRangeException(
-            nameof(keyMode),
-            keyMode,
-            "Mania supports between 1 and 10 keys."),
-    };
-
-    private static Key[] dualStageKeys(int keysPerStage)
-    {
-        Key[] stage1Left;
-        Key[] stage1Right;
-        Key[] stage2Left;
-        Key[] stage2Right;
-        if (keysPerStage == 10)
-        {
-            stage1Left = [Key.Q, Key.W, Key.E, Key.R, Key.V];
-            stage1Right = [Key.M, Key.I, Key.O, Key.P, Key.BracketLeft];
-            stage2Left = [Key.S, Key.D, Key.F, Key.G, Key.B];
-            stage2Right = [Key.N, Key.J, Key.K, Key.L, Key.Semicolon];
-        }
-        else
-        {
-            stage1Left = [Key.Q, Key.W, Key.E, Key.R];
-            stage1Right = [Key.I, Key.O, Key.P, Key.BracketLeft];
-            stage2Left = [Key.S, Key.D, Key.F, Key.G];
-            stage2Right = [Key.J, Key.K, Key.L, Key.Semicolon];
-        }
-
-        return generateStage(
-                keysPerStage,
-                stage1Left,
-                stage1Right,
-                Key.V)
-            .Concat(generateStage(
-                keysPerStage,
-                stage2Left,
-                stage2Right,
-                Key.B))
-            .ToArray();
-    }
-
-    private static IEnumerable<Key> generateStage(
-        int columns,
-        IReadOnlyList<Key> left,
-        IReadOnlyList<Key> right,
-        Key special)
-    {
-        for (int i = left.Count - columns / 2;
-             i < left.Count;
-             i++)
-        {
-            yield return left[i];
-        }
-        if (columns % 2 == 1)
-            yield return special;
-        for (int i = 0; i < columns / 2; i++)
-            yield return right[i];
-    }
-
     private static int validateKeyMode(KeyMode keyMode)
     {
-        int count = (int)keyMode;
-        if (count is < 1 or > 20 || !Enum.IsDefined(keyMode))
+        if (!OsuManiaKeyLayout.SupportedModes.Contains(keyMode))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(keyMode),
                 keyMode,
-                "Mania supports between 1 and 10 keys.");
+                "Unsupported osu!mania key mode.");
         }
 
-        return count;
+        return (int)keyMode;
     }
 }

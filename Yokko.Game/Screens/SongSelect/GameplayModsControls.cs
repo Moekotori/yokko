@@ -339,6 +339,158 @@ internal partial class GameplayActiveModRow : ClickableContainer
     }
 }
 
+internal partial class GameplayModsRateSlider : ClickableContainer
+{
+    private const float track_width = 284;
+
+    private readonly Action<double> changed;
+    private readonly Box fill;
+    private readonly Circle marker;
+    private double minimum;
+    private double maximum;
+    private bool enabled;
+
+    internal GameplayModsRateSlider(Action<double> changed)
+    {
+        this.changed = changed;
+        Size = new Vector2(track_width, 20);
+        InternalChildren =
+        [
+            new Box
+            {
+                Y = 7,
+                Size = new Vector2(track_width, 6),
+                Colour = new Color4(0.78f, 0.81f, 0.88f, 1f),
+            },
+            fill = new Box
+            {
+                Y = 7,
+                Height = 6,
+                Colour = HomeControlColours.Cyan,
+            },
+            marker = new Circle
+            {
+                Origin = Anchor.Centre,
+                Y = 10,
+                Size = new Vector2(16),
+                BorderThickness = 3,
+                BorderColour = HomeControlColours.Cyan,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
+            },
+        ];
+    }
+
+    internal void SetState(
+        bool isEnabled,
+        double minimum,
+        double maximum,
+        double value)
+    {
+        enabled = isEnabled;
+        this.minimum = minimum;
+        this.maximum = maximum;
+        double progress = Math.Clamp(
+            (value - minimum) / (maximum - minimum),
+            0,
+            1);
+        float x = (float)(progress * track_width);
+        fill.Width = x;
+        marker.X = x;
+        this.FadeTo(isEnabled ? 1 : 0.48f, 100);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        updateFrom(e.ScreenSpaceMousePosition);
+        return true;
+    }
+
+    protected override bool OnDragStart(DragStartEvent e) => enabled;
+
+    protected override void OnDrag(DragEvent e) =>
+        updateFrom(e.ScreenSpaceMousePosition);
+
+    private void updateFrom(Vector2 screenPosition)
+    {
+        if (!enabled)
+            return;
+
+        double progress = Math.Clamp(
+            ToLocalSpace(screenPosition).X / track_width,
+            0,
+            1);
+        changed(Math.Round(
+            minimum + progress * (maximum - minimum),
+            2));
+    }
+}
+
+internal partial class GameplayModsPitchButton : ClickableContainer
+{
+    private readonly SpriteText label;
+    private bool enabled;
+    private bool selected;
+
+    internal GameplayModsPitchButton(Action action)
+    {
+        Action = () =>
+        {
+            if (enabled)
+                action();
+        };
+        Size = new Vector2(284, 22);
+        Child = label = new SpriteText
+        {
+            Anchor = Anchor.CentreLeft,
+            Origin = Anchor.CentreLeft,
+            Font = HomeTypography.Display(9),
+        };
+    }
+
+    internal void SetState(
+        bool isEnabled,
+        bool supported,
+        bool selected)
+    {
+        enabled = isEnabled && supported;
+        this.selected = selected;
+        label.Text = supported
+            ? $"MUSIC PITCH · {(selected ? "ON" : "OFF")}  (P)"
+            : "MUSIC FREQUENCY LOCKED BY THIS MOD";
+        label.Colour = selected
+            ? HomeControlColours.Pink
+            : new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                enabled ? 0.62f : 0.42f);
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        if (enabled)
+            label.FadeColour(HomeControlColours.Cyan, 90);
+        return enabled;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        label.FadeColour(
+            selected
+                ? HomeControlColours.Pink
+                : new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    enabled ? 0.62f : 0.42f),
+            100);
+    }
+}
+
 internal partial class GameplayModsResetButton : ClickableContainer
 {
     private readonly Box background;

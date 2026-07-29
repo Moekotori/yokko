@@ -5,8 +5,8 @@ namespace Yokko.Core.Mods;
 
 /// <summary>
 /// Immutable, canonically ordered set of Mania Mods selected for one gameplay
-/// session. Configurable Mod values will be added as versioned settings rather
-/// than changing these stable identifiers.
+/// session. Configurable values are carried in the canonical fingerprint
+/// without changing the stable Mod identifiers.
 /// </summary>
 public sealed class ManiaModSet : IEquatable<ManiaModSet>
 {

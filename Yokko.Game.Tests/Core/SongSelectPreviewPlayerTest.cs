@@ -156,7 +156,9 @@ public sealed class SongSelectPreviewPlayerTest
             await player.WaitForIdleAsync();
             player.Play(
                 beatmap,
-                ManiaModSet.Empty.With(ManiaModId.Nightcore, true));
+                ManiaModSet.Empty.WithFixedRate(
+                    ManiaModId.Nightcore,
+                    1.25));
             await player.WaitForIdleAsync();
 
             Assert.Multiple(() =>
@@ -164,10 +166,13 @@ public sealed class SongSelectPreviewPlayerTest
                 Assert.That(engine.Starts, Has.Count.EqualTo(2));
                 Assert.That(
                     engine.Starts[1].PlaybackRate,
-                    Is.EqualTo(1.5));
+                    Is.EqualTo(1.25));
                 Assert.That(
                     engine.Starts[1].PitchMode,
                     Is.EqualTo(AudioPitchMode.ScaleWithRate));
+                Assert.That(
+                    engine.Starts[1].FixedFrequencyScale,
+                    Is.EqualTo(1.5));
             });
         }
         finally

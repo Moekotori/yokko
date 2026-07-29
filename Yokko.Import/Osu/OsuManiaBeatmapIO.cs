@@ -104,7 +104,15 @@ public static class OsuManiaBeatmapIO
 
             hitObjects = parseHitObjects(
                 sections.GetValueOrDefault("HitObjects") ?? [],
-                keyCount);
+                keyCount,
+                timingPoints,
+                parseDouble(
+                    difficulty.GetValueOrDefault("SliderMultiplier"),
+                    1.4),
+                circleSize,
+                overallDifficulty,
+                approachRate,
+                drainRate);
             sourceFormat = ChartSourceFormat.OsuMania;
         }
         else
@@ -316,9 +324,25 @@ public static class OsuManiaBeatmapIO
         return values;
     }
 
-    private static List<YokkoHitObject> parseHitObjects(IReadOnlyList<string> lines, int keyCount)
+    private static List<YokkoHitObject> parseHitObjects(
+        IReadOnlyList<string> lines,
+        int keyCount,
+        IReadOnlyList<YokkoTimingPoint> timingPoints,
+        double sliderMultiplier,
+        double circleSize,
+        double overallDifficulty,
+        double approachRate,
+        double drainRate)
     {
+        if (!double.IsFinite(sliderMultiplier)
+            || sliderMultiplier <= 0)
+        {
+            throw new InvalidDataException(
+                "osu!mania SliderMultiplier must be positive.");
+        }
+
         var hitObjects = new List<YokkoHitObject>();
+        var legacySpinners = new List<ManiaConversionHitObject>();
 
         foreach (string line in lines)
         {
@@ -349,8 +373,61 @@ public static class OsuManiaBeatmapIO
                 continue;
             }
 
+            if ((type & sliderType) != 0 && parts.Length >= 8)
+            {
+                int spanCount = Math.Max(1, parseInt(parts[6], 1));
+                double pixelLength = Math.Max(0, parseDouble(parts[7], 0));
+                double endTime = startTime
+                                 + sliderDuration(
+                                     startTime,
+                                     pixelLength,
+                                     spanCount,
+                                     sliderMultiplier,
+                                     timingPoints);
+                hitObjects.Add(
+                    new YokkoHitObject(
+                        lane,
+                        startTime,
+                        endTime,
+                        HitObjectKind.Hold));
+                continue;
+            }
+
+            if ((type & spinnerType) != 0 && parts.Length >= 6)
+            {
+                legacySpinners.Add(
+                    new ManiaConversionHitObject(
+                        256,
+                        startTime,
+                        Math.Max(
+                            startTime,
+                            parseDouble(parts[5], startTime)),
+                        ManiaConversionObjectKind.Spinner,
+                        parseInt(parts[4], 0),
+                        Y: 192));
+                continue;
+            }
+
             if ((type & hitCircleType) != 0)
                 hitObjects.Add(new YokkoHitObject(lane, startTime, null, HitObjectKind.Tap));
+        }
+
+        if (legacySpinners.Count > 0)
+        {
+            // Old mania-specific maps can contain legacy spinner objects.
+            // lazer routes these through SpinnerPatternGenerator rather than
+            // passing them through. Reusing the pinned legacy generator keeps
+            // its seed and column sequence identical.
+            hitObjects.AddRange(
+                OsuStandardManiaConverter.Convert(
+                    new ManiaConversionSource(
+                        circleSize,
+                        overallDifficulty,
+                        approachRate,
+                        drainRate,
+                        legacySpinners),
+                    keyCount,
+                    timingPoints));
         }
 
         hitObjects.Sort(static (left, right) =>

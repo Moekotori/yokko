@@ -304,13 +304,13 @@ final result: passed
 - Final Home implementation:
   `D:\yokko\.artifacts\ui-scale-resolution-test\main-100-native-3200x2000.png`
 - Final Settings implementation:
-  `D:\yokko\.artifacts\ui-scale-resolution-test\settings-100-native-3200x2000.png`
+  `D:\yokko\.artifacts\ui-scale-settings-responsive-test\settings-100-responsive-3200x2000.png`
 - Final Song Select implementation:
   `D:\yokko\.artifacts\ui-scale-resolution-test\songselect-100-native-3200x2000.png`
 - Combined Home comparison:
   `D:\yokko\.artifacts\ui-scale-resolution-test\qa-main-side-by-side.png`
 - Combined Settings comparison:
-  `D:\yokko\.artifacts\ui-scale-resolution-test\qa-settings-side-by-side.png`
+  `D:\yokko\.artifacts\ui-scale-settings-responsive-test\settings-responsive-comparison.png`
 - Source pixels: Home 3200 x 1898; Settings 3196 x 1870.
 - Implementation pixels and client viewport: 3200 x 2000.
 - Density normalization: each source and implementation was normalized
@@ -326,23 +326,26 @@ Settings, and Song Select at an undersized 1920x1080-equivalent density.
 The final captures use the native viewport with a shared 1600x900 layout
 space. At 3200x2000 the 100% scale resolves to 2.0x, fills the useful
 desktop area, and preserves the responsive Home and Song Select regions.
+Settings now migrates its authored 1280x720 stage into that same shared
+space instead of leaving it as a smaller centred island.
 
 ## Focused comparison
 
 The combined comparisons keep the same overall state and show the intended
 density correction without typography, icon, image, or control clipping.
-Settings grows from roughly 60% to roughly 80% of the viewport width;
-Home uses the full 1600x900 responsive stage rather than a small centred
-content island. No additional crop was needed because labels, icon
-alignment, and control boundaries remain readable in the combined images.
+Settings' sidebar, content panel, and footer now use the full shared
+1600x900 reference stage; Home uses the same responsive stage rather than
+a small centred content island. No additional crop was needed because
+labels, icon alignment, and control boundaries remain readable in the
+combined images.
 
 ## Required fidelity surfaces
 
 - Fonts and typography: the existing Yokko font family, weights, wrapping,
   and hierarchy are unchanged; native scaling improves readability.
 - Spacing and layout rhythm: Home remains balanced across both halves,
-  Settings retains its intentional inner margins, and Song Select keeps its
-  footer and header within the viewport.
+  Settings fills the reference stage while preserving safe outer margins,
+  and Song Select keeps its footer and header within the viewport.
 - Colors and visual tokens: no palette, opacity, border, radius, or state
   token changed.
 - Image quality and asset fidelity: all existing logo, mascot, background,
@@ -354,8 +357,6 @@ alignment, and control boundaries remain readable in the combined images.
 
 - No actionable P0, P1, or P2 issue remains in the inspected 3200x2000
   100% state.
-- P3 accepted constraint: Settings intentionally keeps a centred 1280-wide
-  inner panel inside the shared 1600-wide responsive layout.
 
 ## Comparison history
 
@@ -369,7 +370,12 @@ alignment, and control boundaries remain readable in the combined images.
      1600x900 layout space.
    - Kept 90% and 80% as proportional reductions from the native
      resolution-derived 100% scale.
-3. Post-fix evidence:
+3. Settings follow-up:
+   - P1: Settings still retained its fixed 1280x720 authored stage inside
+     the new 1600x900 reference, so it remained visibly undersized.
+   - Scaled that local stage by 1.25 so it maps exactly to 1600x900 while
+     continuing to inherit the global 100%, 90%, and 80% scale.
+4. Post-fix evidence:
    - Native Home, Settings, and Song Select captures show no clipping,
      overlap, or unreadable persistent controls.
-   - Focused scaling tests pass 14/14.
+   - Focused scaling tests pass 15/15.

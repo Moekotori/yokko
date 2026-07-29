@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Platform;
 using osuTK.Input;
@@ -120,6 +122,112 @@ public sealed class GameplaySettingsTest
         Assert.That(
             settings.GetKeys(KeyMode.FourKey),
             Is.EqualTo(new[] { Key.D, Key.F, Key.J, Key.K }));
+    }
+
+    [Test]
+    public void PresetsAndCrossModeCopyKeepProfilesUnique()
+    {
+        var settings = new YokkoGameplaySettings();
+
+        settings.ApplyBindingPreset(
+            KeyMode.FourKey,
+            GameplayKeyPreset.LeftHanded);
+        Assert.That(
+            settings.GetKeys(KeyMode.FourKey),
+            Is.EqualTo(new[] { Key.A, Key.S, Key.D, Key.F }));
+
+        settings.CopyBindingsToOtherMode(KeyMode.FourKey);
+        IReadOnlyList<Key> sevenKeys =
+            settings.GetKeys(KeyMode.SevenKey);
+        Assert.Multiple(() =>
+        {
+            Assert.That(sevenKeys, Has.Count.EqualTo(7));
+            Assert.That(sevenKeys.Distinct().Count(), Is.EqualTo(7));
+            Assert.That(
+                new[]
+                {
+                    sevenKeys[1],
+                    sevenKeys[2],
+                    sevenKeys[4],
+                    sevenKeys[5],
+                },
+                Is.EqualTo(new[] { Key.A, Key.S, Key.D, Key.F }));
+        });
+
+        settings.CopyBindingsToOtherMode(KeyMode.SevenKey);
+        Assert.That(
+            settings.GetKeys(KeyMode.FourKey),
+            Is.EqualTo(new[] { Key.A, Key.S, Key.D, Key.F }));
+    }
+
+    [Test]
+    public void ClipboardProfileRoundTripsAtomically()
+    {
+        var source = new YokkoGameplaySettings();
+        source.ApplyBindingPreset(
+            KeyMode.FourKey,
+            GameplayKeyPreset.Split);
+        source.ApplyBindingPreset(
+            KeyMode.SevenKey,
+            GameplayKeyPreset.LeftHanded);
+        string encoded = GameplayKeyProfileCodec.Encode(source);
+
+        var restored = new YokkoGameplaySettings();
+        GameplayKeyProfileCodec.DecodeAndApply(encoded, restored);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                restored.GetKeys(KeyMode.FourKey),
+                Is.EqualTo(source.GetKeys(KeyMode.FourKey)));
+            Assert.That(
+                restored.GetKeys(KeyMode.SevenKey),
+                Is.EqualTo(source.GetKeys(KeyMode.SevenKey)));
+        });
+
+        Assert.That(
+            () => GameplayKeyProfileCodec.DecodeAndApply(
+                "YOKKO-KEYS-V1|4K=Z,X,X,Slash|7K=S,D,F,Space,J,K,L",
+                restored),
+            Throws.TypeOf<FormatException>());
+        Assert.That(
+            restored.GetKeys(KeyMode.FourKey),
+            Is.EqualTo(source.GetKeys(KeyMode.FourKey)));
+    }
+
+    [Test]
+    public void CalibrationSuggestsTheInverseMedianTapOffset()
+    {
+        var calibration = new GameplayCalibrationSession(10_000);
+
+        for (int beat = 0; beat < 12; beat++)
+        {
+            double expected =
+                10_000
+                + GameplayCalibrationSession.LeadInMilliseconds
+                + beat * GameplayCalibrationSession.BeatIntervalMilliseconds;
+            Assert.That(
+                calibration.TryRecordTap(expected + 18 + beat % 3),
+                Is.True);
+            Assert.That(
+                calibration.TryRecordTap(expected + 24),
+                Is.False,
+                "Only the first key on each beat should be sampled.");
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(calibration.SampleCount, Is.EqualTo(12));
+            Assert.That(calibration.HasRecommendation, Is.True);
+            Assert.That(
+                calibration.SuggestedOffsetMilliseconds,
+                Is.EqualTo(-19));
+            Assert.That(
+                calibration.IsComplete(
+                    10_000
+                    + GameplayCalibrationSession.DurationMilliseconds),
+                Is.True);
+        });
     }
 
     [Test]

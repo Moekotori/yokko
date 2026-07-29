@@ -367,8 +367,8 @@ public partial class MainScreen : Screen
 
     internal static Vector2 CalculateResponsiveStageSize(Vector2 viewport) =>
         new(
-            MathF.Min(MathF.Max(viewport.X, designedWidth), 1600),
-            MathF.Min(MathF.Max(viewport.Y, designedHeight), 900));
+            MathF.Max(viewport.X, designedWidth),
+            MathF.Max(viewport.Y, designedHeight));
 
     internal static Vector2 CalculateRightStageOffset(Vector2 stageSize)
     {

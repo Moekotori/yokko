@@ -53,6 +53,52 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestCustomNightcoreAudioPolicyMatchesLazer()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            GameplayScreen gameplay = null;
+            string audioPath = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                $"{TestContext.CurrentContext.Test.ID}.wav");
+
+            AddStep("open custom Nightcore gameplay", () =>
+            {
+                File.WriteAllBytes(audioPath, []);
+                YokkoBeatmap beatmap =
+                    DemoBeatmaps.CreateFourKeyDemo() with
+                    {
+                        AudioPath = audioPath,
+                    };
+                var replay = new GameplayReplay(
+                    [],
+                    ManiaModSet.Empty.WithFixedRate(
+                        ManiaModId.Nightcore,
+                        1.25));
+                gameplay = new GameplayScreen(
+                    beatmap,
+                    audioEngine,
+                    null,
+                    null,
+                    replay);
+                screenStack.Push(gameplay);
+            });
+            AddUntilStep(
+                "audio request started",
+                () => audioEngine.LastStartRequest != null);
+            AddAssert("NC keeps lazer frequency at custom speed", () =>
+                audioEngine.LastStartRequest.PlaybackRate == 1.25
+                && audioEngine.LastStartRequest.PitchMode
+                   == AudioPitchMode.ScaleWithRate
+                && audioEngine.LastStartRequest.FixedFrequencyScale
+                   == 1.5
+                && gameplay.Mods.FixedRateMod
+                   == ManiaModId.Nightcore
+                && gameplay.Mods.FixedRateSpeedChange == 1.25);
+            AddStep("remove audio fixture", () =>
+                File.Delete(audioPath));
+        }
+
+        [Test]
         public void TestCinemaHidesGameplayAndUsesAutoReplay()
         {
             GameplayScreen gameplay = null;
@@ -1769,6 +1815,8 @@ StageHint: stage-hint
 
             public int StartCount { get; private set; }
 
+            public AudioEngineStartRequest LastStartRequest { get; private set; }
+
             public int PauseCount { get; private set; }
 
             public int SeekCount { get; private set; }
@@ -1784,6 +1832,7 @@ StageHint: stage-hint
                 CancellationToken cancellationToken = default)
             {
                 StartCount++;
+                LastStartRequest = request;
                 status = createStatus(true);
                 return ValueTask.CompletedTask;
             }

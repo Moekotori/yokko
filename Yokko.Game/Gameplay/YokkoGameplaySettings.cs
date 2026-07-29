@@ -7,6 +7,13 @@ using Yokko.Core.Gameplay;
 
 namespace Yokko.Game.Gameplay;
 
+public enum GameplayKeyPreset
+{
+    Standard,
+    LeftHanded,
+    Split,
+}
+
 /// <summary>
 /// Application-owned gameplay preferences. Chart rules and scoring windows stay
 /// in Yokko.Core; this type only owns player input and presentation choices.
@@ -14,33 +21,51 @@ namespace Yokko.Game.Gameplay;
 public sealed class YokkoGameplaySettings
 {
     private static readonly Key[] defaultFourKeyBindings =
-    {
-        Key.D,
-        Key.F,
-        Key.J,
-        Key.K,
-    };
+        OsuManiaKeyLayout.GetDefaultKeys(KeyMode.FourKey);
 
     private static readonly Key[] defaultSevenKeyBindings =
-    {
-        Key.S,
-        Key.D,
-        Key.F,
-        Key.Space,
-        Key.J,
-        Key.K,
-        Key.L,
-    };
+        OsuManiaKeyLayout.GetDefaultKeys(KeyMode.SevenKey);
 
-    private readonly Bindable<Key>[] fourKeyBindings =
-        createBindings(defaultFourKeyBindings);
+    private static readonly IReadOnlyDictionary<
+        (KeyMode Mode, GameplayKeyPreset Preset),
+        Key[]> bindingPresets =
+        new Dictionary<(KeyMode, GameplayKeyPreset), Key[]>
+        {
+            [(KeyMode.FourKey, GameplayKeyPreset.Standard)] =
+                defaultFourKeyBindings,
+            [(KeyMode.FourKey, GameplayKeyPreset.LeftHanded)] =
+                new[] { Key.A, Key.S, Key.D, Key.F },
+            [(KeyMode.FourKey, GameplayKeyPreset.Split)] =
+                new[] { Key.Z, Key.X, Key.Period, Key.Slash },
+            [(KeyMode.SevenKey, GameplayKeyPreset.Standard)] =
+                defaultSevenKeyBindings,
+            [(KeyMode.SevenKey, GameplayKeyPreset.LeftHanded)] =
+                new[] { Key.A, Key.S, Key.D, Key.F, Key.G, Key.H, Key.J },
+            [(KeyMode.SevenKey, GameplayKeyPreset.Split)] =
+                new[]
+                {
+                    Key.Z,
+                    Key.X,
+                    Key.C,
+                    Key.Space,
+                    Key.Comma,
+                    Key.Period,
+                    Key.Slash,
+                },
+        };
 
-    private readonly Bindable<Key>[] sevenKeyBindings =
-        createBindings(defaultSevenKeyBindings);
+    private readonly Dictionary<KeyMode, Bindable<Key>[]> bindingsByMode;
 
-    public IReadOnlyList<Bindable<Key>> FourKeyBindings => fourKeyBindings;
+    public IReadOnlyList<KeyMode> SupportedKeyModes =>
+        OsuManiaKeyLayout.SupportedModes;
 
-    public IReadOnlyList<Bindable<Key>> SevenKeyBindings => sevenKeyBindings;
+    public IReadOnlyList<Bindable<Key>> FourKeyBindings =>
+        bindingsByMode[KeyMode.FourKey];
+
+    public IReadOnlyList<Bindable<Key>> SevenKeyBindings =>
+        bindingsByMode[KeyMode.SevenKey];
+
+    internal event Action BindingsChanged;
 
     public readonly Bindable<double> ScrollSpeed =
         new(OsuManiaScrollSpeed.Default);
@@ -59,16 +84,26 @@ public sealed class YokkoGameplaySettings
 
     public readonly BindableBool PauseWhenUnfocused = new(true);
 
-    public IReadOnlyList<Bindable<Key>> GetBindableKeys(KeyMode keyMode) =>
-        keyMode switch
+    public YokkoGameplaySettings()
+    {
+        bindingsByMode = OsuManiaKeyLayout.SupportedModes.ToDictionary(
+            mode => mode,
+            mode => createBindings(OsuManiaKeyLayout.GetDefaultKeys(mode)));
+
+        foreach (Bindable<Key> binding in bindingsByMode.Values.SelectMany(
+                     modeBindings => modeBindings))
         {
-            KeyMode.FourKey => fourKeyBindings,
-            KeyMode.SevenKey => sevenKeyBindings,
-            _ => throw new ArgumentOutOfRangeException(
+            binding.ValueChanged += _ => BindingsChanged?.Invoke();
+        }
+    }
+
+    public IReadOnlyList<Bindable<Key>> GetBindableKeys(KeyMode keyMode) =>
+        bindingsByMode.TryGetValue(keyMode, out Bindable<Key>[] bindings)
+            ? bindings
+            : throw new ArgumentOutOfRangeException(
                 nameof(keyMode),
                 keyMode,
-                "Unsupported key mode."),
-        };
+                "Unsupported key mode.");
 
     public IReadOnlyList<Key> GetKeys(KeyMode keyMode) =>
         GetBindableKeys(keyMode)
@@ -137,19 +172,58 @@ public sealed class YokkoGameplaySettings
 
     public void ResetBindings(KeyMode keyMode)
     {
-        Key[] defaults = keyMode switch
-        {
-            KeyMode.FourKey => defaultFourKeyBindings,
-            KeyMode.SevenKey => defaultSevenKeyBindings,
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(keyMode),
-                keyMode,
-                "Unsupported key mode."),
-        };
+        Key[] defaults = OsuManiaKeyLayout.GetDefaultKeys(keyMode);
         IReadOnlyList<Bindable<Key>> bindings = GetBindableKeys(keyMode);
 
         for (int index = 0; index < defaults.Length; index++)
             bindings[index].Value = defaults[index];
+    }
+
+    public void ApplyBindingPreset(
+        KeyMode keyMode,
+        GameplayKeyPreset preset)
+    {
+        if (!bindingPresets.TryGetValue((keyMode, preset), out Key[] keys))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(preset),
+                preset,
+                $"No {preset} preset exists for {keyMode}.");
+        }
+
+        SetBindings(keyMode, keys);
+    }
+
+    /// <summary>
+    /// Copies the four central gameplay columns between 4K and 7K. Expanding to
+    /// 7K preserves the current outer and centre keys wherever possible.
+    /// </summary>
+    public void CopyBindingsToOtherMode(KeyMode sourceMode)
+    {
+        switch (sourceMode)
+        {
+            case KeyMode.FourKey:
+                copyFourKeyToSevenKey();
+                break;
+
+            case KeyMode.SevenKey:
+                SetBindings(
+                    KeyMode.FourKey,
+                    new[]
+                    {
+                        SevenKeyBindings[1].Value,
+                        SevenKeyBindings[2].Value,
+                        SevenKeyBindings[4].Value,
+                        SevenKeyBindings[5].Value,
+                    });
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(sourceMode),
+                    sourceMode,
+                    "Only 4K and 7K profiles can be copied.");
+        }
     }
 
     public void SetScrollSpeed(double speed) =>
@@ -162,4 +236,43 @@ public sealed class YokkoGameplaySettings
 
     private static Bindable<Key>[] createBindings(IEnumerable<Key> defaults) =>
         defaults.Select(key => new Bindable<Key>(key)).ToArray();
+
+    private void copyFourKeyToSevenKey()
+    {
+        Key[] fourKeys = GetKeys(KeyMode.FourKey).ToArray();
+        var used = new HashSet<Key>(fourKeys);
+        Key[] fallback =
+        {
+            SevenKeyBindings[0].Value,
+            SevenKeyBindings[3].Value,
+            SevenKeyBindings[6].Value,
+            Key.S,
+            Key.Space,
+            Key.L,
+            Key.A,
+            Key.Semicolon,
+            Key.G,
+            Key.H,
+        };
+        var extras = fallback.Where(used.Add).Take(3).ToArray();
+
+        if (extras.Length != 3)
+        {
+            throw new InvalidOperationException(
+                "Could not create a unique 7K profile from the 4K keys.");
+        }
+
+        SetBindings(
+            KeyMode.SevenKey,
+            new[]
+            {
+                extras[0],
+                fourKeys[0],
+                fourKeys[1],
+                extras[1],
+                fourKeys[2],
+                fourKeys[3],
+                extras[2],
+            });
+    }
 }

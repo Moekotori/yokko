@@ -34,7 +34,7 @@ appear selectable until its complete behaviour is registered and tested.
 
 The currently selectable implementation slices are:
 
-- fixed rate: HT, DC, DT and NC at their upstream default rates;
+- fixed rate: configurable HT, DC, DT and NC across their upstream ranges;
 - conversion: MR, seeded RD, HO, IN, CL, CS, configurable DA, DS and
   1K through 10K;
 - difficulty reduction: EZ, NF and NR;
@@ -56,9 +56,9 @@ fail conditions. PF defaults to accepting Great or better and exposes lazer's
 optional `Require perfect hits` setting; the setting is included in canonical
 score identity and survives compatible Mod changes.
 The final displayed and persisted score applies lazer's current Mania Mod
-multiplier matrix after rounding the score-without-Mods. This includes the
-default 0.5x for EZ/NF/WU/WD/AS, 0.3x for HT/DC, and 0.9x for NR/CS/HO/key
-Mods, with multiplicative combinations.
+multiplier matrix after rounding the score-without-Mods. This includes 0.5x
+for EZ/NF/WU/WD/AS, lazer's rate-rounded 0.1x–0.5x matrix for HT/DC, and 0.9x
+for NR/CS/HO/key Mods, with multiplicative combinations.
 HR multiplies Mania hit-window difficulty by 1.4 and raises HP drain by 1.4
 up to 10. AC defaults to a 90% maximum-achievable-accuracy target and stores
 its 60.0%–99.9% threshold and accuracy mode in the canonical fingerprint.
@@ -87,6 +87,14 @@ last eight accuracy-affecting results, slows misses by 5%, and damps toward the
 target with lazer's 50 ms half-time. Its live rate drives the same authoritative
 audio, keysound, input, frame-clock and HUD paths as WU/WD. Initial rate and
 pitch mode are part of the canonical fingerprint.
+HT/DC expose lazer's 0.50×–0.99× range and DT/NC expose 1.01×–2.00×, all at
+0.01× precision. HT/DT optionally scale pitch with the configured rate. DC/NC
+instead keep lazer's fixed 0.75×/1.50× frequency and vary tempo independently,
+including in Song Select preview and gameplay; keysounds follow the configured
+total speed. Non-default speed and pitch settings are part of score identity.
+Gameplay replays now own their exact `ManiaModSet` rather than relying on the
+caller to reconstruct it. Imported legacy `.osr` flags follow lazer's Mania
+mapping and NC/DT, PF/SD, and CN/AT precedence before gameplay starts.
 Mode 0 osu!standard imports retain their original positioned circles, sliders,
 and spinners as a conversion source. The default target column count follows
 lazer's special-object-density, CS and OD rules. 1K–10K regenerate from that
@@ -123,9 +131,9 @@ The current codebase already has strong foundations:
 
 The remaining parity blockers include:
 
-- persisted replay files do not yet store a canonical Mod configuration;
+- Yokko does not yet have a native persisted replay container for restoring
+  full configurable Mod state after process restart;
 - persisted UI preferences for configurable Mods are not yet stored globally;
-- lazer's configurable fixed-rate values are not yet exposed;
 - standard-to-Mania object shape now has upstream golden coverage for lazer's
   repeated-slider, short-repeat stair, and spinner fixtures, but sample payload
   fidelity and a broader complex-slider corpus are not yet closed.
@@ -303,8 +311,8 @@ Health must be frame-rate independent and driven by judgement events.
 
 ### Stage 4: fixed and variable audio rate
 
-Extend `IAudioEngine` with explicit capabilities and an authoritative rated
-clock, then implement:
+The audio engine now carries an authoritative rated clock and explicit
+tempo/frequency policy for:
 
 - HT and DC;
 - DT and NC;

@@ -219,6 +219,14 @@ public sealed class GameplayScrollVelocityTest
             Assert.That(
                 GameplayScreen.AdjustApproachTimeForPlaybackRate(
                     1800,
+                    ChartSourceFormat.Quaver,
+                    1.5,
+                    100,
+                    false),
+                Is.EqualTo(2700));
+            Assert.That(
+                GameplayScreen.AdjustApproachTimeForPlaybackRate(
+                    1800,
                     ChartSourceFormat.OsuMania,
                     1.5),
                 Is.EqualTo(1800));

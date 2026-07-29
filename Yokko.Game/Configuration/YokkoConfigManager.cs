@@ -1,3 +1,4 @@
+using System;
 using osu.Framework.Configuration;
 using osu.Framework.Platform;
 using Yokko.Audio;
@@ -14,6 +15,8 @@ internal enum YokkoSetting
 {
     HomeMusicEnabled,
     AudioMasterVolume,
+    AudioMusicVolume,
+    AudioHitSoundVolume,
     AudioBackend,
     AudioDeviceId,
     AudioBufferSize,
@@ -33,6 +36,7 @@ internal enum YokkoSetting
     GameplaySevenKeyLane5,
     GameplaySevenKeyLane6,
     GameplaySevenKeyLane7,
+    GameplayKeyProfiles,
     ManiaScrollSpeed,
     QuaverScrollRateNormalization,
     GameplayShowLanePressFeedback,
@@ -57,7 +61,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
     protected override void InitialiseDefaults()
     {
         SetDefault(YokkoSetting.HomeMusicEnabled, true);
-        SetDefault(YokkoSetting.AudioMasterVolume, 1.0, 0.0, 1.0, 0.05);
+        SetDefault(YokkoSetting.AudioMasterVolume, 1.0, 0.0, 1.0, 0.01);
+        SetDefault(YokkoSetting.AudioMusicVolume, 1.0, 0.0, 1.0, 0.01);
+        SetDefault(YokkoSetting.AudioHitSoundVolume, 1.0, 0.0, 1.0, 0.01);
         SetDefault(
             YokkoSetting.AudioBackend,
             AudioBackendKind.WasapiExclusive);
@@ -84,6 +90,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(YokkoSetting.GameplaySevenKeyLane5, osuTK.Input.Key.J);
         SetDefault(YokkoSetting.GameplaySevenKeyLane6, osuTK.Input.Key.K);
         SetDefault(YokkoSetting.GameplaySevenKeyLane7, osuTK.Input.Key.L);
+        SetDefault(YokkoSetting.GameplayKeyProfiles, string.Empty);
         SetDefault(
             YokkoSetting.ManiaScrollSpeed,
             OsuManiaScrollSpeed.Default,
@@ -114,6 +121,10 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSetting.HomeMusicEnabled,
             settings.HomeMusicEnabled);
         BindWith(YokkoSetting.AudioMasterVolume, settings.MasterVolume);
+        BindWith(YokkoSetting.AudioMusicVolume, settings.MusicVolume);
+        BindWith(
+            YokkoSetting.AudioHitSoundVolume,
+            settings.HitSoundVolume);
         BindWith(YokkoSetting.AudioBackend, settings.PreferredBackend);
         BindWith(YokkoSetting.AudioDeviceId, settings.DeviceId);
         BindWith(
@@ -151,6 +162,34 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(YokkoSetting.GameplaySevenKeyLane5, settings.SevenKeyBindings[4]);
         BindWith(YokkoSetting.GameplaySevenKeyLane6, settings.SevenKeyBindings[5]);
         BindWith(YokkoSetting.GameplaySevenKeyLane7, settings.SevenKeyBindings[6]);
+
+        string storedProfiles = Get<string>(YokkoSetting.GameplayKeyProfiles);
+        if (!string.IsNullOrWhiteSpace(storedProfiles))
+        {
+            try
+            {
+                GameplayKeyProfileCodec.DecodeAndApply(
+                    storedProfiles,
+                    settings);
+            }
+            catch (FormatException)
+            {
+                // Keep the valid legacy 4K/7K values and lazer defaults for all
+                // other modes. The normalized value below repairs the config.
+            }
+            catch (ArgumentException)
+            {
+                // See above. Invalid profiles must never block application load.
+            }
+        }
+
+        void persistKeyProfiles() => SetValue(
+            YokkoSetting.GameplayKeyProfiles,
+            GameplayKeyProfileCodec.Encode(settings));
+
+        settings.BindingsChanged += persistKeyProfiles;
+        persistKeyProfiles();
+
         BindWith(YokkoSetting.ManiaScrollSpeed, settings.ScrollSpeed);
         BindWith(
             YokkoSetting.QuaverScrollRateNormalization,
