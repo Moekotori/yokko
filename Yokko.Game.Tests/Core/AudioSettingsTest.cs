@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using NUnit.Framework;
 using osu.Framework.Platform;
+using osuTK.Input;
 using Yokko.Audio;
 using Yokko.Game.Audio;
 using Yokko.Game.Configuration;
@@ -25,8 +26,33 @@ public sealed class AudioSettingsTest
         Assert.That(settings.MusicVolume.Value, Is.EqualTo(1));
         Assert.That(settings.HitSoundVolume.Value, Is.EqualTo(1));
         Assert.That(settings.DeviceId.Value, Is.Empty);
+        Assert.That(settings.AsioDeviceId.Value, Is.Empty);
         Assert.That(settings.PreferredBufferSize.Value, Is.EqualTo(64));
         Assert.That(settings.UserOffsetMilliseconds.Value, Is.Zero);
+    }
+
+    [Test]
+    public void AsioUsesItsOwnRememberedDevice()
+    {
+        var settings = new YokkoAudioSettings();
+        settings.DeviceId.Value = "wasapi-endpoint";
+        settings.AsioDeviceId.Value = "asio:{driver}";
+        settings.PreferredBackend.Value = AudioBackendKind.Asio;
+
+        AudioEngineStartRequest asio =
+            settings.CreateStartRequest("song.wav");
+        settings.PreferredBackend.Value =
+            AudioBackendKind.WasapiExclusive;
+        AudioEngineStartRequest wasapi =
+            settings.CreateStartRequest("song.wav");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(asio.DeviceId, Is.EqualTo("asio:{driver}"));
+            Assert.That(
+                wasapi.DeviceId,
+                Is.EqualTo("wasapi-endpoint"));
+        });
     }
 
     [Test]
@@ -95,6 +121,8 @@ public sealed class AudioSettingsTest
                 firstSettings.PreferredBackend.Value =
                     AudioBackendKind.SharedWasapi;
                 firstSettings.DeviceId.Value = "persisted-endpoint";
+                firstSettings.AsioDeviceId.Value =
+                    "asio:{persisted-driver}";
                 firstSettings.PreferredBufferSize.Value = 256;
                 firstSettings.MasterVolume.Value = 0.65;
                 firstSettings.MusicVolume.Value = 0.8;
@@ -117,6 +145,9 @@ public sealed class AudioSettingsTest
                 Assert.That(
                     restoredSettings.DeviceId.Value,
                     Is.EqualTo("persisted-endpoint"));
+                Assert.That(
+                    restoredSettings.AsioDeviceId.Value,
+                    Is.EqualTo("asio:{persisted-driver}"));
                 Assert.That(
                     restoredSettings.PreferredBufferSize.Value,
                     Is.EqualTo(256));
@@ -195,6 +226,30 @@ public sealed class AudioSettingsTest
             Assert.That(
                 SettingsVolumeSlider.AcceptsWheelAt(12),
                 Is.False);
+            Assert.That(
+                SettingsVolumeSlider.AdjustForKey(0.5, Key.Right),
+                Is.EqualTo(0.51));
+            Assert.That(
+                SettingsVolumeSlider.AdjustForKey(
+                    0.5,
+                    Key.Left,
+                    true),
+                Is.EqualTo(0.45));
+            Assert.That(
+                SettingsVolumeSlider.AdjustForKey(0.5, Key.Home),
+                Is.Zero);
+            Assert.That(
+                SettingsOffsetStepper.AdjustForKey(12, Key.Left),
+                Is.EqualTo(11));
+            Assert.That(
+                SettingsOffsetStepper.AdjustForKey(
+                    12,
+                    Key.Right,
+                    true),
+                Is.EqualTo(22));
+            Assert.That(
+                SettingsOffsetStepper.AdjustForKey(12, Key.Home),
+                Is.Zero);
         });
     }
 

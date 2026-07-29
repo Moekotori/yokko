@@ -34,28 +34,36 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
 
     public static bool IsAvailable => NativeAudioLibrary.IsAvailable;
 
-    public static IReadOnlyList<AudioBackendCapabilities> SupportedBackends { get; } =
-    [
-        new(
-            AudioBackendKind.WasapiExclusive,
-            true,
-            true,
-            false,
-            "Yokko native event-driven WASAPI exclusive output."),
-        new(
-            AudioBackendKind.SharedWasapi,
-            false,
-            false,
-            false,
-            "Yokko native WASAPI shared fallback."),
-        new(
-            AudioBackendKind.Asio,
-            true,
-            true,
-            true,
-            "Yokko native ASIO output is the next backend.",
-            false),
-    ];
+    public static IReadOnlyList<AudioBackendCapabilities> SupportedBackends
+    {
+        get
+        {
+            bool asioAvailable =
+                NativeAsioDevices.IsBackendAvailable;
+            return
+            [
+                new(
+                    AudioBackendKind.WasapiExclusive,
+                    true,
+                    true,
+                    false,
+                    "Yokko native event-driven WASAPI exclusive output."),
+                new(
+                    AudioBackendKind.SharedWasapi,
+                    false,
+                    false,
+                    false,
+                    "Yokko native WASAPI shared fallback."),
+                new(
+                    AudioBackendKind.Asio,
+                    true,
+                    true,
+                    true,
+                    "Yokko native output-only ASIO driver path.",
+                    asioAvailable),
+            ];
+        }
+    }
 
     public AudioEngineStatus Status
         => Snapshot.Status;
@@ -137,28 +145,51 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        IReadOnlyList<NativeWasapiDevice> nativeDevices = await Task.Run(
-            NativeWasapiDevices.Enumerate,
+        return await Task.Run<IReadOnlyList<AudioDeviceInfo>>(
+            () =>
+            {
+                IReadOnlyList<NativeWasapiDevice> wasapiDevices =
+                    NativeWasapiDevices.Enumerate();
+                IReadOnlyList<NativeAsioDevice> asioDevices;
+                try
+                {
+                    asioDevices = NativeAsioDevices.Enumerate();
+                }
+                catch (NativeAudioException)
+                {
+                    // Optional ASIO discovery must never hide otherwise valid
+                    // Windows endpoints.
+                    asioDevices = [];
+                }
+                return wasapiDevices
+                       .SelectMany(device => new[]
+                       {
+                           new AudioDeviceInfo(
+                               device.Id,
+                               device.Name,
+                               AudioBackendKind.WasapiExclusive,
+                               [],
+                               [],
+                               device.IsDefault),
+                           new AudioDeviceInfo(
+                               device.Id,
+                               device.Name,
+                               AudioBackendKind.SharedWasapi,
+                               [],
+                               [],
+                               device.IsDefault),
+                       })
+                       .Concat(asioDevices.Select(device =>
+                           new AudioDeviceInfo(
+                               device.Id,
+                               device.Name,
+                               AudioBackendKind.Asio,
+                               [],
+                               [],
+                               device.IsDefault)))
+                       .ToArray();
+            },
             cancellationToken).ConfigureAwait(false);
-        return nativeDevices
-               .SelectMany(device => new[]
-               {
-                   new AudioDeviceInfo(
-                       device.Id,
-                       device.Name,
-                       AudioBackendKind.WasapiExclusive,
-                       [],
-                       [],
-                       device.IsDefault),
-                   new AudioDeviceInfo(
-                       device.Id,
-                       device.Name,
-                       AudioBackendKind.SharedWasapi,
-                       [],
-                       [],
-                       device.IsDefault),
-               })
-               .ToArray();
     }
 
     public async ValueTask StartAsync(
@@ -169,9 +200,6 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
         if (!IsAvailable)
             throw new PlatformNotSupportedException(
                 "Yokko native audio is available only on a built Windows desktop runtime.");
-        if (request.PreferredBackend == AudioBackendKind.Asio)
-            throw new NotSupportedException(
-                "ASIO is not connected yet. Select WASAPI exclusive or shared.");
         if (!double.IsFinite(request.PlaybackRate)
             || request.PlaybackRate is < 0.25 or > 4)
         {
@@ -608,55 +636,70 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
         await primed.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         core.Start();
 
-        NativeAudioBackendMode requestedMode =
-            request.PreferredBackend == AudioBackendKind.SharedWasapi
-                ? NativeAudioBackendMode.WasapiShared
-                : NativeAudioBackendMode.WasapiExclusive;
         AudioBackendKind activeBackend;
-        try
+        if (request.PreferredBackend == AudioBackendKind.Asio)
         {
-            outputStatus = core.OpenWasapi(
-                requestedMode,
+            // ASIO is an explicit expert choice. Never hide a driver failure
+            // by changing the backend and therefore its latency/clock model.
+            outputStatus = core.OpenAsio(
                 request.DeviceId,
                 preferredBufferFrames);
-            activeBackend =
-                outputStatus.Backend == NativeAudioBackendMode.WasapiExclusive
-                    ? AudioBackendKind.WasapiExclusive
-                    : AudioBackendKind.SharedWasapi;
+            activeBackend = AudioBackendKind.Asio;
         }
-        catch (NativeAudioException exclusiveFailure)
-            when (requestedMode == NativeAudioBackendMode.WasapiExclusive)
+        else
         {
+            NativeAudioBackendMode requestedMode =
+                request.PreferredBackend
+                == AudioBackendKind.SharedWasapi
+                    ? NativeAudioBackendMode.WasapiShared
+                    : NativeAudioBackendMode.WasapiExclusive;
             try
             {
                 outputStatus = core.OpenWasapi(
-                    NativeAudioBackendMode.WasapiShared,
+                    requestedMode,
                     request.DeviceId,
                     preferredBufferFrames);
-                activeBackend = AudioBackendKind.SharedWasapi;
+                activeBackend =
+                    outputStatus.Backend
+                    == NativeAudioBackendMode.WasapiExclusive
+                        ? AudioBackendKind.WasapiExclusive
+                        : AudioBackendKind.SharedWasapi;
             }
-            catch (NativeAudioException sharedFailure)
+            catch (NativeAudioException exclusiveFailure)
+                when (requestedMode
+                      == NativeAudioBackendMode.WasapiExclusive)
             {
-                throw new NativeAudioException(
-                    "WASAPI Exclusive and Shared fallback both failed. "
-                    + $"Exclusive: {exclusiveFailure.Message} "
-                    + $"Shared: {sharedFailure.Message}",
-                    sharedFailure);
+                try
+                {
+                    outputStatus = core.OpenWasapi(
+                        NativeAudioBackendMode.WasapiShared,
+                        request.DeviceId,
+                        preferredBufferFrames);
+                    activeBackend = AudioBackendKind.SharedWasapi;
+                }
+                catch (NativeAudioException sharedFailure)
+                {
+                    throw new NativeAudioException(
+                        "WASAPI Exclusive and Shared fallback both failed. "
+                        + $"Exclusive: {exclusiveFailure.Message} "
+                        + $"Shared: {sharedFailure.Message}",
+                        sharedFailure);
+                }
             }
         }
 
         status = new AudioEngineStatus(
             activeBackend,
-            string.IsNullOrWhiteSpace(request.DeviceId)
-                ? "Default Windows output"
-                : request.DeviceId,
+            resolveDeviceName(
+                request.DeviceId,
+                activeBackend),
             (int)outputStatus.SampleRate,
             (int)outputStatus.BufferFrames,
             outputStatus.SampleRate == 0
                 ? 0
                 : outputStatus.LatencyFrames * 1000.0
                   / outputStatus.SampleRate,
-            activeBackend == AudioBackendKind.WasapiExclusive,
+            activeBackend != AudioBackendKind.SharedWasapi,
             true,
             false,
             false,
@@ -668,6 +711,39 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
             0,
             0,
             0);
+    }
+
+    private static string resolveDeviceName(
+        string? deviceId,
+        AudioBackendKind backend)
+    {
+        if (backend != AudioBackendKind.Asio)
+        {
+            return string.IsNullOrWhiteSpace(deviceId)
+                ? "Default Windows output"
+                : deviceId;
+        }
+
+        try
+        {
+            IReadOnlyList<NativeAsioDevice> devices =
+                NativeAsioDevices.Enumerate();
+            if (string.IsNullOrWhiteSpace(deviceId))
+            {
+                return devices.FirstOrDefault()?.Name
+                       ?? "Default ASIO driver";
+            }
+
+            return devices.FirstOrDefault(
+                       device => device.Id == deviceId)?.Name
+                   ?? deviceId;
+        }
+        catch (NativeAudioException)
+        {
+            return string.IsNullOrWhiteSpace(deviceId)
+                ? "Default ASIO driver"
+                : deviceId;
+        }
     }
 
     private static async Task feedPcmAsync(

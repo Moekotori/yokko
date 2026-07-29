@@ -88,6 +88,38 @@ public sealed class FrameTimingTrackerTest
     }
 
     [Test]
+    public void AllocationFreeHealthRequiresSustainedCriticalTail()
+    {
+        var tracker = new FrameTimingTracker();
+        for (int index = 0; index < 99; index++)
+            tracker.Record(2);
+        tracker.Record(4);
+
+        Assert.That(
+            tracker.EvaluateHealth(2),
+            Is.EqualTo(FramePacingHealth.Warning));
+
+        tracker.Record(4);
+        tracker.Record(4);
+
+        Assert.That(
+            tracker.EvaluateHealth(2),
+            Is.EqualTo(FramePacingHealth.Critical));
+    }
+
+    [Test]
+    public void AllocationFreeHealthKeepsStableFramesStable()
+    {
+        var tracker = new FrameTimingTracker();
+        for (int index = 0; index < 1000; index++)
+            tracker.Record(2);
+
+        Assert.That(
+            tracker.EvaluateHealth(2),
+            Is.EqualTo(FramePacingHealth.Stable));
+    }
+
+    [Test]
     public void ResetDropsPreviousModeHistory()
     {
         var tracker = new FrameTimingTracker();

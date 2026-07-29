@@ -1,7 +1,9 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using osu.Framework.Allocation;
+using osu.Framework.Configuration;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Cursor;
 using osu.Framework.Graphics.Rendering;
@@ -13,6 +15,8 @@ using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
+using Yokko.Game.Gameplay;
+using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.SongSelect;
@@ -27,9 +31,36 @@ namespace Yokko.Game.Tests
         [Resolved]
         private GameHost host { get; set; }
 
+        private FrameworkConfigManager frameworkConfig;
+
+        [BackgroundDependencyLoader]
+        private void load(FrameworkConfigManager frameworkConfig)
+        {
+            this.frameworkConfig = frameworkConfig;
+        }
+
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            if (Environment.GetEnvironmentVariable(
+                    "YOKKO_SCROLL_SPEED_PREVIEW") == "1")
+            {
+                var gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo());
+                Add(new ScreenStack(gameplay)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                Add(new CursorContainer());
+                Scheduler.AddDelayed(() =>
+                    gameplay
+                        .ChildrenOfType<GameplayScrollSpeedOverlay>()
+                        .Single()
+                        .Show(20, 600), 300);
+                schedulePreviewScreenshot(700);
+                return;
+            }
 
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_MODS_PREVIEW") == "1")
@@ -94,19 +125,55 @@ namespace Yokko.Game.Tests
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_PAUSE_PREVIEW") == "1")
             {
-                var gameplay = new GameplayScreen(
+                DisplaySettings.UiScale.Value =
+                    Enum.TryParse(
+                        Environment.GetEnvironmentVariable(
+                            "YOKKO_PREVIEW_UI_SCALE"),
+                        true,
+                        out YokkoUiScale previewScale)
+                        ? previewScale
+                        : YokkoUiScale.Large;
+                frameworkConfig.SetValue(
+                    FrameworkSetting.Locale,
+                    YokkoLocale.Chinese);
+                bool longTitlePreview =
+                    Environment.GetEnvironmentVariable(
+                        "YOKKO_PAUSE_LONG_TITLE_PREVIEW") == "1";
+                YokkoBeatmap beatmap =
                     DemoBeatmaps.CreateFourKeyDemo() with
                     {
-                        Title = "Pulse Bloom",
+                        Title = longTitlePreview
+                            ? "Eternal Ending (aran Remix)"
+                            : "Labyrinth",
+                        Artist = longTitlePreview
+                            ? "Kobaryo"
+                            : ":Spiral_Eyes:",
                         DifficultyName = "4K Normal",
-                    });
-
-                Add(new ScreenStack(gameplay)
-                {
-                    RelativeSizeAxes = Axes.Both,
-                });
+                    };
+                Add(new GameplayPauseOverlay(
+                    beatmap,
+                    new YokkoGameplaySettings(),
+                    new GameplayPauseSnapshot(
+                        longTitlePreview ? 1_000 : 134_000,
+                        longTitlePreview ? 268_000 : 228_000,
+                        longTitlePreview ? 0 : 1_071_630,
+                        longTitlePreview ? 0 : 0.9718,
+                        longTitlePreview ? 0 : 3,
+                        longTitlePreview ? 0 : 414,
+                        longTitlePreview ? "D" : "S",
+                        longTitlePreview ? 0 : 287,
+                        longTitlePreview ? 0 : 18,
+                        longTitlePreview ? 0 : 2,
+                        0,
+                        0,
+                        longTitlePreview ? 4 : 2,
+                        "NM"),
+                    () => { },
+                    () => { },
+                    () => { },
+                    () => { }));
                 Add(new CursorContainer());
-                Scheduler.AddDelayed(gameplay.TogglePause, 500);
+                schedulePreviewScreenshot();
                 return;
             }
 
@@ -123,7 +190,7 @@ namespace Yokko.Game.Tests
             host.Window.CursorState |= CursorState.Hidden;
         }
 
-        private void schedulePreviewScreenshot()
+        private void schedulePreviewScreenshot(double delay = 1200)
         {
             string outputPath = Environment.GetEnvironmentVariable(
                 "YOKKO_PREVIEW_SCREENSHOT");
@@ -149,7 +216,7 @@ namespace Yokko.Game.Tests
                         "Screenshot path has no parent directory."));
                 screenshot.SaveAsPng(outputPath);
                 host.Exit();
-            }, 1200);
+            }, delay);
         }
 
         private static void applyModsPreviewState(

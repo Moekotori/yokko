@@ -217,12 +217,27 @@ public sealed class DisplaySettingsTest
     }
 
     [Test]
-    public void SettingsAuthoredStageFillsSharedReferenceLayout()
+    public void SettingsScreenUsesFullScaledViewport()
     {
-        Assert.That(
-            new osuTK.Vector2(1280, 720)
-            * SettingsScreen.ReferenceLayoutScale,
-            Is.EqualTo(YokkoDisplaySettings.ReferenceLayoutSize));
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                SettingsScreen.CalculateResponsiveStageSize(
+                    YokkoDisplaySettings.ReferenceLayoutSize),
+                Is.EqualTo(new osuTK.Vector2(1280, 720)));
+            Assert.That(
+                SettingsScreen.CalculateResponsiveStageSize(
+                    YokkoDisplaySettings.GetTargetDrawSize(
+                        YokkoUiScale.Comfortable)),
+                Is.EqualTo(new osuTK.Vector2(
+                    1280f / 0.9f,
+                    800)));
+            Assert.That(
+                SettingsScreen.CalculateResponsiveStageSize(
+                    YokkoDisplaySettings.GetTargetDrawSize(
+                        YokkoUiScale.Compact)),
+                Is.EqualTo(new osuTK.Vector2(1600, 900)));
+        });
     }
 
     [Test]

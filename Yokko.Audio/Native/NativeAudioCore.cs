@@ -215,6 +215,42 @@ internal sealed class NativeAudioCore : IDisposable
         }
     }
 
+    internal NativeAudioOutputStatus OpenAsio(
+        string? deviceId,
+        uint preferredBufferFrames)
+    {
+        nint nativeDeviceId = 0;
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(deviceId))
+                nativeDeviceId = Marshal.StringToCoTaskMemUni(deviceId);
+
+            var config = new NativeAudioOutputConfig(
+                NativeAudioBackendMode.Asio,
+                nativeDeviceId,
+                preferredBufferFrames);
+            NativeAudioOutputStatus status =
+                NativeAudioOutputStatus.Create();
+            NativeAudioResult result = NativeAudioInterop.OpenAsio(
+                getHandle(),
+                config,
+                ref status);
+            if (result != NativeAudioResult.Ok)
+            {
+                throw new NativeAudioException(
+                    $"Native audio operation 'open ASIO' failed with {result} "
+                    + $"(driver error 0x{status.BackendError:X8}, "
+                    + $"stage {status.BackendErrorStage}).");
+            }
+            return status;
+        }
+        finally
+        {
+            if (nativeDeviceId != 0)
+                Marshal.FreeCoTaskMem(nativeDeviceId);
+        }
+    }
+
     internal void CloseOutput()
         => NativeAudioInterop.CloseOutput(getHandle());
 

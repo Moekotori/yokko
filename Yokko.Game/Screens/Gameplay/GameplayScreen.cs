@@ -18,9 +18,11 @@ using osu.Framework.Screens;
 using osuTK;
 using osuTK.Input;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
+using Yokko.Core.Timing;
 using Yokko.Audio;
 using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
@@ -45,6 +47,9 @@ public partial class GameplayScreen : Screen
     private const float playfieldWidthStep = 0.1f;
     private const float minimumPlayfieldWidthScale = 0.2f;
     private const float maximumPlayfieldWidthScale = 2.5f;
+    private const double playbackRateStep = 0.05;
+    private const double minimumPlaybackRate = 0.25;
+    private const double maximumPlaybackRate = 4;
 
     private readonly YokkoBeatmap originalBeatmap;
     private readonly YokkoBeatmap beatmap;
@@ -54,6 +59,7 @@ public partial class GameplayScreen : Screen
     private readonly GameplayReplay replay;
     private readonly string cinemaArtworkPath;
     private readonly bool quaverHasSignificantScrollVelocities;
+    private readonly BeatTimingMap beatTimingMap;
     private TextureStore cinemaArtworkTextures;
     private readonly List<GameplayReplayInput> recordedReplayInputs = new();
     private readonly List<JudgementEvent> expiredJudgements = new();
@@ -110,6 +116,7 @@ public partial class GameplayScreen : Screen
     private GameplayFailOverlay failOverlay;
     private JudgementReadout judgementReadout;
     private GameplayScrollSpeedOverlay scrollSpeedOverlay;
+    private GameplayPlaybackRateOverlay playbackRateOverlay;
     private double appliedScrollSpeed;
     private Task keysoundPreparationTask = Task.CompletedTask;
     private ResolvedGameplayHitSample[][] headSamplesByHitObject = [];
@@ -122,7 +129,14 @@ public partial class GameplayScreen : Screen
     private GameplayCinemaIndicator cinemaIndicator;
     private double frameClockGameplayTime;
     private double frameClockLastFrameworkTime;
-    private double lastAppliedDynamicRate = double.NaN;
+    private double lastAppliedPlaybackRate = double.NaN;
+    private double lastApproachPlaybackRate = double.NaN;
+    private double manualPlaybackRateAdjustment;
+    private bool manualPlaybackRateUsed;
+    private readonly Dictionary<double, ManiaStarRatingResult>
+        difficultyByRate = new();
+    private Task<ManiaStarRatingResult> difficultyCalculationTask;
+    private double difficultyCalculationRate = double.NaN;
 
     internal bool GameplayBlocked => gameplayBlocked;
     internal bool GameplayCompleted => gameplayCompleted;
@@ -132,9 +146,14 @@ public partial class GameplayScreen : Screen
     internal double CurrentGameplayTime => currentGameplayTime;
     internal ManiaScoreResult CompletedResult => completedResult;
     internal string SavedReplayPath { get; private set; }
+    internal bool BestScoreSaved { get; private set; }
     internal bool ReplayMode => replay != null;
     internal bool AutoplayMode => mods.IsAutomation;
     internal ManiaModSet Mods => mods;
+    internal double CurrentPlaybackRate =>
+        currentPlaybackRate(currentGameplayTime);
+    internal bool ManualPlaybackRateUsed =>
+        manualPlaybackRateUsed;
     internal ManiaHealthState HealthState => healthState;
     internal GameplayMutedAudioController MutedAudio => mutedAudio;
     internal JudgementWindows ActiveJudgementWindows =>
@@ -201,6 +220,7 @@ public partial class GameplayScreen : Screen
             this.beatmap.SourceFormat == ChartSourceFormat.Quaver
             && !this.mods.Contains(ManiaModId.ConstantSpeed)
             && hasSignificantScrollVelocities(this.beatmap);
+        beatTimingMap = new BeatTimingMap(this.beatmap.TimingPoints);
         this.replay = replay
                       ?? (this.mods.IsAutomation
                           ? GameplayAutoGenerator.Generate(
@@ -307,7 +327,7 @@ public partial class GameplayScreen : Screen
                 maniaSkin,
                 computeApproachTime(
                     gameplaySettings.ScrollSpeed.Value,
-                    this.mods.PlaybackRate),
+                    currentPlaybackRate(0)),
                 gameplaySettings.ShowLanePressFeedback.Value,
                 mods)
             {
@@ -334,10 +354,21 @@ public partial class GameplayScreen : Screen
             },
             scrollSpeedOverlay = new GameplayScrollSpeedOverlay
             {
-                Anchor = Anchor.TopCentre,
-                Origin = Anchor.TopCentre,
-                Position = new Vector2(0, 104),
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.TopLeft,
+                Position = new Vector2(
+                    GameplayScrollSpeedOverlay.PreferredLeft,
+                    GameplayScrollSpeedOverlay.TopOffset),
                 Depth = -110,
+            },
+            playbackRateOverlay = new GameplayPlaybackRateOverlay
+            {
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.TopLeft,
+                Position = new Vector2(
+                    GameplayPlaybackRateOverlay.PreferredLeft,
+                    GameplayPlaybackRateOverlay.TopOffset),
+                Depth = -111,
             },
         };
 
@@ -388,7 +419,8 @@ public partial class GameplayScreen : Screen
 
         startTimeMilliseconds = Time.Current + leadInMilliseconds;
         frameClockGameplayTime =
-            -leadInMilliseconds * mods.PlaybackRate;
+            -leadInMilliseconds
+            * currentPlaybackRate(-leadInMilliseconds);
         frameClockLastFrameworkTime = Time.Current;
 
         if (hasAudioClock)
@@ -427,7 +459,7 @@ public partial class GameplayScreen : Screen
         }
 
         double gameplayTime = clockObservation.GameplayTime;
-        updateDynamicRate(gameplayTime);
+        updatePlaybackRate(gameplayTime);
         updatePlaybackRateAdjustedApproachTime(gameplayTime);
         if (mutedAudio != null)
         {
@@ -484,6 +516,21 @@ public partial class GameplayScreen : Screen
                 DrawWidth * 0.94f / playfield.Width);
         }
         playfield.Scale = new Vector2(scale);
+
+        float playfieldLeft =
+            DrawWidth / 2 - playfield.Width * scale / 2;
+        scrollSpeedOverlay.X = Math.Clamp(
+            playfieldLeft
+            - GameplayScrollSpeedOverlay.PlayfieldGap
+            - scrollSpeedOverlay.Width,
+            20,
+            GameplayScrollSpeedOverlay.PreferredLeft);
+        playbackRateOverlay.X = Math.Clamp(
+            playfieldLeft
+            - GameplayPlaybackRateOverlay.PlayfieldGap
+            - playbackRateOverlay.Width,
+            20,
+            GameplayPlaybackRateOverlay.PreferredLeft);
     }
 
     protected override bool OnScroll(ScrollEvent e)
@@ -556,6 +603,9 @@ public partial class GameplayScreen : Screen
         {
             return true;
         }
+
+        if (HandlePlaybackRateShortcut(e.Key, e.AltPressed))
+            return true;
 
         if (HandleScrollSpeedShortcut(e.Key, e.ControlPressed))
             return true;
@@ -659,21 +709,19 @@ public partial class GameplayScreen : Screen
             await keysoundPreparationTask.ConfigureAwait(true);
             activeUserOffsetMilliseconds =
                 audioSettings.UserOffsetMilliseconds.Value;
+            double initialPlaybackRate =
+                currentPlaybackRate(currentGameplayTime);
             AudioEngineStartRequest startRequest =
                 audioSettings.CreateStartRequest(
                     beatmap.AudioPath,
-                    mods.PlaybackRate,
+                    initialPlaybackRate,
                     mods.ChangesAudioPitch
                         ? AudioPitchMode.ScaleWithRate
                         : AudioPitchMode.Preserve,
-                    mods.FixedAudioFrequencyScale);
-            if (mods.HasDynamicRate)
+                    mods.FixedAudioFrequencyScale) with
             {
-                startRequest = startRequest with
-                {
-                    DynamicPlaybackRate = true,
-                };
-            }
+                DynamicPlaybackRate = true,
+            };
             activeRequestedBackend = startRequest.PreferredBackend;
 
             await audioEngine.StartAsync(startRequest)
@@ -687,6 +735,7 @@ public partial class GameplayScreen : Screen
             }
 
             audioStarted = true;
+            lastAppliedPlaybackRate = initialPlaybackRate;
             lastStableAudioGameplayTime =
                 audioSnapshot.PlaybackTimeMilliseconds
                 + activeUserOffsetMilliseconds;
@@ -795,28 +844,19 @@ public partial class GameplayScreen : Screen
                 gameplayTime = Math.Min(
                     0,
                     (Time.Current - startTimeMilliseconds)
-                    * mods.PlaybackRate);
+                    * currentPlaybackRate(0));
             }
         }
         else
         {
-            if (mods.HasDynamicRate)
-            {
-                double elapsed = Math.Max(
-                    0,
-                    Time.Current - frameClockLastFrameworkTime);
-                double rate = currentDynamicRate(
-                    frameClockGameplayTime);
-                frameClockGameplayTime += elapsed * rate;
-                frameClockLastFrameworkTime = Time.Current;
-                gameplayTime = frameClockGameplayTime;
-            }
-            else
-            {
-                gameplayTime =
-                    (Time.Current - startTimeMilliseconds)
-                    * mods.PlaybackRate;
-            }
+            double elapsed = Math.Max(
+                0,
+                Time.Current - frameClockLastFrameworkTime);
+            double rate = currentPlaybackRate(
+                frameClockGameplayTime);
+            frameClockGameplayTime += elapsed * rate;
+            frameClockLastFrameworkTime = Time.Current;
+            gameplayTime = frameClockGameplayTime;
         }
 
         long observationEnd = Stopwatch.GetTimestamp();
@@ -1199,11 +1239,13 @@ public partial class GameplayScreen : Screen
                           ?? new GameplayReplay(
                               recordedReplayInputs,
                               mods);
-        bool isNewBest = !ReplayMode
-                         && scoreStore.SaveBest(
-                             originalBeatmap,
-                             mods,
-                             completedResult);
+        bool isNewBest = BestScoreSaved =
+            !ReplayMode
+            && !manualPlaybackRateUsed
+            && scoreStore.SaveBest(
+                originalBeatmap,
+                mods,
+                completedResult);
         if (!ReplayMode)
             saveCompletedReplay();
         _ = audioEngine.StopAsync();
@@ -1214,7 +1256,8 @@ public partial class GameplayScreen : Screen
             isNewBest,
             RetryGameplay,
             watchCompletedReplay,
-            () => this.Exit()));
+            () => this.Exit(),
+            manualPlaybackRateUsed));
     }
 
     private void saveCompletedReplay()
@@ -1301,6 +1344,11 @@ public partial class GameplayScreen : Screen
         pauseOverlay = new GameplayPauseOverlay(
             beatmap,
             gameplaySettings,
+            GameplayPauseSnapshot.Capture(
+                judgementState,
+                mods,
+                pausedGameplayTime,
+                completionTimeMilliseconds),
             TogglePause,
             RetryGameplay,
             () => this.Push(new SettingsScreen()),
@@ -1339,13 +1387,14 @@ public partial class GameplayScreen : Screen
             {
                 await audioEngine.SeekAsync(pausedAudioPosition)
                                  .ConfigureAwait(true);
-                lastAppliedDynamicRate = double.NaN;
+                lastAppliedPlaybackRate = double.NaN;
             }
             else
             {
                 startTimeMilliseconds =
                     Time.Current
-                    - pausedGameplayTime / mods.PlaybackRate;
+                    - pausedGameplayTime
+                      / currentPlaybackRate(pausedGameplayTime);
                 frameClockGameplayTime = pausedGameplayTime;
                 frameClockLastFrameworkTime = Time.Current;
             }
@@ -1401,7 +1450,8 @@ public partial class GameplayScreen : Screen
 
     internal void RetryGameplay()
     {
-        if (retryTransitionInProgress)
+        if (retryTransitionInProgress
+            || findGameplaySessionRoot()?.RetryTransitionActive == true)
             return;
 
         retryTransitionInProgress = true;
@@ -1409,6 +1459,15 @@ public partial class GameplayScreen : Screen
             keyInputTimestamps.EndCapture();
 
         _ = retryGameplayAsync();
+    }
+
+    private GameplaySessionRootScreen findGameplaySessionRoot()
+    {
+        IScreen destination = this.GetParentScreen();
+        while (destination is GameplayScreen)
+            destination = destination.GetParentScreen();
+
+        return destination as GameplaySessionRootScreen;
     }
 
     private async Task retryGameplayAsync()
@@ -1427,6 +1486,10 @@ public partial class GameplayScreen : Screen
                 skinPath: skinPath,
                 mods: mods,
                 cinemaArtworkPath: cinemaArtworkPath);
+            replacement.manualPlaybackRateAdjustment =
+                manualPlaybackRateAdjustment;
+            replacement.manualPlaybackRateUsed =
+                Math.Abs(manualPlaybackRateAdjustment) > 0.000001;
             IScreen destination = this.GetParentScreen();
             while (destination is GameplayScreen)
                 destination = destination.GetParentScreen();
@@ -1467,37 +1530,71 @@ public partial class GameplayScreen : Screen
         if (completedReplay == null)
             return;
 
-        this.Push(new GameplayScreen(
+        var replayScreen = new GameplayScreen(
             originalBeatmap,
             null,
             skinPath,
             mods,
             completedReplay,
-            cinemaArtworkPath));
+            cinemaArtworkPath)
+        {
+            manualPlaybackRateAdjustment =
+                this.manualPlaybackRateAdjustment,
+            manualPlaybackRateUsed =
+                this.manualPlaybackRateUsed,
+        };
+        this.Push(replayScreen);
     }
 
-    private void updateDynamicRate(double gameplayTime)
+    private void updatePlaybackRate(
+        double gameplayTime,
+        bool showOverlay = false)
     {
-        if (!mods.HasDynamicRate)
-            return;
+        double rate = currentPlaybackRate(gameplayTime);
+        double bpm =
+            beatTimingMap.TimingPointAt(gameplayTime).BeatsPerMinute
+            * rate;
+        bool showReadout =
+            mods.HasDynamicRate
+            || manualPlaybackRateUsed;
+        bool overlayVisible =
+            showOverlay || playbackRateOverlay.IsVisible;
+        ManiaStarRatingResult difficulty =
+            showReadout || overlayVisible
+                ? difficultyAt(rate)
+                : null;
+        hud.UpdatePlaybackRate(
+            rate,
+            bpm,
+            difficulty,
+            showReadout,
+            manualPlaybackRateUsed);
+        if (showOverlay)
+            playbackRateOverlay.Show(rate, bpm, difficulty);
+        else if (playbackRateOverlay.IsVisible)
+            playbackRateOverlay.UpdateValues(rate, bpm, difficulty);
 
-        double rate = currentDynamicRate(gameplayTime);
-        hud.UpdateDynamicRate(rate);
         if (!audioStarted
             || audioEngine is not IAudioRateControl rateControl
-            || Math.Abs(rate - lastAppliedDynamicRate) < 0.005)
+            || Math.Abs(rate - lastAppliedPlaybackRate) < 0.005)
         {
             return;
         }
 
         rateControl.SetPlaybackRate(rate);
-        lastAppliedDynamicRate = rate;
+        lastAppliedPlaybackRate = rate;
     }
 
-    private double currentPlaybackRate(double gameplayTime) =>
-        mods.HasDynamicRate
+    private double currentPlaybackRate(double gameplayTime)
+    {
+        double baseRate = mods.HasDynamicRate
             ? currentDynamicRate(gameplayTime)
             : mods.PlaybackRate;
+        return Math.Clamp(
+            baseRate + manualPlaybackRateAdjustment,
+            minimumPlaybackRate,
+            maximumPlaybackRate);
+    }
 
     private double currentDynamicRate(double gameplayTime) =>
         adaptiveSpeedState?.CurrentRate
@@ -1505,6 +1602,51 @@ public partial class GameplayScreen : Screen
             gameplayTime,
             firstObjectTimeMilliseconds,
             completionTimeMilliseconds);
+
+    private ManiaStarRatingResult difficultyAt(double rate)
+    {
+        collectCompletedDifficultyCalculation();
+
+        double roundedRate = Math.Round(
+            Math.Round(
+                rate / playbackRateStep,
+                MidpointRounding.AwayFromZero)
+            * playbackRateStep,
+            2,
+            MidpointRounding.AwayFromZero);
+        if (difficultyByRate.TryGetValue(
+                roundedRate,
+                out ManiaStarRatingResult cached))
+        {
+            return cached;
+        }
+
+        if (difficultyCalculationTask == null)
+        {
+            difficultyCalculationRate = roundedRate;
+            difficultyCalculationTask = Task.Run(
+                () => ManiaStarRatingCalculator.CalculateResult(
+                    beatmap,
+                    roundedRate));
+        }
+
+        return null;
+    }
+
+    private void collectCompletedDifficultyCalculation()
+    {
+        if (difficultyCalculationTask?.IsCompleted != true)
+            return;
+
+        if (difficultyCalculationTask.IsCompletedSuccessfully)
+        {
+            difficultyByRate[difficultyCalculationRate] =
+                difficultyCalculationTask.Result;
+        }
+
+        difficultyCalculationTask = null;
+        difficultyCalculationRate = double.NaN;
+    }
 
     private Texture loadCinemaTexture(IRenderer renderer)
     {
@@ -1588,9 +1730,12 @@ public partial class GameplayScreen : Screen
     }
 
     private void updatePlaybackRateAdjustedApproachTime(
-        double gameplayTime)
+        double gameplayTime,
+        bool force = false)
     {
-        if (!mods.HasDynamicRate
+        if ((!force
+             && !mods.HasDynamicRate
+             && Math.Abs(manualPlaybackRateAdjustment) <= 0.000001)
             || beatmap.SourceFormat is not (
                 ChartSourceFormat.Quaver
                 or ChartSourceFormat.OsuMania
@@ -1599,9 +1744,18 @@ public partial class GameplayScreen : Screen
             return;
         }
 
+        double playbackRate = currentPlaybackRate(gameplayTime);
+        if (!force
+            && Math.Abs(playbackRate - lastApproachPlaybackRate)
+               < 0.0005)
+        {
+            return;
+        }
+
         playfield.SetApproachTime(computeApproachTime(
             appliedScrollSpeed,
-            currentPlaybackRate(gameplayTime)));
+            playbackRate));
+        lastApproachPlaybackRate = playbackRate;
     }
 
     internal static double AdjustApproachTimeForPlaybackRate(
@@ -1664,6 +1818,57 @@ public partial class GameplayScreen : Screen
         Yokko.Core.Timing.YokkoScrollVelocity velocity) =>
         velocity.Multiplier > 1.01
         || velocity.Multiplier < 0.99;
+
+    internal bool HandlePlaybackRateShortcut(
+        Key key,
+        bool altPressed,
+        double? gameplayTimeOverride = null)
+    {
+        if (!altPressed)
+            return false;
+
+        double amount = key switch
+        {
+            Key.Plus or Key.KeypadPlus => playbackRateStep,
+            Key.Minus or Key.KeypadMinus => -playbackRateStep,
+            _ => 0,
+        };
+        if (amount == 0)
+            return false;
+
+        double gameplayTime =
+            gameplayTimeOverride ?? currentGameplayTime;
+        double currentRate = currentPlaybackRate(gameplayTime);
+        double adjustedRate = AdjustPlaybackRate(currentRate, amount);
+        manualPlaybackRateAdjustment += adjustedRate - currentRate;
+        if (Math.Abs(adjustedRate - currentRate) > 0.000001)
+            manualPlaybackRateUsed = true;
+
+        updatePlaybackRate(gameplayTime, true);
+        updatePlaybackRateAdjustedApproachTime(
+            gameplayTime,
+            true);
+        return true;
+    }
+
+    internal static double AdjustPlaybackRate(
+        double playbackRate,
+        double amount)
+    {
+        if (!double.IsFinite(playbackRate)
+            || !double.IsFinite(amount))
+        {
+            throw new ArgumentOutOfRangeException(nameof(playbackRate));
+        }
+
+        return Math.Clamp(
+            Math.Round(
+                playbackRate + amount,
+                2,
+                MidpointRounding.AwayFromZero),
+            minimumPlaybackRate,
+            maximumPlaybackRate);
+    }
 
     internal bool HandleScrollSpeedShortcut(
         Key key,
@@ -1799,7 +2004,7 @@ public partial class GameplayScreen : Screen
         {
             await audioEngine.SeekAsync(targetMilliseconds)
                              .ConfigureAwait(true);
-            lastAppliedDynamicRate = double.NaN;
+            lastAppliedPlaybackRate = double.NaN;
         }
         catch (Exception ex)
         {

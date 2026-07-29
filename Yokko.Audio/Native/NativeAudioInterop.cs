@@ -5,7 +5,7 @@ namespace Yokko.Audio.Native;
 
 internal static partial class NativeAudioInterop
 {
-    internal const uint AbiVersion = 8;
+    internal const uint AbiVersion = 9;
     internal const string LibraryName = "yokko_audio_native";
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_abi_version")]
@@ -112,6 +112,13 @@ internal static partial class NativeAudioInterop
         in NativeAudioOutputConfig config,
         ref NativeAudioOutputStatus status);
 
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_open_asio")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult OpenAsio(
+        NativeAudioSafeHandle engine,
+        in NativeAudioOutputConfig config,
+        ref NativeAudioOutputStatus status);
+
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_close_output")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     internal static partial void CloseOutput(NativeAudioSafeHandle engine);
@@ -124,6 +131,21 @@ internal static partial class NativeAudioInterop
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_wasapi_device_info")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     internal static unsafe partial NativeAudioResult GetWasapiDeviceInfo(
+        uint deviceIndex,
+        char* deviceId,
+        uint deviceIdCapacity,
+        char* deviceName,
+        uint deviceNameCapacity,
+        out uint isDefault);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_asio_device_count")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult GetAsioDeviceCount(
+        out uint deviceCount);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_asio_device_info")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static unsafe partial NativeAudioResult GetAsioDeviceInfo(
         uint deviceIndex,
         char* deviceId,
         uint deviceIdCapacity,
@@ -268,6 +290,7 @@ internal enum NativeAudioBackendMode
 {
     WasapiShared = 1,
     WasapiExclusive = 2,
+    Asio = 3,
 }
 
 internal enum NativeAudioSampleFormat

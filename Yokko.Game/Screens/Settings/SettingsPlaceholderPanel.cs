@@ -3,9 +3,11 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using osuTK.Input;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
@@ -248,6 +250,7 @@ internal partial class SettingsPlaceholderSection : ClickableContainer
     private bool expanded;
 
     internal bool IsExpanded => expanded;
+    public override bool AcceptsFocus => true;
 
     public SettingsPlaceholderSection(LocalisableString title, System.Action<SettingsPlaceholderSection> onToggle)
     {
@@ -332,5 +335,30 @@ internal partial class SettingsPlaceholderSection : ClickableContainer
     {
         if (!expanded)
             background.FadeColour(Color4.White, 140, Easing.OutQuint);
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderColour = HomeControlColours.Pink;
+        BorderThickness = 2.4f;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderColour = SettingsTheme.Divider;
+        BorderThickness = 1.2f;
     }
 }

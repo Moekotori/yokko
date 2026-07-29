@@ -59,8 +59,10 @@ public partial class SettingsScreen : Screen
     private Bindable<string> locale;
     private Texture mascotTexture;
     private SettingsSidebar sidebar;
+    private Container stage;
     private Container contentHost;
     private Drawable activePanel;
+    private Vector2 lastResponsiveStageSize;
 
     [Resolved]
     private GameHost host { get; set; }
@@ -101,7 +103,7 @@ public partial class SettingsScreen : Screen
                 RelativeSizeAxes = Axes.Both,
                 Colour = HomeControlColours.Ivory,
             },
-            new Container
+            stage = new Container
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
@@ -117,6 +119,27 @@ public partial class SettingsScreen : Screen
 
         OpenPage(CurrentPage);
     }
+
+    protected override void Update()
+    {
+        base.Update();
+
+        if (stage == null || DrawWidth <= 0 || DrawHeight <= 0)
+            return;
+
+        Vector2 stageSize = CalculateResponsiveStageSize(
+            new Vector2(DrawWidth, DrawHeight));
+        if ((stageSize - lastResponsiveStageSize).LengthSquared < 0.01f)
+            return;
+
+        lastResponsiveStageSize = stageSize;
+        stage.Size = stageSize;
+    }
+
+    internal static Vector2 CalculateResponsiveStageSize(Vector2 viewport) =>
+        new(
+            MathF.Max(viewport.X / ReferenceLayoutScale, designedWidth),
+            MathF.Max(viewport.Y / ReferenceLayoutScale, designedHeight));
 
     internal void OpenPage(SettingsPageKind page)
     {
@@ -191,12 +214,35 @@ public partial class SettingsScreen : Screen
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
-        if (activePanel is GameplaySettingsPanel gameplayPanel &&
-            gameplayPanel.HandleKeyDown(e.Key))
+        if (activePanel is GameplaySettingsPanel
+            {
+                IsCapturingKey: true,
+            } gameplayCapture
+            && gameplayCapture.HandleKeyDown(e.Key))
+        {
+            return true;
+        }
+
+        if (activePanel is ShortcutSettingsPanel
+            {
+                IsCapturingShortcut: true,
+            } shortcutCapture
+            && shortcutCapture.HandleKeyDown(e.Key))
+        {
+            return true;
+        }
+
+        if (HandleNavigationShortcut(e.Key, e.ControlPressed))
             return true;
 
-        if (activePanel is ShortcutSettingsPanel shortcutPanel &&
-            shortcutPanel.HandleKeyDown(e.Key))
+        if (activePanel is GameplaySettingsPanel gameplayPanel
+            && gameplayPanel.HandleKeyDown(e.Key))
+        {
+            return true;
+        }
+
+        if (activePanel is ShortcutSettingsPanel shortcutPanel
+            && shortcutPanel.HandleKeyDown(e.Key))
         {
             return true;
         }
@@ -209,6 +255,24 @@ public partial class SettingsScreen : Screen
 
         this.Exit();
         return true;
+    }
+
+    internal bool HandleNavigationShortcut(
+        Key key,
+        bool controlPressed = false)
+    {
+        if (controlPressed && key == Key.F)
+            return sidebar?.FocusSearch() == true;
+
+        if (key == Key.Slash
+            && activePanel is not GameplaySettingsPanel
+            && activePanel is not ShortcutSettingsPanel
+            && sidebar?.SearchHasFocus != true)
+        {
+            return sidebar?.FocusSearch() == true;
+        }
+
+        return false;
     }
 
     protected override void OnKeyUp(KeyUpEvent e)

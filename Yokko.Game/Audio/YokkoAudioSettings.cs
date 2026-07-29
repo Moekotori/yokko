@@ -23,6 +23,8 @@ public sealed class YokkoAudioSettings
 
     public readonly Bindable<string> DeviceId = new(string.Empty);
 
+    public readonly Bindable<string> AsioDeviceId = new(string.Empty);
+
     public readonly Bindable<int> PreferredBufferSize = new(64);
 
     public readonly Bindable<double> UserOffsetMilliseconds = new(0);
@@ -54,13 +56,18 @@ public sealed class YokkoAudioSettings
         new(
             audioPath,
             PreferredBackend.Value,
-            string.IsNullOrWhiteSpace(DeviceId.Value)
+            string.IsNullOrWhiteSpace(SelectedDeviceId)
                 ? null
-                : DeviceId.Value,
+                : SelectedDeviceId,
             48000,
             PreferredBufferSize.Value,
             UserOffsetMilliseconds.Value,
             playbackRate,
             pitchMode,
             FixedFrequencyScale: fixedFrequencyScale);
+
+    public string SelectedDeviceId =>
+        PreferredBackend.Value == AudioBackendKind.Asio
+            ? AsioDeviceId.Value
+            : DeviceId.Value;
 }

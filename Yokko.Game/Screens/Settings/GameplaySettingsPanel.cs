@@ -1984,6 +1984,9 @@ internal partial class GameplayValueStepper : CompositeDrawable
 internal partial class GameplayStepperButton : ClickableContainer
 {
     private readonly Box background;
+    private readonly Box focusLine;
+
+    public override bool AcceptsFocus => true;
 
     public GameplayStepperButton(
         IconUsage itemIcon,
@@ -2011,6 +2014,15 @@ internal partial class GameplayStepperButton : ClickableContainer
                 Icon = itemIcon,
                 Colour = HomeControlColours.Pink,
             },
+            focusLine = new Box
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                RelativeSizeAxes = Axes.X,
+                Height = 3,
+                Colour = HomeControlColours.Pink,
+                Alpha = 0,
+            },
         };
     }
 
@@ -2022,6 +2034,29 @@ internal partial class GameplayStepperButton : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e) =>
         background.FadeColour(Color4.Transparent, 120, Easing.OutQuint);
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        focusLine.FadeIn(100, Easing.OutQuint);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        focusLine.FadeOut(100, Easing.OutQuint);
+    }
 }
 
 internal partial class GameplayToggleCard : ClickableContainer
@@ -2031,6 +2066,8 @@ internal partial class GameplayToggleCard : ClickableContainer
     private readonly Box switchTrack;
     private readonly Circle switchThumb;
     private readonly SpriteText stateText;
+
+    public override bool AcceptsFocus => true;
 
     public GameplayToggleCard(
         LocalisableString title,
@@ -2137,6 +2174,31 @@ internal partial class GameplayToggleCard : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e) =>
         background.FadeColour(Color4.White, 130, Easing.OutQuint);
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderColour = HomeControlColours.Pink;
+        BorderThickness = 2.4f;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderColour = SettingsTheme.Divider;
+        BorderThickness = 1.2f;
+    }
 
     protected override void Dispose(bool isDisposing)
     {

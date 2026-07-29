@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using Yokko.Audio.Native;
 
@@ -52,6 +53,57 @@ namespace Yokko.Game.Tests.Core
             Assert.That(stopped.State, Is.EqualTo(NativeAudioState.Idle));
             Assert.That(stopped.BufferedFrames, Is.Zero);
             Assert.That(stopped.UnderrunCount, Is.Zero);
+        }
+
+        [Test]
+        [Platform(Include = "Win")]
+        [NonParallelizable]
+        public void AsioDiscoveryIsPassiveAndUsesBackendScopedIds()
+        {
+            string nativeLibraryPath =
+                Environment.GetEnvironmentVariable(
+                    "YOKKO_NATIVE_AUDIO_TEST_DLL")
+                ?? findDefaultNativeLibraryPath();
+
+            if (!File.Exists(nativeLibraryPath))
+            {
+                Assert.Ignore(
+                    $"Native audio library is not built: {nativeLibraryPath}");
+            }
+
+            Environment.SetEnvironmentVariable(
+                "YOKKO_NATIVE_AUDIO_TEST_DLL",
+                nativeLibraryPath);
+            NativeAudioResult result =
+                NativeAudioInterop.GetAsioDeviceCount(
+                    out uint reportedCount);
+            if (result == NativeAudioResult.BackendUnavailable)
+            {
+                Assert.That(reportedCount, Is.Zero);
+                return;
+            }
+
+            Assert.That(result, Is.EqualTo(NativeAudioResult.Ok));
+            NativeAsioDevice[] devices =
+                NativeAsioDevices.Enumerate().ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    devices,
+                    Has.Length.EqualTo((int)reportedCount));
+                Assert.That(
+                    devices.Select(device => device.Id),
+                    Is.Unique);
+                Assert.That(
+                    devices,
+                    Has.All.Matches<NativeAsioDevice>(
+                        device =>
+                            device.Id.StartsWith(
+                                "asio:{",
+                                StringComparison.OrdinalIgnoreCase)
+                            && !string.IsNullOrWhiteSpace(
+                                device.Name)));
+            });
         }
 
         private static string findDefaultNativeLibraryPath()

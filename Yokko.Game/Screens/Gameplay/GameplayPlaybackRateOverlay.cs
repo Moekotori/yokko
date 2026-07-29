@@ -4,42 +4,41 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Core.Difficulty;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Gameplay;
 
-internal partial class GameplayScrollSpeedOverlay : CompositeDrawable
+internal partial class GameplayPlaybackRateOverlay : CompositeDrawable
 {
-    internal static readonly Vector2 ReferenceSize = new(162, 70);
-    internal const float PreferredLeft = 156;
-    internal const float TopOffset = 113;
+    internal static readonly Vector2 ReferenceSize = new(214, 78);
+    internal const float PreferredLeft = 160;
+    internal const float TopOffset = 198;
     internal const float PlayfieldGap = 22;
 
-    private const float faceWidth = 158;
-    private const float faceHeight = 66;
-    private const double displayDurationMilliseconds = 1050;
+    private const float faceWidth = 210;
+    private const float faceHeight = 74;
+    private const double displayDurationMilliseconds = 1400;
     private const double exitDurationMilliseconds = 170;
 
     private readonly Container stage;
     private readonly Box underline;
     private readonly Box diamond;
-    private readonly SpriteText label;
-    private readonly SpriteText speedText;
+    private readonly SpriteText rateText;
     private readonly SpriteText detailText;
 
-    internal double DisplayedSpeed { get; private set; }
+    internal double DisplayedRate { get; private set; } = 1;
 
-    internal int DisplayedTimeRangeMilliseconds { get; private set; }
+    internal double DisplayedBpm { get; private set; }
 
-    internal bool IsLocked { get; private set; }
-
-    internal string DisplayedLabel =>
-        label.Text.ToString();
+    internal double? DisplayedDifficulty { get; private set; }
 
     internal string DisplayedDetail =>
         detailText.Text.ToString();
 
-    internal GameplayScrollSpeedOverlay()
+    internal bool IsVisible => Alpha > 0.01f;
+
+    internal GameplayPlaybackRateOverlay()
     {
         Size = ReferenceSize;
 
@@ -75,28 +74,28 @@ internal partial class GameplayScrollSpeedOverlay : CompositeDrawable
                             RelativeSizeAxes = Axes.Both,
                             Colour = HomeControlColours.Ivory,
                         },
-                        label = new SpriteText
+                        new SpriteText
                         {
                             Position = new Vector2(10, 7),
-                            Text = "SCROLL SPEED",
+                            Text = "PLAYBACK RATE",
                             Font = HomeTypography.Display(8),
                             Spacing = new Vector2(0.65f, 0),
                             Colour = HomeControlColours.Navy,
                         },
-                        speedText = new SpriteText
+                        rateText = new SpriteText
                         {
                             Anchor = Anchor.BottomLeft,
                             Origin = Anchor.BottomLeft,
-                            Position = new Vector2(10, -10),
-                            Font = HomeTypography.Display(29),
+                            Position = new Vector2(10, -11),
+                            Font = HomeTypography.Display(25),
                             Colour = HomeControlColours.Navy,
                         },
                         detailText = new SpriteText
                         {
                             Anchor = Anchor.BottomRight,
                             Origin = Anchor.BottomRight,
-                            Position = new Vector2(-10, -12),
-                            Font = HomeTypography.Display(8),
+                            Position = new Vector2(-10, -14),
+                            Font = HomeTypography.Display(7),
                             Colour = new Color4(
                                 HomeControlColours.Navy.R,
                                 HomeControlColours.Navy.G,
@@ -109,14 +108,14 @@ internal partial class GameplayScrollSpeedOverlay : CompositeDrawable
                             Origin = Anchor.BottomLeft,
                             Position = new Vector2(10, -5),
                             Size = new Vector2(22, 2),
-                            Colour = HomeControlColours.Cyan,
+                            Colour = HomeControlColours.Pink,
                         },
                     ],
                 },
                 diamond = new Box
                 {
                     Origin = Anchor.Centre,
-                    Position = new Vector2(160, 2),
+                    Position = new Vector2(212, 2),
                     Size = new Vector2(6),
                     Rotation = 45,
                     Colour = HomeControlColours.Yellow,
@@ -128,34 +127,17 @@ internal partial class GameplayScrollSpeedOverlay : CompositeDrawable
     }
 
     internal void Show(
-        double speed,
-        int timeRangeMilliseconds,
-        bool locked = false)
+        double rate,
+        double bpm,
+        ManiaStarRatingResult difficulty)
     {
-        DisplayedSpeed = speed;
-        DisplayedTimeRangeMilliseconds = timeRangeMilliseconds;
-        IsLocked = locked;
+        UpdateValues(rate, bpm, difficulty);
 
-        Color4 accent = locked
-            ? HomeControlColours.Pink
-            : HomeControlColours.Cyan;
-        label.Text = locked
-            ? "SPEED LOCKED"
-            : "SCROLL SPEED";
-        label.Colour = locked
-            ? HomeControlColours.Pink
-            : HomeControlColours.Navy;
-        speedText.Text = speed.ToString("0.0");
-        detailText.Text = locked
-            ? "INTRO / BREAK"
-            : $"{timeRangeMilliseconds} ms";
-        underline.Colour = accent;
-
-        bool wasVisible = Alpha > 0.01f;
+        bool wasVisible = IsVisible;
 
         ClearTransforms();
         stage.ClearTransforms();
-        speedText.ClearTransforms();
+        rateText.ClearTransforms();
         underline.ClearTransforms();
         diamond.ClearTransforms();
 
@@ -184,15 +166,18 @@ internal partial class GameplayScrollSpeedOverlay : CompositeDrawable
             Alpha = 1;
             stage.Y = 0;
             stage.Scale = Vector2.One;
-            speedText.Scale = Vector2.One;
+            rateText.Scale = Vector2.One;
             underline.Width = 15;
             diamond.Scale = Vector2.One;
 
-            speedText.ScaleTo(1.045f, 80, Easing.OutQuint)
-                     .Then()
-                     .ScaleTo(1, 150, Easing.OutBack);
+            rateText.ScaleTo(1.045f, 80, Easing.OutQuint)
+                    .Then()
+                    .ScaleTo(1, 150, Easing.OutBack);
             underline.ResizeWidthTo(22, 130, Easing.OutQuint);
-            diamond.FlashColour(accent, 180, Easing.OutQuint);
+            diamond.FlashColour(
+                HomeControlColours.Pink,
+                180,
+                Easing.OutQuint);
         }
 
         this.Delay(displayDurationMilliseconds)
@@ -204,5 +189,24 @@ internal partial class GameplayScrollSpeedOverlay : CompositeDrawable
                  0.985f,
                  exitDurationMilliseconds,
                  Easing.InQuint);
+    }
+
+    internal void UpdateValues(
+        double rate,
+        double bpm,
+        ManiaStarRatingResult difficulty)
+    {
+        DisplayedRate = rate;
+        DisplayedBpm = bpm;
+        DisplayedDifficulty = difficulty?.Value;
+
+        rateText.Text = $"{rate:0.00}x";
+        string bpmText = bpm > 0
+            ? $"{bpm:0.##} BPM"
+            : "-- BPM";
+        string difficultyText = difficulty?.IsSuccess == true
+            ? $"{difficulty.Value:0.00} STAR"
+            : "-- STAR";
+        detailText.Text = $"{bpmText} / {difficultyText}";
     }
 }

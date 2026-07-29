@@ -45,6 +45,7 @@ namespace Yokko.Game
                 {
                     RelativeSizeAxes = Axes.Both,
                 },
+                new YokkoAdaptiveFrameRateMonitor(),
                 performanceReadout = new YokkoPerformanceReadout
                 {
                     Anchor = Anchor.TopCentre,

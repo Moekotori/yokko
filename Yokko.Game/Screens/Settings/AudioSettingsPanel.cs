@@ -13,6 +13,7 @@ using osu.Framework.Localisation;
 using osu.Framework.Logging;
 using osuTK;
 using osuTK.Graphics;
+using osuTK.Input;
 using Yokko.Audio;
 using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
@@ -30,19 +31,24 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     private readonly List<SettingsSegmentedChoiceButton> backendButtons = new();
     private readonly List<SettingsSegmentedChoiceButton> bufferButtons = new();
     private readonly CancellationTokenSource deviceLoadCancellation = new();
+    private readonly Bindable<string> selectedDeviceId =
+        new(string.Empty);
     private readonly SpriteText statusMetadata;
     private readonly SpriteText statusTitle;
     private readonly SettingsAudioDeviceSelector deviceSelector;
     private readonly SettingsAudioTestControl testControl;
     private readonly AudioSettingsTestPlayer testPlayer;
     private IAudioEngine deviceEnumerator;
+    private IReadOnlyList<AudioDeviceInfo> outputDevices = [];
     private bool nativeAvailable;
+    private bool asioAvailable;
     private bool devicesLoaded;
     private bool disposed;
+    private bool synchronizingDeviceId;
     private bool testPlaying;
 
     internal AudioBackendKind CurrentBackend => settings.PreferredBackend.Value;
-    internal string CurrentDeviceId => settings.DeviceId.Value;
+    internal string CurrentDeviceId => selectedDeviceId.Value;
     internal int CurrentBufferSize => settings.PreferredBufferSize.Value;
     internal double CurrentOffsetMilliseconds =>
         settings.UserOffsetMilliseconds.Value;
@@ -66,6 +72,11 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             testDirectory);
         RelativeSizeAxes = Axes.Both;
         nativeAvailable = NativeAudioEngine.IsAvailable;
+        asioAvailable = nativeAvailable
+                        && NativeAudioEngine.SupportedBackends.Any(
+                            backend =>
+                                backend.Kind == AudioBackendKind.Asio
+                                && backend.IsAvailable);
 
         InternalChildren = new Drawable[]
         {
@@ -87,7 +98,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             },
             createStatusCard(out statusTitle, out statusMetadata),
             createDivider(232),
-            createSettingRow(
+                createSettingRow(
                 236,
                 YokkoStrings.Get("settings.audio.backend"),
                 createBackendControl()),
@@ -96,7 +107,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 294,
                 YokkoStrings.Get("settings.audio.device"),
                 deviceSelector = new SettingsAudioDeviceSelector(
-                    settings.DeviceId),
+                    selectedDeviceId),
                 -10),
             createDivider(350),
             createSettingRow(
@@ -134,8 +145,15 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 YokkoStrings.Get("settings.audio.apply_next_playback")),
         };
 
-        settings.PreferredBackend.BindValueChanged(onPreferenceChanged, true);
-        settings.DeviceId.BindValueChanged(onPreferenceChanged);
+        selectedDeviceId.BindValueChanged(
+            onSelectedDeviceChanged);
+        settings.DeviceId.BindValueChanged(
+            onWasapiDevicePreferenceChanged);
+        settings.AsioDeviceId.BindValueChanged(
+            onAsioDevicePreferenceChanged);
+        settings.PreferredBackend.BindValueChanged(
+            onBackendPreferenceChanged,
+            true);
         settings.PreferredBufferSize.BindValueChanged(onPreferenceChanged);
         settings.MasterVolume.BindValueChanged(onPreferenceChanged);
         settings.MusicVolume.BindValueChanged(onPreferenceChanged);
@@ -147,11 +165,13 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     internal void SelectBackend(AudioBackendKind backend)
     {
         if (backend != AudioBackendKind.WasapiExclusive
-            && backend != AudioBackendKind.SharedWasapi)
+            && backend != AudioBackendKind.SharedWasapi
+            && (backend != AudioBackendKind.Asio
+                || !asioAvailable))
             throw new ArgumentOutOfRangeException(
                 nameof(backend),
                 backend,
-                "Only implemented backends can be selected.");
+                "Only available native backends can be selected.");
 
         settings.PreferredBackend.Value = backend;
     }
@@ -210,7 +230,10 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
 
     private Drawable createBackendControl()
     {
-        var options = new[]
+        var options = new List<(
+            AudioBackendKind Backend,
+            LocalisableString Label,
+            IconUsage Icon)>
         {
             (
                 AudioBackendKind.WasapiExclusive,
@@ -221,6 +244,13 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 YokkoStrings.Get("settings.audio.shared"),
                 FontAwesome.Solid.LayerGroup),
         };
+        if (asioAvailable)
+        {
+            options.Add((
+                AudioBackendKind.Asio,
+                YokkoStrings.Get("settings.audio.asio"),
+                FontAwesome.Solid.WaveSquare));
+        }
 
         foreach ((AudioBackendKind backend, LocalisableString label, IconUsage icon) in options)
         {
@@ -229,7 +259,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 label,
                 icon,
                 () => SelectBackend(captured),
-                299)
+                598f / options.Count)
             {
                 Value = backend,
             });
@@ -281,23 +311,14 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             IReadOnlyList<AudioDeviceInfo> devices =
                 await deviceEnumerator.GetOutputDevicesAsync(cancellationToken)
                                       .ConfigureAwait(false);
-            var options = devices
-                          .GroupBy(device => device.Id, StringComparer.Ordinal)
-                          .Select(group => group.First())
-                          .OrderByDescending(device => device.IsDefault)
-                          .ThenBy(device => device.Name, StringComparer.Ordinal)
-                          .Select(device => new AudioDeviceOption(
-                              device.Id,
-                              device.Name))
-                          .ToArray();
-
             Schedule(() =>
             {
                 if (disposed)
                     return;
 
                 devicesLoaded = true;
-                deviceSelector.SetDevices(options);
+                outputDevices = devices;
+                refreshDeviceOptions();
                 refreshSelection();
             });
         }
@@ -434,6 +455,84 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     private void onPreferenceChanged<T>(ValueChangedEvent<T> _) =>
         refreshSelection();
 
+    private void onBackendPreferenceChanged(
+        ValueChangedEvent<AudioBackendKind> _)
+    {
+        synchronizeDeviceIdFromSettings();
+        refreshDeviceOptions();
+        refreshSelection();
+    }
+
+    private void onSelectedDeviceChanged(
+        ValueChangedEvent<string> change)
+    {
+        if (synchronizingDeviceId)
+            return;
+
+        Bindable<string> target =
+            settings.PreferredBackend.Value == AudioBackendKind.Asio
+                ? settings.AsioDeviceId
+                : settings.DeviceId;
+        if (target.Value != change.NewValue)
+            target.Value = change.NewValue;
+        refreshSelection();
+    }
+
+    private void onWasapiDevicePreferenceChanged(
+        ValueChangedEvent<string> _)
+    {
+        if (settings.PreferredBackend.Value != AudioBackendKind.Asio)
+            synchronizeDeviceIdFromSettings();
+        refreshSelection();
+    }
+
+    private void onAsioDevicePreferenceChanged(
+        ValueChangedEvent<string> _)
+    {
+        if (settings.PreferredBackend.Value == AudioBackendKind.Asio)
+            synchronizeDeviceIdFromSettings();
+        refreshSelection();
+    }
+
+    private void synchronizeDeviceIdFromSettings()
+    {
+        synchronizingDeviceId = true;
+        try
+        {
+            selectedDeviceId.Value = settings.SelectedDeviceId;
+        }
+        finally
+        {
+            synchronizingDeviceId = false;
+        }
+    }
+
+    private void refreshDeviceOptions()
+    {
+        if (!devicesLoaded)
+            return;
+
+        AudioDeviceOption[] options = outputDevices
+                                      .Where(device =>
+                                          device.Backend
+                                          == settings.PreferredBackend.Value)
+                                      .GroupBy(
+                                          device => device.Id,
+                                          StringComparer.Ordinal)
+                                      .Select(group => group.First())
+                                      .OrderByDescending(
+                                          device => device.IsDefault)
+                                      .ThenBy(
+                                          device => device.Name,
+                                          StringComparer.Ordinal)
+                                      .Select(device =>
+                                          new AudioDeviceOption(
+                                              device.Id,
+                                              device.Name))
+                                      .ToArray();
+        deviceSelector.SetDevices(options);
+    }
+
     private async Task runAudioTestAsync(AudioSettingsTestKind kind)
     {
         testPlaying = true;
@@ -487,9 +586,14 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 && frames == settings.PreferredBufferSize.Value);
         }
 
-        statusTitle.Text = nativeAvailable
-            ? YokkoStrings.Get("settings.audio.native_ready")
-            : YokkoStrings.Get("settings.audio.native_unavailable");
+        statusTitle.Text =
+            settings.PreferredBackend.Value == AudioBackendKind.Asio
+            && !asioAvailable
+                ? YokkoStrings.Get("settings.audio.asio_unavailable")
+                : nativeAvailable
+                    ? YokkoStrings.Get("settings.audio.native_ready")
+                    : YokkoStrings.Get(
+                        "settings.audio.native_unavailable");
         statusMetadata.Text = YokkoStrings.Get(
             "settings.audio.status_metadata",
             backendName(settings.PreferredBackend.Value),
@@ -499,10 +603,15 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 : YokkoStrings.Get("settings.audio.loading_devices"));
     }
 
-    private static LocalisableString backendName(AudioBackendKind backend) =>
-        backend == AudioBackendKind.SharedWasapi
-            ? YokkoStrings.Get("settings.audio.shared")
-            : YokkoStrings.Get("settings.audio.exclusive");
+    private static LocalisableString backendName(
+        AudioBackendKind backend) => backend switch
+        {
+            AudioBackendKind.Asio =>
+                YokkoStrings.Get("settings.audio.asio"),
+            AudioBackendKind.SharedWasapi =>
+                YokkoStrings.Get("settings.audio.shared"),
+            _ => YokkoStrings.Get("settings.audio.exclusive"),
+        };
 
     protected override void Dispose(bool isDisposing)
     {
@@ -511,8 +620,13 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             disposed = true;
             deviceLoadCancellation.Cancel();
             deviceLoadCancellation.Dispose();
-            settings.PreferredBackend.ValueChanged -= onPreferenceChanged;
-            settings.DeviceId.ValueChanged -= onPreferenceChanged;
+            settings.PreferredBackend.ValueChanged -=
+                onBackendPreferenceChanged;
+            selectedDeviceId.ValueChanged -= onSelectedDeviceChanged;
+            settings.DeviceId.ValueChanged -=
+                onWasapiDevicePreferenceChanged;
+            settings.AsioDeviceId.ValueChanged -=
+                onAsioDevicePreferenceChanged;
             settings.PreferredBufferSize.ValueChanged -= onPreferenceChanged;
             settings.MasterVolume.ValueChanged -= onPreferenceChanged;
             settings.MusicVolume.ValueChanged -= onPreferenceChanged;
@@ -736,8 +850,10 @@ internal partial class SettingsAudioDeviceOption : ClickableContainer
 
     private readonly Box background;
     private readonly SpriteIcon check;
+    private readonly Box focusLine;
 
     public string Value { get; }
+    public override bool AcceptsFocus => true;
 
     public SettingsAudioDeviceOption(
         string value,
@@ -777,6 +893,13 @@ internal partial class SettingsAudioDeviceOption : ClickableContainer
                 Colour = HomeControlColours.Pink,
                 Alpha = 0,
             },
+            focusLine = new Box
+            {
+                RelativeSizeAxes = Axes.Y,
+                Width = 4,
+                Colour = HomeControlColours.Pink,
+                Alpha = 0,
+            },
             new Box
             {
                 Anchor = Anchor.BottomCentre,
@@ -802,6 +925,31 @@ internal partial class SettingsAudioDeviceOption : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e) =>
         background.FadeColour(Color4.White, 120, Easing.OutQuint);
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        focusLine.FadeIn(100, Easing.OutQuint);
+        background.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        focusLine.FadeOut(100, Easing.OutQuint);
+        background.FadeColour(Color4.White, 100, Easing.OutQuint);
+    }
 }
 
 internal partial class SettingsVolumeMixer : CompositeDrawable
@@ -860,6 +1008,8 @@ internal partial class SettingsVolumeSlider : CompositeDrawable
     private readonly Box fill;
     private readonly Circle knob;
     private readonly SpriteText valueText;
+
+    public override bool AcceptsFocus => true;
 
     public SettingsVolumeSlider(
         string label,
@@ -944,8 +1094,27 @@ internal partial class SettingsVolumeSlider : CompositeDrawable
     internal static bool AcceptsWheelAt(float localY) =>
         localY is >= 24 and <= 54;
 
+    internal static double AdjustForKey(
+        double value,
+        Key key,
+        bool largeStep = false)
+    {
+        double step = largeStep ? wheel_step : drag_step;
+        return key switch
+        {
+            Key.Left or Key.Down => ValueFromProgress(value - step),
+            Key.Right or Key.Up => ValueFromProgress(value + step),
+            Key.Home => 0,
+            Key.End => 1,
+            _ => value,
+        };
+    }
+
     protected override bool OnMouseDown(MouseDownEvent e)
     {
+        if (e.Button != MouseButton.Left)
+            return false;
+
         Vector2 local = ToLocalSpace(e.ScreenSpaceMousePosition);
         if (local.Y < 24)
             return false;
@@ -971,6 +1140,24 @@ internal partial class SettingsVolumeSlider : CompositeDrawable
         return true;
     }
 
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        double adjusted = AdjustForKey(
+            volume.Value,
+            e.Key,
+            e.ShiftPressed);
+        if (adjusted == volume.Value
+            && e.Key is not Key.Home and not Key.End
+            and not Key.Left and not Key.Right
+            and not Key.Up and not Key.Down)
+        {
+            return base.OnKeyDown(e);
+        }
+
+        volume.Value = adjusted;
+        return true;
+    }
+
     protected override bool OnHover(HoverEvent e)
     {
         track.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
@@ -982,6 +1169,22 @@ internal partial class SettingsVolumeSlider : CompositeDrawable
     {
         track.FadeColour(SettingsTheme.Divider, 120, Easing.OutQuint);
         knob.ScaleTo(1, 120, Easing.OutQuint);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        valueText.FadeColour(HomeControlColours.Pink, 100, Easing.OutQuint);
+        knob.BorderColour = HomeControlColours.Cyan;
+        knob.ScaleTo(1.18f, 100, Easing.OutQuint);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        valueText.FadeColour(HomeControlColours.Navy, 100, Easing.OutQuint);
+        knob.BorderColour = HomeControlColours.Pink;
+        knob.ScaleTo(1, 100, Easing.OutQuint);
     }
 
     private void updateFrom(float localX) =>
@@ -1057,9 +1260,12 @@ internal partial class SettingsAudioTestControl : CompositeDrawable
 internal partial class SettingsAudioTestButton : ClickableContainer
 {
     private readonly Box background;
+    private readonly Box focusLine;
     private readonly SpriteIcon icon;
     private readonly SpriteText text;
     private bool playing;
+
+    public override bool AcceptsFocus => true;
 
     public SettingsAudioTestButton(
         string label,
@@ -1107,6 +1313,15 @@ internal partial class SettingsAudioTestButton : ClickableContainer
                     },
                 },
             },
+            focusLine = new Box
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                RelativeSizeAxes = Axes.X,
+                Height = 3,
+                Colour = HomeControlColours.Pink,
+                Alpha = 0,
+            },
         };
     }
 
@@ -1141,6 +1356,29 @@ internal partial class SettingsAudioTestButton : ClickableContainer
         if (!playing)
             background.FadeColour(Color4.White, 120, Easing.OutQuint);
     }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        focusLine.FadeIn(100, Easing.OutQuint);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        focusLine.FadeOut(100, Easing.OutQuint);
+    }
 }
 
 internal partial class SettingsAudioToggle : ClickableContainer
@@ -1150,6 +1388,8 @@ internal partial class SettingsAudioToggle : ClickableContainer
     private readonly Box switchTrack;
     private readonly Circle switchThumb;
     private readonly SpriteText stateText;
+
+    public override bool AcceptsFocus => true;
 
     public SettingsAudioToggle(BindableBool value)
     {
@@ -1236,6 +1476,31 @@ internal partial class SettingsAudioToggle : ClickableContainer
     protected override void OnHoverLost(HoverLostEvent e) =>
         background.FadeColour(Color4.White, 120, Easing.OutQuint);
 
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderColour = HomeControlColours.Pink;
+        BorderThickness = 2.4f;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderColour = HomeControlColours.Navy;
+        BorderThickness = 1.4f;
+    }
+
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
@@ -1249,6 +1514,8 @@ internal partial class SettingsOffsetStepper : CompositeDrawable
 {
     private readonly Bindable<double> offset;
     private readonly SpriteText valueText;
+
+    public override bool AcceptsFocus => true;
 
     public SettingsOffsetStepper(Bindable<double> offset)
     {
@@ -1298,6 +1565,55 @@ internal partial class SettingsOffsetStepper : CompositeDrawable
                 Colour = HomeControlColours.Pink,
             },
         };
+
+    internal static double AdjustForKey(
+        double value,
+        Key key,
+        bool largeStep = false)
+    {
+        double step = largeStep ? 10 : 1;
+        return key switch
+        {
+            Key.Left or Key.Down =>
+                Math.Clamp(Math.Round(value - step), -200, 200),
+            Key.Right or Key.Up =>
+                Math.Clamp(Math.Round(value + step), -200, 200),
+            Key.Home => 0,
+            _ => value,
+        };
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        double adjusted = AdjustForKey(
+            offset.Value,
+            e.Key,
+            e.ShiftPressed);
+        if (adjusted == offset.Value
+            && e.Key is not Key.Home
+            and not Key.Left and not Key.Right
+            and not Key.Up and not Key.Down)
+        {
+            return base.OnKeyDown(e);
+        }
+
+        offset.Value = adjusted;
+        return true;
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderColour = HomeControlColours.Pink;
+        BorderThickness = 2.4f;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderColour = HomeControlColours.Navy;
+        BorderThickness = 1.4f;
+    }
 
     private void refresh()
     {

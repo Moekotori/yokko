@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -23,10 +24,19 @@ namespace Yokko.Game.Screens.Settings;
 internal partial class SettingsSidebar : CompositeDrawable
 {
     private readonly List<(SettingsNavHeader Header, SettingsNavItem[] Items)> navigationGroups = new();
+    private readonly List<SettingsNavItem> orderedNavigationItems = new();
     private readonly Dictionary<SettingsPageKind, SettingsNavItem> navigationItems = new();
     private readonly Action<SettingsPageKind> onPageSelected;
     private readonly SettingsSearchTextBox searchBox;
     private readonly SpriteText noResults;
+    private readonly Box divider;
+
+    internal string SearchQuery => searchBox.Current.Value;
+    internal bool SearchHasFocus => searchBox.HasFocus;
+    internal int VisiblePageCount =>
+        orderedNavigationItems.Count(item => item.IsFilteredVisible);
+    internal SettingsPageKind? FocusedPage =>
+        orderedNavigationItems.FirstOrDefault(item => item.HasFocus)?.Page;
 
     public SettingsSidebar(
         Texture logoTexture,
@@ -60,7 +70,9 @@ internal partial class SettingsSidebar : CompositeDrawable
             {
                 Position = new Vector2(38, 182),
             },
-            searchBox = new SettingsSearchTextBox
+            searchBox = new SettingsSearchTextBox(
+                SubmitSearch,
+                offset => FocusAdjacentPage(null, offset))
             {
                 Position = new Vector2(38, 234),
             },
@@ -81,7 +93,7 @@ internal partial class SettingsSidebar : CompositeDrawable
                 Colour = SettingsTheme.MutedNavy,
                 Alpha = 0,
             },
-            new Box
+            divider = new Box
             {
                 Position = new Vector2(319, 28),
                 Width = 1,
@@ -92,6 +104,12 @@ internal partial class SettingsSidebar : CompositeDrawable
 
         searchBox.Current.BindValueChanged(e => filterNavigation(e.NewValue), true);
         SetSelected(selectedPage);
+    }
+
+    protected override void Update()
+    {
+        base.Update();
+        divider.Height = MathF.Max(DrawHeight - 56, 0);
     }
 
     private Drawable[] createNavigation()
@@ -130,6 +148,58 @@ internal partial class SettingsSidebar : CompositeDrawable
             item.SetSelected(kind == page);
     }
 
+    internal void SetSearchQuery(string query) =>
+        searchBox.Current.Value = query ?? string.Empty;
+
+    internal bool FocusSearch()
+    {
+        var focusManager = GetContainingFocusManager();
+        if (focusManager == null)
+            return false;
+
+        focusManager.ChangeFocus(searchBox);
+        return true;
+    }
+
+    internal bool SubmitSearch()
+    {
+        if (string.IsNullOrWhiteSpace(SearchQuery))
+            return false;
+
+        SettingsNavItem result =
+            orderedNavigationItems.FirstOrDefault(
+                item => item.IsFilteredVisible);
+        if (result == null)
+            return false;
+
+        selectPage(result.Page);
+        return true;
+    }
+
+    internal bool FocusAdjacentPage(
+        SettingsPageKind? currentPage,
+        int offset)
+    {
+        SettingsNavItem[] visible =
+            orderedNavigationItems
+                .Where(item => item.IsFilteredVisible)
+                .ToArray();
+        if (visible.Length == 0 || offset == 0)
+            return false;
+
+        int currentIndex = currentPage.HasValue
+            ? Array.FindIndex(
+                visible,
+                item => item.Page == currentPage.Value)
+            : offset > 0 ? -1 : 0;
+        int nextIndex =
+            (currentIndex + offset % visible.Length + visible.Length)
+            % visible.Length;
+
+        GetContainingFocusManager()?.ChangeFocus(visible[nextIndex]);
+        return true;
+    }
+
     public bool DismissTransientUi()
     {
         if (string.IsNullOrEmpty(searchBox.Current.Value))
@@ -147,9 +217,18 @@ internal partial class SettingsSidebar : CompositeDrawable
             definition.Title,
             definition.SearchTerms,
             definition.Icon,
-            () => onPageSelected(page));
+            () => selectPage(page),
+            offset => FocusAdjacentPage(page, offset));
         navigationItems.Add(page, item);
+        orderedNavigationItems.Add(item);
         return item;
+    }
+
+    private void selectPage(SettingsPageKind page)
+    {
+        searchBox.Current.Value = string.Empty;
+        onPageSelected(page);
+        GetContainingFocusManager()?.ChangeFocus(navigationItems[page]);
     }
 
     private void filterNavigation(string query)
@@ -179,10 +258,17 @@ internal partial class SettingsSidebar : CompositeDrawable
 
 internal partial class SettingsSearchTextBox : BasicTextBox
 {
+    private readonly Func<bool> submit;
+    private readonly Func<int, bool> focusResult;
+
     protected override float LeftRightPadding => 42;
 
-    public SettingsSearchTextBox()
+    public SettingsSearchTextBox(
+        Func<bool> submit,
+        Func<int, bool> focusResult)
     {
+        this.submit = submit;
+        this.focusResult = focusResult;
         Size = new Vector2(244, 44);
         Masking = true;
         CornerRadius = 7;
@@ -203,6 +289,20 @@ internal partial class SettingsSearchTextBox : BasicTextBox
             Colour = SettingsTheme.MutedNavy,
             Depth = -2,
         });
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.KeypadEnter)
+            return submit() || base.OnKeyDown(e);
+
+        if (e.Key == Key.Down)
+            return focusResult(1) || base.OnKeyDown(e);
+
+        if (e.Key == Key.Up)
+            return focusResult(-1) || base.OnKeyDown(e);
+
+        return base.OnKeyDown(e);
     }
 
     protected override Drawable GetDrawableCharacter(char c) => new SpriteText
@@ -347,6 +447,7 @@ internal partial class SettingsNavHeader : CompositeDrawable
 
 internal partial class SettingsNavItem : ClickableContainer
 {
+    private readonly Func<int, bool> navigate;
     private readonly Box background;
     private readonly Box selectionBar;
     private readonly Box selectionCorner;
@@ -357,6 +458,7 @@ internal partial class SettingsNavItem : ClickableContainer
 
     public SettingsPageKind Page { get; }
     public string SearchTerms { get; }
+    public bool IsFilteredVisible { get; private set; } = true;
     public override bool AcceptsFocus => true;
 
     public SettingsNavItem(
@@ -364,11 +466,13 @@ internal partial class SettingsNavItem : ClickableContainer
         LocalisableString label,
         string searchTerms,
         IconUsage itemIcon,
-        Action action)
+        Action action,
+        Func<int, bool> navigate)
     {
         Page = page;
         SearchTerms = searchTerms;
         Action = action;
+        this.navigate = navigate;
         Size = new Vector2(252, 35);
         Masking = true;
         CornerRadius = 7;
@@ -439,6 +543,8 @@ internal partial class SettingsNavItem : ClickableContainer
 
     public void SetFiltered(bool visible)
     {
+        IsFilteredVisible = visible;
+
         if (visible)
             Show();
         else
@@ -470,6 +576,12 @@ internal partial class SettingsNavItem : ClickableContainer
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
+        if (e.Key == Key.Down)
+            return navigate(1) || base.OnKeyDown(e);
+
+        if (e.Key == Key.Up)
+            return navigate(-1) || base.OnKeyDown(e);
+
         if (e.Key is Key.Enter or Key.Space)
         {
             Action?.Invoke();

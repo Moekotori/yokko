@@ -31,6 +31,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     internal int MascotFrameCount => mascot?.FrameCount ?? 0;
     internal int ActionCount => 3;
     internal string DisplayedMods { get; }
+    internal bool PracticeSession { get; }
 
     public GameplayResultOverlay(
         YokkoBeatmap beatmap,
@@ -57,15 +58,20 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         bool isNewBest,
         Action retry,
         Action watchReplay,
-        Action returnToSongSelect)
+        Action returnToSongSelect,
+        bool practiceSession = false)
     {
         mods ??= ManiaModSet.Empty;
         this.retry = retry;
         this.watchReplay = watchReplay;
         this.returnToSongSelect = returnToSongSelect;
-        DisplayedMods = mods.IsEmpty
+        PracticeSession = practiceSession;
+        string displayedMods = mods.IsEmpty
             ? "NM"
             : string.Join("  ", mods.DisplayLabels);
+        DisplayedMods = practiceSession
+            ? $"{displayedMods}  ·  PRACTICE"
+            : displayedMods;
 
         RelativeSizeAxes = Axes.Both;
         Depth = -10;

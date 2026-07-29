@@ -64,6 +64,8 @@ namespace Yokko.Game
         private readonly GameplayReplayStore replayStore = new();
         [Cached]
         private readonly YokkoManiaModPreferences modPreferences = new();
+        [Cached]
+        private readonly YokkoFrameRateAdaptation frameRateAdaptation = new();
         private ImportNotificationOverlay importOverlay;
         [Cached]
         private YokkoConfigManager yokkoConfig;
@@ -171,9 +173,12 @@ namespace Yokko.Game
             frameworkConfig.SetValue(
                 FrameworkSetting.ExecutionMode,
                 ExecutionMode.MultiThreaded);
+            YokkoLatencyThreadPolicy.Apply(host);
             frameRateController = new YokkoFrameRateController(
                 frameworkConfig,
-                displaySettings.FrameLimit);
+                displaySettings.FrameLimit,
+                currentDisplayMode,
+                frameRateAdaptation);
 
             string configuredLocale = frameworkConfig.Get<string>(FrameworkSetting.Locale);
             string normalizedLocale = YokkoLocale.Normalize(configuredLocale);

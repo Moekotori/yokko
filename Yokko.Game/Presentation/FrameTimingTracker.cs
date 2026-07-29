@@ -137,6 +137,63 @@ internal sealed class FrameTimingTracker
             recent);
     }
 
+    public FramePacingHealth EvaluateHealth(
+        double targetFrameTimeMilliseconds)
+    {
+        if (analysisCount == 0
+            || !double.IsFinite(targetFrameTimeMilliseconds)
+            || targetFrameTimeMilliseconds <= 0)
+        {
+            return FramePacingHealth.Stable;
+        }
+
+        double missThreshold = Math.Max(
+            targetFrameTimeMilliseconds * 1.5,
+            targetFrameTimeMilliseconds + 1);
+        double warningTailThreshold =
+            targetFrameTimeMilliseconds * 1.25;
+        double criticalTailThreshold =
+            targetFrameTimeMilliseconds * 2;
+        int selectedCount = 0;
+        int missCount = 0;
+        int warningTailCount = 0;
+        int criticalTailCount = 0;
+        double selectedDuration = 0;
+
+        for (int offset = 0; offset < analysisCount; offset++)
+        {
+            int index = (nextAnalysisIndex - 1 - offset
+                         + analysis_sample_count)
+                        % analysis_sample_count;
+            double sample = analysisFrameTimes[index];
+            selectedCount++;
+            selectedDuration += sample;
+            if (sample > missThreshold)
+                missCount++;
+            if (sample >= warningTailThreshold)
+                warningTailCount++;
+            if (sample >= criticalTailThreshold)
+                criticalTailCount++;
+            if (selectedDuration >= analysis_window_milliseconds)
+                break;
+        }
+
+        double missRatio = missCount / (double)selectedCount;
+        if (criticalTailCount > selectedCount * 0.01
+            || missRatio >= 0.02)
+        {
+            return FramePacingHealth.Critical;
+        }
+
+        if (warningTailCount > selectedCount * 0.01
+            || missCount > 0)
+        {
+            return FramePacingHealth.Warning;
+        }
+
+        return FramePacingHealth.Stable;
+    }
+
     public void Reset()
     {
         recentCount = 0;

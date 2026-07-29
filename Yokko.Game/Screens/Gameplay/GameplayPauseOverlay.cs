@@ -19,11 +19,38 @@ namespace Yokko.Game.Screens.Gameplay;
 
 internal partial class GameplayPauseOverlay : CompositeDrawable
 {
-    private const float designedWidth = 1280;
-    private const float designedHeight = 720;
+    internal static readonly Vector2 ReferenceSize = new(1600, 900);
+
+    private const float sheetX = 44;
+    private const float sheetY = 44;
+    private const float sheetWidth = 1512;
+    private const float sheetHeight = 812;
+    private const float leftContentX = 78;
+    private const float leftContentWidth = 440;
+    private const float primaryActionWidth = 430;
+    private const float primaryActionHeight = 126;
+    private const float performanceX = 612;
+
+    private static readonly Color4 backdropNavy =
+        new(0.025f, 0.16f, 0.34f, 1f);
+    private static readonly Color4 paperShadow =
+        new(0.02f, 0.12f, 0.36f, 0.3f);
+    private static readonly Color4 ruleColour =
+        new(
+            HomeControlColours.Navy.R,
+            HomeControlColours.Navy.G,
+            HomeControlColours.Navy.B,
+            0.72f);
+    private static readonly Color4 mutedNavy =
+        new(
+            HomeControlColours.Navy.R,
+            HomeControlColours.Navy.G,
+            HomeControlColours.Navy.B,
+            0.68f);
 
     private readonly YokkoBeatmap beatmap;
     private readonly YokkoGameplaySettings gameplaySettings;
+    private readonly GameplayPauseSnapshot snapshot;
     private readonly Action resume;
     private readonly Action retry;
     private readonly Action openSettings;
@@ -35,10 +62,16 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
     internal int ActionCount => actions.Length;
     internal int SelectedAction => selectedAction;
+    internal long DisplayedScore => snapshot.Score;
+    internal double DisplayedAccuracy => snapshot.Accuracy;
+    internal int DisplayedCombo => snapshot.Combo;
+    internal int DisplayedMaxCombo => snapshot.MaxCombo;
+    internal string DisplayedRank => snapshot.Rank;
 
     public GameplayPauseOverlay(
         YokkoBeatmap beatmap,
         YokkoGameplaySettings gameplaySettings,
+        GameplayPauseSnapshot snapshot,
         Action resume,
         Action retry,
         Action openSettings,
@@ -46,6 +79,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     {
         this.beatmap = beatmap;
         this.gameplaySettings = gameplaySettings;
+        this.snapshot = snapshot;
         this.resume = resume;
         this.retry = retry;
         this.openSettings = openSettings;
@@ -60,29 +94,18 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     {
         InternalChildren = new Drawable[]
         {
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(
-                    HomeControlColours.Cyan.R,
-                    HomeControlColours.Cyan.G,
-                    HomeControlColours.Cyan.B,
-                    0.82f),
-            },
+            createBackdrop(),
             stage = new Container
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Size = new Vector2(designedWidth, designedHeight),
+                Size = ReferenceSize,
                 Alpha = 0,
                 Children = new Drawable[]
                 {
-                    createIvoryStage(),
-                    createDecorations(),
-                    createHeader(textures.Get("home-logo-hd")),
-                    createActionColumn(),
-                    createSongBadge(),
-                    createMascot(textures.Get("yokko")),
+                    createGameplayGrid(),
+                    createSheetShadow(),
+                    createReportSheet(textures),
                 },
             },
         };
@@ -143,7 +166,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
     internal void TriggerSelected() => actions[selectedAction].Trigger();
 
-    private Drawable createIvoryStage() =>
+    private static Drawable createBackdrop() =>
         new Container
         {
             RelativeSizeAxes = Axes.Both,
@@ -151,94 +174,159 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             {
                 new Box
                 {
-                    RelativeSizeAxes = Axes.Y,
-                    Width = 470,
-                    Colour = HomeControlColours.Ivory,
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = backdropNavy,
                 },
                 new Box
                 {
-                    RelativeSizeAxes = Axes.Y,
-                    Width = 220,
-                    X = 420,
-                    Y = -40,
-                    Height = 1.2f,
-                    Rotation = 7.5f,
-                    Colour = HomeControlColours.Ivory,
-                },
-                new Box
-                {
-                    RelativeSizeAxes = Axes.Y,
-                    X = 590,
-                    Y = -18,
-                    Width = 2,
-                    Height = 1.1f,
-                    Rotation = 7.5f,
-                    Colour = HomeControlColours.Navy,
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.18f),
                 },
             },
         };
 
-    private Drawable createHeader(Texture logoTexture) =>
+    private static Drawable createGameplayGrid()
+    {
+        var grid = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Alpha = 0.28f,
+        };
+
+        for (int i = 0; i < 4; i++)
+        {
+            grid.Add(new Box
+            {
+                Position = new Vector2(835 + i * 126, 0),
+                Size = new Vector2(2, 900),
+                Colour = Color4.White,
+                Alpha = 0.42f,
+            });
+            grid.Add(new HomeRing(
+                118,
+                3,
+                new Color4(1f, 1f, 1f, 0.38f))
+            {
+                Position = new Vector2(835 + i * 126, 828),
+            });
+        }
+
+        grid.Add(new Circle
+        {
+            Position = new Vector2(1082, 10),
+            Size = new Vector2(98),
+            Colour = new Color4(1f, 1f, 1f, 0.18f),
+        });
+
+        return grid;
+    }
+
+    private static Drawable createSheetShadow() =>
         new Container
         {
-            Position = new Vector2(68, 40),
-            Size = new Vector2(430, 310),
+            Position = new Vector2(sheetX + 10, sheetY + 12),
+            Size = new Vector2(sheetWidth, sheetHeight),
+            Child = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = paperShadow,
+            },
+        };
+
+    private Drawable createReportSheet(TextureStore textures) =>
+        new Container
+        {
+            Position = new Vector2(sheetX, sheetY),
+            Size = new Vector2(sheetWidth, sheetHeight),
+            Masking = true,
+            Children = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = HomeControlColours.Ivory,
+                },
+                createAngledDivider(),
+                createLeftHeader(textures.Get("home-logo-hd")),
+                createPauseCopy(),
+                createActionColumn(),
+                createLeftFooter(),
+                createSongHeader(),
+                createPerformanceSummary(),
+                createJudgementLedger(),
+                createMascot(textures.Get("yokko")),
+                createSheetDecorations(),
+            },
+        };
+
+    private static Drawable createLeftHeader(Texture logoTexture) =>
+        new Container
+        {
+            Position = new Vector2(leftContentX, 32),
+            Size = new Vector2(330, 112),
             Children = new Drawable[]
             {
                 new SpriteIcon
                 {
-                    Position = new Vector2(0, 4),
-                    Size = new Vector2(12),
+                    Position = new Vector2(4, 2),
+                    Size = new Vector2(13),
                     Icon = FontAwesome.Solid.Plus,
                     Colour = HomeControlColours.Pink,
                 },
                 new SpriteIcon
                 {
-                    Position = new Vector2(43, 4),
-                    Size = new Vector2(10),
+                    Position = new Vector2(48, 2),
+                    Size = new Vector2(11),
                     Icon = FontAwesome.Solid.Plus,
                     Colour = HomeControlColours.Cyan,
                 },
                 new Sprite
                 {
-                    Position = new Vector2(0, 28),
-                    Size = new Vector2(236, 74),
+                    Position = new Vector2(-8, 33),
+                    Size = new Vector2(282, 92),
                     FillMode = FillMode.Fit,
                     Anchor = Anchor.TopLeft,
                     Origin = Anchor.TopLeft,
                     Texture = logoTexture,
                 },
+            },
+        };
+
+    private static Drawable createPauseCopy() =>
+        new Container
+        {
+            Position = new Vector2(leftContentX, 203),
+            Size = new Vector2(leftContentWidth, 190),
+            Children = new Drawable[]
+            {
                 new SpriteText
                 {
-                    Position = new Vector2(0, 146),
                     Text = YokkoStrings.Get("gameplay.pause.title"),
-                    Font = HomeTypography.Hero(54),
+                    Font = HomeTypography.Hero(76),
                     Colour = HomeControlColours.Navy,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(2, 212),
+                    Position = new Vector2(0, 78),
                     Text = YokkoStrings.Get("gameplay.pause.subtitle"),
-                    Font = HomeTypography.Display(32),
+                    Font = HomeTypography.Display(40),
                     Colour = HomeControlColours.Navy,
                 },
                 new Box
                 {
-                    Position = new Vector2(2, 252),
-                    Size = new Vector2(190, 5),
+                    Position = new Vector2(0, 123),
+                    Size = new Vector2(192, 5),
                     Colour = HomeControlColours.Yellow,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(2, 278),
+                    Position = new Vector2(0, 156),
                     Text = "P A U S E D",
-                    Font = HomeTypography.Display(16),
-                    Colour = HomeControlColours.Cyan,
-                },
-                new HomeMicroLine
-                {
-                    Position = new Vector2(272, 286),
-                    Width = 108,
+                    Font = HomeTypography.Display(15),
                     Colour = HomeControlColours.Cyan,
                 },
             },
@@ -248,14 +336,14 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     {
         actions[0] = new PauseActionButton(
             YokkoStrings.Get("gameplay.pause.resume"),
-            $"{formatKey(ManiaShortcutAction.PauseOrBack)} TO RESUME",
+            $"{formatResumeKey()} TO RESUME",
             FontAwesome.Solid.Play,
             true,
             HomeControlColours.Pink,
             resume,
             () => selectAction(0))
         {
-            Position = new Vector2(68, 360),
+            Position = new Vector2(leftContentX - 4, 404),
         };
         actions[1] = new PauseActionButton(
             YokkoStrings.Get("gameplay.pause.retry"),
@@ -266,7 +354,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             retry,
             () => selectAction(1))
         {
-            Position = new Vector2(68, 490),
+            Position = new Vector2(leftContentX, 562),
         };
         actions[2] = new PauseActionButton(
             YokkoStrings.Get("gameplay.pause.settings"),
@@ -277,7 +365,9 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             openSettings,
             () => selectAction(2))
         {
-            Position = new Vector2(221.3f, 490),
+            Position = new Vector2(
+                leftContentX + leftContentWidth / 3,
+                562),
         };
         actions[3] = new PauseActionButton(
             YokkoStrings.Get("gameplay.pause.exit"),
@@ -288,7 +378,9 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             exitGameplay,
             () => selectAction(3))
         {
-            Position = new Vector2(374.6f, 490),
+            Position = new Vector2(
+                leftContentX + leftContentWidth * 2 / 3,
+                562),
         };
 
         return new Container
@@ -298,26 +390,22 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             {
                 new Container
                 {
-                    Position = new Vector2(68, 496),
-                    Size = new Vector2(460, 68),
+                    Position = new Vector2(leftContentX - 5, 570),
+                    Size = new Vector2(leftContentWidth + 5, 76),
                     Masking = true,
-                    CornerRadius = 10,
+                    CornerRadius = 9,
                     Child = new Box
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Colour = new Color4(
-                            HomeControlColours.Navy.R,
-                            HomeControlColours.Navy.G,
-                            HomeControlColours.Navy.B,
-                            0.22f),
+                        Colour = paperShadow,
                     },
                 },
                 new Container
                 {
-                    Position = new Vector2(68, 490),
-                    Size = new Vector2(460, 68),
+                    Position = new Vector2(leftContentX - 5, 562),
+                    Size = new Vector2(leftContentWidth + 5, 76),
                     Masking = true,
-                    CornerRadius = 10,
+                    CornerRadius = 9,
                     BorderThickness = 2,
                     BorderColour = HomeControlColours.Navy,
                     Children = new Drawable[]
@@ -327,26 +415,9 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             RelativeSizeAxes = Axes.Both,
                             Colour = HomeControlColours.Ivory,
                         },
-                        new Box
-                        {
-                            Position = new Vector2(153.3f, 14),
-                            Size = new Vector2(1.5f, 40),
-                            Colour = new Color4(
-                                HomeControlColours.Navy.R,
-                                HomeControlColours.Navy.G,
-                                HomeControlColours.Navy.B,
-                                0.55f),
-                        },
-                        new Box
-                        {
-                            Position = new Vector2(306.6f, 14),
-                            Size = new Vector2(1.5f, 40),
-                            Colour = new Color4(
-                                HomeControlColours.Navy.R,
-                                HomeControlColours.Navy.G,
-                                HomeControlColours.Navy.B,
-                                0.55f),
-                        },
+                        createSecondaryDivider(leftContentWidth / 3 + 5),
+                        createSecondaryDivider(
+                            leftContentWidth * 2 / 3 + 5),
                     },
                 },
                 actions[0],
@@ -357,41 +428,87 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         };
     }
 
-    private Drawable createSongBadge()
+    private static Drawable createSecondaryDivider(float x) =>
+        new Box
+        {
+            Position = new Vector2(x, 15),
+            Size = new Vector2(1.5f, 46),
+            Colour = new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                0.5f),
+        };
+
+    private static Drawable createLeftFooter() =>
+        new Container
+        {
+            Position = new Vector2(leftContentX, 692),
+            Size = new Vector2(leftContentWidth, 70),
+            Children = new Drawable[]
+            {
+                new HomeBarcode("NO.004-KEY")
+                {
+                    X = -4,
+                    Scale = new Vector2(1.32f),
+                },
+                new HomeDotField
+                {
+                    Position = new Vector2(298, -4),
+                    Size = new Vector2(86, 52),
+                    Colour = new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                            0.65f),
+                },
+            },
+        };
+
+    private static Drawable createAngledDivider() =>
+        new Container
+        {
+            Position = new Vector2(591, -38),
+            Size = new Vector2(3, 930),
+            Rotation = 7.2f,
+            Children = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = HomeControlColours.Navy,
+                },
+                new Box
+                {
+                    Position = new Vector2(-1, 291),
+                    Size = new Vector2(17),
+                    Rotation = 45,
+                    Colour = HomeControlColours.Yellow,
+                },
+            },
+        };
+
+    private Drawable createSongHeader()
     {
-        string difficulty = string.IsNullOrWhiteSpace(beatmap.DifficultyName)
-            ? $"{(int)beatmap.KeyMode}K"
-            : beatmap.DifficultyName;
+        string displayedMods = string.IsNullOrWhiteSpace(snapshot.DisplayedMods)
+            ? "NM"
+            : snapshot.DisplayedMods;
+        string artist = string.IsNullOrWhiteSpace(beatmap.Artist)
+            ? beatmap.Creator
+            : beatmap.Artist;
 
         return new Container
         {
-            Anchor = Anchor.TopRight,
-            Origin = Anchor.TopRight,
-            Position = new Vector2(-28, 22),
-            Size = new Vector2(350, 76),
+            Position = new Vector2(performanceX + 24, 38),
+            Size = new Vector2(790, 120),
             Children = new Drawable[]
             {
                 new Container
                 {
-                    Position = new Vector2(2, 6),
-                    Size = new Vector2(348, 70),
+                    Position = new Vector2(-1, 5),
+                    Size = new Vector2(82, 86),
                     Masking = true,
-                    CornerRadius = 14,
-                    Child = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = new Color4(
-                            HomeControlColours.Navy.R,
-                            HomeControlColours.Navy.G,
-                            HomeControlColours.Navy.B,
-                            0.22f),
-                    },
-                },
-                new Container
-                {
-                    Size = new Vector2(350, 70),
-                    Masking = true,
-                    CornerRadius = 14,
+                    CornerRadius = 12,
                     BorderThickness = 2,
                     BorderColour = HomeControlColours.Navy,
                     Children = new Drawable[]
@@ -401,30 +518,11 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             RelativeSizeAxes = Axes.Both,
                             Colour = HomeControlColours.Ivory,
                         },
-                    },
-                },
-                new Container
-                {
-                    Position = new Vector2(14, 11),
-                    Size = new Vector2(48),
-                    Masking = true,
-                    CornerRadius = 9,
-                    Children = new Drawable[]
-                    {
-                        new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Colour = new Color4(
-                                HomeControlColours.Cyan.R,
-                                HomeControlColours.Cyan.G,
-                                HomeControlColours.Cyan.B,
-                                0.18f),
-                        },
                         new SpriteIcon
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            Size = new Vector2(24),
+                            Size = new Vector2(35),
                             Icon = FontAwesome.Solid.Music,
                             Colour = HomeControlColours.Cyan,
                         },
@@ -432,61 +530,487 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(78, 12),
+                    Position = new Vector2(97, 13),
+                    Width = 270,
+                    Truncate = true,
                     Text = beatmap.Title,
-                    Font = HomeTypography.Display(18),
+                    Font = HomeTypography.Display(38),
                     Colour = HomeControlColours.Navy,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(78, 41),
-                    Text = difficulty,
-                    Font = HomeTypography.Body(12),
-                    Colour = new Color4(
-                        HomeControlColours.Navy.R,
-                        HomeControlColours.Navy.G,
-                        HomeControlColours.Navy.B,
-                        0.78f),
+                    Position = new Vector2(98, 56),
+                    Width = 270,
+                    Truncate = true,
+                    Text = artist,
+                    Font = HomeTypography.Body(24),
+                    Colour = mutedNavy,
                 },
-                new Container
+                new SpriteText
                 {
-                    Anchor = Anchor.CentreRight,
-                    Origin = Anchor.CentreRight,
-                    X = -22,
-                    Size = new Vector2(55, 8),
-                    Children = new Drawable[]
-                    {
-                        new Circle
-                        {
-                            Position = new Vector2(0, 1),
-                            Size = new Vector2(6),
-                            Colour = HomeControlColours.Cyan,
-                        },
-                        new Circle
-                        {
-                            Position = new Vector2(13, 1),
-                            Size = new Vector2(6),
-                            Colour = HomeControlColours.Cyan,
-                        },
-                        new Circle
-                        {
-                            Position = new Vector2(26, 1),
-                            Size = new Vector2(6),
-                            Colour = HomeControlColours.Cyan,
-                        },
-                        new Circle
-                        {
-                            Position = new Vector2(39, 1),
-                            Size = new Vector2(6),
-                            Colour = HomeControlColours.Pink,
-                        },
-                    },
+                    Position = new Vector2(390, 17),
+                    Text = $"{beatmap.KeysPerStage}K · {displayedMods}",
+                    Font = HomeTypography.Display(20),
+                    Colour = HomeControlColours.Cyan,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(390, 47),
+                    Text = formatProgress(),
+                    Font = HomeTypography.Body(18),
+                    Colour = HomeControlColours.Navy,
+                },
+                createProgressRule(),
+                new HomeDotField
+                {
+                    Position = new Vector2(732, 14),
+                    Size = new Vector2(68, 50),
+                    Colour = new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.72f),
                 },
             },
         };
     }
 
-    private Drawable createMascot(Texture mascotTexture) =>
+    private Drawable createProgressRule()
+    {
+        double denominator = Math.Max(1, snapshot.TotalTimeMilliseconds);
+        float progress = (float)Math.Clamp(
+            snapshot.GameplayTimeMilliseconds / denominator,
+            0,
+            1);
+
+        return new Container
+        {
+            Position = new Vector2(389, 82),
+            Size = new Vector2(306, 8),
+            Children = new Drawable[]
+            {
+                new Box
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    RelativeSizeAxes = Axes.X,
+                    Height = 2,
+                    Colour = HomeControlColours.Navy,
+                },
+                new Box
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    Width = 306 * progress,
+                    Height = 3,
+                    Colour = HomeControlColours.Cyan,
+                },
+                new Circle
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.Centre,
+                    X = 306 * progress,
+                    Size = new Vector2(9),
+                    Colour = HomeControlColours.Cyan,
+                },
+            },
+        };
+    }
+
+    private Drawable createPerformanceSummary() =>
+        new Container
+        {
+            Position = new Vector2(performanceX, 188),
+            Size = new Vector2(800, 400),
+            Children = new Drawable[]
+            {
+                createVerticalRule(new Vector2(12, 6), 205),
+                createVerticalRule(new Vector2(447, 6), 205),
+                new Container
+                {
+                    Position = new Vector2(126, 24),
+                    Size = new Vector2(168, 34),
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = HomeControlColours.Ivory,
+                        },
+                        new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Text = "A C C U R A C Y",
+                            Font = HomeTypography.Display(14),
+                            Colour = HomeControlColours.Cyan,
+                        },
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.X,
+                            Height = 1.5f,
+                            Colour = HomeControlColours.Cyan,
+                        },
+                        new Box
+                        {
+                            Anchor = Anchor.BottomLeft,
+                            Origin = Anchor.BottomLeft,
+                            RelativeSizeAxes = Axes.X,
+                            Height = 1.5f,
+                            Colour = HomeControlColours.Cyan,
+                        },
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Y,
+                            Width = 1.5f,
+                            Colour = HomeControlColours.Cyan,
+                        },
+                        new Box
+                        {
+                            Anchor = Anchor.TopRight,
+                            Origin = Anchor.TopRight,
+                            RelativeSizeAxes = Axes.Y,
+                            Width = 1.5f,
+                            Colour = HomeControlColours.Cyan,
+                        },
+                    },
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(66, 50),
+                    Text = $"{snapshot.Accuracy * 100:0.00}",
+                    Font = HomeTypography.Hero(154),
+                    Scale = new Vector2(0.89f, 1),
+                    Colour = HomeControlColours.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(362, 130),
+                    Text = "%",
+                    Font = HomeTypography.Hero(42),
+                    Colour = HomeControlColours.Cyan,
+                },
+                createRankStamp(),
+                createVerticalRule(new Vector2(12, 248), 112),
+                createSummaryMetric(
+                    new Vector2(60, 268),
+                    "S C O R E",
+                    $"{snapshot.Score:N0}",
+                    270),
+                createVerticalRule(new Vector2(348, 248), 112),
+                createComboMetric(new Vector2(403, 268), 150),
+            },
+        };
+
+    private static Drawable createVerticalRule(Vector2 position, float height) =>
+        new Container
+        {
+            Position = position,
+            Size = new Vector2(12, height),
+            Children = new Drawable[]
+            {
+                new Box
+                {
+                    X = 5,
+                    Width = 2,
+                    RelativeSizeAxes = Axes.Y,
+                    Colour = ruleColour,
+                },
+                new Container
+                {
+                    Anchor = Anchor.BottomCentre,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(12),
+                    Rotation = 45,
+                    BorderThickness = 1.5f,
+                    BorderColour = HomeControlColours.Navy,
+                    Masking = true,
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = HomeControlColours.Ivory,
+                    },
+                },
+            },
+        };
+
+    private Drawable createRankStamp() =>
+        new Container
+        {
+            Position = new Vector2(500, 20),
+            Size = new Vector2(245, 235),
+            Children = new Drawable[]
+            {
+                new SpriteText
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Text = "R A N K",
+                    Font = HomeTypography.Display(18),
+                    Colour = HomeControlColours.Cyan,
+                },
+                new Container
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Y = -4,
+                    Size = new Vector2(144),
+                    Masking = true,
+                    CornerRadius = 72,
+                    BorderThickness = 2,
+                    BorderColour = HomeControlColours.Navy,
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = HomeControlColours.Ivory,
+                        },
+                        new HomeDotField
+                        {
+                            Anchor = Anchor.BottomRight,
+                            Origin = Anchor.BottomRight,
+                            Position = new Vector2(-18, -24),
+                            Size = new Vector2(68, 42),
+                            Colour = new Color4(
+                                HomeControlColours.Navy.R,
+                                HomeControlColours.Navy.G,
+                                HomeControlColours.Navy.B,
+                                0.18f),
+                        },
+                        new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Y = -5,
+                            Text = snapshot.Rank,
+                            Font = HomeTypography.Hero(150),
+                            Colour = HomeControlColours.Navy,
+                        },
+                        new HomeDotField
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Position = new Vector2(-1, -3),
+                            Size = new Vector2(76, 52),
+                            Colour = HomeControlColours.Ivory,
+                            Alpha = 0.46f,
+                        },
+                    },
+                },
+                createRankStar(16, 108),
+                createRankStar(234, 108),
+            },
+        };
+
+    private static Drawable createRankStar(float x, float y) =>
+        new SpriteIcon
+        {
+            Anchor = Anchor.TopLeft,
+            Origin = Anchor.Centre,
+            Position = new Vector2(x, y),
+            Size = new Vector2(23),
+            Icon = FontAwesome.Solid.Star,
+            Colour = HomeControlColours.Navy,
+        };
+
+    private static Drawable createSummaryMetric(
+        Vector2 position,
+        string label,
+        string value,
+        float ruleWidth) =>
+        new Container
+        {
+            Position = position,
+            Size = new Vector2(ruleWidth, 115),
+            Children = new Drawable[]
+            {
+                new SpriteText
+                {
+                    Text = label,
+                    Font = HomeTypography.Display(13),
+                    Colour = HomeControlColours.Cyan,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(0, 26),
+                    Text = value,
+                    Font = HomeTypography.Hero(62),
+                    Colour = HomeControlColours.Navy,
+                },
+                new Box
+                {
+                    Position = new Vector2(-25, 92),
+                    Size = new Vector2(ruleWidth, 2),
+                    Colour = new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.55f),
+                },
+            },
+        };
+
+    private Drawable createComboMetric(Vector2 position, float ruleWidth) =>
+        new Container
+        {
+            Position = position,
+            Size = new Vector2(ruleWidth, 115),
+            Children = new Drawable[]
+            {
+                new SpriteText
+                {
+                    Text = "C O M B O",
+                    Font = HomeTypography.Display(13),
+                    Colour = HomeControlColours.Cyan,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(0, 26),
+                    Text = snapshot.Combo.ToString(),
+                    Font = HomeTypography.Hero(62),
+                    Colour = HomeControlColours.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(49, 36),
+                    Text = $"/  {snapshot.MaxCombo}",
+                    Font = HomeTypography.Hero(42),
+                    Colour = HomeControlColours.Cyan,
+                },
+                new Box
+                {
+                    Position = new Vector2(-13, 92),
+                    Size = new Vector2(ruleWidth + 13, 2),
+                    Colour = new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.55f),
+                },
+            },
+        };
+
+    private Drawable createJudgementLedger()
+    {
+        (string Label, int Value, Color4 Colour)[] judgements =
+        {
+            ("PERFECT", snapshot.Perfect, HomeControlColours.Yellow),
+            ("GREAT", snapshot.Great, HomeControlColours.Cyan),
+            ("GOOD", snapshot.Good, new Color4(0.16f, 0.72f, 0.34f, 1f)),
+            ("OK", snapshot.Ok, new Color4(0.12f, 0.48f, 0.95f, 1f)),
+            ("MEH", snapshot.Meh, new Color4(1f, 0.42f, 0.08f, 1f)),
+            ("MISS", snapshot.Miss, HomeControlColours.Pink),
+        };
+
+        var ledger = new Container
+        {
+            Position = new Vector2(performanceX - 2, 581),
+            Size = new Vector2(612, 156),
+            Children = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.X,
+                    Height = 2,
+                    Colour = HomeControlColours.Navy,
+                },
+            },
+        };
+
+        const float cellWidth = 102;
+        for (int i = 0; i < judgements.Length; i++)
+        {
+            (string label, int value, Color4 colour) = judgements[i];
+            ledger.Add(createJudgementCell(
+                i * cellWidth,
+                cellWidth,
+                label,
+                value,
+                colour,
+                i < judgements.Length - 1));
+        }
+
+        ledger.Add(new HomeMicroLine
+        {
+            Position = new Vector2(0, 152),
+            Width = 612,
+            Colour = HomeControlColours.Navy,
+        });
+        return ledger;
+    }
+
+    private static Drawable createJudgementCell(
+        float x,
+        float width,
+        string label,
+        int value,
+        Color4 colour,
+        bool showDivider) =>
+        new Container
+        {
+            Position = new Vector2(x, 0),
+            Size = new Vector2(width, 124),
+            Children = new Drawable[]
+            {
+                new SpriteText
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Y = 26,
+                    Text = label,
+                    Font = HomeTypography.Display(12),
+                    Colour = colour,
+                },
+                new SpriteText
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Y = 62,
+                    Text = value.ToString(),
+                    Font = HomeTypography.Hero(50),
+                    Colour = colour,
+                },
+                new Box
+                {
+                    Anchor = Anchor.BottomCentre,
+                    Origin = Anchor.BottomCentre,
+                    Y = -12,
+                    Size = new Vector2(48, 3),
+                    Colour = colour,
+                },
+                createJudgementDivider(showDivider),
+            },
+        };
+
+    private static Drawable createJudgementDivider(bool visible)
+    {
+        var divider = new Container
+        {
+            Anchor = Anchor.CentreRight,
+            Origin = Anchor.CentreRight,
+            Size = new Vector2(3, 70),
+            Alpha = visible ? 1 : 0,
+        };
+
+        for (int i = 0; i < 9; i++)
+        {
+            divider.Add(new Circle
+            {
+                Y = i * 8.5f,
+                Size = new Vector2(2.5f),
+                Colour = new Color4(
+                    HomeControlColours.Cyan.R,
+                    HomeControlColours.Cyan.G,
+                    HomeControlColours.Cyan.B,
+                    0.48f),
+            });
+        }
+
+        return divider;
+    }
+
+    private static Drawable createMascot(Texture mascotTexture) =>
         new Container
         {
             RelativeSizeAxes = Axes.Both,
@@ -494,102 +1018,47 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             {
                 new Sprite
                 {
-                    Anchor = Anchor.BottomRight,
-                    Origin = Anchor.BottomRight,
-                    Position = new Vector2(210, -2),
-                    Size = new Vector2(700, 800),
+                    Position = new Vector2(1192, 79),
+                    Size = new Vector2(630, 765),
                     Texture = mascotTexture,
+                    FillMode = FillMode.Fit,
                 },
                 new HomeMascotBubble(
                     YokkoStrings.Get("gameplay.pause.bubble"))
                 {
-                    Position = new Vector2(956, 334),
+                    Position = new Vector2(1328, 454),
                 },
             },
         };
 
-    private Drawable createDecorations() =>
+    private static Drawable createSheetDecorations() =>
         new Container
         {
             RelativeSizeAxes = Axes.Both,
             Children = new Drawable[]
             {
-                new Box
-                {
-                    Position = new Vector2(635, 34),
-                    Size = new Vector2(2, 560),
-                    Colour = new Color4(1f, 1f, 1f, 0.22f),
-                },
-                new Box
-                {
-                    Position = new Vector2(730, 34),
-                    Size = new Vector2(2, 560),
-                    Colour = new Color4(1f, 1f, 1f, 0.22f),
-                },
-                new Box
-                {
-                    Position = new Vector2(825, 34),
-                    Size = new Vector2(2, 560),
-                    Colour = new Color4(1f, 1f, 1f, 0.22f),
-                },
-                new Box
-                {
-                    Position = new Vector2(920, 34),
-                    Size = new Vector2(2, 560),
-                    Colour = new Color4(1f, 1f, 1f, 0.22f),
-                },
-                new Box
-                {
-                    Position = new Vector2(610, 558),
-                    Size = new Vector2(392, 2),
-                    Colour = new Color4(1f, 1f, 1f, 0.34f),
-                },
-                new HomeRing(72, 3, new Color4(1f, 1f, 1f, 0.55f))
-                {
-                    Position = new Vector2(658, 558),
-                },
-                new HomeRing(72, 3, new Color4(1f, 1f, 1f, 0.55f))
-                {
-                    Position = new Vector2(753, 558),
-                },
-                new HomeRing(72, 3, new Color4(1f, 1f, 1f, 0.55f))
-                {
-                    Position = new Vector2(848, 558),
-                },
-                new HomeRing(72, 3, new Color4(1f, 1f, 1f, 0.55f))
-                {
-                    Position = new Vector2(943, 558),
-                },
                 new HomeDotField
                 {
-                    Position = new Vector2(366, 625),
-                    Size = new Vector2(68, 42),
+                    Position = new Vector2(1156, 711),
+                    Size = new Vector2(66, 42),
                     Colour = new Color4(
                         HomeControlColours.Cyan.R,
                         HomeControlColours.Cyan.G,
                         HomeControlColours.Cyan.B,
                         0.36f),
                 },
-                new HomeBarcode("NO.004-KEY")
-                {
-                    Position = new Vector2(68, 628),
-                },
-                new Container
-                {
-                    Position = new Vector2(582, 266),
-                    Size = new Vector2(14),
-                    Rotation = 45,
-                    Masking = true,
-                    BorderThickness = 2,
-                    BorderColour = HomeControlColours.Navy,
-                    Child = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = HomeControlColours.Yellow,
-                    },
-                },
             },
         };
+
+    private string formatProgress() =>
+        $"{formatTime(snapshot.GameplayTimeMilliseconds)} / "
+        + formatTime(snapshot.TotalTimeMilliseconds);
+
+    private static string formatTime(double milliseconds)
+    {
+        int totalSeconds = (int)Math.Max(0, milliseconds / 1000);
+        return $"{totalSeconds / 60:00}:{totalSeconds % 60:00}";
+    }
 
     private void selectAction(int index)
     {
@@ -605,6 +1074,15 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     private string formatKey(ManiaShortcutAction action) =>
         KeyModeBindings.FormatKey(
             gameplaySettings.GetShortcutBinding(action)).ToUpperInvariant();
+
+    private string formatResumeKey()
+    {
+        Key key = gameplaySettings.GetShortcutBinding(
+            ManiaShortcutAction.PauseOrBack);
+        return key == Key.Escape
+            ? "ESC"
+            : KeyModeBindings.FormatKey(key).ToUpperInvariant();
+    }
 
     private partial class PauseActionButton : ClickableContainer
     {
@@ -627,58 +1105,50 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             this.hoverAction = hoverAction;
             Action = action;
             Size = primary
-                ? new Vector2(460, 112)
-                : new Vector2(153.4f, 68);
+                ? new Vector2(primaryActionWidth, primaryActionHeight)
+                : new Vector2(leftContentWidth / 3, 76);
 
-            float iconSize = primary ? 72 : 42;
-            float iconInset = primary ? 20 : 10;
-            float textX = primary ? 118 : 58;
+            float iconSize = primary ? 82 : 44;
+            float iconInset = primary ? 22 : 10;
+            float textX = primary ? 132 : 60;
 
             InternalChildren = new Drawable[]
             {
                 primary
                     ? new Container
                     {
-                        Position = new Vector2(0, 7),
+                        Position = new Vector2(0, 8),
                         RelativeSizeAxes = Axes.Both,
                         Masking = true,
-                        CornerRadius = 14,
+                        CornerRadius = 13,
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Colour = new Color4(
-                                HomeControlColours.Navy.R,
-                                HomeControlColours.Navy.G,
-                                HomeControlColours.Navy.B,
-                                0.24f),
+                            Colour = paperShadow,
                         },
                     }
-                    : new Container
-                    {
-                        Alpha = 0,
-                    },
+                    : new Container { Alpha = 0 },
                 primary
                     ? new Container
                     {
                         Position = new Vector2(-3, -3),
-                        Size = new Vector2(466, 112),
+                        Size = new Vector2(
+                            primaryActionWidth + 6,
+                            primaryActionHeight),
                         Masking = true,
-                        CornerRadius = 16,
+                        CornerRadius = 15,
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
                             Colour = HomeControlColours.Cyan,
                         },
                     }
-                    : new Container
-                    {
-                        Alpha = 0,
-                    },
+                    : new Container { Alpha = 0 },
                 new Container
                 {
                     RelativeSizeAxes = Axes.Both,
                     Masking = true,
-                    CornerRadius = primary ? 14 : 0,
+                    CornerRadius = primary ? 13 : 0,
                     BorderThickness = primary ? 2 : 0,
                     BorderColour = primary
                         ? HomeControlColours.Navy
@@ -697,18 +1167,15 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             {
                                 Anchor = Anchor.CentreRight,
                                 Origin = Anchor.CentreRight,
-                                X = -82,
-                                Size = new Vector2(82, 52),
+                                X = -88,
+                                Size = new Vector2(86, 56),
                                 Colour = new Color4(
                                     HomeControlColours.Cyan.R,
                                     HomeControlColours.Cyan.G,
                                     HomeControlColours.Cyan.B,
                                     0.2f),
                             }
-                            : new Container
-                            {
-                                Alpha = 0,
-                            },
+                            : new Container { Alpha = 0 },
                         new Container
                         {
                             Anchor = Anchor.CentreLeft,
@@ -732,14 +1199,14 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                                             HomeControlColours.PaleCyan.R,
                                             HomeControlColours.PaleCyan.G,
                                             HomeControlColours.PaleCyan.B,
-                                            0.8f),
+                                            0.82f),
                                 },
                                 new SpriteIcon
                                 {
                                     Anchor = Anchor.Centre,
                                     Origin = Anchor.Centre,
                                     Size = primary
-                                        ? new Vector2(30)
+                                        ? new Vector2(32)
                                         : new Vector2(21),
                                     Icon = icon,
                                     Colour = HomeControlColours.Navy,
@@ -751,21 +1218,22 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             Anchor = Anchor.CentreLeft,
                             Origin = Anchor.CentreLeft,
                             X = textX,
+                            Y = primary ? -8 : 0,
                             Text = title,
                             Font = primary
-                                ? HomeTypography.Display(32)
-                                : HomeTypography.Display(14),
+                                ? HomeTypography.Display(44)
+                                : HomeTypography.Display(18),
                             Colour = primary
                                 ? Color4.White
                                 : HomeControlColours.Navy,
                         },
                         new SpriteText
                         {
-                            Anchor = Anchor.BottomLeft,
-                            Origin = Anchor.BottomLeft,
-                            Position = new Vector2(textX, -15),
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
+                            Position = new Vector2(textX, 26),
                             Text = hint,
-                            Font = HomeTypography.Body(12),
+                            Font = HomeTypography.Body(15),
                             Colour = HomeControlColours.Cyan,
                             Alpha = primary ? 1 : 0,
                         },
@@ -788,7 +1256,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     Anchor = Anchor.BottomLeft,
                     Origin = Anchor.BottomLeft,
                     X = primary ? 18 : 12,
-                    Width = primary ? 110 : 42,
+                    Width = primary ? 112 : 42,
                     Height = primary ? 4 : 3,
                     Colour = accentColour,
                 },
@@ -809,8 +1277,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 Easing.OutQuint);
             accent.ResizeWidthTo(
                 selected
-                    ? primary ? 250 : 62
-                    : primary ? 110 : 42,
+                    ? primary ? 274 : 64
+                    : primary ? 112 : 42,
                 130,
                 Easing.OutQuint);
             if (primary)

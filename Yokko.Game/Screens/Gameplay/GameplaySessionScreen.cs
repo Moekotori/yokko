@@ -3,6 +3,7 @@ using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Screens;
+using osuTK;
 using Yokko.Game.Presentation;
 
 namespace Yokko.Game.Screens.Gameplay;
@@ -13,19 +14,49 @@ namespace Yokko.Game.Screens.Gameplay;
 /// </summary>
 internal partial class GameplaySessionScreen : Screen
 {
+    [Resolved]
+    private YokkoFrameRateAdaptation frameRateAdaptation { get; set; }
+
     private readonly GameplayScreen initialGameplay;
     private ScreenStack gameplayStack;
     private GameplaySessionRootScreen root;
+    private GameplayRetryTransitionOverlay retryTransition;
     private bool retryHandoffInProgress;
+    private GameplayScreen pendingReplacement;
+    private bool revealStarted;
+    private bool frameRateSessionActive;
+
+    private const double coverDurationMilliseconds = 35;
+    private const double revealDurationMilliseconds = 95;
 
     internal GameplayScreen CurrentGameplay =>
         gameplayStack?.CurrentScreen as GameplayScreen;
+    internal bool RetryTransitionActive => pendingReplacement != null;
 
     internal GameplaySessionScreen(GameplayScreen initialGameplay)
     {
         this.initialGameplay = initialGameplay
                                ?? throw new ArgumentNullException(
                                    nameof(initialGameplay));
+    }
+
+    public override void OnEntering(ScreenTransitionEvent e)
+    {
+        base.OnEntering(e);
+        if (frameRateSessionActive)
+            return;
+
+        frameRateSessionActive = true;
+        frameRateAdaptation.BeginSession();
+    }
+
+    public override bool OnExiting(ScreenExitEvent e)
+    {
+        bool blocked = base.OnExiting(e);
+        if (!blocked)
+            endFrameRateSession();
+
+        return blocked;
     }
 
     [BackgroundDependencyLoader]
@@ -45,6 +76,7 @@ internal partial class GameplaySessionScreen : Screen
                 Colour = YokkoPalette.Background,
             },
             gameplayStack,
+            retryTransition = new GameplayRetryTransitionOverlay(),
         ];
     }
 
@@ -56,6 +88,33 @@ internal partial class GameplaySessionScreen : Screen
 
     internal void ReplaceGameplay(GameplayScreen replacement)
     {
+        if (pendingReplacement != null)
+            return;
+
+        pendingReplacement = replacement;
+        revealStarted = false;
+        retryTransition.BeginCover();
+        gameplayStack.ClearTransforms();
+        gameplayStack.FadeTo(0.88f, coverDurationMilliseconds,
+            Easing.OutQuint);
+        gameplayStack.ScaleTo(0.996f, coverDurationMilliseconds,
+            Easing.OutQuint);
+        Scheduler.AddDelayed(
+            () => performGameplayReplacement(replacement),
+            coverDurationMilliseconds);
+    }
+
+    private void performGameplayReplacement(GameplayScreen replacement)
+    {
+        if (!ReferenceEquals(pendingReplacement, replacement))
+            return;
+
+        gameplayStack.ClearTransforms();
+        // Keep the nested ScreenStack updating while the opaque transition
+        // cover hides it. Alpha zero would suspend its load continuation.
+        gameplayStack.Alpha = 0.001f;
+        gameplayStack.Scale = new Vector2(1.004f);
+
         retryHandoffInProgress = true;
         try
         {
@@ -66,6 +125,37 @@ internal partial class GameplaySessionScreen : Screen
         {
             retryHandoffInProgress = false;
         }
+    }
+
+    protected override void Update()
+    {
+        base.Update();
+
+        if (pendingReplacement == null
+            || revealStarted
+            || !pendingReplacement.IsLoaded
+            || !ReferenceEquals(CurrentGameplay, pendingReplacement))
+        {
+            return;
+        }
+
+        revealStarted = true;
+        gameplayStack.ClearTransforms();
+        gameplayStack.FadeTo(1, 75, Easing.OutQuint)
+                     .ScaleTo(1, 95, Easing.OutQuint);
+        retryTransition.BeginReveal();
+        Scheduler.AddDelayed(completeRetryTransition,
+            revealDurationMilliseconds);
+    }
+
+    private void completeRetryTransition()
+    {
+        gameplayStack.ClearTransforms();
+        gameplayStack.Alpha = 1;
+        gameplayStack.Scale = Vector2.One;
+        retryTransition.ResetInstant();
+        pendingReplacement = null;
+        revealStarted = false;
     }
 
     private void onGameplayScreenExited(IScreen last, IScreen next)
@@ -80,10 +170,23 @@ internal partial class GameplaySessionScreen : Screen
 
     protected override void Dispose(bool isDisposing)
     {
-        if (isDisposing && gameplayStack != null)
-            gameplayStack.ScreenExited -= onGameplayScreenExited;
+        if (isDisposing)
+        {
+            endFrameRateSession();
+            if (gameplayStack != null)
+                gameplayStack.ScreenExited -= onGameplayScreenExited;
+        }
 
         base.Dispose(isDisposing);
+    }
+
+    private void endFrameRateSession()
+    {
+        if (!frameRateSessionActive)
+            return;
+
+        frameRateSessionActive = false;
+        frameRateAdaptation.EndSession();
     }
 }
 
@@ -104,4 +207,7 @@ internal sealed partial class GameplaySessionRootScreen : Screen
 
     internal void ReplaceGameplay(GameplayScreen replacement) =>
         session.ReplaceGameplay(replacement);
+
+    internal bool RetryTransitionActive =>
+        session.RetryTransitionActive;
 }

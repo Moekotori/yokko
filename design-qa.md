@@ -1,4 +1,257 @@
+# Pause overlay pixel-fidelity recheck (2026-07-29, QA3)
+
+## Evidence
+
+- Source visual truth:
+  `C:\Users\nyafa\.codex\attachments\5954dffe-5b60-4658-a0d8-f5b7c36937b9\image-1.png`
+- Native implementation:
+  `D:\YOKKO\.artifacts\pause-ui-qa3\implementation-final-comfortable.png`
+- Density-normalized implementation:
+  `D:\YOKKO\.artifacts\pause-ui-qa3\implementation-final-comfortable-2560x1440.png`
+- Full-view comparison, source left / implementation right:
+  `D:\YOKKO\.artifacts\pause-ui-qa3\comparison-final-source-left-implementation-right.png`
+- Focused comparisons, source left / implementation right:
+  - Left copy and controls:
+    `D:\YOKKO\.artifacts\pause-ui-qa3\focused-left-final.png`
+  - Performance, rank, judgments, and mascot:
+    `D:\YOKKO\.artifacts\pause-ui-qa3\focused-right-final.png`
+  - Mascot and bubble:
+    `D:\YOKKO\.artifacts\pause-ui-qa3\focused-mascot-final.png`
+  - Logo:
+    `D:\YOKKO\.artifacts\pause-ui-qa3\focused-logo-final.png`
+- Responsive captures:
+  - Large 100%:
+    `D:\YOKKO\.artifacts\pause-ui-qa3\implementation-final-large.png`
+  - Comfortable 90%:
+    `D:\YOKKO\.artifacts\pause-ui-qa3\implementation-final-comfortable.png`
+  - Compact 80%:
+    `D:\YOKKO\.artifacts\pause-ui-qa3\implementation-final-compact.png`
+
+## Viewport and state
+
+- Source pixels: 2560 x 1440.
+- Native implementation pixels: 1366 x 768.
+- Authored logical viewport: 1600 x 900.
+- Density normalization: the native 16:9 implementation capture was resized
+  to 2560 x 1440 before comparison. Upsampling softness was excluded from
+  typography and asset-quality findings.
+- UI scale: Comfortable 90% for source matching; Large 100% and Compact 80%
+  checked for clipping and overlap.
+- Locale: Chinese.
+- Song state: Eternal Ending (aran Remix) / Kobaryo / 4K / NM /
+  01:08 of 04:28.
+- Performance state: 96.89%, rank S, score 224,758, combo 843 / 843,
+  judgments 533 / 261 / 36 / 8 / 5 / 0.
+- Interaction state: paused, resume selected, no pointer hover.
+
+## Comparison history
+
+1. Rejected QA2 handoff
+   - P2: the mascot's visible color bounds were 124 x 146 px while the
+     source was 143 x 145 px, making the character visibly too narrow and
+     weak in the lower-right composition.
+   - P2: the rank letter was 80 x 106 px instead of 67 x 89 px; judgment
+     values were roughly 25% too large; score/combo values were roughly 18%
+     too small; the resume title was 130 px wide instead of 113 px.
+   - Fix: remeasured the normalized source and implementation by region,
+     corrected the mascot display box, rank typography, metric typography,
+     judgment values, pause copy, and primary/secondary action text.
+   - Earlier evidence:
+     `D:\YOKKO\.artifacts\pause-ui-qa2\source-left-implementation-right-final.png`
+2. Same-state pixel pass
+   - P2: the first correction matched the mascot width but left its color
+     bounds 7 px high; several labels and metric baselines still differed by
+     1-3 px.
+   - Fix: corrected mascot vertical size/position, rank-label optical scale,
+     percentage position, score/combo baseline, judgment value baseline,
+     and action-row alignment.
+   - Intermediate evidence:
+     `D:\YOKKO\.artifacts\pause-ui-qa3\comparison-pass2-source-left.png`
+3. Final comparison
+   - Mascot source bounds: 144 x 145 px at x=2047, y=1114.
+   - Mascot implementation bounds: 144 x 145 px at x=2048, y=1114,
+     within one normalized pixel.
+   - Accuracy numeral, rank circle and letter, score/combo values,
+     judgment labels/values, pause title/subtitle, primary action title/hint,
+     bubble, rules, and decorative fields now match their source bounding
+     boxes within the 1-3 px antialiasing tolerance.
+   - Post-fix evidence:
+     `D:\YOKKO\.artifacts\pause-ui-qa3\comparison-final-source-left-implementation-right.png`
+
+## Final review
+
+- Fonts and typography: the pause title, subtitle, song metadata, accuracy,
+  rank, score/combo, judgment labels/values, and action copy use the intended
+  display/body hierarchy. The earlier oversized rank and judgment typography
+  and undersized metric typography are corrected. Small residual edge
+  differences are antialiasing from density normalization.
+- Spacing and layout rhythm: the 1600 x 900 sheet, angled divider, header,
+  action panels, data columns, rank stamp, double rules, judgment grid,
+  bubble, mascot, barcode, and dot fields align with the source. Large,
+  Comfortable, and Compact show no clipping, overlap, or reflow drift.
+- Colors and tokens: navy, cyan, yellow, pink, green, orange, ivory,
+  pale-cyan surfaces, dividers, shadows, and selected-state accents use
+  Yokko's existing tokens and preserve source contrast.
+- Image quality and asset fidelity: the production high-resolution YOKKO
+  logo and mascot are used; the mascot display box now matches the source's
+  visible 144 x 145 px footprint. Existing FontAwesome icons are retained,
+  with no placeholder or handcrafted SVG assets.
+- Copy and content: app-owned text and dynamic gameplay data match the source.
+  The operating-system IME toolbar outside the source sheet is intentionally
+  not reproduced.
+- States, interaction, and accessibility: resume remains selected by default;
+  mouse and keyboard selection, custom pause binding, audio pause, and audio
+  resume still work. Text and selected-state contrast remain readable at all
+  three UI scales.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- P3: the production YOKKO logo remains intentionally taller than the raster
+  mock because the user explicitly requested that it not look horizontally
+  flattened. Its width and left alignment still match the source.
+
+## Verification
+
+- `dotnet build Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-restore
+  --artifacts-path D:\YOKKO\.artifacts\pause-ui-build`
+  passed with 0 warnings and 0 errors.
+- `dotnet test Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-build
+  --no-restore --artifacts-path D:\YOKKO\.artifacts\pause-ui-build
+  --filter FullyQualifiedName~TestPauseOverlayStopsAndResumesAudio`
+  passed: 1 test, 0 failures.
+- Large, Comfortable, and Compact native screenshot runs exited with code 0.
+
+final result: passed
+
+---
+
 # Yokko Gameplay Mods Studio Index design QA
+
+final result: passed
+
+---
+
+# Pause overlay target-fidelity correction QA (2026-07-29)
+
+## Evidence
+
+- Source visual truth:
+  `C:\Users\nyafa\.codex\attachments\5954dffe-5b60-4658-a0d8-f5b7c36937b9\image-1.png`
+- Native implementation screenshot:
+  `D:\YOKKO\.artifacts\pause-ui-qa2\implementation-final-comfortable.png`
+- Density-normalized implementation:
+  `D:\YOKKO\.artifacts\pause-ui-qa2\implementation-final-comfortable-2560x1440.png`
+- Full-view comparison, source left / implementation right:
+  `D:\YOKKO\.artifacts\pause-ui-qa2\source-left-implementation-right-final.png`
+- Focused comparisons, source left / implementation right:
+  - Logo:
+    `D:\YOKKO\.artifacts\pause-ui-qa2\focused-logo-source-left-implementation-right.png`
+  - Pause controls:
+    `D:\YOKKO\.artifacts\pause-ui-qa2\focused-controls-source-left-implementation-right.png`
+  - Performance data:
+    `D:\YOKKO\.artifacts\pause-ui-qa2\focused-performance-source-left-implementation-right.png`
+- Responsive captures:
+  - Large 100%:
+    `D:\YOKKO\.artifacts\pause-ui-qa2\implementation-final-large.png`
+  - Comfortable 90%:
+    `D:\YOKKO\.artifacts\pause-ui-qa2\implementation-final-comfortable.png`
+  - Compact 80%:
+    `D:\YOKKO\.artifacts\pause-ui-qa2\implementation-final-compact.png`
+
+## Viewport and state
+
+- Source pixels: 2560 x 1440.
+- Implementation pixels: 1366 x 768 native osu!framework capture.
+- Authored logical viewport: 1600 x 900.
+- Density normalization: the native implementation was resized to
+  2560 x 1440 before comparison; the app-owned viewport and 16:9 state match.
+  The slight softness in normalized close-ups is from upsampling and is not
+  present in the native capture.
+- UI scale: Comfortable 90% for target comparison; Large 100% and Compact
+  80% checked separately for resilience.
+- Locale: Chinese.
+- Song state: Eternal Ending (aran Remix) / Kobaryo / 4K / NM /
+  01:08 of 04:28.
+- Performance state: 96.89%, rank S, score 224,758, combo 843 / 843,
+  judgments 533 / 261 / 36 / 8 / 5 / 0.
+- Interaction state: paused, resume selected, no pointer hover.
+
+## Comparison history
+
+1. Initial target correction
+   - P1: the earlier implementation used a much larger accuracy treatment,
+     flanking rank stars, oversized mascot, and denser judgment block than
+     this source. Its dynamic song state also differed, so the first pass was
+     used only for structural comparison.
+   - Fix: matched the source state in the native preview and rebuilt the
+     internal proportions without changing the 1600 x 900 sheet frame.
+   - Evidence:
+     `D:\YOKKO\.artifacts\pause-ui-qa2\new-target-vs-current-comfortable.png`
+2. Same-state geometry pass
+   - P2: the rank circle was too low, the mascot was too large and low, the
+     percentage spacing drifted, and the pause separator length did not match.
+   - Fix: aligned the rank stamp and stars, resized/repositioned the mascot,
+     corrected percentage placement, restored the exact separator length,
+     and matched score/combo optical sizes.
+   - Intermediate evidence:
+     `D:\YOKKO\.artifacts\pause-ui-qa2\implementation-pass1.png`
+   - Post-fix evidence:
+     `D:\YOKKO\.artifacts\pause-ui-qa2\source-left-implementation-right-final.png`
+3. Logo aspect correction
+   - P2: the YOKKO asset was displayed in a horizontally flattened box.
+   - Fix: retained the production asset and changed its render slot to the
+     original approximately 2.94:1 aspect ratio, with vertical compensation
+     so the left-side rhythm remains aligned.
+   - Post-fix evidence:
+     `D:\YOKKO\.artifacts\pause-ui-qa2\focused-logo-source-left-implementation-right.png`
+
+## Final review
+
+- Fonts and typography: title, metadata, accuracy, rank, metrics, judgment
+  values, and Chinese actions match the source hierarchy and optical sizes.
+  The YOKKO mark now uses its natural aspect ratio rather than horizontal
+  stretching, as explicitly requested.
+- Spacing and layout rhythm: the paper frame, angled divider, left action
+  column, song header, accuracy block, rank stamp, metric row, double rules,
+  judgment ledger, bubble, and mascot align in the normalized comparison.
+  No clipping or overlap appears at Large, Comfortable, or Compact.
+- Colors and tokens: navy, cyan, pink, yellow, judgment colors, ivory paper,
+  pale-cyan controls, rule opacity, and shadows use Yokko's existing tokens
+  and match the source balance.
+- Image quality and assets: the production high-resolution YOKKO logo and
+  mascot texture are reused with correct aspect handling. Existing
+  FontAwesome icons are used for controls and rank stars; there are no
+  placeholders, custom SVG substitutes, or code-drawn image assets.
+- Copy and content: all app-owned static copy and dynamic pause data match
+  the source state. The operating-system IME toolbar visible outside the
+  source sheet is correctly excluded from the app UI.
+- States, interaction, and accessibility: resume remains selected by default;
+  mouse and keyboard actions remain reachable, and the custom pause binding
+  still pauses and resumes audio. Text and selected-state contrast remain
+  readable across the three size settings.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- P3: the natural-aspect production YOKKO logo is intentionally a little
+  taller than the raster mock's mark. This is the user's latest requested
+  correction and preserves the real asset instead of stretching it.
+
+## Verification
+
+- `dotnet build Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-restore
+  --artifacts-path D:\YOKKO\.artifacts\pause-ui-build`
+  passed with 0 warnings and 0 errors.
+- `dotnet test Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-build
+  --no-restore --artifacts-path D:\YOKKO\.artifacts\pause-ui-build
+  --filter FullyQualifiedName~TestPauseOverlayStopsAndResumesAudio`
+  passed: 1 test, 0 failures.
+- Large, Comfortable, and Compact native screenshot runs exited with code 0.
 
 final result: passed
 
@@ -795,5 +1048,99 @@ No actionable P0, P1, or P2 differences remain.
 - `dotnet build Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-restore --artifacts-path D:\YOKKO\artifacts\design-preview`
 - `dotnet test Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-build --no-restore --artifacts-path D:\YOKKO\artifacts\design-preview --filter "FullyQualifiedName~TestSceneGameplayModsScreen"`
 - Result: build passed with 0 warnings and 0 errors; 7 focused tests passed.
+
+final result: passed
+
+---
+
+# Pause overlay design QA
+
+## Evidence
+
+- Source visual:
+  `C:\Users\nyafa\.codex\generated_images\019fae03-2de4-71e3-8fbb-720cbe3bfbe0\call_qUkMSPS8d2kOEGYI3Xfspmv0.png`
+- Native implementation screenshot:
+  `D:\YOKKO\.artifacts\pause-ui-qa\implementation-final.png`
+- Full normalized comparison:
+  `D:\YOKKO\.artifacts\pause-ui-qa\comparison-final.png`
+- Focused control comparison:
+  `D:\YOKKO\.artifacts\pause-ui-qa\comparison-left-controls-final.png`
+- Focused performance comparison:
+  `D:\YOKKO\.artifacts\pause-ui-qa\comparison-performance-final.png`
+- Responsive captures:
+  `D:\YOKKO\.artifacts\pause-ui-qa\implementation-comfortable.png`
+  and
+  `D:\YOKKO\.artifacts\pause-ui-qa\implementation-compact.png`
+
+## Viewport and state
+
+- Source dimensions: 1672 x 941.
+- Implementation capture: 1366 x 768 native osu!framework renderer.
+- Comparison normalization: source resized to 1366 x 768, then placed
+  beside the implementation at the same density.
+- Authored layout space: Yokko's 1600 x 900 reference size.
+- UI scale captures: Large 100%, Comfortable 90%, Compact 80%.
+- Locale: Chinese.
+- Song state: Labyrinth / :Spiral_Eyes: / 4K / NM / 02:14 of 03:48.
+- Performance state: 97.18%, rank S, score 1,071,630,
+  combo 3 / 414, judgments 287 / 18 / 2 / 0 / 0 / 2.
+
+## Comparison history
+
+1. Initial native pass exposed density drift in the left action column,
+   an undersized mascot, an unframed accuracy label, and misplaced rank
+   ornaments.
+2. Intermediate passes aligned the paper frame, angled divider, song header,
+   left controls, performance columns, judgment ledger, and mascot to the
+   normalized source.
+3. Final pass corrected the progress rule, accuracy numeral proportions,
+   percentage spacing, vertical rules, score divider, and responsive scaling.
+
+## Final review
+
+- Fonts and typography: hierarchy, weight, tracking, and numeric emphasis
+  match the source. Chinese labels remain legible at all three UI scales.
+- Spacing and layout: the report sheet, diagonal split, action column,
+  song header, performance columns, rank stamp, judgment ledger, and mascot
+  align with the normalized source. No clipping or overlap was observed.
+- Colors and surfaces: navy, cyan, pink, yellow, green, orange, ivory,
+  borders, shadows, and dotted accents follow the selected visual and Yokko's
+  existing tokens.
+- Image and icon fidelity: the production Yokko logo and mascot textures are
+  used. Controls use the existing FontAwesome icon source and remain optically
+  aligned.
+- Copy and data: song information, progress, score, accuracy, combo, rank,
+  mods, and every judgment count are populated from a pause-time gameplay
+  snapshot. Static copy matches the selected visual.
+- States and interactions: resume, restart, settings, exit, mouse hover,
+  keyboard selection, custom pause binding, audio pause, and audio resume
+  remain functional.
+- Accessibility: keyboard reachability and selected-state contrast are
+  retained. Text remains readable at Large, Comfortable, and Compact scales.
+- Runtime: native preview exited with code 0. No fatal renderer errors were
+  observed. The only runtime notices were expected large-texture atlas
+  performance messages for existing production assets.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- P3: the generated source uses a distressed ink texture inside the rank
+  letter and four-point decorative sparkles. The native implementation uses
+  Yokko's crisp production type and the closest existing FontAwesome star,
+  avoiding a new fake raster or handcrafted icon asset. This does not alter
+  hierarchy, readability, or interaction.
+
+## Verification
+
+- `dotnet build Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-restore
+  --artifacts-path D:\YOKKO\.artifacts\pause-ui-build`
+  passed with 0 warnings and 0 errors.
+- Focused visual/gameplay test
+  `TestPauseOverlayStopsAndResumesAudio`
+  passed: 1 test, 0 failures.
+- Large, Comfortable, and Compact native screenshot runs all exited with
+  code 0.
 
 final result: passed

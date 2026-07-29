@@ -23,11 +23,13 @@ using SixLabors.ImageSharp.Formats.Tiff;
 using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Audio;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Skinning.OsuMania;
 
@@ -1557,6 +1559,15 @@ HitPosition: 400
                     .SingleOrDefault();
                 return speedOverlay != null;
             });
+            AddAssert("speed overlay uses compact upper-left ticket", () =>
+                speedOverlay.Size
+                    == GameplayScrollSpeedOverlay.ReferenceSize
+                && speedOverlay.Anchor == Anchor.TopLeft
+                && speedOverlay.Origin == Anchor.TopLeft
+                && speedOverlay.Y
+                   == GameplayScrollSpeedOverlay.TopOffset
+                && speedOverlay.X
+                   <= GameplayScrollSpeedOverlay.PreferredLeft);
             AddStep("plain plus is ignored", () =>
                 gameplayScreen.HandleScrollSpeedShortcut(
                     Key.Plus,
@@ -1574,7 +1585,34 @@ HitPosition: 400
                 && speedOverlay.DisplayedTimeRangeMilliseconds
                    == (int)OsuManiaScrollSpeed.ComputeScrollTime(9)
                 && !speedOverlay.IsLocked
+                && speedOverlay.DisplayedLabel == "SCROLL SPEED"
+                && speedOverlay.DisplayedDetail
+                   == $"{(int)OsuManiaScrollSpeed.ComputeScrollTime(9)} ms"
                 && speedOverlay.Alpha > 0);
+            AddWaitStep("let speed ticket settle", 8);
+            AddStep("capture speed ticket when requested", () =>
+            {
+                string outputPath = Environment.GetEnvironmentVariable(
+                    "YOKKO_SCROLL_SPEED_SCREENSHOT");
+                if (string.IsNullOrWhiteSpace(outputPath))
+                    return;
+
+                MethodInfo takeScreenshot = renderer.GetType().GetMethod(
+                    "TakeScreenshot",
+                    BindingFlags.Instance
+                    | BindingFlags.Public
+                    | BindingFlags.NonPublic)
+                    ?? throw new InvalidOperationException(
+                        "The active renderer does not expose screenshot capture.");
+                using var screenshot = (Image<Rgba32>)takeScreenshot.Invoke(
+                    renderer,
+                    null);
+                Directory.CreateDirectory(
+                    Path.GetDirectoryName(outputPath)
+                    ?? throw new InvalidOperationException(
+                        "Screenshot path has no parent directory."));
+                screenshot.SaveAsPng(outputPath);
+            });
             AddAssert("playfield uses osu time range", () =>
                 Math.Abs(
                     ((Drawable)screenStack.CurrentScreen)
@@ -1635,7 +1673,11 @@ HitPosition: 400
             AddAssert("late adjustment is locked", () =>
                 gameplaySettings.ScrollSpeed.Value == 8
                 && speedOverlay.IsLocked
-                && speedOverlay.DisplayedSpeed == 8);
+                && speedOverlay.DisplayedSpeed == 8
+                && speedOverlay.DisplayedLabel == "SPEED LOCKED"
+                && speedOverlay.DisplayedDetail == "INTRO / BREAK");
+            AddUntilStep("speed overlay exits smoothly", () =>
+                speedOverlay.Alpha <= 0.01f);
             AddStep("restore scroll speed and shortcuts", () =>
             {
                 gameplaySettings.SetScrollSpeed(originalSpeed);
@@ -1645,6 +1687,170 @@ HitPosition: 400
                 gameplaySettings.SetShortcutBinding(
                     ManiaShortcutAction.IncreaseScrollSpeed,
                     originalIncreaseKey);
+            });
+        }
+
+        [Test]
+        public void TestAltPlusMinusAdjustsPlaybackRateAndLiveStats()
+        {
+            var audioEngine = new RateTrackingAudioEngine();
+            YokkoBeatmap beatmap =
+                DemoBeatmaps.CreateFourKeyDemo() with
+                {
+                    AudioPath = "rate-adjustment-fixture.mp3",
+                };
+            GameplayScreen gameplayScreen = null;
+            GameplayPlaybackRateOverlay rateOverlay = null;
+            GameplayHud hud = null;
+            ManiaStarRatingResult expectedDifficulty =
+                ManiaStarRatingCalculator.CalculateResult(
+                    beatmap,
+                    1.05);
+
+            AddStep("open rate-adjustable gameplay", () =>
+            {
+                gameplayScreen = new GameplayScreen(
+                    beatmap,
+                    audioEngine);
+                screenStack.Push(gameplayScreen);
+            });
+            AddUntilStep("rate overlay and hud loaded", () =>
+            {
+                rateOverlay = gameplayScreen?
+                    .ChildrenOfType<GameplayPlaybackRateOverlay>()
+                    .SingleOrDefault();
+                hud = gameplayScreen?
+                    .ChildrenOfType<GameplayHud>()
+                    .SingleOrDefault();
+                return rateOverlay != null && hud != null;
+            });
+            AddAssert("plain plus is not a rate shortcut", () =>
+                !gameplayScreen.HandlePlaybackRateShortcut(
+                    Key.Plus,
+                    false)
+                && gameplayScreen.CurrentPlaybackRate == 1);
+            AddUntilStep(
+                "audio starts with dynamic rate enabled",
+                () => audioEngine.LastStartRequest?
+                          .DynamicPlaybackRate == true);
+            AddStep("alt plus raises playback rate", () =>
+                gameplayScreen.HandlePlaybackRateShortcut(
+                    Key.Plus,
+                    true));
+            AddUntilStep("audio receives 1.05x", () =>
+                Math.Abs(audioEngine.PlaybackRate - 1.05) < 0.000001);
+            AddUntilStep("overlay shows rate bpm and difficulty", () =>
+                Math.Abs(rateOverlay.DisplayedRate - 1.05) < 0.000001
+                && Math.Abs(rateOverlay.DisplayedBpm - 126) < 0.000001
+                && Math.Abs(
+                    rateOverlay.DisplayedDifficulty.GetValueOrDefault()
+                    - expectedDifficulty.Value.GetValueOrDefault())
+                   < 0.000001
+                && rateOverlay.DisplayedDetail.Contains("126 BPM")
+                && rateOverlay.DisplayedDetail.Contains("STAR")
+                && rateOverlay.Alpha > 0);
+            AddUntilStep("hud keeps live rate stats visible", () =>
+                hud.DisplayedDynamicRate.Contains("LIVE RATE 1.05×")
+                && hud.DisplayedDynamicRate.Contains("126 BPM")
+                && hud.DisplayedDynamicRate.Contains("STAR")
+                && hud.DisplayedDynamicRate.Contains("PRACTICE")
+                && gameplayScreen.ManualPlaybackRateUsed);
+            AddStep("alt keypad minus restores normal rate", () =>
+                gameplayScreen.HandlePlaybackRateShortcut(
+                    Key.KeypadMinus,
+                    true));
+            AddUntilStep("audio returns to 1x", () =>
+                Math.Abs(audioEngine.PlaybackRate - 1) < 0.000001);
+            AddAssert("restored rate is shown immediately", () =>
+                Math.Abs(rateOverlay.DisplayedRate - 1) < 0.000001
+                && Math.Abs(rateOverlay.DisplayedBpm - 120) < 0.000001);
+            AddAssert("restored rate keeps practice status", () =>
+                gameplayScreen.ManualPlaybackRateUsed
+                && hud.DisplayedDynamicRate.Contains(
+                    "LIVE RATE 1.00×")
+                && hud.DisplayedDynamicRate.Contains("PRACTICE"));
+        }
+
+        [Test]
+        public void TestRetryKeepsManualPlaybackRate()
+        {
+            GameplayScreen original = null;
+            GameplayScreen replacement = null;
+
+            AddStep("open gameplay for rate-preserving retry", () =>
+            {
+                original = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo());
+                screenStack.Push(original);
+            });
+            AddUntilStep(
+                "gameplay loaded",
+                () => original?.IsLoaded == true);
+            AddStep("set 1.05x before retry", () =>
+                original.HandlePlaybackRateShortcut(
+                    Key.Plus,
+                    true));
+            AddAssert("original uses 1.05x", () =>
+                Math.Abs(original.CurrentPlaybackRate - 1.05) < 0.000001);
+            AddStep("retry gameplay", () =>
+                original.RetryGameplay());
+            AddUntilStep("replacement gameplay is active", () =>
+            {
+                replacement =
+                    screenStack.CurrentScreen as GameplayScreen;
+                return replacement != null
+                       && !ReferenceEquals(replacement, original)
+                       && replacement.IsLoaded;
+            });
+            AddAssert("replacement keeps 1.05x", () =>
+                Math.Abs(replacement.CurrentPlaybackRate - 1.05)
+                < 0.000001
+                && replacement.ManualPlaybackRateUsed);
+        }
+
+        [Test]
+        public void TestManualPlaybackRateCompletesAsPractice()
+        {
+            YokkoBeatmap beatmap =
+                DemoBeatmaps.CreateFourKeyDemo() with
+                {
+                    Title =
+                        $"Rate Practice {TestContext.CurrentContext.Test.ID}",
+                    HitObjects =
+                    [
+                        new YokkoHitObject(
+                            0,
+                            250,
+                            null,
+                            HitObjectKind.Tap),
+                    ],
+                };
+            GameplayScreen gameplay = null;
+
+            AddStep("open short rate practice", () =>
+            {
+                gameplay = new GameplayScreen(beatmap);
+                screenStack.Push(gameplay);
+            });
+            AddUntilStep(
+                "rate practice loaded",
+                () => gameplay?.IsLoaded == true);
+            AddStep("adjust rate before completion", () =>
+                gameplay.HandlePlaybackRateShortcut(
+                    Key.Plus,
+                    true));
+            AddUntilStep(
+                "rate practice completes",
+                () => gameplay?.GameplayCompleted == true);
+            AddAssert("practice does not replace best score", () =>
+                !gameplay.BestScoreSaved);
+            AddAssert("result identifies practice session", () =>
+            {
+                GameplayResultOverlay result = gameplay
+                    .ChildrenOfType<GameplayResultOverlay>()
+                    .SingleOrDefault();
+                return result?.PracticeSession == true
+                       && result.DisplayedMods.Contains("PRACTICE");
             });
         }
 
@@ -1734,10 +1940,13 @@ HitPosition: 400
                 && ReferenceEquals(session.CurrentGameplay, gameplay));
             AddStep("release old audio session", () =>
                 audioEngine.StopCompletion.SetResult(true));
+            AddUntilStep("retry animation starts", () =>
+                session.RetryTransitionActive);
             AddUntilStep("replacement gameplay is current", () =>
             {
                 replacement = session?.CurrentGameplay;
                 return replacement != null
+                       && replacement.IsLoaded
                        && !ReferenceEquals(replacement, gameplay);
             });
             AddAssert("replacement stays inside gameplay session", () =>
@@ -1745,6 +1954,8 @@ HitPosition: 400
                 && replacement.GetParentScreen()
                    is GameplaySessionRootScreen
                 && !gameplay.ValidForResume);
+            AddUntilStep("retry reveal animation completes", () =>
+                !session.RetryTransitionActive);
             AddStep("exit replacement gameplay", () =>
                 replacement.Exit());
             AddUntilStep("gameplay session exits with its gameplay", () =>
@@ -1794,7 +2005,15 @@ HitPosition: 400
                                                .ChildrenOfType<GameplayPauseOverlay>()
                                                .SingleOrDefault();
                 return overlay?.ActionCount == 4
-                       && overlay.SelectedAction == 0;
+                       && overlay.SelectedAction == 0
+                       && overlay.DisplayedScore == 0
+                       && Math.Abs(overlay.DisplayedAccuracy - 1) < 0.0001
+                       && overlay.DisplayedCombo == 0
+                       && overlay.DisplayedMaxCombo == 0
+                       && !string.IsNullOrWhiteSpace(
+                           overlay.DisplayedRank)
+                       && GameplayPauseOverlay.ReferenceSize
+                          == YokkoDisplaySettings.ReferenceLayoutSize;
             });
             AddStep("capture pause screen when requested", () =>
             {
@@ -2127,6 +2346,15 @@ StageHint: stage-hint
                     running,
                     144,
                     3);
+        }
+
+        private sealed class RateTrackingAudioEngine
+            : SeekTrackingAudioEngine, IAudioRateControl
+        {
+            public double PlaybackRate { get; private set; } = 1;
+
+            public void SetPlaybackRate(double playbackRate) =>
+                PlaybackRate = playbackRate;
         }
 
         private sealed class SampleTrackingAudioEngine

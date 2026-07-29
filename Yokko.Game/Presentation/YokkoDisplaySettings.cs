@@ -24,6 +24,7 @@ public enum YokkoFrameLimit
     Limit4x,
     Limit8x,
     Unlimited,
+    Auto,
 }
 
 public sealed class YokkoDisplaySettings

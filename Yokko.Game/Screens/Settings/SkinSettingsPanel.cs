@@ -5,9 +5,11 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.UserInterface;
+using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using osuTK.Input;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 using Yokko.Game.Skinning.OsuMania;
@@ -354,6 +356,8 @@ internal partial class SettingsSkinActionButton : ClickableContainer
     private readonly bool selected;
     private readonly bool destructive;
 
+    public override bool AcceptsFocus => true;
+
     public SettingsSkinActionButton(
         LocalisableString text,
         IconUsage icon,
@@ -421,5 +425,32 @@ internal partial class SettingsSkinActionButton : ClickableContainer
         label.FadeColour(
             selected ? Color4.White : destructive ? HomeControlColours.Pink : HomeControlColours.Navy,
             120);
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderColour = HomeControlColours.Pink;
+        BorderThickness = 2.4f;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderColour = destructive
+            ? HomeControlColours.Pink
+            : HomeControlColours.Navy;
+        BorderThickness = 1.2f;
     }
 }

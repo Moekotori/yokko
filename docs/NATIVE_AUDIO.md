@@ -79,6 +79,37 @@ Implemented:
 7. Gameplay and editor waveform paths independent of osu!framework audio.
 8. Per-stream callback budget, maximum callback duration, late-event interval
    and separate work/cadence miss counters.
+9. Optional output-only ASIO with passive 64-bit driver discovery, exact
+   driver selection, driver-owned buffer negotiation and native callback
+   conversion for common integer and floating-point sample formats.
+
+ASIO is an explicit expert backend. A selected ASIO driver never silently
+falls back to WASAPI: a missing, busy, incompatible or reset-requesting driver
+faults the requested session so the UI and diagnostics preserve backend truth.
+The callback remains entirely native and allocation-free. ASIO sample position
+is converted to speaker-presentation position using the driver-reported output
+latency before it enters Yokko's playback-clock contract.
+
+## Optional ASIO build
+
+Yokko does not vendor the Steinberg ASIO SDK. Steinberg currently offers the
+SDK under GPLv3 or a separately signed proprietary agreement, so choosing and
+complying with that license remains a distribution decision rather than an
+implicit repository dependency.
+
+After obtaining the SDK under terms appropriate for the product, point the
+native build at its root:
+
+```powershell
+.\scripts\build-native-audio.ps1 `
+    -Configuration Release `
+    -AsioSdkDir 'C:\path\to\ASIOSDK'
+```
+
+The directory must contain `common/asio.h` and `common/iasiodrv.h`. Builds
+without it keep the same ABI and return `BackendUnavailable` for ASIO, while
+WASAPI remains fully functional. The compiled application must still be
+distributed in accordance with the selected Steinberg license.
 
 Exclusive event-driven output submits one complete endpoint buffer on every
 device event. Shared mode alone uses `GetCurrentPadding` to calculate writable

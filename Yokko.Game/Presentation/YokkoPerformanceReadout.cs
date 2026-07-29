@@ -2,7 +2,6 @@ using System;
 using System.Globalization;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
-using osu.Framework.Configuration;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -31,15 +30,10 @@ internal interface IFrameTimingSource
 internal sealed class GameHostFrameTimingSource : IFrameTimingSource
 {
     private readonly GameHost host;
-    private readonly IBindable<FrameSync> frameSync;
 
-    public GameHostFrameTimingSource(
-        GameHost host,
-        FrameworkConfigManager frameworkConfig)
+    public GameHostFrameTimingSource(GameHost host)
     {
         this.host = host;
-        frameSync = frameworkConfig.GetBindable<FrameSync>(
-            FrameworkSetting.FrameSync);
     }
 
     public bool TryRead(out FrameTimingSample sample)
@@ -52,23 +46,9 @@ internal sealed class GameHostFrameTimingSource : IFrameTimingSource
             return false;
         }
 
-        float refreshRate =
-            host.Window?.CurrentDisplayMode.Value.RefreshRate ?? 60;
-        if (refreshRate <= 0)
-            refreshRate = 60;
-
-        YokkoFrameLimit limit =
-            YokkoFrameRateLimits.FromFrameworkFrameSync(
-                frameSync.Value);
-        YokkoFrameRates targets =
-            YokkoFrameRateLimits.Calculate(limit, refreshRate);
-
-        if (!host.IsActive.Value)
-        {
-            targets = new YokkoFrameRates(
-                host.MaximumInactiveHz,
-                host.MaximumInactiveHz);
-        }
+        YokkoFrameRates targets = new(
+            host.DrawThread.Clock.MaximumUpdateHz,
+            host.UpdateThread.Clock.MaximumUpdateHz);
 
         sample = new FrameTimingSample(
             host.DrawThread.Clock.CurrentTime,
@@ -81,13 +61,6 @@ internal sealed class GameHostFrameTimingSource : IFrameTimingSource
                && sample.DrawFrameTimeMilliseconds > 0
                && sample.UpdateFrameTimeMilliseconds > 0;
     }
-}
-
-internal enum FramePacingHealth
-{
-    Stable,
-    Warning,
-    Critical,
 }
 
 internal partial class YokkoPerformanceReadout : CompositeDrawable
@@ -151,13 +124,10 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
     internal FramePacingHealth DisplayedHealth { get; private set; }
 
     [BackgroundDependencyLoader]
-    private void load(
-        GameHost host,
-        FrameworkConfigManager frameworkConfig)
+    private void load(GameHost host)
     {
         timingSource ??= new GameHostFrameTimingSource(
-            host,
-            frameworkConfig);
+            host);
         refreshDisplay();
     }
 
@@ -497,7 +467,7 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
             updateMissText,
             $"MISS {updateSnapshot.BudgetMissCount}");
 
-        DisplayedHealth = calculateHealth(
+        DisplayedHealth = FramePacingHealthEvaluator.Evaluate(
             drawSnapshot,
             drawTargetFrameTime,
             updateSnapshot,
@@ -523,42 +493,6 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
         setTextIfChanged(updateP99Text, "P99 —");
         setTextIfChanged(updateMissText, "MISS —");
     }
-
-    private static FramePacingHealth calculateHealth(
-        FrameTimingSnapshot draw,
-        double drawTargetFrameTime,
-        FrameTimingSnapshot update,
-        double updateTargetFrameTime)
-    {
-        double worstP99Ratio = Math.Max(
-            safeRatio(
-                draw.P99FrameTimeMilliseconds,
-                drawTargetFrameTime),
-            safeRatio(
-                update.P99FrameTimeMilliseconds,
-                updateTargetFrameTime));
-        double worstMissRatio = Math.Max(
-            draw.BudgetMissRatio,
-            update.BudgetMissRatio);
-
-        if (worstP99Ratio >= 2
-            || worstMissRatio >= 0.02)
-            return FramePacingHealth.Critical;
-
-        if (worstP99Ratio >= 1.25
-            || draw.BudgetMissCount > 0
-            || update.BudgetMissCount > 0)
-            return FramePacingHealth.Warning;
-
-        return FramePacingHealth.Stable;
-    }
-
-    private static double safeRatio(
-        double value,
-        double target) =>
-        double.IsFinite(target) && target > 0
-            ? value / target
-            : 0;
 
     private static Color4 healthColour(
         FramePacingHealth health) => health switch

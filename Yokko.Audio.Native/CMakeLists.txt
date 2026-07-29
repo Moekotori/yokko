@@ -9,15 +9,63 @@ add_library(yokko_audio_native SHARED
     include/yokko_audio.h
     src/audio_engine.cpp
     src/audio_engine.hpp
+    src/asio_output.hpp
     src/spsc_pcm_ring_buffer.hpp
     src/wasapi_output.hpp
 )
 
 if(WIN32)
     target_sources(yokko_audio_native PRIVATE src/wasapi_output.cpp)
-    target_link_libraries(yokko_audio_native PRIVATE avrt ole32 uuid)
+    target_link_libraries(yokko_audio_native PRIVATE
+        advapi32
+        avrt
+        ole32
+        user32
+        uuid
+    )
+
+    set(
+        YOKKO_ASIO_SDK_DIR
+        "$ENV{YOKKO_ASIO_SDK_DIR}"
+        CACHE PATH
+        "Path to a separately licensed Steinberg ASIO SDK root"
+    )
+    if(
+        EXISTS "${YOKKO_ASIO_SDK_DIR}/common/asio.h"
+        AND EXISTS "${YOKKO_ASIO_SDK_DIR}/common/iasiodrv.h"
+    )
+        target_sources(yokko_audio_native PRIVATE src/asio_output.cpp)
+        target_include_directories(yokko_audio_native PRIVATE
+            "${YOKKO_ASIO_SDK_DIR}/common"
+        )
+        target_compile_definitions(
+            yokko_audio_native
+            PRIVATE YOKKO_ENABLE_ASIO=1
+        )
+        message(STATUS "Yokko ASIO backend enabled")
+    else()
+        target_sources(
+            yokko_audio_native
+            PRIVATE src/asio_output_stub.cpp
+        )
+        target_compile_definitions(
+            yokko_audio_native
+            PRIVATE YOKKO_ENABLE_ASIO=0
+        )
+        message(STATUS
+            "Yokko ASIO backend disabled; set YOKKO_ASIO_SDK_DIR "
+            "to an externally licensed ASIO SDK"
+        )
+    endif()
 else()
-    target_sources(yokko_audio_native PRIVATE src/wasapi_output_stub.cpp)
+    target_sources(yokko_audio_native PRIVATE
+        src/asio_output_stub.cpp
+        src/wasapi_output_stub.cpp
+    )
+    target_compile_definitions(
+        yokko_audio_native
+        PRIVATE YOKKO_ENABLE_ASIO=0
+    )
 endif()
 
 target_compile_features(yokko_audio_native PRIVATE cxx_std_20)

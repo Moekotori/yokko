@@ -7,6 +7,7 @@ using osuTK;
 using osuTK.Graphics;
 using Yokko.Audio;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Difficulty;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Game.Presentation;
@@ -324,25 +325,36 @@ public partial class GameplayHud : CompositeDrawable
         mutedText.Colour = YokkoPalette.Cyan;
     }
 
-    public void UpdateDynamicRate(double rate)
+    public void UpdatePlaybackRate(
+        double rate,
+        double bpm,
+        ManiaStarRatingResult difficulty,
+        bool visible,
+        bool practice)
     {
-        if (!mods.HasDynamicRate)
+        if (!visible)
         {
             rateText.Text = string.Empty;
             return;
         }
 
-        bool adjustsPitch = mods.HasAdaptiveSpeed
-            ? mods.AdaptiveAdjustPitch
-            : mods.TimeRampAdjustPitch;
+        string mode = mods.HasAdaptiveSpeed
+            ? "AS"
+            : mods.Contains(ManiaModId.WindUp)
+                ? "WU"
+                : mods.Contains(ManiaModId.WindDown)
+                    ? "WD"
+                    : "RATE";
+        string bpmText = bpm > 0
+            ? $"{bpm:0.##} BPM"
+            : "-- BPM";
+        string difficultyText = difficulty?.IsSuccess == true
+            ? $"{difficulty.Value:0.00} STAR"
+            : "-- STAR";
         rateText.Text =
-            $"{(mods.HasAdaptiveSpeed
-                ? "AS"
-                : mods.Contains(ManiaModId.WindUp) ? "WU" : "WD")}"
-            + $" · LIVE RATE {rate:0.00}×"
-            + (adjustsPitch
-                ? " · PITCH"
-                : " · TEMPO");
+            $"{mode} · LIVE RATE {rate:0.00}×"
+            + $" · {bpmText} · {difficultyText}"
+            + (practice ? " · PRACTICE" : string.Empty);
         rateText.Colour = YokkoPalette.Cyan;
     }
 

@@ -11,6 +11,7 @@
 
 namespace yokko::audio
 {
+    class AsioOutput;
     class WasapiOutput;
 
     class AudioEngine
@@ -58,11 +59,15 @@ namespace yokko::audio
             uint32_t duration_microseconds,
             uint32_t budget_microseconds,
             uint32_t interval_microseconds = 0) noexcept;
+        void report_callback_overload() noexcept;
         void report_output_failure(
             int32_t backend_error,
             uint32_t backend_error_stage) noexcept;
         void get_status(yokko_audio_status& status) const noexcept;
         yokko_audio_result open_wasapi(
+            const yokko_audio_output_config& config,
+            yokko_audio_output_status& status) noexcept;
+        yokko_audio_result open_asio(
             const yokko_audio_output_config& config,
             yokko_audio_output_status& status) noexcept;
         void close_output() noexcept;
@@ -157,6 +162,7 @@ namespace yokko::audio
         std::array<SampleVoice, sample_voice_capacity> sample_voices_{};
         uint32_t next_sample_voice_{0};
         std::unique_ptr<WasapiOutput> output_;
+        std::unique_ptr<AsioOutput> asio_output_;
     };
 }
 

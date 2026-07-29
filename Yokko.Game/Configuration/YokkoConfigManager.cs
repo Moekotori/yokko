@@ -19,6 +19,7 @@ internal enum YokkoSetting
     AudioHitSoundVolume,
     AudioBackend,
     AudioDeviceId,
+    AudioAsioDeviceId,
     AudioBufferSize,
     AudioOffsetMilliseconds,
     ImportPreferKeysounds,
@@ -82,6 +83,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSetting.AudioBackend,
             AudioBackendKind.WasapiExclusive);
         SetDefault(YokkoSetting.AudioDeviceId, string.Empty);
+        SetDefault(YokkoSetting.AudioAsioDeviceId, string.Empty);
         SetDefault(YokkoSetting.AudioBufferSize, 64, 64, 2048);
         SetDefault(
             YokkoSetting.AudioOffsetMilliseconds,
@@ -161,6 +163,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             settings.HitSoundVolume);
         BindWith(YokkoSetting.AudioBackend, settings.PreferredBackend);
         BindWith(YokkoSetting.AudioDeviceId, settings.DeviceId);
+        BindWith(
+            YokkoSetting.AudioAsioDeviceId,
+            settings.AsioDeviceId);
         BindWith(
             YokkoSetting.AudioBufferSize,
             settings.PreferredBufferSize);

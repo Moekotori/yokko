@@ -9,6 +9,7 @@ using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using osuTK.Input;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
@@ -24,7 +25,9 @@ internal partial class SettingsPanelFooter : CompositeDrawable
 
     public SettingsPanelFooter(LocalisableString message)
     {
-        Position = new Vector2(372, 651);
+        Anchor = Anchor.BottomLeft;
+        Origin = Anchor.BottomLeft;
+        Position = new Vector2(372, -27);
         Size = new Vector2(840, 42);
 
         InternalChildren = new Drawable[]
@@ -96,12 +99,14 @@ internal partial class SettingsPanelFooter : CompositeDrawable
 internal partial class SettingsSegmentedChoiceButton : ClickableContainer
 {
     private readonly Box background;
+    private readonly Box focusLine;
     private readonly SpriteIcon icon;
     private readonly SpriteText text;
     private readonly SpriteIcon check;
     private bool selected;
 
     public object Value { get; init; }
+    public override bool AcceptsFocus => true;
 
     public SettingsSegmentedChoiceButton(LocalisableString label, IconUsage itemIcon, Action action, float width)
     {
@@ -151,6 +156,15 @@ internal partial class SettingsSegmentedChoiceButton : ClickableContainer
                 Colour = HomeControlColours.Yellow,
                 Alpha = 0,
             },
+            focusLine = new Box
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                RelativeSizeAxes = Axes.X,
+                Height = 3,
+                Colour = HomeControlColours.Pink,
+                Alpha = 0,
+            },
         };
     }
 
@@ -176,16 +190,41 @@ internal partial class SettingsSegmentedChoiceButton : ClickableContainer
         if (!selected)
             background.FadeColour(Color4.White, 140, Easing.OutQuint);
     }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        focusLine.FadeIn(100, Easing.OutQuint);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        focusLine.FadeOut(100, Easing.OutQuint);
+    }
 }
 
 internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
 {
     private readonly Box background;
+    private readonly Box focusLine;
     private readonly SpriteText modeText;
     private readonly SpriteText rateText;
     private bool selected;
 
     public YokkoFrameLimit Value { get; }
+    public override bool AcceptsFocus => true;
 
     public SettingsFrameLimitChoiceButton(YokkoFrameLimit value, Action action, float width)
     {
@@ -226,6 +265,15 @@ internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
                     .With(fixedWidth: true),
                 Colour = HomeControlColours.Navy,
             },
+            focusLine = new Box
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                RelativeSizeAxes = Axes.X,
+                Height = 3,
+                Colour = HomeControlColours.Pink,
+                Alpha = 0,
+            },
         };
     }
 
@@ -255,6 +303,29 @@ internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
     {
         if (!selected)
             background.FadeColour(Color4.White, 140, Easing.OutQuint);
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        focusLine.FadeIn(100, Easing.OutQuint);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        focusLine.FadeOut(100, Easing.OutQuint);
     }
 }
 
@@ -286,7 +357,8 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
 
         var header = new SettingsDropdownHeader(
             () => open,
-            Toggle)
+            Toggle,
+            () => enabled)
         {
             RelativeSizeAxes = Axes.Both,
             Masking = true,
@@ -431,12 +503,18 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
 internal partial class SettingsDropdownHeader : ClickableContainer
 {
     private readonly Func<bool> isOpen;
+    private readonly Func<bool> isEnabled;
 
     public Box Background { private get; set; }
+    public override bool AcceptsFocus => isEnabled();
 
-    public SettingsDropdownHeader(Func<bool> isOpen, Action action)
+    public SettingsDropdownHeader(
+        Func<bool> isOpen,
+        Action action,
+        Func<bool> isEnabled = null)
     {
         this.isOpen = isOpen;
+        this.isEnabled = isEnabled ?? (() => true);
         Action = action;
     }
 
@@ -451,6 +529,31 @@ internal partial class SettingsDropdownHeader : ClickableContainer
         if (!isOpen())
             Background.FadeColour(Color4.White, 140, Easing.OutQuint);
     }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderColour = HomeControlColours.Pink;
+        BorderThickness = 2.4f;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderColour = HomeControlColours.Navy;
+        BorderThickness = 1.4f;
+    }
 }
 
 internal partial class SettingsResolutionOption : ClickableContainer
@@ -459,8 +562,10 @@ internal partial class SettingsResolutionOption : ClickableContainer
 
     private readonly Box background;
     private readonly SpriteIcon check;
+    private readonly Box focusLine;
 
     public Size Value { get; }
+    public override bool AcceptsFocus => true;
 
     public SettingsResolutionOption(Size value, Action action)
     {
@@ -495,6 +600,13 @@ internal partial class SettingsResolutionOption : ClickableContainer
                 Colour = HomeControlColours.Pink,
                 Alpha = 0,
             },
+            focusLine = new Box
+            {
+                RelativeSizeAxes = Axes.Y,
+                Width = 4,
+                Colour = HomeControlColours.Pink,
+                Alpha = 0,
+            },
             new Box
             {
                 Anchor = Anchor.BottomCentre,
@@ -516,4 +628,29 @@ internal partial class SettingsResolutionOption : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e) =>
         background.FadeColour(Color4.White, 120, Easing.OutQuint);
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        focusLine.FadeIn(100, Easing.OutQuint);
+        background.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        focusLine.FadeOut(100, Easing.OutQuint);
+        background.FadeColour(Color4.White, 100, Easing.OutQuint);
+    }
 }

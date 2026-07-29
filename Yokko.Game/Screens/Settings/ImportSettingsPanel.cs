@@ -9,6 +9,7 @@ using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using osuTK.Input;
 using Yokko.Game.Configuration;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
@@ -464,6 +465,8 @@ internal partial class ImportPreferenceCard : ClickableContainer
     private readonly Circle switchThumb;
     private readonly SpriteText state;
 
+    public override bool AcceptsFocus => true;
+
     public ImportPreferenceCard(
         LocalisableString title,
         LocalisableString note,
@@ -557,6 +560,31 @@ internal partial class ImportPreferenceCard : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e) =>
         background.FadeColour(Color4.White, 140, Easing.OutQuint);
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderColour = HomeControlColours.Pink;
+        BorderThickness = 2.4f;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderColour = SettingsTheme.Divider;
+        BorderThickness = 1.2f;
+    }
 
     protected override void Dispose(bool isDisposing)
     {

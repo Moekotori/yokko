@@ -15,6 +15,79 @@ namespace Yokko.Game.Tests.Core
         [Test]
         [Platform(Include = "Win")]
         [NonParallelizable]
+        public async Task NativeEngineOpensARealAsioStream()
+        {
+            if (Environment.GetEnvironmentVariable(
+                    "YOKKO_RUN_ASIO_TEST") != "1")
+            {
+                Assert.Ignore(
+                    "Set YOKKO_RUN_ASIO_TEST=1 to run a real ASIO stream.");
+            }
+
+            if (!NativeAudioEngine.IsAvailable)
+                Assert.Ignore("The Yokko native audio library is unavailable.");
+
+            await using var engine = new NativeAudioEngine();
+            AudioDeviceInfo[] devices =
+                (await engine.GetOutputDevicesAsync())
+                .Where(device =>
+                    device.Backend == AudioBackendKind.Asio)
+                .ToArray();
+            if (devices.Length == 0)
+                Assert.Ignore("No 64-bit ASIO drivers were registered.");
+
+            string requestedDeviceId =
+                Environment.GetEnvironmentVariable(
+                    "YOKKO_ASIO_TEST_DEVICE_ID");
+            AudioDeviceInfo device =
+                string.IsNullOrWhiteSpace(requestedDeviceId)
+                    ? devices[0]
+                    : devices.Single(candidate =>
+                        candidate.Id == requestedDeviceId);
+
+            await engine.StartAsync(new AudioEngineStartRequest(
+                string.Empty,
+                AudioBackendKind.Asio,
+                device.Id,
+                48000,
+                64,
+                0));
+            await Task.Delay(1000);
+            AudioEngineStatus status = engine.Status;
+            TestContext.Progress.WriteLine(
+                $"{device.Name}: {status.SampleRate} Hz, "
+                + $"{status.BufferSize} frames, "
+                + $"{status.EstimatedOutputLatencyMilliseconds:F3} ms, "
+                + $"callbacks={status.CallbackCount}, "
+                + $"workMisses={status.CallbackDeadlineMissCount}, "
+                + $"cadenceMisses={status.CallbackCadenceMissCount}, "
+                + $"maxWork={status.MaxCallbackDurationMilliseconds:F3} ms, "
+                + $"maxInterval={status.MaxCallbackIntervalMilliseconds:F3} ms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    status.ActiveBackend,
+                    Is.EqualTo(AudioBackendKind.Asio));
+                Assert.That(status.DeviceName, Is.EqualTo(device.Name));
+                Assert.That(status.IsExclusive, Is.True);
+                Assert.That(status.IsRunning, Is.True);
+                Assert.That(status.IsFaulted, Is.False);
+                Assert.That(status.HasUnderrun, Is.False);
+                Assert.That(status.SampleRate, Is.EqualTo(48000));
+                Assert.That(status.BufferSize, Is.GreaterThan(0));
+                Assert.That(status.CallbackCount, Is.GreaterThan(0));
+                Assert.That(
+                    status.CallbackDeadlineMissCount,
+                    Is.Zero);
+            });
+
+            await engine.StopAsync();
+        }
+
+        [Test]
+        [Platform(Include = "Win")]
+        [NonParallelizable]
         public async Task NativeEngineDecodesAndOpensARealWasapiStream()
         {
             if (!NativeAudioEngine.IsAvailable)

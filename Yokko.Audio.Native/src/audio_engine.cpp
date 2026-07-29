@@ -1,4 +1,5 @@
 #include "audio_engine.hpp"
+#include "asio_output.hpp"
 #include "wasapi_output.hpp"
 
 #include <algorithm>
@@ -594,6 +595,13 @@ namespace yokko::audio
         }
     }
 
+    void AudioEngine::report_callback_overload() noexcept
+    {
+        callback_cadence_miss_count_.fetch_add(
+            1,
+            std::memory_order_relaxed);
+    }
+
     void AudioEngine::report_output_failure(
         const int32_t backend_error,
         const uint32_t backend_error_stage) noexcept
@@ -672,8 +680,42 @@ namespace yokko::audio
         }
     }
 
+    yokko_audio_result AudioEngine::open_asio(
+        const yokko_audio_output_config& config,
+        yokko_audio_output_status& status) noexcept
+    {
+        if (state_.load(std::memory_order_acquire) != YOKKO_AUDIO_STATE_RUNNING)
+            return YOKKO_AUDIO_NOT_READY;
+
+        close_output();
+        try
+        {
+            asio_output_ = std::make_unique<AsioOutput>(*this);
+            const yokko_audio_result result =
+                asio_output_->open(config, status);
+            if (result != YOKKO_AUDIO_OK)
+                asio_output_.reset();
+            return result;
+        }
+        catch (const std::bad_alloc&)
+        {
+            asio_output_.reset();
+            return YOKKO_AUDIO_OUT_OF_MEMORY;
+        }
+        catch (...)
+        {
+            asio_output_.reset();
+            return YOKKO_AUDIO_INTERNAL_ERROR;
+        }
+    }
+
     void AudioEngine::close_output() noexcept
     {
+        if (asio_output_ != nullptr)
+        {
+            asio_output_->close();
+            asio_output_.reset();
+        }
         if (output_ != nullptr)
         {
             output_->close();
@@ -1013,6 +1055,22 @@ extern "C"
             return YOKKO_AUDIO_INVALID_ARGUMENT;
 
         return engine->implementation.open_wasapi(*config, *status);
+    }
+
+    yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_open_asio(
+        yokko_audio_engine* engine,
+        const yokko_audio_output_config* config,
+        yokko_audio_output_status* status)
+    {
+        if (engine == nullptr || config == nullptr || status == nullptr)
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+        if (config->struct_size < sizeof(yokko_audio_output_config)
+            || status->struct_size < sizeof(yokko_audio_output_status))
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+        if (config->backend != YOKKO_AUDIO_BACKEND_ASIO)
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+
+        return engine->implementation.open_asio(*config, *status);
     }
 
     void YOKKO_AUDIO_CALL yokko_audio_close_output(yokko_audio_engine* engine)

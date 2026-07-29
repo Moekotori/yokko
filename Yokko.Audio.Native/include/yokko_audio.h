@@ -20,7 +20,7 @@ extern "C"
 {
 #endif
 
-#define YOKKO_AUDIO_ABI_VERSION 8u
+#define YOKKO_AUDIO_ABI_VERSION 9u
 
     typedef struct yokko_audio_engine yokko_audio_engine;
 
@@ -83,6 +83,7 @@ extern "C"
     {
         YOKKO_AUDIO_BACKEND_WASAPI_SHARED = 1,
         YOKKO_AUDIO_BACKEND_WASAPI_EXCLUSIVE = 2,
+        YOKKO_AUDIO_BACKEND_ASIO = 3,
     } yokko_audio_backend_mode;
 
     typedef enum yokko_audio_sample_format
@@ -245,6 +246,16 @@ extern "C"
         const yokko_audio_output_config* config,
         yokko_audio_output_status* status);
 
+    /*
+     * Opens the selected ASIO driver without a WASAPI fallback. The device id
+     * must be one returned by yokko_audio_get_asio_device_info, or null to use
+     * the first registered 64-bit driver.
+     */
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_open_asio(
+        yokko_audio_engine* engine,
+        const yokko_audio_output_config* config,
+        yokko_audio_output_status* status);
+
     YOKKO_AUDIO_API void YOKKO_AUDIO_CALL yokko_audio_close_output(
         yokko_audio_engine* engine);
 
@@ -253,6 +264,24 @@ extern "C"
 
     YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL
         yokko_audio_get_wasapi_device_info(
+            uint32_t device_index,
+            wchar_t* device_id,
+            uint32_t device_id_capacity,
+            wchar_t* device_name,
+            uint32_t device_name_capacity,
+            uint32_t* is_default);
+
+    /*
+     * ASIO discovery is passive: it reads registered 64-bit drivers without
+     * loading vendor DLLs, reserving hardware, or showing a control panel.
+     * Builds without an externally supplied ASIO SDK return
+     * YOKKO_AUDIO_BACKEND_UNAVAILABLE.
+     */
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_get_asio_device_count(uint32_t* device_count);
+
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_get_asio_device_info(
             uint32_t device_index,
             wchar_t* device_id,
             uint32_t device_id_capacity,

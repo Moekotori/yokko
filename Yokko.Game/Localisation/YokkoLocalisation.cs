@@ -261,6 +261,11 @@ internal static class YokkoStrings
             ["settings.audio.offset"] = new("Timing offset", "时序偏移", "タイミングオフセット"),
             ["settings.audio.exclusive"] = new("WASAPI Exclusive", "WASAPI 独占", "WASAPI 排他"),
             ["settings.audio.shared"] = new("WASAPI Shared", "WASAPI 共享", "WASAPI 共有"),
+            ["settings.audio.asio"] = new("ASIO", "ASIO", "ASIO"),
+            ["settings.audio.asio_unavailable"] = new(
+                "ASIO support is not included in this build",
+                "当前构建未包含 ASIO 支持",
+                "このビルドには ASIO サポートが含まれていません"),
             ["settings.audio.frames"] = new("{0} frames", "{0} 帧", "{0} フレーム"),
             ["settings.audio.default_device"] = new(
                 "Windows default device",

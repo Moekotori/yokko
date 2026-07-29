@@ -48,6 +48,112 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestSidebarSearchAndKeyboardNavigation()
+        {
+            SettingsSidebar sidebar = null;
+
+            AddStep("capture sidebar", () =>
+                sidebar = settingsScreen
+                    .ChildrenOfType<SettingsSidebar>()
+                    .Single());
+            AddAssert("Ctrl+F focuses search", () =>
+                settingsScreen.HandleNavigationShortcut(
+                    Key.F,
+                    true)
+                && sidebar.SearchHasFocus);
+            AddStep("search audio", () =>
+                sidebar.SetSearchQuery(
+                    SettingsPages
+                        .Get(SettingsPageKind.Audio)
+                        .Title
+                        .ToString()));
+            AddAssert("search narrows to audio", () =>
+                sidebar.VisiblePageCount == 1);
+            AddAssert("Enter action opens first result", () =>
+                sidebar.SubmitSearch());
+            AddAssert("audio opens and search clears", () =>
+                settingsScreen.CurrentPage == SettingsPageKind.Audio
+                && sidebar.SearchQuery.Length == 0
+                && sidebar.FocusedPage == SettingsPageKind.Audio);
+            AddStep("search for no result", () =>
+                sidebar.SetSearchQuery("__missing_setting__"));
+            AddAssert("empty result cannot submit", () =>
+                sidebar.VisiblePageCount == 0
+                && !sidebar.SubmitSearch());
+            AddStep("clear search", () =>
+                sidebar.SetSearchQuery(string.Empty));
+            AddAssert("down enters first navigation item", () =>
+                sidebar.FocusAdjacentPage(null, 1)
+                && sidebar.FocusedPage == SettingsPageKind.General);
+            AddAssert("up wraps to last navigation item", () =>
+                sidebar.FocusAdjacentPage(
+                    SettingsPageKind.General,
+                    -1)
+                && sidebar.FocusedPage == SettingsPageKind.About);
+        }
+
+        [Test]
+        public void TestCommonSettingsControlsSupportKeyboardFocus()
+        {
+            DisplaySettingsPanel display = null;
+
+            AddStep("open Display", () =>
+            {
+                settingsScreen.OpenPage(SettingsPageKind.Display);
+                display =
+                    (DisplaySettingsPanel)settingsScreen.ActivePanel;
+            });
+            AddAssert("display selectors accept focus", () =>
+                settingsScreen.ActivePanel
+                    .ChildrenOfType<SettingsSegmentedChoiceButton>()
+                    .All(control => control.AcceptsFocus)
+                && settingsScreen.ActivePanel
+                    .ChildrenOfType<SettingsFrameLimitChoiceButton>()
+                    .All(control => control.AcceptsFocus)
+                && settingsScreen.ActivePanel
+                    .ChildrenOfType<DisplayPerformanceReadoutToggle>()
+                    .All(control => control.AcceptsFocus)
+                && settingsScreen.ActivePanel
+                    .ChildrenOfType<SettingsDropdownHeader>()
+                    .Single()
+                    .AcceptsFocus
+                    == display.IsResolutionSelectionEnabled);
+            AddStep("open Audio", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Audio));
+            AddAssert("audio controls accept focus", () =>
+                settingsScreen.ActivePanel
+                    .ChildrenOfType<SettingsSegmentedChoiceButton>()
+                    .All(control => control.AcceptsFocus)
+                && settingsScreen.ActivePanel
+                    .ChildrenOfType<SettingsDropdownHeader>()
+                    .All(control => control.AcceptsFocus)
+                && settingsScreen.ActivePanel
+                    .ChildrenOfType<SettingsVolumeSlider>()
+                    .All(control => control.AcceptsFocus)
+                && settingsScreen.ActivePanel
+                    .ChildrenOfType<SettingsAudioTestButton>()
+                    .All(control => control.AcceptsFocus)
+                && settingsScreen.ActivePanel
+                    .ChildrenOfType<SettingsAudioToggle>()
+                    .All(control => control.AcceptsFocus)
+                && settingsScreen.ActivePanel
+                    .ChildrenOfType<SettingsOffsetStepper>()
+                    .All(control => control.AcceptsFocus));
+            AddStep("open Import", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Import));
+            AddAssert("import preferences accept focus", () =>
+                settingsScreen.ActivePanel
+                    .ChildrenOfType<ImportPreferenceCard>()
+                    .All(control => control.AcceptsFocus));
+            AddStep("open About", () =>
+                settingsScreen.OpenPage(SettingsPageKind.About));
+            AddAssert("placeholder sections accept focus", () =>
+                settingsScreen.ActivePanel
+                    .ChildrenOfType<SettingsPlaceholderSection>()
+                    .All(control => control.AcceptsFocus));
+        }
+
+        [Test]
         public void TestStatusCardIconsAreCentred()
         {
             AddStep("open Display", () => settingsScreen.OpenPage(SettingsPageKind.Display));
@@ -187,7 +293,7 @@ namespace Yokko.Game.Tests.Visual
         public void TestTransientInteractionsDismissInOrder()
         {
             GameplaySettingsPanel gameplay = null;
-            DisplaySettingsPanel display = null;
+            AudioSettingsPanel audio = null;
 
             AddStep("open Gameplay", () => settingsScreen.OpenPage(SettingsPageKind.Gameplay));
             AddStep("capture Gameplay", () => gameplay = (GameplaySettingsPanel)settingsScreen.ActivePanel);
@@ -196,12 +302,14 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("Esc layer dismisses capture", settingsScreen.DismissTransientUi);
             AddAssert("key capture dismissed", () => !gameplay.IsCapturingKey);
 
-            AddStep("open Display", () => settingsScreen.OpenPage(SettingsPageKind.Display));
-            AddStep("capture display", () => display = (DisplaySettingsPanel)settingsScreen.ActivePanel);
-            AddStep("open resolution menu", () => display.ToggleResolutionMenu());
-            AddAssert("resolution menu open", () => display.IsResolutionMenuOpen);
+            AddStep("open Audio", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Audio));
+            AddStep("capture audio", () =>
+                audio = (AudioSettingsPanel)settingsScreen.ActivePanel);
+            AddStep("open device menu", () => audio.ToggleDeviceMenu());
+            AddAssert("device menu open", () => audio.IsDeviceMenuOpen);
             AddAssert("Esc layer dismisses menu", settingsScreen.DismissTransientUi);
-            AddAssert("resolution menu closed", () => !display.IsResolutionMenuOpen);
+            AddAssert("device menu closed", () => !audio.IsDeviceMenuOpen);
         }
 
         [Test]
@@ -539,7 +647,7 @@ namespace Yokko.Game.Tests.Visual
             AddStep("open Import", () => settingsScreen.OpenPage(SettingsPageKind.Import));
             AddStep("capture Import", () => import = (ImportSettingsPanel)settingsScreen.ActivePanel);
             AddAssert("all importer families shown", () => import.FormatFamilyCount == 5);
-            AddAssert("all supported extensions shown", () => import.FileTypeCount == 12);
+            AddAssert("all supported extensions shown", () => import.FileTypeCount == 13);
 
             AddStep("disable keysounds", () => import.SetPreferKeysounds(false));
             AddAssert("keysounds disabled", () => !import.PreferKeysounds);
