@@ -36,7 +36,6 @@ namespace Yokko.Game
 
         protected override Container<Drawable> Content { get; }
 
-        private readonly DrawSizePreservingFillContainer scalingContainer;
         [Cached]
         private readonly YokkoDisplaySettings displaySettings = new();
         [Cached]
@@ -72,11 +71,9 @@ namespace Yokko.Game
             keyInputTimestamps = new KeyInputTimestampSource(keyInputTimestampBackend);
 
             // Ensure game and tests scale with window size and screen DPI.
-            base.Content.Add(Content = scalingContainer = new DrawSizePreservingFillContainer
-            {
-                TargetDrawSize = displaySettings.TargetDrawSize,
-                Strategy = DrawSizePreservationStrategy.Minimum,
-            });
+            base.Content.Add(Content = new YokkoUiScalingContainer(
+                displaySettings.UiScale,
+                () => window?.Scale ?? 1));
         }
 
         protected override LocalisationManager CreateLocalisationManager(FrameworkConfigManager frameworkConfig) =>
@@ -163,8 +160,6 @@ namespace Yokko.Game
             Resources.AddStore(resources);
             AddFont(Resources, @"Fonts/Yokko/Yokko");
             AddFont(Resources, @"Fonts/Yokko/Yokko-Bold");
-            displaySettings.UiScale.BindValueChanged(onUiScaleChanged, true);
-
             _ = Task.Run(() => importedChartLibrary.LoadFromDiskAsync(
                 importSettings.PreferKeysounds.Value,
                 importSettings.PreferSscSimfiles.Value))
@@ -191,15 +186,11 @@ namespace Yokko.Game
 
                 yokkoConfig?.Dispose();
                 frameRateController?.Dispose();
-                displaySettings.UiScale.ValueChanged -= onUiScaleChanged;
                 keyInputTimestamps.Dispose();
             }
 
             base.Dispose(isDisposing);
         }
-
-        private void onUiScaleChanged(ValueChangedEvent<YokkoUiScale> _) =>
-            scalingContainer.TargetDrawSize = displaySettings.TargetDrawSize;
 
         private void onFileDropped(string path)
         {

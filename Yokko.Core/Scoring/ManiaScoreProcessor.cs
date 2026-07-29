@@ -15,14 +15,25 @@ public sealed class ManiaScoreProcessor
 
     private readonly int maximumAccuracyJudgementCount;
     private readonly double maximumComboPortion;
+    private readonly double scoreMultiplier;
 
     private double currentBaseScore;
     private double currentMaximumBaseScore;
     private int currentAccuracyJudgementCount;
     private double currentComboPortion;
 
-    public ManiaScoreProcessor(YokkoBeatmap beatmap)
+    public ManiaScoreProcessor(
+        YokkoBeatmap beatmap,
+        double scoreMultiplier = 1)
     {
+        if (!double.IsFinite(scoreMultiplier)
+            || scoreMultiplier < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(scoreMultiplier));
+        }
+
+        this.scoreMultiplier = scoreMultiplier;
         maximumAccuracyJudgementCount = beatmap.HitObjects.Sum(static hitObject => hitObject.Kind switch
         {
             HitObjectKind.Tap => 1,
@@ -67,6 +78,8 @@ public sealed class ManiaScoreProcessor
     }
 
     public long TotalScore { get; private set; }
+
+    public long TotalScoreWithoutMods { get; private set; }
 
     public ScoreRank Rank { get; private set; } = ScoreRank.X;
 
@@ -142,9 +155,11 @@ public sealed class ManiaScoreProcessor
             ? (double)currentAccuracyJudgementCount / maximumAccuracyJudgementCount
             : 1;
 
-        TotalScore = (long)Math.Round(
+        TotalScoreWithoutMods = (long)Math.Round(
             150_000 * comboProgress
             + 850_000 * Math.Pow(Accuracy, 2 + 2 * Accuracy) * accuracyProgress);
+        TotalScore = (long)Math.Round(
+            TotalScoreWithoutMods * scoreMultiplier);
         Rank = RankFromScore(Accuracy, Counts);
     }
 

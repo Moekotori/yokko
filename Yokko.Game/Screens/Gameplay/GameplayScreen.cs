@@ -224,7 +224,8 @@ public partial class GameplayScreen : Screen
                 mods.Contains(ManiaModId.Classic),
                 mods.Contains(ManiaModId.ScoreV2),
                 beatmap.ConversionSource is not null),
-            mods.Contains(ManiaModId.NoRelease));
+            mods.Contains(ManiaModId.NoRelease),
+            mods.ScoreMultiplier);
         keysoundSelector = new GameplayKeysoundSelector(
             beatmap,
             judgementState);

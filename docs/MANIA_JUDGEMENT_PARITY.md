@@ -31,8 +31,21 @@ edges consumed by the parity-tested Core rules without changing those rules.
 - scoring:
   `osu.Game.Rulesets.Mania/Scoring/ManiaScoreProcessor.cs` and
   `osu.Game/Rulesets/Scoring/ScoreProcessor.cs`
+- Mod score multipliers:
+  `osu.Game.Rulesets.Mania/Scoring/ManiaScoreMultiplierCalculator.cs`
+- health:
+  `osu.Game.Rulesets.Mania/Scoring/ManiaHealthProcessor.cs` and
+  `osu.Game/Rulesets/Scoring/LegacyDrainingHealthProcessor.cs`
+- fail conditions:
+  `osu.Game.Rulesets.Mania/Mods/ManiaModPerfect.cs` and
+  `osu.Game/Rulesets/Mods/ModSuddenDeath.cs`
 - primary hold golden cases:
   `osu.Game.Rulesets.Mania.Tests/TestSceneHoldNoteInput.cs`
+
+Every path above is read from the pinned `ppy/osu` **lazer** repository and
+commit. `LegacyDrainingHealthProcessor` is a class used by lazer's current
+`ManiaHealthProcessor`; the word `Legacy` in its type name does not mean Yokko
+is using the osu!stable client as its baseline.
 
 The previous judgement code reference
 `cb3d5da8b441afd8d2cf3e03ceebc6b027e2074d` has no changes in the listed
@@ -52,23 +65,29 @@ judgement/scoring paths relative to the pinned baseline.
 | Nearby-note forced miss | `JudgementStateTest.NearbyNoteCanForceEarlierHoldToMissLikeOrderedHitPolicy` | Covered |
 | Zero-length hold | `JudgementStateTest.ZeroLengthHoldCanHitHeadAndTail` | Covered |
 | Same-lane stack ordering | `LazerManiaJudgementParityTest.SameLaneStackOnlyHitsMostRecentObjectLikeLazer` | Covered |
+| Overlapping same-lane holds | `LazerManiaJudgementParityTest.OverlappingSameLaneHoldsRespectLazerNoteLock` | Covered |
 | Simultaneous hold/note maximum score | Two `LazerManiaJudgementParityTest` maximum-score cases | Covered |
 | Default Mania score curve | `JudgementStateTest.MixedResultsUseLazerAccuracyWeightsAndComboCurve` | Covered |
 | Mania SS rule | `JudgementStateTest.AllGreatsReceiveLazerSsRank` | Covered |
+| Complete Mania rank matrix | Thirteen `LazerManiaJudgementParityTest` rank cases mirror `ManiaScoreProcessorTest` | Covered |
+| Current Mod score multipliers | `ManiaScoreMultiplierParityTest` mirrors the complete current-score matrix from lazer's `ManiaScoreMultiplierTest` | Covered |
+| Health recovery multiplier | `ManiaHealthStateTest.ManiaHealthUsesLazerDrainAndRecoveryValues` ports lazer's iterative recovery calculation | Covered |
+| Break-aware health simulation | `ManiaHealthStateTest.BreakPeriodsMatchLazerRecoverySimulation` plus editable osu round-trip coverage | Covered |
+| Sudden Death | `ManiaHealthStateTest.SuddenDeathOnlyFailsOnComboBreakingResult` | Covered |
+| Mania Perfect default | `ManiaHealthStateTest.PerfectUsesLazerManiaDefaultGreatThreshold` and hold-body ComboBreak coverage | Covered |
+| Easy lives, No Fail, Accuracy Challenge | Focused `ManiaHealthStateTest` cases | Covered |
 
 ## Remaining proof work
 
-The following must be closed before claiming complete ruleset parity:
+The following must still be closed before claiming complete ruleset parity:
 
-1. Add overlapping same-lane hold cases beyond the upstream nearby-note
-   fixtures to prove deterministic event ordering.
-2. Expand score golden cases to cover all upstream Mania rank inputs and
-   simultaneous maximum-score ordering.
-3. Audit judgement-driven health and fail conditions separately; they consume
-   judgement events but are not part of the raw judgement-state equivalence
-   proven above.
-4. Run the complete focused Core parity group and the related headless gameplay
-   integration cases after each parity change.
+1. Keep auditing chart conversion and Mod-specific gameplay outside the
+   judgement/scoring/health surface covered by this document. A passing
+   judgement parity gate is not yet a claim that every lazer Mania Mod and
+   conversion detail is complete.
+
+Latest gate: 155 focused Core cases and 4 related headless gameplay cases pass
+against the pinned lazer-derived expectations.
 
 Custom Yokko judgement behaviour must eventually live behind an explicit
 ruleset or option. It must not silently modify the default lazer-parity path.

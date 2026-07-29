@@ -5,6 +5,7 @@ using osu.Framework.Configuration;
 using osu.Framework.Platform;
 using Yokko.Game.Configuration;
 using Yokko.Game.Presentation;
+using Yokko.Game.Screens.Main;
 using Yokko.Game.Screens.Settings;
 
 namespace Yokko.Game.Tests.Core;
@@ -96,6 +97,66 @@ public sealed class DisplaySettingsTest
             Assert.That(YokkoDisplaySettings.GetScalePercentage(YokkoUiScale.Large), Is.EqualTo(100));
             Assert.That(YokkoDisplaySettings.GetScalePercentage(YokkoUiScale.Comfortable), Is.EqualTo(90));
             Assert.That(YokkoDisplaySettings.GetScalePercentage(YokkoUiScale.Compact), Is.EqualTo(80));
+        });
+    }
+
+    [TestCase(YokkoUiScale.Large, 1f)]
+    [TestCase(YokkoUiScale.Comfortable, 0.9f)]
+    [TestCase(YokkoUiScale.Compact, 0.8f)]
+    public void InterfaceScaleChangesAtAuthoredResolution(
+        YokkoUiScale scale,
+        float expected)
+    {
+        Assert.That(
+            YokkoDisplaySettings.CalculateContentScale(
+                new osuTK.Vector2(1280, 720),
+                1,
+                scale),
+            Is.EqualTo(expected).Within(0.001f));
+    }
+
+    [TestCase(YokkoUiScale.Large, 1.5f)]
+    [TestCase(YokkoUiScale.Comfortable, 1.35f)]
+    [TestCase(YokkoUiScale.Compact, 1.2f)]
+    public void InterfaceScaleStopsGrowingWithRawDesktopResolution(
+        YokkoUiScale scale,
+        float expected)
+    {
+        Assert.That(
+            YokkoDisplaySettings.CalculateContentScale(
+                new osuTK.Vector2(3200, 1955),
+                1.25f,
+                scale),
+            Is.EqualTo(expected).Within(0.001f));
+    }
+
+    [Test]
+    public void InterfaceScaleStillFollowsHighDpi()
+    {
+        Assert.That(
+            YokkoDisplaySettings.CalculateContentScale(
+                new osuTK.Vector2(3840, 2160),
+                2,
+                YokkoUiScale.Large),
+            Is.EqualTo(2).Within(0.001f));
+    }
+
+    [Test]
+    public void MainScreenExpandsItsSafeStageWithoutStretching()
+    {
+        var stage = MainScreen.CalculateResponsiveStageSize(
+            new osuTK.Vector2(2133, 1303));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(stage, Is.EqualTo(new osuTK.Vector2(1600, 900)));
+            Assert.That(
+                MainScreen.CalculateRightStageOffset(stage),
+                Is.EqualTo(new osuTK.Vector2(320, 90)));
+            Assert.That(
+                MainScreen.CalculateResponsiveStageSize(
+                    new osuTK.Vector2(1280, 720)),
+                Is.EqualTo(new osuTK.Vector2(1280, 720)));
         });
     }
 

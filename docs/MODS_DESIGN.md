@@ -30,9 +30,9 @@ SV2 system marker:
 deliberately not a runtime registry. An entry in the target catalogue must not
 appear selectable until its complete behaviour is registered and tested.
 
-## Implemented runtime entries
+## Selectable runtime entries
 
-The currently selectable, behaviour-complete first slices are:
+The currently selectable implementation slices are:
 
 - fixed rate: HT, DC, DT and NC at their upstream default rates;
 - conversion: MR, seeded RD, HO, IN, CL, CS, configurable DA, DS and
@@ -53,6 +53,10 @@ The gameplay health state follows Mania HP drain values per judgement. EZ
 halves HP difficulty, widens hit windows by 1.4x and restores full health for
 two extra lives; NF suppresses failure, while SD and PF use judgement-driven
 fail conditions.
+The final displayed and persisted score applies lazer's current Mania Mod
+multiplier matrix after rounding the score-without-Mods. This includes the
+default 0.5x for EZ/NF/WU/WD/AS, 0.3x for HT/DC, and 0.9x for NR/CS/HO/key
+Mods, with multiplicative combinations.
 HR multiplies Mania hit-window difficulty by 1.4 and raises HP drain by 1.4
 up to 10. AC defaults to a 90% maximum-achievable-accuracy target and stores
 its 60.0%–99.9% threshold and accuracy mode in the canonical fingerprint.
@@ -115,13 +119,18 @@ The current codebase already has strong foundations:
 - playback-rate-aware star-rating calculation;
 - a canonical, format-independent `YokkoBeatmap`.
 
-The remaining parity blockers are structural:
+The remaining parity blockers include:
 
 - persisted replay files do not yet store a canonical Mod configuration;
-- persisted UI preferences for configurable Mods are not yet stored globally.
+- persisted UI preferences for configurable Mods are not yet stored globally;
+- lazer's configurable fixed-rate values and Mania Perfect's optional
+  `Require perfect hits` setting are not yet exposed;
+- the standard-to-Mania converter still needs golden-corpus coverage for
+  complex repeat sliders and sample-driven chord generation.
 
-These blockers mean the remaining conversion entries must not be enabled at
-once.
+No selectable entry should be described as fully parity-proven until its
+affected contracts and configuration variants have focused upstream-derived
+evidence.
 
 ## Ownership and module boundaries
 
@@ -259,7 +268,7 @@ This stage ships with no fake selectable Mods.
 
 ### Stage 1: deterministic rules and transformations
 
-The deterministic conversion layer now includes:
+The deterministic conversion layer currently includes:
 
 - MR and seeded RD;
 - HO and NR;
@@ -267,6 +276,8 @@ The deterministic conversion layer now includes:
 - DA for HP and Mania OD, including extended limits.
 
 Each transformation operates on a copied beatmap and has pure Core tests.
+Invert also clears break periods after replacing the chart with continuous
+holds, matching lazer's `ManiaModInvert`.
 
 ### Stage 2: visibility and playfield behaviour
 

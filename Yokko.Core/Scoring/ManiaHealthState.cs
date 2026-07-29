@@ -6,8 +6,11 @@ namespace Yokko.Core.Scoring;
 /// <summary>
 /// Deterministic osu!lazer-style Mania health and fail state.
 /// Health deltas and Easy behaviour are adapted from ppy/osu
-/// ManiaHealthProcessor and ManiaModEasy at
+/// ManiaHealthProcessor, LegacyDrainingHealthProcessor, ManiaModEasy,
+/// ManiaModPerfect and ManiaModSuddenDeath at
 /// 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
+/// LegacyDrainingHealthProcessor is part of this pinned lazer source tree;
+/// its name describes compatibility behaviour, not an osu!stable dependency.
 /// </summary>
 public sealed class ManiaHealthState
 {
@@ -106,7 +109,9 @@ public sealed class ManiaHealthState
         if (mods.Contains(ManiaModId.Perfect)
             && (judgement.Rating.AffectsAccuracy()
                 || judgement.Rating.AffectsCombo())
-            && judgement.Rating < JudgementRating.Great)
+            && judgement.Rating is not (
+                JudgementRating.Great
+                or JudgementRating.Perfect))
         {
             return ManiaFailReason.PerfectBroken;
         }

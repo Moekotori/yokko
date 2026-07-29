@@ -101,7 +101,13 @@ public sealed class ManiaBeatmapModTransformerTest
     [Test]
     public void InvertCreatesHoldsBetweenConsecutiveLaneLocations()
     {
-        YokkoBeatmap original = createBeatmap();
+        YokkoBeatmap original = createBeatmap() with
+        {
+            BreakPeriods =
+            [
+                new YokkoBreakPeriod(1400, 1800),
+            ],
+        };
         YokkoBeatmap transformed =
             ManiaBeatmapModTransformer.Apply(
                 original,
@@ -119,7 +125,12 @@ public sealed class ManiaBeatmapModTransformerTest
                 laneOne.EndTimeMilliseconds,
                 Is.EqualTo(1875));
             Assert.That(laneOne.Kind, Is.EqualTo(HitObjectKind.Hold));
+            Assert.That(
+                transformed.BreakPeriods,
+                Is.Empty,
+                "lazer ManiaModInvert explicitly removes all breaks");
             Assert.That(original.HitObjects.Count, Is.EqualTo(5));
+            Assert.That(original.BreakPeriods, Has.Count.EqualTo(1));
         });
     }
 

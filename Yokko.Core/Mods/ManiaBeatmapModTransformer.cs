@@ -23,6 +23,8 @@ public static class ManiaBeatmapModTransformer
         KeyMode keyMode = original.KeyMode;
         int stageCount = original.StageCount;
         IReadOnlyList<YokkoHitObject> hitObjects = original.HitObjects;
+        IReadOnlyList<YokkoBreakPeriod> breakPeriods =
+            original.BreakPeriods;
         if (original.ConversionSource is not null
             && (mods.KeyConversionTarget is not null
                 || mods.HasDualStages))
@@ -98,6 +100,9 @@ public static class ManiaBeatmapModTransformer
                                  .ThenBy(static hitObject =>
                                      hitObject.Lane)
                                  .ToArray();
+            // lazer's ManiaModInvert removes every break after replacing the
+            // original objects with the continuous inverted hold pattern.
+            breakPeriods = [];
         }
         else if (mods.Contains(ManiaModId.HoldOff))
         {
@@ -151,6 +156,7 @@ public static class ManiaBeatmapModTransformer
 
         YokkoBeatmap structurallyApplied =
             ReferenceEquals(hitObjects, original.HitObjects)
+            && ReferenceEquals(breakPeriods, original.BreakPeriods)
             && keyMode == original.KeyMode
                 ? original
                 : original with
@@ -158,6 +164,7 @@ public static class ManiaBeatmapModTransformer
                     KeyMode = keyMode,
                     HitObjects = hitObjects,
                     StageCount = stageCount,
+                    BreakPeriods = breakPeriods,
                 };
         if (!mods.Contains(ManiaModId.DifficultyAdjust))
             return structurallyApplied;

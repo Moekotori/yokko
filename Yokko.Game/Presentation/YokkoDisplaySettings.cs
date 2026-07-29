@@ -1,3 +1,4 @@
+using System;
 using osu.Framework.Bindables;
 using osuTK;
 
@@ -21,6 +22,10 @@ public enum YokkoFrameLimit
 
 public sealed class YokkoDisplaySettings
 {
+    public static readonly Vector2 DesignedDrawSize = new(1280, 720);
+
+    private const float maximum_desktop_scale = 1.5f;
+
     public readonly Bindable<YokkoUiScale> UiScale = new(YokkoUiScale.Comfortable);
 
     public readonly Bindable<YokkoFrameLimit> FrameLimit =
@@ -39,10 +44,41 @@ public sealed class YokkoDisplaySettings
         _ => new Vector2(1440, 810),
     };
 
+    public static float GetScaleFactor(YokkoUiScale scale) =>
+        GetScalePercentage(scale) / 100f;
+
     public static int GetScalePercentage(YokkoUiScale scale) => scale switch
     {
         YokkoUiScale.Large => 100,
         YokkoUiScale.Compact => 80,
         _ => 90,
     };
+
+    /// <summary>
+    /// Calculates the physical scale applied to Yokko's authored 1280x720 UI.
+    /// The UI follows operating-system DPI, grows up to a 1080p-equivalent
+    /// desktop size, and then stops growing with raw window resolution.
+    /// Smaller windows always shrink to fit.
+    /// </summary>
+    public static float CalculateContentScale(
+        Vector2 availableDrawSize,
+        float displayScale,
+        YokkoUiScale uiScale)
+    {
+        if (availableDrawSize.X <= 0 || availableDrawSize.Y <= 0)
+            return 1;
+
+        float fitScale = MathF.Min(
+            availableDrawSize.X / DesignedDrawSize.X,
+            availableDrawSize.Y / DesignedDrawSize.Y);
+        float safeDisplayScale = float.IsFinite(displayScale)
+            ? MathF.Max(displayScale, 0.5f)
+            : 1;
+        float preferredDesktopScale = MathF.Max(
+            safeDisplayScale,
+            MathF.Min(fitScale, maximum_desktop_scale));
+        float baseScale = MathF.Min(fitScale, preferredDesktopScale);
+
+        return MathF.Max(baseScale * GetScaleFactor(uiScale), 0.01f);
+    }
 }

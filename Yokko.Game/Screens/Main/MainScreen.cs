@@ -36,9 +36,15 @@ public partial class MainScreen : Screen
     private static readonly Color4 paleCyan = new(0.54f, 0.91f, 0.98f, 1f);
 
     private Container content;
+    private Container leftStageLayout;
+    private Container rightStageLayout;
+    private Container decorationStageLayout;
+    private Container utilityAreaLayout;
     private Container leftStage;
     private Container decorationLayer;
     private Container rightParallax;
+    private Box ivoryBase;
+    private Box ivorySlant;
     private Drawable rightStage;
     private Drawable brandLockup;
     private Drawable commandArea;
@@ -99,90 +105,106 @@ public partial class MainScreen : Screen
                 Size = new Vector2(designedWidth, designedHeight),
                 Children = new Drawable[]
                 {
-                    rightStage = createRightStage(mascotTexture),
-                    decorationLayer = new Container
+                    rightStageLayout = new Container
                     {
-                        RelativeSizeAxes = Axes.Both,
-                        Alpha = 0,
-                        Children = new Drawable[]
+                        Size = new Vector2(designedWidth, designedHeight),
+                        Child = rightStage = createRightStage(mascotTexture),
+                    },
+                    decorationStageLayout = new Container
+                    {
+                        Size = new Vector2(designedWidth, designedHeight),
+                        Child = decorationLayer = new Container
                         {
-                            createDecorationIcon(FontAwesome.Solid.Plus, 55, 36, 12, pink),
-                            createDecorationIcon(FontAwesome.Solid.Plus, 116, 29, 10, cyan),
-                            createDecorationIcon(FontAwesome.Solid.Plus, 42, 67, 9, yellow),
-                            new HomeCornerBracket
+                            RelativeSizeAxes = Axes.Both,
+                            Alpha = 0,
+                            Children = new Drawable[]
                             {
-                                Position = new Vector2(30, 218),
-                                Height = 232,
-                            },
-                            new HomeConnectorPlus
-                            {
-                                Position = new Vector2(38, 448),
-                            },
-                            new HomeMicroLine
-                            {
-                                Position = new Vector2(525, 31),
-                                Width = 142,
-                            },
-                            new HomeDotCross
-                            {
-                                Position = new Vector2(-12, 606),
-                                Alpha = 0.62f,
-                            },
-                            new HomeCrosshairMark
-                            {
-                                Position = new Vector2(606, 244),
-                            },
-                            new HomeCrosshairMark
-                            {
-                                Position = new Vector2(648, 612),
-                            },
-                            new Circle
-                            {
-                                Position = new Vector2(624, 556),
-                                Size = new Vector2(7),
-                                Colour = pink,
-                                Alpha = 0.85f,
-                            },
-                            new SpriteText
-                            {
-                                Origin = Anchor.Centre,
-                                Position = new Vector2(22, 380),
-                                Rotation = -90,
-                                Text = "RHYTHM CHART STUDIO · VOL.01",
-                                Font = HomeTypography.Display(13),
-                                Spacing = new Vector2(3, 0),
-                                Colour = new Color4(navy.R, navy.G, navy.B, 0.32f),
-                            },
-                            new HomeBarcode("NO.004-KEY")
-                            {
-                                Position = new Vector2(612, 664),
-                            },
-                            new SpriteText
-                            {
-                                Position = new Vector2(714, 680),
-                                Text = "EST. 2025 · 4K MANIA",
-                                Font = HomeTypography.Display(10),
-                                Spacing = new Vector2(1.8f, 0),
-                                Colour = new Color4(navy.R, navy.G, navy.B, 0.5f),
-                            },
-                            new HomeDotField
-                            {
-                                Position = new Vector2(36, 545),
-                                Size = new Vector2(84, 52),
-                                Colour = new Color4(navy.R, navy.G, navy.B, 0.13f),
+                                createDecorationIcon(FontAwesome.Solid.Plus, 55, 36, 12, pink),
+                                createDecorationIcon(FontAwesome.Solid.Plus, 116, 29, 10, cyan),
+                                createDecorationIcon(FontAwesome.Solid.Plus, 42, 67, 9, yellow),
+                                new HomeCornerBracket
+                                {
+                                    Position = new Vector2(30, 218),
+                                    Height = 232,
+                                },
+                                new HomeConnectorPlus
+                                {
+                                    Position = new Vector2(38, 448),
+                                },
+                                new HomeMicroLine
+                                {
+                                    Position = new Vector2(525, 31),
+                                    Width = 142,
+                                },
+                                new HomeDotCross
+                                {
+                                    Position = new Vector2(-12, 606),
+                                    Alpha = 0.62f,
+                                },
+                                new HomeCrosshairMark
+                                {
+                                    Position = new Vector2(606, 244),
+                                },
+                                new HomeCrosshairMark
+                                {
+                                    Position = new Vector2(648, 612),
+                                },
+                                new Circle
+                                {
+                                    Position = new Vector2(624, 556),
+                                    Size = new Vector2(7),
+                                    Colour = pink,
+                                    Alpha = 0.85f,
+                                },
+                                new SpriteText
+                                {
+                                    Origin = Anchor.Centre,
+                                    Position = new Vector2(22, 380),
+                                    Rotation = -90,
+                                    Text = "RHYTHM CHART STUDIO · VOL.01",
+                                    Font = HomeTypography.Display(13),
+                                    Spacing = new Vector2(3, 0),
+                                    Colour = new Color4(navy.R, navy.G, navy.B, 0.32f),
+                                },
+                                new HomeBarcode("NO.004-KEY")
+                                {
+                                    Position = new Vector2(612, 664),
+                                },
+                                new SpriteText
+                                {
+                                    Position = new Vector2(714, 680),
+                                    Text = "EST. 2025 · 4K MANIA",
+                                    Font = HomeTypography.Display(10),
+                                    Spacing = new Vector2(1.8f, 0),
+                                    Colour = new Color4(navy.R, navy.G, navy.B, 0.5f),
+                                },
+                                new HomeDotField
+                                {
+                                    Position = new Vector2(36, 545),
+                                    Size = new Vector2(84, 52),
+                                    Colour = new Color4(navy.R, navy.G, navy.B, 0.13f),
+                                },
                             },
                         },
                     },
-                    leftStage = new Container
+                    leftStageLayout = new Container
                     {
-                        RelativeSizeAxes = Axes.Both,
-                        Children = new Drawable[]
+                        Size = new Vector2(designedWidth, designedHeight),
+                        Child = leftStage = new Container
                         {
-                            brandLockup = createBrandLockup(logoTexture),
-                            commandArea = createCommandArea(),
+                            RelativeSizeAxes = Axes.Both,
+                            Children = new Drawable[]
+                            {
+                                brandLockup = createBrandLockup(logoTexture),
+                                commandArea = createCommandArea(),
+                            },
                         },
                     },
-                    utilityArea = createUtilityArea(),
+                    utilityAreaLayout = new Container
+                    {
+                        Size = new Vector2(designedWidth, designedHeight),
+                        Child = utilityArea = createUtilityArea(),
+                    },
                     exitIndicator = new HomeExitHoldIndicator(YokkoStrings.Get("main.exit_hold"))
                     {
                         Position = new Vector2(60, 670),
@@ -288,6 +310,7 @@ public partial class MainScreen : Screen
     protected override void Update()
     {
         base.Update();
+        updateResponsiveLayout();
 
         if (isEscapeHeld)
         {
@@ -316,6 +339,43 @@ public partial class MainScreen : Screen
         rightParallax.Position = parallaxCurrent * new Vector2(16, 11);
         decorationLayer.Position = parallaxCurrent * new Vector2(24, 15);
         leftStage.Position = parallaxCurrent * new Vector2(-5, -3);
+    }
+
+    private void updateResponsiveLayout()
+    {
+        if (content == null || DrawWidth <= 0 || DrawHeight <= 0)
+            return;
+
+        Vector2 stageSize = CalculateResponsiveStageSize(new Vector2(
+            DrawWidth,
+            DrawHeight));
+        Vector2 extra = stageSize - new Vector2(designedWidth, designedHeight);
+        Vector2 rightStageOffset = CalculateRightStageOffset(stageSize);
+
+        content.Size = stageSize;
+        leftStageLayout.Y = extra.Y * 0.18f;
+        decorationStageLayout.Y = extra.Y * 0.18f;
+        rightStageLayout.Position = rightStageOffset;
+        utilityAreaLayout.X = extra.X;
+        exitIndicator.Y = stageSize.Y - 50;
+
+        float stageLeft = MathF.Max((DrawWidth - stageSize.X) / 2, 0);
+        float ivoryWidth = stageLeft + 510;
+        ivoryBase.Width = ivoryWidth;
+        ivorySlant.X = ivoryWidth;
+    }
+
+    internal static Vector2 CalculateResponsiveStageSize(Vector2 viewport) =>
+        new(
+            MathF.Min(MathF.Max(viewport.X, designedWidth), 1600),
+            MathF.Min(MathF.Max(viewport.Y, designedHeight), 900));
+
+    internal static Vector2 CalculateRightStageOffset(Vector2 stageSize)
+    {
+        Vector2 extra = stageSize - new Vector2(designedWidth, designedHeight);
+        return new Vector2(
+            MathF.Max(extra.X, 0),
+            MathF.Max(extra.Y, 0) * 0.5f);
     }
 
     private void cancelExitHold()
@@ -417,18 +477,18 @@ public partial class MainScreen : Screen
         sparkleAngleOffset += MathF.PI / 4;
     }
 
-    private static Drawable createIvoryStage() => new Container
+    private Drawable createIvoryStage() => new Container
     {
         RelativeSizeAxes = Axes.Both,
         Children = new Drawable[]
         {
-            new Box
+            ivoryBase = new Box
             {
                 RelativeSizeAxes = Axes.Y,
                 Width = 510,
                 Colour = ivory,
             },
-            new Box
+            ivorySlant = new Box
             {
                 RelativeSizeAxes = Axes.Y,
                 Width = 220,

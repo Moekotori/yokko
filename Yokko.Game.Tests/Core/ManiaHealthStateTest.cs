@@ -195,11 +195,11 @@ public sealed class ManiaHealthStateTest
         var health = new ManiaHealthState(beatmap, mods);
 
         ManiaHealthUpdate first =
-            health.Apply(judgement(JudgementRating.Great));
+            health.Apply(judgement(JudgementRating.Good));
         ManiaHealthUpdate second =
-            health.Apply(judgement(JudgementRating.Great));
+            health.Apply(judgement(JudgementRating.Good));
         ManiaHealthUpdate third =
-            health.Apply(judgement(JudgementRating.Great));
+            health.Apply(judgement(JudgementRating.Good));
 
         Assert.Multiple(() =>
         {

@@ -815,6 +815,38 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestLazerModMultiplierIsAppliedToGameplayScore()
+        {
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Mod Multiplier Result Test",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        0,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+            GameplayScreen gameplay = null;
+
+            AddStep("open Easy autoplay gameplay", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    mods: new ManiaModSet(
+                    [
+                        ManiaModId.Easy,
+                        ManiaModId.Autoplay,
+                    ]))));
+            AddUntilStep("gameplay completes", () =>
+                gameplay?.GameplayCompleted == true);
+            AddAssert("Easy applies lazer 0.5x score multiplier", () =>
+                gameplay.CompletedResult.Score == 500_000
+                && gameplay.CompletedResult.Perfect == 1);
+        }
+
+        [Test]
         public void TestPerfectFailureShowsDedicatedFailOverlay()
         {
             YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with

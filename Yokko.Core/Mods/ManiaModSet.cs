@@ -475,6 +475,18 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                 ? 1.4
                 : 1;
 
+    /// <summary>
+    /// Multiplier applied to lazer's rounded score-without-Mods value.
+    /// Source: ppy/osu
+    /// osu.Game.Rulesets.Mania/Scoring/ManiaScoreMultiplierCalculator.cs
+    /// commit 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
+    /// Fixed-rate Mods currently use Yokko's supported upstream defaults.
+    /// </summary>
+    public double ScoreMultiplier => mods.Aggregate(
+        1d,
+        static (multiplier, mod) =>
+            multiplier * scoreMultiplierFor(mod));
+
     public double EffectiveOverallDifficulty(double beatmapValue) =>
         Contains(ManiaModId.DifficultyAdjust)
             ? DifficultyAdjustOverallDifficulty ?? beatmapValue
@@ -492,6 +504,24 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             ? Math.Min(10, beatmapValue * 1.4)
             : beatmapValue;
     }
+
+    private static double scoreMultiplierFor(ManiaModId mod)
+        => mod switch
+        {
+            ManiaModId.Easy
+                or ManiaModId.NoFail
+                or ManiaModId.DifficultyAdjust
+                or ManiaModId.WindUp
+                or ManiaModId.WindDown
+                or ManiaModId.AdaptiveSpeed => 0.5,
+            ManiaModId.HalfTime
+                or ManiaModId.Daycore => 0.3,
+            ManiaModId.NoRelease
+                or ManiaModId.ConstantSpeed
+                or ManiaModId.HoldOff
+                or >= ManiaModId.Key1 and <= ManiaModId.Key10 => 0.9,
+            _ => 1,
+        };
 
     public string Fingerprint => IsEmpty
         ? "nm"

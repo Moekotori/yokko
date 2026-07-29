@@ -29,13 +29,16 @@ public sealed class BeatmapJudgementState
     public BeatmapJudgementState(
         YokkoBeatmap beatmap,
         JudgementWindows? windows = null,
-        bool noRelease = false)
+        bool noRelease = false,
+        double scoreMultiplier = 1)
     {
         this.beatmap = beatmap;
         this.noRelease = noRelease;
         Windows = windows ?? new JudgementWindows(beatmap.OverallDifficulty);
         states = beatmap.HitObjects.Select(static hitObject => new ObjectState(hitObject)).ToArray();
-        scoreProcessor = new ManiaScoreProcessor(beatmap);
+        scoreProcessor = new ManiaScoreProcessor(
+            beatmap,
+            scoreMultiplier);
         totalJudgementObjectCount =
             beatmap.HitObjects.Count(isJudgementObject);
 
