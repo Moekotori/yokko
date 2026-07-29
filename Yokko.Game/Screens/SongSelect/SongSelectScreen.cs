@@ -18,6 +18,7 @@ using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
 using Yokko.Game.Importing;
@@ -730,47 +731,43 @@ public partial class SongSelectScreen : Screen
         },
     };
 
-    private static Drawable createStarRating(double? rating)
+    private static Drawable createStarRating(
+        ManiaStarRatingResult rating)
     {
-        var flow = new FillFlowContainer
-        {
-            Position = new Vector2(18, 121),
-            AutoSizeAxes = Axes.Both,
-            Direction = FillDirection.Horizontal,
-            Spacing = new Vector2(7, 0),
-        };
+        Color4 colour = rating.IsSuccess
+            ? SongSelectTheme.Yellow
+            : SongSelectTheme.PaleCyan;
 
-        for (int i = 0; i < 5; i++)
+        return new Container
         {
-            flow.Add(new SpriteIcon
+            Position = new Vector2(18, 112),
+            Size = new Vector2(220, 48),
+            Children = new Drawable[]
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                Size = new Vector2(22),
-                Icon = FontAwesome.Solid.Star,
-                Colour = SongSelectTheme.Yellow,
-            });
-        }
-
-        flow.Add(new SpriteIcon
-        {
-            Anchor = Anchor.CentreLeft,
-            Origin = Anchor.CentreLeft,
-            Size = new Vector2(22),
-            Icon = FontAwesome.Regular.Star,
-            Colour = SongSelectTheme.Ivory,
-        });
-
-        flow.Add(new SpriteText
-        {
-            Anchor = Anchor.CentreLeft,
-            Origin = Anchor.CentreLeft,
-            Text = rating?.ToString("0.00") ?? "--",
-            Font = HomeTypography.Display(21),
-            Colour = SongSelectTheme.Ivory,
-        });
-
-        return flow;
+                new SpriteText
+                {
+                    Text = "REBIRTH INPUT SR · BETA",
+                    Font = HomeTypography.Display(9),
+                    Colour = SongSelectTheme.PaleCyan,
+                },
+                new SpriteIcon
+                {
+                    Position = new Vector2(0, 20),
+                    Size = new Vector2(20),
+                    Icon = FontAwesome.Solid.Star,
+                    Colour = colour,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(27, 15),
+                    Text = rating.Value?.ToString("0.00") ?? "--",
+                    Font = HomeTypography.Display(22),
+                    Colour = rating.IsSuccess
+                        ? SongSelectTheme.Ivory
+                        : SongSelectTheme.PaleCyan,
+                },
+            },
+        };
     }
 
     private void rebuildSongList()

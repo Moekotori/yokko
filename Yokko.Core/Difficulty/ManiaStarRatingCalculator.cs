@@ -1,100 +1,223 @@
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using StarRatingRebirth;
 using Yokko.Core.Beatmaps;
 
 namespace Yokko.Core.Difficulty;
+
+public enum ManiaStarRatingStatus
+{
+    Success,
+    TooFewNotes,
+    InvalidLane,
+    InvalidTime,
+    InvalidRate,
+    AlgorithmFailure,
+}
+
+public sealed record ManiaStarRatingResult(
+    ManiaStarRatingStatus Status,
+    double? Value,
+    double PlaybackRate,
+    string AlgorithmIdentifier,
+    string? FailureReason = null)
+{
+    public bool IsSuccess =>
+        Status == ManiaStarRatingStatus.Success && Value.HasValue;
+}
 
 /// <summary>
 /// Adapts Yokko's format-independent beatmap model to Star Rating Rebirth.
 /// </summary>
 public static class ManiaStarRatingCalculator
 {
-    /// <summary>
-    /// The upstream algorithm revision exposed by StarRatingRebirth 0.1.1.
-    /// </summary>
+    public const string PackageVersion = "0.1.1";
     public const string AlgorithmVersion = "2025/04/15";
-
-    /// <summary>
-    /// The minimum playable note count accepted by the upstream algorithm.
-    /// </summary>
+    public const string AlgorithmIdentifier =
+        "StarRatingRebirth 0.1.1 (2025/04/15)";
     public const int MinimumNoteCount = 20;
 
+    private const string adapter_cache_version = "YokkoAdapter/2";
+
     /// <summary>
-    /// Calculates a mania star rating from Yokko's canonical beatmap model.
+    /// Calculates an input-difficulty rating at the requested playback rate.
+    /// A rate of 1.5 corresponds to DT-style time compression.
     /// </summary>
     /// <exception cref="InvalidDataException">
     /// The beatmap cannot be represented by the upstream calculator.
     /// </exception>
-    public static double Calculate(YokkoBeatmap beatmap)
+    /// <exception cref="InvalidOperationException">
+    /// The upstream calculator failed or returned an invalid value.
+    /// </exception>
+    public static double Calculate(
+        YokkoBeatmap beatmap,
+        double playbackRate = 1)
     {
-        ArgumentNullException.ThrowIfNull(beatmap);
+        ManiaStarRatingResult result = CalculateResult(
+            beatmap,
+            playbackRate);
 
-        int keyCount = (int)beatmap.KeyMode;
-        var notes = beatmap.HitObjects
-                           .Where(static hitObject =>
-                               hitObject.Kind is HitObjectKind.Tap
-                                   or HitObjectKind.Hold)
-                           .Select(hitObject => toUpstreamNote(
-                               hitObject,
-                               keyCount))
-                           .ToList();
+        if (result.IsSuccess)
+            return result.Value!.Value;
 
-        if (notes.Count < MinimumNoteCount)
-        {
-            throw new InvalidDataException(
-                $"Star Rating Rebirth requires at least {MinimumNoteCount} playable notes.");
-        }
+        string message = result.FailureReason
+                         ?? "Star Rating Rebirth could not calculate this chart.";
 
-        double rating = SRCalculator.Calculate(new ManiaData
-        {
-            CS = keyCount,
-            OD = beatmap.OverallDifficulty,
-            Notes = notes,
-        });
+        if (result.Status == ManiaStarRatingStatus.AlgorithmFailure)
+            throw new InvalidOperationException(message);
 
-        if (!double.IsFinite(rating) || rating < 0)
-            throw new InvalidDataException("Star Rating Rebirth returned an invalid rating.");
-
-        return rating;
+        throw new InvalidDataException(message);
     }
 
     /// <summary>
-    /// Attempts a calculation without allowing an unsupported or malformed chart
-    /// to interrupt library loading.
+    /// Calculates a diagnostic result without allowing unsupported chart data
+    /// or an upstream failure to interrupt library loading.
     /// </summary>
-    public static bool TryCalculate(
+    public static ManiaStarRatingResult CalculateResult(
         YokkoBeatmap beatmap,
-        out double starRating)
+        double playbackRate = 1)
     {
         ArgumentNullException.ThrowIfNull(beatmap);
 
         try
         {
-            starRating = Calculate(beatmap);
-            return true;
+            ManiaData data = prepareData(beatmap, playbackRate);
+            double rating = SRCalculator.Calculate(data);
+
+            if (!double.IsFinite(rating) || rating < 0)
+            {
+                return failure(
+                    ManiaStarRatingStatus.AlgorithmFailure,
+                    playbackRate,
+                    "Star Rating Rebirth returned an invalid rating.");
+            }
+
+            return new ManiaStarRatingResult(
+                ManiaStarRatingStatus.Success,
+                rating,
+                playbackRate,
+                AlgorithmIdentifier);
+        }
+        catch (StarRatingInputException exception)
+        {
+            return failure(
+                exception.Status,
+                playbackRate,
+                exception.Message);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            starRating = 0;
-            return false;
+            return failure(
+                ManiaStarRatingStatus.AlgorithmFailure,
+                playbackRate,
+                exception.Message);
         }
+    }
+
+    public static bool TryCalculate(
+        YokkoBeatmap beatmap,
+        out double starRating,
+        double playbackRate = 1)
+    {
+        ManiaStarRatingResult result = CalculateResult(
+            beatmap,
+            playbackRate);
+        starRating = result.Value ?? 0;
+        return result.IsSuccess;
+    }
+
+    /// <summary>
+    /// Creates a stable cache key from only the inputs which affect the rating.
+    /// </summary>
+    public static string CreateCacheKey(
+        YokkoBeatmap beatmap,
+        double playbackRate = 1)
+    {
+        ArgumentNullException.ThrowIfNull(beatmap);
+        ManiaData data = prepareData(beatmap, playbackRate);
+        var source = new StringBuilder()
+                     .Append(adapter_cache_version).Append('\u001f')
+                     .Append(AlgorithmIdentifier).Append('\u001f')
+                     .Append(playbackRate.ToString(
+                         "R",
+                         CultureInfo.InvariantCulture)).Append('\u001f')
+                     .Append(data.CS).Append('\u001f')
+                     .Append(data.OD.ToString(
+                         "R",
+                         CultureInfo.InvariantCulture));
+
+        foreach (Note note in data.Notes)
+        {
+            source.Append('\u001e')
+                  .Append(note.Key).Append(',')
+                  .Append(note.Head).Append(',')
+                  .Append(note.Tail);
+        }
+
+        return Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(source.ToString())));
+    }
+
+    private static ManiaData prepareData(
+        YokkoBeatmap beatmap,
+        double playbackRate)
+    {
+        if (!double.IsFinite(playbackRate) || playbackRate <= 0)
+        {
+            throw new StarRatingInputException(
+                ManiaStarRatingStatus.InvalidRate,
+                "Playback rate must be finite and greater than zero.");
+        }
+
+        int keyCount = (int)beatmap.KeyMode;
+        List<Note> notes = beatmap.HitObjects
+                                        .Where(static hitObject =>
+                                            hitObject.Kind
+                                                is HitObjectKind.Tap
+                                                or HitObjectKind.Hold)
+                                        .Select(hitObject => toUpstreamNote(
+                                            hitObject,
+                                            keyCount,
+                                            playbackRate))
+                                        .OrderBy(static note => note.Head)
+                                        .ThenBy(static note => note.Key)
+                                        .ThenBy(static note => note.Tail)
+                                        .ToList();
+
+        if (notes.Count < MinimumNoteCount)
+        {
+            throw new StarRatingInputException(
+                ManiaStarRatingStatus.TooFewNotes,
+                $"Star Rating Rebirth requires at least {MinimumNoteCount} playable notes.");
+        }
+
+        return new ManiaData
+        {
+            CS = keyCount,
+            OD = beatmap.OverallDifficulty,
+            Notes = notes,
+        };
     }
 
     private static Note toUpstreamNote(
         YokkoHitObject hitObject,
-        int keyCount)
+        int keyCount,
+        double playbackRate)
     {
         if (hitObject.Lane < 0 || hitObject.Lane >= keyCount)
         {
-            throw new InvalidDataException(
+            throw new StarRatingInputException(
+                ManiaStarRatingStatus.InvalidLane,
                 $"Lane {hitObject.Lane} is outside the {keyCount}K playfield.");
         }
 
         int head = toWholeMilliseconds(
-            hitObject.StartTimeMilliseconds,
+            hitObject.StartTimeMilliseconds / playbackRate,
             nameof(hitObject.StartTimeMilliseconds));
         int tail = hitObject.Kind == HitObjectKind.Hold
             ? toWholeMilliseconds(
-                hitObject.EndTimeMilliseconds!.Value,
+                hitObject.EndTimeMilliseconds!.Value / playbackRate,
                 nameof(hitObject.EndTimeMilliseconds))
             : -1;
 
@@ -105,12 +228,33 @@ public static class ManiaStarRatingCalculator
     {
         double rounded = Math.Round(value, MidpointRounding.AwayFromZero);
 
-        if (rounded is < int.MinValue or > int.MaxValue)
+        if (!double.IsFinite(rounded)
+            || rounded is < int.MinValue or > int.MaxValue)
         {
-            throw new InvalidDataException(
+            throw new StarRatingInputException(
+                ManiaStarRatingStatus.InvalidTime,
                 $"{fieldName} cannot be represented as whole milliseconds.");
         }
 
         return (int)rounded;
+    }
+
+    private static ManiaStarRatingResult failure(
+        ManiaStarRatingStatus status,
+        double playbackRate,
+        string reason) =>
+        new(
+            status,
+            null,
+            playbackRate,
+            AlgorithmIdentifier,
+            reason);
+
+    private sealed class StarRatingInputException(
+        ManiaStarRatingStatus status,
+        string message)
+        : Exception(message)
+    {
+        public ManiaStarRatingStatus Status { get; } = status;
     }
 }

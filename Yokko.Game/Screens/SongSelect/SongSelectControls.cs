@@ -13,6 +13,7 @@ using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Core.Difficulty;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
@@ -242,7 +243,7 @@ internal partial class SongSelectSongRow : ClickableContainer
                     title = new SpriteText
                     {
                         Y = 10,
-                        Width = 255,
+                        Width = 330,
                         Truncate = true,
                         Text = entry.Beatmap.Title,
                         Font = HomeTypography.Display(22),
@@ -251,7 +252,7 @@ internal partial class SongSelectSongRow : ClickableContainer
                     new SpriteText
                     {
                         Y = 37,
-                        Width = 240,
+                        Width = 300,
                         Truncate = true,
                         Text = entry.Beatmap.Artist,
                         Font = HomeTypography.Body(15),
@@ -260,7 +261,7 @@ internal partial class SongSelectSongRow : ClickableContainer
                     mapper = new SpriteText
                     {
                         Y = 58,
-                        Width = 240,
+                        Width = 300,
                         Truncate = true,
                         Text = $"mapped by {entry.Beatmap.Creator}",
                         Font = HomeTypography.Body(13),
@@ -271,7 +272,7 @@ internal partial class SongSelectSongRow : ClickableContainer
                         Anchor = Anchor.TopRight,
                         Origin = Anchor.TopRight,
                         Y = 13,
-                        Width = 180,
+                        Width = 110,
                         Truncate = true,
                         Text = $"{(int)entry.Beatmap.KeyMode}K · {entry.Beatmap.DifficultyName}",
                         Font = HomeTypography.Display(14),
@@ -360,40 +361,12 @@ internal partial class SongSelectSongRow : ClickableContainer
         return true;
     }
 
-    private static Drawable createRowStarRating(double? rating)
+    private static Drawable createRowStarRating(
+        ManiaStarRatingResult rating)
     {
-        var children = new List<Drawable>
-        {
-            new SpriteText
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                Text = rating?.ToString("0.00") ?? "--",
-                Font = HomeTypography.Display(18),
-                Colour = SongSelectTheme.Ivory,
-            },
-        };
-
-        for (int i = 0; i < 5; i++)
-        {
-            children.Add(new SpriteIcon
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                Size = new Vector2(16),
-                Icon = FontAwesome.Solid.Star,
-                Colour = SongSelectTheme.Yellow,
-            });
-        }
-
-        children.Add(new SpriteIcon
-        {
-            Anchor = Anchor.CentreLeft,
-            Origin = Anchor.CentreLeft,
-            Size = new Vector2(16),
-            Icon = FontAwesome.Regular.Star,
-            Colour = SongSelectTheme.Ivory,
-        });
+        Color4 colour = rating.IsSuccess
+            ? SongSelectTheme.Yellow
+            : SongSelectTheme.PaleCyan;
 
         return new FillFlowContainer
         {
@@ -403,7 +376,27 @@ internal partial class SongSelectSongRow : ClickableContainer
             AutoSizeAxes = Axes.Both,
             Direction = FillDirection.Horizontal,
             Spacing = new Vector2(5, 0),
-            Children = children,
+            Children = new Drawable[]
+            {
+                new SpriteIcon
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    Size = new Vector2(16),
+                    Icon = FontAwesome.Solid.Star,
+                    Colour = colour,
+                },
+                new SpriteText
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    Text = rating.Value?.ToString("0.00") ?? "--",
+                    Font = HomeTypography.Display(18),
+                    Colour = rating.IsSuccess
+                        ? SongSelectTheme.Ivory
+                        : SongSelectTheme.PaleCyan,
+                },
+            },
         };
     }
 }

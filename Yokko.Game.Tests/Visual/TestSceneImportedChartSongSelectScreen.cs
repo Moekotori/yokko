@@ -34,12 +34,14 @@ public partial class TestSceneImportedChartSongSelectScreen : YokkoTestScene
                                                 .Select(index => new ChartImportResult(
                                                     DemoBeatmaps.CreateFourKeyDemo() with
                                                     {
-                                                        Title = $"Actual song {index}",
+                                                        Title = "GD PACK (clear 2 out of 7 maps)",
+                                                        DifficultyName = $"Actual song {index}",
+                                                        AudioPath = $@"C:\Audio\song-{index}.ogg",
                                                     },
                                                     []))
                                                 .ToArray();
 
-        AddStep("start with empty library", importedChartLibrary.Clear);
+        AddStep("start with empty library", () => importedChartLibrary.Clear());
         AddStep("import seven-chart package", () =>
             importedChartLibrary.AddOrReplace(package, packagePath));
         AddUntilStep("all package charts visible", () =>

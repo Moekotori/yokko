@@ -166,6 +166,15 @@ internal static class OsuManiaSkinIniDecoder
             HoldHeadFlipWhenUpsideDown = holdHeadFlips,
             HoldBodyFlipWhenUpsideDown = holdBodyFlips,
             HoldTailFlipWhenUpsideDown = holdTailFlips,
+            LightImage = text(values, "StageLight", defaults.LightImage),
+            ExplosionImage = text(
+                values,
+                "LightingN",
+                defaults.ExplosionImage),
+            LightPosition = number(
+                values,
+                "LightPosition",
+                defaults.LightPosition),
         };
     }
 

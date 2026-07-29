@@ -33,9 +33,9 @@ public sealed class ImportedChartLibraryTest
             Assert.That(
                 library.GetCharts()[0].Result.Beatmap.Title,
                 Is.EqualTo("Replacement"));
-            Assert.That(library.GetCharts()[0].StarRating, Is.Not.Null);
+            Assert.That(library.GetCharts()[0].StarRating.IsSuccess, Is.True);
             Assert.That(
-                library.GetCharts()[0].StarRating,
+                library.GetCharts()[0].StarRating.Value,
                 Is.EqualTo(ManiaStarRatingCalculator.Calculate(
                     replacement.Beatmap)));
         });
@@ -60,6 +60,71 @@ public sealed class ImportedChartLibraryTest
         Assert.That(library.GetCharts().Select(chart => chart.PackageName), Is.All.EqualTo("pack"));
         Assert.That(library.GetCharts().Select(chart => chart.IsPackage), Is.All.True);
         Assert.That(refreshCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void MultiSongPackageUsesChartVersionAsSongTitle()
+    {
+        var library = new ImportedChartLibrary();
+        YokkoBeatmap source = DemoBeatmaps.CreateFourKeyDemo() with
+        {
+            Title = "GD PACK (clear 2 out of 7 maps)",
+        };
+
+        library.AddOrReplace(
+            [
+                new ChartImportResult(source with
+                {
+                    DifficultyName = "Cold Sweat",
+                    AudioPath = @"C:\Audio\cold-sweat.ogg",
+                }, []),
+                new ChartImportResult(source with
+                {
+                    DifficultyName = "Dear Nostalgists",
+                    AudioPath = @"C:\Audio\dear-nostalgists.ogg",
+                }, []),
+            ],
+            @"C:\Charts\VA - GD PACK.osz");
+
+        ImportedChart[] charts = library.GetCharts().ToArray();
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                charts.Select(chart => chart.Result.Beatmap.Title),
+                Is.EqualTo(new[] { "Cold Sweat", "Dear Nostalgists" }));
+            Assert.That(
+                charts.Select(chart => chart.Result.Beatmap.DifficultyName),
+                Is.All.EqualTo("PACK"));
+            Assert.That(charts.Select(chart => chart.PackageName), Is.All.EqualTo("VA - GD PACK"));
+        });
+    }
+
+    [Test]
+    public void GenericBeatmapSetFileNameUsesReadableMetadataName()
+    {
+        var library = new ImportedChartLibrary();
+        YokkoBeatmap source = DemoBeatmaps.CreateFourKeyDemo() with
+        {
+            Title = "Deathtrill Compilation",
+            Artist = "Various Artists",
+        };
+
+        library.AddOrReplace(
+            [
+                new ChartImportResult(source with
+                {
+                    DifficultyName = "Marathon x1.0",
+                }, []),
+                new ChartImportResult(source with
+                {
+                    DifficultyName = "Marathon x1.1",
+                }, []),
+            ],
+            @"C:\Charts\beatmapset_1620880.osz");
+
+        Assert.That(
+            library.GetCharts().Select(chart => chart.PackageName),
+            Is.All.EqualTo("Various Artists - Deathtrill Compilation"));
     }
 
     [Test]

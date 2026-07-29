@@ -69,14 +69,17 @@ public sealed class ManiaStarRatingCalculatorTest
                                       .ToArray(),
         };
 
-        bool success = ManiaStarRatingCalculator.TryCalculate(
-            chart,
-            out double rating);
+        ManiaStarRatingResult result =
+            ManiaStarRatingCalculator.CalculateResult(chart);
 
         Assert.Multiple(() =>
         {
-            Assert.That(success, Is.False);
-            Assert.That(rating, Is.Zero);
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(
+                result.Status,
+                Is.EqualTo(ManiaStarRatingStatus.TooFewNotes));
+            Assert.That(result.Value, Is.Null);
+            Assert.That(result.FailureReason, Does.Contain("at least 20"));
         });
     }
 
@@ -94,9 +97,99 @@ public sealed class ManiaStarRatingCalculatorTest
                                       .ToArray(),
         };
 
+        ManiaStarRatingResult result =
+            ManiaStarRatingCalculator.CalculateResult(chart);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(
+                result.Status,
+                Is.EqualTo(ManiaStarRatingStatus.InvalidLane));
+        });
+    }
+
+    [Test]
+    public void PlaybackRateChangesRating()
+    {
+        YokkoBeatmap chart = createChart();
+        double halfTime = ManiaStarRatingCalculator.Calculate(chart, 0.75);
+        double normal = ManiaStarRatingCalculator.Calculate(chart);
+        double doubleTime = ManiaStarRatingCalculator.Calculate(chart, 1.5);
+
+        Assert.That(halfTime, Is.LessThan(normal));
+        Assert.That(doubleTime, Is.GreaterThan(normal));
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    [TestCase(double.NaN)]
+    [TestCase(double.PositiveInfinity)]
+    public void InvalidPlaybackRateIsReported(double playbackRate)
+    {
+        ManiaStarRatingResult result =
+            ManiaStarRatingCalculator.CalculateResult(
+                createChart(),
+                playbackRate);
+
         Assert.That(
-            ManiaStarRatingCalculator.TryCalculate(chart, out _),
-            Is.False);
+            result.Status,
+            Is.EqualTo(ManiaStarRatingStatus.InvalidRate));
+    }
+
+    [Test]
+    public void RatingAndCacheKeyIgnoreInputOrder()
+    {
+        YokkoBeatmap chart = createChart();
+        YokkoBeatmap reversed = chart with
+        {
+            HitObjects = chart.HitObjects.Reverse().ToArray(),
+        };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                ManiaStarRatingCalculator.Calculate(reversed),
+                Is.EqualTo(ManiaStarRatingCalculator.Calculate(chart)));
+            Assert.That(
+                ManiaStarRatingCalculator.CreateCacheKey(reversed),
+                Is.EqualTo(
+                    ManiaStarRatingCalculator.CreateCacheKey(chart)));
+        });
+    }
+
+    [Test]
+    public void MirroredLanesPreserveRating()
+    {
+        YokkoBeatmap chart = createChart();
+        YokkoBeatmap mirrored = chart with
+        {
+            HitObjects = chart.HitObjects
+                              .Select(note => new YokkoHitObject(
+                                  3 - note.Lane,
+                                  note.StartTimeMilliseconds,
+                                  note.EndTimeMilliseconds,
+                                  note.Kind,
+                                  note.SampleKey,
+                                  note.ScrollProfileId))
+                              .ToArray(),
+        };
+
+        Assert.That(
+            ManiaStarRatingCalculator.Calculate(mirrored),
+            Is.EqualTo(ManiaStarRatingCalculator.Calculate(chart))
+              .Within(0.000001));
+    }
+
+    [Test]
+    public void CacheKeyIncludesPlaybackRate()
+    {
+        YokkoBeatmap chart = createChart();
+
+        Assert.That(
+            ManiaStarRatingCalculator.CreateCacheKey(chart, 1.5),
+            Is.Not.EqualTo(
+                ManiaStarRatingCalculator.CreateCacheKey(chart)));
     }
 
     private static YokkoBeatmap createChart()

@@ -69,7 +69,7 @@ internal static class YokkoStrings
             ["main.audio_unavailable"] = new("Audio unavailable", "音频不可用", "オーディオ利用不可"),
             ["main.music_no_songs"] = new("No imported songs", "暂无导入歌曲", "インポート曲なし"),
             ["main.music_import_hint"] = new("Drop a chart file to listen", "拖入谱面即可播放", "譜面をドロップして再生"),
-            ["main.hold_esc_exit"] = new("Hold Esc 3s to exit", "长按 Esc 3 秒退出", "Esc を3秒長押しで終了"),
+            ["main.hold_esc_exit"] = new("Hold Esc 2s to exit", "长按 Esc 2 秒退出", "Esc を2秒長押しで終了"),
             ["main.bubble_again"] = new("Again! Again!", "再来一次！", "もう一回！"),
             ["main.bubble_pick_song"] = new("Pick a song~", "选首歌吧~", "曲を選んで〜"),
             ["main.bubble_keys"] = new("D F J K, go!", "D F J K，出发！", "D F J K で行こう！"),

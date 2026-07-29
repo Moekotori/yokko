@@ -649,6 +649,7 @@ HitPosition: 400
         {
             double originalSpeed = OsuManiaScrollSpeed.Default;
             const double testSpeed = 34;
+            GameplayPlayfield playfield = null;
 
             AddStep("open HitPosition 460 skin", () =>
             {
@@ -660,9 +661,9 @@ HitPosition: 400
             });
             AddUntilStep("osu skin time range applied", () =>
             {
-                GameplayPlayfield playfield = (screenStack.CurrentScreen as Drawable)?
-                                              .ChildrenOfType<GameplayPlayfield>()
-                                              .SingleOrDefault();
+                playfield = (screenStack.CurrentScreen as Drawable)?
+                            .ChildrenOfType<GameplayPlayfield>()
+                            .SingleOrDefault();
                 return playfield != null
                        && Math.Abs(
                            playfield.ApproachTimeMilliseconds
@@ -670,6 +671,28 @@ HitPosition: 400
                                testSpeed,
                                460)) < 0.001;
             });
+            AddStep("press first lane", () =>
+                playfield.SetLanePressed(0, true));
+            AddAssert("skin lane light turns on", () =>
+                playfield.ChildrenOfType<Sprite>()
+                         .Any(sprite =>
+                             sprite.Name == "Lane light"
+                             && sprite.Alpha > 0.99f));
+            AddStep("show perfect hit", () =>
+                playfield.ApplyJudgement(new JudgementEvent(
+                    0,
+                    0,
+                    1000,
+                    1000,
+                    0,
+                    JudgementRating.Perfect)));
+            AddUntilStep("skin hit explosion appears", () =>
+                playfield.ChildrenOfType<Sprite>()
+                         .Any(sprite =>
+                             sprite.Name == "Hit explosion"
+                             && sprite.Alpha > 0));
+            AddStep("release first lane", () =>
+                playfield.SetLanePressed(0, false));
             AddStep("restore scroll speed", () =>
                 gameplaySettings.SetScrollSpeed(originalSpeed));
         }
@@ -901,6 +924,8 @@ StageHint: stage-hint
                          "hold-body.png",
                          "hold-tail.png",
                          "stage-hint.png",
+                         "mania-stage-light.png",
+                         "lightingN.png",
                      })
                 image.SaveAsPng(Path.Combine(directory, name));
 

@@ -14,6 +14,8 @@ public partial class LaneColumn : CompositeDrawable
 {
     private readonly Sprite idleKey;
     private readonly Sprite pressedKey;
+    private readonly Sprite laneLight;
+    private readonly Sprite hitExplosion;
     private readonly SpriteText keyLabel;
     private readonly float baseLaneWidth;
     private readonly bool idleKeyFlipped;
@@ -67,6 +69,14 @@ public partial class LaneColumn : CompositeDrawable
         }
 
         OsuManiaSkinConfiguration configuration = skin.Configuration;
+        float hitPosition = System.Math.Clamp(
+            configuration.HitPosition,
+            0,
+            480);
+        float lightPosition = System.Math.Clamp(
+            configuration.LightPosition,
+            0,
+            480);
         Texture idleTexture = skin.GetTexture(configuration.KeyImages[lane]);
         Texture pressedTexture = skin.GetTexture(configuration.PressedKeyImages[lane]);
         var backgroundChildren = new System.Collections.Generic.List<Drawable>
@@ -84,6 +94,32 @@ public partial class LaneColumn : CompositeDrawable
             },
         };
         var receptorChildren = new System.Collections.Generic.List<Drawable>();
+        Texture lightTexture = skin.GetTexture(configuration.LightImage);
+        Texture explosionTexture = skin.GetTexture(configuration.ExplosionImage);
+
+        if (lightTexture != null)
+        {
+            backgroundChildren.Add(laneLight = new Sprite
+            {
+                Name = "Lane light",
+                Anchor = configuration.UpsideDown
+                    ? Anchor.TopCentre
+                    : Anchor.BottomCentre,
+                Origin = configuration.UpsideDown
+                    ? Anchor.TopCentre
+                    : Anchor.BottomCentre,
+                Y = configuration.UpsideDown
+                    ? 480 - lightPosition
+                    : -(480 - lightPosition),
+                Size = new Vector2(
+                    laneWidth,
+                    lightTexture.DisplayHeight
+                    / OsuManiaSkinConfiguration.LegacyPositionScaleFactor),
+                Texture = lightTexture,
+                Alpha = 0,
+                Blending = BlendingParameters.Additive,
+            });
+        }
 
         if (idleTexture != null)
         {
@@ -117,6 +153,28 @@ public partial class LaneColumn : CompositeDrawable
                 Text = keyLabel,
                 Font = FontUsage.Default.With(size: 18),
                 Colour = YokkoPalette.TextMuted,
+            });
+        }
+
+        if (explosionTexture != null)
+        {
+            receptorChildren.Add(hitExplosion = new Sprite
+            {
+                Name = "Hit explosion",
+                Anchor = configuration.UpsideDown
+                    ? Anchor.TopCentre
+                    : Anchor.BottomCentre,
+                Origin = Anchor.Centre,
+                Y = configuration.UpsideDown
+                    ? 480 - hitPosition
+                    : -(480 - hitPosition),
+                Size = new Vector2(
+                    explosionTexture.DisplayWidth,
+                    explosionTexture.DisplayHeight)
+                       / OsuManiaSkinConfiguration.LegacyPositionScaleFactor,
+                Texture = explosionTexture,
+                Alpha = 0,
+                Blending = BlendingParameters.Additive,
             });
         }
 
@@ -154,6 +212,12 @@ public partial class LaneColumn : CompositeDrawable
             keyLabel.Y = -26 * value;
             keyLabel.Scale = new Vector2(value);
         }
+
+        if (hitExplosion != null)
+            hitExplosion.Scale = new Vector2(value);
+
+        if (laneLight != null)
+            laneLight.Width = baseLaneWidth * value;
     }
 
     public void SetPressed(bool pressed)
@@ -166,6 +230,40 @@ public partial class LaneColumn : CompositeDrawable
             pressedKey.Alpha = pressed ? 1 : 0;
             idleKey.Alpha = pressed ? 0 : 1;
         }
+
+        if (keyLabel != null)
+        {
+            keyLabel.Colour = pressed
+                ? YokkoPalette.Cyan
+                : YokkoPalette.TextMuted;
+        }
+
+        if (laneLight == null)
+            return;
+
+        laneLight.FinishTransforms();
+
+        if (pressed)
+        {
+            laneLight.Alpha = 1;
+            laneLight.Scale = Vector2.One;
+        }
+        else
+        {
+            laneLight.FadeTo(0, 250);
+            laneLight.ScaleTo(new Vector2(1, 0), 250);
+        }
+    }
+
+    public void ShowHitExplosion()
+    {
+        if (hitExplosion == null)
+            return;
+
+        hitExplosion.FinishTransforms();
+        hitExplosion.FadeInFromZero(80)
+                    .Then()
+                    .FadeOut(120);
     }
 
     private static Sprite createKeySprite(

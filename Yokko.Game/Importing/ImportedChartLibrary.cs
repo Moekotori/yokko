@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
+using Yokko.Core.Beatmaps;
 using Yokko.Core.Difficulty;
 using Yokko.Game.Resources;
 using Yokko.Import;
@@ -17,7 +18,7 @@ internal sealed record ImportedChart(
     string SourcePath,
     ChartImportResult Result,
     string ArtworkPath,
-    double? StarRating,
+    ManiaStarRatingResult StarRating,
     string PackageId,
     string PackageName,
     bool IsPackage);
@@ -31,6 +32,7 @@ internal sealed class ImportedChartLibrary
     private readonly List<ImportedChart> charts = [];
     private readonly object syncRoot = new();
     private readonly SemaphoreSlim importLock = new(1, 1);
+    private readonly StarRatingCache starRatingCache = new();
     private string libraryPath;
 
     public event Action LibraryChanged;
@@ -48,6 +50,7 @@ internal sealed class ImportedChartLibrary
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         libraryPath = Path.GetFullPath(path);
         Directory.CreateDirectory(libraryPath);
+        initialiseStarRatingCache();
     }
 
     public IReadOnlyList<ImportedChart> GetCharts()
@@ -184,6 +187,7 @@ internal sealed class ImportedChartLibrary
                 charts.AddRange(loaded);
             }
 
+            starRatingCache.SaveIfChanged();
             LibraryChanged?.Invoke();
             return loaded.Count;
         }
@@ -206,6 +210,7 @@ internal sealed class ImportedChartLibrary
         {
             libraryPath = Path.GetFullPath(path);
             Directory.CreateDirectory(libraryPath);
+            initialiseStarRatingCache();
         }
         finally
         {
@@ -235,6 +240,7 @@ internal sealed class ImportedChartLibrary
             throw new ArgumentException("At least one imported chart is required.", nameof(results));
 
         ImportedChart[] imported = createImportedCharts(results, sourcePath);
+        starRatingCache.SaveIfChanged();
 
         lock (syncRoot)
         {
@@ -250,17 +256,29 @@ internal sealed class ImportedChartLibrary
         IReadOnlyList<ChartImportResult> results,
         string sourcePath)
     {
-        string packageName = Path.GetFileNameWithoutExtension(sourcePath);
+        string packageName = resolvePackageName(results, sourcePath);
+        results = normaliseCompilationMetadata(results);
         bool isPackage = results.Count > 1 || isPackageExtension(sourcePath);
 
         return results.Select((result, index) =>
                       {
-                          double? starRating =
-                              ManiaStarRatingCalculator.TryCalculate(
-                                  result.Beatmap,
-                                  out double calculated)
-                                  ? calculated
-                                  : null;
+                          ManiaStarRatingResult starRating =
+                              starRatingCache.GetOrCalculate(
+                                  result.Beatmap);
+
+                          if (!starRating.IsSuccess
+                              && starRating.Status
+                                  != ManiaStarRatingStatus.TooFewNotes)
+                          {
+                              Logger.Log(
+                                  $"Could not calculate Rebirth SR for "
+                                  + $"'{result.Beatmap.Title} "
+                                  + $"[{result.Beatmap.DifficultyName}]': "
+                                  + $"{starRating.Status} — "
+                                  + $"{starRating.FailureReason}",
+                                  LoggingTarget.Runtime,
+                                  LogLevel.Error);
+                          }
 
                           return new ImportedChart(
                               $"{sourcePath}\u001f{index}",
@@ -274,6 +292,78 @@ internal sealed class ImportedChartLibrary
                       })
                       .ToArray();
     }
+
+    private static string resolvePackageName(
+        IReadOnlyList<ChartImportResult> results,
+        string sourcePath)
+    {
+        string sourceName = Path.GetFileNameWithoutExtension(sourcePath);
+        if (!sourceName.StartsWith("beatmapset_", StringComparison.OrdinalIgnoreCase))
+            return sourceName;
+
+        string title = mostFrequentValue(results.Select(result =>
+            result.Beatmap.Title));
+        string artist = mostFrequentValue(results.Select(result =>
+            result.Beatmap.Artist));
+
+        if (string.IsNullOrWhiteSpace(title))
+            return sourceName;
+
+        return string.IsNullOrWhiteSpace(artist)
+               || artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase)
+            ? title
+            : $"{artist} - {title}";
+    }
+
+    private static string mostFrequentValue(IEnumerable<string> values) =>
+        values.Where(value => !string.IsNullOrWhiteSpace(value))
+              .GroupBy(value => value.Trim(), StringComparer.OrdinalIgnoreCase)
+              .OrderByDescending(group => group.Count())
+              .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+              .Select(group => group.Key)
+              .FirstOrDefault() ?? string.Empty;
+
+    private static IReadOnlyList<ChartImportResult> normaliseCompilationMetadata(
+        IReadOnlyList<ChartImportResult> results)
+    {
+        if (results.Count < 2
+            || results.Select(result => result.Beatmap.Title)
+                      .Distinct(StringComparer.OrdinalIgnoreCase)
+                      .Count() != 1
+            || results.Select(result => result.Beatmap.DifficultyName)
+                      .Where(name => !string.IsNullOrWhiteSpace(name))
+                      .Distinct(StringComparer.OrdinalIgnoreCase)
+                      .Count() < 2
+            || results.Select(result => result.Beatmap.AudioPath)
+                      .Where(path => !string.IsNullOrWhiteSpace(path))
+                      .Distinct(StringComparer.OrdinalIgnoreCase)
+                      .Count() < 2)
+            return results;
+
+        return results.Select(result =>
+                      {
+                          YokkoBeatmap beatmap = result.Beatmap;
+                          string songTitle = beatmap.DifficultyName.Trim();
+                          if (string.IsNullOrWhiteSpace(songTitle))
+                              return result;
+
+                          return result with
+                          {
+                              Beatmap = beatmap with
+                              {
+                                  Title = songTitle,
+                                  DifficultyName = "PACK",
+                              },
+                          };
+                      })
+                      .ToArray();
+    }
+
+    private void initialiseStarRatingCache() =>
+        starRatingCache.Initialise(Path.Combine(
+            libraryPath,
+            ".yokko-cache",
+            "star-ratings.json"));
 
     private static bool isPackageExtension(string path)
     {

@@ -229,6 +229,16 @@ public partial class GameplayPlayfield : CompositeDrawable
 
         skinOverlay?.ShowJudgement(judgement);
 
+        if ((uint)judgement.Lane < laneColumns.Length
+            && judgement.Rating is JudgementRating.Meh
+                or JudgementRating.Ok
+                or JudgementRating.Good
+                or JudgementRating.Great
+                or JudgementRating.Perfect)
+        {
+            laneColumns[judgement.Lane].ShowHitExplosion();
+        }
+
         if ((uint)judgement.HitObjectIndex >= noteDrawables.Length)
             return;
 

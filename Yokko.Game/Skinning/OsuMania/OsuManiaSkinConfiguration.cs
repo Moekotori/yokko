@@ -133,6 +133,12 @@ internal sealed class OsuManiaSkinConfiguration
 
     public string Hit300g { get; }
 
+    public string LightImage { get; init; } = "mania-stage-light";
+
+    public string ExplosionImage { get; init; } = "lightingN";
+
+    public float LightPosition { get; init; } = 413;
+
     public float PlayfieldWidth
     {
         get

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Difficulty;
 using Yokko.Core.Scoring;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -24,7 +25,7 @@ internal sealed record SongSelectScore(
 internal sealed record SongSelectEntry(
     YokkoBeatmap Beatmap,
     string WallpaperTexture,
-    double? StarRating,
+    ManiaStarRatingResult StarRating,
     TimeSpan Length,
     double Bpm,
     int BestScore,

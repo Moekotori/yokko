@@ -27,7 +27,7 @@ public partial class MainScreen : Screen
 {
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
-    private const double exitHoldDuration = 3000;
+    private const double exitHoldDuration = 2000;
 
     private static readonly Color4 ivory = new(0.992f, 0.992f, 0.988f, 1f);
     private static readonly Color4 cyan = new(0.29f, 0.81f, 0.94f, 1f);
