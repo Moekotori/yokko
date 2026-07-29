@@ -149,6 +149,8 @@ namespace Yokko.Game.Tests.Visual
             GameplaySettingsPanel gameplay = null;
             double originalSpeed = OsuManiaScrollSpeed.Default;
             bool originalLaneFeedback = true;
+            bool originalKeysoundsEnabled = true;
+            bool originalPauseWhenUnfocused = true;
 
             AddStep("open Gameplay", () => settingsScreen.OpenPage(SettingsPageKind.Gameplay));
             AddStep("capture Gameplay preferences", () =>
@@ -156,6 +158,9 @@ namespace Yokko.Game.Tests.Visual
                 gameplay = (GameplaySettingsPanel)settingsScreen.ActivePanel;
                 originalSpeed = gameplay.CurrentScrollSpeed;
                 originalLaneFeedback = gameplay.ShowLanePressFeedback;
+                originalKeysoundsEnabled = gameplay.KeysoundsEnabled;
+                originalPauseWhenUnfocused =
+                    gameplay.PauseWhenUnfocused;
             });
             AddStep("open timing", () =>
                 gameplay.SelectSection(GameplaySettingsSection.Timing));
@@ -175,6 +180,10 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SetKeysoundsEnabled(false));
             AddAssert("gameplay keysounds disabled", () =>
                 !gameplay.KeysoundsEnabled);
+            AddStep("disable pause when unfocused", () =>
+                gameplay.SetPauseWhenUnfocused(false));
+            AddAssert("pause when unfocused disabled", () =>
+                !gameplay.PauseWhenUnfocused);
             AddStep("open 7K bindings", () =>
             {
                 gameplay.SelectSection(GameplaySettingsSection.Input);
@@ -192,6 +201,9 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.ResetSelectedBindings();
                 gameplay.SetScrollSpeed(originalSpeed);
                 gameplay.SetLanePressFeedback(originalLaneFeedback);
+                gameplay.SetKeysoundsEnabled(originalKeysoundsEnabled);
+                gameplay.SetPauseWhenUnfocused(
+                    originalPauseWhenUnfocused);
             });
         }
 

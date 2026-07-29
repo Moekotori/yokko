@@ -38,6 +38,25 @@ namespace Yokko.Game.Tests.Core
                 Is.EqualTo(modern.MissMilliseconds));
         }
 
+        [Test]
+        public void ClassicConvertUsesLazerConvertedManiaWindows()
+        {
+            var windows = new JudgementWindows(
+                overallDifficulty: 5,
+                classic: true,
+                isConvert: true);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(windows.PerfectMilliseconds, Is.EqualTo(16.5));
+                Assert.That(windows.GreatMilliseconds, Is.EqualTo(34.5));
+                Assert.That(windows.GoodMilliseconds, Is.EqualTo(67.5));
+                Assert.That(windows.OkMilliseconds, Is.EqualTo(97.5));
+                Assert.That(windows.MehMilliseconds, Is.EqualTo(121.5));
+                Assert.That(windows.MissMilliseconds, Is.EqualTo(158.5));
+            });
+        }
+
         [TestCase(0, 22.5, 64.5, 97.5, 127.5, 151.5, 188.5)]
         [TestCase(5, 19.5, 49.5, 82.5, 112.5, 136.5, 173.5)]
         [TestCase(8, 16.5, 40.5, 73.5, 103.5, 127.5, 164.5)]

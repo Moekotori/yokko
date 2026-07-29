@@ -49,6 +49,8 @@ public sealed class YokkoGameplaySettings
 
     public readonly BindableBool KeysoundsEnabled = new(true);
 
+    public readonly BindableBool PauseWhenUnfocused = new(true);
+
     public IReadOnlyList<Bindable<Key>> GetBindableKeys(KeyMode keyMode) =>
         keyMode switch
         {

@@ -219,10 +219,11 @@ public partial class GameplayScreen : Screen
             new JudgementWindows(
                 mods.EffectiveOverallDifficulty(
                     beatmap.OverallDifficulty),
-                mods.PlaybackRate,
+                mods.HitWindowSpeedMultiplier,
                 mods.HitWindowDifficultyMultiplier,
                 mods.Contains(ManiaModId.Classic),
-                mods.Contains(ManiaModId.ScoreV2)),
+                mods.Contains(ManiaModId.ScoreV2),
+                beatmap.ConversionSource is not null),
             mods.Contains(ManiaModId.NoRelease));
         keysoundSelector = new GameplayKeysoundSelector(
             beatmap,
@@ -1023,7 +1024,8 @@ public partial class GameplayScreen : Screen
 
     internal void HandleHostDeactivated()
     {
-        if (!isPaused
+        if (gameplaySettings.PauseWhenUnfocused.Value
+            && !isPaused
             && !pauseTransitionInProgress
             && !gameplayBlocked
             && !gameplayCompleted

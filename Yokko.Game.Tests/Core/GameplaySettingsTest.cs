@@ -38,6 +38,7 @@ public sealed class GameplaySettingsTest
             Is.EqualTo(OsuManiaScrollSpeed.Default));
         Assert.That(settings.ShowLanePressFeedback.Value, Is.True);
         Assert.That(settings.KeysoundsEnabled.Value, Is.True);
+        Assert.That(settings.PauseWhenUnfocused.Value, Is.True);
     }
 
     [Test]
@@ -153,6 +154,7 @@ public sealed class GameplaySettingsTest
                 firstSettings.SetScrollSpeed(26.4);
                 firstSettings.ShowLanePressFeedback.Value = false;
                 firstSettings.KeysoundsEnabled.Value = false;
+                firstSettings.PauseWhenUnfocused.Value = false;
                 Assert.That(firstConfig.Save(), Is.True);
             }
 
@@ -175,6 +177,9 @@ public sealed class GameplaySettingsTest
                     Is.False);
                 Assert.That(
                     restoredSettings.KeysoundsEnabled.Value,
+                    Is.False);
+                Assert.That(
+                    restoredSettings.PauseWhenUnfocused.Value,
                     Is.False);
             }
         }

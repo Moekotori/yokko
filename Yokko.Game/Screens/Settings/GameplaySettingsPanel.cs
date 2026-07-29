@@ -59,6 +59,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal bool KeysoundsEnabled => settings.KeysoundsEnabled.Value;
 
+    internal bool PauseWhenUnfocused =>
+        settings.PauseWhenUnfocused.Value;
+
     public GameplaySettingsPanel(
         YokkoGameplaySettings settings,
         YokkoAudioSettings audioSettings)
@@ -235,6 +238,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal void SetKeysoundsEnabled(bool enabled) =>
         settings.KeysoundsEnabled.Value = enabled;
+
+    internal void SetPauseWhenUnfocused(bool enabled) =>
+        settings.PauseWhenUnfocused.Value = enabled;
 
     internal bool HandleKeyDown(Key key)
     {
@@ -589,6 +595,13 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                             "settings.gameplay.keysounds_note"),
                         FontAwesome.Solid.VolumeUp,
                         settings.KeysoundsEnabled),
+                    new GameplayToggleCard(
+                        YokkoStrings.Get(
+                            "settings.gameplay.pause_when_unfocused"),
+                        YokkoStrings.Get(
+                            "settings.gameplay.pause_when_unfocused_note"),
+                        FontAwesome.Solid.PauseCircle,
+                        settings.PauseWhenUnfocused),
                 },
             },
         });

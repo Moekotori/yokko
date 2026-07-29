@@ -429,6 +429,14 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                 ? 0.75
             : 1;
 
+    /// <summary>
+    /// Playback-rate multiplier applied to osu!lazer Mania hit windows.
+    /// At the pinned upstream baseline only the fixed-rate Mania Mods implement
+    /// IManiaRateAdjustmentMod; WU, WD and AS leave hit windows unchanged.
+    /// </summary>
+    public double HitWindowSpeedMultiplier =>
+        HasDynamicRate ? 1 : PlaybackRate;
+
     public bool ChangesAudioPitch =>
         Contains(ManiaModId.Nightcore)
         || Contains(ManiaModId.Daycore)

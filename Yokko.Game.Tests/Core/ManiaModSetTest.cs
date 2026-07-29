@@ -52,6 +52,34 @@ public sealed class ManiaModSetTest
     }
 
     [Test]
+    public void OnlyLazerManiaFixedRateModsScaleHitWindows()
+    {
+        ManiaModSet doubleTime =
+            ManiaModSet.Empty.With(ManiaModId.DoubleTime, true);
+        ManiaModSet windUp = ManiaModSet.Empty.WithTimeRamp(
+            ManiaModId.WindUp,
+            1.2,
+            1.5,
+            true);
+        ManiaModSet adaptive = ManiaModSet.Empty.WithAdaptiveSpeed(
+            1.3,
+            true);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                doubleTime.HitWindowSpeedMultiplier,
+                Is.EqualTo(1.5));
+            Assert.That(
+                windUp.HitWindowSpeedMultiplier,
+                Is.EqualTo(1));
+            Assert.That(
+                adaptive.HitWindowSpeedMultiplier,
+                Is.EqualTo(1));
+        });
+    }
+
+    [Test]
     public void TimeRampTimelineIntegratesVariableRateForDifficulty()
     {
         double realTime = ManiaTimeRampTimeline.ToRealTime(

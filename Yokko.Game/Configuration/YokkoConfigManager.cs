@@ -35,6 +35,7 @@ internal enum YokkoSetting
     ManiaScrollSpeed,
     GameplayShowLanePressFeedback,
     GameplayKeysoundsEnabled,
+    GameplayPauseWhenUnfocused,
     DisplayUiScale,
     DisplayFrameLimit,
     DisplayShowPerformanceReadout,
@@ -88,6 +89,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             OsuManiaScrollSpeed.SettingsPrecision);
         SetDefault(YokkoSetting.GameplayShowLanePressFeedback, true);
         SetDefault(YokkoSetting.GameplayKeysoundsEnabled, true);
+        SetDefault(YokkoSetting.GameplayPauseWhenUnfocused, true);
         SetDefault(YokkoSetting.DisplayUiScale, YokkoUiScale.Comfortable);
         SetDefault(
             YokkoSetting.DisplayFrameLimit,
@@ -146,6 +148,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.GameplayKeysoundsEnabled,
             settings.KeysoundsEnabled);
+        BindWith(
+            YokkoSetting.GameplayPauseWhenUnfocused,
+            settings.PauseWhenUnfocused);
     }
 
     public void BindDisplaySettings(YokkoDisplaySettings settings)

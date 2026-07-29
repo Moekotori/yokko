@@ -148,6 +148,46 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestClassicConvertedChartUsesLazerConvertWindows()
+        {
+            GameplayScreen gameplay = null;
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                SourceFormat = ChartSourceFormat.OsuStandard,
+                ConversionSource = new ManiaConversionSource(
+                    4,
+                    5,
+                    5,
+                    5,
+                    [
+                        new ManiaConversionHitObject(
+                            256,
+                            1600,
+                            1600,
+                            ManiaConversionObjectKind.Circle),
+                    ]),
+            };
+
+            AddStep("open Classic converted gameplay", () =>
+            {
+                gameplay = new GameplayScreen(
+                    beatmap,
+                    mods: ManiaModSet.Empty.With(
+                        ManiaModId.Classic,
+                        true));
+                screenStack.Push(gameplay);
+            });
+            AddAssert("lazer convert windows are selected", () =>
+                gameplay.ActiveJudgementWindows.IsConvert
+                && gameplay.ActiveJudgementWindows.PerfectMilliseconds == 16.5
+                && gameplay.ActiveJudgementWindows.GreatMilliseconds == 34.5
+                && gameplay.ActiveJudgementWindows.GoodMilliseconds == 67.5
+                && gameplay.ActiveJudgementWindows.OkMilliseconds == 97.5
+                && gameplay.ActiveJudgementWindows.MehMilliseconds == 121.5
+                && gameplay.ActiveJudgementWindows.MissMilliseconds == 158.5);
+        }
+
+        [Test]
         public void TestWindUpAdvancesFrameClockAndHudRate()
         {
             GameplayScreen gameplay = null;
@@ -180,6 +220,8 @@ namespace Yokko.Game.Tests.Visual
                     mods: mods);
                 screenStack.Push(gameplay);
             });
+            AddAssert("Wind Up keeps lazer Mania hit windows unchanged", () =>
+                gameplay.ActiveJudgementWindows.SpeedMultiplier == 1);
             AddUntilStep("Wind Up rate begins increasing", () =>
                 gameplay?.ChildrenOfType<GameplayHud>()
                     .SingleOrDefault()?.DisplayedDynamicRate
@@ -1477,14 +1519,25 @@ HitPosition: 400
                 AudioPath = "focus-loss-fixture.mp3",
             };
             GameplayScreen gameplayScreen = null;
+            bool originalPauseWhenUnfocused = true;
 
             AddStep("open gameplay with audio", () =>
             {
+                originalPauseWhenUnfocused =
+                    gameplaySettings.PauseWhenUnfocused.Value;
+                gameplaySettings.PauseWhenUnfocused.Value = false;
                 gameplayScreen = new GameplayScreen(beatmap, audioEngine);
                 screenStack.Push(gameplayScreen);
             });
             AddUntilStep("audio starts", () =>
                 audioEngine.StartCount == 1);
+            AddStep("deactivate host while disabled", () =>
+                gameplayScreen.HandleHostDeactivated());
+            AddAssert("disabled setting keeps gameplay running", () =>
+                !gameplayScreen.IsPaused
+                && audioEngine.PauseCount == 0);
+            AddStep("enable pause when unfocused", () =>
+                gameplaySettings.PauseWhenUnfocused.Value = true);
             AddStep("deactivate host", () =>
                 gameplayScreen.HandleHostDeactivated());
             AddUntilStep("focus loss pauses safely", () =>
@@ -1496,6 +1549,9 @@ HitPosition: 400
                 gameplayScreen.HandleHostDeactivated();
                 return audioEngine.PauseCount == 1;
             });
+            AddStep("restore pause preference", () =>
+                gameplaySettings.PauseWhenUnfocused.Value =
+                    originalPauseWhenUnfocused);
         }
 
         private static string createTestSkin()

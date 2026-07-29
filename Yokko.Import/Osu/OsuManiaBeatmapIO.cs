@@ -152,7 +152,10 @@ public static class OsuManiaBeatmapIO
             scrollVelocity.InitialMultiplier,
             DrainRate: drainRate,
             ConversionSource: conversionSource,
-            StageCount: stageCount);
+            StageCount: stageCount,
+            PreviewTimeMilliseconds: parseDouble(
+                general.GetValueOrDefault("PreviewTime"),
+                -1));
     }
 
     private static string preferredMetadataValue(

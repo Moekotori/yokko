@@ -22,7 +22,8 @@ public sealed record YokkoBeatmap
         IReadOnlyDictionary<string, YokkoScrollProfile>? ScrollProfiles = null,
         double DrainRate = 5,
         ManiaConversionSource? ConversionSource = null,
-        int StageCount = 1)
+        int StageCount = 1,
+        double PreviewTimeMilliseconds = -1)
     {
         if (!double.IsFinite(OverallDifficulty)
             || OverallDifficulty is < -15 or > 15)
@@ -42,6 +43,9 @@ public sealed record YokkoBeatmap
                 nameof(DrainRate),
                 "Drain rate must be finite and between 0 and 11.");
         }
+
+        if (!double.IsFinite(PreviewTimeMilliseconds))
+            throw new ArgumentOutOfRangeException(nameof(PreviewTimeMilliseconds));
 
         this.Title = Title;
         this.Artist = Artist;
@@ -66,6 +70,7 @@ public sealed record YokkoBeatmap
             throw new ArgumentOutOfRangeException(nameof(StageCount));
         }
         this.StageCount = StageCount;
+        this.PreviewTimeMilliseconds = PreviewTimeMilliseconds;
     }
 
     public string Title { get; init; }
@@ -91,6 +96,12 @@ public sealed record YokkoBeatmap
     public ManiaConversionSource? ConversionSource { get; init; }
 
     public int StageCount { get; init; }
+
+    /// <summary>
+    /// Preferred song-select preview position, or a negative value when the
+    /// source chart did not provide one.
+    /// </summary>
+    public double PreviewTimeMilliseconds { get; init; }
 
     public int KeysPerStage => (int)KeyMode / StageCount;
 

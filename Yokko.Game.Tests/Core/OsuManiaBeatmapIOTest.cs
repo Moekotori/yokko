@@ -27,6 +27,9 @@ namespace Yokko.Game.Tests.Core
             Assert.That(beatmap.OverallDifficulty, Is.EqualTo(8));
             Assert.That(beatmap.DrainRate, Is.EqualTo(6));
             Assert.That(beatmap.AudioPath, Is.EqualTo("audio.mp3"));
+            Assert.That(
+                beatmap.PreviewTimeMilliseconds,
+                Is.EqualTo(12345));
             Assert.That(beatmap.TimingPoints, Has.Count.EqualTo(3));
             Assert.That(beatmap.TimingPoints[0].BeatLengthMilliseconds, Is.EqualTo(500));
             Assert.That(beatmap.TimingPoints[1].Uninherited, Is.False);
@@ -306,6 +309,7 @@ osu file format v14
 
 [General]
 AudioFilename: audio.mp3
+PreviewTime: 12345
 Mode: 3
 
 [Metadata]

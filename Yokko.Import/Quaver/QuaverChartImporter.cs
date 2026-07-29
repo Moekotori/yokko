@@ -188,7 +188,10 @@ public sealed class QuaverChartImporter : IChartImporter
             ScrollVelocities: defaultProfile.ScrollVelocities,
             InitialScrollVelocity: defaultProfile.InitialScrollVelocity,
             ScrollSpeedFactors: defaultProfile.ScrollSpeedFactors,
-            ScrollProfiles: scrollProfiles);
+            ScrollProfiles: scrollProfiles,
+            PreviewTimeMilliseconds: ImportParsing.Double(
+                parsed.Values.GetValueOrDefault("SongPreviewTime"),
+                -1));
 
         string? artworkPath = ImportParsing.ResolveAdjacentAsset(
             path,

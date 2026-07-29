@@ -6,7 +6,7 @@ namespace Yokko.Core.Scoring;
 /// Deterministic, UI-independent osu!lazer mania judgement state.
 /// Behaviour is ported from ppy/osu's DrawableNote, DrawableHoldNote,
 /// DrawableHoldNoteTail and OrderedHitPolicy at
-/// cb3d5da8b441afd8d2cf3e03ceebc6b027e2074d (MIT).
+/// 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
 /// </summary>
 public sealed class BeatmapJudgementState
 {

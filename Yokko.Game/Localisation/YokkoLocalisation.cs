@@ -275,7 +275,7 @@ internal static class YokkoStrings
                 "プレイ設定は譜面ルールやスコア処理から分離します。"),
             ["settings.gameplay.section_input"] = new("Input & key bindings", "输入与按键", "入力とキー設定"),
             ["settings.gameplay.section_timing"] = new("Timing & judgement", "时序与判定", "タイミングと判定"),
-            ["settings.gameplay.section_feedback"] = new("Visual feedback", "视觉反馈", "視覚フィードバック"),
+            ["settings.gameplay.section_feedback"] = new("Feedback & behavior", "反馈与行为", "フィードバックと動作"),
 
             ["settings.skins.title"] = new("Skins", "皮肤", "スキン"),
             ["settings.skins.subtitle"] = new(
@@ -372,13 +372,13 @@ internal static class YokkoStrings
                 "与音频设置共享，确保时序只有一个真源。",
                 "オーディオ設定と共有し、タイミングを一元管理します。"),
             ["settings.gameplay.feedback_heading"] = new(
-                "Playfield feedback",
-                "游玩界面反馈",
-                "プレイ画面のフィードバック"),
+                "Playfield & window behavior",
+                "游玩反馈与窗口行为",
+                "プレイ画面とウィンドウ動作"),
             ["settings.gameplay.feedback_note"] = new(
-                "Control visual and audio feedback while playing.",
-                "控制游玩时的视觉与按键音反馈。",
-                "プレイ中の視覚とキー音フィードバックを設定します。"),
+                "Control feedback and automatic pause behavior while playing.",
+                "控制游玩反馈与离开窗口时的自动暂停行为。",
+                "プレイ中のフィードバックと自動停止を設定します。"),
             ["settings.gameplay.show_lane_feedback"] = new("Lane lighting", "轨道亮灯", "レーン点灯"),
             ["settings.gameplay.show_lane_feedback_note"] = new(
                 "Light lanes on key press",
@@ -392,6 +392,14 @@ internal static class YokkoStrings
                 "Play chart samples on hit",
                 "命中时播放谱面采样",
                 "ヒット時に譜面サンプルを再生"),
+            ["settings.gameplay.pause_when_unfocused"] = new(
+                "Pause when unfocused",
+                "离开窗口时暂停",
+                "非アクティブ時に一時停止"),
+            ["settings.gameplay.pause_when_unfocused_note"] = new(
+                "Pause when Yokko loses focus",
+                "切换到其他窗口时自动暂停",
+                "別のウィンドウに切り替えると自動停止"),
             ["settings.gameplay.enabled"] = new("Enabled", "已启用", "オン"),
             ["settings.gameplay.disabled"] = new("Disabled", "已关闭", "オフ"),
 

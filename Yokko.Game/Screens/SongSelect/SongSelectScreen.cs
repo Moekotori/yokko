@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
@@ -18,11 +19,13 @@ using osu.Framework.Screens;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
+using Yokko.Audio;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
+using Yokko.Game.Audio;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
@@ -44,6 +47,7 @@ public partial class SongSelectScreen : Screen
     private const float ranking_height = 190;
 
     private readonly List<SongSelectEntry> entries = createEntries();
+    private readonly IAudioEngine suppliedPreviewAudioEngine;
     private readonly Dictionary<string, SongSelectEntry> importedEntries =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<SongSelectSongRow> rows = new();
@@ -102,6 +106,7 @@ public partial class SongSelectScreen : Screen
     private SpriteText modInfoDescription;
     private ManiaModId? hoveredMod;
     private AnimatedGifSprite mascotAnimation;
+    private SongSelectPreviewPlayer previewPlayer;
 
     private List<SongSelectEntry> visibleEntries;
     private List<SongSelectEntry> navigableEntries = [];
@@ -111,12 +116,21 @@ public partial class SongSelectScreen : Screen
     private SongSelectScoreView scoreView = SongSelectScoreView.GlobalRanking;
     private ManiaModSet selectedMods = ManiaModSet.Empty;
     private bool modPanelOpen;
+    private bool previewActive;
+    private bool transitionPending;
     [Resolved]
     private GameplayScoreStore scoreStore { get; set; }
     [Resolved]
     private ImportedChartLibrary importedChartLibrary { get; set; }
     [Resolved]
     private IRenderer renderer { get; set; }
+    [Resolved]
+    private YokkoAudioSettings audioSettings { get; set; }
+
+    public SongSelectScreen(IAudioEngine previewAudioEngine = null)
+    {
+        suppliedPreviewAudioEngine = previewAudioEngine;
+    }
 
     internal SongSelectEntry SelectedEntry => selectedEntry;
     internal int VisibleEntryCount => visibleEntries?.Count ?? 0;
@@ -173,6 +187,9 @@ public partial class SongSelectScreen : Screen
     private void load(TextureStore textureStore)
     {
         textures = textureStore;
+        previewPlayer = new SongSelectPreviewPlayer(
+            suppliedPreviewAudioEngine ?? AudioEngineFactory.CreateDefault(),
+            audioSettings);
         chartArtworkTextures = new TextureStore(
             renderer,
             new TextureLoaderStore(
@@ -239,6 +256,8 @@ public partial class SongSelectScreen : Screen
     public override void OnEntering(ScreenTransitionEvent e)
     {
         base.OnEntering(e);
+        previewActive = true;
+        playSelectedPreview();
         stage.FadeIn(260, Easing.OutQuint).MoveToY(0, 420, Easing.OutQuint);
     }
 
@@ -253,17 +272,23 @@ public partial class SongSelectScreen : Screen
             : entries[Math.Min(selectedIndex, entries.Count - 1)];
         applyFilters();
         rebuildDetails();
+        previewActive = true;
+        playSelectedPreview();
         this.FadeIn(180, Easing.OutQuint);
     }
 
     public override void OnSuspending(ScreenTransitionEvent e)
     {
         base.OnSuspending(e);
+        previewActive = false;
+        previewPlayer?.Stop();
         this.FadeTo(0.35f, 180, Easing.OutQuint);
     }
 
     public override bool OnExiting(ScreenExitEvent e)
     {
+        previewActive = false;
+        previewPlayer?.Stop();
         this.FadeOut(180, Easing.OutQuint);
         return base.OnExiting(e);
     }
@@ -276,6 +301,8 @@ public partial class SongSelectScreen : Screen
                 importedChartLibrary.LibraryChanged -= onChartLibraryChanged;
 
             chartArtworkTextures?.Dispose();
+            if (previewPlayer != null)
+                _ = previewPlayer.DisposeAsync();
         }
 
         base.Dispose(isDisposing);
@@ -345,7 +372,7 @@ public partial class SongSelectScreen : Screen
     internal void HandleEscape()
     {
         if (!DismissSearch())
-            this.Exit();
+            stopPreviewThen(this.Exit);
     }
 
     internal void ToggleScoreView()
@@ -358,13 +385,39 @@ public partial class SongSelectScreen : Screen
 
     internal void PlaySelected()
     {
-        if (selectedEntry != null)
+        if (selectedEntry == null)
+            return;
+
+        GameplayScreen gameplay = new(
+            selectedEntry.Beatmap,
+            mods: selectedMods,
+            cinemaArtworkPath: selectedEntry.WallpaperTexture);
+        stopPreviewThen(() => this.Push(gameplay));
+    }
+
+    private void stopPreviewThen(Action transition)
+    {
+        if (transitionPending)
+            return;
+
+        transitionPending = true;
+        previewActive = false;
+        previewPlayer?.Stop();
+        _ = finishTransitionAsync(
+            previewPlayer?.WaitForIdleAsync() ?? Task.CompletedTask,
+            transition);
+    }
+
+    private async Task finishTransitionAsync(
+        Task previewStopped,
+        Action transition)
+    {
+        await previewStopped.ConfigureAwait(false);
+        Scheduler.Add(() =>
         {
-            this.Push(new GameplayScreen(
-                selectedEntry.Beatmap,
-                mods: selectedMods,
-                cinemaArtworkPath: selectedEntry.WallpaperTexture));
-        }
+            transitionPending = false;
+            transition();
+        });
     }
 
     internal void ToggleMod(ManiaModId mod)
@@ -614,6 +667,7 @@ public partial class SongSelectScreen : Screen
     private void onSelectedModsChanged()
     {
         updateModSelection();
+        playSelectedPreview();
         if (hoveredMod == null)
             showModPanelSummary();
         refreshSavedScores();
@@ -979,7 +1033,8 @@ public partial class SongSelectScreen : Screen
                     Rotation = 14,
                     Colour = new Color4(1f, 1f, 1f, 0.82f),
                 },
-                new SongSelectFooterBackButton(this.Exit)
+                new SongSelectFooterBackButton(
+                    () => stopPreviewThen(this.Exit))
                 {
                     Position = new Vector2(272, 21.5f),
                 },
@@ -1164,6 +1219,9 @@ public partial class SongSelectScreen : Screen
     protected override void Update()
     {
         base.Update();
+
+        if (previewActive)
+            previewPlayer?.EnsurePlaying();
 
         if (songBrowser != null)
             songBrowser.Height = MathF.Max(
@@ -1666,6 +1724,7 @@ public partial class SongSelectScreen : Screen
             crossFadeBackground(textureFor(entry));
             rebuildDetails();
             modSettingsHost?.SetState(selectedMods, entry.Beatmap);
+            playSelectedPreview();
         }
 
         if (rebuildList)
@@ -1687,6 +1746,14 @@ public partial class SongSelectScreen : Screen
         incoming.FadeIn(220, Easing.OutQuint);
         activeBackground.FadeOut(220, Easing.OutQuint);
         activeBackground = incoming;
+    }
+
+    private void playSelectedPreview()
+    {
+        if (!previewActive)
+            return;
+
+        previewPlayer?.Play(selectedEntry?.Beatmap, selectedMods);
     }
 
     private Texture textureFor(SongSelectEntry entry)

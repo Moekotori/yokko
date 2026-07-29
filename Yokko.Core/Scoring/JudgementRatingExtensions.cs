@@ -3,7 +3,7 @@ namespace Yokko.Core.Scoring;
 /// <summary>
 /// Mirrors the gameplay-relevant HitResult semantics from osu!lazer.
 /// Source: ppy/osu osu.Game/Rulesets/Scoring/HitResult.cs
-/// commit cb3d5da8b441afd8d2cf3e03ceebc6b027e2074d (MIT).
+/// commit 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
 /// </summary>
 public static class JudgementRatingExtensions
 {
