@@ -20,10 +20,10 @@ namespace Yokko.Game.Screens.Gameplay;
 /// </summary>
 public partial class GameplayTimingBar : CompositeDrawable
 {
-    private const float barWidth = 340;
-    private const float barHeight = 8;
-    private const float barLeft = 54;
-    private const float markerY = 28;
+    private const float barWidth = 360;
+    private const float barHeight = 6;
+    private const float markerY = 54;
+    private const float componentHeight = 92;
     private const int markerLifetimeMilliseconds = 4200;
     private const int maxConcurrentMarkers = 50;
     private const double trendWeight = 0.15;
@@ -33,7 +33,7 @@ public partial class GameplayTimingBar : CompositeDrawable
         new(maxConcurrentMarkers);
     private readonly Container<TimingMarker> markerLayer;
     private readonly Circle pressTrendMarker;
-    private readonly Circle releaseTrendMarker;
+    private readonly Box releaseTrendMarker;
     private readonly SpriteText trendText;
     private readonly SpriteText latestText;
     private bool hasPressTrend;
@@ -69,11 +69,11 @@ public partial class GameplayTimingBar : CompositeDrawable
         ArgumentNullException.ThrowIfNull(windows);
 
         maximumHitErrorMilliseconds = Math.Max(1, windows.MissMilliseconds);
-        Size = new Vector2(barWidth + barLeft * 2, 66);
+        Size = new Vector2(barWidth, componentHeight);
 
         var colourBar = new Container
         {
-            Position = new Vector2(barLeft, markerY - barHeight / 2),
+            Position = new Vector2(0, markerY - barHeight / 2),
             Size = new Vector2(barWidth, barHeight),
             Masking = true,
             CornerRadius = barHeight / 2,
@@ -98,73 +98,116 @@ public partial class GameplayTimingBar : CompositeDrawable
         InternalChildren = new Drawable[]
         {
             markerPool,
-            trendText = new SpriteText
+            new Container
             {
-                Anchor = Anchor.TopCentre,
-                Origin = Anchor.TopCentre,
-                Y = -12,
-                Text = string.Empty,
-                Font = FontUsage.Default.With(size: 11, weight: "SemiBold"),
-                Colour = YokkoPalette.TextMuted,
-                Alpha = 0,
+                Position = new Vector2(-12, -2),
+                Size = new Vector2(barWidth + 24, 49),
+                Masking = true,
+                CornerRadius = 10,
+                BorderThickness = 1,
+                BorderColour = new Color4(0.58f, 0.66f, 0.78f, 0.14f),
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(0.012f, 0.017f, 0.028f, 0.58f),
+                },
             },
-            new SpriteText
+            new Container
             {
-                Anchor = Anchor.TopLeft,
-                Origin = Anchor.CentreLeft,
-                Position = new Vector2(0, markerY),
-                Text = YokkoStrings.Get("gameplay.timing.early"),
-                Font = FontUsage.Default.With(size: 13, weight: "SemiBold"),
-                Colour = YokkoPalette.TextMuted,
-            },
-            new SpriteText
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.CentreRight,
-                Position = new Vector2(0, markerY),
-                Text = YokkoStrings.Get("gameplay.timing.late"),
-                Font = FontUsage.Default.With(size: 13, weight: "SemiBold"),
-                Colour = YokkoPalette.TextMuted,
+                Position = new Vector2(-5, markerY - 7),
+                Size = new Vector2(barWidth + 10, 14),
+                Masking = true,
+                CornerRadius = 7,
+                BorderThickness = 1,
+                BorderColour = new Color4(0.58f, 0.66f, 0.78f, 0.24f),
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(0.012f, 0.017f, 0.028f, 0.9f),
+                },
             },
             colourBar,
-            markerLayer = new Container<TimingMarker>
+            new Box
             {
-                Position = new Vector2(barLeft, 0),
-                Size = new Vector2(barWidth, 48),
+                Position = new Vector2(barWidth / 2 - 3, markerY - 13),
+                Size = new Vector2(6, 26),
+                Colour = new Color4(
+                    YokkoPalette.Cyan.R,
+                    YokkoPalette.Cyan.G,
+                    YokkoPalette.Cyan.B,
+                    0.18f),
+                Blending = BlendingParameters.Additive,
             },
             new Box
             {
-                Position = new Vector2(
-                    barLeft + barWidth / 2 - 1,
-                    markerY - 8),
-                Size = new Vector2(2, 16),
+                Position = new Vector2(barWidth / 2 - 0.75f, markerY - 12),
+                Size = new Vector2(1.5f, 24),
                 Colour = Color4.White,
+            },
+            markerLayer = new Container<TimingMarker>
+            {
+                Size = new Vector2(barWidth, componentHeight),
             },
             pressTrendMarker = new Circle
             {
                 Anchor = Anchor.TopLeft,
                 Origin = Anchor.Centre,
-                Position = new Vector2(barLeft + barWidth / 2, markerY - 12),
-                Size = new Vector2(10, 4),
-                Colour = Color4.White,
+                Position = new Vector2(barWidth / 2, markerY - 13),
+                Size = new Vector2(8, 3),
+                Colour = YokkoPalette.Cyan,
                 Alpha = 0,
             },
-            releaseTrendMarker = new Circle
+            releaseTrendMarker = new Box
             {
                 Anchor = Anchor.TopLeft,
                 Origin = Anchor.Centre,
-                Position = new Vector2(barLeft + barWidth / 2, markerY - 12),
-                Size = new Vector2(4, 10),
-                Colour = YokkoPalette.TextMuted,
+                Position = new Vector2(barWidth / 2, markerY - 13),
+                Size = new Vector2(5),
+                Rotation = 45,
+                Colour = YokkoPalette.Violet,
                 Alpha = 0,
+            },
+            trendText = new SpriteText
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 1,
+                Text = YokkoStrings.Get("gameplay.timing.title"),
+                Font = FontUsage.Default.With(size: 10.5f, weight: "SemiBold"),
+                Colour = YokkoPalette.TextDim,
+                Alpha = 0.44f,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.BottomLeft,
+                Position = new Vector2(0, markerY - 12),
+                Text = YokkoStrings.Get(
+                    "gameplay.timing.early_limit",
+                    maximumHitErrorMilliseconds),
+                Font = FontUsage.Default.With(size: 10.5f, weight: "SemiBold"),
+                Colour = YokkoPalette.TextDim,
+                Spacing = new Vector2(0.25f, 0),
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.BottomRight,
+                Position = new Vector2(0, markerY - 12),
+                Text = YokkoStrings.Get(
+                    "gameplay.timing.late_limit",
+                    maximumHitErrorMilliseconds),
+                Font = FontUsage.Default.With(size: 10.5f, weight: "SemiBold"),
+                Colour = YokkoPalette.TextDim,
+                Spacing = new Vector2(0.25f, 0),
             },
             latestText = new SpriteText
             {
-                Anchor = Anchor.BottomCentre,
-                Origin = Anchor.BottomCentre,
-                Y = -50,
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 17,
                 Text = string.Empty,
-                Font = FontUsage.Default.With(size: 12, weight: "SemiBold"),
+                Font = FontUsage.Default.With(size: 13, weight: "SemiBold"),
                 Colour = YokkoPalette.TextMuted,
             },
         };
@@ -198,9 +241,11 @@ public partial class GameplayTimingBar : CompositeDrawable
         markerPool.Get(marker =>
         {
             marker.Position = new Vector2(markerPosition, markerY);
-            marker.Colour = RatingColours.For(judgement.Rating);
             markerLayer.Add(marker);
-            marker.Show(release, markerLifetimeMilliseconds);
+            marker.Show(
+                release,
+                RatingColours.For(judgement.Rating),
+                markerLifetimeMilliseconds);
         });
 
         if (release)
@@ -240,8 +285,15 @@ public partial class GameplayTimingBar : CompositeDrawable
             hitError);
         latestText.Colour = RatingColours.For(judgement.Rating);
         latestText.FinishTransforms();
-        latestText.Alpha = 1;
-        latestText.Delay(1000).FadeOut(500, Easing.OutQuint);
+        latestText.Alpha = 0;
+        latestText.Scale = new Vector2(0.96f);
+        latestText.FadeIn(70, Easing.OutQuint)
+                  .Then()
+                  .Delay(1080)
+                  .FadeOut(350, Easing.OutQuint);
+        latestText.ScaleTo(1.035f, 70, Easing.OutQuint)
+                  .Then()
+                  .ScaleTo(1, 130, Easing.OutBack);
 
         RecordedMarkerCount++;
         LatestHitErrorMilliseconds = hitError;
@@ -263,17 +315,18 @@ public partial class GameplayTimingBar : CompositeDrawable
         releaseTrendMilliseconds = 0;
         pressTrendMarker.Alpha = 0;
         releaseTrendMarker.Alpha = 0;
-        trendText.Text = string.Empty;
-        trendText.Alpha = 0;
+        trendText.Text = YokkoStrings.Get("gameplay.timing.title");
+        trendText.Colour = YokkoPalette.TextDim;
+        trendText.Alpha = 0.44f;
         latestText.Text = string.Empty;
         latestText.Alpha = 0;
     }
 
-    private void moveTrendMarker(Circle marker, double error)
+    private void moveTrendMarker(Drawable marker, double error)
     {
         marker.FadeTo(0.9f, 100, Easing.OutQuint)
               .MoveToX(
-                  barLeft + positionFor(error),
+                  positionFor(error),
                   180,
                   Easing.OutQuint);
     }
@@ -292,7 +345,12 @@ public partial class GameplayTimingBar : CompositeDrawable
                 : YokkoStrings.Get(
                     "gameplay.timing.trend_press",
                     pressTrendMilliseconds);
-        trendText.Alpha = 0.82f;
+        trendText.Colour = hasPressTrend && hasReleaseTrend
+            ? YokkoPalette.TextMuted
+            : hasReleaseTrend
+                ? YokkoPalette.Violet
+                : YokkoPalette.Cyan;
+        trendText.Alpha = 0.78f;
     }
 
     private static void updateTrend(
@@ -327,7 +385,7 @@ public partial class GameplayTimingBar : CompositeDrawable
                     0,
                     1),
                 barHeight),
-            Colour = new Color4(colour.R, colour.G, colour.B, 0.82f),
+            Colour = new Color4(colour.R, colour.G, colour.B, 0.72f),
         };
     }
 
@@ -343,27 +401,70 @@ public partial class GameplayTimingBar : CompositeDrawable
 
     private partial class TimingMarker : PoolableDrawable
     {
+        private readonly Circle glow;
+        private readonly Circle core;
+        private readonly Circle detail;
+
         public TimingMarker()
         {
             Anchor = Anchor.TopLeft;
             Origin = Anchor.Centre;
-            InternalChild = new Circle
+            InternalChildren = new Drawable[]
             {
-                RelativeSizeAxes = Axes.Both,
+                glow = new Circle
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    RelativeSizeAxes = Axes.Both,
+                    Scale = new Vector2(1.8f),
+                    Alpha = 0.28f,
+                    Blending = BlendingParameters.Additive,
+                },
+                core = new Circle
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
+                detail = new Circle
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(3),
+                    Alpha = 0,
+                },
             };
         }
 
-        public void Show(bool release, int lifetimeMilliseconds)
+        public void Show(
+            bool release,
+            Color4 ratingColour,
+            int lifetimeMilliseconds)
         {
             Size = release
-                ? new Vector2(9, 4)
-                : new Vector2(3, 18);
+                ? new Vector2(8)
+                : new Vector2(3, 20);
+            Colour = Color4.White;
+            glow.Colour = ratingColour;
+            core.Colour = Color4.White;
+            detail.Colour = ratingColour;
+            detail.Alpha = release ? 1 : 0;
+            ClearTransforms();
             Alpha = 0;
-            this.FadeTo(0.95f, 80, Easing.OutQuint)
+            Scale = new Vector2(0.65f);
+            this.FadeTo(1, 70, Easing.OutQuint)
                 .Then()
-                .Delay(lifetimeMilliseconds - 980)
+                .FadeTo(
+                    0.42f,
+                    lifetimeMilliseconds - 970,
+                    Easing.OutQuint)
+                .Then()
                 .FadeOut(900, Easing.InQuint)
                 .Expire();
+            this.ScaleTo(1.15f, 70, Easing.OutQuint)
+                .Then()
+                .ScaleTo(1, 130, Easing.OutBack);
         }
     }
 }

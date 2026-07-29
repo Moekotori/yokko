@@ -108,6 +108,7 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
         string normalized = normalize(assetName.Trim());
         string extension = Path.GetExtension(normalized);
         string withoutExtension = extension.Length > 0 ? normalized[..^extension.Length] : normalized;
+        withoutExtension = stripHighResolutionSuffix(withoutExtension);
         string[] extensions = extension.Length > 0 ? [extension] : [".png", ".jpg", ".jpeg"];
 
         foreach (string candidateExtension in extensions)
@@ -147,27 +148,19 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
         string withoutExtension = extension.Length > 0
             ? normalized[..^extension.Length]
             : normalized;
+        withoutExtension = stripHighResolutionSuffix(withoutExtension);
         string[] extensions = extension.Length > 0
             ? [extension]
             : [".png", ".jpg", ".jpeg"];
 
         foreach (string candidateExtension in extensions)
         {
-            IReadOnlyList<(string, bool)> highResolution = animationFrames(
+            IReadOnlyList<(string, bool)> frames = animationFrames(
                 withoutExtension,
-                candidateExtension,
-                true);
+                candidateExtension);
 
-            if (highResolution.Count > 0)
-                return highResolution;
-
-            IReadOnlyList<(string, bool)> standard = animationFrames(
-                withoutExtension,
-                candidateExtension,
-                false);
-
-            if (standard.Count > 0)
-                return standard;
+            if (frames.Count > 0)
+                return frames;
         }
 
         (string name, bool highResolutionFallback) = ResolveTextureName(assetName);
@@ -332,24 +325,30 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
 
     private IReadOnlyList<(string Name, bool HighResolution)> animationFrames(
         string baseName,
-        string extension,
-        bool highResolution)
+        string extension)
     {
         var frames = new List<(string, bool)>();
-        string scaleSuffix = highResolution ? "@2x" : string.Empty;
 
         for (int index = 0; index < 1024; index++)
         {
-            string candidate = $"{baseName}-{index}{scaleSuffix}{extension}";
+            string highResolution = $"{baseName}-{index}@2x{extension}";
+            string standard = $"{baseName}-{index}{extension}";
 
-            if (!Contains(candidate))
+            if (Contains(highResolution))
+                frames.Add((highResolution, true));
+            else if (Contains(standard))
+                frames.Add((standard, false));
+            else
                 break;
-
-            frames.Add((candidate, highResolution));
         }
 
         return frames;
     }
+
+    private static string stripHighResolutionSuffix(string path) =>
+        path.EndsWith("@2x", StringComparison.OrdinalIgnoreCase)
+            ? path[..^3]
+            : path;
 
     private static bool isSafe(string path) =>
         path.Length > 0 &&

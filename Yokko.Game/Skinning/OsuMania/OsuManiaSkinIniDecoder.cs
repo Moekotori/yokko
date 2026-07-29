@@ -32,7 +32,7 @@ internal static class OsuManiaSkinIniDecoder
 
             if (line.StartsWith("[", StringComparison.Ordinal) && line.EndsWith("]", StringComparison.Ordinal))
             {
-                commitManiaSection(maniaValues, configurations);
+                commitManiaSection(maniaValues, configurations, version);
                 section = line[1..^1].Trim();
                 maniaValues = section.Equals("Mania", StringComparison.OrdinalIgnoreCase)
                     ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -74,7 +74,7 @@ internal static class OsuManiaSkinIniDecoder
                 maniaValues[key] = value;
         }
 
-        commitManiaSection(maniaValues, configurations);
+        commitManiaSection(maniaValues, configurations, version);
         return new OsuManiaSkinInfo(
             name,
             author,
@@ -86,15 +86,31 @@ internal static class OsuManiaSkinIniDecoder
 
     private static void commitManiaSection(
         IReadOnlyDictionary<string, string> values,
-        IDictionary<int, OsuManiaSkinConfiguration> configurations)
+        IDictionary<int, OsuManiaSkinConfiguration> configurations,
+        string version)
     {
         if (values == null || !tryInt(values, "Keys", out int keys) || keys <= 0 || keys > 18)
             return;
 
-        OsuManiaSkinConfiguration defaults = OsuManiaSkinConfiguration.CreateDefault(keys);
+        OsuManiaSkinConfiguration defaults =
+            OsuManiaSkinConfiguration.CreateDefault(keys, version);
         float[] widths = floatList(values, "ColumnWidth", defaults.ColumnWidths, keys);
         float[] spacings = floatList(values, "ColumnSpacing", defaults.ColumnSpacings, keys);
-        float[] lineWidths = floatList(values, "ColumnLineWidth", defaults.ColumnLineWidths, keys);
+        float[] lineWidths = floatList(
+            values,
+            "ColumnLineWidth",
+            defaults.ColumnLineWidths,
+            keys + 1);
+        float[] explosionWidths = floatList(
+            values,
+            "LightingNWidth",
+            defaults.ExplosionWidths,
+            keys);
+        float[] holdNoteLightWidths = floatList(
+            values,
+            "LightingLWidth",
+            defaults.HoldNoteLightWidths,
+            keys);
         var laneColours = new Color4[keys];
         var laneLightColours = new Color4[keys];
         var keyImages = new string[keys];
@@ -110,7 +126,13 @@ internal static class OsuManiaSkinIniDecoder
         var holdHeadFlips = new bool[keys];
         var holdBodyFlips = new bool[keys];
         var holdTailFlips = new bool[keys];
-        int defaultBodyStyle = Math.Clamp(integer(values, "NoteBodyStyle", 1), 0, 4);
+        int defaultBodyStyle = Math.Clamp(
+            integer(
+                values,
+                "NoteBodyStyle",
+                defaults.NoteBodyStyles[0]),
+            0,
+            4);
         bool defaultKeyFlip = boolean(values, "KeyFlipWhenUpsideDown", true);
         bool defaultNoteFlip = boolean(values, "NoteFlipWhenUpsideDown", true);
 
@@ -141,7 +163,10 @@ internal static class OsuManiaSkinIniDecoder
             widths,
             spacings,
             lineWidths,
-            number(values, "HitPosition", defaults.HitPosition),
+            Math.Clamp(
+                number(values, "HitPosition", defaults.HitPosition),
+                240,
+                480),
             number(values, "ScorePosition", defaults.ScorePosition),
             number(values, "ComboPosition", defaults.ComboPosition),
             boolean(values, "UpsideDown", defaults.UpsideDown),
@@ -176,6 +201,10 @@ internal static class OsuManiaSkinIniDecoder
                 values,
                 "LightingN",
                 defaults.ExplosionImage),
+            HoldNoteLightImage = text(
+                values,
+                "LightingL",
+                defaults.HoldNoteLightImage),
             LightPosition = number(
                 values,
                 "LightPosition",
@@ -184,10 +213,32 @@ internal static class OsuManiaSkinIniDecoder
                 integer(values, "LightFramePerSecond", defaults.LightFramePerSecond),
                 1,
                 1000),
-            ExplosionWidth = Math.Max(
-                0,
-                number(values, "LightingNWidth", defaults.ExplosionWidth)),
+            ExplosionWidths = explosionWidths,
+            HoldNoteLightWidths = holdNoteLightWidths,
             LaneLightColours = laneLightColours,
+            BarLineHeight = Math.Max(
+                0,
+                number(values, "BarlineHeight", defaults.BarLineHeight)),
+            ShowJudgementLine = boolean(
+                values,
+                "JudgementLine",
+                defaults.ShowJudgementLine),
+            BarLineColour = colour(
+                values,
+                "ColourBarline",
+                defaults.BarLineColour),
+            JudgementLineColour = colour(
+                values,
+                "ColourJudgementLine",
+                defaults.JudgementLineColour),
+            StageLeft = text(values, "StageLeft", defaults.StageLeft),
+            StageRight = text(values, "StageRight", defaults.StageRight),
+            StageBottom = text(values, "StageBottom", defaults.StageBottom),
+            SplitStages = nullableBoolean(values, "SplitStages"),
+            StageSeparation = Math.Max(
+                0,
+                number(values, "StageSeparation", defaults.StageSeparation)),
+            SkinVersion = defaults.SkinVersion,
         };
     }
 
@@ -224,8 +275,13 @@ internal static class OsuManiaSkinIniDecoder
 
         for (int i = 0; i < Math.Min(count, parts.Length); i++)
         {
-            if (float.TryParse(parts[i].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
-                result[i] = parsed;
+            result[i] = float.TryParse(
+                parts[i].Trim(),
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out float parsed)
+                ? parsed
+                : 0;
         }
 
         return result;
@@ -261,4 +317,9 @@ internal static class OsuManiaSkinIniDecoder
         return values.TryGetValue(key, out string raw) &&
                int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
     }
+
+    private static bool? nullableBoolean(
+        IReadOnlyDictionary<string, string> values,
+        string key) =>
+        tryInt(values, key, out int value) ? value == 1 : null;
 }

@@ -22,15 +22,21 @@ public partial class LaneColumn : CompositeDrawable
     private readonly Sprite idleKey;
     private readonly Sprite pressedKey;
     private readonly TextureAnimation laneLight;
+    private readonly TextureAnimation holdLight;
     private readonly TextureAnimation[] hitExplosions = [];
     private readonly SpriteText keyLabel;
     private readonly float baseLaneWidth;
     private readonly bool idleKeyFlipped;
     private readonly bool pressedKeyFlipped;
     private readonly bool showPressFeedback;
+    private bool holdLightActive;
     private int nextHitExplosion;
 
     internal Container ReceptorLayer { get; }
+
+    internal float IdleKeyHeight => idleKey?.Height ?? 0;
+
+    internal bool HasHoldLight => holdLight != null;
 
     internal LaneColumn(
         int lane,
@@ -97,15 +103,31 @@ public partial class LaneColumn : CompositeDrawable
             new Box
             {
                 RelativeSizeAxes = Axes.Y,
-                Width = configuration.ColumnLineWidths[lane],
+                Width = configuration.ColumnLineWidths[lane] * 0.74f,
                 Colour = configuration.ColumnLineColour,
             },
         };
+        float rightLineWidth = configuration.ColumnLineWidths[lane + 1];
+        bool showRightLine = lane == configuration.Keys - 1
+                             || configuration.SkinVersion >= 2.4;
+        if (showRightLine && rightLineWidth > 0)
+        {
+            backgroundChildren.Add(new Box
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                RelativeSizeAxes = Axes.Y,
+                Width = rightLineWidth * 0.74f,
+                Colour = configuration.ColumnLineColour,
+            });
+        }
         var receptorChildren = new List<Drawable>();
         IReadOnlyList<Texture> lightTextures =
             skin.GetAnimationFrames(configuration.LightImage);
         IReadOnlyList<Texture> explosionTextures =
             skin.GetAnimationFrames(configuration.ExplosionImage);
+        IReadOnlyList<Texture> holdLightTextures =
+            skin.GetAnimationFrames(configuration.HoldNoteLightImage);
 
         if (lightTextures.Count > 0)
         {
@@ -174,17 +196,11 @@ public partial class LaneColumn : CompositeDrawable
         if (explosionTextures.Count > 0)
         {
             Texture firstExplosionTexture = explosionTextures[0];
-            float explosionWidth = configuration.ExplosionWidth > 0
-                ? configuration.ExplosionWidth
-                  / OsuManiaSkinConfiguration.LegacyPositionScaleFactor
-                : firstExplosionTexture.DisplayWidth
-                  / OsuManiaSkinConfiguration.LegacyPositionScaleFactor;
-            float explosionHeight = firstExplosionTexture.DisplayWidth > 0
-                ? explosionWidth
-                  * firstExplosionTexture.DisplayHeight
-                  / firstExplosionTexture.DisplayWidth
-                : firstExplosionTexture.DisplayHeight
-                  / OsuManiaSkinConfiguration.LegacyPositionScaleFactor;
+            Vector2 explosionSize = legacyLightingSize(
+                firstExplosionTexture,
+                configuration.ExplosionWidths[lane],
+                laneWidth,
+                configuration.SkinVersion);
             hitExplosions = new TextureAnimation[hit_explosion_pool_size];
             double frameDuration = Math.Max(
                 1000.0 / 60,
@@ -202,7 +218,7 @@ public partial class LaneColumn : CompositeDrawable
                     Y = configuration.UpsideDown
                         ? 480 - hitPosition
                         : -(480 - hitPosition),
-                    Size = new Vector2(explosionWidth, explosionHeight),
+                    Size = explosionSize,
                     Alpha = 0,
                     Blending = BlendingParameters.Additive,
                 };
@@ -210,6 +226,35 @@ public partial class LaneColumn : CompositeDrawable
                 hitExplosions[index] = explosion;
                 receptorChildren.Add(explosion);
             }
+        }
+
+        if (holdLightTextures.Count > 0)
+        {
+            Texture firstHoldLightTexture = holdLightTextures[0];
+            Vector2 holdLightSize = legacyLightingSize(
+                firstHoldLightTexture,
+                configuration.HoldNoteLightWidths[lane],
+                laneWidth,
+                configuration.SkinVersion);
+            holdLight = new TextureAnimation
+            {
+                Name = "Hold light",
+                Anchor = configuration.UpsideDown
+                    ? Anchor.TopCentre
+                    : Anchor.BottomCentre,
+                Origin = Anchor.Centre,
+                Y = configuration.UpsideDown
+                    ? 480 - hitPosition
+                    : -(480 - hitPosition),
+                Size = holdLightSize,
+                Alpha = 0,
+                Blending = BlendingParameters.Additive,
+            };
+            addFrames(
+                holdLight,
+                holdLightTextures,
+                Math.Max(1000.0 / 60, 170.0 / holdLightTextures.Count));
+            receptorChildren.Add(holdLight);
         }
 
         InternalChildren = backgroundChildren.ToArray();
@@ -248,6 +293,9 @@ public partial class LaneColumn : CompositeDrawable
 
         foreach (TextureAnimation hitExplosion in hitExplosions)
             hitExplosion.Scale = new Vector2(value);
+
+        if (holdLight != null)
+            holdLight.Scale = new Vector2(value);
 
         if (laneLight != null)
             laneLight.Width = baseLaneWidth * value;
@@ -302,6 +350,25 @@ public partial class LaneColumn : CompositeDrawable
                     .FadeOut(120);
     }
 
+    public void SetHoldActive(bool active)
+    {
+        if (holdLight == null || holdLightActive == active)
+            return;
+
+        holdLightActive = active;
+        holdLight.FinishTransforms();
+
+        if (active)
+        {
+            holdLight.GotoFrame(0);
+            holdLight.FadeInFromZero(80);
+        }
+        else
+        {
+            holdLight.FadeOut(120);
+        }
+    }
+
     private static Sprite createKeySprite(
         Texture texture,
         float laneWidth,
@@ -314,9 +381,8 @@ public partial class LaneColumn : CompositeDrawable
             : upsideDown ? Anchor.TopLeft : Anchor.BottomLeft,
         Size = new Vector2(
             laneWidth,
-            texture.DisplayHeight > 0
-                ? texture.DisplayHeight /
-                  OsuManiaSkinConfiguration.LegacyPositionScaleFactor
+            texture.DisplayWidth > 0
+                ? texture.DisplayHeight * laneWidth / texture.DisplayWidth
                 : 1),
         Scale = new Vector2(1, flip ? -1 : 1),
         Texture = texture,
@@ -329,5 +395,33 @@ public partial class LaneColumn : CompositeDrawable
     {
         foreach (Texture texture in frames)
             animation.AddFrame(texture, frameDuration);
+    }
+
+    private static Vector2 legacyLightingSize(
+        Texture texture,
+        float configuredWidth,
+        float columnWidth,
+        double skinVersion)
+    {
+        float scale = 1;
+        if (skinVersion >= 2.5)
+        {
+            float width = configuredWidth > 0
+                ? configuredWidth
+                : columnWidth;
+            scale = width / 30;
+        }
+
+        return new Vector2(
+            Math.Max(
+                1,
+                texture.DisplayWidth
+                / OsuManiaSkinConfiguration.LegacyPositionScaleFactor
+                * scale),
+            Math.Max(
+                1,
+                texture.DisplayHeight
+                / OsuManiaSkinConfiguration.LegacyPositionScaleFactor
+                * scale));
     }
 }

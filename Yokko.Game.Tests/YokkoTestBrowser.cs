@@ -44,6 +44,57 @@ namespace Yokko.Game.Tests
             base.LoadComplete();
 
             if (Environment.GetEnvironmentVariable(
+                    "YOKKO_TIMING_BAR_PREVIEW") == "1")
+            {
+                frameworkConfig.SetValue(
+                    FrameworkSetting.Locale,
+                    YokkoLocale.Chinese);
+                var gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo());
+                Add(new ScreenStack(gameplay)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                Add(new CursorContainer());
+                Scheduler.AddDelayed(() =>
+                {
+                    GameplayTimingBar timingBar = gameplay
+                        .ChildrenOfType<GameplayTimingBar>()
+                        .Single();
+                    (double Error, JudgementRating Rating)[] presses =
+                    [
+                        (-82, JudgementRating.Good),
+                        (-31, JudgementRating.Great),
+                        (-8, JudgementRating.Perfect),
+                        (11, JudgementRating.Perfect),
+                        (46, JudgementRating.Great),
+                        (95, JudgementRating.Ok),
+                    ];
+                    for (int i = 0; i < presses.Length; i++)
+                    {
+                        timingBar.Show(new JudgementEvent(
+                            i,
+                            i % 4,
+                            1000 + i * 100,
+                            1000 + i * 100 + presses[i].Error,
+                            presses[i].Error,
+                            presses[i].Rating));
+                    }
+
+                    timingBar.Show(new JudgementEvent(
+                        presses.Length,
+                        2,
+                        1800,
+                        1825,
+                        25,
+                        JudgementRating.Perfect,
+                        JudgementPhase.HoldTail));
+                }, 300);
+                schedulePreviewScreenshot(700);
+                return;
+            }
+
+            if (Environment.GetEnvironmentVariable(
                     "YOKKO_SCROLL_SPEED_PREVIEW") == "1")
             {
                 var gameplay = new GameplayScreen(

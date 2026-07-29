@@ -34,6 +34,14 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         overlayScale = usesScaledOverlays(skin.Info.Version)
             ? 1 / OsuManiaSkinConfiguration.LegacyPositionScaleFactor
             : 1;
+        (Anchor judgementAnchor, float judgementY) =
+            judgementPlacement(configuration);
+        Anchor comboAnchor = configuration.UpsideDown
+            ? Anchor.BottomCentre
+            : Anchor.TopCentre;
+        float comboY = configuration.UpsideDown
+            ? -configuration.ComboPosition
+            : configuration.ComboPosition;
 
         RelativeSizeAxes = Axes.Both;
 
@@ -44,9 +52,9 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         {
             judgementContainer = new Container
             {
-                Anchor = Anchor.TopCentre,
+                Anchor = judgementAnchor,
                 Origin = Anchor.Centre,
-                Y = configuration.ScorePosition,
+                Y = judgementY,
                 Scale = new Vector2(overlayScale),
                 Children = new Drawable[]
                 {
@@ -67,17 +75,17 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             },
             comboDigits = new Container
             {
-                Anchor = Anchor.TopCentre,
+                Anchor = comboAnchor,
                 Origin = Anchor.Centre,
-                Y = configuration.ComboPosition,
+                Y = comboY,
                 Scale = new Vector2(overlayScale),
                 Alpha = 0,
             },
             comboFallback = new SpriteText
             {
-                Anchor = Anchor.TopCentre,
+                Anchor = comboAnchor,
                 Origin = Anchor.Centre,
-                Y = configuration.ComboPosition,
+                Y = comboY,
                 Scale = new Vector2(overlayScale),
                 Font = FontUsage.Default.With(size: 44),
                 Alpha = 0,
@@ -225,4 +233,22 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             CultureInfo.InvariantCulture,
             out double parsed)
         && parsed >= 2.4;
+
+    private static (Anchor Anchor, float Y) judgementPlacement(
+        OsuManiaSkinConfiguration configuration)
+    {
+        float hitPosition = Math.Clamp(configuration.HitPosition, 240, 480);
+        float scorePosition = configuration.ScorePosition;
+
+        if (scorePosition > hitPosition / 2)
+        {
+            return configuration.UpsideDown
+                ? (Anchor.TopCentre, hitPosition - scorePosition)
+                : (Anchor.BottomCentre, scorePosition - hitPosition);
+        }
+
+        return configuration.UpsideDown
+            ? (Anchor.BottomCentre, -scorePosition)
+            : (Anchor.TopCentre, scorePosition);
+    }
 }

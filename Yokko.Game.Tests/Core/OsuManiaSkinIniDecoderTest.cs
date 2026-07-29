@@ -24,12 +24,16 @@ ComboOverlap: 7
 Keys: 4
 ColumnWidth: 40, 42, 42, 40
 ColumnSpacing: 1, 2, 3, 4
-ColumnLineWidth: 2, 3
-HitPosition: 388
+ColumnLineWidth: 2, 3, 4, 5, 6
+HitPosition: 200
 ScorePosition: 240
 ComboPosition: 180
+BarlineHeight: 0
+JudgementLine: 0
 Colour1: 10, 20, 30, 128
 ColourColumnLine: 200, 210, 220, 230
+ColourBarline: 11, 22, 33, 44
+ColourJudgementLine: 55, 66, 77
 KeyImage0: custom/key-left
 KeyImage0D: custom/key-left-down
 NoteImage0: custom/note-left
@@ -54,10 +58,17 @@ NoteBodyStyle: 1
 NoteBodyStyle0: 0
 StageLight: custom/stage-light
 LightingN: custom/explosion
+LightingL: custom/hold-light
 LightPosition: 410
 LightFramePerSecond: 48
-LightingNWidth: 72
+LightingNWidth: 72, 70, 68, 66
+LightingLWidth: 62, 60, 58, 56
 ColourLight1: 12, 34, 56
+StageLeft: custom/stage-left
+StageRight: custom/stage-right
+StageBottom: custom/stage-bottom
+SplitStages: 1
+StageSeparation: 24
 
 [Mania]
 Keys: 7
@@ -74,8 +85,8 @@ HitPosition: 400
         OsuManiaSkinConfiguration fourKey = info.GetConfiguration(4);
         Assert.That(fourKey.ColumnWidths, Is.EqualTo(new[] { 40f, 42f, 42f, 40f }));
         Assert.That(fourKey.ColumnSpacings, Is.EqualTo(new[] { 1f, 2f, 3f, 4f }));
-        Assert.That(fourKey.ColumnLineWidths, Is.EqualTo(new[] { 2f, 3f, 2f, 2f }));
-        Assert.That(fourKey.HitPosition, Is.EqualTo(388));
+        Assert.That(fourKey.ColumnLineWidths, Is.EqualTo(new[] { 2f, 3f, 4f, 5f, 6f }));
+        Assert.That(fourKey.HitPosition, Is.EqualTo(240));
         Assert.That(fourKey.ScorePosition, Is.EqualTo(240));
         Assert.That(fourKey.ComboPosition, Is.EqualTo(180));
         Assert.That(fourKey.LaneColours[0], Is.EqualTo(new Color4(10, 20, 30, 128)));
@@ -103,9 +114,20 @@ HitPosition: 400
         Assert.That(fourKey.NoteBodyStyles, Is.EqualTo(new[] { 0, 1, 1, 1 }));
         Assert.That(fourKey.LightImage, Is.EqualTo("custom/stage-light"));
         Assert.That(fourKey.ExplosionImage, Is.EqualTo("custom/explosion"));
+        Assert.That(fourKey.HoldNoteLightImage, Is.EqualTo("custom/hold-light"));
         Assert.That(fourKey.LightPosition, Is.EqualTo(410));
         Assert.That(fourKey.LightFramePerSecond, Is.EqualTo(48));
-        Assert.That(fourKey.ExplosionWidth, Is.EqualTo(72));
+        Assert.That(fourKey.ExplosionWidths, Is.EqualTo(new[] { 72f, 70f, 68f, 66f }));
+        Assert.That(fourKey.HoldNoteLightWidths, Is.EqualTo(new[] { 62f, 60f, 58f, 56f }));
+        Assert.That(fourKey.BarLineHeight, Is.Zero);
+        Assert.That(fourKey.ShowJudgementLine, Is.False);
+        Assert.That(fourKey.BarLineColour, Is.EqualTo(new Color4(11, 22, 33, 44)));
+        Assert.That(fourKey.JudgementLineColour, Is.EqualTo(new Color4(55, 66, 77, 255)));
+        Assert.That(fourKey.StageLeft, Is.EqualTo("custom/stage-left"));
+        Assert.That(fourKey.StageRight, Is.EqualTo("custom/stage-right"));
+        Assert.That(fourKey.StageBottom, Is.EqualTo("custom/stage-bottom"));
+        Assert.That(fourKey.SplitStages, Is.True);
+        Assert.That(fourKey.StageSeparation, Is.EqualTo(24));
         Assert.That(
             fourKey.LaneLightColours[0],
             Is.EqualTo(new Color4(12, 34, 56, 255)));
@@ -125,6 +147,7 @@ NoteImage0H: head
         OsuManiaSkinConfiguration configuration = info.GetConfiguration(4);
 
         Assert.That(configuration.ColumnWidths, Is.EqualTo(new[] { 36f, 30f, 30f, 30f }));
+        Assert.That(configuration.ColumnLineWidths, Is.EqualTo(new[] { 2f, 2f, 2f, 2f, 2f }));
         Assert.That(configuration.KeyImages, Is.EqualTo(new[]
         {
             "left",
@@ -134,13 +157,15 @@ NoteImage0H: head
         }));
         Assert.That(configuration.HoldTailImages[0], Is.EqualTo("head"));
         Assert.That(configuration.HitPosition, Is.EqualTo(402));
-        Assert.That(configuration.ScorePosition, Is.EqualTo(325));
+        Assert.That(configuration.ScorePosition, Is.EqualTo(300));
         Assert.That(configuration.ComboPosition, Is.EqualTo(111));
         Assert.That(configuration.Hit300g, Is.EqualTo("mania-hit300g"));
         Assert.That(configuration.WidthForNoteHeightScale, Is.EqualTo(30));
-        Assert.That(configuration.NoteBodyStyles, Is.EqualTo(new[] { 1, 1, 1, 1 }));
+        Assert.That(configuration.NoteBodyStyles, Is.EqualTo(new[] { 0, 0, 0, 0 }));
         Assert.That(configuration.LightFramePerSecond, Is.EqualTo(60));
-        Assert.That(configuration.LaneLightColours, Is.All.EqualTo(Color4.White));
+        Assert.That(
+            configuration.LaneLightColours,
+            Is.All.EqualTo(new Color4(55, 255, 255, 255)));
     }
 
     [Test]
@@ -165,5 +190,6 @@ Version: 2.7
             "mania-note2",
             "mania-note1",
         }));
+        Assert.That(configuration.NoteBodyStyles, Is.All.EqualTo(3));
     }
 }

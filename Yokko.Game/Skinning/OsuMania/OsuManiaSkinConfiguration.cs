@@ -67,7 +67,11 @@ internal sealed class OsuManiaSkinConfiguration
         HoldHeadFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
         HoldBodyFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
         HoldTailFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
-        LaneLightColours = Enumerable.Repeat(Color4.White, keys).ToArray();
+        LaneLightColours = Enumerable.Repeat(
+            new Color4(55, 255, 255, 255),
+            keys).ToArray();
+        ExplosionWidths = new float[keys];
+        HoldNoteLightWidths = new float[keys];
     }
 
     public int Keys { get; }
@@ -138,13 +142,37 @@ internal sealed class OsuManiaSkinConfiguration
 
     public string ExplosionImage { get; init; } = "lightingN";
 
+    public string HoldNoteLightImage { get; init; } = "lightingL";
+
     public float LightPosition { get; init; } = 413;
 
     public int LightFramePerSecond { get; init; } = 60;
 
-    public float ExplosionWidth { get; init; }
+    public float[] ExplosionWidths { get; init; }
+
+    public float[] HoldNoteLightWidths { get; init; }
 
     public Color4[] LaneLightColours { get; init; }
+
+    public float BarLineHeight { get; init; } = 1.2f;
+
+    public bool ShowJudgementLine { get; init; } = true;
+
+    public Color4 BarLineColour { get; init; } = Color4.White;
+
+    public Color4 JudgementLineColour { get; init; } = Color4.White;
+
+    public string StageLeft { get; init; } = "mania-stage-left";
+
+    public string StageRight { get; init; } = "mania-stage-right";
+
+    public string StageBottom { get; init; } = "mania-stage-bottom";
+
+    public bool? SplitStages { get; init; }
+
+    public float StageSeparation { get; init; } = 40;
+
+    public double SkinVersion { get; init; } = 1;
 
     public float PlayfieldWidth
     {
@@ -174,12 +202,14 @@ internal sealed class OsuManiaSkinConfiguration
         return x;
     }
 
-    public static OsuManiaSkinConfiguration CreateDefault(int keys)
+    public static OsuManiaSkinConfiguration CreateDefault(
+        int keys,
+        string version = "1.0")
     {
         string[] styles = defaultStyles(keys);
         var widths = new float[keys];
         var spacings = new float[keys];
-        var lineWidths = new float[keys];
+        var lineWidths = new float[keys + 1];
         var laneColours = new Color4[keys];
         var keyImages = new string[keys];
         var pressedKeyImages = new string[keys];
@@ -201,6 +231,7 @@ internal sealed class OsuManiaSkinConfiguration
             holdBodyImages[lane] = $"mania-note{style}L";
             holdTailImages[lane] = $"mania-note{style}T";
         }
+        lineWidths[keys] = 2;
 
         return new OsuManiaSkinConfiguration(
             keys,
@@ -208,11 +239,11 @@ internal sealed class OsuManiaSkinConfiguration
             spacings,
             lineWidths,
             402,
-            325,
+            300,
             111,
             false,
             false,
-            1,
+            skinVersion(version) >= 2.5 ? 3 : 0,
             laneColours,
             Color4.White,
             keyImages,
@@ -227,7 +258,24 @@ internal sealed class OsuManiaSkinConfiguration
             "mania-hit100",
             "mania-hit200",
             "mania-hit300",
-            "mania-hit300g");
+            "mania-hit300g")
+        {
+            SkinVersion = skinVersion(version),
+        };
+    }
+
+    internal static double skinVersion(string version)
+    {
+        if (version?.Equals("latest", StringComparison.OrdinalIgnoreCase) == true)
+            return double.PositiveInfinity;
+
+        return double.TryParse(
+            version,
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out double parsed)
+            ? parsed
+            : 1;
     }
 
     private static string[] defaultStyles(int keys)

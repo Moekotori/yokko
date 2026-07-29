@@ -1271,6 +1271,49 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestMatchesLegacyCircleSkinGeometryAndStageFlags()
+        {
+            string skinPath = createTestSkin("""
+JudgementLine: 0
+LightingNWidth: 20,20,20,20
+LightingLWidth: 20,20,20,20
+""");
+            GameplayScreen gameplay = null;
+
+            using (var key = new Image<Rgba32>(
+                       100,
+                       160,
+                       new Rgba32(255, 255, 255, 255)))
+            {
+                key.SaveAsPng(Path.Combine(skinPath, "key.png"));
+                key.SaveAsPng(Path.Combine(skinPath, "key-down.png"));
+            }
+
+            AddStep("open circle skin", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath)));
+            AddUntilStep("legacy key aspect ratio applied", () =>
+                Math.Abs(
+                    (gameplay?
+                         .ChildrenOfType<LaneColumn>()
+                         .FirstOrDefault()?
+                         .IdleKeyHeight
+                     ?? 0)
+                    - 64) < 0.01f);
+            AddAssert("hold lighting and stage foreground loaded", () =>
+            {
+                GameplayPlayfield playfield =
+                    gameplay.ChildrenOfType<GameplayPlayfield>().Single();
+                LaneColumn firstLane =
+                    gameplay.ChildrenOfType<LaneColumn>().First();
+                return firstLane.HasHoldLight
+                       && playfield.HasSkinStageBottom
+                       && !playfield.ShowsSkinJudgementLine;
+            });
+        }
+
+        [Test]
         public void TestPreparesOsuManiaSkinHitSounds()
         {
             string skinPath = createTestSkin();
@@ -1279,7 +1322,14 @@ namespace Yokko.Game.Tests.Visual
                 "normal-hitnormal.wav");
             File.WriteAllBytes(hitSoundPath, [1, 2, 3]);
             var audioEngine = new SampleTrackingAudioEngine();
+            bool originalKeysoundsEnabled = false;
 
+            AddStep("enable skin hit sounds", () =>
+            {
+                originalKeysoundsEnabled =
+                    gameplaySettings.KeysoundsEnabled.Value;
+                gameplaySettings.KeysoundsEnabled.Value = true;
+            });
             AddStep("open gameplay with skin hit sounds", () =>
                 screenStack.Push(new GameplayScreen(
                     DemoBeatmaps.CreateFourKeyDemo(),
@@ -1287,6 +1337,9 @@ namespace Yokko.Game.Tests.Visual
                     skinPath)));
             AddUntilStep("skin hit sound is prepared", () =>
                 audioEngine.PreparedSamples.Contains(hitSoundPath));
+            AddStep("restore skin hit sound setting", () =>
+                gameplaySettings.KeysoundsEnabled.Value =
+                    originalKeysoundsEnabled);
         }
 
         [Test]
@@ -2327,10 +2380,12 @@ StageHint: stage-hint
                          "hold-head.png",
                          "hold-body.png",
                          "hold-tail.png",
-                         "stage-hint.png",
-                         "mania-stage-light.png",
-                         "lightingN.png",
-                     })
+                          "stage-hint.png",
+                          "mania-stage-light.png",
+                          "lightingN.png",
+                          "lightingL.png",
+                          "mania-stage-bottom.png",
+                      })
                 image.SaveAsPng(Path.Combine(directory, name));
 
             return directory;

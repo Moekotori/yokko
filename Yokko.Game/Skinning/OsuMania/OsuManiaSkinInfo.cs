@@ -13,5 +13,5 @@ internal sealed record OsuManiaSkinInfo(
     public OsuManiaSkinConfiguration GetConfiguration(int keys) =>
         ManiaConfigurations.TryGetValue(keys, out OsuManiaSkinConfiguration configuration)
             ? configuration
-            : OsuManiaSkinConfiguration.CreateDefault(keys);
+            : OsuManiaSkinConfiguration.CreateDefault(keys, Version);
 }

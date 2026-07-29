@@ -33,8 +33,8 @@ public partial class MainScreen : Screen
     private const float musicPlayerHeight = 72;
     private const float musicPlayerBottomMargin = 12;
     private const double exitHoldDuration = 2000;
-    private static readonly Vector2 mascotCentre = new(810, 500);
-    private static readonly Vector2 mascotSize = new(980, 1110);
+    private static readonly Vector2 mascotCentre = new(785, 500);
+    private static readonly Vector2 mascotSize = new(1020, 1155);
 
     private static readonly Color4 ivory = new(0.992f, 0.992f, 0.988f, 1f);
     private static readonly Color4 cyan = new(0.29f, 0.81f, 0.94f, 1f);
@@ -111,6 +111,7 @@ public partial class MainScreen : Screen
         Texture mascotTexture = yokkoTexture
                                         .Crop(new RectangleF(80, 1840, 1200, 1360));
         Texture logoTexture = textures.Get("home-logo-light");
+        Texture bubbleStickerTexture = textures.Get("Home/home-mascot-bubble-sticker");
 
         InternalChildren = new Drawable[]
         {
@@ -130,7 +131,7 @@ public partial class MainScreen : Screen
                     rightStageLayout = new Container
                     {
                         Size = new Vector2(designedWidth, designedHeight),
-                        Child = rightStage = createRightStage(mascotTexture),
+                        Child = rightStage = createRightStage(mascotTexture, bubbleStickerTexture),
                     },
                     decorationStageLayout = new Container
                     {
@@ -624,7 +625,7 @@ public partial class MainScreen : Screen
         },
     };
 
-    private Drawable createRightStage(Texture mascotTexture) => new Container
+    private Drawable createRightStage(Texture mascotTexture, Texture bubbleStickerTexture) => new Container
     {
         RelativeSizeAxes = Axes.Both,
         Child = rightParallax = new Container
@@ -787,10 +788,12 @@ public partial class MainScreen : Screen
                 },
                 bubble = new HomeMascotBubble(
                     bubbleLines[0],
-                    HomeMascotBubbleStyle.PopSignalSticker)
+                    HomeMascotBubbleStyle.PopSignalSticker,
+                    bubbleStickerTexture)
                 {
-                    X = 424,
-                    Y = 350,
+                    X = 350,
+                    Y = 348,
+                    Scale = new Vector2(1.35f),
                 },
                 new SpriteText
                 {

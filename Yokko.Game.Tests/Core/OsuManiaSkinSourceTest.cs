@@ -100,6 +100,53 @@ public sealed class OsuManiaSkinSourceTest
     }
 
     [Test]
+    public void ResolvesMixedResolutionAnimationFramesIndividually()
+    {
+        string archivePath = createPath("mixed-animation.osk");
+
+        using (ZipArchive archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+        {
+            writeEntry(archive, "skin.ini", "[General]\nName: Mixed Animation");
+            writeEntry(archive, "lightingN-0@2x.png", "frame 0 high");
+            writeEntry(archive, "lightingN-1.png", "frame 1 standard");
+            writeEntry(archive, "lightingN-2@2x.png", "frame 2 high");
+        }
+
+        using var source = new OsuManiaSkinSource(archivePath);
+
+        var frames = source.ResolveAnimationTextureNames("lightingN");
+
+        Assert.That(
+            frames,
+            Is.EqualTo(new[]
+            {
+                ("lightingN-0@2x.png", true),
+                ("lightingN-1.png", false),
+                ("lightingN-2@2x.png", true),
+            }));
+    }
+
+    [Test]
+    public void ExplicitHighResolutionSuffixKeepsHighResolutionScale()
+    {
+        string archivePath = createPath("explicit-high-resolution.osk");
+
+        using (ZipArchive archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+        {
+            writeEntry(archive, "skin.ini", "[General]\nName: Explicit High Resolution");
+            writeEntry(archive, "custom/key@2x.png", "image");
+        }
+
+        using var source = new OsuManiaSkinSource(archivePath);
+
+        (string name, bool highResolution) =
+            source.ResolveTextureName("custom/key@2x");
+
+        Assert.That(name, Is.EqualTo("custom/key@2x.png"));
+        Assert.That(highResolution, Is.True);
+    }
+
+    [Test]
     public void ResolvesFolderHitSoundCaseInsensitively()
     {
         string directory = Path.GetDirectoryName(

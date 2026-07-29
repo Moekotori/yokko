@@ -1004,6 +1004,7 @@ public partial class HomeMascotBubble : CompositeDrawable
 {
     private readonly Drawable underline;
     private readonly SpriteText label;
+    private readonly HomeMascotBubbleStyle style;
     private readonly float underlineRestWidth;
     private readonly float underlinePulseWidth;
 
@@ -1014,86 +1015,39 @@ public partial class HomeMascotBubble : CompositeDrawable
 
     internal HomeMascotBubble(
         LocalisableString text,
-        HomeMascotBubbleStyle style)
+        HomeMascotBubbleStyle style,
+        Texture stickerTexture = null)
     {
+        this.style = style;
+
         if (style == HomeMascotBubbleStyle.PopSignalSticker)
         {
-            Size = new Vector2(256, 134);
-            underlineRestWidth = 62;
-            underlinePulseWidth = 72;
+            ArgumentNullException.ThrowIfNull(stickerTexture);
+
+            Size = new Vector2(285, 136);
+            underline = null;
 
             InternalChildren = new Drawable[]
             {
-                new Container
+                new Sprite
                 {
-                    Position = new Vector2(12, 10),
-                    Size = new Vector2(230, 102),
-                    Masking = true,
-                    CornerRadius = 17,
-                    BorderThickness = 3,
-                    BorderColour = HomeControlColours.Navy,
-                    Child = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = HomeControlColours.Ivory,
-                    },
+                    RelativeSizeAxes = Axes.Both,
+                    Texture = stickerTexture,
                 },
                 new Container
                 {
-                    Position = new Vector2(164, 88),
-                    Size = new Vector2(30),
-                    Rotation = 45,
-                    Masking = true,
-                    BorderThickness = 3,
-                    BorderColour = HomeControlColours.Navy,
-                    Child = new Box
+                    Position = new Vector2(60, 24),
+                    Size = new Vector2(158, 68),
+                    Child = label = new SpriteText
                     {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = HomeControlColours.PaleCyan,
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Text = text,
+                        Font = stickerFontFor(text),
+                        Scale = new Vector2(0.94f, 1),
+                        Colour = HomeControlColours.Navy,
                     },
                 },
-                underline = new Container
-                {
-                    Position = new Vector2(188, 91),
-                    Size = new Vector2(62, 22),
-                    Rotation = -18,
-                    Masking = true,
-                    CornerRadius = 8,
-                    Child = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = HomeControlColours.Pink,
-                    },
-                },
-                new Container
-                {
-                    Position = new Vector2(6, 0),
-                    Size = new Vector2(230, 102),
-                    Masking = true,
-                    CornerRadius = 15,
-                    BorderThickness = 3,
-                    BorderColour = HomeControlColours.Navy,
-                    Children = new Drawable[]
-                    {
-                        new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Colour = HomeControlColours.PaleCyan,
-                        },
-                        label = new SpriteText
-                        {
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
-                            X = 7,
-                            Text = text,
-                            Font = HomeTypography.Display(40),
-                            Scale = new Vector2(0.94f, 1),
-                            Colour = HomeControlColours.Navy,
-                        },
-                    },
-                },
-                createOutlinedSparkle(new Vector2(-7, 1), 42),
-                createOutlinedSparkle(new Vector2(1, 39), 26),
             };
 
             return;
@@ -1156,31 +1110,11 @@ public partial class HomeMascotBubble : CompositeDrawable
         };
     }
 
-    private static Drawable createOutlinedSparkle(
-        Vector2 position,
-        float size) =>
-        new Container
-        {
-            Position = position,
-            Size = new Vector2(size),
-            Children = new Drawable[]
-            {
-                new SpriteIcon
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Icon = FontAwesome.Solid.Star,
-                    Colour = HomeControlColours.Navy,
-                },
-                new SpriteIcon
-                {
-                    Anchor = Anchor.Centre,
-                    Origin = Anchor.Centre,
-                    Size = new Vector2(size - 5),
-                    Icon = FontAwesome.Solid.Star,
-                    Colour = HomeControlColours.Yellow,
-                },
-            },
-        };
+    private static FontUsage stickerFontFor(LocalisableString text)
+    {
+        int length = text.ToString().Length;
+        return HomeTypography.Display(length >= 9 ? 30 : length >= 6 ? 38 : 50);
+    }
 
     /// <summary>
     /// 换一句台词，文字淡入、气泡轻弹。
@@ -1188,6 +1122,9 @@ public partial class HomeMascotBubble : CompositeDrawable
     public void SetText(LocalisableString text)
     {
         label.Text = text;
+        if (style == HomeMascotBubbleStyle.PopSignalSticker)
+            label.Font = stickerFontFor(text);
+
         label.FadeInFromZero(220);
         this.ScaleTo(1.07f, 90, Easing.Out)
             .Then().ScaleTo(1f, 340, Easing.OutBack);
@@ -1200,9 +1137,9 @@ public partial class HomeMascotBubble : CompositeDrawable
         this.MoveToOffset(new Vector2(0, 5), 1500, Easing.InOutSine)
             .Then().MoveToOffset(new Vector2(0, -5), 1500, Easing.InOutSine)
             .Loop();
-        underline.ResizeWidthTo(underlinePulseWidth, 1100, Easing.InOutSine)
-                 .Then().ResizeWidthTo(underlineRestWidth, 1100, Easing.InOutSine)
-                 .Loop();
+        underline?.ResizeWidthTo(underlinePulseWidth, 1100, Easing.InOutSine)
+                  .Then().ResizeWidthTo(underlineRestWidth, 1100, Easing.InOutSine)
+                  .Loop();
     }
 }
 

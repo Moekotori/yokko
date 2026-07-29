@@ -45,7 +45,9 @@ public sealed class OsuManiaRealSkinCorpusTest
             {
                 Assert.That(configuration.ColumnWidths, Has.Length.EqualTo(configuration.Keys));
                 Assert.That(configuration.ColumnSpacings, Has.Length.EqualTo(configuration.Keys));
-                Assert.That(configuration.ColumnLineWidths, Has.Length.EqualTo(configuration.Keys));
+                Assert.That(configuration.ColumnLineWidths, Has.Length.EqualTo(configuration.Keys + 1));
+                Assert.That(configuration.ExplosionWidths, Has.Length.EqualTo(configuration.Keys));
+                Assert.That(configuration.HoldNoteLightWidths, Has.Length.EqualTo(configuration.Keys));
                 Assert.That(configuration.LaneColours, Has.Length.EqualTo(configuration.Keys));
                 Assert.That(configuration.NoteBodyStyles, Has.Length.EqualTo(configuration.Keys));
                 Assert.That(configuration.KeyFlipWhenUpsideDown, Has.Length.EqualTo(configuration.Keys));

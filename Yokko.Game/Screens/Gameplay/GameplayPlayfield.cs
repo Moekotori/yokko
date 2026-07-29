@@ -26,6 +26,8 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly NoteUpdateGroup[] noteUpdateGroups;
     private readonly bool[] noteAttached;
     private readonly bool[] visibleThisFrame;
+    private readonly int[] noteLanes;
+    private readonly bool[] holdActiveLanes;
     private List<int> visibleNoteIndices = new();
     private List<int> nextVisibleNoteIndices = new();
     private Container noteLayer;
@@ -37,6 +39,12 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly float[] baseNoteXs;
     private readonly Sprite stageHintSprite;
     private readonly float baseStageHintHeight;
+    private readonly Sprite stageLeftSprite;
+    private readonly Sprite stageRightSprite;
+    private readonly Sprite stageBottomSprite;
+    private readonly Box skinJudgementLine;
+    private readonly float baseStageLeftWidth;
+    private readonly float baseStageRightWidth;
     private readonly OsuManiaSkinOverlay skinOverlay;
     private readonly ManiaModSet mods;
     private readonly bool receptorAtBottom;
@@ -66,6 +74,10 @@ public partial class GameplayPlayfield : CompositeDrawable
     internal ManiaVisibilityPolicy VisibilityPolicy => visibilityPolicy;
 
     internal bool UsesSkinJudgementOverlay => skinOverlay != null;
+
+    internal bool ShowsSkinJudgementLine => skinJudgementLine != null;
+
+    internal bool HasSkinStageBottom => stageBottomSprite != null;
 
     internal bool ConstantSpeedEnabled =>
         mods.Contains(ManiaModId.ConstantSpeed);
@@ -106,24 +118,29 @@ public partial class GameplayPlayfield : CompositeDrawable
                             pair.Value.ScrollSpeedFactors)),
                     StringComparer.Ordinal);
         int keyCount = keyBindings.KeyCount;
-        OsuManiaSkin activeSkin = beatmap.StageCount == 1
-            ? skin
-            : null;
+        OsuManiaSkin activeSkin = skin;
         OsuManiaSkinConfiguration configuration =
             activeSkin?.Configuration;
         const float dualStageGap = 24;
         int keysPerStage = beatmap.KeysPerStage;
+        bool splitSkinStages = configuration != null
+                               && (configuration.SplitStages
+                                   ?? beatmap.StageCount == 2);
+        float skinStageGap = splitSkinStages
+            ? configuration.StageSeparation
+            : 0;
         float defaultStageWidth = keysPerStage switch
         {
             4 => 424,
             7 => 658,
             _ => 94 * keysPerStage,
         };
-        float playfieldWidth = configuration?.PlayfieldWidth
-                               ?? defaultStageWidth
-                               * beatmap.StageCount
-                               + (beatmap.StageCount - 1)
-                               * dualStageGap;
+        float playfieldWidth = configuration == null
+            ? defaultStageWidth
+              * beatmap.StageCount
+              + (beatmap.StageCount - 1)
+              * dualStageGap
+            : configuration.PlayfieldWidth + skinStageGap;
         float laneWidth = activeSkin == null
             ? defaultStageWidth / keysPerStage
             : 0;
@@ -148,13 +165,19 @@ public partial class GameplayPlayfield : CompositeDrawable
         laneColumns = Enumerable.Range(0, keyCount)
                                 .Select(lane =>
                                 {
-                                    float width = configuration?.ColumnWidths[lane] ?? laneWidth;
-                                    float x = configuration?.GetLaneX(lane)
-                                              ?? lane * laneWidth
-                                              + (beatmap.StageCount == 2
-                                                 && lane >= keysPerStage
-                                                  ? dualStageGap
-                                                  : 0);
+                                     float width = configuration?.ColumnWidths[lane] ?? laneWidth;
+                                     float x = configuration?.GetLaneX(lane)
+                                               ?? lane * laneWidth
+                                               + (beatmap.StageCount == 2
+                                                  && lane >= keysPerStage
+                                                   ? dualStageGap
+                                                   : 0);
+                                     if (configuration != null
+                                         && splitSkinStages
+                                         && lane >= keyCount / 2)
+                                     {
+                                         x += skinStageGap;
+                                     }
                                     baseLaneXs[lane] = x;
                                     var column = new LaneColumn(
                                         lane,
@@ -181,6 +204,12 @@ public partial class GameplayPlayfield : CompositeDrawable
                           ? dualStageGap
                           : 0)
                       + 8;
+            if (configuration != null
+                && splitSkinStages
+                && hitObject.Lane >= keyCount / 2)
+            {
+                x += skinStageGap;
+            }
             baseNoteXs[index] = x;
             return new DrawableNote(
                 index,
@@ -223,6 +252,8 @@ public partial class GameplayPlayfield : CompositeDrawable
         noteUpdateStates = new NoteUpdateState[noteDrawables.Length];
         noteAttached = new bool[noteDrawables.Length];
         visibleThisFrame = new bool[noteDrawables.Length];
+        noteLanes = beatmap.HitObjects.Select(static hitObject => hitObject.Lane).ToArray();
+        holdActiveLanes = new bool[keyCount];
         Array.Fill(noteAttached, true);
         var updateGroups =
             new Dictionary<
@@ -325,9 +356,46 @@ public partial class GameplayPlayfield : CompositeDrawable
                 RelativeSizeAxes = Axes.Both,
                 Colour = new Color4(0.018f, 0.022f, 0.032f, 0.94f),
             },
-            laneBackgroundLayer,
         };
-        if (beatmap.StageCount == 2)
+
+        if (activeSkin != null)
+        {
+            Texture stageLeft = activeSkin.GetTexture(configuration.StageLeft);
+            if (stageLeft != null)
+            {
+                baseStageLeftWidth =
+                    stageLeft.DisplayWidth
+                    / OsuManiaSkinConfiguration.LegacyPositionScaleFactor;
+                children.Add(stageLeftSprite = new Sprite
+                {
+                    Anchor = Anchor.TopLeft,
+                    Origin = Anchor.TopRight,
+                    X = 0.05f,
+                    Size = new Vector2(baseStageLeftWidth, 480),
+                    Texture = stageLeft,
+                });
+            }
+
+            Texture stageRight = activeSkin.GetTexture(configuration.StageRight);
+            if (stageRight != null)
+            {
+                baseStageRightWidth =
+                    stageRight.DisplayWidth
+                    / OsuManiaSkinConfiguration.LegacyPositionScaleFactor;
+                children.Add(stageRightSprite = new Sprite
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopLeft,
+                    X = -0.05f,
+                    Size = new Vector2(baseStageRightWidth, 480),
+                    Texture = stageRight,
+                });
+            }
+        }
+
+        children.Add(laneBackgroundLayer);
+
+        if (beatmap.StageCount == 2 && activeSkin == null)
         {
             children.Add(new Box
             {
@@ -353,13 +421,38 @@ public partial class GameplayPlayfield : CompositeDrawable
             children.Add(receptorLayer);
         }
 
+        if (activeSkin != null)
+        {
+            Texture stageBottom = activeSkin.GetTexture(configuration.StageBottom);
+            if (stageBottom != null)
+            {
+                children.Add(stageBottomSprite = new Sprite
+                {
+                    Anchor = configuration.UpsideDown
+                        ? Anchor.TopCentre
+                        : Anchor.BottomCentre,
+                    Origin = configuration.UpsideDown
+                        ? Anchor.TopCentre
+                        : Anchor.BottomCentre,
+                    Size = new Vector2(
+                        stageBottom.DisplayWidth,
+                        stageBottom.DisplayHeight),
+                    Texture = stageBottom,
+                });
+            }
+        }
+
         Texture stageHint =
             activeSkin?.GetTexture(configuration.StageHint);
 
         if (stageHint != null)
         {
             baseStageHintHeight = stageHint.DisplayWidth > 0
-                ? stageHint.DisplayHeight * playfieldWidth / stageHint.DisplayWidth
+                ? stageHint.DisplayHeight
+                  * playfieldWidth
+                  / stageHint.DisplayWidth
+                  * 0.9f
+                  * 1.6025f
                 : 1;
             children.Add(stageHintSprite = new Sprite
             {
@@ -372,7 +465,7 @@ public partial class GameplayPlayfield : CompositeDrawable
                 Texture = stageHint,
             });
         }
-        else
+        else if (activeSkin == null)
         {
             children.Add(new Box
             {
@@ -380,6 +473,18 @@ public partial class GameplayPlayfield : CompositeDrawable
                 Height = activeSkin == null ? 4 : 1,
                 Y = judgementY,
                 Colour = configuration?.ColumnLineColour ?? YokkoPalette.Rose,
+            });
+        }
+
+        if (activeSkin != null && configuration.ShowJudgementLine)
+        {
+            children.Add(skinJudgementLine = new Box
+            {
+                RelativeSizeAxes = Axes.X,
+                Height = 1,
+                Y = judgementY,
+                Colour = configuration.JudgementLineColour,
+                Alpha = 0.9f,
             });
         }
 
@@ -483,6 +588,13 @@ public partial class GameplayPlayfield : CompositeDrawable
 
         if (stageHintSprite != null)
             stageHintSprite.Height = baseStageHintHeight * value;
+
+        if (stageLeftSprite != null)
+            stageLeftSprite.Width = baseStageLeftWidth * value;
+        if (stageRightSprite != null)
+            stageRightSprite.Width = baseStageRightWidth * value;
+        if (stageBottomSprite != null)
+            stageBottomSprite.Scale = new Vector2(value);
 
         skinOverlay?.SetPlayfieldScale(value);
     }
@@ -591,6 +703,16 @@ public partial class GameplayPlayfield : CompositeDrawable
 
         (visibleNoteIndices, nextVisibleNoteIndices) =
             (nextVisibleNoteIndices, visibleNoteIndices);
+
+        Array.Clear(holdActiveLanes);
+        foreach (int index in visibleNoteIndices)
+        {
+            if (state.IsHoldActive(index))
+                holdActiveLanes[noteLanes[index]] = true;
+        }
+
+        for (int lane = 0; lane < laneColumns.Length; lane++)
+            laneColumns[lane].SetHoldActive(holdActiveLanes[lane]);
     }
 
     private void applyVisibilityPolicy()

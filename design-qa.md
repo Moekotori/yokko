@@ -80,6 +80,53 @@
 
 final result: passed
 
+---
+
+# Yokko Home mascot sticker-bubble fidelity QA (2026-07-30)
+
+## Evidence
+
+- Selected visual target:
+  `D:\YOKKO\artifacts\home-message-bubble\option-3-reference.png`
+- Native implementation:
+  `D:\YOKKO\artifacts\home-message-bubble\implementation-raster-final.png`
+- Same-state, same-viewport focused comparison:
+  `D:\YOKKO\artifacts\home-message-bubble\comparison-raster-focused.png`
+- Normalized viewport: 1365 x 768.
+- State: Home idle, first mascot line `开始吧！`.
+
+## Findings and correction
+
+- P1 resolved: the previous implementation was a regular rounded card with
+  a diamond tail and pill-shaped pink accent, so its silhouette did not match
+  the selected comic sticker.
+- Replaced the approximated shape stack with a project-owned transparent
+  raster asset derived from the selected visual direction. The main panel is
+  now crooked, the ivory/white backing follows the perimeter, the speech tail
+  is integrated, and the pink accent is a real lightning shape.
+- Preserved live localized text and added length-aware display sizing so the
+  short callout retains the source's impact while longer English, Chinese,
+  and Japanese lines stay inside the panel.
+- The focused comparison shows matching placement, footprint, palette,
+  star cluster, layered outline, tail direction, and pink signal accent.
+
+## Remaining polish
+
+- P3: the generated project asset has a slightly thicker white sticker edge
+  and smoother cyan fill than the concept crop. This does not change the
+  component hierarchy or readability.
+
+## Verification
+
+- `dotnet build Yokko.Game\Yokko.Game.csproj --no-restore
+  --artifacts-path D:\YOKKO\artifacts\home-message-bubble\build-raster`
+  passed with 0 warnings and 0 errors.
+- Native 1365 x 768 renderer capture completed successfully.
+- The bubble remains above the mascot's hand and does not overlap the
+  bottom-right music player.
+
+final result: passed
+
 # Pause overlay true-target verification (2026-07-29, QA4)
 
 ## Evidence

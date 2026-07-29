@@ -737,6 +737,18 @@ internal static class YokkoStrings
                 "{0} 入力エイジ · p50 {1:0.00} · p95 {2:0.00} · p99 {3:0.00} ms"),
             ["gameplay.timing.early"] = new("EARLY", "快", "早い"),
             ["gameplay.timing.late"] = new("LATE", "慢", "遅い"),
+            ["gameplay.timing.title"] = new(
+                "TIMING",
+                "判定",
+                "タイミング"),
+            ["gameplay.timing.early_limit"] = new(
+                "EARLY  -{0:0} ms",
+                "快  -{0:0} ms",
+                "早い  -{0:0} ms"),
+            ["gameplay.timing.late_limit"] = new(
+                "+{0:0} ms  LATE",
+                "+{0:0} ms  慢",
+                "+{0:0} ms  遅い"),
             ["gameplay.timing.on_time"] = new("ON TIME", "准", "正確"),
             ["gameplay.timing.press"] = new("PRESS", "按下", "押下"),
             ["gameplay.timing.release"] = new("RELEASE", "松开", "離す"),
