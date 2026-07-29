@@ -6,6 +6,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osuTK;
+using osuTK.Graphics;
 using Yokko.Core.Scoring;
 using Yokko.Game.Skinning.OsuMania;
 
@@ -21,8 +22,11 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
     private readonly Container judgementContainer;
     private readonly LegacyManiaAnimatedSprite judgementSprite;
     private readonly SpriteText judgementFallback;
+    private readonly Container comboContainer;
     private readonly Container comboDigits;
     private readonly SpriteText comboFallback;
+    private readonly Container comboBreakDigits;
+    private readonly SpriteText comboBreakFallback;
     private readonly Texture[] digitTextures = new Texture[10];
     private readonly float overlayScale;
     private int displayedCombo = -1;
@@ -78,22 +82,45 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
                     },
                 },
             },
-            comboDigits = new Container
+            comboContainer = new Container
             {
                 Anchor = comboAnchor,
                 Origin = Anchor.Centre,
                 Y = comboY,
                 Scale = new Vector2(overlayScale),
-                Alpha = 0,
-            },
-            comboFallback = new SpriteText
-            {
-                Anchor = comboAnchor,
-                Origin = Anchor.Centre,
-                Y = comboY,
-                Scale = new Vector2(overlayScale),
-                Font = FontUsage.Default.With(size: 44),
-                Alpha = 0,
+                Children = new Drawable[]
+                {
+                    comboBreakDigits = new Container
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Alpha = 0,
+                        Blending = BlendingParameters.Additive,
+                        Colour = configuration.ComboBreakColour,
+                    },
+                    comboBreakFallback = new SpriteText
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Font = FontUsage.Default.With(size: 44),
+                        Alpha = 0,
+                        Blending = BlendingParameters.Additive,
+                        Colour = configuration.ComboBreakColour,
+                    },
+                    comboDigits = new Container
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Alpha = 0,
+                    },
+                    comboFallback = new SpriteText
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Font = FontUsage.Default.With(size: 44),
+                        Alpha = 0,
+                    },
+                },
             },
         };
         judgementSprite.FrameChanged += texture =>
@@ -172,6 +199,7 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             : judgementFallback;
         if (texture != null)
             judgementSprite.Restart();
+        activeJudgement.Rotation = 0;
         activeJudgement.Scale = Vector2.One;
         activeJudgement.FadeInFromZero(20, Easing.Out);
         activeJudgement.Delay(JudgementAnimationDuration - 40)
@@ -181,6 +209,10 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         {
             activeJudgement.Scale = new Vector2(1.2f);
             activeJudgement.ScaleTo(1, 100, Easing.Out);
+            activeJudgement.RotateTo(
+                Random.Shared.NextSingle() * 11.46f - 5.73f,
+                100,
+                Easing.Out);
         }
         else
         {
@@ -200,15 +232,42 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         if (combo == displayedCombo)
             return;
 
+        int previousCombo = displayedCombo;
         displayedCombo = combo;
 
         if (combo <= 0)
         {
+            if (previousCombo > 0)
+                showComboBreak(previousCombo);
+
             comboDigits.Alpha = 0;
             comboFallback.Alpha = 0;
             return;
         }
 
+        Drawable activeCombo = populateCombo(
+            combo,
+            comboDigits,
+            comboFallback);
+
+        activeCombo.FinishTransforms();
+        activeCombo.Scale = Vector2.One;
+
+        if (previousCombo + 1 == combo)
+        {
+            activeCombo.Scale = new Vector2(1, 1.4f);
+            activeCombo.ScaleTo(Vector2.One, 300, Easing.Out)
+                       .FadeIn(120);
+        }
+        else
+            activeCombo.Alpha = 1;
+    }
+
+    private Drawable populateCombo(
+        int combo,
+        Container digits,
+        SpriteText fallback)
+    {
         string text = combo.ToString(CultureInfo.InvariantCulture);
         var sprites = new List<Drawable>(text.Length);
         float x = 0;
@@ -235,30 +294,60 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             height = Math.Max(height, texture.DisplayHeight);
         }
 
-        comboDigits.Clear();
+        digits.Clear();
 
         if (!hasAllDigits)
         {
-            comboDigits.Alpha = 0;
-            comboFallback.Text = text;
-            comboFallback.Alpha = 1;
-            return;
+            digits.Alpha = 0;
+            fallback.Text = text;
+            fallback.Alpha = 1;
+            return fallback;
         }
 
-        comboDigits.Size = new Vector2(
+        digits.Size = new Vector2(
             Math.Max(1, x + skin.Info.ComboOverlap),
             Math.Max(1, height));
-        comboDigits.AddRange(sprites);
-        comboDigits.Alpha = 1;
-        comboFallback.Alpha = 0;
+        digits.AddRange(sprites);
+        digits.Alpha = 1;
+        fallback.Alpha = 0;
+        return digits;
+    }
+
+    private void showComboBreak(int combo)
+    {
+        Drawable activeBreak = populateCombo(
+            combo,
+            comboBreakDigits,
+            comboBreakFallback);
+        Drawable inactiveBreak = ReferenceEquals(
+            activeBreak,
+            comboBreakDigits)
+            ? comboBreakFallback
+            : comboBreakDigits;
+
+        inactiveBreak.FinishTransforms();
+        inactiveBreak.Alpha = 0;
+        activeBreak.FinishTransforms();
+        activeBreak.Scale = Vector2.One;
+        activeBreak.Alpha = 0.8f;
+        activeBreak.FadeOut(200)
+                   .ScaleTo(4, 200);
     }
 
     public void SetPlayfieldScale(float value)
     {
         Vector2 scale = new(overlayScale * Math.Max(0.01f, value));
         judgementContainer.Scale = scale;
-        comboDigits.Scale = scale;
-        comboFallback.Scale = scale;
+        comboContainer.Scale = scale;
+    }
+
+    public void SetHoldActive(bool active)
+    {
+        Color4 colour = active
+            ? skin.Configuration.HoldColour
+            : Color4.White;
+        comboDigits.Colour = colour;
+        comboFallback.Colour = colour;
     }
 
     private static bool usesScaledOverlays(string version) =>

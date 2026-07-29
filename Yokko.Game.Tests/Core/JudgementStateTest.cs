@@ -430,6 +430,143 @@ namespace Yokko.Game.Tests.Core
         }
 
         [Test]
+        public void EtternaMineWindowIgnoresJusticeAndPreservesRealTimeAtRate()
+        {
+            var j4 = new BeatmapJudgementState(
+                createMineBeatmap(),
+                new JudgementWindows(
+                    speedMultiplier: 1.5,
+                    configuration: new JudgementConfiguration(
+                        JudgementMode.Etterna,
+                        4)));
+            var justice = new BeatmapJudgementState(
+                createMineBeatmap(),
+                new JudgementWindows(
+                    speedMultiplier: 1.5,
+                    configuration: new JudgementConfiguration(
+                        JudgementMode.Etterna,
+                        9)));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    j4.ActiveMineWindowMilliseconds,
+                    Is.EqualTo(112.5).Within(0.000001));
+                Assert.That(
+                    justice.ActiveMineWindowMilliseconds,
+                    Is.EqualTo(j4.ActiveMineWindowMilliseconds));
+                Assert.That(
+                    justice.ActiveMineWindowMilliseconds / 1.5,
+                    Is.EqualTo(
+                        BeatmapJudgementState
+                            .EtternaMineWindowMilliseconds));
+                Assert.That(
+                    justice.ActiveMineAvoidWindowMilliseconds,
+                    Is.EqualTo(270).Within(0.000001));
+            });
+        }
+
+        [Test]
+        public void EtternaClosestObjectRoutesOnePressToOnlyOneObject()
+        {
+            var futureMine = createEtternaState(createLaneBeatmap(
+                (1000, HitObjectKind.Tap),
+                (1100, HitObjectKind.Mine)));
+            JudgementEvent mine = futureMine
+                .JudgeLanePress(0, 1050)
+                .Single();
+
+            var passedMine = createEtternaState(createLaneBeatmap(
+                (1000, HitObjectKind.Mine),
+                (1100, HitObjectKind.Tap)));
+            JudgementEvent tap = passedMine
+                .JudgeLanePress(0, 1050)
+                .Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(mine.HitObjectIndex, Is.EqualTo(1));
+                Assert.That(mine.Phase, Is.EqualTo(JudgementPhase.Mine));
+                Assert.That(futureMine.IsResolved(0), Is.False);
+                Assert.That(tap.HitObjectIndex, Is.EqualTo(1));
+                Assert.That(tap.Phase, Is.EqualTo(JudgementPhase.Tap));
+                Assert.That(passedMine.IsResolved(0), Is.False);
+            });
+        }
+
+        [Test]
+        public void EtternaClosestMineOutsideItsWindowBlocksFartherTap()
+        {
+            var state = createEtternaState(createLaneBeatmap(
+                (850, HitObjectKind.Tap),
+                (1080, HitObjectKind.Mine)));
+
+            IReadOnlyList<JudgementEvent> events =
+                state.JudgeLanePress(0, 1000);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(events, Is.Empty);
+                Assert.That(state.IsResolved(0), Is.False);
+                Assert.That(state.IsResolved(1), Is.False);
+            });
+        }
+
+        [Test]
+        public void EtternaHeldMineUsesCrossingTimeAndLatePressCannotBackHit()
+        {
+            var held = createEtternaState(createMineBeatmap());
+            Assert.That(held.JudgeLanePress(0, 900), Is.Empty);
+
+            JudgementEvent crossing = held.CollectMineJudgements(
+                    1010,
+                    new[] { true, false, false, false })
+                .Single();
+
+            var late = createEtternaState(createMineBeatmap());
+            Assert.That(late.JudgeLanePress(0, 1010), Is.Empty);
+            Assert.That(
+                late.CollectMineJudgements(
+                    1010,
+                    new[] { true, false, false, false }),
+                Is.Empty);
+            Assert.That(late.CollectExpiredMisses(1180), Is.Empty);
+            JudgementEvent avoided =
+                late.CollectExpiredMisses(1180.001).Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    crossing.Rating,
+                    Is.EqualTo(JudgementRating.IgnoreMiss));
+                Assert.That(crossing.HitErrorMilliseconds, Is.Zero);
+                Assert.That(
+                    crossing.HitTimeMilliseconds,
+                    Is.EqualTo(1000));
+                Assert.That(
+                    avoided.Rating,
+                    Is.EqualTo(JudgementRating.IgnoreHit));
+            });
+        }
+
+        [Test]
+        public void EtternaReleaseBetweenUpdatesStillHitsCrossedMine()
+        {
+            var state = createEtternaState(createMineBeatmap());
+            Assert.That(state.JudgeLanePress(0, 900), Is.Empty);
+
+            JudgementEvent mine =
+                state.JudgeLaneRelease(0, 1010).Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(mine.Phase, Is.EqualTo(JudgementPhase.Mine));
+                Assert.That(mine.HitErrorMilliseconds, Is.Zero);
+                Assert.That(state.IsComplete, Is.True);
+            });
+        }
+
+        [Test]
         public void LaterSuccessfulNoteForcesEarlierNoteToMiss()
         {
             var state = new BeatmapJudgementState(createTapBeatmap(1000, 1100));
@@ -794,8 +931,21 @@ namespace Yokko.Game.Tests.Core
                 8);
 
         private static YokkoBeatmap createMineBeatmap()
+            => createLaneBeatmap((1000, HitObjectKind.Mine));
+
+        private static BeatmapJudgementState createEtternaState(
+            YokkoBeatmap beatmap)
             => new(
-                "Mine test",
+                beatmap,
+                new JudgementWindows(
+                    configuration: new JudgementConfiguration(
+                        JudgementMode.Etterna,
+                        4)));
+
+        private static YokkoBeatmap createLaneBeatmap(
+            params (double Time, HitObjectKind Kind)[] objects)
+            => new(
+                "Lane test",
                 "Yokko",
                 "Yokko",
                 "4K",
@@ -803,11 +953,12 @@ namespace Yokko.Game.Tests.Core
                 ChartSourceFormat.Etterna,
                 [YokkoTimingPoint.Default],
                 null,
-                [new YokkoHitObject(
-                    0,
-                    1000,
-                    null,
-                    HitObjectKind.Mine)],
+                objects.Select(item =>
+                    new YokkoHitObject(
+                        0,
+                        item.Time,
+                        null,
+                        item.Kind)).ToArray(),
                 8);
 
         private static double comboMultiplier(int combo)

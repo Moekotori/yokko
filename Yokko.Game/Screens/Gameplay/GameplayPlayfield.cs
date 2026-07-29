@@ -95,6 +95,8 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     internal int SkinBarLineCount => barLines?.Length ?? 0;
 
+    internal float? SkinColumnStart { get; }
+
     internal bool ConstantSpeedEnabled =>
         mods.Contains(ManiaModId.ConstantSpeed);
 
@@ -140,6 +142,7 @@ public partial class GameplayPlayfield : CompositeDrawable
             activeSkin?.Configuration;
         OsuManiaSkinConfiguration fallbackConfiguration =
             activeSkin?.FallbackConfiguration;
+        SkinColumnStart = configuration?.ColumnStart;
         separateSkinScore = configuration?.SeparateScore ?? true;
         skinUpsideDown = configuration?.UpsideDown == true;
         const float dualStageGap = 24;
@@ -221,7 +224,10 @@ public partial class GameplayPlayfield : CompositeDrawable
                                         keyBindings.GetDisplayKey(lane),
                                         width,
                                         activeSkin,
-                                        showLanePressFeedback)
+                                        showLanePressFeedback,
+                                        lane == keyCount - 1
+                                        || splitSkinStages
+                                        && lane == keyCount / 2 - 1)
                                     {
                                         X = x,
                                         Width = width,
@@ -429,14 +435,15 @@ public partial class GameplayPlayfield : CompositeDrawable
             {
                 if (stageLeft != null)
                 {
-                    float leftWidth = stageLeft.DisplayHeight > 0
-                        ? stageLeft.DisplayWidth * 480 / stageLeft.DisplayHeight
-                        : 1;
                     stageSides.Add(new Sprite
                     {
                         Origin = Anchor.TopRight,
                         X = stageX + 0.05f,
-                        Size = new Vector2(leftWidth, 480),
+                        // Legacy mania stretches stage sides vertically to
+                        // the 480px field while preserving their source width.
+                        Size = new Vector2(
+                            stageLeft.DisplayWidth,
+                            480),
                         Texture = stageLeft,
                     });
                 }
@@ -444,15 +451,13 @@ public partial class GameplayPlayfield : CompositeDrawable
                 if (stageRight == null)
                     continue;
 
-                float rightWidth =
-                    stageRight.DisplayHeight > 0
-                        ? stageRight.DisplayWidth * 480 / stageRight.DisplayHeight
-                        : 1;
                 stageSides.Add(new Sprite
                 {
                     Origin = Anchor.TopLeft,
                     X = stageX + stageWidth - 0.05f,
-                    Size = new Vector2(rightWidth, 480),
+                    Size = new Vector2(
+                        stageRight.DisplayWidth,
+                        480),
                     Texture = stageRight,
                 });
             }
@@ -915,6 +920,29 @@ public partial class GameplayPlayfield : CompositeDrawable
 
         for (int lane = 0; lane < laneColumns.Length; lane++)
             laneColumns[lane].SetHoldActive(holdActiveLanes[lane]);
+
+        if (skinOverlays.Length == 1)
+        {
+            skinOverlays[0].SetHoldActive(
+                holdActiveLanes.Any(static active => active));
+        }
+        else
+        {
+            for (int stage = 0; stage < skinOverlays.Length; stage++)
+            {
+                int startLane =
+                    stage * laneColumns.Length / skinOverlays.Length;
+                int endLane =
+                    (stage + 1) * laneColumns.Length
+                    / skinOverlays.Length;
+                bool active = false;
+
+                for (int lane = startLane; lane < endLane; lane++)
+                    active |= holdActiveLanes[lane];
+
+                skinOverlays[stage].SetHoldActive(active);
+            }
+        }
     }
 
     private void applyVisibilityPolicy()

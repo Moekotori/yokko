@@ -46,7 +46,8 @@ public partial class LaneColumn : CompositeDrawable
         string keyLabel,
         float laneWidth,
         OsuManiaSkin skin = null,
-        bool showPressFeedback = true)
+        bool showPressFeedback = true,
+        bool isLastLaneInStage = false)
     {
         this.showPressFeedback = showPressFeedback;
         baseLaneWidth = laneWidth;
@@ -130,7 +131,8 @@ public partial class LaneColumn : CompositeDrawable
             leftLine,
         };
         float rightLineWidth = configuration.ColumnLineWidths[lane + 1];
-        bool showRightLine = lane == configuration.Keys - 1
+        bool showRightLine = isLastLaneInStage
+                             || lane == configuration.Keys - 1
                              || configuration.SkinVersion >= 2.4;
         if (showRightLine && rightLineWidth > 0)
         {
@@ -162,11 +164,8 @@ public partial class LaneColumn : CompositeDrawable
         if (lightTextures.Count > 0)
         {
             Texture firstLightTexture = lightTextures[0];
-            baseLaneLightHeight = firstLightTexture.DisplayWidth > 0
-                ? firstLightTexture.DisplayHeight
-                  * laneWidth
-                  / firstLightTexture.DisplayWidth
-                : 1;
+            baseLaneLightHeight =
+                firstLightTexture.DisplayHeight;
             backgroundChildren.Add(laneLight = new TextureAnimation
             {
                 Name = "Lane light",
@@ -186,7 +185,6 @@ public partial class LaneColumn : CompositeDrawable
                     LegacyManiaColourCompatibility.DisallowZeroAlpha(
                         configuration.LaneLightColours[lane]),
                 Alpha = 0,
-                Blending = BlendingParameters.Additive,
             });
             addFrames(
                 laneLight,
@@ -321,14 +319,14 @@ public partial class LaneColumn : CompositeDrawable
         {
             idleKey.Scale = new Vector2(
                 value,
-                idleKeyFlipped ? -value : value);
+                idleKeyFlipped ? -1 : 1);
         }
 
         if (pressedKey != null)
         {
             pressedKey.Scale = new Vector2(
                 value,
-                pressedKeyFlipped ? -value : value);
+                pressedKeyFlipped ? -1 : 1);
         }
 
         if (keyLabel != null)
@@ -348,7 +346,7 @@ public partial class LaneColumn : CompositeDrawable
         if (laneLight != null)
         {
             laneLight.Width = baseLaneWidth * value;
-            laneLight.Height = baseLaneLightHeight * value;
+            laneLight.Height = baseLaneLightHeight;
         }
     }
 
@@ -448,9 +446,7 @@ public partial class LaneColumn : CompositeDrawable
             : upsideDown ? Anchor.TopLeft : Anchor.BottomLeft,
         Size = new Vector2(
             laneWidth,
-            texture.DisplayWidth > 0
-                ? texture.DisplayHeight * laneWidth / texture.DisplayWidth
-                : 1),
+            texture.DisplayHeight),
         Scale = new Vector2(1, flip ? -1 : 1),
         Texture = texture,
     };

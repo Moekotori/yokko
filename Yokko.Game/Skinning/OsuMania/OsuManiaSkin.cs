@@ -49,8 +49,11 @@ internal sealed class OsuManiaSkin : IDisposable
             string skinIni = source.ReadSkinIni();
             OsuManiaSkinInfo info = OsuManiaSkinIniDecoder.Decode(
                 skinIni,
-                !string.IsNullOrWhiteSpace(skinIni));
-            OsuManiaSkinConfiguration configuration = info.GetConfiguration(keys);
+                source.Contains("skin.ini"));
+            OsuManiaSkinConfiguration configuration =
+                info.GetConfiguration(
+                    keys,
+                    stageCount == 2);
             OsuManiaSkinConfiguration fallbackConfiguration =
                 OsuManiaSkinConfiguration.CreateDefault(
                     keys,

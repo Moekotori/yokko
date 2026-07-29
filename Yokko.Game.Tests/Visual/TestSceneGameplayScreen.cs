@@ -1262,6 +1262,19 @@ namespace Yokko.Game.Tests.Visual
                     skinPath: skinPath)));
             AddUntilStep("custom playfield width applied", () =>
                 gameplay?.ChildrenOfType<GameplayPlayfield>().SingleOrDefault()?.Width == 160);
+            AddUntilStep("legacy column start positions the stage", () =>
+            {
+                GameplayPlayfield playfield =
+                    gameplay?
+                        .ChildrenOfType<GameplayPlayfield>()
+                        .SingleOrDefault();
+                return playfield != null
+                       && playfield.Anchor == Anchor.BottomLeft
+                       && playfield.Origin == Anchor.BottomLeft
+                       && Math.Abs(
+                           playfield.X / playfield.Scale.X
+                           - 136) < 0.01f;
+            });
             AddUntilStep("skin sprites loaded", () =>
                 gameplay?.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null) == true);
             AddAssert("skin owns judgement feedback", () =>
@@ -1287,20 +1300,23 @@ LightingLWidth: 20,20,20,20
             {
                 key.SaveAsPng(Path.Combine(skinPath, "key.png"));
                 key.SaveAsPng(Path.Combine(skinPath, "key-down.png"));
+                key.SaveAsPng(Path.Combine(
+                    skinPath,
+                    "mania-stage-right.png"));
             }
 
             AddStep("open circle skin", () =>
                 screenStack.Push(gameplay = new GameplayScreen(
                     DemoBeatmaps.CreateFourKeyDemo(),
                     skinPath: skinPath)));
-            AddUntilStep("legacy key aspect ratio applied", () =>
+            AddUntilStep("legacy key keeps natural height", () =>
                 Math.Abs(
                     (gameplay?
                          .ChildrenOfType<LaneColumn>()
                          .FirstOrDefault()?
                          .IdleKeyHeight
                      ?? 0)
-                    - 64) < 0.01f);
+                    - 160) < 0.01f);
             AddAssert("hold lighting and stage foreground loaded", () =>
             {
                 GameplayPlayfield playfield =
@@ -1309,7 +1325,12 @@ LightingLWidth: 20,20,20,20
                     gameplay.ChildrenOfType<LaneColumn>().First();
                 return firstLane.HasHoldLight
                        && playfield.HasSkinStageBottom
-                       && !playfield.ShowsSkinJudgementLine;
+                       && !playfield.ShowsSkinJudgementLine
+                       && gameplay.ChildrenOfType<Sprite>().Any(sprite =>
+                           sprite.Texture?.DisplayWidth == 100
+                           && sprite.Texture.DisplayHeight == 160
+                           && Math.Abs(sprite.Width - 100) < 0.01f
+                           && Math.Abs(sprite.Height - 480) < 0.01f);
             });
         }
 
@@ -1512,6 +1533,55 @@ LightingLWidth: 20,20,20,20
                 return clip.Y <= upperEndpointCentre + 0.01f
                        && clip.Y + clip.Height
                        >= lowerEndpointCentre - 0.01f;
+            });
+        }
+
+        [Test]
+        public void TestLegacyHoldBodyExtendsConfiguredEdgeRow()
+        {
+            string skinPath = null;
+
+            AddStep("create top-repeat hold body", () =>
+            {
+                skinPath = createTestSkin("NoteBodyStyle0: 2");
+
+                using var image = new Image<Rgba32>(
+                    8,
+                    12,
+                    new Rgba32(142, 136, 145, 255));
+                image.SaveAsPng(Path.Combine(skinPath, "hold-body.png"));
+            });
+            AddStep("open top-repeat hold", () =>
+                screenStack.Push(new GameplayScreen(
+                    createHoldDemo(KeyMode.FourKey),
+                    skinPath: skinPath)));
+            AddUntilStep("top row extends instead of tiling", () =>
+            {
+                DrawableNote hold = (screenStack.CurrentScreen as Drawable)?
+                                    .ChildrenOfType<GameplayPlayfield>()
+                                    .SingleOrDefault()?
+                                    .GetDrawableNote(0);
+                Sprite body = hold?
+                              .ChildrenOfType<Sprite>()
+                              .FirstOrDefault(sprite =>
+                                  sprite.Texture?.DisplayHeight == 12);
+
+                if (hold == null || body?.Parent is not Container clip)
+                    return false;
+
+                hold.UpdatePosition(
+                    1000,
+                    false,
+                    false,
+                    0,
+                    460,
+                    1800);
+
+                return body.TextureRelativeSizeAxes == Axes.None
+                       && body.TextureRectangle.Y < 0
+                       && Math.Abs(
+                           body.TextureRectangle.Height
+                           - clip.Height) < 0.01f;
             });
         }
 

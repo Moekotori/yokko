@@ -557,8 +557,24 @@ public partial class GameplayScreen : Screen
         }
         playfield.Scale = new Vector2(scale);
 
-        float playfieldLeft =
-            DrawWidth / 2 - playfield.Width * scale / 2;
+        float playfieldLeft;
+        if (playfield.SkinColumnStart is float columnStart)
+        {
+            // osu!stable defines horizontal mania skin positions in the
+            // same 480px-high coordinate space as the stage itself.
+            playfield.Anchor = Anchor.BottomLeft;
+            playfield.Origin = Anchor.BottomLeft;
+            playfield.X = columnStart * scale;
+            playfieldLeft = playfield.X;
+        }
+        else
+        {
+            playfield.Anchor = Anchor.BottomCentre;
+            playfield.Origin = Anchor.BottomCentre;
+            playfield.X = 0;
+            playfieldLeft =
+                DrawWidth / 2 - playfield.Width * scale / 2;
+        }
         scrollSpeedOverlay.X = Math.Clamp(
             playfieldLeft
             - GameplayScrollSpeedOverlay.PlayfieldGap

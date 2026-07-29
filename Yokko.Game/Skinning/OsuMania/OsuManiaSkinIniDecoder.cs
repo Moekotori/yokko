@@ -15,7 +15,7 @@ internal static class OsuManiaSkinIniDecoder
     {
         string name = "Unknown";
         string author = string.Empty;
-        string version = skinIniPresent ? "1.0" : "latest";
+        string version = readVersion(contents, skinIniPresent);
         string comboPrefix = "score";
         int comboOverlap = 0;
         string section = string.Empty;
@@ -56,8 +56,6 @@ internal static class OsuManiaSkinIniDecoder
                     name = value;
                 else if (key.Equals("Author", StringComparison.OrdinalIgnoreCase))
                     author = value;
-                else if (key.Equals("Version", StringComparison.OrdinalIgnoreCase))
-                    version = value;
             }
             else if (section.Equals("Fonts", StringComparison.OrdinalIgnoreCase))
             {
@@ -84,6 +82,58 @@ internal static class OsuManiaSkinIniDecoder
             comboPrefix,
             comboOverlap,
             configurations);
+    }
+
+    private static string readVersion(
+        string contents,
+        bool skinIniPresent)
+    {
+        string version = skinIniPresent ? "1.0" : "latest";
+        string section = string.Empty;
+
+        using var reader = new StringReader(contents ?? string.Empty);
+
+        while (reader.ReadLine() is string rawLine)
+        {
+            string line = rawLine.Trim();
+
+            if (line.Length == 0
+                || line.StartsWith("//", StringComparison.Ordinal)
+                || line.StartsWith(";", StringComparison.Ordinal)
+                || line.StartsWith("#", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (line.StartsWith("[", StringComparison.Ordinal)
+                && line.EndsWith("]", StringComparison.Ordinal))
+            {
+                section = line[1..^1].Trim();
+                continue;
+            }
+
+            if (!section.Equals(
+                    "General",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            int separator = line.IndexOf(':');
+            if (separator < 0
+                || !line[..separator].Trim().Equals(
+                    "Version",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string value = line[(separator + 1)..].Trim();
+            if (!string.IsNullOrWhiteSpace(value))
+                version = value;
+        }
+
+        return version;
     }
 
     private static void commitManiaSection(

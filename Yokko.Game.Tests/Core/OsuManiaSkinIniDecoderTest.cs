@@ -209,6 +209,25 @@ Version: 2.7
     }
 
     [Test]
+    public void GeneralVersionAppliesRegardlessOfSectionOrder()
+    {
+        OsuManiaSkinConfiguration configuration =
+            OsuManiaSkinIniDecoder.Decode("""
+                [Mania]
+                Keys: 4
+
+                [General]
+                Version: 2.5
+                """).GetConfiguration(4);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(configuration.SkinVersion, Is.EqualTo(2.5));
+            Assert.That(configuration.NoteBodyStyles, Is.All.EqualTo(3));
+        });
+    }
+
+    [Test]
     public void DecodesLegacyCompatibilityFieldsAndInvalidLightRate()
     {
         OsuManiaSkinConfiguration configuration =
@@ -266,6 +285,30 @@ Version: 2.7
             "mania-noteS",
             "mania-note2",
             "mania-note1",
+            "mania-note2",
+            "mania-note1",
+        }));
+    }
+
+    [Test]
+    public void MissingKeyModeUsesRequestedDualStageDefaults()
+    {
+        OsuManiaSkinInfo info = OsuManiaSkinIniDecoder.Decode("""
+            [General]
+            Version: 2.7
+            """);
+
+        OsuManiaSkinConfiguration configuration =
+            info.GetConfiguration(8, splitStages: true);
+
+        Assert.That(configuration.NoteImages, Is.EqualTo(new[]
+        {
+            "mania-note1",
+            "mania-note2",
+            "mania-note2",
+            "mania-note1",
+            "mania-note1",
+            "mania-note2",
             "mania-note2",
             "mania-note1",
         }));

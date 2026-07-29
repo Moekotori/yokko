@@ -10,8 +10,13 @@ internal sealed record OsuManiaSkinInfo(
     int ComboOverlap,
     IReadOnlyDictionary<int, OsuManiaSkinConfiguration> ManiaConfigurations)
 {
-    public OsuManiaSkinConfiguration GetConfiguration(int keys) =>
+    public OsuManiaSkinConfiguration GetConfiguration(
+        int keys,
+        bool? splitStages = null) =>
         ManiaConfigurations.TryGetValue(keys, out OsuManiaSkinConfiguration configuration)
             ? configuration
-            : OsuManiaSkinConfiguration.CreateDefault(keys, Version);
+            : OsuManiaSkinConfiguration.CreateDefault(
+                keys,
+                Version,
+                splitStages);
 }

@@ -18,16 +18,23 @@ public sealed class BeatmapJudgementState
     // commit 21bb8dcd6c7e3782f23d5f4e01b6ee4c82cccc71
     // (StepMania permissive licence; see Docs/Licenses.txt).
     public const double MineWindowMilliseconds = 90;
+
+    // Etterna keeps its mine window fixed at 75ms for every Judge/Justice.
+    // Source: etternagame/etterna GameConstantsAndTypes.h and Player.cpp
+    // commit 939a26ae042d3a689999a0dae630721c7701f187 (MIT).
     public const double EtternaMineWindowMilliseconds = 75;
 
     private readonly YokkoBeatmap beatmap;
     private readonly ObjectState[] states;
     private readonly int[][] laneObjectIndices;
     private readonly int[][] laneMineObjectIndices;
+    private readonly int[][] laneEtternaObjectIndices;
     private readonly int[] nextLaneObjectIndices;
     private readonly int[] nextHeadPositions;
     private readonly int[] nextMinePositions;
+    private readonly int[] nextEtternaPositions;
     private readonly int[] nextForceMissPositions;
+    private readonly double?[] lanePressedSinceMilliseconds;
     private readonly HashSet<int>[] openHoldIndices;
     private readonly ExpirationEntry[] expirations;
     private readonly ManiaScoreProcessor scoreProcessor;
@@ -81,8 +88,23 @@ public sealed class BeatmapJudgementState
                                                        .ThenBy(item => item.index)
                                                        .Select(item => item.index)
                                                        .ToArray()
-                                              : [])
+                                               : [])
                                           .ToArray();
+        laneEtternaObjectIndices = Enumerable.Range(0, (int)beatmap.KeyMode)
+                                             .Select(lane => beatmap.HitObjects
+                                                                    .Select((hitObject, index) => (hitObject, index))
+                                                                    .Where(item =>
+                                                                        item.hitObject.Lane == lane
+                                                                        && (isStandardJudgementObject(item.hitObject)
+                                                                            || minesEnabled
+                                                                            && item.hitObject.Kind
+                                                                            == HitObjectKind.Mine))
+                                                                    .OrderBy(item =>
+                                                                        item.hitObject.StartTimeMilliseconds)
+                                                                    .ThenBy(item => item.index)
+                                                                    .Select(item => item.index)
+                                                                    .ToArray())
+                                             .ToArray();
 
         nextLaneObjectIndices = Enumerable.Repeat(-1, beatmap.HitObjects.Count).ToArray();
         foreach (int[] laneIndices in laneObjectIndices)
@@ -93,7 +115,10 @@ public sealed class BeatmapJudgementState
 
         nextHeadPositions = new int[laneObjectIndices.Length];
         nextMinePositions = new int[laneObjectIndices.Length];
+        nextEtternaPositions = new int[laneObjectIndices.Length];
         nextForceMissPositions = new int[laneObjectIndices.Length];
+        lanePressedSinceMilliseconds =
+            new double?[laneObjectIndices.Length];
         openHoldIndices = Enumerable.Range(0, laneObjectIndices.Length)
                                     .Select(_ => new HashSet<int>())
                                     .ToArray();
@@ -106,11 +131,11 @@ public sealed class BeatmapJudgementState
                                      return minesEnabled
                                          ?
                                          [
-                                             new ExpirationEntry(
-                                                 hitObject.StartTimeMilliseconds
-                                                 + ActiveMineWindowMilliseconds,
-                                                 index,
-                                                 JudgementPhase.Mine),
+                                              new ExpirationEntry(
+                                                  hitObject.StartTimeMilliseconds
+                                                  + ActiveMineAvoidWindowMilliseconds,
+                                                  index,
+                                                  JudgementPhase.Mine),
                                          ]
                                          : [];
                                  }
@@ -151,10 +176,20 @@ public sealed class BeatmapJudgementState
 
     public JudgementWindows Windows { get; }
 
+    // Yokko works in rate-adjusted chart time. Etterna divides note offsets by
+    // the music rate before applying its fixed 75ms real-time window, so the
+    // equivalent chart-time window scales with the fixed playback rate.
     public double ActiveMineWindowMilliseconds =>
         Windows.Configuration.Mode == JudgementMode.Etterna
             ? EtternaMineWindowMilliseconds * Windows.SpeedMultiplier
             : MineWindowMilliseconds;
+
+    // Etterna turns an untouched mine into AvoidMine at the same rate-adjusted
+    // 180ms outer boundary used by UpdateTapNotesMissedOlderThan().
+    public double ActiveMineAvoidWindowMilliseconds =>
+        Windows.Configuration.Mode == JudgementMode.Etterna
+            ? Windows.MissMilliseconds
+            : ActiveMineWindowMilliseconds;
 
     public JudgementCounter Counts => scoreProcessor.Counts;
 
@@ -212,7 +247,8 @@ public sealed class BeatmapJudgementState
 
         var events = new List<JudgementEvent>();
         int[] laneIndices = laneObjectIndices[lane];
-        judgeMinePress(lane, gameplayTimeMilliseconds, events);
+        lanePressedSinceMilliseconds[lane] ??=
+            gameplayTimeMilliseconds;
 
         // A dropped hold may be picked back up. In lazer, a judged head's
         // handler reports holding and then allows the press to continue.
@@ -240,43 +276,17 @@ public sealed class BeatmapJudgementState
                 state.Holding = true;
         }
 
-        advanceHeadPosition(lane);
-
         if (Windows.Configuration.Mode == JudgementMode.Etterna)
         {
-            int index = closestEtternaHead(
-                laneIndices,
-                nextHeadPositions[lane],
-                gameplayTimeMilliseconds);
-            if (index < 0)
-                return events;
-
-            YokkoHitObject hitObject = beatmap.HitObjects[index];
-            double error =
-                gameplayTimeMilliseconds
-                - hitObject.StartTimeMilliseconds;
-            JudgementRating rating = Windows.Judge(error);
-            if (rating == JudgementRating.None)
-                return events;
-
-            if (hitObject.Kind == HitObjectKind.Hold
-                && error >= -Windows.MissMilliseconds)
-            {
-                states[index].Holding = true;
-            }
-
-            events.Add(resolveBasic(
-                index,
-                hitObject.StartTimeMilliseconds,
+            judgeEtternaPress(
+                lane,
                 gameplayTimeMilliseconds,
-                error,
-                rating,
-                hitObject.Kind == HitObjectKind.Hold
-                    ? JudgementPhase.HoldHead
-                    : JudgementPhase.Tap));
-            advanceHeadPosition(lane);
+                events);
             return events;
         }
+
+        judgeMinePress(lane, gameplayTimeMilliseconds, events);
+        advanceHeadPosition(lane);
 
         for (int position = nextHeadPositions[lane];
              position < laneIndices.Length;
@@ -351,41 +361,23 @@ public sealed class BeatmapJudgementState
         for (int lane = 0; lane < laneCount; lane++)
         {
             if (!pressedLanes[lane])
-                continue;
-
-            int[] mineIndices = laneMineObjectIndices[lane];
-            int position = nextMinePositions[lane];
-            while (position < mineIndices.Length)
             {
-                int index = mineIndices[position];
-                ObjectState state = states[index];
-                if (state.HeadResolved)
-                {
-                    position++;
-                    continue;
-                }
-
-                YokkoHitObject mine = beatmap.HitObjects[index];
-                if (gameplayTimeMilliseconds
-                    < mine.StartTimeMilliseconds)
-                {
-                    break;
-                }
-
-                double error = gameplayTimeMilliseconds
-                               - mine.StartTimeMilliseconds;
-                if (error > ActiveMineWindowMilliseconds)
-                    break;
-
-                events.Add(resolveMine(
-                    index,
-                    gameplayTimeMilliseconds,
-                    error,
-                    wasHit: true));
-                position++;
+                lanePressedSinceMilliseconds[lane] = null;
+                continue;
             }
 
-            nextMinePositions[lane] = position;
+            if (lanePressedSinceMilliseconds[lane] is not double pressedSince
+                || pressedSince > gameplayTimeMilliseconds)
+            {
+                pressedSince = gameplayTimeMilliseconds;
+                lanePressedSinceMilliseconds[lane] = pressedSince;
+            }
+
+            collectCrossedMines(
+                lane,
+                pressedSince,
+                gameplayTimeMilliseconds,
+                events);
         }
     }
 
@@ -395,17 +387,19 @@ public sealed class BeatmapJudgementState
     /// Source: etternagame/etterna Player::GetClosestNote
     /// commit 939a26ae042d3a689999a0dae630721c7701f187 (MIT).
     /// </summary>
-    private int closestEtternaHead(
-        int[] laneIndices,
-        int startPosition,
+    private int closestEtternaInputObject(
+        int lane,
         double gameplayTimeMilliseconds)
     {
+        advanceEtternaPosition(lane);
+
+        int[] laneIndices = laneEtternaObjectIndices[lane];
         int closestIndex = -1;
         double closestDistance = double.PositiveInfinity;
         double closestTime = double.NegativeInfinity;
         double outerWindow = Windows.MissMilliseconds;
 
-        for (int position = startPosition;
+        for (int position = nextEtternaPositions[lane];
              position < laneIndices.Length;
              position++)
         {
@@ -417,6 +411,15 @@ public sealed class BeatmapJudgementState
                 beatmap.HitObjects[index].StartTimeMilliseconds;
             if (objectTime > gameplayTimeMilliseconds + outerWindow)
                 break;
+
+            // Player::GetClosestNote deliberately rejects mines that have
+            // already crossed the receptor. A late press may still select an
+            // earlier tap, but never retroactively explode an old mine.
+            if (beatmap.HitObjects[index].Kind == HitObjectKind.Mine
+                && objectTime < gameplayTimeMilliseconds)
+            {
+                continue;
+            }
 
             double distance =
                 Math.Abs(gameplayTimeMilliseconds - objectTime);
@@ -436,6 +439,60 @@ public sealed class BeatmapJudgementState
         return closestIndex;
     }
 
+    private void judgeEtternaPress(
+        int lane,
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events)
+    {
+        int index = closestEtternaInputObject(
+            lane,
+            gameplayTimeMilliseconds);
+        if (index < 0)
+            return;
+
+        YokkoHitObject hitObject = beatmap.HitObjects[index];
+        double error =
+            gameplayTimeMilliseconds
+            - hitObject.StartTimeMilliseconds;
+
+        if (hitObject.Kind == HitObjectKind.Mine)
+        {
+            if (Math.Abs(error) > ActiveMineWindowMilliseconds)
+                return;
+
+            events.Add(resolveMine(
+                index,
+                gameplayTimeMilliseconds,
+                error,
+                wasHit: true));
+            advanceMinePosition(lane);
+            advanceEtternaPosition(lane);
+            return;
+        }
+
+        JudgementRating rating = Windows.Judge(error);
+        if (rating == JudgementRating.None)
+            return;
+
+        if (hitObject.Kind == HitObjectKind.Hold
+            && error >= -Windows.MissMilliseconds)
+        {
+            states[index].Holding = true;
+        }
+
+        events.Add(resolveBasic(
+            index,
+            hitObject.StartTimeMilliseconds,
+            gameplayTimeMilliseconds,
+            error,
+            rating,
+            hitObject.Kind == HitObjectKind.Hold
+                ? JudgementPhase.HoldHead
+                : JudgementPhase.Tap));
+        advanceHeadPosition(lane);
+        advanceEtternaPosition(lane);
+    }
+
     public IReadOnlyList<JudgementEvent> JudgeLaneRelease(
         int lane,
         double gameplayTimeMilliseconds)
@@ -444,6 +501,16 @@ public sealed class BeatmapJudgementState
             return [];
 
         var events = new List<JudgementEvent>();
+        if (lanePressedSinceMilliseconds[lane] is double pressedSince)
+        {
+            collectCrossedMines(
+                lane,
+                pressedSince,
+                gameplayTimeMilliseconds,
+                events);
+        }
+
+        lanePressedSinceMilliseconds[lane] = null;
 
         foreach (int index in openHoldIndices[lane].ToArray())
         {
@@ -541,6 +608,7 @@ public sealed class BeatmapJudgementState
                     - hitObject.StartTimeMilliseconds,
                     wasHit: false));
                 advanceMinePosition(hitObject.Lane);
+                advanceEtternaPosition(hitObject.Lane);
                 continue;
             }
 
@@ -557,6 +625,8 @@ public sealed class BeatmapJudgementState
                     gameplayTimeMilliseconds - hitObject.StartTimeMilliseconds,
                     JudgementRating.Miss,
                     expiration.Phase));
+                advanceHeadPosition(hitObject.Lane);
+                advanceEtternaPosition(hitObject.Lane);
                 continue;
             }
 
@@ -677,6 +747,52 @@ public sealed class BeatmapJudgementState
         }
 
         nextMinePositions[lane] = position;
+    }
+
+    private void advanceEtternaPosition(int lane)
+    {
+        int[] laneIndices = laneEtternaObjectIndices[lane];
+        int position = nextEtternaPositions[lane];
+
+        while (position < laneIndices.Length
+               && states[laneIndices[position]].HeadResolved)
+        {
+            position++;
+        }
+
+        nextEtternaPositions[lane] = position;
+    }
+
+    private void collectCrossedMines(
+        int lane,
+        double pressedSinceMilliseconds,
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events)
+    {
+        int[] mineIndices = laneMineObjectIndices[lane];
+        for (int position = nextMinePositions[lane];
+             position < mineIndices.Length;
+             position++)
+        {
+            int index = mineIndices[position];
+            if (states[index].HeadResolved)
+                continue;
+
+            YokkoHitObject mine = beatmap.HitObjects[index];
+            if (mine.StartTimeMilliseconds < pressedSinceMilliseconds)
+                continue;
+            if (mine.StartTimeMilliseconds > gameplayTimeMilliseconds)
+                break;
+
+            events.Add(resolveMine(
+                index,
+                mine.StartTimeMilliseconds,
+                0,
+                wasHit: true));
+        }
+
+        advanceMinePosition(lane);
+        advanceEtternaPosition(lane);
     }
 
     private void judgeMinePress(

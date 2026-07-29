@@ -254,7 +254,7 @@ internal sealed class OsuManiaSkinLibrary
 
             info = OsuManiaSkinIniDecoder.Decode(
                 contents,
-                !string.IsNullOrWhiteSpace(contents));
+                source.Contains("skin.ini"));
 
             if (info.ManiaConfigurations.Count == 0
                 && !source.HasManiaAssets())
