@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using Yokko.Core.Timing;
 using Yokko.Import;
 
 namespace Yokko.Game.Tests.Core;
@@ -65,6 +66,7 @@ public sealed class QuaverRealPackageCorpusTest
                     velocity => velocity.Multiplier < 0);
             totalZeroVelocityCount += zeroVelocityCount;
             totalNegativeVelocityCount += negativeVelocityCount;
+            assertRuntimeSvSemantics(result);
 
             TestContext.Progress.WriteLine(
                 $"{result.Beatmap.Title} "
@@ -81,5 +83,53 @@ public sealed class QuaverRealPackageCorpusTest
             Assert.That(totalZeroVelocityCount, Is.GreaterThan(0));
             Assert.That(totalNegativeVelocityCount, Is.GreaterThan(0));
         });
+    }
+
+    private static void assertRuntimeSvSemantics(
+        ChartImportResult result)
+    {
+        var map = new ScrollVelocityMap(
+            result.Beatmap.ScrollVelocities,
+            result.Beatmap.InitialScrollVelocity);
+        double chartEnd =
+            result.Beatmap.HitObjects.Max(hitObject =>
+                hitObject.EndTimeMilliseconds
+                ?? hitObject.StartTimeMilliseconds);
+
+        for (int i = 0; i < map.ScrollVelocities.Count; i++)
+        {
+            YokkoScrollVelocity velocity =
+                map.ScrollVelocities[i];
+            double segmentEnd =
+                i + 1 < map.ScrollVelocities.Count
+                    ? map.ScrollVelocities[i + 1].TimeMilliseconds
+                    : chartEnd;
+
+            if (segmentEnd <= velocity.TimeMilliseconds)
+                continue;
+
+            double distance = map.DistanceBetween(
+                velocity.TimeMilliseconds,
+                segmentEnd);
+
+            if (velocity.Multiplier == 0)
+            {
+                Assert.That(
+                    distance,
+                    Is.EqualTo(0).Within(0.000001),
+                    $"Zero SV moved between "
+                    + $"{velocity.TimeMilliseconds:0.###} and "
+                    + $"{segmentEnd:0.###} ms.");
+            }
+            else if (velocity.Multiplier < 0)
+            {
+                Assert.That(
+                    distance,
+                    Is.LessThan(0),
+                    $"Negative SV did not reverse between "
+                    + $"{velocity.TimeMilliseconds:0.###} and "
+                    + $"{segmentEnd:0.###} ms.");
+            }
+        }
     }
 }

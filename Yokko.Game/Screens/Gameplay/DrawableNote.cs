@@ -41,6 +41,7 @@ public partial class DrawableNote : CompositeDrawable
     private readonly bool flipHoldHead;
     private readonly bool flipHoldBody;
     private readonly bool flipHoldTail;
+    private bool reverseHoldTailForScrollVelocity;
     private float holdBodyY;
     private float holdBodyHeight;
     private float holdHeadY;
@@ -200,6 +201,9 @@ public partial class DrawableNote : CompositeDrawable
 
     public int HitObjectIndex { get; }
 
+    internal bool ReverseHoldTailForScrollVelocity =>
+        reverseHoldTailForScrollVelocity;
+
     public void SetColumnScale(float value)
     {
         value = Math.Max(0.01f, value);
@@ -301,6 +305,8 @@ public partial class DrawableNote : CompositeDrawable
 
         if (hitObject.Kind == HitObjectKind.Hold && hitObject.EndTimeMilliseconds is double endTime)
         {
+            reverseHoldTailForScrollVelocity =
+                scrollVelocityMap.IsNegativeDirectionAt(endTime);
             double headProgress = 1 - (startPosition - currentPosition)
                 / approachTimeMilliseconds
                 * scrollSpeedFactor;
@@ -486,7 +492,7 @@ public partial class DrawableNote : CompositeDrawable
             holdTail,
             holdTailY,
             tailHeight,
-            flipHoldTail);
+            flipHoldTail ^ reverseHoldTailForScrollVelocity);
     }
 
     private void placePart(Sprite sprite, float y, float height, bool flip)

@@ -7,6 +7,8 @@ namespace Yokko.Core.Timing;
 public sealed class ScrollVelocityMap
 {
     private readonly Segment[] segments;
+    private readonly double[] rangeMinimums;
+    private readonly double[] rangeMaximums;
 
     public ScrollVelocityMap(
         IEnumerable<YokkoScrollVelocity>? scrollVelocities,
@@ -24,11 +26,16 @@ public sealed class ScrollVelocityMap
                            ?? [];
 
         segments = new Segment[ScrollVelocities.Count];
+        rangeMinimums =
+            new double[Math.Max(1, segments.Length * 4)];
+        rangeMaximums =
+            new double[Math.Max(1, segments.Length * 4)];
 
         if (segments.Length == 0)
             return;
 
         double position = ScrollVelocities[0].TimeMilliseconds * InitialMultiplier;
+        bool isNegativeDirection = InitialMultiplier < 0;
 
         for (int i = 0; i < ScrollVelocities.Count; i++)
         {
@@ -42,11 +49,17 @@ public sealed class ScrollVelocityMap
                            * previous.Multiplier;
             }
 
+            if (velocity.Multiplier != 0)
+                isNegativeDirection = velocity.Multiplier < 0;
+
             segments[i] = new Segment(
                 velocity.TimeMilliseconds,
                 position,
-                velocity.Multiplier);
+                velocity.Multiplier,
+                isNegativeDirection);
         }
+
+        buildPositionRange(1, 0, segments.Length);
     }
 
     public double InitialMultiplier { get; }
@@ -84,6 +97,21 @@ public sealed class ScrollVelocityMap
     }
 
     /// <summary>
+    /// Returns the active visual direction. A zero-velocity segment keeps the
+    /// direction of the last non-zero segment, matching Quaver's SV rules.
+    /// </summary>
+    public bool IsNegativeDirectionAt(double timeMilliseconds)
+    {
+        if (!double.IsFinite(timeMilliseconds))
+            throw new ArgumentOutOfRangeException(nameof(timeMilliseconds));
+
+        int index = segmentIndexAt(timeMilliseconds);
+        return index < 0
+            ? InitialMultiplier < 0
+            : segments[index].IsNegativeDirection;
+    }
+
+    /// <summary>
     /// Returns the complete visual-position range traversed between two
     /// times, including extrema at SV change points.
     /// </summary>
@@ -108,19 +136,81 @@ public sealed class ScrollVelocityMap
         double minimum = Math.Min(startPosition, endPosition);
         double maximum = Math.Max(startPosition, endPosition);
 
-        foreach (Segment segment in segments)
+        int rangeStart = firstSegmentAfter(startTimeMilliseconds);
+        int rangeEnd = firstSegmentAtOrAfter(endTimeMilliseconds);
+
+        if (rangeStart < rangeEnd)
         {
-            if (segment.StartTimeMilliseconds <= startTimeMilliseconds)
-                continue;
-
-            if (segment.StartTimeMilliseconds >= endTimeMilliseconds)
-                break;
-
-            minimum = Math.Min(minimum, segment.StartPosition);
-            maximum = Math.Max(maximum, segment.StartPosition);
+            queryPositionRange(
+                1,
+                0,
+                segments.Length,
+                rangeStart,
+                rangeEnd,
+                ref minimum,
+                ref maximum);
         }
 
         return new ScrollPositionRange(minimum, maximum);
+    }
+
+    private void buildPositionRange(int node, int start, int end)
+    {
+        if (end - start == 1)
+        {
+            rangeMinimums[node] =
+                rangeMaximums[node] =
+                    segments[start].StartPosition;
+            return;
+        }
+
+        int middle = start + (end - start) / 2;
+        buildPositionRange(node * 2, start, middle);
+        buildPositionRange(node * 2 + 1, middle, end);
+        rangeMinimums[node] = Math.Min(
+            rangeMinimums[node * 2],
+            rangeMinimums[node * 2 + 1]);
+        rangeMaximums[node] = Math.Max(
+            rangeMaximums[node * 2],
+            rangeMaximums[node * 2 + 1]);
+    }
+
+    private void queryPositionRange(
+        int node,
+        int start,
+        int end,
+        int queryStart,
+        int queryEnd,
+        ref double minimum,
+        ref double maximum)
+    {
+        if (queryEnd <= start || end <= queryStart)
+            return;
+
+        if (queryStart <= start && end <= queryEnd)
+        {
+            minimum = Math.Min(minimum, rangeMinimums[node]);
+            maximum = Math.Max(maximum, rangeMaximums[node]);
+            return;
+        }
+
+        int middle = start + (end - start) / 2;
+        queryPositionRange(
+            node * 2,
+            start,
+            middle,
+            queryStart,
+            queryEnd,
+            ref minimum,
+            ref maximum);
+        queryPositionRange(
+            node * 2 + 1,
+            middle,
+            end,
+            queryStart,
+            queryEnd,
+            ref minimum,
+            ref maximum);
     }
 
     private int segmentIndexAt(double timeMilliseconds)
@@ -145,10 +235,53 @@ public sealed class ScrollVelocityMap
         return result;
     }
 
+    private int firstSegmentAfter(double timeMilliseconds)
+    {
+        int low = 0;
+        int high = segments.Length;
+
+        while (low < high)
+        {
+            int middle = low + (high - low) / 2;
+
+            if (segments[middle].StartTimeMilliseconds
+                <= timeMilliseconds)
+            {
+                low = middle + 1;
+            }
+            else
+                high = middle;
+        }
+
+        return low;
+    }
+
+    private int firstSegmentAtOrAfter(double timeMilliseconds)
+    {
+        int low = 0;
+        int high = segments.Length;
+
+        while (low < high)
+        {
+            int middle = low + (high - low) / 2;
+
+            if (segments[middle].StartTimeMilliseconds
+                < timeMilliseconds)
+            {
+                low = middle + 1;
+            }
+            else
+                high = middle;
+        }
+
+        return low;
+    }
+
     private sealed record Segment(
         double StartTimeMilliseconds,
         double StartPosition,
-        double Multiplier);
+        double Multiplier,
+        bool IsNegativeDirection);
 }
 
 public readonly record struct ScrollPositionRange(

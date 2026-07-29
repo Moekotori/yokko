@@ -105,11 +105,15 @@ speed scale. `$Global` signals are merged into the default and every custom
 timing group, while each hit object selects its named `YokkoScrollProfile`.
 
 Gameplay keeps one integrated map per profile and supports positive, stopped,
-and reversed travel. Hold-note bounds include every direction-change extremum,
-so a long note crossing zero or negative SV is not culled from only its two
-endpoints. The editor signal strip exposes the default SV track and reports SV,
-SSF, and timing-group counts; importing and editing a chart preserves all
-profiles even though Yokko does not yet provide authoring controls for them.
+and reversed travel. A zero multiplier freezes the visual-distance axis while
+retaining the last non-zero direction; that direction also controls the
+orientation of a long-note tail. Hold-note bounds include every
+direction-change extremum, so a long note crossing zero or negative SV is not
+culled from only its two endpoints. Position extrema use an indexed range
+query rather than scanning every SV on every hold update. The editor signal
+strip exposes the default SV track and reports SV, SSF, and timing-group
+counts; importing and editing a chart preserves all profiles even though Yokko
+does not yet provide authoring controls for them.
 
 osu!mania export is lossless when its original timing points still describe
 the current profile. Yokko can synthesize positive inherited timing points,
@@ -122,8 +126,10 @@ The integration model and format conversion were adapted from:
 - `ppy/osu`, `osu.Game/Rulesets/UI/Scrolling/Algorithms/SequentialScrollAlgorithm.cs`
   and `osu.Game/Rulesets/Timing/MultiplierControlPoint.cs`, commit
   `cb3d5da8b441afd8d2cf3e03ceebc6b027e2074d`;
-- `Quaver/Quaver`, `Quaver.Shared/Screens/Gameplay/Rulesets/Keys/HitObjects/ScrollGroupControllerKeys.cs`,
-  commit `f01243247e73d44f8435f3e6e1244409123cc143`;
+- `Quaver/Quaver`,
+  `Quaver.Shared/Screens/Gameplay/Rulesets/Keys/HitObjects/ScrollGroupControllerKeys.cs`
+  and `ScrollNoteController.cs`, commit
+  `bcc32673ca86349993cd7cf37a062ebc668972ea`;
 - `Quaver/Quaver.API`, `Quaver.API/Maps/Qua.cs` (`NormalizeSVs`), commit
   `a921d561b2ece7f6bf3682446696c06c17b81649`.
 
