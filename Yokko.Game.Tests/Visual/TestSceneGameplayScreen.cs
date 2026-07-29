@@ -1143,13 +1143,20 @@ namespace Yokko.Game.Tests.Visual
         public void TestLoadsOsuManiaSkinTextures()
         {
             string skinPath = createTestSkin();
+            GameplayScreen gameplay = null;
 
             AddStep("open skinned gameplay", () =>
-                screenStack.Push(new GameplayScreen(DemoBeatmaps.CreateFourKeyDemo(), skinPath: skinPath)));
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath)));
             AddUntilStep("custom playfield width applied", () =>
-                (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<GameplayPlayfield>().SingleOrDefault()?.Width == 160);
+                gameplay?.ChildrenOfType<GameplayPlayfield>().SingleOrDefault()?.Width == 160);
             AddUntilStep("skin sprites loaded", () =>
-                (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null) == true);
+                gameplay?.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null) == true);
+            AddAssert("skin owns judgement feedback", () =>
+                gameplay.ChildrenOfType<GameplayPlayfield>()
+                        .Single()
+                        .UsesSkinJudgementOverlay);
         }
 
         [Test]

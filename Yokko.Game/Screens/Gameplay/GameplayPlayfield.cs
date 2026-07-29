@@ -65,6 +65,8 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     internal ManiaVisibilityPolicy VisibilityPolicy => visibilityPolicy;
 
+    internal bool UsesSkinJudgementOverlay => skinOverlay != null;
+
     internal bool ConstantSpeedEnabled =>
         mods.Contains(ManiaModId.ConstantSpeed);
 

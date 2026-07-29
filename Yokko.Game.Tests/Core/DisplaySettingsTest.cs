@@ -14,6 +14,58 @@ namespace Yokko.Game.Tests.Core;
 public sealed class DisplaySettingsTest
 {
     [Test]
+    public void CorruptedWindowSizeUsesSafeHighDpiFallback()
+    {
+        Assert.That(
+            YokkoWindowSizeGuard.CalculateSafeWindowedSize(
+                new System.Drawing.Size(5094, 7929),
+                new System.Drawing.Size(3200, 2000),
+                2),
+            Is.EqualTo(new System.Drawing.Size(1280, 720)));
+    }
+
+    [Test]
+    public void NormalWindowSizeSurvivesHighDpiValidation()
+    {
+        Assert.That(
+            YokkoWindowSizeGuard.CalculateSafeWindowedSize(
+                new System.Drawing.Size(1280, 720),
+                new System.Drawing.Size(3200, 2000),
+                2),
+            Is.EqualTo(new System.Drawing.Size(1280, 720)));
+    }
+
+    [Test]
+    public void OversizedLandscapeWindowIsFittedToDisplay()
+    {
+        System.Drawing.Size corrected =
+            YokkoWindowSizeGuard.CalculateSafeWindowedSize(
+            new System.Drawing.Size(2560, 1440),
+            new System.Drawing.Size(1920, 1080),
+            1);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(corrected.Width, Is.LessThanOrEqualTo(1888));
+            Assert.That(corrected.Height, Is.LessThanOrEqualTo(1000));
+            Assert.That(
+                corrected.Width / (float)corrected.Height,
+                Is.EqualTo(16f / 9f).Within(0.01f));
+        });
+    }
+
+    [Test]
+    public void InvalidDpiScaleFallsBackToOne()
+    {
+        Assert.That(
+            YokkoWindowSizeGuard.CalculateSafeWindowedSize(
+                new System.Drawing.Size(1600, 900),
+                new System.Drawing.Size(1920, 1080),
+                float.NaN),
+            Is.EqualTo(new System.Drawing.Size(1600, 900)));
+    }
+
+    [Test]
     public void LastSettingsPagePersistsAcrossConfigInstances()
     {
         string directory = Path.Combine(

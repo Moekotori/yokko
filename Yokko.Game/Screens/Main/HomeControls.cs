@@ -39,7 +39,7 @@ internal static class HomeTypography
 
 public partial class HomePrimaryAction : ClickableContainer
 {
-    private const float hover_scale = 1.008f;
+    private const float hover_scale = 1.004f;
 
     private readonly Box background;
     private readonly Box focusLine;
@@ -64,26 +64,26 @@ public partial class HomePrimaryAction : ClickableContainer
         {
             new Container
             {
-                Position = new Vector2(0, 6),
-                Size = new Vector2(520, 114),
+                Position = new Vector2(0, 5),
+                Size = new Vector2(520, 115),
                 Masking = true,
                 CornerRadius = 10,
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.52f),
+                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.4f),
                 },
             },
             new Container
             {
-                Position = new Vector2(-3, -3),
-                Size = new Vector2(526, 120),
+                Position = new Vector2(-2, -2),
+                Size = new Vector2(524, 118),
                 Masking = true,
-                CornerRadius = 12,
+                CornerRadius = 11,
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.82f),
+                    Colour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.64f),
                 },
             },
             new Container
@@ -114,7 +114,7 @@ public partial class HomePrimaryAction : ClickableContainer
                     {
                         Position = new Vector2(358, 18),
                         Size = new Vector2(145, 78),
-                        Colour = new Color4(0.39f, 0.76f, 1f, 0.34f),
+                        Colour = new Color4(0.39f, 0.76f, 1f, 0.24f),
                     },
                     new Container
                     {
@@ -123,7 +123,7 @@ public partial class HomePrimaryAction : ClickableContainer
                         Masking = true,
                         CornerRadius = 7,
                         BorderThickness = 1,
-                        BorderColour = new Color4(0.56f, 0.88f, 1f, 0.72f),
+                        BorderColour = new Color4(0.56f, 0.88f, 1f, 0.5f),
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
@@ -142,7 +142,7 @@ public partial class HomePrimaryAction : ClickableContainer
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Colour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.7f),
+                            Colour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.54f),
                         },
                     },
                     new Container
@@ -167,7 +167,7 @@ public partial class HomePrimaryAction : ClickableContainer
                             {
                                 Anchor = Anchor.Centre,
                                 Origin = Anchor.Centre,
-                                Size = new Vector2(iconSize),
+                                Size = new Vector2(iconSize - 2),
                                 Icon = icon,
                                 Colour = HomeControlColours.Navy,
                             },
@@ -176,7 +176,7 @@ public partial class HomePrimaryAction : ClickableContainer
                     new FillFlowContainer
                     {
                         X = contentX,
-                        Y = 25,
+                        Y = 24,
                         AutoSizeAxes = Axes.Both,
                         Direction = FillDirection.Vertical,
                         Spacing = new Vector2(0, 0),
@@ -185,14 +185,14 @@ public partial class HomePrimaryAction : ClickableContainer
                             new SpriteText
                             {
                                 Text = eyebrow,
-                                Font = HomeTypography.Display(13),
+                                Font = HomeTypography.Display(12),
                                 Spacing = new Vector2(2.4f, 0),
                                 Colour = HomeControlColours.Cyan,
                             },
                             new SpriteText
                             {
                                 Text = title,
-                                Font = HomeTypography.Display(54),
+                                Font = HomeTypography.Display(48),
                                 Colour = Color4.White,
                             },
                         },
@@ -202,7 +202,7 @@ public partial class HomePrimaryAction : ClickableContainer
                         Anchor = Anchor.CentreRight,
                         Origin = Anchor.CentreRight,
                         X = -27,
-                        Size = new Vector2(27),
+                        Size = new Vector2(23),
                         Icon = FontAwesome.Solid.ChevronRight,
                         Colour = HomeControlColours.Yellow,
                     },
@@ -210,7 +210,7 @@ public partial class HomePrimaryAction : ClickableContainer
                     {
                         Anchor = Anchor.TopRight,
                         Origin = Anchor.Centre,
-                        Size = new Vector2(19),
+                        Size = new Vector2(16),
                         Rotation = 45,
                         Colour = HomeControlColours.Yellow,
                     },
@@ -219,17 +219,17 @@ public partial class HomePrimaryAction : ClickableContainer
                         Anchor = Anchor.BottomLeft,
                         Origin = Anchor.BottomLeft,
                         X = 18,
-                        Width = 111,
-                        Height = 4,
+                        Width = 86,
+                        Height = 3,
                         Colour = HomeControlColours.Pink,
                     },
                     focusLine = new Box
                     {
                         Anchor = Anchor.BottomLeft,
                         Origin = Anchor.BottomLeft,
-                        X = 129,
-                        Width = 188,
-                        Height = 2,
+                        X = 104,
+                        Width = 213,
+                        Height = 1.5f,
                         Colour = HomeControlColours.Cyan,
                     },
                 },
@@ -326,26 +326,26 @@ public partial class HomeSecondaryAction : ClickableContainer
         {
             new Container
             {
-                Position = new Vector2(0, 5),
-                Size = new Vector2(252, 77),
+                Position = new Vector2(0, 4),
+                Size = new Vector2(252, 78),
                 Masking = true,
                 CornerRadius = 9,
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.3f),
+                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.22f),
                 },
             },
             new Container
             {
-                Position = new Vector2(-2, -2),
-                Size = new Vector2(256, 82),
+                Position = new Vector2(-1.5f, -1.5f),
+                Size = new Vector2(255, 81),
                 Masking = true,
-                CornerRadius = 11,
+                CornerRadius = 10,
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.5f),
+                    Colour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.34f),
                 },
             },
             new Container
@@ -353,7 +353,7 @@ public partial class HomeSecondaryAction : ClickableContainer
                 Size = new Vector2(252, 78),
                 Masking = true,
                 CornerRadius = 9,
-                BorderThickness = 2,
+                BorderThickness = 1.5f,
                 BorderColour = HomeControlColours.Navy,
                 Children = new Drawable[]
                 {
@@ -369,7 +369,7 @@ public partial class HomeSecondaryAction : ClickableContainer
                         Masking = true,
                         CornerRadius = 6,
                         BorderThickness = 1,
-                        BorderColour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.44f),
+                        BorderColour = new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.28f),
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
@@ -382,26 +382,26 @@ public partial class HomeSecondaryAction : ClickableContainer
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 17,
-                Y = 4,
-                Size = new Vector2(56),
+                X = 18,
+                Y = 3,
+                Size = new Vector2(52),
                 Masking = true,
-                CornerRadius = 9,
+                CornerRadius = 8,
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.035f, 0.085f, 0.54f, 0.28f),
+                    Colour = new Color4(0.035f, 0.085f, 0.54f, 0.18f),
                 },
             },
             iconTile = new Container
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 14,
-                Size = new Vector2(56),
+                X = 15,
+                Size = new Vector2(52),
                 Masking = true,
-                CornerRadius = 9,
-                BorderThickness = 2,
+                CornerRadius = 8,
+                BorderThickness = 1.5f,
                 BorderColour = HomeControlColours.Navy,
                 Children = createIconContents(icon, overlayIcon),
             },
@@ -409,10 +409,9 @@ public partial class HomeSecondaryAction : ClickableContainer
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 85,
+                X = 80,
                 Text = title,
-                Font = HomeTypography.Display(28),
-                Scale = new Vector2(0.94f, 1),
+                Font = HomeTypography.Display(24),
                 Colour = HomeControlColours.Navy,
             },
             chevron = new SpriteIcon
@@ -420,13 +419,13 @@ public partial class HomeSecondaryAction : ClickableContainer
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
                 X = -16,
-                Size = new Vector2(15),
+                Size = new Vector2(13),
                 Icon = FontAwesome.Solid.ChevronRight,
                 Colour = HomeControlColours.Pink,
             },
             new FillFlowContainer
             {
-                Position = new Vector2(87, 61),
+                Position = new Vector2(82, 59),
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(5, 0),
@@ -443,7 +442,7 @@ public partial class HomeSecondaryAction : ClickableContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.Centre,
-                Size = new Vector2(15),
+                Size = new Vector2(12),
                 Rotation = 45,
                 Colour = HomeControlColours.Yellow,
             },
@@ -453,7 +452,7 @@ public partial class HomeSecondaryAction : ClickableContainer
                 Origin = Anchor.BottomLeft,
                 Y = -4,
                 Width = 0,
-                Height = 3,
+                Height = 2,
                 Colour = HomeControlColours.Cyan,
             },
         };
@@ -474,7 +473,7 @@ public partial class HomeSecondaryAction : ClickableContainer
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Size = new Vector2(29),
+                    Size = new Vector2(27),
                     Icon = icon,
                     Colour = HomeControlColours.Navy,
                 },
@@ -493,7 +492,7 @@ public partial class HomeSecondaryAction : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Position = new Vector2(-2, -2),
-                Size = new Vector2(31),
+                Size = new Vector2(28),
                 Icon = icon,
                 Colour = HomeControlColours.Navy,
             },
@@ -502,7 +501,7 @@ public partial class HomeSecondaryAction : ClickableContainer
                 Anchor = Anchor.BottomRight,
                 Origin = Anchor.BottomRight,
                 Position = new Vector2(-4, -4),
-                Size = new Vector2(22),
+                Size = new Vector2(20),
                 Colour = Color4.White,
             },
             new SpriteIcon
@@ -510,7 +509,7 @@ public partial class HomeSecondaryAction : ClickableContainer
                 Anchor = Anchor.BottomRight,
                 Origin = Anchor.BottomRight,
                 Position = new Vector2(-7, -7),
-                Size = new Vector2(15),
+                Size = new Vector2(13),
                 Icon = overlayIcon.Value,
                 Colour = HomeControlColours.Navy,
             },
@@ -519,7 +518,7 @@ public partial class HomeSecondaryAction : ClickableContainer
 
     private static Drawable createDetailDot() => new Circle
     {
-        Size = new Vector2(3),
+        Size = new Vector2(2.5f),
         Colour = HomeControlColours.Cyan,
         Alpha = 0.76f,
     };
@@ -581,11 +580,11 @@ public partial class HomeMultiplayerAction : ClickableContainer
         {
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
-            X = 14,
-            Size = new Vector2(56),
+            X = 15,
+            Size = new Vector2(52),
             Masking = true,
-            CornerRadius = 9,
-            BorderThickness = 2,
+            CornerRadius = 8,
+            BorderThickness = 1.5f,
             BorderColour = HomeControlColours.Navy,
             Children = new Drawable[]
             {
@@ -598,7 +597,7 @@ public partial class HomeMultiplayerAction : ClickableContainer
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Size = new Vector2(30),
+                    Size = new Vector2(27),
                     Icon = FontAwesome.Solid.Users,
                     Colour = HomeControlColours.Navy,
                 },
@@ -609,7 +608,7 @@ public partial class HomeMultiplayerAction : ClickableContainer
             Anchor = Anchor.CentreRight,
             Origin = Anchor.CentreRight,
             X = -16,
-            Size = new Vector2(15),
+            Size = new Vector2(13),
             Icon = FontAwesome.Solid.ChevronRight,
             Colour = HomeControlColours.Pink,
         };
@@ -619,7 +618,7 @@ public partial class HomeMultiplayerAction : ClickableContainer
             Origin = Anchor.BottomLeft,
             Y = -4,
             Width = 0,
-            Height = 3,
+            Height = 2,
             Colour = HomeControlColours.Cyan,
         };
 
@@ -627,22 +626,22 @@ public partial class HomeMultiplayerAction : ClickableContainer
         {
             new Container
             {
-                Position = new Vector2(0, 5),
-                Size = new Vector2(520, 77),
+                Position = new Vector2(0, 4),
+                Size = new Vector2(520, 78),
                 Masking = true,
                 CornerRadius = 9,
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.3f),
+                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.22f),
                 },
             },
             new Container
             {
-                Position = new Vector2(-2, -2),
-                Size = new Vector2(524, 82),
+                Position = new Vector2(-1.5f, -1.5f),
+                Size = new Vector2(523, 81),
                 Masking = true,
-                CornerRadius = 11,
+                CornerRadius = 10,
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
@@ -650,7 +649,7 @@ public partial class HomeMultiplayerAction : ClickableContainer
                         HomeControlColours.Cyan.R,
                         HomeControlColours.Cyan.G,
                         HomeControlColours.Cyan.B,
-                        0.5f),
+                        0.34f),
                 },
             },
             new Container
@@ -658,7 +657,7 @@ public partial class HomeMultiplayerAction : ClickableContainer
                 Size = new Vector2(520, 78),
                 Masking = true,
                 CornerRadius = 9,
-                BorderThickness = 2,
+                BorderThickness = 1.5f,
                 BorderColour = HomeControlColours.Navy,
                 Children = new Drawable[]
                 {
@@ -674,7 +673,7 @@ public partial class HomeMultiplayerAction : ClickableContainer
                             HomeControlColours.Cyan.R,
                             HomeControlColours.Cyan.G,
                             HomeControlColours.Cyan.B,
-                            0.44f),
+                            0.28f),
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
@@ -687,15 +686,15 @@ public partial class HomeMultiplayerAction : ClickableContainer
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 17,
-                Y = 4,
-                Size = new Vector2(56),
+                X = 18,
+                Y = 3,
+                Size = new Vector2(52),
                 Masking = true,
-                CornerRadius = 9,
+                CornerRadius = 8,
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.035f, 0.085f, 0.54f, 0.28f),
+                    Colour = new Color4(0.035f, 0.085f, 0.54f, 0.18f),
                 },
             },
             iconTile,
@@ -703,11 +702,10 @@ public partial class HomeMultiplayerAction : ClickableContainer
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 85,
+                X = 80,
                 Y = hasOnlineFriends ? -12 : 0,
                 Text = title,
-                Font = HomeTypography.Display(28),
-                Scale = new Vector2(0.94f, 1),
+                Font = HomeTypography.Display(24),
                 Colour = HomeControlColours.Navy,
             },
             chevron,
@@ -715,7 +713,7 @@ public partial class HomeMultiplayerAction : ClickableContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.Centre,
-                Size = new Vector2(15),
+                Size = new Vector2(12),
                 Rotation = 45,
                 Colour = HomeControlColours.Yellow,
             },

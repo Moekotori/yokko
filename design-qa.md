@@ -6,26 +6,26 @@ final result: passed
 
 - Source visual truth: `C:\Users\mochi\.codex\attachments\022453ae-9d23-490b-8efa-75ab6faaef9f\image-1.png`
 - Saved concept: `D:\yokko\docs\design\mods\yokko-gameplay-mods-studio-index-concept.png`
-- Final 100% implementation screenshot: `D:\yokko\artifacts\mods\gameplay-mods-scale-large-3200x1800.png`
-- Final 90% implementation screenshot: `D:\yokko\artifacts\mods\gameplay-mods-scale-comfortable-3200x1800.png`
-- Final 80% implementation screenshot: `D:\yokko\artifacts\mods\gameplay-mods-scale-compact-3200x1800.png`
-- Shared-viewport scale matrix: `D:\yokko\artifacts\mods\gameplay-mods-scale-matrix.png`
+- Final 100% responsive screenshot: `D:\yokko\artifacts\mods\responsive-after\01-large-100.png`
+- Final 90% responsive screenshot: `D:\yokko\artifacts\mods\responsive-after\02-comfortable-90.png`
+- Final 80% responsive screenshot: `D:\yokko\artifacts\mods\responsive-after\03-compact-80.png`
+- Pre-polish interaction audit: `D:\yokko\artifacts\mods\interaction-audit-before\interaction-audit.md`
 - Full normalized comparison: `D:\yokko\artifacts\mods\gameplay-mods-comparison-v8.png`
 - Focused list comparison: `D:\yokko\artifacts\mods\gameplay-mods-focus-list-v8.png`
 - Focused detail comparison: `D:\yokko\artifacts\mods\gameplay-mods-focus-right-v8.png`
 - Source pixels: 1664 x 936.
-- Implementation viewport: 1600 x 900 native Windows client area at 200% DPI, producing a 3200 x 1800 renderer capture.
-- Density normalization: the authored 1280 x 720 stage is mapped once to Yokko's shared 1600 x 900 reference space. The 100%, 90%, and 80% captures use the same physical viewport; only the global UI-density setting changes.
+- Implementation viewport: the same 3200 px-wide native Windows renderer at 200% DPI for all three captures.
+- Density normalization: the page consumes the complete logical viewport exposed by the global 100%, 90%, and 80% UI-size setting. Controls retain their authored size while the browser grows from two to three or four columns, the inspector remains right-aligned, and the footer spans the live viewport.
 - State: Difficulty Down selected, Half Time selected and active with Hidden, speed 0.75x, music pitch off.
 
 ## Full-view comparison
 
-The implementation follows the selected Studio Index composition: a fixed logo/title header, five-category left rail, two-column Mod index, right selected-Mod inspector, and the homepage-style cyan action footer. The full page now fills the shared 1600 x 900 layout at 100% instead of remaining a centred 1280 x 720 island. At 90% and 80%, the same composition stays centred and exposes progressively more breathing room without clipping or cancelling the global density preference.
+The implementation follows the selected Studio Index composition: a logo/title header, five-category left rail, responsive Mod index, right selected-Mod inspector, and the homepage-style cyan action footer. It no longer places a fixed 1600 x 900 page inside the larger logical workspace exposed by 90% and 80%. The stage now fills the available viewport, distributes the body between the header and footer, adds useful browser columns, and keeps the detail panel against the right edge.
 
 ## Focused comparison
 
 - Mod acronyms are nested inside fixed 40 x 40 badges; they no longer fall below or outside their outlines.
-- Difficulty Down and Difficulty Up use the same column-major order, row rhythm, and section break as the concept.
+- Difficulty Down and Difficulty Up retain the same column-major order and section hierarchy while gaining columns only when the available browser width supports them.
 - The selected Half Time card, speed slider, and Active Mods list share the reference baselines without overlap.
 - Fixed-rate Mods use a light, page-native configuration surface. The slider and pitch row are interactive and display the actual supported range.
 - Configurable Mods exclusively own the compact Settings row, preventing the shortcut label and settings title from colliding.
@@ -35,7 +35,7 @@ The implementation follows the selected Studio Index composition: a fixed logo/t
 ## Required fidelity surfaces
 
 - Fonts and typography: existing Yokko display/body families and uppercase letter spacing are retained; headings, labels, acronyms, descriptions, and footer actions preserve the reference hierarchy.
-- Spacing and layout rhythm: the 1280 x 720 authored composition maps to the shared 1600 x 900 reference stage at 1.25x. The header, three content regions, and 136 px footer retain stable proportions across all global density settings.
+- Spacing and layout rhythm: the 1280 x 720 authored minimum remains the narrow-layout floor. Above it, the header stays at the top, the main workspace is vertically balanced, the inspector and divider track the right edge, and the 110 px footer tracks the live bottom edge.
 - Colors and visual tokens: ivory, deep navy, cyan, pink, and yellow are reused from Yokko's existing design system.
 - Image quality and asset fidelity: the existing Yokko logo and framework icon set are reused; no placeholder raster or fabricated brand asset was introduced.
 - Copy and content: concept-only labels such as `Difficulty Calculator`, `No Recover`, and `Classic Omission` are intentionally replaced by the real selectable Yokko entries `Daycore`, `No Release`, and `Cover`.
@@ -43,7 +43,7 @@ The implementation follows the selected Studio Index composition: a fixed logo/t
 ## Findings
 
 - No actionable P0, P1, or P2 visual issue remains in the inspected state.
-- The 100%, 90%, and 80% captures contain no clipped persistent control, footer drift, text collision, or stretched typography.
+- The 100%, 90%, and 80% responsive captures contain no clipped persistent control, footer drift, text collision, stretched typography, or fixed-stage side margins.
 - P3 accepted difference: real gameplay descriptions are longer and are ellipsized at the same fixed text boundary rather than replaced with the concept's short placeholder copy.
 - P3 accepted difference: Half Time displays its truthful 0.50x-0.99x range and a functional pitch toggle; the concept showed generic 0.25x-2.00x ticks.
 - P3 expected rendering variance: framework font rasterization is slightly lighter than the generated concept at 200% Windows DPI.
@@ -63,18 +63,22 @@ The implementation follows the selected Studio Index composition: a fixed logo/t
    - Focused list and detail comparisons confirmed stable badge baselines, no text collision, and no panel overlap.
 4. Global 1600 x 900 adaptation:
    - P1: the page still rendered at its old 1280 x 720 size after the global reference changed, creating a visibly undersized centred island.
-   - Mapped the complete authored stage to 1600 x 900 at 100% while preserving the intended 90% and 80% density reductions.
+   - The first correction mapped the authored stage to a fixed 1600 x 900 surface, which solved 100% but still left a centred island at 90% and 80%.
    - P2: configurable detail pages let `SPACE TO TOGGLE` collide with `SETTINGS`; the configuration surface now owns that row and plain/fixed-rate states use the lower settings baseline.
-   - Native renderer captures across all three density modes show stable layout and no clipping.
+5. True responsive adaptation and interaction polish:
+   - Removed the fixed inner scale and made the page stage consume the complete logical viewport produced by the global UI-size system.
+   - Browser columns now adapt from two to four; the inspector, divider, footer actions, and decorations use edge-aware positioning.
+   - Added visible keyboard focus, arrow and Tab navigation, Enter/Space activation, global wheel navigation, precise keyboard/wheel rate changes, explicit active/preview configuration labels, transient interaction feedback, and a disabled Reset state.
+   - Native renderer captures across all three size modes show stable layout and no clipping.
 
 ## Primary interactions and verification
 
 - Category selection, Mod selection, activation/removal, Reset, Done, and Back remain functional.
-- `H` toggles Half Time; `P` toggles pitch when the selected rate Mod supports it.
-- The speed slider updates the canonical fixed-rate Mod configuration.
-- Isolated `Yokko.Game` and `Yokko.Game.Tests` builds from the clean project baseline: passed with 0 warnings and 0 errors.
-- Focused `TestSceneGameplayModsScreen` plus global display-scale tests: passed, 18/18.
-- Native Windows visual inspection at 1600 x 900 client size, 200% DPI, and 100%/90%/80% UI density: passed.
+- The global wheel and arrow keys move the focused Mod vertically; Tab changes category; Enter/Space toggles the focused Mod.
+- `H` toggles Half Time; `P` toggles pitch when supported; plus/minus and wheel-over-slider adjust rate precisely.
+- Isolated `Yokko.Game` and `Yokko.Game.Tests` builds: passed with 0 warnings and 0 errors.
+- Focused Gameplay Mods, Song Select integration, and display-scale tests: passed, 26/26.
+- Native Windows visual inspection at 200% DPI and 100%/90%/80% UI size: passed.
 
 ---
 

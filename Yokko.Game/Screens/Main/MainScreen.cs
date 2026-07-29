@@ -28,8 +28,8 @@ public partial class MainScreen : Screen
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
     private const float compactPlayerCardY = 638;
-    private const float fullPlayerCardY = 696;
-    private const float fullStatusBarY = 866;
+    private const float fullPlayerCardY = 700;
+    private const float fullStatusBarY = 864;
     private const double exitHoldDuration = 2000;
 
     private static readonly Color4 ivory = new(0.992f, 0.992f, 0.988f, 1f);
@@ -398,7 +398,7 @@ public partial class MainScreen : Screen
         utilityAreaLayout.X = extra.X;
         exitIndicator.Y = stageSize.Y - 50;
 
-        updatePlayerCardLayout(stageSize.Y < 920);
+        updatePlayerCardLayout(stageSize.Y < 900);
 
         float stageLeft = MathF.Max((DrawWidth - stageSize.X) / 2, 0);
         float ivoryWidth = stageLeft + 510;
@@ -430,8 +430,8 @@ public partial class MainScreen : Screen
         brandLockup.Size = new Vector2(500, 169);
         commandArea.Position = new Vector2(72, 208);
         primaryAction.Y = 164;
-        secondaryActionRow.Y = 296;
-        multiplayerAction.Y = 390;
+        secondaryActionRow.Y = 300;
+        multiplayerAction.Y = 398;
         playerProgressCard.Position = new Vector2(72, fullPlayerCardY);
         statusBar.Position = new Vector2(72, fullStatusBarY);
         statusBar.Alpha = 1;
@@ -445,7 +445,7 @@ public partial class MainScreen : Screen
     internal static bool PlayerCardLayoutsHaveBreathingRoom =>
         180 + 366 + 82 + 10 <= compactPlayerCardY
         && compactPlayerCardY + HomePlayerProgressCard.CompactHeight <= designedHeight
-        && 208 + 390 + 82 + 16 <= fullPlayerCardY
+        && 208 + 398 + 82 + 16 <= fullPlayerCardY
         && fullPlayerCardY + HomePlayerProgressCard.FullHeight + 18 <= fullStatusBarY;
 
     internal static Vector2 CalculateRightStageOffset(Vector2 stageSize)
@@ -808,7 +808,7 @@ public partial class MainScreen : Screen
             },
             secondaryActionRow = new FillFlowContainer
             {
-                Y = 296,
+                Y = 300,
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(16, 0),
@@ -825,7 +825,7 @@ public partial class MainScreen : Screen
                 default,
                 onMultiplayerSelected)
             {
-                Y = 390,
+                Y = 398,
             },
         },
     };

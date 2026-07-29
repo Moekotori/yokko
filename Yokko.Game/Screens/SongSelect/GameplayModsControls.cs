@@ -6,6 +6,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
+using osuTK.Input;
 using Yokko.Core.Mods;
 using Yokko.Game.Screens.Main;
 
@@ -114,6 +115,7 @@ internal partial class GameplayModListItem : ClickableContainer
     private readonly SpriteText name;
     private readonly SpriteText description;
     private bool selected;
+    private bool focused;
 
     public GameplayModListItem(
         ManiaModDefinition definition,
@@ -221,6 +223,10 @@ internal partial class GameplayModListItem : ClickableContainer
 
     public void SetFocused(bool value)
     {
+        if (focused == value)
+            return;
+
+        focused = value;
         focusBackground.FadeTo(value ? 1 : 0, 90, Easing.OutQuint);
         acronymBadge.BorderThickness = value ? 2.3f : 1.3f;
         acronymBadge.BorderColour = value
@@ -365,6 +371,7 @@ internal partial class GameplayModsRateSlider : ClickableContainer
     private const float track_width = 284;
 
     private readonly Action<double> changed;
+    private readonly Action interactionCompleted;
     private readonly Box fill;
     private readonly Circle marker;
     private double minimum;
@@ -372,9 +379,12 @@ internal partial class GameplayModsRateSlider : ClickableContainer
     private double value;
     private bool enabled;
 
-    internal GameplayModsRateSlider(Action<double> changed)
+    internal GameplayModsRateSlider(
+        Action<double> changed,
+        Action interactionCompleted)
     {
         this.changed = changed;
+        this.interactionCompleted = interactionCompleted;
         Size = new Vector2(track_width, 20);
         InternalChildren =
         [
@@ -412,10 +422,20 @@ internal partial class GameplayModsRateSlider : ClickableContainer
         double maximum,
         double value)
     {
+        bool enabledChanged = enabled != isEnabled;
         enabled = isEnabled;
         this.minimum = minimum;
         this.maximum = maximum;
-        this.value = value;
+        updateVisualValue(value);
+        if (enabledChanged)
+            this.FadeTo(isEnabled ? 1 : 0.48f, 100);
+        else
+            Alpha = isEnabled ? 1 : 0.48f;
+    }
+
+    private void updateVisualValue(double newValue)
+    {
+        value = Math.Clamp(newValue, minimum, maximum);
         double progress = Math.Clamp(
             (value - minimum) / (maximum - minimum),
             0,
@@ -423,12 +443,11 @@ internal partial class GameplayModsRateSlider : ClickableContainer
         float x = (float)(progress * track_width);
         fill.Width = x;
         marker.X = x;
-        this.FadeTo(isEnabled ? 1 : 0.48f, 100);
     }
 
     protected override bool OnMouseDown(MouseDownEvent e)
     {
-        if (!enabled)
+        if (!enabled || e.Button != MouseButton.Left)
             return false;
 
         updateFrom(e.ScreenSpaceMousePosition);
@@ -440,15 +459,29 @@ internal partial class GameplayModsRateSlider : ClickableContainer
     protected override void OnDrag(DragEvent e) =>
         updateFrom(e.ScreenSpaceMousePosition);
 
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        if (enabled && e.Button == MouseButton.Left)
+            interactionCompleted?.Invoke();
+
+        base.OnMouseUp(e);
+    }
+
     protected override bool OnScroll(ScrollEvent e)
     {
         if (!enabled || e.ScrollDelta.Y == 0)
             return false;
 
-        changed(Math.Clamp(
+        double nextValue = Math.Clamp(
             Math.Round(value + Math.Sign(e.ScrollDelta.Y) * 0.01, 2),
             minimum,
-            maximum));
+            maximum);
+        if (Math.Abs(nextValue - value) < 0.0001)
+            return true;
+
+        updateVisualValue(nextValue);
+        changed(nextValue);
+        interactionCompleted?.Invoke();
         return true;
     }
 
@@ -461,9 +494,14 @@ internal partial class GameplayModsRateSlider : ClickableContainer
             ToLocalSpace(screenPosition).X / track_width,
             0,
             1);
-        changed(Math.Round(
+        double nextValue = Math.Round(
             minimum + progress * (maximum - minimum),
-            2));
+            2);
+        if (Math.Abs(nextValue - value) < 0.0001)
+            return;
+
+        updateVisualValue(nextValue);
+        changed(nextValue);
     }
 }
 
@@ -587,6 +625,9 @@ internal partial class GameplayModsResetButton : ClickableContainer
 
     public void SetEnabled(bool value)
     {
+        if (enabled == value)
+            return;
+
         enabled = value;
         this.FadeTo(value ? 1 : 0.46f, 120, Easing.OutQuint);
         BorderColour = value

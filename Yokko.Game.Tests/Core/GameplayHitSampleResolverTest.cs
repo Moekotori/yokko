@@ -161,6 +161,54 @@ public sealed class GameplayHitSampleResolverTest
         });
     }
 
+    [Test]
+    public void SkinSampleReplacesDefaultButNotBeatmapSample()
+    {
+        string beatmapSample = Path.Combine(
+            directory,
+            "normal-hitnormal.wav");
+        string skinSample = Path.Combine(directory, "skin-hitnormal.wav");
+        File.WriteAllBytes(skinSample, [0]);
+        YokkoHitObject hitObject = tap(
+            new YokkoHitSample(YokkoHitSample.HitNormal));
+
+        var skinFallback = new GameplayHitSampleResolver(
+            beatmap(ChartSourceFormat.OsuMania, hitObject),
+            lookup => lookup == "normal-hitnormal"
+                ? skinSample
+                : null);
+
+        Assert.That(
+            skinFallback.ResolveHead(hitObject).Single().Path,
+            Is.EqualTo(skinSample));
+
+        File.WriteAllBytes(beatmapSample, [0]);
+        var beatmapFirst = new GameplayHitSampleResolver(
+            beatmap(ChartSourceFormat.OsuMania, hitObject),
+            _ => skinSample);
+
+        Assert.That(
+            beatmapFirst.ResolveHead(hitObject).Single().Path,
+            Is.EqualTo(beatmapSample));
+    }
+
+    [Test]
+    public void SkinNormalHitSoundAppliesToSamplelessNote()
+    {
+        string skinSample = Path.Combine(directory, "skin-hitnormal.wav");
+        File.WriteAllBytes(skinSample, [0]);
+        YokkoHitObject hitObject = tap();
+        var resolver = new GameplayHitSampleResolver(
+            beatmap(ChartSourceFormat.Yokko, hitObject),
+            lookup => lookup == "normal-hitnormal"
+                ? skinSample
+                : null);
+
+        Assert.That(
+            resolver.ResolveHead(hitObject).Single().Path,
+            Is.EqualTo(skinSample));
+    }
+
     private YokkoBeatmap beatmap(
         ChartSourceFormat sourceFormat,
         YokkoHitObject hitObject) =>

@@ -68,6 +68,7 @@ namespace Yokko.Game
         [Cached]
         private YokkoConfigManager yokkoConfig;
         private YokkoFrameRateController frameRateController;
+        private YokkoWindowSizeGuard windowSizeGuard;
         private IWindow window;
 
         protected YokkoDisplaySettings DisplaySettings => displaySettings;
@@ -96,7 +97,10 @@ namespace Yokko.Game
         public override void SetHost(GameHost host)
         {
             if (window != null)
+            {
                 window.DragDrop -= onFileDropped;
+                window.Resized -= onWindowResized;
+            }
 
             base.SetHost(host);
             yokkoConfig ??= new YokkoConfigManager(host.Storage);
@@ -126,7 +130,10 @@ namespace Yokko.Game
                     : "SDL window fallback"));
 
             if (window != null)
+            {
                 window.DragDrop += onFileDropped;
+                window.Resized += onWindowResized;
+            }
         }
 
         [BackgroundDependencyLoader]
@@ -136,6 +143,27 @@ namespace Yokko.Game
         {
             base.Content.Add(
                 importOverlay = new ImportNotificationOverlay());
+
+            Bindable<System.Drawing.Size> windowedSize =
+                frameworkConfig.GetBindable<System.Drawing.Size>(
+                    FrameworkSetting.WindowedSize);
+            IBindable<DisplayMode> currentDisplayMode =
+                host.Window?.CurrentDisplayMode
+                ?? new Bindable<DisplayMode>(new DisplayMode(
+                    null,
+                    windowedSize.Value,
+                    0,
+                    60,
+                    0));
+            windowSizeGuard = new YokkoWindowSizeGuard(
+                windowedSize,
+                currentDisplayMode,
+                () => host.Window?.Scale ?? 1,
+                (requested, corrected) => Logger.Log(
+                    $"Repaired unsafe window size {requested.Width}x{requested.Height} "
+                    + $"to {corrected.Width}x{corrected.Height}.",
+                    LoggingTarget.Runtime,
+                    LogLevel.Important));
 
             // The framework's first FrameSync mode is VSync, not a true
             // refresh-rate cap. Keep it disabled and apply Yokko's explicit
@@ -150,13 +178,7 @@ namespace Yokko.Game
             frameRateController = new YokkoFrameRateController(
                 host,
                 displaySettings.FrameLimit,
-                host.Window?.CurrentDisplayMode
-                ?? new Bindable<DisplayMode>(new DisplayMode(
-                    null,
-                    new System.Drawing.Size(0, 0),
-                    0,
-                    60,
-                    0)));
+                currentDisplayMode);
 
             string configuredLocale = frameworkConfig.Get<string>(FrameworkSetting.Locale);
             string normalizedLocale = YokkoLocale.Normalize(configuredLocale);
@@ -189,10 +211,14 @@ namespace Yokko.Game
             if (isDisposing)
             {
                 if (window != null)
+                {
                     window.DragDrop -= onFileDropped;
+                    window.Resized -= onWindowResized;
+                }
 
                 yokkoConfig?.Dispose();
                 frameRateController?.Dispose();
+                windowSizeGuard?.Dispose();
                 keyInputTimestamps.Dispose();
             }
 
@@ -226,6 +252,8 @@ namespace Yokko.Game
             if (OsuManiaSkinLibrary.IsSupportedDrop(path))
                 importSkin(path);
         }
+
+        private void onWindowResized() => windowSizeGuard?.Repair();
 
         private void importOsuReplay(string path)
         {

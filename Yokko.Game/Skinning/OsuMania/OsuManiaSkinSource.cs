@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,11 +14,13 @@ namespace Yokko.Game.Skinning.OsuMania;
 internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
 {
     private const long max_resource_bytes = 64 * 1024 * 1024;
+    private static readonly object audioCacheLock = new();
 
     private readonly Dictionary<string, string> filePaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ZipArchiveEntry> archiveEntries = new(StringComparer.OrdinalIgnoreCase);
     private readonly FileStream archiveStream;
     private readonly ZipArchive archive;
+    private readonly string audioCacheRoot;
     private readonly object archiveLock = new();
 
     public OsuManiaSkinSource(string path)
@@ -57,6 +60,7 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
 
         archiveStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         archive = new ZipArchive(archiveStream, ZipArchiveMode.Read);
+        audioCacheRoot = createAudioCacheRoot(path);
         string prefix = findArchivePrefix(archive.Entries);
 
         foreach (ZipArchiveEntry entry in archive.Entries)
@@ -172,6 +176,36 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
             : [(name, highResolutionFallback)];
     }
 
+    public string ResolveAudioPath(string assetName)
+    {
+        if (string.IsNullOrWhiteSpace(assetName))
+            return null;
+
+        string normalized = normalize(assetName.Trim());
+        string extension = Path.GetExtension(normalized);
+        string withoutExtension = extension.Length > 0
+            ? normalized[..^extension.Length]
+            : normalized;
+        string[] extensions = extension.Length > 0
+            ? [extension]
+            : [".wav", ".ogg", ".mp3"];
+
+        foreach (string candidateExtension in extensions)
+        {
+            string candidate = withoutExtension + candidateExtension;
+
+            if (filePaths.TryGetValue(candidate, out string filePath))
+                return filePath;
+
+            if (!archiveEntries.ContainsKey(candidate))
+                continue;
+
+            return materializeAudio(candidate);
+        }
+
+        return null;
+    }
+
     public byte[] Get(string name)
     {
         using Stream stream = GetStream(name);
@@ -218,6 +252,51 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
     {
         archive?.Dispose();
         archiveStream?.Dispose();
+    }
+
+    private string materializeAudio(string name)
+    {
+        if (string.IsNullOrWhiteSpace(audioCacheRoot))
+            return null;
+
+        string destination = Path.Combine(
+            audioCacheRoot,
+            name.Replace('/', Path.DirectorySeparatorChar));
+
+        lock (audioCacheLock)
+        {
+            if (File.Exists(destination))
+                return destination;
+
+            byte[] contents = Get(name);
+            if (contents == null)
+                return null;
+
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.WriteAllBytes(destination, contents);
+                return destination;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
+    private static string createAudioCacheRoot(string archivePath)
+    {
+        var info = new FileInfo(Path.GetFullPath(archivePath));
+        string identity =
+            $"{info.FullName}|{info.Length}|{info.LastWriteTimeUtc.Ticks}";
+        string fingerprint = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
+        return Path.Combine(
+            Path.GetTempPath(),
+            "Yokko",
+            "skin-hitsounds-v1",
+            fingerprint);
     }
 
     private static string findSkinRoot(string path)

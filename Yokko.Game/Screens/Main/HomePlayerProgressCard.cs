@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -54,6 +55,8 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
         Texture avatar,
         HomePlayerSummary summary)
     {
+        const float progressWidth = 378;
+        float completedProgressWidth = progressWidth * Math.Clamp(summary.NextLevelPercent / 100f, 0, 1);
         LocalisableString rank = YokkoStrings.Get(
             "main.player.rank",
             summary.Rank.ToString("00", CultureInfo.InvariantCulture));
@@ -105,18 +108,24 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                 new Box
                 {
                     Position = new Vector2(122, 74),
-                    Size = new Vector2(378, 2),
+                    Size = new Vector2(progressWidth, 2),
                     Colour = new Color4(
                         HomeControlColours.Navy.R,
                         HomeControlColours.Navy.G,
                         HomeControlColours.Navy.B,
-                        0.78f),
+                        0.18f),
+                },
+                new Box
+                {
+                    Position = new Vector2(122, 74),
+                    Size = new Vector2(completedProgressWidth, 2),
+                    Colour = HomeControlColours.Navy,
                 },
                 new SpriteIcon
                 {
                     Origin = Anchor.Centre,
-                    Position = new Vector2(310, 75),
-                    Size = new Vector2(27),
+                    Position = new Vector2(122 + completedProgressWidth, 75),
+                    Size = new Vector2(21),
                     Icon = FontAwesome.Solid.Heartbeat,
                     Colour = HomeControlColours.Navy,
                 },
@@ -238,25 +247,25 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
         {
             new Container
             {
-                Position = new Vector2(0, 5),
+                Position = new Vector2(0, 4),
                 RelativeSizeAxes = Axes.X,
-                Height = height - 2,
+                Height = height - 1,
                 Masking = true,
                 CornerRadius = 9,
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.3f),
+                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.22f),
                 },
             },
             new Container
             {
-                Position = new Vector2(-2, -2),
+                Position = new Vector2(-1.5f, -1.5f),
                 RelativeSizeAxes = Axes.X,
-                Width = 1.008f,
-                Height = height,
+                Width = 1.006f,
+                Height = height - 1,
                 Masking = true,
-                CornerRadius = 11,
+                CornerRadius = 10,
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
@@ -264,7 +273,7 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                         HomeControlColours.Cyan.R,
                         HomeControlColours.Cyan.G,
                         HomeControlColours.Cyan.B,
-                        0.5f),
+                        0.34f),
                 },
             },
             new Container
@@ -273,7 +282,7 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                 Height = height - 4,
                 Masking = true,
                 CornerRadius = 9,
-                BorderThickness = 2,
+                BorderThickness = 1.5f,
                 BorderColour = HomeControlColours.Navy,
                 Children = new Drawable[]
                 {
@@ -295,7 +304,7 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                             HomeControlColours.Cyan.R,
                             HomeControlColours.Cyan.G,
                             HomeControlColours.Cyan.B,
-                            0.32f),
+                            0.22f),
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
@@ -311,28 +320,45 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
         Texture avatar,
         Vector2 position,
         float size) => new Container
-    {
-        Position = position,
-        Size = new Vector2(size),
-        Masking = true,
-        CornerRadius = size / 2,
-        BorderThickness = 2,
-        BorderColour = HomeControlColours.Navy,
-        Children = new Drawable[]
         {
-            new Box
+            Position = position,
+            Size = new Vector2(size + 4),
+            Children = new Drawable[]
             {
-                RelativeSizeAxes = Axes.Both,
-                Colour = HomeControlColours.PaleCyan,
+                new Circle
+                {
+                    Position = new Vector2(3),
+                    Size = new Vector2(size),
+                    Colour = new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.45f),
+                },
+                new Container
+                {
+                    Size = new Vector2(size),
+                    Masking = true,
+                    CornerRadius = size / 2,
+                    BorderThickness = 2,
+                    BorderColour = HomeControlColours.Navy,
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = HomeControlColours.PaleCyan,
+                        },
+                        new Sprite
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            FillMode = FillMode.Fill,
+                            Texture = avatar,
+                        },
+                    },
+                },
             },
-            new Sprite
-            {
-                RelativeSizeAxes = Axes.Both,
-                FillMode = FillMode.Fill,
-                Texture = avatar,
-            },
-        },
-    };
+        };
 
     private static Drawable createStat(
         Vector2 position,

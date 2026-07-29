@@ -100,6 +100,46 @@ public sealed class OsuManiaSkinSourceTest
     }
 
     [Test]
+    public void ResolvesFolderHitSoundCaseInsensitively()
+    {
+        string directory = Path.GetDirectoryName(
+            createPath("skin.ini"))!;
+        string expected = Path.Combine(directory, "Soft-HitClap2.OGG");
+        File.WriteAllText(Path.Combine(directory, "skin.ini"), "[General]");
+        File.WriteAllBytes(expected, [1, 2, 3]);
+
+        using var source = new OsuManiaSkinSource(directory);
+
+        Assert.That(
+            source.ResolveAudioPath("soft-hitclap2"),
+            Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void MaterializesPackagedHitSoundForNativeAudio()
+    {
+        string archivePath = createPath("audio.osk");
+
+        using (ZipArchive archive = ZipFile.Open(
+                   archivePath,
+                   ZipArchiveMode.Create))
+        {
+            writeEntry(archive, "skin.ini", "[General]\nName: Audio");
+            writeEntry(archive, "Normal-HitNormal.WAV", "sample");
+        }
+
+        using var source = new OsuManiaSkinSource(archivePath);
+        string resolved = source.ResolveAudioPath("normal-hitnormal");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(resolved, Is.Not.Null);
+            Assert.That(File.Exists(resolved), Is.True);
+            Assert.That(File.ReadAllText(resolved), Is.EqualTo("sample"));
+        });
+    }
+
+    [Test]
     public void ResizesMislabeledTextureBeyondRendererLimit()
     {
         string directory = Path.GetDirectoryName(

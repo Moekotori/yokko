@@ -86,8 +86,10 @@ internal partial class GameplayModsScreen : Screen
     private ManiaModId detailMod = ManiaModId.HalfTime;
     private ManiaModSet selectedMods;
     private bool loadComplete;
+    private bool selectionDirty;
     private double lastGlobalScrollAt = double.NegativeInfinity;
     private int modColumnCount = 2;
+    private Vector2 lastResponsiveLayoutSize = new(-1);
     [Resolved]
     private YokkoManiaModPreferences modPreferences { get; set; }
 
@@ -185,6 +187,7 @@ internal partial class GameplayModsScreen : Screen
 
     public override bool OnExiting(ScreenExitEvent e)
     {
+        CommitSelection();
         stage.FadeOut(150, Easing.OutQuint)
              .MoveToY(8, 180, Easing.OutQuint);
         return base.OnExiting(e);
@@ -197,6 +200,13 @@ internal partial class GameplayModsScreen : Screen
 
         Vector2 stageSize = CalculateResponsiveStageSize(
             new Vector2(DrawWidth, DrawHeight));
+        if ((stageSize - lastResponsiveLayoutSize).LengthSquared
+            < 0.01f)
+        {
+            return;
+        }
+
+        lastResponsiveLayoutSize = stageSize;
         Vector2 extra = stageSize
                         - new Vector2(designed_width, designed_height);
         float contentY = 118 + extra.Y * 0.5f;
@@ -409,25 +419,50 @@ internal partial class GameplayModsScreen : Screen
 
     internal void SetFixedRateSpeedChange(double value)
     {
-        if (selectedMods.FixedRateMod is not ManiaModId mod)
+        ManiaModId mod;
+        if (isFixedRateMod(detailMod))
+        {
+            mod = detailMod;
+        }
+        else if (selectedMods.FixedRateMod is ManiaModId activeMod)
+        {
+            mod = activeMod;
+        }
+        else
+        {
             return;
+        }
 
         selectedMods = selectedMods.WithFixedRate(
             mod,
             value,
-            selectedMods.FixedRateAdjustPitch);
+            selectedMods.FixedRateMod == mod
+            && selectedMods.FixedRateAdjustPitch);
         updateSelection();
         selectDetail(detailMod);
     }
 
     internal void SetFixedRateAdjustPitch(bool value)
     {
-        if (selectedMods.FixedRateMod is not ManiaModId mod)
+        ManiaModId mod;
+        if (isFixedRateMod(detailMod))
+        {
+            mod = detailMod;
+        }
+        else if (selectedMods.FixedRateMod is ManiaModId activeMod)
+        {
+            mod = activeMod;
+        }
+        else
+        {
             return;
+        }
 
         selectedMods = selectedMods.WithFixedRate(
             mod,
-            selectedMods.FixedRateSpeedChange,
+            selectedMods.FixedRateMod == mod
+                ? selectedMods.FixedRateSpeedChange
+                : fixedRateFor(mod),
             value);
         updateSelection();
         selectDetail(detailMod);
@@ -899,7 +934,8 @@ internal partial class GameplayModsScreen : Screen
                 Colour = HomeControlColours.Cyan,
             },
             fixedRateSlider = new GameplayModsRateSlider(
-                SetFixedRateSpeedChange)
+                PreviewFixedRateSpeedChange,
+                CompleteFixedRateInteraction)
             {
                 Position = new Vector2(0, 35),
             },
@@ -1165,7 +1201,7 @@ internal partial class GameplayModsScreen : Screen
                 accentForMod(definition.Id, category),
                 isSelectable(definition.Id),
                 () => ToggleMod(definition.Id),
-                previewDetail)
+                null)
             {
                 Position = new Vector2(
                     column * 284,
@@ -1195,7 +1231,6 @@ internal partial class GameplayModsScreen : Screen
 
     private void updateSelection()
     {
-        modPreferences?.Remember(selectedMods);
         foreach ((ManiaModId mod, GameplayModListItem item) in visibleItems)
             item.SetSelected(selectedMods.Contains(mod));
 
@@ -1207,7 +1242,17 @@ internal partial class GameplayModsScreen : Screen
         resetButton?.SetEnabled(selectedMods.Mods.Count > 0);
         updateFocusVisual();
         if (loadComplete)
-            modsChanged?.Invoke(selectedMods);
+            selectionDirty = true;
+    }
+
+    internal void CommitSelection()
+    {
+        if (!selectionDirty)
+            return;
+
+        modPreferences?.Remember(selectedMods);
+        modsChanged?.Invoke(selectedMods);
+        selectionDirty = false;
     }
 
     private void rebuildActiveMods()
@@ -1250,14 +1295,6 @@ internal partial class GameplayModsScreen : Screen
                 Colour = HomeControlColours.Cyan,
             });
         }
-    }
-
-    private void previewDetail(ManiaModId mod, bool hovered)
-    {
-        if (hovered)
-            selectDetail(mod);
-        else
-            selectDetail(detailMod);
     }
 
     private void selectDetail(ManiaModId mod)
@@ -1335,7 +1372,7 @@ internal partial class GameplayModsScreen : Screen
             fixedRateMidpoint.Text = $"{midpoint:0.00}x";
             fixedRateMaximum.Text = $"{maximum:0.00}x";
             fixedRateSlider.SetState(
-                fixedRateMod && enabledRateMod,
+                fixedRateMod,
                 minimum,
                 maximum,
                 rate);
@@ -1459,22 +1496,66 @@ internal partial class GameplayModsScreen : Screen
             item.SetFocused(mod == detailMod);
     }
 
+    internal void PreviewFixedRateSpeedChange(double value)
+    {
+        if (!isFixedRateMod(detailMod))
+            return;
+
+        ManiaModId mod = detailMod;
+        bool alreadyActive = selectedMods.FixedRateMod == mod;
+        bool adjustPitch = alreadyActive
+                           && selectedMods.FixedRateAdjustPitch;
+        double nextValue = Math.Round(value, 2);
+        if (alreadyActive
+            && Math.Abs(
+                selectedMods.FixedRateSpeedChange - nextValue)
+            < 0.0001)
+        {
+            return;
+        }
+
+        selectedMods = selectedMods.WithFixedRate(
+            mod,
+            nextValue,
+            adjustPitch);
+        if (loadComplete)
+            selectionDirty = true;
+
+        fixedRateValue.Text = $"{nextValue:0.##}x";
+        if (!alreadyActive)
+        {
+            foreach ((ManiaModId visibleMod,
+                         GameplayModListItem item)
+                     in visibleItems)
+            {
+                item.SetSelected(
+                    selectedMods.Contains(visibleMod));
+            }
+
+            resetButton?.SetEnabled(true);
+            rebuildActiveMods();
+            selectDetail(detailMod);
+        }
+    }
+
+    internal void CompleteFixedRateInteraction()
+    {
+        updateSelection();
+        selectDetail(detailMod);
+    }
+
     private bool adjustFocusedFixedRate(double delta)
     {
         if (!isFixedRateMod(detailMod))
             return false;
 
-        if (selectedMods.FixedRateMod != detailMod)
-        {
-            showInteractionHint(
-                $"ENABLE {OsuManiaModParityCatalog.Get(detailMod).Acronym} BEFORE ADJUSTING RATE");
-            return true;
-        }
-
         double minimum = isSlowFixedRateMod(detailMod) ? 0.5 : 1.01;
         double maximum = isSlowFixedRateMod(detailMod) ? 0.99 : 2;
+        double currentRate = selectedMods.FixedRateMod == detailMod
+            ? selectedMods.FixedRateSpeedChange
+            : fixedRateFor(detailMod);
         double rate = Math.Clamp(
-            Math.Round(selectedMods.FixedRateSpeedChange + delta, 2),
+            Math.Round(currentRate + delta, 2),
             minimum,
             maximum);
         SetFixedRateSpeedChange(rate);

@@ -98,6 +98,9 @@ internal sealed class OsuManiaSkin : IDisposable
         return frames;
     }
 
+    public string GetHitSamplePath(string lookupName) =>
+        source.ResolveAudioPath(lookupName);
+
     public void Dispose()
     {
         textureStore.Dispose();

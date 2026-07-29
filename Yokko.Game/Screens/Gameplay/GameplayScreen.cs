@@ -245,11 +245,13 @@ public partial class GameplayScreen : Screen
             beatmap,
             judgementState);
         loadSkin(renderer);
-        bool hasKeysounds = beatmap.HitObjects.Any(
-            static hitObject =>
-                !string.IsNullOrWhiteSpace(hitObject.SampleKey)
-                || hitObject.Samples.Count > 0
-                || hitObject.NodeSamples.Count > 0);
+        prepareHitSamples();
+        bool hasKeysounds = headSamplesByHitObject.Any(
+                                static samples => samples.Length > 0)
+                            || tailSamplesByHitObject.Any(
+                                static samples => samples.Length > 0)
+                            || slidingSamplesByHitObject.Any(
+                                static samples => samples.Length > 0);
         audioEngine ??= string.IsNullOrWhiteSpace(beatmap.AudioPath)
                          && !hasKeysounds
             ? new NullAudioEngine()
@@ -277,7 +279,6 @@ public partial class GameplayScreen : Screen
         }
         hasAudioClock = !string.IsNullOrWhiteSpace(beatmap.AudioPath)
                         || hasKeysounds && audioEngine is NativeAudioEngine;
-        prepareHitSamples();
         keysoundPreparationTask = prepareKeysoundsAsync();
 
         InternalChildren = new Drawable[]
@@ -908,7 +909,9 @@ public partial class GameplayScreen : Screen
 
     private void prepareHitSamples()
     {
-        hitSampleResolver = new GameplayHitSampleResolver(beatmap);
+        hitSampleResolver = new GameplayHitSampleResolver(
+            beatmap,
+            maniaSkin?.GetHitSamplePath);
         headSamplesByHitObject = beatmap.HitObjects
             .Select(hitObject =>
                 hitSampleResolver.ResolveHead(hitObject).ToArray())
@@ -1112,7 +1115,8 @@ public partial class GameplayScreen : Screen
             judgement,
             judgementState.Accuracy,
             judgementState.MaximumAchievableAccuracy);
-        if (judgement.Phase is not JudgementPhase.Hold
+        if (!playfield.UsesSkinJudgementOverlay
+            && judgement.Phase is not JudgementPhase.Hold
             and not JudgementPhase.HoldBody)
         {
             judgementReadout.Show(judgement);

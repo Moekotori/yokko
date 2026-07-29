@@ -26,10 +26,14 @@ internal sealed class GameplayHitSampleResolver
 
     private readonly YokkoBeatmap beatmap;
     private readonly string beatmapDirectory;
+    private readonly Func<string, string> skinSampleResolver;
 
-    internal GameplayHitSampleResolver(YokkoBeatmap beatmap)
+    internal GameplayHitSampleResolver(
+        YokkoBeatmap beatmap,
+        Func<string, string> skinSampleResolver = null)
     {
         this.beatmap = beatmap;
+        this.skinSampleResolver = skinSampleResolver;
         beatmapDirectory = resolveBeatmapDirectory(beatmap.AudioPath);
     }
 
@@ -102,6 +106,14 @@ internal sealed class GameplayHitSampleResolver
         IReadOnlyList<YokkoHitSample> samples,
         string legacySampleKey)
     {
+        if (samples.Count == 0 && skinSampleResolver != null)
+        {
+            samples =
+            [
+                new YokkoHitSample(YokkoHitSample.HitNormal),
+            ];
+        }
+
         var resolved = new List<ResolvedGameplayHitSample>();
         foreach (YokkoHitSample sample in samples)
         {
@@ -136,11 +148,23 @@ internal sealed class GameplayHitSampleResolver
 
     private string resolve(YokkoHitSample sample)
     {
-        foreach (string lookup in sample.LookupNames())
+        string[] lookupNames = sample.LookupNames().ToArray();
+
+        foreach (string lookup in lookupNames)
         {
             string path = resolvePath(lookup);
             if (path is not null)
                 return path;
+        }
+
+        if (skinSampleResolver != null)
+        {
+            foreach (string lookup in lookupNames)
+            {
+                string path = skinSampleResolver(lookup);
+                if (path is not null)
+                    return path;
+            }
         }
 
         return GameplayDefaultHitSampleStore.Resolve(sample);

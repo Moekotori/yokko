@@ -27,6 +27,8 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
 
     private readonly GameplayModsScreen modsScreen;
     private ManiaModSet observedMods;
+    private int observedCommitCount;
+    private int commitsBeforePreview;
     private bool screenshotSaved;
 
     public TestSceneGameplayModsScreen()
@@ -38,7 +40,11 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         Add(new ScreenStack(modsScreen = new GameplayModsScreen(
             DemoBeatmaps.CreateFourKeyDemo(),
             initialMods,
-            mods => observedMods = mods))
+            mods =>
+            {
+                observedMods = mods;
+                observedCommitCount++;
+            }))
         {
             RelativeSizeAxes = Axes.Both,
         });
@@ -83,9 +89,9 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.SetFixedRateSpeedChange(0.80);
             modsScreen.SetFixedRateAdjustPitch(true);
         });
-        AddAssert("fixed-rate configuration reaches callback", () =>
-            observedMods.PlaybackRate == 0.80
-            && observedMods.FixedRateAdjustPitch);
+        AddAssert("fixed-rate configuration reaches page state", () =>
+            modsScreen.SelectedMods.PlaybackRate == 0.80
+            && modsScreen.SelectedMods.FixedRateAdjustPitch);
         AddStep("preview configurable mod", () =>
             modsScreen.ToggleMod(ManiaModId.AccuracyChallenge));
         AddAssert("config panel owns the settings row", () =>
@@ -100,8 +106,8 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             && modsScreen.FixedRatePanelY == 200);
         AddStep("enable No Fail", () =>
             modsScreen.ToggleMod(ManiaModId.NoFail));
-        AddAssert("selection callback receives No Fail", () =>
-            observedMods.Contains(ManiaModId.NoFail));
+        AddAssert("page selection receives No Fail", () =>
+            modsScreen.SelectedMods.Contains(ManiaModId.NoFail));
         AddStep("show conversion category", () =>
             modsScreen.SetCategory(ManiaModCategory.Conversion));
         AddAssert("conversion catalogue is complete", () =>
@@ -123,10 +129,37 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddAssert("native chart key conversion stays disabled", () =>
             !modsScreen.SelectedMods.Contains(ManiaModId.Key4));
         AddStep("reset gameplay mods", modsScreen.ResetMods);
-        AddAssert("reset clears selection and callback", () =>
+        AddAssert("reset clears page selection", () =>
             modsScreen.SelectedMods.Mods.Count == 0
-            && observedMods.Mods.Count == 0
             && !modsScreen.ResetEnabled);
+        AddStep("commit final page selection", modsScreen.CommitSelection);
+        AddAssert("page commits to Song Select once requested", () =>
+            observedMods.Mods.Count == 0);
+        AddStep("prepare inactive Half Time slider", () =>
+        {
+            modsScreen.SetCategory(
+                ManiaModCategory.DifficultyReduction);
+            modsScreen.ToggleMod(ManiaModId.HalfTime);
+            modsScreen.ResetMods();
+            commitsBeforePreview = observedCommitCount;
+        });
+        AddStep("drag preview activates rate Mod", () =>
+            modsScreen.PreviewFixedRateSpeedChange(0.82));
+        AddAssert("drag is immediate and does not rebuild Song Select", () =>
+            modsScreen.SelectedMods.FixedRateMod
+            == ManiaModId.HalfTime
+            && modsScreen.SelectedMods.FixedRateSpeedChange == 0.82
+            && observedCommitCount == commitsBeforePreview);
+        AddStep("finish slider interaction", () =>
+            modsScreen.CompleteFixedRateInteraction());
+        AddAssert("slider release stays local", () =>
+            observedCommitCount == commitsBeforePreview);
+        AddStep("commit slider result on page handoff",
+            modsScreen.CommitSelection);
+        AddAssert("page handoff commits the final rate once", () =>
+            observedCommitCount == commitsBeforePreview + 1
+            && observedMods.FixedRateMod == ManiaModId.HalfTime
+            && observedMods.FixedRateSpeedChange == 0.82);
     }
 
     [Test]
@@ -172,10 +205,10 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
                 ManiaCoverDirection.AgainstScroll);
         });
         AddAssert("Cover settings reach session", () =>
-            observedMods.Contains(ManiaModId.Cover)
-            && observedMods.CoverCoverage == 0.7
-            && observedMods.CoverDirection
-            == ManiaCoverDirection.AgainstScroll);
+            modsScreen.SelectedMods.Contains(ManiaModId.Cover)
+            && modsScreen.SelectedMods.CoverCoverage == 0.7
+            && modsScreen.SelectedMods.CoverDirection
+               == ManiaCoverDirection.AgainstScroll);
         AddStep("replace with Flashlight", () =>
             modsScreen.ToggleMod(ManiaModId.Flashlight));
         AddAssert("Flashlight opens configuration page", () =>
@@ -187,16 +220,16 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.SetFlashlightComboBasedSize(true);
         });
         AddAssert("Flashlight settings reach session", () =>
-            observedMods.Contains(ManiaModId.Flashlight)
-            && observedMods.FlashlightSizeMultiplier == 1.8
-            && observedMods.FlashlightComboBasedSize);
+            modsScreen.SelectedMods.Contains(ManiaModId.Flashlight)
+            && modsScreen.SelectedMods.FlashlightSizeMultiplier == 1.8
+            && modsScreen.SelectedMods.FlashlightComboBasedSize);
         AddStep("restore Cover", () =>
             modsScreen.ToggleMod(ManiaModId.Cover));
         AddAssert("Cover preference is restored independently", () =>
-            observedMods.Contains(ManiaModId.Cover)
-            && observedMods.CoverCoverage == 0.7
-            && observedMods.CoverDirection
-            == ManiaCoverDirection.AgainstScroll);
+            modsScreen.SelectedMods.Contains(ManiaModId.Cover)
+            && modsScreen.SelectedMods.CoverCoverage == 0.7
+            && modsScreen.SelectedMods.CoverDirection
+               == ManiaCoverDirection.AgainstScroll);
         AddStep("clear visibility preference fixture", () =>
             modPreferences.SerializedConfiguration.Value = string.Empty);
     }
@@ -215,8 +248,8 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddStep("set signed custom seed", () =>
             modsScreen.SetRandomSeed(-123456789));
         AddAssert("custom seed reaches replay-owned Mod set", () =>
-            observedMods.Contains(ManiaModId.Random)
-            && observedMods.RandomSeed == -123456789);
+            modsScreen.SelectedMods.Contains(ManiaModId.Random)
+            && modsScreen.SelectedMods.RandomSeed == -123456789);
     }
 
     [Test]
