@@ -86,6 +86,46 @@ internal sealed class NativeAudioCore : IDisposable
         }
     }
 
+    internal unsafe uint RegisterMetronomeSample(ReadOnlySpan<float> interleavedSamples)
+    {
+        if (interleavedSamples.Length == 0
+            || channels == 0
+            || interleavedSamples.Length % channels != 0)
+        {
+            throw new ArgumentException(
+                "Metronome PCM must contain complete interleaved frames.",
+                nameof(interleavedSamples));
+        }
+
+        fixed (float* samples = interleavedSamples)
+        {
+            throwForResult(
+                NativeAudioInterop.RegisterMetronomeSampleFloat32(
+                    getHandle(),
+                    samples,
+                    (uint)(interleavedSamples.Length / channels),
+                    out uint sampleId),
+                "register metronome sample");
+            return sampleId;
+        }
+    }
+
+    internal void SetMixVolumes(float music, float hitSounds, float metronome)
+        => throwForResult(
+            NativeAudioInterop.SetMixVolumes(
+                getHandle(),
+                music,
+                hitSounds,
+                metronome),
+            "set mix volumes");
+
+    internal void SetSamplePlaybackRate(float playbackRate)
+        => throwForResult(
+            NativeAudioInterop.SetSamplePlaybackRate(
+                getHandle(),
+                playbackRate),
+            "set sample playback rate");
+
     internal bool TriggerSample(uint sampleId)
     {
         NativeAudioResult result =

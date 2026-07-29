@@ -157,6 +157,44 @@ public sealed class DecodedAudioSourceTest
         }
     }
 
+    [Test]
+    public void DynamicRateCanChangeDuringDecode()
+    {
+        string path = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"{TestContext.CurrentContext.Test.ID}.wav");
+        createSineWave(path, 48000, 440, 3000);
+
+        try
+        {
+            using DecodedAudioSource source = DecodedAudioSource.Open(
+                path,
+                1,
+                AudioPitchMode.Preserve,
+                dynamicPlaybackRate: true);
+            var firstBlock = new float[48000];
+            int firstRead = source.Read(firstBlock);
+            source.SetPlaybackRate(2);
+            float[] remaining = readAll(source);
+            int totalFrames =
+                (firstRead + remaining.Length) / 2;
+
+            Assert.That(firstRead, Is.GreaterThan(0));
+            Assert.That(
+                totalFrames,
+                Is.InRange(72000, 120000),
+                "The latter source portion should decode faster after the rate change.");
+            Assert.That(
+                estimateFrequency(remaining, 48000),
+                Is.InRange(420, 460),
+                "Dynamic tempo changes should preserve music pitch.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static float[] readAll(DecodedAudioSource source)
     {
         var samples = new List<float>();

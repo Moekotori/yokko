@@ -8,6 +8,7 @@ public sealed class EditableBeatmap
 {
     private readonly List<EditableNote> notes = [];
     private double overallDifficulty = 5;
+    private double drainRate = 5;
 
     private EditableBeatmap(
         KeyMode keyMode,
@@ -49,6 +50,18 @@ public sealed class EditableBeatmap
         }
     }
 
+    public double DrainRate
+    {
+        get => drainRate;
+        set
+        {
+            if (!double.IsFinite(value) || value is < 0 or > 10)
+                throw new ArgumentOutOfRangeException(nameof(value));
+
+            drainRate = value;
+        }
+    }
+
     public string? AudioPath { get; set; }
 
     public string? SourcePath { get; set; }
@@ -77,12 +90,7 @@ public sealed class EditableBeatmap
 
     public static EditableBeatmap Create(KeyMode keyMode) => new(keyMode, [YokkoTimingPoint.Default])
     {
-        DifficultyName = keyMode switch
-        {
-            KeyMode.FourKey => "4K Draft",
-            KeyMode.SevenKey => "7K Draft",
-            _ => "Draft",
-        },
+        DifficultyName = $"{(int)keyMode}K Draft",
     };
 
     public static EditableBeatmap FromBeatmap(YokkoBeatmap beatmap, string? sourcePath = null)
@@ -110,6 +118,7 @@ public sealed class EditableBeatmap
             Creator = beatmap.Creator,
             DifficultyName = beatmap.DifficultyName,
             OverallDifficulty = beatmap.OverallDifficulty,
+            DrainRate = beatmap.DrainRate,
             AudioPath = beatmap.AudioPath,
             SourcePath = sourcePath,
         };
@@ -195,7 +204,8 @@ public sealed class EditableBeatmap
             ScrollVelocities,
             InitialScrollVelocity,
             ScrollSpeedFactors,
-            ScrollProfiles);
+            ScrollProfiles,
+            DrainRate);
 
     private void sortNotes()
     {

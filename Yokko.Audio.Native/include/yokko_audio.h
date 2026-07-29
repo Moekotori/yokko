@@ -20,7 +20,7 @@ extern "C"
 {
 #endif
 
-#define YOKKO_AUDIO_ABI_VERSION 5u
+#define YOKKO_AUDIO_ABI_VERSION 7u
 
     typedef struct yokko_audio_engine yokko_audio_engine;
 
@@ -145,6 +145,26 @@ extern "C"
         const float* samples,
         uint32_t frame_count,
         uint32_t* sample_id);
+
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_register_metronome_sample_f32(
+        yokko_audio_engine* engine,
+        const float* samples,
+        uint32_t frame_count,
+        uint32_t* sample_id);
+
+    /*
+     * Updates callback-side bus gains without blocking. Values must be finite
+     * and within 0..1.
+     */
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_set_mix_volumes(
+        yokko_audio_engine* engine,
+        float music_volume,
+        float hit_sound_volume,
+        float metronome_volume);
+
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_set_sample_playback_rate(
+        yokko_audio_engine* engine,
+        float playback_rate);
 
     /*
      * Enqueues a registered sample without allocating or blocking. The next

@@ -65,14 +65,12 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         this.returnToSongSelect = returnToSongSelect;
         DisplayedMods = mods.IsEmpty
             ? "NM"
-            : string.Join("  ", mods.Acronyms);
+            : string.Join("  ", mods.DisplayLabels);
 
         RelativeSizeAxes = Axes.Both;
         Depth = -10;
 
-        string rank = result.Rank == ScoreRank.X
-            ? "SS"
-            : result.Rank.ToString();
+        string rank = result.Rank.ToDisplayLabel();
 
         InternalChildren = new Drawable[]
         {

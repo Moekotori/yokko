@@ -110,6 +110,9 @@ public sealed class BeatmapJudgementState
 
     public double Accuracy => scoreProcessor.Accuracy;
 
+    public double MaximumAchievableAccuracy =>
+        scoreProcessor.MaximumAchievableAccuracy;
+
     public long Score => scoreProcessor.TotalScore;
 
     public ScoreRank Rank => scoreProcessor.Rank;

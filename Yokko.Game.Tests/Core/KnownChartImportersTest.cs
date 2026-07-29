@@ -9,6 +9,7 @@ public sealed class KnownChartImportersTest
     [TestCase("chart.osu")]
     [TestCase("pack.OSZ")]
     [TestCase("chart.qua")]
+    [TestCase("pack.QP")]
     [TestCase("chart.mc")]
     [TestCase("pack.mcz")]
     [TestCase("chart.sm")]

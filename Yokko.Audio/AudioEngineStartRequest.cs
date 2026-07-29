@@ -8,4 +8,5 @@ public sealed record AudioEngineStartRequest(
     int PreferredBufferSize,
     double UserOffsetMilliseconds,
     double PlaybackRate = 1,
-    AudioPitchMode PitchMode = AudioPitchMode.Preserve);
+    AudioPitchMode PitchMode = AudioPitchMode.Preserve,
+    bool DynamicPlaybackRate = false);

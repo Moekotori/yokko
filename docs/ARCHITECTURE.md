@@ -38,6 +38,13 @@ This is adapted from lazer's
 `21e409540e8a7c9cd6739c05aa6c1e6257bd2b29`; Yokko currently reuses
 preloaded drawables but does not yet pool and reset them.
 
+Tap notes are selected with a binary search over their integrated scroll
+positions. Hold-note paths use an immutable interval index with cached subtree
+maximums, allowing each frame to prune both past and future ranges instead of
+walking every hold before the current time. This preserves reversed-SV path
+extrema and follows osu!framework's `LifetimeManagementContainer` goal of
+making typical update cost track the alive set rather than the complete chart.
+
 `Yokko.Core` contains portable gameplay data and timing rules. This layer should stay free of rendering and platform dependencies.
 
 `Yokko.Audio` owns device discovery, playback start/stop, latency reporting, and the authoritative playback clock.

@@ -1,3 +1,89 @@
+# Yokko Song Select full-screen reference-match design QA
+
+final result: passed
+
+## Evidence
+
+- Source visual truth: `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-e17b6d95-27c3-4162-a66e-d18d823cfc73.png`
+- Final implementation, closed state: `D:\yokko\artifacts\product-design\song-select-fullscreen-deep-final.jpg`
+- Final implementation, Mods open state: `D:\yokko\artifacts\product-design\song-select-fullscreen-deep-final-mods-open.jpg`
+- Full-screen normalized comparison: `D:\yokko\artifacts\product-design\song-select-fullscreen-deep-final-comparison.png`
+- Source pixels: 1672 x 941
+- Implementation viewport: 1282 x 749 native Windows capture, including the 30 px title bar; app content is 1282 x 719.
+- Density normalization: the source app content below its 29 px title bar was normalized from 1672 x 912 to the implementation's 1282 x 719 content viewport. The source footer from y=804 and implementation footer from y=640 were each normalized to 1282 x 109 for the focused comparison.
+- State: Waterfall selected, Global Ranking visible, footer closed; Mods open state additionally inspected.
+
+## Full-view comparison
+
+The implementation now matches the full selected reference rather than only its footer. The ivory stage uses the same shallow diagonal edge, the logo and left detail column share the reference origin, the ranking surface is restored to a readable 320 px visual width, and the search/filter/browser column uses the same right-aligned start and compact list density. The homepage-style cyan footer, looping mascot, Back card, single Mods tile, and Play action remain pixel-aligned from the previous pass.
+
+## Focused footer comparison
+
+- Footer height and top edge align with the reference after viewport normalization.
+- Back reproduces the white raised card, ESC keycap, navy label, pink chevron, cyan outline/shadow, and yellow corner diamond.
+- Mods is represented by one centered sliders tile with a separate `MODS` label; individual mod acronyms only appear in the functional popover.
+- Play reuses the homepage primary-action language: navy card, white play tile, small spaced `SONG SELECT`, large `PLAY`, yellow chevron, cyan outline, pink underline, and dot texture.
+- The user-provided GIF loops at the lower-left and remains visually connected to the footer without covering ranking data.
+- Sparse white plus marks, dot texture, and the diagonal divider preserve the selected visual rhythm without competing with controls.
+- Measured white-surface alignment after normalization:
+  - Back target `x=221..355, y=658..710`; implementation `x=219..355, y=657..709`.
+  - ESC target `x=231..263, y=669..700`; implementation `x=230..262, y=667..699`.
+  - Mods target `x=600..658, y=657..713`; implementation `x=601..657, y=657..714`.
+  - Play icon tile target `x=932..988, y=664..721`; implementation `x=932..987, y=665..721`.
+
+## Findings
+
+- No actionable P0, P1, or P2 issue remains.
+- Typography uses Yokko's existing display family and preserves the reference hierarchy at the native viewport.
+- No left-side text, ranking control, footer control, or mascot is clipped. The selected Waterfall row intentionally continues a few pixels below the footer edge, matching the supplied reference while keeping its title, key mode, and rating visible.
+- The Mods popover opens above its tile, keeps all mod choices readable, and leaves the leaderboard/browser usable.
+- P3 expected dynamic variance: song-list scroll position and the visible GIF animation frame differ between captures.
+
+## Comparison history
+
+1. First implementation pass:
+   - P2: footer was too shallow.
+   - P2: mascot was undersized and sat too low.
+   - P2: Back and Play cards did not match the selected proportions.
+2. Correction:
+   - Increased the logical footer height to 136.
+   - Resized and raised the looping mascot.
+   - Rebalanced Back width/position and Play scale/position.
+   - Kept the browser height bound above the footer.
+3. Post-fix:
+   - The first combined comparison still showed actionable pixel drift: mascot about 20% oversized and left/up, Back about 10 px too low and too short, Mods about 11 px too far right and undersized, the Play icon tile undersized, and a missing centre-right dot field.
+4. Pixel correction:
+   - Matched the mascot's transformed visible bounds with a 251 logical-pixel GIF box at `(39, -60)`.
+   - Raised and deepened Back, enlarged its keycap, and aligned its diamond to the footer edge.
+   - Enlarged and shifted Mods left, moved the popover with it, and matched the target label rhythm.
+   - Added footer-specific icon-tile sizing/offsets to the shared homepage Play action without changing its default home appearance.
+   - Repositioned the divider/pluses and restored the missing dot field.
+   - Sampled the target footer cyan and matched the footer fill.
+5. Final precision pass:
+   - The second native comparison found only 1-5 px surface drift. Back depth, Mods surface, Play icon position, and copy origin were corrected once more.
+   - Final full-view and focused evidence is `song-select-footer-final-pixel-comparison.png`; all major control surfaces now align within 0-2 px after normalization.
+6. Full-screen deep pass:
+   - Reduced the ivory-panel slant from 8 degrees to 3 degrees and moved its bottom intersection to the reference boundary.
+   - Shifted and widened the left detail/ranking column; the ranking surfaces now match the reference's 400 logical-pixel width and lower vertical position.
+   - Tightened the search box and filters, moved the song browser start to the reference x-coordinate, and preserved the right edge.
+   - Rebalanced normal and selected song-row heights so the same three compilation rows, package header, seven package songs, and selected Waterfall continuation are visible at the native viewport.
+
+## Primary interactions
+
+- Mods tile opens and closes its panel.
+- Mod family exclusivity and visibility-family behavior remain intact.
+- Play transfers selected mods into Gameplay.
+- Ranking remains above the footer at the 16:9 stage.
+
+## Verification
+
+- `dotnet build .\Yokko.Desktop\Yokko.Desktop.csproj --no-restore`: passed with 0 warnings and 0 errors.
+- `dotnet test .\Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-build --filter "FullyQualifiedName~TestSceneSongSelectScreen" --logger "console;verbosity=minimal"`: passed, 3/3.
+- Native Windows visual inspection: passed at 1282 x 749.
+- Desktop runtime: no exception observed while opening Song Select and toggling Mods.
+
+---
+
 # Yokko Song Select design QA
 
 final result: passed

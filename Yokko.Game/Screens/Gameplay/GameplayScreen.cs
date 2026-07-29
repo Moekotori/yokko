@@ -10,18 +10,22 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Input.Events;
 using osu.Framework.Graphics.Rendering;
+using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Textures;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osuTK;
 using osuTK.Input;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Audio;
 using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Input;
+using Yokko.Game.Importing;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Settings;
 using Yokko.Game.Skinning.OsuMania;
@@ -42,6 +46,8 @@ public partial class GameplayScreen : Screen
     private readonly string skinPath;
     private readonly ManiaModSet mods;
     private readonly GameplayReplay replay;
+    private readonly string cinemaArtworkPath;
+    private TextureStore cinemaArtworkTextures;
     private readonly List<GameplayReplayInput> recordedReplayInputs = new();
     private readonly List<JudgementEvent> expiredJudgements = new();
     [Resolved]
@@ -56,6 +62,8 @@ public partial class GameplayScreen : Screen
     private GameplayScoreStore scoreStore { get; set; }
 
     private BeatmapJudgementState judgementState;
+    private ManiaHealthState healthState;
+    private ManiaAdaptiveSpeedState adaptiveSpeedState;
     private GameplayPlayfield playfield;
     private KeyModeBindings keyBindings;
     private bool[] pressedLanes;
@@ -69,6 +77,7 @@ public partial class GameplayScreen : Screen
     private readonly InputAgeTracker inputAgeTracker = new();
     private bool gameplayBlocked;
     private bool gameplayCompleted;
+    private bool gameplayFailed;
     private GameplayHud hud;
     private ManiaScoreResult completedResult;
     private readonly double completionTimeMilliseconds;
@@ -85,13 +94,20 @@ public partial class GameplayScreen : Screen
     private double pausedGameplayTime;
     private double pausedAudioPosition;
     private GameplayPauseOverlay pauseOverlay;
+    private GameplayFailOverlay failOverlay;
     private JudgementReadout judgementReadout;
     private Task keysoundPreparationTask = Task.CompletedTask;
     private string[] keysoundPathsByHitObject = [];
     private GameplayKeysoundSelector keysoundSelector;
+    private GameplayMutedAudioController mutedAudio;
+    private GameplayCinemaIndicator cinemaIndicator;
+    private double frameClockGameplayTime;
+    private double frameClockLastFrameworkTime;
+    private double lastAppliedDynamicRate = double.NaN;
 
     internal bool GameplayBlocked => gameplayBlocked;
     internal bool GameplayCompleted => gameplayCompleted;
+    internal bool GameplayFailed => gameplayFailed;
     internal bool IsPaused => isPaused;
     internal bool PauseTransitionInProgress => pauseTransitionInProgress;
     internal double CurrentGameplayTime => currentGameplayTime;
@@ -99,6 +115,10 @@ public partial class GameplayScreen : Screen
     internal bool ReplayMode => replay != null;
     internal bool AutoplayMode => mods.IsAutomation;
     internal ManiaModSet Mods => mods;
+    internal ManiaHealthState HealthState => healthState;
+    internal GameplayMutedAudioController MutedAudio => mutedAudio;
+    internal JudgementWindows ActiveJudgementWindows =>
+        judgementState?.Windows;
     internal YokkoBeatmap AppliedBeatmap => beatmap;
     internal bool IntroSkipAvailable =>
         !gameplayBlocked
@@ -120,8 +140,15 @@ public partial class GameplayScreen : Screen
         YokkoBeatmap beatmap,
         IAudioEngine audioEngine = null,
         string skinPath = null,
-        ManiaModSet mods = null)
-        : this(beatmap, audioEngine, skinPath, mods, null)
+        ManiaModSet mods = null,
+        string cinemaArtworkPath = null)
+        : this(
+            beatmap,
+            audioEngine,
+            skinPath,
+            mods,
+            null,
+            cinemaArtworkPath)
     {
     }
 
@@ -131,6 +158,17 @@ public partial class GameplayScreen : Screen
         string skinPath,
         ManiaModSet mods,
         GameplayReplay replay)
+        : this(beatmap, audioEngine, skinPath, mods, replay, null)
+    {
+    }
+
+    private GameplayScreen(
+        YokkoBeatmap beatmap,
+        IAudioEngine audioEngine,
+        string skinPath,
+        ManiaModSet mods,
+        GameplayReplay replay,
+        string cinemaArtworkPath)
     {
         originalBeatmap = beatmap;
         this.audioEngine = audioEngine;
@@ -143,6 +181,7 @@ public partial class GameplayScreen : Screen
                       ?? (this.mods.IsAutomation
                           ? GameplayAutoGenerator.Generate(this.beatmap)
                           : null);
+        this.cinemaArtworkPath = cinemaArtworkPath;
         completionTimeMilliseconds = this.beatmap.HitObjects.Count == 0
             ? 0
             : this.beatmap.HitObjects.Max(hitObject =>
@@ -158,15 +197,32 @@ public partial class GameplayScreen : Screen
     private void load(IRenderer renderer, GameHost host)
     {
         this.host = host;
-        keyBindings = KeyModeBindings.ForMode(
-            beatmap.KeyMode,
-            gameplaySettings.GetKeys(beatmap.KeyMode));
+        keyBindings = beatmap.StageCount == 1
+                      && beatmap.KeyMode is KeyMode.FourKey
+                          or KeyMode.SevenKey
+            ? KeyModeBindings.ForMode(
+                beatmap.KeyMode,
+                gameplaySettings.GetKeys(beatmap.KeyMode))
+            : KeyModeBindings.ForMode(
+                beatmap.KeyMode,
+                beatmap.StageCount);
         pressedLanes = new bool[keyBindings.KeyCount];
+        healthState = new ManiaHealthState(beatmap, mods);
+        if (mods.HasAdaptiveSpeed)
+        {
+            adaptiveSpeedState = new ManiaAdaptiveSpeedState(
+                beatmap,
+                mods.AdaptiveInitialRate);
+        }
         judgementState = new BeatmapJudgementState(
             beatmap,
             new JudgementWindows(
-                beatmap.OverallDifficulty,
-                mods.PlaybackRate),
+                mods.EffectiveOverallDifficulty(
+                    beatmap.OverallDifficulty),
+                mods.PlaybackRate,
+                mods.HitWindowDifficultyMultiplier,
+                mods.Contains(ManiaModId.Classic),
+                mods.Contains(ManiaModId.ScoreV2)),
             mods.Contains(ManiaModId.NoRelease));
         keysoundSelector = new GameplayKeysoundSelector(
             beatmap,
@@ -178,6 +234,14 @@ public partial class GameplayScreen : Screen
                          && !hasKeysounds
             ? new NullAudioEngine()
             : AudioEngineFactory.CreateDefault();
+        if (mods.Contains(ManiaModId.Muted)
+            && audioEngine is IAudioMixControl mixControl)
+        {
+            mutedAudio = new GameplayMutedAudioController(
+                beatmap,
+                mods,
+                mixControl);
+        }
         hasAudioClock = !string.IsNullOrWhiteSpace(beatmap.AudioPath)
                         || hasKeysounds && audioEngine is NativeAudioEngine;
         prepareKeysoundPaths();
@@ -195,7 +259,8 @@ public partial class GameplayScreen : Screen
                 keyBindings,
                 maniaSkin,
                 computeApproachTime(gameplaySettings.ScrollSpeed.Value),
-                gameplaySettings.ShowLanePressFeedback.Value)
+                gameplaySettings.ShowLanePressFeedback.Value,
+                mods)
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
@@ -220,6 +285,36 @@ public partial class GameplayScreen : Screen
             },
         };
 
+        if (mods.IsCinema)
+        {
+            Texture cinemaTexture = loadCinemaTexture(renderer);
+            if (cinemaTexture != null)
+            {
+                AddInternal(new Sprite
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Texture = cinemaTexture,
+                    FillMode = FillMode.Fill,
+                    Colour = new osuTK.Graphics.Color4(
+                        0.82f,
+                        0.82f,
+                        0.86f,
+                        1),
+                    Depth = -10,
+                });
+            }
+            playfield.Alpha = 0;
+            hud.Alpha = 0;
+            judgementReadout.Alpha = 0;
+            AddInternal(cinemaIndicator = new GameplayCinemaIndicator
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(-24, 24),
+                Depth = -200,
+            });
+        }
+
         if (!hasAudioClock)
             hud.ShowFrameClock();
 
@@ -236,6 +331,9 @@ public partial class GameplayScreen : Screen
             keyInputTimestamps.BeginCapture();
 
         startTimeMilliseconds = Time.Current + leadInMilliseconds;
+        frameClockGameplayTime =
+            -leadInMilliseconds * mods.PlaybackRate;
+        frameClockLastFrameworkTime = Time.Current;
 
         if (hasAudioClock)
         {
@@ -250,9 +348,13 @@ public partial class GameplayScreen : Screen
         base.Update();
         updatePlayfieldLayout();
 
-        if (gameplayBlocked || gameplayCompleted || isPaused)
+        if (gameplayBlocked
+            || gameplayCompleted
+            || gameplayFailed
+            || isPaused)
             return;
 
+        adaptiveSpeedState?.Update(Time.Elapsed);
         GameplayClockObservation clockObservation = observeGameplayClock();
 
         if (hasAudioClock && audioStarted)
@@ -268,6 +370,15 @@ public partial class GameplayScreen : Screen
         }
 
         double gameplayTime = clockObservation.GameplayTime;
+        updateDynamicRate(gameplayTime);
+        if (mutedAudio != null)
+        {
+            mutedAudio.Update(
+                Time.Elapsed,
+                judgementState.Combo,
+                gameplayTime);
+            hud.UpdateMutedMix(mutedAudio.Current);
+        }
         double visualGameplayTime = hasAudioClock
             ? GameplayPresentationClock.EstimateVisualTime(
                 gameplayTime,
@@ -284,10 +395,14 @@ public partial class GameplayScreen : Screen
             gameplayTime,
             expiredJudgements);
         foreach (JudgementEvent missed in expiredJudgements)
+        {
             applyJudgement(missed);
+            if (gameplayFailed)
+                return;
+        }
 
         playfield.UpdateGameplayTime(visualGameplayTime, judgementState);
-        hud.UpdateState(gameplayTime, judgementState);
+        hud.UpdateState(gameplayTime, judgementState, healthState);
 
         if (judgementState.IsComplete
             && gameplayTime >= completionTimeMilliseconds)
@@ -302,6 +417,12 @@ public partial class GameplayScreen : Screen
             return;
 
         float scale = DrawHeight / playfield.Height;
+        if (beatmap.StageCount == 2 && DrawWidth > 0)
+        {
+            scale = Math.Min(
+                scale,
+                DrawWidth * 0.94f / playfield.Width);
+        }
         playfield.Scale = new Vector2(scale);
     }
 
@@ -325,6 +446,9 @@ public partial class GameplayScreen : Screen
 
             return true;
         }
+
+        if (gameplayFailed)
+            return failOverlay?.HandleKey(e.Key) ?? true;
 
         if (isPaused)
             return pauseOverlay?.HandleKey(e.Key) ?? true;
@@ -383,7 +507,10 @@ public partial class GameplayScreen : Screen
 
     protected override void OnKeyUp(KeyUpEvent e)
     {
-        if (gameplayCompleted || ReplayMode || isPaused)
+        if (gameplayCompleted
+            || gameplayFailed
+            || ReplayMode
+            || isPaused)
             return;
 
         int lane = keyBindings.GetLane(e.Key);
@@ -408,6 +535,7 @@ public partial class GameplayScreen : Screen
         if (!ReplayMode)
             keyInputTimestamps.EndCapture();
 
+        mutedAudio?.Restore();
         _ = audioEngine.StopAsync();
         return base.OnExiting(e);
     }
@@ -422,8 +550,10 @@ public partial class GameplayScreen : Screen
             host.Deactivated -= onHostDeactivated;
             gameplaySettings.ScrollSpeed.ValueChanged -=
                 onScrollSpeedChanged;
+            mutedAudio?.Restore();
             _ = audioEngine.DisposeAsync();
             maniaSkin?.Dispose();
+            cinemaArtworkTextures?.Dispose();
         }
 
         base.Dispose(isDisposing);
@@ -443,6 +573,13 @@ public partial class GameplayScreen : Screen
                     mods.ChangesAudioPitch
                         ? AudioPitchMode.ScaleWithRate
                         : AudioPitchMode.Preserve);
+            if (mods.HasDynamicRate)
+            {
+                startRequest = startRequest with
+                {
+                    DynamicPlaybackRate = true,
+                };
+            }
             activeRequestedBackend = startRequest.PreferredBackend;
 
             await audioEngine.StartAsync(startRequest)
@@ -569,9 +706,23 @@ public partial class GameplayScreen : Screen
         }
         else
         {
-            gameplayTime =
-                (Time.Current - startTimeMilliseconds)
-                * mods.PlaybackRate;
+            if (mods.HasDynamicRate)
+            {
+                double elapsed = Math.Max(
+                    0,
+                    Time.Current - frameClockLastFrameworkTime);
+                double rate = currentDynamicRate(
+                    frameClockGameplayTime);
+                frameClockGameplayTime += elapsed * rate;
+                frameClockLastFrameworkTime = Time.Current;
+                gameplayTime = frameClockGameplayTime;
+            }
+            else
+            {
+                gameplayTime =
+                    (Time.Current - startTimeMilliseconds)
+                    * mods.PlaybackRate;
+            }
         }
 
         long observationEnd = Stopwatch.GetTimestamp();
@@ -618,13 +769,17 @@ public partial class GameplayScreen : Screen
             observation.GameplayTime,
             eventTimestamp,
             observation.Timestamp,
-            gameplayRate: mods.PlaybackRate);
+            gameplayRate: currentPlaybackRate(
+                observation.GameplayTime));
     }
 
     private void drainRawInput(GameplayClockObservation observation)
     {
         while (keyInputTimestamps.TryDequeueRaw(out TimestampedKeyInput input))
         {
+            if (gameplayFailed)
+                break;
+
             int lane = keyBindings.GetLane(input.Key);
             if (lane < 0)
                 continue;
@@ -645,6 +800,7 @@ public partial class GameplayScreen : Screen
         IReadOnlyList<GameplayReplayInput> inputs = replay.Inputs;
 
         while (replayInputIndex < inputs.Count
+               && !gameplayFailed
                && inputs[replayInputIndex].TimeMilliseconds <= gameplayTime)
         {
             GameplayReplayInput input = inputs[replayInputIndex++];
@@ -778,11 +934,45 @@ public partial class GameplayScreen : Screen
     private void applyJudgement(JudgementEvent judgement)
     {
         playfield.ApplyJudgement(judgement);
+        adaptiveSpeedState?.Apply(judgement);
+        ManiaHealthUpdate healthUpdate = healthState.Apply(
+            judgement,
+            judgementState.Accuracy,
+            judgementState.MaximumAchievableAccuracy);
         if (judgement.Phase is not JudgementPhase.Hold
             and not JudgementPhase.HoldBody)
         {
             judgementReadout.Show(judgement);
         }
+
+        if (healthUpdate.ExtraLifeConsumed)
+            hud.ShowExtraLifeUsed();
+
+        if (healthUpdate.Failed)
+            failGameplay();
+    }
+
+    private void failGameplay()
+    {
+        if (gameplayFailed || gameplayCompleted)
+            return;
+
+        gameplayFailed = true;
+        mutedAudio?.Restore();
+        for (int lane = 0; lane < pressedLanes.Length; lane++)
+        {
+            pressedLanes[lane] = false;
+            playfield.SetLanePressed(lane, false);
+        }
+
+        _ = audioEngine.StopAsync();
+        AddInternal(failOverlay = new GameplayFailOverlay(
+            beatmap,
+            judgementState,
+            healthState,
+            mods,
+            retryGameplay,
+            () => this.Exit()));
     }
 
     private void completeGameplay()
@@ -791,7 +981,13 @@ public partial class GameplayScreen : Screen
             return;
 
         gameplayCompleted = true;
-        completedResult = judgementState.CreateResult();
+        mutedAudio?.Restore();
+        ManiaScoreResult rawResult =
+            judgementState.CreateResult();
+        completedResult = rawResult with
+        {
+            Rank = mods.AdjustRank(rawResult.Rank),
+        };
         completedReplay = replay ?? new GameplayReplay(recordedReplayInputs);
         bool isNewBest = !ReplayMode
                          && scoreStore.SaveBest(
@@ -813,7 +1009,8 @@ public partial class GameplayScreen : Screen
     {
         if (pauseTransitionInProgress
             || gameplayBlocked
-            || gameplayCompleted)
+            || gameplayCompleted
+            || gameplayFailed)
         {
             return;
         }
@@ -829,7 +1026,8 @@ public partial class GameplayScreen : Screen
         if (!isPaused
             && !pauseTransitionInProgress
             && !gameplayBlocked
-            && !gameplayCompleted)
+            && !gameplayCompleted
+            && !gameplayFailed)
         {
             TogglePause();
         }
@@ -894,13 +1092,18 @@ public partial class GameplayScreen : Screen
         try
         {
             if (hasAudioClock)
+            {
                 await audioEngine.SeekAsync(pausedAudioPosition)
                                  .ConfigureAwait(true);
+                lastAppliedDynamicRate = double.NaN;
+            }
             else
             {
                 startTimeMilliseconds =
                     Time.Current
                     - pausedGameplayTime / mods.PlaybackRate;
+                frameClockGameplayTime = pausedGameplayTime;
+                frameClockLastFrameworkTime = Time.Current;
             }
 
             isPaused = false;
@@ -956,7 +1159,8 @@ public partial class GameplayScreen : Screen
         this.Push(new GameplayScreen(
             originalBeatmap,
             skinPath: skinPath,
-            mods: mods));
+            mods: mods,
+            cinemaArtworkPath: cinemaArtworkPath));
 
     private void watchCompletedReplay()
     {
@@ -968,7 +1172,62 @@ public partial class GameplayScreen : Screen
             null,
             skinPath,
             mods,
-            completedReplay));
+            completedReplay,
+            cinemaArtworkPath));
+    }
+
+    private void updateDynamicRate(double gameplayTime)
+    {
+        if (!mods.HasDynamicRate)
+            return;
+
+        double rate = currentDynamicRate(gameplayTime);
+        hud.UpdateDynamicRate(rate);
+        if (!audioStarted
+            || audioEngine is not IAudioRateControl rateControl
+            || Math.Abs(rate - lastAppliedDynamicRate) < 0.005)
+        {
+            return;
+        }
+
+        rateControl.SetPlaybackRate(rate);
+        lastAppliedDynamicRate = rate;
+    }
+
+    private double currentPlaybackRate(double gameplayTime) =>
+        mods.HasDynamicRate
+            ? currentDynamicRate(gameplayTime)
+            : mods.PlaybackRate;
+
+    private double currentDynamicRate(double gameplayTime) =>
+        adaptiveSpeedState?.CurrentRate
+        ?? mods.PlaybackRateAt(
+            gameplayTime,
+            firstObjectTimeMilliseconds,
+            completionTimeMilliseconds);
+
+    private Texture loadCinemaTexture(IRenderer renderer)
+    {
+        if (string.IsNullOrWhiteSpace(cinemaArtworkPath))
+            return null;
+
+        try
+        {
+            cinemaArtworkTextures = new TextureStore(
+                renderer,
+                new TextureLoaderStore(
+                    new ConstrainedTextureResourceStore(
+                        new ChartArtworkResourceStore(),
+                        renderer.MaxTextureSize)),
+                scaleAdjust: 1);
+            return cinemaArtworkTextures.Get(cinemaArtworkPath);
+        }
+        catch
+        {
+            cinemaArtworkTextures?.Dispose();
+            cinemaArtworkTextures = null;
+            return null;
+        }
     }
 
     private void logInputTimingSummary()
@@ -1051,6 +1310,8 @@ public partial class GameplayScreen : Screen
         if (!hasAudioClock)
         {
             startTimeMilliseconds = Time.Current - target;
+            frameClockGameplayTime = target;
+            frameClockLastFrameworkTime = Time.Current;
             return true;
         }
 
@@ -1072,6 +1333,7 @@ public partial class GameplayScreen : Screen
         {
             await audioEngine.SeekAsync(targetMilliseconds)
                              .ConfigureAwait(true);
+            lastAppliedDynamicRate = double.NaN;
         }
         catch (Exception ex)
         {

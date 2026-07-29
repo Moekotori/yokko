@@ -369,6 +369,7 @@ internal sealed class ImportedChartLibrary
     {
         string extension = Path.GetExtension(path);
         return extension.Equals(".osz", StringComparison.OrdinalIgnoreCase)
+               || extension.Equals(".qp", StringComparison.OrdinalIgnoreCase)
                || extension.Equals(".mcz", StringComparison.OrdinalIgnoreCase)
                || extension.Equals(".zip", StringComparison.OrdinalIgnoreCase)
                || extension.Equals(".smzip", StringComparison.OrdinalIgnoreCase);

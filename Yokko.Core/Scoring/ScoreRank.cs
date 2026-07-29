@@ -8,4 +8,6 @@ public enum ScoreRank
     B,
     C,
     D,
+    XH,
+    SH,
 }

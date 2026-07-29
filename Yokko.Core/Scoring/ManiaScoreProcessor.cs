@@ -44,6 +44,28 @@ public sealed class ManiaScoreProcessor
         ? currentBaseScore / currentMaximumBaseScore
         : 1;
 
+    public double MaximumAchievableAccuracy
+    {
+        get
+        {
+            if (maximumAccuracyJudgementCount == 0)
+                return 1;
+
+            int remainingJudgements = Math.Max(
+                0,
+                maximumAccuracyJudgementCount
+                - currentAccuracyJudgementCount);
+            double maximumFinalBaseScore =
+                currentBaseScore
+                + remainingJudgements
+                * baseScoreFor(JudgementRating.Perfect);
+            double absoluteMaximumBaseScore =
+                maximumAccuracyJudgementCount
+                * baseScoreFor(JudgementRating.Perfect);
+            return maximumFinalBaseScore / absoluteMaximumBaseScore;
+        }
+    }
+
     public long TotalScore { get; private set; }
 
     public ScoreRank Rank { get; private set; } = ScoreRank.X;

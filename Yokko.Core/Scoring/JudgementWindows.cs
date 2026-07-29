@@ -23,10 +23,13 @@ public sealed class JudgementWindows
     public JudgementWindows(
         double overallDifficulty = 5,
         double speedMultiplier = 1,
-        double difficultyMultiplier = 1)
+        double difficultyMultiplier = 1,
+        bool classic = false,
+        bool scoreV2 = false,
+        bool isConvert = false)
     {
         if (!double.IsFinite(overallDifficulty)
-            || overallDifficulty is < 0 or > 10)
+            || overallDifficulty is < -15 or > 15)
         {
             throw new ArgumentOutOfRangeException(nameof(overallDifficulty));
         }
@@ -40,14 +43,56 @@ public sealed class JudgementWindows
         OverallDifficulty = overallDifficulty;
         SpeedMultiplier = speedMultiplier;
         DifficultyMultiplier = difficultyMultiplier;
+        Classic = classic;
+        ScoreV2 = scoreV2;
+        IsConvert = isConvert;
 
         double totalMultiplier = speedMultiplier / difficultyMultiplier;
-        PerfectMilliseconds = windowFor(perfectRange, totalMultiplier);
-        GreatMilliseconds = windowFor(greatRange, totalMultiplier);
-        GoodMilliseconds = windowFor(goodRange, totalMultiplier);
-        OkMilliseconds = windowFor(okRange, totalMultiplier);
-        MehMilliseconds = windowFor(mehRange, totalMultiplier);
-        MissMilliseconds = windowFor(missRange, totalMultiplier);
+        if (classic && !scoreV2)
+        {
+            if (isConvert)
+            {
+                PerfectMilliseconds = classicWindow(16, totalMultiplier);
+                GreatMilliseconds = classicWindow(
+                    Math.Round(overallDifficulty) > 4 ? 34 : 47,
+                    totalMultiplier);
+                GoodMilliseconds = classicWindow(
+                    Math.Round(overallDifficulty) > 4 ? 67 : 77,
+                    totalMultiplier);
+                OkMilliseconds = classicWindow(97, totalMultiplier);
+                MehMilliseconds = classicWindow(121, totalMultiplier);
+                MissMilliseconds = classicWindow(158, totalMultiplier);
+            }
+            else
+            {
+                double invertedOd = Math.Clamp(10 - overallDifficulty, 0, 10);
+                PerfectMilliseconds = classicWindow(16, totalMultiplier);
+                GreatMilliseconds = classicWindow(
+                    34 + 3 * invertedOd,
+                    totalMultiplier);
+                GoodMilliseconds = classicWindow(
+                    67 + 3 * invertedOd,
+                    totalMultiplier);
+                OkMilliseconds = classicWindow(
+                    97 + 3 * invertedOd,
+                    totalMultiplier);
+                MehMilliseconds = classicWindow(
+                    121 + 3 * invertedOd,
+                    totalMultiplier);
+                MissMilliseconds = classicWindow(
+                    158 + 3 * invertedOd,
+                    totalMultiplier);
+            }
+        }
+        else
+        {
+            PerfectMilliseconds = windowFor(perfectRange, totalMultiplier);
+            GreatMilliseconds = windowFor(greatRange, totalMultiplier);
+            GoodMilliseconds = windowFor(goodRange, totalMultiplier);
+            OkMilliseconds = windowFor(okRange, totalMultiplier);
+            MehMilliseconds = windowFor(mehRange, totalMultiplier);
+            MissMilliseconds = windowFor(missRange, totalMultiplier);
+        }
     }
 
     public static JudgementWindows DefaultMania { get; } = new(5);
@@ -57,6 +102,12 @@ public sealed class JudgementWindows
     public double SpeedMultiplier { get; }
 
     public double DifficultyMultiplier { get; }
+
+    public bool Classic { get; }
+
+    public bool ScoreV2 { get; }
+
+    public bool IsConvert { get; }
 
     public double PerfectMilliseconds { get; }
 
@@ -111,6 +162,9 @@ public sealed class JudgementWindows
 
     private double windowFor(DifficultyRange range, double multiplier)
         => Math.Floor(difficultyRange(OverallDifficulty, range) * multiplier) + 0.5;
+
+    private static double classicWindow(double value, double multiplier) =>
+        Math.Floor(value * multiplier) + 0.5;
 
     private static double difficultyRange(double difficulty, DifficultyRange range)
     {

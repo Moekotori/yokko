@@ -12,6 +12,32 @@ namespace Yokko.Game.Tests.Core
     [TestFixture]
     public sealed class JudgementStateTest
     {
+        [Test]
+        public void ClassicUsesStableManiaWindowsUnlessScoreV2IsPresent()
+        {
+            var classic = new JudgementWindows(
+                8,
+                classic: true);
+            Assert.That(classic.PerfectMilliseconds, Is.EqualTo(16.5));
+            Assert.That(classic.GreatMilliseconds, Is.EqualTo(40.5));
+            Assert.That(classic.GoodMilliseconds, Is.EqualTo(73.5));
+            Assert.That(classic.OkMilliseconds, Is.EqualTo(103.5));
+            Assert.That(classic.MehMilliseconds, Is.EqualTo(127.5));
+            Assert.That(classic.MissMilliseconds, Is.EqualTo(164.5));
+
+            var scoreV2 = new JudgementWindows(
+                8,
+                classic: true,
+                scoreV2: true);
+            var modern = new JudgementWindows(8);
+            Assert.That(
+                scoreV2.PerfectMilliseconds,
+                Is.EqualTo(modern.PerfectMilliseconds));
+            Assert.That(
+                scoreV2.MissMilliseconds,
+                Is.EqualTo(modern.MissMilliseconds));
+        }
+
         [TestCase(0, 22.5, 64.5, 97.5, 127.5, 151.5, 188.5)]
         [TestCase(5, 19.5, 49.5, 82.5, 112.5, 136.5, 173.5)]
         [TestCase(8, 16.5, 40.5, 73.5, 103.5, 127.5, 164.5)]
@@ -440,8 +466,8 @@ namespace Yokko.Game.Tests.Core
 
         [TestCase(double.NaN)]
         [TestCase(double.PositiveInfinity)]
-        [TestCase(-0.01)]
-        [TestCase(10.01)]
+        [TestCase(-15.01)]
+        [TestCase(15.01)]
         public void InvalidOverallDifficultyIsRejected(double overallDifficulty)
         {
             Assert.Throws<ArgumentOutOfRangeException>(() =>

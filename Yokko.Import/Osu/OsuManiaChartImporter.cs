@@ -6,7 +6,12 @@ namespace Yokko.Import.Osu;
 public sealed class OsuManiaChartImporter : IChartImporter
 {
     public ChartImportCapability Capability { get; } =
-        new(ChartSourceFormat.OsuMania, "osu!mania", [".osu", ".osz"], false, false);
+        new(
+            ChartSourceFormat.OsuMania,
+            "osu! / osu!mania",
+            [".osu", ".osz"],
+            false,
+            false);
 
     public bool CanImport(string path)
     {
@@ -49,7 +54,9 @@ public sealed class OsuManiaChartImporter : IChartImporter
             }
         }
 
-        throw new InvalidDataException("The .osz package does not contain a supported 4K/7K osu!mania chart.", failures.FirstOrDefault());
+        throw new InvalidDataException(
+            "The .osz package does not contain a supported osu!standard or osu!mania chart.",
+            failures.FirstOrDefault());
     }
 
     public ValueTask<IReadOnlyList<ChartImportResult>> ImportAllAsync(
@@ -92,7 +99,7 @@ public sealed class OsuManiaChartImporter : IChartImporter
         if (results.Count == 0)
         {
             throw new InvalidDataException(
-                "The .osz package does not contain a supported 4K/7K osu!mania chart.",
+                "The .osz package does not contain a supported osu!standard or osu!mania chart.",
                 failures.FirstOrDefault());
         }
 

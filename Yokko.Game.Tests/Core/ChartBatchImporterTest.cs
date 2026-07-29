@@ -40,6 +40,45 @@ public sealed class ChartBatchImporterTest
             Is.EquivalentTo(new[] { "First", "Second" }));
     }
 
+    [Test]
+    public void ImportsEveryCompatibleChartAndAssetsFromQuaverPackage()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "chart-batch-import",
+            TestContext.CurrentContext.Test.ID);
+        Directory.CreateDirectory(directory);
+        string path = Path.Combine(directory, $"{Guid.NewGuid():N}.qp");
+
+        using (ZipArchive archive = ZipFile.Open(path, ZipArchiveMode.Create))
+        {
+            writeTextEntry(archive, "Mapset/audio.ogg", string.Empty);
+            writeTextEntry(archive, "Mapset/background.jpg", "art");
+            writeQuaverChart(archive, "Mapset/first.qua", "Easy", 4);
+            writeQuaverChart(archive, "Mapset/second.qua", "Hard", 7);
+        }
+
+        IReadOnlyList<ChartImportResult> results =
+            KnownChartImporters.ImportAllAsync(new ChartImportRequest(path, true))
+                               .AsTask()
+                               .GetAwaiter()
+                               .GetResult();
+
+        Assert.That(results, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                results.Select(result => result.Beatmap.DifficultyName),
+                Is.EquivalentTo(new[] { "Easy", "Hard" }));
+            Assert.That(
+                results.Select(result => result.Beatmap.AudioPath),
+                Is.All.Matches<string>(File.Exists));
+            Assert.That(
+                results.Select(result => result.ArtworkPath),
+                Is.All.Matches<string>(File.Exists));
+        });
+    }
+
     private static void writeChart(
         ZipArchive archive,
         string path,
@@ -69,5 +108,38 @@ CircleSize:{keys}
 [HitObjects]
 64,192,500,1,0,0:0:0:0:
 """);
+    }
+
+    private static void writeQuaverChart(
+        ZipArchive archive,
+        string path,
+        string difficulty,
+        int keys)
+    {
+        writeTextEntry(archive, path, $"""
+AudioFile: audio.ogg
+BackgroundFile: background.jpg
+Mode: Keys{keys}
+Title: Quaver Package
+Artist: Artist
+Creator: Mapper
+DifficultyName: {difficulty}
+TimingPoints:
+- StartTime: 0
+  Bpm: 120
+HitObjects:
+- StartTime: 500
+  Lane: 1
+""");
+    }
+
+    private static void writeTextEntry(
+        ZipArchive archive,
+        string path,
+        string content)
+    {
+        using Stream stream = archive.CreateEntry(path).Open();
+        using var writer = new StreamWriter(stream, new UTF8Encoding(false));
+        writer.Write(content);
     }
 }

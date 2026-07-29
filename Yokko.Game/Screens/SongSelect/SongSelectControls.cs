@@ -14,6 +14,7 @@ using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Difficulty;
+using Yokko.Core.Scoring;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
@@ -170,7 +171,7 @@ internal partial class SongSelectSongRow : ClickableContainer
     {
         Entry = entry;
         Action = select;
-        Size = new Vector2(660, 68);
+        Size = new Vector2(660, 64);
 
         InternalChildren = new Drawable[]
         {
@@ -198,7 +199,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             thumbnail = new Container
             {
                 Position = new Vector2(0, 2),
-                Size = new Vector2(104, 64),
+                Size = new Vector2(104, 60),
                 Masking = true,
                 CornerRadius = 1,
                 BorderThickness = 1,
@@ -370,8 +371,8 @@ internal partial class SongSelectSongRow : ClickableContainer
                 : new Color4(SongSelectTheme.DeepNavy.R, SongSelectTheme.DeepNavy.G, SongSelectTheme.DeepNavy.B, 0.76f),
             150,
             Easing.OutQuint);
-        this.ResizeHeightTo(selected ? 74 : 68, 170, Easing.OutQuint);
-        thumbnail.ResizeHeightTo(selected ? 70 : 64, 170, Easing.OutQuint);
+        this.ResizeHeightTo(selected ? 60 : 64, 170, Easing.OutQuint);
+        thumbnail.ResizeHeightTo(selected ? 56 : 60, 170, Easing.OutQuint);
         this.MoveToX(0, 170, Easing.OutQuint);
         title.Font = HomeTypography.Display(selected ? 22 : 19);
         mapper.Colour = selected ? SongSelectTheme.Cyan : SongSelectTheme.PaleCyan;
@@ -537,6 +538,8 @@ internal partial class SongSelectPackageHeader : ClickableContainer
 
 internal partial class SongSelectRankingPanel : CompositeDrawable
 {
+    private const float panel_width = 400;
+
     private readonly Container content;
     private readonly SpriteText selectorText;
     private readonly SpriteIcon selectorIcon;
@@ -550,13 +553,13 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
     {
         this.entry = entry;
         this.textures = textures;
-        Size = new Vector2(375, 190);
+        Size = new Vector2(panel_width, 190);
 
         InternalChildren = new Drawable[]
         {
             new ClickableContainer
             {
-                Size = new Vector2(375, 30),
+                Size = new Vector2(panel_width, 30),
                 Masking = true,
                 CornerRadius = 2,
                 Action = () =>
@@ -599,7 +602,7 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
             content = new Container
             {
                 Y = 36,
-                Size = new Vector2(375, 154),
+                Size = new Vector2(panel_width, 154),
             },
         };
 
@@ -624,7 +627,7 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
 
     private Drawable createPersonalRecord() => new Container
     {
-        Size = new Vector2(375, 150),
+        Size = new Vector2(panel_width, 150),
         Children = new Drawable[]
         {
             new Box
@@ -666,7 +669,7 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
         {
             return new Container
             {
-                Size = new Vector2(375, 58),
+                Size = new Vector2(panel_width, 58),
                 Masking = true,
                 CornerRadius = 2,
                 Children = new Drawable[]
@@ -734,7 +737,7 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
         Color4 accent = score.IsCurrentPlayer ? SongSelectTheme.Pink : score.Rank == 1 ? SongSelectTheme.Yellow : SongSelectTheme.Cyan;
         var row = new Container
         {
-            Size = new Vector2(375, 29),
+            Size = new Vector2(panel_width, 29),
             Masking = true,
             CornerRadius = 2,
             BorderThickness = score.IsCurrentPlayer ? 1 : 0,
@@ -812,7 +815,7 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            Text = score.Grade == Yokko.Core.Scoring.ScoreRank.X ? "SS" : score.Grade.ToString(),
+                            Text = score.Grade.ToDisplayLabel(),
                             Font = HomeTypography.Display(14),
                             Colour = gradeColour(score.Grade),
                         },
@@ -898,7 +901,9 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
     private static Color4 gradeColour(Yokko.Core.Scoring.ScoreRank grade) => grade switch
     {
         Yokko.Core.Scoring.ScoreRank.X => SongSelectTheme.PaleCyan,
+        Yokko.Core.Scoring.ScoreRank.XH => SongSelectTheme.PaleCyan,
         Yokko.Core.Scoring.ScoreRank.S => SongSelectTheme.Cyan,
+        Yokko.Core.Scoring.ScoreRank.SH => SongSelectTheme.Cyan,
         Yokko.Core.Scoring.ScoreRank.A => new Color4(0.56f, 0.95f, 0.34f, 1f),
         Yokko.Core.Scoring.ScoreRank.B => SongSelectTheme.Yellow,
         _ => SongSelectTheme.Pink,

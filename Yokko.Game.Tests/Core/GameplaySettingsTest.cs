@@ -41,6 +41,43 @@ public sealed class GameplaySettingsTest
     }
 
     [Test]
+    public void ExtendedKeyModesUseLazerDefaultLayout()
+    {
+        KeyModeBindings oneKey =
+            KeyModeBindings.ForMode(KeyMode.OneKey);
+        KeyModeBindings sixKey =
+            KeyModeBindings.ForMode(KeyMode.SixKey);
+        KeyModeBindings tenKey =
+            KeyModeBindings.ForMode(KeyMode.TenKey);
+
+        Assert.That(oneKey.GetLane(Key.Space), Is.Zero);
+        Assert.That(sixKey.GetLane(Key.S), Is.Zero);
+        Assert.That(sixKey.GetLane(Key.L), Is.EqualTo(5));
+        Assert.That(tenKey.GetLane(Key.V), Is.EqualTo(4));
+        Assert.That(tenKey.GetLane(Key.N), Is.EqualTo(5));
+        Assert.That(tenKey.GetLane(Key.Semicolon), Is.EqualTo(9));
+    }
+
+    [Test]
+    public void DualStageModesUseLazerDefaultLayout()
+    {
+        KeyModeBindings bindings = KeyModeBindings.ForMode(
+            KeyMode.FourteenKey,
+            2);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(bindings.KeyCount, Is.EqualTo(14));
+            Assert.That(bindings.GetLane(Key.W), Is.Zero);
+            Assert.That(bindings.GetLane(Key.V), Is.EqualTo(3));
+            Assert.That(bindings.GetLane(Key.P), Is.EqualTo(6));
+            Assert.That(bindings.GetLane(Key.D), Is.EqualTo(7));
+            Assert.That(bindings.GetLane(Key.B), Is.EqualTo(10));
+            Assert.That(bindings.GetLane(Key.L), Is.EqualTo(13));
+        });
+    }
+
+    [Test]
     public void DuplicateBindingSwapsLanes()
     {
         var settings = new YokkoGameplaySettings();

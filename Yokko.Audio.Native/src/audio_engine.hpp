@@ -29,7 +29,14 @@ namespace yokko::audio
         yokko_audio_result register_sample(
             const float* samples,
             uint32_t frame_count,
-            uint32_t& sample_id) noexcept;
+            uint32_t& sample_id,
+            bool metronome = false) noexcept;
+        yokko_audio_result set_mix_volumes(
+            float music_volume,
+            float hit_sound_volume,
+            float metronome_volume) noexcept;
+        yokko_audio_result set_sample_playback_rate(
+            float playback_rate) noexcept;
         yokko_audio_result trigger_sample(uint32_t sample_id) noexcept;
         yokko_audio_result render(
             float* output,
@@ -70,12 +77,13 @@ namespace yokko::audio
         {
             std::vector<float> pcm;
             uint32_t frame_count{0};
+            bool metronome{false};
         };
 
         struct SampleVoice
         {
             uint32_t sample_id{0};
-            uint32_t frame_offset{0};
+            double frame_position{0};
         };
 
         [[nodiscard]] double playback_time_milliseconds() const noexcept;
@@ -111,6 +119,10 @@ namespace yokko::audio
         std::atomic<bool> accepting_submissions_{true};
         std::atomic<uint32_t> active_submit_calls_{0};
         std::atomic<uint32_t> active_render_callbacks_{0};
+        std::atomic<float> music_volume_{1.0f};
+        std::atomic<float> hit_sound_volume_{1.0f};
+        std::atomic<float> metronome_volume_{0.0f};
+        std::atomic<float> sample_playback_rate_{1.0f};
         std::vector<RegisteredSample> sample_bank_;
         std::array<uint32_t, sample_trigger_capacity> sample_trigger_queue_{};
         std::atomic<uint32_t> sample_trigger_read_{0};

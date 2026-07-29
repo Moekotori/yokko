@@ -23,7 +23,7 @@ internal partial class SongSelectModButton : ClickableContainer
     {
         this.accent = accent;
         Action = action;
-        Size = new Vector2(54, 36);
+        Size = new Vector2(49, 36);
         Masking = true;
         CornerRadius = 4;
         BorderThickness = 2;
@@ -65,58 +65,117 @@ internal partial class SongSelectModButton : ClickableContainer
 
 internal partial class SongSelectModsToggleButton : ClickableContainer
 {
+    private readonly Container card;
     private readonly Box background;
     private readonly Box topAccent;
     private readonly SpriteIcon icon;
     private readonly Circle badge;
     private readonly SpriteText countLabel;
     private bool open;
-    private int count;
 
     public SongSelectModsToggleButton(Action action)
     {
         Action = action;
-        Size = new Vector2(54, 48);
-        Masking = true;
-        CornerRadius = 9;
-        BorderThickness = 1.5f;
-        BorderColour = SongSelectTheme.Cyan;
+        Size = new Vector2(88, 108);
 
         InternalChildren = new Drawable[]
         {
-            background = new Box
+            new Container
             {
-                RelativeSizeAxes = Axes.Both,
+                Position = new Vector2(8.5f, 17.5f),
+                Size = new Vector2(75),
+                Masking = true,
+                CornerRadius = 8,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.34f),
+                },
             },
-            topAccent = new Box
+            card = new Container
             {
-                RelativeSizeAxes = Axes.X,
-                Height = 3,
-                Colour = SongSelectTheme.Pink,
+                Position = new Vector2(6.5f, 13.5f),
+                Size = new Vector2(75),
+                Masking = true,
+                CornerRadius = 8,
+                BorderThickness = 1.5f,
+                BorderColour = HomeControlColours.Navy,
+                Children = new Drawable[]
+                {
+                    background = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = Color4.White,
+                    },
+                    new Container
+                    {
+                        Position = new Vector2(7),
+                        Size = new Vector2(61),
+                        Masking = true,
+                        CornerRadius = 5,
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = HomeControlColours.PaleCyan,
+                        },
+                    },
+                    icon = new SpriteIcon
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(30),
+                        Icon = FontAwesome.Solid.SlidersH,
+                        Colour = HomeControlColours.Navy,
+                    },
+                    topAccent = new Box
+                    {
+                        Anchor = Anchor.BottomLeft,
+                        Origin = Anchor.BottomLeft,
+                        X = 10,
+                        Width = 27,
+                        Height = 3,
+                        Colour = HomeControlColours.Pink,
+                    },
+                },
             },
-            icon = new SpriteIcon
+            new Box
             {
-                Anchor = Anchor.Centre,
+                Anchor = Anchor.TopCentre,
                 Origin = Anchor.Centre,
-                Position = new Vector2(0, 1),
-                Size = new Vector2(22),
-                Icon = FontAwesome.Solid.SlidersH,
+                Position = new Vector2(0, 7),
+                Size = new Vector2(17),
+                Rotation = 45,
+                Colour = HomeControlColours.Yellow,
             },
             badge = new Circle
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-5, 6),
+                Position = new Vector2(-9, 13),
                 Size = new Vector2(16),
                 BorderThickness = 1,
-                BorderColour = SongSelectTheme.DeepNavy,
+                BorderColour = HomeControlColours.Navy,
             },
             countLabel = new SpriteText
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.Centre,
-                Position = new Vector2(-13, 14),
+                Position = new Vector2(-17, 21),
                 Font = HomeTypography.Display(9),
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 92,
+                Text = "MODS",
+                Font = HomeTypography.Display(10),
+                Spacing = new Vector2(1.4f, 0),
+                Colour = HomeControlColours.Navy,
             },
         };
 
@@ -126,7 +185,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
 
     public void SetCount(int value)
     {
-        count = Math.Max(0, value);
+        int count = Math.Max(0, value);
         countLabel.Text = count.ToString();
         badge.Alpha = count > 0 ? 1 : 0;
         countLabel.Alpha = count > 0 ? 1 : 0;
@@ -142,31 +201,23 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
     {
         open = value;
         background.Colour = open
-            ? new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.98f)
-            : new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.82f);
+            ? HomeControlColours.PaleCyan
+            : Color4.White;
         icon.Colour = open
-            ? SongSelectTheme.Yellow
-            : SongSelectTheme.Cyan;
-        BorderColour = open
-            ? SongSelectTheme.Yellow
-            : SongSelectTheme.Cyan;
+            ? HomeControlColours.Pink
+            : HomeControlColours.Navy;
+        card.BorderColour = open
+            ? HomeControlColours.Yellow
+            : HomeControlColours.Navy;
         topAccent.Colour = open
-            ? SongSelectTheme.Yellow
-            : SongSelectTheme.Pink;
+            ? HomeControlColours.Yellow
+            : HomeControlColours.Pink;
     }
 
     protected override bool OnHover(HoverEvent e)
     {
-        this.ScaleTo(1.06f, 110, Easing.OutQuint);
-        BorderColour = SongSelectTheme.Yellow;
+        this.ScaleTo(1.045f, 110, Easing.OutQuint);
+        card.BorderColour = HomeControlColours.Yellow;
         return true;
     }
 

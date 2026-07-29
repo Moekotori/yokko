@@ -1,4 +1,6 @@
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Gameplay;
+using Yokko.Core.Timing;
 
 namespace Yokko.Core.Mods;
 
@@ -18,9 +20,86 @@ public static class ManiaBeatmapModTransformer
         ArgumentNullException.ThrowIfNull(original);
         mods ??= ManiaModSet.Empty;
 
+        KeyMode keyMode = original.KeyMode;
+        int stageCount = original.StageCount;
         IReadOnlyList<YokkoHitObject> hitObjects = original.HitObjects;
+        if (original.ConversionSource is not null
+            && (mods.KeyConversionTarget is not null
+                || mods.HasDualStages))
+        {
+            int columnsPerStage = mods.KeyConversionTarget
+                                  ?? OsuStandardManiaConverter
+                                     .DetermineDefaultColumnCount(
+                                         original.ConversionSource);
+            stageCount = mods.HasDualStages ? 2 : 1;
+            int totalColumns = columnsPerStage * stageCount;
+            keyMode = (KeyMode)totalColumns;
+            hitObjects = OsuStandardManiaConverter.Convert(
+                original.ConversionSource,
+                totalColumns,
+                original.TimingPoints);
+        }
 
-        if (mods.Contains(ManiaModId.HoldOff))
+        if (mods.Contains(ManiaModId.Invert))
+        {
+            var timing = new BeatTimingMap(
+                original.TimingPoints,
+                1);
+            hitObjects = hitObjects
+                                 .Where(static hitObject =>
+                                     hitObject.Kind is
+                                         HitObjectKind.Tap
+                                         or HitObjectKind.Hold)
+                                 .GroupBy(static hitObject =>
+                                     hitObject.Lane)
+                                 .SelectMany(column =>
+                                 {
+                                     YokkoHitObject[] locations =
+                                         column.OrderBy(
+                                                   static hitObject =>
+                                                       hitObject
+                                                           .StartTimeMilliseconds)
+                                               .ToArray();
+                                     return locations
+                                            .Take(
+                                                Math.Max(
+                                                    0,
+                                                    locations.Length - 1))
+                                            .Select((current, index) =>
+                                            {
+                                                double nextTime =
+                                                    locations[index + 1]
+                                                        .StartTimeMilliseconds;
+                                                double gap =
+                                                    nextTime
+                                                    - current
+                                                        .StartTimeMilliseconds;
+                                                double beatLength =
+                                                    timing.TimingPointAt(
+                                                        nextTime)
+                                                          .BeatLengthMilliseconds;
+                                                double duration = Math.Max(
+                                                    gap / 2,
+                                                    gap - beatLength / 4);
+                                                return new YokkoHitObject(
+                                                    current.Lane,
+                                                    current
+                                                        .StartTimeMilliseconds,
+                                                    current
+                                                        .StartTimeMilliseconds
+                                                    + duration,
+                                                    HitObjectKind.Hold,
+                                                    current.SampleKey,
+                                                    current.ScrollProfileId);
+                                            });
+                                 })
+                                 .OrderBy(static hitObject =>
+                                     hitObject.StartTimeMilliseconds)
+                                 .ThenBy(static hitObject =>
+                                     hitObject.Lane)
+                                 .ToArray();
+        }
+        else if (mods.Contains(ManiaModId.HoldOff))
         {
             hitObjects = hitObjects.Select(static hitObject =>
                     hitObject.Kind == HitObjectKind.Hold
@@ -35,7 +114,7 @@ public static class ManiaBeatmapModTransformer
                 .ToArray();
         }
 
-        int laneCount = (int)original.KeyMode;
+        int laneCount = (int)keyMode;
         int[]? laneMap = null;
 
         if (mods.Contains(ManiaModId.Random))
@@ -70,8 +149,38 @@ public static class ManiaBeatmapModTransformer
             }).ToArray();
         }
 
-        return ReferenceEquals(hitObjects, original.HitObjects)
-            ? original
-            : original with { HitObjects = hitObjects };
+        YokkoBeatmap structurallyApplied =
+            ReferenceEquals(hitObjects, original.HitObjects)
+            && keyMode == original.KeyMode
+                ? original
+                : original with
+                {
+                    KeyMode = keyMode,
+                    HitObjects = hitObjects,
+                    StageCount = stageCount,
+                };
+        if (!mods.Contains(ManiaModId.DifficultyAdjust))
+            return structurallyApplied;
+
+        return new YokkoBeatmap(
+            structurallyApplied.Title,
+            structurallyApplied.Artist,
+            structurallyApplied.Creator,
+            structurallyApplied.DifficultyName,
+            structurallyApplied.KeyMode,
+            structurallyApplied.SourceFormat,
+            structurallyApplied.TimingPoints,
+            structurallyApplied.AudioPath,
+            structurallyApplied.HitObjects,
+            mods.EffectiveOverallDifficulty(
+                structurallyApplied.OverallDifficulty),
+            structurallyApplied.ScrollVelocities,
+            structurallyApplied.InitialScrollVelocity,
+            structurallyApplied.ScrollSpeedFactors,
+            structurallyApplied.ScrollProfiles,
+            mods.EffectiveDrainRate(
+                structurallyApplied.DrainRate),
+            structurallyApplied.ConversionSource,
+            structurallyApplied.StageCount);
     }
 }

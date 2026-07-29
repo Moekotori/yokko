@@ -14,7 +14,8 @@ The baseline is pinned so "parity" does not move during implementation:
   `osu.Game.Rulesets.Mania/ManiaRuleset.cs`
 - upstream licence: MIT
 
-The target catalogue contains 40 selectable entries:
+The target catalogue contains 39 user-selectable entries plus the import-only
+SV2 system marker:
 
 | Category | Target entries |
 | --- | --- |
@@ -22,7 +23,7 @@ The target catalogue contains 40 selectable entries:
 | Difficulty increase | HR, SD, PF, DT, NC, FI, HD, CO, FL, AC |
 | Conversion | RD, DS, MR, DA, CL, IN, CS, HO, 1K through 10K |
 | Automation | AT, CN |
-| Fun | WU, WD, MU, AD |
+| Fun | WU, WD, MU, AS |
 | System | SV2 |
 
 `OsuManiaModParityCatalog` records this target in `Yokko.Core`. It is
@@ -34,12 +35,60 @@ appear selectable until its complete behaviour is registered and tested.
 The currently selectable, behaviour-complete first slices are:
 
 - fixed rate: HT, DC, DT and NC at their upstream default rates;
-- conversion: MR, seeded RD and HO;
-- difficulty reduction: NR;
-- automation: AT.
+- conversion: MR, seeded RD, HO, IN, CL, CS, configurable DA, DS and
+  1K through 10K;
+- difficulty reduction: EZ, NF and NR;
+- difficulty increase: HR, SD, PF and configurable AC;
+- visibility: FI, HD, CO and FL at their upstream default settings;
+- automation: AT and CN;
+- audio: configurable MU;
+- dynamic rate: configurable WU, WD and AS.
 
 RD stores its seed in the canonical Mod fingerprint. Retry and in-memory replay
 playback therefore reproduce the same global lane permutation.
+FI/HD use the lazer-style dynamic 160–400/768 note cover, CO defaults to
+50% coverage, and FL uses a full-width 50-unit rectangular window. These Mods
+also adjust top ranks to SSH/SH.
+The gameplay health state follows Mania HP drain values per judgement. EZ
+halves HP difficulty, widens hit windows by 1.4x and restores full health for
+two extra lives; NF suppresses failure, while SD and PF use judgement-driven
+fail conditions.
+HR multiplies Mania hit-window difficulty by 1.4 and raises HP drain by 1.4
+up to 10. AC defaults to a 90% maximum-achievable-accuracy target and stores
+its 60.0%–99.9% threshold and accuracy mode in the canonical fingerprint.
+DA independently overrides HP and OD, supports lazer's extended HP 0–11 and
+Mania OD -15–15 limits, and remains incompatible with EZ/HR. CS switches the
+playfield to a constant time-based scroll and ignores BPM, SV, timing-group,
+and scroll-factor visual speed changes without changing judgement timing.
+IN replaces each lane's consecutive object locations with shortened holds,
+matching lazer's beat-length-aware gap rule. CN uses the same deterministic
+auto replay as AT while hiding the playfield, HUD, and judgement presentation.
+MU independently fades music, keysounds, and its generated metronome over
+500 ms. It supports normal or inverse muting, a 0–500 combo fade length,
+optional metronome, and optional keysound muting; all settings are included in
+the canonical Mod fingerprint.
+CL switches native Mania charts to the stable-era timing windows (including
+the fixed 16.5 ms MAX window). When the import-only SV2 marker is also present,
+modern lazer windows take precedence, matching upstream. SV2 is intentionally
+not exposed in Song Select because upstream marks it as non-user-playable.
+WU and WD linearly ramp between configurable 0.5×–2.0× endpoints and reach
+the final rate at 75% of the playable timeline. Music tempo/pitch, callback-side
+keysounds, frame/audio clocks, BPM/length display, and star-rating input all
+follow the live rate. The canonical fingerprint stores both endpoints and the
+pitch mode.
+AS starts at a configurable 0.5×–2.0× rate, derives its next target from the
+last eight accuracy-affecting results, slows misses by 5%, and damps toward the
+target with lazer's 50 ms half-time. Its live rate drives the same authoritative
+audio, keysound, input, frame-clock and HUD paths as WU/WD. Initial rate and
+pitch mode are part of the canonical fingerprint.
+Mode 0 osu!standard imports retain their original positioned circles, sliders,
+and spinners as a conversion source. The default target column count follows
+lazer's special-object-density, CS and OD rules. 1K–10K regenerate from that
+source, remain mutually exclusive, and do not alter native Mania charts. DS
+regenerates two stages and supports 2–20 total lanes; dual-stage input uses
+lazer's QWER/IOP and SDFG/JKL families, including the special 10K centre
+expansion. Song Select exposes these controls in a dedicated KEY page and
+states when the selected chart is already Mania-native.
 
 ## What "implemented" means
 
@@ -68,13 +117,11 @@ The current codebase already has strong foundations:
 
 The remaining parity blockers are structural:
 
-- `KeyMode` and gameplay bindings only support 4K and 7K;
-- gameplay has no health, fail, extra-life, Sudden Death, or Perfect state;
 - persisted replay files do not yet store a canonical Mod configuration;
-- the playfield has no visibility-effect pipeline;
-- Song Select still needs a full configuration overlay for adjustable Mods.
+- persisted UI preferences for configurable Mods are not yet stored globally.
 
-These blockers mean the 40 entries must not be enabled at once.
+These blockers mean the remaining conversion entries must not be enabled at
+once.
 
 ## Ownership and module boundaries
 
@@ -190,7 +237,7 @@ upstream incompatibilities:
 - fail condition: NF, SD, or PF;
 - main visibility mode: FI, HD, or CO;
 - automation: AT or CN;
-- variable rate: WU or WD, with AD handled by its upstream rate rules;
+- variable rate: WU, WD or AS;
 - key conversion: exactly one of 1K through 10K;
 - NR, HO, and IN restrictions around hold-note semantics.
 
@@ -212,12 +259,12 @@ This stage ships with no fake selectable Mods.
 
 ### Stage 1: deterministic rules and transformations
 
-Start with Mods that do not require audio-rate or health infrastructure:
+The deterministic conversion layer now includes:
 
 - MR and seeded RD;
 - HO and NR;
 - CS and supported visibility behaviour;
-- DA where it only adjusts already-supported Mania accuracy rules.
+- DA for HP and Mania OD, including extended limits.
 
 Each transformation operates on a copied beatmap and has pure Core tests.
 
@@ -231,12 +278,12 @@ Visual tests must cover both built-in and imported osu!mania skins.
 
 ### Stage 3: health and fail contract
 
-Introduce one Core-owned Mania health state, then implement:
+The Core-owned, judgement-driven Mania health state implements:
 
 - NF;
 - EZ, including its extra-life behaviour rather than only wider windows;
-- HR;
 - SD and PF;
+- HR;
 - AC.
 
 Health must be frame-rate independent and driven by judgement events.
@@ -249,7 +296,7 @@ clock, then implement:
 - HT and DC;
 - DT and NC;
 - WU and WD;
-- AD;
+- AS;
 - MU.
 
 The visual timeline, judgement time, star rating, replay, and audio clock must
@@ -262,6 +309,10 @@ variants stay explicit.
 - generalise Core and gameplay from the current 4K/7K enum to 1K through 10K;
 - add 1K through 10K conversion;
 - add DS after single-stage key modes are stable.
+
+These structural items are now implemented. Further converter work should
+continue to close object-pattern edge cases against the pinned lazer corpus,
+especially complex repeat sliders and sample-driven chord generation.
 
 This is intentionally later because key-count conversion affects bindings,
 skins, imports, playfield layout, replays, and score identity together.

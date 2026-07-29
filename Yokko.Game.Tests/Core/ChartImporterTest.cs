@@ -19,6 +19,7 @@ namespace Yokko.Game.Tests.Core
             Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".osu"));
             Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".osz"));
             Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".qua"));
+            Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".qp"));
             Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".mc"));
             Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".mcz"));
             Assert.That(KnownChartImporters.FileExtensions, Does.Contain(".sm"));

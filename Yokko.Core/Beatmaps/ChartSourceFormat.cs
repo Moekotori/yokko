@@ -4,6 +4,7 @@ public enum ChartSourceFormat
 {
     Yokko,
     OsuMania,
+    OsuStandard,
     Malody,
     Quaver,
     Etterna,

@@ -5,7 +5,7 @@ namespace Yokko.Audio.Native;
 
 internal static partial class NativeAudioInterop
 {
-    internal const uint AbiVersion = 5;
+    internal const uint AbiVersion = 7;
     internal const string LibraryName = "yokko_audio_native";
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_abi_version")]
@@ -49,6 +49,28 @@ internal static partial class NativeAudioInterop
         float* samples,
         uint frameCount,
         out uint sampleId);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_register_metronome_sample_f32")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static unsafe partial NativeAudioResult RegisterMetronomeSampleFloat32(
+        NativeAudioSafeHandle engine,
+        float* samples,
+        uint frameCount,
+        out uint sampleId);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_set_mix_volumes")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult SetMixVolumes(
+        NativeAudioSafeHandle engine,
+        float musicVolume,
+        float hitSoundVolume,
+        float metronomeVolume);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_set_sample_playback_rate")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult SetSamplePlaybackRate(
+        NativeAudioSafeHandle engine,
+        float playbackRate);
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_trigger_sample")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]

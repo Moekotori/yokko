@@ -7,15 +7,89 @@ namespace Yokko.Import.Quaver;
 public sealed class QuaverChartImporter : IChartImporter
 {
     public ChartImportCapability Capability { get; } =
-        new(ChartSourceFormat.Quaver, "Quaver", [".qua"], true, false);
+        new(ChartSourceFormat.Quaver, "Quaver", [".qua", ".qp"], true, false);
 
     public bool CanImport(string path)
-        => string.Equals(Path.GetExtension(path), ".qua", StringComparison.OrdinalIgnoreCase);
+    {
+        string extension = Path.GetExtension(path);
+        return extension.Equals(".qua", StringComparison.OrdinalIgnoreCase)
+               || extension.Equals(".qp", StringComparison.OrdinalIgnoreCase);
+    }
 
     public ValueTask<ChartImportResult> ImportAsync(ChartImportRequest request)
     {
         request.CancellationToken.ThrowIfCancellationRequested();
-        ParsedQua parsed = parse(File.ReadAllLines(request.Path));
+        if (Path.GetExtension(request.Path).Equals(
+                ".qp",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            IReadOnlyList<ChartImportResult> results =
+                ImportAllAsync(request).AsTask().GetAwaiter().GetResult();
+            ChartImportResult result = results[0];
+            IReadOnlyList<string> warnings = results.Count > 1
+                ? [$"This .qp contains {results.Count} charts; imported {result.Beatmap.DifficultyName}.", .. result.Warnings]
+                : result.Warnings;
+            return ValueTask.FromResult(result with { Warnings = warnings });
+        }
+
+        return ValueTask.FromResult(importChartFile(request.Path));
+    }
+
+    public ValueTask<IReadOnlyList<ChartImportResult>> ImportAllAsync(
+        ChartImportRequest request)
+    {
+        request.CancellationToken.ThrowIfCancellationRequested();
+        if (!Path.GetExtension(request.Path).Equals(
+                ".qp",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return ValueTask.FromResult<IReadOnlyList<ChartImportResult>>(
+                [importChartFile(request.Path)]);
+        }
+
+        IReadOnlyList<string> charts =
+            ChartArchive.ExtractCharts(request.Path, ".qua");
+        var results = new List<ChartImportResult>();
+        var failures = new List<Exception>();
+
+        foreach (string chart in charts)
+        {
+            request.CancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                results.Add(importChartFile(chart));
+            }
+            catch (InvalidDataException ex)
+            {
+                failures.Add(ex);
+            }
+        }
+
+        if (results.Count == 0)
+        {
+            throw new InvalidDataException(
+                "The .qp package does not contain a supported 4K/7K Quaver chart.",
+                failures.FirstOrDefault());
+        }
+
+        if (failures.Count > 0)
+        {
+            string warning =
+                $"Skipped {failures.Count} unsupported chart{(failures.Count == 1 ? string.Empty : "s")} in this .qp package.";
+            for (int i = 0; i < results.Count; i++)
+                results[i] = results[i] with
+                {
+                    Warnings = [warning, .. results[i].Warnings],
+                };
+        }
+
+        return ValueTask.FromResult<IReadOnlyList<ChartImportResult>>(results);
+    }
+
+    private static ChartImportResult importChartFile(string path)
+    {
+        ParsedQua parsed = parse(File.ReadAllLines(path));
         var warnings = new List<string>();
 
         KeyMode keyMode = parsed.Mode.ToUpperInvariant() switch
@@ -109,14 +183,17 @@ public sealed class QuaverChartImporter : IChartImporter
             keyMode,
             ChartSourceFormat.Quaver,
             timingPoints,
-            ImportParsing.ResolveAdjacentAsset(request.Path, parsed.Values.GetValueOrDefault("AudioFile")),
+            ImportParsing.ResolveAdjacentAsset(path, parsed.Values.GetValueOrDefault("AudioFile")),
             hitObjects,
             ScrollVelocities: defaultProfile.ScrollVelocities,
             InitialScrollVelocity: defaultProfile.InitialScrollVelocity,
             ScrollSpeedFactors: defaultProfile.ScrollSpeedFactors,
             ScrollProfiles: scrollProfiles);
 
-        return ValueTask.FromResult(new ChartImportResult(beatmap, warnings));
+        string? artworkPath = ImportParsing.ResolveAdjacentAsset(
+            path,
+            parsed.Values.GetValueOrDefault("BackgroundFile"));
+        return new ChartImportResult(beatmap, warnings, artworkPath);
     }
 
     private static ParsedQua parse(IEnumerable<string> lines)

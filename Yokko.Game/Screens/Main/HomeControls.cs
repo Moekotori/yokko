@@ -46,7 +46,16 @@ public partial class HomePrimaryAction : ClickableContainer
     private readonly SpriteIcon chevron;
     private readonly Box shine;
 
-    public HomePrimaryAction(LocalisableString title, LocalisableString eyebrow, IconUsage icon, Action action)
+    public HomePrimaryAction(
+        LocalisableString title,
+        LocalisableString eyebrow,
+        IconUsage icon,
+        Action action,
+        float iconTileSize = 72,
+        float iconTileX = 30,
+        float iconSize = 31,
+        float iconTileY = 0,
+        float contentX = 133)
     {
         Action = action;
         Size = new Vector2(520, 120);
@@ -125,9 +134,9 @@ public partial class HomePrimaryAction : ClickableContainer
                     {
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.CentreLeft,
-                        X = 33,
-                        Y = 4,
-                        Size = new Vector2(72),
+                        X = iconTileX + 3,
+                        Y = iconTileY + 4,
+                        Size = new Vector2(iconTileSize),
                         Masking = true,
                         CornerRadius = 9,
                         Child = new Box
@@ -140,8 +149,9 @@ public partial class HomePrimaryAction : ClickableContainer
                     {
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.CentreLeft,
-                        X = 30,
-                        Size = new Vector2(72),
+                        X = iconTileX,
+                        Y = iconTileY,
+                        Size = new Vector2(iconTileSize),
                         Masking = true,
                         CornerRadius = 9,
                         BorderThickness = 2,
@@ -157,7 +167,7 @@ public partial class HomePrimaryAction : ClickableContainer
                             {
                                 Anchor = Anchor.Centre,
                                 Origin = Anchor.Centre,
-                                Size = new Vector2(31),
+                                Size = new Vector2(iconSize),
                                 Icon = icon,
                                 Colour = HomeControlColours.Navy,
                             },
@@ -165,7 +175,7 @@ public partial class HomePrimaryAction : ClickableContainer
                     },
                     new FillFlowContainer
                     {
-                        X = 133,
+                        X = contentX,
                         Y = 25,
                         AutoSizeAxes = Axes.Both,
                         Direction = FillDirection.Vertical,

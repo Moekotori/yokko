@@ -9,6 +9,7 @@ using osu.Framework.Graphics.Textures;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
 using Yokko.Game.Presentation;
@@ -37,6 +38,11 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly Sprite stageHintSprite;
     private readonly float baseStageHintHeight;
     private readonly OsuManiaSkinOverlay skinOverlay;
+    private readonly ManiaModSet mods;
+    private readonly bool receptorAtBottom;
+    private readonly ManiaNoteVisibilityCover noteVisibilityCover;
+    private readonly ManiaFlashlightOverlay flashlightOverlay;
+    private ManiaVisibilityPolicy visibilityPolicy;
 
     internal float ScrollOrigin => topY;
 
@@ -48,61 +54,111 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     internal int ActiveDrawableNoteCount => noteLayer.Count;
 
+    internal int LastHoldRangeNodeVisits { get; private set; }
+
+    internal int KeyCount => laneColumns.Length;
+
     internal DrawableNote GetDrawableNote(int index) => noteDrawables[index];
+
+    internal double GetNoteStartScrollPosition(int index) =>
+        noteUpdateStates[index].StartPosition;
+
+    internal ManiaVisibilityPolicy VisibilityPolicy => visibilityPolicy;
+
+    internal bool ConstantSpeedEnabled =>
+        mods.Contains(ManiaModId.ConstantSpeed);
 
     internal GameplayPlayfield(
         YokkoBeatmap beatmap,
         KeyModeBindings keyBindings,
         OsuManiaSkin skin = null,
         double approachTimeMilliseconds = 1800,
-        bool showLanePressFeedback = true)
+        bool showLanePressFeedback = true,
+        ManiaModSet mods = null)
     {
+        this.mods = mods ?? ManiaModSet.Empty;
         this.approachTimeMilliseconds = approachTimeMilliseconds;
-        var defaultScrollVelocityMap = new ScrollVelocityMap(
-            beatmap.ScrollVelocities,
-            beatmap.InitialScrollVelocity);
+        bool constantSpeed =
+            this.mods.Contains(ManiaModId.ConstantSpeed);
+        var defaultScrollVelocityMap = constantSpeed
+            ? new ScrollVelocityMap(null)
+            : new ScrollVelocityMap(
+                beatmap.ScrollVelocities,
+                beatmap.InitialScrollVelocity);
         var defaultScrollSpeedFactorMap = new ScrollSpeedFactorMap(
-            beatmap.ScrollSpeedFactors);
+            constantSpeed ? null : beatmap.ScrollSpeedFactors);
         Dictionary<string, (ScrollVelocityMap Velocity, ScrollSpeedFactorMap Factor)>
-            profileMaps = beatmap.ScrollProfiles.ToDictionary(
-                static pair => pair.Key,
-                static pair => (
-                    new ScrollVelocityMap(
-                        pair.Value.ScrollVelocities,
-                        pair.Value.InitialScrollVelocity),
-                    new ScrollSpeedFactorMap(
-                        pair.Value.ScrollSpeedFactors)),
-                StringComparer.Ordinal);
+            profileMaps = constantSpeed
+                ? new Dictionary<
+                    string,
+                    (ScrollVelocityMap Velocity,
+                        ScrollSpeedFactorMap Factor)>(
+                    StringComparer.Ordinal)
+                : beatmap.ScrollProfiles.ToDictionary(
+                    static pair => pair.Key,
+                    static pair => (
+                        new ScrollVelocityMap(
+                            pair.Value.ScrollVelocities,
+                            pair.Value.InitialScrollVelocity),
+                        new ScrollSpeedFactorMap(
+                            pair.Value.ScrollSpeedFactors)),
+                    StringComparer.Ordinal);
         int keyCount = keyBindings.KeyCount;
-        OsuManiaSkinConfiguration configuration = skin?.Configuration;
-        float playfieldWidth = configuration?.PlayfieldWidth ?? (keyCount == 4 ? 424 : 658);
-        float laneWidth = skin == null ? playfieldWidth / keyCount : 0;
+        OsuManiaSkin activeSkin = beatmap.StageCount == 1
+            ? skin
+            : null;
+        OsuManiaSkinConfiguration configuration =
+            activeSkin?.Configuration;
+        const float dualStageGap = 24;
+        int keysPerStage = beatmap.KeysPerStage;
+        float defaultStageWidth = keysPerStage switch
+        {
+            4 => 424,
+            7 => 658,
+            _ => 94 * keysPerStage,
+        };
+        float playfieldWidth = configuration?.PlayfieldWidth
+                               ?? defaultStageWidth
+                               * beatmap.StageCount
+                               + (beatmap.StageCount - 1)
+                               * dualStageGap;
+        float laneWidth = activeSkin == null
+            ? defaultStageWidth / keysPerStage
+            : 0;
         basePlayfieldWidth = playfieldWidth;
         baseLaneXs = new float[keyCount];
         baseNoteXs = new float[beatmap.HitObjects.Count];
 
-        topY = skin == null
+        topY = activeSkin == null
             ? 28
             : configuration.UpsideDown ? 480 : 0;
-        judgementY = skin == null
+        judgementY = activeSkin == null
             ? 528
             : configuration.UpsideDown
                 ? 480 - Math.Clamp(configuration.HitPosition, 0, 480)
                 : Math.Clamp(configuration.HitPosition, 0, 480);
-        Size = new Vector2(playfieldWidth, skin == null ? 620 : 480);
+        receptorAtBottom = configuration?.UpsideDown != true;
+        Size = new Vector2(
+            playfieldWidth,
+            activeSkin == null ? 620 : 480);
         Masking = true;
 
         laneColumns = Enumerable.Range(0, keyCount)
                                 .Select(lane =>
                                 {
                                     float width = configuration?.ColumnWidths[lane] ?? laneWidth;
-                                    float x = configuration?.GetLaneX(lane) ?? lane * laneWidth;
+                                    float x = configuration?.GetLaneX(lane)
+                                              ?? lane * laneWidth
+                                              + (beatmap.StageCount == 2
+                                                 && lane >= keysPerStage
+                                                  ? dualStageGap
+                                                  : 0);
                                     baseLaneXs[lane] = x;
                                     var column = new LaneColumn(
                                         lane,
                                         keyBindings.GetDisplayKey(lane),
                                         width,
-                                        skin,
+                                        activeSkin,
                                         showLanePressFeedback)
                                     {
                                         X = x,
@@ -116,9 +172,15 @@ public partial class GameplayPlayfield : CompositeDrawable
         noteDrawables = beatmap.HitObjects.Select((hitObject, index) =>
         {
             float width = configuration?.ColumnWidths[hitObject.Lane] ?? laneWidth - 16;
-            float x = configuration?.GetLaneX(hitObject.Lane) ?? hitObject.Lane * laneWidth + 8;
+            float x = configuration?.GetLaneX(hitObject.Lane)
+                      ?? hitObject.Lane * laneWidth
+                      + (beatmap.StageCount == 2
+                         && hitObject.Lane >= keysPerStage
+                          ? dualStageGap
+                          : 0)
+                      + 8;
             baseNoteXs[index] = x;
-            return new DrawableNote(index, hitObject, width, skin)
+            return new DrawableNote(index, hitObject, width, activeSkin)
             {
                 X = x,
                 Alpha = 0,
@@ -191,25 +253,31 @@ public partial class GameplayPlayfield : CompositeDrawable
         }
 
         noteUpdateGroups = updateGroups
-                           .Select(pair => new NoteUpdateGroup(
-                               pair.Key.Velocity,
-                               pair.Key.Factor,
-                               pair.Value.ToArray(),
-                               pair.Value
-                                   .Where(index =>
-                                       beatmap.HitObjects[index].Kind
-                                       == HitObjectKind.Tap)
-                                   .OrderBy(index =>
-                                       noteUpdateStates[index].StartPosition)
-                                   .ToArray(),
-                               pair.Value
+                           .Select(pair =>
+                           {
+                               int[] holdIndices = pair.Value
                                    .Where(index =>
                                        beatmap.HitObjects[index].Kind
                                        == HitObjectKind.Hold)
-                                   .OrderBy(index =>
-                                       noteUpdateStates[index]
-                                           .PathRange.Minimum)
-                                   .ToArray()))
+                                   .ToArray();
+                               return new NoteUpdateGroup(
+                                   pair.Key.Velocity,
+                                   pair.Key.Factor,
+                                   pair.Value.ToArray(),
+                                   pair.Value
+                                       .Where(index =>
+                                           beatmap.HitObjects[index].Kind
+                                           == HitObjectKind.Tap)
+                                       .OrderBy(index =>
+                                           noteUpdateStates[index]
+                                               .StartPosition)
+                                       .ToArray(),
+                                   new ScrollRangeIndex(
+                                       holdIndices.Select(index => (
+                                           index,
+                                           noteUpdateStates[index]
+                                               .PathRange))));
+                           })
                            .ToArray();
 
         var laneBackgroundLayer = new Container
@@ -227,6 +295,17 @@ public partial class GameplayPlayfield : CompositeDrawable
             RelativeSizeAxes = Axes.Both,
             Children = noteDrawables,
         };
+        visibilityPolicy =
+            ManiaVisibilityPolicyResolver.Resolve(this.mods, 0);
+        Drawable noteContent = noteLayer;
+        if (visibilityPolicy.Mode is ManiaVisibilityMode.FadeIn
+            or ManiaVisibilityMode.Hidden
+            or ManiaVisibilityMode.Cover)
+        {
+            noteContent = noteVisibilityCover =
+                new ManiaNoteVisibilityCover(noteLayer);
+            applyVisibilityPolicy();
+        }
         var children = new System.Collections.Generic.List<Drawable>
         {
             new Box
@@ -236,19 +315,34 @@ public partial class GameplayPlayfield : CompositeDrawable
             },
             laneBackgroundLayer,
         };
+        if (beatmap.StageCount == 2)
+        {
+            children.Add(new Box
+            {
+                X = defaultStageWidth,
+                Width = dualStageGap,
+                RelativeSizeAxes = Axes.Y,
+                Colour = new Color4(
+                    YokkoPalette.Cyan.R,
+                    YokkoPalette.Cyan.G,
+                    YokkoPalette.Cyan.B,
+                    0.18f),
+            });
+        }
 
         if (configuration?.KeysUnderNotes == true)
         {
             children.Add(receptorLayer);
-            children.Add(noteLayer);
+            children.Add(noteContent);
         }
         else
         {
-            children.Add(noteLayer);
+            children.Add(noteContent);
             children.Add(receptorLayer);
         }
 
-        Texture stageHint = skin?.GetTexture(configuration.StageHint);
+        Texture stageHint =
+            activeSkin?.GetTexture(configuration.StageHint);
 
         if (stageHint != null)
         {
@@ -271,13 +365,13 @@ public partial class GameplayPlayfield : CompositeDrawable
             children.Add(new Box
             {
                 RelativeSizeAxes = Axes.X,
-                Height = skin == null ? 4 : 1,
+                Height = activeSkin == null ? 4 : 1,
                 Y = judgementY,
                 Colour = configuration?.ColumnLineColour ?? YokkoPalette.Rose,
             });
         }
 
-        if (skin == null)
+        if (activeSkin == null)
         {
             children.Add(new Box
             {
@@ -289,7 +383,18 @@ public partial class GameplayPlayfield : CompositeDrawable
         }
         else
         {
-            children.Add(skinOverlay = new OsuManiaSkinOverlay(skin));
+            children.Add(
+                skinOverlay = new OsuManiaSkinOverlay(activeSkin));
+        }
+
+        if (visibilityPolicy.Mode == ManiaVisibilityMode.Flashlight)
+        {
+            children.Add(flashlightOverlay =
+                new ManiaFlashlightOverlay(
+                    visibilityPolicy.FlashlightSize)
+                {
+                    Depth = float.MinValue,
+                });
         }
 
         InternalChildren = children.ToArray();
@@ -373,6 +478,10 @@ public partial class GameplayPlayfield : CompositeDrawable
     public void UpdateGameplayTime(double gameplayTimeMilliseconds, BeatmapJudgementState state)
     {
         skinOverlay?.SetCombo(state.Combo);
+        visibilityPolicy =
+            ManiaVisibilityPolicyResolver.Resolve(mods, state.Combo);
+        applyVisibilityPolicy();
+        LastHoldRangeNodeVisits = 0;
 
         foreach (int index in visibleNoteIndices)
             visibleThisFrame[index] = false;
@@ -440,16 +549,15 @@ public partial class GameplayPlayfield : CompositeDrawable
                     currentPosition);
             }
 
-            foreach (int index in group.HoldIndices)
+            group.HoldCandidates.Clear();
+            LastHoldRangeNodeVisits +=
+                group.HoldRangeIndex.CollectOverlapping(
+                    minimumVisiblePosition,
+                    maximumVisiblePosition,
+                    group.HoldCandidates);
+
+            foreach (int index in group.HoldCandidates)
             {
-                ScrollPositionRange range =
-                    noteUpdateStates[index].PathRange;
-                if (range.Minimum > maximumVisiblePosition)
-                    break;
-
-                if (range.Maximum < minimumVisiblePosition)
-                    continue;
-
                 updateVisibleNote(
                     index,
                     gameplayTimeMilliseconds,
@@ -471,6 +579,27 @@ public partial class GameplayPlayfield : CompositeDrawable
 
         (visibleNoteIndices, nextVisibleNoteIndices) =
             (nextVisibleNoteIndices, visibleNoteIndices);
+    }
+
+    private void applyVisibilityPolicy()
+    {
+        if (noteVisibilityCover != null)
+        {
+            bool againstScroll =
+                visibilityPolicy.CoverDirection
+                == ManiaCoverDirection.AgainstScroll;
+            bool coversReceptor =
+                againstScroll;
+            bool coversBottom = coversReceptor
+                ? receptorAtBottom
+                : !receptorAtBottom;
+            noteVisibilityCover.SetCoverage(
+                visibilityPolicy.Coverage,
+                coversBottom);
+        }
+
+        flashlightOverlay?.SetWindowSize(
+            visibilityPolicy.FlashlightSize);
     }
 
     private int lowerBoundTap(
@@ -562,10 +691,24 @@ public partial class GameplayPlayfield : CompositeDrawable
         double EndPosition,
         ScrollPositionRange PathRange);
 
-    private sealed record NoteUpdateGroup(
-        ScrollVelocityMap Velocity,
-        ScrollSpeedFactorMap Factor,
-        int[] AllIndices,
-        int[] TapIndices,
-        int[] HoldIndices);
+    private sealed class NoteUpdateGroup(
+        ScrollVelocityMap velocity,
+        ScrollSpeedFactorMap factor,
+        int[] allIndices,
+        int[] tapIndices,
+        ScrollRangeIndex holdRangeIndex)
+    {
+        internal ScrollVelocityMap Velocity { get; } = velocity;
+
+        internal ScrollSpeedFactorMap Factor { get; } = factor;
+
+        internal int[] AllIndices { get; } = allIndices;
+
+        internal int[] TapIndices { get; } = tapIndices;
+
+        internal ScrollRangeIndex HoldRangeIndex { get; } =
+            holdRangeIndex;
+
+        internal List<int> HoldCandidates { get; } = new();
+    }
 }

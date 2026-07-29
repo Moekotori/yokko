@@ -74,6 +74,155 @@ public sealed class ManiaBeatmapModTransformerTest
         });
     }
 
+    [Test]
+    public void DifficultyAdjustCopiesDifficultyWithoutMutatingSource()
+    {
+        YokkoBeatmap original = createBeatmap();
+        YokkoBeatmap transformed =
+            ManiaBeatmapModTransformer.Apply(
+                original,
+                ManiaModSet.Empty.WithDifficultyAdjust(
+                    8.5,
+                    9.2,
+                    false));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(transformed, Is.Not.SameAs(original));
+            Assert.That(transformed.DrainRate, Is.EqualTo(8.5));
+            Assert.That(
+                transformed.OverallDifficulty,
+                Is.EqualTo(9.2));
+            Assert.That(original.DrainRate, Is.EqualTo(5));
+            Assert.That(original.OverallDifficulty, Is.EqualTo(5));
+        });
+    }
+
+    [Test]
+    public void InvertCreatesHoldsBetweenConsecutiveLaneLocations()
+    {
+        YokkoBeatmap original = createBeatmap();
+        YokkoBeatmap transformed =
+            ManiaBeatmapModTransformer.Apply(
+                original,
+                new ManiaModSet([ManiaModId.Invert]));
+
+        YokkoHitObject laneOne =
+            transformed.HitObjects.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(laneOne.Lane, Is.EqualTo(1));
+            Assert.That(
+                laneOne.StartTimeMilliseconds,
+                Is.EqualTo(1100));
+            Assert.That(
+                laneOne.EndTimeMilliseconds,
+                Is.EqualTo(1875));
+            Assert.That(laneOne.Kind, Is.EqualTo(HitObjectKind.Hold));
+            Assert.That(original.HitObjects.Count, Is.EqualTo(5));
+        });
+    }
+
+    [Test]
+    public void KeyModsRegenerateOnlyNonManiaConversionSources()
+    {
+        var source = new ManiaConversionSource(
+            4,
+            8,
+            9,
+            6,
+            [
+                new ManiaConversionHitObject(
+                    0,
+                    1000,
+                    1000,
+                    ManiaConversionObjectKind.Circle),
+                new ManiaConversionHitObject(
+                    256,
+                    1100,
+                    1100,
+                    ManiaConversionObjectKind.Circle),
+                new ManiaConversionHitObject(
+                    511,
+                    1200,
+                    1200,
+                    ManiaConversionObjectKind.Circle),
+            ]);
+        YokkoBeatmap convertedSource = createBeatmap() with
+        {
+            SourceFormat = ChartSourceFormat.OsuStandard,
+            ConversionSource = source,
+        };
+
+        YokkoBeatmap fourKey = ManiaBeatmapModTransformer.Apply(
+            convertedSource,
+            ManiaModSet.Empty.With(ManiaModId.Key4, true));
+        YokkoBeatmap nativeMania = ManiaBeatmapModTransformer.Apply(
+            createBeatmap(),
+            ManiaModSet.Empty.With(ManiaModId.Key7, true));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fourKey.KeyMode, Is.EqualTo(KeyMode.FourKey));
+            Assert.That(
+                fourKey.HitObjects.Select(hitObject => hitObject.Lane),
+                Is.EqualTo(new[] { 0, 2, 3 }));
+            Assert.That(
+                nativeMania.KeyMode,
+                Is.EqualTo(KeyMode.FourKey),
+                "lazer does not apply key Mods to Mania-specific charts");
+            Assert.That(
+                nativeMania.HitObjects,
+                Is.EqualTo(createBeatmap().HitObjects));
+        });
+    }
+
+    [Test]
+    public void DualStagesRegeneratesTwoLazerStages()
+    {
+        var source = new ManiaConversionSource(
+            4,
+            8,
+            9,
+            6,
+            [
+                new ManiaConversionHitObject(
+                    32,
+                    1000,
+                    1000,
+                    ManiaConversionObjectKind.Circle),
+                new ManiaConversionHitObject(
+                    480,
+                    1100,
+                    1100,
+                    ManiaConversionObjectKind.Circle),
+            ]);
+        YokkoBeatmap original = createBeatmap() with
+        {
+            SourceFormat = ChartSourceFormat.OsuStandard,
+            ConversionSource = source,
+        };
+        ManiaModSet mods = ManiaModSet.Empty
+            .With(ManiaModId.Key7, true)
+            .With(ManiaModId.DualStages, true);
+
+        YokkoBeatmap transformed =
+            ManiaBeatmapModTransformer.Apply(original, mods);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                transformed.KeyMode,
+                Is.EqualTo(KeyMode.FourteenKey));
+            Assert.That(transformed.StageCount, Is.EqualTo(2));
+            Assert.That(transformed.KeysPerStage, Is.EqualTo(7));
+            Assert.That(
+                transformed.HitObjects.All(hitObject =>
+                    hitObject.Lane is >= 0 and < 14),
+                Is.True);
+        });
+    }
+
     private static YokkoBeatmap createBeatmap() => new(
         "Mods",
         "Yokko",

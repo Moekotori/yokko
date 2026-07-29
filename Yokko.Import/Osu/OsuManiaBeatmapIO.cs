@@ -3,6 +3,7 @@ using System.Text;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Editing;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Mods;
 using Yokko.Core.Timing;
 
 namespace Yokko.Import.Osu;
@@ -10,6 +11,8 @@ namespace Yokko.Import.Osu;
 public static class OsuManiaBeatmapIO
 {
     private const int hitCircleType = 1;
+    private const int sliderType = 2;
+    private const int spinnerType = 8;
     private const int holdType = 128;
 
     public static EditableBeatmap ReadEditableFromFile(string path)
@@ -52,25 +55,85 @@ public static class OsuManiaBeatmapIO
         Dictionary<string, string> metadata = parseKeyValueSection(sections, "Metadata");
         Dictionary<string, string> difficulty = parseKeyValueSection(sections, "Difficulty");
 
-        if (general.TryGetValue("Mode", out string? mode) && mode.Trim() != "3")
-            throw new InvalidDataException("Only osu!mania beatmaps (Mode: 3) are supported.");
-
-        int keyCount = parseInt(difficulty.GetValueOrDefault("CircleSize"), 4);
-        KeyMode keyMode = keyCount switch
+        string mode = general.GetValueOrDefault("Mode", "0").Trim();
+        if (mode is not "0" and not "3")
         {
-            4 => KeyMode.FourKey,
-            7 => KeyMode.SevenKey,
-            _ => throw new InvalidDataException($"Unsupported osu!mania key count: {keyCount}."),
-        };
+            throw new InvalidDataException(
+                $"Only osu!standard (Mode: 0) and osu!mania (Mode: 3) beatmaps are supported; received Mode: {mode}.");
+        }
 
-        List<YokkoHitObject> hitObjects = parseHitObjects(sections.GetValueOrDefault("HitObjects") ?? [], keyCount);
         List<YokkoTimingPoint> timingPoints = parseTimingPoints(sections.GetValueOrDefault("TimingPoints") ?? []);
-        ScrollVelocityProfile scrollVelocity =
-            ScrollVelocityConversion.FromOsu(timingPoints, hitObjects);
         double overallDifficulty =
             parseDouble(
                 difficulty.GetValueOrDefault("OverallDifficulty"),
                 5);
+        if (!double.IsFinite(overallDifficulty)
+            || overallDifficulty is < 0 or > 10)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(overallDifficulty),
+                "osu!mania source OD must be between 0 and 10.");
+        }
+        double drainRate =
+            parseDouble(
+                difficulty.GetValueOrDefault("HPDrainRate"),
+                5);
+        double circleSize =
+            parseDouble(difficulty.GetValueOrDefault("CircleSize"), 4);
+        double approachRate =
+            parseDouble(
+                difficulty.GetValueOrDefault("ApproachRate"),
+                overallDifficulty);
+        ManiaConversionSource? conversionSource = null;
+        int keyCount;
+        int stageCount = 1;
+        List<YokkoHitObject> hitObjects;
+        ChartSourceFormat sourceFormat;
+        if (mode == "3")
+        {
+            keyCount = (int)Math.Round(circleSize);
+            if (keyCount is < 1 or > 20
+                || keyCount > 10 && keyCount % 2 != 0)
+            {
+                throw new InvalidDataException(
+                    $"Unsupported osu!mania key count: {keyCount}. Expected 1-10K or an even dual-stage 12-20K.");
+            }
+            stageCount = keyCount > 10 ? 2 : 1;
+
+            hitObjects = parseHitObjects(
+                sections.GetValueOrDefault("HitObjects") ?? [],
+                keyCount);
+            sourceFormat = ChartSourceFormat.OsuMania;
+        }
+        else
+        {
+            validateStandardDifficulty(circleSize, nameof(circleSize));
+            validateStandardDifficulty(approachRate, nameof(approachRate));
+            conversionSource = new ManiaConversionSource(
+                circleSize,
+                overallDifficulty,
+                approachRate,
+                drainRate,
+                parseStandardHitObjects(
+                    sections.GetValueOrDefault("HitObjects") ?? [],
+                    timingPoints,
+                    parseDouble(
+                        difficulty.GetValueOrDefault("SliderMultiplier"),
+                        1.4)));
+            keyCount =
+                OsuStandardManiaConverter.DetermineDefaultColumnCount(
+                    conversionSource);
+            hitObjects = OsuStandardManiaConverter
+                         .Convert(
+                             conversionSource,
+                             keyCount,
+                             timingPoints)
+                         .ToList();
+            sourceFormat = ChartSourceFormat.OsuStandard;
+        }
+        KeyMode keyMode = (KeyMode)keyCount;
+        ScrollVelocityProfile scrollVelocity =
+            ScrollVelocityConversion.FromOsu(timingPoints, hitObjects);
 
         return new YokkoBeatmap(
             preferredMetadataValue(metadata, "TitleUnicode", "Title", "Untitled"),
@@ -78,13 +141,16 @@ public static class OsuManiaBeatmapIO
             metadata.GetValueOrDefault("Creator", "Unknown Creator"),
             metadata.GetValueOrDefault("Version", $"{keyCount}K"),
             keyMode,
-            ChartSourceFormat.OsuMania,
+            sourceFormat,
             timingPoints.Count == 0 ? [YokkoTimingPoint.Default] : timingPoints,
             general.GetValueOrDefault("AudioFilename"),
             hitObjects,
             overallDifficulty,
             scrollVelocity.Changes,
-            scrollVelocity.InitialMultiplier);
+            scrollVelocity.InitialMultiplier,
+            DrainRate: drainRate,
+            ConversionSource: conversionSource,
+            StageCount: stageCount);
     }
 
     private static string preferredMetadataValue(
@@ -146,7 +212,7 @@ public static class OsuManiaBeatmapIO
         builder.AppendLine("BeatmapSetID:-1");
         builder.AppendLine();
         builder.AppendLine("[Difficulty]");
-        builder.AppendLine($"HPDrainRate:{keyCount}");
+        builder.AppendLine($"HPDrainRate:{formatDouble(beatmap.DrainRate)}");
         builder.AppendLine($"CircleSize:{keyCount}");
         builder.AppendLine($"OverallDifficulty:{formatDouble(beatmap.OverallDifficulty)}");
         builder.AppendLine("ApproachRate:5");
@@ -277,6 +343,134 @@ public static class OsuManiaBeatmapIO
         });
 
         return hitObjects;
+    }
+
+    private static IReadOnlyList<ManiaConversionHitObject>
+        parseStandardHitObjects(
+            IReadOnlyList<string> lines,
+            IReadOnlyList<YokkoTimingPoint> timingPoints,
+            double sliderMultiplier)
+    {
+        if (!double.IsFinite(sliderMultiplier)
+            || sliderMultiplier <= 0)
+        {
+            throw new InvalidDataException(
+                "osu!standard SliderMultiplier must be positive.");
+        }
+
+        var hitObjects = new List<ManiaConversionHitObject>();
+        foreach (string line in lines)
+        {
+            if (line.StartsWith("//", StringComparison.Ordinal))
+                continue;
+
+            string[] parts = line.Split(',');
+            if (parts.Length < 5)
+                continue;
+
+            double x = Math.Clamp(parseDouble(parts[0], 0), 0, 512);
+            double y = Math.Clamp(parseDouble(parts[1], 192), 0, 384);
+            double startTime = parseDouble(parts[2], 0);
+            int type = parseInt(parts[3], 0);
+            int hitSound = parseInt(parts[4], 0);
+            if ((type & hitCircleType) != 0)
+            {
+                hitObjects.Add(new ManiaConversionHitObject(
+                    x,
+                    startTime,
+                    startTime,
+                    ManiaConversionObjectKind.Circle,
+                    hitSound,
+                    Y: y));
+                continue;
+            }
+
+            if ((type & sliderType) != 0 && parts.Length >= 8)
+            {
+                int spanCount = Math.Max(1, parseInt(parts[6], 1));
+                double pixelLength = Math.Max(0, parseDouble(parts[7], 0));
+                double endTime = startTime
+                                 + sliderDuration(
+                                     startTime,
+                                     pixelLength,
+                                     spanCount,
+                                     sliderMultiplier,
+                                     timingPoints);
+                hitObjects.Add(new ManiaConversionHitObject(
+                    x,
+                    startTime,
+                    endTime,
+                    ManiaConversionObjectKind.Slider,
+                    hitSound,
+                    spanCount,
+                    y));
+                continue;
+            }
+
+            if ((type & spinnerType) != 0 && parts.Length >= 6)
+            {
+                hitObjects.Add(new ManiaConversionHitObject(
+                    256,
+                    startTime,
+                    Math.Max(startTime, parseDouble(parts[5], startTime)),
+                    ManiaConversionObjectKind.Spinner,
+                    hitSound,
+                    Y: 192));
+            }
+        }
+
+        return hitObjects
+               .OrderBy(static hitObject =>
+                   hitObject.StartTimeMilliseconds)
+               .ThenBy(static hitObject => hitObject.X)
+               .ToArray();
+    }
+
+    private static double sliderDuration(
+        double startTime,
+        double pixelLength,
+        int spanCount,
+        double sliderMultiplier,
+        IReadOnlyList<YokkoTimingPoint> timingPoints)
+    {
+        YokkoTimingPoint timing = timingPoints
+                                  .Where(point =>
+                                      point.Uninherited
+                                      && point.TimeMilliseconds
+                                      <= startTime)
+                                  .LastOrDefault()
+                                  ?? timingPoints
+                                     .FirstOrDefault(static point =>
+                                         point.Uninherited)
+                                  ?? YokkoTimingPoint.Default;
+        YokkoTimingPoint? inherited = timingPoints
+                                      .Where(point =>
+                                          !point.Uninherited
+                                          && point.TimeMilliseconds
+                                          <= startTime)
+                                      .LastOrDefault();
+        double velocity = inherited == null
+            ? 1
+            : Math.Clamp(
+                -100 / inherited.BeatLengthMilliseconds,
+                0.1,
+                10);
+        return pixelLength
+               / (sliderMultiplier * 100 * velocity)
+               * timing.BeatLengthMilliseconds
+               * spanCount;
+    }
+
+    private static void validateStandardDifficulty(
+        double value,
+        string name)
+    {
+        if (!double.IsFinite(value) || value is < 0 or > 10)
+        {
+            throw new ArgumentOutOfRangeException(
+                name,
+                "osu!standard difficulty values must be between 0 and 10.");
+        }
     }
 
     private static List<YokkoTimingPoint> parseTimingPoints(IReadOnlyList<string> lines)

@@ -1,0 +1,281 @@
+using System;
+using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Sprites;
+using osu.Framework.Input.Events;
+using osuTK;
+using osuTK.Graphics;
+using Yokko.Core.Mods;
+using Yokko.Game.Screens.Main;
+
+namespace Yokko.Game.Screens.SongSelect;
+
+internal partial class SongSelectAccuracyChallengeSettings
+    : CompositeDrawable
+{
+    private readonly SpriteText valueText;
+    private readonly SpriteText statusText;
+    private readonly AccuracySlider slider;
+    private readonly ModeButton maximumButton;
+    private readonly ModeButton standardButton;
+    private bool enabled;
+
+    internal double MinimumAccuracy { get; private set; } = 0.9;
+    internal ManiaAccuracyMode Mode { get; private set; } =
+        ManiaAccuracyMode.MaximumAchievable;
+
+    public SongSelectAccuracyChallengeSettings(
+        Action<double> minimumChanged,
+        Action<ManiaAccuracyMode> modeChanged)
+    {
+        Size = new Vector2(202, 224);
+
+        InternalChildren = new Drawable[]
+        {
+            new SpriteText
+            {
+                Text = "ACCURACY CHALLENGE",
+                Font = HomeTypography.Display(12),
+                Spacing = new Vector2(0.35f, 0),
+                Colour = SongSelectTheme.Ivory,
+            },
+            new SpriteText
+            {
+                Y = 24,
+                Text = "MINIMUM ACCURACY",
+                Font = HomeTypography.Body(10),
+                Colour = SongSelectTheme.Muted,
+            },
+            valueText = new SpriteText
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Y = 19,
+                Font = HomeTypography.Display(19),
+                Colour = SongSelectTheme.Yellow,
+            },
+            slider = new AccuracySlider(minimumChanged)
+            {
+                Y = 50,
+            },
+            new SpriteText
+            {
+                Y = 85,
+                Text = "60.0%",
+                Font = HomeTypography.Body(9),
+                Colour = SongSelectTheme.Muted,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Y = 85,
+                Text = "99.9%",
+                Font = HomeTypography.Body(9),
+                Colour = SongSelectTheme.Muted,
+            },
+            new Box
+            {
+                Y = 108,
+                Size = new Vector2(202, 1),
+                Colour = new Color4(
+                    SongSelectTheme.Cyan.R,
+                    SongSelectTheme.Cyan.G,
+                    SongSelectTheme.Cyan.B,
+                    0.25f),
+            },
+            new SpriteText
+            {
+                Y = 122,
+                Text = "JUDGE AGAINST",
+                Font = HomeTypography.Body(10),
+                Colour = SongSelectTheme.Muted,
+            },
+            maximumButton = new ModeButton(
+                "MAX POSSIBLE",
+                () => modeChanged(
+                    ManiaAccuracyMode.MaximumAchievable))
+            {
+                Position = new Vector2(0, 145),
+            },
+            standardButton = new ModeButton(
+                "CURRENT",
+                () => modeChanged(ManiaAccuracyMode.Standard))
+            {
+                Position = new Vector2(105, 145),
+            },
+            statusText = new SpriteText
+            {
+                Y = 195,
+                Font = HomeTypography.Body(10),
+                Colour = SongSelectTheme.Cyan,
+            },
+        };
+
+        SetState(
+            false,
+            0.9,
+            ManiaAccuracyMode.MaximumAchievable);
+    }
+
+    public void SetState(
+        bool isEnabled,
+        double minimumAccuracy,
+        ManiaAccuracyMode mode)
+    {
+        enabled = isEnabled;
+        MinimumAccuracy = minimumAccuracy;
+        Mode = mode;
+
+        valueText.Text = $"{minimumAccuracy * 100:0.0}%";
+        slider.SetState(isEnabled, minimumAccuracy);
+        maximumButton.SetState(
+            isEnabled,
+            mode == ManiaAccuracyMode.MaximumAchievable);
+        standardButton.SetState(
+            isEnabled,
+            mode == ManiaAccuracyMode.Standard);
+        statusText.Text = isEnabled
+            ? mode == ManiaAccuracyMode.MaximumAchievable
+                ? $"FAIL BELOW REACHABLE {minimumAccuracy * 100:0.0}%"
+                : $"FAIL BELOW CURRENT {minimumAccuracy * 100:0.0}%"
+            : "SELECT AC TO CONFIGURE";
+        this.ClearTransforms();
+        this.FadeTo(isEnabled ? 1 : 0.42f, 120, Easing.OutQuint);
+    }
+
+    private partial class AccuracySlider : CompositeDrawable
+    {
+        private const double minimum = 0.6;
+        private const double maximum = 0.999;
+        private const float trackWidth = 202;
+        private readonly Action<double> changed;
+        private readonly Box fill;
+        private readonly Circle knob;
+        private bool enabled;
+
+        public AccuracySlider(Action<double> changed)
+        {
+            this.changed = changed;
+            Size = new Vector2(trackWidth, 28);
+            InternalChildren = new Drawable[]
+            {
+                new Box
+                {
+                    Y = 11,
+                    Size = new Vector2(trackWidth, 5),
+                    Colour = new Color4(
+                        SongSelectTheme.Navy.R,
+                        SongSelectTheme.Navy.G,
+                        SongSelectTheme.Navy.B,
+                        0.9f),
+                },
+                fill = new Box
+                {
+                    Y = 11,
+                    Height = 5,
+                    Colour = SongSelectTheme.Pink,
+                },
+                knob = new Circle
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.Centre,
+                    Y = 2,
+                    Size = new Vector2(14),
+                    Colour = SongSelectTheme.Ivory,
+                    BorderThickness = 2.5f,
+                    BorderColour = SongSelectTheme.Pink,
+                },
+            };
+        }
+
+        public void SetState(bool isEnabled, double value)
+        {
+            enabled = isEnabled;
+            double progress =
+                Math.Clamp((value - minimum) / (maximum - minimum), 0, 1);
+            float x = (float)(progress * trackWidth);
+            fill.Width = x;
+            knob.X = x;
+        }
+
+        protected override bool OnMouseDown(MouseDownEvent e)
+        {
+            updateFrom(e.ScreenSpaceMousePosition);
+            return true;
+        }
+
+        protected override bool OnDragStart(DragStartEvent e) => enabled;
+
+        protected override void OnDrag(DragEvent e) =>
+            updateFrom(e.ScreenSpaceMousePosition);
+
+        private void updateFrom(Vector2 screenPosition)
+        {
+            if (!enabled)
+                return;
+
+            double progress = Math.Clamp(
+                ToLocalSpace(screenPosition).X / trackWidth,
+                0,
+                1);
+            double value = Math.Round(
+                minimum + progress * (maximum - minimum),
+                3);
+            changed(value);
+        }
+    }
+
+    private partial class ModeButton : ClickableContainer
+    {
+        private readonly Box background;
+        private readonly SpriteText label;
+        private bool enabled;
+
+        public ModeButton(string text, Action action)
+        {
+            Action = () =>
+            {
+                if (enabled)
+                    action();
+            };
+            Size = new Vector2(97, 38);
+            Masking = true;
+            CornerRadius = 5;
+            BorderThickness = 1.5f;
+            InternalChildren = new Drawable[]
+            {
+                background = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                },
+                label = new SpriteText
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Text = text,
+                    Font = HomeTypography.Display(10),
+                },
+            };
+        }
+
+        public void SetState(bool isEnabled, bool selected)
+        {
+            enabled = isEnabled;
+            BorderColour = selected
+                ? SongSelectTheme.Yellow
+                : SongSelectTheme.Cyan;
+            background.Colour = selected
+                ? SongSelectTheme.Pink
+                : new Color4(
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.72f);
+            label.Colour = selected
+                ? SongSelectTheme.DeepNavy
+                : SongSelectTheme.PaleCyan;
+        }
+    }
+}

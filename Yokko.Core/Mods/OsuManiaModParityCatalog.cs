@@ -76,7 +76,7 @@ public static class OsuManiaModParityCatalog
         mod(
             ManiaModId.AdaptiveSpeed,
             "adaptive-speed",
-            "AD",
+            "AS",
             "Adaptive Speed",
             ManiaModCategory.Fun),
 

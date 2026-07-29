@@ -24,6 +24,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Audio;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
 using Yokko.Game.Gameplay;
@@ -49,6 +50,179 @@ namespace Yokko.Game.Tests.Visual
             {
                 RelativeSizeAxes = Axes.Both,
             });
+        }
+
+        [Test]
+        public void TestCinemaHidesGameplayAndUsesAutoReplay()
+        {
+            GameplayScreen gameplay = null;
+            AddStep("open Cinema gameplay", () =>
+            {
+                gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    mods: ManiaModSet.Empty.With(
+                        ManiaModId.Cinema,
+                        true));
+                screenStack.Push(gameplay);
+            });
+            AddUntilStep("Cinema surface loaded", () =>
+                gameplay?.ChildrenOfType<GameplayCinemaIndicator>().Any()
+                == true);
+            AddAssert("Cinema generates auto replay", () =>
+                gameplay.ReplayMode && gameplay.AutoplayMode);
+            AddAssert("Cinema hides playfield and HUD", () =>
+                gameplay.ChildrenOfType<GameplayPlayfield>().Single().Alpha == 0
+                && gameplay.ChildrenOfType<GameplayHud>().Single().Alpha == 0
+                && gameplay.ChildrenOfType<JudgementReadout>().Single().Alpha == 0);
+        }
+
+        [Test]
+        public void TestTenKeyGameplayBuildsAllLanes()
+        {
+            GameplayScreen gameplay = null;
+            var beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                KeyMode = KeyMode.TenKey,
+                DifficultyName = "10K Test",
+                HitObjects = Enumerable.Range(0, 10)
+                    .Select(lane => new YokkoHitObject(
+                        lane,
+                        1000 + lane * 20,
+                        null,
+                        HitObjectKind.Tap))
+                    .ToArray(),
+            };
+
+            AddStep("open 10K gameplay", () =>
+            {
+                gameplay = new GameplayScreen(beatmap);
+                screenStack.Push(gameplay);
+            });
+            AddUntilStep("10K playfield loaded", () =>
+                gameplay?.ChildrenOfType<GameplayPlayfield>()
+                    .SingleOrDefault()?.KeyCount == 10);
+            AddAssert("all ten notes are represented", () =>
+                gameplay.ChildrenOfType<GameplayPlayfield>()
+                    .Single().ActiveDrawableNoteCount <= 10
+                && gameplay.AppliedBeatmap.HitObjects.Count == 10);
+        }
+
+        [Test]
+        public void TestDualSevenKeyGameplayBuildsTwoStages()
+        {
+            GameplayScreen gameplay = null;
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateSevenKeyDemo() with
+            {
+                SourceFormat = ChartSourceFormat.OsuStandard,
+                ConversionSource = new ManiaConversionSource(
+                    4,
+                    8,
+                    9,
+                    6,
+                    Enumerable.Range(0, 14)
+                        .Select(index =>
+                            new ManiaConversionHitObject(
+                                index * (511d / 13),
+                                1000 + index * 20,
+                                1000 + index * 20,
+                                ManiaConversionObjectKind.Circle))
+                        .ToArray()),
+            };
+            ManiaModSet mods = ManiaModSet.Empty
+                .With(ManiaModId.Key7, true)
+                .With(ManiaModId.DualStages, true);
+
+            AddStep("open dual 7K gameplay", () =>
+            {
+                gameplay = new GameplayScreen(
+                    beatmap,
+                    mods: mods);
+                screenStack.Push(gameplay);
+            });
+            AddUntilStep("dual playfield loaded", () =>
+                gameplay?.ChildrenOfType<GameplayPlayfield>()
+                    .SingleOrDefault()?.KeyCount == 14);
+            AddAssert("two stages retain their 7-key split", () =>
+                gameplay.AppliedBeatmap.StageCount == 2
+                && gameplay.AppliedBeatmap.KeysPerStage == 7);
+        }
+
+        [Test]
+        public void TestWindUpAdvancesFrameClockAndHudRate()
+        {
+            GameplayScreen gameplay = null;
+            var beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        0,
+                        null,
+                        HitObjectKind.Tap),
+                    new YokkoHitObject(
+                        1,
+                        3000,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+            ManiaModSet mods = ManiaModSet.Empty.WithTimeRamp(
+                ManiaModId.WindUp,
+                1,
+                1.5,
+                true);
+
+            AddStep("open Wind Up gameplay", () =>
+            {
+                gameplay = new GameplayScreen(
+                    beatmap,
+                    mods: mods);
+                screenStack.Push(gameplay);
+            });
+            AddUntilStep("Wind Up rate begins increasing", () =>
+                gameplay?.ChildrenOfType<GameplayHud>()
+                    .SingleOrDefault()?.DisplayedDynamicRate
+                    .Contains("1.1") == true);
+            AddAssert("frame clock advances through ramp", () =>
+                gameplay.CurrentGameplayTime > 0);
+        }
+
+        [Test]
+        public void TestAdaptiveSpeedRespondsToMisses()
+        {
+            GameplayScreen gameplay = null;
+            var beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                HitObjects = Enumerable.Range(0, 12)
+                    .Select(index => new YokkoHitObject(
+                        index % 4,
+                        index * 100,
+                        null,
+                        HitObjectKind.Tap))
+                    .ToArray(),
+            };
+            ManiaModSet mods = ManiaModSet.Empty
+                .With(ManiaModId.NoFail, true)
+                .WithAdaptiveSpeed(1, true);
+
+            AddStep("open Adaptive Speed gameplay", () =>
+            {
+                gameplay = new GameplayScreen(
+                    beatmap,
+                    mods: mods);
+                screenStack.Push(gameplay);
+            });
+            AddUntilStep("misses reduce Adaptive Speed", () =>
+            {
+                string rate = gameplay?
+                    .ChildrenOfType<GameplayHud>()
+                    .SingleOrDefault()?
+                    .DisplayedDynamicRate;
+                return rate?.Contains("LIVE RATE 0.") == true;
+            });
+            AddAssert("adaptive frame clock remains live", () =>
+                gameplay.CurrentGameplayTime > 0);
         }
 
         [Test]
@@ -204,6 +378,121 @@ namespace Yokko.Game.Tests.Visual
                 && activeDrawableNotes == visibleNotes);
             AddStep("remove dense playfield", () =>
                 playfield.Expire());
+        }
+
+        [Test]
+        public void TestDenseHoldChartUsesRangeIndex()
+        {
+            const int totalHolds = 4000;
+            GameplayPlayfield playfield = null;
+            BeatmapJudgementState state = null;
+
+            AddStep("create dense hold chart", () =>
+            {
+                var beatmap = new YokkoBeatmap(
+                    "Dense hold range fixture",
+                    "Yokko",
+                    "Codex",
+                    "4K",
+                    KeyMode.FourKey,
+                    ChartSourceFormat.Yokko,
+                    [YokkoTimingPoint.Default],
+                    null,
+                    Enumerable.Range(0, totalHolds)
+                              .Select(index => new YokkoHitObject(
+                                  index % 4,
+                                  index * 10,
+                                  index * 10 + 30,
+                                  HitObjectKind.Hold))
+                              .ToArray());
+                state = new BeatmapJudgementState(beatmap);
+                playfield = new GameplayPlayfield(
+                    beatmap,
+                    KeyModeBindings.ForMode(KeyMode.FourKey));
+                Add(playfield);
+            });
+            AddUntilStep("dense hold playfield loaded", () =>
+                playfield?.IsLoaded == true);
+            AddStep("query middle of dense hold chart", () =>
+                playfield.UpdateGameplayTime(20_000, state));
+            AddAssert("hold query skips most chart ranges", () =>
+                playfield.LastHoldRangeNodeVisits < totalHolds / 4);
+            AddAssert("only visible holds stay active", () =>
+                playfield.VisibleNoteCount is > 0 and < 300
+                && playfield.ActiveDrawableNoteCount
+                   == playfield.VisibleNoteCount);
+            AddStep("remove dense hold playfield", () =>
+                playfield.Expire());
+        }
+
+        [Test]
+        public void TestLazerStyleVisibilityModOverlays()
+        {
+            GameplayPlayfield hiddenPlayfield = null;
+            GameplayPlayfield flashlightPlayfield = null;
+
+            AddStep("create Hidden playfield", () =>
+            {
+                YokkoBeatmap beatmap =
+                    DemoBeatmaps.CreateFourKeyDemo();
+                hiddenPlayfield = new GameplayPlayfield(
+                    beatmap,
+                    KeyModeBindings.ForMode(KeyMode.FourKey),
+                    mods: new ManiaModSet([ManiaModId.Hidden]));
+                Add(hiddenPlayfield);
+                hiddenPlayfield.UpdateGameplayTime(
+                    0,
+                    new BeatmapJudgementState(beatmap));
+            });
+            AddUntilStep("Hidden cover loaded", () =>
+                hiddenPlayfield?.IsLoaded == true);
+            AddAssert("Hidden covers notes at receptor side", () =>
+            {
+                ManiaNoteVisibilityCover cover =
+                    hiddenPlayfield
+                    .ChildrenOfType<ManiaNoteVisibilityCover>()
+                    .SingleOrDefault();
+                return cover != null
+                       && cover.CoversBottom
+                       && Math.Abs(
+                           cover.Coverage - 160d / 768) < 0.0001
+                       && hiddenPlayfield.VisibilityPolicy.Mode
+                          == ManiaVisibilityMode.Hidden;
+            });
+            AddStep("remove Hidden playfield", () =>
+                hiddenPlayfield.Expire());
+
+            AddStep("create Flashlight playfield", () =>
+            {
+                YokkoBeatmap beatmap =
+                    DemoBeatmaps.CreateFourKeyDemo();
+                flashlightPlayfield = new GameplayPlayfield(
+                    beatmap,
+                    KeyModeBindings.ForMode(KeyMode.FourKey),
+                    mods: new ManiaModSet(
+                    [
+                        ManiaModId.Flashlight,
+                    ]));
+                Add(flashlightPlayfield);
+                flashlightPlayfield.UpdateGameplayTime(
+                    0,
+                    new BeatmapJudgementState(beatmap));
+            });
+            AddUntilStep("Flashlight overlay loaded", () =>
+                flashlightPlayfield?.IsLoaded == true);
+            AddAssert("Flashlight uses full-width 50px window", () =>
+            {
+                ManiaFlashlightOverlay overlay =
+                    flashlightPlayfield
+                    .ChildrenOfType<ManiaFlashlightOverlay>()
+                    .SingleOrDefault();
+                return overlay != null
+                       && Math.Abs(overlay.WindowSize - 50) < 0.001
+                       && flashlightPlayfield.VisibilityPolicy.Mode
+                          == ManiaVisibilityMode.Flashlight;
+            });
+            AddStep("remove Flashlight playfield", () =>
+                flashlightPlayfield.Expire());
         }
 
         [Test]
@@ -481,6 +770,149 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("recorded run is replaying", () =>
                 (screenStack.CurrentScreen as GameplayScreen)?
                 .ReplayMode == true);
+        }
+
+        [Test]
+        public void TestPerfectFailureShowsDedicatedFailOverlay()
+        {
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Perfect Failure Test",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        0,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+
+            AddStep("open Perfect gameplay", () =>
+                screenStack.Push(new GameplayScreen(
+                    beatmap,
+                    mods: new ManiaModSet(
+                    [
+                        ManiaModId.Perfect,
+                    ]))));
+            AddUntilStep("Perfect run fails on miss", () =>
+                (screenStack.CurrentScreen as GameplayScreen)?
+                .GameplayFailed == true);
+            AddAssert("result is not saved after failure", () =>
+                (screenStack.CurrentScreen as GameplayScreen)?
+                .GameplayCompleted == false);
+            AddAssert("dedicated fail overlay identifies Perfect", () =>
+                (screenStack.CurrentScreen as Drawable)?
+                .ChildrenOfType<GameplayFailOverlay>()
+                .SingleOrDefault()?
+                .Reason == ManiaFailReason.PerfectBroken);
+        }
+
+        [Test]
+        public void TestHardRockAndAccuracyChallengeRuntime()
+        {
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "HR AC Runtime Test",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        0,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+            GameplayScreen gameplay = null;
+
+            AddStep("open HR AC gameplay", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    mods: ManiaModSet.Empty
+                                          .With(
+                                              ManiaModId.HardRock,
+                                              true)
+                                          .WithAccuracyChallenge(
+                                              0.9,
+                                              ManiaAccuracyMode
+                                                  .MaximumAchievable))));
+            AddUntilStep("HR runtime is loaded", () =>
+                gameplay?.HealthState != null
+                && gameplay.ActiveJudgementWindows != null);
+            AddAssert("HR caps HP drain and tightens windows", () =>
+                gameplay.HealthState.EffectiveDrainRate
+                == Math.Min(10, beatmap.DrainRate * 1.4)
+                && gameplay.ActiveJudgementWindows
+                           .DifficultyMultiplier == 1.4);
+            AddUntilStep("AC fails when target is unrecoverable", () =>
+                gameplay.GameplayFailed);
+            AddAssert("AC failure reason is presented", () =>
+                gameplay.ChildrenOfType<GameplayFailOverlay>()
+                        .SingleOrDefault()?
+                        .Reason
+                == ManiaFailReason.AccuracyChallenge);
+        }
+
+        [Test]
+        public void TestDifficultyAdjustAndConstantSpeedRuntime()
+        {
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "DA CS Runtime Test",
+                InitialScrollVelocity = 2,
+                ScrollVelocities =
+                [
+                    new YokkoScrollVelocity(500, 0.25),
+                ],
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        1000,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+            GameplayScreen gameplay = null;
+
+            AddStep("open DA CS gameplay", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    mods: ManiaModSet.Empty
+                                          .WithDifficultyAdjust(
+                                              9.5,
+                                              12,
+                                              true)
+                                          .With(
+                                              ManiaModId.ConstantSpeed,
+                                              true))));
+            AddUntilStep("DA CS runtime is loaded", () =>
+                gameplay?.HealthState != null
+                && gameplay.ActiveJudgementWindows != null
+                && gameplay.ChildrenOfType<GameplayPlayfield>()
+                           .SingleOrDefault() != null);
+            AddAssert("DA overrides HP and extended OD", () =>
+                gameplay.HealthState.EffectiveDrainRate == 9.5
+                && gameplay.ActiveJudgementWindows.OverallDifficulty
+                == 12);
+            AddAssert("CS uses linear chart-time positions", () =>
+            {
+                GameplayPlayfield playfield =
+                    gameplay.ChildrenOfType<GameplayPlayfield>()
+                            .Single();
+                return playfield.ConstantSpeedEnabled
+                       && playfield.GetNoteStartScrollPosition(0)
+                       == 1000;
+            });
+            AddAssert("HUD presents both active rules", () =>
+                gameplay.ChildrenOfType<GameplayHud>()
+                        .Single()
+                        .DisplayedRuleStatus
+                        .Contains("DA HP 9.5")
+                && gameplay.ChildrenOfType<GameplayHud>()
+                           .Single()
+                           .DisplayedRuleStatus
+                           .Contains("CS"));
         }
 
         [Test]

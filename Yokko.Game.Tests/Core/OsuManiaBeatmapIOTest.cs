@@ -25,6 +25,7 @@ namespace Yokko.Game.Tests.Core
             Assert.That(beatmap.DifficultyName, Is.EqualTo("4K"));
             Assert.That(beatmap.KeyMode, Is.EqualTo(KeyMode.FourKey));
             Assert.That(beatmap.OverallDifficulty, Is.EqualTo(8));
+            Assert.That(beatmap.DrainRate, Is.EqualTo(6));
             Assert.That(beatmap.AudioPath, Is.EqualTo("audio.mp3"));
             Assert.That(beatmap.TimingPoints, Has.Count.EqualTo(3));
             Assert.That(beatmap.TimingPoints[0].BeatLengthMilliseconds, Is.EqualTo(500));
@@ -43,6 +44,71 @@ namespace Yokko.Game.Tests.Core
             Assert.That(beatmap.HitObjects[1].Kind, Is.EqualTo(HitObjectKind.Hold));
             Assert.That(beatmap.HitObjects[1].EndTimeMilliseconds, Is.EqualTo(1750));
             Assert.That(beatmap.HitObjects[2].Lane, Is.EqualTo(3));
+        }
+
+        [TestCase(1, KeyMode.OneKey, 1)]
+        [TestCase(6, KeyMode.SixKey, 1)]
+        [TestCase(10, KeyMode.TenKey, 1)]
+        [TestCase(12, KeyMode.TwelveKey, 2)]
+        [TestCase(14, KeyMode.FourteenKey, 2)]
+        [TestCase(20, KeyMode.TwentyKey, 2)]
+        public void ReadsFullLazerManiaKeyRange(
+            int keyCount,
+            KeyMode expectedMode,
+            int expectedStageCount)
+        {
+            string source = sampleOsu.Replace(
+                "CircleSize:4",
+                $"CircleSize:{keyCount}");
+            YokkoBeatmap beatmap =
+                OsuManiaBeatmapIO.ReadBeatmap(source);
+
+            Assert.That(beatmap.KeyMode, Is.EqualTo(expectedMode));
+            Assert.That(
+                beatmap.StageCount,
+                Is.EqualTo(expectedStageCount));
+            Assert.That(
+                beatmap.HitObjects.All(hitObject =>
+                    hitObject.Lane >= 0
+                    && hitObject.Lane < keyCount),
+                Is.True);
+        }
+
+        [Test]
+        public void ReadsAndRetainsOsuStandardConversionSource()
+        {
+            YokkoBeatmap beatmap =
+                OsuManiaBeatmapIO.ReadBeatmap(sampleStandard);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    beatmap.SourceFormat,
+                    Is.EqualTo(ChartSourceFormat.OsuStandard));
+                Assert.That(
+                    beatmap.KeyMode,
+                    Is.EqualTo(KeyMode.SevenKey),
+                    "lazer defaults low-special-object standard maps to 7K");
+                Assert.That(beatmap.ConversionSource, Is.Not.Null);
+                Assert.That(
+                    beatmap.ConversionSource!.HitObjects,
+                    Has.Count.EqualTo(5));
+                Assert.That(
+                    beatmap.ConversionSource.HitObjects[2].Kind,
+                    Is.EqualTo(ManiaConversionObjectKind.Slider));
+                Assert.That(
+                    beatmap.ConversionSource.HitObjects[2]
+                           .EndTimeMilliseconds,
+                    Is.EqualTo(1500).Within(0.001));
+                Assert.That(
+                    beatmap.HitObjects.Count,
+                    Is.GreaterThanOrEqualTo(5),
+                    "legacy conversion may expand circles into chords");
+                Assert.That(
+                    beatmap.HitObjects.All(hitObject =>
+                        hitObject.Lane is >= 0 and < 7),
+                    Is.True);
+            });
         }
 
         [TestCase("NaN")]
@@ -71,7 +137,9 @@ namespace Yokko.Game.Tests.Core
             Assert.That(exported, Does.Contain("CircleSize:4"));
             Assert.That(reparsed.KeyMode, Is.EqualTo(KeyMode.FourKey));
             Assert.That(reparsed.OverallDifficulty, Is.EqualTo(editable.OverallDifficulty));
+            Assert.That(reparsed.DrainRate, Is.EqualTo(editable.DrainRate));
             Assert.That(exported, Does.Contain("OverallDifficulty:8"));
+            Assert.That(exported, Does.Contain("HPDrainRate:6"));
             Assert.That(reparsed.HitObjects, Has.Count.EqualTo(3));
             Assert.That(reparsed.HitObjects[1].Kind, Is.EqualTo(HitObjectKind.Hold));
             Assert.That(reparsed.HitObjects[1].EndTimeMilliseconds, Is.EqualTo(1750));
@@ -247,6 +315,7 @@ Creator:Mapper
 Version:4K
 
 [Difficulty]
+HPDrainRate:6
 CircleSize:4
 OverallDifficulty:8
 
@@ -258,6 +327,38 @@ OverallDifficulty:8
 [HitObjects]
 64,192,1000,1,0,0:0:0:0:
 192,192,1500,128,0,1750:0:0:0:0:
+448,192,2000,1,0,0:0:0:0:
+""";
+
+        private const string sampleStandard = """
+osu file format v14
+
+[General]
+AudioFilename: audio.mp3
+Mode: 0
+
+[Metadata]
+Title:Standard Source
+Artist:Test Artist
+Creator:Mapper
+Version:Insane
+
+[Difficulty]
+HPDrainRate:6
+CircleSize:4
+OverallDifficulty:8
+ApproachRate:9
+SliderMultiplier:1.4
+
+[TimingPoints]
+0,500,4,2,0,100,1,0
+1000,-50,4,2,0,80,0,0
+
+[HitObjects]
+64,192,500,1,0,0:0:0:0:
+192,192,750,1,0,0:0:0:0:
+256,192,1000,2,0,B|320:192,2,140
+384,192,1750,1,0,0:0:0:0:
 448,192,2000,1,0,0:0:0:0:
 """;
     }

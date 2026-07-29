@@ -185,7 +185,8 @@ namespace yokko::audio
     yokko_audio_result AudioEngine::register_sample(
         const float* samples,
         const uint32_t frame_count,
-        uint32_t& sample_id) noexcept
+        uint32_t& sample_id,
+        const bool metronome) noexcept
     {
         sample_id = 0;
         if (samples == nullptr || frame_count == 0
@@ -207,6 +208,7 @@ namespace yokko::audio
             for (float& sample : registered.pcm)
                 sample = sanitise_sample(sample);
             registered.frame_count = frame_count;
+            registered.metronome = metronome;
             sample_bank_.push_back(std::move(registered));
             sample_id = static_cast<uint32_t>(sample_bank_.size());
             return YOKKO_AUDIO_OK;
@@ -219,6 +221,39 @@ namespace yokko::audio
         {
             return YOKKO_AUDIO_INTERNAL_ERROR;
         }
+    }
+
+    yokko_audio_result AudioEngine::set_mix_volumes(
+        const float music_volume,
+        const float hit_sound_volume,
+        const float metronome_volume) noexcept
+    {
+        if (!std::isfinite(music_volume)
+            || !std::isfinite(hit_sound_volume)
+            || !std::isfinite(metronome_volume)
+            || music_volume < 0.0f || music_volume > 1.0f
+            || hit_sound_volume < 0.0f || hit_sound_volume > 1.0f
+            || metronome_volume < 0.0f || metronome_volume > 1.0f)
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+
+        music_volume_.store(music_volume, std::memory_order_release);
+        hit_sound_volume_.store(hit_sound_volume, std::memory_order_release);
+        metronome_volume_.store(metronome_volume, std::memory_order_release);
+        return YOKKO_AUDIO_OK;
+    }
+
+    yokko_audio_result AudioEngine::set_sample_playback_rate(
+        const float playback_rate) noexcept
+    {
+        if (!std::isfinite(playback_rate)
+            || playback_rate < 0.25f
+            || playback_rate > 4.0f)
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+
+        sample_playback_rate_.store(
+            playback_rate,
+            std::memory_order_release);
+        return YOKKO_AUDIO_OK;
     }
 
     yokko_audio_result AudioEngine::trigger_sample(
@@ -275,6 +310,11 @@ namespace yokko::audio
             underrun_count_.fetch_add(1, std::memory_order_relaxed);
         }
 
+        const float music_volume =
+            music_volume_.load(std::memory_order_acquire);
+        for (size_t index = 0; index < rendered_sample_count; ++index)
+            output[index] *= music_volume;
+
         activate_pending_samples();
         mix_active_samples(output, frame_count);
         for (size_t index = 0; index < sample_count; ++index)
@@ -302,7 +342,7 @@ namespace yokko::audio
             SampleVoice& voice =
                 sample_voices_[next_sample_voice_ % sample_voice_capacity];
             voice.sample_id = sample_id;
-            voice.frame_offset = 0;
+            voice.frame_position = 0;
             next_sample_voice_++;
             read++;
         }
@@ -321,19 +361,44 @@ namespace yokko::audio
 
             const RegisteredSample& sample =
                 sample_bank_[voice.sample_id - 1];
-            const uint32_t remaining =
-                sample.frame_count - voice.frame_offset;
-            const uint32_t frames_to_mix = std::min(frame_count, remaining);
-            const size_t source_offset =
-                static_cast<size_t>(voice.frame_offset) * channels_;
-            const size_t samples_to_mix =
-                static_cast<size_t>(frames_to_mix) * channels_;
+            const float volume = sample.metronome
+                ? metronome_volume_.load(std::memory_order_acquire)
+                : hit_sound_volume_.load(std::memory_order_acquire);
+            const double playback_rate = sample.metronome
+                ? 1.0
+                : sample_playback_rate_.load(std::memory_order_acquire);
 
-            for (size_t index = 0; index < samples_to_mix; ++index)
-                output[index] += sample.pcm[source_offset + index];
+            for (uint32_t output_frame = 0;
+                 output_frame < frame_count
+                 && voice.frame_position < sample.frame_count;
+                 ++output_frame)
+            {
+                const uint32_t source_frame =
+                    static_cast<uint32_t>(voice.frame_position);
+                const uint32_t next_frame = std::min(
+                    source_frame + 1,
+                    sample.frame_count - 1);
+                const float fraction = static_cast<float>(
+                    voice.frame_position - source_frame);
+                for (uint32_t channel = 0; channel < channels_; ++channel)
+                {
+                    const float first =
+                        sample.pcm[
+                            static_cast<size_t>(source_frame) * channels_
+                            + channel];
+                    const float second =
+                        sample.pcm[
+                            static_cast<size_t>(next_frame) * channels_
+                            + channel];
+                    output[
+                        static_cast<size_t>(output_frame) * channels_
+                        + channel] +=
+                        (first + (second - first) * fraction) * volume;
+                }
+                voice.frame_position += playback_rate;
+            }
 
-            voice.frame_offset += frames_to_mix;
-            if (voice.frame_offset >= sample.frame_count)
+            if (voice.frame_position >= sample.frame_count)
                 voice = {};
         }
     }
@@ -686,6 +751,46 @@ extern "C"
             samples,
             frame_count,
             *sample_id);
+    }
+
+    yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_register_metronome_sample_f32(
+        yokko_audio_engine* engine,
+        const float* samples,
+        const uint32_t frame_count,
+        uint32_t* sample_id)
+    {
+        if (engine == nullptr || sample_id == nullptr)
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+
+        return engine->implementation.register_sample(
+            samples,
+            frame_count,
+            *sample_id,
+            true);
+    }
+
+    yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_set_mix_volumes(
+        yokko_audio_engine* engine,
+        const float music_volume,
+        const float hit_sound_volume,
+        const float metronome_volume)
+    {
+        return engine == nullptr
+                   ? YOKKO_AUDIO_INVALID_ARGUMENT
+                   : engine->implementation.set_mix_volumes(
+                       music_volume,
+                       hit_sound_volume,
+                       metronome_volume);
+    }
+
+    yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_set_sample_playback_rate(
+        yokko_audio_engine* engine,
+        const float playback_rate)
+    {
+        return engine == nullptr
+                   ? YOKKO_AUDIO_INVALID_ARGUMENT
+                   : engine->implementation.set_sample_playback_rate(
+                       playback_rate);
     }
 
     yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_trigger_sample(

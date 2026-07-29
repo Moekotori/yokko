@@ -3,7 +3,7 @@ using Yokko.Audio.Native;
 
 namespace Yokko.Audio;
 
-public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
+public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback, IAudioMixControl, IAudioRateControl
 {
     private const int outputChannels = 2;
     private const int decodeBlockFrames = 4096;
@@ -22,6 +22,14 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
     private NativeAudioOutputStatus outputStatus;
     private AudioEngineStatus status = stoppedStatus;
     private double playbackBaseMilliseconds;
+    private uint metronomeSampleId;
+    private double musicVolume = 1;
+    private double hitSoundVolume = 1;
+    private double metronomeVolume;
+    private readonly object rateClockLock = new();
+    private double currentPlaybackRate = 1;
+    private double rateClockOutputAnchorMilliseconds;
+    private double rateClockSourceAnchorMilliseconds;
     private bool disposed;
 
     public static bool IsAvailable => NativeAudioLibrary.IsAvailable;
@@ -89,10 +97,8 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
                         BackendError = native.BackendError,
                         BackendErrorStage = native.BackendErrorStage,
                     },
-                    ScalePlaybackTime(
-                        playbackBaseMilliseconds,
-                        native.PlaybackTimeMilliseconds,
-                        activeRequest?.PlaybackRate ?? 1));
+                    scaledPlaybackTime(
+                        native.PlaybackTimeMilliseconds));
             }
             catch (ObjectDisposedException)
             {
@@ -108,6 +114,21 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
 
     public double DurationMilliseconds =>
         source?.TotalTime.TotalMilliseconds ?? 0;
+
+    public double MusicVolume => musicVolume;
+
+    public double HitSoundVolume => hitSoundVolume;
+
+    public double MetronomeVolume => metronomeVolume;
+
+    public double PlaybackRate
+    {
+        get
+        {
+            lock (rateClockLock)
+                return currentPlaybackRate;
+        }
+    }
 
     public IReadOnlyList<AudioBackendCapabilities> Backends
         => SupportedBackends;
@@ -176,7 +197,8 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
                     () => DecodedAudioSource.Open(
                         audioPath,
                         request.PlaybackRate,
-                        request.PitchMode),
+                        request.PitchMode,
+                        request.DynamicPlaybackRate),
                     cancellationToken).ConfigureAwait(false);
             activeRequest = request with { AudioPath = audioPath ?? string.Empty };
             await startFromCurrentPositionAsync(cancellationToken)
@@ -273,6 +295,68 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
         {
             return false;
         }
+    }
+
+    public void SetMixVolumes(
+        double musicVolume,
+        double hitSoundVolume,
+        double metronomeVolume)
+    {
+        validateVolume(musicVolume, nameof(musicVolume));
+        validateVolume(hitSoundVolume, nameof(hitSoundVolume));
+        validateVolume(metronomeVolume, nameof(metronomeVolume));
+
+        this.musicVolume = musicVolume;
+        this.hitSoundVolume = hitSoundVolume;
+        this.metronomeVolume = metronomeVolume;
+        core?.SetMixVolumes(
+            (float)musicVolume,
+            (float)hitSoundVolume,
+            (float)metronomeVolume);
+    }
+
+    public bool TriggerMetronome()
+    {
+        NativeAudioCore? current = core;
+        if (current == null || metronomeSampleId == 0)
+            return false;
+
+        try
+        {
+            return current.TriggerSample(metronomeSampleId);
+        }
+        catch (Exception exception)
+            when (exception is ObjectDisposedException or NativeAudioException)
+        {
+            return false;
+        }
+    }
+
+    public void SetPlaybackRate(double playbackRate)
+    {
+        if (!double.IsFinite(playbackRate)
+            || playbackRate is < 0.25 or > 4)
+        {
+            throw new ArgumentOutOfRangeException(nameof(playbackRate));
+        }
+        if (activeRequest?.DynamicPlaybackRate != true)
+        {
+            throw new InvalidOperationException(
+                "The active audio request does not allow dynamic rate changes.");
+        }
+
+        double outputTime =
+            core?.GetStatus().PlaybackTimeMilliseconds ?? 0;
+        lock (rateClockLock)
+        {
+            rateClockSourceAnchorMilliseconds +=
+                (outputTime - rateClockOutputAnchorMilliseconds)
+                * currentPlaybackRate;
+            rateClockOutputAnchorMilliseconds = outputTime;
+            currentPlaybackRate = playbackRate;
+        }
+        source?.SetPlaybackRate(playbackRate);
+        core?.SetSamplePlaybackRate((float)playbackRate);
     }
 
     public async ValueTask PauseAsync(
@@ -376,19 +460,38 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
             playbackBaseMilliseconds =
                 currentSource.CurrentTime.TotalMilliseconds;
         }
+        lock (rateClockLock)
+        {
+            currentPlaybackRate = request.PlaybackRate;
+            rateClockOutputAnchorMilliseconds = 0;
+            rateClockSourceAnchorMilliseconds =
+                playbackBaseMilliseconds;
+        }
 
         uint preferredBufferFrames = (uint)Math.Clamp(
             request.PreferredBufferSize <= 0 ? 128 : request.PreferredBufferSize,
             64,
             2048);
         uint startupFrames = Math.Max(preferredBufferFrames * 2, 256);
-        uint ringFrames = Math.Max(preferredBufferFrames * 32, 8192);
+        uint ringFrames = request.DynamicPlaybackRate
+            ? Math.Max(preferredBufferFrames * 4, 1024)
+            : Math.Max(preferredBufferFrames * 32, 8192);
 
         core = new NativeAudioCore(
             (uint)sampleRate,
             outputChannels,
             ringFrames,
             startupFrames);
+        core.SetMixVolumes(
+            (float)musicVolume,
+            (float)hitSoundVolume,
+            (float)metronomeVolume);
+        core.SetSamplePlaybackRate(
+            request.DynamicPlaybackRate
+                ? (float)request.PlaybackRate
+                : 1);
+        metronomeSampleId = core.RegisterMetronomeSample(
+            createMetronomeClick(sampleRate));
         activeSampleIds.Clear();
         foreach ((string path, DecodedAudioSample sample) in preparedSamples)
         {
@@ -396,7 +499,9 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
             // changes, so DT and NC keysounds both become shorter and higher.
             float[] pcm = sample.GetSamplesAt(
                 sampleRate,
-                request.PlaybackRate);
+                request.DynamicPlaybackRate
+                    ? 1
+                    : request.PlaybackRate);
             activeSampleIds[path] = core.RegisterSample(pcm);
         }
 
@@ -610,14 +715,45 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
         source = null;
         activeRequest = null;
         activeSampleIds.Clear();
+        metronomeSampleId = 0;
         outputStatus = default;
         playbackBaseMilliseconds = 0;
         status = stoppedStatus;
+        lock (rateClockLock)
+        {
+            currentPlaybackRate = 1;
+            rateClockOutputAnchorMilliseconds = 0;
+            rateClockSourceAnchorMilliseconds = 0;
+        }
     }
 
     private void throwIfDisposed()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+    }
+
+    private static float[] createMetronomeClick(int sampleRate)
+    {
+        int frameCount = Math.Max(1, sampleRate / 50);
+        var samples = new float[frameCount * outputChannels];
+        for (int frame = 0; frame < frameCount; frame++)
+        {
+            double progress = frame / (double)frameCount;
+            float sample = (float)(
+                Math.Sin(2 * Math.PI * 1760 * frame / sampleRate)
+                * Math.Pow(1 - progress, 4)
+                * 0.32);
+            samples[frame * outputChannels] = sample;
+            samples[frame * outputChannels + 1] = sample;
+        }
+
+        return samples;
+    }
+
+    private static void validateVolume(double volume, string name)
+    {
+        if (!double.IsFinite(volume) || volume is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(name);
     }
 
     internal static double ScalePlaybackTime(
@@ -635,6 +771,26 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
 
         return baseTimeMilliseconds
                + outputTimeMilliseconds * playbackRate;
+    }
+
+    private double scaledPlaybackTime(double outputTimeMilliseconds)
+    {
+        AudioEngineStartRequest? request = activeRequest;
+        if (request?.DynamicPlaybackRate != true)
+        {
+            return ScalePlaybackTime(
+                playbackBaseMilliseconds,
+                outputTimeMilliseconds,
+                request?.PlaybackRate ?? 1);
+        }
+
+        lock (rateClockLock)
+        {
+            return rateClockSourceAnchorMilliseconds
+                   + (outputTimeMilliseconds
+                      - rateClockOutputAnchorMilliseconds)
+                   * currentPlaybackRate;
+        }
     }
 
     private static readonly AudioEngineStatus stoppedStatus = new(

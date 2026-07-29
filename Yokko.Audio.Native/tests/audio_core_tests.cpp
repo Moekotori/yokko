@@ -235,6 +235,106 @@ namespace
         require(output[4] == 0.25f && output[7] == 0.25f, "keysound ends cleanly");
     }
 
+    void test_mix_buses_apply_independent_gains()
+    {
+        EngineHandle engine;
+        const std::vector<float> music(8, 0.4f);
+        const std::vector<float> sound(4, 0.4f);
+        uint32_t keysound_id = 0;
+        uint32_t metronome_id = 0;
+        require(
+            yokko_audio_register_sample_f32(
+                engine, sound.data(), 2, &keysound_id) == YOKKO_AUDIO_OK,
+            "mix bus keysound registration");
+        require(
+            yokko_audio_register_metronome_sample_f32(
+                engine, sound.data(), 2, &metronome_id) == YOKKO_AUDIO_OK,
+            "mix bus metronome registration");
+        require(
+            yokko_audio_set_mix_volumes(engine, 0.5f, 0.25f, 0.75f)
+                == YOKKO_AUDIO_OK,
+            "mix bus gains");
+
+        uint32_t accepted = 0;
+        require(
+            yokko_audio_submit_interleaved_f32(
+                engine, music.data(), 4, &accepted) == YOKKO_AUDIO_OK,
+            "mix bus submit");
+        require(yokko_audio_start(engine) == YOKKO_AUDIO_OK, "mix bus start");
+        require(
+            yokko_audio_trigger_sample(engine, keysound_id) == YOKKO_AUDIO_OK,
+            "mix bus keysound trigger");
+        require(
+            yokko_audio_trigger_sample(engine, metronome_id) == YOKKO_AUDIO_OK,
+            "mix bus metronome trigger");
+
+        std::vector<float> output(8);
+        uint32_t rendered = 0;
+        require(
+            yokko_audio_render_interleaved_f32(
+                engine, output.data(), 4, &rendered) == YOKKO_AUDIO_OK,
+            "mix bus render");
+        require(
+            std::abs(output[0] - 0.6f) < 0.00001f,
+            "music, keysound and metronome gains are independent");
+        require(
+            std::abs(output[4] - 0.2f) < 0.00001f,
+            "music gain continues after samples end");
+        require(
+            yokko_audio_set_mix_volumes(engine, -0.1f, 1.0f, 1.0f)
+                == YOKKO_AUDIO_INVALID_ARGUMENT,
+            "invalid mix gain rejected");
+    }
+
+    void test_keysound_playback_rate_is_callback_side()
+    {
+        EngineHandle engine;
+        const std::vector<float> music(8, 0.0f);
+        const std::vector<float> keysound{
+            0.1f, 0.1f,
+            0.2f, 0.2f,
+            0.3f, 0.3f,
+            0.4f, 0.4f,
+        };
+        uint32_t sample_id = 0;
+        require(
+            yokko_audio_register_sample_f32(
+                engine, keysound.data(), 4, &sample_id) == YOKKO_AUDIO_OK,
+            "rated keysound registration");
+        require(
+            yokko_audio_set_sample_playback_rate(engine, 2.0f)
+                == YOKKO_AUDIO_OK,
+            "rated keysound speed");
+
+        uint32_t accepted = 0;
+        require(
+            yokko_audio_submit_interleaved_f32(
+                engine, music.data(), 4, &accepted) == YOKKO_AUDIO_OK,
+            "rated keysound submit");
+        require(yokko_audio_start(engine) == YOKKO_AUDIO_OK, "rated keysound start");
+        require(
+            yokko_audio_trigger_sample(engine, sample_id) == YOKKO_AUDIO_OK,
+            "rated keysound trigger");
+
+        std::vector<float> output(8);
+        uint32_t rendered = 0;
+        require(
+            yokko_audio_render_interleaved_f32(
+                engine, output.data(), 4, &rendered) == YOKKO_AUDIO_OK,
+            "rated keysound render");
+        require(
+            std::abs(output[0] - 0.1f) < 0.00001f
+            && std::abs(output[2] - 0.3f) < 0.00001f,
+            "rated keysound advances source frames");
+        require(
+            output[4] == 0 && output[6] == 0,
+            "rated keysound ends in half the output frames");
+        require(
+            yokko_audio_set_sample_playback_rate(engine, 4.1f)
+                == YOKKO_AUDIO_INVALID_ARGUMENT,
+            "invalid keysound rate rejected");
+    }
+
     void test_pause_and_stop_are_deterministic()
     {
         EngineHandle engine;
@@ -494,6 +594,8 @@ int main()
     test_start_requires_priming();
     test_render_and_underrun();
     test_keysounds_mix_on_the_next_callback();
+    test_mix_buses_apply_independent_gains();
+    test_keysound_playback_rate_is_callback_side();
     test_pause_and_stop_are_deterministic();
     test_output_safety();
     test_hardware_clock_supersedes_callback_clock();

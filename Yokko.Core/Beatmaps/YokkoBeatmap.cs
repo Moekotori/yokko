@@ -19,18 +19,29 @@ public sealed record YokkoBeatmap
         IReadOnlyList<YokkoScrollVelocity>? ScrollVelocities = null,
         double InitialScrollVelocity = 1,
         IReadOnlyList<YokkoScrollSpeedFactor>? ScrollSpeedFactors = null,
-        IReadOnlyDictionary<string, YokkoScrollProfile>? ScrollProfiles = null)
+        IReadOnlyDictionary<string, YokkoScrollProfile>? ScrollProfiles = null,
+        double DrainRate = 5,
+        ManiaConversionSource? ConversionSource = null,
+        int StageCount = 1)
     {
         if (!double.IsFinite(OverallDifficulty)
-            || OverallDifficulty is < 0 or > 10)
+            || OverallDifficulty is < -15 or > 15)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(OverallDifficulty),
-                "Overall difficulty must be finite and between 0 and 10.");
+                "Overall difficulty must be finite and between -15 and 15.");
         }
 
         if (!double.IsFinite(InitialScrollVelocity))
             throw new ArgumentOutOfRangeException(nameof(InitialScrollVelocity));
+
+        if (!double.IsFinite(DrainRate)
+            || DrainRate is < 0 or > 11)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(DrainRate),
+                "Drain rate must be finite and between 0 and 11.");
+        }
 
         this.Title = Title;
         this.Artist = Artist;
@@ -47,6 +58,14 @@ public sealed record YokkoBeatmap
         this.ScrollSpeedFactors = ScrollSpeedFactors ?? [];
         this.ScrollProfiles = ScrollProfiles
                               ?? new Dictionary<string, YokkoScrollProfile>();
+        this.DrainRate = DrainRate;
+        this.ConversionSource = ConversionSource;
+        if (StageCount is < 1 or > 2
+            || (int)KeyMode % StageCount != 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(StageCount));
+        }
+        this.StageCount = StageCount;
     }
 
     public string Title { get; init; }
@@ -63,6 +82,17 @@ public sealed record YokkoBeatmap
     public double InitialScrollVelocity { get; init; }
     public IReadOnlyList<YokkoScrollSpeedFactor> ScrollSpeedFactors { get; init; }
     public IReadOnlyDictionary<string, YokkoScrollProfile> ScrollProfiles { get; init; }
+    public double DrainRate { get; }
+
+    /// <summary>
+    /// Original non-Mania objects, when this chart was generated through the
+    /// Mania converter. Null means the source was already a lane ruleset.
+    /// </summary>
+    public ManiaConversionSource? ConversionSource { get; init; }
+
+    public int StageCount { get; init; }
+
+    public int KeysPerStage => (int)KeyMode / StageCount;
 
     public int NoteCount => HitObjects.Count(static hitObject => hitObject.Kind is HitObjectKind.Tap or HitObjectKind.Hold);
 }

@@ -11,15 +11,19 @@ internal sealed class DecodedAudioSource : IDisposable
     private readonly WaveStream stream;
     private readonly ISampleProvider stereoProvider;
     private readonly SoundTouchWaveProvider? rateProvider;
+    private readonly AudioPitchMode pitchMode;
+    private readonly object processingLock = new();
 
     private DecodedAudioSource(
         WaveStream stream,
         ISampleProvider stereoProvider,
-        SoundTouchWaveProvider? rateProvider)
+        SoundTouchWaveProvider? rateProvider,
+        AudioPitchMode pitchMode)
     {
         this.stream = stream;
         this.stereoProvider = stereoProvider;
         this.rateProvider = rateProvider;
+        this.pitchMode = pitchMode;
     }
 
     // SoundTouch advertises a rate-adjusted WaveFormat sample rate. Its Read()
@@ -35,22 +39,56 @@ internal sealed class DecodedAudioSource : IDisposable
         get => stream.CurrentTime;
         set
         {
-            stream.CurrentTime = value < TimeSpan.Zero
-                ? TimeSpan.Zero
-                : value > stream.TotalTime
-                    ? stream.TotalTime
-                    : value;
-            rateProvider?.Clear();
+            lock (processingLock)
+            {
+                stream.CurrentTime = value < TimeSpan.Zero
+                    ? TimeSpan.Zero
+                    : value > stream.TotalTime
+                        ? stream.TotalTime
+                        : value;
+                rateProvider?.Clear();
+            }
         }
     }
 
     internal int Read(float[] samples)
-        => stereoProvider.Read(samples, 0, samples.Length);
+    {
+        lock (processingLock)
+            return stereoProvider.Read(samples, 0, samples.Length);
+    }
+
+    internal void SetPlaybackRate(double playbackRate)
+    {
+        if (!double.IsFinite(playbackRate)
+            || playbackRate is < 0.25 or > 4)
+        {
+            throw new ArgumentOutOfRangeException(nameof(playbackRate));
+        }
+
+        lock (processingLock)
+        {
+            if (rateProvider == null)
+            {
+                if (Math.Abs(playbackRate - 1) > 0.000001)
+                {
+                    throw new InvalidOperationException(
+                        "This decoder was not opened for dynamic rate changes.");
+                }
+                return;
+            }
+
+            if (pitchMode == AudioPitchMode.ScaleWithRate)
+                rateProvider.Rate = playbackRate;
+            else
+                rateProvider.Tempo = playbackRate;
+        }
+    }
 
     internal static DecodedAudioSource Open(
         string audioPath,
         double playbackRate = 1,
-        AudioPitchMode pitchMode = AudioPitchMode.Preserve)
+        AudioPitchMode pitchMode = AudioPitchMode.Preserve,
+        bool dynamicPlaybackRate = false)
     {
         if (!double.IsFinite(playbackRate)
             || playbackRate is < 0.25 or > 4)
@@ -95,7 +133,8 @@ internal sealed class DecodedAudioSource : IDisposable
                 _ => new FirstTwoChannelsSampleProvider(samples),
             };
             SoundTouchWaveProvider? rateProvider = null;
-            if (Math.Abs(playbackRate - 1) > 0.000001)
+            if (dynamicPlaybackRate
+                || Math.Abs(playbackRate - 1) > 0.000001)
             {
                 rateProvider = new SoundTouchWaveProvider(
                     stereo.ToWaveProvider());
@@ -110,7 +149,8 @@ internal sealed class DecodedAudioSource : IDisposable
             return new DecodedAudioSource(
                 stream,
                 stereo,
-                rateProvider);
+                rateProvider,
+                pitchMode);
         }
         catch
         {
