@@ -1,8 +1,0 @@
-Mode: Keys4
-TimingPoints:
-  - StartTime: 0
-    Bpm: 120
-HitObjects:
-  - StartTime: 500
-    Lane: 1
-    TimingGroup: Missing
