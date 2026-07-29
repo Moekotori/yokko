@@ -13,6 +13,7 @@ namespace Yokko.Game.Configuration;
 internal enum YokkoSetting
 {
     HomeMusicEnabled,
+    AudioMasterVolume,
     AudioBackend,
     AudioDeviceId,
     AudioBufferSize,
@@ -33,6 +34,7 @@ internal enum YokkoSetting
     GameplaySevenKeyLane6,
     GameplaySevenKeyLane7,
     ManiaScrollSpeed,
+    QuaverScrollRateNormalization,
     GameplayShowLanePressFeedback,
     GameplayKeysoundsEnabled,
     GameplayPauseWhenUnfocused,
@@ -55,6 +57,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
     protected override void InitialiseDefaults()
     {
         SetDefault(YokkoSetting.HomeMusicEnabled, true);
+        SetDefault(YokkoSetting.AudioMasterVolume, 1.0, 0.0, 1.0, 0.05);
         SetDefault(
             YokkoSetting.AudioBackend,
             AudioBackendKind.WasapiExclusive);
@@ -87,6 +90,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             OsuManiaScrollSpeed.Minimum,
             OsuManiaScrollSpeed.Maximum,
             OsuManiaScrollSpeed.SettingsPrecision);
+        SetDefault(
+            YokkoSetting.QuaverScrollRateNormalization,
+            0.0,
+            0.0,
+            100.0,
+            10.0);
         SetDefault(YokkoSetting.GameplayShowLanePressFeedback, true);
         SetDefault(YokkoSetting.GameplayKeysoundsEnabled, true);
         SetDefault(YokkoSetting.GameplayPauseWhenUnfocused, true);
@@ -104,6 +113,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.HomeMusicEnabled,
             settings.HomeMusicEnabled);
+        BindWith(YokkoSetting.AudioMasterVolume, settings.MasterVolume);
         BindWith(YokkoSetting.AudioBackend, settings.PreferredBackend);
         BindWith(YokkoSetting.AudioDeviceId, settings.DeviceId);
         BindWith(
@@ -142,6 +152,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(YokkoSetting.GameplaySevenKeyLane6, settings.SevenKeyBindings[5]);
         BindWith(YokkoSetting.GameplaySevenKeyLane7, settings.SevenKeyBindings[6]);
         BindWith(YokkoSetting.ManiaScrollSpeed, settings.ScrollSpeed);
+        BindWith(
+            YokkoSetting.QuaverScrollRateNormalization,
+            settings.QuaverScrollRateNormalization);
         BindWith(
             YokkoSetting.GameplayShowLanePressFeedback,
             settings.ShowLanePressFeedback);

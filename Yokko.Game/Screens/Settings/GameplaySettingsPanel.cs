@@ -54,6 +54,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal double CurrentScrollSpeed => settings.ScrollSpeed.Value;
 
+    internal double QuaverScrollRateNormalization =>
+        settings.QuaverScrollRateNormalization.Value;
+
     internal bool ShowLanePressFeedback =>
         settings.ShowLanePressFeedback.Value;
 
@@ -505,16 +508,32 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             createSpeedPresets(),
             new Box
             {
-                Position = new Vector2(20, 154),
+                Position = new Vector2(20, 143),
                 Size = new Vector2(800, 1),
                 Colour = SettingsTheme.Divider,
+            },
+            createControlLabel(
+                YokkoStrings.Get(
+                    "settings.gameplay.quaver_rate_normalization"),
+                YokkoStrings.Get(
+                    "settings.gameplay.quaver_rate_normalization_note"),
+                20,
+                157),
+            new GameplayValueStepper(
+                settings.QuaverScrollRateNormalization,
+                10,
+                0,
+                100,
+                value => $"{value:0}%")
+            {
+                Position = new Vector2(430, 153),
             },
             createControlLabel(
                 YokkoStrings.Get("settings.gameplay.input_offset"),
                 YokkoStrings.Get(
                     "settings.gameplay.input_offset_note"),
                 20,
-                178),
+                225),
             new GameplayValueStepper(
                 audioSettings.UserOffsetMilliseconds,
                 1,
@@ -522,7 +541,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 200,
                 value => $"{value:+0;-0;0} ms")
             {
-                Position = new Vector2(430, 174),
+                Position = new Vector2(430, 221),
             },
         });
 

@@ -20,6 +20,7 @@ public sealed class AudioSettingsTest
             settings.PreferredBackend.Value,
             Is.EqualTo(AudioBackendKind.WasapiExclusive));
         Assert.That(settings.HomeMusicEnabled.Value, Is.True);
+        Assert.That(settings.MasterVolume.Value, Is.EqualTo(1));
         Assert.That(settings.DeviceId.Value, Is.Empty);
         Assert.That(settings.PreferredBufferSize.Value, Is.EqualTo(64));
         Assert.That(settings.UserOffsetMilliseconds.Value, Is.Zero);
@@ -55,15 +56,19 @@ public sealed class AudioSettingsTest
 
         AudioEngineStartRequest request = settings.CreateStartRequest(
             "song.wav",
-            1.5,
-            AudioPitchMode.ScaleWithRate);
+            1.25,
+            AudioPitchMode.ScaleWithRate,
+            1.5);
 
         Assert.Multiple(() =>
         {
-            Assert.That(request.PlaybackRate, Is.EqualTo(1.5));
+            Assert.That(request.PlaybackRate, Is.EqualTo(1.25));
             Assert.That(
                 request.PitchMode,
                 Is.EqualTo(AudioPitchMode.ScaleWithRate));
+            Assert.That(
+                request.FixedFrequencyScale,
+                Is.EqualTo(1.5));
         });
     }
 
@@ -88,6 +93,7 @@ public sealed class AudioSettingsTest
                     AudioBackendKind.SharedWasapi;
                 firstSettings.DeviceId.Value = "persisted-endpoint";
                 firstSettings.PreferredBufferSize.Value = 256;
+                firstSettings.MasterVolume.Value = 0.65;
                 firstSettings.UserOffsetMilliseconds.Value = -8;
                 Assert.That(firstConfig.Save(), Is.True);
             }
@@ -110,6 +116,9 @@ public sealed class AudioSettingsTest
                     restoredSettings.PreferredBufferSize.Value,
                     Is.EqualTo(256));
                 Assert.That(
+                    restoredSettings.MasterVolume.Value,
+                    Is.EqualTo(0.65));
+                Assert.That(
                     restoredSettings.UserOffsetMilliseconds.Value,
                     Is.EqualTo(-8));
             }
@@ -119,6 +128,26 @@ public sealed class AudioSettingsTest
             if (Directory.Exists(directory))
                 Directory.Delete(directory, true);
         }
+    }
+
+    [Test]
+    public void MasterVolumeAppliesToMusicAndOptionalHitSounds()
+    {
+        var settings = new YokkoAudioSettings();
+        var audio = new NullAudioEngine();
+        settings.MasterVolume.Value = 0.65;
+
+        settings.ApplyMixSettings(audio, false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(audio.MusicVolume, Is.EqualTo(0.65));
+            Assert.That(audio.HitSoundVolume, Is.Zero);
+            Assert.That(audio.MetronomeVolume, Is.Zero);
+        });
+
+        settings.ApplyMixSettings(audio, true);
+        Assert.That(audio.HitSoundVolume, Is.EqualTo(0.65));
     }
 
     [Test]

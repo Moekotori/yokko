@@ -21,7 +21,8 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
         string AudioPath,
         double PreviewTimeMilliseconds,
         double PlaybackRate,
-        AudioPitchMode PitchMode)
+        AudioPitchMode PitchMode,
+        double? FixedFrequencyScale)
     {
         public bool MatchesPlayback(PreviewRequest other) =>
             string.Equals(
@@ -29,7 +30,10 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
                 other.AudioPath,
                 StringComparison.OrdinalIgnoreCase)
             && Math.Abs(PlaybackRate - other.PlaybackRate) < 0.000001
-            && PitchMode == other.PitchMode;
+            && PitchMode == other.PitchMode
+            && Nullable.Equals(
+                FixedFrequencyScale,
+                other.FixedFrequencyScale);
     }
 
     private readonly object operationLock = new();
@@ -208,11 +212,15 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
                           cancellationToken)
                       .ConfigureAwait(false);
 
+            if (audioEngine is IAudioMixControl mixControl)
+                audioSettings.ApplyMixSettings(mixControl);
+
             await audioEngine.StartAsync(
                                  audioSettings.CreateStartRequest(
                                      request.AudioPath,
                                      request.PlaybackRate,
-                                     request.PitchMode),
+                                     request.PitchMode,
+                                     request.FixedFrequencyScale),
                                  cancellationToken)
                              .ConfigureAwait(false);
 
@@ -284,6 +292,7 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
             mods.PlaybackRate,
             mods.ChangesAudioPitch
                 ? AudioPitchMode.ScaleWithRate
-                : AudioPitchMode.Preserve);
+                : AudioPitchMode.Preserve,
+            mods.FixedAudioFrequencyScale);
     }
 }

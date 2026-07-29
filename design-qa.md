@@ -288,3 +288,88 @@ A separate crop was not needed because the complete Multiplayer row is readable 
 - Native Windows capture: passed at 1280 x 750.
 - Primary interaction: Multiplayer click feedback verified.
 - Empty state: `Friends online` and avatar strip are absent when no friend textures are supplied.
+
+---
+
+# Yokko native-resolution interface scaling design QA
+
+final result: passed
+
+## Evidence
+
+- Source visual truth, Home 100% maximised:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-3919f73f-3bba-4876-8063-0b1fa665e627.png`
+- Source visual truth, Settings 100% maximised:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-ebdf7339-3222-4e67-bbda-b86facaf9fbe.png`
+- Final Home implementation:
+  `D:\yokko\.artifacts\ui-scale-resolution-test\main-100-native-3200x2000.png`
+- Final Settings implementation:
+  `D:\yokko\.artifacts\ui-scale-resolution-test\settings-100-native-3200x2000.png`
+- Final Song Select implementation:
+  `D:\yokko\.artifacts\ui-scale-resolution-test\songselect-100-native-3200x2000.png`
+- Combined Home comparison:
+  `D:\yokko\.artifacts\ui-scale-resolution-test\qa-main-side-by-side.png`
+- Combined Settings comparison:
+  `D:\yokko\.artifacts\ui-scale-resolution-test\qa-settings-side-by-side.png`
+- Source pixels: Home 3200 x 1898; Settings 3196 x 1870.
+- Implementation pixels and client viewport: 3200 x 2000.
+- Density normalization: each source and implementation was normalized
+  to 1600 px width and padded to 1000 px height before horizontal
+  comparison. Window-title and crop-height differences were excluded from
+  density findings.
+- State: Chinese locale, maximised desktop, interface size 100%.
+
+## Full-view comparison
+
+The broken source used the earlier 1.5x desktop cap, leaving Home,
+Settings, and Song Select at an undersized 1920x1080-equivalent density.
+The final captures use the native viewport with a shared 1600x900 layout
+space. At 3200x2000 the 100% scale resolves to 2.0x, fills the useful
+desktop area, and preserves the responsive Home and Song Select regions.
+
+## Focused comparison
+
+The combined comparisons keep the same overall state and show the intended
+density correction without typography, icon, image, or control clipping.
+Settings grows from roughly 60% to roughly 80% of the viewport width;
+Home uses the full 1600x900 responsive stage rather than a small centred
+content island. No additional crop was needed because labels, icon
+alignment, and control boundaries remain readable in the combined images.
+
+## Required fidelity surfaces
+
+- Fonts and typography: the existing Yokko font family, weights, wrapping,
+  and hierarchy are unchanged; native scaling improves readability.
+- Spacing and layout rhythm: Home remains balanced across both halves,
+  Settings retains its intentional inner margins, and Song Select keeps its
+  footer and header within the viewport.
+- Colors and visual tokens: no palette, opacity, border, radius, or state
+  token changed.
+- Image quality and asset fidelity: all existing logo, mascot, background,
+  and icon assets remain native framework drawables; no replacement asset
+  or rasterized interface was introduced.
+- Copy and content: Chinese UI copy is unchanged and remains fully visible.
+
+## Findings
+
+- No actionable P0, P1, or P2 issue remains in the inspected 3200x2000
+  100% state.
+- P3 accepted constraint: Settings intentionally keeps a centred 1280-wide
+  inner panel inside the shared 1600-wide responsive layout.
+
+## Comparison history
+
+1. Initial implementation:
+   - P1: the 1.5x desktop cap made 100% visibly smaller than its label.
+   - P2: the global 1280x720 reference conflicted with Song Select's
+     1600x900 layout density.
+2. Correction:
+   - Removed the raw desktop-resolution cap.
+   - Replaced the legacy 1280x720 global reference with a shared
+     1600x900 layout space.
+   - Kept 90% and 80% as proportional reductions from the native
+     resolution-derived 100% scale.
+3. Post-fix evidence:
+   - Native Home, Settings, and Song Select captures show no clipping,
+     overlap, or unreadable persistent controls.
+   - Focused scaling tests pass 14/14.

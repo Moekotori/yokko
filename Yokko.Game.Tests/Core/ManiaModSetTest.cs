@@ -275,6 +275,40 @@ public sealed class ManiaModSetTest
     }
 
     [Test]
+    public void PerfectConfigurationMatchesLazerAndIsCanonical()
+    {
+        ManiaModSet defaultPerfect =
+            ManiaModSet.Empty.With(ManiaModId.Perfect, true);
+        ManiaModSet strictPerfect =
+            defaultPerfect.WithPerfect(true);
+        ManiaModSet preserved =
+            strictPerfect.With(ManiaModId.Hidden, true);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                defaultPerfect.PerfectRequirePerfectHits,
+                Is.False);
+            Assert.That(
+                defaultPerfect.Fingerprint,
+                Is.EqualTo("perfect"));
+            Assert.That(
+                strictPerfect.PerfectRequirePerfectHits,
+                Is.True);
+            Assert.That(
+                strictPerfect.Fingerprint,
+                Is.EqualTo("perfect:require-perfect"));
+            Assert.That(
+                strictPerfect.DisplayLabels,
+                Is.EqualTo(new[] { "PF MAX" }));
+            Assert.That(
+                preserved.PerfectRequirePerfectHits,
+                Is.True);
+            Assert.That(strictPerfect, Is.Not.EqualTo(defaultPerfect));
+        });
+    }
+
+    [Test]
     public void HardRockAndEasyReplaceEachOther()
     {
         ManiaModSet mods = ManiaModSet.Empty
@@ -515,6 +549,109 @@ public sealed class ManiaModSetTest
             Assert.That(
                 ManiaMutedPolicy.Resolve(inverse, 0).HitSoundVolume,
                 Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void FixedRateConfigurationMatchesPinnedLazerContract()
+    {
+        ManiaModSet halfTime = ManiaModSet.Empty.WithFixedRate(
+            ManiaModId.HalfTime,
+            0.80,
+            adjustPitch: true);
+        ManiaModSet daycore = ManiaModSet.Empty.WithFixedRate(
+            ManiaModId.Daycore,
+            0.60);
+        ManiaModSet doubleTime = ManiaModSet.Empty.WithFixedRate(
+            ManiaModId.DoubleTime,
+            1.25);
+        ManiaModSet nightcore = ManiaModSet.Empty.WithFixedRate(
+            ManiaModId.Nightcore,
+            1.25);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(halfTime.PlaybackRate, Is.EqualTo(0.80));
+            Assert.That(
+                halfTime.HitWindowSpeedMultiplier,
+                Is.EqualTo(0.80));
+            Assert.That(halfTime.FixedRateAdjustPitch, Is.True);
+            Assert.That(halfTime.ChangesAudioPitch, Is.True);
+            Assert.That(halfTime.FixedAudioFrequencyScale, Is.Null);
+            Assert.That(
+                halfTime.Fingerprint,
+                Is.EqualTo("half-time:0.8:pitch"));
+
+            Assert.That(daycore.PlaybackRate, Is.EqualTo(0.60));
+            Assert.That(
+                daycore.FixedAudioFrequencyScale,
+                Is.EqualTo(0.75));
+            Assert.That(
+                daycore.Fingerprint,
+                Is.EqualTo("daycore:0.6"));
+
+            Assert.That(doubleTime.PlaybackRate, Is.EqualTo(1.25));
+            Assert.That(doubleTime.ChangesAudioPitch, Is.False);
+            Assert.That(
+                doubleTime.Fingerprint,
+                Is.EqualTo("double-time:1.25:tempo"));
+
+            Assert.That(nightcore.PlaybackRate, Is.EqualTo(1.25));
+            Assert.That(
+                nightcore.FixedAudioFrequencyScale,
+                Is.EqualTo(1.5));
+            Assert.That(
+                nightcore.Fingerprint,
+                Is.EqualTo("nightcore:1.25"));
+        });
+    }
+
+    [Test]
+    public void FixedRateDefaultsStayCanonicalAndSwitchingResetsConfig()
+    {
+        ManiaModSet defaultHalfTime =
+            ManiaModSet.Empty.With(ManiaModId.HalfTime, true);
+        ManiaModSet switched = defaultHalfTime
+            .WithFixedRate(ManiaModId.HalfTime, 0.80, true)
+            .With(ManiaModId.Nightcore, true);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(defaultHalfTime.PlaybackRate, Is.EqualTo(0.75));
+            Assert.That(
+                defaultHalfTime.Fingerprint,
+                Is.EqualTo("half-time"));
+            Assert.That(switched.PlaybackRate, Is.EqualTo(1.5));
+            Assert.That(switched.FixedRateAdjustPitch, Is.False);
+            Assert.That(switched.Fingerprint, Is.EqualTo("nightcore"));
+        });
+    }
+
+    [Test]
+    public void FixedRateConfigurationRejectsValuesOutsideLazerRange()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                () => ManiaModSet.Empty.WithFixedRate(
+                    ManiaModId.HalfTime,
+                    0.49),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => ManiaModSet.Empty.WithFixedRate(
+                    ManiaModId.Daycore,
+                    1),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => ManiaModSet.Empty.WithFixedRate(
+                    ManiaModId.DoubleTime,
+                    1),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => ManiaModSet.Empty.WithFixedRate(
+                    ManiaModId.Nightcore,
+                    2.01),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         });
     }
 }

@@ -97,7 +97,12 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddStep("open mod panel", songSelectScreen.ToggleModPanel);
         AddAssert("mod panel opened", () =>
             songSelectScreen.IsModPanelOpen);
-        AddStep("close mod panel", songSelectScreen.ToggleModPanel);
+        AddAssert("dedicated mods screen opened", () =>
+            screenStack.CurrentScreen is GameplayModsScreen);
+        AddStep("close mods screen", () =>
+            screenStack.CurrentScreen.Exit());
+        AddUntilStep("song select resumes", () =>
+            screenStack.CurrentScreen == songSelectScreen);
         AddAssert("mod panel closed", () =>
             !songSelectScreen.IsModPanelOpen);
         AddStep("enable Muted", () =>
@@ -250,6 +255,13 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                 ManiaModId.NoFail)
             && !songSelectScreen.SelectedMods.Contains(
                 ManiaModId.SuddenDeath));
+        AddStep("require perfect hits", () =>
+            songSelectScreen.SetPerfectRequirePerfectHits(true));
+        AddAssert("strict Perfect setting is canonical and visible", () =>
+            songSelectScreen.SelectedMods.PerfectRequirePerfectHits
+            && songSelectScreen.SelectedMods.Fingerprint.Contains(
+                "perfect:require-perfect")
+            && songSelectScreen.PerfectSettings.RequirePerfectHits);
         AddStep("replace Easy with Hard Rock", () =>
             songSelectScreen.ToggleMod(ManiaModId.HardRock));
         AddStep("enable Accuracy Challenge", () =>

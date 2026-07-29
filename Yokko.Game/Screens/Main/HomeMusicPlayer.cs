@@ -365,6 +365,9 @@ public partial class HomeMusicPlayer : CompositeDrawable
             if (generation != playbackGeneration)
                 return;
 
+            if (audioEngine is IAudioMixControl mixControl)
+                audioSettings.ApplyMixSettings(mixControl);
+
             if (canSeek)
                 await audioEngine.SeekAsync(resumeAt).ConfigureAwait(false);
             else

@@ -109,36 +109,33 @@ public sealed class DisplaySettingsTest
     {
         Assert.That(
             YokkoDisplaySettings.CalculateContentScale(
-                new osuTK.Vector2(1280, 720),
-                1,
+                new osuTK.Vector2(1600, 900),
                 scale),
             Is.EqualTo(expected).Within(0.001f));
     }
 
-    [TestCase(YokkoUiScale.Large, 1.5f)]
-    [TestCase(YokkoUiScale.Comfortable, 1.35f)]
-    [TestCase(YokkoUiScale.Compact, 1.2f)]
-    public void InterfaceScaleStopsGrowingWithRawDesktopResolution(
+    [TestCase(YokkoUiScale.Large, 2f)]
+    [TestCase(YokkoUiScale.Comfortable, 1.8f)]
+    [TestCase(YokkoUiScale.Compact, 1.6f)]
+    public void InterfaceScaleFollowsDesktopResolution(
         YokkoUiScale scale,
         float expected)
     {
         Assert.That(
             YokkoDisplaySettings.CalculateContentScale(
                 new osuTK.Vector2(3200, 1955),
-                1.25f,
                 scale),
             Is.EqualTo(expected).Within(0.001f));
     }
 
     [Test]
-    public void InterfaceScaleStillFollowsHighDpi()
+    public void InterfaceScaleUsesFullFourKViewport()
     {
         Assert.That(
             YokkoDisplaySettings.CalculateContentScale(
                 new osuTK.Vector2(3840, 2160),
-                2,
                 YokkoUiScale.Large),
-            Is.EqualTo(2).Within(0.001f));
+            Is.EqualTo(2.4f).Within(0.001f));
     }
 
     [Test]

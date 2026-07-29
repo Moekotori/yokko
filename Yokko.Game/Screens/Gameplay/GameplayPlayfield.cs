@@ -180,7 +180,12 @@ public partial class GameplayPlayfield : CompositeDrawable
                           : 0)
                       + 8;
             baseNoteXs[index] = x;
-            return new DrawableNote(index, hitObject, width, activeSkin)
+            return new DrawableNote(
+                index,
+                hitObject,
+                width,
+                activeSkin,
+                beatmap.LegacyLongNoteRendering)
             {
                 X = x,
                 Alpha = 0,
@@ -232,7 +237,7 @@ public partial class GameplayPlayfield : CompositeDrawable
             double endPosition = hitObject.EndTimeMilliseconds is double endTime
                 ? velocity.PositionAt(endTime)
                 : startPosition;
-            ScrollPositionRange pathRange =
+            ScrollPositionRange visibilityRange =
                 hitObject.EndTimeMilliseconds is double holdEndTime
                     ? velocity.PositionRangeBetween(
                         hitObject.StartTimeMilliseconds,
@@ -240,10 +245,15 @@ public partial class GameplayPlayfield : CompositeDrawable
                     : new ScrollPositionRange(
                         startPosition,
                         startPosition);
+            ScrollPositionRange bodyRange =
+                beatmap.LegacyLongNoteRendering
+                    ? positionRange(startPosition, endPosition)
+                    : visibilityRange;
             noteUpdateStates[i] = new NoteUpdateState(
                 startPosition,
                 endPosition,
-                pathRange);
+                visibilityRange,
+                bodyRange);
 
             var key = (velocity, factor);
             if (!updateGroups.TryGetValue(key, out List<int> indices))
@@ -276,7 +286,7 @@ public partial class GameplayPlayfield : CompositeDrawable
                                        holdIndices.Select(index => (
                                            index,
                                            noteUpdateStates[index]
-                                               .PathRange))));
+                                               .VisibilityRange))));
                            })
                            .ToArray();
 
@@ -651,8 +661,13 @@ public partial class GameplayPlayfield : CompositeDrawable
             currentPosition,
             updateState.StartPosition,
             updateState.EndPosition,
-            updateState.PathRange);
+            updateState.BodyRange);
     }
+
+    private static ScrollPositionRange positionRange(
+        double first,
+        double second) =>
+        new(Math.Min(first, second), Math.Max(first, second));
 
     private void attachNote(int index)
     {
@@ -689,7 +704,8 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly record struct NoteUpdateState(
         double StartPosition,
         double EndPosition,
-        ScrollPositionRange PathRange);
+        ScrollPositionRange VisibilityRange,
+        ScrollPositionRange BodyRange);
 
     private sealed class NoteUpdateGroup(
         ScrollVelocityMap velocity,

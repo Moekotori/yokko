@@ -179,6 +179,14 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback, IAud
                 nameof(request),
                 "Playback rate must be finite and between 0.25x and 4x.");
         }
+        if (request.FixedFrequencyScale is double frequency
+            && (!double.IsFinite(frequency)
+                || frequency is < 0.25 or > 4))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(request),
+                "Fixed frequency scale must be finite and between 0.25x and 4x.");
+        }
         string? audioPath = string.IsNullOrWhiteSpace(request.AudioPath)
             ? null
             : Path.GetFullPath(request.AudioPath);
@@ -198,7 +206,8 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback, IAud
                         audioPath,
                         request.PlaybackRate,
                         request.PitchMode,
-                        request.DynamicPlaybackRate),
+                        request.DynamicPlaybackRate,
+                        request.FixedFrequencyScale),
                     cancellationToken).ConfigureAwait(false);
             activeRequest = request with { AudioPath = audioPath ?? string.Empty };
             await startFromCurrentPositionAsync(cancellationToken)

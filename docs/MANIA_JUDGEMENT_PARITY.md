@@ -74,8 +74,9 @@ judgement/scoring paths relative to the pinned baseline.
 | Health recovery multiplier | `ManiaHealthStateTest.ManiaHealthUsesLazerDrainAndRecoveryValues` ports lazer's iterative recovery calculation | Covered |
 | Break-aware health simulation | `ManiaHealthStateTest.BreakPeriodsMatchLazerRecoverySimulation` plus editable osu round-trip coverage | Covered |
 | Sudden Death | `ManiaHealthStateTest.SuddenDeathOnlyFailsOnComboBreakingResult` | Covered |
-| Mania Perfect default | `ManiaHealthStateTest.PerfectUsesLazerManiaDefaultGreatThreshold` and hold-body ComboBreak coverage | Covered |
+| Mania Perfect default and strict setting | Core default/strict Great-boundary tests plus `TestPerfectStrictSettingMatchesLazerGreatBoundary` | Covered |
 | Easy lives, No Fail, Accuracy Challenge | Focused `ManiaHealthStateTest` cases | Covered |
+| Initial standard→Mania object-shape corpus | `LazerStandardConversionGoldenTest` ports lazer's repeated-slider, short-repeat stair, and spinner fixtures | Covered |
 
 ## Remaining proof work
 
@@ -86,7 +87,7 @@ The following must still be closed before claiming complete ruleset parity:
    judgement parity gate is not yet a claim that every lazer Mania Mod and
    conversion detail is complete.
 
-Latest gate: 155 focused Core cases and 4 related headless gameplay cases pass
+Latest gate: 164 focused Core cases and 6 related headless gameplay cases pass
 against the pinned lazer-derived expectations.
 
 Custom Yokko judgement behaviour must eventually live behind an explicit

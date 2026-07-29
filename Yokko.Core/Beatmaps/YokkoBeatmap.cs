@@ -24,7 +24,8 @@ public sealed record YokkoBeatmap
         ManiaConversionSource? ConversionSource = null,
         int StageCount = 1,
         double PreviewTimeMilliseconds = -1,
-        IReadOnlyList<YokkoBreakPeriod>? BreakPeriods = null)
+        IReadOnlyList<YokkoBreakPeriod>? BreakPeriods = null,
+        bool LegacyLongNoteRendering = false)
     {
         if (!double.IsFinite(OverallDifficulty)
             || OverallDifficulty is < -15 or > 15)
@@ -73,6 +74,7 @@ public sealed record YokkoBeatmap
         this.StageCount = StageCount;
         this.PreviewTimeMilliseconds = PreviewTimeMilliseconds;
         this.BreakPeriods = BreakPeriods ?? [];
+        this.LegacyLongNoteRendering = LegacyLongNoteRendering;
     }
 
     public string Title { get; init; }
@@ -106,6 +108,12 @@ public sealed record YokkoBeatmap
     public double PreviewTimeMilliseconds { get; init; }
 
     public IReadOnlyList<YokkoBreakPeriod> BreakPeriods { get; init; }
+
+    /// <summary>
+    /// Uses endpoint-only hold-body bounds instead of including scroll
+    /// direction extrema. This preserves Quaver's LegacyLNRendering mode.
+    /// </summary>
+    public bool LegacyLongNoteRendering { get; init; }
 
     public int KeysPerStage => (int)KeyMode / StageCount;
 

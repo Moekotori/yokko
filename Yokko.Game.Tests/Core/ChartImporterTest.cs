@@ -433,6 +433,71 @@ HitObjects:
         }
 
         [Test]
+        public void MatchesQuaverInfiniteAndZeroBpmNormalization()
+        {
+            string path = writeChart(
+                "quaver-special-bpm-sv",
+                ".qua",
+                """
+Mode: Keys4
+BPMDoesNotAffectScrollVelocity: false
+TimingPoints:
+  - StartTime: 0
+    Bpm: 120
+  - StartTime: 1000
+    Bpm: .inf
+  - StartTime: 1001
+    Bpm: -.inf
+  - StartTime: 1002
+    Bpm: 0
+  - StartTime: 1003
+    Bpm: 120
+SliderVelocities: []
+HitObjects:
+  - StartTime: 0
+    Lane: 1
+  - StartTime: 2000
+    Lane: 1
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(result.Beatmap.InitialScrollVelocity, Is.EqualTo(1));
+            Assert.That(result.Beatmap.ScrollVelocities, Is.EqualTo(
+            new[]
+            {
+                new Yokko.Core.Timing.YokkoScrollVelocity(1000, 128),
+                new Yokko.Core.Timing.YokkoScrollVelocity(1002, 0),
+                new Yokko.Core.Timing.YokkoScrollVelocity(1003, 1),
+            }));
+        }
+
+        [Test]
+        public void ImportsQuaverLegacyLongNoteRendering()
+        {
+            string path = writeChart(
+                "quaver-legacy-ln-rendering",
+                ".qua",
+                """
+Mode: Keys4
+BPMDoesNotAffectScrollVelocity: true
+InitialScrollVelocity: 1
+LegacyLNRendering: true
+TimingPoints:
+  - StartTime: 0
+    Bpm: 120
+HitObjects:
+  - StartTime: 500
+    EndTime: 1500
+    Lane: 1
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.That(result.Beatmap.LegacyLongNoteRendering, Is.True);
+        }
+
+        [Test]
         public void ImportsQuaverTimingGroupsAndMergesGlobalSignals()
         {
             string path = writeChart("quaver-timing-groups", ".qua", """

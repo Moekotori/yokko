@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
@@ -17,6 +18,46 @@ namespace Yokko.Game.Tests.Core;
 [TestFixture]
 public sealed class ManiaScoreMultiplierParityTest
 {
+    private static readonly double[] slow_rates =
+    [
+        0.50,
+        0.55,
+        0.60,
+        0.65,
+        0.70,
+        0.75,
+        0.80,
+        0.85,
+        0.90,
+        0.95,
+        0.99,
+    ];
+
+    private static readonly double[] fast_rates =
+    [
+        1.01,
+        1.05,
+        1.10,
+        1.15,
+        1.20,
+        1.25,
+        1.30,
+        1.35,
+        1.40,
+        1.45,
+        1.50,
+        1.55,
+        1.60,
+        1.65,
+        1.70,
+        1.75,
+        1.80,
+        1.85,
+        1.90,
+        1.95,
+        2.00,
+    ];
+
     [TestCase(ManiaModId.Easy, 0.5)]
     [TestCase(ManiaModId.NoFail, 0.5)]
     [TestCase(ManiaModId.HalfTime, 0.3)]
@@ -82,6 +123,29 @@ public sealed class ManiaScoreMultiplierParityTest
             Is.EqualTo(0.5 * 0.9).Within(1e-12));
     }
 
+    [TestCaseSource(nameof(slowRateCases))]
+    public void ConfiguredSlowRateMatchesCompleteLazerMatrix(
+        ManiaModId mod,
+        double rate,
+        double expected)
+    {
+        ManiaModSet mods = ManiaModSet.Empty.WithFixedRate(mod, rate);
+
+        Assert.That(
+            mods.ScoreMultiplier,
+            Is.EqualTo(expected).Within(1e-12));
+    }
+
+    [TestCaseSource(nameof(fastRateCases))]
+    public void ConfiguredFastRateMatchesCompleteLazerMatrix(
+        ManiaModId mod,
+        double rate)
+    {
+        ManiaModSet mods = ManiaModSet.Empty.WithFixedRate(mod, rate);
+
+        Assert.That(mods.ScoreMultiplier, Is.EqualTo(1).Within(1e-12));
+    }
+
     [Test]
     public void ScoreProcessorRoundsBeforeApplyingMultiplierLikeLazer()
     {
@@ -121,4 +185,44 @@ public sealed class ManiaScoreMultiplierParityTest
                     null,
                     HitObjectKind.Tap),
             ]);
+
+    private static IEnumerable<TestCaseData> slowRateCases()
+    {
+        foreach (ManiaModId mod in new[]
+                 {
+                     ManiaModId.HalfTime,
+                     ManiaModId.Daycore,
+                 })
+        {
+            foreach (double rate in slow_rates)
+            {
+                double expected = rate switch
+                {
+                    < 0.60 => 0.1,
+                    < 0.70 => 0.2,
+                    < 0.80 => 0.3,
+                    < 0.90 => 0.4,
+                    _ => 0.5,
+                };
+                yield return new TestCaseData(mod, rate, expected)
+                    .SetName($"{mod}_{rate:0.00}_matches_lazer_multiplier");
+            }
+        }
+    }
+
+    private static IEnumerable<TestCaseData> fastRateCases()
+    {
+        foreach (ManiaModId mod in new[]
+                 {
+                     ManiaModId.DoubleTime,
+                     ManiaModId.Nightcore,
+                 })
+        {
+            foreach (double rate in fast_rates)
+            {
+                yield return new TestCaseData(mod, rate)
+                    .SetName($"{mod}_{rate:0.00}_matches_lazer_multiplier");
+            }
+        }
+    }
 }

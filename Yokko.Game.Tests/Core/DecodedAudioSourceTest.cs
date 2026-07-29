@@ -158,6 +158,56 @@ public sealed class DecodedAudioSourceTest
     }
 
     [Test]
+    public void CustomDaycoreAndNightcoreKeepLazerDefaultFrequency()
+    {
+        string path = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"{TestContext.CurrentContext.Test.ID}.wav");
+        createSineWave(path, 48000, 440, 1500);
+
+        try
+        {
+            using DecodedAudioSource daycore = DecodedAudioSource.Open(
+                path,
+                0.60,
+                AudioPitchMode.ScaleWithRate,
+                fixedFrequencyScale: 0.75);
+            using DecodedAudioSource nightcore = DecodedAudioSource.Open(
+                path,
+                1.25,
+                AudioPitchMode.ScaleWithRate,
+                fixedFrequencyScale: 1.5);
+
+            float[] daycoreSamples = readAll(daycore);
+            float[] nightcoreSamples = readAll(nightcore);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    daycoreSamples.Length / 2,
+                    Is.InRange(112000, 128000),
+                    "A 1.5 second source at 0.60x should last about 2.5 seconds.");
+                Assert.That(
+                    nightcoreSamples.Length / 2,
+                    Is.InRange(52000, 64000),
+                    "A 1.5 second source at 1.25x should last about 1.2 seconds.");
+                Assert.That(
+                    estimateFrequency(daycoreSamples, 48000),
+                    Is.InRange(310, 350),
+                    "Custom DC must keep lazer's fixed 0.75x frequency.");
+                Assert.That(
+                    estimateFrequency(nightcoreSamples, 48000),
+                    Is.InRange(630, 690),
+                    "Custom NC must keep lazer's fixed 1.5x frequency.");
+            });
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public void DynamicRateCanChangeDuringDecode()
     {
         string path = Path.Combine(

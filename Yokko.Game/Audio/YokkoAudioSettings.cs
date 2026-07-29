@@ -1,3 +1,4 @@
+using System;
 using osu.Framework.Bindables;
 using Yokko.Audio;
 
@@ -11,6 +12,8 @@ public sealed class YokkoAudioSettings
 {
     public readonly Bindable<bool> HomeMusicEnabled = new(true);
 
+    public readonly Bindable<double> MasterVolume = new(1);
+
     public readonly Bindable<AudioBackendKind> PreferredBackend =
         new(AudioBackendKind.WasapiExclusive);
 
@@ -20,10 +23,22 @@ public sealed class YokkoAudioSettings
 
     public readonly Bindable<double> UserOffsetMilliseconds = new(0);
 
+    public void ApplyMixSettings(
+        IAudioMixControl audio,
+        bool hitSoundsEnabled = true)
+    {
+        double volume = Math.Clamp(MasterVolume.Value, 0, 1);
+        audio.SetMixVolumes(
+            volume,
+            hitSoundsEnabled ? volume : 0,
+            0);
+    }
+
     public AudioEngineStartRequest CreateStartRequest(
         string audioPath,
         double playbackRate = 1,
-        AudioPitchMode pitchMode = AudioPitchMode.Preserve) =>
+        AudioPitchMode pitchMode = AudioPitchMode.Preserve,
+        double? fixedFrequencyScale = null) =>
         new(
             audioPath,
             PreferredBackend.Value,
@@ -34,5 +49,6 @@ public sealed class YokkoAudioSettings
             PreferredBufferSize.Value,
             UserOffsetMilliseconds.Value,
             playbackRate,
-            pitchMode);
+            pitchMode,
+            FixedFrequencyScale: fixedFrequencyScale);
 }

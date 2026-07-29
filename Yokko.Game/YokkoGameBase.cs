@@ -72,8 +72,7 @@ namespace Yokko.Game
 
             // Ensure game and tests scale with window size and screen DPI.
             base.Content.Add(Content = new YokkoUiScalingContainer(
-                displaySettings.UiScale,
-                () => window?.Scale ?? 1));
+                displaySettings.UiScale));
         }
 
         protected override LocalisationManager CreateLocalisationManager(FrameworkConfigManager frameworkConfig) =>

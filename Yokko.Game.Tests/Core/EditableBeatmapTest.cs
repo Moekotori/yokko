@@ -107,7 +107,8 @@ namespace Yokko.Game.Tests.Core
                         -1,
                         [new YokkoScrollVelocity(500, -2)],
                         [new YokkoScrollSpeedFactor(250, 1.25)]),
-                })
+                },
+                LegacyLongNoteRendering: true)
             {
                 HitObjects =
                 [
@@ -129,6 +130,7 @@ namespace Yokko.Game.Tests.Core
                 source.ScrollSpeedFactors));
             Assert.That(playable.ScrollProfiles, Is.EqualTo(
                 source.ScrollProfiles));
+            Assert.That(playable.LegacyLongNoteRendering, Is.True);
             Assert.That(playable.HitObjects.Single().ScrollProfileId,
                 Is.EqualTo("Reverse"));
         }

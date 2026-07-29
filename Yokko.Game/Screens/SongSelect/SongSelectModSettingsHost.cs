@@ -14,8 +14,10 @@ namespace Yokko.Game.Screens.SongSelect;
 internal partial class SongSelectModSettingsHost : CompositeDrawable
 {
     private readonly Container accuracyPage;
+    private readonly Container perfectPage;
     private readonly Container difficultyPage;
     private readonly Container mutedPage;
+    private readonly Container fixedRatePage;
     private readonly Container timeRampPage;
     private readonly Container adaptivePage;
     private readonly Container keyPage;
@@ -27,8 +29,10 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
     private ManiaModId activePage = ManiaModId.AccuracyChallenge;
 
     internal SongSelectAccuracyChallengeSettings AccuracySettings { get; }
+    internal SongSelectPerfectSettings PerfectSettings { get; }
     internal SongSelectDifficultyAdjustSettings DifficultySettings { get; }
     internal SongSelectMutedSettings MutedSettings { get; }
+    internal SongSelectFixedRateSettings FixedRateSettings { get; }
     internal SongSelectTimeRampSettings TimeRampSettings { get; }
     internal SongSelectAdaptiveSpeedSettings AdaptiveSettings { get; }
     internal SongSelectKeyConversionSettings KeySettings { get; }
@@ -37,6 +41,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
     public SongSelectModSettingsHost(
         Action<double> accuracyMinimumChanged,
         Action<ManiaAccuracyMode> accuracyModeChanged,
+        Action<bool> perfectRequireHitsChanged,
         Action<double?> drainRateChanged,
         Action<double?> overallDifficultyChanged,
         Action useMapDifficulty,
@@ -45,6 +50,8 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         Action<bool> mutedMetronomeChanged,
         Action<int> mutedComboChanged,
         Action<bool> mutedHitSoundsChanged,
+        Action<double> fixedRateChanged,
+        Action<bool> fixedRatePitchChanged,
         Action<double> timeRampInitialChanged,
         Action<double> timeRampFinalChanged,
         Action<bool> timeRampPitchChanged,
@@ -53,6 +60,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         : this(
             accuracyMinimumChanged,
             accuracyModeChanged,
+            perfectRequireHitsChanged,
             drainRateChanged,
             overallDifficultyChanged,
             useMapDifficulty,
@@ -61,6 +69,8 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             mutedMetronomeChanged,
             mutedComboChanged,
             mutedHitSoundsChanged,
+            fixedRateChanged,
+            fixedRatePitchChanged,
             timeRampInitialChanged,
             timeRampFinalChanged,
             timeRampPitchChanged,
@@ -73,6 +83,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
     internal SongSelectModSettingsHost(
         Action<double> accuracyMinimumChanged,
         Action<ManiaAccuracyMode> accuracyModeChanged,
+        Action<bool> perfectRequireHitsChanged,
         Action<double?> drainRateChanged,
         Action<double?> overallDifficultyChanged,
         Action useMapDifficulty,
@@ -81,6 +92,8 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         Action<bool> mutedMetronomeChanged,
         Action<int> mutedComboChanged,
         Action<bool> mutedHitSoundsChanged,
+        Action<double> fixedRateChanged,
+        Action<bool> fixedRatePitchChanged,
         Action<double> timeRampInitialChanged,
         Action<double> timeRampFinalChanged,
         Action<bool> timeRampPitchChanged,
@@ -93,6 +106,8 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         AccuracySettings = new SongSelectAccuracyChallengeSettings(
             accuracyMinimumChanged,
             accuracyModeChanged);
+        PerfectSettings = new SongSelectPerfectSettings(
+            perfectRequireHitsChanged);
         DifficultySettings = new SongSelectDifficultyAdjustSettings(
             drainRateChanged,
             overallDifficultyChanged,
@@ -103,6 +118,9 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             mutedMetronomeChanged,
             mutedComboChanged,
             mutedHitSoundsChanged);
+        FixedRateSettings = new SongSelectFixedRateSettings(
+            fixedRateChanged,
+            fixedRatePitchChanged);
         TimeRampSettings = new SongSelectTimeRampSettings(
             timeRampInitialChanged,
             timeRampFinalChanged,
@@ -124,7 +142,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             },
             accuracyTab = new PageTab(
                 "AC",
-                () => Show(ManiaModId.AccuracyChallenge))
+                () => Show(activeFailPage()))
             {
                 Position = new Vector2(27, 0),
             },
@@ -168,6 +186,13 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                 Size = new Vector2(202, 224),
                 Child = AccuracySettings,
             },
+            perfectPage = new Container
+            {
+                Y = 43,
+                Size = new Vector2(202, 224),
+                Alpha = 0,
+                Child = PerfectSettings,
+            },
             difficultyPage = new Container
             {
                 Y = 43,
@@ -181,6 +206,13 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                 Size = new Vector2(202, 224),
                 Alpha = 0,
                 Child = MutedSettings,
+            },
+            fixedRatePage = new Container
+            {
+                Y = 43,
+                Size = new Vector2(202, 224),
+                Alpha = 0,
+                Child = FixedRateSettings,
             },
             timeRampPage = new Container
             {
@@ -210,9 +242,14 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
 
     public void Show(ManiaModId mod)
     {
-        if (mod is not ManiaModId.AccuracyChallenge
+        if (mod is not ManiaModId.Perfect
+            and not ManiaModId.AccuracyChallenge
             and not ManiaModId.DifficultyAdjust
             and not ManiaModId.Muted
+            and not ManiaModId.HalfTime
+            and not ManiaModId.Daycore
+            and not ManiaModId.DoubleTime
+            and not ManiaModId.Nightcore
             and not ManiaModId.WindUp
             and not ManiaModId.WindDown
             and not ManiaModId.AdaptiveSpeed
@@ -244,25 +281,40 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
 
         bool accuracyEnabled =
             mods.Contains(ManiaModId.AccuracyChallenge);
+        bool perfectEnabled =
+            mods.Contains(ManiaModId.Perfect);
         bool difficultyEnabled =
             mods.Contains(ManiaModId.DifficultyAdjust);
         bool mutedEnabled = mods.Contains(ManiaModId.Muted);
+        ManiaModId fixedRateMod =
+            mods.FixedRateMod
+            ?? (activePage is ManiaModId.HalfTime
+                or ManiaModId.Daycore
+                or ManiaModId.DoubleTime
+                or ManiaModId.Nightcore
+                ? activePage
+                : ManiaModId.HalfTime);
+        bool fixedRateEnabled = mods.FixedRateMod.HasValue;
         bool windUpEnabled = mods.Contains(ManiaModId.WindUp);
         bool windDownEnabled = mods.Contains(ManiaModId.WindDown);
         bool adaptiveEnabled = mods.HasAdaptiveSpeed;
-        if (activePage == ManiaModId.AccuracyChallenge
-            && !accuracyEnabled
-            && difficultyEnabled)
+        if (activePage is ManiaModId.Perfect
+                or ManiaModId.AccuracyChallenge
+                or ManiaModId.DifficultyAdjust
+            && !isActivePageEnabled())
         {
-            activePage = ManiaModId.DifficultyAdjust;
-        }
-        else if (activePage == ManiaModId.DifficultyAdjust
-                 && !difficultyEnabled
-                 && accuracyEnabled)
-        {
-            activePage = ManiaModId.AccuracyChallenge;
+            activePage = perfectEnabled
+                ? ManiaModId.Perfect
+                : accuracyEnabled
+                    ? ManiaModId.AccuracyChallenge
+                    : difficultyEnabled
+                        ? ManiaModId.DifficultyAdjust
+                        : activePage;
         }
 
+        PerfectSettings.SetState(
+            perfectEnabled,
+            mods.PerfectRequirePerfectHits);
         AccuracySettings.SetState(
             accuracyEnabled,
             mods.AccuracyChallengeMinimum,
@@ -280,6 +332,16 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             mods.MutedMetronome,
             mods.MutedComboCount,
             mods.MutedAffectsHitSounds);
+        FixedRateSettings.SetState(
+            fixedRateEnabled,
+            fixedRateMod,
+            fixedRateEnabled
+                ? mods.FixedRateSpeedChange
+                : fixedRateMod is ManiaModId.HalfTime
+                    or ManiaModId.Daycore
+                    ? 0.75
+                    : 1.5,
+            fixedRateEnabled && mods.FixedRateAdjustPitch);
         ManiaModId timeRampMod = windDownEnabled
             ? ManiaModId.WindDown
             : ManiaModId.WindUp;
@@ -302,18 +364,34 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             mods.KeyConversionTarget,
             mods.HasDualStages);
         updatePage();
+
+        bool isActivePageEnabled() => activePage switch
+        {
+            ManiaModId.Perfect => perfectEnabled,
+            ManiaModId.AccuracyChallenge => accuracyEnabled,
+            ManiaModId.DifficultyAdjust => difficultyEnabled,
+            _ => true,
+        };
     }
 
     private void updatePage()
     {
+        bool showPerfect = activePage == ManiaModId.Perfect;
         bool showAccuracy =
             activePage == ManiaModId.AccuracyChallenge;
         bool showDifficulty =
             activePage == ManiaModId.DifficultyAdjust;
+        perfectPage.Alpha = showPerfect ? 1 : 0;
         accuracyPage.Alpha = showAccuracy ? 1 : 0;
         difficultyPage.Alpha = showDifficulty ? 1 : 0;
         mutedPage.Alpha =
             activePage == ManiaModId.Muted ? 1 : 0;
+        bool showFixedRate =
+            activePage is ManiaModId.HalfTime
+                or ManiaModId.Daycore
+                or ManiaModId.DoubleTime
+                or ManiaModId.Nightcore;
+        fixedRatePage.Alpha = showFixedRate ? 1 : 0;
         bool showTimeRamp =
             activePage is ManiaModId.WindUp
                 or ManiaModId.WindDown;
@@ -325,10 +403,12 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             and <= ManiaModId.Key10
             || activePage == ManiaModId.DualStages;
         keyPage.Alpha = showKey ? 1 : 0;
-        accuracyTab.SetSelected(showAccuracy);
+        accuracyTab.SetLabel(showPerfect ? "PF" : "AC");
+        accuracyTab.SetSelected(showPerfect || showAccuracy);
         difficultyTab.SetSelected(showDifficulty);
         mutedTab.SetSelected(activePage == ManiaModId.Muted);
-        timeRampTab.SetSelected(showTimeRamp || showAdaptive);
+        timeRampTab.SetSelected(
+            showFixedRate || showTimeRamp || showAdaptive);
         keyTab.SetSelected(showKey);
     }
 
@@ -336,8 +416,18 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         activePage is ManiaModId.WindUp
             or ManiaModId.WindDown
             or ManiaModId.AdaptiveSpeed
+            or ManiaModId.HalfTime
+            or ManiaModId.Daycore
+            or ManiaModId.DoubleTime
+            or ManiaModId.Nightcore
             ? activePage
-            : ManiaModId.WindUp;
+            : ManiaModId.HalfTime;
+
+    private ManiaModId activeFailPage() =>
+        activePage is ManiaModId.Perfect
+            or ManiaModId.AccuracyChallenge
+            ? activePage
+            : ManiaModId.AccuracyChallenge;
 
     private partial class PageTab : ClickableContainer
     {
@@ -383,5 +473,8 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                 ? SongSelectTheme.DeepNavy
                 : SongSelectTheme.PaleCyan;
         }
+
+        public void SetLabel(string text) =>
+            label.Text = text;
     }
 }

@@ -11,6 +11,62 @@ namespace Yokko.Game.Tests.Core;
 public sealed class QuaverRealPackageCorpusTest
 {
     [Test]
+    public void MatchesPinnedQuaverApiSpecialBpmCorpus()
+    {
+        // Minimal parity vector derived from Quaver.API's MPL-2.0
+        // Quaver.API.Tests/Quaver/Resources/cheat.qua at
+        // a921d561b2ece7f6bf3682446696c06c17b81649.
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "quaver-parity-corpus",
+            TestContext.CurrentContext.Test.ID);
+        Directory.CreateDirectory(directory);
+        string path = Path.Combine(directory, "special-bpm.qua");
+        File.WriteAllText(
+            path,
+            """
+Mode: Keys4
+BPMDoesNotAffectScrollVelocity: false
+TimingPoints:
+  - StartTime: 0
+    Bpm: 142
+  - StartTime: 1000
+    Bpm: .inf
+  - StartTime: 1001
+    Bpm: 0.0005988000193610787
+  - StartTime: 1002
+    Bpm: 142
+SliderVelocities: []
+HitObjects:
+  - StartTime: 0
+    Lane: 1
+  - StartTime: 2000
+    Lane: 1
+""");
+
+        ChartImportResult result =
+            KnownChartImporters.ImportAsync(
+                                   new ChartImportRequest(path, true))
+                               .AsTask()
+                               .GetAwaiter()
+                               .GetResult();
+        var map = new ScrollVelocityMap(
+            result.Beatmap.ScrollVelocities,
+            result.Beatmap.InitialScrollVelocity);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(map.MultiplierAt(999), Is.EqualTo(1));
+            Assert.That(map.MultiplierAt(1000), Is.EqualTo(128));
+            Assert.That(
+                map.MultiplierAt(1001),
+                Is.EqualTo(0.0005988000193610787 / 142)
+                  .Within(0.000000000001));
+            Assert.That(map.MultiplierAt(1002), Is.EqualTo(1));
+        });
+    }
+
+    [Test]
     [Category("Integration")]
     public void ImportsConfiguredRealQuaverSvPackage()
     {

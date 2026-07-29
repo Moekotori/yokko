@@ -14,6 +14,7 @@ using osuTK;
 using osuTK.Graphics;
 using Yokko.Audio;
 using Yokko.Game.Audio;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
@@ -24,6 +25,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     private static readonly int[] bufferSizes = { 64, 128, 256, 512 };
 
     private readonly YokkoAudioSettings settings;
+    private readonly YokkoGameplaySettings gameplaySettings;
     private readonly List<SettingsSegmentedChoiceButton> backendButtons = new();
     private readonly List<SettingsSegmentedChoiceButton> bufferButtons = new();
     private readonly CancellationTokenSource deviceLoadCancellation = new();
@@ -40,11 +42,17 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     internal int CurrentBufferSize => settings.PreferredBufferSize.Value;
     internal double CurrentOffsetMilliseconds =>
         settings.UserOffsetMilliseconds.Value;
+    internal double CurrentMasterVolume => settings.MasterVolume.Value;
+    internal bool HitSoundsEnabled =>
+        gameplaySettings.KeysoundsEnabled.Value;
     internal bool IsDeviceMenuOpen => deviceSelector.IsOpen;
 
-    public AudioSettingsPanel(YokkoAudioSettings settings)
+    public AudioSettingsPanel(
+        YokkoAudioSettings settings,
+        YokkoGameplaySettings gameplaySettings)
     {
         this.settings = settings;
+        this.gameplaySettings = gameplaySettings;
         RelativeSizeAxes = Axes.Both;
         nativeAvailable = NativeAudioEngine.IsAvailable;
 
@@ -67,26 +75,37 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 Colour = SettingsTheme.MutedNavy,
             },
             createStatusCard(out statusTitle, out statusMetadata),
-            createDivider(272),
+            createDivider(232),
             createSettingRow(
-                284,
+                238,
                 YokkoStrings.Get("settings.audio.backend"),
                 createBackendControl()),
-            createDivider(364),
+            createDivider(298),
             createSettingRow(
-                376,
+                304,
                 YokkoStrings.Get("settings.audio.device"),
                 deviceSelector = new SettingsAudioDeviceSelector(
                     settings.DeviceId),
                 -10),
-            createDivider(456),
+            createDivider(364),
             createSettingRow(
-                468,
+                370,
                 YokkoStrings.Get("settings.audio.buffer"),
                 createBufferControl()),
-            createDivider(548),
+            createDivider(430),
             createSettingRow(
-                560,
+                436,
+                YokkoStrings.Get("settings.audio.master_volume"),
+                new SettingsVolumeStepper(settings.MasterVolume)),
+            createDivider(496),
+            createSettingRow(
+                502,
+                YokkoStrings.Get("settings.audio.hitsounds"),
+                new SettingsAudioToggle(
+                    gameplaySettings.KeysoundsEnabled)),
+            createDivider(562),
+            createSettingRow(
+                568,
                 YokkoStrings.Get("settings.audio.offset"),
                 new SettingsOffsetStepper(
                     settings.UserOffsetMilliseconds)),
@@ -102,6 +121,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
         settings.PreferredBackend.BindValueChanged(onPreferenceChanged, true);
         settings.DeviceId.BindValueChanged(onPreferenceChanged);
         settings.PreferredBufferSize.BindValueChanged(onPreferenceChanged);
+        settings.MasterVolume.BindValueChanged(onPreferenceChanged);
         settings.UserOffsetMilliseconds.BindValueChanged(onPreferenceChanged);
         _ = loadDevicesAsync(deviceLoadCancellation.Token);
     }
@@ -134,6 +154,13 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
         settings.UserOffsetMilliseconds.Value =
             Math.Clamp(Math.Round(milliseconds), -200, 200);
     }
+
+    internal void SetMasterVolume(double volume) =>
+        settings.MasterVolume.Value =
+            Math.Clamp(Math.Round(volume * 20) / 20, 0, 1);
+
+    internal void SetHitSoundsEnabled(bool enabled) =>
+        gameplaySettings.KeysoundsEnabled.Value = enabled;
 
     internal void ToggleDeviceMenu() => deviceSelector.Toggle();
 
@@ -257,8 +284,8 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     {
         var result = new Container
         {
-            Position = new Vector2(378, 158),
-            Size = new Vector2(840, 86),
+            Position = new Vector2(378, 150),
+            Size = new Vector2(840, 70),
             Masking = true,
             CornerRadius = 8,
         };
@@ -408,6 +435,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             settings.PreferredBackend.ValueChanged -= onPreferenceChanged;
             settings.DeviceId.ValueChanged -= onPreferenceChanged;
             settings.PreferredBufferSize.ValueChanged -= onPreferenceChanged;
+            settings.MasterVolume.ValueChanged -= onPreferenceChanged;
             settings.UserOffsetMilliseconds.ValueChanged -= onPreferenceChanged;
             if (deviceEnumerator != null)
                 _ = deviceEnumerator.DisposeAsync();
@@ -692,6 +720,180 @@ internal partial class SettingsAudioDeviceOption : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e) =>
         background.FadeColour(Color4.White, 120, Easing.OutQuint);
+}
+
+internal partial class SettingsVolumeStepper : CompositeDrawable
+{
+    private const double step = 0.05;
+    private readonly Bindable<double> volume;
+    private readonly SpriteText valueText;
+
+    public SettingsVolumeStepper(Bindable<double> volume)
+    {
+        this.volume = volume;
+        Size = new Vector2(598, 54);
+        Masking = true;
+        CornerRadius = 7;
+        BorderThickness = 1.4f;
+        BorderColour = HomeControlColours.Navy;
+
+        InternalChildren = new Drawable[]
+        {
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.White,
+            },
+            createButton(FontAwesome.Solid.Minus, Anchor.CentreLeft, -step),
+            valueText = new SpriteText
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Font = HomeTypography.Display(19),
+                Colour = HomeControlColours.Navy,
+            },
+            createButton(FontAwesome.Solid.Plus, Anchor.CentreRight, step),
+        };
+
+        volume.BindValueChanged(onVolumeChanged, true);
+    }
+
+    private Drawable createButton(
+        IconUsage icon,
+        Anchor anchor,
+        double delta) =>
+        new ClickableContainer
+        {
+            Anchor = anchor,
+            Origin = anchor,
+            Width = 72,
+            RelativeSizeAxes = Axes.Y,
+            Action = () => volume.Value = Math.Clamp(
+                Math.Round((volume.Value + delta) / step) * step,
+                0,
+                1),
+            Child = new SpriteIcon
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(16),
+                Icon = icon,
+                Colour = HomeControlColours.Pink,
+            },
+        };
+
+    private void onVolumeChanged(ValueChangedEvent<double> change) =>
+        valueText.Text = $"{change.NewValue * 100:0}%";
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            volume.ValueChanged -= onVolumeChanged;
+
+        base.Dispose(isDisposing);
+    }
+}
+
+internal partial class SettingsAudioToggle : ClickableContainer
+{
+    private readonly BindableBool value;
+    private readonly Box background;
+    private readonly Box switchTrack;
+    private readonly Circle switchThumb;
+    private readonly SpriteText stateText;
+
+    public SettingsAudioToggle(BindableBool value)
+    {
+        this.value = value;
+        Action = () => value.Value = !value.Value;
+        Size = new Vector2(598, 54);
+        Masking = true;
+        CornerRadius = 7;
+        BorderThickness = 1.4f;
+        BorderColour = HomeControlColours.Navy;
+
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.White,
+            },
+            stateText = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 18,
+                Font = HomeTypography.Display(17),
+                Colour = HomeControlColours.Navy,
+            },
+            new Container
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -16,
+                Size = new Vector2(48, 24),
+                Masking = true,
+                CornerRadius = 12,
+                Children = new Drawable[]
+                {
+                    switchTrack = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = SettingsTheme.Divider,
+                    },
+                    switchThumb = new Circle
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.Centre,
+                        X = 12,
+                        Size = new Vector2(18),
+                        Colour = Color4.White,
+                    },
+                },
+            },
+        };
+
+        value.BindValueChanged(onValueChanged, true);
+    }
+
+    private void onValueChanged(ValueChangedEvent<bool> change)
+    {
+        switchTrack.FadeColour(
+            change.NewValue
+                ? HomeControlColours.Navy
+                : SettingsTheme.Divider,
+            120,
+            Easing.OutQuint);
+        switchThumb.MoveToX(
+            change.NewValue ? 36 : 12,
+            120,
+            Easing.OutQuint);
+        stateText.Text = YokkoStrings.Get(
+            change.NewValue
+                ? "settings.audio.enabled"
+                : "settings.audio.disabled");
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(
+            SettingsTheme.PaleCyan,
+            120,
+            Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e) =>
+        background.FadeColour(Color4.White, 120, Easing.OutQuint);
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            value.ValueChanged -= onValueChanged;
+
+        base.Dispose(isDisposing);
+    }
 }
 
 internal partial class SettingsOffsetStepper : CompositeDrawable

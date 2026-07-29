@@ -184,6 +184,32 @@ public sealed class ManiaHealthStateTest
     }
 
     [Test]
+    public void PerfectStrictModeFailsOnGreatLikeLazer()
+    {
+        YokkoBeatmap beatmap = createBeatmap();
+        var defaultHealth = new ManiaHealthState(
+            beatmap,
+            ManiaModSet.Empty.WithPerfect(false));
+        var strictHealth = new ManiaHealthState(
+            beatmap,
+            ManiaModSet.Empty.WithPerfect(true));
+
+        ManiaHealthUpdate defaultGreat =
+            defaultHealth.Apply(judgement(JudgementRating.Great));
+        ManiaHealthUpdate strictGreat =
+            strictHealth.Apply(judgement(JudgementRating.Great));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(defaultGreat.Failed, Is.False);
+            Assert.That(strictGreat.Failed, Is.True);
+            Assert.That(
+                strictGreat.FailReason,
+                Is.EqualTo(ManiaFailReason.PerfectBroken));
+        });
+    }
+
+    [Test]
     public void EasyHalvesDrainWidensWindowsAndProvidesTwoLives()
     {
         YokkoBeatmap beatmap = createBeatmap(drainRate: 8);

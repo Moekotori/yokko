@@ -22,9 +22,7 @@ public enum YokkoFrameLimit
 
 public sealed class YokkoDisplaySettings
 {
-    public static readonly Vector2 DesignedDrawSize = new(1280, 720);
-
-    private const float maximum_desktop_scale = 1.5f;
+    public static readonly Vector2 ReferenceLayoutSize = new(1600, 900);
 
     public readonly Bindable<YokkoUiScale> UiScale = new(YokkoUiScale.Comfortable);
 
@@ -36,12 +34,9 @@ public sealed class YokkoDisplaySettings
 
     public static Vector2 GetTargetDrawSize(YokkoUiScale scale) => scale switch
     {
-        // Yokko screens are authored on a 1280x720 stage. 100% is therefore
-        // the largest safe setting; enlarging past it clips edge controls on
-        // windows that are not wider than 16:9.
-        YokkoUiScale.Large => new Vector2(1280, 720),
-        YokkoUiScale.Compact => new Vector2(1600, 900),
-        _ => new Vector2(1440, 810),
+        YokkoUiScale.Large => new Vector2(1600, 900),
+        YokkoUiScale.Compact => new Vector2(2000, 1125),
+        _ => new Vector2(1600f / 0.9f, 1000),
     };
 
     public static float GetScaleFactor(YokkoUiScale scale) =>
@@ -56,29 +51,21 @@ public sealed class YokkoDisplaySettings
 
     /// <summary>
     /// Calculates the physical scale applied to Yokko's authored 1280x720 UI.
-    /// The UI follows operating-system DPI, grows up to a 1080p-equivalent
-    /// desktop size, and then stops growing with raw window resolution.
-    /// Smaller windows always shrink to fit.
+    /// The 100% setting fits Yokko's shared 1600x900 layout space to the
+    /// full client resolution. Rendering still occurs at the native client
+    /// resolution; 90% and 80% expose proportionally more layout space.
     /// </summary>
     public static float CalculateContentScale(
         Vector2 availableDrawSize,
-        float displayScale,
         YokkoUiScale uiScale)
     {
         if (availableDrawSize.X <= 0 || availableDrawSize.Y <= 0)
             return 1;
 
         float fitScale = MathF.Min(
-            availableDrawSize.X / DesignedDrawSize.X,
-            availableDrawSize.Y / DesignedDrawSize.Y);
-        float safeDisplayScale = float.IsFinite(displayScale)
-            ? MathF.Max(displayScale, 0.5f)
-            : 1;
-        float preferredDesktopScale = MathF.Max(
-            safeDisplayScale,
-            MathF.Min(fitScale, maximum_desktop_scale));
-        float baseScale = MathF.Min(fitScale, preferredDesktopScale);
+            availableDrawSize.X / ReferenceLayoutSize.X,
+            availableDrawSize.Y / ReferenceLayoutSize.Y);
 
-        return MathF.Max(baseScale * GetScaleFactor(uiScale), 0.01f);
+        return MathF.Max(fitScale * GetScaleFactor(uiScale), 0.01f);
     }
 }

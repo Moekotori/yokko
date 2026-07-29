@@ -1,0 +1,502 @@
+using System;
+using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Sprites;
+using osu.Framework.Input.Events;
+using osuTK;
+using osuTK.Graphics;
+using Yokko.Core.Mods;
+using Yokko.Game.Screens.Main;
+
+namespace Yokko.Game.Screens.SongSelect;
+
+internal partial class GameplayModsCategoryButton : ClickableContainer
+{
+    private readonly Color4 accentColour;
+    private readonly Box background;
+    private readonly Box accent;
+    private readonly SpriteIcon icon;
+    private bool selected;
+
+    public GameplayModsCategoryButton(
+        string label,
+        IconUsage iconUsage,
+        Color4 accentColour,
+        Action action)
+    {
+        this.accentColour = accentColour;
+        Action = action;
+        Size = new Vector2(207, 50);
+        Masking = true;
+        CornerRadius = 3;
+
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+            },
+            accent = new Box
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.Centre,
+                Position = new Vector2(-3, 0),
+                Size = new Vector2(14),
+                Rotation = 45,
+                Colour = HomeControlColours.Yellow,
+            },
+            new Circle
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 12,
+                Size = new Vector2(27),
+                Colour = accentColour,
+            },
+            icon = new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 19,
+                Size = new Vector2(13),
+                Icon = iconUsage,
+                Colour = Color4.White,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 53,
+                Text = label.ToUpperInvariant(),
+                Font = HomeTypography.Display(12),
+                Colour = HomeControlColours.Navy,
+            },
+        };
+
+        SetSelected(false);
+    }
+
+    public void SetSelected(bool value)
+    {
+        selected = value;
+        background.Colour = selected
+            ? HomeControlColours.PaleCyan
+            : Color4.White;
+        accent.Alpha = selected ? 1 : 0;
+        icon.Scale = selected ? new Vector2(1.04f) : Vector2.One;
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(HomeControlColours.PaleCyan, 100);
+        this.ScaleTo(1.018f, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        this.ScaleTo(1, 120, Easing.OutQuint);
+        SetSelected(selected);
+    }
+}
+
+internal partial class GameplayModListItem : ClickableContainer
+{
+    private readonly ManiaModDefinition definition;
+    private readonly Color4 accentColour;
+    private readonly bool selectable;
+    private readonly Action<ManiaModId, bool> hoverChanged;
+    private readonly Box acronymBackground;
+    private readonly SpriteText acronym;
+    private readonly SpriteText name;
+    private readonly SpriteText description;
+    private bool selected;
+
+    public GameplayModListItem(
+        ManiaModDefinition definition,
+        Color4 accentColour,
+        bool selectable,
+        Action action,
+        Action<ManiaModId, bool> hoverChanged)
+    {
+        this.definition = definition;
+        this.accentColour = accentColour;
+        this.selectable = selectable;
+        this.hoverChanged = hoverChanged;
+        Action = action;
+        Size = new Vector2(266, 42);
+        Alpha = selectable ? 1 : 0.42f;
+
+        InternalChildren = new Drawable[]
+        {
+            new Container
+            {
+                Size = new Vector2(40),
+                Masking = true,
+                CornerRadius = 4,
+                BorderThickness = 1.3f,
+                BorderColour = accentColour,
+                Child = acronymBackground = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
+            },
+            new Container
+            {
+                Size = new Vector2(40),
+                Child = acronym = new SpriteText
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Y = 9,
+                    Text = definition.Acronym,
+                    Font = HomeTypography.Display(16),
+                    Colour = accentColour,
+                },
+            },
+            name = new SpriteText
+            {
+                Position = new Vector2(52, 2),
+                Text = definition.Name,
+                Font = HomeTypography.Display(12),
+                Colour = HomeControlColours.Navy,
+            },
+            description = new SpriteText
+            {
+                Position = new Vector2(52, 21),
+                Text = selectable
+                    ? shorten(definition.Description, 34)
+                    : "Requires an osu!standard chart.",
+                Font = HomeTypography.Body(9),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.58f),
+            },
+            new Box
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                Position = new Vector2(52, -1),
+                Size = new Vector2(214, 1),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.1f),
+            },
+        };
+
+        SetSelected(false);
+    }
+
+    public void SetSelected(bool value)
+    {
+        selected = value && selectable;
+        acronymBackground.Colour = selected
+            ? accentColour
+            : Color4.White;
+        acronym.Colour = selected
+            ? HomeControlColours.Navy
+            : accentColour;
+        name.Colour = selected
+            ? accentColour
+            : HomeControlColours.Navy;
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        hoverChanged?.Invoke(definition.Id, true);
+        acronymBackground.FadeColour(
+            selected
+                ? accentColour
+                : new Color4(
+                    HomeControlColours.PaleCyan.R,
+                    HomeControlColours.PaleCyan.G,
+                    HomeControlColours.PaleCyan.B,
+                    0.9f),
+            90);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        hoverChanged?.Invoke(definition.Id, false);
+        SetSelected(selected);
+    }
+
+    private static string shorten(string text, int maximumLength)
+    {
+        if (string.IsNullOrWhiteSpace(text)
+            || text.Length <= maximumLength)
+        {
+            return text;
+        }
+
+        return text[..(maximumLength - 1)].TrimEnd() + "…";
+    }
+}
+
+internal partial class GameplayActiveModRow : ClickableContainer
+{
+    private readonly Box background;
+    private readonly SpriteIcon removeIcon;
+
+    public GameplayActiveModRow(
+        ManiaModDefinition definition,
+        string value,
+        Action remove)
+    {
+        Action = remove;
+        Size = new Vector2(283, 37);
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.White,
+            },
+            new Container
+            {
+                Size = new Vector2(40, 37),
+                Masking = true,
+                CornerRadius = 4,
+                BorderThickness = 1.2f,
+                BorderColour = HomeControlColours.Cyan,
+                Children = new Drawable[]
+                {
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = Color4.White,
+                    },
+                    new SpriteText
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Text = definition.Acronym,
+                        Font = HomeTypography.Display(13),
+                        Colour = HomeControlColours.Cyan,
+                    },
+                },
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 54,
+                Text = definition.Name,
+                Font = HomeTypography.Display(10),
+                Colour = HomeControlColours.Navy,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -31,
+                Text = value,
+                Font = HomeTypography.Display(9),
+                Colour = HomeControlColours.Navy,
+            },
+            removeIcon = new SpriteIcon
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -7,
+                Size = new Vector2(9),
+                Icon = FontAwesome.Solid.Times,
+                Colour = HomeControlColours.Pink,
+            },
+            new Box
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                X = 50,
+                Size = new Vector2(233, 1),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.1f),
+            },
+        };
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(HomeControlColours.PaleCyan, 90);
+        removeIcon.ScaleTo(1.2f, 90, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        background.FadeColour(Color4.White, 110);
+        removeIcon.ScaleTo(1, 110, Easing.OutQuint);
+    }
+}
+
+internal partial class GameplayModsResetButton : ClickableContainer
+{
+    private readonly Box background;
+    private readonly SpriteIcon icon;
+
+    public GameplayModsResetButton(Action action)
+    {
+        Action = action;
+        Size = new Vector2(138, 64);
+        Masking = true;
+        CornerRadius = 7;
+        BorderThickness = 1.5f;
+        BorderColour = HomeControlColours.Navy;
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.White,
+            },
+            icon = new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 19,
+                Size = new Vector2(22),
+                Icon = FontAwesome.Solid.Undo,
+                Colour = HomeControlColours.Cyan,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 55,
+                Text = "RESET",
+                Font = HomeTypography.Display(15),
+                Colour = HomeControlColours.Navy,
+            },
+            new Box
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.Centre,
+                Size = new Vector2(16),
+                Rotation = 45,
+                Colour = HomeControlColours.Yellow,
+            },
+        };
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(HomeControlColours.PaleCyan, 100);
+        icon.RotateTo(-30, 150, Easing.OutQuint);
+        this.ScaleTo(1.02f, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        background.FadeColour(Color4.White, 120);
+        icon.RotateTo(0, 120, Easing.OutQuint);
+        this.ScaleTo(1, 120, Easing.OutQuint);
+    }
+}
+
+internal partial class GameplayModsDoneButton : ClickableContainer
+{
+    private readonly Box background;
+    private readonly SpriteIcon chevron;
+
+    public GameplayModsDoneButton(Action action)
+    {
+        Action = action;
+        Size = new Vector2(354, 78);
+        Masking = true;
+        CornerRadius = 9;
+        BorderThickness = 2;
+        BorderColour = HomeControlColours.Navy;
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = HomeControlColours.Navy,
+            },
+            new Container
+            {
+                Position = new Vector2(8),
+                Size = new Vector2(62),
+                Masking = true,
+                CornerRadius = 6,
+                Children = new Drawable[]
+                {
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = Color4.White,
+                    },
+                    new SpriteIcon
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(26),
+                        Icon = FontAwesome.Solid.Play,
+                        Colour = HomeControlColours.Navy,
+                    },
+                },
+            },
+            new SpriteText
+            {
+                Position = new Vector2(88, 23),
+                Text = "DONE",
+                Font = HomeTypography.Display(27),
+                Colour = Color4.White,
+            },
+            chevron = new SpriteIcon
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -18,
+                Size = new Vector2(15),
+                Icon = FontAwesome.Solid.ChevronRight,
+                Colour = HomeControlColours.Yellow,
+            },
+            new Box
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                X = 88,
+                Width = 60,
+                Height = 3,
+                Colour = HomeControlColours.Pink,
+            },
+            new Box
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.Centre,
+                Size = new Vector2(17),
+                Rotation = 45,
+                Colour = HomeControlColours.Yellow,
+            },
+        };
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(
+            new Color4(0.02f, 0.04f, 0.42f, 1f),
+            100);
+        chevron.MoveToX(-11, 120, Easing.OutQuint);
+        this.ScaleTo(1.012f, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        background.FadeColour(HomeControlColours.Navy, 120);
+        chevron.MoveToX(-18, 120, Easing.OutQuint);
+        this.ScaleTo(1, 120, Easing.OutQuint);
+    }
+}

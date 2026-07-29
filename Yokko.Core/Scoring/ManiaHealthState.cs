@@ -109,9 +109,12 @@ public sealed class ManiaHealthState
         if (mods.Contains(ManiaModId.Perfect)
             && (judgement.Rating.AffectsAccuracy()
                 || judgement.Rating.AffectsCombo())
-            && judgement.Rating is not (
-                JudgementRating.Great
-                or JudgementRating.Perfect))
+            && (mods.PerfectRequirePerfectHits
+                ? judgement.Rating
+                  != JudgementRating.Perfect
+                : judgement.Rating is not (
+                    JudgementRating.Great
+                    or JudgementRating.Perfect)))
         {
             return ManiaFailReason.PerfectBroken;
         }

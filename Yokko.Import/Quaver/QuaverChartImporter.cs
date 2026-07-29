@@ -103,7 +103,7 @@ public sealed class QuaverChartImporter : IChartImporter
             ? [YokkoTimingPoint.Default]
             : parsed.TimingPoints.Select(static point => new YokkoTimingPoint(
                                            point.StartTime,
-                                           point.Bpm > 0 ? 60000 / point.Bpm : 500,
+                                           quaverBeatLength(point.Bpm),
                                            point.Meter))
                                  .ToArray();
 
@@ -191,7 +191,9 @@ public sealed class QuaverChartImporter : IChartImporter
             ScrollProfiles: scrollProfiles,
             PreviewTimeMilliseconds: ImportParsing.Double(
                 parsed.Values.GetValueOrDefault("SongPreviewTime"),
-                -1));
+                -1),
+            LegacyLongNoteRendering: parseBoolean(
+                parsed.Values.GetValueOrDefault("LegacyLNRendering")));
 
         string? artworkPath = ImportParsing.ResolveAdjacentAsset(
             path,
@@ -493,7 +495,7 @@ public sealed class QuaverChartImporter : IChartImporter
         if (key.Equals("StartTime", StringComparison.OrdinalIgnoreCase))
             point.StartTime = ImportParsing.Double(value);
         else if (key.Equals("Bpm", StringComparison.OrdinalIgnoreCase))
-            point.Bpm = ImportParsing.Double(value, 120);
+            point.Bpm = parseQuaverNumber(value, 120);
         else if (key.Equals("TimeSignature", StringComparison.OrdinalIgnoreCase)
                  || key.Equals("Signature", StringComparison.OrdinalIgnoreCase))
         {
@@ -542,6 +544,34 @@ public sealed class QuaverChartImporter : IChartImporter
         => bool.TryParse(value, out bool parsed)
             ? parsed
             : ImportParsing.Int(value) != 0;
+
+    private static double parseQuaverNumber(
+        string? value,
+        double fallback = 0)
+    {
+        string normalized = value?.Trim().ToLowerInvariant()
+                            ?? string.Empty;
+        return normalized switch
+        {
+            ".inf" or "+.inf" => double.PositiveInfinity,
+            "-.inf" => double.NegativeInfinity,
+            ".nan" => double.NaN,
+            _ => ImportParsing.Double(value, fallback),
+        };
+    }
+
+    private static double quaverBeatLength(double bpm)
+    {
+        if (double.IsInfinity(bpm))
+            return 0;
+
+        if (bpm == 0)
+            return double.PositiveInfinity;
+
+        return double.IsFinite(bpm) && bpm > 0
+            ? 60000 / bpm
+            : YokkoTimingPoint.Default.BeatLengthMilliseconds;
+    }
 
     private static string? normalizeScrollProfileId(string? timingGroup)
     {

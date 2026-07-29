@@ -883,6 +883,59 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestPerfectStrictSettingMatchesLazerGreatBoundary()
+        {
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Perfect Strict Boundary Test",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        1000,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+            var replay = new GameplayReplay(
+            [
+                new GameplayReplayInput(0, true, 1020),
+                new GameplayReplayInput(0, false, 1100),
+            ]);
+            GameplayScreen defaultPerfect = null;
+            GameplayScreen strictPerfect = null;
+
+            AddStep("play Great with default Perfect", () =>
+                screenStack.Push(defaultPerfect =
+                    new GameplayScreen(
+                        beatmap,
+                        null,
+                        null,
+                        ManiaModSet.Empty.WithPerfect(false),
+                        replay)));
+            AddUntilStep("default Perfect accepts Great", () =>
+                defaultPerfect?.GameplayCompleted == true);
+            AddAssert("default run recorded Great", () =>
+                !defaultPerfect.GameplayFailed
+                && defaultPerfect.CompletedResult.Great == 1);
+            AddStep("play Great with strict Perfect", () =>
+                screenStack.Push(strictPerfect =
+                    new GameplayScreen(
+                        beatmap,
+                        null,
+                        null,
+                        ManiaModSet.Empty.WithPerfect(true),
+                        replay)));
+            AddUntilStep("strict Perfect rejects Great", () =>
+                strictPerfect?.GameplayFailed == true);
+            AddAssert("strict setting reaches fail overlay", () =>
+                strictPerfect
+                    .ChildrenOfType<GameplayFailOverlay>()
+                    .SingleOrDefault()?
+                    .Reason == ManiaFailReason.PerfectBroken);
+        }
+
+        [Test]
         public void TestHardRockAndAccuracyChallengeRuntime()
         {
             YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with

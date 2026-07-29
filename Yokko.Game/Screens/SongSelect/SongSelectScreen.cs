@@ -143,11 +143,15 @@ public partial class SongSelectScreen : Screen
     internal SongSelectAccuracyChallengeSettings
         AccuracyChallengeSettings =>
             modSettingsHost?.AccuracySettings;
+    internal SongSelectPerfectSettings PerfectSettings =>
+        modSettingsHost?.PerfectSettings;
     internal SongSelectDifficultyAdjustSettings
         DifficultyAdjustSettings =>
             modSettingsHost?.DifficultySettings;
     internal SongSelectMutedSettings MutedSettings =>
         modSettingsHost?.MutedSettings;
+    internal SongSelectFixedRateSettings FixedRateSettings =>
+        modSettingsHost?.FixedRateSettings;
     internal SongSelectTimeRampSettings TimeRampSettings =>
         modSettingsHost?.TimeRampSettings;
     internal SongSelectAdaptiveSpeedSettings AdaptiveSpeedSettings =>
@@ -264,6 +268,8 @@ public partial class SongSelectScreen : Screen
     public override void OnResuming(ScreenTransitionEvent e)
     {
         base.OnResuming(e);
+        modPanelOpen = false;
+        modsToggleButton?.SetOpen(false);
         synchroniseImportedCharts();
         int selectedIndex = Math.Max(0, entries.IndexOf(selectedEntry));
         refreshSavedScores();
@@ -429,8 +435,13 @@ public partial class SongSelectScreen : Screen
             : selectedMods.With(mod, enabled);
         if (enabled
             && (mod is ManiaModId.AccuracyChallenge
+                or ManiaModId.Perfect
                 or ManiaModId.DifficultyAdjust
                 or ManiaModId.Muted
+                or ManiaModId.HalfTime
+                or ManiaModId.Daycore
+                or ManiaModId.DoubleTime
+                or ManiaModId.Nightcore
                 or ManiaModId.WindUp
                 or ManiaModId.WindDown
                 or ManiaModId.AdaptiveSpeed
@@ -520,6 +531,36 @@ public partial class SongSelectScreen : Screen
         selectedMods = selectedMods.WithAccuracyChallenge(
             selectedMods.AccuracyChallengeMinimum,
             mode);
+        onSelectedModsChanged();
+    }
+
+    internal void SetPerfectRequirePerfectHits(bool value)
+    {
+        selectedMods = selectedMods.WithPerfect(value);
+        onSelectedModsChanged();
+    }
+
+    internal void SetFixedRateSpeedChange(double value)
+    {
+        if (selectedMods.FixedRateMod is not ManiaModId mod)
+            return;
+
+        selectedMods = selectedMods.WithFixedRate(
+            mod,
+            value,
+            selectedMods.FixedRateAdjustPitch);
+        onSelectedModsChanged();
+    }
+
+    internal void SetFixedRateAdjustPitch(bool value)
+    {
+        if (selectedMods.FixedRateMod is not ManiaModId mod)
+            return;
+
+        selectedMods = selectedMods.WithFixedRate(
+            mod,
+            selectedMods.FixedRateSpeedChange,
+            value);
         onSelectedModsChanged();
     }
 
@@ -677,26 +718,21 @@ public partial class SongSelectScreen : Screen
 
     internal void ToggleModPanel()
     {
-        modPanelOpen = !modPanelOpen;
-        modsToggleButton?.SetOpen(modPanelOpen);
-
-        if (modPanel == null)
+        if (modPanelOpen || selectedEntry == null)
             return;
 
-        modPanel.ClearTransforms();
-        if (modPanelOpen)
-        {
-            modPanel.Show();
-            modPanel.Alpha = 0;
-            modPanel.Y = -2;
-            modPanel.FadeIn(150, Easing.OutQuint)
-                    .MoveToY(-10, 190, Easing.OutQuint);
-        }
-        else
-        {
-            modPanel.FadeOut(110, Easing.OutQuint)
-                    .MoveToY(-2, 140, Easing.OutQuint);
-        }
+        modPanelOpen = true;
+        modsToggleButton?.SetOpen(true);
+        this.Push(new GameplayModsScreen(
+            selectedEntry.Beatmap,
+            selectedMods,
+            applyModsFromPage));
+    }
+
+    private void applyModsFromPage(ManiaModSet mods)
+    {
+        selectedMods = mods ?? ManiaModSet.Empty;
+        onSelectedModsChanged();
     }
 
     private Drawable createHeader(Texture logo) => new Container
@@ -1184,6 +1220,7 @@ public partial class SongSelectScreen : Screen
                 new SongSelectModSettingsHost(
                     SetAccuracyChallengeMinimum,
                     SetAccuracyChallengeMode,
+                    SetPerfectRequirePerfectHits,
                     SetDifficultyAdjustDrainRate,
                     SetDifficultyAdjustOverallDifficulty,
                     UseMapDifficultyValues,
@@ -1192,6 +1229,8 @@ public partial class SongSelectScreen : Screen
                     SetMutedMetronome,
                     SetMutedComboCount,
                     SetMutedAffectsHitSounds,
+                    SetFixedRateSpeedChange,
+                    SetFixedRateAdjustPitch,
                     SetTimeRampInitialRate,
                     SetTimeRampFinalRate,
                     SetTimeRampAdjustPitch,

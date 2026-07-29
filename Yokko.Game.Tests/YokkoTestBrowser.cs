@@ -5,8 +5,10 @@ using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Game.Screens.Gameplay;
+using Yokko.Game.Screens.SongSelect;
 
 namespace Yokko.Game.Tests
 {
@@ -15,6 +17,23 @@ namespace Yokko.Game.Tests
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            if (Environment.GetEnvironmentVariable(
+                    "YOKKO_MODS_PREVIEW") == "1")
+            {
+                ManiaModSet mods = ManiaModSet.Empty
+                    .With(ManiaModId.HalfTime, true)
+                    .With(ManiaModId.Hidden, true);
+                Add(new ScreenStack(new GameplayModsScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    mods,
+                    _ => { }))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                Add(new CursorContainer());
+                return;
+            }
 
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_RESULT_PREVIEW") == "1")

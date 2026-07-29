@@ -42,4 +42,35 @@ public class GameplayMutedAudioControllerTest
         Assert.That(audio.HitSoundVolume, Is.EqualTo(1));
         Assert.That(audio.MetronomeVolume, Is.EqualTo(0));
     }
+
+    [Test]
+    public void MutedMixPreservesMasterVolumeAndDisabledHitSounds()
+    {
+        var audio = new NullAudioEngine();
+        ManiaModSet mods = ManiaModSet.Empty.WithMuted(
+            false,
+            true,
+            100,
+            true);
+        var controller = new GameplayMutedAudioController(
+            DemoBeatmaps.CreateFourKeyDemo(),
+            mods,
+            audio,
+            0.6,
+            0,
+            0.6);
+
+        Assert.That(audio.MusicVolume, Is.EqualTo(0.6));
+        Assert.That(audio.HitSoundVolume, Is.Zero);
+
+        controller.Update(500, 100, 0);
+        Assert.That(audio.MusicVolume, Is.Zero.Within(0.0001));
+        Assert.That(audio.HitSoundVolume, Is.Zero);
+        Assert.That(audio.MetronomeVolume, Is.EqualTo(0.6).Within(0.0001));
+
+        controller.Restore();
+        Assert.That(audio.MusicVolume, Is.EqualTo(0.6));
+        Assert.That(audio.HitSoundVolume, Is.Zero);
+        Assert.That(audio.MetronomeVolume, Is.Zero);
+    }
 }

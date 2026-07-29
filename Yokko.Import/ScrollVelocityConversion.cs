@@ -89,7 +89,10 @@ internal static class ScrollVelocityConversion
                                                  hitObjects)
                                              .Where(static point =>
                                                  point.Uninherited
-                                                 && point.BeatLengthMilliseconds > 0)
+                                                 && !double.IsNaN(
+                                                     point.BeatLengthMilliseconds)
+                                                 && point.BeatLengthMilliseconds
+                                                 >= 0)
                                              .OrderBy(static point =>
                                                  point.TimeMilliseconds)
                                              .ToArray();
@@ -144,9 +147,10 @@ internal static class ScrollVelocityConversion
                     < timingPoint.TimeMilliseconds)
                 {
                     double multiplier =
-                        sliderVelocity.Multiplier
-                        * baseBeatLength
-                        / currentBeatLength;
+                        adjustedQuaverMultiplier(
+                            sliderVelocity.Multiplier,
+                            baseBeatLength,
+                            currentBeatLength);
                     recordMultiplier(
                         sliderVelocity.TimeMilliseconds,
                         multiplier);
@@ -168,9 +172,10 @@ internal static class ScrollVelocityConversion
             currentBeatLength = timingPoint.BeatLengthMilliseconds;
             recordMultiplier(
                 timingPoint.TimeMilliseconds,
-                currentSliderVelocity
-                * baseBeatLength
-                / currentBeatLength);
+                adjustedQuaverMultiplier(
+                    currentSliderVelocity,
+                    baseBeatLength,
+                    currentBeatLength));
         }
 
         for (; currentSliderVelocityIndex
@@ -181,9 +186,10 @@ internal static class ScrollVelocityConversion
                 orderedSliderVelocities[currentSliderVelocityIndex];
             recordMultiplier(
                 sliderVelocity.TimeMilliseconds,
-                sliderVelocity.Multiplier
-                * baseBeatLength
-                / currentBeatLength);
+                adjustedQuaverMultiplier(
+                    sliderVelocity.Multiplier,
+                    baseBeatLength,
+                    currentBeatLength));
         }
 
         return new ScrollVelocityProfile(
@@ -232,8 +238,10 @@ internal static class ScrollVelocityConversion
         YokkoTimingPoint[] activePoints = timingPoints
                                           .Where(static point =>
                                               point.Uninherited
-                                              && double.IsFinite(point.BeatLengthMilliseconds)
-                                              && point.BeatLengthMilliseconds > 0)
+                                              && !double.IsNaN(
+                                                  point.BeatLengthMilliseconds)
+                                              && point.BeatLengthMilliseconds
+                                              >= 0)
                                           .OrderBy(static point => point.TimeMilliseconds)
                                           .GroupBy(static point => point.TimeMilliseconds)
                                           .Select(static group => group.Last())
@@ -241,6 +249,9 @@ internal static class ScrollVelocityConversion
 
         if (activePoints.Length == 0)
             return YokkoTimingPoint.Default.BeatLengthMilliseconds;
+
+        if (hitObjects.Count == 0)
+            return activePoints[0].BeatLengthMilliseconds;
 
         double lastTime = hitObjects.Count == 0
             ? activePoints[^1].TimeMilliseconds
@@ -282,6 +293,28 @@ internal static class ScrollVelocityConversion
                            static pair => pair.Value.Duration)
                        .First()
                        .Value.BeatLength;
+    }
+
+    private static double adjustedQuaverMultiplier(
+        double sliderVelocity,
+        double baseBeatLength,
+        double currentBeatLength)
+    {
+        // Quaver treats infinite BPM as an arbitrarily large 128x SV so the
+        // normalized representation stays finite and round-trippable.
+        if (currentBeatLength == 0)
+            return 128;
+
+        // A zero-BPM point stops the visual timeline.
+        if (double.IsPositiveInfinity(currentBeatLength))
+            return 0;
+
+        // If infinite BPM is itself the common BPM, finite sections normalize
+        // to zero just as currentBpm / positive-infinity does upstream.
+        if (baseBeatLength == 0)
+            return 0;
+
+        return sliderVelocity * baseBeatLength / currentBeatLength;
     }
 }
 

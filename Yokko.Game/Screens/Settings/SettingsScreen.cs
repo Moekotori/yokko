@@ -144,7 +144,9 @@ public partial class SettingsScreen : Screen
                 currentDisplayMode,
                 size => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, size),
                 mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode)),
-            SettingsPageKind.Audio => new AudioSettingsPanel(audioSettings),
+            SettingsPageKind.Audio => new AudioSettingsPanel(
+                audioSettings,
+                gameplaySettings),
             SettingsPageKind.Gameplay => new GameplaySettingsPanel(
                 gameplaySettings,
                 audioSettings),

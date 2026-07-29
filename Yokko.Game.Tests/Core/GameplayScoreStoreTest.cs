@@ -118,6 +118,41 @@ public class GameplayScoreStoreTest
         });
     }
 
+    [Test]
+    public void PerfectConfigurationKeepsIndependentBestScores()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var store = new GameplayScoreStore();
+        store.Initialise(new NativeStorage(testRoot));
+        ManiaModSet defaultPerfect =
+            ManiaModSet.Empty.WithPerfect(false);
+        ManiaModSet strictPerfect =
+            ManiaModSet.Empty.WithPerfect(true);
+
+        Assert.That(
+            store.SaveBest(
+                beatmap,
+                defaultPerfect,
+                result(900_000, 0.95)),
+            Is.True);
+        Assert.That(
+            store.SaveBest(
+                beatmap,
+                strictPerfect,
+                result(800_000, 0.90)),
+            Is.True);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                store.GetBest(beatmap, defaultPerfect).Score,
+                Is.EqualTo(900_000));
+            Assert.That(
+                store.GetBest(beatmap, strictPerfect).Score,
+                Is.EqualTo(800_000));
+        });
+    }
+
     private static ManiaScoreResult result(long score, double accuracy) => new(
         score,
         accuracy,

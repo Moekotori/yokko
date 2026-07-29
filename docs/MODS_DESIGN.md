@@ -52,7 +52,9 @@ also adjust top ranks to SSH/SH.
 The gameplay health state follows Mania HP drain values per judgement. EZ
 halves HP difficulty, widens hit windows by 1.4x and restores full health for
 two extra lives; NF suppresses failure, while SD and PF use judgement-driven
-fail conditions.
+fail conditions. PF defaults to accepting Great or better and exposes lazer's
+optional `Require perfect hits` setting; the setting is included in canonical
+score identity and survives compatible Mod changes.
 The final displayed and persisted score applies lazer's current Mania Mod
 multiplier matrix after rounding the score-without-Mods. This includes the
 default 0.5x for EZ/NF/WU/WD/AS, 0.3x for HT/DC, and 0.9x for NR/CS/HO/key
@@ -123,10 +125,10 @@ The remaining parity blockers include:
 
 - persisted replay files do not yet store a canonical Mod configuration;
 - persisted UI preferences for configurable Mods are not yet stored globally;
-- lazer's configurable fixed-rate values and Mania Perfect's optional
-  `Require perfect hits` setting are not yet exposed;
-- the standard-to-Mania converter still needs golden-corpus coverage for
-  complex repeat sliders and sample-driven chord generation.
+- lazer's configurable fixed-rate values are not yet exposed;
+- standard-to-Mania object shape now has upstream golden coverage for lazer's
+  repeated-slider, short-repeat stair, and spinner fixtures, but sample payload
+  fidelity and a broader complex-slider corpus are not yet closed.
 
 No selectable entry should be described as fully parity-proven until its
 affected contracts and configuration variants have focused upstream-derived

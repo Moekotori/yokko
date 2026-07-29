@@ -123,6 +123,47 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestAudioVolumeAndHitSoundsAreInteractive()
+        {
+            AudioSettingsPanel audio = null;
+            double originalVolume = 1;
+            bool originalHitSounds = true;
+
+            AddStep("open Audio", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Audio));
+            AddStep("capture audio preferences", () =>
+            {
+                audio = (AudioSettingsPanel)settingsScreen.ActivePanel;
+                originalVolume = audio.CurrentMasterVolume;
+                originalHitSounds = audio.HitSoundsEnabled;
+            });
+            AddStep("set master volume to 65%", () =>
+                audio.SetMasterVolume(0.65));
+            AddAssert("master volume changed", () =>
+                audio.CurrentMasterVolume == 0.65);
+            AddStep("disable hitsounds", () =>
+                audio.SetHitSoundsEnabled(false));
+            AddAssert("hitsounds disabled", () =>
+                !audio.HitSoundsEnabled);
+            AddAssert("six audio rows fit above footer", () =>
+            {
+                Container[] rows = audio.ChildrenOfType<Container>()
+                                        .Where(container =>
+                                            container.Position.X == 378
+                                            && container.Size.X == 840
+                                            && container.Size.Y == 68)
+                                        .ToArray();
+                return rows.Length == 6
+                       && rows.All(row => row.Y + row.Height < 651);
+            });
+            AddStep("restore audio preferences", () =>
+            {
+                audio.SetMasterVolume(originalVolume);
+                audio.SetHitSoundsEnabled(originalHitSounds);
+            });
+        }
+
+        [Test]
         public void TestTransientInteractionsDismissInOrder()
         {
             GameplaySettingsPanel gameplay = null;

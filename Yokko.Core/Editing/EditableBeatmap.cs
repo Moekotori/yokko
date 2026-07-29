@@ -9,6 +9,7 @@ public sealed class EditableBeatmap
     private readonly List<EditableNote> notes = [];
     private double overallDifficulty = 5;
     private double drainRate = 5;
+    private bool legacyLongNoteRendering;
 
     private EditableBeatmap(
         KeyMode keyMode,
@@ -88,6 +89,12 @@ public sealed class EditableBeatmap
 
     public IReadOnlyDictionary<string, YokkoScrollProfile> ScrollProfiles { get; }
 
+    public bool LegacyLongNoteRendering
+    {
+        get => legacyLongNoteRendering;
+        private set => legacyLongNoteRendering = value;
+    }
+
     public BeatTimingMap TimingMap { get; }
 
     public IReadOnlyList<EditableNote> Notes => notes;
@@ -127,6 +134,7 @@ public sealed class EditableBeatmap
             SourcePath = sourcePath,
             PreviewTimeMilliseconds = beatmap.PreviewTimeMilliseconds,
             BreakPeriods = beatmap.BreakPeriods.ToArray(),
+            LegacyLongNoteRendering = beatmap.LegacyLongNoteRendering,
         };
 
         foreach (YokkoHitObject hitObject in beatmap.HitObjects)
@@ -213,7 +221,8 @@ public sealed class EditableBeatmap
             ScrollProfiles,
             DrainRate,
             PreviewTimeMilliseconds: PreviewTimeMilliseconds,
-            BreakPeriods: BreakPeriods);
+            BreakPeriods: BreakPeriods,
+            LegacyLongNoteRendering: LegacyLongNoteRendering);
 
     private void sortNotes()
     {

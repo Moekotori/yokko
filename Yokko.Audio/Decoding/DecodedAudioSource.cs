@@ -12,18 +12,21 @@ internal sealed class DecodedAudioSource : IDisposable
     private readonly ISampleProvider stereoProvider;
     private readonly SoundTouchWaveProvider? rateProvider;
     private readonly AudioPitchMode pitchMode;
+    private readonly double? fixedFrequencyScale;
     private readonly object processingLock = new();
 
     private DecodedAudioSource(
         WaveStream stream,
         ISampleProvider stereoProvider,
         SoundTouchWaveProvider? rateProvider,
-        AudioPitchMode pitchMode)
+        AudioPitchMode pitchMode,
+        double? fixedFrequencyScale)
     {
         this.stream = stream;
         this.stereoProvider = stereoProvider;
         this.rateProvider = rateProvider;
         this.pitchMode = pitchMode;
+        this.fixedFrequencyScale = fixedFrequencyScale;
     }
 
     // SoundTouch advertises a rate-adjusted WaveFormat sample rate. Its Read()
@@ -77,10 +80,11 @@ internal sealed class DecodedAudioSource : IDisposable
                 return;
             }
 
-            if (pitchMode == AudioPitchMode.ScaleWithRate)
-                rateProvider.Rate = playbackRate;
-            else
-                rateProvider.Tempo = playbackRate;
+            applyRateAdjustments(
+                rateProvider,
+                playbackRate,
+                pitchMode,
+                fixedFrequencyScale);
         }
     }
 
@@ -88,12 +92,20 @@ internal sealed class DecodedAudioSource : IDisposable
         string audioPath,
         double playbackRate = 1,
         AudioPitchMode pitchMode = AudioPitchMode.Preserve,
-        bool dynamicPlaybackRate = false)
+        bool dynamicPlaybackRate = false,
+        double? fixedFrequencyScale = null)
     {
         if (!double.IsFinite(playbackRate)
             || playbackRate is < 0.25 or > 4)
         {
             throw new ArgumentOutOfRangeException(nameof(playbackRate));
+        }
+        if (fixedFrequencyScale is double frequency
+            && (!double.IsFinite(frequency)
+                || frequency is < 0.25 or > 4))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(fixedFrequencyScale));
         }
 
         string extension = Path.GetExtension(audioPath);
@@ -134,14 +146,17 @@ internal sealed class DecodedAudioSource : IDisposable
             };
             SoundTouchWaveProvider? rateProvider = null;
             if (dynamicPlaybackRate
-                || Math.Abs(playbackRate - 1) > 0.000001)
+                || Math.Abs(playbackRate - 1) > 0.000001
+                || fixedFrequencyScale is double fixedFrequency
+                && Math.Abs(fixedFrequency - 1) > 0.000001)
             {
                 rateProvider = new SoundTouchWaveProvider(
                     stereo.ToWaveProvider());
-                if (pitchMode == AudioPitchMode.ScaleWithRate)
-                    rateProvider.Rate = playbackRate;
-                else
-                    rateProvider.Tempo = playbackRate;
+                applyRateAdjustments(
+                    rateProvider,
+                    playbackRate,
+                    pitchMode,
+                    fixedFrequencyScale);
 
                 stereo = rateProvider.ToSampleProvider();
             }
@@ -150,7 +165,8 @@ internal sealed class DecodedAudioSource : IDisposable
                 stream,
                 stereo,
                 rateProvider,
-                pitchMode);
+                pitchMode,
+                fixedFrequencyScale);
         }
         catch
         {
@@ -161,6 +177,31 @@ internal sealed class DecodedAudioSource : IDisposable
 
     public void Dispose()
         => stream.Dispose();
+
+    private static void applyRateAdjustments(
+        SoundTouchWaveProvider provider,
+        double playbackRate,
+        AudioPitchMode pitchMode,
+        double? fixedFrequencyScale)
+    {
+        if (fixedFrequencyScale is double frequency)
+        {
+            // Mirrors lazer Daycore/Nightcore: frequency remains at the Mod's
+            // default while tempo completes the configured total speed.
+            provider.Rate = frequency;
+            provider.Tempo = playbackRate / frequency;
+        }
+        else if (pitchMode == AudioPitchMode.ScaleWithRate)
+        {
+            provider.Tempo = 1;
+            provider.Rate = playbackRate;
+        }
+        else
+        {
+            provider.Rate = 1;
+            provider.Tempo = playbackRate;
+        }
+    }
 
     private sealed class GaplessMpegWaveStream : WaveStream
     {

@@ -98,7 +98,10 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
         double? timeRampFinalRate = null,
         bool timeRampAdjustPitch = true,
         double adaptiveInitialRate = 1,
-        bool adaptiveAdjustPitch = true)
+        bool adaptiveAdjustPitch = true,
+        bool perfectRequirePerfectHits = false,
+        double? fixedRateSpeedChange = null,
+        bool fixedRateAdjustPitch = false)
     {
         ArgumentNullException.ThrowIfNull(mods);
         this.mods = mods.Distinct()
@@ -147,6 +150,9 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             Contains(ManiaModId.AccuracyChallenge)
                 ? accuracyChallengeMode
                 : ManiaAccuracyMode.MaximumAchievable;
+        PerfectRequirePerfectHits =
+            Contains(ManiaModId.Perfect)
+            && perfectRequirePerfectHits;
         validateDifficultyAdjustValue(
             difficultyAdjustDrainRate,
             0,
@@ -243,6 +249,41 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             throw new ArgumentException(
                 "Only one fixed-rate Mod may be selected.",
                 nameof(mods));
+        }
+        ManiaModId? fixedRateMod = this.mods
+            .Where(rateMods.Contains)
+            .Cast<ManiaModId?>()
+            .FirstOrDefault();
+        if (fixedRateMod is ManiaModId selectedFixedRateMod)
+        {
+            double speedChange =
+                fixedRateSpeedChange
+                ?? defaultFixedRateFor(selectedFixedRateMod);
+            double minimum = isSlowRateMod(selectedFixedRateMod)
+                ? 0.5
+                : 1.01;
+            double maximum = isSlowRateMod(selectedFixedRateMod)
+                ? 0.99
+                : 2;
+            if (!double.IsFinite(speedChange)
+                || speedChange < minimum
+                || speedChange > maximum)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(fixedRateSpeedChange),
+                    $"The selected fixed-rate Mod requires a speed between {minimum:0.00}x and {maximum:0.00}x.");
+            }
+
+            FixedRateSpeedChange = speedChange;
+            FixedRateAdjustPitch =
+                selectedFixedRateMod is ManiaModId.HalfTime
+                    or ManiaModId.DoubleTime
+                && fixedRateAdjustPitch;
+        }
+        else
+        {
+            FixedRateSpeedChange = 1;
+            FixedRateAdjustPitch = false;
         }
 
         int selectedHoldRuleMods = this.mods.Count(holdRuleMods.Contains);
@@ -361,6 +402,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
 
     public ManiaAccuracyMode AccuracyChallengeMode { get; }
 
+    public bool PerfectRequirePerfectHits { get; }
+
     public double? DifficultyAdjustDrainRate { get; }
 
     public double? DifficultyAdjustOverallDifficulty { get; }
@@ -385,12 +428,21 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
 
     public bool AdaptiveAdjustPitch { get; }
 
+    public double FixedRateSpeedChange { get; }
+
+    public bool FixedRateAdjustPitch { get; }
+
     public bool HasTimeRamp =>
         Contains(ManiaModId.WindUp)
         || Contains(ManiaModId.WindDown);
 
     public bool HasAdaptiveSpeed =>
         Contains(ManiaModId.AdaptiveSpeed);
+
+    public ManiaModId? FixedRateMod => mods
+        .Where(rateMods.Contains)
+        .Select(static mod => (ManiaModId?)mod)
+        .FirstOrDefault();
 
     public bool HasDualStages => Contains(ManiaModId.DualStages);
 
@@ -421,13 +473,9 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             ? TimeRampInitialRate
             : HasAdaptiveSpeed
                 ? AdaptiveInitialRate
-            : Contains(ManiaModId.DoubleTime)
-        || Contains(ManiaModId.Nightcore)
-            ? 1.5
-            : Contains(ManiaModId.HalfTime)
-              || Contains(ManiaModId.Daycore)
-                ? 0.75
-            : 1;
+                : mods.Any(rateMods.Contains)
+                    ? FixedRateSpeedChange
+                    : 1;
 
     /// <summary>
     /// Playback-rate multiplier applied to osu!lazer Mania hit windows.
@@ -440,8 +488,21 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
     public bool ChangesAudioPitch =>
         Contains(ManiaModId.Nightcore)
         || Contains(ManiaModId.Daycore)
+        || FixedRateAdjustPitch
         || HasTimeRamp && TimeRampAdjustPitch
         || HasAdaptiveSpeed && AdaptiveAdjustPitch;
+
+    /// <summary>
+    /// Fixed frequency adjustment used by lazer Daycore and Nightcore.
+    /// Their configurable speed is completed with an independent tempo
+    /// adjustment while pitch remains at the Mod's default frequency.
+    /// </summary>
+    public double? FixedAudioFrequencyScale =>
+        Contains(ManiaModId.Daycore)
+            ? 0.75
+            : Contains(ManiaModId.Nightcore)
+                ? 1.5
+                : null;
 
     public double PlaybackRateAt(
         double timeMilliseconds,
@@ -480,11 +541,10 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
     /// Source: ppy/osu
     /// osu.Game.Rulesets.Mania/Scoring/ManiaScoreMultiplierCalculator.cs
     /// commit 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
-    /// Fixed-rate Mods currently use Yokko's supported upstream defaults.
     /// </summary>
     public double ScoreMultiplier => mods.Aggregate(
         1d,
-        static (multiplier, mod) =>
+        (multiplier, mod) =>
             multiplier * scoreMultiplierFor(mod));
 
     public double EffectiveOverallDifficulty(double beatmapValue) =>
@@ -505,7 +565,7 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             : beatmapValue;
     }
 
-    private static double scoreMultiplierFor(ManiaModId mod)
+    private double scoreMultiplierFor(ManiaModId mod)
         => mod switch
         {
             ManiaModId.Easy
@@ -515,13 +575,23 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                 or ManiaModId.WindDown
                 or ManiaModId.AdaptiveSpeed => 0.5,
             ManiaModId.HalfTime
-                or ManiaModId.Daycore => 0.3,
+                or ManiaModId.Daycore =>
+                rateAdjustScoreMultiplier(FixedRateSpeedChange),
             ManiaModId.NoRelease
                 or ManiaModId.ConstantSpeed
                 or ManiaModId.HoldOff
                 or >= ManiaModId.Key1 and <= ManiaModId.Key10 => 0.9,
             _ => 1,
         };
+
+    private static double rateAdjustScoreMultiplier(double speedChange)
+    {
+        double value = (int)(speedChange * 10) / 10.0;
+        value -= 1;
+        return speedChange >= 1
+            ? 1 + value / 5
+            : 0.6 + value;
+    }
 
     public string Fingerprint => IsEmpty
         ? "nm"
@@ -563,6 +633,30 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                            == ManiaAccuracyMode.MaximumAchievable
                             ? "maximum"
                             : "standard"),
+                    ManiaModId.Perfect
+                        when PerfectRequirePerfectHits =>
+                        $"{key}:require-perfect",
+                    ManiaModId.HalfTime
+                        or ManiaModId.DoubleTime
+                        when !FixedRateSpeedChange.Equals(
+                                  defaultFixedRateFor(mod))
+                             || FixedRateAdjustPitch =>
+                        $"{key}:"
+                        + FixedRateSpeedChange.ToString(
+                            "R",
+                            CultureInfo.InvariantCulture)
+                        + ":"
+                        + (FixedRateAdjustPitch
+                            ? "pitch"
+                            : "tempo"),
+                    ManiaModId.Daycore
+                        or ManiaModId.Nightcore
+                        when !FixedRateSpeedChange.Equals(
+                            defaultFixedRateFor(mod)) =>
+                        $"{key}:"
+                        + FixedRateSpeedChange.ToString(
+                            "R",
+                            CultureInfo.InvariantCulture),
                     ManiaModId.DifficultyAdjust =>
                         $"{key}:hp="
                         + formatOptional(
@@ -626,6 +720,18 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                        == ManiaAccuracyMode.MaximumAchievable
                         ? "MAX"
                         : "CURRENT"),
+                ManiaModId.Perfect
+                    when PerfectRequirePerfectHits => "PF MAX",
+                ManiaModId.HalfTime
+                    or ManiaModId.Daycore
+                    or ManiaModId.DoubleTime
+                    or ManiaModId.Nightcore
+                    when !FixedRateSpeedChange.Equals(
+                              defaultFixedRateFor(mod))
+                         || FixedRateAdjustPitch =>
+                    $"{OsuManiaModParityCatalog.Get(mod).Acronym} "
+                    + $"{FixedRateSpeedChange:0.00}×"
+                    + (FixedRateAdjustPitch ? " PITCH" : string.Empty),
                 ManiaModId.DifficultyAdjust =>
                     difficultyAdjustDisplayLabel(),
                 ManiaModId.Muted =>
@@ -757,7 +863,14 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                         : null,
                 TimeRampAdjustPitch,
                 AdaptiveInitialRate,
-                AdaptiveAdjustPitch);
+                AdaptiveAdjustPitch,
+                PerfectRequirePerfectHits,
+                enabled
+                && rateMods.Contains(mod)
+                && !Contains(mod)
+                    ? null
+                    : FixedRateSpeedChange,
+                FixedRateAdjustPitch);
     }
 
     public ManiaModSet WithRandomSeed(int seed)
@@ -786,7 +899,10 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             HasTimeRamp ? TimeRampFinalRate : null,
             TimeRampAdjustPitch,
             AdaptiveInitialRate,
-            AdaptiveAdjustPitch);
+            AdaptiveAdjustPitch,
+            PerfectRequirePerfectHits,
+            FixedRateSpeedChange,
+            FixedRateAdjustPitch);
     }
 
     public ManiaModSet WithCover(
@@ -816,7 +932,10 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             HasTimeRamp ? TimeRampFinalRate : null,
             TimeRampAdjustPitch,
             AdaptiveInitialRate,
-            AdaptiveAdjustPitch);
+            AdaptiveAdjustPitch,
+            PerfectRequirePerfectHits,
+            FixedRateSpeedChange,
+            FixedRateAdjustPitch);
     }
 
     public ManiaModSet WithFlashlight(
@@ -846,7 +965,10 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             HasTimeRamp ? TimeRampFinalRate : null,
             TimeRampAdjustPitch,
             AdaptiveInitialRate,
-            AdaptiveAdjustPitch);
+            AdaptiveAdjustPitch,
+            PerfectRequirePerfectHits,
+            FixedRateSpeedChange,
+            FixedRateAdjustPitch);
     }
 
     public ManiaModSet WithAccuracyChallenge(
@@ -880,7 +1002,83 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             HasTimeRamp ? TimeRampFinalRate : null,
             TimeRampAdjustPitch,
             AdaptiveInitialRate,
-            AdaptiveAdjustPitch);
+            AdaptiveAdjustPitch,
+            PerfectRequirePerfectHits,
+            FixedRateSpeedChange,
+            FixedRateAdjustPitch);
+    }
+
+    public ManiaModSet WithPerfect(bool requirePerfectHits)
+    {
+        ManiaModSet enabled = With(ManiaModId.Perfect, true);
+
+        return new ManiaModSet(
+            enabled.mods,
+            enabled.RandomSeed,
+            enabled.CoverCoverage,
+            enabled.CoverDirection,
+            enabled.FlashlightSizeMultiplier,
+            enabled.FlashlightComboBasedSize,
+            enabled.AccuracyChallengeMinimum,
+            enabled.AccuracyChallengeMode,
+            enabled.DifficultyAdjustDrainRate,
+            enabled.DifficultyAdjustOverallDifficulty,
+            enabled.DifficultyAdjustExtendedLimits,
+            enabled.MutedInverse,
+            enabled.MutedMetronome,
+            enabled.MutedComboCount,
+            enabled.MutedAffectsHitSounds,
+            enabled.HasTimeRamp
+                ? enabled.TimeRampInitialRate
+                : null,
+            enabled.HasTimeRamp
+                ? enabled.TimeRampFinalRate
+                : null,
+            enabled.TimeRampAdjustPitch,
+            enabled.AdaptiveInitialRate,
+            enabled.AdaptiveAdjustPitch,
+            requirePerfectHits,
+            enabled.FixedRateSpeedChange,
+            enabled.FixedRateAdjustPitch);
+    }
+
+    public ManiaModSet WithFixedRate(
+        ManiaModId mod,
+        double speedChange,
+        bool adjustPitch = false)
+    {
+        if (!rateMods.Contains(mod))
+            throw new ArgumentOutOfRangeException(nameof(mod));
+
+        ManiaModSet enabled = With(mod, true);
+        return new ManiaModSet(
+            enabled.mods,
+            enabled.RandomSeed,
+            enabled.CoverCoverage,
+            enabled.CoverDirection,
+            enabled.FlashlightSizeMultiplier,
+            enabled.FlashlightComboBasedSize,
+            enabled.AccuracyChallengeMinimum,
+            enabled.AccuracyChallengeMode,
+            enabled.DifficultyAdjustDrainRate,
+            enabled.DifficultyAdjustOverallDifficulty,
+            enabled.DifficultyAdjustExtendedLimits,
+            enabled.MutedInverse,
+            enabled.MutedMetronome,
+            enabled.MutedComboCount,
+            enabled.MutedAffectsHitSounds,
+            enabled.HasTimeRamp
+                ? enabled.TimeRampInitialRate
+                : null,
+            enabled.HasTimeRamp
+                ? enabled.TimeRampFinalRate
+                : null,
+            enabled.TimeRampAdjustPitch,
+            enabled.AdaptiveInitialRate,
+            enabled.AdaptiveAdjustPitch,
+            enabled.PerfectRequirePerfectHits,
+            speedChange,
+            adjustPitch);
     }
 
     public ManiaModSet WithDifficultyAdjust(
@@ -923,7 +1121,10 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             HasTimeRamp ? TimeRampFinalRate : null,
             TimeRampAdjustPitch,
             AdaptiveInitialRate,
-            AdaptiveAdjustPitch);
+            AdaptiveAdjustPitch,
+            PerfectRequirePerfectHits,
+            FixedRateSpeedChange,
+            FixedRateAdjustPitch);
     }
 
     public ManiaModSet WithMuted(
@@ -957,7 +1158,10 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             HasTimeRamp ? TimeRampFinalRate : null,
             TimeRampAdjustPitch,
             AdaptiveInitialRate,
-            AdaptiveAdjustPitch);
+            AdaptiveAdjustPitch,
+            PerfectRequirePerfectHits,
+            FixedRateSpeedChange,
+            FixedRateAdjustPitch);
     }
 
     public ManiaModSet WithTimeRamp(
@@ -996,7 +1200,10 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             finalRate,
             adjustPitch,
             AdaptiveInitialRate,
-            AdaptiveAdjustPitch);
+            AdaptiveAdjustPitch,
+            PerfectRequirePerfectHits,
+            null,
+            false);
     }
 
     public ManiaModSet WithAdaptiveSpeed(
@@ -1028,7 +1235,10 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             null,
             true,
             initialRate,
-            adjustPitch);
+            adjustPitch,
+            PerfectRequirePerfectHits,
+            null,
+            false);
     }
 
     public bool Equals(ManiaModSet? other) =>
@@ -1045,6 +1255,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
         && AccuracyChallengeMinimum.Equals(
             other.AccuracyChallengeMinimum)
         && AccuracyChallengeMode == other.AccuracyChallengeMode
+        && PerfectRequirePerfectHits
+           == other.PerfectRequirePerfectHits
         && DifficultyAdjustDrainRate
            == other.DifficultyAdjustDrainRate
         && DifficultyAdjustOverallDifficulty
@@ -1059,7 +1271,9 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
         && TimeRampFinalRate.Equals(other.TimeRampFinalRate)
         && TimeRampAdjustPitch == other.TimeRampAdjustPitch
         && AdaptiveInitialRate.Equals(other.AdaptiveInitialRate)
-        && AdaptiveAdjustPitch == other.AdaptiveAdjustPitch;
+        && AdaptiveAdjustPitch == other.AdaptiveAdjustPitch
+        && FixedRateSpeedChange.Equals(other.FixedRateSpeedChange)
+        && FixedRateAdjustPitch == other.FixedRateAdjustPitch;
 
     public override bool Equals(object? obj) =>
         obj is ManiaModSet other && Equals(other);
@@ -1076,6 +1290,7 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
         hash.Add(FlashlightComboBasedSize);
         hash.Add(AccuracyChallengeMinimum);
         hash.Add(AccuracyChallengeMode);
+        hash.Add(PerfectRequirePerfectHits);
         hash.Add(DifficultyAdjustDrainRate);
         hash.Add(DifficultyAdjustOverallDifficulty);
         hash.Add(DifficultyAdjustExtendedLimits);
@@ -1088,6 +1303,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
         hash.Add(TimeRampAdjustPitch);
         hash.Add(AdaptiveInitialRate);
         hash.Add(AdaptiveAdjustPitch);
+        hash.Add(FixedRateSpeedChange);
+        hash.Add(FixedRateAdjustPitch);
 
         return hash.ToHashCode();
     }
@@ -1113,6 +1330,12 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
 
     private static string formatOptional(double? value) =>
         value?.ToString("R", CultureInfo.InvariantCulture) ?? "map";
+
+    private static bool isSlowRateMod(ManiaModId mod) =>
+        mod is ManiaModId.HalfTime or ManiaModId.Daycore;
+
+    private static double defaultFixedRateFor(ManiaModId mod) =>
+        isSlowRateMod(mod) ? 0.75 : 1.5;
 
     private string difficultyAdjustDisplayLabel()
     {

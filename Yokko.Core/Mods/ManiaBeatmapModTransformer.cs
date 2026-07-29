@@ -190,6 +190,7 @@ public static class ManiaBeatmapModTransformer
             structurallyApplied.ConversionSource,
             structurallyApplied.StageCount,
             structurallyApplied.PreviewTimeMilliseconds,
-            structurallyApplied.BreakPeriods);
+            structurallyApplied.BreakPeriods,
+            structurallyApplied.LegacyLongNoteRendering);
     }
 }

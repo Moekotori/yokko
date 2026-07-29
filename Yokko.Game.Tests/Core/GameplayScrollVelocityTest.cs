@@ -118,6 +118,114 @@ public sealed class GameplayScrollVelocityTest
     }
 
     [Test]
+    public void LegacyQuaverHoldBodyIgnoresIntermediateDirectionExtrema()
+    {
+        var hold = new YokkoHitObject(
+            0,
+            1000,
+            3000,
+            HitObjectKind.Hold);
+        var modern = new DrawableNote(0, hold, 80);
+        var legacy = new DrawableNote(
+            0,
+            hold,
+            80,
+            legacyLongNoteRendering: true);
+        var map = new ScrollVelocityMap(
+        [
+            new YokkoScrollVelocity(1500, -1),
+            new YokkoScrollVelocity(2500, 1),
+        ]);
+
+        modern.UpdatePosition(
+            0,
+            false,
+            false,
+            0,
+            500,
+            1800,
+            map);
+        legacy.UpdatePosition(
+            0,
+            false,
+            false,
+            0,
+            500,
+            1800,
+            map);
+
+        Assert.That(modern.Height, Is.GreaterThan(legacy.Height + 100));
+    }
+
+    [Test]
+    public void LegacyQuaverHoldStillUsesFullPathForVisibility()
+    {
+        var hold = new YokkoHitObject(
+            0,
+            3000,
+            5000,
+            HitObjectKind.Hold);
+        var beatmap = new YokkoBeatmap(
+            "Legacy reverse SV",
+            "Yokko",
+            "Yokko",
+            "4K",
+            KeyMode.FourKey,
+            ChartSourceFormat.Quaver,
+            [YokkoTimingPoint.Default],
+            null,
+            [hold],
+            ScrollVelocities:
+            [
+                new YokkoScrollVelocity(3500, -5),
+                new YokkoScrollVelocity(4000, 2.5),
+            ],
+            LegacyLongNoteRendering: true);
+        var state = new BeatmapJudgementState(beatmap);
+        var playfield = new GameplayPlayfield(
+            beatmap,
+            KeyModeBindings.ForMode(KeyMode.FourKey));
+
+        playfield.UpdateGameplayTime(0, state);
+
+        Assert.That(playfield.VisibleNoteCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void QuaverRateKeepsRealTimeApproachDurationStable()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                GameplayScreen.AdjustApproachTimeForPlaybackRate(
+                    1800,
+                    ChartSourceFormat.Quaver,
+                    1.5),
+                Is.EqualTo(2700));
+            Assert.That(
+                GameplayScreen.AdjustApproachTimeForPlaybackRate(
+                    1800,
+                    ChartSourceFormat.Quaver,
+                    1.5,
+                    50),
+                Is.EqualTo(2160));
+            Assert.That(
+                GameplayScreen.AdjustApproachTimeForPlaybackRate(
+                    1800,
+                    ChartSourceFormat.Quaver,
+                    1.5,
+                    100),
+                Is.EqualTo(1800));
+            Assert.That(
+                GameplayScreen.AdjustApproachTimeForPlaybackRate(
+                    1800,
+                    ChartSourceFormat.OsuMania,
+                    1.5),
+                Is.EqualTo(1800));
+        });
+    }
+
+    [Test]
     public void JudgementTimingDoesNotDependOnVisualDirection()
     {
         YokkoBeatmap beatmap = createBeatmap(

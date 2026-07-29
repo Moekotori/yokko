@@ -45,6 +45,14 @@ public sealed class YokkoGameplaySettings
     public readonly Bindable<double> ScrollSpeed =
         new(OsuManiaScrollSpeed.Default);
 
+    /// <summary>
+    /// Matches Quaver's optional playback-rate scroll normalization.
+    /// Zero keeps the same real-time approach duration while 100% makes
+    /// rate mods scale the visual approach together with chart time.
+    /// </summary>
+    public readonly Bindable<double> QuaverScrollRateNormalization =
+        new(0);
+
     public readonly BindableBool ShowLanePressFeedback = new(true);
 
     public readonly BindableBool KeysoundsEnabled = new(true);

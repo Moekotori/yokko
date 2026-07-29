@@ -9,4 +9,5 @@ public sealed record AudioEngineStartRequest(
     double UserOffsetMilliseconds,
     double PlaybackRate = 1,
     AudioPitchMode PitchMode = AudioPitchMode.Preserve,
-    bool DynamicPlaybackRate = false);
+    bool DynamicPlaybackRate = false,
+    double? FixedFrequencyScale = null);

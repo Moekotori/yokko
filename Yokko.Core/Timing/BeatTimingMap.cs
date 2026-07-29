@@ -13,7 +13,12 @@ public sealed class BeatTimingMap
         TimingPoints = timingPoints?.ToArray() ?? [];
 
         YokkoTimingPoint[] activeTimingPoints = TimingPoints
-                                                .Where(point => point.Uninherited && point.BeatLengthMilliseconds > 0)
+                                                .Where(point =>
+                                                    point.Uninherited
+                                                    && double.IsFinite(
+                                                        point.BeatLengthMilliseconds)
+                                                    && point.BeatLengthMilliseconds
+                                                    > 0)
                                                 .OrderBy(point => point.TimeMilliseconds)
                                                 .GroupBy(point => point.TimeMilliseconds)
                                                 .Select(group => group.Last())

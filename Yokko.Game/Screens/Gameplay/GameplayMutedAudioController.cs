@@ -12,6 +12,9 @@ internal sealed class GameplayMutedAudioController
     private readonly ManiaModSet mods;
     private readonly IAudioMixControl audio;
     private readonly BeatTimingMap timing;
+    private readonly double musicVolume;
+    private readonly double hitSoundVolume;
+    private readonly double metronomeVolume;
     private ManiaMutedMix current;
     private ManiaMutedMix transitionStart;
     private ManiaMutedMix target;
@@ -23,10 +26,22 @@ internal sealed class GameplayMutedAudioController
     internal GameplayMutedAudioController(
         YokkoBeatmap beatmap,
         ManiaModSet mods,
-        IAudioMixControl audio)
+        IAudioMixControl audio,
+        double musicVolume = 1,
+        double hitSoundVolume = 1,
+        double metronomeVolume = 1)
     {
         this.mods = mods;
         this.audio = audio;
+        this.musicVolume = validateVolume(
+            musicVolume,
+            nameof(musicVolume));
+        this.hitSoundVolume = validateVolume(
+            hitSoundVolume,
+            nameof(hitSoundVolume));
+        this.metronomeVolume = validateVolume(
+            metronomeVolume,
+            nameof(metronomeVolume));
         timing = new BeatTimingMap(beatmap.TimingPoints, 1);
         current = transitionStart = target =
             ManiaMutedPolicy.Resolve(mods, 0);
@@ -105,9 +120,17 @@ internal sealed class GameplayMutedAudioController
 
     private void apply(ManiaMutedMix mix) =>
         audio.SetMixVolumes(
-            mix.MusicVolume,
-            mix.HitSoundVolume,
-            mix.MetronomeVolume);
+            mix.MusicVolume * musicVolume,
+            mix.HitSoundVolume * hitSoundVolume,
+            mix.MetronomeVolume * metronomeVolume);
+
+    private static double validateVolume(double volume, string name)
+    {
+        if (!double.IsFinite(volume) || volume is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(name);
+
+        return volume;
+    }
 
     private static double lerp(double start, double end, double amount) =>
         start + (end - start) * amount;

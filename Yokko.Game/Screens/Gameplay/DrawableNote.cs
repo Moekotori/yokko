@@ -41,6 +41,7 @@ public partial class DrawableNote : CompositeDrawable
     private readonly bool flipHoldHead;
     private readonly bool flipHoldBody;
     private readonly bool flipHoldTail;
+    private readonly bool legacyLongNoteRendering;
     private bool reverseHoldTailForScrollVelocity;
     private float holdBodyY;
     private float holdBodyHeight;
@@ -61,10 +62,12 @@ public partial class DrawableNote : CompositeDrawable
         int hitObjectIndex,
         YokkoHitObject hitObject,
         float laneWidth,
-        OsuManiaSkin skin = null)
+        OsuManiaSkin skin = null,
+        bool legacyLongNoteRendering = false)
     {
         HitObjectIndex = hitObjectIndex;
         this.hitObject = hitObject;
+        this.legacyLongNoteRendering = legacyLongNoteRendering;
         baseWidth = laneWidth;
         Width = laneWidth;
 
@@ -260,9 +263,11 @@ public partial class DrawableNote : CompositeDrawable
             : startPosition;
         ScrollPositionRange pathRange =
             hitObject.EndTimeMilliseconds is double holdEndTime
-                ? scrollVelocityMap.PositionRangeBetween(
-                    hitObject.StartTimeMilliseconds,
-                    holdEndTime)
+                ? legacyLongNoteRendering
+                    ? positionRange(startPosition, endPosition)
+                    : scrollVelocityMap.PositionRangeBetween(
+                        hitObject.StartTimeMilliseconds,
+                        holdEndTime)
                 : new ScrollPositionRange(startPosition, startPosition);
 
         UpdatePosition(
@@ -329,9 +334,11 @@ public partial class DrawableNote : CompositeDrawable
             ScrollPositionRange pathRange = holdActive
                                             && gameplayTimeMilliseconds
                                             >= hitObject.StartTimeMilliseconds
-                ? scrollVelocityMap.PositionRangeBetween(
-                    visibleStartTime,
-                    endTime)
+                ? legacyLongNoteRendering
+                    ? positionRange(currentPosition, endPosition)
+                    : scrollVelocityMap.PositionRangeBetween(
+                        visibleStartTime,
+                        endTime)
                 : fullPathRange;
             double minimumProgress =
                 1 - (pathRange.Maximum - currentPosition)
@@ -421,6 +428,11 @@ public partial class DrawableNote : CompositeDrawable
 
     internal void HideOutsideVisibleRange() =>
         Alpha = 0;
+
+    private static ScrollPositionRange positionRange(
+        double first,
+        double second) =>
+        new(Math.Min(first, second), Math.Max(first, second));
 
     private void updateHoldBody()
     {

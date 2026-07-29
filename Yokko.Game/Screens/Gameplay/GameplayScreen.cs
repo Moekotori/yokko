@@ -236,13 +236,27 @@ public partial class GameplayScreen : Screen
                          && !hasKeysounds
             ? new NullAudioEngine()
             : AudioEngineFactory.CreateDefault();
-        if (mods.Contains(ManiaModId.Muted)
-            && audioEngine is IAudioMixControl mixControl)
+        if (audioEngine is IAudioMixControl mixControl)
         {
-            mutedAudio = new GameplayMutedAudioController(
-                beatmap,
-                mods,
-                mixControl);
+            if (mods.Contains(ManiaModId.Muted))
+            {
+                double masterVolume = audioSettings.MasterVolume.Value;
+                mutedAudio = new GameplayMutedAudioController(
+                    beatmap,
+                    mods,
+                    mixControl,
+                    masterVolume,
+                    gameplaySettings.KeysoundsEnabled.Value
+                        ? masterVolume
+                        : 0,
+                    masterVolume);
+            }
+            else
+            {
+                audioSettings.ApplyMixSettings(
+                    mixControl,
+                    gameplaySettings.KeysoundsEnabled.Value);
+            }
         }
         hasAudioClock = !string.IsNullOrWhiteSpace(beatmap.AudioPath)
                         || hasKeysounds && audioEngine is NativeAudioEngine;
@@ -260,7 +274,9 @@ public partial class GameplayScreen : Screen
                 beatmap,
                 keyBindings,
                 maniaSkin,
-                computeApproachTime(gameplaySettings.ScrollSpeed.Value),
+                computeApproachTime(
+                    gameplaySettings.ScrollSpeed.Value,
+                    this.mods.PlaybackRate),
                 gameplaySettings.ShowLanePressFeedback.Value,
                 mods)
             {
@@ -373,6 +389,7 @@ public partial class GameplayScreen : Screen
 
         double gameplayTime = clockObservation.GameplayTime;
         updateDynamicRate(gameplayTime);
+        updateQuaverScrollRate(gameplayTime);
         if (mutedAudio != null)
         {
             mutedAudio.Update(
@@ -574,7 +591,8 @@ public partial class GameplayScreen : Screen
                     mods.PlaybackRate,
                     mods.ChangesAudioPitch
                         ? AudioPitchMode.ScaleWithRate
-                        : AudioPitchMode.Preserve);
+                        : AudioPitchMode.Preserve,
+                    mods.FixedAudioFrequencyScale);
             if (mods.HasDynamicRate)
             {
                 startRequest = startRequest with
@@ -847,7 +865,8 @@ public partial class GameplayScreen : Screen
 
     private async Task prepareKeysoundsAsync()
     {
-        if (audioEngine is not IAudioSamplePlayback samplePlayback)
+        if (!gameplaySettings.KeysoundsEnabled.Value
+            || audioEngine is not IAudioSamplePlayback samplePlayback)
             return;
 
         string[] paths = keysoundPathsByHitObject
@@ -1255,15 +1274,73 @@ public partial class GameplayScreen : Screen
     private void onScrollSpeedChanged(
         osu.Framework.Bindables.ValueChangedEvent<double> change)
     {
-        playfield.SetApproachTime(computeApproachTime(change.NewValue));
+        playfield.SetApproachTime(computeApproachTime(
+            change.NewValue,
+            currentPlaybackRate(currentGameplayTime)));
     }
 
-    private double computeApproachTime(double scrollSpeed) =>
-        maniaSkin == null
+    private double computeApproachTime(
+        double scrollSpeed,
+        double playbackRate = 1)
+    {
+        double baseApproachTime = maniaSkin == null
             ? OsuManiaScrollSpeed.ComputeScrollTime(scrollSpeed)
             : OsuManiaScrollSpeed.ComputeScrollTime(
                 scrollSpeed,
                 maniaSkin.Configuration.HitPosition);
+        return AdjustApproachTimeForPlaybackRate(
+            baseApproachTime,
+            beatmap.SourceFormat,
+            playbackRate,
+            gameplaySettings.QuaverScrollRateNormalization.Value);
+    }
+
+    private void updateQuaverScrollRate(double gameplayTime)
+    {
+        if (beatmap.SourceFormat != ChartSourceFormat.Quaver)
+            return;
+
+        playfield.SetApproachTime(computeApproachTime(
+            gameplaySettings.ScrollSpeed.Value,
+            currentPlaybackRate(gameplayTime)));
+    }
+
+    internal static double AdjustApproachTimeForPlaybackRate(
+        double baseApproachTime,
+        ChartSourceFormat sourceFormat,
+        double playbackRate,
+        double quaverNormalizationPercentage = 0)
+    {
+        if (!double.IsFinite(baseApproachTime)
+            || baseApproachTime <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(baseApproachTime));
+        }
+
+        if (!double.IsFinite(playbackRate) || playbackRate <= 0)
+            throw new ArgumentOutOfRangeException(nameof(playbackRate));
+
+        if (sourceFormat != ChartSourceFormat.Quaver)
+            return baseApproachTime;
+
+        if (!double.IsFinite(quaverNormalizationPercentage)
+            || quaverNormalizationPercentage < 0
+            || quaverNormalizationPercentage > 100)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(quaverNormalizationPercentage));
+        }
+
+        // Mirrors Quaver's NormaliseScrollVelocityByRatePercentage:
+        // 0% divides visual speed by the full audio rate, while 100%
+        // cancels that division and lets rate mods scale approach time.
+        double rateScaling = 1
+                             + (playbackRate - 1)
+                             * quaverNormalizationPercentage
+                             / 100;
+        return baseApproachTime * playbackRate / rateScaling;
+    }
 
     internal bool HandleScrollSpeedShortcut(
         Key key,

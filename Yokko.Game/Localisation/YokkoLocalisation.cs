@@ -235,6 +235,10 @@ internal static class YokkoStrings
             ["settings.audio.backend"] = new("Output mode", "输出模式", "出力モード"),
             ["settings.audio.device"] = new("Output device", "输出设备", "出力デバイス"),
             ["settings.audio.buffer"] = new("Buffer profile", "缓冲配置", "バッファ設定"),
+            ["settings.audio.master_volume"] = new("Master volume", "音量", "マスター音量"),
+            ["settings.audio.hitsounds"] = new("Hitsounds", "按键音", "ヒットサウンド"),
+            ["settings.audio.enabled"] = new("Enabled", "已开启", "オン"),
+            ["settings.audio.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.audio.offset"] = new("Timing offset", "时序偏移", "タイミングオフセット"),
             ["settings.audio.exclusive"] = new("WASAPI Exclusive", "WASAPI 独占", "WASAPI 排他"),
             ["settings.audio.shared"] = new("WASAPI Shared", "WASAPI 共享", "WASAPI 共有"),
@@ -366,6 +370,14 @@ internal static class YokkoStrings
                 "{0} 输入年龄 · p50 {1:0.00} · p95 {2:0.00} · p99 {3:0.00} ms",
                 "{0} 入力エイジ · p50 {1:0.00} · p95 {2:0.00} · p99 {3:0.00} ms"),
             ["settings.gameplay.speed_presets"] = new("Quick presets", "快捷预设", "クイック設定"),
+            ["settings.gameplay.quaver_rate_normalization"] = new(
+                "Quaver rate normalization",
+                "Quaver 倍率流速归一化",
+                "Quaver レート正規化"),
+            ["settings.gameplay.quaver_rate_normalization_note"] = new(
+                "0% preserves Quaver's default real-time approach; 100% scales with rate.",
+                "0% 保持 Quaver 默认的现实时间接近速度；100% 跟随倍率缩放。",
+                "0% は Quaver の実時間接近を維持し、100% はレートに追従します。"),
             ["settings.gameplay.input_offset"] = new("Input offset", "输入偏移", "入力オフセット"),
             ["settings.gameplay.input_offset_note"] = new(
                 "Shared with Audio so timing has one source of truth.",
