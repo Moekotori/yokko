@@ -476,4 +476,73 @@ boundaries remain readable in the combined images.
    - Same-build 100%/90%/80% Home captures visibly differ and the smaller
      layouts use the complete viewport rather than retaining the 100%
      footprint.
-   - Focused scaling tests pass 15/15.
+- Focused scaling tests pass 15/15.
+
+---
+
+# Yokko Home player progression card design QA
+
+final result: passed
+
+## Evidence
+
+- Source visual truth:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-192c553d-6054-4a43-8ca9-c507acae51ee.png`
+- User-reported crowded state:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-fa889d69-9f07-46c5-ae4f-da63499faf25.png`
+- Final native tall-window implementation:
+  `C:\Users\mochi\.codex\visualizations\2026\07\29\019faccd-026e-73a0-a8de-4d77ab5f5555\yokko-player-card-spacing-tall-final.png`
+- Final focused control-stack capture:
+  `C:\Users\mochi\.codex\visualizations\2026\07\29\019faccd-026e-73a0-a8de-4d77ab5f5555\yokko-player-card-spacing-tall-final-detail.png`
+- Final focused player-card capture:
+  `C:\Users\mochi\.codex\visualizations\2026\07\29\019faccd-026e-73a0-a8de-4d77ab5f5555\yokko-player-card-spacing-card-final.png`
+- Full normalized comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\29\019faccd-026e-73a0-a8de-4d77ab5f5555\yokko-player-card-comparison.png`
+- Source pixels: 1586 x 992.
+- Implementation capture: 2560 x 4000 native Windows window at 200% DPI. The intentionally tall off-screen viewport exposes the complete authored vertical stack for focused inspection.
+- Density normalization: the full comparison scales the 2560 x 2000 implementation pass to the source's 992 px height. The focused control and player-card captures retain native pixels.
+- State: Chinese locale, Home idle state, full player-card layout.
+
+## Full-view comparison
+
+The implementation preserves the selected game-first hierarchy: Play remains the dominant action, Editor and Settings remain paired secondary actions, Multiplayer remains a full-width game entry, and the player progression card closes the left stack. The production screen keeps Yokko's existing live utility controls, audio status, mascot interaction, and music player instead of removing them to force a literal generated-mock match.
+
+## Focused comparison
+
+- The user-reported state had only 2-8 logical pixels between adjacent control surfaces, so shadows and yellow corner diamonds visually merged.
+- The final full layout uses 12 px between Play and the secondary row, 12 px between the secondary row and Multiplayer, and 16 px between Multiplayer and the player card.
+- The compact 720 px layout keeps 8 px, 6 px, and 10 px gaps respectively, while switching the player card to a 74 px summary and hiding the non-essential audio footer.
+- The full player card is 148 px tall. Avatar, identity, level, experience, combo, and played-song rows no longer collide or touch the bottom border.
+
+## Required fidelity surfaces
+
+- Fonts and typography: the card reuses Yokko's display and body bitmap fonts. New Chinese/Japanese glyphs were regenerated into the existing font atlases.
+- Spacing and layout rhythm: the selected hierarchy is retained, but the control groups now have explicit gaps and the player card has enough internal height for its two information rows.
+- Colors and visual tokens: ivory, navy, cyan, pink, pale cyan, and yellow all reuse the Home control palette.
+- Image quality and asset fidelity: the circular avatar reuses the existing Yokko mascot texture with framework masking; no placeholder or fabricated illustration was added.
+- Copy and content: `YOKKO_PLAYER`, `RANK 07`, `LV. 24`, `72%`, `1,284`, and `36` match the selected concept. Supporting labels are localized in English, Chinese, and Japanese.
+
+## Findings
+
+- No actionable P0, P1, or P2 visual issue remains in the inspected full layout.
+- P3 product follow-up: the current progression values are a single presentation model matching the selected concept. A future player-progression store can replace that model without rebuilding the card.
+
+## Comparison history
+
+1. Initial implementation:
+   - P1: Play, secondary actions, Multiplayer, and the player card visually merged into one dense block.
+   - P1: the player's combo and song-count rows crowded the card border.
+2. Spacing correction:
+   - Added explicit full and compact layout positions for all four control groups.
+   - Increased the full player card from 126 px to 148 px and moved its experience and stat rows onto stable baselines.
+   - Moved the audio status below the full card and hid it in the compact fallback.
+3. Post-fix evidence:
+   - Native focused captures show separated control surfaces, intact shadows and diamonds, readable card copy, and no internal overlap.
+   - Layout invariants verify that both full and compact stacks retain positive gaps and fit their intended stages.
+
+## Primary interactions and verification
+
+- Play, Editor, Settings, and Multiplayer actions retain their existing behavior.
+- Player-card full/compact switching follows the available logical height and does not create a new route or fake interaction.
+- Isolated focused build plus `TestSceneMainScreen` and localisation/font coverage: passed, 8/8.
+- Native Windows visual inspection: passed.

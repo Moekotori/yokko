@@ -28,8 +28,8 @@ public partial class MainScreen : Screen
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
     private const float compactPlayerCardY = 638;
-    private const float fullPlayerCardY = 668;
-    private const float fullStatusBarY = 808;
+    private const float fullPlayerCardY = 696;
+    private const float fullStatusBarY = 866;
     private const double exitHoldDuration = 2000;
 
     private static readonly Color4 ivory = new(0.992f, 0.992f, 0.988f, 1f);
@@ -54,6 +54,9 @@ public partial class MainScreen : Screen
     private Drawable brandLockup;
     private Drawable commandArea;
     private Drawable utilityArea;
+    private HomePrimaryAction primaryAction;
+    private FillFlowContainer secondaryActionRow;
+    private HomeMultiplayerAction multiplayerAction;
     private Sprite mascot;
     private SpriteText watermark;
     private Box heroHighlight;
@@ -395,7 +398,7 @@ public partial class MainScreen : Screen
         utilityAreaLayout.X = extra.X;
         exitIndicator.Y = stageSize.Y - 50;
 
-        updatePlayerCardLayout(stageSize.Y < 840);
+        updatePlayerCardLayout(stageSize.Y < 920);
 
         float stageLeft = MathF.Max((DrawWidth - stageSize.X) / 2, 0);
         float ivoryWidth = stageLeft + 510;
@@ -415,6 +418,9 @@ public partial class MainScreen : Screen
             brandLockup.Position = new Vector2(56, 28);
             brandLockup.Size = new Vector2(450, 152);
             commandArea.Position = new Vector2(72, 180);
+            primaryAction.Y = 150;
+            secondaryActionRow.Y = 278;
+            multiplayerAction.Y = 366;
             playerProgressCard.Position = new Vector2(72, compactPlayerCardY);
             statusBar.Alpha = 0;
             return;
@@ -423,6 +429,9 @@ public partial class MainScreen : Screen
         brandLockup.Position = new Vector2(56, 46);
         brandLockup.Size = new Vector2(500, 169);
         commandArea.Position = new Vector2(72, 208);
+        primaryAction.Y = 164;
+        secondaryActionRow.Y = 296;
+        multiplayerAction.Y = 390;
         playerProgressCard.Position = new Vector2(72, fullPlayerCardY);
         statusBar.Position = new Vector2(72, fullStatusBarY);
         statusBar.Alpha = 1;
@@ -432,6 +441,12 @@ public partial class MainScreen : Screen
         new(
             MathF.Max(viewport.X, designedWidth),
             MathF.Max(viewport.Y, designedHeight));
+
+    internal static bool PlayerCardLayoutsHaveBreathingRoom =>
+        180 + 366 + 82 + 10 <= compactPlayerCardY
+        && compactPlayerCardY + HomePlayerProgressCard.CompactHeight <= designedHeight
+        && 208 + 390 + 82 + 16 <= fullPlayerCardY
+        && fullPlayerCardY + HomePlayerProgressCard.FullHeight + 18 <= fullStatusBarY;
 
     internal static Vector2 CalculateRightStageOffset(Vector2 stageSize)
     {
@@ -779,21 +794,21 @@ public partial class MainScreen : Screen
                 Position = new Vector2(480, 18),
             },
             createDecorationIcon(FontAwesome.Solid.Plus, 508, 67, 15, pink),
-            new HomePrimaryAction(
+            primaryAction = new HomePrimaryAction(
                 YokkoStrings.Get("main.play"),
                 YokkoStrings.Get("main.song_select"),
                 FontAwesome.Solid.Play,
                 () => this.Push(new SongSelectScreen()))
             {
-                Y = 162,
+                Y = 164,
             },
             new HomeConnectorPlus
             {
                 Position = new Vector2(546, 219),
             },
-            new FillFlowContainer
+            secondaryActionRow = new FillFlowContainer
             {
-                Y = 284,
+                Y = 296,
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(16, 0),
@@ -805,12 +820,12 @@ public partial class MainScreen : Screen
                         () => this.Push(new SettingsScreen())),
                 },
             },
-            new HomeMultiplayerAction(
+            multiplayerAction = new HomeMultiplayerAction(
                 YokkoStrings.Get("main.multiplayer"),
                 default,
                 onMultiplayerSelected)
             {
-                Y = 374,
+                Y = 390,
             },
         },
     };

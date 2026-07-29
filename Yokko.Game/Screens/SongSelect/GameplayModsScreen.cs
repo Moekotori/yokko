@@ -28,7 +28,11 @@ internal partial class GameplayModsScreen : Screen
 {
     private const float designed_width = 1280;
     private const float designed_height = 720;
-    private const float reference_layout_scale = 1.25f;
+    private const float detail_panel_width = 324;
+    private const float detail_panel_right_margin = 36;
+    private const float browser_left = 315;
+    private const float browser_detail_gap = 55;
+    private const float footer_height = 110;
 
     private static readonly ManiaModCategory[] visible_categories =
     [
@@ -45,13 +49,19 @@ internal partial class GameplayModsScreen : Screen
         categoryButtons = new();
     private readonly Dictionary<ManiaModId, GameplayModListItem> visibleItems =
         new();
+    private readonly List<Box> sectionDividers = new();
 
     private Container stage;
+    private Drawable categoryRail;
+    private Container modBrowser;
     private Container modList;
+    private Container detailPanel;
+    private Container decorations;
     private Container fixedRatePanel;
     private Container configurablePanel;
     private FillFlowContainer activeMods;
     private Box activeModsDivider;
+    private Box detailPanelDivider;
     private Container detailBadge;
     private Box detailBadgeBackground;
     private SpriteText detailAcronym;
@@ -77,6 +87,7 @@ internal partial class GameplayModsScreen : Screen
     private ManiaModSet selectedMods;
     private bool loadComplete;
     private double lastGlobalScrollAt = double.NegativeInfinity;
+    private int modColumnCount = 2;
     [Resolved]
     private YokkoManiaModPreferences modPreferences { get; set; }
 
@@ -111,9 +122,13 @@ internal partial class GameplayModsScreen : Screen
     internal float SettingsHeaderY => settingsHeader?.Y ?? 0;
     internal float FixedRatePanelY => fixedRatePanel?.Y ?? 0;
     internal bool ResetEnabled => resetButton?.IsEnabled ?? false;
-    internal static Vector2 ReferenceStageSize =>
-        new(designed_width * reference_layout_scale,
-            designed_height * reference_layout_scale);
+    internal static Vector2 CalculateResponsiveStageSize(Vector2 viewport) =>
+        new(
+            MathF.Max(viewport.X, designed_width),
+            MathF.Max(viewport.Y, designed_height));
+
+    internal static int CalculateBrowserColumnCount(float browserWidth) =>
+        Math.Clamp((int)((browserWidth + 18) / 284), 2, 4);
 
     [BackgroundDependencyLoader]
     private void load(TextureStore textures)
@@ -129,17 +144,14 @@ internal partial class GameplayModsScreen : Screen
             },
             stage = new Container
             {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(designed_width, designed_height),
-                Scale = new Vector2(reference_layout_scale),
+                RelativeSizeAxes = Axes.Both,
                 Children = new Drawable[]
                 {
                     createHeader(logo),
-                    createCategoryRail(),
-                    createModBrowser(),
-                    createDetailPanel(),
-                    createDecorations(),
+                    categoryRail = createCategoryRail(),
+                    modBrowser = createModBrowser(),
+                    detailPanel = createDetailPanel(),
+                    decorations = createDecorations(),
                     createFooter(),
                 },
             },
@@ -158,6 +170,12 @@ internal partial class GameplayModsScreen : Screen
         loadComplete = true;
     }
 
+    protected override void Update()
+    {
+        base.Update();
+        updateResponsiveLayout();
+    }
+
     public override void OnEntering(ScreenTransitionEvent e)
     {
         base.OnEntering(e);
@@ -170,6 +188,42 @@ internal partial class GameplayModsScreen : Screen
         stage.FadeOut(150, Easing.OutQuint)
              .MoveToY(8, 180, Easing.OutQuint);
         return base.OnExiting(e);
+    }
+
+    private void updateResponsiveLayout()
+    {
+        if (stage == null || DrawWidth <= 0 || DrawHeight <= 0)
+            return;
+
+        Vector2 stageSize = CalculateResponsiveStageSize(
+            new Vector2(DrawWidth, DrawHeight));
+        Vector2 extra = stageSize
+                        - new Vector2(designed_width, designed_height);
+        float contentY = 118 + extra.Y * 0.5f;
+        float detailLeft = stageSize.X
+                           - detail_panel_right_margin
+                           - detail_panel_width;
+        float browserWidth = MathF.Max(
+            550,
+            detailLeft - browser_left - browser_detail_gap);
+
+        categoryRail.Y = contentY + 8;
+        modBrowser.Y = contentY + 1;
+        modBrowser.Width = browserWidth;
+        detailPanel.Y = contentY;
+        detailPanelDivider.Y = contentY - 8;
+
+        foreach (Box divider in sectionDividers)
+            divider.Width = MathF.Max(browserWidth - 145, 120);
+
+        int nextColumnCount =
+            CalculateBrowserColumnCount(browserWidth);
+        if (nextColumnCount == modColumnCount)
+            return;
+
+        modColumnCount = nextColumnCount;
+        rebuildModList();
+        selectDetail(detailMod);
     }
 
     protected override bool OnKeyDown(KeyDownEvent e) =>
@@ -636,7 +690,7 @@ internal partial class GameplayModsScreen : Screen
         return flow;
     }
 
-    private Drawable createModBrowser() => new Container
+    private Container createModBrowser() => new Container
     {
         Position = new Vector2(315, 119),
         Size = new Vector2(550, 472),
@@ -646,7 +700,7 @@ internal partial class GameplayModsScreen : Screen
         },
     };
 
-    private Drawable createDetailPanel()
+    private Container createDetailPanel()
     {
         settingsHost = new SongSelectModSettingsHost(
             SetAccuracyChallengeMinimum,
@@ -680,7 +734,9 @@ internal partial class GameplayModsScreen : Screen
 
         return new Container
         {
-            Position = new Vector2(920, 118),
+            Anchor = Anchor.TopRight,
+            Origin = Anchor.TopRight,
+            Position = new Vector2(-detail_panel_right_margin, 118),
             Size = new Vector2(324, 474),
             Children = new Drawable[]
             {
@@ -894,7 +950,7 @@ internal partial class GameplayModsScreen : Screen
         return panel;
     }
 
-    private Drawable createDecorations() => new Container
+    private Container createDecorations() => new Container
     {
         RelativeSizeAxes = Axes.Both,
         Depth = 5,
@@ -915,35 +971,48 @@ internal partial class GameplayModsScreen : Screen
             },
             new SpriteIcon
             {
-                Position = new Vector2(1133, 19),
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(-137, 19),
                 Size = new Vector2(10),
                 Icon = FontAwesome.Solid.Plus,
                 Colour = HomeControlColours.Cyan,
             },
             new SpriteIcon
             {
-                Position = new Vector2(1183, 50),
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(-87, 50),
                 Size = new Vector2(10),
                 Icon = FontAwesome.Solid.Plus,
                 Colour = HomeControlColours.Pink,
             },
             new SpriteIcon
             {
-                Position = new Vector2(1233, 82),
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(-37, 82),
                 Size = new Vector2(10),
                 Icon = FontAwesome.Solid.Plus,
                 Colour = HomeControlColours.Pink,
             },
             new SpriteIcon
             {
-                Position = new Vector2(15, 475),
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                Position = new Vector2(15, -135),
                 Size = new Vector2(10),
                 Icon = FontAwesome.Regular.Heart,
                 Colour = HomeControlColours.Pink,
             },
-            new Box
+            detailPanelDivider = new Box
             {
-                Position = new Vector2(888, 110),
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(
+                    -(detail_panel_right_margin
+                      + detail_panel_width + 32),
+                    110),
                 Size = new Vector2(2, 482),
                 Colour = new Color4(
                     HomeControlColours.Navy.R,
@@ -959,7 +1028,7 @@ internal partial class GameplayModsScreen : Screen
         Anchor = Anchor.BottomLeft,
         Origin = Anchor.BottomLeft,
         RelativeSizeAxes = Axes.X,
-        Height = 110,
+        Height = footer_height,
         Children = new Drawable[]
         {
             new Box
@@ -986,7 +1055,9 @@ internal partial class GameplayModsScreen : Screen
             },
             resetButton = new GameplayModsResetButton(ResetMods)
             {
-                Position = new Vector2(542, 26),
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Position = new Vector2(0, 26),
             },
             interactionHint = new SpriteText
             {
@@ -1017,7 +1088,9 @@ internal partial class GameplayModsScreen : Screen
             },
             new GameplayModsDoneButton(this.Exit)
             {
-                Position = new Vector2(907, 16),
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(-19, 16),
             },
         },
     };
@@ -1028,13 +1101,18 @@ internal partial class GameplayModsScreen : Screen
             return;
 
         visibleItems.Clear();
+        sectionDividers.Clear();
         modList.Clear();
 
         if (activeCategory is ManiaModCategory.DifficultyReduction
             or ManiaModCategory.DifficultyIncrease)
         {
             addSection(ManiaModCategory.DifficultyReduction, 0);
-            addSection(ManiaModCategory.DifficultyIncrease, 195);
+            addSection(
+                ManiaModCategory.DifficultyIncrease,
+                sectionHeight(
+                    ManiaModCategory.DifficultyReduction)
+                + 18);
         }
         else
         {
@@ -1057,12 +1135,16 @@ internal partial class GameplayModsScreen : Screen
             Spacing = new Vector2(1.7f, 0),
             Colour = accent,
         });
-        modList.Add(new Box
+        var divider = new Box
         {
             Position = new Vector2(128, y + 9),
-            Size = new Vector2(405, 1),
+            Size = new Vector2(
+                MathF.Max(modBrowser.Width - 145, 120),
+                1),
             Colour = accent,
-        });
+        };
+        sectionDividers.Add(divider);
+        modList.Add(divider);
 
         float rowSpacing = category switch
         {
@@ -1073,7 +1155,9 @@ internal partial class GameplayModsScreen : Screen
         for (int index = 0; index < definitions.Count; index++)
         {
             ManiaModDefinition definition = definitions[index];
-            int rowCount = (definitions.Count + 1) / 2;
+            int rowCount =
+                (definitions.Count + modColumnCount - 1)
+                / modColumnCount;
             int column = index / rowCount;
             int row = index % rowCount;
             var item = new GameplayModListItem(
@@ -1091,6 +1175,22 @@ internal partial class GameplayModsScreen : Screen
             visibleItems[definition.Id] = item;
             modList.Add(item);
         }
+    }
+
+    private float sectionHeight(ManiaModCategory category)
+    {
+        int definitionCount = definitionsFor(category).Count;
+        int rowCount =
+            (definitionCount + modColumnCount - 1)
+            / modColumnCount;
+        float rowSpacing = category switch
+        {
+            ManiaModCategory.DifficultyReduction => 54,
+            ManiaModCategory.DifficultyIncrease => 50,
+            _ => 44,
+        };
+
+        return 27 + MathF.Max(rowCount - 1, 0) * rowSpacing + 42;
     }
 
     private void updateSelection()

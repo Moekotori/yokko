@@ -21,7 +21,7 @@ internal sealed record HomePlayerSummary(
 
 internal partial class HomePlayerProgressCard : CompositeDrawable
 {
-    public const float FullHeight = 126;
+    public const float FullHeight = 148;
     public const float CompactHeight = 74;
 
     private readonly Container fullContent;
@@ -68,10 +68,10 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
             Children = new Drawable[]
             {
                 createCardSurface(FullHeight),
-                createAvatar(avatar, new Vector2(18, 18), 88),
+                createAvatar(avatar, new Vector2(18, 20), 88),
                 new SpriteText
                 {
-                    Position = new Vector2(122, 15),
+                    Position = new Vector2(122, 18),
                     Text = summary.PlayerName,
                     Font = HomeTypography.Display(21),
                     Spacing = new Vector2(1.2f, 0),
@@ -79,7 +79,7 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(122, 42),
+                    Position = new Vector2(122, 47),
                     Text = rank,
                     Font = HomeTypography.Display(12),
                     Spacing = new Vector2(2.1f, 0),
@@ -89,7 +89,7 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopRight,
-                    Position = new Vector2(-18, 12),
+                    Position = new Vector2(-18, 15),
                     Text = $"LV. {summary.Level}",
                     Font = HomeTypography.Display(29),
                     Colour = HomeControlColours.Navy,
@@ -98,13 +98,13 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopRight,
-                    Position = new Vector2(-17, 48),
+                    Position = new Vector2(-17, 51),
                     Size = new Vector2(83, 3),
                     Colour = HomeControlColours.Pink,
                 },
                 new Box
                 {
-                    Position = new Vector2(122, 66),
+                    Position = new Vector2(122, 74),
                     Size = new Vector2(378, 2),
                     Colour = new Color4(
                         HomeControlColours.Navy.R,
@@ -115,14 +115,14 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                 new SpriteIcon
                 {
                     Origin = Anchor.Centre,
-                    Position = new Vector2(310, 67),
+                    Position = new Vector2(310, 75),
                     Size = new Vector2(27),
                     Icon = FontAwesome.Solid.Heartbeat,
                     Colour = HomeControlColours.Navy,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(122, 72),
+                    Position = new Vector2(122, 83),
                     Text = nextLevel,
                     Font = HomeTypography.Body(13),
                     Colour = new Color4(
@@ -132,13 +132,13 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                         0.74f),
                 },
                 createStat(
-                    new Vector2(23, 91),
+                    new Vector2(23, 112),
                     FontAwesome.Solid.Heartbeat,
                     YokkoStrings.Get("main.player.highest_combo"),
                     summary.HighestCombo.ToString("N0", CultureInfo.InvariantCulture)),
                 new Box
                 {
-                    Position = new Vector2(260, 92),
+                    Position = new Vector2(260, 112),
                     Size = new Vector2(1, 25),
                     Colour = new Color4(
                         HomeControlColours.Navy.R,
@@ -147,7 +147,7 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                         0.22f),
                 },
                 createStat(
-                    new Vector2(288, 91),
+                    new Vector2(288, 112),
                     FontAwesome.Solid.Music,
                     YokkoStrings.Get("main.player.played_songs"),
                     summary.PlayedSongs.ToString(CultureInfo.InvariantCulture)),

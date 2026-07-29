@@ -222,9 +222,18 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     [Test]
     public void TestGameplayModsLayout()
     {
-        AddAssert("fills the shared 1600x900 reference stage", () =>
-            GameplayModsScreen.ReferenceStageSize
-            == new Vector2(1600, 900));
+        AddAssert("uses the complete scaled workspace", () =>
+            GameplayModsScreen.CalculateResponsiveStageSize(
+                new Vector2(2000, 1250))
+            == new Vector2(2000, 1250));
+        AddAssert("never collapses below authored layout", () =>
+            GameplayModsScreen.CalculateResponsiveStageSize(
+                new Vector2(960, 540))
+            == new Vector2(1280, 720));
+        AddAssert("browser gains columns as UI size shrinks", () =>
+            GameplayModsScreen.CalculateBrowserColumnCount(550) == 2
+            && GameplayModsScreen.CalculateBrowserColumnCount(870) == 3
+            && GameplayModsScreen.CalculateBrowserColumnCount(1270) == 4);
         AddStep("restore reference state", () =>
         {
             modsScreen.ResetMods();

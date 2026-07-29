@@ -34,6 +34,9 @@ namespace Yokko.Game.Tests.Visual
             AddAssert(
                 "player progress card is present",
                 () => this.ChildrenOfType<HomePlayerProgressCard>().SingleOrDefault() != null);
+            AddAssert(
+                "player card layouts keep breathing room",
+                () => MainScreen.PlayerCardLayoutsHaveBreathingRoom);
             AddStep("capture main screen", captureScreenshot);
             AddUntilStep("screenshot saved", () => screenshotSaved);
         }
