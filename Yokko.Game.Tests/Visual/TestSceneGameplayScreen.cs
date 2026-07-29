@@ -395,7 +395,7 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("timing bar is fixed to the screen bottom", () =>
                 timingBar.Anchor == Anchor.BottomCentre
                 && timingBar.Origin == Anchor.BottomCentre
-                && timingBar.Y == -12);
+                && timingBar.Y == 28);
             AddStep("show shared fallback truth", () =>
                 hud.UpdateAudioStatus(
                     createAudioStatus(
@@ -1571,7 +1571,7 @@ HitPosition: 400
                                               .SingleOrDefault();
                 return timingBar?.Anchor == Anchor.BottomCentre
                        && timingBar.Origin == Anchor.BottomCentre
-                       && timingBar.Y == -12;
+                       && timingBar.Y == 28;
             });
         }
 
@@ -1608,7 +1608,7 @@ HitPosition: 400
             AddAssert("tall receptors do not move the timing bar", () =>
                 timingBar.Anchor == Anchor.BottomCentre
                 && timingBar.Origin == Anchor.BottomCentre
-                && timingBar.Y == -12);
+                && timingBar.Y == 28);
         }
 
         [Test]

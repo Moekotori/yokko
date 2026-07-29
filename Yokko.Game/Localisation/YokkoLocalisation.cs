@@ -59,8 +59,8 @@ internal static class YokkoStrings
         {
             ["common.esc_back"] = new("Esc back", "Esc 返回", "Esc で戻る"),
 
-            ["main.hero_line_1"] = new("Ready for", "准备好", "準備は"),
-            ["main.hero_line_2"] = new("a check-up?", "来场检查？", "できた？"),
+            ["main.hero_line_1"] = new("YOKKO", "YOKKO", "YOKKO"),
+            ["main.hero_line_2"] = new("DEMO", "DEMO", "DEMO"),
             ["main.play"] = new("Play", "开始", "プレイ"),
             ["main.song_select"] = new("SONG SELECT", "选择歌曲", "楽曲選択"),
             ["main.editor"] = new("Editor", "编辑器", "エディター"),

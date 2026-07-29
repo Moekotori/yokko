@@ -25,8 +25,14 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private readonly Action retry;
     private readonly Action watchReplay;
     private readonly Action returnToSongSelect;
+    private Container backdrop;
     private Container stage;
+    private Container leftStageLayout;
+    private Container rightStageLayout;
+    private Container leftDecorationLayout;
+    private Container rightDecorationLayout;
     private AnimatedGifSprite mascot;
+    private Vector2 lastResponsiveStageSize;
 
     internal int MascotFrameCount => mascot?.FrameCount ?? 0;
     internal int ActionCount => 3;
@@ -80,12 +86,20 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
         InternalChildren = new Drawable[]
         {
-            new Box
+            backdrop = new Container
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = HomeControlColours.Cyan,
+                Alpha = 0,
+                Children = new Drawable[]
+                {
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = HomeControlColours.Cyan,
+                    },
+                    createIvoryStage(),
+                },
             },
-            createIvoryStage(),
             stage = new Container
             {
                 Anchor = Anchor.Centre,
@@ -95,13 +109,21 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 Children = new Drawable[]
                 {
                     createDecorations(),
-                    createResultContent(
-                        beatmap,
-                        result,
-                        rank,
-                        DisplayedMods,
-                        isNewBest),
-                    createMascotStage(),
+                    leftStageLayout = new Container
+                    {
+                        Size = new Vector2(designedWidth, designedHeight),
+                        Child = createResultContent(
+                            beatmap,
+                            result,
+                            rank,
+                            DisplayedMods,
+                            isNewBest),
+                    },
+                    rightStageLayout = new Container
+                    {
+                        Size = new Vector2(designedWidth, designedHeight),
+                        Child = createMascotStage(),
+                    },
                 },
             },
         };
@@ -110,12 +132,59 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     protected override void LoadComplete()
     {
         base.LoadComplete();
-        stage.FadeInFromZero(260, Easing.OutQuint)
-             .MoveToOffset(new Vector2(0, -8))
-             .MoveToOffset(new Vector2(0, 8), 420, Easing.OutQuint);
+
+        // Cross-fade from the final gameplay frame before bringing the result
+        // content forward. The previous immediate backdrop swap made the
+        // existing stage animation effectively invisible.
+        backdrop.FadeIn(340, Easing.OutQuint);
+        stage.Y = 16;
+        stage.Delay(110).FadeIn(360, Easing.OutQuint);
+        stage.Delay(110).MoveToY(0, 460, Easing.OutQuint);
     }
 
     internal void TriggerReplay() => watchReplay();
+
+    protected override void Update()
+    {
+        base.Update();
+
+        if (stage == null || DrawWidth <= 0 || DrawHeight <= 0)
+            return;
+
+        Vector2 stageSize = CalculateResponsiveStageSize(
+            new Vector2(DrawWidth, DrawHeight));
+        if ((stageSize - lastResponsiveStageSize).LengthSquared < 0.01f)
+            return;
+
+        lastResponsiveStageSize = stageSize;
+        stage.Size = stageSize;
+
+        Vector2 extra = stageSize - new Vector2(
+            designedWidth,
+            designedHeight);
+        Vector2 rightOffset = CalculateRightStageOffset(stageSize);
+        float verticalOffset = MathF.Max(extra.Y, 0) * 0.5f;
+
+        leftStageLayout.Y = verticalOffset;
+        leftDecorationLayout.Y = verticalOffset;
+        rightStageLayout.Position = rightOffset;
+        rightDecorationLayout.Position = rightOffset;
+    }
+
+    internal static Vector2 CalculateResponsiveStageSize(Vector2 viewport) =>
+        new(
+            MathF.Max(viewport.X, designedWidth),
+            MathF.Max(viewport.Y, designedHeight));
+
+    internal static Vector2 CalculateRightStageOffset(Vector2 stageSize)
+    {
+        Vector2 extra = stageSize - new Vector2(
+            designedWidth,
+            designedHeight);
+        return new Vector2(
+            MathF.Max(extra.X, 0),
+            MathF.Max(extra.Y, 0) * 0.5f);
+    }
 
     private Drawable createResultContent(
         YokkoBeatmap beatmap,
@@ -436,59 +505,73 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             },
         };
 
-    private static Drawable createDecorations() =>
+    private Drawable createDecorations() =>
         new Container
         {
             RelativeSizeAxes = Axes.Both,
             Children = new Drawable[]
             {
-                new SpriteIcon
+                leftDecorationLayout = new Container
                 {
-                    Position = new Vector2(32, 26),
-                    Size = new Vector2(11),
-                    Icon = FontAwesome.Solid.Plus,
-                    Colour = HomeControlColours.Cyan,
+                    Size = new Vector2(designedWidth, designedHeight),
+                    Children = new Drawable[]
+                    {
+                        new SpriteIcon
+                        {
+                            Position = new Vector2(32, 26),
+                            Size = new Vector2(11),
+                            Icon = FontAwesome.Solid.Plus,
+                            Colour = HomeControlColours.Cyan,
+                        },
+                        new SpriteIcon
+                        {
+                            Position = new Vector2(36, 344),
+                            Size = new Vector2(12),
+                            Icon = FontAwesome.Solid.Plus,
+                            Colour = HomeControlColours.Pink,
+                        },
+                        new Box
+                        {
+                            Position = new Vector2(265, 238),
+                            Size = new Vector2(8),
+                            Rotation = 45,
+                            Colour = HomeControlColours.Yellow,
+                        },
+                        new SpriteText
+                        {
+                            Position = new Vector2(24, 300),
+                            Rotation = -90,
+                            Text = "RHYTHM CHART STUDIO  ·  VOL.01",
+                            Font = HomeTypography.Display(10),
+                            Spacing = new Vector2(2, 0),
+                            Colour = new Color4(
+                                HomeControlColours.Navy.R,
+                                HomeControlColours.Navy.G,
+                                HomeControlColours.Navy.B,
+                                0.35f),
+                        },
+                    },
                 },
-                new SpriteIcon
+                rightDecorationLayout = new Container
                 {
-                    Position = new Vector2(36, 344),
-                    Size = new Vector2(12),
-                    Icon = FontAwesome.Solid.Plus,
-                    Colour = HomeControlColours.Pink,
-                },
-                new SpriteIcon
-                {
-                    Position = new Vector2(1128, 86),
-                    Size = new Vector2(18),
-                    Icon = FontAwesome.Solid.Plus,
-                    Colour = Color4.White,
-                },
-                new SpriteIcon
-                {
-                    Position = new Vector2(1220, 560),
-                    Size = new Vector2(15),
-                    Icon = FontAwesome.Solid.Plus,
-                    Colour = Color4.White,
-                },
-                new Box
-                {
-                    Position = new Vector2(265, 238),
-                    Size = new Vector2(8),
-                    Rotation = 45,
-                    Colour = HomeControlColours.Yellow,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(24, 300),
-                    Rotation = -90,
-                    Text = "RHYTHM CHART STUDIO  ·  VOL.01",
-                    Font = HomeTypography.Display(10),
-                    Spacing = new Vector2(2, 0),
-                    Colour = new Color4(
-                        HomeControlColours.Navy.R,
-                        HomeControlColours.Navy.G,
-                        HomeControlColours.Navy.B,
-                        0.35f),
+                    Size = new Vector2(designedWidth, designedHeight),
+                    Children = new Drawable[]
+                    {
+                        new SpriteIcon
+                        {
+                            Position = new Vector2(1128, 86),
+                            Size = new Vector2(18),
+                            Icon = FontAwesome.Solid.Plus,
+                            Colour = Color4.White,
+                        },
+                        new SpriteIcon
+                        {
+                            Position = new Vector2(1220, 560),
+                            Size = new Vector2(15),
+                            Icon = FontAwesome.Solid.Plus,
+                            Colour = Color4.White,
+                        },
+                    },
                 },
             },
         };

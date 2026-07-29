@@ -789,8 +789,8 @@ public partial class MainScreen : Screen
                     bubbleLines[0],
                     HomeMascotBubbleStyle.PopSignalSticker)
                 {
-                    X = 452,
-                    Y = 365,
+                    X = 424,
+                    Y = 350,
                 },
                 new SpriteText
                 {

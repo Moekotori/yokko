@@ -1002,7 +1002,7 @@ internal enum HomeMascotBubbleStyle
 
 public partial class HomeMascotBubble : CompositeDrawable
 {
-    private readonly Box underline;
+    private readonly Drawable underline;
     private readonly SpriteText label;
     private readonly float underlineRestWidth;
     private readonly float underlinePulseWidth;
@@ -1018,19 +1018,19 @@ public partial class HomeMascotBubble : CompositeDrawable
     {
         if (style == HomeMascotBubbleStyle.PopSignalSticker)
         {
-            Size = new Vector2(164, 104);
-            underlineRestWidth = 30;
-            underlinePulseWidth = 40;
+            Size = new Vector2(256, 134);
+            underlineRestWidth = 62;
+            underlinePulseWidth = 72;
 
             InternalChildren = new Drawable[]
             {
                 new Container
                 {
-                    Position = new Vector2(10, 8),
-                    Size = new Vector2(146, 80),
+                    Position = new Vector2(12, 10),
+                    Size = new Vector2(230, 102),
                     Masking = true,
-                    CornerRadius = 14,
-                    BorderThickness = 2.5f,
+                    CornerRadius = 17,
+                    BorderThickness = 3,
                     BorderColour = HomeControlColours.Navy,
                     Child = new Box
                     {
@@ -1040,11 +1040,11 @@ public partial class HomeMascotBubble : CompositeDrawable
                 },
                 new Container
                 {
-                    Position = new Vector2(105, 68),
-                    Size = new Vector2(23),
+                    Position = new Vector2(164, 88),
+                    Size = new Vector2(30),
                     Rotation = 45,
                     Masking = true,
-                    BorderThickness = 2.5f,
+                    BorderThickness = 3,
                     BorderColour = HomeControlColours.Navy,
                     Child = new Box
                     {
@@ -1052,14 +1052,14 @@ public partial class HomeMascotBubble : CompositeDrawable
                         Colour = HomeControlColours.PaleCyan,
                     },
                 },
-                new Container
+                underline = new Container
                 {
-                    Position = new Vector2(124, 70),
-                    Size = new Vector2(30, 11),
+                    Position = new Vector2(188, 91),
+                    Size = new Vector2(62, 22),
                     Rotation = -18,
                     Masking = true,
-                    CornerRadius = 5.5f,
-                    Child = underline = new Box
+                    CornerRadius = 8,
+                    Child = new Box
                     {
                         RelativeSizeAxes = Axes.Both,
                         Colour = HomeControlColours.Pink,
@@ -1067,11 +1067,11 @@ public partial class HomeMascotBubble : CompositeDrawable
                 },
                 new Container
                 {
-                    Position = new Vector2(4, 0),
-                    Size = new Vector2(146, 80),
+                    Position = new Vector2(6, 0),
+                    Size = new Vector2(230, 102),
                     Masking = true,
-                    CornerRadius = 12,
-                    BorderThickness = 2.5f,
+                    CornerRadius = 15,
+                    BorderThickness = 3,
                     BorderColour = HomeControlColours.Navy,
                     Children = new Drawable[]
                     {
@@ -1084,16 +1084,16 @@ public partial class HomeMascotBubble : CompositeDrawable
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            X = 5,
+                            X = 7,
                             Text = text,
-                            Font = HomeTypography.Display(20),
+                            Font = HomeTypography.Display(40),
                             Scale = new Vector2(0.94f, 1),
                             Colour = HomeControlColours.Navy,
                         },
                     },
                 },
-                createOutlinedSparkle(new Vector2(-2, 4), 20),
-                createOutlinedSparkle(new Vector2(1, 26), 14),
+                createOutlinedSparkle(new Vector2(-7, 1), 42),
+                createOutlinedSparkle(new Vector2(1, 39), 26),
             };
 
             return;

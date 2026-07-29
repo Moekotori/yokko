@@ -102,6 +102,7 @@ public partial class GameplayTimingBar : CompositeDrawable
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
+                Y = -12,
                 Text = string.Empty,
                 Font = FontUsage.Default.With(size: 11, weight: "SemiBold"),
                 Colour = YokkoPalette.TextMuted,
@@ -143,7 +144,7 @@ public partial class GameplayTimingBar : CompositeDrawable
             {
                 Anchor = Anchor.TopLeft,
                 Origin = Anchor.Centre,
-                Position = new Vector2(barLeft + barWidth / 2, markerY + 10),
+                Position = new Vector2(barLeft + barWidth / 2, markerY - 12),
                 Size = new Vector2(10, 4),
                 Colour = Color4.White,
                 Alpha = 0,
@@ -152,7 +153,7 @@ public partial class GameplayTimingBar : CompositeDrawable
             {
                 Anchor = Anchor.TopLeft,
                 Origin = Anchor.Centre,
-                Position = new Vector2(barLeft + barWidth / 2, markerY + 10),
+                Position = new Vector2(barLeft + barWidth / 2, markerY - 12),
                 Size = new Vector2(4, 10),
                 Colour = YokkoPalette.TextMuted,
                 Alpha = 0,
@@ -161,6 +162,7 @@ public partial class GameplayTimingBar : CompositeDrawable
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
+                Y = -50,
                 Text = string.Empty,
                 Font = FontUsage.Default.With(size: 12, weight: "SemiBold"),
                 Colour = YokkoPalette.TextMuted,

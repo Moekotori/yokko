@@ -5,6 +5,7 @@ using osu.Framework.Configuration;
 using osu.Framework.Platform;
 using Yokko.Game.Configuration;
 using Yokko.Game.Presentation;
+using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Main;
 using Yokko.Game.Screens.Settings;
 
@@ -237,6 +238,30 @@ public sealed class DisplaySettingsTest
                     YokkoDisplaySettings.GetTargetDrawSize(
                         YokkoUiScale.Compact)),
                 Is.EqualTo(new osuTK.Vector2(1600, 900)));
+        });
+    }
+
+    [Test]
+    public void ResultScreenUsesFullScaledViewport()
+    {
+        var stage = GameplayResultOverlay.CalculateResponsiveStageSize(
+            new osuTK.Vector2(1777.7778f, 1000));
+        var rightOffset =
+            GameplayResultOverlay.CalculateRightStageOffset(stage);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                stage,
+                Is.EqualTo(new osuTK.Vector2(1777.7778f, 1000)));
+            Assert.That(
+                rightOffset.X,
+                Is.EqualTo(497.7778f).Within(0.001f));
+            Assert.That(rightOffset.Y, Is.EqualTo(140));
+            Assert.That(
+                GameplayResultOverlay.CalculateResponsiveStageSize(
+                    new osuTK.Vector2(1024, 576)),
+                Is.EqualTo(new osuTK.Vector2(1280, 720)));
         });
     }
 

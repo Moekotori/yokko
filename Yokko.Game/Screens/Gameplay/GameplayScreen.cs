@@ -357,7 +357,7 @@ public partial class GameplayScreen : Screen
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
-                Y = -12,
+                Y = 28,
                 Depth = -101,
                 Alpha = gameplaySettings.ShowTimingBar.Value ? 1 : 0,
             },
@@ -1261,6 +1261,17 @@ public partial class GameplayScreen : Screen
         if (!ReplayMode)
             saveCompletedReplay();
         _ = audioEngine.StopAsync();
+
+        // Let the final gameplay frame recede while the result backdrop
+        // cross-fades in, instead of replacing the playfield in one frame.
+        playfield.FadeOut(280, Easing.OutQuint);
+        hud.FadeOut(220, Easing.OutQuint);
+        judgementReadout.FadeOut(180, Easing.OutQuint);
+        timingBar.FadeOut(180, Easing.OutQuint);
+        scrollSpeedOverlay.FadeOut(180, Easing.OutQuint);
+        playbackRateOverlay.FadeOut(180, Easing.OutQuint);
+        cinemaIndicator?.FadeOut(180, Easing.OutQuint);
+
         AddInternal(new GameplayResultOverlay(
             beatmap,
             completedResult,
