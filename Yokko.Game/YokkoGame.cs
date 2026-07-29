@@ -75,6 +75,7 @@ namespace Yokko.Game
                 beatmap,
                 null,
                 null,
+                null,
                 replay));
         }
 

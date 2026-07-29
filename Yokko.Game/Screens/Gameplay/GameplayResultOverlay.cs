@@ -9,6 +9,7 @@ using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
@@ -29,6 +30,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
     internal int MascotFrameCount => mascot?.FrameCount ?? 0;
     internal int ActionCount => 3;
+    internal string DisplayedMods { get; }
 
     public GameplayResultOverlay(
         YokkoBeatmap beatmap,
@@ -37,10 +39,33 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         Action retry,
         Action watchReplay,
         Action returnToSongSelect)
+        : this(
+            beatmap,
+            result,
+            ManiaModSet.Empty,
+            isNewBest,
+            retry,
+            watchReplay,
+            returnToSongSelect)
     {
+    }
+
+    public GameplayResultOverlay(
+        YokkoBeatmap beatmap,
+        ManiaScoreResult result,
+        ManiaModSet mods,
+        bool isNewBest,
+        Action retry,
+        Action watchReplay,
+        Action returnToSongSelect)
+    {
+        mods ??= ManiaModSet.Empty;
         this.retry = retry;
         this.watchReplay = watchReplay;
         this.returnToSongSelect = returnToSongSelect;
+        DisplayedMods = mods.IsEmpty
+            ? "NM"
+            : string.Join("  ", mods.Acronyms);
 
         RelativeSizeAxes = Axes.Both;
         Depth = -10;
@@ -66,7 +91,12 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 Children = new Drawable[]
                 {
                     createDecorations(),
-                    createResultContent(beatmap, result, rank, isNewBest),
+                    createResultContent(
+                        beatmap,
+                        result,
+                        rank,
+                        DisplayedMods,
+                        isNewBest),
                     createMascotStage(),
                 },
             },
@@ -87,6 +117,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         YokkoBeatmap beatmap,
         ManiaScoreResult result,
         string rank,
+        string displayedMods,
         bool isNewBest) =>
         new Container
         {
@@ -124,6 +155,13 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Text = $"{beatmap.Title} [{beatmap.DifficultyName}]",
                     Font = HomeTypography.Display(22),
                     Colour = HomeControlColours.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(108, 158),
+                    Text = displayedMods,
+                    Font = HomeTypography.Display(15),
+                    Colour = HomeControlColours.Pink,
                 },
                 new SpriteText
                 {

@@ -6,6 +6,9 @@ public interface IAudioEngine : IAsyncDisposable
 
     double PlaybackTimeMilliseconds { get; }
 
+    AudioEngineSnapshot Snapshot =>
+        new(Status, PlaybackTimeMilliseconds);
+
     double DurationMilliseconds { get; }
 
     IReadOnlyList<AudioBackendCapabilities> Backends { get; }

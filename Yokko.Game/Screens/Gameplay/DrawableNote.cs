@@ -17,6 +17,9 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public partial class DrawableNote : CompositeDrawable
 {
+    internal const double MinimumVisibleProgress = -0.08;
+    internal const double MaximumVisibleProgress = 1.22;
+
     private static readonly ScrollVelocityMap defaultScrollVelocityMap =
         new([]);
     private static readonly ScrollSpeedFactorMap defaultScrollSpeedFactorMap =
@@ -244,6 +247,49 @@ public partial class DrawableNote : CompositeDrawable
         scrollSpeedFactorMap ??= defaultScrollSpeedFactorMap;
         double scrollSpeedFactor =
             scrollSpeedFactorMap.FactorAt(gameplayTimeMilliseconds);
+        double currentPosition =
+            scrollVelocityMap.PositionAt(gameplayTimeMilliseconds);
+        double startPosition =
+            scrollVelocityMap.PositionAt(hitObject.StartTimeMilliseconds);
+        double endPosition = hitObject.EndTimeMilliseconds is double endTime
+            ? scrollVelocityMap.PositionAt(endTime)
+            : startPosition;
+        ScrollPositionRange pathRange =
+            hitObject.EndTimeMilliseconds is double holdEndTime
+                ? scrollVelocityMap.PositionRangeBetween(
+                    hitObject.StartTimeMilliseconds,
+                    holdEndTime)
+                : new ScrollPositionRange(startPosition, startPosition);
+
+        UpdatePosition(
+            gameplayTimeMilliseconds,
+            resolvedByState,
+            holdActive,
+            topY,
+            judgementY,
+            approachTimeMilliseconds,
+            scrollVelocityMap,
+            scrollSpeedFactor,
+            currentPosition,
+            startPosition,
+            endPosition,
+            pathRange);
+    }
+
+    internal void UpdatePosition(
+        double gameplayTimeMilliseconds,
+        bool resolvedByState,
+        bool holdActive,
+        float topY,
+        float judgementY,
+        double approachTimeMilliseconds,
+        ScrollVelocityMap scrollVelocityMap,
+        double scrollSpeedFactor,
+        double currentPosition,
+        double startPosition,
+        double endPosition,
+        ScrollPositionRange fullPathRange)
+    {
 
         if (resolved || resolvedByState)
         {
@@ -255,14 +301,10 @@ public partial class DrawableNote : CompositeDrawable
 
         if (hitObject.Kind == HitObjectKind.Hold && hitObject.EndTimeMilliseconds is double endTime)
         {
-            double headProgress = 1 - scrollVelocityMap.DistanceBetween(
-                gameplayTimeMilliseconds,
-                hitObject.StartTimeMilliseconds)
+            double headProgress = 1 - (startPosition - currentPosition)
                 / approachTimeMilliseconds
                 * scrollSpeedFactor;
-            double tailProgress = 1 - scrollVelocityMap.DistanceBetween(
-                gameplayTimeMilliseconds,
-                endTime)
+            double tailProgress = 1 - (endPosition - currentPosition)
                 / approachTimeMilliseconds
                 * scrollSpeedFactor;
             float headY = topY + (float)(headProgress * travel);
@@ -278,11 +320,13 @@ public partial class DrawableNote : CompositeDrawable
                     fallbackBody.Colour = YokkoPalette.Lime;
             }
 
-            ScrollPositionRange pathRange = scrollVelocityMap.PositionRangeBetween(
-                visibleStartTime,
-                endTime);
-            double currentPosition =
-                scrollVelocityMap.PositionAt(gameplayTimeMilliseconds);
+            ScrollPositionRange pathRange = holdActive
+                                            && gameplayTimeMilliseconds
+                                            >= hitObject.StartTimeMilliseconds
+                ? scrollVelocityMap.PositionRangeBetween(
+                    visibleStartTime,
+                    endTime)
+                : fullPathRange;
             double minimumProgress =
                 1 - (pathRange.Maximum - currentPosition)
                 / approachTimeMilliseconds
@@ -349,23 +393,28 @@ public partial class DrawableNote : CompositeDrawable
             holdHeadY = (upsideDown ? headY : headY - headHeight) - Y;
             holdTailY = (upsideDown ? tailY : tailY - tailHeight) - Y;
             updateHoldBody();
-            Alpha = maximumProgress >= -0.08
-                    && minimumProgress <= 1.22
+            Alpha = maximumProgress >= MinimumVisibleProgress
+                    && minimumProgress <= MaximumVisibleProgress
                 ? 1
                 : 0;
             return;
         }
 
-        double progress = 1 - scrollVelocityMap.DistanceBetween(
-            gameplayTimeMilliseconds,
-            hitObject.StartTimeMilliseconds)
+        double progress = 1 - (startPosition - currentPosition)
             / approachTimeMilliseconds
             * scrollSpeedFactor;
         float anchorY = topY + (float)(progress * travel);
         Y = upsideDown ? anchorY : anchorY - minimumHeight;
         Height = minimumHeight;
-        Alpha = progress is >= -0.08 and <= 1.22 ? 1 : 0;
+        Alpha = progress is
+            >= MinimumVisibleProgress
+            and <= MaximumVisibleProgress
+            ? 1
+            : 0;
     }
+
+    internal void HideOutsideVisibleRange() =>
+        Alpha = 0;
 
     private void updateHoldBody()
     {

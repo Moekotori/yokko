@@ -65,6 +65,7 @@ internal static class YokkoStrings
             ["main.song_select"] = new("SONG SELECT", "选择歌曲", "楽曲選択"),
             ["main.editor"] = new("Editor", "编辑器", "エディター"),
             ["main.settings"] = new("Settings", "设置", "設定"),
+            ["main.multiplayer"] = new("Multiplayer", "在线游戏", "オンライン"),
             ["main.lets_play"] = new("Let's play!", "开始吧！", "遊ぼう！"),
             ["main.audio_unavailable"] = new("Audio unavailable", "音频不可用", "オーディオ利用不可"),
             ["main.music_no_songs"] = new("No imported songs", "暂无导入歌曲", "インポート曲なし"),
@@ -111,7 +112,7 @@ internal static class YokkoStrings
             ["song_select.you"] = new("YOU", "你", "自分"),
             ["song_select.length"] = new("LENGTH", "时长", "長さ"),
 
-            ["gameplay.pause.title"] = new("Paused", "暂停中", "一時停止"),
+            ["gameplay.pause.title"] = new("Paused", "暂停", "一時停止"),
             ["gameplay.pause.subtitle"] = new("Catch your breath.", "先喘口气。", "ひと休み。"),
             ["gameplay.pause.bubble"] = new("Take a break!", "休息一下！", "ひと休み！"),
             ["gameplay.pause.resume"] = new("Resume", "继续游戏", "ゲームに戻る"),

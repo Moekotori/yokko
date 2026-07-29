@@ -89,3 +89,53 @@ The focused side-by-side comparison shows the selected concept on the left and t
 ## Follow-up polish
 
 No blocking polish remains. A future live 2560 x 1440 hardware capture could document the final high-DPI corner placement more clearly than the logical-pixel Windows capture.
+
+---
+
+# Yokko Home Multiplayer design QA
+
+final result: passed
+
+## Evidence
+
+- Source visual truth: `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-8b1aa213-32b9-4b36-bfcb-3b84b8dd32a4.png`
+- Rendered implementation: `D:\yokko\artifacts\home-multiplayer-implementation.png`
+- Click feedback: `D:\yokko\artifacts\home-multiplayer-click-feedback.png`
+- Side-by-side comparison: `D:\yokko\artifacts\home-multiplayer-comparison.png`
+- Source pixels: 1638 x 960
+- Implementation pixels and viewport: 1280 x 750 native desktop window capture
+- Density normalization: the source was scaled to 1280 x 750 for the side-by-side comparison; aspect ratios differ by less than 0.1%.
+- State: Chinese locale, no online friends, Multiplayer idle and clicked states.
+
+## Full-view comparison
+
+The implementation preserves the current Yokko home shell, mascot art, ivory/cyan split, navy primary Play action, pink/yellow accents, and existing Editor/Settings hierarchy. Multiplayer occupies the requested full-width third row and remains visually secondary to Play. The current production home has additional utility controls and a music player that were not present in the generated concept; these were intentionally preserved rather than removed to force a literal mock match.
+
+## Focused region comparison
+
+A separate crop was not needed because the complete Multiplayer row is readable at native size in the 2560 x 750 side-by-side comparison. The icon, title baseline, outline, corner treatment, chevron, hover rail, and spacing relative to Editor/Settings are visible without enlargement.
+
+## Required fidelity surfaces
+
+- Fonts and typography: the new label reuses Yokko's existing `HomeTypography.Display` treatment, weight, and optical scale. It remains readable in English, Chinese, and Japanese without introducing another font.
+- Spacing and layout rhythm: the two compact secondary actions remain paired above one 520 x 82 Multiplayer action. No overlap or clipping appears at the 1280 x 750 desktop viewport.
+- Colors and visual tokens: the control uses the existing ivory, navy, cyan, pink, and yellow tokens; no off-brand color or gradient was introduced.
+- Image quality and asset fidelity: the existing mascot and logo assets are unchanged. The player icon comes from the same Font Awesome set as the other home controls. No placeholder or generated avatar is rendered in the empty-friends state.
+- Copy and content: with zero friends, neither `Friends online` nor an avatar strip is present. Clicking Multiplayer changes the mascot bubble to the localized coming-soon message and emits the existing sparkle feedback.
+
+## Findings
+
+- No actionable P0, P1, or P2 issue remains.
+- P3 accepted deviation: the rendered label is slightly quieter than the generated concept because it follows the smaller typography already used by the live Editor and Settings controls.
+
+## Comparison history
+
+1. First rendered comparison found no overlap, clipping, unreadable text, or hierarchy regression.
+2. No visual fix loop was required.
+
+## Verification
+
+- Focused visual test: passed, 2/2.
+- Native Windows capture: passed at 1280 x 750.
+- Primary interaction: Multiplayer click feedback verified.
+- Empty state: `Friends online` and avatar strip are absent when no friend textures are supplied.

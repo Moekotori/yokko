@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -25,7 +26,7 @@ namespace Yokko.Game.Tests.Core
                 TestContext.CurrentContext.Test.ID);
             Directory.CreateDirectory(directory);
             string audioPath = Path.Combine(directory, "silence.wav");
-            createSilentWave(audioPath, 48000, 2, 2000);
+            createSilentWave(audioPath, 48000, 2, 5000);
 
             await using var engine = new NativeAudioEngine();
             await engine.PrepareSamplesAsync([audioPath]);
@@ -103,6 +104,15 @@ namespace Yokko.Game.Tests.Core
             Assert.That(status.MaxCallbackDurationMilliseconds, Is.GreaterThanOrEqualTo(0));
             Assert.That(status.MaxCallbackIntervalMilliseconds, Is.GreaterThanOrEqualTo(0));
 
+            double normalStart = engine.PlaybackTimeMilliseconds;
+            long normalWallStart = Stopwatch.GetTimestamp();
+            await Task.Delay(800);
+            double normalWallAdvance =
+                Stopwatch.GetElapsedTime(normalWallStart).TotalMilliseconds;
+            double normalAdvance =
+                engine.PlaybackTimeMilliseconds - normalStart;
+            double normalObservedRate = normalAdvance / normalWallAdvance;
+
             var clockSamples = new List<double>();
             for (int index = 0; index < 16; index++)
             {
@@ -127,6 +137,34 @@ namespace Yokko.Game.Tests.Core
 
             await engine.StopAsync();
             Assert.That(engine.Status.IsRunning, Is.False);
+
+            await engine.StartAsync(new AudioEngineStartRequest(
+                audioPath,
+                AudioBackendKind.WasapiExclusive,
+                openedDevice.Id,
+                48000,
+                128,
+                0,
+                1.5,
+                AudioPitchMode.Preserve));
+            await Task.Delay(800);
+            double ratedStart = engine.PlaybackTimeMilliseconds;
+            long wallStart = Stopwatch.GetTimestamp();
+            await Task.Delay(800);
+            double wallAdvance = Stopwatch.GetElapsedTime(wallStart).TotalMilliseconds;
+            double ratedAdvance =
+                engine.PlaybackTimeMilliseconds - ratedStart;
+            double observedRate = ratedAdvance / wallAdvance;
+            double relativeRate = observedRate / normalObservedRate;
+            Assert.That(
+                relativeRate,
+                Is.InRange(1.35, 1.65),
+                "A real 1.5x output stream must advance the chart clock at "
+                + "approximately 1.5x the same endpoint's normal stream. "
+                + $"Observed normal={normalObservedRate:F3}x wall, "
+                + $"rated={observedRate:F3}x wall, "
+                + $"relative={relativeRate:F3}x.");
+            await engine.StopAsync();
 
             await engine.StartAsync(new AudioEngineStartRequest(
                 string.Empty,

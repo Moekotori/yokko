@@ -185,7 +185,7 @@ public partial class MainScreen : Screen
                     utilityArea = createUtilityArea(),
                     exitIndicator = new HomeExitHoldIndicator(YokkoStrings.Get("main.exit_hold"))
                     {
-                        Position = new Vector2(60, 606),
+                        Position = new Vector2(60, 670),
                     },
                 },
             },
@@ -648,7 +648,7 @@ public partial class MainScreen : Screen
             },
             new FillFlowContainer
             {
-                Y = 302,
+                Y = 284,
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(16, 0),
@@ -659,6 +659,13 @@ public partial class MainScreen : Screen
                     new HomeSecondaryAction(YokkoStrings.Get("main.settings"), FontAwesome.Solid.Cog,
                         () => this.Push(new SettingsScreen())),
                 },
+            },
+            new HomeMultiplayerAction(
+                YokkoStrings.Get("main.multiplayer"),
+                default,
+                onMultiplayerSelected)
+            {
+                Y = 374,
             },
         },
     };
@@ -705,6 +712,12 @@ public partial class MainScreen : Screen
             requestGameExit();
         else
             host.Exit();
+    }
+
+    private void onMultiplayerSelected()
+    {
+        bubble.SetText(YokkoStrings.Get("settings.coming_soon"));
+        spawnSparkles();
     }
 
 }

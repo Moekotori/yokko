@@ -9,13 +9,14 @@ internal sealed class DecodedAudioSample
     private const int readBlockSamples = 8192;
     private const int maximumDurationSeconds = 60;
 
-    private readonly Dictionary<int, float[]> resampled = new();
+    private readonly Dictionary<(int SampleRate, double PlaybackRate), float[]>
+        resampled = new();
 
     private DecodedAudioSample(int sampleRate, float[] samples)
     {
         SampleRate = sampleRate;
         Samples = samples;
-        resampled[sampleRate] = samples;
+        resampled[(sampleRate, 1)] = samples;
     }
 
     internal int SampleRate { get; }
@@ -57,18 +58,33 @@ internal sealed class DecodedAudioSample
         return new DecodedAudioSample(source.SampleRate, decoded.ToArray());
     }
 
-    internal float[] GetSamplesAt(int targetSampleRate)
+    internal float[] GetSamplesAt(
+        int targetSampleRate,
+        double playbackRate = 1)
     {
-        if (resampled.TryGetValue(targetSampleRate, out float[]? cached))
+        if (!double.IsFinite(playbackRate)
+            || playbackRate is < 0.25 or > 4)
+        {
+            throw new ArgumentOutOfRangeException(nameof(playbackRate));
+        }
+
+        var cacheKey = (targetSampleRate, playbackRate);
+        if (resampled.TryGetValue(cacheKey, out float[]? cached))
             return cached;
 
-        var provider = new ArraySampleProvider(Samples, SampleRate);
+        int ratedSourceSampleRate = checked(
+            (int)Math.Round(SampleRate * playbackRate));
+        var provider = new ArraySampleProvider(
+            Samples,
+            ratedSourceSampleRate);
         var resampler = new WdlResamplingSampleProvider(
             provider,
             targetSampleRate);
         int estimatedSamples = checked(
             (int)Math.Ceiling(
-                Samples.Length * (double)targetSampleRate / SampleRate));
+                Samples.Length
+                * (double)targetSampleRate
+                / ratedSourceSampleRate));
         var output = new List<float>(estimatedSamples + readBlockSamples);
         var buffer = new float[readBlockSamples];
 
@@ -83,7 +99,7 @@ internal sealed class DecodedAudioSample
         }
 
         float[] result = output.ToArray();
-        resampled[targetSampleRate] = result;
+        resampled[cacheKey] = result;
         return result;
     }
 

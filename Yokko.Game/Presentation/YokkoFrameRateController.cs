@@ -10,13 +10,18 @@ internal readonly record struct YokkoFrameRates(
 
 internal static class YokkoFrameRateLimits
 {
-    private const double optimalMaximumDrawRate = 960;
+    // osu!framework harvests input at 1000 Hz and applies the same ceiling
+    // to draw and update work. Going beyond it adds CPU/GPU pressure without
+    // improving the timestamp-based gameplay clock.
+    internal const double MaximumSaneRate = 1000;
 
     public static YokkoFrameRates Calculate(
         YokkoFrameLimit limit,
         float refreshRate)
     {
         double safeRefreshRate = Math.Max(1, MathF.Round(refreshRate));
+        double maximumDrawHz = safeRefreshRate;
+        double maximumUpdateHz = safeRefreshRate * 2;
         int multiplier = limit switch
         {
             YokkoFrameLimit.Limit2x => 2,
@@ -26,12 +31,19 @@ internal static class YokkoFrameRateLimits
         };
 
         if (limit == YokkoFrameLimit.Unlimited)
-            return new YokkoFrameRates(0, 0);
+        {
+            maximumDrawHz = MaximumSaneRate;
+            maximumUpdateHz = MaximumSaneRate;
+        }
+        else
+        {
+            maximumDrawHz *= multiplier;
+            maximumUpdateHz *= multiplier;
+        }
 
-        double maximumDrawHz = Math.Min(
-            safeRefreshRate * multiplier,
-            optimalMaximumDrawRate);
-        return new YokkoFrameRates(maximumDrawHz, maximumDrawHz * 2);
+        return new YokkoFrameRates(
+            Math.Min(maximumDrawHz, MaximumSaneRate),
+            Math.Min(maximumUpdateHz, MaximumSaneRate));
     }
 }
 

@@ -380,18 +380,10 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         if (limit == YokkoFrameLimit.Unlimited)
             return "∞";
 
-        int multiplier = limit switch
-        {
-            YokkoFrameLimit.Limit2x => 2,
-            YokkoFrameLimit.Limit4x => 4,
-            YokkoFrameLimit.Limit8x => 8,
-            _ => 1,
-        };
-
-        float rate = MathF.Min(
-            MathF.Max(refreshRate, 1) * multiplier,
-            960);
-        return $"{MathF.Round(rate):0} FPS";
+        YokkoFrameRates rates = YokkoFrameRateLimits.Calculate(
+            limit,
+            refreshRate);
+        return $"{Math.Round(rates.MaximumDrawHz):0} FPS";
     }
 
     internal static string FormatRefreshRate(float refreshRate) =>

@@ -6,4 +6,6 @@ public sealed record AudioEngineStartRequest(
     string? DeviceId,
     int PreferredSampleRate,
     int PreferredBufferSize,
-    double UserOffsetMilliseconds);
+    double UserOffsetMilliseconds,
+    double PlaybackRate = 1,
+    AudioPitchMode PitchMode = AudioPitchMode.Preserve);

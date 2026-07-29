@@ -13,6 +13,31 @@
 
 `Yokko.Game` is allowed to know about osu!framework. It should not parse chart files or talk directly to low-level audio devices.
 
+## Runtime Threading
+
+Desktop builds explicitly use osu!framework's multi-threaded execution mode:
+input, scene update, draw, and audio work remain on framework-owned threads.
+Update publishes draw-node snapshots instead of making gameplay wait for
+presentation.
+
+Active draw and update rates follow the selected refresh-rate multiplier, with
+both capped at 1000 Hz. The user-facing unlimited mode uses this same safe
+ceiling; a genuinely uncapped loop is reserved for dedicated benchmarking.
+Judgement remains driven by timestamped input and the audio clock, so raising
+the update rate beyond the input ceiling cannot improve scoring accuracy.
+
+Gameplay follows lazer's lifetime-managed hit object direction. Note models
+remain available for judgement and seeking, while preloaded note drawables are
+attached to the live scene graph only inside the current visibility window.
+Forward seeks and rewinds reuse those loaded drawables without loading assets
+on the gameplay hot path.
+This is adapted from lazer's
+`PooledDrawableWithLifetimeContainer` at osu commit
+`9f227ed28b6c8ba46dfea1f000f778d8b2827ad0` and osu!framework's
+`LifetimeManagementContainer` at framework commit
+`21e409540e8a7c9cd6739c05aa6c1e6257bd2b29`; Yokko currently reuses
+preloaded drawables but does not yet pool and reset them.
+
 `Yokko.Core` contains portable gameplay data and timing rules. This layer should stay free of rendering and platform dependencies.
 
 `Yokko.Audio` owns device discovery, playback start/stop, latency reporting, and the authoritative playback clock.
@@ -109,7 +134,8 @@ The hold remains active between those phases. Releasing outside the tail window 
 The gameplay path should calculate hit error as:
 
 ```text
-input timestamp - audio playback time - user/device offset
+input gameplay time = presented audio time - input event age + user offset
+hit error = input gameplay time - object time
 ```
 
 Keyboard edges are timestamped from the SDL window callback before
@@ -121,6 +147,8 @@ judgement time instead of being mistaken for player error.
 On Windows, both the managed monotonic timestamp and native WASAPI clock
 correlation use QPC. A missing timestamp falls back to the observed gameplay
 clock for that edge; it never changes the authoritative audio clock mid-song.
+The WASAPI clock is already the presented audio position. Reported device
+latency remains telemetry and is not subtracted from judgement time again.
 
 The desktop host registers a foreground-only Raw Input keyboard target on the
 osu!framework window and records QPC at `WM_INPUT`. Raw Input does not disable
@@ -130,6 +158,9 @@ the ordered Raw Input edge queue is drained before expired misses are
 collected. If Raw Input cannot attach when the host starts, the whole gameplay
 session uses SDL callback timestamps instead, avoiding two timestamp queues
 that could drift out of alignment.
+When the host loses focus, gameplay enters pause and ends timestamp capture
+before a foreground-only key release can be lost. Resuming starts a fresh
+capture session, preventing a held lane from becoming stuck after Alt+Tab.
 
 The gameplay diagnostic reports input-event age as rolling p50/p95/p99 values
 and identifies whether samples came from Raw Input or the SDL fallback.

@@ -7,6 +7,7 @@ using osuTK;
 using osuTK.Graphics;
 using Yokko.Audio;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Game.Presentation;
 
@@ -25,8 +26,14 @@ public partial class GameplayHud : CompositeDrawable
     internal string DisplayedAudioStatus =>
         audioText?.Text.ToString() ?? string.Empty;
 
-    public GameplayHud(YokkoBeatmap beatmap)
+    public GameplayHud(
+        YokkoBeatmap beatmap,
+        ManiaModSet mods = null)
     {
+        mods ??= ManiaModSet.Empty;
+        string modSummary = mods.IsEmpty
+            ? string.Empty
+            : $" · {string.Join(' ', mods.Acronyms)}";
         Width = 340;
         Height = 204;
         Masking = true;
@@ -48,7 +55,9 @@ public partial class GameplayHud : CompositeDrawable
                 {
                     new SpriteText
                     {
-                        Text = $"{beatmap.Title} [{beatmap.DifficultyName}]",
+                        Text =
+                            $"{beatmap.Title} [{beatmap.DifficultyName}]"
+                            + modSummary,
                         Font = FontUsage.Default.With(size: 20),
                         Colour = YokkoPalette.Text,
                     },

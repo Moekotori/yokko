@@ -9,6 +9,8 @@ namespace Yokko.Game.Audio;
 /// </summary>
 public sealed class YokkoAudioSettings
 {
+    public readonly Bindable<bool> HomeMusicEnabled = new(true);
+
     public readonly Bindable<AudioBackendKind> PreferredBackend =
         new(AudioBackendKind.WasapiExclusive);
 
@@ -18,7 +20,10 @@ public sealed class YokkoAudioSettings
 
     public readonly Bindable<double> UserOffsetMilliseconds = new(0);
 
-    public AudioEngineStartRequest CreateStartRequest(string audioPath) =>
+    public AudioEngineStartRequest CreateStartRequest(
+        string audioPath,
+        double playbackRate = 1,
+        AudioPitchMode pitchMode = AudioPitchMode.Preserve) =>
         new(
             audioPath,
             PreferredBackend.Value,
@@ -27,5 +32,7 @@ public sealed class YokkoAudioSettings
                 : DeviceId.Value,
             48000,
             PreferredBufferSize.Value,
-            UserOffsetMilliseconds.Value);
+            UserOffsetMilliseconds.Value,
+            playbackRate,
+            pitchMode);
 }

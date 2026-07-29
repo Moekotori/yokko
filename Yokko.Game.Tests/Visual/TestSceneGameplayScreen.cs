@@ -137,6 +137,76 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestDenseChartOnlyUpdatesVisibleNotes()
+        {
+            const int totalNotes = 4000;
+            int visibleNotes = totalNotes;
+            int activeDrawableNotes = totalNotes;
+            GameplayPlayfield playfield = null;
+            BeatmapJudgementState state = null;
+
+            AddStep("create dense chart", () =>
+            {
+                var beatmap = new YokkoBeatmap(
+                    "Dense visibility fixture",
+                    "Yokko",
+                    "Codex",
+                    "4K",
+                    KeyMode.FourKey,
+                    ChartSourceFormat.Yokko,
+                    [YokkoTimingPoint.Default],
+                    null,
+                    Enumerable.Range(0, totalNotes)
+                              .Select(index => new YokkoHitObject(
+                                  index % 4,
+                                  index * 10,
+                                  null,
+                                  HitObjectKind.Tap))
+                              .ToArray());
+                state = new BeatmapJudgementState(beatmap);
+                playfield = new GameplayPlayfield(
+                    beatmap,
+                    KeyModeBindings.ForMode(KeyMode.FourKey));
+                Add(playfield);
+            });
+            AddUntilStep("dense playfield loaded", () =>
+                playfield?.IsLoaded == true);
+            AddStep("update dense chart", () =>
+            {
+                playfield.UpdateGameplayTime(20_000, state);
+                visibleNotes = playfield.VisibleNoteCount;
+                activeDrawableNotes =
+                    playfield.ActiveDrawableNoteCount;
+            });
+            AddAssert("only the visible window was updated", () =>
+                visibleNotes is > 0 and < 300);
+            AddAssert("scene graph only contains visible notes", () =>
+                activeDrawableNotes == visibleNotes);
+            AddStep("seek dense chart forward", () =>
+            {
+                playfield.UpdateGameplayTime(30_000, state);
+                visibleNotes = playfield.VisibleNoteCount;
+                activeDrawableNotes =
+                    playfield.ActiveDrawableNoteCount;
+            });
+            AddAssert("forward seek replaces active notes", () =>
+                visibleNotes is > 0 and < 300
+                && activeDrawableNotes == visibleNotes);
+            AddStep("rewind dense chart", () =>
+            {
+                playfield.UpdateGameplayTime(5_000, state);
+                visibleNotes = playfield.VisibleNoteCount;
+                activeDrawableNotes =
+                    playfield.ActiveDrawableNoteCount;
+            });
+            AddAssert("rewind reuses preloaded notes", () =>
+                visibleNotes is > 0 and < 300
+                && activeDrawableNotes == visibleNotes);
+            AddStep("remove dense playfield", () =>
+                playfield.Expire());
+        }
+
+        [Test]
         public void TestControlScrollResizesPlayfieldWidthOnly()
         {
             GameplayScreen gameplayScreen = null;
@@ -145,6 +215,7 @@ namespace Yokko.Game.Tests.Visual
             float defaultScreenScale = 0;
             float defaultNoteWidth = 0;
             float defaultNoteHeight = 0;
+            DrawableNote measuredNote = null;
 
             AddUntilStep("gameplay layout loaded", () =>
                 (gameplayScreen = screenStack.CurrentScreen as GameplayScreen)?
@@ -155,14 +226,12 @@ namespace Yokko.Game.Tests.Visual
                 GameplayPlayfield playfield = gameplayScreen
                                               .ChildrenOfType<GameplayPlayfield>()
                                               .Single();
-                DrawableNote note = gameplayScreen
-                                    .ChildrenOfType<DrawableNote>()
-                                    .First();
+                measuredNote = playfield.GetDrawableNote(0);
                 defaultWidth = playfield.Width;
                 defaultHeight = playfield.Height;
                 defaultScreenScale = playfield.Scale.X;
-                defaultNoteWidth = note.Width;
-                defaultNoteHeight = note.Height;
+                defaultNoteWidth = measuredNote.Width;
+                defaultNoteHeight = measuredNote.Height;
             });
             AddAssert("plain scroll is ignored", () =>
                 gameplayScreen.HandlePlayfieldWidthScroll(1, false) == false);
@@ -186,14 +255,11 @@ namespace Yokko.Game.Tests.Visual
             });
             AddAssert("note keeps its aspect ratio", () =>
             {
-                DrawableNote note = gameplayScreen
-                                    .ChildrenOfType<DrawableNote>()
-                                    .First();
-                return note.Width > defaultNoteWidth
-                       && note.Height > defaultNoteHeight
+                return measuredNote.Width > defaultNoteWidth
+                       && measuredNote.Height > defaultNoteHeight
                        && Math.Abs(
-                           note.Width / defaultNoteWidth
-                           - note.Height / defaultNoteHeight) < 0.001;
+                           measuredNote.Width / defaultNoteWidth
+                           - measuredNote.Height / defaultNoteHeight) < 0.001;
             });
             AddAssert("control scroll down is handled", () =>
                 gameplayScreen.HandlePlayfieldWidthScroll(-1, true));
@@ -260,6 +326,8 @@ namespace Yokko.Game.Tests.Visual
             float defaultJudgementPosition = 0;
             float defaultNoteWidth = 0;
             float defaultNoteHeight = 0;
+            GameplayPlayfield playfield = null;
+            DrawableNote measuredNote = null;
 
             AddStep("open skinned gameplay", () =>
             {
@@ -269,22 +337,20 @@ namespace Yokko.Game.Tests.Visual
                 screenStack.Push(gameplayScreen);
             });
             AddUntilStep("skinned geometry loaded", () =>
-                gameplayScreen
-                .ChildrenOfType<DrawableNote>()
-                .FirstOrDefault()?.Width > 0);
+            {
+                playfield = gameplayScreen
+                            .ChildrenOfType<GameplayPlayfield>()
+                            .SingleOrDefault();
+                measuredNote = playfield?.GetDrawableNote(0);
+                return measuredNote?.Width > 0;
+            });
             AddStep("capture skinned geometry", () =>
             {
-                GameplayPlayfield playfield = gameplayScreen
-                                              .ChildrenOfType<GameplayPlayfield>()
-                                              .Single();
-                DrawableNote note = gameplayScreen
-                                    .ChildrenOfType<DrawableNote>()
-                                    .First();
                 defaultPlayfieldWidth = playfield.Width;
                 defaultPlayfieldHeight = playfield.Height;
                 defaultJudgementPosition = playfield.JudgementPosition;
-                defaultNoteWidth = note.Width;
-                defaultNoteHeight = note.Height;
+                defaultNoteWidth = measuredNote.Width;
+                defaultNoteHeight = measuredNote.Height;
             });
             AddStep("widen skinned playfield", () =>
                 gameplayScreen.HandlePlayfieldWidthScroll(1, true));
@@ -303,11 +369,8 @@ namespace Yokko.Game.Tests.Visual
             });
             AddAssert("skinned note stays proportional", () =>
             {
-                DrawableNote note = gameplayScreen
-                                    .ChildrenOfType<DrawableNote>()
-                                    .First();
-                return Math.Abs(note.Width - defaultNoteWidth * 1.1f) < 0.001
-                       && Math.Abs(note.Height - defaultNoteHeight * 1.1f) < 0.001;
+                return Math.Abs(measuredNote.Width - defaultNoteWidth * 1.1f) < 0.001
+                       && Math.Abs(measuredNote.Height - defaultNoteHeight * 1.1f) < 0.001;
             });
             AddStep("restore skinned width", () =>
                 gameplayScreen.HandlePlayfieldWidthScroll(-1, true));
@@ -456,8 +519,9 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("hold body is safe for renderer", () =>
             {
                 DrawableNote hold = (screenStack.CurrentScreen as Drawable)?
-                                    .ChildrenOfType<DrawableNote>()
-                                    .FirstOrDefault();
+                                    .ChildrenOfType<GameplayPlayfield>()
+                                    .SingleOrDefault()?
+                                    .GetDrawableNote(0);
                 Texture body = hold?
                                .ChildrenOfType<Sprite>()
                                .Select(sprite => sprite.Texture)
@@ -493,8 +557,9 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("long hold geometry loaded", () =>
             {
                 DrawableNote hold = (screenStack.CurrentScreen as Drawable)?
-                                    .ChildrenOfType<DrawableNote>()
-                                    .FirstOrDefault();
+                                    .ChildrenOfType<GameplayPlayfield>()
+                                    .SingleOrDefault()?
+                                    .GetDrawableNote(0);
                 Sprite body = hold?
                               .ChildrenOfType<Sprite>()
                               .FirstOrDefault(sprite =>
@@ -564,9 +629,7 @@ namespace Yokko.Game.Tests.Visual
                 GameplayPlayfield playfield = (screenStack.CurrentScreen as Drawable)?
                                               .ChildrenOfType<GameplayPlayfield>()
                                               .SingleOrDefault();
-                DrawableNote firstNote = (screenStack.CurrentScreen as Drawable)?
-                                         .ChildrenOfType<DrawableNote>()
-                                         .FirstOrDefault();
+                DrawableNote firstNote = playfield?.GetDrawableNote(0);
                 LaneColumn firstLane = (screenStack.CurrentScreen as Drawable)?
                                        .ChildrenOfType<LaneColumn>()
                                        .FirstOrDefault();
@@ -591,8 +654,9 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("downscroll note bottom meets hit position", () =>
             {
                 DrawableNote firstNote = (screenStack.CurrentScreen as Drawable)?
-                                         .ChildrenOfType<DrawableNote>()
-                                         .FirstOrDefault();
+                                         .ChildrenOfType<GameplayPlayfield>()
+                                         .SingleOrDefault()?
+                                         .GetDrawableNote(0);
 
                 if (firstNote == null)
                     return false;
@@ -621,10 +685,14 @@ namespace Yokko.Game.Tests.Visual
                 screenStack.Push(new GameplayScreen(createHoldDemo(KeyMode.FourKey), skinPath: skinPath)));
             AddUntilStep("all arrow lanes use textures", () =>
             {
-                DrawableNote[] notes = (screenStack.CurrentScreen as Drawable)?
-                                       .ChildrenOfType<DrawableNote>()
-                                       .Take(4)
-                                       .ToArray();
+                GameplayPlayfield playfield = (screenStack.CurrentScreen as Drawable)?
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .SingleOrDefault();
+                DrawableNote[] notes = playfield == null
+                    ? null
+                    : Enumerable.Range(0, 4)
+                                .Select(playfield.GetDrawableNote)
+                                .ToArray();
                 Sprite tiledBody = notes?
                                    .FirstOrDefault()?
                                    .ChildrenOfType<Sprite>()
@@ -654,8 +722,9 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("long body texture is cropped at natural scale", () =>
             {
                 DrawableNote hold = (screenStack.CurrentScreen as Drawable)?
-                                    .ChildrenOfType<DrawableNote>()
-                                    .FirstOrDefault();
+                                    .ChildrenOfType<GameplayPlayfield>()
+                                    .SingleOrDefault()?
+                                    .GetDrawableNote(0);
                 Sprite longBody = hold?
                                   .ChildrenOfType<Sprite>()
                                   .FirstOrDefault(sprite => sprite.Texture?.DisplayHeight > 1000);
@@ -687,9 +756,12 @@ HitPosition: 400
             AddUntilStep("notes and receptors flipped", () =>
             {
                 Drawable current = screenStack.CurrentScreen as Drawable;
-                bool noteFlipped = current?
-                                   .ChildrenOfType<DrawableNote>()
-                                   .SelectMany(note => note.ChildrenOfType<Sprite>())
+                GameplayPlayfield playfield = current?
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .SingleOrDefault();
+                bool noteFlipped = playfield?
+                                   .GetDrawableNote(0)
+                                   .ChildrenOfType<Sprite>()
                                    .Any(sprite => sprite.Scale.Y < 0) == true;
                 bool keyFlipped = current?
                                   .ChildrenOfType<LaneColumn>()
@@ -962,6 +1034,36 @@ HitPosition: 400
                     .Any() == false);
             AddAssert("audio is running again", () =>
                 audioEngine.Status.IsRunning);
+        }
+
+        [Test]
+        public void TestLosingHostFocusPausesGameplay()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                AudioPath = "focus-loss-fixture.mp3",
+            };
+            GameplayScreen gameplayScreen = null;
+
+            AddStep("open gameplay with audio", () =>
+            {
+                gameplayScreen = new GameplayScreen(beatmap, audioEngine);
+                screenStack.Push(gameplayScreen);
+            });
+            AddUntilStep("audio starts", () =>
+                audioEngine.StartCount == 1);
+            AddStep("deactivate host", () =>
+                gameplayScreen.HandleHostDeactivated());
+            AddUntilStep("focus loss pauses safely", () =>
+                gameplayScreen.IsPaused
+                && !gameplayScreen.PauseTransitionInProgress
+                && audioEngine.PauseCount == 1);
+            AddAssert("repeated deactivation is idempotent", () =>
+            {
+                gameplayScreen.HandleHostDeactivated();
+                return audioEngine.PauseCount == 1;
+            });
         }
 
         private static string createTestSkin()

@@ -2,6 +2,7 @@ using NAudio.Vorbis;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using NLayer.NAudioSupport;
+using SoundTouch.Net.NAudioSupport;
 
 namespace Yokko.Audio.Decoding;
 
@@ -9,32 +10,54 @@ internal sealed class DecodedAudioSource : IDisposable
 {
     private readonly WaveStream stream;
     private readonly ISampleProvider stereoProvider;
+    private readonly SoundTouchWaveProvider? rateProvider;
 
-    private DecodedAudioSource(WaveStream stream, ISampleProvider stereoProvider)
+    private DecodedAudioSource(
+        WaveStream stream,
+        ISampleProvider stereoProvider,
+        SoundTouchWaveProvider? rateProvider)
     {
         this.stream = stream;
         this.stereoProvider = stereoProvider;
+        this.rateProvider = rateProvider;
     }
 
-    internal int SampleRate => stereoProvider.WaveFormat.SampleRate;
+    // SoundTouch advertises a rate-adjusted WaveFormat sample rate. Its Read()
+    // output is still PCM at the decoded source rate; the frame count carries
+    // the tempo/rate change. Feeding the advertised value to the native device
+    // would apply the speed change a second time on some WASAPI paths.
+    internal int SampleRate => stream.WaveFormat.SampleRate;
 
     internal TimeSpan TotalTime => stream.TotalTime;
 
     internal TimeSpan CurrentTime
     {
         get => stream.CurrentTime;
-        set => stream.CurrentTime = value < TimeSpan.Zero
-            ? TimeSpan.Zero
-            : value > stream.TotalTime
-                ? stream.TotalTime
-                : value;
+        set
+        {
+            stream.CurrentTime = value < TimeSpan.Zero
+                ? TimeSpan.Zero
+                : value > stream.TotalTime
+                    ? stream.TotalTime
+                    : value;
+            rateProvider?.Clear();
+        }
     }
 
     internal int Read(float[] samples)
         => stereoProvider.Read(samples, 0, samples.Length);
 
-    internal static DecodedAudioSource Open(string audioPath)
+    internal static DecodedAudioSource Open(
+        string audioPath,
+        double playbackRate = 1,
+        AudioPitchMode pitchMode = AudioPitchMode.Preserve)
     {
+        if (!double.IsFinite(playbackRate)
+            || playbackRate is < 0.25 or > 4)
+        {
+            throw new ArgumentOutOfRangeException(nameof(playbackRate));
+        }
+
         string extension = Path.GetExtension(audioPath);
         WaveStream stream;
         ISampleProvider samples;
@@ -71,7 +94,23 @@ internal sealed class DecodedAudioSource : IDisposable
                 2 => samples,
                 _ => new FirstTwoChannelsSampleProvider(samples),
             };
-            return new DecodedAudioSource(stream, stereo);
+            SoundTouchWaveProvider? rateProvider = null;
+            if (Math.Abs(playbackRate - 1) > 0.000001)
+            {
+                rateProvider = new SoundTouchWaveProvider(
+                    stereo.ToWaveProvider());
+                if (pitchMode == AudioPitchMode.ScaleWithRate)
+                    rateProvider.Rate = playbackRate;
+                else
+                    rateProvider.Tempo = playbackRate;
+
+                stereo = rateProvider.ToSampleProvider();
+            }
+
+            return new DecodedAudioSource(
+                stream,
+                stereo,
+                rateProvider);
         }
         catch
         {

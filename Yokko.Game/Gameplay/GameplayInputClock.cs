@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 
 namespace Yokko.Game.Gameplay;
@@ -11,8 +12,12 @@ internal static class GameplayInputClock
         double gameplayTimeAtObservationMilliseconds,
         long eventTimestamp,
         long observationTimestamp,
-        long timestampFrequency = 0)
+        long timestampFrequency = 0,
+        double gameplayRate = 1)
     {
+        if (!double.IsFinite(gameplayRate) || gameplayRate <= 0)
+            throw new ArgumentOutOfRangeException(nameof(gameplayRate));
+
         long frequency = timestampFrequency > 0
             ? timestampFrequency
             : Stopwatch.Frequency;
@@ -24,7 +29,8 @@ internal static class GameplayInputClock
                 out double eventAgeMilliseconds))
             return gameplayTimeAtObservationMilliseconds;
 
-        return gameplayTimeAtObservationMilliseconds - eventAgeMilliseconds;
+        return gameplayTimeAtObservationMilliseconds
+               - eventAgeMilliseconds * gameplayRate;
     }
 
     public static bool TryGetEventAgeMilliseconds(

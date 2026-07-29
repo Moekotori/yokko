@@ -19,6 +19,7 @@ public sealed class AudioSettingsTest
         Assert.That(
             settings.PreferredBackend.Value,
             Is.EqualTo(AudioBackendKind.WasapiExclusive));
+        Assert.That(settings.HomeMusicEnabled.Value, Is.True);
         Assert.That(settings.DeviceId.Value, Is.Empty);
         Assert.That(settings.PreferredBufferSize.Value, Is.EqualTo(64));
         Assert.That(settings.UserOffsetMilliseconds.Value, Is.Zero);
@@ -43,6 +44,27 @@ public sealed class AudioSettingsTest
         Assert.That(request.DeviceId, Is.EqualTo("test-endpoint"));
         Assert.That(request.PreferredBufferSize, Is.EqualTo(256));
         Assert.That(request.UserOffsetMilliseconds, Is.EqualTo(12));
+        Assert.That(request.PlaybackRate, Is.EqualTo(1));
+        Assert.That(request.PitchMode, Is.EqualTo(AudioPitchMode.Preserve));
+    }
+
+    [Test]
+    public void GameplayRequestCarriesModAudioPolicy()
+    {
+        var settings = new YokkoAudioSettings();
+
+        AudioEngineStartRequest request = settings.CreateStartRequest(
+            "song.wav",
+            1.5,
+            AudioPitchMode.ScaleWithRate);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(request.PlaybackRate, Is.EqualTo(1.5));
+            Assert.That(
+                request.PitchMode,
+                Is.EqualTo(AudioPitchMode.ScaleWithRate));
+        });
     }
 
     [Test]
@@ -61,6 +83,7 @@ public sealed class AudioSettingsTest
                    new YokkoConfigManager(new NativeStorage(directory)))
             {
                 firstConfig.BindAudioSettings(firstSettings);
+                firstSettings.HomeMusicEnabled.Value = false;
                 firstSettings.PreferredBackend.Value =
                     AudioBackendKind.SharedWasapi;
                 firstSettings.DeviceId.Value = "persisted-endpoint";
@@ -75,6 +98,9 @@ public sealed class AudioSettingsTest
             {
                 restoredConfig.BindAudioSettings(restoredSettings);
                 Assert.That(
+                    restoredSettings.HomeMusicEnabled.Value,
+                    Is.False);
+                Assert.That(
                     restoredSettings.PreferredBackend.Value,
                     Is.EqualTo(AudioBackendKind.SharedWasapi));
                 Assert.That(
@@ -86,6 +112,42 @@ public sealed class AudioSettingsTest
                 Assert.That(
                     restoredSettings.UserOffsetMilliseconds.Value,
                     Is.EqualTo(-8));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
+    public void PausedHomeMusicPersistsWhenConfigIsDisposed()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "home-music-config",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            var firstSettings = new YokkoAudioSettings();
+            using (var firstConfig =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                firstConfig.BindAudioSettings(firstSettings);
+                firstSettings.HomeMusicEnabled.Value = false;
+            }
+
+            var restoredSettings = new YokkoAudioSettings();
+            using (var restoredConfig =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                restoredConfig.BindAudioSettings(restoredSettings);
+                Assert.That(
+                    restoredSettings.HomeMusicEnabled.Value,
+                    Is.False);
             }
         }
         finally

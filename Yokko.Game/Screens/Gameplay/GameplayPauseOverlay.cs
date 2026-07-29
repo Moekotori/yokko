@@ -485,14 +485,14 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 {
                     Anchor = Anchor.BottomRight,
                     Origin = Anchor.BottomRight,
-                    Position = new Vector2(-18, -2),
-                    Size = new Vector2(470, 535),
+                    Position = new Vector2(210, -2),
+                    Size = new Vector2(700, 800),
                     Texture = mascotTexture,
                 },
                 new HomeMascotBubble(
                     YokkoStrings.Get("gameplay.pause.bubble"))
                 {
-                    Position = new Vector2(858, 403),
+                    Position = new Vector2(956, 334),
                 },
             },
         };
@@ -563,14 +563,19 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 {
                     Position = new Vector2(68, 628),
                 },
-                new Box
+                new Container
                 {
                     Position = new Vector2(582, 266),
                     Size = new Vector2(14),
                     Rotation = 45,
+                    Masking = true,
                     BorderThickness = 2,
                     BorderColour = HomeControlColours.Navy,
-                    Colour = HomeControlColours.Yellow,
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = HomeControlColours.Yellow,
+                    },
                 },
             },
         };
@@ -596,6 +601,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             LocalisableString hint,
             IconUsage icon,
             bool primary,
+            Color4 accentColour,
             Action action,
             Action hoverAction)
         {
@@ -603,22 +609,62 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             this.hoverAction = hoverAction;
             Action = action;
             Size = primary
-                ? new Vector2(520, 116)
-                : new Vector2(372, 56);
+                ? new Vector2(460, 112)
+                : new Vector2(153.4f, 68);
 
             float iconSize = primary ? 72 : 42;
-            float iconInset = primary ? 28 : 8;
-            float textX = primary ? 126 : 66;
+            float iconInset = primary ? 20 : 10;
+            float textX = primary ? 118 : 58;
 
             InternalChildren = new Drawable[]
             {
+                primary
+                    ? new Container
+                    {
+                        Position = new Vector2(0, 7),
+                        RelativeSizeAxes = Axes.Both,
+                        Masking = true,
+                        CornerRadius = 14,
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = new Color4(
+                                HomeControlColours.Navy.R,
+                                HomeControlColours.Navy.G,
+                                HomeControlColours.Navy.B,
+                                0.24f),
+                        },
+                    }
+                    : new Container
+                    {
+                        Alpha = 0,
+                    },
+                primary
+                    ? new Container
+                    {
+                        Position = new Vector2(-3, -3),
+                        Size = new Vector2(466, 112),
+                        Masking = true,
+                        CornerRadius = 16,
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = HomeControlColours.Cyan,
+                        },
+                    }
+                    : new Container
+                    {
+                        Alpha = 0,
+                    },
                 new Container
                 {
                     RelativeSizeAxes = Axes.Both,
                     Masking = true,
-                    CornerRadius = primary ? 10 : 8,
-                    BorderThickness = 2,
-                    BorderColour = HomeControlColours.Navy,
+                    CornerRadius = primary ? 14 : 0,
+                    BorderThickness = primary ? 2 : 0,
+                    BorderColour = primary
+                        ? HomeControlColours.Navy
+                        : Color4.Transparent,
                     Children = new Drawable[]
                     {
                         background = new Box
@@ -626,20 +672,20 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             RelativeSizeAxes = Axes.Both,
                             Colour = primary
                                 ? HomeControlColours.Navy
-                                : HomeControlColours.Ivory,
+                                : Color4.Transparent,
                         },
                         primary
                             ? new HomeDotField
                             {
                                 Anchor = Anchor.CentreRight,
                                 Origin = Anchor.CentreRight,
-                                X = -58,
-                                Size = new Vector2(120, 70),
+                                X = -82,
+                                Size = new Vector2(82, 52),
                                 Colour = new Color4(
                                     HomeControlColours.Cyan.R,
                                     HomeControlColours.Cyan.G,
                                     HomeControlColours.Cyan.B,
-                                    0.28f),
+                                    0.2f),
                             }
                             : new Container
                             {
@@ -652,11 +698,11 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             X = iconInset,
                             Size = new Vector2(iconSize),
                             Masking = true,
-                            CornerRadius = primary ? 9 : 7,
-                            BorderThickness = primary ? 2 : 1.5f,
+                            CornerRadius = primary ? 10 : 8,
+                            BorderThickness = primary ? 2 : 0,
                             BorderColour = primary
                                 ? Color4.White
-                                : HomeControlColours.Navy,
+                                : Color4.Transparent,
                             Children = new Drawable[]
                             {
                                 new Box
@@ -664,7 +710,11 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                                     RelativeSizeAxes = Axes.Both,
                                     Colour = primary
                                         ? Color4.White
-                                        : HomeControlColours.PaleCyan,
+                                        : new Color4(
+                                            HomeControlColours.PaleCyan.R,
+                                            HomeControlColours.PaleCyan.G,
+                                            HomeControlColours.PaleCyan.B,
+                                            0.8f),
                                 },
                                 new SpriteIcon
                                 {
@@ -672,7 +722,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                                     Origin = Anchor.Centre,
                                     Size = primary
                                         ? new Vector2(30)
-                                        : new Vector2(20),
+                                        : new Vector2(21),
                                     Icon = icon,
                                     Colour = HomeControlColours.Navy,
                                 },
@@ -685,8 +735,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             X = textX,
                             Text = title,
                             Font = primary
-                                ? HomeTypography.Display(42)
-                                : HomeTypography.Display(18),
+                                ? HomeTypography.Display(32)
+                                : HomeTypography.Display(14),
                             Colour = primary
                                 ? Color4.White
                                 : HomeControlColours.Navy,
@@ -707,12 +757,11 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             Origin = Anchor.CentreRight,
                             X = -20,
                             Size = primary
-                                ? new Vector2(26)
-                                : new Vector2(15),
+                                ? new Vector2(24)
+                                : Vector2.Zero,
                             Icon = FontAwesome.Solid.ChevronRight,
-                            Colour = primary
-                                ? HomeControlColours.Yellow
-                                : HomeControlColours.Pink,
+                            Colour = HomeControlColours.Yellow,
+                            Alpha = primary ? 1 : 0,
                         },
                     },
                 },
@@ -723,15 +772,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     X = primary ? 18 : 12,
                     Width = primary ? 110 : 42,
                     Height = primary ? 4 : 3,
-                    Colour = HomeControlColours.Pink,
-                },
-                new Box
-                {
-                    Anchor = Anchor.TopRight,
-                    Origin = Anchor.Centre,
-                    Size = new Vector2(primary ? 18 : 14),
-                    Rotation = 45,
-                    Colour = HomeControlColours.Yellow,
+                    Colour = accentColour,
                 },
             };
         }
@@ -745,16 +786,18 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                         : HomeControlColours.Navy
                     : selected
                         ? HomeControlColours.PaleCyan
-                        : HomeControlColours.Ivory,
+                        : Color4.Transparent,
                 100,
                 Easing.OutQuint);
             accent.ResizeWidthTo(
                 selected
-                    ? primary ? 250 : 112
+                    ? primary ? 250 : 62
                     : primary ? 110 : 42,
                 130,
                 Easing.OutQuint);
-            chevron.MoveToX(selected ? -12 : -20, 130, Easing.OutQuint);
+            if (primary)
+                chevron.MoveToX(selected ? -12 : -20, 130, Easing.OutQuint);
+
             this.ScaleTo(selected ? 1.01f : 1f, 100, Easing.OutQuint);
         }
 

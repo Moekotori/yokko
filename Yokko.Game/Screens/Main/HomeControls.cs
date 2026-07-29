@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
@@ -532,6 +534,266 @@ public partial class HomeSecondaryAction : ClickableContainer
     protected override bool OnMouseDown(MouseDownEvent e)
     {
         this.ScaleTo(0.97f, 450, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        this.ScaleTo(1f, 240, Easing.OutQuint);
+        base.OnMouseUp(e);
+    }
+}
+
+public partial class HomeMultiplayerAction : ClickableContainer
+{
+    private readonly Box background;
+    private readonly Box underline;
+    private readonly SpriteIcon chevron;
+    private readonly Container iconTile;
+
+    public HomeMultiplayerAction(
+        LocalisableString title,
+        LocalisableString friendsOnline,
+        Action action,
+        IReadOnlyList<Texture> onlineFriendAvatars = null)
+    {
+        bool hasOnlineFriends = onlineFriendAvatars?.Count > 0;
+
+        Action = action;
+        Size = new Vector2(520, 82);
+
+        background = new Box
+        {
+            RelativeSizeAxes = Axes.Both,
+            Colour = Color4.White,
+        };
+        iconTile = new Container
+        {
+            Anchor = Anchor.CentreLeft,
+            Origin = Anchor.CentreLeft,
+            X = 14,
+            Size = new Vector2(56),
+            Masking = true,
+            CornerRadius = 9,
+            BorderThickness = 2,
+            BorderColour = HomeControlColours.Navy,
+            Children = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = HomeControlColours.PaleCyan,
+                },
+                new SpriteIcon
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(30),
+                    Icon = FontAwesome.Solid.Users,
+                    Colour = HomeControlColours.Navy,
+                },
+            },
+        };
+        chevron = new SpriteIcon
+        {
+            Anchor = Anchor.CentreRight,
+            Origin = Anchor.CentreRight,
+            X = -16,
+            Size = new Vector2(15),
+            Icon = FontAwesome.Solid.ChevronRight,
+            Colour = HomeControlColours.Pink,
+        };
+        underline = new Box
+        {
+            Anchor = Anchor.BottomLeft,
+            Origin = Anchor.BottomLeft,
+            Y = -4,
+            Width = 0,
+            Height = 3,
+            Colour = HomeControlColours.Cyan,
+        };
+
+        var children = new List<Drawable>
+        {
+            new Container
+            {
+                Position = new Vector2(0, 5),
+                Size = new Vector2(520, 77),
+                Masking = true,
+                CornerRadius = 9,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.3f),
+                },
+            },
+            new Container
+            {
+                Position = new Vector2(-2, -2),
+                Size = new Vector2(524, 82),
+                Masking = true,
+                CornerRadius = 11,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.5f),
+                },
+            },
+            new Container
+            {
+                Size = new Vector2(520, 78),
+                Masking = true,
+                CornerRadius = 9,
+                BorderThickness = 2,
+                BorderColour = HomeControlColours.Navy,
+                Children = new Drawable[]
+                {
+                    background,
+                    new Container
+                    {
+                        Position = new Vector2(4),
+                        Size = new Vector2(512, 70),
+                        Masking = true,
+                        CornerRadius = 6,
+                        BorderThickness = 1,
+                        BorderColour = new Color4(
+                            HomeControlColours.Cyan.R,
+                            HomeControlColours.Cyan.G,
+                            HomeControlColours.Cyan.B,
+                            0.44f),
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Alpha = 0,
+                        },
+                    },
+                },
+            },
+            new Container
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 17,
+                Y = 4,
+                Size = new Vector2(56),
+                Masking = true,
+                CornerRadius = 9,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(0.035f, 0.085f, 0.54f, 0.28f),
+                },
+            },
+            iconTile,
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 85,
+                Y = hasOnlineFriends ? -12 : 0,
+                Text = title,
+                Font = HomeTypography.Display(28),
+                Scale = new Vector2(0.94f, 1),
+                Colour = HomeControlColours.Navy,
+            },
+            chevron,
+            new Box
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.Centre,
+                Size = new Vector2(15),
+                Rotation = 45,
+                Colour = HomeControlColours.Yellow,
+            },
+            underline,
+        };
+
+        if (hasOnlineFriends)
+        {
+            children.Add(new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 86,
+                Y = 17,
+                Text = friendsOnline,
+                Font = HomeTypography.Body(14),
+                Colour = HomeControlColours.Navy,
+                Alpha = 0.82f,
+            });
+            children.Add(createAvatarStrip(onlineFriendAvatars));
+        }
+
+        InternalChildren = children;
+    }
+
+    private static Drawable createAvatarStrip(IReadOnlyList<Texture> avatars)
+    {
+        var strip = new FillFlowContainer
+        {
+            Anchor = Anchor.CentreRight,
+            Origin = Anchor.CentreRight,
+            X = -50,
+            AutoSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+            Spacing = new Vector2(8, 0),
+        };
+
+        for (int i = 0; i < Math.Min(avatars.Count, 3); i++)
+        {
+            strip.Add(new Container
+            {
+                Size = new Vector2(48),
+                Masking = true,
+                CornerRadius = 24,
+                BorderThickness = 2,
+                BorderColour = i % 2 == 0
+                    ? HomeControlColours.Cyan
+                    : HomeControlColours.Pink,
+                Children = new Drawable[]
+                {
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = HomeControlColours.PaleCyan,
+                    },
+                    new Sprite
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        FillMode = FillMode.Fill,
+                        Texture = avatars[i],
+                    },
+                },
+            });
+        }
+
+        return strip;
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(new Color4(0.9f, 0.985f, 1f, 1f), 120, Easing.OutQuint);
+        underline.ResizeWidthTo(520, 150, Easing.OutQuint);
+        chevron.MoveToX(-11, 160, Easing.OutQuint);
+        iconTile.RotateTo(-7, 140, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        background.FadeColour(Color4.White, 140, Easing.OutQuint);
+        underline.ResizeWidthTo(0, 140, Easing.OutQuint);
+        chevron.MoveToX(-16, 170, Easing.OutQuint);
+        iconTile.RotateTo(0, 240, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        this.ScaleTo(0.985f, 450, Easing.OutQuint);
         return base.OnMouseDown(e);
     }
 

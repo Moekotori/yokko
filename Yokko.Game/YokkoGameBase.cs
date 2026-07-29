@@ -86,6 +86,9 @@ namespace Yokko.Game
             new Dictionary<FrameworkSetting, object>
             {
                 [FrameworkSetting.Locale] = YokkoLocale.English,
+                [FrameworkSetting.ExecutionMode] =
+                    ExecutionMode.MultiThreaded,
+                [FrameworkSetting.FrameSync] = FrameSync.Unlimited,
             };
 
         public override void SetHost(GameHost host)
@@ -137,6 +140,9 @@ namespace Yokko.Game
             frameworkConfig.SetValue(
                 FrameworkSetting.FrameSync,
                 FrameSync.Unlimited);
+            frameworkConfig.SetValue(
+                FrameworkSetting.ExecutionMode,
+                ExecutionMode.MultiThreaded);
             frameRateController = new YokkoFrameRateController(
                 host,
                 displaySettings.FrameLimit,

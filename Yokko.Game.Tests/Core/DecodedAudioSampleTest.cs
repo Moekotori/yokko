@@ -21,12 +21,22 @@ public sealed class DecodedAudioSampleTest
 
         DecodedAudioSample sample = DecodedAudioSample.Decode(path);
         float[] resampled = sample.GetSamplesAt(48000);
+        float[] doubleTime = sample.GetSamplesAt(48000, 1.5);
+        float[] halfTime = sample.GetSamplesAt(48000, 0.75);
 
         Assert.That(sample.SampleRate, Is.EqualTo(44100));
         Assert.That(sample.Samples, Has.Length.EqualTo(8820));
         Assert.That(resampled.Length, Is.InRange(9500, 9700));
         Assert.That(resampled.Length % 2, Is.Zero);
         Assert.That(resampled, Has.Some.Not.Zero);
+        Assert.That(
+            doubleTime.Length,
+            Is.InRange(6300, 6500),
+            "DT/NC keysounds should be about 1.5x shorter.");
+        Assert.That(
+            halfTime.Length,
+            Is.InRange(12700, 12900),
+            "HT/DC keysounds should be about 1.33x longer.");
     }
 
     private static void writeWave(

@@ -1,9 +1,11 @@
 using NUnit.Framework;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Screens;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Mods;
 using Yokko.Game.Importing;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.SongSelect;
@@ -16,6 +18,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
 {
     private readonly ScreenStack screenStack;
     private readonly SongSelectScreen songSelectScreen;
+    private int? selectedRandomSeed;
     [Resolved]
     private ImportedChartLibrary importedChartLibrary { get; set; }
 
@@ -42,6 +45,10 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             @"C:\Charts\test-pack.osz"));
         AddUntilStep("imported charts visible", () => songSelectScreen.VisibleEntryCount == 2);
         AddAssert("newest import selected", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Seven");
+        AddAssert("ranking fits 1280x720 stage", () =>
+            SongSelectScreen.RankingFitsDesignedStage);
+        AddAssert("ranking is above footer", () =>
+            songSelectScreen.RankingFitsAboveFooter);
 
         AddStep("select next song", songSelectScreen.SelectNext);
         AddAssert("selection wraps", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");
@@ -78,8 +85,65 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             result("Playable Import", DemoBeatmaps.CreateFourKeyDemo()),
             @"C:\Charts\playable.osu"));
         AddUntilStep("playable import selected", () => songSelectScreen.SelectedEntry?.Beatmap.Title == "Playable Import");
+        AddStep("enable DT", () =>
+            songSelectScreen.ToggleMod(ManiaModId.DoubleTime));
+        AddAssert("DT selected", () =>
+            songSelectScreen.SelectedMods.Contains(
+                ManiaModId.DoubleTime));
+        AddStep("replace DT with HT", () =>
+            songSelectScreen.ToggleMod(ManiaModId.HalfTime));
+        AddAssert("HT replaces DT", () =>
+            songSelectScreen.SelectedMods.Contains(
+                ManiaModId.HalfTime)
+            && songSelectScreen.SelectedMods.PlaybackRate == 0.75);
+        AddStep("replace HT with DC", () =>
+            songSelectScreen.ToggleMod(ManiaModId.Daycore));
+        AddAssert("DC changes pitch", () =>
+            songSelectScreen.SelectedMods.Contains(
+                ManiaModId.Daycore)
+            && songSelectScreen.SelectedMods.ChangesAudioPitch);
+        AddStep("replace DT with NC", () =>
+            songSelectScreen.ToggleMod(ManiaModId.Nightcore));
+        AddAssert("NC replaces slow rate", () =>
+            songSelectScreen.SelectedMods.Contains(
+                ManiaModId.Nightcore)
+            && !songSelectScreen.SelectedMods.Contains(
+                ManiaModId.Daycore));
+        AddStep("combine Auto", () =>
+            songSelectScreen.ToggleMod(ManiaModId.Autoplay));
+        AddStep("enable Mirror", () =>
+            songSelectScreen.ToggleMod(ManiaModId.Mirror));
+        AddStep("enable seeded Random", () =>
+        {
+            songSelectScreen.ToggleMod(ManiaModId.Random);
+            selectedRandomSeed =
+                songSelectScreen.SelectedMods.RandomSeed;
+        });
+        AddAssert("Random gets a persistent seed", () =>
+            selectedRandomSeed.HasValue);
+        AddStep("enable Hold Off", () =>
+            songSelectScreen.ToggleMod(ManiaModId.HoldOff));
+        AddStep("replace Hold Off with No Release", () =>
+            songSelectScreen.ToggleMod(ManiaModId.NoRelease));
+        AddAssert("No Release replaces Hold Off", () =>
+            songSelectScreen.SelectedMods.Contains(
+                ManiaModId.NoRelease)
+            && !songSelectScreen.SelectedMods.Contains(
+                ManiaModId.HoldOff));
+        AddStep("restore Hold Off", () =>
+            songSelectScreen.ToggleMod(ManiaModId.HoldOff));
         AddStep("play selected song", songSelectScreen.PlaySelected);
-        AddAssert("gameplay is pushed", () => screenStack.CurrentScreen is GameplayScreen);
+        AddAssert("gameplay receives selected mods", () =>
+            screenStack.CurrentScreen is GameplayScreen gameplay
+            && gameplay.Mods.Contains(ManiaModId.Nightcore)
+            && gameplay.Mods.Contains(ManiaModId.Autoplay)
+            && gameplay.Mods.Contains(ManiaModId.Mirror)
+            && gameplay.Mods.Contains(ManiaModId.Random)
+            && gameplay.Mods.RandomSeed == selectedRandomSeed
+            && gameplay.Mods.Contains(ManiaModId.HoldOff)
+            && !gameplay.AppliedBeatmap.HitObjects.Any(
+                static hitObject => hitObject.Kind == HitObjectKind.Hold)
+            && gameplay.AutoplayMode);
         AddStep("return to song select", () => screenStack.CurrentScreen.Exit());
         AddUntilStep("song select resumes", () => screenStack.CurrentScreen is SongSelectScreen);
     }

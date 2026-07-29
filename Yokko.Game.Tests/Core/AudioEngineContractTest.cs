@@ -32,5 +32,26 @@ namespace Yokko.Game.Tests.Core
                         "osu!framework",
                         System.StringComparison.OrdinalIgnoreCase)));
         }
+
+        [Test]
+        public void RuntimeAudioStatusIsAValueSnapshot()
+        {
+            Assert.That(typeof(AudioEngineStatus).IsValueType, Is.True);
+            Assert.That(typeof(AudioEngineSnapshot).IsValueType, Is.True);
+        }
+
+        [TestCase(1.5, 1750)]
+        [TestCase(0.75, 1375)]
+        public void RatedOutputClockReturnsAuthoritativeChartTime(
+            double playbackRate,
+            double expectedTime)
+        {
+            Assert.That(
+                NativeAudioEngine.ScalePlaybackTime(
+                    1000,
+                    500,
+                    playbackRate),
+                Is.EqualTo(expectedTime));
+        }
     }
 }

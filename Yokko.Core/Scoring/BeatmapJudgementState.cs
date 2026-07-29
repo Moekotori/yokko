@@ -21,16 +21,23 @@ public sealed class BeatmapJudgementState
     private readonly HashSet<int>[] openHoldIndices;
     private readonly ExpirationEntry[] expirations;
     private readonly ManiaScoreProcessor scoreProcessor;
+    private readonly int totalJudgementObjectCount;
+    private readonly bool noRelease;
     private int nextExpiration;
+    private int resolvedJudgementObjectCount;
 
     public BeatmapJudgementState(
         YokkoBeatmap beatmap,
-        JudgementWindows? windows = null)
+        JudgementWindows? windows = null,
+        bool noRelease = false)
     {
         this.beatmap = beatmap;
+        this.noRelease = noRelease;
         Windows = windows ?? new JudgementWindows(beatmap.OverallDifficulty);
         states = beatmap.HitObjects.Select(static hitObject => new ObjectState(hitObject)).ToArray();
         scoreProcessor = new ManiaScoreProcessor(beatmap);
+        totalJudgementObjectCount =
+            beatmap.HitObjects.Count(isJudgementObject);
 
         laneObjectIndices = Enumerable.Range(0, (int)beatmap.KeyMode)
                                       .Select(lane => beatmap.HitObjects
@@ -119,13 +126,10 @@ public sealed class BeatmapJudgementState
         Counts.Meh,
         Counts.Miss);
 
-    public int ResolvedObjectCount => beatmap.HitObjects
-        .Select((hitObject, index) => (hitObject, index))
-        .Count(item => isJudgementObject(item.hitObject)
-                       && states[item.index].IsComplete);
+    public int ResolvedObjectCount => resolvedJudgementObjectCount;
 
     public int TotalJudgementObjectCount =>
-        beatmap.HitObjects.Count(isJudgementObject);
+        totalJudgementObjectCount;
 
     public bool IsComplete =>
         ResolvedObjectCount == TotalJudgementObjectCount;
@@ -300,6 +304,16 @@ public sealed class BeatmapJudgementState
         double gameplayTimeMilliseconds)
     {
         var events = new List<JudgementEvent>();
+        CollectExpiredMisses(gameplayTimeMilliseconds, events);
+        return events;
+    }
+
+    public void CollectExpiredMisses(
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+        resolveHeldNoReleaseTails(gameplayTimeMilliseconds, events);
 
         while (nextExpiration < expirations.Length
                && gameplayTimeMilliseconds >
@@ -353,8 +367,56 @@ public sealed class BeatmapJudgementState
 
             state.Holding = false;
         }
+    }
 
-        return events;
+    private void resolveHeldNoReleaseTails(
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events)
+    {
+        if (!noRelease)
+            return;
+
+        foreach (HashSet<int> laneHolds in openHoldIndices)
+        {
+            foreach (int index in laneHolds.ToArray())
+            {
+                YokkoHitObject hitObject = beatmap.HitObjects[index];
+                ObjectState state = states[index];
+                if (!state.Holding
+                    || state.TailResolved
+                    || hitObject.EndTimeMilliseconds is not double endTime
+                    || gameplayTimeMilliseconds < endTime)
+                {
+                    continue;
+                }
+
+                events.Add(resolveBasic(
+                    index,
+                    endTime,
+                    endTime,
+                    0,
+                    JudgementRating.Perfect,
+                    JudgementPhase.HoldTail));
+
+                if (!state.BodyResolved)
+                {
+                    events.Add(resolveBody(
+                        index,
+                        endTime,
+                        JudgementRating.IgnoreHit));
+                }
+
+                if (!state.ParentResolved)
+                {
+                    events.Add(resolveParent(
+                        index,
+                        endTime,
+                        JudgementRating.IgnoreHit));
+                }
+
+                state.Holding = false;
+            }
+        }
     }
 
     private bool isHittableByOrderedPolicy(
@@ -478,6 +540,7 @@ public sealed class BeatmapJudgementState
         JudgementPhase phase)
     {
         ObjectState state = states[hitObjectIndex];
+        bool wasComplete = state.IsComplete;
 
         switch (phase)
         {
@@ -506,6 +569,7 @@ public sealed class BeatmapJudgementState
                 throw new ArgumentOutOfRangeException(nameof(phase));
         }
 
+        trackCompletion(state, wasComplete);
         scoreProcessor.Apply(rating);
         return createEvent(
             hitObjectIndex,
@@ -522,8 +586,10 @@ public sealed class BeatmapJudgementState
         JudgementRating rating)
     {
         ObjectState state = states[hitObjectIndex];
+        bool wasComplete = state.IsComplete;
         state.BodyResolved = true;
         state.BodyBroken = rating == JudgementRating.ComboBreak;
+        trackCompletion(state, wasComplete);
         scoreProcessor.Apply(rating);
 
         return createEvent(
@@ -541,7 +607,9 @@ public sealed class BeatmapJudgementState
         JudgementRating rating)
     {
         ObjectState state = states[hitObjectIndex];
+        bool wasComplete = state.IsComplete;
         state.ParentResolved = true;
+        trackCompletion(state, wasComplete);
         scoreProcessor.Apply(rating);
 
         return createEvent(
@@ -551,6 +619,12 @@ public sealed class BeatmapJudgementState
             0,
             rating,
             JudgementPhase.Hold);
+    }
+
+    private void trackCompletion(ObjectState state, bool wasComplete)
+    {
+        if (!wasComplete && state.IsComplete)
+            resolvedJudgementObjectCount++;
     }
 
     private JudgementEvent createEvent(

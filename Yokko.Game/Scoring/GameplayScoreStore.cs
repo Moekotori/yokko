@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 
 namespace Yokko.Game.Scoring;
@@ -23,7 +25,8 @@ internal sealed record StoredGameplayScore(
     int Ok,
     int Meh,
     int Miss,
-    DateTimeOffset PlayedAt);
+    DateTimeOffset PlayedAt,
+    string[] Mods = null);
 
 internal sealed class GameplayScoreStore
 {
@@ -41,15 +44,27 @@ internal sealed class GameplayScoreStore
     }
 
     public StoredGameplayScore GetBest(YokkoBeatmap beatmap)
+        => GetBest(beatmap, ManiaModSet.Empty);
+
+    public StoredGameplayScore GetBest(
+        YokkoBeatmap beatmap,
+        ManiaModSet mods)
     {
         ensureInitialised();
-        return scores.GetValueOrDefault(keyFor(beatmap));
+        return scores.GetValueOrDefault(keyFor(beatmap, mods));
     }
 
     public bool SaveBest(YokkoBeatmap beatmap, ManiaScoreResult result)
+        => SaveBest(beatmap, ManiaModSet.Empty, result);
+
+    public bool SaveBest(
+        YokkoBeatmap beatmap,
+        ManiaModSet mods,
+        ManiaScoreResult result)
     {
         ensureInitialised();
-        string key = keyFor(beatmap);
+        mods ??= ManiaModSet.Empty;
+        string key = keyFor(beatmap, mods);
 
         if (scores.TryGetValue(key, out StoredGameplayScore existing)
             && existing.Score >= result.Score)
@@ -68,7 +83,8 @@ internal sealed class GameplayScoreStore
             result.Ok,
             result.Meh,
             result.Miss,
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            mods.Acronyms.ToArray());
         scores[key] = replacement;
 
         if (save())
@@ -137,8 +153,11 @@ internal sealed class GameplayScoreStore
             throw new InvalidOperationException("The score store is not initialised.");
     }
 
-    private static string keyFor(YokkoBeatmap beatmap)
+    private static string keyFor(
+        YokkoBeatmap beatmap,
+        ManiaModSet mods)
     {
+        mods ??= ManiaModSet.Empty;
         var source = new StringBuilder()
                      .Append(beatmap.Title).Append('\u001f')
                      .Append(beatmap.Artist).Append('\u001f')
@@ -148,6 +167,14 @@ internal sealed class GameplayScoreStore
                      .Append(beatmap.OverallDifficulty.ToString(
                          "R",
                          CultureInfo.InvariantCulture));
+
+        // Keep the pre-Mod NM key byte-for-byte compatible so existing local
+        // scores remain visible after the Mod system is introduced.
+        if (!mods.IsEmpty)
+        {
+            source.Append('\u001f')
+                  .Append(mods.Fingerprint);
+        }
 
         foreach (YokkoHitObject hitObject in beatmap.HitObjects)
         {

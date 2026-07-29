@@ -16,6 +16,7 @@ using osu.Framework.Screens;
 using osuTK;
 using osuTK.Input;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Audio;
 using Yokko.Game.Audio;
@@ -35,11 +36,14 @@ public partial class GameplayScreen : Screen
     private const float minimumPlayfieldWidthScale = 0.2f;
     private const float maximumPlayfieldWidthScale = 2.5f;
 
+    private readonly YokkoBeatmap originalBeatmap;
     private readonly YokkoBeatmap beatmap;
     private IAudioEngine audioEngine;
     private readonly string skinPath;
+    private readonly ManiaModSet mods;
     private readonly GameplayReplay replay;
     private readonly List<GameplayReplayInput> recordedReplayInputs = new();
+    private readonly List<JudgementEvent> expiredJudgements = new();
     [Resolved]
     private YokkoAudioSettings audioSettings { get; set; }
     [Resolved]
@@ -93,6 +97,9 @@ public partial class GameplayScreen : Screen
     internal double CurrentGameplayTime => currentGameplayTime;
     internal ManiaScoreResult CompletedResult => completedResult;
     internal bool ReplayMode => replay != null;
+    internal bool AutoplayMode => mods.IsAutomation;
+    internal ManiaModSet Mods => mods;
+    internal YokkoBeatmap AppliedBeatmap => beatmap;
     internal bool IntroSkipAvailable =>
         !gameplayBlocked
         && !gameplayCompleted
@@ -112,8 +119,9 @@ public partial class GameplayScreen : Screen
     public GameplayScreen(
         YokkoBeatmap beatmap,
         IAudioEngine audioEngine = null,
-        string skinPath = null)
-        : this(beatmap, audioEngine, skinPath, null)
+        string skinPath = null,
+        ManiaModSet mods = null)
+        : this(beatmap, audioEngine, skinPath, mods, null)
     {
     }
 
@@ -121,20 +129,28 @@ public partial class GameplayScreen : Screen
         YokkoBeatmap beatmap,
         IAudioEngine audioEngine,
         string skinPath,
+        ManiaModSet mods,
         GameplayReplay replay)
     {
-        this.beatmap = beatmap;
+        originalBeatmap = beatmap;
         this.audioEngine = audioEngine;
         this.skinPath = skinPath;
-        this.replay = replay;
-        completionTimeMilliseconds = beatmap.HitObjects.Count == 0
+        this.mods = mods ?? ManiaModSet.Empty;
+        this.beatmap = ManiaBeatmapModTransformer.Apply(
+            beatmap,
+            this.mods);
+        this.replay = replay
+                      ?? (this.mods.IsAutomation
+                          ? GameplayAutoGenerator.Generate(this.beatmap)
+                          : null);
+        completionTimeMilliseconds = this.beatmap.HitObjects.Count == 0
             ? 0
-            : beatmap.HitObjects.Max(hitObject =>
+            : this.beatmap.HitObjects.Max(hitObject =>
                 hitObject.EndTimeMilliseconds
                 ?? hitObject.StartTimeMilliseconds);
-        firstObjectTimeMilliseconds = beatmap.HitObjects.Count == 0
+        firstObjectTimeMilliseconds = this.beatmap.HitObjects.Count == 0
             ? 0
-            : beatmap.HitObjects.Min(hitObject =>
+            : this.beatmap.HitObjects.Min(hitObject =>
                 hitObject.StartTimeMilliseconds);
     }
 
@@ -146,7 +162,12 @@ public partial class GameplayScreen : Screen
             beatmap.KeyMode,
             gameplaySettings.GetKeys(beatmap.KeyMode));
         pressedLanes = new bool[keyBindings.KeyCount];
-        judgementState = new BeatmapJudgementState(beatmap);
+        judgementState = new BeatmapJudgementState(
+            beatmap,
+            new JudgementWindows(
+                beatmap.OverallDifficulty,
+                mods.PlaybackRate),
+            mods.Contains(ManiaModId.NoRelease));
         keysoundSelector = new GameplayKeysoundSelector(
             beatmap,
             judgementState);
@@ -184,7 +205,7 @@ public partial class GameplayScreen : Screen
                 // skin geometry.
                 Scale = Vector2.One,
             },
-            hud = new GameplayHud(beatmap)
+            hud = new GameplayHud(beatmap, mods)
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
@@ -205,12 +226,13 @@ public partial class GameplayScreen : Screen
         gameplaySettings.ScrollSpeed.BindValueChanged(
             onScrollSpeedChanged,
             true);
+        host.Deactivated += onHostDeactivated;
     }
 
     protected override void LoadComplete()
     {
         base.LoadComplete();
-        if (!ReplayMode)
+        if (!ReplayMode && !isPaused)
             keyInputTimestamps.BeginCapture();
 
         startTimeMilliseconds = Time.Current + leadInMilliseconds;
@@ -231,9 +253,11 @@ public partial class GameplayScreen : Screen
         if (gameplayBlocked || gameplayCompleted || isPaused)
             return;
 
+        GameplayClockObservation clockObservation = observeGameplayClock();
+
         if (hasAudioClock && audioStarted)
         {
-            AudioEngineStatus audioStatus = audioEngine.Status;
+            AudioEngineStatus audioStatus = clockObservation.Audio.Status;
             hud.UpdateAudioStatus(audioStatus, activeRequestedBackend);
             if (audioStatus.IsFaulted
                 || (!audioStatus.IsRunning && !introSkipInProgress))
@@ -243,7 +267,7 @@ public partial class GameplayScreen : Screen
             }
         }
 
-        double gameplayTime = currentGameplayTime;
+        double gameplayTime = clockObservation.GameplayTime;
         double visualGameplayTime = hasAudioClock
             ? GameplayPresentationClock.EstimateVisualTime(
                 gameplayTime,
@@ -253,9 +277,13 @@ public partial class GameplayScreen : Screen
         if (ReplayMode)
             drainReplayInput(gameplayTime);
         else
-            drainRawInput();
+            drainRawInput(clockObservation);
 
-        foreach (JudgementEvent missed in judgementState.CollectExpiredMisses(gameplayTime))
+        expiredJudgements.Clear();
+        judgementState.CollectExpiredMisses(
+            gameplayTime,
+            expiredJudgements);
+        foreach (JudgementEvent missed in expiredJudgements)
             applyJudgement(missed);
 
         playfield.UpdateGameplayTime(visualGameplayTime, judgementState);
@@ -391,6 +419,7 @@ public partial class GameplayScreen : Screen
             if (!ReplayMode)
                 keyInputTimestamps.EndCapture();
 
+            host.Deactivated -= onHostDeactivated;
             gameplaySettings.ScrollSpeed.ValueChanged -=
                 onScrollSpeedChanged;
             _ = audioEngine.DisposeAsync();
@@ -408,13 +437,19 @@ public partial class GameplayScreen : Screen
             activeUserOffsetMilliseconds =
                 audioSettings.UserOffsetMilliseconds.Value;
             AudioEngineStartRequest startRequest =
-                audioSettings.CreateStartRequest(beatmap.AudioPath);
+                audioSettings.CreateStartRequest(
+                    beatmap.AudioPath,
+                    mods.PlaybackRate,
+                    mods.ChangesAudioPitch
+                        ? AudioPitchMode.ScaleWithRate
+                        : AudioPitchMode.Preserve);
             activeRequestedBackend = startRequest.PreferredBackend;
 
             await audioEngine.StartAsync(startRequest)
                              .ConfigureAwait(true);
 
-            if (!audioEngine.Status.IsRunning)
+            AudioEngineSnapshot audioSnapshot = audioEngine.Snapshot;
+            if (!audioSnapshot.Status.IsRunning)
             {
                 failAudioStart("The audio engine returned without starting playback.");
                 return;
@@ -422,17 +457,17 @@ public partial class GameplayScreen : Screen
 
             audioStarted = true;
             lastStableAudioGameplayTime =
-                audioEngine.PlaybackTimeMilliseconds
+                audioSnapshot.PlaybackTimeMilliseconds
                 + activeUserOffsetMilliseconds;
             hud.UpdateAudioStatus(
-                audioEngine.Status,
+                audioSnapshot.Status,
                 activeRequestedBackend);
 
             if (isPaused)
             {
                 pausedAudioPosition = Math.Max(
                     0,
-                    audioEngine.PlaybackTimeMilliseconds);
+                    audioSnapshot.PlaybackTimeMilliseconds);
                 await audioEngine.PauseAsync().ConfigureAwait(true);
                 return;
             }
@@ -497,35 +532,54 @@ public partial class GameplayScreen : Screen
         AddInternal(new GameplayFailureOverlay(detail));
     }
 
-    private double currentGameplayTime
+    private double currentGameplayTime =>
+        observeGameplayClock().GameplayTime;
+
+    private GameplayClockObservation observeGameplayClock()
     {
-        get
+        long observationStart = Stopwatch.GetTimestamp();
+        AudioEngineSnapshot audioSnapshot = default;
+        double gameplayTime;
+
+        if (isPaused)
         {
-            if (isPaused)
-                return pausedGameplayTime;
-
-            if (hasAudioClock)
+            gameplayTime = pausedGameplayTime;
+        }
+        else if (hasAudioClock)
+        {
+            audioSnapshot = audioEngine.Snapshot;
+            if (audioSnapshot.Status.IsRunning)
             {
-                if (audioEngine.Status.IsRunning)
-                {
-                    lastStableAudioGameplayTime =
-                        audioEngine.PlaybackTimeMilliseconds
-                        + activeUserOffsetMilliseconds;
-                    return lastStableAudioGameplayTime;
-                }
-
-                if (audioStarted)
-                    return lastStableAudioGameplayTime;
-
+                lastStableAudioGameplayTime =
+                    audioSnapshot.PlaybackTimeMilliseconds
+                    + activeUserOffsetMilliseconds;
+                gameplayTime = lastStableAudioGameplayTime;
+            }
+            else if (audioStarted)
+                gameplayTime = lastStableAudioGameplayTime;
+            else
+            {
                 // Hold at zero while the audio device opens so its startup
                 // time cannot consume notes at the beginning of a chart.
-                return Math.Min(
+                gameplayTime = Math.Min(
                     0,
-                    Time.Current - startTimeMilliseconds);
+                    (Time.Current - startTimeMilliseconds)
+                    * mods.PlaybackRate);
             }
-
-            return Time.Current - startTimeMilliseconds;
         }
+        else
+        {
+            gameplayTime =
+                (Time.Current - startTimeMilliseconds)
+                * mods.PlaybackRate;
+        }
+
+        long observationEnd = Stopwatch.GetTimestamp();
+        return new GameplayClockObservation(
+            audioSnapshot,
+            gameplayTime,
+            observationStart
+            + (observationEnd - observationStart) / 2);
     }
 
     private double gameplayTimeForInput(Key key, bool isPressed)
@@ -540,22 +594,20 @@ public partial class GameplayScreen : Screen
         if (!hasEventTimestamp)
             return currentGameplayTime;
 
-        return gameplayTimeForTimestamp(eventTimestamp, timestampKind);
+        return gameplayTimeForTimestamp(
+            eventTimestamp,
+            timestampKind,
+            observeGameplayClock());
     }
 
     private double gameplayTimeForTimestamp(
         long eventTimestamp,
-        KeyInputTimestampKind timestampKind)
+        KeyInputTimestampKind timestampKind,
+        GameplayClockObservation observation)
     {
-        long observationStart = Stopwatch.GetTimestamp();
-        double gameplayTime = currentGameplayTime;
-        long observationEnd = Stopwatch.GetTimestamp();
-
-        long observationTimestamp =
-            observationStart + (observationEnd - observationStart) / 2;
         if (GameplayInputClock.TryGetEventAgeMilliseconds(
                 eventTimestamp,
-                observationTimestamp,
+                observation.Timestamp,
                 Stopwatch.Frequency,
                 out double eventAgeMilliseconds))
         {
@@ -563,12 +615,13 @@ public partial class GameplayScreen : Screen
         }
 
         return GameplayInputClock.AtEventTimestamp(
-            gameplayTime,
+            observation.GameplayTime,
             eventTimestamp,
-            observationTimestamp);
+            observation.Timestamp,
+            gameplayRate: mods.PlaybackRate);
     }
 
-    private void drainRawInput()
+    private void drainRawInput(GameplayClockObservation observation)
     {
         while (keyInputTimestamps.TryDequeueRaw(out TimestampedKeyInput input))
         {
@@ -578,7 +631,8 @@ public partial class GameplayScreen : Screen
 
             double inputTime = gameplayTimeForTimestamp(
                 input.Timestamp,
-                KeyInputTimestampKind.RawInput);
+                KeyInputTimestampKind.RawInput,
+                observation);
             if (input.IsPressed)
                 applyLanePress(lane, inputTime);
             else
@@ -740,11 +794,15 @@ public partial class GameplayScreen : Screen
         completedResult = judgementState.CreateResult();
         completedReplay = replay ?? new GameplayReplay(recordedReplayInputs);
         bool isNewBest = !ReplayMode
-                         && scoreStore.SaveBest(beatmap, completedResult);
+                         && scoreStore.SaveBest(
+                             originalBeatmap,
+                             mods,
+                             completedResult);
         _ = audioEngine.StopAsync();
         AddInternal(new GameplayResultOverlay(
             beatmap,
             completedResult,
+            mods,
             isNewBest,
             retryGameplay,
             watchCompletedReplay,
@@ -766,15 +824,32 @@ public partial class GameplayScreen : Screen
             _ = pauseGameplayAsync();
     }
 
+    internal void HandleHostDeactivated()
+    {
+        if (!isPaused
+            && !pauseTransitionInProgress
+            && !gameplayBlocked
+            && !gameplayCompleted)
+        {
+            TogglePause();
+        }
+    }
+
+    private void onHostDeactivated() =>
+        HandleHostDeactivated();
+
     private async Task pauseGameplayAsync()
     {
         if (isPaused || pauseTransitionInProgress)
             return;
 
         pauseTransitionInProgress = true;
-        pausedGameplayTime = currentGameplayTime;
+        GameplayClockObservation observation = observeGameplayClock();
+        pausedGameplayTime = observation.GameplayTime;
         pausedAudioPosition = hasAudioClock
-            ? Math.Max(0, audioEngine.PlaybackTimeMilliseconds)
+            ? Math.Max(
+                0,
+                observation.Audio.PlaybackTimeMilliseconds)
             : 0;
         releasePressedLanesForPause();
         isPaused = true;
@@ -822,7 +897,11 @@ public partial class GameplayScreen : Screen
                 await audioEngine.SeekAsync(pausedAudioPosition)
                                  .ConfigureAwait(true);
             else
-                startTimeMilliseconds = Time.Current - pausedGameplayTime;
+            {
+                startTimeMilliseconds =
+                    Time.Current
+                    - pausedGameplayTime / mods.PlaybackRate;
+            }
 
             isPaused = false;
             pauseOverlay?.FadeOut(140, Easing.OutQuint)
@@ -875,8 +954,9 @@ public partial class GameplayScreen : Screen
 
     private void retryGameplay() =>
         this.Push(new GameplayScreen(
-            beatmap,
-            skinPath: skinPath));
+            originalBeatmap,
+            skinPath: skinPath,
+            mods: mods));
 
     private void watchCompletedReplay()
     {
@@ -884,9 +964,10 @@ public partial class GameplayScreen : Screen
             return;
 
         this.Push(new GameplayScreen(
-            beatmap,
+            originalBeatmap,
             null,
             skinPath,
+            mods,
             completedReplay));
     }
 
@@ -975,7 +1056,7 @@ public partial class GameplayScreen : Screen
 
         introSkipInProgress = true;
 
-        if (!audioEngine.Status.IsRunning)
+        if (!audioEngine.Snapshot.Status.IsRunning)
         {
             pendingIntroSkipMilliseconds = target;
             return true;
@@ -1027,4 +1108,9 @@ public partial class GameplayScreen : Screen
                 LoggingTarget.Runtime);
         }
     }
+
+    private readonly record struct GameplayClockObservation(
+        AudioEngineSnapshot Audio,
+        double GameplayTime,
+        long Timestamp);
 }

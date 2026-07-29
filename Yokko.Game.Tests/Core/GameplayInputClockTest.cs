@@ -25,6 +25,19 @@ public sealed class GameplayInputClockTest
         Assert.That(eventTime, Is.EqualTo(1197.5).Within(0.0001));
     }
 
+    [Test]
+    public void EventAgeScalesWithRatedGameplayClock()
+    {
+        double eventTime = GameplayInputClock.AtEventTimestamp(
+            1200,
+            10_000_000,
+            10_020_000,
+            10_000_000,
+            1.5);
+
+        Assert.That(eventTime, Is.EqualTo(1197).Within(0.0001));
+    }
+
     [TestCase(60)]
     [TestCase(120)]
     [TestCase(240)]

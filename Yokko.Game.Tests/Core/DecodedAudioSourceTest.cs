@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
+using Yokko.Audio;
 using Yokko.Audio.Decoding;
 
 namespace Yokko.Game.Tests.Core;
@@ -56,6 +58,182 @@ public sealed class DecodedAudioSourceTest
         finally
         {
             File.Delete(path);
+        }
+    }
+
+    [Test]
+    public void DoubleTimePreservesPitchWhileNightcoreRaisesIt()
+    {
+        string path = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"{TestContext.CurrentContext.Test.ID}.wav");
+        createSineWave(path, 48000, 440, 1500);
+
+        try
+        {
+            using DecodedAudioSource doubleTime = DecodedAudioSource.Open(
+                path,
+                1.5,
+                AudioPitchMode.Preserve);
+            using DecodedAudioSource nightcore = DecodedAudioSource.Open(
+                path,
+                1.5,
+                AudioPitchMode.ScaleWithRate);
+
+            float[] doubleTimeSamples = readAll(doubleTime);
+            float[] nightcoreSamples = readAll(nightcore);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(doubleTime.SampleRate, Is.EqualTo(48000));
+                Assert.That(nightcore.SampleRate, Is.EqualTo(48000));
+                Assert.That(
+                    doubleTimeSamples.Length / 2,
+                    Is.InRange(43000, 53000),
+                    "A 1.5 second source should become about one second.");
+                Assert.That(
+                    nightcoreSamples.Length / 2,
+                    Is.InRange(43000, 53000));
+                Assert.That(
+                    estimateFrequency(doubleTimeSamples, 48000),
+                    Is.InRange(420, 460),
+                    "DT must preserve the original pitch.");
+                Assert.That(
+                    estimateFrequency(nightcoreSamples, 48000),
+                    Is.InRange(630, 690),
+                    "NC must raise pitch together with playback rate.");
+            });
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public void HalfTimePreservesPitchWhileDaycoreLowersIt()
+    {
+        string path = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"{TestContext.CurrentContext.Test.ID}.wav");
+        createSineWave(path, 48000, 440, 1500);
+
+        try
+        {
+            using DecodedAudioSource halfTime = DecodedAudioSource.Open(
+                path,
+                0.75,
+                AudioPitchMode.Preserve);
+            using DecodedAudioSource daycore = DecodedAudioSource.Open(
+                path,
+                0.75,
+                AudioPitchMode.ScaleWithRate);
+
+            float[] halfTimeSamples = readAll(halfTime);
+            float[] daycoreSamples = readAll(daycore);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    halfTimeSamples.Length / 2,
+                    Is.InRange(88000, 104000),
+                    "A 1.5 second source should become about two seconds.");
+                Assert.That(
+                    daycoreSamples.Length / 2,
+                    Is.InRange(88000, 104000));
+                Assert.That(
+                    estimateFrequency(halfTimeSamples, 48000),
+                    Is.InRange(420, 460),
+                    "HT must preserve the original pitch.");
+                Assert.That(
+                    estimateFrequency(daycoreSamples, 48000),
+                    Is.InRange(310, 350),
+                    "DC must lower pitch together with playback rate.");
+            });
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    private static float[] readAll(DecodedAudioSource source)
+    {
+        var samples = new List<float>();
+        var block = new float[8192];
+
+        while (true)
+        {
+            int read = source.Read(block);
+            if (read == 0)
+                break;
+
+            samples.AddRange(block.AsSpan(0, read).ToArray());
+        }
+
+        return samples.ToArray();
+    }
+
+    private static double estimateFrequency(
+        float[] interleavedStereo,
+        int sampleRate)
+    {
+        int startFrame = Math.Min(
+            interleavedStereo.Length / 4,
+            sampleRate / 4);
+        int endFrame = Math.Min(
+            interleavedStereo.Length / 2,
+            startFrame + sampleRate / 2);
+        int crossings = 0;
+        float previous = interleavedStereo[startFrame * 2];
+
+        for (int frame = startFrame + 1; frame < endFrame; frame++)
+        {
+            float current = interleavedStereo[frame * 2];
+            if (previous <= 0 && current > 0)
+                crossings++;
+
+            previous = current;
+        }
+
+        double seconds = (endFrame - startFrame) / (double)sampleRate;
+        return crossings / seconds;
+    }
+
+    private static void createSineWave(
+        string path,
+        int sampleRate,
+        double frequency,
+        int durationMilliseconds)
+    {
+        const short channels = 2;
+        const short bitsPerSample = 16;
+        int frameCount = sampleRate * durationMilliseconds / 1000;
+        int dataLength = frameCount * channels * bitsPerSample / 8;
+
+        using var writer = new BinaryWriter(File.Create(path));
+        writer.Write("RIFF"u8.ToArray());
+        writer.Write(36 + dataLength);
+        writer.Write("WAVE"u8.ToArray());
+        writer.Write("fmt "u8.ToArray());
+        writer.Write(16);
+        writer.Write((short)1);
+        writer.Write(channels);
+        writer.Write(sampleRate);
+        writer.Write(sampleRate * channels * bitsPerSample / 8);
+        writer.Write((short)(channels * bitsPerSample / 8));
+        writer.Write(bitsPerSample);
+        writer.Write("data"u8.ToArray());
+        writer.Write(dataLength);
+
+        for (int frame = 0; frame < frameCount; frame++)
+        {
+            short sample = (short)Math.Round(
+                Math.Sin(frame * Math.PI * 2 * frequency / sampleRate)
+                * short.MaxValue
+                * 0.5);
+            writer.Write(sample);
+            writer.Write(sample);
         }
     }
 }

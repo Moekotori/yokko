@@ -50,58 +50,61 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
     ];
 
     public AudioEngineStatus Status
+        => Snapshot.Status;
+
+    public AudioEngineSnapshot Snapshot
     {
         get
         {
             NativeAudioCore? current = core;
             if (current == null)
-                return status;
+            {
+                return new AudioEngineSnapshot(
+                    status,
+                    playbackBaseMilliseconds);
+            }
 
             try
             {
                 NativeAudioStatus native = current.GetStatus();
-                return status with
-                {
-                    IsRunning = native.State == NativeAudioState.Running,
-                    IsFaulted = native.State == NativeAudioState.Faulted,
-                    HasUnderrun = native.UnderrunCount > 0,
-                    CallbackCount = native.CallbackCount,
-                    CallbackDeadlineMissCount =
-                        native.CallbackDeadlineMissCount,
-                    CallbackBudgetMilliseconds =
-                        native.CallbackBudgetMicroseconds / 1000.0,
-                    MaxCallbackDurationMilliseconds =
-                        native.CallbackMaxDurationMicroseconds / 1000.0,
-                    CallbackCadenceMissCount =
-                        native.CallbackCadenceMissCount,
-                    MaxCallbackIntervalMilliseconds =
-                        native.CallbackMaxIntervalMicroseconds / 1000.0,
-                    BackendError = native.BackendError,
-                    BackendErrorStage = native.BackendErrorStage,
-                };
+                return new AudioEngineSnapshot(
+                    status with
+                    {
+                        IsRunning =
+                            native.State == NativeAudioState.Running,
+                        IsFaulted =
+                            native.State == NativeAudioState.Faulted,
+                        HasUnderrun = native.UnderrunCount > 0,
+                        CallbackCount = native.CallbackCount,
+                        CallbackDeadlineMissCount =
+                            native.CallbackDeadlineMissCount,
+                        CallbackBudgetMilliseconds =
+                            native.CallbackBudgetMicroseconds / 1000.0,
+                        MaxCallbackDurationMilliseconds =
+                            native.CallbackMaxDurationMicroseconds / 1000.0,
+                        CallbackCadenceMissCount =
+                            native.CallbackCadenceMissCount,
+                        MaxCallbackIntervalMilliseconds =
+                            native.CallbackMaxIntervalMicroseconds / 1000.0,
+                        BackendError = native.BackendError,
+                        BackendErrorStage = native.BackendErrorStage,
+                    },
+                    ScalePlaybackTime(
+                        playbackBaseMilliseconds,
+                        native.PlaybackTimeMilliseconds,
+                        activeRequest?.PlaybackRate ?? 1));
             }
             catch (ObjectDisposedException)
             {
-                return status;
+                return new AudioEngineSnapshot(
+                    status,
+                    playbackBaseMilliseconds);
             }
         }
     }
 
-    public double PlaybackTimeMilliseconds
-    {
-        get
-        {
-            try
-            {
-                return playbackBaseMilliseconds
-                       + (core?.GetStatus().PlaybackTimeMilliseconds ?? 0);
-            }
-            catch (ObjectDisposedException)
-            {
-                return 0;
-            }
-        }
-    }
+    public double PlaybackTimeMilliseconds =>
+        Snapshot.PlaybackTimeMilliseconds;
 
     public double DurationMilliseconds =>
         source?.TotalTime.TotalMilliseconds ?? 0;
@@ -148,6 +151,13 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
         if (request.PreferredBackend == AudioBackendKind.Asio)
             throw new NotSupportedException(
                 "ASIO is not connected yet. Select WASAPI exclusive or shared.");
+        if (!double.IsFinite(request.PlaybackRate)
+            || request.PlaybackRate is < 0.25 or > 4)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(request),
+                "Playback rate must be finite and between 0.25x and 4x.");
+        }
         string? audioPath = string.IsNullOrWhiteSpace(request.AudioPath)
             ? null
             : Path.GetFullPath(request.AudioPath);
@@ -163,7 +173,10 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
             source = audioPath == null
                 ? null
                 : await Task.Run(
-                    () => DecodedAudioSource.Open(audioPath),
+                    () => DecodedAudioSource.Open(
+                        audioPath,
+                        request.PlaybackRate,
+                        request.PitchMode),
                     cancellationToken).ConfigureAwait(false);
             activeRequest = request with { AudioPath = audioPath ?? string.Empty };
             await startFromCurrentPositionAsync(cancellationToken)
@@ -379,7 +392,11 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
         activeSampleIds.Clear();
         foreach ((string path, DecodedAudioSample sample) in preparedSamples)
         {
-            float[] pcm = sample.GetSamplesAt(sampleRate);
+            // osu! applies fixed rate Mods to gameplay samples as frequency
+            // changes, so DT and NC keysounds both become shorter and higher.
+            float[] pcm = sample.GetSamplesAt(
+                sampleRate,
+                request.PlaybackRate);
             activeSampleIds[path] = core.RegisterSample(pcm);
         }
 
@@ -601,6 +618,23 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
     private void throwIfDisposed()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+    }
+
+    internal static double ScalePlaybackTime(
+        double baseTimeMilliseconds,
+        double outputTimeMilliseconds,
+        double playbackRate)
+    {
+        if (!double.IsFinite(baseTimeMilliseconds)
+            || !double.IsFinite(outputTimeMilliseconds)
+            || !double.IsFinite(playbackRate)
+            || playbackRate <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(playbackRate));
+        }
+
+        return baseTimeMilliseconds
+               + outputTimeMilliseconds * playbackRate;
     }
 
     private static readonly AudioEngineStatus stoppedStatus = new(

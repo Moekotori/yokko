@@ -70,6 +70,20 @@ namespace Yokko.Game.Tests.Core
         }
 
         [Test]
+        public void DoubleTimeKeepsRealWorldHitWindowDuration()
+        {
+            var windows = new JudgementWindows(
+                overallDifficulty: 5,
+                speedMultiplier: 1.5);
+
+            Assert.That(
+                windows.PerfectMilliseconds / 1.5,
+                Is.EqualTo(
+                    JudgementWindows.DefaultMania.PerfectMilliseconds)
+                  .Within(0.34));
+        }
+
+        [Test]
         public void PerfectHitResolvesObject()
         {
             YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
@@ -110,6 +124,24 @@ namespace Yokko.Game.Tests.Core
 
             Assert.That(misses, Has.Count.EqualTo(1));
             Assert.That(misses[0].Rating, Is.EqualTo(JudgementRating.Miss));
+        }
+
+        [Test]
+        public void NaturalMissesCanReuseCallerOwnedBuffer()
+        {
+            var state = new BeatmapJudgementState(
+                createTapBeatmap(1000, 1500));
+            var misses = new List<JudgementEvent>();
+
+            state.CollectExpiredMisses(1300, misses);
+            Assert.That(misses, Has.Count.EqualTo(1));
+
+            misses.Clear();
+            state.CollectExpiredMisses(1800, misses);
+
+            Assert.That(misses, Has.Count.EqualTo(1));
+            Assert.That(state.ResolvedObjectCount, Is.EqualTo(2));
+            Assert.That(state.IsComplete, Is.True);
         }
 
         [Test]
@@ -156,6 +188,34 @@ namespace Yokko.Game.Tests.Core
                 Assert.That(state.IsResolved(0), Is.True);
                 Assert.That(state.Counts.Perfect, Is.EqualTo(2));
                 Assert.That(state.Combo, Is.EqualTo(2));
+                Assert.That(state.Score, Is.EqualTo(1_000_000));
+            });
+        }
+
+        [Test]
+        public void NoReleaseAutomaticallyPerfectsAHeldTail()
+        {
+            var state = new BeatmapJudgementState(
+                createHoldBeatmap(),
+                noRelease: true);
+            state.JudgeLanePress(1, 1000);
+
+            IReadOnlyList<JudgementEvent> events =
+                state.CollectExpiredMisses(1500);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    events.Select(static judgement => judgement.Phase),
+                    Is.EqualTo(new[]
+                    {
+                        JudgementPhase.HoldTail,
+                        JudgementPhase.HoldBody,
+                        JudgementPhase.Hold,
+                    }));
+                Assert.That(events[0].Rating, Is.EqualTo(JudgementRating.Perfect));
+                Assert.That(state.Counts.Perfect, Is.EqualTo(2));
+                Assert.That(state.IsComplete, Is.True);
                 Assert.That(state.Score, Is.EqualTo(1_000_000));
             });
         }

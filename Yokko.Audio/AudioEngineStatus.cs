@@ -1,6 +1,6 @@
 namespace Yokko.Audio;
 
-public sealed record AudioEngineStatus(
+public readonly record struct AudioEngineStatus(
     AudioBackendKind ActiveBackend,
     string? DeviceName,
     int SampleRate,

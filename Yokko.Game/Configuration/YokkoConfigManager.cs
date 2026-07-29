@@ -12,6 +12,7 @@ namespace Yokko.Game.Configuration;
 
 internal enum YokkoSetting
 {
+    HomeMusicEnabled,
     AudioBackend,
     AudioDeviceId,
     AudioBufferSize,
@@ -52,6 +53,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
 
     protected override void InitialiseDefaults()
     {
+        SetDefault(YokkoSetting.HomeMusicEnabled, true);
         SetDefault(
             YokkoSetting.AudioBackend,
             AudioBackendKind.WasapiExclusive);
@@ -97,6 +99,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
 
     public void BindAudioSettings(YokkoAudioSettings settings)
     {
+        BindWith(
+            YokkoSetting.HomeMusicEnabled,
+            settings.HomeMusicEnabled);
         BindWith(YokkoSetting.AudioBackend, settings.PreferredBackend);
         BindWith(YokkoSetting.AudioDeviceId, settings.DeviceId);
         BindWith(

@@ -50,7 +50,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
     private IAudioEngine audioEngine;
     private int trackIndex = -1;
     private int playbackGeneration;
-    private bool desiredPlaying = true;
+    private bool desiredPlaying;
     private bool screenActive;
     private bool disposed;
     private string loadedAudioPath;
@@ -234,6 +234,10 @@ public partial class HomeMusicPlayer : CompositeDrawable
     private void load()
     {
         audioEngine = AudioEngineFactory.CreateDefault();
+        desiredPlaying = audioSettings.HomeMusicEnabled.Value;
+        playPauseButton.Icon.Icon = desiredPlaying
+            ? FontAwesome.Solid.Pause
+            : FontAwesome.Solid.Play;
         importedChartLibrary.LibraryChanged += onChartLibraryChanged;
         refreshPlaylist();
     }
@@ -300,6 +304,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
             return;
 
         desiredPlaying = !desiredPlaying;
+        audioSettings.HomeMusicEnabled.Value = desiredPlaying;
         playPauseButton.Icon.Icon = desiredPlaying
             ? FontAwesome.Solid.Pause
             : FontAwesome.Solid.Play;

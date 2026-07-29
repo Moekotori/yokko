@@ -21,8 +21,14 @@ public partial class GameplayPlayfield : CompositeDrawable
     private double approachTimeMilliseconds;
     private readonly LaneColumn[] laneColumns;
     private readonly DrawableNote[] noteDrawables;
-    private readonly ScrollVelocityMap[] noteScrollVelocityMaps;
-    private readonly ScrollSpeedFactorMap[] noteScrollSpeedFactorMaps;
+    private readonly NoteUpdateState[] noteUpdateStates;
+    private readonly NoteUpdateGroup[] noteUpdateGroups;
+    private readonly bool[] noteAttached;
+    private readonly bool[] visibleThisFrame;
+    private List<int> visibleNoteIndices = new();
+    private List<int> nextVisibleNoteIndices = new();
+    private Container noteLayer;
+    private bool activeNoteLayerReady;
     private readonly float topY;
     private readonly float judgementY;
     private readonly float basePlayfieldWidth;
@@ -37,6 +43,12 @@ public partial class GameplayPlayfield : CompositeDrawable
     internal float JudgementPosition => judgementY;
 
     internal double ApproachTimeMilliseconds => approachTimeMilliseconds;
+
+    internal int VisibleNoteCount => visibleNoteIndices.Count;
+
+    internal int ActiveDrawableNoteCount => noteLayer.Count;
+
+    internal DrawableNote GetDrawableNote(int index) => noteDrawables[index];
 
     internal GameplayPlayfield(
         YokkoBeatmap beatmap,
@@ -109,26 +121,96 @@ public partial class GameplayPlayfield : CompositeDrawable
             return new DrawableNote(index, hitObject, width, skin)
             {
                 X = x,
+                Alpha = 0,
+                // Preserve beatmap ordering when notes leave and re-enter
+                // the active scene graph after seeks.
+                Depth = -index,
             };
         }).ToArray();
-        noteScrollVelocityMaps = beatmap.HitObjects.Select(hitObject =>
+        ScrollVelocityMap[] noteScrollVelocityMaps =
+            beatmap.HitObjects
+                   .Select(hitObject =>
+                   {
+                       return hitObject.ScrollProfileId != null
+                              && profileMaps.TryGetValue(
+                                  hitObject.ScrollProfileId,
+                                  out var profile)
+                           ? profile.Velocity
+                           : defaultScrollVelocityMap;
+                   })
+                   .ToArray();
+        ScrollSpeedFactorMap[] noteScrollSpeedFactorMaps =
+            beatmap.HitObjects
+                   .Select(hitObject =>
+                   {
+                       return hitObject.ScrollProfileId != null
+                              && profileMaps.TryGetValue(
+                                  hitObject.ScrollProfileId,
+                                  out var profile)
+                           ? profile.Factor
+                           : defaultScrollSpeedFactorMap;
+                   })
+                   .ToArray();
+        noteUpdateStates = new NoteUpdateState[noteDrawables.Length];
+        noteAttached = new bool[noteDrawables.Length];
+        visibleThisFrame = new bool[noteDrawables.Length];
+        Array.Fill(noteAttached, true);
+        var updateGroups =
+            new Dictionary<
+                (ScrollVelocityMap Velocity, ScrollSpeedFactorMap Factor),
+                List<int>>();
+
+        for (int i = 0; i < noteDrawables.Length; i++)
         {
-            return hitObject.ScrollProfileId != null
-                   && profileMaps.TryGetValue(
-                       hitObject.ScrollProfileId,
-                       out var profile)
-                ? profile.Velocity
-                : defaultScrollVelocityMap;
-        }).ToArray();
-        noteScrollSpeedFactorMaps = beatmap.HitObjects.Select(hitObject =>
-        {
-            return hitObject.ScrollProfileId != null
-                   && profileMaps.TryGetValue(
-                       hitObject.ScrollProfileId,
-                       out var profile)
-                ? profile.Factor
-                : defaultScrollSpeedFactorMap;
-        }).ToArray();
+            YokkoHitObject hitObject = beatmap.HitObjects[i];
+            ScrollVelocityMap velocity = noteScrollVelocityMaps[i];
+            ScrollSpeedFactorMap factor = noteScrollSpeedFactorMaps[i];
+            double startPosition =
+                velocity.PositionAt(hitObject.StartTimeMilliseconds);
+            double endPosition = hitObject.EndTimeMilliseconds is double endTime
+                ? velocity.PositionAt(endTime)
+                : startPosition;
+            ScrollPositionRange pathRange =
+                hitObject.EndTimeMilliseconds is double holdEndTime
+                    ? velocity.PositionRangeBetween(
+                        hitObject.StartTimeMilliseconds,
+                        holdEndTime)
+                    : new ScrollPositionRange(
+                        startPosition,
+                        startPosition);
+            noteUpdateStates[i] = new NoteUpdateState(
+                startPosition,
+                endPosition,
+                pathRange);
+
+            var key = (velocity, factor);
+            if (!updateGroups.TryGetValue(key, out List<int> indices))
+                updateGroups.Add(key, indices = new List<int>());
+
+            indices.Add(i);
+        }
+
+        noteUpdateGroups = updateGroups
+                           .Select(pair => new NoteUpdateGroup(
+                               pair.Key.Velocity,
+                               pair.Key.Factor,
+                               pair.Value.ToArray(),
+                               pair.Value
+                                   .Where(index =>
+                                       beatmap.HitObjects[index].Kind
+                                       == HitObjectKind.Tap)
+                                   .OrderBy(index =>
+                                       noteUpdateStates[index].StartPosition)
+                                   .ToArray(),
+                               pair.Value
+                                   .Where(index =>
+                                       beatmap.HitObjects[index].Kind
+                                       == HitObjectKind.Hold)
+                                   .OrderBy(index =>
+                                       noteUpdateStates[index]
+                                           .PathRange.Minimum)
+                                   .ToArray()))
+                           .ToArray();
 
         var laneBackgroundLayer = new Container
         {
@@ -140,7 +222,7 @@ public partial class GameplayPlayfield : CompositeDrawable
             RelativeSizeAxes = Axes.Both,
             Children = laneColumns.Select(column => column.ReceptorLayer).ToArray(),
         };
-        var noteLayer = new Container
+        noteLayer = new Container
         {
             RelativeSizeAxes = Axes.Both,
             Children = noteDrawables,
@@ -213,6 +295,21 @@ public partial class GameplayPlayfield : CompositeDrawable
         InternalChildren = children.ToArray();
     }
 
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        // Follow lazer's lifetime-managed hit object model: preload every
+        // drawable, then keep only the current visibility window attached to
+        // the live scene graph.
+        noteLayer.Clear(false);
+        Array.Fill(noteAttached, false);
+        activeNoteLayerReady = true;
+
+        foreach (int index in visibleNoteIndices)
+            attachNote(index);
+    }
+
     public void SetLanePressed(int lane, bool pressed)
     {
         if ((uint)lane >= laneColumns.Length)
@@ -277,15 +374,198 @@ public partial class GameplayPlayfield : CompositeDrawable
     {
         skinOverlay?.SetCombo(state.Combo);
 
-        for (int i = 0; i < noteDrawables.Length; i++)
-            noteDrawables[i].UpdatePosition(
-                gameplayTimeMilliseconds,
-                state.IsResolved(i),
-                state.IsHoldActive(i),
-                topY,
-                judgementY,
-                approachTimeMilliseconds,
-                noteScrollVelocityMaps[i],
-                noteScrollSpeedFactorMaps[i]);
+        foreach (int index in visibleNoteIndices)
+            visibleThisFrame[index] = false;
+
+        nextVisibleNoteIndices.Clear();
+
+        foreach (NoteUpdateGroup group in noteUpdateGroups)
+        {
+            double scrollSpeedFactor =
+                group.Factor.FactorAt(gameplayTimeMilliseconds);
+            double currentPosition =
+                group.Velocity.PositionAt(gameplayTimeMilliseconds);
+
+            if (Math.Abs(scrollSpeedFactor) < double.Epsilon)
+            {
+                foreach (int index in group.AllIndices)
+                {
+                    updateVisibleNote(
+                        index,
+                        gameplayTimeMilliseconds,
+                        state,
+                        group,
+                        scrollSpeedFactor,
+                        currentPosition);
+                }
+
+                continue;
+            }
+
+            double positionAtLowerVisibility =
+                currentPosition
+                + (1 - DrawableNote.MinimumVisibleProgress)
+                * approachTimeMilliseconds
+                / scrollSpeedFactor;
+            double positionAtUpperVisibility =
+                currentPosition
+                + (1 - DrawableNote.MaximumVisibleProgress)
+                * approachTimeMilliseconds
+                / scrollSpeedFactor;
+            double minimumVisiblePosition = Math.Min(
+                positionAtLowerVisibility,
+                positionAtUpperVisibility);
+            double maximumVisiblePosition = Math.Max(
+                positionAtLowerVisibility,
+                positionAtUpperVisibility);
+
+            int firstTap = lowerBoundTap(
+                group.TapIndices,
+                minimumVisiblePosition);
+            for (int i = firstTap; i < group.TapIndices.Length; i++)
+            {
+                int index = group.TapIndices[i];
+                if (noteUpdateStates[index].StartPosition
+                    > maximumVisiblePosition)
+                {
+                    break;
+                }
+
+                updateVisibleNote(
+                    index,
+                    gameplayTimeMilliseconds,
+                    state,
+                    group,
+                    scrollSpeedFactor,
+                    currentPosition);
+            }
+
+            foreach (int index in group.HoldIndices)
+            {
+                ScrollPositionRange range =
+                    noteUpdateStates[index].PathRange;
+                if (range.Minimum > maximumVisiblePosition)
+                    break;
+
+                if (range.Maximum < minimumVisiblePosition)
+                    continue;
+
+                updateVisibleNote(
+                    index,
+                    gameplayTimeMilliseconds,
+                    state,
+                    group,
+                    scrollSpeedFactor,
+                    currentPosition);
+            }
+        }
+
+        foreach (int index in visibleNoteIndices)
+        {
+            if (visibleThisFrame[index])
+                continue;
+
+            noteDrawables[index].HideOutsideVisibleRange();
+            detachNote(index);
+        }
+
+        (visibleNoteIndices, nextVisibleNoteIndices) =
+            (nextVisibleNoteIndices, visibleNoteIndices);
     }
+
+    private int lowerBoundTap(
+        int[] indices,
+        double minimumPosition)
+    {
+        int low = 0;
+        int high = indices.Length;
+
+        while (low < high)
+        {
+            int middle = low + (high - low) / 2;
+            if (noteUpdateStates[indices[middle]].StartPosition
+                < minimumPosition)
+            {
+                low = middle + 1;
+            }
+            else
+                high = middle;
+        }
+
+        return low;
+    }
+
+    private void updateVisibleNote(
+        int index,
+        double gameplayTimeMilliseconds,
+        BeatmapJudgementState state,
+        NoteUpdateGroup group,
+        double scrollSpeedFactor,
+        double currentPosition)
+    {
+        if (visibleThisFrame[index])
+            return;
+
+        visibleThisFrame[index] = true;
+        nextVisibleNoteIndices.Add(index);
+        attachNote(index);
+        NoteUpdateState updateState = noteUpdateStates[index];
+        noteDrawables[index].UpdatePosition(
+            gameplayTimeMilliseconds,
+            state.IsResolved(index),
+            state.IsHoldActive(index),
+            topY,
+            judgementY,
+            approachTimeMilliseconds,
+            group.Velocity,
+            scrollSpeedFactor,
+            currentPosition,
+            updateState.StartPosition,
+            updateState.EndPosition,
+            updateState.PathRange);
+    }
+
+    private void attachNote(int index)
+    {
+        if (!activeNoteLayerReady || noteAttached[index])
+            return;
+
+        noteLayer.Add(noteDrawables[index]);
+        noteAttached[index] = true;
+    }
+
+    private void detachNote(int index)
+    {
+        if (!activeNoteLayerReady || !noteAttached[index])
+            return;
+
+        noteLayer.Remove(noteDrawables[index], false);
+        noteAttached[index] = false;
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+        {
+            for (int i = 0; i < noteDrawables.Length; i++)
+            {
+                if (!noteAttached[i])
+                    noteDrawables[i].Dispose();
+            }
+        }
+
+        base.Dispose(isDisposing);
+    }
+
+    private readonly record struct NoteUpdateState(
+        double StartPosition,
+        double EndPosition,
+        ScrollPositionRange PathRange);
+
+    private sealed record NoteUpdateGroup(
+        ScrollVelocityMap Velocity,
+        ScrollSpeedFactorMap Factor,
+        int[] AllIndices,
+        int[] TapIndices,
+        int[] HoldIndices);
 }

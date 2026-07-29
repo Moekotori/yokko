@@ -77,10 +77,13 @@ Gameplay judgement should be driven by audio time and input timestamps, not fram
 The intended judgement path is:
 
 ```text
-input timestamp - audio playback time - user/device offset
+input gameplay time = presented audio time - input event age + user offset
+hit error = input gameplay time - object time
 ```
 
-Frame time is only for presentation. A dropped frame may look bad, but it should not shift judgement.
+The audio clock already reports presented position, so device latency is
+diagnostic data and is not subtracted a second time. Frame time is only for
+presentation. A dropped frame may look bad, but it should not shift judgement.
 
 ## osu!mania skin preview
 

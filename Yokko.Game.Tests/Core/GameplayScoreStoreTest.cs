@@ -3,6 +3,7 @@ using System.IO;
 using NUnit.Framework;
 using osu.Framework.Platform;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Game.Scoring;
 
@@ -50,6 +51,70 @@ public class GameplayScoreStoreTest
             Assert.That(saved.Score, Is.EqualTo(900_000));
             Assert.That(saved.Accuracy, Is.EqualTo(0.95));
             Assert.That(saved.Rank, Is.EqualTo(ScoreRank.S));
+        });
+    }
+
+    [Test]
+    public void DifferentModSetsKeepIndependentBestScores()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var store = new GameplayScoreStore();
+        store.Initialise(new NativeStorage(testRoot));
+        var doubleTime = new ManiaModSet([ManiaModId.DoubleTime]);
+        var nightcore = new ManiaModSet([ManiaModId.Nightcore]);
+
+        Assert.That(
+            store.SaveBest(
+                beatmap,
+                doubleTime,
+                result(900_000, 0.95)),
+            Is.True);
+        Assert.That(
+            store.SaveBest(
+                beatmap,
+                nightcore,
+                result(800_000, 0.90)),
+            Is.True);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(store.GetBest(beatmap), Is.Null);
+            Assert.That(
+                store.GetBest(beatmap, doubleTime).Score,
+                Is.EqualTo(900_000));
+            Assert.That(
+                store.GetBest(beatmap, nightcore).Score,
+                Is.EqualTo(800_000));
+            Assert.That(
+                store.GetBest(beatmap, doubleTime).Mods,
+                Is.EqualTo(new[] { "DT" }));
+        });
+    }
+
+    [Test]
+    public void RandomSeedsKeepIndependentBestScores()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var store = new GameplayScoreStore();
+        store.Initialise(new NativeStorage(testRoot));
+        var seedOne = new ManiaModSet([ManiaModId.Random], 111);
+        var seedTwo = new ManiaModSet([ManiaModId.Random], 222);
+
+        Assert.That(
+            store.SaveBest(beatmap, seedOne, result(700_000, 0.8)),
+            Is.True);
+        Assert.That(
+            store.SaveBest(beatmap, seedTwo, result(800_000, 0.9)),
+            Is.True);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                store.GetBest(beatmap, seedOne).Score,
+                Is.EqualTo(700_000));
+            Assert.That(
+                store.GetBest(beatmap, seedTwo).Score,
+                Is.EqualTo(800_000));
         });
     }
 
