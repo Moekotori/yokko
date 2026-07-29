@@ -114,7 +114,7 @@ public sealed partial class EtternaChartImporter : IChartImporter
                                                        note.EndBeat.HasValue
                                                            ? converter.ToMilliseconds(note.EndBeat.Value)
                                                            : null,
-                                                       note.EndBeat.HasValue ? HitObjectKind.Hold : HitObjectKind.Tap))
+                                                       note.Kind))
                                                 .OrderBy(static note => note.StartTimeMilliseconds)
                                                 .ThenBy(static note => note.Lane)
                                                 .ToArray();
@@ -285,7 +285,11 @@ public sealed partial class EtternaChartImporter : IChartImporter
                     switch (char.ToUpperInvariant(row[lane]))
                     {
                         case '1':
-                            result.Add(new BeatNote(lane, beat, null));
+                            result.Add(new BeatNote(
+                                lane,
+                                beat,
+                                null,
+                                HitObjectKind.Tap));
                             break;
 
                         case '2':
@@ -295,13 +299,23 @@ public sealed partial class EtternaChartImporter : IChartImporter
 
                         case '3':
                             if (openHolds.Remove(lane, out double startBeat))
-                                result.Add(new BeatNote(lane, startBeat, beat));
+                            {
+                                result.Add(new BeatNote(
+                                    lane,
+                                    startBeat,
+                                    beat,
+                                    HitObjectKind.Hold));
+                            }
                             else
                                 warnings.Add("Ignored a StepMania hold end without a matching start.");
                             break;
 
                         case 'M':
-                            warnings.Add("StepMania mines are not represented by Yokko yet and were ignored.");
+                            result.Add(new BeatNote(
+                                lane,
+                                beat,
+                                null,
+                                HitObjectKind.Mine));
                             break;
 
                         case 'F':
@@ -371,5 +385,9 @@ public sealed partial class EtternaChartImporter : IChartImporter
 
     private readonly record struct BeatValue(double Beat, double Value);
 
-    private readonly record struct BeatNote(int Lane, double StartBeat, double? EndBeat);
+    private readonly record struct BeatNote(
+        int Lane,
+        double StartBeat,
+        double? EndBeat,
+        HitObjectKind Kind);
 }

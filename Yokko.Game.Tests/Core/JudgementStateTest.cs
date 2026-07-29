@@ -128,6 +128,141 @@ namespace Yokko.Game.Tests.Core
                   .Within(0.34));
         }
 
+        [TestCase(4, 22.5, 45, 90, 135)]
+        [TestCase(5, 18.9, 37.8, 75.6, 113.4)]
+        [TestCase(6, 14.85, 29.7, 59.4, 89.1)]
+        [TestCase(7, 11.25, 22.5, 45, 67.5)]
+        [TestCase(8, 7.425, 14.85, 29.7, 44.55)]
+        [TestCase(9, 4.5, 9, 18, 27)]
+        public void EtternaJudgeWindowsMatchUpstream(
+            int justice,
+            double w1,
+            double w2,
+            double w3,
+            double w4)
+        {
+            var configuration = new JudgementConfiguration(
+                JudgementMode.Etterna,
+                justice);
+            var windows = new JudgementWindows(
+                configuration: configuration);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    windows.PerfectMilliseconds,
+                    Is.EqualTo(w1).Within(0.000001));
+                Assert.That(
+                    windows.GreatMilliseconds,
+                    Is.EqualTo(w2).Within(0.000001));
+                Assert.That(
+                    windows.GoodMilliseconds,
+                    Is.EqualTo(w3).Within(0.000001));
+                Assert.That(
+                    windows.OkMilliseconds,
+                    Is.EqualTo(w4).Within(0.000001));
+                Assert.That(windows.MehMilliseconds, Is.EqualTo(180));
+                Assert.That(windows.MissMilliseconds, Is.EqualTo(180));
+            });
+        }
+
+        [Test]
+        public void EtternaBoundariesAreInclusiveAndW5ReachesFixedMissBoundary()
+        {
+            var windows = new JudgementWindows(
+                configuration: new JudgementConfiguration(
+                    JudgementMode.Etterna,
+                    9));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    windows.Judge(windows.PerfectMilliseconds),
+                    Is.EqualTo(JudgementRating.Perfect));
+                Assert.That(
+                    windows.Judge(windows.PerfectMilliseconds + 0.001),
+                    Is.EqualTo(JudgementRating.Great));
+                Assert.That(
+                    windows.Judge(windows.OkMilliseconds + 0.001),
+                    Is.EqualTo(JudgementRating.Meh));
+                Assert.That(
+                    windows.Judge(180),
+                    Is.EqualTo(JudgementRating.Meh));
+                Assert.That(
+                    windows.Judge(180.001),
+                    Is.EqualTo(JudgementRating.None));
+            });
+        }
+
+        [TestCase(1050)]
+        [TestCase(1070)]
+        public void EtternaSelectsClosestNoteAndBreaksTiesTowardFuture(
+            double inputTime)
+        {
+            var state = new BeatmapJudgementState(
+                createTapBeatmap(1000, 1100),
+                new JudgementWindows(
+                    configuration: new JudgementConfiguration(
+                        JudgementMode.Etterna,
+                        4)));
+
+            IReadOnlyList<JudgementEvent> events =
+                state.JudgeLanePress(0, inputTime);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(events, Has.Count.EqualTo(1));
+                Assert.That(events[0].HitObjectIndex, Is.EqualTo(1));
+                Assert.That(
+                    events[0].HitErrorMilliseconds,
+                    Is.EqualTo(inputTime - 1100));
+                Assert.That(state.IsResolved(0), Is.False);
+            });
+        }
+
+        [Test]
+        public void EtternaNaturalMissOccursAfterFixedOuterBoundary()
+        {
+            var state = new BeatmapJudgementState(
+                createTapBeatmap(1000),
+                new JudgementWindows(
+                    configuration: new JudgementConfiguration(
+                        JudgementMode.Etterna,
+                        9)));
+
+            Assert.That(state.CollectExpiredMisses(1180), Is.Empty);
+            IReadOnlyList<JudgementEvent> events =
+                state.CollectExpiredMisses(1180.001);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(events, Has.Count.EqualTo(1));
+                Assert.That(
+                    events[0].Rating,
+                    Is.EqualTo(JudgementRating.Miss));
+            });
+        }
+
+        [Test]
+        public void EtternaRateChangeKeepsRealWorldWindowsConstant()
+        {
+            var windows = new JudgementWindows(
+                speedMultiplier: 1.5,
+                configuration: new JudgementConfiguration(
+                    JudgementMode.Etterna,
+                    9));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    windows.PerfectMilliseconds / 1.5,
+                    Is.EqualTo(4.5).Within(0.000001));
+                Assert.That(
+                    windows.MissMilliseconds / 1.5,
+                    Is.EqualTo(180).Within(0.000001));
+            });
+        }
+
         [Test]
         public void PerfectHitResolvesObject()
         {
@@ -187,6 +322,111 @@ namespace Yokko.Game.Tests.Core
             Assert.That(misses, Has.Count.EqualTo(1));
             Assert.That(state.ResolvedObjectCount, Is.EqualTo(2));
             Assert.That(state.IsComplete, Is.True);
+        }
+
+        [Test]
+        public void MinePressUsesIndependentInclusiveWindow()
+        {
+            var state = new BeatmapJudgementState(createMineBeatmap());
+
+            Assert.That(
+                state.JudgeLanePress(
+                    0,
+                    1000
+                    - BeatmapJudgementState.MineWindowMilliseconds
+                    - 0.01),
+                Is.Empty);
+            JudgementEvent mine = state.JudgeLanePress(
+                0,
+                1000 - BeatmapJudgementState.MineWindowMilliseconds)
+                .Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(mine.Phase, Is.EqualTo(JudgementPhase.Mine));
+                Assert.That(
+                    mine.Rating,
+                    Is.EqualTo(JudgementRating.IgnoreMiss));
+                Assert.That(state.Combo, Is.Zero);
+                Assert.That(state.Accuracy, Is.EqualTo(1));
+                Assert.That(state.IsComplete, Is.True);
+            });
+        }
+
+        [Test]
+        public void HeldLaneTriggersMineAsItCrossesJudgementLine()
+        {
+            var state = new BeatmapJudgementState(createMineBeatmap());
+
+            JudgementEvent mine = state.CollectMineJudgements(
+                1000,
+                new[] { true, false, false, false })
+                .Single();
+
+            Assert.That(mine.Rating, Is.EqualTo(JudgementRating.IgnoreMiss));
+            Assert.That(mine.HitErrorMilliseconds, Is.Zero);
+            Assert.That(state.IsComplete, Is.True);
+        }
+
+        [Test]
+        public void AvoidedAndDisabledMinesDoNotPenaliseScore()
+        {
+            var enabled = new BeatmapJudgementState(createMineBeatmap());
+
+            Assert.That(
+                enabled.CollectExpiredMisses(
+                    1000
+                    + BeatmapJudgementState.MineWindowMilliseconds),
+                Is.Empty);
+            JudgementEvent avoided = enabled.CollectExpiredMisses(
+                    1000
+                    + BeatmapJudgementState.MineWindowMilliseconds
+                    + 0.01)
+                .Single();
+
+            var disabled = new BeatmapJudgementState(
+                createMineBeatmap(),
+                minesEnabled: false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    avoided.Rating,
+                    Is.EqualTo(JudgementRating.IgnoreHit));
+                Assert.That(enabled.Combo, Is.Zero);
+                Assert.That(enabled.Accuracy, Is.EqualTo(1));
+                Assert.That(disabled.IsComplete, Is.True);
+                Assert.That(disabled.TotalJudgementObjectCount, Is.Zero);
+                Assert.That(disabled.JudgeLanePress(0, 1000), Is.Empty);
+            });
+        }
+
+        [Test]
+        public void EtternaMineWindowMatchesFixedUpstreamWindow()
+        {
+            var state = new BeatmapJudgementState(
+                createMineBeatmap(),
+                new JudgementWindows(
+                    configuration: new JudgementConfiguration(
+                        JudgementMode.Etterna,
+                        9)));
+
+            Assert.That(
+                state.JudgeLanePress(
+                    0,
+                    1000
+                    - BeatmapJudgementState
+                        .EtternaMineWindowMilliseconds
+                    - 0.01),
+                Is.Empty);
+            JudgementEvent mine = state.JudgeLanePress(
+                    0,
+                    1000
+                    - BeatmapJudgementState
+                        .EtternaMineWindowMilliseconds)
+                .Single();
+
+            Assert.That(mine.Phase, Is.EqualTo(JudgementPhase.Mine));
         }
 
         [Test]
@@ -551,6 +791,23 @@ namespace Yokko.Game.Tests.Core
                     startTime,
                     endTime,
                     HitObjectKind.Hold)],
+                8);
+
+        private static YokkoBeatmap createMineBeatmap()
+            => new(
+                "Mine test",
+                "Yokko",
+                "Yokko",
+                "4K",
+                KeyMode.FourKey,
+                ChartSourceFormat.Etterna,
+                [YokkoTimingPoint.Default],
+                null,
+                [new YokkoHitObject(
+                    0,
+                    1000,
+                    null,
+                    HitObjectKind.Mine)],
                 8);
 
         private static double comboMultiplier(int combo)

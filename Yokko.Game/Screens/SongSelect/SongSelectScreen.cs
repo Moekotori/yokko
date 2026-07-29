@@ -134,6 +134,8 @@ public partial class SongSelectScreen : Screen
     [Resolved]
     private YokkoAudioSettings audioSettings { get; set; }
     [Resolved]
+    private YokkoGameplaySettings gameplaySettings { get; set; }
+    [Resolved]
     private YokkoManiaModPreferences modPreferences { get; set; }
 
     public SongSelectScreen(IAudioEngine previewAudioEngine = null)
@@ -2008,7 +2010,8 @@ public partial class SongSelectScreen : Screen
             SongSelectEntry entry = entries[i];
             StoredGameplayScore saved = scoreStore.GetBest(
                 entry.Beatmap,
-                selectedMods);
+                selectedMods,
+                gameplaySettings.GetJudgementConfiguration());
             IEnumerable<SongSelectScore> ranking = entry.Ranking
                 .Where(score => !score.IsCurrentPlayer);
 

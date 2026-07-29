@@ -49,9 +49,19 @@ internal sealed class GameplayScoreStore
     public StoredGameplayScore GetBest(
         YokkoBeatmap beatmap,
         ManiaModSet mods)
+        => GetBest(
+            beatmap,
+            mods,
+            JudgementConfiguration.YokkoDefault);
+
+    public StoredGameplayScore GetBest(
+        YokkoBeatmap beatmap,
+        ManiaModSet mods,
+        JudgementConfiguration judgementConfiguration)
     {
         ensureInitialised();
-        return scores.GetValueOrDefault(keyFor(beatmap, mods));
+        return scores.GetValueOrDefault(
+            keyFor(beatmap, mods, judgementConfiguration));
     }
 
     public bool SaveBest(YokkoBeatmap beatmap, ManiaScoreResult result)
@@ -61,10 +71,24 @@ internal sealed class GameplayScoreStore
         YokkoBeatmap beatmap,
         ManiaModSet mods,
         ManiaScoreResult result)
+        => SaveBest(
+            beatmap,
+            mods,
+            JudgementConfiguration.YokkoDefault,
+            result);
+
+    public bool SaveBest(
+        YokkoBeatmap beatmap,
+        ManiaModSet mods,
+        JudgementConfiguration judgementConfiguration,
+        ManiaScoreResult result)
     {
         ensureInitialised();
         mods ??= ManiaModSet.Empty;
-        string key = keyFor(beatmap, mods);
+        string key = keyFor(
+            beatmap,
+            mods,
+            judgementConfiguration);
 
         if (scores.TryGetValue(key, out StoredGameplayScore existing)
             && existing.Score >= result.Score)
@@ -155,7 +179,8 @@ internal sealed class GameplayScoreStore
 
     private static string keyFor(
         YokkoBeatmap beatmap,
-        ManiaModSet mods)
+        ManiaModSet mods,
+        JudgementConfiguration judgementConfiguration)
     {
         mods ??= ManiaModSet.Empty;
         var source = new StringBuilder()
@@ -174,6 +199,18 @@ internal sealed class GameplayScoreStore
         {
             source.Append('\u001f')
                   .Append(mods.Fingerprint);
+        }
+
+        // Preserve the existing Yokko key so local bests remain visible.
+        // Etterna modes are isolated because different Judge values are not
+        // comparable timing conditions.
+        if (judgementConfiguration.Mode != JudgementMode.Yokko)
+        {
+            source.Append('\u001f')
+                  .Append("judge:")
+                  .Append(judgementConfiguration.Mode)
+                  .Append(':')
+                  .Append(judgementConfiguration.EtternaJustice);
         }
 
         foreach (YokkoHitObject hitObject in beatmap.HitObjects)

@@ -53,9 +53,12 @@ internal enum YokkoSetting
     ManiaWatchReplayKey,
     ManiaScrollSpeed,
     QuaverScrollRateNormalization,
+    GameplayJudgementMode,
+    GameplayEtternaJustice,
     GameplayShowLanePressFeedback,
     GameplayShowTimingBar,
     GameplayKeysoundsEnabled,
+    GameplayMinesEnabled,
     GameplayPauseWhenUnfocused,
     ManiaModConfiguration,
     DisplayUiScale,
@@ -139,9 +142,22 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             0.0,
             100.0,
             10.0);
+        SetDefault(
+            YokkoSetting.GameplayJudgementMode,
+            Yokko.Core.Scoring.JudgementMode.Yokko);
+        SetDefault(
+            YokkoSetting.GameplayEtternaJustice,
+            (double)Yokko.Core.Scoring.JudgementConfiguration
+                .DefaultEtternaJustice,
+            Yokko.Core.Scoring.JudgementConfiguration
+                .MinimumEtternaJustice,
+            Yokko.Core.Scoring.JudgementConfiguration
+                .MaximumEtternaJustice,
+            1.0);
         SetDefault(YokkoSetting.GameplayShowLanePressFeedback, true);
         SetDefault(YokkoSetting.GameplayShowTimingBar, true);
         SetDefault(YokkoSetting.GameplayKeysoundsEnabled, false);
+        SetDefault(YokkoSetting.GameplayMinesEnabled, true);
         SetDefault(YokkoSetting.GameplayPauseWhenUnfocused, true);
         SetDefault(YokkoSetting.ManiaModConfiguration, string.Empty);
         SetDefault(YokkoSetting.DisplayUiScale, YokkoUiScale.Comfortable);
@@ -265,6 +281,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSetting.QuaverScrollRateNormalization,
             settings.QuaverScrollRateNormalization);
         BindWith(
+            YokkoSetting.GameplayJudgementMode,
+            settings.JudgementMode);
+        BindWith(
+            YokkoSetting.GameplayEtternaJustice,
+            settings.EtternaJustice);
+        BindWith(
             YokkoSetting.GameplayShowLanePressFeedback,
             settings.ShowLanePressFeedback);
         BindWith(
@@ -274,6 +296,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSetting.GameplayKeysoundsEnabled,
             settings.KeysoundsEnabled);
         settings.KeysoundsEnabled.BindValueChanged(_ => Save());
+        BindWith(
+            YokkoSetting.GameplayMinesEnabled,
+            settings.MinesEnabled);
         BindWith(
             YokkoSetting.GameplayPauseWhenUnfocused,
             settings.PauseWhenUnfocused);

@@ -30,18 +30,39 @@ public sealed class OsuManiaRealSkinCorpusTest
 
         Assert.That(packages, Is.Not.Empty);
 
+        int testedPackages = 0;
+
         foreach (string package in packages)
         {
             using var source = new OsuManiaSkinSource(package);
-            OsuManiaSkinInfo info = OsuManiaSkinIniDecoder.Decode(source.ReadSkinIni());
+            string skinIni = source.ReadSkinIni();
+            OsuManiaSkinInfo info = OsuManiaSkinIniDecoder.Decode(
+                skinIni,
+                !string.IsNullOrWhiteSpace(skinIni));
 
-            Assert.That(info.ManiaConfigurations, Is.Not.Empty, Path.GetFileName(package));
+            if (info.ManiaConfigurations.Count == 0
+                && !source.HasManiaAssets())
+            {
+                TestContext.Progress.WriteLine(
+                    $"{Path.GetFileName(package)} | skipped: no mania configuration or assets");
+                continue;
+            }
+
+            testedPackages++;
+            IEnumerable<OsuManiaSkinConfiguration> configurations =
+                info.ManiaConfigurations.Count > 0
+                    ? info.ManiaConfigurations.Values
+                    : new[]
+                    {
+                        info.GetConfiguration(4),
+                        info.GetConfiguration(7),
+                    };
 
             int resolved = 0;
             int missing = 0;
             var missingAssets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (OsuManiaSkinConfiguration configuration in info.ManiaConfigurations.Values)
+            foreach (OsuManiaSkinConfiguration configuration in configurations)
             {
                 Assert.That(configuration.ColumnWidths, Has.Length.EqualTo(configuration.Keys));
                 Assert.That(configuration.ColumnSpacings, Has.Length.EqualTo(configuration.Keys));
@@ -85,6 +106,8 @@ public sealed class OsuManiaRealSkinCorpusTest
             if (missingAssets.Count > 0)
                 TestContext.Progress.WriteLine($"  inherited/fallback: {string.Join(", ", missingAssets.Order())}");
         }
+
+        Assert.That(testedPackages, Is.GreaterThan(0));
     }
 
     private static IEnumerable<string> configuredAssets(OsuManiaSkinConfiguration configuration) =>
@@ -95,6 +118,19 @@ public sealed class OsuManiaRealSkinCorpusTest
                      .Concat(configuration.HoldBodyImages)
                      .Concat(configuration.HoldTailImages)
                      .Append(configuration.StageHint)
+                     .Append(configuration.StageLeft)
+                     .Append(configuration.StageRight)
+                     .Append(configuration.StageBottom)
+                     .Append(configuration.WarningArrow)
+                     .Append(configuration.LightImage)
+                     .Append(configuration.ExplosionImage)
+                     .Append(configuration.HoldNoteLightImage)
+                     .Append(configuration.Hit0)
+                     .Append(configuration.Hit50)
+                     .Append(configuration.Hit100)
+                     .Append(configuration.Hit200)
+                     .Append(configuration.Hit300)
+                     .Append(configuration.Hit300g)
                      .Where(asset => !string.IsNullOrWhiteSpace(asset))
                      .Distinct(StringComparer.OrdinalIgnoreCase);
 }

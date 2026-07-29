@@ -11,6 +11,7 @@ using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Scoring;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
@@ -897,14 +898,19 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
     private Drawable createJudgementLedger()
     {
+        string[] labels =
+            snapshot.JudgementConfiguration.Mode
+            == JudgementMode.Etterna
+                ? ["MARVELOUS", "PERFECT", "GREAT", "GOOD", "BAD", "MISS"]
+                : ["PERFECT", "GREAT", "GOOD", "OK", "MEH", "MISS"];
         (string Label, int Value, Color4 Colour)[] judgements =
         {
-            ("PERFECT", snapshot.Perfect, HomeControlColours.Yellow),
-            ("GREAT", snapshot.Great, HomeControlColours.Cyan),
-            ("GOOD", snapshot.Good, new Color4(0.16f, 0.72f, 0.34f, 1f)),
-            ("OK", snapshot.Ok, new Color4(0.12f, 0.48f, 0.95f, 1f)),
-            ("MEH", snapshot.Meh, new Color4(1f, 0.42f, 0.08f, 1f)),
-            ("MISS", snapshot.Miss, HomeControlColours.Pink),
+            (labels[0], snapshot.Perfect, HomeControlColours.Yellow),
+            (labels[1], snapshot.Great, HomeControlColours.Cyan),
+            (labels[2], snapshot.Good, new Color4(0.16f, 0.72f, 0.34f, 1f)),
+            (labels[3], snapshot.Ok, new Color4(0.12f, 0.48f, 0.95f, 1f)),
+            (labels[4], snapshot.Meh, new Color4(1f, 0.42f, 0.08f, 1f)),
+            (labels[5], snapshot.Miss, HomeControlColours.Pink),
         };
 
         var ledger = new Container

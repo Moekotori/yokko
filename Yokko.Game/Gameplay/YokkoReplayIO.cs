@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
+using Yokko.Core.Scoring;
 
 namespace Yokko.Game.Gameplay;
 
@@ -19,7 +20,7 @@ internal sealed record YokkoReplayLoadResult(
 internal static class YokkoReplayIO
 {
     public const string FileExtension = ".ykr";
-    private const int schema_version = 1;
+    private const int schema_version = 2;
     private const long maximum_file_bytes = 128L * 1024 * 1024;
 
     private static readonly JsonSerializerOptions json_options = new()
@@ -55,6 +56,12 @@ internal static class YokkoReplayIO
                 : sourceHash.Trim(),
             keyCount,
             recordedAt ?? DateTimeOffset.UtcNow,
+            (replay.JudgementConfiguration
+             ?? JudgementConfiguration.YokkoDefault).Mode
+                .ToString(),
+            (replay.JudgementConfiguration
+             ?? JudgementConfiguration.YokkoDefault)
+                .EtternaJustice,
             ManiaModConfigurationCodec.Capture(replay.Mods),
             replay.Inputs
                   .Select(static input => new YokkoReplayInputDocument(
@@ -130,7 +137,7 @@ internal static class YokkoReplayIO
                 exception);
         }
 
-        if (document.SchemaVersion != schema_version)
+        if (document.SchemaVersion is not 1 and not schema_version)
         {
             throw new NotSupportedException(
                 $"Unsupported Yokko replay schema "
@@ -183,12 +190,47 @@ internal static class YokkoReplayIO
                 exception);
         }
 
+        JudgementConfiguration judgementConfiguration;
+        if (document.SchemaVersion == 1)
+        {
+            judgementConfiguration =
+                JudgementConfiguration.YokkoDefault;
+        }
+        else
+        {
+            if (!Enum.TryParse(
+                    document.JudgementMode,
+                    ignoreCase: true,
+                    out JudgementMode mode)
+                || !Enum.IsDefined(mode)
+                || document.EtternaJustice is not int justice)
+            {
+                throw new InvalidDataException(
+                    "The Yokko replay judgement configuration is invalid.");
+            }
+
+            try
+            {
+                judgementConfiguration =
+                    new JudgementConfiguration(mode, justice);
+            }
+            catch (ArgumentOutOfRangeException exception)
+            {
+                throw new InvalidDataException(
+                    "The Yokko replay judgement configuration is invalid.",
+                    exception);
+            }
+        }
+
         return new YokkoReplayLoadResult(
             document.BeatmapFingerprint,
             document.SourceHash,
             document.KeyCount,
             document.RecordedAt,
-            new GameplayReplay(inputs, mods));
+            new GameplayReplay(
+                inputs,
+                mods,
+                judgementConfiguration));
     }
 
     public static YokkoReplayLoadResult ReadFromFile(string path)
@@ -245,6 +287,8 @@ internal static class YokkoReplayIO
         string SourceHash,
         int KeyCount,
         DateTimeOffset RecordedAt,
+        string JudgementMode,
+        int? EtternaJustice,
         ManiaModConfigurationEnvelope ModConfiguration,
         IReadOnlyList<YokkoReplayInputDocument> Inputs);
 

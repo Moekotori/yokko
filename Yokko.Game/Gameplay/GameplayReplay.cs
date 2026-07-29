@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Yokko.Core.Mods;
+using Yokko.Core.Scoring;
 using Yokko.Import.Osu;
 
 namespace Yokko.Game.Gameplay;
@@ -20,12 +21,16 @@ internal sealed class GameplayReplay
 
     public ManiaModSet Mods { get; }
 
+    public JudgementConfiguration? JudgementConfiguration { get; }
+
     public GameplayReplay(
         IEnumerable<GameplayReplayInput> inputs,
-        ManiaModSet mods = null)
+        ManiaModSet mods = null,
+        JudgementConfiguration? judgementConfiguration = null)
     {
         this.inputs = inputs.ToArray();
         Mods = mods ?? ManiaModSet.Empty;
+        JudgementConfiguration = judgementConfiguration;
 
         for (int i = 0; i < this.inputs.Length; i++)
         {
@@ -87,6 +92,7 @@ internal sealed class GameplayReplay
 
         return new GameplayReplay(
             converted,
-            OsuLegacyManiaModConverter.Convert(replay.Mods));
+            OsuLegacyManiaModConverter.Convert(replay.Mods),
+            Yokko.Core.Scoring.JudgementConfiguration.YokkoDefault);
     }
 }

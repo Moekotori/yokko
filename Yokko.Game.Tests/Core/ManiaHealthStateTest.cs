@@ -96,6 +96,20 @@ public sealed class ManiaHealthStateTest
     }
 
     [Test]
+    public void MineHitUsesStepManiaHealthPenalty()
+    {
+        YokkoBeatmap beatmap = createBeatmap(
+            kind: HitObjectKind.Mine);
+        var health = new ManiaHealthState(beatmap);
+
+        health.Apply(judgement(
+            JudgementRating.IgnoreMiss,
+            JudgementPhase.Mine));
+
+        Assert.That(health.Health, Is.EqualTo(0.84).Within(1e-12));
+    }
+
+    [Test]
     public void NoFailAllowsHealthToRemainAtZero()
     {
         YokkoBeatmap beatmap = createBeatmap(drainRate: 10);

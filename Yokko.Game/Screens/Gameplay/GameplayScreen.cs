@@ -57,6 +57,7 @@ public partial class GameplayScreen : Screen
     private readonly string skinPath;
     private readonly ManiaModSet mods;
     private readonly GameplayReplay replay;
+    private JudgementConfiguration judgementConfiguration;
     private readonly string cinemaArtworkPath;
     private readonly bool quaverHasSignificantScrollVelocities;
     private readonly BeatTimingMap beatTimingMap;
@@ -98,9 +99,9 @@ public partial class GameplayScreen : Screen
     private bool retryTransitionInProgress;
     private GameplayHud hud;
     private ManiaScoreResult completedResult;
-    private readonly double completionTimeMilliseconds;
-    private readonly double firstObjectTimeMilliseconds;
-    private readonly double gameplayStartTimeMilliseconds;
+    private double completionTimeMilliseconds;
+    private double firstObjectTimeMilliseconds;
+    private double gameplayStartTimeMilliseconds;
     private bool introSkipInProgress;
     private bool introSkipUsed;
     private double pendingIntroSkipMilliseconds = double.NaN;
@@ -159,6 +160,8 @@ public partial class GameplayScreen : Screen
     internal GameplayMutedAudioController MutedAudio => mutedAudio;
     internal JudgementWindows ActiveJudgementWindows =>
         judgementState?.Windows;
+    internal JudgementConfiguration ActiveJudgementConfiguration =>
+        judgementConfiguration;
     internal YokkoBeatmap AppliedBeatmap => beatmap;
     internal bool IntroSkipAvailable =>
         !gameplayBlocked
@@ -229,24 +232,40 @@ public partial class GameplayScreen : Screen
                               this.mods)
                           : null);
         this.cinemaArtworkPath = cinemaArtworkPath;
-        completionTimeMilliseconds = this.beatmap.HitObjects.Count == 0
+        updateGameplayBounds(includeMines: true);
+    }
+
+    private void updateGameplayBounds(bool includeMines)
+    {
+        YokkoHitObject[] gameplayObjects = beatmap.HitObjects
+            .Where(hitObject =>
+                includeMines
+                || hitObject.Kind != HitObjectKind.Mine)
+            .ToArray();
+        completionTimeMilliseconds = gameplayObjects.Length == 0
             ? 0
-            : this.beatmap.HitObjects.Max(hitObject =>
+            : gameplayObjects.Max(hitObject =>
                 hitObject.EndTimeMilliseconds
                 ?? hitObject.StartTimeMilliseconds);
-        firstObjectTimeMilliseconds = this.beatmap.HitObjects.Count == 0
+        firstObjectTimeMilliseconds = gameplayObjects.Length == 0
             ? 0
-            : this.beatmap.HitObjects.Min(hitObject =>
+            : gameplayObjects.Min(hitObject =>
                 hitObject.StartTimeMilliseconds);
-        gameplayStartTimeMilliseconds = this.beatmap.HitObjects.Count == 0
+        gameplayStartTimeMilliseconds = gameplayObjects.Length == 0
             ? 0
-            : firstObjectTimeMilliseconds - gameplayStartLeadInMilliseconds;
+            : firstObjectTimeMilliseconds
+              - gameplayStartLeadInMilliseconds;
     }
 
     [BackgroundDependencyLoader]
     private void load(IRenderer renderer, GameHost host)
     {
         this.host = host;
+        bool minesEnabled = gameplaySettings.MinesEnabled.Value;
+        updateGameplayBounds(minesEnabled);
+        judgementConfiguration =
+            replay?.JudgementConfiguration
+            ?? gameplaySettings.GetJudgementConfiguration();
         keyBindings = gameplaySettings.SupportedKeyModes.Contains(
             beatmap.KeyMode)
             ? KeyModeBindings.ForMode(
@@ -272,9 +291,11 @@ public partial class GameplayScreen : Screen
                 mods.HitWindowDifficultyMultiplier,
                 mods.Contains(ManiaModId.Classic),
                 mods.Contains(ManiaModId.ScoreV2),
-                beatmap.ConversionSource is not null),
+                beatmap.ConversionSource is not null,
+                judgementConfiguration),
             mods.Contains(ManiaModId.NoRelease),
-            mods.ScoreMultiplier);
+            mods.ScoreMultiplier,
+            minesEnabled);
         keysoundSelector = new GameplayKeysoundSelector(
             beatmap,
             judgementState);
@@ -330,7 +351,8 @@ public partial class GameplayScreen : Screen
                     gameplaySettings.ScrollSpeed.Value,
                     currentPlaybackRate(0)),
                 gameplaySettings.ShowLanePressFeedback.Value,
-                mods)
+                mods,
+                minesEnabled)
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
@@ -340,13 +362,17 @@ public partial class GameplayScreen : Screen
                 // skin geometry.
                 Scale = Vector2.One,
             },
-            hud = new GameplayHud(beatmap, mods)
+            hud = new GameplayHud(
+                beatmap,
+                mods,
+                judgementConfiguration)
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
                 Position = new Vector2(-20, 20),
             },
-            judgementReadout = new JudgementReadout
+            judgementReadout = new JudgementReadout(
+                configuration: judgementConfiguration)
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
@@ -491,6 +517,10 @@ public partial class GameplayScreen : Screen
             drainRawInput(clockObservation);
 
         expiredJudgements.Clear();
+        judgementState.CollectMineJudgements(
+            gameplayTime,
+            pressedLanes,
+            expiredJudgements);
         judgementState.CollectExpiredMisses(
             gameplayTime,
             expiredJudgements);
@@ -1187,7 +1217,8 @@ public partial class GameplayScreen : Screen
         }
 
         playfield.ApplyJudgement(judgement);
-        if (gameplaySettings.ShowTimingBar.Value)
+        bool isMine = judgement.Phase == JudgementPhase.Mine;
+        if (gameplaySettings.ShowTimingBar.Value && !isMine)
             timingBar.Show(judgement);
         adaptiveSpeedState?.Apply(judgement);
         ManiaHealthUpdate healthUpdate = healthState.Apply(
@@ -1196,7 +1227,8 @@ public partial class GameplayScreen : Screen
             judgementState.MaximumAchievableAccuracy);
         if (!playfield.UsesSkinJudgementOverlay
             && judgement.Phase is not JudgementPhase.Hold
-            and not JudgementPhase.HoldBody)
+            and not JudgementPhase.HoldBody
+            && (!isMine || judgement.IsMiss))
         {
             judgementReadout.Show(judgement);
         }
@@ -1250,13 +1282,15 @@ public partial class GameplayScreen : Screen
         completedReplay = replay
                           ?? new GameplayReplay(
                               recordedReplayInputs,
-                              mods);
+                              mods,
+                              judgementConfiguration);
         bool isNewBest = BestScoreSaved =
             !ReplayMode
             && !manualPlaybackRateUsed
             && scoreStore.SaveBest(
                 originalBeatmap,
                 mods,
+                judgementConfiguration,
                 completedResult);
         if (!ReplayMode)
             saveCompletedReplay();
@@ -1280,7 +1314,8 @@ public partial class GameplayScreen : Screen
             RetryGameplay,
             watchCompletedReplay,
             () => this.Exit(),
-            manualPlaybackRateUsed));
+            manualPlaybackRateUsed,
+            judgementConfiguration));
     }
 
     private void saveCompletedReplay()
@@ -2053,7 +2088,11 @@ public partial class GameplayScreen : Screen
 
         try
         {
-            maniaSkin = OsuManiaSkin.Load(resolvedPath, keyBindings.KeyCount, renderer);
+            maniaSkin = OsuManiaSkin.Load(
+                resolvedPath,
+                keyBindings.KeyCount,
+                renderer,
+                beatmap.StageCount);
         }
         catch (Exception ex)
         {

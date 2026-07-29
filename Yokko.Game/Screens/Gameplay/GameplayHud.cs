@@ -18,6 +18,7 @@ public partial class GameplayHud : CompositeDrawable
 {
     private readonly YokkoBeatmap beatmap;
     private readonly ManiaModSet mods;
+    private readonly JudgementConfiguration judgementConfiguration;
     private readonly SpriteText timeText;
     private readonly SpriteText modsText;
     private readonly SpriteText comboText;
@@ -47,10 +48,13 @@ public partial class GameplayHud : CompositeDrawable
 
     public GameplayHud(
         YokkoBeatmap beatmap,
-        ManiaModSet mods = null)
+        ManiaModSet mods = null,
+        JudgementConfiguration? judgementConfiguration = null)
     {
         this.beatmap = beatmap;
         this.mods = mods ?? ManiaModSet.Empty;
+        this.judgementConfiguration =
+            judgementConfiguration ?? JudgementConfiguration.YokkoDefault;
         Width = 340;
         Height = 330;
         Masking = true;
@@ -79,9 +83,9 @@ public partial class GameplayHud : CompositeDrawable
                     },
                     modsText = new SpriteText
                     {
-                        Text = this.mods.IsEmpty
-                            ? "MODS · NM"
-                            : $"MODS · {string.Join("  ", this.mods.DisplayLabels)}",
+                        Text = formatRulesLabel(
+                            this.mods,
+                            this.judgementConfiguration),
                         Font = FontUsage.Default.With(
                             size: 13,
                             weight: "SemiBold"),
@@ -134,6 +138,19 @@ public partial class GameplayHud : CompositeDrawable
         };
     }
 
+    private static string formatRulesLabel(
+        ManiaModSet mods,
+        JudgementConfiguration judgementConfiguration)
+    {
+        string modLabel = mods.IsEmpty
+            ? "NM"
+            : string.Join("  ", mods.DisplayLabels);
+        return judgementConfiguration.Mode == JudgementMode.Etterna
+            ? $"MODS · {modLabel}  ·  ETTERNA "
+              + judgementConfiguration.EtternaJusticeLabel.ToUpperInvariant()
+            : $"MODS · {modLabel}";
+    }
+
     public void UpdateState(
         double gameplayTimeMilliseconds,
         BeatmapJudgementState state,
@@ -148,9 +165,13 @@ public partial class GameplayHud : CompositeDrawable
             $"Accuracy {state.Accuracy * 100:0.00}%  Rank {rank}";
         updateAccuracyChallenge(state);
         countsText.Text =
-            $"P {state.Counts.Perfect}  G {state.Counts.Great}  "
-            + $"Good {state.Counts.Good}  Ok {state.Counts.Ok}  "
-            + $"Meh {state.Counts.Meh}  M {state.Counts.Miss}";
+            judgementConfiguration.Mode == JudgementMode.Etterna
+                ? $"M {state.Counts.Perfect}  P {state.Counts.Great}  "
+                  + $"Great {state.Counts.Good}  Good {state.Counts.Ok}  "
+                  + $"Bad {state.Counts.Meh}  Miss {state.Counts.Miss}"
+                : $"P {state.Counts.Perfect}  G {state.Counts.Great}  "
+                  + $"Good {state.Counts.Good}  Ok {state.Counts.Ok}  "
+                  + $"Meh {state.Counts.Meh}  M {state.Counts.Miss}";
 
         if (healthState != null)
             updateHealth(healthState);

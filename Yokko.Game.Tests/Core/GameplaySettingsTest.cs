@@ -6,6 +6,7 @@ using NUnit.Framework;
 using osu.Framework.Platform;
 using osuTK.Input;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Scoring;
 using Yokko.Game.Configuration;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Screens.Gameplay;
@@ -41,9 +42,16 @@ public sealed class GameplaySettingsTest
         Assert.That(
             settings.QuaverScrollRateNormalization.Value,
             Is.Zero);
+        Assert.That(
+            settings.JudgementMode.Value,
+            Is.EqualTo(JudgementMode.Yokko));
+        Assert.That(
+            settings.EtternaJustice.Value,
+            Is.EqualTo(JudgementConfiguration.DefaultEtternaJustice));
         Assert.That(settings.ShowLanePressFeedback.Value, Is.True);
         Assert.That(settings.ShowTimingBar.Value, Is.True);
         Assert.That(settings.KeysoundsEnabled.Value, Is.False);
+        Assert.That(settings.MinesEnabled.Value, Is.True);
         Assert.That(settings.PauseWhenUnfocused.Value, Is.True);
         Assert.That(settings.DecreaseScrollSpeedKey.Value, Is.EqualTo(Key.F3));
         Assert.That(settings.IncreaseScrollSpeedKey.Value, Is.EqualTo(Key.F4));
@@ -381,9 +389,13 @@ public sealed class GameplaySettingsTest
                     Key.F11);
                 firstSettings.SetScrollSpeed(26.4);
                 firstSettings.QuaverScrollRateNormalization.Value = 60;
+                firstSettings.JudgementMode.Value =
+                    JudgementMode.Etterna;
+                firstSettings.SetEtternaJustice(8);
                 firstSettings.ShowLanePressFeedback.Value = false;
                 firstSettings.ShowTimingBar.Value = false;
                 firstSettings.KeysoundsEnabled.Value = false;
+                firstSettings.MinesEnabled.Value = false;
                 firstSettings.PauseWhenUnfocused.Value = false;
                 Assert.That(firstConfig.Save(), Is.True);
             }
@@ -424,6 +436,12 @@ public sealed class GameplaySettingsTest
                     restoredSettings.QuaverScrollRateNormalization.Value,
                     Is.EqualTo(60));
                 Assert.That(
+                    restoredSettings.JudgementMode.Value,
+                    Is.EqualTo(JudgementMode.Etterna));
+                Assert.That(
+                    restoredSettings.EtternaJustice.Value,
+                    Is.EqualTo(8));
+                Assert.That(
                     restoredSettings.ShowLanePressFeedback.Value,
                     Is.False);
                 Assert.That(
@@ -431,6 +449,9 @@ public sealed class GameplaySettingsTest
                     Is.False);
                 Assert.That(
                     restoredSettings.KeysoundsEnabled.Value,
+                    Is.False);
+                Assert.That(
+                    restoredSettings.MinesEnabled.Value,
                     Is.False);
                 Assert.That(
                     restoredSettings.PauseWhenUnfocused.Value,

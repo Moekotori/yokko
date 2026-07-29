@@ -9,11 +9,13 @@ namespace Yokko.Game.Skinning.OsuMania;
 
 internal static class OsuManiaSkinIniDecoder
 {
-    public static OsuManiaSkinInfo Decode(string contents)
+    public static OsuManiaSkinInfo Decode(
+        string contents,
+        bool skinIniPresent = true)
     {
         string name = "Unknown";
         string author = string.Empty;
-        string version = "1.0";
+        string version = skinIniPresent ? "1.0" : "latest";
         string comboPrefix = "score";
         int comboOverlap = 0;
         string section = string.Empty;
@@ -92,8 +94,12 @@ internal static class OsuManiaSkinIniDecoder
         if (values == null || !tryInt(values, "Keys", out int keys) || keys <= 0 || keys > 18)
             return;
 
+        bool? splitStages = nullableBoolean(values, "SplitStages");
         OsuManiaSkinConfiguration defaults =
-            OsuManiaSkinConfiguration.CreateDefault(keys, version);
+            OsuManiaSkinConfiguration.CreateDefault(
+                keys,
+                version,
+                splitStages);
         float[] widths = floatList(values, "ColumnWidth", defaults.ColumnWidths, keys);
         float[] spacings = floatList(values, "ColumnSpacing", defaults.ColumnSpacings, keys);
         float[] lineWidths = floatList(
@@ -158,7 +164,10 @@ internal static class OsuManiaSkinIniDecoder
             holdTailFlips[lane] = boolean(values, $"NoteFlipWhenUpsideDown{lane}T", noteFlips[lane]);
         }
 
-        configurations[keys] = new OsuManiaSkinConfiguration(
+        if (configurations.ContainsKey(keys))
+            return;
+
+        configurations.Add(keys, new OsuManiaSkinConfiguration(
             keys,
             widths,
             spacings,
@@ -209,10 +218,8 @@ internal static class OsuManiaSkinIniDecoder
                 values,
                 "LightPosition",
                 defaults.LightPosition),
-            LightFramePerSecond = Math.Clamp(
-                integer(values, "LightFramePerSecond", defaults.LightFramePerSecond),
-                1,
-                1000),
+            LightFramePerSecond = positiveFrameRate(
+                integer(values, "LightFramePerSecond", defaults.LightFramePerSecond)),
             ExplosionWidths = explosionWidths,
             HoldNoteLightWidths = holdNoteLightWidths,
             LaneLightColours = laneLightColours,
@@ -234,12 +241,54 @@ internal static class OsuManiaSkinIniDecoder
             StageLeft = text(values, "StageLeft", defaults.StageLeft),
             StageRight = text(values, "StageRight", defaults.StageRight),
             StageBottom = text(values, "StageBottom", defaults.StageBottom),
-            SplitStages = nullableBoolean(values, "SplitStages"),
+            WarningArrow = text(
+                values,
+                "WarningArrow",
+                defaults.WarningArrow),
+            SplitStages = splitStages,
             StageSeparation = Math.Max(
                 0,
                 number(values, "StageSeparation", defaults.StageSeparation)),
+            SeparateScore = boolean(
+                values,
+                "SeparateScore",
+                defaults.SeparateScore),
+            SpecialStyle = namedInteger(
+                values,
+                "SpecialStyle",
+                defaults.SpecialStyle,
+                ("None", 0),
+                ("Left", 1),
+                ("Right", 2)),
+            ColumnStart = number(
+                values,
+                "ColumnStart",
+                defaults.ColumnStart),
+            ColumnRight = number(
+                values,
+                "ColumnRight",
+                defaults.ColumnRight),
+            ComboBurstStyle = namedInteger(
+                values,
+                "ComboBurstStyle",
+                defaults.ComboBurstStyle,
+                ("Left", 0),
+                ("Right", 1),
+                ("Both", 2)),
+            KeyWarningColour = colour(
+                values,
+                "ColourKeyWarning",
+                defaults.KeyWarningColour),
+            HoldColour = colour(
+                values,
+                "ColourHold",
+                defaults.HoldColour),
+            ComboBreakColour = colour(
+                values,
+                "ColourBreak",
+                defaults.ComboBreakColour),
             SkinVersion = defaults.SkinVersion,
-        };
+        });
     }
 
     private static string text(IReadOnlyDictionary<string, string> values, string key, string fallback) =>
@@ -250,6 +299,34 @@ internal static class OsuManiaSkinIniDecoder
 
     private static int integer(IReadOnlyDictionary<string, string> values, string key, int fallback) =>
         tryInt(values, key, out int value) ? value : fallback;
+
+    private static int positiveFrameRate(int value) =>
+        value <= 0 ? 24 : Math.Min(value, 1000);
+
+    private static int namedInteger(
+        IReadOnlyDictionary<string, string> values,
+        string key,
+        int fallback,
+        params (string Name, int Value)[] names)
+    {
+        if (!values.TryGetValue(key, out string raw))
+            return fallback;
+
+        if (int.TryParse(
+                raw,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out int value))
+            return value;
+
+        foreach ((string name, int namedValue) in names)
+        {
+            if (raw.Trim().Equals(name, StringComparison.OrdinalIgnoreCase))
+                return namedValue;
+        }
+
+        return fallback;
+    }
 
     private static float number(IReadOnlyDictionary<string, string> values, string key, float fallback) =>
         values.TryGetValue(key, out string value) &&

@@ -775,6 +775,46 @@ HitObjects:
         }
 
         [Test]
+        public void ImportsStepManiaMineObjects()
+        {
+            string path = writeChart("etterna-mine", ".sm", """
+#TITLE:Mine Test;
+#ARTIST:Artist;
+#BPMS:0=120;
+#NOTES:
+     dance-single:
+     Mapper:
+     Hard:
+     10:
+     0,0,0,0,0:
+0000
+M000
+0000
+0000
+;
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Beatmap.HitObjects, Has.Count.EqualTo(1));
+                Assert.That(
+                    result.Beatmap.HitObjects[0].Kind,
+                    Is.EqualTo(HitObjectKind.Mine));
+                Assert.That(
+                    result.Beatmap.HitObjects[0].StartTimeMilliseconds,
+                    Is.EqualTo(500).Within(0.001));
+                Assert.That(
+                    result.Warnings.Any(warning =>
+                        warning.Contains(
+                            "mine",
+                            StringComparison.OrdinalIgnoreCase)),
+                    Is.False);
+            });
+        }
+
+        [Test]
         public void ImportsSscChartLevelTimingAndReportsWarps()
         {
             string path = writeChart("etterna-ssc", ".ssc", """

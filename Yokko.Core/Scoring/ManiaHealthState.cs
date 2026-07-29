@@ -15,6 +15,12 @@ namespace Yokko.Core.Scoring;
 public sealed class ManiaHealthState
 {
     private const int defaultEasyExtraLives = 2;
+
+    // StepMania fallback metric LifePercentChangeHitMine.
+    // Source: stepmania/stepmania Themes/_fallback/metrics.ini
+    // commit 21bb8dcd6c7e3782f23d5f4e01b6ee4c82cccc71
+    // (StepMania permissive licence; see Docs/Licenses.txt).
+    private const double mineHitHealthPenalty = 0.16;
     private readonly ManiaModSet mods;
 
     public ManiaHealthState(
@@ -149,6 +155,13 @@ public sealed class ManiaHealthState
 
     private double healthDelta(JudgementEvent judgement)
     {
+        if (judgement.Phase == JudgementPhase.Mine)
+        {
+            return judgement.Rating == JudgementRating.IgnoreMiss
+                ? -mineHitHealthPenalty
+                : 0;
+        }
+
         double drainFactor = EffectiveDrainRate + 1;
 
         return judgement.Rating switch

@@ -34,7 +34,7 @@ public partial class MainScreen : Screen
     private const float musicPlayerBottomMargin = 12;
     private const double exitHoldDuration = 2000;
     private static readonly Vector2 mascotCentre = new(785, 500);
-    private static readonly Vector2 mascotSize = new(1020, 1155);
+    private static readonly Vector2 mascotSize = new(1070, 1210);
 
     private static readonly Color4 ivory = new(0.992f, 0.992f, 0.988f, 1f);
     private static readonly Color4 cyan = new(0.29f, 0.81f, 0.94f, 1f);
@@ -522,8 +522,14 @@ public partial class MainScreen : Screen
 
         for (int i = 0; i < stageLines.Length; i++)
         {
-            stageLines[i].FadeTo(0.55f, 1800 + i * 420, Easing.InOutSine)
-                         .Then().FadeTo(1f, 1800 + i * 420, Easing.InOutSine)
+            float restWidth = stageLines[i].Width;
+            double duration = 1800 + i * 420;
+
+            stageLines[i].FadeTo(0.55f, duration, Easing.InOutSine)
+                         .Then().FadeTo(1f, duration, Easing.InOutSine)
+                         .Loop();
+            stageLines[i].ResizeWidthTo(restWidth * 1.16f, duration, Easing.InOutSine)
+                         .Then().ResizeWidthTo(restWidth, duration, Easing.InOutSine)
                          .Loop();
         }
 
@@ -649,6 +655,56 @@ public partial class MainScreen : Screen
                 stageLines[1] = (Box)createStageLine(1060, 532, 250, -28),
                 new HomeDotField
                 {
+                    Position = new Vector2(96, 300),
+                    Size = new Vector2(152, 78),
+                    Colour = new Color4(1f, 1f, 1f, 0.14f),
+                },
+                new HomeCrosshairMark
+                {
+                    Position = new Vector2(292, 316),
+                },
+                new HomeBeatPips(
+                    new Color4(1f, 1f, 1f, 0.62f),
+                    pink)
+                {
+                    Position = new Vector2(132, 346),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(132, 365),
+                    Text = "CHART BUS // ONLINE",
+                    Font = HomeTypography.Display(9),
+                    Spacing = new Vector2(1.4f, 0),
+                    Colour = new Color4(navy.R, navy.G, navy.B, 0.5f),
+                },
+                new HomeSignalWave(
+                    new Color4(navy.R, navy.G, navy.B, 0.46f))
+                {
+                    Position = new Vector2(132, 402),
+                },
+                new HomePulseBeacon(
+                    54,
+                    new Color4(1f, 1f, 1f, 0.6f),
+                    yellow)
+                {
+                    Position = new Vector2(330, 428),
+                },
+                new HomeTelemetryRail(
+                    212,
+                    "INPUT STREAM // 04",
+                    new Color4(1f, 1f, 1f, 0.72f),
+                    pink)
+                {
+                    Position = new Vector2(118, 458),
+                    Alpha = 0.82f,
+                },
+                new HomeTwinkle(11, 2150)
+                {
+                    Position = new Vector2(280, 382),
+                    Colour = yellow,
+                },
+                new HomeDotField
+                {
                     Position = new Vector2(1186, 16),
                     Size = new Vector2(72, 44),
                     Colour = new Color4(1f, 1f, 1f, 0.24f),
@@ -739,6 +795,22 @@ public partial class MainScreen : Screen
                     Position = mascotCentre,
                     Colour = new Color4(1f, 1f, 1f, 0.3f),
                 },
+                new HomeOrbitNodes(
+                    330,
+                    new Color4(1f, 1f, 1f, 0.68f),
+                    yellow,
+                    6)
+                {
+                    Position = mascotCentre,
+                    Alpha = 0.78f,
+                },
+                new HomePulseBeacon(
+                    78,
+                    new Color4(1f, 1f, 1f, 0.72f),
+                    pink)
+                {
+                    Position = new Vector2(458, 252),
+                },
                 new HomeSignalWave(new Color4(1f, 1f, 1f, 0.78f))
                 {
                     Position = new Vector2(470, 240),
@@ -771,6 +843,15 @@ public partial class MainScreen : Screen
                     Rotation = 225,
                     Colour = new Color4(navy.R, navy.G, navy.B, 0.3f),
                 }),
+                new HomeTelemetryRail(
+                    220,
+                    "LIVE SIGNAL // 128",
+                    new Color4(1f, 1f, 1f, 0.78f),
+                    yellow)
+                {
+                    Position = new Vector2(438, 584),
+                    Alpha = 0.86f,
+                },
                 mascot = new Sprite
                 {
                     Origin = Anchor.Centre,
@@ -789,7 +870,8 @@ public partial class MainScreen : Screen
                 bubble = new HomeMascotBubble(
                     bubbleLines[0],
                     HomeMascotBubbleStyle.PopSignalSticker,
-                    bubbleStickerTexture)
+                    bubbleStickerTexture,
+                    onMascotTapped)
                 {
                     X = 350,
                     Y = 348,

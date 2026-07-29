@@ -25,10 +25,12 @@ internal sealed class GameplayKeysoundSelector
         this.beatmap = beatmap;
         this.judgementState = judgementState;
         objectIndicesByLane = Enumerable
-            .Range(0, (int)beatmap.KeyMode)
+                .Range(0, (int)beatmap.KeyMode)
             .Select(lane => beatmap.HitObjects
                 .Select((hitObject, index) => (hitObject, index))
-                .Where(item => item.hitObject.Lane == lane)
+                .Where(item =>
+                    item.hitObject.Lane == lane
+                    && item.hitObject.Kind != HitObjectKind.Mine)
                 .OrderBy(item => item.hitObject.StartTimeMilliseconds)
                 .ThenBy(item => item.index)
                 .Select(item => item.index)

@@ -192,4 +192,101 @@ Version: 2.7
         }));
         Assert.That(configuration.NoteBodyStyles, Is.All.EqualTo(3));
     }
+
+    [Test]
+    public void UsesLatestDefaultsWhenSkinIniIsAbsent()
+    {
+        OsuManiaSkinInfo info =
+            OsuManiaSkinIniDecoder.Decode(string.Empty, skinIniPresent: false);
+        OsuManiaSkinConfiguration configuration = info.GetConfiguration(4);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(info.Version, Is.EqualTo("latest"));
+            Assert.That(configuration.SkinVersion, Is.EqualTo(double.PositiveInfinity));
+            Assert.That(configuration.NoteBodyStyles, Is.All.EqualTo(3));
+        });
+    }
+
+    [Test]
+    public void DecodesLegacyCompatibilityFieldsAndInvalidLightRate()
+    {
+        OsuManiaSkinConfiguration configuration =
+            OsuManiaSkinIniDecoder.Decode("""
+            [Mania]
+            Keys: 8
+            LightFramePerSecond: 0
+            WarningArrow: arrows/warning
+            SeparateScore: 0
+            SpecialStyle: Left
+            ColumnStart: 123.5
+            ColumnRight: 17
+            ComboBurstStyle: Both
+            ColourKeyWarning: 1,2,3
+            ColourHold: 4,5,6,7
+            ColourBreak: 8,9,10
+            """).GetConfiguration(8);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(configuration.LightFramePerSecond, Is.EqualTo(24));
+            Assert.That(configuration.WarningArrow, Is.EqualTo("arrows/warning"));
+            Assert.That(configuration.SeparateScore, Is.False);
+            Assert.That(configuration.SpecialStyle, Is.EqualTo(1));
+            Assert.That(configuration.ColumnStart, Is.EqualTo(123.5f));
+            Assert.That(configuration.ColumnRight, Is.EqualTo(17));
+            Assert.That(configuration.ComboBurstStyle, Is.EqualTo(2));
+            Assert.That(configuration.KeyWarningColour, Is.EqualTo(new Color4(1, 2, 3, 255)));
+            Assert.That(configuration.HoldColour, Is.EqualTo(new Color4(4, 5, 6, 7)));
+            Assert.That(configuration.ComboBreakColour, Is.EqualTo(new Color4(8, 9, 10, 255)));
+        });
+    }
+
+    [Test]
+    public void DefaultDualStageAssetsRepeatPerStage()
+    {
+        OsuManiaSkinConfiguration configuration =
+            OsuManiaSkinConfiguration.CreateDefault(18, "2.7");
+
+        Assert.That(configuration.NoteImages, Is.EqualTo(new[]
+        {
+            "mania-note1",
+            "mania-note2",
+            "mania-note1",
+            "mania-note2",
+            "mania-noteS",
+            "mania-note2",
+            "mania-note1",
+            "mania-note2",
+            "mania-note1",
+            "mania-note1",
+            "mania-note2",
+            "mania-note1",
+            "mania-note2",
+            "mania-noteS",
+            "mania-note2",
+            "mania-note1",
+            "mania-note2",
+            "mania-note1",
+        }));
+    }
+
+    [Test]
+    public void KeepsFirstDuplicateKeyConfiguration()
+    {
+        OsuManiaSkinConfiguration configuration =
+            OsuManiaSkinIniDecoder.Decode("""
+            [Mania]
+            Keys: 4
+            ColumnWidth: 31,31,31,31
+
+            [Mania]
+            Keys: 4
+            ColumnWidth: 99,99,99,99
+            """).GetConfiguration(4);
+
+        Assert.That(
+            configuration.ColumnWidths,
+            Is.All.EqualTo(31));
+    }
 }

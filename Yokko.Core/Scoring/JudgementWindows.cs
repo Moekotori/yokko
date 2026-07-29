@@ -8,6 +8,12 @@ namespace Yokko.Core.Scoring;
 /// </summary>
 public sealed class JudgementWindows
 {
+    private const double etternaW1Milliseconds = 22.5;
+    private const double etternaW2Milliseconds = 45;
+    private const double etternaW3Milliseconds = 90;
+    private const double etternaW4Milliseconds = 135;
+    private const double etternaMissBoundaryMilliseconds = 180;
+
     private readonly record struct DifficultyRange(
         double Minimum,
         double Average,
@@ -26,7 +32,8 @@ public sealed class JudgementWindows
         double difficultyMultiplier = 1,
         bool classic = false,
         bool scoreV2 = false,
-        bool isConvert = false)
+        bool isConvert = false,
+        JudgementConfiguration? configuration = null)
     {
         if (!double.IsFinite(overallDifficulty)
             || overallDifficulty is < -15 or > 15)
@@ -46,9 +53,32 @@ public sealed class JudgementWindows
         Classic = classic;
         ScoreV2 = scoreV2;
         IsConvert = isConvert;
+        Configuration =
+            configuration ?? JudgementConfiguration.YokkoDefault;
 
         double totalMultiplier = speedMultiplier / difficultyMultiplier;
-        if (classic && !scoreV2)
+        if (Configuration.Mode == JudgementMode.Etterna)
+        {
+            // Etterna scales W1-W4 by the selected judge. W5 input and the
+            // automatic miss boundary stay at 180 ms for every judge because
+            // Player::Step takes max(scaled W5, MISS_WINDOW_BEGIN_SEC).
+            // Source: etternagame/etterna Player.cpp and GameState.h
+            // commit 939a26ae042d3a689999a0dae630721c7701f187 (MIT).
+            double judgeMultiplier =
+                Configuration.EtternaTimingScale * speedMultiplier;
+            PerfectMilliseconds =
+                etternaW1Milliseconds * judgeMultiplier;
+            GreatMilliseconds =
+                etternaW2Milliseconds * judgeMultiplier;
+            GoodMilliseconds =
+                etternaW3Milliseconds * judgeMultiplier;
+            OkMilliseconds =
+                etternaW4Milliseconds * judgeMultiplier;
+            MehMilliseconds =
+                etternaMissBoundaryMilliseconds * speedMultiplier;
+            MissMilliseconds = MehMilliseconds;
+        }
+        else if (classic && !scoreV2)
         {
             if (isConvert)
             {
@@ -108,6 +138,8 @@ public sealed class JudgementWindows
     public bool ScoreV2 { get; }
 
     public bool IsConvert { get; }
+
+    public JudgementConfiguration Configuration { get; }
 
     public double PerfectMilliseconds { get; }
 

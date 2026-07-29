@@ -1000,11 +1000,15 @@ internal enum HomeMascotBubbleStyle
     PopSignalSticker,
 }
 
-public partial class HomeMascotBubble : CompositeDrawable
+public partial class HomeMascotBubble : ClickableContainer
 {
     private readonly Drawable underline;
     private readonly SpriteText label;
     private readonly HomeMascotBubbleStyle style;
+    private readonly Container idleContent;
+    private readonly Container hoverContent;
+    private readonly Container popContent;
+    private readonly SpriteIcon[] accentStars;
     private readonly float underlineRestWidth;
     private readonly float underlinePulseWidth;
 
@@ -1016,9 +1020,11 @@ public partial class HomeMascotBubble : CompositeDrawable
     internal HomeMascotBubble(
         LocalisableString text,
         HomeMascotBubbleStyle style,
-        Texture stickerTexture = null)
+        Texture stickerTexture = null,
+        Action onActivated = null)
     {
         this.style = style;
+        Action = onActivated;
 
         if (style == HomeMascotBubbleStyle.PopSignalSticker)
         {
@@ -1027,25 +1033,73 @@ public partial class HomeMascotBubble : CompositeDrawable
             Size = new Vector2(285, 136);
             underline = null;
 
-            InternalChildren = new Drawable[]
+            accentStars = new[]
             {
-                new Sprite
+                new SpriteIcon
+                {
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(76, 24),
+                    Size = new Vector2(14),
+                    Icon = FontAwesome.Solid.Star,
+                    Colour = Color4.White,
+                    Alpha = 0,
+                },
+                new SpriteIcon
+                {
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(56, 54),
+                    Size = new Vector2(10),
+                    Icon = FontAwesome.Solid.Star,
+                    Colour = Color4.White,
+                    Alpha = 0,
+                },
+                new SpriteIcon
+                {
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(238, 104),
+                    Size = new Vector2(11),
+                    Icon = FontAwesome.Solid.Star,
+                    Colour = HomeControlColours.Yellow,
+                    Alpha = 0,
+                },
+            };
+
+            InternalChild = idleContent = new Container
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                RelativeSizeAxes = Axes.Both,
+                Child = hoverContent = new Container
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Texture = stickerTexture,
-                },
-                new Container
-                {
-                    Position = new Vector2(60, 24),
-                    Size = new Vector2(158, 68),
-                    Child = label = new SpriteText
+                    Child = popContent = new Container
                     {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        Text = text,
-                        Font = stickerFontFor(text),
-                        Scale = new Vector2(0.94f, 1),
-                        Colour = HomeControlColours.Navy,
+                        RelativeSizeAxes = Axes.Both,
+                        Children = new Drawable[]
+                        {
+                            new Sprite
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                Texture = stickerTexture,
+                            },
+                            new Container
+                            {
+                                Position = new Vector2(60, 24),
+                                Size = new Vector2(158, 68),
+                                Child = label = new SpriteText
+                                {
+                                    Anchor = Anchor.Centre,
+                                    Origin = Anchor.Centre,
+                                    Text = text,
+                                    Font = stickerFontFor(text),
+                                    Scale = new Vector2(0.94f, 1),
+                                    Colour = HomeControlColours.Navy,
+                                },
+                            },
+                            accentStars[0],
+                            accentStars[1],
+                            accentStars[2],
+                        },
                     },
                 },
             };
@@ -1123,16 +1177,67 @@ public partial class HomeMascotBubble : CompositeDrawable
     {
         label.Text = text;
         if (style == HomeMascotBubbleStyle.PopSignalSticker)
+        {
             label.Font = stickerFontFor(text);
+            playPop();
+        }
 
         label.FadeInFromZero(220);
-        this.ScaleTo(1.07f, 90, Easing.Out)
-            .Then().ScaleTo(1f, 340, Easing.OutBack);
+
+        if (style == HomeMascotBubbleStyle.Rounded)
+        {
+            this.ScaleTo(1.07f, 90, Easing.Out)
+                .Then().ScaleTo(1f, 340, Easing.OutBack);
+        }
+    }
+
+    private void playPop()
+    {
+        popContent.ClearTransforms();
+        popContent.Scale = new Vector2(0.9f, 1.1f);
+        popContent.Rotation = -3;
+        popContent.ScaleTo(new Vector2(1.09f, 0.96f), 110, Easing.OutQuint)
+                  .Then().ScaleTo(Vector2.One, 430, Easing.OutElastic);
+        popContent.RotateTo(2, 110, Easing.OutQuint)
+                  .Then().RotateTo(0, 360, Easing.OutBack);
+        label.FlashColour(HomeControlColours.Pink, 320, Easing.OutQuint);
+
+        for (int i = 0; i < accentStars.Length; i++)
+        {
+            SpriteIcon star = accentStars[i];
+            double delay = i * 55;
+
+            star.ClearTransforms();
+            star.Alpha = 0;
+            star.Scale = new Vector2(0.45f);
+            star.Rotation = 0;
+            star.Delay(delay).FadeIn(65)
+                .Then().FadeOut(260, Easing.OutQuint);
+            star.Delay(delay).ScaleTo(1.45f, 320, Easing.OutBack);
+            star.Delay(delay).RotateTo(i % 2 == 0 ? 35 : -35, 320, Easing.OutQuint);
+        }
     }
 
     protected override void LoadComplete()
     {
         base.LoadComplete();
+
+        if (style == HomeMascotBubbleStyle.PopSignalSticker)
+        {
+            idleContent.RotateTo(-2.2f, 0)
+                       .Then().RotateTo(2.2f, 1500, Easing.InOutSine)
+                       .Then().RotateTo(-2.2f, 1500, Easing.InOutSine)
+                       .Loop();
+            idleContent.MoveToY(-5, 1200, Easing.InOutSine)
+                       .Then().MoveToY(5, 1200, Easing.InOutSine)
+                       .Then().MoveToY(-5, 1200, Easing.InOutSine)
+                       .Loop();
+            idleContent.ScaleTo(0.985f, 0)
+                       .Then().ScaleTo(1.025f, 1400, Easing.InOutSine)
+                       .Then().ScaleTo(0.985f, 1400, Easing.InOutSine)
+                       .Loop();
+            return;
+        }
 
         this.MoveToOffset(new Vector2(0, 5), 1500, Easing.InOutSine)
             .Then().MoveToOffset(new Vector2(0, -5), 1500, Easing.InOutSine)
@@ -1140,6 +1245,45 @@ public partial class HomeMascotBubble : CompositeDrawable
         underline?.ResizeWidthTo(underlinePulseWidth, 1100, Easing.InOutSine)
                   .Then().ResizeWidthTo(underlineRestWidth, 1100, Easing.InOutSine)
                   .Loop();
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        if (style == HomeMascotBubbleStyle.PopSignalSticker)
+        {
+            hoverContent.ScaleTo(1.055f, 150, Easing.OutQuint);
+            hoverContent.MoveToY(-3, 150, Easing.OutQuint);
+            return true;
+        }
+
+        return base.OnHover(e);
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        if (style == HomeMascotBubbleStyle.PopSignalSticker)
+        {
+            hoverContent.ScaleTo(1f, 220, Easing.OutQuint);
+            hoverContent.MoveToY(0, 220, Easing.OutQuint);
+        }
+
+        base.OnHoverLost(e);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        if (style == HomeMascotBubbleStyle.PopSignalSticker)
+            hoverContent.ScaleTo(0.96f, 70, Easing.OutQuint);
+
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        if (style == HomeMascotBubbleStyle.PopSignalSticker)
+            hoverContent.ScaleTo(IsHovered ? 1.055f : 1f, 180, Easing.OutBack);
+
+        base.OnMouseUp(e);
     }
 }
 

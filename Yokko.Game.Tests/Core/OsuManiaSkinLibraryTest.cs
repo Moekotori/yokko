@@ -151,6 +151,50 @@ public sealed class OsuManiaSkinLibraryTest
     }
 
     [Test]
+    public void AssetsOnlyManiaFolderIsAccepted()
+    {
+        string folder = Path.Combine(testRoot, "assets-only");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(
+            Path.Combine(folder, "mania-note1.png"),
+            "not decoded during library discovery");
+        var library = createLibrary(new YokkoSkinSettings());
+
+        SkinImportResult result = library.Import(folder);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True, result.Message);
+            Assert.That(result.Skin?.Version, Is.EqualTo("latest"));
+            Assert.That(result.Skin?.KeyModes, Is.Empty);
+            Assert.That(library.GetInstalledSkins(), Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void StandardSkinIniWithManiaAssetsIsAccepted()
+    {
+        string folder = Path.Combine(testRoot, "standard-with-mania-assets");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(
+            Path.Combine(folder, "skin.ini"),
+            "[General]\nName: Inherited Mania\nVersion: 2.7\n");
+        File.WriteAllText(
+            Path.Combine(folder, "mania-key1.png"),
+            "not decoded during library discovery");
+        var library = createLibrary(new YokkoSkinSettings());
+
+        SkinImportResult result = library.Import(folder);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True, result.Message);
+            Assert.That(result.Skin?.Name, Is.EqualTo("Inherited Mania"));
+            Assert.That(result.Skin?.Version, Is.EqualTo("2.7"));
+        });
+    }
+
+    [Test]
     [Category("Integration")]
     public void ImportsConfiguredRealSkinCorpus()
     {

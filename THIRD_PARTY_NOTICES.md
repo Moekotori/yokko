@@ -14,3 +14,24 @@ pitch-independent tempo processing.
 
 The packages retain their own licence metadata and are distributed as separate
 assemblies.
+
+## Etterna
+
+Yokko's optional Etterna judgement mode ports the timing-window constants,
+Judge/Justice scales, inclusive boundary checks, and closest-note selection
+semantics from Etterna.
+
+- Copyright (c) 2016-2023 Etterna <etternadev@gmail.com>
+- Licence: MIT
+- Source: <https://github.com/etternagame/etterna>
+- Reference commit: `939a26ae042d3a689999a0dae630721c7701f187`
+
+## StepMania
+
+Yokko's StepMania mine behaviour follows the upstream mine timing window,
+held-lane activation, and default life-meter penalty.
+
+- Copyright (c) Chris Danford, the StepMania development team, et al.
+- Licence: StepMania permissive licence (`Docs/Licenses.txt`)
+- Source: <https://github.com/stepmania/stepmania>
+- Reference commit: `21bb8dcd6c7e3782f23d5f4e01b6ee4c82cccc71`

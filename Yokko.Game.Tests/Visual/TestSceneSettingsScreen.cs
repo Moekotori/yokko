@@ -10,6 +10,7 @@ using osu.Framework.Testing;
 using osuTK.Input;
 using Yokko.Audio;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Scoring;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Settings;
@@ -320,7 +321,12 @@ namespace Yokko.Game.Tests.Visual
             bool originalLaneFeedback = true;
             bool originalTimingBar = true;
             bool originalKeysoundsEnabled = true;
+            bool originalMinesEnabled = true;
             bool originalPauseWhenUnfocused = true;
+            JudgementMode originalJudgementMode =
+                JudgementMode.Yokko;
+            int originalEtternaJustice =
+                JudgementConfiguration.DefaultEtternaJustice;
 
             AddStep("open Gameplay", () => settingsScreen.OpenPage(SettingsPageKind.Gameplay));
             AddStep("capture Gameplay preferences", () =>
@@ -330,8 +336,13 @@ namespace Yokko.Game.Tests.Visual
                 originalLaneFeedback = gameplay.ShowLanePressFeedback;
                 originalTimingBar = gameplay.ShowTimingBar;
                 originalKeysoundsEnabled = gameplay.KeysoundsEnabled;
+                originalMinesEnabled = gameplay.MinesEnabled;
                 originalPauseWhenUnfocused =
                     gameplay.PauseWhenUnfocused;
+                originalJudgementMode =
+                    gameplay.CurrentJudgementMode;
+                originalEtternaJustice =
+                    gameplay.CurrentEtternaJustice;
             });
             AddStep("open timing", () =>
                 gameplay.SelectSection(GameplaySettingsSection.Timing));
@@ -341,6 +352,18 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SetScrollSpeed(26));
             AddAssert("speed changed", () =>
                 gameplay.CurrentScrollSpeed == 26);
+            AddStep("open judgement", () =>
+                gameplay.SelectSection(
+                    GameplaySettingsSection.Judgement));
+            AddStep("select Etterna J8", () =>
+            {
+                gameplay.SetJudgementMode(JudgementMode.Etterna);
+                gameplay.SetEtternaJustice(8);
+            });
+            AddAssert("Etterna J8 selected", () =>
+                gameplay.CurrentJudgementMode
+                    == JudgementMode.Etterna
+                && gameplay.CurrentEtternaJustice == 8);
             AddStep("open feedback", () =>
                 gameplay.SelectSection(GameplaySettingsSection.Feedback));
             AddStep("disable lane feedback", () =>
@@ -355,6 +378,10 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SetKeysoundsEnabled(false));
             AddAssert("gameplay keysounds disabled", () =>
                 !gameplay.KeysoundsEnabled);
+            AddStep("disable mines", () =>
+                gameplay.SetMinesEnabled(false));
+            AddAssert("mines disabled", () =>
+                !gameplay.MinesEnabled);
             AddStep("disable pause when unfocused", () =>
                 gameplay.SetPauseWhenUnfocused(false));
             AddAssert("pause when unfocused disabled", () =>
@@ -375,9 +402,12 @@ namespace Yokko.Game.Tests.Visual
             {
                 gameplay.ResetSelectedBindings();
                 gameplay.SetScrollSpeed(originalSpeed);
+                gameplay.SetJudgementMode(originalJudgementMode);
+                gameplay.SetEtternaJustice(originalEtternaJustice);
                 gameplay.SetLanePressFeedback(originalLaneFeedback);
                 gameplay.SetShowTimingBar(originalTimingBar);
                 gameplay.SetKeysoundsEnabled(originalKeysoundsEnabled);
+                gameplay.SetMinesEnabled(originalMinesEnabled);
                 gameplay.SetPauseWhenUnfocused(
                     originalPauseWhenUnfocused);
             });

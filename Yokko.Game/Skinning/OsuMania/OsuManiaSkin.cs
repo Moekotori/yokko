@@ -16,12 +16,14 @@ internal sealed class OsuManiaSkin : IDisposable
         string sourcePath,
         OsuManiaSkinInfo info,
         OsuManiaSkinConfiguration configuration,
+        OsuManiaSkinConfiguration fallbackConfiguration,
         OsuManiaSkinSource source,
         TextureStore textureStore)
     {
         SourcePath = sourcePath;
         Info = info;
         Configuration = configuration;
+        FallbackConfiguration = fallbackConfiguration;
         this.source = source;
         this.textureStore = textureStore;
     }
@@ -32,18 +34,35 @@ internal sealed class OsuManiaSkin : IDisposable
 
     public OsuManiaSkinConfiguration Configuration { get; }
 
-    public static OsuManiaSkin Load(string path, int keys, IRenderer renderer)
+    public OsuManiaSkinConfiguration FallbackConfiguration { get; }
+
+    public static OsuManiaSkin Load(
+        string path,
+        int keys,
+        IRenderer renderer,
+        int stageCount = 1)
     {
         var source = new OsuManiaSkinSource(path);
 
         try
         {
-            OsuManiaSkinInfo info = OsuManiaSkinIniDecoder.Decode(source.ReadSkinIni());
+            string skinIni = source.ReadSkinIni();
+            OsuManiaSkinInfo info = OsuManiaSkinIniDecoder.Decode(
+                skinIni,
+                !string.IsNullOrWhiteSpace(skinIni));
             OsuManiaSkinConfiguration configuration = info.GetConfiguration(keys);
+            OsuManiaSkinConfiguration fallbackConfiguration =
+                OsuManiaSkinConfiguration.CreateDefault(
+                    keys,
+                    info.Version,
+                    configuration.SplitStages ?? stageCount == 2);
             string[] holdBodyTextureNames = configuration.HoldBodyImages
-                                                         .Select(assetName =>
-                                                             source.ResolveTextureName(assetName).Name)
-                                                         .Where(name => name != null)
+                                                         .Concat(
+                                                             fallbackConfiguration
+                                                                 .HoldBodyImages)
+                                                         .SelectMany(assetName =>
+                                                             source.ResolveAnimationTextureNames(assetName)
+                                                                   .Select(frame => frame.Name))
                                                          .Distinct(StringComparer.OrdinalIgnoreCase)
                                                          .ToArray();
             var constrainedSource = new ConstrainedTextureResourceStore(
@@ -54,7 +73,13 @@ internal sealed class OsuManiaSkin : IDisposable
                 renderer,
                 new TextureLoaderStore(constrainedSource),
                 scaleAdjust: 1);
-            return new OsuManiaSkin(path, info, configuration, source, textureStore);
+            return new OsuManiaSkin(
+                path,
+                info,
+                configuration,
+                fallbackConfiguration,
+                source,
+                textureStore);
         }
         catch
         {
@@ -90,7 +115,21 @@ internal sealed class OsuManiaSkin : IDisposable
         return texture;
     }
 
-    public IReadOnlyList<Texture> GetAnimationFrames(string assetName)
+    public Texture GetTexture(
+        string assetName,
+        string fallbackAssetName,
+        bool repeatVertically = false) =>
+        GetTexture(assetName, repeatVertically)
+        ?? (string.Equals(
+                assetName,
+                fallbackAssetName,
+                StringComparison.OrdinalIgnoreCase)
+            ? null
+            : GetTexture(fallbackAssetName, repeatVertically));
+
+    public IReadOnlyList<Texture> GetAnimationFrames(
+        string assetName,
+        bool repeatVertically = false)
     {
         IReadOnlyList<(string Name, bool HighResolution)> resolvedFrames =
             source.ResolveAnimationTextureNames(assetName);
@@ -98,13 +137,34 @@ internal sealed class OsuManiaSkin : IDisposable
 
         foreach ((string name, bool highResolution) in resolvedFrames)
         {
-            Texture texture = getResolvedTexture(name, highResolution, false);
+            Texture texture = getResolvedTexture(
+                name,
+                highResolution,
+                repeatVertically);
 
             if (texture != null)
                 frames.Add(texture);
         }
 
         return frames;
+    }
+
+    public IReadOnlyList<Texture> GetAnimationFrames(
+        string assetName,
+        string fallbackAssetName,
+        bool repeatVertically = false)
+    {
+        IReadOnlyList<Texture> frames =
+            GetAnimationFrames(assetName, repeatVertically);
+        return frames.Count > 0
+               || string.Equals(
+                   assetName,
+                   fallbackAssetName,
+                   StringComparison.OrdinalIgnoreCase)
+            ? frames
+            : GetAnimationFrames(
+                fallbackAssetName,
+                repeatVertically);
     }
 
     public string GetHitSamplePath(string lookupName) =>

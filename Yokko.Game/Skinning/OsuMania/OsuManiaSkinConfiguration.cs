@@ -168,9 +168,27 @@ internal sealed class OsuManiaSkinConfiguration
 
     public string StageBottom { get; init; } = "mania-stage-bottom";
 
+    public string WarningArrow { get; init; } = "mania-warningarrow";
+
     public bool? SplitStages { get; init; }
 
     public float StageSeparation { get; init; } = 40;
+
+    public bool SeparateScore { get; init; } = true;
+
+    public int SpecialStyle { get; init; }
+
+    public float ColumnStart { get; init; } = 136;
+
+    public float ColumnRight { get; init; } = 19;
+
+    public int ComboBurstStyle { get; init; } = 1;
+
+    public Color4 KeyWarningColour { get; init; } = Color4.Black;
+
+    public Color4 HoldColour { get; init; } = new(255, 191, 51, 255);
+
+    public Color4 ComboBreakColour { get; init; } = Color4.Red;
 
     public double SkinVersion { get; init; } = 1;
 
@@ -204,9 +222,12 @@ internal sealed class OsuManiaSkinConfiguration
 
     public static OsuManiaSkinConfiguration CreateDefault(
         int keys,
-        string version = "1.0")
+        string version = "1.0",
+        bool? splitStages = null)
     {
-        string[] styles = defaultStyles(keys);
+        string[] styles = defaultStyles(
+            keys,
+            splitStages ?? keys > 9);
         var widths = new float[keys];
         var spacings = new float[keys];
         var lineWidths = new float[keys + 1];
@@ -278,26 +299,30 @@ internal sealed class OsuManiaSkinConfiguration
             : 1;
     }
 
-    private static string[] defaultStyles(int keys)
+    private static string[] defaultStyles(
+        int keys,
+        bool splitStages)
     {
-        string layout = keys switch
-        {
-            1 => "S",
-            2 => "11",
-            3 => "1S1",
-            4 => "1221",
-            5 => "12S21",
-            6 => "121121",
-            7 => "121S121",
-            8 => "12122121",
-            9 => "1212S2121",
-            _ => new string('1', keys),
-        };
-
         var styles = new string[keys];
 
         for (int i = 0; i < keys; i++)
-            styles[i] = layout[i].ToString();
+        {
+            int stageStart = splitStages && i >= keys / 2
+                ? keys / 2
+                : 0;
+            int columnsInStage = splitStages
+                ? stageStart == 0 ? keys / 2 : keys - keys / 2
+                : keys;
+            int columnInStage = i - stageStart;
+            bool special = columnsInStage % 2 == 1
+                           && columnInStage == columnsInStage / 2;
+            int distanceToEdge = Math.Min(
+                columnInStage,
+                columnsInStage - 1 - columnInStage);
+            styles[i] = special
+                ? "S"
+                : distanceToEdge % 2 == 0 ? "1" : "2";
+        }
 
         return styles;
     }

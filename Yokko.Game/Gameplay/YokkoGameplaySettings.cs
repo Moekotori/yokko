@@ -4,6 +4,7 @@ using System.Linq;
 using osu.Framework.Bindables;
 using osuTK.Input;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Scoring;
 
 namespace Yokko.Game.Gameplay;
 
@@ -114,11 +115,19 @@ public sealed class YokkoGameplaySettings
     public readonly Bindable<double> QuaverScrollRateNormalization =
         new(0);
 
+    public readonly Bindable<JudgementMode> JudgementMode =
+        new(Yokko.Core.Scoring.JudgementMode.Yokko);
+
+    public readonly Bindable<double> EtternaJustice =
+        new(JudgementConfiguration.DefaultEtternaJustice);
+
     public readonly BindableBool ShowLanePressFeedback = new(true);
 
     public readonly BindableBool ShowTimingBar = new(true);
 
     public readonly BindableBool KeysoundsEnabled = new(false);
+
+    public readonly BindableBool MinesEnabled = new(true);
 
     public readonly BindableBool PauseWhenUnfocused = new(true);
 
@@ -372,6 +381,20 @@ public sealed class YokkoGameplaySettings
         ScrollSpeed.Value = OsuManiaScrollSpeed.Adjust(
             ScrollSpeed.Value,
             amount);
+
+    public void SetEtternaJustice(double justice) =>
+        EtternaJustice.Value = Math.Clamp(
+            Math.Round(justice),
+            JudgementConfiguration.MinimumEtternaJustice,
+            JudgementConfiguration.MaximumEtternaJustice);
+
+    public JudgementConfiguration GetJudgementConfiguration() =>
+        new(
+            JudgementMode.Value,
+            (int)Math.Clamp(
+                Math.Round(EtternaJustice.Value),
+                JudgementConfiguration.MinimumEtternaJustice,
+                JudgementConfiguration.MaximumEtternaJustice));
 
     private static Bindable<Key>[] createBindings(IEnumerable<Key> defaults) =>
         defaults.Select(key => new Bindable<Key>(key)).ToArray();

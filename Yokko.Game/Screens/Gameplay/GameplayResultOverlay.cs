@@ -25,6 +25,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private readonly Action retry;
     private readonly Action watchReplay;
     private readonly Action returnToSongSelect;
+    private readonly JudgementConfiguration judgementConfiguration;
     private Container backdrop;
     private Container stage;
     private Container leftStageLayout;
@@ -65,9 +66,12 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         Action retry,
         Action watchReplay,
         Action returnToSongSelect,
-        bool practiceSession = false)
+        bool practiceSession = false,
+        JudgementConfiguration? judgementConfiguration = null)
     {
         mods ??= ManiaModSet.Empty;
+        this.judgementConfiguration =
+            judgementConfiguration ?? JudgementConfiguration.YokkoDefault;
         this.retry = retry;
         this.watchReplay = watchReplay;
         this.returnToSongSelect = returnToSongSelect;
@@ -75,6 +79,13 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         string displayedMods = mods.IsEmpty
             ? "NM"
             : string.Join("  ", mods.DisplayLabels);
+        if (this.judgementConfiguration.Mode == JudgementMode.Etterna)
+        {
+            displayedMods +=
+                $"  ·  ETTERNA "
+                + this.judgementConfiguration.EtternaJusticeLabel
+                    .ToUpperInvariant();
+        }
         DisplayedMods = practiceSession
             ? $"{displayedMods}  ·  PRACTICE"
             : displayedMods;
@@ -330,14 +341,18 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
     private Drawable createJudgementStrip(ManiaScoreResult result)
     {
+        string[] labels =
+            judgementConfiguration.Mode == JudgementMode.Etterna
+                ? ["MARV", "PERF", "GREAT", "GOOD", "BAD", "MISS"]
+                : ["P", "G", "GOOD", "OK", "MEH", "MISS"];
         (string Label, int Value, Color4 Colour)[] judgements =
         {
-            ("P", result.Perfect, HomeControlColours.Pink),
-            ("G", result.Great, HomeControlColours.Cyan),
-            ("GOOD", result.Good, new Color4(0.14f, 0.72f, 0.42f, 1f)),
-            ("OK", result.Ok, new Color4(1f, 0.7f, 0.08f, 1f)),
-            ("MEH", result.Meh, new Color4(0.65f, 0.27f, 0.96f, 1f)),
-            ("MISS", result.Miss, new Color4(0.97f, 0.12f, 0.19f, 1f)),
+            (labels[0], result.Perfect, HomeControlColours.Pink),
+            (labels[1], result.Great, HomeControlColours.Cyan),
+            (labels[2], result.Good, new Color4(0.14f, 0.72f, 0.42f, 1f)),
+            (labels[3], result.Ok, new Color4(1f, 0.7f, 0.08f, 1f)),
+            (labels[4], result.Meh, new Color4(0.65f, 0.27f, 0.96f, 1f)),
+            (labels[5], result.Miss, new Color4(0.97f, 0.12f, 0.19f, 1f)),
         };
 
         var flow = new FillFlowContainer

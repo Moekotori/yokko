@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Primitives;
@@ -28,14 +30,15 @@ public partial class DrawableNote : CompositeDrawable
     private readonly YokkoHitObject hitObject;
     private readonly Box fallbackBody;
     private readonly Container holdBodyClip;
-    private readonly Sprite holdBody;
-    private readonly Sprite holdHead;
-    private readonly Sprite holdTail;
+    private readonly LegacyManiaAnimatedSprite holdBody;
+    private readonly LegacyManiaAnimatedSprite holdHead;
+    private readonly LegacyManiaAnimatedSprite holdTail;
+    private readonly Container mineVisual;
     private readonly float baseWidth;
-    private readonly float baseHeadHeight;
-    private readonly float baseTailHeight;
-    private readonly float baseBodyTextureHeight;
-    private readonly float baseMinimumHeight;
+    private float baseHeadHeight;
+    private float baseTailHeight;
+    private float baseBodyTextureHeight;
+    private float baseMinimumHeight;
     private readonly int noteBodyStyle;
     private readonly bool upsideDown;
     private readonly bool flipHoldHead;
@@ -49,6 +52,7 @@ public partial class DrawableNote : CompositeDrawable
     private float holdTailY;
     private float columnScale = 1;
     private bool resolved;
+    private bool bodyAnimationActive;
 
     private float headHeight => baseHeadHeight * columnScale;
 
@@ -70,6 +74,38 @@ public partial class DrawableNote : CompositeDrawable
         this.legacyLongNoteRendering = legacyLongNoteRendering;
         baseWidth = laneWidth;
         Width = laneWidth;
+
+        if (hitObject.Kind == HitObjectKind.Mine)
+        {
+            float mineSize = Math.Clamp(laneWidth * 0.72f, 18, 42);
+            Height = baseMinimumHeight = mineSize;
+            mineVisual = new Container
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(mineSize),
+                Masking = true,
+                CornerRadius = mineSize / 2,
+                Children = new Drawable[]
+                {
+                    new Circle
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = YokkoPalette.Rose,
+                    },
+                    new SpriteIcon
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(mineSize * 0.55f),
+                        Icon = FontAwesome.Solid.Bomb,
+                        Colour = Color4.White,
+                    },
+                },
+            };
+            InternalChild = mineVisual;
+            return;
+        }
 
         if (skin == null)
         {
@@ -96,12 +132,18 @@ public partial class DrawableNote : CompositeDrawable
         }
 
         OsuManiaSkinConfiguration configuration = skin.Configuration;
+        OsuManiaSkinConfiguration fallback =
+            skin.FallbackConfiguration;
         int lane = hitObject.Lane;
         upsideDown = configuration.UpsideDown;
 
         if (hitObject.Kind == HitObjectKind.Tap)
         {
-            Texture noteTexture = skin.GetTexture(configuration.NoteImages[lane]);
+            IReadOnlyList<Texture> noteFrames =
+                skin.GetAnimationFrames(
+                    configuration.NoteImages[lane],
+                    fallback.NoteImages[lane]);
+            Texture noteTexture = noteFrames.FirstOrDefault();
 
             if (noteTexture != null)
             {
@@ -109,7 +151,7 @@ public partial class DrawableNote : CompositeDrawable
                     noteTexture,
                     configuration.WidthForNoteHeightScale,
                     24);
-                InternalChild = new Sprite
+                var noteSprite = new LegacyManiaAnimatedSprite(noteFrames)
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
@@ -117,8 +159,16 @@ public partial class DrawableNote : CompositeDrawable
                     Scale = new Vector2(
                         1,
                         upsideDown && configuration.NoteFlipWhenUpsideDown[lane] ? -1 : 1),
-                    Texture = noteTexture,
                 };
+                noteSprite.FrameChanged += texture =>
+                {
+                    baseMinimumHeight = scaledHeight(
+                        texture,
+                        configuration.WidthForNoteHeightScale,
+                        24);
+                    Height = minimumHeight;
+                };
+                InternalChild = noteSprite;
                 return;
             }
 
@@ -133,18 +183,40 @@ public partial class DrawableNote : CompositeDrawable
         }
 
         noteBodyStyle = configuration.NoteBodyStyles[lane];
-        Texture headTexture = skin.GetTexture(configuration.HoldHeadImages[lane]);
-        Texture bodyTexture = skin.GetTexture(
+        IReadOnlyList<Texture> tapFrames =
+            skin.GetAnimationFrames(
+                configuration.NoteImages[lane],
+                fallback.NoteImages[lane]);
+        IReadOnlyList<Texture> headFrames =
+            skin.GetAnimationFrames(
+                configuration.HoldHeadImages[lane],
+                fallback.HoldHeadImages[lane]);
+        if (headFrames.Count == 0)
+            headFrames = tapFrames;
+        IReadOnlyList<Texture> bodyFrames = skin.GetAnimationFrames(
             configuration.HoldBodyImages[lane],
+            fallback.HoldBodyImages[lane],
             repeatVertically: noteBodyStyle != 0);
-        Texture tailTexture = skin.GetTexture(configuration.HoldTailImages[lane]) ?? headTexture;
+        IReadOnlyList<Texture> tailFrames =
+            skin.GetAnimationFrames(
+                configuration.HoldTailImages[lane],
+                fallback.HoldTailImages[lane]);
+        if (tailFrames.Count == 0)
+            tailFrames = headFrames.Count > 0 ? headFrames : tapFrames;
+        Texture headTexture = headFrames.FirstOrDefault();
+        Texture bodyTexture = bodyFrames.FirstOrDefault();
+        Texture tailTexture = tailFrames.FirstOrDefault();
 
         baseHeadHeight = scaledHeight(headTexture, configuration.WidthForNoteHeightScale, 12);
         baseTailHeight = scaledHeight(tailTexture, configuration.WidthForNoteHeightScale, baseHeadHeight);
         baseBodyTextureHeight = scaledHeight(bodyTexture, configuration.WidthForNoteHeightScale, 1);
         flipHoldHead = upsideDown && configuration.HoldHeadFlipWhenUpsideDown[lane];
         flipHoldBody = upsideDown && configuration.HoldBodyFlipWhenUpsideDown[lane];
-        flipHoldTail = upsideDown && configuration.HoldTailFlipWhenUpsideDown[lane];
+        // The release end uses the opposite scrolling direction to the head
+        // in osu!stable. Upside-down flip settings then toggle that baseline.
+        flipHoldTail = true
+                       ^ (upsideDown
+                          && configuration.HoldTailFlipWhenUpsideDown[lane]);
         Height = baseMinimumHeight = Math.Max(24, baseHeadHeight + baseTailHeight);
         Masking = true;
 
@@ -152,17 +224,26 @@ public partial class DrawableNote : CompositeDrawable
 
         if (bodyTexture != null)
         {
+            holdBody = new LegacyManiaAnimatedSprite(bodyFrames, 30)
+            {
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.Centre,
+                Width = laneWidth,
+                IsPlaying = false,
+            };
+            holdBody.FrameChanged += texture =>
+            {
+                baseBodyTextureHeight = scaledHeight(
+                    texture,
+                    configuration.WidthForNoteHeightScale,
+                    1);
+                updateHoldBody();
+            };
             children.Add(holdBodyClip = new Container
             {
                 Width = laneWidth,
                 Masking = true,
-                Child = holdBody = new Sprite
-                {
-                    Anchor = Anchor.TopLeft,
-                    Origin = Anchor.Centre,
-                    Width = laneWidth,
-                    Texture = bodyTexture,
-                },
+                Child = holdBody,
             });
         }
         else
@@ -176,22 +257,38 @@ public partial class DrawableNote : CompositeDrawable
 
         if (tailTexture != null)
         {
-            children.Add(holdTail = new Sprite
+            holdTail = new LegacyManiaAnimatedSprite(tailFrames)
             {
                 Anchor = Anchor.TopLeft,
                 Origin = Anchor.Centre,
-                Texture = tailTexture,
-            });
+            };
+            holdTail.FrameChanged += texture =>
+            {
+                baseTailHeight = scaledHeight(
+                    texture,
+                    configuration.WidthForNoteHeightScale,
+                    baseHeadHeight);
+                updateHoldBody();
+            };
+            children.Add(holdTail);
         }
 
         if (headTexture != null)
         {
-            children.Add(holdHead = new Sprite
+            holdHead = new LegacyManiaAnimatedSprite(headFrames)
             {
                 Anchor = Anchor.TopLeft,
                 Origin = Anchor.Centre,
-                Texture = headTexture,
-            });
+            };
+            holdHead.FrameChanged += texture =>
+            {
+                baseHeadHeight = scaledHeight(
+                    texture,
+                    configuration.WidthForNoteHeightScale,
+                    12);
+                updateHoldBody();
+            };
+            children.Add(holdHead);
         }
 
         InternalChildren = children.ToArray();
@@ -207,15 +304,20 @@ public partial class DrawableNote : CompositeDrawable
     internal bool ReverseHoldTailForScrollVelocity =>
         reverseHoldTailForScrollVelocity;
 
+    internal bool IsMine => hitObject.Kind == HitObjectKind.Mine;
+
     public void SetColumnScale(float value)
     {
         value = Math.Max(0.01f, value);
         columnScale = value;
         Width = baseWidth * value;
 
-        if (hitObject.Kind == HitObjectKind.Tap)
+        if (hitObject.Kind is HitObjectKind.Tap
+            or HitObjectKind.Mine)
         {
             Height = minimumHeight;
+            if (mineVisual != null)
+                mineVisual.Scale = new Vector2(value);
             return;
         }
 
@@ -233,7 +335,9 @@ public partial class DrawableNote : CompositeDrawable
         if (fallbackBody != null)
             fallbackBody.Colour = RatingColours.For(judgement.Rating);
 
-        if (judgement.Phase is JudgementPhase.Tap or JudgementPhase.HoldTail)
+        if (judgement.Phase is JudgementPhase.Tap
+            or JudgementPhase.HoldTail
+            or JudgementPhase.Mine)
         {
             resolved = true;
             Alpha = 0;
@@ -299,6 +403,14 @@ public partial class DrawableNote : CompositeDrawable
         double endPosition,
         ScrollPositionRange fullPathRange)
     {
+        if (holdBody != null && bodyAnimationActive != holdActive)
+        {
+            bodyAnimationActive = holdActive;
+            holdBody.IsPlaying = holdActive;
+
+            if (!holdActive)
+                holdBody.GotoFrame(0);
+        }
 
         if (resolved || resolvedByState)
         {

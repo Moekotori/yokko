@@ -245,17 +245,21 @@ internal sealed class OsuManiaSkinLibrary
             using var source = new OsuManiaSkinSource(path);
             string contents = source.ReadSkinIni();
 
-            if (string.IsNullOrWhiteSpace(contents))
+            if (string.IsNullOrWhiteSpace(contents)
+                && !source.HasManiaAssets())
             {
-                error = "The dropped item does not contain skin.ini.";
+                error = "The dropped item contains neither skin.ini nor osu!mania assets.";
                 return false;
             }
 
-            info = OsuManiaSkinIniDecoder.Decode(contents);
+            info = OsuManiaSkinIniDecoder.Decode(
+                contents,
+                !string.IsNullOrWhiteSpace(contents));
 
-            if (info.ManiaConfigurations.Count == 0)
+            if (info.ManiaConfigurations.Count == 0
+                && !source.HasManiaAssets())
             {
-                error = "This skin does not contain an osu!mania section.";
+                error = "This skin contains neither an osu!mania section nor osu!mania assets.";
                 return false;
             }
 
@@ -284,7 +288,9 @@ internal sealed class OsuManiaSkinLibrary
                                   .OrderBy(candidate => candidate.Count(character => character is '\\' or '/'))
                                   .FirstOrDefault();
 
-        return skinIni == null ? null : Path.GetDirectoryName(skinIni);
+        return skinIni == null
+            ? Path.GetFullPath(path)
+            : Path.GetDirectoryName(skinIni);
     }
 
     private string findAvailableId(string baseName, string extension)

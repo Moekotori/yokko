@@ -300,6 +300,7 @@ public partial class HomeSignalWave : CompositeDrawable
     {
         7, 12, 19, 10, 24, 15, 8, 20, 28, 17, 11, 23, 14, 8,
     };
+    private readonly Box[] bars = new Box[barHeights.Length];
 
     public HomeSignalWave(Color4 colour)
     {
@@ -307,7 +308,7 @@ public partial class HomeSignalWave : CompositeDrawable
 
         for (int i = 0; i < barHeights.Length; i++)
         {
-            AddInternal(new Box
+            AddInternal(bars[i] = new Box
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.Centre,
@@ -322,9 +323,17 @@ public partial class HomeSignalWave : CompositeDrawable
     {
         base.LoadComplete();
 
-        this.FadeTo(0.45f, 1600, Easing.InOutSine)
-            .Then().FadeTo(1f, 1600, Easing.InOutSine)
-            .Loop();
+        for (int i = 0; i < bars.Length; i++)
+        {
+            double delay = i * 55;
+            double duration = 360 + i % 4 * 55;
+
+            bars[i].Delay(delay)
+                   .ScaleTo(new Vector2(1, 0.42f), duration, Easing.InOutSine)
+                   .Then().ScaleTo(new Vector2(1, 1.12f), duration, Easing.InOutSine)
+                   .Then().ScaleTo(Vector2.One, duration, Easing.InOutSine)
+                   .Loop(340);
+        }
     }
 }
 
@@ -364,5 +373,226 @@ public partial class HomeBeatPips : CompositeDrawable
                 .FadeTo(1f, 520, Easing.InOutSine)
                 .Loop();
         }
+    }
+}
+
+/// <summary>
+/// 沿角色外围缓慢公转的节拍节点；节点各自呼吸，轨道整体旋转。
+/// </summary>
+public partial class HomeOrbitNodes : CompositeDrawable
+{
+    private readonly Container[] nodes;
+
+    public HomeOrbitNodes(float radius, Color4 colour, Color4 accent, int count = 5)
+    {
+        Size = new Vector2(radius * 2);
+        Origin = Anchor.Centre;
+        nodes = new Container[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            float angle = i / (float)count * MathF.PI * 2;
+            float degrees = i / (float)count * 360;
+            bool accented = i % 2 == 0;
+
+            AddInternal(nodes[i] = new Container
+            {
+                Origin = Anchor.Centre,
+                Position = new Vector2(
+                    radius + MathF.Cos(angle) * radius,
+                    radius + MathF.Sin(angle) * radius),
+                Size = new Vector2(accented ? 16 : 12),
+                Rotation = degrees,
+                Children = new Drawable[]
+                {
+                    new Circle
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(colour.R, colour.G, colour.B, 0.2f),
+                    },
+                    new Circle
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(accented ? 6 : 4),
+                        Colour = accented ? accent : colour,
+                    },
+                    new Box
+                    {
+                        Anchor = Anchor.CentreRight,
+                        Origin = Anchor.CentreRight,
+                        X = -8,
+                        Width = accented ? 28 : 20,
+                        Height = 2,
+                        Colour = new Color4(colour.R, colour.G, colour.B, 0.55f),
+                    },
+                },
+            });
+        }
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        this.RotateTo(0)
+            .RotateTo(360, 18000, Easing.None)
+            .Loop();
+
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            nodes[i].Delay(i * 120)
+                    .ScaleTo(1.28f, 520, Easing.InOutSine)
+                    .Then().ScaleTo(0.88f, 520, Easing.InOutSine)
+                    .Then().ScaleTo(1f, 300, Easing.OutQuint)
+                    .Loop(760);
+        }
+    }
+}
+
+/// <summary>
+/// 周期性向外扩散的同步信标。
+/// </summary>
+public partial class HomePulseBeacon : CompositeDrawable
+{
+    private readonly Drawable[] pulseRings;
+    private readonly Circle core;
+
+    public HomePulseBeacon(float size, Color4 colour, Color4 accent)
+    {
+        Size = new Vector2(size);
+        Origin = Anchor.Centre;
+
+        pulseRings = new[]
+        {
+            createRing(size, colour),
+            createRing(size, colour),
+        };
+
+        InternalChildren = new Drawable[]
+        {
+            pulseRings[0],
+            pulseRings[1],
+            core = new Circle
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(7),
+                Colour = accent,
+            },
+        };
+    }
+
+    private static Drawable createRing(float size, Color4 colour) =>
+        new Container
+        {
+            Anchor = Anchor.Centre,
+            Origin = Anchor.Centre,
+            Size = new Vector2(size),
+            Masking = true,
+            CornerRadius = size / 2,
+            BorderThickness = 2,
+            BorderColour = colour,
+            Child = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Alpha = 0,
+            },
+        };
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        for (int i = 0; i < pulseRings.Length; i++)
+        {
+            double delay = i * 720;
+
+            pulseRings[i].ScaleTo(0.32f, 0)
+                         .Delay(delay)
+                         .ScaleTo(1.12f, 1050, Easing.OutQuint)
+                         .Loop(560);
+            pulseRings[i].FadeTo(0, 0)
+                         .Delay(delay)
+                         .FadeTo(0.7f, 100, Easing.OutQuint)
+                         .Then().FadeOut(950, Easing.OutQuint)
+                         .Loop(560);
+        }
+
+        core.ScaleTo(1.45f, 480, Easing.InOutSine)
+            .Then().ScaleTo(0.8f, 480, Easing.InOutSine)
+            .Then().ScaleTo(1f, 260, Easing.OutBack)
+            .Loop(420);
+    }
+}
+
+/// <summary>
+/// 带移动扫描块、刻度与标签的小型遥测轨。
+/// </summary>
+public partial class HomeTelemetryRail : CompositeDrawable
+{
+    private readonly Box scanner;
+    private readonly float travel;
+
+    public HomeTelemetryRail(
+        float width,
+        LocalisableString label,
+        Color4 colour,
+        Color4 accent)
+    {
+        Width = width;
+        Height = 34;
+        travel = width - 34;
+
+        AddInternal(new Box
+        {
+            Y = 5,
+            Width = width,
+            Height = 1.5f,
+            Colour = new Color4(colour.R, colour.G, colour.B, 0.5f),
+        });
+
+        for (int i = 0; i <= 8; i++)
+        {
+            AddInternal(new Box
+            {
+                X = i / 8f * width,
+                Y = i % 4 == 0 ? 1 : 3,
+                Width = 1.5f,
+                Height = i % 4 == 0 ? 9 : 5,
+                Colour = new Color4(colour.R, colour.G, colour.B, 0.55f),
+            });
+        }
+
+        AddInternal(scanner = new Box
+        {
+            Anchor = Anchor.TopLeft,
+            Origin = Anchor.CentreLeft,
+            Y = 5.5f,
+            Width = 34,
+            Height = 3,
+            Colour = accent,
+        });
+        AddInternal(new SpriteText
+        {
+            Y = 16,
+            Text = label,
+            Font = HomeTypography.Display(9),
+            Spacing = new Vector2(1.4f, 0),
+            Colour = new Color4(colour.R, colour.G, colour.B, 0.72f),
+        });
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        scanner.MoveToX(travel, 1650, Easing.InOutSine)
+               .Then().FadeOut(90)
+               .MoveToX(0)
+               .Then().FadeIn(90)
+               .Loop();
     }
 }

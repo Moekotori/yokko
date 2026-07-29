@@ -20,6 +20,9 @@ internal sealed record GameplayPauseSnapshot(
     int Miss,
     string DisplayedMods)
 {
+    public JudgementConfiguration JudgementConfiguration { get; init; } =
+        JudgementConfiguration.YokkoDefault;
+
     public static GameplayPauseSnapshot Capture(
         BeatmapJudgementState state,
         ManiaModSet mods,
@@ -36,6 +39,16 @@ internal sealed record GameplayPauseSnapshot(
             gameplayTimeMilliseconds,
             0,
             total);
+        string displayedMods = mods.IsEmpty
+            ? "NM"
+            : string.Join("  ", mods.DisplayLabels);
+        if (state.Windows.Configuration.Mode == JudgementMode.Etterna)
+        {
+            displayedMods +=
+                $"  ·  ETTERNA "
+                + state.Windows.Configuration.EtternaJusticeLabel
+                    .ToUpperInvariant();
+        }
 
         return new GameplayPauseSnapshot(
             current,
@@ -51,8 +64,9 @@ internal sealed record GameplayPauseSnapshot(
             state.Counts.Ok,
             state.Counts.Meh,
             state.Counts.Miss,
-            mods.IsEmpty
-                ? "NM"
-                : string.Join("  ", mods.DisplayLabels));
+            displayedMods)
+        {
+            JudgementConfiguration = state.Windows.Configuration,
+        };
     }
 }

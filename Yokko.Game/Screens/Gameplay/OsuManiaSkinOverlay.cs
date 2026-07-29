@@ -19,7 +19,7 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
 
     private readonly OsuManiaSkin skin;
     private readonly Container judgementContainer;
-    private readonly Sprite judgementSprite;
+    private readonly LegacyManiaAnimatedSprite judgementSprite;
     private readonly SpriteText judgementFallback;
     private readonly Container comboDigits;
     private readonly SpriteText comboFallback;
@@ -43,10 +43,14 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             ? -configuration.ComboPosition
             : configuration.ComboPosition;
 
-        RelativeSizeAxes = Axes.Both;
+        RelativeSizeAxes = Axes.Y;
 
         for (int digit = 0; digit < digitTextures.Length; digit++)
-            digitTextures[digit] = skin.GetTexture($"{skin.Info.ComboPrefix}-{digit}");
+        {
+            digitTextures[digit] = skin.GetTexture(
+                $"{skin.Info.ComboPrefix}-{digit}",
+                $"score-{digit}");
+        }
 
         InternalChildren = new Drawable[]
         {
@@ -58,7 +62,8 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
                 Scale = new Vector2(overlayScale),
                 Children = new Drawable[]
                 {
-                    judgementSprite = new Sprite
+                    judgementSprite = new LegacyManiaAnimatedSprite(
+                        Array.Empty<Texture>())
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
@@ -91,6 +96,15 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
                 Alpha = 0,
             },
         };
+        judgementSprite.FrameChanged += texture =>
+        {
+            if (texture != null)
+            {
+                judgementSprite.Size = new Vector2(
+                    texture.DisplayWidth,
+                    texture.DisplayHeight);
+            }
+        };
     }
 
     public void ShowJudgement(JudgementEvent judgement)
@@ -105,12 +119,32 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             JudgementRating.Miss or JudgementRating.ComboBreak => skin.Configuration.Hit0,
             _ => null,
         };
+        string fallbackAssetName = judgement.Rating switch
+        {
+            JudgementRating.Perfect =>
+                skin.FallbackConfiguration.Hit300g,
+            JudgementRating.Great =>
+                skin.FallbackConfiguration.Hit300,
+            JudgementRating.Good =>
+                skin.FallbackConfiguration.Hit200,
+            JudgementRating.Ok =>
+                skin.FallbackConfiguration.Hit100,
+            JudgementRating.Meh =>
+                skin.FallbackConfiguration.Hit50,
+            JudgementRating.Miss or JudgementRating.ComboBreak =>
+                skin.FallbackConfiguration.Hit0,
+            _ => null,
+        };
 
         if (assetName == null)
             return;
 
-        Texture texture = skin.GetTexture(assetName);
-        judgementSprite.Texture = texture;
+        IReadOnlyList<Texture> frames =
+            skin.GetAnimationFrames(
+                assetName,
+                fallbackAssetName);
+        Texture texture = frames.Count > 0 ? frames[0] : null;
+        judgementSprite.SetFrames(frames, 1000.0 / 20);
 
         if (texture != null)
         {
@@ -136,6 +170,8 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         Drawable activeJudgement = texture != null
             ? judgementSprite
             : judgementFallback;
+        if (texture != null)
+            judgementSprite.Restart();
         activeJudgement.Scale = Vector2.One;
         activeJudgement.FadeInFromZero(20, Easing.Out);
         activeJudgement.Delay(JudgementAnimationDuration - 40)

@@ -17,6 +17,7 @@ using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Audio;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Scoring;
 using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Localisation;
@@ -29,6 +30,7 @@ internal enum GameplaySettingsSection
 {
     Input,
     Timing,
+    Judgement,
     Feedback,
 }
 
@@ -79,12 +81,20 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal double QuaverScrollRateNormalization =>
         settings.QuaverScrollRateNormalization.Value;
 
+    internal JudgementMode CurrentJudgementMode =>
+        settings.JudgementMode.Value;
+
+    internal int CurrentEtternaJustice =>
+        settings.GetJudgementConfiguration().EtternaJustice;
+
     internal bool ShowLanePressFeedback =>
         settings.ShowLanePressFeedback.Value;
 
     internal bool ShowTimingBar => settings.ShowTimingBar.Value;
 
     internal bool KeysoundsEnabled => settings.KeysoundsEnabled.Value;
+
+    internal bool MinesEnabled => settings.MinesEnabled.Value;
 
     internal bool PauseWhenUnfocused =>
         settings.PauseWhenUnfocused.Value;
@@ -323,6 +333,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal void SetScrollSpeed(double speed) =>
         settings.SetScrollSpeed(speed);
 
+    internal void SetJudgementMode(JudgementMode mode) =>
+        settings.JudgementMode.Value = mode;
+
+    internal void SetEtternaJustice(int justice) =>
+        settings.SetEtternaJustice(justice);
+
     internal Key GetBinding(KeyMode keyMode, int lane) =>
         settings.GetKeys(keyMode)[lane];
 
@@ -334,6 +350,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal void SetKeysoundsEnabled(bool enabled) =>
         settings.KeysoundsEnabled.Value = enabled;
+
+    internal void SetMinesEnabled(bool enabled) =>
+        settings.MinesEnabled.Value = enabled;
 
     internal void SetPauseWhenUnfocused(bool enabled) =>
         settings.PauseWhenUnfocused.Value = enabled;
@@ -422,19 +441,25 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             GameplaySettingsSection.Input,
             YokkoStrings.Get("settings.gameplay.section_input"),
             FontAwesome.Solid.Keyboard,
-            270);
+            203);
         addTab(
             flow,
             GameplaySettingsSection.Timing,
             YokkoStrings.Get("settings.gameplay.section_timing"),
             FontAwesome.Solid.WaveSquare,
-            270);
+            203);
+        addTab(
+            flow,
+            GameplaySettingsSection.Judgement,
+            YokkoStrings.Get("settings.gameplay.section_judgement"),
+            FontAwesome.Solid.Bullseye,
+            203);
         addTab(
             flow,
             GameplaySettingsSection.Feedback,
             YokkoStrings.Get("settings.gameplay.section_feedback"),
             FontAwesome.Solid.Heartbeat,
-            270);
+            203);
 
         return flow;
     }
@@ -478,6 +503,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
             case GameplaySettingsSection.Timing:
                 setContent(createTimingSection(), animate);
+                break;
+
+            case GameplaySettingsSection.Judgement:
+                setContent(createJudgementSection(), animate);
                 break;
 
             case GameplaySettingsSection.Feedback:
@@ -772,6 +801,69 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         return panel;
     }
 
+    private Drawable createJudgementSection()
+    {
+        var panel = createPanel();
+        setPanelChildren(panel, new Drawable[]
+        {
+            new SpriteText
+            {
+                Position = new Vector2(20, 18),
+                Text = YokkoStrings.Get(
+                    "settings.gameplay.judgement_heading"),
+                Font = HomeTypography.Display(19),
+                Colour = HomeControlColours.Navy,
+            },
+            new SpriteText
+            {
+                Position = new Vector2(20, 47),
+                Text = YokkoStrings.Get(
+                    "settings.gameplay.judgement_note"),
+                Font = HomeTypography.Body(14),
+                Colour = SettingsTheme.MutedNavy,
+            },
+            new GameplayJudgementModeSelector(settings.JudgementMode)
+            {
+                Position = new Vector2(20, 78),
+            },
+            new Box
+            {
+                Position = new Vector2(20, 145),
+                Size = new Vector2(800, 1),
+                Colour = SettingsTheme.Divider,
+            },
+            createControlLabel(
+                YokkoStrings.Get("settings.gameplay.etterna_justice"),
+                YokkoStrings.Get(
+                    "settings.gameplay.etterna_justice_note"),
+                20,
+                162),
+            new GameplayValueStepper(
+                settings.EtternaJustice,
+                1,
+                JudgementConfiguration.MinimumEtternaJustice,
+                JudgementConfiguration.MaximumEtternaJustice,
+                value =>
+                    Math.Round(value)
+                    == JudgementConfiguration.MaximumEtternaJustice
+                        ? "Justice · J9"
+                        : $"J{Math.Round(value):0}")
+            {
+                Position = new Vector2(430, 157),
+            },
+            new SpriteText
+            {
+                Position = new Vector2(20, 236),
+                Text = YokkoStrings.Get(
+                    "settings.gameplay.etterna_boundaries"),
+                Font = HomeTypography.Body(13),
+                Colour = SettingsTheme.MutedNavy,
+            },
+        });
+
+        return panel;
+    }
+
     private Drawable createSpeedPresets()
     {
         double[] speeds = { 8, 15, 20, 30 };
@@ -818,8 +910,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             },
             new FillFlowContainer
             {
-                Position = new Vector2(20, 88),
-                Size = new Vector2(826, 158),
+                Position = new Vector2(20, 78),
+                Size = new Vector2(826, 84),
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(14, 0),
                 Children = new Drawable[]
@@ -831,6 +923,23 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                             "settings.gameplay.show_lane_feedback_note"),
                         FontAwesome.Solid.Keyboard,
                         settings.ShowLanePressFeedback),
+                    new GameplayToggleCard(
+                        YokkoStrings.Get(
+                            "settings.gameplay.mines"),
+                        YokkoStrings.Get(
+                            "settings.gameplay.mines_note"),
+                        FontAwesome.Solid.Bomb,
+                        settings.MinesEnabled),
+                },
+            },
+            new FillFlowContainer
+            {
+                Position = new Vector2(20, 172),
+                Size = new Vector2(826, 84),
+                Direction = FillDirection.Horizontal,
+                Spacing = new Vector2(14, 0),
+                Children = new Drawable[]
+                {
                     new GameplayToggleCard(
                         YokkoStrings.Get(
                             "settings.gameplay.keysounds"),
@@ -854,8 +963,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                     "settings.gameplay.show_timing_bar_note"),
                 settings.ShowTimingBar)
             {
-                Position = new Vector2(20, 254),
-                Size = new Vector2(800, 30),
+                Position = new Vector2(20, 264),
+                Size = new Vector2(800, 26),
             },
         });
 
@@ -1996,6 +2105,59 @@ internal partial class GameplayValueStepper : CompositeDrawable
     }
 }
 
+internal partial class GameplayJudgementModeSelector : CompositeDrawable
+{
+    private readonly Bindable<JudgementMode> mode;
+    private readonly SettingsSegmentedChoiceButton yokkoButton;
+    private readonly SettingsSegmentedChoiceButton etternaButton;
+
+    public GameplayJudgementModeSelector(
+        Bindable<JudgementMode> mode)
+    {
+        this.mode = mode;
+        Size = new Vector2(800, 54);
+
+        InternalChild = new FillFlowContainer
+        {
+            RelativeSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+            Children = new Drawable[]
+            {
+                yokkoButton = new SettingsSegmentedChoiceButton(
+                    YokkoStrings.Get(
+                        "settings.gameplay.judgement_yokko"),
+                    FontAwesome.Solid.Gamepad,
+                    () => mode.Value = JudgementMode.Yokko,
+                    400),
+                etternaButton = new SettingsSegmentedChoiceButton(
+                    YokkoStrings.Get(
+                        "settings.gameplay.judgement_etterna"),
+                    FontAwesome.Solid.Bullseye,
+                    () => mode.Value = JudgementMode.Etterna,
+                    400),
+            },
+        };
+
+        mode.BindValueChanged(onModeChanged, true);
+    }
+
+    private void onModeChanged(
+        ValueChangedEvent<JudgementMode> change)
+    {
+        yokkoButton.SetSelected(change.NewValue == JudgementMode.Yokko);
+        etternaButton.SetSelected(
+            change.NewValue == JudgementMode.Etterna);
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            mode.ValueChanged -= onModeChanged;
+
+        base.Dispose(isDisposing);
+    }
+}
+
 internal partial class GameplayStepperButton : ClickableContainer
 {
     private readonly Box background;
@@ -2213,7 +2375,7 @@ internal partial class GameplayToggleCard : ClickableContainer
     {
         this.value = value;
         Action = () => value.Value = !value.Value;
-        Size = new Vector2(257, 158);
+        Size = new Vector2(406, 84);
         Masking = true;
         CornerRadius = 8;
         BorderThickness = 1.2f;
@@ -2228,34 +2390,37 @@ internal partial class GameplayToggleCard : ClickableContainer
             },
             new Circle
             {
-                Position = new Vector2(18, 16),
+                Position = new Vector2(16, 14),
                 Size = new Vector2(34),
                 Colour = SettingsTheme.PaleCyan,
             },
             new SpriteIcon
             {
-                Position = new Vector2(26, 24),
+                Position = new Vector2(24, 22),
                 Size = new Vector2(18),
                 Icon = itemIcon,
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
             {
-                Position = new Vector2(62, 19),
+                Position = new Vector2(60, 13),
                 Text = title,
                 Font = HomeTypography.Display(16),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
             {
-                Position = new Vector2(18, 63),
+                Position = new Vector2(60, 42),
                 Text = note,
-                Font = HomeTypography.Body(14),
+                Font = HomeTypography.Body(13),
                 Colour = SettingsTheme.MutedNavy,
             },
             new Container
             {
-                Position = new Vector2(18, 112),
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -18,
+                Y = -10,
                 Size = new Vector2(48, 24),
                 Masking = true,
                 CornerRadius = 12,
@@ -2278,8 +2443,11 @@ internal partial class GameplayToggleCard : ClickableContainer
             },
             stateText = new SpriteText
             {
-                Position = new Vector2(78, 114),
-                Font = HomeTypography.Display(14),
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -18,
+                Y = 20,
+                Font = HomeTypography.Display(13),
                 Colour = HomeControlColours.Navy,
             },
         };

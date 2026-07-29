@@ -189,6 +189,65 @@ public class GameplayScoreStoreTest
         });
     }
 
+    [Test]
+    public void JudgementModesAndJusticeLevelsKeepIndependentBestScores()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var store = new GameplayScoreStore();
+        store.Initialise(new NativeStorage(testRoot));
+        var yokko = JudgementConfiguration.YokkoDefault;
+        var etternaJ4 = new JudgementConfiguration(
+            JudgementMode.Etterna,
+            4);
+        var etternaJustice = new JudgementConfiguration(
+            JudgementMode.Etterna,
+            9);
+
+        Assert.That(
+            store.SaveBest(
+                beatmap,
+                ManiaModSet.Empty,
+                yokko,
+                result(900_000, 0.95)),
+            Is.True);
+        Assert.That(
+            store.SaveBest(
+                beatmap,
+                ManiaModSet.Empty,
+                etternaJ4,
+                result(800_000, 0.90)),
+            Is.True);
+        Assert.That(
+            store.SaveBest(
+                beatmap,
+                ManiaModSet.Empty,
+                etternaJustice,
+                result(700_000, 0.85)),
+            Is.True);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                store.GetBest(
+                    beatmap,
+                    ManiaModSet.Empty,
+                    yokko).Score,
+                Is.EqualTo(900_000));
+            Assert.That(
+                store.GetBest(
+                    beatmap,
+                    ManiaModSet.Empty,
+                    etternaJ4).Score,
+                Is.EqualTo(800_000));
+            Assert.That(
+                store.GetBest(
+                    beatmap,
+                    ManiaModSet.Empty,
+                    etternaJustice).Score,
+                Is.EqualTo(700_000));
+        });
+    }
+
     private static ManiaScoreResult result(long score, double accuracy) => new(
         score,
         accuracy,

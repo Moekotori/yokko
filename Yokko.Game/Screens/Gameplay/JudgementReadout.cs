@@ -13,6 +13,7 @@ public partial class JudgementReadout : CompositeDrawable
     private readonly SpriteText ratingText;
     private readonly SpriteText errorText;
     private readonly bool showHitError;
+    private readonly JudgementConfiguration configuration;
     private double hideAtMilliseconds;
 
     internal string DisplayedRating =>
@@ -21,9 +22,13 @@ public partial class JudgementReadout : CompositeDrawable
     internal string DisplayedError =>
         errorText?.Text.ToString() ?? string.Empty;
 
-    public JudgementReadout(bool showHitError = true)
+    public JudgementReadout(
+        bool showHitError = true,
+        JudgementConfiguration? configuration = null)
     {
         this.showHitError = showHitError;
+        this.configuration =
+            configuration ?? JudgementConfiguration.YokkoDefault;
         AutoSizeAxes = Axes.Both;
 
         InternalChildren = new Drawable[]
@@ -59,11 +64,16 @@ public partial class JudgementReadout : CompositeDrawable
 
     public void Show(JudgementEvent judgement)
     {
-        ratingText.Text = judgement.Rating.ToString().ToUpperInvariant();
-        ratingText.Colour = RatingColours.For(judgement.Rating);
+        bool isMine = judgement.Phase == JudgementPhase.Mine;
+        ratingText.Text = isMine
+            ? "MINE HIT"
+            : configuration.RatingLabel(judgement.Rating);
+        ratingText.Colour = isMine
+            ? YokkoPalette.Rose
+            : RatingColours.For(judgement.Rating);
         if (showHitError)
         {
-            errorText.Text = judgement.IsMiss
+            errorText.Text = judgement.IsMiss && !isMine
                 ? "missed"
                 : $"{judgement.HitErrorMilliseconds:+0.0;-0.0;0.0} ms";
         }

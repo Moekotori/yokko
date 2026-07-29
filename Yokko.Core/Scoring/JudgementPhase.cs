@@ -7,4 +7,5 @@ public enum JudgementPhase
     HoldHead,
     HoldBody,
     HoldTail,
+    Mine,
 }

@@ -102,6 +102,7 @@ internal static class SettingsPages
             {
                 YokkoStrings.Get("settings.gameplay.section_input"),
                 YokkoStrings.Get("settings.gameplay.section_timing"),
+                YokkoStrings.Get("settings.gameplay.section_judgement"),
                 YokkoStrings.Get("settings.gameplay.section_feedback"),
             },
             YokkoStrings.SearchTerms(
@@ -109,7 +110,10 @@ internal static class SettingsPages
                 "settings.gameplay.subtitle",
                 "settings.gameplay.section_input",
                 "settings.gameplay.section_timing",
-                "settings.gameplay.section_feedback")),
+                "settings.gameplay.section_judgement",
+                "settings.gameplay.etterna_justice",
+                "settings.gameplay.section_feedback",
+                "settings.gameplay.mines")),
         SettingsPageKind.Shortcuts => new(
             kind,
             YokkoStrings.Get("settings.shortcuts.title"),

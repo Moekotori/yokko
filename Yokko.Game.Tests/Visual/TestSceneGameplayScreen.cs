@@ -1314,6 +1314,84 @@ LightingLWidth: 20,20,20,20
         }
 
         [Test]
+        public void TestLoadsAnimatedLegacyManiaPiecesAndBarLines()
+        {
+            string skinPath = createTestSkin();
+            GameplayScreen gameplay = null;
+
+            using (var first = new Image<Rgba32>(
+                       12,
+                       8,
+                       new Rgba32(255, 80, 80, 255)))
+            using (var second = new Image<Rgba32>(
+                       12,
+                       10,
+                       new Rgba32(80, 255, 80, 255)))
+            {
+                first.SaveAsPng(Path.Combine(skinPath, "note-0.png"));
+                second.SaveAsPng(Path.Combine(skinPath, "note-1.png"));
+                first.SaveAsPng(Path.Combine(
+                    skinPath,
+                    "mania-stage-bottom-0.png"));
+                second.SaveAsPng(Path.Combine(
+                    skinPath,
+                    "mania-stage-bottom-1.png"));
+            }
+
+            AddStep("open animated legacy skin", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath)));
+            AddUntilStep("animated notes and stage foreground loaded", () =>
+            {
+                LegacyManiaAnimatedSprite[] animations =
+                    gameplay?
+                        .ChildrenOfType<LegacyManiaAnimatedSprite>()
+                        .ToArray();
+                return animations?.Count(animation =>
+                           animation.FrameCount == 2)
+                       >= 2;
+            });
+            AddAssert("measure barlines are generated", () =>
+                gameplay.ChildrenOfType<GameplayPlayfield>()
+                        .Single()
+                        .SkinBarLineCount > 0);
+        }
+
+        [Test]
+        public void TestSplitLegacySkinRepeatsPerStageDecorations()
+        {
+            string skinPath = createTestSkin();
+            GameplayScreen gameplay = null;
+            File.WriteAllText(Path.Combine(skinPath, "skin.ini"), """
+            [General]
+            Name: Split Stage Fixture
+            Version: 2.5
+
+            [Mania]
+            Keys: 8
+            ColumnWidth: 40,40,40,40,40,40,40,40
+            SplitStages: 1
+            StageSeparation: 24
+            StageHint: stage-hint
+            WarningArrow: stage-hint
+            """);
+
+            AddStep("open forced split-stage skin", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    createHoldDemo(KeyMode.EightKey),
+                    skinPath: skinPath)));
+            AddUntilStep("split-stage playfield loaded", () =>
+                gameplay?
+                    .ChildrenOfType<GameplayPlayfield>()
+                    .SingleOrDefault() is { } playfield
+                && playfield.SkinStageBottomCount == 2
+                && playfield.SkinStageHintCount == 2
+                && playfield.SkinJudgementLineCount == 2
+                && playfield.SkinWarningArrowCount == 2);
+        }
+
+        [Test]
         public void TestPreparesOsuManiaSkinHitSounds()
         {
             string skinPath = createTestSkin();

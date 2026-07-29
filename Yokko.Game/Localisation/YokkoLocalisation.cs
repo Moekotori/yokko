@@ -309,9 +309,10 @@ internal static class YokkoStrings
                 "Gameplay preferences will stay separate from chart rules and scoring logic.",
                 "游玩偏好将与谱面规则和计分逻辑保持分离。",
                 "プレイ設定は譜面ルールやスコア処理から分離します。"),
-            ["settings.gameplay.section_input"] = new("Input & key bindings", "输入与按键", "入力とキー設定"),
-            ["settings.gameplay.section_timing"] = new("Timing & judgement", "时序与判定", "タイミングと判定"),
-            ["settings.gameplay.section_feedback"] = new("Feedback & behavior", "反馈与行为", "フィードバックと動作"),
+            ["settings.gameplay.section_input"] = new("Input", "输入", "入力"),
+            ["settings.gameplay.section_timing"] = new("Timing", "时序", "タイミング"),
+            ["settings.gameplay.section_judgement"] = new("Judgement", "判定", "判定"),
+            ["settings.gameplay.section_feedback"] = new("Feedback", "反馈", "フィードバック"),
 
             ["settings.shortcuts.title"] = new("Shortcuts", "快捷键", "ショートカット"),
             ["settings.shortcuts.subtitle"] = new(
@@ -782,6 +783,34 @@ internal static class YokkoStrings
                 "Shared with Audio so timing has one source of truth.",
                 "与音频设置共享，确保时序只有一个真源。",
                 "オーディオ設定と共有し、タイミングを一元管理します。"),
+            ["settings.gameplay.judgement_heading"] = new(
+                "Judgement system",
+                "判定系统",
+                "判定システム"),
+            ["settings.gameplay.judgement_note"] = new(
+                "Choose Yokko's osu!mania-compatible rules or Etterna's timing and closest-note behavior.",
+                "选择 Yokko 的 osu!mania 兼容规则，或 Etterna 的窗口与最近音符判定。",
+                "Yokko の osu!mania 互換ルール、または Etterna の判定幅と最近ノーツ判定を選びます。"),
+            ["settings.gameplay.judgement_yokko"] = new(
+                "Yokko · osu!mania",
+                "Yokko · osu!mania",
+                "Yokko · osu!mania"),
+            ["settings.gameplay.judgement_etterna"] = new(
+                "Etterna",
+                "Etterna",
+                "Etterna"),
+            ["settings.gameplay.etterna_justice"] = new(
+                "Etterna Judge",
+                "Etterna 判定等级",
+                "Etterna Judge"),
+            ["settings.gameplay.etterna_justice_note"] = new(
+                "J4 through Justice (J9). Only used in Etterna mode.",
+                "可调 J4 至 Justice（J9），仅在 Etterna 模式生效。",
+                "J4 から Justice（J9）。Etterna モードでのみ使用します。"),
+            ["settings.gameplay.etterna_boundaries"] = new(
+                "Etterna parity · W1–W4 scale with Judge · W5 and automatic miss stay at ±180 ms.",
+                "Etterna 对齐 · W1–W4 随等级缩放 · W5 与自动 Miss 固定为 ±180 ms。",
+                "Etterna 準拠 · W1～W4 は Judge で縮小 · W5 と自動 Miss は ±180 ms 固定。"),
             ["settings.gameplay.feedback_heading"] = new(
                 "Playfield & window behavior",
                 "游玩反馈与窗口行为",
@@ -811,6 +840,14 @@ internal static class YokkoStrings
                 "Play chart samples on hit",
                 "命中时播放谱面采样",
                 "ヒット時に譜面サンプルを再生"),
+            ["settings.gameplay.mines"] = new(
+                "Mines",
+                "炸弹",
+                "地雷"),
+            ["settings.gameplay.mines_note"] = new(
+                "Hit one to lose health",
+                "踩中会爆炸并扣除生命",
+                "踏むと爆発してゲージが減少"),
             ["settings.gameplay.pause_when_unfocused"] = new(
                 "Pause when unfocused",
                 "离开窗口时暂停",

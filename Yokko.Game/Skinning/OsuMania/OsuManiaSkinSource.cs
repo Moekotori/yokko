@@ -100,6 +100,41 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
         return filePaths.ContainsKey(normalized) || archiveEntries.ContainsKey(normalized);
     }
 
+    public bool HasManiaAssets() =>
+        GetAvailableResources().Any(resource =>
+        {
+            string fileName = Path.GetFileNameWithoutExtension(resource);
+            fileName = stripHighResolutionSuffix(fileName);
+            int animationSuffix = fileName.LastIndexOf('-');
+
+            if (animationSuffix >= 0
+                && int.TryParse(
+                    fileName[(animationSuffix + 1)..],
+                    out _))
+            {
+                fileName = fileName[..animationSuffix];
+            }
+
+            return fileName.StartsWith(
+                       "mania-key",
+                       StringComparison.OrdinalIgnoreCase)
+                   || fileName.StartsWith(
+                       "mania-note",
+                       StringComparison.OrdinalIgnoreCase)
+                   || fileName.StartsWith(
+                       "mania-stage-",
+                       StringComparison.OrdinalIgnoreCase)
+                   || fileName.StartsWith(
+                       "mania-hit",
+                       StringComparison.OrdinalIgnoreCase)
+                   || fileName.Equals(
+                       "lightingL",
+                       StringComparison.OrdinalIgnoreCase)
+                   || fileName.Equals(
+                       "lightingN",
+                       StringComparison.OrdinalIgnoreCase);
+        });
+
     public (string Name, bool HighResolution) ResolveTextureName(string assetName)
     {
         if (string.IsNullOrWhiteSpace(assetName))

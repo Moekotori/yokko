@@ -5,6 +5,7 @@ using System.Text;
 using NUnit.Framework;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
+using Yokko.Core.Scoring;
 using Yokko.Game.Gameplay;
 
 namespace Yokko.Game.Tests.Core;
@@ -47,7 +48,10 @@ public sealed class YokkoReplayIOTest
                 new GameplayReplayInput(0, false, 150),
                 new GameplayReplayInput(3, true, 200),
             ],
-            mods);
+            mods,
+            new JudgementConfiguration(
+                JudgementMode.Etterna,
+                8));
         var recordedAt = new DateTimeOffset(
             2026,
             7,
@@ -72,6 +76,11 @@ public sealed class YokkoReplayIOTest
         Assert.Multiple(() =>
         {
             Assert.That(restored.SourceHash, Is.EqualTo("ABCDEF"));
+            Assert.That(
+                restored.Replay.JudgementConfiguration,
+                Is.EqualTo(new JudgementConfiguration(
+                    JudgementMode.Etterna,
+                    8)));
             Assert.That(restored.KeyCount, Is.EqualTo(4));
             Assert.That(restored.RecordedAt, Is.EqualTo(recordedAt));
             Assert.That(
@@ -121,6 +130,34 @@ public sealed class YokkoReplayIOTest
         Assert.That(
             () => YokkoReplayIO.Read(changed),
             Throws.TypeOf<InvalidDataException>());
+    }
+
+    [Test]
+    public void VersionOneReplayDefaultsToOriginalYokkoJudgement()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var replay = new GameplayReplay(
+            [],
+            ManiaModSet.Empty,
+            new JudgementConfiguration(
+                JudgementMode.Etterna,
+                9));
+        using var source = new MemoryStream();
+        YokkoReplayIO.Write(source, beatmap, beatmap, replay);
+        string versionOneJson =
+            Encoding.UTF8.GetString(source.ToArray())
+                .Replace(
+                    "\"schemaVersion\":2",
+                    "\"schemaVersion\":1");
+        using var versionOne = new MemoryStream(
+            Encoding.UTF8.GetBytes(versionOneJson));
+
+        YokkoReplayLoadResult restored =
+            YokkoReplayIO.Read(versionOne);
+
+        Assert.That(
+            restored.Replay.JudgementConfiguration,
+            Is.EqualTo(JudgementConfiguration.YokkoDefault));
     }
 
     [Test]

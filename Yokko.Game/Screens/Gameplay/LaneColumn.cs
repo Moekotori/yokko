@@ -24,13 +24,16 @@ public partial class LaneColumn : CompositeDrawable
     private readonly TextureAnimation laneLight;
     private readonly TextureAnimation holdLight;
     private readonly TextureAnimation[] hitExplosions = [];
+    private readonly Container mineExplosion;
     private readonly SpriteText keyLabel;
     private readonly float baseLaneWidth;
+    private readonly float baseLaneLightHeight;
     private readonly bool idleKeyFlipped;
     private readonly bool pressedKeyFlipped;
     private readonly bool showPressFeedback;
     private bool holdLightActive;
     private int nextHitExplosion;
+    private float columnScale = 1;
 
     internal Container ReceptorLayer { get; }
 
@@ -69,20 +72,29 @@ public partial class LaneColumn : CompositeDrawable
             {
                 RelativeSizeAxes = Axes.Y,
                 Width = laneWidth,
-                Child = this.keyLabel = new SpriteText
+                Children = new Drawable[]
                 {
-                    Anchor = Anchor.BottomCentre,
-                    Origin = Anchor.BottomCentre,
-                    Y = -26,
-                    Text = keyLabel,
-                    Font = FontUsage.Default.With(size: 18),
-                    Colour = YokkoPalette.TextMuted,
+                    this.keyLabel = new SpriteText
+                    {
+                        Anchor = Anchor.BottomCentre,
+                        Origin = Anchor.BottomCentre,
+                        Y = -26,
+                        Text = keyLabel,
+                        Font = FontUsage.Default.With(size: 18),
+                        Colour = YokkoPalette.TextMuted,
+                    },
+                    mineExplosion = createMineExplosion(
+                        Anchor.BottomCentre,
+                        -92,
+                        54),
                 },
             };
             return;
         }
 
         OsuManiaSkinConfiguration configuration = skin.Configuration;
+        OsuManiaSkinConfiguration fallback =
+            skin.FallbackConfiguration;
         float hitPosition = System.Math.Clamp(
             configuration.HitPosition,
             0,
@@ -91,47 +103,70 @@ public partial class LaneColumn : CompositeDrawable
             configuration.LightPosition,
             0,
             480);
-        Texture idleTexture = skin.GetTexture(configuration.KeyImages[lane]);
-        Texture pressedTexture = skin.GetTexture(configuration.PressedKeyImages[lane]);
-        var backgroundChildren = new List<Drawable>
-        {
-            new Box
+        Texture idleTexture = skin.GetTexture(
+            configuration.KeyImages[lane],
+            fallback.KeyImages[lane]);
+        Texture pressedTexture = skin.GetTexture(
+            configuration.PressedKeyImages[lane],
+            fallback.PressedKeyImages[lane]);
+        var laneBackground =
+            LegacyManiaColourCompatibility.ApplyWithDoubledAlpha(
+                new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = configuration.LaneColours[lane],
             },
-            new Box
+                configuration.LaneColours[lane]);
+        var leftLine =
+            LegacyManiaColourCompatibility.ApplyWithDoubledAlpha(
+                new Box
             {
                 RelativeSizeAxes = Axes.Y,
                 Width = configuration.ColumnLineWidths[lane] * 0.74f,
-                Colour = configuration.ColumnLineColour,
             },
+                configuration.ColumnLineColour);
+        var backgroundChildren = new List<Drawable>
+        {
+            laneBackground,
+            leftLine,
         };
         float rightLineWidth = configuration.ColumnLineWidths[lane + 1];
         bool showRightLine = lane == configuration.Keys - 1
                              || configuration.SkinVersion >= 2.4;
         if (showRightLine && rightLineWidth > 0)
         {
-            backgroundChildren.Add(new Box
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                RelativeSizeAxes = Axes.Y,
-                Width = rightLineWidth * 0.74f,
-                Colour = configuration.ColumnLineColour,
-            });
+            backgroundChildren.Add(
+                LegacyManiaColourCompatibility.ApplyWithDoubledAlpha(
+                    new Box
+                    {
+                        Anchor = Anchor.TopRight,
+                        Origin = Anchor.TopRight,
+                        RelativeSizeAxes = Axes.Y,
+                        Width = rightLineWidth * 0.74f,
+                    },
+                    configuration.ColumnLineColour));
         }
         var receptorChildren = new List<Drawable>();
         IReadOnlyList<Texture> lightTextures =
-            skin.GetAnimationFrames(configuration.LightImage);
+            skin.GetAnimationFrames(
+                configuration.LightImage,
+                fallback.LightImage);
         IReadOnlyList<Texture> explosionTextures =
-            skin.GetAnimationFrames(configuration.ExplosionImage);
+            skin.GetAnimationFrames(
+                configuration.ExplosionImage,
+                fallback.ExplosionImage);
         IReadOnlyList<Texture> holdLightTextures =
-            skin.GetAnimationFrames(configuration.HoldNoteLightImage);
+            skin.GetAnimationFrames(
+                configuration.HoldNoteLightImage,
+                fallback.HoldNoteLightImage);
 
         if (lightTextures.Count > 0)
         {
             Texture firstLightTexture = lightTextures[0];
+            baseLaneLightHeight = firstLightTexture.DisplayWidth > 0
+                ? firstLightTexture.DisplayHeight
+                  * laneWidth
+                  / firstLightTexture.DisplayWidth
+                : 1;
             backgroundChildren.Add(laneLight = new TextureAnimation
             {
                 Name = "Lane light",
@@ -146,9 +181,10 @@ public partial class LaneColumn : CompositeDrawable
                     : -(480 - lightPosition),
                 Size = new Vector2(
                     laneWidth,
-                    firstLightTexture.DisplayHeight
-                    / OsuManiaSkinConfiguration.LegacyPositionScaleFactor),
-                Colour = configuration.LaneLightColours[lane],
+                    baseLaneLightHeight),
+                Colour =
+                    LegacyManiaColourCompatibility.DisallowZeroAlpha(
+                        configuration.LaneLightColours[lane]),
                 Alpha = 0,
                 Blending = BlendingParameters.Additive,
             });
@@ -257,6 +293,15 @@ public partial class LaneColumn : CompositeDrawable
             receptorChildren.Add(holdLight);
         }
 
+        receptorChildren.Add(mineExplosion = createMineExplosion(
+            configuration.UpsideDown
+                ? Anchor.TopCentre
+                : Anchor.BottomCentre,
+            configuration.UpsideDown
+                ? 480 - hitPosition
+                : -(480 - hitPosition),
+            Math.Clamp(laneWidth * 1.25f, 28, 54)));
+
         InternalChildren = backgroundChildren.ToArray();
         ReceptorLayer = new Container
         {
@@ -269,6 +314,7 @@ public partial class LaneColumn : CompositeDrawable
     public void SetWidthScale(float value)
     {
         value = System.Math.Max(0.01f, value);
+        columnScale = value;
         Width = baseLaneWidth * value;
         ReceptorLayer.Width = baseLaneWidth * value;
         if (idleKey != null)
@@ -297,8 +343,13 @@ public partial class LaneColumn : CompositeDrawable
         if (holdLight != null)
             holdLight.Scale = new Vector2(value);
 
+        mineExplosion.Scale = new Vector2(value);
+
         if (laneLight != null)
+        {
             laneLight.Width = baseLaneWidth * value;
+            laneLight.Height = baseLaneLightHeight * value;
+        }
     }
 
     public void SetPressed(bool pressed)
@@ -350,6 +401,22 @@ public partial class LaneColumn : CompositeDrawable
                     .FadeOut(120);
     }
 
+    public void ShowMineExplosion()
+    {
+        mineExplosion.FinishTransforms();
+        mineExplosion.Alpha = 1;
+        mineExplosion.Scale = new Vector2(columnScale * 0.55f);
+        mineExplosion.FlashColour(
+            new Color4(1f, 0.91f, 0.42f, 1f),
+            150,
+            Easing.OutQuint);
+        mineExplosion.ScaleTo(
+                         new Vector2(columnScale * 1.5f),
+                         190,
+                         Easing.OutQuint)
+                     .FadeOut(220, Easing.OutQuint);
+    }
+
     public void SetHoldActive(bool active)
     {
         if (holdLight == null || holdLightActive == active)
@@ -386,6 +453,35 @@ public partial class LaneColumn : CompositeDrawable
                 : 1),
         Scale = new Vector2(1, flip ? -1 : 1),
         Texture = texture,
+    };
+
+    private static Container createMineExplosion(
+        Anchor anchor,
+        float y,
+        float size) => new()
+    {
+        Name = "Mine explosion",
+        Anchor = anchor,
+        Origin = Anchor.Centre,
+        Y = y,
+        Size = new Vector2(size),
+        Alpha = 0,
+        Children = new Drawable[]
+        {
+            new Circle
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = YokkoPalette.Rose,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(size * 0.52f),
+                Icon = FontAwesome.Solid.Bomb,
+                Colour = Color4.White,
+            },
+        },
     };
 
     private static void addFrames(
