@@ -356,7 +356,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         thumbnail.Shear = Vector2.Zero;
         tint.FadeColour(
             selected
-                ? new Color4(SongSelectTheme.Navy.R, SongSelectTheme.Navy.G, SongSelectTheme.Navy.B, 0.56f)
+                ? new Color4(SongSelectTheme.Navy.R, SongSelectTheme.Navy.G, SongSelectTheme.Navy.B, 0.42f)
                 : new Color4(SongSelectTheme.DeepNavy.R, SongSelectTheme.DeepNavy.G, SongSelectTheme.DeepNavy.B, 0.58f),
             150,
             Easing.OutQuint);

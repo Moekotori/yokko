@@ -204,7 +204,18 @@ public partial class DrawableNote : CompositeDrawable
         Width = baseWidth * value;
 
         if (hitObject.Kind == HitObjectKind.Tap)
+        {
             Height = minimumHeight;
+            return;
+        }
+
+        if (holdBodyClip != null)
+            holdBodyClip.Width = Width;
+
+        if (fallbackBody != null)
+            fallbackBody.Width = Width;
+
+        updateHoldBody();
     }
 
     public void ApplyJudgement(JudgementEvent judgement)
@@ -304,25 +315,34 @@ public partial class DrawableNote : CompositeDrawable
             Height = Math.Max(
                 minimumHeight,
                 maximumAnchorY - minimumAnchorY + partPadding);
-            float bodyMinimumY = minimumAnchorY;
-            float bodyMaximumY = maximumAnchorY;
+            float headCentreY = headY
+                                + (upsideDown ? headHeight : -headHeight)
+                                / 2;
+            float tailCentreY = tailY
+                                + (upsideDown ? tailHeight : -tailHeight)
+                                / 2;
+            float endpointMinimumY = Math.Min(headY, tailY);
+            float endpointMaximumY = Math.Max(headY, tailY);
+            float bodyMinimumY = Math.Min(headCentreY, tailCentreY);
+            float bodyMaximumY = Math.Max(headCentreY, tailCentreY);
 
-            if (upsideDown)
-            {
-                if (headY <= minimumAnchorY + 0.01f)
-                    bodyMinimumY = Math.Max(bodyMinimumY, headY + headHeight);
+            // The body must run underneath the translucent edges of the
+            // head and tail. Stopping at their rectangular bounds leaves a
+            // visible gap on round or arrow-shaped legacy textures.
+            //
+            // Preserve any additional bounds introduced by reversed SV
+            // without treating the normal endpoint anchors as body edges.
+            if (pathY1 < endpointMinimumY - 0.01f)
+                bodyMinimumY = Math.Min(bodyMinimumY, pathY1);
 
-                if (tailY <= minimumAnchorY + 0.01f)
-                    bodyMinimumY = Math.Max(bodyMinimumY, tailY + tailHeight);
-            }
-            else
-            {
-                if (headY >= maximumAnchorY - 0.01f)
-                    bodyMaximumY = Math.Min(bodyMaximumY, headY - headHeight);
+            if (pathY2 < endpointMinimumY - 0.01f)
+                bodyMinimumY = Math.Min(bodyMinimumY, pathY2);
 
-                if (tailY >= maximumAnchorY - 0.01f)
-                    bodyMaximumY = Math.Min(bodyMaximumY, tailY - tailHeight);
-            }
+            if (pathY1 > endpointMaximumY + 0.01f)
+                bodyMaximumY = Math.Max(bodyMaximumY, pathY1);
+
+            if (pathY2 > endpointMaximumY + 0.01f)
+                bodyMaximumY = Math.Max(bodyMaximumY, pathY2);
 
             holdBodyY = bodyMinimumY - Y;
             holdBodyHeight = Math.Max(0, bodyMaximumY - bodyMinimumY);

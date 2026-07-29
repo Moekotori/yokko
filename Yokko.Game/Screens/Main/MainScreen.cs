@@ -233,7 +233,7 @@ public partial class MainScreen : Screen
     {
         base.OnSuspending(e);
         cancelExitHold();
-        musicPlayer.Deactivate();
+        musicPlayer.Deactivate(pause: !KeepsMusicPlaying(e.Next));
         this.FadeTo(0.4f, 200, Easing.OutQuint);
     }
 
@@ -324,6 +324,9 @@ public partial class MainScreen : Screen
         escapeHoldStartedAt = 0;
         exitIndicator?.Conceal();
     }
+
+    internal static bool KeepsMusicPlaying(IScreen next) =>
+        next is SettingsScreen;
 
     private void startAmbientMotion()
     {

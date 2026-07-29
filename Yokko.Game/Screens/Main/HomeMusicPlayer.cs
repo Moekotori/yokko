@@ -247,14 +247,15 @@ public partial class HomeMusicPlayer : CompositeDrawable
     internal void Activate()
     {
         screenActive = true;
-        if (desiredPlaying)
+        if (desiredPlaying && audioEngine?.Status.IsRunning != true)
             startOrResumeCurrentTrack();
     }
 
-    internal void Deactivate()
+    internal void Deactivate(bool pause = true)
     {
         screenActive = false;
-        pausePlayback();
+        if (pause)
+            pausePlayback();
     }
 
     private double currentProgress =>
@@ -460,7 +461,11 @@ public partial class HomeMusicPlayer : CompositeDrawable
                     previousAudioPath,
                     StringComparison.OrdinalIgnoreCase));
         bool trackChanged = preservedIndex < 0;
-        trackIndex = trackChanged ? tracks.Count - 1 : preservedIndex;
+        trackIndex = preservedIndex >= 0
+            ? preservedIndex
+            : previousAudioPath == null
+                ? ChooseInitialTrackIndex(tracks.Count, Random.Shared)
+                : tracks.Count - 1;
 
         ImportedHomeTrack current = tracks[trackIndex];
         updateTrackDisplay(current, trackChanged);
@@ -477,6 +482,11 @@ public partial class HomeMusicPlayer : CompositeDrawable
             && (trackChanged || !audioEngine.Status.IsRunning))
             startOrResumeCurrentTrack();
     }
+
+    internal static int ChooseInitialTrackIndex(
+        int trackCount,
+        Random random) =>
+        random.Next(trackCount);
 
     private void updateTrackDisplay(
         ImportedHomeTrack track,

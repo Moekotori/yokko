@@ -472,6 +472,60 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestLongHoldBodyConnectsBehindRoundEndpoints()
+        {
+            string skinPath = null;
+
+            AddStep("create long hold body", () =>
+            {
+                skinPath = createTestSkin();
+
+                using var image = new Image<Rgba32>(
+                    8,
+                    400,
+                    new Rgba32(142, 136, 145, 255));
+                image.SaveAsPng(Path.Combine(skinPath, "hold-body.png"));
+            });
+            AddStep("open chart with long hold body", () =>
+                screenStack.Push(new GameplayScreen(
+                    createHoldDemo(KeyMode.FourKey),
+                    skinPath: skinPath)));
+            AddUntilStep("long hold geometry loaded", () =>
+            {
+                DrawableNote hold = (screenStack.CurrentScreen as Drawable)?
+                                    .ChildrenOfType<DrawableNote>()
+                                    .FirstOrDefault();
+                Sprite body = hold?
+                              .ChildrenOfType<Sprite>()
+                              .FirstOrDefault(sprite =>
+                                  sprite.Texture?.DisplayHeight > 100);
+                Sprite[] endpoints = hold?
+                                     .ChildrenOfType<Sprite>()
+                                     .Where(sprite =>
+                                         sprite.Texture?.DisplayHeight == 8)
+                                     .ToArray();
+
+                if (hold == null || body?.Parent is not Container clip
+                    || endpoints?.Length != 2)
+                    return false;
+
+                hold.UpdatePosition(
+                    1000,
+                    false,
+                    false,
+                    0,
+                    460,
+                    1800);
+
+                float upperEndpointCentre = endpoints.Min(sprite => sprite.Y);
+                float lowerEndpointCentre = endpoints.Max(sprite => sprite.Y);
+                return clip.Y <= upperEndpointCentre + 0.01f
+                       && clip.Y + clip.Height
+                       >= lowerEndpointCentre - 0.01f;
+            });
+        }
+
+        [Test]
         [Category("Integration")]
         public void TestLoadsRealOsuManiaSkinSample()
         {

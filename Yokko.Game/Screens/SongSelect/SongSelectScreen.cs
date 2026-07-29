@@ -487,12 +487,12 @@ public partial class SongSelectScreen : Screen
                     Action = PlaySelected,
                     Children = new Drawable[]
                     {
-                        // 整体斜切的平行四边形黄底，右缘超出后由 Masking 裁齐。
+                        // 整体斜切的平行四边形黄底（底边向左伸出，与参考图一致），右缘由 Masking 裁齐。
                         new Box
                         {
-                            Position = new Vector2(20, 0),
+                            Position = new Vector2(58, 0),
                             Size = new Vector2(340, 76),
-                            Shear = new Vector2(0.5f, 0),
+                            Shear = new Vector2(-0.5f, 0),
                             Colour = SongSelectTheme.Yellow,
                         },
                         new SpriteIcon
