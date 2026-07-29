@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Animations;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
@@ -12,15 +15,20 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public partial class LaneColumn : CompositeDrawable
 {
+    // osu! pools legacy hit explosions so dense jacks can overlap for 200ms.
+    // Reference: ppy/osu PoolableHitExplosion.cs @ 9f227ed.
+    private const int hit_explosion_pool_size = 10;
+
     private readonly Sprite idleKey;
     private readonly Sprite pressedKey;
-    private readonly Sprite laneLight;
-    private readonly Sprite hitExplosion;
+    private readonly TextureAnimation laneLight;
+    private readonly TextureAnimation[] hitExplosions = [];
     private readonly SpriteText keyLabel;
     private readonly float baseLaneWidth;
     private readonly bool idleKeyFlipped;
     private readonly bool pressedKeyFlipped;
     private readonly bool showPressFeedback;
+    private int nextHitExplosion;
 
     internal Container ReceptorLayer { get; }
 
@@ -79,7 +87,7 @@ public partial class LaneColumn : CompositeDrawable
             480);
         Texture idleTexture = skin.GetTexture(configuration.KeyImages[lane]);
         Texture pressedTexture = skin.GetTexture(configuration.PressedKeyImages[lane]);
-        var backgroundChildren = new System.Collections.Generic.List<Drawable>
+        var backgroundChildren = new List<Drawable>
         {
             new Box
             {
@@ -93,13 +101,16 @@ public partial class LaneColumn : CompositeDrawable
                 Colour = configuration.ColumnLineColour,
             },
         };
-        var receptorChildren = new System.Collections.Generic.List<Drawable>();
-        Texture lightTexture = skin.GetTexture(configuration.LightImage);
-        Texture explosionTexture = skin.GetTexture(configuration.ExplosionImage);
+        var receptorChildren = new List<Drawable>();
+        IReadOnlyList<Texture> lightTextures =
+            skin.GetAnimationFrames(configuration.LightImage);
+        IReadOnlyList<Texture> explosionTextures =
+            skin.GetAnimationFrames(configuration.ExplosionImage);
 
-        if (lightTexture != null)
+        if (lightTextures.Count > 0)
         {
-            backgroundChildren.Add(laneLight = new Sprite
+            Texture firstLightTexture = lightTextures[0];
+            backgroundChildren.Add(laneLight = new TextureAnimation
             {
                 Name = "Lane light",
                 Anchor = configuration.UpsideDown
@@ -113,12 +124,16 @@ public partial class LaneColumn : CompositeDrawable
                     : -(480 - lightPosition),
                 Size = new Vector2(
                     laneWidth,
-                    lightTexture.DisplayHeight
+                    firstLightTexture.DisplayHeight
                     / OsuManiaSkinConfiguration.LegacyPositionScaleFactor),
-                Texture = lightTexture,
+                Colour = configuration.LaneLightColours[lane],
                 Alpha = 0,
                 Blending = BlendingParameters.Additive,
             });
+            addFrames(
+                laneLight,
+                lightTextures,
+                1000.0 / configuration.LightFramePerSecond);
         }
 
         if (idleTexture != null)
@@ -156,26 +171,45 @@ public partial class LaneColumn : CompositeDrawable
             });
         }
 
-        if (explosionTexture != null)
+        if (explosionTextures.Count > 0)
         {
-            receptorChildren.Add(hitExplosion = new Sprite
+            Texture firstExplosionTexture = explosionTextures[0];
+            float explosionWidth = configuration.ExplosionWidth > 0
+                ? configuration.ExplosionWidth
+                  / OsuManiaSkinConfiguration.LegacyPositionScaleFactor
+                : firstExplosionTexture.DisplayWidth
+                  / OsuManiaSkinConfiguration.LegacyPositionScaleFactor;
+            float explosionHeight = firstExplosionTexture.DisplayWidth > 0
+                ? explosionWidth
+                  * firstExplosionTexture.DisplayHeight
+                  / firstExplosionTexture.DisplayWidth
+                : firstExplosionTexture.DisplayHeight
+                  / OsuManiaSkinConfiguration.LegacyPositionScaleFactor;
+            hitExplosions = new TextureAnimation[hit_explosion_pool_size];
+            double frameDuration = Math.Max(
+                1000.0 / 60,
+                170.0 / explosionTextures.Count);
+
+            for (int index = 0; index < hitExplosions.Length; index++)
             {
-                Name = "Hit explosion",
-                Anchor = configuration.UpsideDown
-                    ? Anchor.TopCentre
-                    : Anchor.BottomCentre,
-                Origin = Anchor.Centre,
-                Y = configuration.UpsideDown
-                    ? 480 - hitPosition
-                    : -(480 - hitPosition),
-                Size = new Vector2(
-                    explosionTexture.DisplayWidth,
-                    explosionTexture.DisplayHeight)
-                       / OsuManiaSkinConfiguration.LegacyPositionScaleFactor,
-                Texture = explosionTexture,
-                Alpha = 0,
-                Blending = BlendingParameters.Additive,
-            });
+                var explosion = new TextureAnimation
+                {
+                    Name = "Hit explosion",
+                    Anchor = configuration.UpsideDown
+                        ? Anchor.TopCentre
+                        : Anchor.BottomCentre,
+                    Origin = Anchor.Centre,
+                    Y = configuration.UpsideDown
+                        ? 480 - hitPosition
+                        : -(480 - hitPosition),
+                    Size = new Vector2(explosionWidth, explosionHeight),
+                    Alpha = 0,
+                    Blending = BlendingParameters.Additive,
+                };
+                addFrames(explosion, explosionTextures, frameDuration);
+                hitExplosions[index] = explosion;
+                receptorChildren.Add(explosion);
+            }
         }
 
         InternalChildren = backgroundChildren.ToArray();
@@ -213,7 +247,7 @@ public partial class LaneColumn : CompositeDrawable
             keyLabel.Scale = new Vector2(value);
         }
 
-        if (hitExplosion != null)
+        foreach (TextureAnimation hitExplosion in hitExplosions)
             hitExplosion.Scale = new Vector2(value);
 
         if (laneLight != null)
@@ -257,10 +291,13 @@ public partial class LaneColumn : CompositeDrawable
 
     public void ShowHitExplosion()
     {
-        if (hitExplosion == null)
+        if (hitExplosions.Length == 0)
             return;
 
+        TextureAnimation hitExplosion =
+            hitExplosions[nextHitExplosion++ % hitExplosions.Length];
         hitExplosion.FinishTransforms();
+        hitExplosion.GotoFrame(0);
         hitExplosion.FadeInFromZero(80)
                     .Then()
                     .FadeOut(120);
@@ -285,4 +322,13 @@ public partial class LaneColumn : CompositeDrawable
         Scale = new Vector2(1, flip ? -1 : 1),
         Texture = texture,
     };
+
+    private static void addFrames(
+        TextureAnimation animation,
+        IReadOnlyList<Texture> frames,
+        double frameDuration)
+    {
+        foreach (Texture texture in frames)
+            animation.AddFrame(texture, frameDuration);
+    }
 }

@@ -483,22 +483,16 @@ public partial class SongSelectScreen : Screen
                     Anchor = Anchor.BottomRight,
                     Origin = Anchor.BottomRight,
                     Size = new Vector2(320, 76),
+                    Masking = true,
                     Action = PlaySelected,
                     Children = new Drawable[]
                     {
+                        // 整体斜切的平行四边形黄底，右缘超出后由 Masking 裁齐。
                         new Box
                         {
-                            Anchor = Anchor.CentreLeft,
-                            Origin = Anchor.Centre,
-                            Position = new Vector2(19, 38),
-                            Size = new Vector2(30, 82),
-                            Rotation = 12,
-                            Colour = SongSelectTheme.Yellow,
-                        },
-                        new Box
-                        {
-                            X = 19,
-                            Size = new Vector2(301, 76),
+                            Position = new Vector2(20, 0),
+                            Size = new Vector2(340, 76),
+                            Shear = new Vector2(0.5f, 0),
                             Colour = SongSelectTheme.Yellow,
                         },
                         new SpriteIcon
@@ -659,7 +653,7 @@ public partial class SongSelectScreen : Screen
 
         var ranking = new SongSelectRankingPanel(selectedEntry, textures, newView => scoreView = newView)
         {
-            Position = new Vector2(0, 232),
+            Position = new Vector2(0, 250),
         };
         ranking.SetView(scoreView, textures);
 
@@ -677,38 +671,37 @@ public partial class SongSelectScreen : Screen
                         Origin = Anchor.CentreLeft,
                         RelativeSizeAxes = Axes.X,
                         Width = 1.07f,
-                        Height = 34,
-                        Y = 5,
+                        Height = 40,
+                        Y = 6,
                         Rotation = -1.2f,
                         Colour = SongSelectTheme.Yellow,
                     },
                     new SpriteText
                     {
-                        Width = 400,
-                        Truncate = true,
+                        MaxWidth = 400,
                         Text = selectedEntry.Beatmap.Title,
-                        Font = HomeTypography.Display(36),
+                        Font = HomeTypography.Display(42),
                         Colour = SongSelectTheme.Navy,
                     },
                 },
             },
             new SpriteText
             {
-                Position = new Vector2(10, 49),
+                Position = new Vector2(10, 62),
                 Text = selectedEntry.Beatmap.Artist,
                 Font = HomeTypography.Display(19),
                 Colour = SongSelectTheme.Ivory,
             },
             new SpriteText
             {
-                Position = new Vector2(10, 71),
+                Position = new Vector2(10, 84),
                 Text = $"mapped by {selectedEntry.Beatmap.Creator}",
                 Font = HomeTypography.Body(15),
                 Colour = SongSelectTheme.PaleCyan,
             },
             new Container
             {
-                Position = new Vector2(10, 96),
+                Position = new Vector2(10, 110),
                 AutoSizeAxes = Axes.Both,
                 Masking = true,
                 CornerRadius = 4,
@@ -729,9 +722,9 @@ public partial class SongSelectScreen : Screen
                 },
             },
             createStarRating(selectedEntry.StarRating),
-            createSongStat(10, 176, FontAwesome.Regular.Clock, "LENGTH", selectedEntry.Length.ToString(@"mm\:ss")),
-            createSongStat(118, 176, FontAwesome.Solid.WaveSquare, "BPM", selectedEntry.Bpm.ToString("0")),
-            createBestScoreStat(226, 176),
+            createSongStat(10, 192, FontAwesome.Regular.Clock, "LENGTH", selectedEntry.Length.ToString(@"mm\:ss")),
+            createSongStat(118, 192, FontAwesome.Solid.WaveSquare, "BPM", selectedEntry.Bpm.ToString("0")),
+            createBestScoreStat(226, 192),
             ranking,
         });
     }
@@ -759,14 +752,14 @@ public partial class SongSelectScreen : Screen
             new SpriteText
             {
                 Position = new Vector2(20, 17),
-                Text = selectedEntry.BestScore > 0 ? $"{selectedEntry.BestScore:N0}" : "--",
-                Font = HomeTypography.Display(20),
-                Colour = SongSelectTheme.Ivory,
+                Text = selectedEntry.BestScore > 0 ? $"{selectedEntry.BestScore:N0}" : "NO SCORE YET",
+                Font = HomeTypography.Display(selectedEntry.BestScore > 0 ? 20 : 14),
+                Colour = selectedEntry.BestScore > 0 ? SongSelectTheme.Ivory : SongSelectTheme.PaleCyan,
             },
             new SpriteText
             {
                 Position = new Vector2(20, 43),
-                Text = selectedEntry.BestAccuracy > 0 ? $"ACC  {selectedEntry.BestAccuracy:P2}" : "ACC  --",
+                Text = selectedEntry.BestAccuracy > 0 ? $"ACC  {selectedEntry.BestAccuracy:P2}" : string.Empty,
                 Font = HomeTypography.Display(14),
                 Colour = SongSelectTheme.Pink,
             },
@@ -811,7 +804,7 @@ public partial class SongSelectScreen : Screen
 
         var flow = new FillFlowContainer
         {
-            Position = new Vector2(10, 130),
+            Position = new Vector2(10, 144),
             AutoSizeAxes = Axes.Both,
             Direction = FillDirection.Horizontal,
             Spacing = new Vector2(4, 0),
@@ -908,10 +901,9 @@ public partial class SongSelectScreen : Screen
 
                 double delay = Math.Min(drawableIndex++, max_staggered_rows)
                                * list_refresh_stagger;
-                float targetX = entry == selectedEntry ? -30 : 0;
                 row.Delay(delay)
                    .FadeIn(170, Easing.OutQuint)
-                   .MoveToX(targetX, 240, Easing.OutQuint);
+                   .MoveToX(0, 240, Easing.OutQuint);
             }
         }
 

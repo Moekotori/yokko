@@ -96,6 +96,7 @@ internal static class OsuManiaSkinIniDecoder
         float[] spacings = floatList(values, "ColumnSpacing", defaults.ColumnSpacings, keys);
         float[] lineWidths = floatList(values, "ColumnLineWidth", defaults.ColumnLineWidths, keys);
         var laneColours = new Color4[keys];
+        var laneLightColours = new Color4[keys];
         var keyImages = new string[keys];
         var pressedKeyImages = new string[keys];
         var noteImages = new string[keys];
@@ -116,6 +117,10 @@ internal static class OsuManiaSkinIniDecoder
         for (int lane = 0; lane < keys; lane++)
         {
             laneColours[lane] = colour(values, $"Colour{lane + 1}", defaults.LaneColours[lane]);
+            laneLightColours[lane] = colour(
+                values,
+                $"ColourLight{lane + 1}",
+                defaults.LaneLightColours[lane]);
             keyImages[lane] = text(values, $"KeyImage{lane}", defaults.KeyImages[lane]);
             pressedKeyImages[lane] = text(values, $"KeyImage{lane}D", defaults.PressedKeyImages[lane]);
             noteImages[lane] = text(values, $"NoteImage{lane}", defaults.NoteImages[lane]);
@@ -175,6 +180,14 @@ internal static class OsuManiaSkinIniDecoder
                 values,
                 "LightPosition",
                 defaults.LightPosition),
+            LightFramePerSecond = Math.Clamp(
+                integer(values, "LightFramePerSecond", defaults.LightFramePerSecond),
+                1,
+                1000),
+            ExplosionWidth = Math.Max(
+                0,
+                number(values, "LightingNWidth", defaults.ExplosionWidth)),
+            LaneLightColours = laneLightColours,
         };
     }
 

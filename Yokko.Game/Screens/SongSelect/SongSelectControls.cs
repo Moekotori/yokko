@@ -145,6 +145,8 @@ internal partial class SongSelectSongRow : ClickableContainer
     private readonly Box selectionBottomCap;
     private readonly Box selectedTopBorder;
     private readonly Box selectedBottomBorder;
+    private readonly Box selectedLeftBorder;
+    private readonly Box selectedRightBorder;
     private readonly SpriteIcon selectionArrow;
     private readonly Container rowBackground;
     private readonly Container thumbnail;
@@ -316,6 +318,22 @@ internal partial class SongSelectSongRow : ClickableContainer
                 Colour = SongSelectTheme.Ivory,
                 Alpha = 0,
             },
+            selectedLeftBorder = new Box
+            {
+                RelativeSizeAxes = Axes.Y,
+                Width = 2,
+                Colour = SongSelectTheme.Ivory,
+                Alpha = 0,
+            },
+            selectedRightBorder = new Box
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                RelativeSizeAxes = Axes.Y,
+                Width = 2,
+                Colour = SongSelectTheme.Ivory,
+                Alpha = 0,
+            },
         };
 
         DoubleClickAction = play;
@@ -331,9 +349,11 @@ internal partial class SongSelectSongRow : ClickableContainer
         selectionBottomCap.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
         selectedTopBorder.FadeTo(selected ? 0.9f : 0, 120, Easing.OutQuint);
         selectedBottomBorder.FadeTo(selected ? 0.9f : 0, 120, Easing.OutQuint);
+        selectedLeftBorder.FadeTo(selected ? 0.9f : 0, 120, Easing.OutQuint);
+        selectedRightBorder.FadeTo(selected ? 0.9f : 0, 120, Easing.OutQuint);
         selectionArrow.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
-        rowBackground.Shear = selected ? new Vector2(-0.16f, 0) : Vector2.Zero;
-        thumbnail.Shear = selected ? new Vector2(-0.13f, 0) : Vector2.Zero;
+        rowBackground.Shear = Vector2.Zero;
+        thumbnail.Shear = Vector2.Zero;
         tint.FadeColour(
             selected
                 ? new Color4(SongSelectTheme.Navy.R, SongSelectTheme.Navy.G, SongSelectTheme.Navy.B, 0.56f)
@@ -342,7 +362,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             Easing.OutQuint);
         this.ResizeHeightTo(selected ? 92 : 84, 170, Easing.OutQuint);
         thumbnail.ResizeHeightTo(selected ? 88 : 80, 170, Easing.OutQuint);
-        this.MoveToX(selected ? -30 : 0, 170, Easing.OutQuint);
+        this.MoveToX(0, 170, Easing.OutQuint);
         title.Font = HomeTypography.Display(selected ? 25 : 22);
         mapper.Colour = selected ? SongSelectTheme.Yellow : SongSelectTheme.PaleCyan;
     }

@@ -11,6 +11,7 @@ public sealed class DisplayFrameRateTest
     [TestCase(YokkoFrameLimit.Limit2x, 144, "288 FPS")]
     [TestCase(YokkoFrameLimit.Limit4x, 60, "240 FPS")]
     [TestCase(YokkoFrameLimit.Limit8x, 60, "480 FPS")]
+    [TestCase(YokkoFrameLimit.Limit8x, 165, "960 FPS")]
     [TestCase(YokkoFrameLimit.Unlimited, 60, "∞")]
     public void FrameLimitUsesCurrentDisplayRefreshRate(
         YokkoFrameLimit limit,
@@ -25,7 +26,7 @@ public sealed class DisplayFrameRateTest
     [TestCase(YokkoFrameLimit.RefreshRate, 165, 165, 330)]
     [TestCase(YokkoFrameLimit.Limit2x, 165, 330, 660)]
     [TestCase(YokkoFrameLimit.Limit4x, 165, 660, 1320)]
-    [TestCase(YokkoFrameLimit.Limit8x, 165, 1320, 2640)]
+    [TestCase(YokkoFrameLimit.Limit8x, 165, 960, 1920)]
     [TestCase(YokkoFrameLimit.Unlimited, 165, 0, 0)]
     public void FrameLimitCalculatesRealHostRates(
         YokkoFrameLimit limit,

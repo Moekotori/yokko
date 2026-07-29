@@ -10,6 +10,8 @@ internal readonly record struct YokkoFrameRates(
 
 internal static class YokkoFrameRateLimits
 {
+    private const double optimalMaximumDrawRate = 960;
+
     public static YokkoFrameRates Calculate(
         YokkoFrameLimit limit,
         float refreshRate)
@@ -26,7 +28,9 @@ internal static class YokkoFrameRateLimits
         if (limit == YokkoFrameLimit.Unlimited)
             return new YokkoFrameRates(0, 0);
 
-        double maximumDrawHz = safeRefreshRate * multiplier;
+        double maximumDrawHz = Math.Min(
+            safeRefreshRate * multiplier,
+            optimalMaximumDrawRate);
         return new YokkoFrameRates(maximumDrawHz, maximumDrawHz * 2);
     }
 }

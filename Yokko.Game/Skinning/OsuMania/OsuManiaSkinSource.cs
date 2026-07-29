@@ -132,6 +132,46 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
         return (null, false);
     }
 
+    public IReadOnlyList<(string Name, bool HighResolution)> ResolveAnimationTextureNames(
+        string assetName)
+    {
+        if (string.IsNullOrWhiteSpace(assetName))
+            return Array.Empty<(string, bool)>();
+
+        string normalized = normalize(assetName.Trim());
+        string extension = Path.GetExtension(normalized);
+        string withoutExtension = extension.Length > 0
+            ? normalized[..^extension.Length]
+            : normalized;
+        string[] extensions = extension.Length > 0
+            ? [extension]
+            : [".png", ".jpg", ".jpeg"];
+
+        foreach (string candidateExtension in extensions)
+        {
+            IReadOnlyList<(string, bool)> highResolution = animationFrames(
+                withoutExtension,
+                candidateExtension,
+                true);
+
+            if (highResolution.Count > 0)
+                return highResolution;
+
+            IReadOnlyList<(string, bool)> standard = animationFrames(
+                withoutExtension,
+                candidateExtension,
+                false);
+
+            if (standard.Count > 0)
+                return standard;
+        }
+
+        (string name, bool highResolutionFallback) = ResolveTextureName(assetName);
+        return name == null
+            ? Array.Empty<(string, bool)>()
+            : [(name, highResolutionFallback)];
+    }
+
     public byte[] Get(string name)
     {
         using Stream stream = GetStream(name);
@@ -210,6 +250,27 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
     private static string normalize(string path) => (path ?? string.Empty)
                                                      .Replace('\\', '/')
                                                      .TrimStart('/');
+
+    private IReadOnlyList<(string Name, bool HighResolution)> animationFrames(
+        string baseName,
+        string extension,
+        bool highResolution)
+    {
+        var frames = new List<(string, bool)>();
+        string scaleSuffix = highResolution ? "@2x" : string.Empty;
+
+        for (int index = 0; index < 1024; index++)
+        {
+            string candidate = $"{baseName}-{index}{scaleSuffix}{extension}";
+
+            if (!Contains(candidate))
+                break;
+
+            frames.Add((candidate, highResolution));
+        }
+
+        return frames;
+    }
 
     private static bool isSafe(string path) =>
         path.Length > 0 &&

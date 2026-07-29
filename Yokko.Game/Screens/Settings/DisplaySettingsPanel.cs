@@ -388,7 +388,10 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             _ => 1,
         };
 
-        return $"{MathF.Round(MathF.Max(refreshRate, 1) * multiplier):0} FPS";
+        float rate = MathF.Min(
+            MathF.Max(refreshRate, 1) * multiplier,
+            960);
+        return $"{MathF.Round(rate):0} FPS";
     }
 
     internal static string FormatRefreshRate(float refreshRate) =>

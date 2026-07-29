@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using NUnit.Framework;
 using SixLabors.ImageSharp;
@@ -66,6 +67,36 @@ public sealed class OsuManiaSkinSourceTest
         Assert.That(name, Is.EqualTo("custom/note-0@2x.jpeg"));
         Assert.That(highResolution, Is.True);
         Assert.That(source.Get(name), Is.Not.Null);
+    }
+
+    [Test]
+    public void ResolvesEveryContiguousAnimationFrame()
+    {
+        string archivePath = createPath("animation.osk");
+
+        using (ZipArchive archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+        {
+            writeEntry(archive, "skin.ini", "[General]\nName: Animation");
+            writeEntry(archive, "lightingN.png", "static");
+            writeEntry(archive, "lightingN-0@2x.png", "frame 0");
+            writeEntry(archive, "lightingN-1@2x.png", "frame 1");
+            writeEntry(archive, "lightingN-2@2x.png", "frame 2");
+        }
+
+        using var source = new OsuManiaSkinSource(archivePath);
+
+        var frames = source.ResolveAnimationTextureNames("lightingN");
+
+        Assert.That(
+            frames.Select(frame => frame.Name),
+            Is.EqualTo(new[]
+            {
+                "lightingN-0@2x.png",
+                "lightingN-1@2x.png",
+                "lightingN-2@2x.png",
+            }));
+        Assert.That(frames, Is.All.Matches<(string, bool)>(
+            frame => frame.Item2));
     }
 
     [Test]

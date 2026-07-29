@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -15,7 +14,6 @@ using osu.Framework.Screens;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
-using Yokko.Audio;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Editor;
 using Yokko.Game.Screens.Settings;
@@ -45,19 +43,15 @@ public partial class MainScreen : Screen
     private Drawable brandLockup;
     private Drawable commandArea;
     private Drawable utilityArea;
-    private Drawable footer;
     private Sprite mascot;
     private SpriteText watermark;
-    private SpriteIcon heartbeatIcon;
     private Box heroHighlight;
-    private Circle readyDot;
     private HomeMascotBubble bubble;
     private HomeMusicPlayer musicPlayer;
     private HomeExitHoldIndicator exitIndicator;
     private readonly Box[] stageLines = new Box[2];
     private readonly List<SpriteIcon> decorationIcons = new();
     private readonly List<Drawable> floaters = new();
-    private readonly Dictionary<Key, HomeKeycap> keycapByKey = new();
     private readonly Action requestGameExit;
 
     private static readonly LocalisableString[] bubbleLines =
@@ -86,12 +80,6 @@ public partial class MainScreen : Screen
     [BackgroundDependencyLoader]
     private void load(TextureStore textures)
     {
-        string availableBackend = AudioEngineFactory.AvailableBackends
-                                                    .Where(backend => backend.IsAvailable)
-                                                    .Select(backendDisplayName)
-                                                    .FirstOrDefault();
-        LocalisableString audioStatus = availableBackend ?? YokkoStrings.Get("main.audio_unavailable");
-
         Texture mascotTexture = textures.Get("yokko")
                                         .Crop(new RectangleF(80, 1840, 1200, 1360));
         Texture logoTexture = textures.Get("home-logo-hd");
@@ -192,7 +180,6 @@ public partial class MainScreen : Screen
                         {
                             brandLockup = createBrandLockup(logoTexture),
                             commandArea = createCommandArea(),
-                            footer = createFooter(audioStatus),
                         },
                     },
                     utilityArea = createUtilityArea(),
@@ -209,8 +196,6 @@ public partial class MainScreen : Screen
         brandLockup.Alpha = 0;
         commandArea.Y += 24;
         commandArea.Alpha = 0;
-        footer.Y += 20;
-        footer.Alpha = 0;
         rightStage.X += 44;
         rightStage.Alpha = 0;
         utilityArea.Y -= 20;
@@ -234,7 +219,6 @@ public partial class MainScreen : Screen
         decorationLayer.Delay(240).FadeIn(600);
         brandLockup.Delay(60).FadeIn(420).MoveToX(56, 540, Easing.OutQuint);
         commandArea.Delay(150).FadeIn(420).MoveToY(208, 540, Easing.OutQuint);
-        footer.Delay(300).FadeIn(420).MoveToY(655, 540, Easing.OutQuint);
         utilityArea.Delay(340).FadeIn(360).MoveToY(24, 460, Easing.OutQuint);
     }
 
@@ -281,10 +265,6 @@ public partial class MainScreen : Screen
                     return true;
             }
 
-            // 页脚键帽与真实键盘联动。
-            if (!e.Repeat && keycapByKey.TryGetValue(e.Key, out HomeKeycap keycap))
-                keycap.SetPressed(true);
-
             return base.OnKeyDown(e);
         }
 
@@ -302,9 +282,6 @@ public partial class MainScreen : Screen
     {
         if (e.Key == Key.Escape)
             cancelExitHold();
-        else if (keycapByKey.TryGetValue(e.Key, out HomeKeycap keycap))
-            keycap.SetPressed(false);
-
         base.OnKeyUp(e);
     }
 
@@ -368,13 +345,6 @@ public partial class MainScreen : Screen
                          .Loop();
         }
 
-        // 双跳模拟心拍。
-        heartbeatIcon.ScaleTo(1.28f, 110, Easing.Out)
-                     .Then().ScaleTo(1f, 150, Easing.Out)
-                     .Then().ScaleTo(1.16f, 100, Easing.Out)
-                     .Then().ScaleTo(1f, 640, Easing.OutQuint)
-                     .Loop();
-
         // 每个装饰按不同周期呼吸、轻摆，避免整齐划一。
         for (int i = 0; i < decorationIcons.Count; i++)
         {
@@ -389,11 +359,6 @@ public partial class MainScreen : Screen
 
         // 标题高亮标记在入场后刷出。
         heroHighlight.Delay(650).ScaleTo(Vector2.One, 380, Easing.OutQuint);
-
-        // 就绪指示灯呼吸。
-        readyDot.FadeTo(0.25f, 700, Easing.InOutSine)
-                .Then().FadeTo(1f, 700, Easing.InOutSine)
-                .Loop();
 
         // 小形状缓慢浮沉。
         for (int i = 0; i < floaters.Count; i++)
@@ -739,150 +704,4 @@ public partial class MainScreen : Screen
             host.Exit();
     }
 
-    private Drawable createFooter(LocalisableString audioStatus) => new Container
-    {
-        Position = new Vector2(60, 655),
-        Size = new Vector2(530, 48),
-        Children = new Drawable[]
-        {
-            new Box
-            {
-                RelativeSizeAxes = Axes.X,
-                Height = 1,
-                Colour = new Color4(navy.R, navy.G, navy.B, 0.24f),
-            },
-            new Box
-            {
-                Width = 165,
-                Height = 1,
-                X = 116,
-                Colour = new Color4(paleCyan.R, paleCyan.G, paleCyan.B, 0.72f),
-            },
-            heartbeatIcon = new SpriteIcon
-            {
-                Origin = Anchor.Centre,
-                Position = new Vector2(271.5f, 1.5f),
-                Size = new Vector2(23),
-                Icon = FontAwesome.Solid.Heartbeat,
-                Colour = navy,
-            },
-            new FillFlowContainer
-            {
-                Y = 17,
-                AutoSizeAxes = Axes.Both,
-                Direction = FillDirection.Horizontal,
-                Spacing = new Vector2(25, 0),
-                Children = new Drawable[]
-                {
-                    createKeycapCluster(),
-                    createFooterItem(FontAwesome.Solid.SignOutAlt, YokkoStrings.Get("main.hold_esc_exit")),
-                    createAudioFooterItem(audioStatus),
-                },
-            },
-        },
-    };
-
-    private Drawable createKeycapCluster()
-    {
-        keycapByKey.Clear();
-        var keycaps = new FillFlowContainer
-        {
-            Anchor = Anchor.CentreLeft,
-            Origin = Anchor.CentreLeft,
-            AutoSizeAxes = Axes.Both,
-            Direction = FillDirection.Horizontal,
-            Spacing = new Vector2(5, 0),
-        };
-
-        foreach ((string label, Key key) in new[] { ("D", Key.D), ("F", Key.F), ("J", Key.J), ("K", Key.K) })
-        {
-            var keycap = new HomeKeycap(label);
-            keycapByKey[key] = keycap;
-            keycaps.Add(keycap);
-        }
-
-        return new FillFlowContainer
-        {
-            AutoSizeAxes = Axes.Both,
-            Direction = FillDirection.Horizontal,
-            Spacing = new Vector2(8, 0),
-            Children = new Drawable[]
-            {
-                new SpriteIcon
-                {
-                    Anchor = Anchor.CentreLeft,
-                    Origin = Anchor.CentreLeft,
-                    Size = new Vector2(14),
-                    Icon = FontAwesome.Solid.Keyboard,
-                    Colour = navy,
-                },
-                keycaps,
-            },
-        };
-    }
-
-    private Drawable createAudioFooterItem(LocalisableString text) => new FillFlowContainer
-    {
-        AutoSizeAxes = Axes.Both,
-        Direction = FillDirection.Horizontal,
-        Spacing = new Vector2(8, 0),
-        Children = new Drawable[]
-        {
-            readyDot = new Circle
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                Size = new Vector2(7),
-                Colour = pink,
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                Size = new Vector2(14),
-                Icon = FontAwesome.Solid.VolumeUp,
-                Colour = navy,
-            },
-            new SpriteText
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                Text = text,
-                Font = HomeTypography.Display(14),
-                Colour = mutedNavy,
-            },
-        },
-    };
-
-    private static Drawable createFooterItem(IconUsage icon, LocalisableString text) => new FillFlowContainer
-    {
-        AutoSizeAxes = Axes.Both,
-        Direction = FillDirection.Horizontal,
-        Spacing = new Vector2(8, 0),
-        Children = new Drawable[]
-        {
-            new SpriteIcon
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                Size = new Vector2(14),
-                Icon = icon,
-                Colour = navy,
-            },
-            new SpriteText
-            {
-                Text = text,
-                Font = HomeTypography.Display(14),
-                Colour = mutedNavy,
-            },
-        },
-    };
-
-    private static string backendDisplayName(AudioBackendCapabilities backend) => backend.Kind switch
-    {
-        AudioBackendKind.SharedWasapi => "WASAPI Shared",
-        AudioBackendKind.WasapiExclusive => "WASAPI Exclusive",
-        AudioBackendKind.Asio => "ASIO",
-        _ => backend.Kind.ToString(),
-    };
 }

@@ -23,7 +23,8 @@ public sealed class YokkoDisplaySettings
 {
     public readonly Bindable<YokkoUiScale> UiScale = new(YokkoUiScale.Comfortable);
 
-    public readonly Bindable<YokkoFrameLimit> FrameLimit = new(YokkoFrameLimit.RefreshRate);
+    public readonly Bindable<YokkoFrameLimit> FrameLimit =
+        new(YokkoFrameLimit.Limit8x);
     public readonly BindableBool ShowPerformanceReadout = new(false);
 
     public Vector2 TargetDrawSize => GetTargetDrawSize(UiScale.Value);

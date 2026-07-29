@@ -67,6 +67,7 @@ internal sealed class OsuManiaSkinConfiguration
         HoldHeadFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
         HoldBodyFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
         HoldTailFlipWhenUpsideDown = Enumerable.Repeat(true, keys).ToArray();
+        LaneLightColours = Enumerable.Repeat(Color4.White, keys).ToArray();
     }
 
     public int Keys { get; }
@@ -138,6 +139,12 @@ internal sealed class OsuManiaSkinConfiguration
     public string ExplosionImage { get; init; } = "lightingN";
 
     public float LightPosition { get; init; } = 413;
+
+    public int LightFramePerSecond { get; init; } = 60;
+
+    public float ExplosionWidth { get; init; }
+
+    public Color4[] LaneLightColours { get; init; }
 
     public float PlayfieldWidth
     {

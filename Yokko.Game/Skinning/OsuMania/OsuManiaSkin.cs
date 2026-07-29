@@ -72,6 +72,49 @@ internal sealed class OsuManiaSkin : IDisposable
             return null;
         }
 
+        Texture texture = getResolvedTexture(
+            resolvedName,
+            highResolution,
+            repeatVertically);
+
+        textureCache[cacheKey] = texture;
+        return texture;
+    }
+
+    public IReadOnlyList<Texture> GetAnimationFrames(string assetName)
+    {
+        IReadOnlyList<(string Name, bool HighResolution)> resolvedFrames =
+            source.ResolveAnimationTextureNames(assetName);
+        var frames = new List<Texture>(resolvedFrames.Count);
+
+        foreach ((string name, bool highResolution) in resolvedFrames)
+        {
+            Texture texture = getResolvedTexture(name, highResolution, false);
+
+            if (texture != null)
+                frames.Add(texture);
+        }
+
+        return frames;
+    }
+
+    public void Dispose()
+    {
+        textureStore.Dispose();
+    }
+
+    private Texture getResolvedTexture(
+        string resolvedName,
+        bool highResolution,
+        bool repeatVertically)
+    {
+        string cacheKey = resolvedName
+                          + (highResolution ? "\0@2x" : "\0@1x")
+                          + (repeatVertically ? "\0repeat-y" : string.Empty);
+
+        if (textureCache.TryGetValue(cacheKey, out Texture cached))
+            return cached;
+
         Texture texture = textureStore.Get(
             resolvedName,
             WrapMode.ClampToEdge,
@@ -82,10 +125,5 @@ internal sealed class OsuManiaSkin : IDisposable
 
         textureCache[cacheKey] = texture;
         return texture;
-    }
-
-    public void Dispose()
-    {
-        textureStore.Dispose();
     }
 }

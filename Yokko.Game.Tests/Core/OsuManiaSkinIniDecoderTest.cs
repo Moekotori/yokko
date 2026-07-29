@@ -52,6 +52,12 @@ NoteFlipWhenUpsideDown0L: 1
 NoteFlipWhenUpsideDown0T: 1
 NoteBodyStyle: 1
 NoteBodyStyle0: 0
+StageLight: custom/stage-light
+LightingN: custom/explosion
+LightPosition: 410
+LightFramePerSecond: 48
+LightingNWidth: 72
+ColourLight1: 12, 34, 56
 
 [Mania]
 Keys: 7
@@ -95,6 +101,14 @@ HitPosition: 400
         Assert.That(fourKey.HoldBodyFlipWhenUpsideDown, Is.EqualTo(new[] { true, false, false, false }));
         Assert.That(fourKey.HoldTailFlipWhenUpsideDown, Is.EqualTo(new[] { true, false, false, false }));
         Assert.That(fourKey.NoteBodyStyles, Is.EqualTo(new[] { 0, 1, 1, 1 }));
+        Assert.That(fourKey.LightImage, Is.EqualTo("custom/stage-light"));
+        Assert.That(fourKey.ExplosionImage, Is.EqualTo("custom/explosion"));
+        Assert.That(fourKey.LightPosition, Is.EqualTo(410));
+        Assert.That(fourKey.LightFramePerSecond, Is.EqualTo(48));
+        Assert.That(fourKey.ExplosionWidth, Is.EqualTo(72));
+        Assert.That(
+            fourKey.LaneLightColours[0],
+            Is.EqualTo(new Color4(12, 34, 56, 255)));
     }
 
     [Test]
@@ -125,6 +139,8 @@ NoteImage0H: head
         Assert.That(configuration.Hit300g, Is.EqualTo("mania-hit300g"));
         Assert.That(configuration.WidthForNoteHeightScale, Is.EqualTo(30));
         Assert.That(configuration.NoteBodyStyles, Is.EqualTo(new[] { 1, 1, 1, 1 }));
+        Assert.That(configuration.LightFramePerSecond, Is.EqualTo(60));
+        Assert.That(configuration.LaneLightColours, Is.All.EqualTo(Color4.White));
     }
 
     [Test]

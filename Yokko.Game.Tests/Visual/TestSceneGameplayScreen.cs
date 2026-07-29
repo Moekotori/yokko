@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Animations;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Shapes;
@@ -674,10 +675,10 @@ HitPosition: 400
             AddStep("press first lane", () =>
                 playfield.SetLanePressed(0, true));
             AddAssert("skin lane light turns on", () =>
-                playfield.ChildrenOfType<Sprite>()
-                         .Any(sprite =>
-                             sprite.Name == "Lane light"
-                             && sprite.Alpha > 0.99f));
+                playfield.ChildrenOfType<TextureAnimation>()
+                         .Any(animation =>
+                             animation.Name == "Lane light"
+                             && animation.Alpha > 0.99f));
             AddStep("show perfect hit", () =>
                 playfield.ApplyJudgement(new JudgementEvent(
                     0,
@@ -687,10 +688,32 @@ HitPosition: 400
                     0,
                     JudgementRating.Perfect)));
             AddUntilStep("skin hit explosion appears", () =>
-                playfield.ChildrenOfType<Sprite>()
-                         .Any(sprite =>
-                             sprite.Name == "Hit explosion"
-                             && sprite.Alpha > 0));
+                playfield.ChildrenOfType<TextureAnimation>()
+                         .Any(animation =>
+                             animation.Name == "Hit explosion"
+                             && animation.Alpha > 0));
+            AddStep("show overlapping hits", () =>
+            {
+                playfield.ApplyJudgement(new JudgementEvent(
+                    0,
+                    0,
+                    1000,
+                    1000,
+                    0,
+                    JudgementRating.Perfect));
+                playfield.ApplyJudgement(new JudgementEvent(
+                    0,
+                    0,
+                    1000,
+                    1000,
+                    0,
+                    JudgementRating.Perfect));
+            });
+            AddAssert("rapid hits keep two explosions", () =>
+                playfield.ChildrenOfType<TextureAnimation>()
+                         .Count(animation =>
+                             animation.Name == "Hit explosion"
+                             && animation.Alpha > 0) >= 2);
             AddStep("release first lane", () =>
                 playfield.SetLanePressed(0, false));
             AddStep("restore scroll speed", () =>

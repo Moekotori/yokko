@@ -13,17 +13,18 @@ namespace Yokko.Game.Screens.Gameplay;
 
 internal partial class OsuManiaSkinOverlay : CompositeDrawable
 {
-    private const double judgement_visible_duration = 420;
+    // Mirrors osu! legacy mania's 20ms fade-in, 160ms hold and 40ms fade-out.
+    // Reference: ppy/osu LegacyManiaJudgementPiece.cs @ 9f227ed.
+    internal const double JudgementAnimationDuration = 220;
 
     private readonly OsuManiaSkin skin;
+    private readonly Container judgementContainer;
     private readonly Sprite judgementSprite;
     private readonly SpriteText judgementFallback;
     private readonly Container comboDigits;
     private readonly SpriteText comboFallback;
     private readonly Texture[] digitTextures = new Texture[10];
     private readonly float overlayScale;
-    private bool showingJudgementTexture;
-    private double hideJudgementAt;
     private int displayedCombo = -1;
 
     public OsuManiaSkinOverlay(OsuManiaSkin skin)
@@ -41,22 +42,28 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
 
         InternalChildren = new Drawable[]
         {
-            judgementSprite = new Sprite
+            judgementContainer = new Container
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.Centre,
                 Y = configuration.ScorePosition,
                 Scale = new Vector2(overlayScale),
-                Alpha = 0,
-            },
-            judgementFallback = new SpriteText
-            {
-                Anchor = Anchor.TopCentre,
-                Origin = Anchor.Centre,
-                Y = configuration.ScorePosition,
-                Scale = new Vector2(overlayScale),
-                Font = FontUsage.Default.With(size: 44),
-                Alpha = 0,
+                Children = new Drawable[]
+                {
+                    judgementSprite = new Sprite
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Alpha = 0,
+                    },
+                    judgementFallback = new SpriteText
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Font = FontUsage.Default.With(size: 44),
+                        Alpha = 0,
+                    },
+                },
             },
             comboDigits = new Container
             {
@@ -95,7 +102,6 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             return;
 
         Texture texture = skin.GetTexture(assetName);
-        showingJudgementTexture = texture != null;
         judgementSprite.Texture = texture;
 
         if (texture != null)
@@ -114,8 +120,35 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             judgementFallback.Colour = RatingColours.For(judgement.Rating);
         }
 
-        hideJudgementAt = Time.Current + judgement_visible_duration;
-        updateJudgementAlpha(1);
+        judgementSprite.FinishTransforms();
+        judgementFallback.FinishTransforms();
+        judgementSprite.Alpha = 0;
+        judgementFallback.Alpha = 0;
+
+        Drawable activeJudgement = texture != null
+            ? judgementSprite
+            : judgementFallback;
+        activeJudgement.Scale = Vector2.One;
+        activeJudgement.FadeInFromZero(20, Easing.Out);
+        activeJudgement.Delay(JudgementAnimationDuration - 40)
+                       .FadeOut(40, Easing.In);
+
+        if (judgement.Rating is JudgementRating.Miss or JudgementRating.ComboBreak)
+        {
+            activeJudgement.Scale = new Vector2(1.2f);
+            activeJudgement.ScaleTo(1, 100, Easing.Out);
+        }
+        else
+        {
+            activeJudgement.Scale = new Vector2(0.8f);
+            activeJudgement.ScaleTo(1, 40, Easing.Out)
+                           .Then()
+                           .ScaleTo(0.85f)
+                           .ScaleTo(0.7f, 40, Easing.In)
+                           .Then()
+                           .Delay(100)
+                           .ScaleTo(0.4f, 40, Easing.In);
+        }
     }
 
     public void SetCombo(int combo)
@@ -179,32 +212,9 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
     public void SetPlayfieldScale(float value)
     {
         Vector2 scale = new(overlayScale * Math.Max(0.01f, value));
-        judgementSprite.Scale = scale;
-        judgementFallback.Scale = scale;
+        judgementContainer.Scale = scale;
         comboDigits.Scale = scale;
         comboFallback.Scale = scale;
-    }
-
-    protected override void Update()
-    {
-        base.Update();
-
-        if (Time.Current >= hideJudgementAt)
-        {
-            updateJudgementAlpha(0);
-            return;
-        }
-
-        updateJudgementAlpha(Math.Clamp(
-            (float)((hideJudgementAt - Time.Current) / 180),
-            0,
-            1));
-    }
-
-    private void updateJudgementAlpha(float alpha)
-    {
-        judgementSprite.Alpha = showingJudgementTexture ? alpha : 0;
-        judgementFallback.Alpha = showingJudgementTexture ? 0 : alpha;
     }
 
     private static bool usesScaledOverlays(string version) =>
