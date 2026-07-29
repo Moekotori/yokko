@@ -360,7 +360,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         return true;
     }
 
-    private static Drawable createRowStarRating(double rating)
+    private static Drawable createRowStarRating(double? rating)
     {
         var children = new List<Drawable>
         {
@@ -368,7 +368,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                Text = rating.ToString("0.00"),
+                Text = rating?.ToString("0.00") ?? "--",
                 Font = HomeTypography.Display(18),
                 Colour = SongSelectTheme.Ivory,
             },

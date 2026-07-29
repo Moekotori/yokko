@@ -15,6 +15,12 @@ public partial class JudgementReadout : CompositeDrawable
     private readonly bool showHitError;
     private double hideAtMilliseconds;
 
+    internal string DisplayedRating =>
+        ratingText?.Text.ToString() ?? string.Empty;
+
+    internal string DisplayedError =>
+        errorText?.Text.ToString() ?? string.Empty;
+
     public JudgementReadout(bool showHitError = true)
     {
         this.showHitError = showHitError;

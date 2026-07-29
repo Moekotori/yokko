@@ -26,6 +26,22 @@ clock truth, fallback policy, and backend rollout gates.
 
 `Yokko.Import` converts outside formats into `Yokko.Core` beatmaps. Format-specific quirks stay in this layer.
 
+## Star Rating
+
+`Yokko.Core.Difficulty.ManiaStarRatingCalculator` adapts the canonical
+`YokkoBeatmap` model to
+[StarRatingRebirth](https://github.com/zzzzv/StarRatingRebirth) 0.1.1
+(MIT, algorithm revision `2025/04/15`). This keeps difficulty calculation
+independent of the original chart format: osu!mania, Quaver, Malody, Etterna,
+and BMS imports all use the same tap/hold note data after conversion.
+
+Imported-chart library work calculates and caches the rating once per imported
+chart instead of recalculating it while rows render. Charts with fewer than 20
+playable notes or data the upstream algorithm cannot represent expose no
+rating (`--`) instead of reusing Overall Difficulty as a misleading star
+value. Mines and sample-only objects are not playable notes and do not
+contribute to the rating.
+
 ## Beat Timing
 
 `YokkoTimingPoint` preserves the timing-point fields required for osu!mania round trips, including inherited points. `BeatTimingMap` uses uninherited positive beat lengths as the authoritative beat grid and converts editor rows to song time through the active timing segment.

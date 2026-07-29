@@ -5,6 +5,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Audio;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
 using Yokko.Game.Presentation;
@@ -17,11 +18,17 @@ public partial class GameplayHud : CompositeDrawable
     private readonly SpriteText comboText;
     private readonly SpriteText accuracyText;
     private readonly SpriteText countsText;
+    private readonly SpriteText audioText;
+    private AudioBackendKind displayedRequestedBackend;
+    private AudioEngineStatus displayedAudioStatus;
+
+    internal string DisplayedAudioStatus =>
+        audioText?.Text.ToString() ?? string.Empty;
 
     public GameplayHud(YokkoBeatmap beatmap)
     {
         Width = 340;
-        Height = 176;
+        Height = 204;
         Masking = true;
 
         InternalChildren = new Drawable[]
@@ -49,6 +56,7 @@ public partial class GameplayHud : CompositeDrawable
                     comboText = createLine(),
                     accuracyText = createLine(),
                     countsText = createLine(16),
+                    audioText = createLine(14),
                 },
             },
         };
@@ -68,6 +76,57 @@ public partial class GameplayHud : CompositeDrawable
             $"P {state.Counts.Perfect}  G {state.Counts.Great}  "
             + $"Good {state.Counts.Good}  Ok {state.Counts.Ok}  "
             + $"Meh {state.Counts.Meh}  M {state.Counts.Miss}";
+    }
+
+    public void UpdateAudioStatus(
+        AudioEngineStatus status,
+        AudioBackendKind requestedBackend)
+    {
+        if (status == displayedAudioStatus
+            && requestedBackend == displayedRequestedBackend)
+            return;
+
+        displayedAudioStatus = status;
+        displayedRequestedBackend = requestedBackend;
+
+        bool fellBack =
+            requestedBackend == AudioBackendKind.WasapiExclusive
+            && status.ActiveBackend == AudioBackendKind.SharedWasapi;
+        bool unhealthy =
+            status.IsFaulted
+            || status.HasUnderrun
+            || status.CallbackDeadlineMissCount > 0
+            || status.CallbackCadenceMissCount > 0;
+        string backend = status.ActiveBackend switch
+        {
+            AudioBackendKind.WasapiExclusive => "WASAPI EXCLUSIVE",
+            AudioBackendKind.SharedWasapi => "WASAPI SHARED",
+            AudioBackendKind.Asio => "ASIO",
+            _ => "AUDIO STARTING",
+        };
+        string state = status.IsFaulted
+            ? " · FAULT"
+            : fellBack
+                ? " · FALLBACK"
+                : unhealthy
+                    ? " · UNSTABLE"
+                    : string.Empty;
+        string timing = status.SampleRate > 0 && status.BufferSize > 0
+            ? $" · {status.BufferSize}f · "
+              + $"{status.EstimatedOutputLatencyMilliseconds:0.00} ms"
+            : string.Empty;
+
+        audioText.Text = backend + timing + state;
+        audioText.Colour = unhealthy || fellBack
+            ? YokkoPalette.Rose
+            : YokkoPalette.TextMuted;
+    }
+
+    public void ShowFrameClock()
+    {
+        displayedAudioStatus = null;
+        audioText.Text = "NO AUDIO · FRAME CLOCK";
+        audioText.Colour = YokkoPalette.TextMuted;
     }
 
     private static SpriteText createLine(float size = 18) => new()

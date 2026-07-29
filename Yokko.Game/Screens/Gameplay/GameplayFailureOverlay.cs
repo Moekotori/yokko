@@ -11,7 +11,7 @@ namespace Yokko.Game.Screens.Gameplay;
 
 internal partial class GameplayFailureOverlay : CompositeDrawable
 {
-    public GameplayFailureOverlay()
+    public GameplayFailureOverlay(string technicalDetail = null)
     {
         RelativeSizeAxes = Axes.Both;
         Depth = -1000;
@@ -27,7 +27,7 @@ internal partial class GameplayFailureOverlay : CompositeDrawable
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Size = new Vector2(540, 166),
+                Size = new Vector2(600, technicalDetail == null ? 166 : 194),
                 Masking = true,
                 CornerRadius = 12,
                 BorderThickness = 1.2f,
@@ -76,6 +76,14 @@ internal partial class GameplayFailureOverlay : CompositeDrawable
                         Text = YokkoStrings.Get("gameplay.audio_failed_return"),
                         Font = HomeTypography.Body(15),
                         Colour = HomeControlColours.Cyan,
+                    },
+                    new SpriteText
+                    {
+                        Position = new Vector2(80, 139),
+                        Text = technicalDetail ?? string.Empty,
+                        Font = HomeTypography.Body(12),
+                        Colour = HomeControlColours.Pink,
+                        Alpha = technicalDetail == null ? 0 : 1,
                     },
                 },
             },

@@ -11,6 +11,7 @@ public sealed class NullAudioEngine : IAudioEngine
         false,
         false,
         false,
+        false,
         0,
         0,
         0,

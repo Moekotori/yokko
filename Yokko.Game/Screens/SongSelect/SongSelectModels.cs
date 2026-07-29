@@ -24,7 +24,7 @@ internal sealed record SongSelectScore(
 internal sealed record SongSelectEntry(
     YokkoBeatmap Beatmap,
     string WallpaperTexture,
-    double StarRating,
+    double? StarRating,
     TimeSpan Length,
     double Bpm,
     int BestScore,

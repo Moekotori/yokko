@@ -712,7 +712,7 @@ public partial class SongSelectScreen : Screen
         },
     };
 
-    private static Drawable createStarRating(double rating)
+    private static Drawable createStarRating(double? rating)
     {
         var flow = new FillFlowContainer
         {
@@ -747,7 +747,7 @@ public partial class SongSelectScreen : Screen
         {
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
-            Text = rating.ToString("0.00"),
+            Text = rating?.ToString("0.00") ?? "--",
             Font = HomeTypography.Display(21),
             Colour = SongSelectTheme.Ivory,
         });
@@ -1003,7 +1003,7 @@ public partial class SongSelectScreen : Screen
         return new SongSelectEntry(
             beatmap,
             imported.ArtworkPath ?? "SongSelect/blue-signal",
-            beatmap.OverallDifficulty,
+            imported.StarRating,
             TimeSpan.FromMilliseconds(Math.Max(0, lengthMilliseconds)),
             bpm,
             0,

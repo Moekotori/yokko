@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Platform;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Difficulty;
 using Yokko.Game.Importing;
 using Yokko.Import;
 using Yokko.Import.Osu;
@@ -27,7 +28,17 @@ public sealed class ImportedChartLibraryTest
         library.AddOrReplace(replacement, @"c:\charts\EXAMPLE.osu");
 
         Assert.That(library.GetCharts(), Has.Count.EqualTo(1));
-        Assert.That(library.GetCharts()[0].Result.Beatmap.Title, Is.EqualTo("Replacement"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                library.GetCharts()[0].Result.Beatmap.Title,
+                Is.EqualTo("Replacement"));
+            Assert.That(library.GetCharts()[0].StarRating, Is.Not.Null);
+            Assert.That(
+                library.GetCharts()[0].StarRating,
+                Is.EqualTo(ManiaStarRatingCalculator.Calculate(
+                    replacement.Beatmap)));
+        });
     }
 
     [Test]

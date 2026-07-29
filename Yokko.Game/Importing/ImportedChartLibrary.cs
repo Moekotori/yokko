@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
+using Yokko.Core.Difficulty;
 using Yokko.Game.Resources;
 using Yokko.Import;
 
@@ -15,7 +16,8 @@ internal sealed record ImportedChart(
     string Id,
     string SourcePath,
     ChartImportResult Result,
-    string ArtworkPath);
+    string ArtworkPath,
+    double? StarRating);
 
 /// <summary>
 /// Owns Yokko's persistent beatmap resource directory and notifies views which
@@ -236,11 +238,22 @@ internal sealed class ImportedChartLibrary
     private ImportedChart[] createImportedCharts(
         IReadOnlyList<ChartImportResult> results,
         string sourcePath) =>
-        results.Select((result, index) => new ImportedChart(
-                   $"{sourcePath}\u001f{index}",
-                   sourcePath,
-                   result,
-                   resolveArtworkPath(result, sourcePath)))
+        results.Select((result, index) =>
+               {
+                   double? starRating =
+                       ManiaStarRatingCalculator.TryCalculate(
+                           result.Beatmap,
+                           out double calculated)
+                           ? calculated
+                           : null;
+
+                   return new ImportedChart(
+                       $"{sourcePath}\u001f{index}",
+                       sourcePath,
+                       result,
+                       resolveArtworkPath(result, sourcePath),
+                       starRating);
+               })
                .ToArray();
 
     private static string resolveArtworkPath(

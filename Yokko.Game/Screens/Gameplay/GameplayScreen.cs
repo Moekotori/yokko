@@ -56,8 +56,11 @@ public partial class GameplayScreen : Screen
     private bool[] pressedLanes;
     private double startTimeMilliseconds;
     private bool hasAudioClock;
+    private bool audioStarted;
     private OsuManiaSkin maniaSkin;
     private double activeUserOffsetMilliseconds;
+    private AudioBackendKind activeRequestedBackend;
+    private double lastStableAudioGameplayTime;
     private readonly InputAgeTracker inputAgeTracker = new();
     private bool gameplayBlocked;
     private bool gameplayCompleted;
@@ -77,11 +80,13 @@ public partial class GameplayScreen : Screen
     private double pausedGameplayTime;
     private double pausedAudioPosition;
     private GameplayPauseOverlay pauseOverlay;
+    private JudgementReadout judgementReadout;
 
     internal bool GameplayBlocked => gameplayBlocked;
     internal bool GameplayCompleted => gameplayCompleted;
     internal bool IsPaused => isPaused;
     internal bool PauseTransitionInProgress => pauseTransitionInProgress;
+    internal double CurrentGameplayTime => currentGameplayTime;
     internal ManiaScoreResult CompletedResult => completedResult;
     internal bool ReplayMode => replay != null;
     internal bool IntroSkipAvailable =>
@@ -173,7 +178,17 @@ public partial class GameplayScreen : Screen
                 Origin = Anchor.TopRight,
                 Position = new Vector2(-20, 20),
             },
+            judgementReadout = new JudgementReadout
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Position = new Vector2(0, 30),
+                Depth = -100,
+            },
         };
+
+        if (!hasAudioClock)
+            hud.ShowFrameClock();
 
         gameplaySettings.ScrollSpeed.BindValueChanged(
             onScrollSpeedChanged,
@@ -203,6 +218,17 @@ public partial class GameplayScreen : Screen
 
         if (gameplayBlocked || gameplayCompleted || isPaused)
             return;
+
+        if (hasAudioClock && audioStarted)
+        {
+            AudioEngineStatus audioStatus = audioEngine.Status;
+            hud.UpdateAudioStatus(audioStatus, activeRequestedBackend);
+            if (audioStatus.IsFaulted)
+            {
+                failAudioRuntime(audioStatus);
+                return;
+            }
+        }
 
         double gameplayTime = currentGameplayTime;
         double visualGameplayTime = hasAudioClock
@@ -251,6 +277,14 @@ public partial class GameplayScreen : Screen
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
+        if (gameplayBlocked)
+        {
+            if (e.Key == Key.Escape)
+                this.Exit();
+
+            return true;
+        }
+
         if (isPaused)
             return pauseOverlay?.HandleKey(e.Key) ?? true;
 
@@ -359,9 +393,11 @@ public partial class GameplayScreen : Screen
         {
             activeUserOffsetMilliseconds =
                 audioSettings.UserOffsetMilliseconds.Value;
+            AudioEngineStartRequest startRequest =
+                audioSettings.CreateStartRequest(beatmap.AudioPath);
+            activeRequestedBackend = startRequest.PreferredBackend;
 
-            await audioEngine.StartAsync(
-                audioSettings.CreateStartRequest(beatmap.AudioPath))
+            await audioEngine.StartAsync(startRequest)
                              .ConfigureAwait(true);
 
             if (!audioEngine.Status.IsRunning)
@@ -369,6 +405,14 @@ public partial class GameplayScreen : Screen
                 failAudioStart("The audio engine returned without starting playback.");
                 return;
             }
+
+            audioStarted = true;
+            lastStableAudioGameplayTime =
+                audioEngine.PlaybackTimeMilliseconds
+                + activeUserOffsetMilliseconds;
+            hud.UpdateAudioStatus(
+                audioEngine.Status,
+                activeRequestedBackend);
 
             if (isPaused)
             {
@@ -420,6 +464,25 @@ public partial class GameplayScreen : Screen
         });
     }
 
+    private void failAudioRuntime(AudioEngineStatus status)
+    {
+        if (gameplayBlocked)
+            return;
+
+        string detail =
+            $"{status.ActiveBackend} · "
+            + $"{status.BufferSize} frames · "
+            + $"{status.EstimatedOutputLatencyMilliseconds:0.00} ms · "
+            + $"HRESULT 0x{unchecked((uint)status.BackendError):X8}"
+            + $"/{status.BackendErrorStage}";
+        Logger.Log(
+            $"Gameplay audio output faulted: {detail}",
+            LoggingTarget.Runtime,
+            LogLevel.Error);
+        gameplayBlocked = true;
+        AddInternal(new GameplayFailureOverlay(detail));
+    }
+
     private double currentGameplayTime
     {
         get
@@ -431,9 +494,14 @@ public partial class GameplayScreen : Screen
             {
                 if (audioEngine.Status.IsRunning)
                 {
-                    return audioEngine.PlaybackTimeMilliseconds
-                           + activeUserOffsetMilliseconds;
+                    lastStableAudioGameplayTime =
+                        audioEngine.PlaybackTimeMilliseconds
+                        + activeUserOffsetMilliseconds;
+                    return lastStableAudioGameplayTime;
                 }
+
+                if (audioStarted)
+                    return lastStableAudioGameplayTime;
 
                 // Hold at zero while the audio device opens so its startup
                 // time cannot consume notes at the beginning of a chart.
@@ -569,6 +637,11 @@ public partial class GameplayScreen : Screen
     private void applyJudgement(JudgementEvent judgement)
     {
         playfield.ApplyJudgement(judgement);
+        if (judgement.Phase is not JudgementPhase.Hold
+            and not JudgementPhase.HoldBody)
+        {
+            judgementReadout.Show(judgement);
+        }
     }
 
     private void completeGameplay()

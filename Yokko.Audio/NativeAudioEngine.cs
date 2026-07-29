@@ -58,6 +58,7 @@ public sealed class NativeAudioEngine : IAudioEngine
                 return status with
                 {
                     IsRunning = native.State == NativeAudioState.Running,
+                    IsFaulted = native.State == NativeAudioState.Faulted,
                     HasUnderrun = native.UnderrunCount > 0,
                     CallbackCount = native.CallbackCount,
                     CallbackDeadlineMissCount =
@@ -345,6 +346,7 @@ public sealed class NativeAudioEngine : IAudioEngine
             activeBackend == AudioBackendKind.WasapiExclusive,
             true,
             false,
+            false,
             0,
             0,
             0,
@@ -466,6 +468,7 @@ public sealed class NativeAudioEngine : IAudioEngine
         0,
         0,
         0,
+        false,
         false,
         false,
         false,

@@ -23,6 +23,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Audio;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Screens.Gameplay;
@@ -87,8 +88,51 @@ namespace Yokko.Game.Tests.Visual
                 return current?
                        .ChildrenOfType<GameplayHud>()
                        .SingleOrDefault() != null &&
-                       current.ChildrenOfType<JudgementReadout>().Any() == false;
+                       current.ChildrenOfType<JudgementReadout>().SingleOrDefault() != null;
             });
+        }
+
+        [Test]
+        public void TestRuntimeAudioTruthAndHitErrorAreVisible()
+        {
+            GameplayHud hud = null;
+            JudgementReadout readout = null;
+
+            AddUntilStep("gameplay feedback loaded", () =>
+            {
+                Drawable current = screenStack.CurrentScreen as Drawable;
+                hud = current?
+                      .ChildrenOfType<GameplayHud>()
+                      .SingleOrDefault();
+                readout = current?
+                          .ChildrenOfType<JudgementReadout>()
+                          .SingleOrDefault();
+                return hud != null && readout != null;
+            });
+            AddStep("show shared fallback truth", () =>
+                hud.UpdateAudioStatus(
+                    createAudioStatus(
+                        AudioBackendKind.SharedWasapi,
+                        running: true,
+                        bufferSize: 480,
+                        latencyMilliseconds: 10),
+                    AudioBackendKind.WasapiExclusive));
+            AddAssert("fallback and actual latency are visible", () =>
+                hud.DisplayedAudioStatus.Contains("WASAPI SHARED")
+                && hud.DisplayedAudioStatus.Contains("480f")
+                && hud.DisplayedAudioStatus.Contains("10.00 ms")
+                && hud.DisplayedAudioStatus.Contains("FALLBACK"));
+            AddStep("show signed hit error", () =>
+                readout.Show(new JudgementEvent(
+                    0,
+                    0,
+                    1000,
+                    1012.5,
+                    12.5,
+                    JudgementRating.Perfect)));
+            AddAssert("rating and milliseconds are visible", () =>
+                readout.DisplayedRating == "PERFECT"
+                && readout.DisplayedError == "+12.5 ms");
         }
 
         [Test]
@@ -286,6 +330,45 @@ namespace Yokko.Game.Tests.Visual
                 (screenStack.CurrentScreen as Drawable)?
                 .ChildrenOfType<GameplayFailureOverlay>()
                 .SingleOrDefault() != null);
+        }
+
+        [Test]
+        public void TestRuntimeAudioFaultBlocksWithoutRewindingClock()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                AudioPath = "runtime-fault-fixture.wav",
+            };
+            GameplayScreen gameplayScreen = null;
+            double timeBeforeFault = 0;
+
+            AddStep("open gameplay with runtime audio", () =>
+            {
+                gameplayScreen = new GameplayScreen(beatmap, audioEngine);
+                screenStack.Push(gameplayScreen);
+            });
+            AddUntilStep("audio starts", () =>
+                audioEngine.StartCount == 1);
+            AddStep("advance audio clock", () =>
+                audioEngine.SetPlaybackTime(1234));
+            AddUntilStep("gameplay observes audio clock", () =>
+                gameplayScreen.CurrentGameplayTime >= 1234);
+            AddStep("capture clock and fault output", () =>
+            {
+                timeBeforeFault = gameplayScreen.CurrentGameplayTime;
+                audioEngine.Fault(unchecked((int)0x88890004), 15);
+            });
+            AddUntilStep("runtime fault blocks gameplay", () =>
+                gameplayScreen.GameplayBlocked);
+            AddAssert("fault keeps last stable clock", () =>
+                Math.Abs(
+                    gameplayScreen.CurrentGameplayTime
+                    - timeBeforeFault) < 0.01);
+            AddAssert("runtime failure details are visible", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayFailureOverlay>()
+                    .SingleOrDefault() != null);
         }
 
         [Test]
@@ -826,6 +909,7 @@ StageHint: stage-hint
                 false,
                 false,
                 false,
+                false,
                 0,
                 0,
                 0,
@@ -929,24 +1013,50 @@ StageHint: stage-hint
             public ValueTask DisposeAsync() =>
                 ValueTask.CompletedTask;
 
+            public void SetPlaybackTime(double milliseconds) =>
+                PlaybackTimeMilliseconds = milliseconds;
+
+            public void Fault(int backendError, uint backendErrorStage)
+            {
+                status = status with
+                {
+                    IsRunning = false,
+                    IsFaulted = true,
+                    BackendError = backendError,
+                    BackendErrorStage = backendErrorStage,
+                };
+            }
+
             private static AudioEngineStatus createStatus(bool running) =>
-                new(
-                    AudioBackendKind.Fallback,
-                    null,
-                    48_000,
-                    128,
-                    0,
-                    false,
+                createAudioStatus(
+                    AudioBackendKind.WasapiExclusive,
                     running,
-                    false,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0);
+                    144,
+                    3);
         }
+
+        private static AudioEngineStatus createAudioStatus(
+            AudioBackendKind backend,
+            bool running,
+            int bufferSize,
+            double latencyMilliseconds) =>
+            new(
+                backend,
+                "Test output",
+                48_000,
+                bufferSize,
+                latencyMilliseconds,
+                backend == AudioBackendKind.WasapiExclusive,
+                running,
+                false,
+                false,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0);
     }
 }
