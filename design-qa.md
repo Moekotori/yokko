@@ -728,6 +728,10 @@ visual language without making the card edge feel crowded.
 - Added persistent keyboard and wheel navigation guidance, page-level wheel
   traversal, reverse category traversal with `Shift+Tab`, and explicit
   feedback for unavailable mods.
+- Wheel, Tab, and category-button navigation now use a directional page
+  transition: the current browser and inspector leave together, the next page
+  enters from the matching direction, repeated input is locked during the
+  transition, and the first/last page gives bounded edge feedback.
 - Enlarged the fixed-rate slider target and added hover/press feedback; an
   inactive rate mod now explains that dragging or pressing Space enables it.
 - Plain mods no longer show irrelevant rate controls, including after pending

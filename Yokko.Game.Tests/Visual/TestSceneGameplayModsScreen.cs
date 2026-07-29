@@ -119,9 +119,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddStep("global wheel moves to next category", () =>
             modsScreen.NavigatePageByScroll(-1));
         AddAssert("wheel starts a real page transition", () =>
-            modsScreen.IsPageTransitioning
-            && modsScreen.ActiveCategory == ManiaModCategory.Conversion
-            && modsScreen.DetailMod == ManiaModId.Random);
+            modsScreen.IsPageTransitioning);
         AddWaitStep("wait for wheel page transition", 25);
         AddAssert("wheel enters next page instead of focused Mod", () =>
             !modsScreen.IsPageTransitioning
