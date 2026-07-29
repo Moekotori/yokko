@@ -269,7 +269,7 @@ public sealed class DisplaySettingsTest
             using (var firstConfig = new YokkoConfigManager(new NativeStorage(directory)))
             {
                 firstConfig.BindDisplaySettings(firstSettings);
-                firstSettings.FrameLimit.Value = YokkoFrameLimit.Limit4x;
+                firstSettings.FrameLimit.Value = YokkoFrameLimit.Limit8x;
                 Assert.That(firstConfig.Save(), Is.True);
             }
 
@@ -279,7 +279,7 @@ public sealed class DisplaySettingsTest
                 restoredConfig.BindDisplaySettings(restoredSettings);
                 Assert.That(
                     restoredSettings.FrameLimit.Value,
-                    Is.EqualTo(YokkoFrameLimit.Limit4x));
+                    Is.EqualTo(YokkoFrameLimit.Limit8x));
             }
         }
         finally

@@ -88,11 +88,17 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
             if (disposed
                 || currentRequest == null
                 || !hasStartedCurrentRequest
-                || audioEngine.Status.IsRunning
                 || !operationQueue.IsCompleted)
             {
                 return;
             }
+
+            AudioEngineSnapshot snapshot = audioEngine.Snapshot;
+            double duration = audioEngine.DurationMilliseconds;
+            bool reachedEnd = duration > 0
+                              && snapshot.PlaybackTimeMilliseconds >= duration;
+            if (snapshot.Status.IsRunning && !reachedEnd)
+                return;
 
             queuePlaybackChange(currentRequest);
         }

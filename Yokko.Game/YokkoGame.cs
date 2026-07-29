@@ -71,12 +71,13 @@ namespace Yokko.Game
             YokkoBeatmap beatmap,
             GameplayReplay replay)
         {
-            screenStack.Push(new GameplayScreen(
-                beatmap,
-                null,
-                null,
-                null,
-                replay));
+            screenStack.Push(new GameplaySessionScreen(
+                new GameplayScreen(
+                    beatmap,
+                    null,
+                    null,
+                    null,
+                    replay)));
         }
 
         private void onShowPerformanceReadoutChanged(

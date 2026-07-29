@@ -343,8 +343,9 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.DifficultyAdjustSettings
                                .ExtendedLimits);
         AddStep("play selected song", songSelectScreen.PlaySelected);
-        AddAssert("gameplay receives selected mods", () =>
-            screenStack.CurrentScreen is GameplayScreen gameplay
+        AddUntilStep("gameplay receives selected mods", () =>
+            screenStack.CurrentScreen is GameplaySessionScreen session
+            && session.CurrentGameplay is GameplayScreen gameplay
             && gameplay.Mods.Contains(ManiaModId.Nightcore)
             && gameplay.Mods.Contains(ManiaModId.Autoplay)
             && gameplay.Mods.Contains(ManiaModId.Mirror)
@@ -368,7 +369,9 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && !gameplay.AppliedBeatmap.HitObjects.Any(
                 static hitObject => hitObject.Kind == HitObjectKind.Hold)
             && gameplay.AutoplayMode);
-        AddStep("return to song select", () => screenStack.CurrentScreen.Exit());
+        AddStep("return to song select", () =>
+            ((GameplaySessionScreen)screenStack.CurrentScreen)
+            .CurrentGameplay.Exit());
         AddUntilStep("song select resumes", () => screenStack.CurrentScreen is SongSelectScreen);
     }
 
@@ -445,8 +448,9 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("dual target is reflected", () =>
             songSelectScreen.SelectedMods.HasDualStages);
         AddStep("play converted chart", songSelectScreen.PlaySelected);
-        AddAssert("gameplay receives regenerated dual 4K chart", () =>
-            screenStack.CurrentScreen is GameplayScreen gameplay
+        AddUntilStep("gameplay receives regenerated dual 4K chart", () =>
+            screenStack.CurrentScreen is GameplaySessionScreen session
+            && session.CurrentGameplay is GameplayScreen gameplay
             && gameplay.AppliedBeatmap.KeyMode == KeyMode.EightKey
             && gameplay.AppliedBeatmap.StageCount == 2
             && gameplay.AppliedBeatmap.KeysPerStage == 4

@@ -1710,21 +1710,18 @@ HitPosition: 400
                 StopCompletion = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously),
             };
-            Screen parent = null;
+            GameplaySessionScreen session = null;
             GameplayScreen gameplay = null;
             GameplayScreen replacement = null;
 
-            AddStep("open non-gameplay parent", () =>
-                screenStack.Push(parent = new Screen()));
-            AddUntilStep("non-gameplay parent is current", () =>
-                ReferenceEquals(screenStack.CurrentScreen, parent)
-                && parent?.IsLoaded == true);
-            AddStep("open gameplay", () =>
-                screenStack.Push(gameplay = new GameplayScreen(
-                    DemoBeatmaps.CreateFourKeyDemo(),
-                    audioEngine)));
+            AddStep("open gameplay session", () =>
+                screenStack.Push(session = new GameplaySessionScreen(
+                    gameplay = new GameplayScreen(
+                        DemoBeatmaps.CreateFourKeyDemo(),
+                        audioEngine))));
             AddUntilStep("gameplay is current", () =>
-                ReferenceEquals(screenStack.CurrentScreen, gameplay)
+                ReferenceEquals(screenStack.CurrentScreen, session)
+                && ReferenceEquals(session?.CurrentGameplay, gameplay)
                 && gameplay?.IsLoaded == true);
             AddStep("request retry twice", () =>
             {
@@ -1733,18 +1730,25 @@ HitPosition: 400
             });
             AddAssert("retry waits and coalesces", () =>
                 audioEngine.StopCount == 1
-                && ReferenceEquals(screenStack.CurrentScreen, gameplay));
+                && ReferenceEquals(screenStack.CurrentScreen, session)
+                && ReferenceEquals(session.CurrentGameplay, gameplay));
             AddStep("release old audio session", () =>
                 audioEngine.StopCompletion.SetResult(true));
             AddUntilStep("replacement gameplay is current", () =>
             {
-                replacement = screenStack.CurrentScreen as GameplayScreen;
+                replacement = session?.CurrentGameplay;
                 return replacement != null
                        && !ReferenceEquals(replacement, gameplay);
             });
-            AddAssert("replacement has non-gameplay parent", () =>
-                ReferenceEquals(replacement.GetParentScreen(), parent)
+            AddAssert("replacement stays inside gameplay session", () =>
+                ReferenceEquals(screenStack.CurrentScreen, session)
+                && replacement.GetParentScreen()
+                   is GameplaySessionRootScreen
                 && !gameplay.ValidForResume);
+            AddStep("exit replacement gameplay", () =>
+                replacement.Exit());
+            AddUntilStep("gameplay session exits with its gameplay", () =>
+                !ReferenceEquals(screenStack.CurrentScreen, session));
         }
 
         [Test]

@@ -9,6 +9,32 @@ namespace Yokko.Game.Tests.Core;
 [TestFixture]
 public sealed class DisplayFrameRateTest
 {
+    [Test]
+    public void DefaultPolicyReachesLowLatencyCeilingAt165Hz()
+    {
+        var settings = new YokkoDisplaySettings();
+
+        Assert.That(
+            settings.FrameLimit.Value,
+            Is.EqualTo(YokkoFrameRateLimits.LowLatencyDefault));
+        Assert.That(
+            YokkoFrameRateLimits.LowLatencyDefault,
+            Is.EqualTo(YokkoFrameLimit.Limit4x));
+
+        YokkoFrameRates rates = YokkoFrameRateLimits.Calculate(
+            YokkoFrameRateLimits.LowLatencyDefault,
+            165);
+
+        Assert.That(rates.MaximumDrawHz, Is.EqualTo(660));
+        Assert.That(
+            rates.MaximumUpdateHz,
+            Is.EqualTo(YokkoFrameRateLimits.MaximumSaneRate));
+        Assert.That(
+            YokkoFrameRateLimits.ToFrameworkFrameSync(
+                YokkoFrameRateLimits.LowLatencyDefault),
+            Is.EqualTo(FrameSync.Limit4x));
+    }
+
     [TestCase(YokkoFrameLimit.VSync, 144, "144 Hz")]
     [TestCase(YokkoFrameLimit.Limit2x, 144, "288 FPS")]
     [TestCase(YokkoFrameLimit.Limit4x, 60, "240 FPS")]

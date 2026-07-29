@@ -1431,6 +1431,12 @@ public partial class GameplayScreen : Screen
             while (destination is GameplayScreen)
                 destination = destination.GetParentScreen();
 
+            if (destination is GameplaySessionRootScreen sessionRoot)
+            {
+                sessionRoot.ReplaceGameplay(replacement);
+                return;
+            }
+
             if (destination == null)
             {
                 // Only test harnesses normally use gameplay as a stack root.

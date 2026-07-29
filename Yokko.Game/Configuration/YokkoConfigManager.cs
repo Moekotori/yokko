@@ -143,7 +143,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(YokkoSetting.DisplayUiScale, YokkoUiScale.Comfortable);
         SetDefault(
             YokkoSetting.DisplayFrameLimit,
-            YokkoFrameLimit.Limit2x);
+            YokkoFrameRateLimits.LowLatencyDefault);
         SetDefault(YokkoSetting.DisplayShowPerformanceReadout, false);
         SetDefault(YokkoSetting.SkinSelectedId, string.Empty);
         SetDefault(YokkoSetting.SettingsLastPage, "Display");

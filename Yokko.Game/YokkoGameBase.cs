@@ -91,7 +91,10 @@ namespace Yokko.Game
                 [FrameworkSetting.Locale] = YokkoLocale.English,
                 [FrameworkSetting.ExecutionMode] =
                     ExecutionMode.MultiThreaded,
-                [FrameworkSetting.FrameSync] = FrameSync.Limit2x,
+                [FrameworkSetting.WindowMode] = WindowMode.Fullscreen,
+                [FrameworkSetting.FrameSync] =
+                    YokkoFrameRateLimits.ToFrameworkFrameSync(
+                        YokkoFrameRateLimits.LowLatencyDefault),
             };
 
         public override void SetHost(GameHost host)

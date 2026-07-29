@@ -404,10 +404,10 @@ public partial class SongSelectScreen : Screen
         if (selectedEntry == null)
             return;
 
-        GameplayScreen gameplay = new(
+        var gameplay = new GameplaySessionScreen(new GameplayScreen(
             selectedEntry.Beatmap,
             mods: selectedMods,
-            cinemaArtworkPath: selectedEntry.WallpaperTexture);
+            cinemaArtworkPath: selectedEntry.WallpaperTexture));
         stopPreviewThen(() => this.Push(gameplay));
     }
 

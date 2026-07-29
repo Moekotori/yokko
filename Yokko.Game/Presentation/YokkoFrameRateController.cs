@@ -10,6 +10,12 @@ internal readonly record struct YokkoFrameRates(
 
 internal static class YokkoFrameRateLimits
 {
+    // lazer and osu!framework default to Limit2x. Yokko uses Limit4x so a
+    // 165 Hz display reaches the framework's 1000 Hz input/update ceiling
+    // while draw latency stays below one 165 Hz refresh interval.
+    internal const YokkoFrameLimit LowLatencyDefault =
+        YokkoFrameLimit.Limit4x;
+
     // osu!framework harvests input at 1000 Hz and applies the same ceiling
     // to draw and update work. Going beyond it adds CPU/GPU pressure without
     // improving the timestamp-based gameplay clock.

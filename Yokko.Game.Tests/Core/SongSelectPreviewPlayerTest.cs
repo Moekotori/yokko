@@ -78,13 +78,13 @@ public sealed class SongSelectPreviewPlayerTest
                 Assert.That(player.IsPlaying, Is.True);
             });
 
-            engine.FinishTrack();
+            engine.FinishTrack(keepOutputRunning: true);
             player.EnsurePlaying();
             await player.WaitForIdleAsync();
             Assert.That(
                 engine.Starts,
                 Has.Count.EqualTo(2),
-                "Finished previews should loop from their preview point.");
+                "Finished previews should loop even while the native output remains running.");
 
             player.Stop();
             await player.WaitForIdleAsync();
@@ -225,10 +225,10 @@ public sealed class SongSelectPreviewPlayerTest
 
         public int StopCount { get; private set; }
 
-        public void FinishTrack()
+        public void FinishTrack(bool keepOutputRunning)
         {
             PlaybackTimeMilliseconds = DurationMilliseconds;
-            Status = Status with { IsRunning = false };
+            Status = Status with { IsRunning = keepOutputRunning };
         }
 
         public ValueTask<IReadOnlyList<AudioDeviceInfo>>

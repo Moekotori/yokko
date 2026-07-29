@@ -240,7 +240,8 @@ public partial class EditorScreen : Screen
     private void playtest()
     {
         previewClock.Pause();
-        this.Push(new GameplayScreen(editableBeatmap.ToBeatmap()));
+        this.Push(new GameplaySessionScreen(
+            new GameplayScreen(editableBeatmap.ToBeatmap())));
     }
 
     private void importChart()
