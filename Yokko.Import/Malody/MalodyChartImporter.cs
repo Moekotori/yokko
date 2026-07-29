@@ -139,9 +139,6 @@ public sealed class MalodyChartImporter : IChartImporter
                 sample));
         }
 
-        if (hitObjects.Any(static note => note.SampleKey != null))
-            warnings.Add("Malody keysound references were preserved on notes, but runtime keysound playback is not available yet.");
-
         string? audioFile = audioEvent is { } audio
             && audio.TryGetProperty("sound", out JsonElement audioSound)
             ? audioSound.GetString()

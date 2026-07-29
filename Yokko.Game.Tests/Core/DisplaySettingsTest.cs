@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using NUnit.Framework;
+using osu.Framework.Configuration;
 using osu.Framework.Platform;
 using Yokko.Game.Configuration;
 using Yokko.Game.Presentation;
@@ -92,6 +93,38 @@ public sealed class DisplaySettingsTest
             Assert.That(compact.X / compact.Y, Is.EqualTo(16f / 9f).Within(0.001f));
             Assert.That(large.X, Is.LessThan(comfortable.X));
             Assert.That(comfortable.X, Is.LessThan(compact.X));
+            Assert.That(YokkoDisplaySettings.GetScalePercentage(YokkoUiScale.Large), Is.EqualTo(100));
+            Assert.That(YokkoDisplaySettings.GetScalePercentage(YokkoUiScale.Comfortable), Is.EqualTo(90));
+            Assert.That(YokkoDisplaySettings.GetScalePercentage(YokkoUiScale.Compact), Is.EqualTo(80));
+        });
+    }
+
+    [Test]
+    public void ResolutionOnlyUsesWindowedSizeInWindowedMode()
+    {
+        var windowedResolution = new System.Drawing.Size(2560, 1440);
+        var displayResolution = new System.Drawing.Size(3200, 2000);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                DisplaySettingsPanel.GetDisplayedResolution(
+                    WindowMode.Windowed,
+                    windowedResolution,
+                    displayResolution),
+                Is.EqualTo(windowedResolution));
+            Assert.That(DisplaySettingsPanel.CanChooseResolution(WindowMode.Windowed), Is.True);
+
+            foreach (WindowMode mode in new[] { WindowMode.Borderless, WindowMode.Fullscreen })
+            {
+                Assert.That(
+                    DisplaySettingsPanel.GetDisplayedResolution(
+                        mode,
+                        windowedResolution,
+                        displayResolution),
+                    Is.EqualTo(displayResolution));
+                Assert.That(DisplaySettingsPanel.CanChooseResolution(mode), Is.False);
+            }
         });
     }
 

@@ -20,7 +20,7 @@ extern "C"
 {
 #endif
 
-#define YOKKO_AUDIO_ABI_VERSION 4u
+#define YOKKO_AUDIO_ABI_VERSION 5u
 
     typedef struct yokko_audio_engine yokko_audio_engine;
 
@@ -33,6 +33,7 @@ extern "C"
         YOKKO_AUDIO_OUT_OF_MEMORY = 4,
         YOKKO_AUDIO_INTERNAL_ERROR = 5,
         YOKKO_AUDIO_BACKEND_UNAVAILABLE = 6,
+        YOKKO_AUDIO_QUEUE_FULL = 7,
     } yokko_audio_result;
 
     typedef enum yokko_audio_state
@@ -133,6 +134,25 @@ extern "C"
         const float* samples,
         uint32_t frame_count,
         uint32_t* accepted_frames);
+
+    /*
+     * Registers immutable, engine-rate interleaved PCM for callback-side
+     * keysound mixing. Registration is a control-thread operation and must
+     * complete before the engine starts.
+     */
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_register_sample_f32(
+        yokko_audio_engine* engine,
+        const float* samples,
+        uint32_t frame_count,
+        uint32_t* sample_id);
+
+    /*
+     * Enqueues a registered sample without allocating or blocking. The next
+     * output callback mixes it directly, bypassing the prefetched music ring.
+     */
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_trigger_sample(
+        yokko_audio_engine* engine,
+        uint32_t sample_id);
 
     /*
      * Real output backends call this function from their audio callback.

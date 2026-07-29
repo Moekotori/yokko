@@ -31,11 +31,15 @@ namespace Yokko.Game.Tests.Core
                 startupThresholdFrames: 4);
 
             Assert.That(core.GetStatus().State, Is.EqualTo(NativeAudioState.Idle));
+            uint sampleId = core.RegisterSample(
+                new float[] { 0.25f, -0.25f, 0.5f, -0.5f });
+            Assert.That(sampleId, Is.GreaterThan(0));
             Assert.That(core.Submit(new float[8]), Is.EqualTo(4));
             Assert.That(core.GetStatus().State, Is.EqualTo(NativeAudioState.Primed));
 
             core.Start();
             Assert.That(core.GetStatus().State, Is.EqualTo(NativeAudioState.Running));
+            Assert.That(core.TriggerSample(sampleId), Is.True);
 
             core.Pause();
             Assert.That(core.GetStatus().State, Is.EqualTo(NativeAudioState.Paused));

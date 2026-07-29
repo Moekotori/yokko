@@ -4,8 +4,10 @@
 #include "yokko_audio.h"
 
 #include <atomic>
+#include <array>
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace yokko::audio
 {
@@ -24,6 +26,11 @@ namespace yokko::audio
             const float* samples,
             uint32_t frame_count,
             uint32_t& accepted_frames) noexcept;
+        yokko_audio_result register_sample(
+            const float* samples,
+            uint32_t frame_count,
+            uint32_t& sample_id) noexcept;
+        yokko_audio_result trigger_sample(uint32_t sample_id) noexcept;
         yokko_audio_result render(
             float* output,
             uint32_t frame_count,
@@ -56,8 +63,26 @@ namespace yokko::audio
         }
 
     private:
+        static constexpr uint32_t sample_trigger_capacity = 128;
+        static constexpr uint32_t sample_voice_capacity = 32;
+
+        struct RegisteredSample
+        {
+            std::vector<float> pcm;
+            uint32_t frame_count{0};
+        };
+
+        struct SampleVoice
+        {
+            uint32_t sample_id{0};
+            uint32_t frame_offset{0};
+        };
+
         [[nodiscard]] double playback_time_milliseconds() const noexcept;
         void update_primed_state() noexcept;
+        void activate_pending_samples() noexcept;
+        void mix_active_samples(float* output, uint32_t frame_count) noexcept;
+        void reset_sample_playback() noexcept;
 
         uint32_t sample_rate_;
         uint32_t channels_;
@@ -86,6 +111,12 @@ namespace yokko::audio
         std::atomic<bool> accepting_submissions_{true};
         std::atomic<uint32_t> active_submit_calls_{0};
         std::atomic<uint32_t> active_render_callbacks_{0};
+        std::vector<RegisteredSample> sample_bank_;
+        std::array<uint32_t, sample_trigger_capacity> sample_trigger_queue_{};
+        std::atomic<uint32_t> sample_trigger_read_{0};
+        std::atomic<uint32_t> sample_trigger_write_{0};
+        std::array<SampleVoice, sample_voice_capacity> sample_voices_{};
+        uint32_t next_sample_voice_{0};
         std::unique_ptr<WasapiOutput> output_;
     };
 }

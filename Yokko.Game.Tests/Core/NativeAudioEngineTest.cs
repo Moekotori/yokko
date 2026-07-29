@@ -28,12 +28,14 @@ namespace Yokko.Game.Tests.Core
             createSilentWave(audioPath, 48000, 2, 2000);
 
             await using var engine = new NativeAudioEngine();
+            await engine.PrepareSamplesAsync([audioPath]);
             var devices = await engine.GetOutputDevicesAsync();
             AudioDeviceInfo[] uniqueDevices = devices
                                               .Where(device => device.Backend == AudioBackendKind.WasapiExclusive)
                                               .OrderBy(device => device.IsDefault)
                                               .ToArray();
             bool opened = false;
+            AudioDeviceInfo openedDevice = null;
             foreach (AudioDeviceInfo device in uniqueDevices)
             {
                 try
@@ -51,6 +53,7 @@ namespace Yokko.Game.Tests.Core
                         + $"{engine.Status.EstimatedOutputLatencyMilliseconds:F2} ms");
                     await Task.Delay(250);
                     opened = true;
+                    openedDevice = device;
                     break;
                 }
                 catch (Exception exception)
@@ -89,6 +92,10 @@ namespace Yokko.Game.Tests.Core
             Assert.That(status.IsRunning, Is.True);
             Assert.That(status.HasUnderrun, Is.False);
             Assert.That(
+                engine.TriggerSample(audioPath),
+                Is.True,
+                "A prepared keysound must enter the native callback queue.");
+            Assert.That(
                 status.CallbackCount,
                 Is.GreaterThan(1),
                 "The event-driven output callback must continue after startup.");
@@ -120,6 +127,21 @@ namespace Yokko.Game.Tests.Core
 
             await engine.StopAsync();
             Assert.That(engine.Status.IsRunning, Is.False);
+
+            await engine.StartAsync(new AudioEngineStartRequest(
+                string.Empty,
+                AudioBackendKind.WasapiExclusive,
+                openedDevice.Id,
+                48000,
+                128,
+                0));
+            await Task.Delay(50);
+            Assert.That(
+                engine.PlaybackTimeMilliseconds,
+                Is.GreaterThan(0),
+                "Keysound-only charts need a native silence clock.");
+            Assert.That(engine.TriggerSample(audioPath), Is.True);
+            await engine.StopAsync();
         }
 
         private static void createSilentWave(

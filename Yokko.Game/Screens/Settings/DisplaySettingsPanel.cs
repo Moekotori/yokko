@@ -60,6 +60,8 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     private readonly SettingsResolutionDropdown resolutionDropdown;
 
     internal bool IsResolutionMenuOpen => resolutionDropdown.IsOpen;
+    internal bool IsResolutionSelectionEnabled => resolutionDropdown.IsEnabled;
+    internal Size DisplayedResolution => resolutionDropdown.SelectedSize;
     internal YokkoUiScale CurrentUiScale => uiScale.Value;
 
     public DisplaySettingsPanel(
@@ -254,16 +256,16 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     {
         var options = new[]
         {
-            (YokkoUiScale.Compact, YokkoStrings.Get("settings.display.compact"), FontAwesome.Solid.List),
-            (YokkoUiScale.Comfortable, YokkoStrings.Get("settings.display.comfortable"), FontAwesome.Solid.Bars),
-            (YokkoUiScale.Large, YokkoStrings.Get("settings.display.spacious"), FontAwesome.Solid.ThList),
+            (YokkoUiScale.Compact, FontAwesome.Solid.List),
+            (YokkoUiScale.Comfortable, FontAwesome.Solid.Bars),
+            (YokkoUiScale.Large, FontAwesome.Solid.ThList),
         };
 
-        foreach ((YokkoUiScale scale, LocalisableString label, IconUsage icon) in options)
+        foreach ((YokkoUiScale scale, IconUsage icon) in options)
         {
             YokkoUiScale capturedScale = scale;
             scaleButtons.Add(new SettingsSegmentedChoiceButton(
-                label,
+                $"{YokkoDisplaySettings.GetScalePercentage(scale)}%",
                 icon,
                 () => uiScale.Value = capturedScale,
                 199)
@@ -351,7 +353,13 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             displaySize.Width,
             displaySize.Height,
             FormatRefreshRate(refreshRate));
-        resolutionDropdown.SetSelected(windowedSize.Value);
+
+        bool canChooseResolution = CanChooseResolution(windowMode.Value);
+        resolutionDropdown.SetEnabled(canChooseResolution);
+        resolutionDropdown.SetSelected(GetDisplayedResolution(
+            windowMode.Value,
+            windowedSize.Value,
+            displaySize));
 
         foreach (SettingsSegmentedChoiceButton button in modeButtons)
             button.SetSelected(button.Value is WindowMode mode && mode == windowMode.Value);
@@ -385,6 +393,17 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
     internal static string FormatRefreshRate(float refreshRate) =>
         $"{MathF.Round(MathF.Max(refreshRate, 1)):0}";
+
+    internal static bool CanChooseResolution(WindowMode mode) =>
+        mode == WindowMode.Windowed;
+
+    internal static Size GetDisplayedResolution(
+        WindowMode mode,
+        Size windowedResolution,
+        Size displayResolution) =>
+        CanChooseResolution(mode)
+            ? windowedResolution
+            : displayResolution;
 
     internal void SelectUiScale(YokkoUiScale scale) => uiScale.Value = scale;
 

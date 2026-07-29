@@ -47,6 +47,8 @@ public sealed class YokkoGameplaySettings
 
     public readonly BindableBool ShowLanePressFeedback = new(true);
 
+    public readonly BindableBool KeysoundsEnabled = new(true);
+
     public IReadOnlyList<Bindable<Key>> GetBindableKeys(KeyMode keyMode) =>
         keyMode switch
         {

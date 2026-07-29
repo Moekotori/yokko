@@ -203,7 +203,7 @@ internal static class YokkoStrings
             ["settings.display.window_mode"] = new("Window mode", "窗口模式", "ウィンドウモード"),
             ["settings.display.resolution"] = new("Resolution", "分辨率", "解像度"),
             ["settings.display.frame_limit"] = new("Frame limit", "帧率上限", "フレーム上限"),
-            ["settings.display.interface_scale"] = new("Interface scale", "界面缩放", "UI スケール"),
+            ["settings.display.interface_scale"] = new("Interface size", "界面大小", "UI サイズ"),
             ["settings.display.performance_readout"] = new(
                 "Performance readout",
                 "性能读数",
@@ -213,9 +213,9 @@ internal static class YokkoStrings
             ["settings.display.windowed"] = new("Windowed", "窗口化", "ウィンドウ"),
             ["settings.display.borderless"] = new("Borderless", "无边框", "ボーダーレス"),
             ["settings.display.fullscreen"] = new("Fullscreen", "全屏", "フルスクリーン"),
-            ["settings.display.compact"] = new("Compact", "紧凑", "コンパクト"),
-            ["settings.display.comfortable"] = new("Comfortable", "舒适", "標準"),
-            ["settings.display.spacious"] = new("Large", "大", "大"),
+            ["settings.display.compact"] = new("80%", "80%", "80%"),
+            ["settings.display.comfortable"] = new("90%", "90%", "90%"),
+            ["settings.display.spacious"] = new("100%", "100%", "100%"),
 
             ["settings.audio.title"] = new("Audio", "音频", "オーディオ"),
             ["settings.audio.subtitle"] = new(
@@ -373,14 +373,22 @@ internal static class YokkoStrings
                 "游玩界面反馈",
                 "プレイ画面のフィードバック"),
             ["settings.gameplay.feedback_note"] = new(
-                "Control whether key presses light the lanes.",
-                "控制按键时是否点亮对应轨道。",
-                "キー入力時にレーンを点灯するか設定します。"),
+                "Control visual and audio feedback while playing.",
+                "控制游玩时的视觉与按键音反馈。",
+                "プレイ中の視覚とキー音フィードバックを設定します。"),
             ["settings.gameplay.show_lane_feedback"] = new("Lane lighting", "轨道亮灯", "レーン点灯"),
             ["settings.gameplay.show_lane_feedback_note"] = new(
                 "Light lanes on key press",
                 "按住按键时提供反馈",
                 "キー入力時に反応"),
+            ["settings.gameplay.keysounds"] = new(
+                "Keysounds",
+                "按键音",
+                "キー音"),
+            ["settings.gameplay.keysounds_note"] = new(
+                "Play chart samples on hit",
+                "命中时播放谱面采样",
+                "ヒット時に譜面サンプルを再生"),
             ["settings.gameplay.enabled"] = new("Enabled", "已启用", "オン"),
             ["settings.gameplay.disabled"] = new("Disabled", "已关闭", "オフ"),
 

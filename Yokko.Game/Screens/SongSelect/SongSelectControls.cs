@@ -364,40 +364,42 @@ internal partial class SongSelectSongRow : ClickableContainer
     private static Drawable createRowStarRating(
         ManiaStarRatingResult rating)
     {
-        Color4 colour = rating.IsSuccess
-            ? SongSelectTheme.Yellow
-            : SongSelectTheme.PaleCyan;
+        double value = rating.Value ?? 0;
+        int filled = rating.IsSuccess ? (int)Math.Min(6, Math.Floor(value)) : 0;
+        Color4 starColour = rating.IsSuccess ? SongSelectTheme.Yellow : SongSelectTheme.PaleCyan;
 
-        return new FillFlowContainer
+        var flow = new FillFlowContainer
         {
             Anchor = Anchor.BottomRight,
             Origin = Anchor.BottomRight,
-            Position = new Vector2(-28, -9),
+            Position = new Vector2(-28, -12),
             AutoSizeAxes = Axes.Both,
             Direction = FillDirection.Horizontal,
-            Spacing = new Vector2(5, 0),
-            Children = new Drawable[]
-            {
-                new SpriteIcon
-                {
-                    Anchor = Anchor.CentreLeft,
-                    Origin = Anchor.CentreLeft,
-                    Size = new Vector2(16),
-                    Icon = FontAwesome.Solid.Star,
-                    Colour = colour,
-                },
-                new SpriteText
-                {
-                    Anchor = Anchor.CentreLeft,
-                    Origin = Anchor.CentreLeft,
-                    Text = rating.Value?.ToString("0.00") ?? "--",
-                    Font = HomeTypography.Display(18),
-                    Colour = rating.IsSuccess
-                        ? SongSelectTheme.Ivory
-                        : SongSelectTheme.PaleCyan,
-                },
-            },
+            Spacing = new Vector2(3, 0),
         };
+
+        flow.Add(new SpriteText
+        {
+            Anchor = Anchor.CentreLeft,
+            Origin = Anchor.CentreLeft,
+            Text = rating.Value?.ToString("0.00") ?? "--",
+            Font = HomeTypography.Display(17),
+            Colour = rating.IsSuccess ? SongSelectTheme.Ivory : SongSelectTheme.PaleCyan,
+        });
+
+        for (int i = 0; i < 6; i++)
+        {
+            flow.Add(new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Size = new Vector2(13),
+                Icon = i < filled ? FontAwesome.Solid.Star : FontAwesome.Regular.Star,
+                Colour = starColour,
+            });
+        }
+
+        return flow;
     }
 }
 

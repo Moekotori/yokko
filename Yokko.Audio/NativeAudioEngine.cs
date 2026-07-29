@@ -3,11 +3,16 @@ using Yokko.Audio.Native;
 
 namespace Yokko.Audio;
 
-public sealed class NativeAudioEngine : IAudioEngine
+public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback
 {
     private const int outputChannels = 2;
     private const int decodeBlockFrames = 4096;
+    private const long maximumPreparedSampleBytes = 256L * 1024 * 1024;
     private readonly SemaphoreSlim lifecycle = new(1, 1);
+    private readonly Dictionary<string, DecodedAudioSample> preparedSamples =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, uint> activeSampleIds =
+        new(StringComparer.OrdinalIgnoreCase);
 
     private NativeAudioCore? core;
     private DecodedAudioSource? source;
@@ -143,16 +148,11 @@ public sealed class NativeAudioEngine : IAudioEngine
         if (request.PreferredBackend == AudioBackendKind.Asio)
             throw new NotSupportedException(
                 "ASIO is not connected yet. Select WASAPI exclusive or shared.");
-        if (string.IsNullOrWhiteSpace(request.AudioPath))
-            throw new ArgumentException(
-                "An audio file path is required.",
-                nameof(request));
-
-        string audioPath = Path.GetFullPath(request.AudioPath);
-        if (!File.Exists(audioPath))
-            throw new FileNotFoundException(
-                "Audio file was not found.",
-                audioPath);
+        string? audioPath = string.IsNullOrWhiteSpace(request.AudioPath)
+            ? null
+            : Path.GetFullPath(request.AudioPath);
+        if (audioPath != null && !File.Exists(audioPath))
+            throw new FileNotFoundException("Audio file was not found.", audioPath);
 
         await lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -160,10 +160,12 @@ public sealed class NativeAudioEngine : IAudioEngine
             throwIfDisposed();
             await stopCurrentAsync().ConfigureAwait(false);
 
-            source = await Task.Run(
-                () => DecodedAudioSource.Open(audioPath),
-                cancellationToken).ConfigureAwait(false);
-            activeRequest = request with { AudioPath = audioPath };
+            source = audioPath == null
+                ? null
+                : await Task.Run(
+                    () => DecodedAudioSource.Open(audioPath),
+                    cancellationToken).ConfigureAwait(false);
+            activeRequest = request with { AudioPath = audioPath ?? string.Empty };
             await startFromCurrentPositionAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -175,6 +177,88 @@ public sealed class NativeAudioEngine : IAudioEngine
         finally
         {
             lifecycle.Release();
+        }
+    }
+
+    public async ValueTask PrepareSamplesAsync(
+        IReadOnlyCollection<string> samplePaths,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(samplePaths);
+        await lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            throwIfDisposed();
+            preparedSamples.Clear();
+            activeSampleIds.Clear();
+            long preparedBytes = 0;
+
+            foreach (string path in samplePaths
+                         .Where(static path => !string.IsNullOrWhiteSpace(path))
+                         .Select(Path.GetFullPath)
+                         .Where(File.Exists)
+                         .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    DecodedAudioSample sample = await Task.Run(
+                        () => DecodedAudioSample.Decode(path),
+                        cancellationToken).ConfigureAwait(false);
+                    long sampleBytes =
+                        (long)sample.Samples.Length * sizeof(float);
+                    if (preparedBytes > maximumPreparedSampleBytes - sampleBytes)
+                        break;
+
+                    preparedSamples[path] = sample;
+                    preparedBytes += sampleBytes;
+                }
+                catch (Exception exception)
+                    when (exception is not OperationCanceledException)
+                {
+                    // A missing, corrupt, or unsupported optional keysound must
+                    // not prevent the backing track from starting.
+                }
+            }
+        }
+        finally
+        {
+            lifecycle.Release();
+        }
+    }
+
+    public bool TriggerSample(string samplePath)
+    {
+        if (string.IsNullOrWhiteSpace(samplePath))
+            return false;
+
+        string path;
+        try
+        {
+            path = Path.GetFullPath(samplePath);
+        }
+        catch
+        {
+            return false;
+        }
+
+        NativeAudioCore? current = core;
+        if (current == null
+            || !activeSampleIds.TryGetValue(path, out uint sampleId))
+            return false;
+
+        try
+        {
+            return current.TriggerSample(sampleId);
+        }
+        catch (ObjectDisposedException)
+        {
+            return false;
+        }
+        catch (NativeAudioException)
+        {
+            return false;
         }
     }
 
@@ -204,7 +288,7 @@ public sealed class NativeAudioEngine : IAudioEngine
         await lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (source == null || activeRequest == null)
+            if (activeRequest == null)
                 return;
 
             await stopFeederAsync().ConfigureAwait(false);
@@ -212,8 +296,15 @@ public sealed class NativeAudioEngine : IAudioEngine
             core?.Stop();
             core?.Dispose();
             core = null;
-            source.CurrentTime =
-                TimeSpan.FromMilliseconds(Math.Max(0, timeMilliseconds));
+            if (source != null)
+            {
+                source.CurrentTime =
+                    TimeSpan.FromMilliseconds(Math.Max(0, timeMilliseconds));
+            }
+            else
+            {
+                playbackBaseMilliseconds = Math.Max(0, timeMilliseconds);
+            }
             await startFromCurrentPositionAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -260,12 +351,18 @@ public sealed class NativeAudioEngine : IAudioEngine
     private async Task startFromCurrentPositionAsync(
         CancellationToken cancellationToken)
     {
-        DecodedAudioSource currentSource =
-            source ?? throw new InvalidOperationException("Audio source is not open.");
         AudioEngineStartRequest request =
             activeRequest ?? throw new InvalidOperationException("Audio request is missing.");
-        playbackBaseMilliseconds =
-            currentSource.CurrentTime.TotalMilliseconds;
+        DecodedAudioSource? currentSource = source;
+        int sampleRate = currentSource?.SampleRate
+                         ?? (request.PreferredSampleRate > 0
+                             ? request.PreferredSampleRate
+                             : 48000);
+        if (currentSource != null)
+        {
+            playbackBaseMilliseconds =
+                currentSource.CurrentTime.TotalMilliseconds;
+        }
 
         uint preferredBufferFrames = (uint)Math.Clamp(
             request.PreferredBufferSize <= 0 ? 128 : request.PreferredBufferSize,
@@ -275,22 +372,35 @@ public sealed class NativeAudioEngine : IAudioEngine
         uint ringFrames = Math.Max(preferredBufferFrames * 32, 8192);
 
         core = new NativeAudioCore(
-            (uint)currentSource.SampleRate,
+            (uint)sampleRate,
             outputChannels,
             ringFrames,
             startupFrames);
+        activeSampleIds.Clear();
+        foreach ((string path, DecodedAudioSample sample) in preparedSamples)
+        {
+            float[] pcm = sample.GetSamplesAt(sampleRate);
+            activeSampleIds[path] = core.RegisterSample(pcm);
+        }
 
         var primed = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
         feederCancellation =
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        feederTask = Task.Run(
-            () => feedPcmAsync(
-                currentSource,
-                core,
-                primed,
-                feederCancellation.Token),
-            CancellationToken.None);
+        feederTask = currentSource == null
+            ? Task.Run(
+                () => feedSilenceAsync(
+                    core,
+                    primed,
+                    feederCancellation.Token),
+                CancellationToken.None)
+            : Task.Run(
+                () => feedPcmAsync(
+                    currentSource,
+                    core,
+                    primed,
+                    feederCancellation.Token),
+                CancellationToken.None);
 
         await primed.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         core.Start();
@@ -414,6 +524,36 @@ public sealed class NativeAudioEngine : IAudioEngine
         }
     }
 
+    private static async Task feedSilenceAsync(
+        NativeAudioCore core,
+        TaskCompletionSource primed,
+        CancellationToken cancellationToken)
+    {
+        var samples = new float[decodeBlockFrames * outputChannels];
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                uint acceptedFrames = core.Submit(samples);
+                if (core.GetStatus().State == NativeAudioState.Primed)
+                    primed.TrySetResult();
+                if (acceptedFrames == 0)
+                    await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            primed.TrySetCanceled(cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            primed.TrySetException(exception);
+            throw;
+        }
+    }
+
     private async Task stopFeederAsync()
     {
         CancellationTokenSource? cancellation = feederCancellation;
@@ -452,6 +592,7 @@ public sealed class NativeAudioEngine : IAudioEngine
         source?.Dispose();
         source = null;
         activeRequest = null;
+        activeSampleIds.Clear();
         outputStatus = default;
         playbackBaseMilliseconds = 0;
         status = stoppedStatus;

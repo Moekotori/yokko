@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
@@ -81,6 +82,9 @@ public partial class GameplayScreen : Screen
     private double pausedAudioPosition;
     private GameplayPauseOverlay pauseOverlay;
     private JudgementReadout judgementReadout;
+    private Task keysoundPreparationTask = Task.CompletedTask;
+    private string[] keysoundPathsByHitObject = [];
+    private GameplayKeysoundSelector keysoundSelector;
 
     internal bool GameplayBlocked => gameplayBlocked;
     internal bool GameplayCompleted => gameplayCompleted;
@@ -143,11 +147,20 @@ public partial class GameplayScreen : Screen
             gameplaySettings.GetKeys(beatmap.KeyMode));
         pressedLanes = new bool[keyBindings.KeyCount];
         judgementState = new BeatmapJudgementState(beatmap);
+        keysoundSelector = new GameplayKeysoundSelector(
+            beatmap,
+            judgementState);
         loadSkin(renderer);
+        bool hasKeysounds = beatmap.HitObjects.Any(
+            static hitObject => !string.IsNullOrWhiteSpace(hitObject.SampleKey));
         audioEngine ??= string.IsNullOrWhiteSpace(beatmap.AudioPath)
+                         && !hasKeysounds
             ? new NullAudioEngine()
             : AudioEngineFactory.CreateDefault();
-        hasAudioClock = !string.IsNullOrWhiteSpace(beatmap.AudioPath);
+        hasAudioClock = !string.IsNullOrWhiteSpace(beatmap.AudioPath)
+                        || hasKeysounds && audioEngine is NativeAudioEngine;
+        prepareKeysoundPaths();
+        keysoundPreparationTask = prepareKeysoundsAsync();
 
         InternalChildren = new Drawable[]
         {
@@ -391,6 +404,7 @@ public partial class GameplayScreen : Screen
     {
         try
         {
+            await keysoundPreparationTask.ConfigureAwait(true);
             activeUserOffsetMilliseconds =
                 audioSettings.UserOffsetMilliseconds.Value;
             AudioEngineStartRequest startRequest =
@@ -595,6 +609,7 @@ public partial class GameplayScreen : Screen
 
         pressedLanes[lane] = true;
         playfield.SetLanePressed(lane, true);
+        triggerKeysoundForLanePress(lane, inputTime);
 
         if (!ReplayMode)
         {
@@ -608,6 +623,78 @@ public partial class GameplayScreen : Screen
                  judgementState.JudgeLanePress(lane, inputTime))
         {
             applyJudgement(judgement);
+        }
+    }
+
+    private void prepareKeysoundPaths()
+    {
+        keysoundPathsByHitObject = beatmap.HitObjects
+            .Select(hitObject => normaliseKeysoundPath(hitObject.SampleKey))
+            .ToArray();
+    }
+
+    private async Task prepareKeysoundsAsync()
+    {
+        if (audioEngine is not IAudioSamplePlayback samplePlayback)
+            return;
+
+        string[] paths = keysoundPathsByHitObject
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (paths.Length == 0)
+            return;
+
+        try
+        {
+            await samplePlayback.PrepareSamplesAsync(paths)
+                                .ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(
+                ex,
+                "Gameplay keysounds could not be prepared; backing audio will continue.",
+                LoggingTarget.Runtime);
+        }
+    }
+
+    private void triggerKeysoundForLanePress(int lane, double inputTime)
+    {
+        if (!gameplaySettings.KeysoundsEnabled.Value
+            || audioEngine is not IAudioSamplePlayback samplePlayback)
+            return;
+
+        int selected = keysoundSelector.Select(lane, inputTime);
+        if ((uint)selected >= keysoundPathsByHitObject.Length)
+            return;
+
+        string path = keysoundPathsByHitObject[selected];
+        if (!string.IsNullOrWhiteSpace(path))
+            samplePlayback.TriggerSample(path);
+    }
+
+    private string normaliseKeysoundPath(string sampleKey)
+    {
+        if (string.IsNullOrWhiteSpace(sampleKey))
+            return null;
+
+        try
+        {
+            if (Path.IsPathRooted(sampleKey))
+                return Path.GetFullPath(sampleKey);
+
+            string audioDirectory = string.IsNullOrWhiteSpace(beatmap.AudioPath)
+                ? null
+                : Path.GetDirectoryName(Path.GetFullPath(beatmap.AudioPath));
+            return Path.GetFullPath(
+                audioDirectory == null
+                    ? sampleKey
+                    : Path.Combine(audioDirectory, sampleKey));
+        }
+        catch
+        {
+            return null;
         }
     }
 

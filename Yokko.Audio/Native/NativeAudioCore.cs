@@ -62,6 +62,42 @@ internal sealed class NativeAudioCore : IDisposable
         }
     }
 
+    internal unsafe uint RegisterSample(ReadOnlySpan<float> interleavedSamples)
+    {
+        if (interleavedSamples.Length == 0
+            || channels == 0
+            || interleavedSamples.Length % channels != 0)
+        {
+            throw new ArgumentException(
+                "Sample PCM must contain complete interleaved frames.",
+                nameof(interleavedSamples));
+        }
+
+        fixed (float* samples = interleavedSamples)
+        {
+            throwForResult(
+                NativeAudioInterop.RegisterSampleFloat32(
+                    getHandle(),
+                    samples,
+                    (uint)(interleavedSamples.Length / channels),
+                    out uint sampleId),
+                "register sample");
+            return sampleId;
+        }
+    }
+
+    internal bool TriggerSample(uint sampleId)
+    {
+        NativeAudioResult result =
+            NativeAudioInterop.TriggerSample(getHandle(), sampleId);
+        if (result is NativeAudioResult.NotReady
+            or NativeAudioResult.QueueFull)
+            return false;
+
+        throwForResult(result, "trigger sample");
+        return true;
+    }
+
     internal NativeAudioStatus GetStatus()
     {
         NativeAudioStatus status = NativeAudioStatus.Create();

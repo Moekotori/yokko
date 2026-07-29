@@ -30,10 +30,18 @@ public sealed class YokkoDisplaySettings
 
     public static Vector2 GetTargetDrawSize(YokkoUiScale scale) => scale switch
     {
-        // Yokko screens are authored on a 1280x720 stage. Keep enough of that
-        // stage visible that edge controls remain inside the viewport.
-        YokkoUiScale.Large => new Vector2(1216, 684),
-        YokkoUiScale.Compact => new Vector2(1440, 810),
-        _ => new Vector2(1280, 720),
+        // Yokko screens are authored on a 1280x720 stage. 100% is therefore
+        // the largest safe setting; enlarging past it clips edge controls on
+        // windows that are not wider than 16:9.
+        YokkoUiScale.Large => new Vector2(1280, 720),
+        YokkoUiScale.Compact => new Vector2(1600, 900),
+        _ => new Vector2(1440, 810),
+    };
+
+    public static int GetScalePercentage(YokkoUiScale scale) => scale switch
+    {
+        YokkoUiScale.Large => 100,
+        YokkoUiScale.Compact => 80,
+        _ => 90,
     };
 }

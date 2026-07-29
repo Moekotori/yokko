@@ -57,6 +57,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal bool ShowLanePressFeedback =>
         settings.ShowLanePressFeedback.Value;
 
+    internal bool KeysoundsEnabled => settings.KeysoundsEnabled.Value;
+
     public GameplaySettingsPanel(
         YokkoGameplaySettings settings,
         YokkoAudioSettings audioSettings)
@@ -230,6 +232,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal void SetLanePressFeedback(bool enabled) =>
         settings.ShowLanePressFeedback.Value = enabled;
+
+    internal void SetKeysoundsEnabled(bool enabled) =>
+        settings.KeysoundsEnabled.Value = enabled;
 
     internal bool HandleKeyDown(Key key)
     {
@@ -565,7 +570,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             new FillFlowContainer
             {
                 Position = new Vector2(20, 88),
-                Size = new Vector2(252, 158),
+                Size = new Vector2(826, 158),
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(14, 0),
                 Children = new Drawable[]
@@ -577,6 +582,13 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                             "settings.gameplay.show_lane_feedback_note"),
                         FontAwesome.Solid.Keyboard,
                         settings.ShowLanePressFeedback),
+                    new GameplayToggleCard(
+                        YokkoStrings.Get(
+                            "settings.gameplay.keysounds"),
+                        YokkoStrings.Get(
+                            "settings.gameplay.keysounds_note"),
+                        FontAwesome.Solid.VolumeUp,
+                        settings.KeysoundsEnabled),
                 },
             },
         });

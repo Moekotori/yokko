@@ -25,9 +25,6 @@ public sealed class QuaverChartImporter : IChartImporter
             _ => throw new InvalidDataException($"Unsupported Quaver mode: {parsed.Mode}."),
         };
 
-        if (parsed.HitObjects.Any(static note => !string.IsNullOrWhiteSpace(note.HitSound)))
-            warnings.Add("Quaver hitsound references were preserved on notes, but runtime keysound playback is not available yet.");
-
         IReadOnlyList<YokkoTimingPoint> timingPoints = parsed.TimingPoints.Count == 0
             ? [YokkoTimingPoint.Default]
             : parsed.TimingPoints.Select(static point => new YokkoTimingPoint(

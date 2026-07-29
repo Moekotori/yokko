@@ -171,6 +171,10 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SetLanePressFeedback(false));
             AddAssert("feedback disabled", () =>
                 !gameplay.ShowLanePressFeedback);
+            AddStep("disable gameplay keysounds", () =>
+                gameplay.SetKeysoundsEnabled(false));
+            AddAssert("gameplay keysounds disabled", () =>
+                !gameplay.KeysoundsEnabled);
             AddStep("open 7K bindings", () =>
             {
                 gameplay.SelectSection(GameplaySettingsSection.Input);

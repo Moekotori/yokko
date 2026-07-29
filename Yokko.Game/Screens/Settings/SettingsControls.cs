@@ -255,8 +255,11 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
     private readonly Container menu;
     private readonly List<SettingsResolutionOption> optionRows = new();
     private bool open;
+    private bool enabled = true;
 
     internal bool IsOpen => open;
+    internal bool IsEnabled => enabled;
+    internal Size SelectedSize { get; private set; }
 
     public SettingsResolutionDropdown(IReadOnlyList<Size> options, Action<Size> onSelected)
     {
@@ -345,14 +348,29 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
 
     public void SetSelected(Size size)
     {
+        SelectedSize = size;
         valueText.Text = $"{size.Width} × {size.Height}";
 
         foreach (SettingsResolutionOption option in optionRows)
             option.SetSelected(option.Value == size);
     }
 
+    public void SetEnabled(bool isEnabled)
+    {
+        enabled = isEnabled;
+
+        if (!enabled && open)
+            setOpen(false);
+
+        this.FadeTo(enabled ? 1 : 0.58f, 100, Easing.OutQuint);
+        chevron.FadeTo(enabled ? 1 : 0, 100, Easing.OutQuint);
+    }
+
     internal void Toggle()
     {
+        if (!enabled)
+            return;
+
         setOpen(!open);
     }
 

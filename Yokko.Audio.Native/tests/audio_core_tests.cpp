@@ -176,6 +176,65 @@ namespace
             "submitted endpoint frames are not treated as presented");
     }
 
+    void test_keysounds_mix_on_the_next_callback()
+    {
+        EngineHandle engine;
+        const std::vector<float> music(8, 0.25f);
+        const std::vector<float> keysound{
+            0.5f,
+            -0.5f,
+            0.75f,
+            -0.75f,
+        };
+
+        uint32_t sample_id = 0;
+        require(
+            yokko_audio_register_sample_f32(
+                engine,
+                keysound.data(),
+                2,
+                &sample_id)
+                == YOKKO_AUDIO_OK,
+            "keysound registration");
+        require(sample_id != 0, "keysound id assigned");
+        require(
+            yokko_audio_trigger_sample(engine, sample_id)
+                == YOKKO_AUDIO_NOT_READY,
+            "keysound cannot queue before playback");
+
+        uint32_t accepted = 0;
+        require(
+            yokko_audio_submit_interleaved_f32(
+                engine,
+                music.data(),
+                4,
+                &accepted)
+                == YOKKO_AUDIO_OK,
+            "keysound music submit");
+        require(yokko_audio_start(engine) == YOKKO_AUDIO_OK, "keysound start");
+        require(
+            yokko_audio_trigger_sample(engine, sample_id) == YOKKO_AUDIO_OK,
+            "keysound trigger");
+
+        std::vector<float> output(8);
+        uint32_t rendered = 0;
+        require(
+            yokko_audio_render_interleaved_f32(
+                engine,
+                output.data(),
+                4,
+                &rendered)
+                == YOKKO_AUDIO_OK,
+            "keysound render");
+
+        require(rendered == 4, "keysound does not alter music clock");
+        require(std::abs(output[0] - 0.75f) < 0.00001f, "keysound left mixed");
+        require(std::abs(output[1] + 0.25f) < 0.00001f, "keysound right mixed");
+        require(output[2] == 1.0f, "keysound mix clamps positive peak");
+        require(std::abs(output[3] + 0.5f) < 0.00001f, "keysound second frame mixed");
+        require(output[4] == 0.25f && output[7] == 0.25f, "keysound ends cleanly");
+    }
+
     void test_pause_and_stop_are_deterministic()
     {
         EngineHandle engine;
@@ -434,6 +493,7 @@ int main()
     test_abi_and_validation();
     test_start_requires_priming();
     test_render_and_underrun();
+    test_keysounds_mix_on_the_next_callback();
     test_pause_and_stop_are_deterministic();
     test_output_safety();
     test_hardware_clock_supersedes_callback_clock();

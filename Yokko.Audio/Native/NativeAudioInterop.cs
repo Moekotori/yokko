@@ -5,7 +5,7 @@ namespace Yokko.Audio.Native;
 
 internal static partial class NativeAudioInterop
 {
-    internal const uint AbiVersion = 4;
+    internal const uint AbiVersion = 5;
     internal const string LibraryName = "yokko_audio_native";
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_abi_version")]
@@ -41,6 +41,20 @@ internal static partial class NativeAudioInterop
         float* samples,
         uint frameCount,
         out uint acceptedFrames);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_register_sample_f32")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static unsafe partial NativeAudioResult RegisterSampleFloat32(
+        NativeAudioSafeHandle engine,
+        float* samples,
+        uint frameCount,
+        out uint sampleId);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_trigger_sample")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult TriggerSample(
+        NativeAudioSafeHandle engine,
+        uint sampleId);
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_status")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
@@ -195,6 +209,7 @@ internal enum NativeAudioResult
     OutOfMemory = 4,
     InternalError = 5,
     BackendUnavailable = 6,
+    QueueFull = 7,
 }
 
 internal enum NativeAudioState

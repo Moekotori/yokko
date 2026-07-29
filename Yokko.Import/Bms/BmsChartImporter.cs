@@ -146,9 +146,6 @@ public sealed partial class BmsChartImporter : IChartImporter
           .ThenBy(static note => note.Lane)
           .ToArray();
 
-        if (hitObjects.Any(static note => note.SampleKey != null))
-            warnings.Add("BMS keysound references were preserved on notes, but runtime keysound playback is not available yet.");
-
         string difficulty = parsed.Headers.GetValueOrDefault(
             "SUBTITLE",
             parsed.Headers.TryGetValue("PLAYLEVEL", out string? level) ? $"Level {level}" : $"{(int)keyMode}K");
