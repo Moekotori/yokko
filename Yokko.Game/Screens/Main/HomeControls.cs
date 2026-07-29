@@ -994,14 +994,114 @@ public partial class HomeUtilityButton : ClickableContainer
     }
 }
 
+internal enum HomeMascotBubbleStyle
+{
+    Rounded,
+    PopSignalSticker,
+}
+
 public partial class HomeMascotBubble : CompositeDrawable
 {
     private readonly Box underline;
     private readonly SpriteText label;
+    private readonly float underlineRestWidth;
+    private readonly float underlinePulseWidth;
 
     public HomeMascotBubble(LocalisableString text)
+        : this(text, HomeMascotBubbleStyle.Rounded)
     {
+    }
+
+    internal HomeMascotBubble(
+        LocalisableString text,
+        HomeMascotBubbleStyle style)
+    {
+        if (style == HomeMascotBubbleStyle.PopSignalSticker)
+        {
+            Size = new Vector2(164, 104);
+            underlineRestWidth = 30;
+            underlinePulseWidth = 40;
+
+            InternalChildren = new Drawable[]
+            {
+                new Container
+                {
+                    Position = new Vector2(10, 8),
+                    Size = new Vector2(146, 80),
+                    Masking = true,
+                    CornerRadius = 14,
+                    BorderThickness = 2.5f,
+                    BorderColour = HomeControlColours.Navy,
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = HomeControlColours.Ivory,
+                    },
+                },
+                new Container
+                {
+                    Position = new Vector2(105, 68),
+                    Size = new Vector2(23),
+                    Rotation = 45,
+                    Masking = true,
+                    BorderThickness = 2.5f,
+                    BorderColour = HomeControlColours.Navy,
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = HomeControlColours.PaleCyan,
+                    },
+                },
+                new Container
+                {
+                    Position = new Vector2(124, 70),
+                    Size = new Vector2(30, 11),
+                    Rotation = -18,
+                    Masking = true,
+                    CornerRadius = 5.5f,
+                    Child = underline = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = HomeControlColours.Pink,
+                    },
+                },
+                new Container
+                {
+                    Position = new Vector2(4, 0),
+                    Size = new Vector2(146, 80),
+                    Masking = true,
+                    CornerRadius = 12,
+                    BorderThickness = 2.5f,
+                    BorderColour = HomeControlColours.Navy,
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = HomeControlColours.PaleCyan,
+                        },
+                        label = new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            X = 5,
+                            Text = text,
+                            Font = HomeTypography.Display(20),
+                            Scale = new Vector2(0.94f, 1),
+                            Colour = HomeControlColours.Navy,
+                        },
+                    },
+                },
+                createOutlinedSparkle(new Vector2(-2, 4), 20),
+                createOutlinedSparkle(new Vector2(1, 26), 14),
+            };
+
+            return;
+        }
+
         Size = new Vector2(112, 94);
+        underlineRestWidth = 48;
+        underlinePulseWidth = 60;
 
         InternalChildren = new Drawable[]
         {
@@ -1047,7 +1147,7 @@ public partial class HomeMascotBubble : CompositeDrawable
                         Anchor = Anchor.BottomCentre,
                         Origin = Anchor.BottomCentre,
                         Y = -1,
-                        Width = 48,
+                        Width = underlineRestWidth,
                         Height = 4,
                         Colour = HomeControlColours.Pink,
                     },
@@ -1055,6 +1155,32 @@ public partial class HomeMascotBubble : CompositeDrawable
             },
         };
     }
+
+    private static Drawable createOutlinedSparkle(
+        Vector2 position,
+        float size) =>
+        new Container
+        {
+            Position = position,
+            Size = new Vector2(size),
+            Children = new Drawable[]
+            {
+                new SpriteIcon
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Icon = FontAwesome.Solid.Star,
+                    Colour = HomeControlColours.Navy,
+                },
+                new SpriteIcon
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(size - 5),
+                    Icon = FontAwesome.Solid.Star,
+                    Colour = HomeControlColours.Yellow,
+                },
+            },
+        };
 
     /// <summary>
     /// 换一句台词，文字淡入、气泡轻弹。
@@ -1074,8 +1200,8 @@ public partial class HomeMascotBubble : CompositeDrawable
         this.MoveToOffset(new Vector2(0, 5), 1500, Easing.InOutSine)
             .Then().MoveToOffset(new Vector2(0, -5), 1500, Easing.InOutSine)
             .Loop();
-        underline.ResizeWidthTo(60, 1100, Easing.InOutSine)
-                 .Then().ResizeWidthTo(48, 1100, Easing.InOutSine)
+        underline.ResizeWidthTo(underlinePulseWidth, 1100, Easing.InOutSine)
+                 .Then().ResizeWidthTo(underlineRestWidth, 1100, Easing.InOutSine)
                  .Loop();
     }
 }

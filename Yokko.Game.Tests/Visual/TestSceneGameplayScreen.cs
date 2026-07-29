@@ -392,16 +392,10 @@ namespace Yokko.Game.Tests.Visual
                        && readout != null
                        && timingBar != null;
             });
-            AddAssert("timing bar sits above downscroll judgement line", () =>
-            {
-                float receptorEdgeY =
-                    gameplay.DrawHeight
-                    - playfield.Height * playfield.Scale.Y
-                    + playfield.ReceptorPlayAreaEdge * playfield.Scale.Y;
-                return playfield.ReceptorAtBottom
-                       && timingBar.Origin == Anchor.BottomCentre
-                       && timingBar.Y < receptorEdgeY;
-            });
+            AddAssert("timing bar is fixed to the screen bottom", () =>
+                timingBar.Anchor == Anchor.BottomCentre
+                && timingBar.Origin == Anchor.BottomCentre
+                && timingBar.Y == -12);
             AddStep("show shared fallback truth", () =>
                 hud.UpdateAudioStatus(
                     createAudioStatus(
@@ -1329,6 +1323,7 @@ namespace Yokko.Game.Tests.Visual
                                .FirstOrDefault();
 
                 return body?.Available == true
+                       && body.DisplayWidth == 8
                        && body.DisplayHeight <= renderer.MaxTextureSize
                        && body.DisplayHeight > 1000;
             });
@@ -1568,30 +1563,20 @@ HitPosition: 400
                                   .Any(sprite => sprite.Scale.Y < 0) == true;
                 return noteFlipped && keyFlipped;
             });
-            AddAssert("timing bar moves below upscroll judgement line", () =>
+            AddAssert("timing bar stays at the screen bottom", () =>
             {
                 Drawable current = screenStack.CurrentScreen as Drawable;
-                GameplayPlayfield playfield = current?
-                                              .ChildrenOfType<GameplayPlayfield>()
-                                              .SingleOrDefault();
                 GameplayTimingBar timingBar = current?
                                               .ChildrenOfType<GameplayTimingBar>()
                                               .SingleOrDefault();
-                if (playfield == null || timingBar == null)
-                    return false;
-
-                float receptorEdgeY =
-                    current.DrawHeight
-                    - playfield.Height * playfield.Scale.Y
-                    + playfield.ReceptorPlayAreaEdge * playfield.Scale.Y;
-                return !playfield.ReceptorAtBottom
-                       && timingBar.Origin == Anchor.TopCentre
-                       && timingBar.Y > receptorEdgeY;
+                return timingBar?.Anchor == Anchor.BottomCentre
+                       && timingBar.Origin == Anchor.BottomCentre
+                       && timingBar.Y == -12;
             });
         }
 
         [Test]
-        public void TestTimingBarClearsTallSkinReceptors()
+        public void TestTimingBarStaysAtBottomWithTallSkinReceptors()
         {
             string skinPath = createTestSkin();
             using (var keyImage = new Image<Rgba32>(
@@ -1604,7 +1589,6 @@ HitPosition: 400
             }
 
             GameplayScreen gameplay = null;
-            GameplayPlayfield playfield = null;
             GameplayTimingBar timingBar = null;
 
             AddStep("open tall receptor skin", () =>
@@ -1616,25 +1600,15 @@ HitPosition: 400
             });
             AddUntilStep("tall receptor feedback loaded", () =>
             {
-                playfield = gameplay?
-                            .ChildrenOfType<GameplayPlayfield>()
-                            .SingleOrDefault();
                 timingBar = gameplay?
                             .ChildrenOfType<GameplayTimingBar>()
                             .SingleOrDefault();
-                return playfield != null && timingBar != null;
+                return timingBar != null;
             });
-            AddAssert("timing bar clears actual receptor bounds", () =>
-            {
-                float receptorEdgeY =
-                    gameplay.DrawHeight
-                    - playfield.Height * playfield.Scale.Y
-                    + playfield.ReceptorPlayAreaEdge * playfield.Scale.Y;
-                return playfield.ReceptorPlayAreaEdge
-                       < playfield.JudgementPosition
-                       && timingBar.Origin == Anchor.BottomCentre
-                       && timingBar.Y <= receptorEdgeY - 11.5f;
-            });
+            AddAssert("tall receptors do not move the timing bar", () =>
+                timingBar.Anchor == Anchor.BottomCentre
+                && timingBar.Origin == Anchor.BottomCentre
+                && timingBar.Y == -12);
         }
 
         [Test]

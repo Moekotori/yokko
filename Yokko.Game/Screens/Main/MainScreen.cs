@@ -785,10 +785,12 @@ public partial class MainScreen : Screen
                     Size = new Vector2(600, 590),
                     Action = onMascotTapped,
                 },
-                bubble = new HomeMascotBubble(bubbleLines[0])
+                bubble = new HomeMascotBubble(
+                    bubbleLines[0],
+                    HomeMascotBubbleStyle.PopSignalSticker)
                 {
-                    X = 484,
-                    Y = 380,
+                    X = 452,
+                    Y = 365,
                 },
                 new SpriteText
                 {
