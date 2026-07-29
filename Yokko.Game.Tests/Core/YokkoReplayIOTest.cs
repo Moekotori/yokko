@@ -1,0 +1,170 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Text;
+using NUnit.Framework;
+using Yokko.Core.Beatmaps;
+using Yokko.Core.Mods;
+using Yokko.Game.Gameplay;
+
+namespace Yokko.Game.Tests.Core;
+
+[TestFixture]
+public sealed class YokkoReplayIOTest
+{
+    private string directory;
+
+    [SetUp]
+    public void SetUp()
+    {
+        directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "yokko-replays",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        if (Directory.Exists(directory))
+            Directory.Delete(directory, recursive: true);
+    }
+
+    [Test]
+    public void NativeReplayRoundTripsInputsAndExactModConfiguration()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        ManiaModSet mods = ManiaModSet.Empty
+            .WithRandomSeed(123456)
+            .WithCover(0.61, ManiaCoverDirection.AgainstScroll)
+            .WithDifficultyAdjust(10.5, -2, true)
+            .WithMuted(true, false, 220, false)
+            .WithFixedRate(ManiaModId.DoubleTime, 1.73, true);
+        var replay = new GameplayReplay(
+            [
+                new GameplayReplayInput(0, true, 100),
+                new GameplayReplayInput(0, false, 150),
+                new GameplayReplayInput(3, true, 200),
+            ],
+            mods);
+        var recordedAt = new DateTimeOffset(
+            2026,
+            7,
+            29,
+            10,
+            20,
+            30,
+            TimeSpan.Zero);
+        using var stream = new MemoryStream();
+
+        YokkoReplayIO.Write(
+            stream,
+            beatmap,
+            beatmap,
+            replay,
+            "ABCDEF",
+            recordedAt);
+        string json = Encoding.UTF8.GetString(stream.ToArray());
+        stream.Position = 0;
+        YokkoReplayLoadResult restored = YokkoReplayIO.Read(stream);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(restored.SourceHash, Is.EqualTo("ABCDEF"));
+            Assert.That(restored.KeyCount, Is.EqualTo(4));
+            Assert.That(restored.RecordedAt, Is.EqualTo(recordedAt));
+            Assert.That(
+                restored.BeatmapFingerprint,
+                Is.EqualTo(YokkoBeatmapFingerprint.Compute(beatmap)));
+            Assert.That(restored.Replay.Mods, Is.EqualTo(mods));
+            Assert.That(restored.Replay.Inputs, Is.EqualTo(replay.Inputs));
+            Assert.That(json, Does.Contain("\"key\":\"random\""));
+            Assert.That(json, Does.Contain("\"seed\":123456"));
+            Assert.That(json, Does.Not.Contain("\"Random\""));
+        });
+    }
+
+    [Test]
+    public void ReplayRejectsLaneOutsideAppliedKeyMode()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var replay = new GameplayReplay(
+            [new GameplayReplayInput(4, true, 100)]);
+
+        Assert.That(
+            () => YokkoReplayIO.Write(
+                new MemoryStream(),
+                beatmap,
+                beatmap,
+                replay),
+            Throws.TypeOf<InvalidDataException>());
+    }
+
+    [Test]
+    public void UnknownPersistedModCannotSilentlyBecomeNoMod()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var replay = new GameplayReplay(
+            [],
+            ManiaModSet.Empty.With(ManiaModId.Hidden, true));
+        using var source = new MemoryStream();
+        YokkoReplayIO.Write(source, beatmap, beatmap, replay);
+        string json = Encoding.UTF8.GetString(source.ToArray())
+            .Replace(
+                "\"key\":\"hidden\"",
+                "\"key\":\"future-mod\"",
+                StringComparison.Ordinal);
+        using var changed = new MemoryStream(
+            Encoding.UTF8.GetBytes(json));
+
+        Assert.That(
+            () => YokkoReplayIO.Read(changed),
+            Throws.TypeOf<InvalidDataException>());
+    }
+
+    [Test]
+    public void ReplayStoreUsesAtomicUniqueNativeFiles()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var replay = new GameplayReplay([]);
+        var store = new GameplayReplayStore();
+        store.Initialise(directory);
+        var timestamp = new DateTimeOffset(
+            2026,
+            7,
+            29,
+            10,
+            20,
+            30,
+            TimeSpan.Zero);
+
+        string first = store.Save(
+            beatmap,
+            beatmap,
+            replay,
+            recordedAt: timestamp);
+        string second = store.Save(
+            beatmap,
+            beatmap,
+            replay,
+            recordedAt: timestamp);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(first, Does.EndWith(YokkoReplayIO.FileExtension));
+            Assert.That(second, Is.Not.EqualTo(first));
+            Assert.That(File.Exists(first), Is.True);
+            Assert.That(File.Exists(second), Is.True);
+            Assert.That(
+                Directory.EnumerateFiles(
+                    directory,
+                    "*.tmp",
+                    SearchOption.AllDirectories),
+                Is.Empty);
+            Assert.That(
+                YokkoReplayIO.ReadFromFile(first).Replay.Mods,
+                Is.EqualTo(ManiaModSet.Empty));
+        });
+    }
+}

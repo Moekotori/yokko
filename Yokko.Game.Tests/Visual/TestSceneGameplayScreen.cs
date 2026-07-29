@@ -861,6 +861,57 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestCompletedLivePlayPersistsExactNativeReplay()
+        {
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Native Replay Persistence Test",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        0,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+            ManiaModSet mods = ManiaModSet.Empty
+                .WithRandomSeed(97531)
+                .WithCover(
+                    0.64,
+                    ManiaCoverDirection.AgainstScroll)
+                .WithDifficultyAdjust(10.5, -2, true)
+                .WithMuted(true, false, 180, false)
+                .WithFixedRate(
+                    ManiaModId.HalfTime,
+                    0.82,
+                    true);
+            GameplayScreen gameplay = null;
+
+            AddStep("open configured live gameplay", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    mods: mods)));
+            AddUntilStep("configured live play completes", () =>
+                gameplay?.GameplayCompleted == true);
+            AddAssert("native replay was persisted", () =>
+                !string.IsNullOrWhiteSpace(gameplay.SavedReplayPath)
+                && File.Exists(gameplay.SavedReplayPath));
+            AddAssert("persisted replay restores exact session", () =>
+            {
+                YokkoReplayLoadResult restored =
+                    YokkoReplayIO.ReadFromFile(
+                        gameplay.SavedReplayPath);
+                return restored.Replay.Mods.Equals(mods)
+                       && restored.KeyCount == 4
+                       && restored.BeatmapFingerprint
+                       == YokkoBeatmapFingerprint.Compute(beatmap);
+            });
+            AddStep("remove native replay fixture", () =>
+                File.Delete(gameplay.SavedReplayPath));
+        }
+
+        [Test]
         public void TestLazerModMultiplierIsAppliedToGameplayScore()
         {
             YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
@@ -1455,11 +1506,18 @@ HitPosition: 400
         public void TestOsuManiaScrollSpeedShortcuts()
         {
             double originalSpeed = OsuManiaScrollSpeed.Default;
+            Key originalDecreaseKey = Key.F3;
+            Key originalIncreaseKey = Key.F4;
             GameplayScreen gameplayScreen = null;
 
             AddStep("save and reset scroll speed", () =>
             {
                 originalSpeed = gameplaySettings.ScrollSpeed.Value;
+                originalDecreaseKey =
+                    gameplaySettings.DecreaseScrollSpeedKey.Value;
+                originalIncreaseKey =
+                    gameplaySettings.IncreaseScrollSpeedKey.Value;
+                gameplaySettings.ResetShortcutBindings();
                 gameplaySettings.SetScrollSpeed(8);
                 gameplayScreen =
                     (GameplayScreen)screenStack.CurrentScreen;
@@ -1501,8 +1559,43 @@ HitPosition: 400
                     false));
             AddAssert("F3 speed is 8", () =>
                 gameplaySettings.ScrollSpeed.Value == 8);
-            AddStep("restore scroll speed", () =>
-                gameplaySettings.SetScrollSpeed(originalSpeed));
+            AddStep("customise Mania speed shortcuts", () =>
+            {
+                gameplaySettings.SetShortcutBinding(
+                    ManiaShortcutAction.DecreaseScrollSpeed,
+                    Key.F7);
+                gameplaySettings.SetShortcutBinding(
+                    ManiaShortcutAction.IncreaseScrollSpeed,
+                    Key.F8);
+            });
+            AddStep("old F4 is ignored", () =>
+                gameplayScreen.HandleScrollSpeedShortcut(
+                    Key.F4,
+                    false));
+            AddAssert("old key keeps speed 8", () =>
+                gameplaySettings.ScrollSpeed.Value == 8);
+            AddStep("custom F8 increases speed", () =>
+                gameplayScreen.HandleScrollSpeedShortcut(
+                    Key.F8,
+                    false));
+            AddAssert("custom increase reaches 9", () =>
+                gameplaySettings.ScrollSpeed.Value == 9);
+            AddStep("custom F7 decreases speed", () =>
+                gameplayScreen.HandleScrollSpeedShortcut(
+                    Key.F7,
+                    false));
+            AddAssert("custom decrease restores 8", () =>
+                gameplaySettings.ScrollSpeed.Value == 8);
+            AddStep("restore scroll speed and shortcuts", () =>
+            {
+                gameplaySettings.SetScrollSpeed(originalSpeed);
+                gameplaySettings.SetShortcutBinding(
+                    ManiaShortcutAction.DecreaseScrollSpeed,
+                    originalDecreaseKey);
+                gameplaySettings.SetShortcutBinding(
+                    ManiaShortcutAction.IncreaseScrollSpeed,
+                    originalIncreaseKey);
+            });
         }
 
         [Test]
@@ -1570,9 +1663,19 @@ HitPosition: 400
                 DifficultyName = "4K Normal",
             };
             GameplayScreen gameplayScreen = null;
+            Key originalPauseKey = Key.Escape;
+            Key originalMenuNextKey = Key.Down;
 
             AddStep("open gameplay with audio", () =>
             {
+                originalPauseKey = gameplaySettings.PauseOrBackKey.Value;
+                originalMenuNextKey = gameplaySettings.MenuNextKey.Value;
+                gameplaySettings.SetShortcutBinding(
+                    ManiaShortcutAction.PauseOrBack,
+                    Key.F10);
+                gameplaySettings.SetShortcutBinding(
+                    ManiaShortcutAction.MenuNext,
+                    Key.F11);
                 gameplayScreen = new GameplayScreen(beatmap, audioEngine);
                 screenStack.Push(gameplayScreen);
             });
@@ -1617,18 +1720,38 @@ HitPosition: 400
                         "Screenshot path has no parent directory."));
                 screenshot.SaveAsPng(outputPath);
             });
-            AddStep("move pause selection", () =>
+            AddStep("old menu key is ignored", () =>
                 gameplayScreen
                     .ChildrenOfType<GameplayPauseOverlay>()
                     .Single()
-                    .SelectNext());
+                    .HandleKey(Key.Down));
+            AddAssert("selection remains on resume", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .SelectedAction == 0);
+            AddStep("custom menu key moves selection", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .HandleKey(Key.F11));
             AddAssert("restart becomes selected", () =>
                 gameplayScreen
                     .ChildrenOfType<GameplayPauseOverlay>()
                     .Single()
                     .SelectedAction == 1);
-            AddStep("resume gameplay", () =>
-                gameplayScreen.TogglePause());
+            AddStep("old pause key is ignored", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .HandleKey(Key.Escape));
+            AddAssert("gameplay stays paused", () =>
+                gameplayScreen.IsPaused);
+            AddStep("custom pause key resumes gameplay", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .HandleKey(Key.F10));
             AddUntilStep("resume completes", () =>
                 !gameplayScreen.IsPaused
                 && !gameplayScreen.PauseTransitionInProgress
@@ -1639,6 +1762,15 @@ HitPosition: 400
                     .Any() == false);
             AddAssert("audio is running again", () =>
                 audioEngine.Status.IsRunning);
+            AddStep("restore pause shortcuts", () =>
+            {
+                gameplaySettings.SetShortcutBinding(
+                    ManiaShortcutAction.PauseOrBack,
+                    originalPauseKey);
+                gameplaySettings.SetShortcutBinding(
+                    ManiaShortcutAction.MenuNext,
+                    originalMenuNextKey);
+            });
         }
 
         [Test]

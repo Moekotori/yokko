@@ -8,15 +8,23 @@ namespace Yokko.Game.Gameplay;
 
 internal static class GameplayKeyProfileCodec
 {
-    private const string currentPrefix = "YOKKO-KEYS-V2";
+    private const string currentPrefix = "YOKKO-KEYS-V3";
+    private const string versionTwoPrefix = "YOKKO-KEYS-V2";
     private const string legacyPrefix = "YOKKO-KEYS-V1";
 
-    public static string Encode(YokkoGameplaySettings settings) =>
-        string.Join(
+    public static string Encode(YokkoGameplaySettings settings)
+    {
+        IEnumerable<string> laneProfiles =
+            settings.SupportedKeyModes.Select(mode =>
+                $"{(int)mode}K={encodeKeys(settings.GetKeys(mode))}");
+        string shortcuts = "SHORTCUTS=" + string.Join(
+            ",",
+            settings.SupportedShortcutActions.Select(action =>
+                $"{action}:{settings.GetShortcutBinding(action)}"));
+        return string.Join(
             "|",
-            new[] { currentPrefix }.Concat(
-                settings.SupportedKeyModes.Select(mode =>
-                    $"{(int)mode}K={encodeKeys(settings.GetKeys(mode))}")));
+            new[] { currentPrefix }.Concat(laneProfiles).Append(shortcuts));
+    }
 
     public static void DecodeAndApply(
         string text,
@@ -32,24 +40,56 @@ internal static class GameplayKeyProfileCodec
             return;
         }
 
+        if (parts[0].Equals(versionTwoPrefix, StringComparison.Ordinal))
+        {
+            decodeLaneProfiles(parts, settings, 1);
+            return;
+        }
+
         if (!parts[0].Equals(currentPrefix, StringComparison.Ordinal)
-            || parts.Length != settings.SupportedKeyModes.Count + 1)
+            || parts.Length != settings.SupportedKeyModes.Count + 2)
         {
             throw new FormatException("The key profile version is unsupported.");
         }
+
+        Dictionary<KeyMode, IReadOnlyList<Key>> decoded =
+            decodeLaneProfiles(parts, settings, 1, apply: false);
+        IReadOnlyDictionary<ManiaShortcutAction, Key> shortcuts =
+            decodeShortcuts(parts[^1], settings);
+
+        foreach ((KeyMode mode, IReadOnlyList<Key> keys) in decoded)
+            settings.SetBindings(mode, keys);
+        foreach ((ManiaShortcutAction action, Key key) in shortcuts)
+            settings.SetShortcutBinding(action, key);
+    }
+
+    private static Dictionary<KeyMode, IReadOnlyList<Key>>
+        decodeLaneProfiles(
+            IReadOnlyList<string> parts,
+            YokkoGameplaySettings settings,
+            int offset,
+            bool apply = true)
+    {
+        if (parts.Count < settings.SupportedKeyModes.Count + offset)
+            throw new FormatException("The key profile is incomplete.");
 
         var decoded = new Dictionary<KeyMode, IReadOnlyList<Key>>();
         for (int index = 0; index < settings.SupportedKeyModes.Count; index++)
         {
             KeyMode mode = settings.SupportedKeyModes[index];
             decoded[mode] = decodePart(
-                parts[index + 1],
+                parts[index + offset],
                 $"{(int)mode}K",
                 (int)mode);
         }
 
-        foreach ((KeyMode mode, IReadOnlyList<Key> keys) in decoded)
-            settings.SetBindings(mode, keys);
+        if (apply)
+        {
+            foreach ((KeyMode mode, IReadOnlyList<Key> keys) in decoded)
+                settings.SetBindings(mode, keys);
+        }
+
+        return decoded;
     }
 
     private static string encodeKeys(IReadOnlyList<Key> keys) =>
@@ -85,6 +125,44 @@ internal static class GameplayKeyProfileCodec
             throw new FormatException($"{name} contains duplicate keys.");
 
         return keys;
+    }
+
+    private static IReadOnlyDictionary<ManiaShortcutAction, Key>
+        decodeShortcuts(
+            string part,
+            YokkoGameplaySettings settings)
+    {
+        const string marker = "SHORTCUTS=";
+        if (!part.StartsWith(marker, StringComparison.Ordinal))
+            throw new FormatException("The Mania shortcut profile is missing.");
+
+        var decoded = new Dictionary<ManiaShortcutAction, Key>();
+        foreach (string entry in part[marker.Length..].Split(','))
+        {
+            string[] pair = entry.Split(':');
+            if (pair.Length != 2
+                || !Enum.TryParse(
+                    pair[0],
+                    true,
+                    out ManiaShortcutAction action)
+                || !Enum.TryParse(pair[1], true, out Key key)
+                || key == Key.Unknown
+                || !decoded.TryAdd(action, key))
+            {
+                throw new FormatException(
+                    $"Invalid Mania shortcut entry: {entry}.");
+            }
+        }
+
+        if (decoded.Count != settings.SupportedShortcutActions.Count
+            || settings.SupportedShortcutActions.Any(
+                action => !decoded.ContainsKey(action)))
+        {
+            throw new FormatException(
+                "The Mania shortcut profile is incomplete.");
+        }
+
+        return decoded;
     }
 
     private static void decodeLegacy(

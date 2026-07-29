@@ -37,7 +37,15 @@ namespace yokko::audio
             float metronome_volume) noexcept;
         yokko_audio_result set_sample_playback_rate(
             float playback_rate) noexcept;
-        yokko_audio_result trigger_sample(uint32_t sample_id) noexcept;
+        yokko_audio_result trigger_sample(
+            uint32_t sample_id,
+            float gain = 1.0f) noexcept;
+        yokko_audio_result start_looping_sample(
+            uint32_t sample_id,
+            float gain,
+            uint32_t& loop_id) noexcept;
+        yokko_audio_result stop_looping_sample(
+            uint32_t loop_id) noexcept;
         yokko_audio_result render(
             float* output,
             uint32_t frame_count,
@@ -84,6 +92,24 @@ namespace yokko::audio
         {
             uint32_t sample_id{0};
             double frame_position{0};
+            float gain{1.0f};
+            uint32_t loop_id{0};
+            bool looping{false};
+        };
+
+        enum class SampleTriggerAction : uint8_t
+        {
+            play,
+            start_loop,
+            stop_loop,
+        };
+
+        struct SampleTrigger
+        {
+            SampleTriggerAction action{SampleTriggerAction::play};
+            uint32_t sample_id{0};
+            float gain{1.0f};
+            uint32_t loop_id{0};
         };
 
         [[nodiscard]] double playback_time_milliseconds() const noexcept;
@@ -123,8 +149,9 @@ namespace yokko::audio
         std::atomic<float> hit_sound_volume_{1.0f};
         std::atomic<float> metronome_volume_{0.0f};
         std::atomic<float> sample_playback_rate_{1.0f};
+        std::atomic<uint32_t> next_sample_loop_id_{1};
         std::vector<RegisteredSample> sample_bank_;
-        std::array<uint32_t, sample_trigger_capacity> sample_trigger_queue_{};
+        std::array<SampleTrigger, sample_trigger_capacity> sample_trigger_queue_{};
         std::atomic<uint32_t> sample_trigger_read_{0};
         std::atomic<uint32_t> sample_trigger_write_{0};
         std::array<SampleVoice, sample_voice_capacity> sample_voices_{};

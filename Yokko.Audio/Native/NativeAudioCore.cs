@@ -126,15 +126,48 @@ internal sealed class NativeAudioCore : IDisposable
                 playbackRate),
             "set sample playback rate");
 
-    internal bool TriggerSample(uint sampleId)
+    internal bool TriggerSample(uint sampleId, float gain = 1)
     {
         NativeAudioResult result =
-            NativeAudioInterop.TriggerSample(getHandle(), sampleId);
+            NativeAudioInterop.TriggerSampleWithGain(
+                getHandle(),
+                sampleId,
+                gain);
         if (result is NativeAudioResult.NotReady
             or NativeAudioResult.QueueFull)
             return false;
 
         throwForResult(result, "trigger sample");
+        return true;
+    }
+
+    internal uint StartLoopingSample(uint sampleId, float gain)
+    {
+        NativeAudioResult result =
+            NativeAudioInterop.StartLoopingSample(
+                getHandle(),
+                sampleId,
+                gain,
+                out uint loopId);
+        if (result is NativeAudioResult.NotReady
+            or NativeAudioResult.QueueFull)
+            return 0;
+
+        throwForResult(result, "start looping sample");
+        return loopId;
+    }
+
+    internal bool StopLoopingSample(uint loopId)
+    {
+        NativeAudioResult result =
+            NativeAudioInterop.StopLoopingSample(
+                getHandle(),
+                loopId);
+        if (result is NativeAudioResult.NotReady
+            or NativeAudioResult.QueueFull)
+            return false;
+
+        throwForResult(result, "stop looping sample");
         return true;
     }
 

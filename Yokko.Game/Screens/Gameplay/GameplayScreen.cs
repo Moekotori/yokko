@@ -61,6 +61,10 @@ public partial class GameplayScreen : Screen
     private KeyInputTimestampSource keyInputTimestamps { get; set; }
     [Resolved]
     private GameplayScoreStore scoreStore { get; set; }
+    [Resolved]
+    private GameplayReplayStore replayStore { get; set; }
+    [Resolved]
+    private ImportedChartLibrary importedChartLibrary { get; set; }
 
     private BeatmapJudgementState judgementState;
     private ManiaHealthState healthState;
@@ -98,8 +102,12 @@ public partial class GameplayScreen : Screen
     private GameplayFailOverlay failOverlay;
     private JudgementReadout judgementReadout;
     private Task keysoundPreparationTask = Task.CompletedTask;
-    private string[] keysoundPathsByHitObject = [];
+    private ResolvedGameplayHitSample[][] headSamplesByHitObject = [];
+    private ResolvedGameplayHitSample[][] tailSamplesByHitObject = [];
+    private ResolvedGameplayHitSample[][] slidingSamplesByHitObject = [];
+    private readonly Dictionary<int, List<uint>> activeSlidingSampleLoops = new();
     private GameplayKeysoundSelector keysoundSelector;
+    private GameplayHitSampleResolver hitSampleResolver;
     private GameplayMutedAudioController mutedAudio;
     private GameplayCinemaIndicator cinemaIndicator;
     private double frameClockGameplayTime;
@@ -113,6 +121,7 @@ public partial class GameplayScreen : Screen
     internal bool PauseTransitionInProgress => pauseTransitionInProgress;
     internal double CurrentGameplayTime => currentGameplayTime;
     internal ManiaScoreResult CompletedResult => completedResult;
+    internal string SavedReplayPath { get; private set; }
     internal bool ReplayMode => replay != null;
     internal bool AutoplayMode => mods.IsAutomation;
     internal ManiaModSet Mods => mods;
@@ -237,7 +246,10 @@ public partial class GameplayScreen : Screen
             judgementState);
         loadSkin(renderer);
         bool hasKeysounds = beatmap.HitObjects.Any(
-            static hitObject => !string.IsNullOrWhiteSpace(hitObject.SampleKey));
+            static hitObject =>
+                !string.IsNullOrWhiteSpace(hitObject.SampleKey)
+                || hitObject.Samples.Count > 0
+                || hitObject.NodeSamples.Count > 0);
         audioEngine ??= string.IsNullOrWhiteSpace(beatmap.AudioPath)
                          && !hasKeysounds
             ? new NullAudioEngine()
@@ -265,7 +277,7 @@ public partial class GameplayScreen : Screen
         }
         hasAudioClock = !string.IsNullOrWhiteSpace(beatmap.AudioPath)
                         || hasKeysounds && audioEngine is NativeAudioEngine;
-        prepareKeysoundPaths();
+        prepareHitSamples();
         keysoundPreparationTask = prepareKeysoundsAsync();
 
         InternalChildren = new Drawable[]
@@ -424,6 +436,8 @@ public partial class GameplayScreen : Screen
             if (gameplayFailed)
                 return;
         }
+        if (expiredJudgements.Count > 0)
+            syncAllSlidingSamples();
 
         playfield.UpdateGameplayTime(visualGameplayTime, judgementState);
         hud.UpdateState(gameplayTime, judgementState, healthState);
@@ -465,8 +479,12 @@ public partial class GameplayScreen : Screen
     {
         if (gameplayBlocked)
         {
-            if (e.Key == Key.Escape)
+            if (matchesShortcut(
+                    ManiaShortcutAction.PauseOrBack,
+                    e.Key))
+            {
                 this.Exit();
+            }
 
             return true;
         }
@@ -479,30 +497,47 @@ public partial class GameplayScreen : Screen
 
         if (gameplayCompleted)
         {
-            switch (e.Key)
+            if (matchesShortcut(ManiaShortcutAction.Retry, e.Key))
             {
-                case Key.R:
-                    retryGameplay();
-                    return true;
-
-                case Key.V:
-                    watchCompletedReplay();
-                    return true;
-
-                case Key.Enter:
-                case Key.Escape:
-                    this.Exit();
-                    return true;
+                retryGameplay();
+                return true;
             }
+
+            if (matchesShortcut(
+                    ManiaShortcutAction.WatchReplay,
+                    e.Key))
+            {
+                watchCompletedReplay();
+                return true;
+            }
+
+            if (matchesShortcut(ManiaShortcutAction.Confirm, e.Key)
+                || matchesShortcut(
+                    ManiaShortcutAction.ConfirmAlternate,
+                    e.Key)
+                || matchesShortcut(
+                    ManiaShortcutAction.PauseOrBack,
+                    e.Key))
+            {
+                this.Exit();
+                return true;
+            }
+
+            return true;
         }
 
-        if (e.Key == Key.Space && HandleIntroSkip())
+        if (matchesShortcut(ManiaShortcutAction.SkipIntro, e.Key)
+            && HandleIntroSkip())
+        {
             return true;
+        }
 
         if (HandleScrollSpeedShortcut(e.Key, e.ControlPressed))
             return true;
 
-        if (e.Key == Key.Escape)
+        if (matchesShortcut(
+                ManiaShortcutAction.PauseOrBack,
+                e.Key))
         {
             TogglePause();
             return true;
@@ -510,6 +545,12 @@ public partial class GameplayScreen : Screen
 
         if (ReplayMode)
             return true;
+
+        if (matchesShortcut(ManiaShortcutAction.QuickRetry, e.Key))
+        {
+            retryGameplay();
+            return true;
+        }
 
         int lane = keyBindings.GetLane(e.Key);
 
@@ -560,6 +601,7 @@ public partial class GameplayScreen : Screen
             keyInputTimestamps.EndCapture();
 
         mutedAudio?.Restore();
+        stopAllSlidingSamples();
         _ = audioEngine.StopAsync();
         return base.OnExiting(e);
     }
@@ -575,6 +617,7 @@ public partial class GameplayScreen : Screen
             gameplaySettings.ScrollSpeed.ValueChanged -=
                 onScrollSpeedChanged;
             mutedAudio?.Restore();
+            stopAllSlidingSamples();
             _ = audioEngine.DisposeAsync();
             maniaSkin?.Dispose();
             cinemaArtworkTextures?.Dispose();
@@ -859,12 +902,24 @@ public partial class GameplayScreen : Screen
         {
             applyJudgement(judgement);
         }
+        if (!gameplayFailed)
+            syncSlidingSamplesForLane(lane);
     }
 
-    private void prepareKeysoundPaths()
+    private void prepareHitSamples()
     {
-        keysoundPathsByHitObject = beatmap.HitObjects
-            .Select(hitObject => normaliseKeysoundPath(hitObject.SampleKey))
+        hitSampleResolver = new GameplayHitSampleResolver(beatmap);
+        headSamplesByHitObject = beatmap.HitObjects
+            .Select(hitObject =>
+                hitSampleResolver.ResolveHead(hitObject).ToArray())
+            .ToArray();
+        tailSamplesByHitObject = beatmap.HitObjects
+            .Select(hitObject =>
+                hitSampleResolver.ResolveTail(hitObject).ToArray())
+            .ToArray();
+        slidingSamplesByHitObject = beatmap.HitObjects
+            .Select(hitObject =>
+                hitSampleResolver.ResolveSliding(hitObject).ToArray())
             .ToArray();
     }
 
@@ -874,8 +929,13 @@ public partial class GameplayScreen : Screen
             || audioEngine is not IAudioSamplePlayback samplePlayback)
             return;
 
-        string[] paths = keysoundPathsByHitObject
-            .Where(static path => !string.IsNullOrWhiteSpace(path))
+        string[] paths = headSamplesByHitObject
+            .SelectMany(static samples => samples)
+            .Concat(tailSamplesByHitObject.SelectMany(
+                static samples => samples))
+            .Concat(slidingSamplesByHitObject.SelectMany(
+                static samples => samples))
+            .Select(static sample => sample.Path)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         if (paths.Length == 0)
@@ -902,35 +962,22 @@ public partial class GameplayScreen : Screen
             return;
 
         int selected = keysoundSelector.Select(lane, inputTime);
-        if ((uint)selected >= keysoundPathsByHitObject.Length)
+        if ((uint)selected >= headSamplesByHitObject.Length)
             return;
 
-        string path = keysoundPathsByHitObject[selected];
-        if (!string.IsNullOrWhiteSpace(path))
-            samplePlayback.TriggerSample(path);
+        triggerSamples(samplePlayback, headSamplesByHitObject[selected]);
     }
 
-    private string normaliseKeysoundPath(string sampleKey)
+    private static void triggerSamples(
+        IAudioSamplePlayback samplePlayback,
+        IReadOnlyList<ResolvedGameplayHitSample> samples)
     {
-        if (string.IsNullOrWhiteSpace(sampleKey))
-            return null;
-
-        try
+        foreach (ResolvedGameplayHitSample sample in samples)
         {
-            if (Path.IsPathRooted(sampleKey))
-                return Path.GetFullPath(sampleKey);
-
-            string audioDirectory = string.IsNullOrWhiteSpace(beatmap.AudioPath)
-                ? null
-                : Path.GetDirectoryName(Path.GetFullPath(beatmap.AudioPath));
-            return Path.GetFullPath(
-                audioDirectory == null
-                    ? sampleKey
-                    : Path.Combine(audioDirectory, sampleKey));
-        }
-        catch
-        {
-            return null;
+            if (samplePlayback is IAudioSamplePlaybackWithGain withGain)
+                withGain.TriggerSample(sample.Path, sample.Gain);
+            else if (sample.Gain > 0)
+                samplePlayback.TriggerSample(sample.Path);
         }
     }
 
@@ -955,10 +1002,110 @@ public partial class GameplayScreen : Screen
         {
             applyJudgement(judgement);
         }
+        if (!gameplayFailed)
+            syncSlidingSamplesForLane(lane);
+    }
+
+    private void syncSlidingSamplesForLane(int lane)
+    {
+        for (int index = 0; index < beatmap.HitObjects.Count; index++)
+        {
+            YokkoHitObject hitObject = beatmap.HitObjects[index];
+            if (hitObject.Lane != lane
+                || !hitObject.PlaySlidingSamples
+                || (uint)index >= slidingSamplesByHitObject.Length)
+            {
+                continue;
+            }
+
+            if (judgementState.IsHoldActive(index))
+                startSlidingSamples(index);
+            else
+                stopSlidingSamples(index);
+        }
+    }
+
+    private void syncAllSlidingSamples()
+    {
+        for (int lane = 0; lane < pressedLanes.Length; lane++)
+            syncSlidingSamplesForLane(lane);
+    }
+
+    private void startSlidingSamples(int hitObjectIndex)
+    {
+        if (activeSlidingSampleLoops.ContainsKey(hitObjectIndex)
+            || !gameplaySettings.KeysoundsEnabled.Value
+            || (uint)hitObjectIndex >= slidingSamplesByHitObject.Length
+            || slidingSamplesByHitObject[hitObjectIndex].Length == 0)
+        {
+            return;
+        }
+
+        IReadOnlyList<ResolvedGameplayHitSample> samples =
+            slidingSamplesByHitObject[hitObjectIndex];
+        if (audioEngine is not IAudioLoopingSamplePlayback looping)
+        {
+            if (audioEngine is IAudioSamplePlayback oneShot)
+                triggerSamples(oneShot, samples);
+            return;
+        }
+
+        var loopIds = new List<uint>(samples.Count);
+        foreach (ResolvedGameplayHitSample sample in samples)
+        {
+            uint loopId = looping.StartLoopingSample(
+                sample.Path,
+                sample.Gain);
+            if (loopId != 0)
+                loopIds.Add(loopId);
+        }
+
+        if (loopIds.Count > 0)
+            activeSlidingSampleLoops[hitObjectIndex] = loopIds;
+    }
+
+    private void stopSlidingSamples(int hitObjectIndex)
+    {
+        if (!activeSlidingSampleLoops.Remove(
+                hitObjectIndex,
+                out List<uint> loopIds)
+            || audioEngine is not IAudioLoopingSamplePlayback looping)
+        {
+            return;
+        }
+
+        foreach (uint loopId in loopIds)
+            looping.StopLoopingSample(loopId);
+    }
+
+    private void stopAllSlidingSamples()
+    {
+        if (audioEngine is IAudioLoopingSamplePlayback looping)
+        {
+            foreach (uint loopId in activeSlidingSampleLoops.Values
+                         .SelectMany(static loopIds => loopIds))
+            {
+                looping.StopLoopingSample(loopId);
+            }
+        }
+
+        activeSlidingSampleLoops.Clear();
     }
 
     private void applyJudgement(JudgementEvent judgement)
     {
+        if (judgement.Phase == JudgementPhase.HoldTail
+            && !judgement.IsMiss
+            && gameplaySettings.KeysoundsEnabled.Value
+            && audioEngine is IAudioSamplePlayback samplePlayback
+            && (uint)judgement.HitObjectIndex
+            < tailSamplesByHitObject.Length)
+        {
+            triggerSamples(
+                samplePlayback,
+                tailSamplesByHitObject[judgement.HitObjectIndex]);
+        }
+
         playfield.ApplyJudgement(judgement);
         adaptiveSpeedState?.Apply(judgement);
         ManiaHealthUpdate healthUpdate = healthState.Apply(
@@ -985,6 +1132,7 @@ public partial class GameplayScreen : Screen
 
         gameplayFailed = true;
         mutedAudio?.Restore();
+        stopAllSlidingSamples();
         for (int lane = 0; lane < pressedLanes.Length; lane++)
         {
             pressedLanes[lane] = false;
@@ -997,6 +1145,7 @@ public partial class GameplayScreen : Screen
             judgementState,
             healthState,
             mods,
+            gameplaySettings,
             retryGameplay,
             () => this.Exit()));
     }
@@ -1008,6 +1157,7 @@ public partial class GameplayScreen : Screen
 
         gameplayCompleted = true;
         mutedAudio?.Restore();
+        stopAllSlidingSamples();
         ManiaScoreResult rawResult =
             judgementState.CreateResult();
         completedResult = rawResult with
@@ -1023,6 +1173,8 @@ public partial class GameplayScreen : Screen
                              originalBeatmap,
                              mods,
                              completedResult);
+        if (!ReplayMode)
+            saveCompletedReplay();
         _ = audioEngine.StopAsync();
         AddInternal(new GameplayResultOverlay(
             beatmap,
@@ -1032,6 +1184,35 @@ public partial class GameplayScreen : Screen
             retryGameplay,
             watchCompletedReplay,
             () => this.Exit()));
+    }
+
+    private void saveCompletedReplay()
+    {
+        try
+        {
+            string fingerprint =
+                YokkoBeatmapFingerprint.Compute(originalBeatmap);
+            ImportedChart imported = importedChartLibrary
+                .GetCharts()
+                .FirstOrDefault(chart =>
+                    ReferenceEquals(
+                        chart.Result.Beatmap,
+                        originalBeatmap))
+                ?? importedChartLibrary.FindByBeatmapFingerprint(
+                    fingerprint);
+            SavedReplayPath = replayStore.Save(
+                originalBeatmap,
+                beatmap,
+                completedReplay,
+                imported?.Result.SourceHash);
+        }
+        catch (Exception exception)
+        {
+            Logger.Error(
+                exception,
+                "Completed gameplay replay could not be saved.",
+                LoggingTarget.Runtime);
+        }
     }
 
     internal void TogglePause()
@@ -1087,6 +1268,7 @@ public partial class GameplayScreen : Screen
 
         pauseOverlay = new GameplayPauseOverlay(
             beatmap,
+            gameplaySettings,
             TogglePause,
             retryGameplay,
             () => this.Push(new SettingsScreen()),
@@ -1389,6 +1571,14 @@ public partial class GameplayScreen : Screen
         gameplaySettings.AdjustScrollSpeed(amount);
         return true;
     }
+
+    internal bool MatchesShortcut(
+        ManiaShortcutAction action,
+        Key key) => matchesShortcut(action, key);
+
+    private bool matchesShortcut(
+        ManiaShortcutAction action,
+        Key key) => gameplaySettings.GetShortcutBinding(action) == key;
 
     internal bool HandlePlayfieldWidthScroll(
         float scrollDelta,

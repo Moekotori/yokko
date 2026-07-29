@@ -15,6 +15,7 @@ using osuTK.Input;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -27,6 +28,7 @@ internal partial class GameplayModsScreen : Screen
 {
     private const float designed_width = 1280;
     private const float designed_height = 720;
+    private const float reference_layout_scale = 1.25f;
 
     private static readonly ManiaModCategory[] visible_categories =
     [
@@ -50,6 +52,8 @@ internal partial class GameplayModsScreen : Screen
     private Container configurablePanel;
     private FillFlowContainer activeMods;
     private Box activeModsDivider;
+    private Container detailBadge;
+    private Box detailBadgeBackground;
     private SpriteText detailAcronym;
     private SpriteText detailName;
     private SpriteText detailHint;
@@ -64,12 +68,17 @@ internal partial class GameplayModsScreen : Screen
     private SpriteText fixedRateMaximum;
     private GameplayModsRateSlider fixedRateSlider;
     private GameplayModsPitchButton fixedRatePitch;
+    private GameplayModsResetButton resetButton;
+    private SpriteText interactionHint;
     private SongSelectModSettingsHost settingsHost;
     private ManiaModCategory activeCategory =
         ManiaModCategory.DifficultyReduction;
     private ManiaModId detailMod = ManiaModId.HalfTime;
     private ManiaModSet selectedMods;
     private bool loadComplete;
+    private double lastGlobalScrollAt = double.NegativeInfinity;
+    [Resolved]
+    private YokkoManiaModPreferences modPreferences { get; set; }
 
     internal GameplayModsScreen(
         YokkoBeatmap beatmap,
@@ -98,6 +107,13 @@ internal partial class GameplayModsScreen : Screen
     internal ManiaModId DetailMod => detailMod;
     internal int VisibleModCount => visibleItems.Count;
     internal SongSelectModSettingsHost SettingsHost => settingsHost;
+    internal bool DetailHintVisible => detailHint?.Alpha > 0;
+    internal float SettingsHeaderY => settingsHeader?.Y ?? 0;
+    internal float FixedRatePanelY => fixedRatePanel?.Y ?? 0;
+    internal bool ResetEnabled => resetButton?.IsEnabled ?? false;
+    internal static Vector2 ReferenceStageSize =>
+        new(designed_width * reference_layout_scale,
+            designed_height * reference_layout_scale);
 
     [BackgroundDependencyLoader]
     private void load(TextureStore textures)
@@ -116,6 +132,7 @@ internal partial class GameplayModsScreen : Screen
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Size = new Vector2(designed_width, designed_height),
+                Scale = new Vector2(reference_layout_scale),
                 Children = new Drawable[]
                 {
                     createHeader(logo),
@@ -155,22 +172,56 @@ internal partial class GameplayModsScreen : Screen
         return base.OnExiting(e);
     }
 
-    protected override bool OnKeyDown(KeyDownEvent e)
+    protected override bool OnKeyDown(KeyDownEvent e) =>
+        HandleInteractionKey(e.Key) || base.OnKeyDown(e);
+
+    internal bool HandleInteractionKey(Key key)
     {
-        switch (e.Key)
+        switch (key)
         {
             case Key.Escape:
             case Key.M:
-            case Key.Enter:
                 this.Exit();
                 return true;
 
             case Key.R:
                 ResetMods();
+                showInteractionHint(
+                    selectedMods.Mods.Count == 0
+                        ? "ALL MODS CLEARED"
+                        : "R · RESET MODS");
                 return true;
 
+            case Key.Tab:
+                CycleCategory(1);
+                showInteractionHint(
+                    "TAB · NEXT CATEGORY   ARROWS · NAVIGATE");
+                return true;
+
+            case Key.Left:
+                MoveDetailFocus(new Vector2(-1, 0));
+                return true;
+
+            case Key.Right:
+                MoveDetailFocus(new Vector2(1, 0));
+                return true;
+
+            case Key.Up:
+                MoveDetailFocus(new Vector2(0, -1));
+                return true;
+
+            case Key.Down:
+                MoveDetailFocus(new Vector2(0, 1));
+                return true;
+
+            case Key.Enter:
+            case Key.KeypadEnter:
             case Key.Space:
                 ToggleMod(detailMod);
+                showInteractionHint(
+                    selectedMods.Contains(detailMod)
+                        ? $"{OsuManiaModParityCatalog.Get(detailMod).Acronym} · ACTIVE"
+                        : $"{OsuManiaModParityCatalog.Get(detailMod).Acronym} · REMOVED");
                 return true;
 
             case Key.P:
@@ -179,20 +230,54 @@ internal partial class GameplayModsScreen : Screen
                 {
                     SetFixedRateAdjustPitch(
                         !selectedMods.FixedRateAdjustPitch);
+                    showInteractionHint(
+                        selectedMods.FixedRateAdjustPitch
+                            ? "MUSIC PITCH · ON"
+                            : "MUSIC PITCH · OFF");
                     return true;
                 }
                 break;
 
+            case Key.Plus:
+            case Key.KeypadPlus:
+                return adjustFocusedFixedRate(0.01);
+
+            case Key.Minus:
+            case Key.KeypadMinus:
+                return adjustFocusedFixedRate(-0.01);
+
             case Key.H:
                 ToggleMod(ManiaModId.HalfTime);
+                showInteractionHint(
+                    selectedMods.Contains(ManiaModId.HalfTime)
+                        ? "HT · ACTIVE"
+                        : "HT · REMOVED");
                 return true;
 
             default:
                 break;
         }
 
-        return base.OnKeyDown(e);
+        return false;
     }
+
+    protected override bool OnScroll(ScrollEvent e)
+    {
+        if (e.ScrollDelta.Y == 0)
+            return base.OnScroll(e);
+
+        if (Time.Current - lastGlobalScrollAt < 70)
+            return true;
+
+        lastGlobalScrollAt = Time.Current;
+        NavigateByScroll(e.ScrollDelta.Y);
+        showInteractionHint(
+            "WHEEL / ARROWS · NAVIGATE   SPACE · TOGGLE");
+        return true;
+    }
+
+    internal void NavigateByScroll(double delta) =>
+        MoveDetailFocus(new Vector2(0, delta > 0 ? -1 : 1));
 
     internal void SetCategory(ManiaModCategory category)
     {
@@ -208,6 +293,9 @@ internal partial class GameplayModsScreen : Screen
         }
 
         rebuildModList();
+        focusPreferredMod(category);
+        showInteractionHint(
+            $"{categoryLabel(category).ToUpperInvariant()} · {visibleItems.Count} MODS");
     }
 
     internal void ToggleMod(ManiaModId mod)
@@ -220,9 +308,14 @@ internal partial class GameplayModsScreen : Screen
         }
 
         bool enabled = !selectedMods.Contains(mod);
+        modPreferences?.Remember(selectedMods);
         selectedMods = mod == ManiaModId.Random && enabled
             ? selectedMods.WithRandomSeed(Random.Shared.Next())
             : selectedMods.With(mod, enabled);
+        if (enabled)
+            selectedMods = modPreferences?.Apply(
+                selectedMods,
+                mod) ?? selectedMods;
 
         if (enabled && isConfigurable(mod))
             settingsHost.Show(mod);
@@ -359,6 +452,47 @@ internal partial class GameplayModsScreen : Screen
             selectedMods.MutedMetronome,
             selectedMods.MutedComboCount,
             value);
+        updateSelection();
+    }
+
+    internal void SetCoverCoverage(double value)
+    {
+        selectedMods = selectedMods.WithCover(
+            value,
+            selectedMods.CoverDirection);
+        updateSelection();
+    }
+
+    internal void SetCoverDirection(ManiaCoverDirection value)
+    {
+        selectedMods = selectedMods.WithCover(
+            selectedMods.CoverCoverage,
+            value);
+        updateSelection();
+    }
+
+    internal void SetFlashlightSizeMultiplier(double value)
+    {
+        selectedMods = selectedMods.WithFlashlight(
+            value,
+            selectedMods.FlashlightComboBasedSize);
+        updateSelection();
+    }
+
+    internal void SetFlashlightComboBasedSize(bool value)
+    {
+        selectedMods = selectedMods.WithFlashlight(
+            selectedMods.FlashlightSizeMultiplier,
+            value);
+        updateSelection();
+    }
+
+    internal void SetRandomSeed(int value)
+    {
+        if (!selectedMods.Contains(ManiaModId.Random))
+            return;
+
+        selectedMods = selectedMods.WithRandomSeed(value);
         updateSelection();
     }
 
@@ -526,6 +660,10 @@ internal partial class GameplayModsScreen : Screen
             SetMutedMetronome,
             SetMutedComboCount,
             SetMutedAffectsHitSounds,
+            SetCoverCoverage,
+            SetCoverDirection,
+            SetFlashlightSizeMultiplier,
+            SetFlashlightComboBasedSize,
             SetFixedRateSpeedChange,
             SetFixedRateAdjustPitch,
             SetTimeRampInitialRate,
@@ -533,6 +671,7 @@ internal partial class GameplayModsScreen : Screen
             SetTimeRampAdjustPitch,
             SetAdaptiveInitialRate,
             SetAdaptiveAdjustPitch,
+            SetRandomSeed,
             ToggleMod)
         {
             Position = new Vector2(20, 12),
@@ -557,7 +696,7 @@ internal partial class GameplayModsScreen : Screen
                     Position = new Vector2(111, 10),
                     Width = 165,
                 },
-                new Container
+                detailBadge = new Container
                 {
                     Position = new Vector2(5, 40),
                     Size = new Vector2(78),
@@ -567,7 +706,7 @@ internal partial class GameplayModsScreen : Screen
                     BorderColour = HomeControlColours.Cyan,
                     Children = new Drawable[]
                     {
-                        new Box
+                        detailBadgeBackground = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
                             Colour = Color4.White,
@@ -845,9 +984,23 @@ internal partial class GameplayModsScreen : Screen
                 Position = new Vector2(106, 23),
                 Scale = new Vector2(0.84f),
             },
-            new GameplayModsResetButton(ResetMods)
+            resetButton = new GameplayModsResetButton(ResetMods)
             {
                 Position = new Vector2(542, 26),
+            },
+            interactionHint = new SpriteText
+            {
+                Anchor = Anchor.BottomCentre,
+                Origin = Anchor.BottomCentre,
+                Y = -6,
+                Font = HomeTypography.Display(8),
+                Spacing = new Vector2(1.2f, 0),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.72f),
+                Alpha = 0,
             },
             new SpriteIcon
             {
@@ -887,6 +1040,8 @@ internal partial class GameplayModsScreen : Screen
         {
             addSection(activeCategory, 0);
         }
+
+        updateFocusVisual();
     }
 
     private void addSection(ManiaModCategory category, float y)
@@ -940,6 +1095,7 @@ internal partial class GameplayModsScreen : Screen
 
     private void updateSelection()
     {
+        modPreferences?.Remember(selectedMods);
         foreach ((ManiaModId mod, GameplayModListItem item) in visibleItems)
             item.SetSelected(selectedMods.Contains(mod));
 
@@ -948,6 +1104,8 @@ internal partial class GameplayModsScreen : Screen
         activeModsHeader.Text = selectedMods.Mods.Count == 0
             ? "ACTIVE MODS"
             : $"ACTIVE MODS ({selectedMods.Mods.Count})";
+        resetButton?.SetEnabled(selectedMods.Mods.Count > 0);
+        updateFocusVisual();
         if (loadComplete)
             modsChanged?.Invoke(selectedMods);
     }
@@ -1013,16 +1171,39 @@ internal partial class GameplayModsScreen : Screen
                 ? definition.Description
                 : "Available only for charts imported from osu!standard.");
 
+        bool active = selectedMods.Contains(mod);
+        Color4 detailAccent = accentForMod(
+            definition.Id,
+            definition.Category);
+        detailBadgeBackground.Colour = active
+            ? HomeControlColours.PaleCyan
+            : Color4.White;
+        detailBadge.BorderColour = active
+            ? detailAccent
+            : HomeControlColours.Cyan;
+        detailBadge.BorderThickness = active ? 2.2f : 1.5f;
+        detailName.Colour = active
+            ? detailAccent
+            : HomeControlColours.Navy;
+
         bool fixedRateMod = isFixedRateMod(mod);
         bool configurable = isConfigurable(mod) && !fixedRateMod;
-        settingsHeader.Y = fixedRateMod ? 170 : 127;
-        settingsDivider.Y = fixedRateMod ? 179 : 136;
-        fixedRatePanel.Y = fixedRateMod ? 200 : 153;
+        settingsHeader.Text = configurable
+            ? active
+                ? "SETTINGS · ACTIVE"
+                : "SETTINGS · PREVIEW"
+            : "SETTINGS";
+        settingsHeader.Y = configurable ? 127 : 170;
+        settingsDivider.Y = configurable ? 136 : 179;
+        settingsDivider.X = configurable ? 132 : 84;
+        settingsDivider.Width = configurable ? 158 : 206;
+        fixedRatePanel.Y = 200;
         configurablePanel.Alpha = configurable ? 1 : 0;
         fixedRatePanel.Alpha = configurable ? 0 : 1;
         activeModsHeader.Alpha = configurable ? 0 : 1;
         activeModsDivider.Alpha = configurable ? 0 : 1;
         activeMods.Alpha = configurable ? 0 : 1;
+        detailHint.Alpha = configurable ? 0 : 1;
         detailHint.Text = mod == ManiaModId.HalfTime
             ? selectedMods.Contains(mod)
                 ? "SHORTCUT: H · SPACE REMOVE"
@@ -1067,6 +1248,154 @@ internal partial class GameplayModsScreen : Screen
         }
     }
 
+    private void focusPreferredMod(ManiaModCategory category)
+    {
+        ManiaModId? preferred = visibleItems.Keys
+            .Where(mod =>
+                OsuManiaModParityCatalog.Get(mod).Category == category
+                && selectedMods.Contains(mod))
+            .Select(mod => (ManiaModId?)mod)
+            .FirstOrDefault();
+        preferred ??= visibleItems.Keys
+            .Where(mod =>
+                OsuManiaModParityCatalog.Get(mod).Category == category
+                && isSelectable(mod))
+            .Select(mod => (ManiaModId?)mod)
+            .FirstOrDefault();
+        preferred ??= visibleItems.Keys
+            .Select(mod => (ManiaModId?)mod)
+            .FirstOrDefault();
+
+        if (!preferred.HasValue)
+            return;
+
+        detailMod = preferred.Value;
+        updateFocusVisual();
+        selectDetail(detailMod);
+    }
+
+    internal void CycleCategory(int offset)
+    {
+        int currentIndex = Array.IndexOf(
+            visible_categories,
+            activeCategory);
+        int nextIndex = (currentIndex + offset
+                         + visible_categories.Length)
+                        % visible_categories.Length;
+        SetCategory(visible_categories[nextIndex]);
+    }
+
+    internal void MoveDetailFocus(Vector2 direction)
+    {
+        if (visibleItems.Count == 0)
+            return;
+
+        if (!visibleItems.TryGetValue(detailMod, out GameplayModListItem current))
+        {
+            focusPreferredMod(activeCategory);
+            return;
+        }
+
+        Vector2 currentPosition = current.Position;
+        bool horizontal = direction.X != 0;
+        var candidates = visibleItems
+            .Where(pair => pair.Key != detailMod)
+            .Select(pair => new
+            {
+                pair.Key,
+                Position = pair.Value.Position,
+            })
+            .Where(candidate =>
+                horizontal
+                    ? direction.X < 0
+                        ? candidate.Position.X < currentPosition.X - 1
+                        : candidate.Position.X > currentPosition.X + 1
+                    : direction.Y < 0
+                        ? candidate.Position.Y < currentPosition.Y - 1
+                        : candidate.Position.Y > currentPosition.Y + 1)
+            .OrderBy(candidate =>
+                horizontal
+                    ? MathF.Abs(candidate.Position.X - currentPosition.X)
+                      + MathF.Abs(candidate.Position.Y - currentPosition.Y) * 4
+                    : MathF.Abs(candidate.Position.Y - currentPosition.Y)
+                      + MathF.Abs(candidate.Position.X - currentPosition.X) * 4)
+            .ToArray();
+
+        ManiaModId next;
+        if (candidates.Length > 0)
+        {
+            next = candidates[0].Key;
+        }
+        else
+        {
+            next = visibleItems
+                .Where(pair => pair.Key != detailMod)
+                .OrderBy(pair =>
+                    horizontal
+                        ? MathF.Abs(pair.Value.Position.Y - currentPosition.Y)
+                          + (direction.X < 0
+                              ? -pair.Value.Position.X
+                              : pair.Value.Position.X)
+                        : MathF.Abs(pair.Value.Position.X - currentPosition.X)
+                          + (direction.Y < 0
+                              ? -pair.Value.Position.Y
+                              : pair.Value.Position.Y))
+                .Select(pair => pair.Key)
+                .FirstOrDefault(detailMod);
+        }
+
+        detailMod = next;
+        updateFocusVisual();
+        selectDetail(detailMod);
+        ManiaModDefinition definition =
+            OsuManiaModParityCatalog.Get(detailMod);
+        showInteractionHint(
+            $"{definition.Acronym} · {definition.Name.ToUpperInvariant()}   SPACE · TOGGLE");
+    }
+
+    private void updateFocusVisual()
+    {
+        foreach ((ManiaModId mod, GameplayModListItem item) in visibleItems)
+            item.SetFocused(mod == detailMod);
+    }
+
+    private bool adjustFocusedFixedRate(double delta)
+    {
+        if (!isFixedRateMod(detailMod))
+            return false;
+
+        if (selectedMods.FixedRateMod != detailMod)
+        {
+            showInteractionHint(
+                $"ENABLE {OsuManiaModParityCatalog.Get(detailMod).Acronym} BEFORE ADJUSTING RATE");
+            return true;
+        }
+
+        double minimum = isSlowFixedRateMod(detailMod) ? 0.5 : 1.01;
+        double maximum = isSlowFixedRateMod(detailMod) ? 0.99 : 2;
+        double rate = Math.Clamp(
+            Math.Round(selectedMods.FixedRateSpeedChange + delta, 2),
+            minimum,
+            maximum);
+        SetFixedRateSpeedChange(rate);
+        showInteractionHint(
+            $"RATE · {rate:0.00}x   +/- · ADJUST   P · PITCH");
+        return true;
+    }
+
+    private void showInteractionHint(string text)
+    {
+        if (interactionHint == null)
+            return;
+
+        interactionHint.ClearTransforms();
+        interactionHint.Text = text;
+        interactionHint
+            .FadeIn(90, Easing.OutQuint)
+            .Delay(1700)
+            .FadeOut(240, Easing.OutQuint);
+    }
+
     private bool isSelectable(ManiaModId mod) =>
         mod != ManiaModId.ScoreV2
         && (mod is not (>= ManiaModId.Key1 and <= ManiaModId.Key10)
@@ -1078,6 +1407,8 @@ internal partial class GameplayModsScreen : Screen
             or ManiaModId.AccuracyChallenge
             or ManiaModId.DifficultyAdjust
             or ManiaModId.Muted
+            or ManiaModId.Cover
+            or ManiaModId.Flashlight
             or ManiaModId.HalfTime
             or ManiaModId.Daycore
             or ManiaModId.DoubleTime
@@ -1085,6 +1416,7 @@ internal partial class GameplayModsScreen : Screen
             or ManiaModId.WindUp
             or ManiaModId.WindDown
             or ManiaModId.AdaptiveSpeed
+            or ManiaModId.Random
             or ManiaModId.DualStages
         || mod is >= ManiaModId.Key1 and <= ManiaModId.Key10;
 

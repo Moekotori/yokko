@@ -16,13 +16,16 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
     private readonly Container accuracyPage;
     private readonly Container perfectPage;
     private readonly Container difficultyPage;
+    private readonly Container visibilityPage;
     private readonly Container mutedPage;
     private readonly Container fixedRatePage;
     private readonly Container timeRampPage;
     private readonly Container adaptivePage;
+    private readonly Container randomPage;
     private readonly Container keyPage;
     private readonly PageTab accuracyTab;
     private readonly PageTab difficultyTab;
+    private readonly PageTab visibilityTab;
     private readonly PageTab mutedTab;
     private readonly PageTab timeRampTab;
     private readonly PageTab keyTab;
@@ -31,10 +34,12 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
     internal SongSelectAccuracyChallengeSettings AccuracySettings { get; }
     internal SongSelectPerfectSettings PerfectSettings { get; }
     internal SongSelectDifficultyAdjustSettings DifficultySettings { get; }
+    internal SongSelectVisibilitySettings VisibilitySettings { get; }
     internal SongSelectMutedSettings MutedSettings { get; }
     internal SongSelectFixedRateSettings FixedRateSettings { get; }
     internal SongSelectTimeRampSettings TimeRampSettings { get; }
     internal SongSelectAdaptiveSpeedSettings AdaptiveSettings { get; }
+    internal SongSelectRandomSettings RandomSettings { get; }
     internal SongSelectKeyConversionSettings KeySettings { get; }
     internal ManiaModId ActivePage => activePage;
 
@@ -50,13 +55,18 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         Action<bool> mutedMetronomeChanged,
         Action<int> mutedComboChanged,
         Action<bool> mutedHitSoundsChanged,
+        Action<double> coverCoverageChanged,
+        Action<ManiaCoverDirection> coverDirectionChanged,
+        Action<double> flashlightSizeChanged,
+        Action<bool> flashlightComboBasedChanged,
         Action<double> fixedRateChanged,
         Action<bool> fixedRatePitchChanged,
         Action<double> timeRampInitialChanged,
         Action<double> timeRampFinalChanged,
         Action<bool> timeRampPitchChanged,
         Action<double> adaptiveInitialChanged,
-        Action<bool> adaptivePitchChanged)
+        Action<bool> adaptivePitchChanged,
+        Action<int> randomSeedChanged)
         : this(
             accuracyMinimumChanged,
             accuracyModeChanged,
@@ -69,6 +79,10 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             mutedMetronomeChanged,
             mutedComboChanged,
             mutedHitSoundsChanged,
+            coverCoverageChanged,
+            coverDirectionChanged,
+            flashlightSizeChanged,
+            flashlightComboBasedChanged,
             fixedRateChanged,
             fixedRatePitchChanged,
             timeRampInitialChanged,
@@ -76,6 +90,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             timeRampPitchChanged,
             adaptiveInitialChanged,
             adaptivePitchChanged,
+            randomSeedChanged,
             _ => { })
     {
     }
@@ -92,6 +107,10 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         Action<bool> mutedMetronomeChanged,
         Action<int> mutedComboChanged,
         Action<bool> mutedHitSoundsChanged,
+        Action<double> coverCoverageChanged,
+        Action<ManiaCoverDirection> coverDirectionChanged,
+        Action<double> flashlightSizeChanged,
+        Action<bool> flashlightComboBasedChanged,
         Action<double> fixedRateChanged,
         Action<bool> fixedRatePitchChanged,
         Action<double> timeRampInitialChanged,
@@ -99,6 +118,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         Action<bool> timeRampPitchChanged,
         Action<double> adaptiveInitialChanged,
         Action<bool> adaptivePitchChanged,
+        Action<int> randomSeedChanged,
         Action<ManiaModId> keyModToggled)
     {
         Size = new Vector2(202, 270);
@@ -118,6 +138,11 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             mutedMetronomeChanged,
             mutedComboChanged,
             mutedHitSoundsChanged);
+        VisibilitySettings = new SongSelectVisibilitySettings(
+            coverCoverageChanged,
+            coverDirectionChanged,
+            flashlightSizeChanged,
+            flashlightComboBasedChanged);
         FixedRateSettings = new SongSelectFixedRateSettings(
             fixedRateChanged,
             fixedRatePitchChanged);
@@ -128,6 +153,8 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         AdaptiveSettings = new SongSelectAdaptiveSpeedSettings(
             adaptiveInitialChanged,
             adaptivePitchChanged);
+        RandomSettings = new SongSelectRandomSettings(
+            randomSeedChanged);
         KeySettings = new SongSelectKeyConversionSettings(
             keyModToggled);
 
@@ -150,25 +177,31 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                 "DA",
                 () => Show(ManiaModId.DifficultyAdjust))
             {
-                Position = new Vector2(62, 0),
+                Position = new Vector2(56, 0),
+            },
+            visibilityTab = new PageTab(
+                "VIS",
+                () => Show(activeVisibilityPage()))
+            {
+                Position = new Vector2(85, 0),
             },
             mutedTab = new PageTab(
                 "MU",
                 () => Show(ManiaModId.Muted))
             {
-                Position = new Vector2(97, 0),
+                Position = new Vector2(114, 0),
             },
             timeRampTab = new PageTab(
                 "RATE",
                 () => Show(activeRatePage()))
             {
-                Position = new Vector2(132, 0),
+                Position = new Vector2(143, 0),
             },
             keyTab = new PageTab(
                 "KEY",
-                () => Show(ManiaModId.Key4))
+                () => Show(activeConversionPage()))
             {
-                Position = new Vector2(167, 0),
+                Position = new Vector2(172, 0),
             },
             new Box
             {
@@ -200,6 +233,13 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                 Alpha = 0,
                 Child = DifficultySettings,
             },
+            visibilityPage = new Container
+            {
+                Y = 43,
+                Size = new Vector2(202, 224),
+                Alpha = 0,
+                Child = VisibilitySettings,
+            },
             mutedPage = new Container
             {
                 Y = 43,
@@ -228,6 +268,13 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                 Alpha = 0,
                 Child = AdaptiveSettings,
             },
+            randomPage = new Container
+            {
+                Y = 43,
+                Size = new Vector2(202, 224),
+                Alpha = 0,
+                Child = RandomSettings,
+            },
             keyPage = new Container
             {
                 Y = 43,
@@ -245,6 +292,8 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         if (mod is not ManiaModId.Perfect
             and not ManiaModId.AccuracyChallenge
             and not ManiaModId.DifficultyAdjust
+            and not ManiaModId.Cover
+            and not ManiaModId.Flashlight
             and not ManiaModId.Muted
             and not ManiaModId.HalfTime
             and not ManiaModId.Daycore
@@ -253,6 +302,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             and not ManiaModId.WindUp
             and not ManiaModId.WindDown
             and not ManiaModId.AdaptiveSpeed
+            and not ManiaModId.Random
             and not ManiaModId.Key1
             and not ManiaModId.Key2
             and not ManiaModId.Key3
@@ -286,6 +336,9 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         bool difficultyEnabled =
             mods.Contains(ManiaModId.DifficultyAdjust);
         bool mutedEnabled = mods.Contains(ManiaModId.Muted);
+        bool coverEnabled = mods.Contains(ManiaModId.Cover);
+        bool flashlightEnabled =
+            mods.Contains(ManiaModId.Flashlight);
         ManiaModId fixedRateMod =
             mods.FixedRateMod
             ?? (activePage is ManiaModId.HalfTime
@@ -298,6 +351,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         bool windUpEnabled = mods.Contains(ManiaModId.WindUp);
         bool windDownEnabled = mods.Contains(ManiaModId.WindDown);
         bool adaptiveEnabled = mods.HasAdaptiveSpeed;
+        bool randomEnabled = mods.Contains(ManiaModId.Random);
         if (activePage is ManiaModId.Perfect
                 or ManiaModId.AccuracyChallenge
                 or ManiaModId.DifficultyAdjust
@@ -310,6 +364,16 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                     : difficultyEnabled
                         ? ManiaModId.DifficultyAdjust
                         : activePage;
+        }
+        if (activePage is ManiaModId.Cover
+                or ManiaModId.Flashlight
+            && !isActivePageEnabled())
+        {
+            activePage = coverEnabled
+                ? ManiaModId.Cover
+                : flashlightEnabled
+                    ? ManiaModId.Flashlight
+                    : activePage;
         }
 
         PerfectSettings.SetState(
@@ -332,6 +396,19 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             mods.MutedMetronome,
             mods.MutedComboCount,
             mods.MutedAffectsHitSounds);
+        ManiaModId visibilityMod =
+            activePage == ManiaModId.Flashlight
+                ? ManiaModId.Flashlight
+                : ManiaModId.Cover;
+        VisibilitySettings.SetState(
+            visibilityMod,
+            visibilityMod == ManiaModId.Cover
+                ? coverEnabled
+                : flashlightEnabled,
+            mods.CoverCoverage,
+            mods.CoverDirection,
+            mods.FlashlightSizeMultiplier,
+            mods.FlashlightComboBasedSize);
         FixedRateSettings.SetState(
             fixedRateEnabled,
             fixedRateMod,
@@ -359,6 +436,9 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             adaptiveEnabled,
             adaptiveEnabled ? mods.AdaptiveInitialRate : 1,
             !adaptiveEnabled || mods.AdaptiveAdjustPitch);
+        RandomSettings.SetState(
+            randomEnabled,
+            mods.RandomSeed ?? 0);
         KeySettings.SetState(
             beatmap.ConversionSource is not null,
             mods.KeyConversionTarget,
@@ -370,6 +450,8 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             ManiaModId.Perfect => perfectEnabled,
             ManiaModId.AccuracyChallenge => accuracyEnabled,
             ManiaModId.DifficultyAdjust => difficultyEnabled,
+            ManiaModId.Cover => coverEnabled,
+            ManiaModId.Flashlight => flashlightEnabled,
             _ => true,
         };
     }
@@ -381,9 +463,13 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             activePage == ManiaModId.AccuracyChallenge;
         bool showDifficulty =
             activePage == ManiaModId.DifficultyAdjust;
+        bool showVisibility =
+            activePage is ManiaModId.Cover
+                or ManiaModId.Flashlight;
         perfectPage.Alpha = showPerfect ? 1 : 0;
         accuracyPage.Alpha = showAccuracy ? 1 : 0;
         difficultyPage.Alpha = showDifficulty ? 1 : 0;
+        visibilityPage.Alpha = showVisibility ? 1 : 0;
         mutedPage.Alpha =
             activePage == ManiaModId.Muted ? 1 : 0;
         bool showFixedRate =
@@ -399,6 +485,8 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         bool showAdaptive =
             activePage == ManiaModId.AdaptiveSpeed;
         adaptivePage.Alpha = showAdaptive ? 1 : 0;
+        bool showRandom = activePage == ManiaModId.Random;
+        randomPage.Alpha = showRandom ? 1 : 0;
         bool showKey = activePage is >= ManiaModId.Key1
             and <= ManiaModId.Key10
             || activePage == ManiaModId.DualStages;
@@ -406,10 +494,18 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         accuracyTab.SetLabel(showPerfect ? "PF" : "AC");
         accuracyTab.SetSelected(showPerfect || showAccuracy);
         difficultyTab.SetSelected(showDifficulty);
+        visibilityTab.SetLabel(
+            activePage == ManiaModId.Cover
+                ? "CO"
+                : activePage == ManiaModId.Flashlight
+                    ? "FL"
+                    : "VIS");
+        visibilityTab.SetSelected(showVisibility);
         mutedTab.SetSelected(activePage == ManiaModId.Muted);
         timeRampTab.SetSelected(
             showFixedRate || showTimeRamp || showAdaptive);
-        keyTab.SetSelected(showKey);
+        keyTab.SetLabel(showRandom ? "RD" : "KEY");
+        keyTab.SetSelected(showKey || showRandom);
     }
 
     private ManiaModId activeRatePage() =>
@@ -422,6 +518,21 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             or ManiaModId.Nightcore
             ? activePage
             : ManiaModId.HalfTime;
+
+    private ManiaModId activeVisibilityPage() =>
+        activePage is ManiaModId.Cover
+            or ManiaModId.Flashlight
+            ? activePage
+            : ManiaModId.Cover;
+
+    private ManiaModId activeConversionPage() =>
+        activePage == ManiaModId.Random
+            ? ManiaModId.Random
+            : activePage is >= ManiaModId.Key1
+                and <= ManiaModId.Key10
+                || activePage == ManiaModId.DualStages
+                ? activePage
+                : ManiaModId.Key4;
 
     private ManiaModId activeFailPage() =>
         activePage is ManiaModId.Perfect
@@ -437,7 +548,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         public PageTab(string text, Action action)
         {
             Action = action;
-            Size = new Vector2(33, 27);
+            Size = new Vector2(27, 27);
             Masking = true;
             CornerRadius = 4;
             BorderThickness = 1;
@@ -452,7 +563,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Text = text,
-                    Font = HomeTypography.Display(10),
+                    Font = HomeTypography.Display(8),
                 },
             };
         }

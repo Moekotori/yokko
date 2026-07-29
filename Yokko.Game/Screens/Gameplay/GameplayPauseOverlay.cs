@@ -11,6 +11,7 @@ using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Core.Beatmaps;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
@@ -22,6 +23,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     private const float designedHeight = 720;
 
     private readonly YokkoBeatmap beatmap;
+    private readonly YokkoGameplaySettings gameplaySettings;
     private readonly Action resume;
     private readonly Action retry;
     private readonly Action openSettings;
@@ -36,12 +38,14 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
     public GameplayPauseOverlay(
         YokkoBeatmap beatmap,
+        YokkoGameplaySettings gameplaySettings,
         Action resume,
         Action retry,
         Action openSettings,
         Action exitGameplay)
     {
         this.beatmap = beatmap;
+        this.gameplaySettings = gameplaySettings;
         this.resume = resume;
         this.retry = retry;
         this.openSettings = openSettings;
@@ -97,34 +101,41 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
     public bool HandleKey(Key key)
     {
-        switch (key)
+        if (matches(ManiaShortcutAction.PauseOrBack, key))
         {
-            case Key.Escape:
-                resume();
-                return true;
-
-            case Key.Up:
-            case Key.W:
-                selectAction((selectedAction + actions.Length - 1) % actions.Length);
-                return true;
-
-            case Key.Down:
-            case Key.S:
-                selectAction((selectedAction + 1) % actions.Length);
-                return true;
-
-            case Key.Enter:
-            case Key.Space:
-                actions[selectedAction].Trigger();
-                return true;
-
-            case Key.R:
-                retry();
-                return true;
-
-            default:
-                return true;
+            resume();
+            return true;
         }
+
+        if (matches(ManiaShortcutAction.MenuPrevious, key)
+            || matches(
+                ManiaShortcutAction.MenuPreviousAlternate,
+                key))
+        {
+            selectAction((selectedAction + actions.Length - 1) % actions.Length);
+            return true;
+        }
+
+        if (matches(ManiaShortcutAction.MenuNext, key)
+            || matches(
+                ManiaShortcutAction.MenuNextAlternate,
+                key))
+        {
+            selectAction((selectedAction + 1) % actions.Length);
+            return true;
+        }
+
+        if (matches(ManiaShortcutAction.Confirm, key)
+            || matches(ManiaShortcutAction.ConfirmAlternate, key))
+        {
+            actions[selectedAction].Trigger();
+            return true;
+        }
+
+        if (matches(ManiaShortcutAction.Retry, key))
+            retry();
+
+        return true;
     }
 
     internal void SelectNext() =>
@@ -237,7 +248,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     {
         actions[0] = new PauseActionButton(
             YokkoStrings.Get("gameplay.pause.resume"),
-            YokkoStrings.Get("gameplay.pause.resume_hint"),
+            $"{formatKey(ManiaShortcutAction.PauseOrBack)} TO RESUME",
             FontAwesome.Solid.Play,
             true,
             HomeControlColours.Pink,
@@ -587,6 +598,13 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         for (int i = 0; i < actions.Length; i++)
             actions[i]?.SetSelected(i == selectedAction);
     }
+
+    private bool matches(ManiaShortcutAction action, Key key) =>
+        gameplaySettings.GetShortcutBinding(action) == key;
+
+    private string formatKey(ManiaShortcutAction action) =>
+        KeyModeBindings.FormatKey(
+            gameplaySettings.GetShortcutBinding(action)).ToUpperInvariant();
 
     private partial class PauseActionButton : ClickableContainer
     {

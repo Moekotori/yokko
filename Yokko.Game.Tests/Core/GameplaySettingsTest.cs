@@ -44,6 +44,22 @@ public sealed class GameplaySettingsTest
         Assert.That(settings.ShowLanePressFeedback.Value, Is.True);
         Assert.That(settings.KeysoundsEnabled.Value, Is.True);
         Assert.That(settings.PauseWhenUnfocused.Value, Is.True);
+        Assert.That(settings.DecreaseScrollSpeedKey.Value, Is.EqualTo(Key.F3));
+        Assert.That(settings.IncreaseScrollSpeedKey.Value, Is.EqualTo(Key.F4));
+        Assert.That(settings.PauseOrBackKey.Value, Is.EqualTo(Key.Escape));
+        Assert.That(settings.SkipIntroKey.Value, Is.EqualTo(Key.Space));
+        Assert.That(settings.QuickRetryKey.Value, Is.EqualTo(Key.Tilde));
+        Assert.That(settings.MenuPreviousKey.Value, Is.EqualTo(Key.Up));
+        Assert.That(
+            settings.MenuPreviousAlternateKey.Value,
+            Is.EqualTo(Key.W));
+        Assert.That(settings.MenuNextKey.Value, Is.EqualTo(Key.Down));
+        Assert.That(settings.MenuNextAlternateKey.Value, Is.EqualTo(Key.S));
+        Assert.That(settings.ConfirmKey.Value, Is.EqualTo(Key.Enter));
+        Assert.That(settings.ConfirmAlternateKey.Value, Is.EqualTo(Key.Space));
+        Assert.That(settings.RetryKey.Value, Is.EqualTo(Key.R));
+        Assert.That(settings.WatchReplayKey.Value, Is.EqualTo(Key.V));
+        Assert.That(settings.SupportedShortcutActions, Has.Count.EqualTo(13));
     }
 
     [Test]
@@ -116,6 +132,69 @@ public sealed class GameplaySettingsTest
         Assert.That(
             settings.GetKeys(KeyMode.FourKey),
             Is.EqualTo(new[] { Key.F, Key.D, Key.J, Key.K }));
+    }
+
+    [Test]
+    public void DuplicateManiaShortcutSwapsActions()
+    {
+        var settings = new YokkoGameplaySettings();
+
+        ManiaShortcutBindingChange change =
+            settings.SetShortcutBindingWithResult(
+            ManiaShortcutAction.DecreaseScrollSpeed,
+            Key.F4);
+
+        Assert.That(settings.DecreaseScrollSpeedKey.Value, Is.EqualTo(Key.F4));
+        Assert.That(settings.IncreaseScrollSpeedKey.Value, Is.EqualTo(Key.F3));
+        Assert.That(
+            change.SwappedAction,
+            Is.EqualTo(ManiaShortcutAction.IncreaseScrollSpeed));
+        Assert.That(settings.ModifiedShortcutBindingCount, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void ShortcutConflictResolutionIsContextAware()
+    {
+        var settings = new YokkoGameplaySettings();
+
+        settings.SetShortcutBinding(
+            ManiaShortcutAction.MenuPrevious,
+            Key.W);
+        Assert.That(settings.MenuPreviousKey.Value, Is.EqualTo(Key.W));
+        Assert.That(
+            settings.MenuPreviousAlternateKey.Value,
+            Is.EqualTo(Key.Up));
+
+        settings.SetShortcutBinding(
+            ManiaShortcutAction.SkipIntro,
+            Key.F3);
+        Assert.That(settings.SkipIntroKey.Value, Is.EqualTo(Key.F3));
+        Assert.That(settings.DecreaseScrollSpeedKey.Value, Is.EqualTo(Key.F3));
+    }
+
+    [Test]
+    public void EveryShortcutCanResetIndividuallyOrTogether()
+    {
+        var settings = new YokkoGameplaySettings();
+
+        settings.SetShortcutBinding(
+            ManiaShortcutAction.PauseOrBack,
+            Key.F10);
+        settings.SetShortcutBinding(
+            ManiaShortcutAction.WatchReplay,
+            Key.F11);
+        settings.ResetShortcutBinding(ManiaShortcutAction.PauseOrBack);
+
+        Assert.That(settings.PauseOrBackKey.Value, Is.EqualTo(Key.Escape));
+        Assert.That(settings.WatchReplayKey.Value, Is.EqualTo(Key.F11));
+
+        settings.ResetShortcutBindings();
+        Assert.That(settings.WatchReplayKey.Value, Is.EqualTo(Key.V));
+        Assert.That(settings.ModifiedShortcutBindingCount, Is.Zero);
+        Assert.That(settings.SupportedShortcutActions.All(
+            settings.IsShortcutBindingDefault), Is.True);
+        Assert.That(settings.SupportedShortcutActions.All(action =>
+            settings.GetShortcutBinding(action) != Key.Unknown), Is.True);
     }
 
     [Test]
@@ -287,6 +366,18 @@ public sealed class GameplaySettingsTest
                 firstSettings.SetBinding(KeyMode.SevenKey, 3, Key.V);
                 firstSettings.SetBinding(KeyMode.TenKey, 0, Key.Z);
                 firstSettings.SetBinding(KeyMode.TwentyKey, 19, Key.Slash);
+                firstSettings.SetShortcutBinding(
+                    ManiaShortcutAction.DecreaseScrollSpeed,
+                    Key.F7);
+                firstSettings.SetShortcutBinding(
+                    ManiaShortcutAction.IncreaseScrollSpeed,
+                    Key.F8);
+                firstSettings.SetShortcutBinding(
+                    ManiaShortcutAction.PauseOrBack,
+                    Key.F10);
+                firstSettings.SetShortcutBinding(
+                    ManiaShortcutAction.QuickRetry,
+                    Key.F11);
                 firstSettings.SetScrollSpeed(26.4);
                 firstSettings.QuaverScrollRateNormalization.Value = 60;
                 firstSettings.ShowLanePressFeedback.Value = false;
@@ -312,6 +403,18 @@ public sealed class GameplaySettingsTest
                 Assert.That(
                     restoredSettings.GetKeys(KeyMode.TwentyKey)[19],
                     Is.EqualTo(Key.Slash));
+                Assert.That(
+                    restoredSettings.DecreaseScrollSpeedKey.Value,
+                    Is.EqualTo(Key.F7));
+                Assert.That(
+                    restoredSettings.IncreaseScrollSpeedKey.Value,
+                    Is.EqualTo(Key.F8));
+                Assert.That(
+                    restoredSettings.PauseOrBackKey.Value,
+                    Is.EqualTo(Key.F10));
+                Assert.That(
+                    restoredSettings.QuickRetryKey.Value,
+                    Is.EqualTo(Key.F11));
                 Assert.That(
                     restoredSettings.ScrollSpeed.Value,
                     Is.EqualTo(26.4).Within(0.001));
@@ -342,18 +445,31 @@ public sealed class GameplaySettingsTest
         var source = new YokkoGameplaySettings();
         source.SetBinding(KeyMode.TwoKey, 0, Key.Z);
         source.SetBinding(KeyMode.TwentyKey, 19, Key.Slash);
+        source.SetShortcutBinding(
+            ManiaShortcutAction.PauseOrBack,
+            Key.F10);
+        source.SetShortcutBinding(
+            ManiaShortcutAction.WatchReplay,
+            Key.F11);
 
         string encoded = GameplayKeyProfileCodec.Encode(source);
         var restored = new YokkoGameplaySettings();
         GameplayKeyProfileCodec.DecodeAndApply(encoded, restored);
 
-        Assert.That(encoded, Does.StartWith("YOKKO-KEYS-V2|1K="));
+        Assert.That(encoded, Does.StartWith("YOKKO-KEYS-V3|1K="));
         foreach (KeyMode mode in source.SupportedKeyModes)
         {
             Assert.That(
                 restored.GetKeys(mode),
                 Is.EqualTo(source.GetKeys(mode)),
                 mode.ToString());
+        }
+        foreach (ManiaShortcutAction action in source.SupportedShortcutActions)
+        {
+            Assert.That(
+                restored.GetShortcutBinding(action),
+                Is.EqualTo(source.GetShortcutBinding(action)),
+                action.ToString());
         }
     }
 

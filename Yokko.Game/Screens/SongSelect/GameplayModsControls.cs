@@ -107,6 +107,8 @@ internal partial class GameplayModListItem : ClickableContainer
     private readonly Color4 accentColour;
     private readonly bool selectable;
     private readonly Action<ManiaModId, bool> hoverChanged;
+    private readonly Box focusBackground;
+    private readonly Container acronymBadge;
     private readonly Box acronymBackground;
     private readonly SpriteText acronym;
     private readonly SpriteText name;
@@ -130,7 +132,17 @@ internal partial class GameplayModListItem : ClickableContainer
 
         InternalChildren = new Drawable[]
         {
-            new Container
+            focusBackground = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = new Color4(
+                    HomeControlColours.PaleCyan.R,
+                    HomeControlColours.PaleCyan.G,
+                    HomeControlColours.PaleCyan.B,
+                    0.38f),
+                Alpha = 0,
+            },
+            acronymBadge = new Container
             {
                 Size = new Vector2(40),
                 Masking = true,
@@ -205,6 +217,15 @@ internal partial class GameplayModListItem : ClickableContainer
         name.Colour = selected
             ? accentColour
             : HomeControlColours.Navy;
+    }
+
+    public void SetFocused(bool value)
+    {
+        focusBackground.FadeTo(value ? 1 : 0, 90, Easing.OutQuint);
+        acronymBadge.BorderThickness = value ? 2.3f : 1.3f;
+        acronymBadge.BorderColour = value
+            ? HomeControlColours.Navy
+            : accentColour;
     }
 
     protected override bool OnHover(HoverEvent e)
@@ -348,6 +369,7 @@ internal partial class GameplayModsRateSlider : ClickableContainer
     private readonly Circle marker;
     private double minimum;
     private double maximum;
+    private double value;
     private bool enabled;
 
     internal GameplayModsRateSlider(Action<double> changed)
@@ -393,6 +415,7 @@ internal partial class GameplayModsRateSlider : ClickableContainer
         enabled = isEnabled;
         this.minimum = minimum;
         this.maximum = maximum;
+        this.value = value;
         double progress = Math.Clamp(
             (value - minimum) / (maximum - minimum),
             0,
@@ -405,6 +428,9 @@ internal partial class GameplayModsRateSlider : ClickableContainer
 
     protected override bool OnMouseDown(MouseDownEvent e)
     {
+        if (!enabled)
+            return false;
+
         updateFrom(e.ScreenSpaceMousePosition);
         return true;
     }
@@ -413,6 +439,18 @@ internal partial class GameplayModsRateSlider : ClickableContainer
 
     protected override void OnDrag(DragEvent e) =>
         updateFrom(e.ScreenSpaceMousePosition);
+
+    protected override bool OnScroll(ScrollEvent e)
+    {
+        if (!enabled || e.ScrollDelta.Y == 0)
+            return false;
+
+        changed(Math.Clamp(
+            Math.Round(value + Math.Sign(e.ScrollDelta.Y) * 0.01, 2),
+            minimum,
+            maximum));
+        return true;
+    }
 
     private void updateFrom(Vector2 screenPosition)
     {
@@ -495,10 +533,17 @@ internal partial class GameplayModsResetButton : ClickableContainer
 {
     private readonly Box background;
     private readonly SpriteIcon icon;
+    private bool enabled = true;
+
+    internal bool IsEnabled => enabled;
 
     public GameplayModsResetButton(Action action)
     {
-        Action = action;
+        Action = () =>
+        {
+            if (enabled)
+                action();
+        };
         Size = new Vector2(138, 64);
         Masking = true;
         CornerRadius = 7;
@@ -540,8 +585,24 @@ internal partial class GameplayModsResetButton : ClickableContainer
         };
     }
 
+    public void SetEnabled(bool value)
+    {
+        enabled = value;
+        this.FadeTo(value ? 1 : 0.46f, 120, Easing.OutQuint);
+        BorderColour = value
+            ? HomeControlColours.Navy
+            : new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                0.38f);
+    }
+
     protected override bool OnHover(HoverEvent e)
     {
+        if (!enabled)
+            return false;
+
         background.FadeColour(HomeControlColours.PaleCyan, 100);
         icon.RotateTo(-30, 150, Easing.OutQuint);
         this.ScaleTo(1.02f, 100, Easing.OutQuint);

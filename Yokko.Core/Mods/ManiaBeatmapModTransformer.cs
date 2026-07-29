@@ -92,7 +92,8 @@ public static class ManiaBeatmapModTransformer
                                                     + duration,
                                                     HitObjectKind.Hold,
                                                     current.SampleKey,
-                                                    current.ScrollProfileId);
+                                                    current.ScrollProfileId,
+                                                    current.SamplePayload);
                                             });
                                  })
                                  .OrderBy(static hitObject =>
@@ -114,7 +115,8 @@ public static class ManiaBeatmapModTransformer
                             null,
                             HitObjectKind.Tap,
                             hitObject.SampleKey,
-                            hitObject.ScrollProfileId)
+                            hitObject.ScrollProfileId,
+                            hitObject.SamplePayload)
                         : hitObject)
                 .ToArray();
         }
@@ -150,7 +152,8 @@ public static class ManiaBeatmapModTransformer
                     hitObject.EndTimeMilliseconds,
                     hitObject.Kind,
                     hitObject.SampleKey,
-                    hitObject.ScrollProfileId);
+                    hitObject.ScrollProfileId,
+                    hitObject.SamplePayload);
             }).ToArray();
         }
 

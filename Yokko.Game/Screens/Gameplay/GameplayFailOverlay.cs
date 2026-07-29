@@ -10,6 +10,7 @@ using osuTK.Input;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Gameplay;
@@ -18,6 +19,7 @@ internal partial class GameplayFailOverlay : CompositeDrawable
 {
     private readonly Action retry;
     private readonly Action exit;
+    private readonly YokkoGameplaySettings gameplaySettings;
     private Container card;
 
     internal ManiaFailReason Reason { get; }
@@ -27,9 +29,11 @@ internal partial class GameplayFailOverlay : CompositeDrawable
         BeatmapJudgementState judgementState,
         ManiaHealthState healthState,
         ManiaModSet mods,
+        YokkoGameplaySettings gameplaySettings,
         Action retry,
         Action exit)
     {
+        this.gameplaySettings = gameplaySettings;
         this.retry = retry;
         this.exit = exit;
         Reason = healthState.FailureReason;
@@ -155,7 +159,8 @@ internal partial class GameplayFailOverlay : CompositeDrawable
                     },
                     new FailActionButton(
                         "RETRY",
-                        "R / ENTER",
+                        $"{formatKey(ManiaShortcutAction.Retry)} / "
+                        + $"{formatKey(ManiaShortcutAction.Confirm)}",
                         HomeControlColours.Pink,
                         retry)
                     {
@@ -163,7 +168,7 @@ internal partial class GameplayFailOverlay : CompositeDrawable
                     },
                     new FailActionButton(
                         "BACK",
-                        "ESC",
+                        formatKey(ManiaShortcutAction.PauseOrBack),
                         HomeControlColours.Cyan,
                         exit)
                     {
@@ -185,21 +190,26 @@ internal partial class GameplayFailOverlay : CompositeDrawable
 
     public bool HandleKey(Key key)
     {
-        switch (key)
+        if (matches(ManiaShortcutAction.Retry, key)
+            || matches(ManiaShortcutAction.Confirm, key)
+            || matches(ManiaShortcutAction.ConfirmAlternate, key))
         {
-            case Key.R:
-            case Key.Enter:
-                retry();
-                return true;
-
-            case Key.Escape:
-                exit();
-                return true;
-
-            default:
-                return true;
+            retry();
+            return true;
         }
+
+        if (matches(ManiaShortcutAction.PauseOrBack, key))
+            exit();
+
+        return true;
     }
+
+    private bool matches(ManiaShortcutAction action, Key key) =>
+        gameplaySettings.GetShortcutBinding(action) == key;
+
+    private string formatKey(ManiaShortcutAction action) =>
+        KeyModeBindings.FormatKey(
+            gameplaySettings.GetShortcutBinding(action)).ToUpperInvariant();
 
     private partial class FailActionButton : ClickableContainer
     {

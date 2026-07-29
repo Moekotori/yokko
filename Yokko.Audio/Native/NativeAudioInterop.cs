@@ -5,7 +5,7 @@ namespace Yokko.Audio.Native;
 
 internal static partial class NativeAudioInterop
 {
-    internal const uint AbiVersion = 7;
+    internal const uint AbiVersion = 8;
     internal const string LibraryName = "yokko_audio_native";
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_abi_version")]
@@ -77,6 +77,27 @@ internal static partial class NativeAudioInterop
     internal static partial NativeAudioResult TriggerSample(
         NativeAudioSafeHandle engine,
         uint sampleId);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_trigger_sample_with_gain")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult TriggerSampleWithGain(
+        NativeAudioSafeHandle engine,
+        uint sampleId,
+        float gain);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_start_looping_sample")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult StartLoopingSample(
+        NativeAudioSafeHandle engine,
+        uint sampleId,
+        float gain,
+        out uint loopId);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_stop_looping_sample")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult StopLoopingSample(
+        NativeAudioSafeHandle engine,
+        uint loopId);
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_status")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]

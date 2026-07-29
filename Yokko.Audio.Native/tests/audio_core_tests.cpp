@@ -262,8 +262,11 @@ namespace
             "mix bus submit");
         require(yokko_audio_start(engine) == YOKKO_AUDIO_OK, "mix bus start");
         require(
-            yokko_audio_trigger_sample(engine, keysound_id) == YOKKO_AUDIO_OK,
-            "mix bus keysound trigger");
+            yokko_audio_trigger_sample_with_gain(
+                engine,
+                keysound_id,
+                0.5f) == YOKKO_AUDIO_OK,
+            "mix bus gained keysound trigger");
         require(
             yokko_audio_trigger_sample(engine, metronome_id) == YOKKO_AUDIO_OK,
             "mix bus metronome trigger");
@@ -275,8 +278,8 @@ namespace
                 engine, output.data(), 4, &rendered) == YOKKO_AUDIO_OK,
             "mix bus render");
         require(
-            std::abs(output[0] - 0.6f) < 0.00001f,
-            "music, keysound and metronome gains are independent");
+            std::abs(output[0] - 0.55f) < 0.00001f,
+            "music, per-trigger, keysound and metronome gains are independent");
         require(
             std::abs(output[4] - 0.2f) < 0.00001f,
             "music gain continues after samples end");
@@ -284,6 +287,12 @@ namespace
             yokko_audio_set_mix_volumes(engine, -0.1f, 1.0f, 1.0f)
                 == YOKKO_AUDIO_INVALID_ARGUMENT,
             "invalid mix gain rejected");
+        require(
+            yokko_audio_trigger_sample_with_gain(
+                engine,
+                keysound_id,
+                1.1f) == YOKKO_AUDIO_INVALID_ARGUMENT,
+            "invalid per-trigger gain rejected");
     }
 
     void test_keysound_playback_rate_is_callback_side()
@@ -333,6 +342,84 @@ namespace
             yokko_audio_set_sample_playback_rate(engine, 4.1f)
                 == YOKKO_AUDIO_INVALID_ARGUMENT,
             "invalid keysound rate rejected");
+    }
+
+    void test_looping_keysound_starts_wraps_and_stops()
+    {
+        EngineHandle engine(16, 4);
+        const std::vector<float> music(16, 0.0f);
+        const std::vector<float> keysound{
+            0.2f, 0.2f,
+            0.4f, 0.4f,
+        };
+        uint32_t sample_id = 0;
+        require(
+            yokko_audio_register_sample_f32(
+                engine, keysound.data(), 2, &sample_id) == YOKKO_AUDIO_OK,
+            "looping keysound registration");
+
+        uint32_t accepted = 0;
+        require(
+            yokko_audio_submit_interleaved_f32(
+                engine, music.data(), 8, &accepted) == YOKKO_AUDIO_OK,
+            "looping keysound prime");
+        require(yokko_audio_start(engine) == YOKKO_AUDIO_OK, "looping start");
+
+        uint32_t loop_id = 0;
+        require(
+            yokko_audio_start_looping_sample(
+                engine, sample_id, 0.5f, &loop_id) == YOKKO_AUDIO_OK,
+            "looping keysound trigger");
+        require(loop_id != 0, "looping keysound handle");
+
+        std::vector<float> output(8);
+        uint32_t rendered = 0;
+        require(
+            yokko_audio_render_interleaved_f32(
+                engine, output.data(), 4, &rendered) == YOKKO_AUDIO_OK,
+            "first looping render");
+        require(
+            std::abs(output[0] - 0.1f) < 0.00001f
+                && std::abs(output[2] - 0.2f) < 0.00001f
+                && std::abs(output[4] - 0.1f) < 0.00001f,
+            "looping sample wraps inside a callback");
+
+        std::fill(output.begin(), output.end(), 0.0f);
+        require(
+            yokko_audio_render_interleaved_f32(
+                engine, output.data(), 4, &rendered) == YOKKO_AUDIO_OK,
+            "second looping render");
+        require(
+            std::abs(output[0] - 0.1f) < 0.00001f,
+            "looping sample remains active across callbacks");
+
+        require(
+            yokko_audio_stop_looping_sample(engine, loop_id) == YOKKO_AUDIO_OK,
+            "looping keysound stop");
+        std::fill(output.begin(), output.end(), 0.0f);
+        require(
+            yokko_audio_render_interleaved_f32(
+                engine, output.data(), 4, &rendered) == YOKKO_AUDIO_OK,
+            "post-stop looping render");
+        require(
+            std::all_of(
+                output.begin(),
+                output.end(),
+                [](const float sample)
+                {
+                    return std::abs(sample) < 0.00001f;
+                }),
+            "stopped looping sample is silent");
+
+        require(
+            yokko_audio_start_looping_sample(
+                engine, sample_id, 1.1f, &loop_id)
+                == YOKKO_AUDIO_INVALID_ARGUMENT,
+            "invalid looping gain rejected");
+        require(
+            yokko_audio_stop_looping_sample(engine, 0)
+                == YOKKO_AUDIO_INVALID_ARGUMENT,
+            "zero looping handle rejected");
     }
 
     void test_pause_and_stop_are_deterministic()
@@ -596,6 +683,7 @@ int main()
     test_keysounds_mix_on_the_next_callback();
     test_mix_buses_apply_independent_gains();
     test_keysound_playback_rate_is_callback_side();
+    test_looping_keysound_starts_wraps_and_stops();
     test_pause_and_stop_are_deterministic();
     test_output_safety();
     test_hardware_clock_supersedes_callback_clock();

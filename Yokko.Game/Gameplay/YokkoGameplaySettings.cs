@@ -16,9 +16,26 @@ public enum GameplayKeyPreset
 
 public enum ManiaShortcutAction
 {
+    PauseOrBack,
+    SkipIntro,
+    QuickRetry,
     DecreaseScrollSpeed,
     IncreaseScrollSpeed,
+    MenuPrevious,
+    MenuPreviousAlternate,
+    MenuNext,
+    MenuNextAlternate,
+    Confirm,
+    ConfirmAlternate,
+    Retry,
+    WatchReplay,
 }
+
+public readonly record struct ManiaShortcutBindingChange(
+    ManiaShortcutAction Action,
+    Key PreviousKey,
+    Key NewKey,
+    ManiaShortcutAction? SwappedAction);
 
 /// <summary>
 /// Application-owned gameplay preferences. Chart rules and scoring windows stay
@@ -26,6 +43,19 @@ public enum ManiaShortcutAction
 /// </summary>
 public sealed class YokkoGameplaySettings
 {
+    [Flags]
+    private enum ShortcutContext
+    {
+        ActiveGameplay = 1,
+        Intro = 2,
+        PauseMenu = 4,
+        Failure = 8,
+        Results = 16,
+    }
+
+    private static readonly ManiaShortcutAction[] supportedShortcutActions =
+        Enum.GetValues<ManiaShortcutAction>();
+
     private static readonly Key[] defaultFourKeyBindings =
         OsuManiaKeyLayout.GetDefaultKeys(KeyMode.FourKey);
 
@@ -94,6 +124,31 @@ public sealed class YokkoGameplaySettings
 
     public readonly Bindable<Key> IncreaseScrollSpeedKey = new(Key.F4);
 
+    public readonly Bindable<Key> PauseOrBackKey = new(Key.Escape);
+
+    public readonly Bindable<Key> SkipIntroKey = new(Key.Space);
+
+    public readonly Bindable<Key> QuickRetryKey = new(Key.Tilde);
+
+    public readonly Bindable<Key> MenuPreviousKey = new(Key.Up);
+
+    public readonly Bindable<Key> MenuPreviousAlternateKey = new(Key.W);
+
+    public readonly Bindable<Key> MenuNextKey = new(Key.Down);
+
+    public readonly Bindable<Key> MenuNextAlternateKey = new(Key.S);
+
+    public readonly Bindable<Key> ConfirmKey = new(Key.Enter);
+
+    public readonly Bindable<Key> ConfirmAlternateKey = new(Key.Space);
+
+    public readonly Bindable<Key> RetryKey = new(Key.R);
+
+    public readonly Bindable<Key> WatchReplayKey = new(Key.V);
+
+    public IReadOnlyList<ManiaShortcutAction> SupportedShortcutActions =>
+        supportedShortcutActions;
+
     public YokkoGameplaySettings()
     {
         bindingsByMode = OsuManiaKeyLayout.SupportedModes.ToDictionary(
@@ -104,6 +159,11 @@ public sealed class YokkoGameplaySettings
                      modeBindings => modeBindings))
         {
             binding.ValueChanged += _ => BindingsChanged?.Invoke();
+        }
+        foreach (ManiaShortcutAction action in supportedShortcutActions)
+        {
+            shortcutBindable(action).ValueChanged +=
+                _ => BindingsChanged?.Invoke();
         }
     }
 
@@ -190,44 +250,70 @@ public sealed class YokkoGameplaySettings
     }
 
     public Key GetShortcutBinding(ManiaShortcutAction action) =>
-        action switch
-        {
-            ManiaShortcutAction.DecreaseScrollSpeed =>
-                DecreaseScrollSpeedKey.Value,
-            ManiaShortcutAction.IncreaseScrollSpeed =>
-                IncreaseScrollSpeedKey.Value,
-            _ => throw new ArgumentOutOfRangeException(nameof(action)),
-        };
+        shortcutBindable(action).Value;
+
+    public Key GetDefaultShortcutBinding(ManiaShortcutAction action) =>
+        defaultShortcutKey(action);
+
+    public bool IsShortcutBindingDefault(ManiaShortcutAction action) =>
+        GetShortcutBinding(action) == GetDefaultShortcutBinding(action);
+
+    public int ModifiedShortcutBindingCount =>
+        supportedShortcutActions.Count(action =>
+            !IsShortcutBindingDefault(action));
 
     /// <summary>
-    /// Changes a Mania action key while keeping the two actions unique. A
-    /// duplicate assignment swaps the actions instead of silently unbinding one.
+    /// Changes a Mania action key. If another action uses the same key in an
+    /// overlapping gameplay context, both bindings are swapped.
     /// </summary>
-    public void SetShortcutBinding(ManiaShortcutAction action, Key key)
+    public void SetShortcutBinding(
+        ManiaShortcutAction action,
+        Key key) =>
+        SetShortcutBindingWithResult(action, key);
+
+    public ManiaShortcutBindingChange SetShortcutBindingWithResult(
+        ManiaShortcutAction action,
+        Key key)
     {
-        if (key is Key.Escape or Key.Unknown)
+        if (key == Key.Unknown)
         {
             throw new ArgumentException(
-                "Escape and unknown keys cannot be Mania shortcuts.",
+                "Unknown keys cannot be Mania shortcuts.",
                 nameof(key));
         }
 
         Bindable<Key> target = shortcutBindable(action);
-        Bindable<Key> other = shortcutBindable(
-            action == ManiaShortcutAction.DecreaseScrollSpeed
-                ? ManiaShortcutAction.IncreaseScrollSpeed
-                : ManiaShortcutAction.DecreaseScrollSpeed);
         Key previous = target.Value;
-        target.Value = key;
+        ManiaShortcutAction? conflict = supportedShortcutActions
+            .Where(other => other != action)
+            .Where(other =>
+                (shortcutContexts(other) & shortcutContexts(action)) != 0)
+            .Select(other => (ManiaShortcutAction?)other)
+            .FirstOrDefault(other =>
+                shortcutBindable(other.Value).Value == key);
 
-        if (other.Value == key)
-            other.Value = previous;
+        target.Value = key;
+        if (conflict.HasValue)
+            shortcutBindable(conflict.Value).Value = previous;
+
+        return new ManiaShortcutBindingChange(
+            action,
+            previous,
+            key,
+            conflict);
     }
+
+    public void ResetShortcutBinding(ManiaShortcutAction action) =>
+        SetShortcutBinding(action, defaultShortcutKey(action));
+
+    public ManiaShortcutBindingChange ResetShortcutBindingWithResult(
+        ManiaShortcutAction action) =>
+        SetShortcutBindingWithResult(action, defaultShortcutKey(action));
 
     public void ResetShortcutBindings()
     {
-        DecreaseScrollSpeedKey.Value = Key.F3;
-        IncreaseScrollSpeedKey.Value = Key.F4;
+        foreach (ManiaShortcutAction action in supportedShortcutActions)
+            shortcutBindable(action).Value = defaultShortcutKey(action);
     }
 
     public void ApplyBindingPreset(
@@ -291,10 +377,71 @@ public sealed class YokkoGameplaySettings
     private Bindable<Key> shortcutBindable(ManiaShortcutAction action) =>
         action switch
         {
+            ManiaShortcutAction.PauseOrBack => PauseOrBackKey,
+            ManiaShortcutAction.SkipIntro => SkipIntroKey,
+            ManiaShortcutAction.QuickRetry => QuickRetryKey,
             ManiaShortcutAction.DecreaseScrollSpeed =>
                 DecreaseScrollSpeedKey,
             ManiaShortcutAction.IncreaseScrollSpeed =>
                 IncreaseScrollSpeedKey,
+            ManiaShortcutAction.MenuPrevious => MenuPreviousKey,
+            ManiaShortcutAction.MenuPreviousAlternate =>
+                MenuPreviousAlternateKey,
+            ManiaShortcutAction.MenuNext => MenuNextKey,
+            ManiaShortcutAction.MenuNextAlternate =>
+                MenuNextAlternateKey,
+            ManiaShortcutAction.Confirm => ConfirmKey,
+            ManiaShortcutAction.ConfirmAlternate => ConfirmAlternateKey,
+            ManiaShortcutAction.Retry => RetryKey,
+            ManiaShortcutAction.WatchReplay => WatchReplayKey,
+            _ => throw new ArgumentOutOfRangeException(nameof(action)),
+        };
+
+    private static Key defaultShortcutKey(ManiaShortcutAction action) =>
+        action switch
+        {
+            ManiaShortcutAction.PauseOrBack => Key.Escape,
+            ManiaShortcutAction.SkipIntro => Key.Space,
+            ManiaShortcutAction.QuickRetry => Key.Tilde,
+            ManiaShortcutAction.DecreaseScrollSpeed => Key.F3,
+            ManiaShortcutAction.IncreaseScrollSpeed => Key.F4,
+            ManiaShortcutAction.MenuPrevious => Key.Up,
+            ManiaShortcutAction.MenuPreviousAlternate => Key.W,
+            ManiaShortcutAction.MenuNext => Key.Down,
+            ManiaShortcutAction.MenuNextAlternate => Key.S,
+            ManiaShortcutAction.Confirm => Key.Enter,
+            ManiaShortcutAction.ConfirmAlternate => Key.Space,
+            ManiaShortcutAction.Retry => Key.R,
+            ManiaShortcutAction.WatchReplay => Key.V,
+            _ => throw new ArgumentOutOfRangeException(nameof(action)),
+        };
+
+    private static ShortcutContext shortcutContexts(
+        ManiaShortcutAction action) =>
+        action switch
+        {
+            ManiaShortcutAction.PauseOrBack =>
+                ShortcutContext.ActiveGameplay
+                | ShortcutContext.PauseMenu
+                | ShortcutContext.Failure
+                | ShortcutContext.Results,
+            ManiaShortcutAction.SkipIntro => ShortcutContext.Intro,
+            ManiaShortcutAction.QuickRetry
+                or ManiaShortcutAction.DecreaseScrollSpeed
+                or ManiaShortcutAction.IncreaseScrollSpeed =>
+                    ShortcutContext.ActiveGameplay,
+            ManiaShortcutAction.MenuPrevious
+                or ManiaShortcutAction.MenuPreviousAlternate
+                or ManiaShortcutAction.MenuNext
+                or ManiaShortcutAction.MenuNextAlternate =>
+                    ShortcutContext.PauseMenu,
+            ManiaShortcutAction.Confirm
+                or ManiaShortcutAction.ConfirmAlternate
+                or ManiaShortcutAction.Retry =>
+                    ShortcutContext.PauseMenu
+                    | ShortcutContext.Failure
+                    | ShortcutContext.Results,
+            ManiaShortcutAction.WatchReplay => ShortcutContext.Results,
             _ => throw new ArgumentOutOfRangeException(nameof(action)),
         };
 

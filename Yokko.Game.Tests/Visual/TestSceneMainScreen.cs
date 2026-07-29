@@ -1,11 +1,13 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Screens;
+using osu.Framework.Testing;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Game.Screens.Main;
@@ -29,6 +31,9 @@ namespace Yokko.Game.Tests.Visual
         public void TestMainScreenLayout()
         {
             AddWaitStep("wait for entrance animation", 40);
+            AddAssert(
+                "player progress card is present",
+                () => this.ChildrenOfType<HomePlayerProgressCard>().SingleOrDefault() != null);
             AddStep("capture main screen", captureScreenshot);
             AddUntilStep("screenshot saved", () => screenshotSaved);
         }

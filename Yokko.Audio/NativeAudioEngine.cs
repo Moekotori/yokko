@@ -3,7 +3,7 @@ using Yokko.Audio.Native;
 
 namespace Yokko.Audio;
 
-public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback, IAudioMixControl, IAudioRateControl
+public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlayback, IAudioMixControl, IAudioRateControl
 {
     private const int outputChannels = 2;
     private const int decodeBlockFrames = 4096;
@@ -273,8 +273,13 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback, IAud
     }
 
     public bool TriggerSample(string samplePath)
+        => TriggerSample(samplePath, 1);
+
+    public bool TriggerSample(string samplePath, double gain)
     {
         if (string.IsNullOrWhiteSpace(samplePath))
+            return false;
+        if (!double.IsFinite(gain) || gain is < 0 or > 1)
             return false;
 
         string path;
@@ -294,7 +299,7 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback, IAud
 
         try
         {
-            return current.TriggerSample(sampleId);
+            return current.TriggerSample(sampleId, (float)gain);
         }
         catch (ObjectDisposedException)
         {
@@ -304,6 +309,73 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioSamplePlayback, IAud
         {
             return false;
         }
+    }
+
+    public uint StartLoopingSample(string samplePath, double gain)
+    {
+        if (!tryGetActiveSample(
+                samplePath,
+                gain,
+                out NativeAudioCore? current,
+                out uint sampleId)
+            || current is null)
+            return 0;
+
+        try
+        {
+            return current.StartLoopingSample(sampleId, (float)gain);
+        }
+        catch (Exception exception)
+            when (exception is ObjectDisposedException or NativeAudioException)
+        {
+            return 0;
+        }
+    }
+
+    public bool StopLoopingSample(uint loopId)
+    {
+        if (loopId == 0 || core is not NativeAudioCore current)
+            return false;
+
+        try
+        {
+            return current.StopLoopingSample(loopId);
+        }
+        catch (Exception exception)
+            when (exception is ObjectDisposedException or NativeAudioException)
+        {
+            return false;
+        }
+    }
+
+    private bool tryGetActiveSample(
+        string samplePath,
+        double gain,
+        out NativeAudioCore? current,
+        out uint sampleId)
+    {
+        current = null;
+        sampleId = 0;
+        if (string.IsNullOrWhiteSpace(samplePath)
+            || !double.IsFinite(gain)
+            || gain is < 0 or > 1)
+        {
+            return false;
+        }
+
+        string path;
+        try
+        {
+            path = Path.GetFullPath(samplePath);
+        }
+        catch
+        {
+            return false;
+        }
+
+        current = core;
+        return current != null
+               && activeSampleIds.TryGetValue(path, out sampleId);
     }
 
     public void SetMixVolumes(

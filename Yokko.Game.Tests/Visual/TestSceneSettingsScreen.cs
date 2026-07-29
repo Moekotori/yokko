@@ -36,6 +36,9 @@ namespace Yokko.Game.Tests.Visual
         [Test]
         public void TestEverySettingsPageCanOpen()
         {
+            AddAssert("settings navigation supports keyboard focus", () =>
+                settingsScreen.ChildrenOfType<SettingsNavItem>()
+                              .All(item => item.AcceptsFocus));
             foreach (SettingsPageKind page in System.Enum.GetValues<SettingsPageKind>())
             {
                 SettingsPageKind capturedPage = page;
@@ -311,9 +314,10 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
-        public void TestEveryManiaKeyModeCanBeEdited()
+        public void TestEveryManiaKeyModeAndStandaloneShortcutsCanBeEdited()
         {
             GameplaySettingsPanel gameplay = null;
+            ShortcutSettingsPanel shortcuts = null;
 
             AddStep("open Gameplay", () =>
                 settingsScreen.OpenPage(SettingsPageKind.Gameplay));
@@ -341,6 +345,79 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SelectKeyMode(KeyMode.TwentyKey);
                 gameplay.ResetSelectedBindings();
             });
+            AddStep("open standalone Shortcuts", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Shortcuts));
+            AddStep("capture Shortcuts", () =>
+                shortcuts =
+                    (ShortcutSettingsPanel)settingsScreen.ActivePanel);
+            AddAssert("shortcut controls support keyboard focus", () =>
+                shortcuts.ChildrenOfType<GameplayCompactButton>()
+                         .Where(button => button.IsEnabled)
+                         .All(button => button.AcceptsFocus));
+            AddStep("capture custom speed down key", () =>
+                shortcuts.BeginShortcutCapture(
+                    ManiaShortcutAction.DecreaseScrollSpeed));
+            AddAssert("shortcut capture active", () =>
+                shortcuts.IsCapturingShortcut);
+            AddStep("bind speed down to F7", () =>
+                shortcuts.HandleKeyDown(Key.F7));
+            AddAssert("custom Mania shortcut saved", () =>
+                shortcuts.GetShortcutBinding(
+                    ManiaShortcutAction.DecreaseScrollSpeed) == Key.F7);
+            AddStep("customise pause shortcut", () =>
+            {
+                shortcuts.BeginShortcutCapture(
+                    ManiaShortcutAction.PauseOrBack);
+                shortcuts.HandleKeyDown(Key.F10);
+            });
+            AddStep("open results shortcuts", () =>
+                shortcuts.SelectShortcutPage(ManiaShortcutPage.Results));
+            AddAssert("results shortcut page selected", () =>
+                shortcuts.CurrentShortcutPage == ManiaShortcutPage.Results);
+            AddStep("customise replay shortcut", () =>
+            {
+                shortcuts.BeginShortcutCapture(
+                    ManiaShortcutAction.WatchReplay);
+                shortcuts.HandleKeyDown(Key.F11);
+            });
+            AddStep("restore replay shortcut only", () =>
+                shortcuts.ResetShortcutBinding(
+                    ManiaShortcutAction.WatchReplay));
+            AddAssert("single shortcut restored", () =>
+                shortcuts.GetShortcutBinding(
+                    ManiaShortcutAction.WatchReplay) == Key.V
+                && shortcuts.GetShortcutBinding(
+                    ManiaShortcutAction.PauseOrBack) == Key.F10);
+            AddAssert("custom shortcut count is visible to the page", () =>
+                shortcuts.ModifiedShortcutCount == 2);
+            AddStep("request restore all Mania shortcuts", () =>
+                shortcuts.RequestResetShortcutBindings());
+            AddAssert("restore all waits for confirmation", () =>
+                shortcuts.IsResetAllPending
+                && shortcuts.GetShortcutBinding(
+                    ManiaShortcutAction.PauseOrBack) == Key.F10);
+            AddStep("confirm restore all Mania shortcuts", () =>
+                shortcuts.RequestResetShortcutBindings());
+            AddAssert("all shortcut defaults restored", () =>
+                shortcuts.GetShortcutBinding(
+                    ManiaShortcutAction.PauseOrBack) == Key.Escape
+                && shortcuts.GetShortcutBinding(
+                    ManiaShortcutAction.DecreaseScrollSpeed) == Key.F3
+                && shortcuts.CanUndoResetAll);
+            AddStep("undo restore all", () =>
+                shortcuts.UndoResetShortcutBindings());
+            AddAssert("custom shortcuts restored by undo", () =>
+                shortcuts.GetShortcutBinding(
+                    ManiaShortcutAction.PauseOrBack) == Key.F10
+                && shortcuts.GetShortcutBinding(
+                    ManiaShortcutAction.DecreaseScrollSpeed) == Key.F7);
+            AddStep("restore all after undo", () =>
+            {
+                shortcuts.RequestResetShortcutBindings();
+                shortcuts.RequestResetShortcutBindings();
+            });
+            AddAssert("final defaults restored", () =>
+                shortcuts.ModifiedShortcutCount == 0);
         }
 
         [Test]

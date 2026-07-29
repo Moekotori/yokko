@@ -77,6 +77,19 @@ internal static class YokkoStrings
             ["main.utility_exit"] = new("Exit game", "退出游戏", "ゲームを終了"),
             ["main.utility_folder"] = new("Chart folder", "谱面文件夹", "譜面フォルダー"),
             ["main.exit_hold"] = new("Exiting… release to cancel", "正在退出… 松开取消", "終了中… 離すとキャンセル"),
+            ["main.player.rank"] = new("RANK {0}", "RANK {0}", "RANK {0}"),
+            ["main.player.next_level"] = new(
+                "NEXT LEVEL {0}%",
+                "下一等级 {0}%",
+                "次のレベル {0}%"),
+            ["main.player.highest_combo"] = new(
+                "BEST COMBO",
+                "最高连击",
+                "最大コンボ"),
+            ["main.player.played_songs"] = new(
+                "SONGS PLAYED",
+                "游玩曲目",
+                "プレイ楽曲"),
 
             ["import.chart.importing"] = new("Importing chart", "正在导入谱面", "譜面をインポート中"),
             ["import.chart.success"] = new("Chart ready", "谱面已就绪", "譜面の準備完了"),
@@ -284,9 +297,114 @@ internal static class YokkoStrings
                 "游玩偏好将与谱面规则和计分逻辑保持分离。",
                 "プレイ設定は譜面ルールやスコア処理から分離します。"),
             ["settings.gameplay.section_input"] = new("Input & key bindings", "输入与按键", "入力とキー設定"),
-            ["settings.gameplay.section_shortcuts"] = new("Mania shortcuts", "Mania 快捷键", "Maniaショートカット"),
             ["settings.gameplay.section_timing"] = new("Timing & judgement", "时序与判定", "タイミングと判定"),
             ["settings.gameplay.section_feedback"] = new("Feedback & behavior", "反馈与行为", "フィードバックと動作"),
+
+            ["settings.shortcuts.title"] = new("Shortcuts", "快捷键", "ショートカット"),
+            ["settings.shortcuts.subtitle"] = new(
+                "All Mania actions and key bindings",
+                "集中管理全部 Mania 快捷键",
+                "Mania の全ショートカットをまとめて管理"),
+            ["settings.shortcuts.description"] = new(
+                "Customise every Mania shortcut or restore the osu!lazer defaults.",
+                "自定义全部 Mania 快捷键，或恢复 osu!lazer 默认设置。",
+                "Mania の全ショートカットを変更し、osu!lazer の初期設定に戻せます。"),
+            ["settings.shortcuts.status_title"] = new(
+                "Mania shortcuts are ready",
+                "Mania 快捷键已集中管理",
+                "Mania ショートカットを一括管理"),
+            ["settings.shortcuts.status_note"] = new(
+                "{0} actions · saved instantly · individual and full reset available",
+                "{0} 个快捷键 · 即时保存 · 支持单项和全部恢复默认",
+                "{0} キー · 即時保存 · 個別・一括リセット対応"),
+            ["settings.shortcuts.defaults_active"] = new(
+                "Using osu!lazer defaults",
+                "正在使用 osu!lazer 默认设置",
+                "osu!lazer の初期設定を使用中"),
+            ["settings.shortcuts.defaults_active_note"] = new(
+                "Every Mania shortcut is on its default binding",
+                "全部 Mania 快捷键均为默认设置",
+                "全 Mania ショートカットが初期設定です"),
+            ["settings.shortcuts.custom_active"] = new(
+                "Custom Mania shortcuts active",
+                "正在使用自定义 Mania 快捷键",
+                "カスタム Mania ショートカットを使用中"),
+            ["settings.shortcuts.modified_count"] = new(
+                "{0} shortcuts use custom bindings",
+                "{0} 个快捷键使用自定义设置",
+                "{0} キーをカスタム設定中"),
+            ["settings.shortcuts.modified"] = new(
+                "CUSTOM",
+                "已修改",
+                "変更済み"),
+            ["settings.shortcuts.is_default"] = new(
+                "Default",
+                "默认",
+                "初期設定"),
+            ["settings.shortcuts.capture_title"] = new(
+                "Setting: {0}",
+                "正在设置：{0}",
+                "設定中: {0}"),
+            ["settings.shortcuts.capture_note"] = new(
+                "Press the new key · Backspace cancels",
+                "请按下新按键 · Backspace 取消",
+                "新しいキーを入力 · Backspace でキャンセル"),
+            ["settings.shortcuts.capture_cancelled"] = new(
+                "Key capture cancelled",
+                "已取消按键录入",
+                "キー入力をキャンセルしました"),
+            ["settings.shortcuts.capture_cancelled_note"] = new(
+                "No shortcuts were changed",
+                "没有修改任何快捷键",
+                "ショートカットは変更されていません"),
+            ["settings.shortcuts.binding_saved"] = new(
+                "{0} updated",
+                "{0} 已更新",
+                "{0} を更新しました"),
+            ["settings.shortcuts.binding_now"] = new(
+                "Current key: {0}",
+                "当前按键：{0}",
+                "現在のキー: {0}"),
+            ["settings.shortcuts.binding_swapped"] = new(
+                "Swapped {0} and {1}",
+                "已交换 {0} 与 {1}",
+                "{0} と {1} を入れ替えました"),
+            ["settings.shortcuts.binding_swapped_note"] = new(
+                "{0}: {1} · {2}: {3}",
+                "{0}：{1} · {2}：{3}",
+                "{0}: {1} · {2}: {3}"),
+            ["settings.shortcuts.reset_one_done"] = new(
+                "{0} restored",
+                "{0} 已恢复默认",
+                "{0} を初期設定に戻しました"),
+            ["settings.shortcuts.reset_all_confirm_title"] = new(
+                "Restore every shortcut?",
+                "确认恢复全部快捷键？",
+                "全ショートカットを戻しますか？"),
+            ["settings.shortcuts.reset_all_confirm_note"] = new(
+                "Press the button again to confirm · you can undo afterwards",
+                "再次点击确认 · 完成后可取消本次恢复",
+                "もう一度押して確認 · 完了後も取り消せます"),
+            ["settings.shortcuts.reset_all_confirm"] = new(
+                "Confirm reset",
+                "再次点击确认",
+                "リセット確認"),
+            ["settings.shortcuts.reset_all_done"] = new(
+                "All shortcuts restored",
+                "全部快捷键已恢复默认",
+                "全ショートカットを初期設定に戻しました"),
+            ["settings.shortcuts.undo_available"] = new(
+                "Undo is available until the next shortcut change",
+                "下次修改快捷键前可取消恢复",
+                "次のキー変更までは取り消せます"),
+            ["settings.shortcuts.undo_reset"] = new(
+                "Undo reset",
+                "取消恢复",
+                "リセットを取り消す"),
+            ["settings.shortcuts.reset_undone"] = new(
+                "Reset undone",
+                "已取消全部恢复",
+                "リセットを取り消しました"),
 
             ["settings.skins.title"] = new("Skins", "皮肤", "スキン"),
             ["settings.skins.subtitle"] = new(
@@ -465,14 +583,78 @@ internal static class YokkoStrings
                 "osu!lazer default: F4",
                 "osu!lazer 默认：F4",
                 "osu!lazer 既定：F4"),
+            ["settings.gameplay.shortcuts_gameplay"] = new(
+                "Gameplay",
+                "游玩",
+                "ゲームプレイ"),
+            ["settings.gameplay.shortcuts_menu"] = new(
+                "Pause menu",
+                "暂停菜单",
+                "ポーズメニュー"),
+            ["settings.gameplay.shortcuts_results"] = new(
+                "Results",
+                "失败与结算",
+                "リザルト"),
+            ["settings.gameplay.shortcut_pause_back"] = new(
+                "Pause / resume / back",
+                "暂停 / 继续 / 返回",
+                "一時停止 / 再開 / 戻る"),
+            ["settings.gameplay.shortcut_skip_intro"] = new(
+                "Skip intro",
+                "跳过前奏",
+                "イントロをスキップ"),
+            ["settings.gameplay.shortcut_quick_retry"] = new(
+                "Quick retry",
+                "快速重试",
+                "クイックリトライ"),
+            ["settings.gameplay.shortcut_menu_previous"] = new(
+                "Previous menu item",
+                "上一菜单项",
+                "前のメニュー項目"),
+            ["settings.gameplay.shortcut_menu_previous_alt"] = new(
+                "Previous menu item (alternate)",
+                "上一菜单项（备用）",
+                "前のメニュー項目（予備）"),
+            ["settings.gameplay.shortcut_menu_next"] = new(
+                "Next menu item",
+                "下一菜单项",
+                "次のメニュー項目"),
+            ["settings.gameplay.shortcut_menu_next_alt"] = new(
+                "Next menu item (alternate)",
+                "下一菜单项（备用）",
+                "次のメニュー項目（予備）"),
+            ["settings.gameplay.shortcut_confirm"] = new(
+                "Confirm",
+                "确认",
+                "決定"),
+            ["settings.gameplay.shortcut_confirm_alt"] = new(
+                "Confirm (alternate)",
+                "确认（备用）",
+                "決定（予備）"),
+            ["settings.gameplay.shortcut_retry"] = new(
+                "Retry",
+                "重试",
+                "リトライ"),
+            ["settings.gameplay.shortcut_watch_replay"] = new(
+                "Watch replay",
+                "观看回放",
+                "リプレイを見る"),
             ["settings.gameplay.shortcut_reset"] = new(
                 "Reset F3 / F4",
                 "恢复 F3 / F4",
                 "F3 / F4 に戻す"),
+            ["settings.gameplay.shortcut_reset_all"] = new(
+                "Reset all defaults",
+                "全部恢复默认",
+                "すべて既定に戻す"),
+            ["settings.gameplay.shortcut_default"] = new(
+                "Default",
+                "恢复默认",
+                "既定に戻す"),
             ["settings.gameplay.shortcut_hint"] = new(
-                "Click a shortcut, then press a key · duplicates swap automatically · Esc cancels",
-                "点击快捷键后按下新按键 · 重复时自动交换 · Esc 取消",
-                "項目を選んでキーを入力 · 重複時は自動交換 · Escでキャンセル"),
+                "Click a shortcut, then press a key · duplicates swap automatically · Backspace cancels",
+                "点击快捷键后按下新按键 · 重复时自动交换 · Backspace 取消",
+                "項目を選んでキーを入力 · 重複時は自動交換 · Backspaceでキャンセル"),
             ["settings.gameplay.key_capture_hint"] = new(
                 "Choose a lane, then press the key you want to use.",
                 "选择一个轨道，然后按下你想使用的按键。",

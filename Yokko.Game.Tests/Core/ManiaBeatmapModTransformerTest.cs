@@ -59,8 +59,9 @@ public sealed class ManiaBeatmapModTransformerTest
     [Test]
     public void HoldOffKeepsTheHeadAndRemovesTheTail()
     {
+        YokkoBeatmap original = createBeatmap();
         YokkoBeatmap transformed = ManiaBeatmapModTransformer.Apply(
-            createBeatmap(),
+            original,
             new ManiaModSet([ManiaModId.HoldOff]));
         YokkoHitObject converted = transformed.HitObjects[4];
 
@@ -71,6 +72,9 @@ public sealed class ManiaBeatmapModTransformerTest
             Assert.That(converted.EndTimeMilliseconds, Is.Null);
             Assert.That(converted.SampleKey, Is.EqualTo("hold.wav"));
             Assert.That(converted.ScrollProfileId, Is.EqualTo("main"));
+            Assert.That(
+                converted.SamplePayload,
+                Is.SameAs(original.HitObjects[4].SamplePayload));
         });
     }
 
@@ -168,8 +172,9 @@ public sealed class ManiaBeatmapModTransformerTest
         YokkoBeatmap fourKey = ManiaBeatmapModTransformer.Apply(
             convertedSource,
             ManiaModSet.Empty.With(ManiaModId.Key4, true));
+        YokkoBeatmap nativeSource = createBeatmap();
         YokkoBeatmap nativeMania = ManiaBeatmapModTransformer.Apply(
-            createBeatmap(),
+            nativeSource,
             ManiaModSet.Empty.With(ManiaModId.Key7, true));
 
         Assert.Multiple(() =>
@@ -184,7 +189,7 @@ public sealed class ManiaBeatmapModTransformerTest
                 "lazer does not apply key Mods to Mania-specific charts");
             Assert.That(
                 nativeMania.HitObjects,
-                Is.EqualTo(createBeatmap().HitObjects));
+                Is.EqualTo(nativeSource.HitObjects));
         });
     }
 
@@ -254,6 +259,13 @@ public sealed class ManiaBeatmapModTransformerTest
                 2500,
                 HitObjectKind.Hold,
                 "hold.wav",
-                "main"),
+                "main",
+                new YokkoHitSamplePayload(
+                    [
+                        new YokkoHitSample(
+                            YokkoHitSample.HitNormal,
+                            Volume: 60),
+                    ],
+                    PlaySlidingSamples: true)),
         ]);
 }

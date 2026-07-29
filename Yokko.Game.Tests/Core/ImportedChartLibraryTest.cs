@@ -19,6 +19,31 @@ namespace Yokko.Game.Tests.Core;
 public sealed class ImportedChartLibraryTest
 {
     [Test]
+    public void NativeReplayFindsExactImportedGameplayModel()
+    {
+        var library = new ImportedChartLibrary();
+        YokkoBeatmap expected = DemoBeatmaps.CreateFourKeyDemo();
+        library.AddOrReplace(
+            new ChartImportResult(expected, [], SourceHash: "SOURCE"),
+            @"C:\Charts\replay-target.osu");
+
+        ImportedChart restored =
+            library.FindByBeatmapFingerprint(
+                YokkoBeatmapFingerprint.Compute(expected));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(restored, Is.Not.Null);
+            Assert.That(restored.Result.Beatmap, Is.SameAs(expected));
+            Assert.That(restored.Result.SourceHash, Is.EqualTo("SOURCE"));
+            Assert.That(
+                library.FindByBeatmapFingerprint(
+                    new string('0', 64)),
+                Is.Null);
+        });
+    }
+
+    [Test]
     public void ReimportingSamePathReplacesExistingChart()
     {
         var library = new ImportedChartLibrary();

@@ -10,6 +10,7 @@ using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using osuTK.Input;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
@@ -65,11 +66,11 @@ internal partial class SettingsSidebar : CompositeDrawable
             },
             new FillFlowContainer
             {
-                Position = new Vector2(30, 292),
+                Position = new Vector2(30, 288),
                 Width = 252,
                 AutoSizeAxes = Axes.Y,
                 Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 2),
+                Spacing = Vector2.Zero,
                 Children = navigation,
             },
             noResults = new SpriteText
@@ -102,6 +103,7 @@ internal partial class SettingsSidebar : CompositeDrawable
 
         var creationHeader = new SettingsNavHeader(YokkoStrings.Get("settings.group_creation"));
         SettingsNavItem gameplay = createNavItem(SettingsPageKind.Gameplay);
+        SettingsNavItem shortcuts = createNavItem(SettingsPageKind.Shortcuts);
         SettingsNavItem skins = createNavItem(SettingsPageKind.Skins);
         SettingsNavItem editor = createNavItem(SettingsPageKind.Editor);
         SettingsNavItem import = createNavItem(SettingsPageKind.Import);
@@ -111,13 +113,13 @@ internal partial class SettingsSidebar : CompositeDrawable
         SettingsNavItem about = createNavItem(SettingsPageKind.About);
 
         navigationGroups.Add((coreHeader, new[] { general, display, audio }));
-        navigationGroups.Add((creationHeader, new[] { gameplay, skins, editor, import }));
+        navigationGroups.Add((creationHeader, new[] { gameplay, shortcuts, skins, editor, import }));
         navigationGroups.Add((systemHeader, new[] { accessibility, about }));
 
         return new Drawable[]
         {
             coreHeader, general, display, audio,
-            creationHeader, gameplay, skins, editor, import,
+            creationHeader, gameplay, shortcuts, skins, editor, import,
             systemHeader, accessibility, about,
         };
     }
@@ -236,6 +238,8 @@ internal partial class SettingsOutlineButton : ClickableContainer
     private readonly Box background;
     private readonly float restingX;
 
+    public override bool AcceptsFocus => true;
+
     public SettingsOutlineButton(LocalisableString label, IconUsage icon, Action action)
     {
         Action = action;
@@ -286,6 +290,33 @@ internal partial class SettingsOutlineButton : ClickableContainer
         background.FadeColour(Color4.White, 140, Easing.OutQuint);
         this.MoveToX(restingX, 140, Easing.OutQuint);
     }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderColour = HomeControlColours.Pink;
+        BorderThickness = 2.4f;
+        background.FadeColour(SettingsTheme.PaleCyan, 100);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderColour = SettingsTheme.MutedNavy;
+        BorderThickness = 1.2f;
+        background.FadeColour(Color4.White, 100);
+    }
 }
 
 internal partial class SettingsNavHeader : CompositeDrawable
@@ -326,6 +357,7 @@ internal partial class SettingsNavItem : ClickableContainer
 
     public SettingsPageKind Page { get; }
     public string SearchTerms { get; }
+    public override bool AcceptsFocus => true;
 
     public SettingsNavItem(
         SettingsPageKind page,
@@ -434,5 +466,34 @@ internal partial class SettingsNavItem : ClickableContainer
         background.FadeColour(selected ? HomeControlColours.Navy : Color4.Transparent, 140, Easing.OutQuint);
         icon.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 140, Easing.OutQuint);
         plus.RotateTo(0, 140, Easing.OutQuint);
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderColour = HomeControlColours.Pink;
+        BorderThickness = 2.2f;
+        if (!selected)
+            background.FadeColour(SettingsTheme.PaleCyan, 100);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderThickness = 0;
+        background.FadeColour(
+            selected ? HomeControlColours.Navy : Color4.Transparent,
+            100);
     }
 }

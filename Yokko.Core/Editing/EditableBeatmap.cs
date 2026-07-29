@@ -148,7 +148,9 @@ public sealed class EditableBeatmap
                 hitObject.StartTimeMilliseconds,
                 hitObject.EndTimeMilliseconds,
                 hitObject.Kind,
-                hitObject.ScrollProfileId));
+                hitObject.ScrollProfileId,
+                hitObject.SampleKey,
+                hitObject.SamplePayload));
         }
 
         editable.sortNotes();
@@ -212,7 +214,9 @@ public sealed class EditableBeatmap
                     note.StartTimeMilliseconds,
                     note.EndTimeMilliseconds,
                     note.Kind,
-                    ScrollProfileId: note.ScrollProfileId))
+                    note.SampleKey,
+                    note.ScrollProfileId,
+                    note.SamplePayload))
                  .ToArray(),
             OverallDifficulty,
             ScrollVelocities,

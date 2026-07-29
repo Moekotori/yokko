@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Yokko.Core.Beatmaps;
@@ -99,6 +101,26 @@ public sealed class LazerStandardConversionGoldenTest
                 3750,
                 null,
                 HitObjectKind.Tap);
+            Assert.That(
+                sampleNames(beatmap.HitObjects[0].Samples),
+                Is.EqualTo(new[] { "Gameplay/normal-hitnormal" }));
+            Assert.That(
+                nodeSampleNames(beatmap.HitObjects[0]),
+                Is.EqualTo(new[]
+                {
+                    new[] { "Gameplay/normal-hitnormal" },
+                    new[] { "Gameplay/soft-hitnormal" },
+                    new[] { "Gameplay/drum-hitnormal" },
+                }));
+            Assert.That(
+                nodeSampleNames(beatmap.HitObjects[1]),
+                Is.EqualTo(new[]
+                {
+                    new[] { "Gameplay/soft-hitnormal" },
+                    new[] { "Gameplay/drum-hitnormal" },
+                }));
+            Assert.That(beatmap.HitObjects[0].PlaySlidingSamples, Is.True);
+            Assert.That(beatmap.HitObjects[1].PlaySlidingSamples, Is.True);
         });
     }
 
@@ -130,6 +152,23 @@ public sealed class LazerStandardConversionGoldenTest
                 8782.941175537948,
                 null,
                 HitObjectKind.Tap);
+            Assert.That(
+                sampleNames(beatmap.HitObjects[0].Samples),
+                Is.EqualTo(new[]
+                {
+                    "Gameplay/normal-hitnormal",
+                    "Gameplay/normal-hitclap",
+                }));
+            Assert.That(
+                sampleNames(beatmap.HitObjects[1].Samples),
+                Is.EqualTo(new[] { "Gameplay/normal-hitnormal" }));
+            Assert.That(
+                sampleNames(beatmap.HitObjects[2].Samples),
+                Is.EqualTo(new[]
+                {
+                    "Gameplay/normal-hitnormal",
+                    "Gameplay/normal-hitclap",
+                }));
         });
     }
 
@@ -149,6 +188,65 @@ public sealed class LazerStandardConversionGoldenTest
                 1000,
                 8000,
                 HitObjectKind.Hold);
+            Assert.That(
+                sampleNames(generated.Samples),
+                Is.EqualTo(new[]
+                {
+                    "Gameplay/soft-hitnormal",
+                    "Gameplay/soft-hitfinish",
+                }));
+            Assert.That(
+                nodeSampleNames(generated),
+                Is.EqualTo(new[]
+                {
+                    new[] { "Gameplay/soft-hitnormal" },
+                    new[]
+                    {
+                        "Gameplay/soft-hitnormal",
+                        "Gameplay/soft-hitfinish",
+                    },
+                }));
+            Assert.That(generated.PlaySlidingSamples, Is.False);
+        });
+    }
+
+    [Test]
+    public void NativeManiaHoldSamplesMatchLazerPayload()
+    {
+        YokkoBeatmap beatmap =
+            OsuManiaBeatmapIO.ReadBeatmap(nativeManiaSamples);
+        YokkoBeatmap roundTrip = OsuManiaBeatmapIO.ReadBeatmap(
+            OsuManiaBeatmapIO.WriteBeatmap(beatmap));
+
+        Assert.That(beatmap.HitObjects, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                sampleNames(beatmap.HitObjects[0].Samples),
+                Is.EqualTo(new[] { "Gameplay/normal-hitnormal" }));
+            Assert.That(
+                nodeSampleNames(beatmap.HitObjects[0]),
+                Is.EqualTo(new[]
+                {
+                    new[] { "Gameplay/normal-hitnormal" },
+                    Array.Empty<string>(),
+                }));
+            Assert.That(
+                sampleNames(beatmap.HitObjects[1].Samples),
+                Is.EqualTo(new[] { "Gameplay/drum-hitnormal" }));
+            Assert.That(
+                nodeSampleNames(beatmap.HitObjects[1]),
+                Is.EqualTo(new[]
+                {
+                    new[] { "Gameplay/drum-hitnormal" },
+                    Array.Empty<string>(),
+                }));
+            Assert.That(
+                roundTrip.HitObjects
+                         .Select(hitObject =>
+                             sampleNames(hitObject.Samples)),
+                Is.EqualTo(beatmap.HitObjects.Select(
+                    hitObject => sampleNames(hitObject.Samples))));
         });
     }
 
@@ -218,6 +316,17 @@ public sealed class LazerStandardConversionGoldenTest
             Assert.That(actual.EndTimeMilliseconds, Is.Null);
         Assert.That(actual.Kind, Is.EqualTo(kind));
     }
+
+    private static string[] sampleNames(
+        IReadOnlyList<YokkoHitSample> samples) =>
+        samples
+            .Select(sample =>
+                $"Gameplay/{sample.LookupNames().First()}")
+            .ToArray();
+
+    private static string[][] nodeSampleNames(
+        YokkoHitObject hitObject) =>
+        hitObject.NodeSamples.Select(sampleNames).ToArray();
 
     private const string convertSamples = """
 osu file format v14
@@ -328,6 +437,28 @@ SliderTickRate:1
 
 [HitObjects]
 256,192,1000,8,4,8000,0:2:0:0:
+""";
+
+    private const string nativeManiaSamples = """
+osu file format v14
+
+[General]
+Mode: 3
+
+[Difficulty]
+HPDrainRate:5
+CircleSize:5
+OverallDifficulty:5
+ApproachRate:5
+SliderMultiplier:1.4
+
+[TimingPoints]
+0,500,4,1,0,100,1,0
+10000,-150,4,1,0,100,1,0
+
+[HitObjects]
+51,192,500,128,0,1500:1:0:0:0:
+256,192,2000,128,0,3000:3:0:0:0:
 """;
 
     private const string legacyManiaSlider = """

@@ -88,7 +88,8 @@ public static class ManiaTimeRampTimeline
                         : null,
                     hitObject.Kind,
                     hitObject.SampleKey,
-                    hitObject.ScrollProfileId))
+                    hitObject.ScrollProfileId,
+                    hitObject.SamplePayload))
                 .ToArray(),
         };
     }

@@ -25,6 +25,8 @@ using Yokko.Game.Scoring;
 using Yokko.Import;
 using Yokko.Import.Osu;
 using Yokko.Resources;
+using Yokko.Core.Beatmaps;
+using Yokko.Core.Mods;
 
 namespace Yokko.Game
 {
@@ -58,6 +60,10 @@ namespace Yokko.Game
         private readonly KeyInputTimestampSource keyInputTimestamps;
         [Cached]
         private readonly GameplayScoreStore scoreStore = new();
+        [Cached]
+        private readonly GameplayReplayStore replayStore = new();
+        [Cached]
+        private readonly YokkoManiaModPreferences modPreferences = new();
         private ImportNotificationOverlay importOverlay;
         [Cached]
         private YokkoConfigManager yokkoConfig;
@@ -99,6 +105,7 @@ namespace Yokko.Game
             yokkoConfig.BindImportSettings(importSettings);
             yokkoConfig.BindResourceSettings(resourceSettings);
             yokkoConfig.BindGameplaySettings(gameplaySettings);
+            yokkoConfig.BindModPreferences(modPreferences);
             yokkoConfig.BindSkinSettings(skinSettings);
             resourceStorage.Initialise(
                 host.Storage,
@@ -108,6 +115,7 @@ namespace Yokko.Game
                 skinLibrary,
                 skinSettings);
             scoreStore.Initialise(host.Storage);
+            replayStore.Initialise(host.Storage);
 
             window = host.Window;
             keyInputTimestamps.Attach(window);
@@ -194,10 +202,18 @@ namespace Yokko.Game
         private void onFileDropped(string path)
         {
             if (Path.GetExtension(path).Equals(
+                    YokkoReplayIO.FileExtension,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                importYokkoReplay(path);
+                return;
+            }
+
+            if (Path.GetExtension(path).Equals(
                     ".osr",
                     StringComparison.OrdinalIgnoreCase))
             {
-                importReplay(path);
+                importOsuReplay(path);
                 return;
             }
 
@@ -211,7 +227,7 @@ namespace Yokko.Game
                 importSkin(path);
         }
 
-        private void importReplay(string path)
+        private void importOsuReplay(string path)
         {
             Scheduler.Add(() => importOverlay.ShowImporting(
                 YokkoStrings.Get("import.replay.importing"),
@@ -251,6 +267,75 @@ namespace Yokko.Game
                             string.IsNullOrWhiteSpace(task.Result.PlayerName)
                                 ? task.Result.Beatmap.Title
                                 : $"{task.Result.Beatmap.Title} · {task.Result.PlayerName}");
+                        OpenImportedReplay(
+                            task.Result.Beatmap,
+                            task.Result.Replay);
+                    }),
+                    TaskScheduler.Default);
+        }
+
+        private void importYokkoReplay(string path)
+        {
+            Scheduler.Add(() => importOverlay.ShowImporting(
+                YokkoStrings.Get("import.replay.importing"),
+                path));
+
+            _ = Task.Run(() =>
+                {
+                    YokkoReplayLoadResult loaded =
+                        YokkoReplayIO.ReadFromFile(path);
+                    ImportedChart chart =
+                        !string.IsNullOrWhiteSpace(loaded.SourceHash)
+                            ? importedChartLibrary.FindBySourceHash(
+                                loaded.SourceHash)
+                            : null;
+                    chart ??=
+                        importedChartLibrary.FindByBeatmapFingerprint(
+                            loaded.BeatmapFingerprint)
+                        ?? throw new InvalidDataException(
+                            "Import the exact matching beatmap before its replay.");
+
+                    string actualFingerprint =
+                        YokkoBeatmapFingerprint.Compute(
+                            chart.Result.Beatmap);
+                    if (!string.Equals(
+                            actualFingerprint,
+                            loaded.BeatmapFingerprint,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidDataException(
+                            "The imported beatmap does not exactly match this replay.");
+                    }
+
+                    YokkoBeatmap applied =
+                        ManiaBeatmapModTransformer.Apply(
+                            chart.Result.Beatmap,
+                            loaded.Replay.Mods);
+                    if ((int)applied.KeyMode != loaded.KeyCount)
+                    {
+                        throw new InvalidDataException(
+                            "The replay key count does not match its restored Mod configuration.");
+                    }
+
+                    return (
+                        Beatmap: chart.Result.Beatmap,
+                        loaded.Replay);
+                })
+                .ContinueWith(
+                    task => Scheduler.Add(() =>
+                    {
+                        if (!task.IsCompletedSuccessfully)
+                        {
+                            importOverlay.ShowFailure(
+                                YokkoStrings.Get("import.replay.failed"),
+                                task.Exception?.GetBaseException().Message
+                                ?? "Unknown replay import error.");
+                            return;
+                        }
+
+                        importOverlay.ShowSuccess(
+                            YokkoStrings.Get("import.replay.success"),
+                            task.Result.Beatmap.Title);
                         OpenImportedReplay(
                             task.Result.Beatmap,
                             task.Result.Replay);

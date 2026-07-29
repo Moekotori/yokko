@@ -20,7 +20,7 @@ extern "C"
 {
 #endif
 
-#define YOKKO_AUDIO_ABI_VERSION 7u
+#define YOKKO_AUDIO_ABI_VERSION 8u
 
     typedef struct yokko_audio_engine yokko_audio_engine;
 
@@ -173,6 +173,26 @@ extern "C"
     YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_trigger_sample(
         yokko_audio_engine* engine,
         uint32_t sample_id);
+
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_trigger_sample_with_gain(
+        yokko_audio_engine* engine,
+        uint32_t sample_id,
+        float gain);
+
+    /*
+     * Starts or stops a callback-owned looping sample voice. A successful
+     * start returns a non-zero handle which remains valid until stopped or the
+     * engine is reset.
+     */
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_start_looping_sample(
+        yokko_audio_engine* engine,
+        uint32_t sample_id,
+        float gain,
+        uint32_t* loop_id);
+
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_stop_looping_sample(
+        yokko_audio_engine* engine,
+        uint32_t loop_id);
 
     /*
      * Real output backends call this function from their audio callback.

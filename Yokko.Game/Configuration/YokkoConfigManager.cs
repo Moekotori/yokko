@@ -37,13 +37,25 @@ internal enum YokkoSetting
     GameplaySevenKeyLane6,
     GameplaySevenKeyLane7,
     GameplayKeyProfiles,
+    ManiaPauseOrBackKey,
+    ManiaSkipIntroKey,
+    ManiaQuickRetryKey,
     ManiaDecreaseScrollSpeedKey,
     ManiaIncreaseScrollSpeedKey,
+    ManiaMenuPreviousKey,
+    ManiaMenuPreviousAlternateKey,
+    ManiaMenuNextKey,
+    ManiaMenuNextAlternateKey,
+    ManiaConfirmKey,
+    ManiaConfirmAlternateKey,
+    ManiaRetryKey,
+    ManiaWatchReplayKey,
     ManiaScrollSpeed,
     QuaverScrollRateNormalization,
     GameplayShowLanePressFeedback,
     GameplayKeysoundsEnabled,
     GameplayPauseWhenUnfocused,
+    ManiaModConfiguration,
     DisplayUiScale,
     DisplayFrameLimit,
     DisplayShowPerformanceReadout,
@@ -93,8 +105,25 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(YokkoSetting.GameplaySevenKeyLane6, osuTK.Input.Key.K);
         SetDefault(YokkoSetting.GameplaySevenKeyLane7, osuTK.Input.Key.L);
         SetDefault(YokkoSetting.GameplayKeyProfiles, string.Empty);
+        SetDefault(YokkoSetting.ManiaPauseOrBackKey, osuTK.Input.Key.Escape);
+        SetDefault(YokkoSetting.ManiaSkipIntroKey, osuTK.Input.Key.Space);
+        SetDefault(YokkoSetting.ManiaQuickRetryKey, osuTK.Input.Key.Tilde);
         SetDefault(YokkoSetting.ManiaDecreaseScrollSpeedKey, osuTK.Input.Key.F3);
         SetDefault(YokkoSetting.ManiaIncreaseScrollSpeedKey, osuTK.Input.Key.F4);
+        SetDefault(YokkoSetting.ManiaMenuPreviousKey, osuTK.Input.Key.Up);
+        SetDefault(
+            YokkoSetting.ManiaMenuPreviousAlternateKey,
+            osuTK.Input.Key.W);
+        SetDefault(YokkoSetting.ManiaMenuNextKey, osuTK.Input.Key.Down);
+        SetDefault(
+            YokkoSetting.ManiaMenuNextAlternateKey,
+            osuTK.Input.Key.S);
+        SetDefault(YokkoSetting.ManiaConfirmKey, osuTK.Input.Key.Enter);
+        SetDefault(
+            YokkoSetting.ManiaConfirmAlternateKey,
+            osuTK.Input.Key.Space);
+        SetDefault(YokkoSetting.ManiaRetryKey, osuTK.Input.Key.R);
+        SetDefault(YokkoSetting.ManiaWatchReplayKey, osuTK.Input.Key.V);
         SetDefault(
             YokkoSetting.ManiaScrollSpeed,
             OsuManiaScrollSpeed.Default,
@@ -110,6 +139,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(YokkoSetting.GameplayShowLanePressFeedback, true);
         SetDefault(YokkoSetting.GameplayKeysoundsEnabled, true);
         SetDefault(YokkoSetting.GameplayPauseWhenUnfocused, true);
+        SetDefault(YokkoSetting.ManiaModConfiguration, string.Empty);
         SetDefault(YokkoSetting.DisplayUiScale, YokkoUiScale.Comfortable);
         SetDefault(
             YokkoSetting.DisplayFrameLimit,
@@ -195,11 +225,34 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         persistKeyProfiles();
 
         BindWith(
+            YokkoSetting.ManiaPauseOrBackKey,
+            settings.PauseOrBackKey);
+        BindWith(YokkoSetting.ManiaSkipIntroKey, settings.SkipIntroKey);
+        BindWith(YokkoSetting.ManiaQuickRetryKey, settings.QuickRetryKey);
+        BindWith(
             YokkoSetting.ManiaDecreaseScrollSpeedKey,
             settings.DecreaseScrollSpeedKey);
         BindWith(
             YokkoSetting.ManiaIncreaseScrollSpeedKey,
             settings.IncreaseScrollSpeedKey);
+        BindWith(
+            YokkoSetting.ManiaMenuPreviousKey,
+            settings.MenuPreviousKey);
+        BindWith(
+            YokkoSetting.ManiaMenuPreviousAlternateKey,
+            settings.MenuPreviousAlternateKey);
+        BindWith(YokkoSetting.ManiaMenuNextKey, settings.MenuNextKey);
+        BindWith(
+            YokkoSetting.ManiaMenuNextAlternateKey,
+            settings.MenuNextAlternateKey);
+        BindWith(YokkoSetting.ManiaConfirmKey, settings.ConfirmKey);
+        BindWith(
+            YokkoSetting.ManiaConfirmAlternateKey,
+            settings.ConfirmAlternateKey);
+        BindWith(YokkoSetting.ManiaRetryKey, settings.RetryKey);
+        BindWith(
+            YokkoSetting.ManiaWatchReplayKey,
+            settings.WatchReplayKey);
         BindWith(YokkoSetting.ManiaScrollSpeed, settings.ScrollSpeed);
         BindWith(
             YokkoSetting.QuaverScrollRateNormalization,
@@ -222,6 +275,15 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.DisplayShowPerformanceReadout,
             settings.ShowPerformanceReadout);
+    }
+
+    public void BindModPreferences(
+        YokkoManiaModPreferences preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+        BindWith(
+            YokkoSetting.ManiaModConfiguration,
+            preferences.SerializedConfiguration);
     }
 
     public void BindSkinSettings(YokkoSkinSettings settings)

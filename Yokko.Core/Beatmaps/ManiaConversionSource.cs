@@ -20,7 +20,9 @@ public sealed record ManiaConversionHitObject(
     int HitSound = 0,
     int SpanCount = 1,
     double Y = 192,
-    IReadOnlyList<int>? NodeHitSounds = null);
+    IReadOnlyList<int>? NodeHitSounds = null,
+    IReadOnlyList<YokkoHitSample>? Samples = null,
+    IReadOnlyList<IReadOnlyList<YokkoHitSample>>? NodeSamples = null);
 
 public enum ManiaConversionObjectKind
 {

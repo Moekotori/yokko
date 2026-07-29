@@ -12,6 +12,7 @@ internal enum SettingsPageKind
     Display,
     Audio,
     Gameplay,
+    Shortcuts,
     Skins,
     Editor,
     Import,
@@ -109,6 +110,28 @@ internal static class SettingsPages
                 "settings.gameplay.section_input",
                 "settings.gameplay.section_timing",
                 "settings.gameplay.section_feedback")),
+        SettingsPageKind.Shortcuts => new(
+            kind,
+            YokkoStrings.Get("settings.shortcuts.title"),
+            YokkoStrings.Get("settings.shortcuts.subtitle"),
+            YokkoStrings.Get("settings.shortcuts.description"),
+            FontAwesome.Solid.Keyboard,
+            new[]
+            {
+                YokkoStrings.Get("settings.gameplay.shortcuts_gameplay"),
+                YokkoStrings.Get("settings.gameplay.shortcuts_menu"),
+                YokkoStrings.Get("settings.gameplay.shortcuts_results"),
+            },
+            YokkoStrings.SearchTerms(
+                "settings.shortcuts.title",
+                "settings.shortcuts.subtitle",
+                "settings.gameplay.shortcuts_gameplay",
+                "settings.gameplay.shortcuts_menu",
+                "settings.gameplay.shortcuts_results",
+                "settings.gameplay.shortcut_pause_back",
+                "settings.gameplay.shortcut_quick_retry",
+                "settings.gameplay.shortcut_retry",
+                "settings.gameplay.shortcut_watch_replay")),
         SettingsPageKind.Skins => new(
             kind,
             YokkoStrings.Get("settings.skins.title"),

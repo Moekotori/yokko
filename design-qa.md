@@ -1,3 +1,83 @@
+# Yokko Gameplay Mods Studio Index design QA
+
+final result: passed
+
+## Evidence
+
+- Source visual truth: `C:\Users\mochi\.codex\attachments\022453ae-9d23-490b-8efa-75ab6faaef9f\image-1.png`
+- Saved concept: `D:\yokko\docs\design\mods\yokko-gameplay-mods-studio-index-concept.png`
+- Final 100% implementation screenshot: `D:\yokko\artifacts\mods\gameplay-mods-scale-large-3200x1800.png`
+- Final 90% implementation screenshot: `D:\yokko\artifacts\mods\gameplay-mods-scale-comfortable-3200x1800.png`
+- Final 80% implementation screenshot: `D:\yokko\artifacts\mods\gameplay-mods-scale-compact-3200x1800.png`
+- Shared-viewport scale matrix: `D:\yokko\artifacts\mods\gameplay-mods-scale-matrix.png`
+- Full normalized comparison: `D:\yokko\artifacts\mods\gameplay-mods-comparison-v8.png`
+- Focused list comparison: `D:\yokko\artifacts\mods\gameplay-mods-focus-list-v8.png`
+- Focused detail comparison: `D:\yokko\artifacts\mods\gameplay-mods-focus-right-v8.png`
+- Source pixels: 1664 x 936.
+- Implementation viewport: 1600 x 900 native Windows client area at 200% DPI, producing a 3200 x 1800 renderer capture.
+- Density normalization: the authored 1280 x 720 stage is mapped once to Yokko's shared 1600 x 900 reference space. The 100%, 90%, and 80% captures use the same physical viewport; only the global UI-density setting changes.
+- State: Difficulty Down selected, Half Time selected and active with Hidden, speed 0.75x, music pitch off.
+
+## Full-view comparison
+
+The implementation follows the selected Studio Index composition: a fixed logo/title header, five-category left rail, two-column Mod index, right selected-Mod inspector, and the homepage-style cyan action footer. The full page now fills the shared 1600 x 900 layout at 100% instead of remaining a centred 1280 x 720 island. At 90% and 80%, the same composition stays centred and exposes progressively more breathing room without clipping or cancelling the global density preference.
+
+## Focused comparison
+
+- Mod acronyms are nested inside fixed 40 x 40 badges; they no longer fall below or outside their outlines.
+- Difficulty Down and Difficulty Up use the same column-major order, row rhythm, and section break as the concept.
+- The selected Half Time card, speed slider, and Active Mods list share the reference baselines without overlap.
+- Fixed-rate Mods use a light, page-native configuration surface. The slider and pitch row are interactive and display the actual supported range.
+- Configurable Mods exclusively own the compact Settings row, preventing the shortcut label and settings title from colliding.
+- Plain Mods move their empty-settings message below the shortcut, preserving the same vertical rhythm as fixed-rate Mods.
+- Hover no longer shifts complete list rows horizontally, so text and badge columns remain stable.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing Yokko display/body families and uppercase letter spacing are retained; headings, labels, acronyms, descriptions, and footer actions preserve the reference hierarchy.
+- Spacing and layout rhythm: the 1280 x 720 authored composition maps to the shared 1600 x 900 reference stage at 1.25x. The header, three content regions, and 136 px footer retain stable proportions across all global density settings.
+- Colors and visual tokens: ivory, deep navy, cyan, pink, and yellow are reused from Yokko's existing design system.
+- Image quality and asset fidelity: the existing Yokko logo and framework icon set are reused; no placeholder raster or fabricated brand asset was introduced.
+- Copy and content: concept-only labels such as `Difficulty Calculator`, `No Recover`, and `Classic Omission` are intentionally replaced by the real selectable Yokko entries `Daycore`, `No Release`, and `Cover`.
+
+## Findings
+
+- No actionable P0, P1, or P2 visual issue remains in the inspected state.
+- The 100%, 90%, and 80% captures contain no clipped persistent control, footer drift, text collision, or stretched typography.
+- P3 accepted difference: real gameplay descriptions are longer and are ellipsized at the same fixed text boundary rather than replaced with the concept's short placeholder copy.
+- P3 accepted difference: Half Time displays its truthful 0.50x-0.99x range and a functional pitch toggle; the concept showed generic 0.25x-2.00x ticks.
+- P3 expected rendering variance: framework font rasterization is slightly lighter than the generated concept at 200% Windows DPI.
+
+## Comparison history
+
+1. Initial implementation:
+   - P1: acronym text used an item-level anchor and rendered below the badge at the tested DPI.
+   - P1: fixed-rate configuration inherited a dark generic panel that did not match the selected light concept.
+   - P2: category rows and the right detail sections used different vertical density from the source.
+2. Alignment correction:
+   - Nested acronyms inside fixed badges and removed row-level hover translation.
+   - Reordered difficulty entries into the concept's column-major rhythm while retaining their real gameplay identities.
+   - Added the light fixed-rate slider and pitch control, and repositioned the Settings and Active Mods sections.
+3. Post-fix comparison:
+   - The full normalized comparison confirmed the page shell, columns, footer, and right inspector.
+   - Focused list and detail comparisons confirmed stable badge baselines, no text collision, and no panel overlap.
+4. Global 1600 x 900 adaptation:
+   - P1: the page still rendered at its old 1280 x 720 size after the global reference changed, creating a visibly undersized centred island.
+   - Mapped the complete authored stage to 1600 x 900 at 100% while preserving the intended 90% and 80% density reductions.
+   - P2: configurable detail pages let `SPACE TO TOGGLE` collide with `SETTINGS`; the configuration surface now owns that row and plain/fixed-rate states use the lower settings baseline.
+   - Native renderer captures across all three density modes show stable layout and no clipping.
+
+## Primary interactions and verification
+
+- Category selection, Mod selection, activation/removal, Reset, Done, and Back remain functional.
+- `H` toggles Half Time; `P` toggles pitch when the selected rate Mod supports it.
+- The speed slider updates the canonical fixed-rate Mod configuration.
+- Isolated `Yokko.Game` and `Yokko.Game.Tests` builds from the clean project baseline: passed with 0 warnings and 0 errors.
+- Focused `TestSceneGameplayModsScreen` plus global display-scale tests: passed, 18/18.
+- Native Windows visual inspection at 1600 x 900 client size, 200% DPI, and 100%/90%/80% UI density: passed.
+
+---
+
 # Yokko Song Select search redesign design QA
 
 final result: passed

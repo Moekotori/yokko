@@ -40,6 +40,9 @@ namespace Yokko.Game.Tests.Core
             core.Start();
             Assert.That(core.GetStatus().State, Is.EqualTo(NativeAudioState.Running));
             Assert.That(core.TriggerSample(sampleId), Is.True);
+            uint loopId = core.StartLoopingSample(sampleId, 0.5f);
+            Assert.That(loopId, Is.GreaterThan(0));
+            Assert.That(core.StopLoopingSample(loopId), Is.True);
 
             core.Pause();
             Assert.That(core.GetStatus().State, Is.EqualTo(NativeAudioState.Paused));

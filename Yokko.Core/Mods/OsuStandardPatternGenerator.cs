@@ -34,14 +34,35 @@ internal sealed class OsuStandardPatternGenerator
         internal void Add(
             int column,
             double start,
-            double? end = null)
+            double? end = null,
+            YokkoHitSamplePayload? samplePayload = null)
         {
             Objects.Add(new YokkoHitObject(
                 column,
                 start,
                 end,
-                end is null ? HitObjectKind.Tap : HitObjectKind.Hold));
+                end is null ? HitObjectKind.Tap : HitObjectKind.Hold,
+                SamplePayload: samplePayload));
             Columns.Add(column);
+        }
+
+        internal void ApplyPayload(YokkoHitSamplePayload? samplePayload)
+        {
+            if (samplePayload is null)
+                return;
+
+            for (int index = 0; index < Objects.Count; index++)
+            {
+                YokkoHitObject hitObject = Objects[index];
+                Objects[index] = new YokkoHitObject(
+                    hitObject.Lane,
+                    hitObject.StartTimeMilliseconds,
+                    hitObject.EndTimeMilliseconds,
+                    hitObject.Kind,
+                    hitObject.SampleKey,
+                    hitObject.ScrollProfileId,
+                    samplePayload);
+            }
         }
     }
 
@@ -177,6 +198,7 @@ internal sealed class OsuStandardPatternGenerator
         }
 
         Pattern pattern = generateCircleCore(hitObject, type);
+        pattern.ApplyPayload(payload(hitObject.Samples));
         foreach (YokkoHitObject generated in pattern.Objects)
         {
             if (type.HasFlag(PatternType.Stair)
@@ -433,7 +455,11 @@ internal sealed class OsuStandardPatternGenerator
         if (totalColumns == 1)
         {
             var one = new Pattern();
-            one.Add(0, start, end);
+            one.Add(
+                0,
+                start,
+                end,
+                sliderHoldPayload(hitObject, start));
             return one;
         }
 
@@ -540,7 +566,11 @@ internal sealed class OsuStandardPatternGenerator
                 column,
                 _ => random.Next(randomStart, totalColumns),
                 [pattern, previous]);
-            pattern.Add(column, start, end);
+            pattern.Add(
+                column,
+                start,
+                end,
+                sliderHoldPayload(hitObject, start));
         }
         for (int i = 0; i < count - usable; i++)
         {
@@ -548,7 +578,11 @@ internal sealed class OsuStandardPatternGenerator
                 column,
                 _ => random.Next(randomStart, totalColumns),
                 [pattern]);
-            pattern.Add(column, start, end);
+            pattern.Add(
+                column,
+                start,
+                end,
+                sliderHoldPayload(hitObject, start));
         }
         return pattern;
     }
@@ -573,7 +607,11 @@ internal sealed class OsuStandardPatternGenerator
         int lastColumn = column;
         for (int i = 0; i < count; i++)
         {
-            pattern.Add(column, start);
+            pattern.Add(
+                column,
+                start,
+                samplePayload: payload(
+                    sampleInfoListAt(hitObject, start)));
             column = findAvailable(
                 column,
                 _ => random.Next(randomStart, totalColumns),
@@ -595,7 +633,11 @@ internal sealed class OsuStandardPatternGenerator
         bool increasing = random.NextDouble() > 0.5;
         for (int i = 0; i <= spans; i++)
         {
-            pattern.Add(column, start);
+            pattern.Add(
+                column,
+                start,
+                samplePayload: payload(
+                    sampleInfoListAt(hitObject, start)));
             start += segment;
             if (increasing)
             {
@@ -632,7 +674,11 @@ internal sealed class OsuStandardPatternGenerator
         int column = columnAt(hitObject.X, allowSpecial: true);
         for (int i = 0; i <= spans; i++)
         {
-            pattern.Add(column, start);
+            pattern.Add(
+                column,
+                start,
+                samplePayload: payload(
+                    sampleInfoListAt(hitObject, start)));
             column += interval;
             if (column >= totalColumns - randomStart)
             {
@@ -643,7 +689,13 @@ internal sealed class OsuStandardPatternGenerator
             }
             column += randomStart;
             if (totalColumns > 2)
-                pattern.Add(column, start);
+            {
+                pattern.Add(
+                    column,
+                    start,
+                    samplePayload: payload(
+                        sampleInfoListAt(hitObject, start)));
+            }
             column = random.Next(randomStart, totalColumns);
             start += segment;
         }
@@ -666,7 +718,11 @@ internal sealed class OsuStandardPatternGenerator
                 column,
                 _ => random.Next(randomStart, totalColumns),
                 [pattern]);
-            pattern.Add(column, start, end);
+            pattern.Add(
+                column,
+                start,
+                end,
+                sliderHoldPayload(hitObject, start));
             start += segment;
         }
         return pattern;
@@ -683,7 +739,11 @@ internal sealed class OsuStandardPatternGenerator
         int holdColumn = columnAt(
             hitObject.X,
             allowSpecial: true);
-        pattern.Add(holdColumn, start, end);
+        pattern.Add(
+            holdColumn,
+            start,
+            end,
+            sliderHoldPayload(hitObject, start));
         int column = random.Next(randomStart, totalColumns);
         int noteCount = conversionDifficulty switch
         {
@@ -720,7 +780,11 @@ internal sealed class OsuStandardPatternGenerator
                                 Columns = { holdColumn },
                             }]);
                     }
-                    rowPattern.Add(column, start);
+                    rowPattern.Add(
+                        column,
+                        start,
+                        samplePayload: payload(
+                            sampleInfoListAt(hitObject, start)));
                 }
             }
             pattern.Objects.AddRange(rowPattern.Objects);
@@ -811,10 +875,22 @@ internal sealed class OsuStandardPatternGenerator
         var pattern = new Pattern();
         bool hold = hitObject.EndTimeMilliseconds
                     - hitObject.StartTimeMilliseconds >= 100;
+        YokkoHitSamplePayload? samplePayload = hold
+            ? payload(
+                hitObject.Samples,
+                [
+                    (hitObject.Samples ?? [])
+                    .Where(static sample =>
+                        sample.Name == YokkoHitSample.HitNormal)
+                    .ToArray(),
+                    hitObject.Samples?.ToArray() ?? [],
+                ])
+            : payload(hitObject.Samples);
         pattern.Add(
             column,
             hitObject.StartTimeMilliseconds,
-            hold ? hitObject.EndTimeMilliseconds : null);
+            hold ? hitObject.EndTimeMilliseconds : null,
+            samplePayload);
         return pattern;
     }
 
@@ -954,6 +1030,67 @@ internal sealed class OsuStandardPatternGenerator
         lastTime = time;
         lastX = x;
         lastY = y;
+    }
+
+    private static YokkoHitSamplePayload? payload(
+        IReadOnlyList<YokkoHitSample>? samples,
+        IReadOnlyList<IReadOnlyList<YokkoHitSample>>? nodeSamples = null,
+        bool playSlidingSamples = false)
+    {
+        if ((samples?.Count ?? 0) == 0
+            && (nodeSamples?.Count ?? 0) == 0
+            && !playSlidingSamples)
+        {
+            return null;
+        }
+
+        return new YokkoHitSamplePayload(
+            samples,
+            nodeSamples,
+            playSlidingSamples);
+    }
+
+    private static IReadOnlyList<YokkoHitSample> sampleInfoListAt(
+        ManiaConversionHitObject hitObject,
+        int time)
+    {
+        IReadOnlyList<IReadOnlyList<YokkoHitSample>> nodes =
+            nodeSamplesAt(hitObject, time);
+        return nodes.Count > 0
+            ? nodes[0]
+            : hitObject.Samples ?? [];
+    }
+
+    private static YokkoHitSamplePayload? sliderHoldPayload(
+        ManiaConversionHitObject hitObject,
+        int start)
+    {
+        return payload(
+            hitObject.Samples,
+            nodeSamplesAt(hitObject, start),
+            playSlidingSamples: true);
+    }
+
+    private static IReadOnlyList<IReadOnlyList<YokkoHitSample>> nodeSamplesAt(
+        ManiaConversionHitObject hitObject,
+        int time)
+    {
+        if (hitObject.NodeSamples is not { Count: > 0 } nodeSamples)
+            return [];
+
+        int start = (int)Math.Round(
+            hitObject.StartTimeMilliseconds);
+        int end = (int)Math.Floor(
+            hitObject.EndTimeMilliseconds);
+        int spans = Math.Max(1, hitObject.SpanCount);
+        int segment = (end - start) / spans;
+        int index = segment == 0
+            ? 0
+            : Math.Max(0, (time - start) / segment);
+        if (index >= nodeSamples.Count)
+            return [];
+
+        return nodeSamples.Skip(index).ToArray();
     }
 
     private static bool hasClap(

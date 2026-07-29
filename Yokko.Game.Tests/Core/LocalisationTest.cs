@@ -66,7 +66,8 @@ public class LocalisationTest
         Assert.That(
             missing,
             Is.Empty,
-            $"Regenerate Yokko's localisation fonts; missing: {new string(missing)}");
+            "Regenerate Yokko's localisation fonts with " +
+            $"`python scripts/generate-localisation-font.py`; missing: {new string(missing)}");
     }
 
     private static HashSet<int> readGlyphCodepoints(Stream stream)

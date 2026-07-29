@@ -39,16 +39,20 @@ The currently selectable implementation slices are:
   1K through 10K;
 - difficulty reduction: EZ, NF and NR;
 - difficulty increase: HR, SD, PF and configurable AC;
-- visibility: FI, HD, CO and FL at their upstream default settings;
+- visibility: FI and HD plus configurable CO and FL across their upstream
+  ranges and options;
 - automation: AT and CN;
 - audio: configurable MU;
 - dynamic rate: configurable WU, WD and AS.
 
-RD stores its seed in the canonical Mod fingerprint. Retry and in-memory replay
-playback therefore reproduce the same global lane permutation.
-FI/HD use the lazer-style dynamic 160–400/768 note cover, CO defaults to
-50% coverage, and FL uses a full-width 50-unit rectangular window. These Mods
-also adjust top ranks to SSH/SH.
+RD exposes lazer's signed 32-bit custom seed plus an explicit reroll action and
+stores the resolved seed in the canonical Mod fingerprint. Retry and persisted
+replay playback therefore reproduce the same global lane permutation.
+FI/HD use the lazer-style dynamic 160–400/768 note cover. CO exposes lazer's
+20%–80% coverage and both expansion directions, while FL exposes its 0.5×–3×
+window multiplier and optional combo-based shrinking; their defaults remain
+50% and a full-width 50-unit rectangular window respectively. These Mods also
+adjust top ranks to SSH/SH.
 The gameplay health state follows Mania HP drain values per judgement. EZ
 halves HP difficulty, widens hit windows by 1.4x and restores full health for
 two extra lives; NF suppresses failure, while SD and PF use judgement-driven
@@ -93,8 +97,15 @@ instead keep lazer's fixed 0.75×/1.50× frequency and vary tempo independently,
 including in Song Select preview and gameplay; keysounds follow the configured
 total speed. Non-default speed and pitch settings are part of score identity.
 Gameplay replays now own their exact `ManiaModSet` rather than relying on the
-caller to reconstruct it. Imported legacy `.osr` flags follow lazer's Mania
-mapping and NC/DT, PF/SD, and CN/AT precedence before gameplay starts.
+caller to reconstruct it. Native `.ykr` replays persist the versioned Mod
+configuration, exact beatmap fingerprint, applied key count, and ordered input
+edges; completed live plays are saved atomically and can be opened by drag and
+drop after process restart. Imported legacy `.osr` flags continue to follow
+lazer's Mania mapping and NC/DT, PF/SD, and CN/AT precedence before gameplay
+starts.
+Configurable Mod preferences are persisted globally by stable Mod key and are
+restored when that Mod is next enabled. Active Mod selection remains
+session-owned, so a new play still starts at NM unless the player selects Mods.
 Mode 0 osu!standard imports retain their original positioned circles, sliders,
 and spinners as a conversion source. The default target column count follows
 lazer's special-object-density, CS and OD rules. 1K–10K regenerate from that
@@ -122,21 +133,27 @@ Showing an acronym in Song Select is not implementation.
 
 The current codebase already has strong foundations:
 
-- osu!lazer-style Mania hit windows;
+- exact pinned-osu!lazer Mania hit windows, including lazer's optional Classic
+  Mod path;
 - default non-classic 1,000,000-point Mania scoring;
 - audio-clock-driven judgement;
 - deterministic tap and hold judgement;
 - playback-rate-aware star-rating calculation;
 - a canonical, format-independent `YokkoBeatmap`.
 
-The remaining parity blockers include:
+The previously explicit persistence blockers are now closed:
 
-- Yokko does not yet have a native persisted replay container for restoring
-  full configurable Mod state after process restart;
-- persisted UI preferences for configurable Mods are not yet stored globally;
-- standard-to-Mania object shape now has upstream golden coverage for lazer's
-  repeated-slider, short-repeat stair, and spinner fixtures, but sample payload
-  fidelity and a broader complex-slider corpus are not yet closed.
+- native `.ykr` replay persistence restores the exact configurable Mod state
+  after process restart and rejects mismatched beatmaps or key counts;
+- configurable Mod UI preferences are stored globally without silently
+  restoring the previous active Mod selection;
+- standard and legacy-Mania object shape matches 2,564 objects across 11
+  pinned-lazer golden beatmaps, including full-map, complex/repeated slider,
+  old Mania slider, and old Mania spinner cases;
+- hit-sample and slider-node payloads, lazer lookup precedence, object volume,
+  native-Mania layered-normal suppression, hold head/tail samples, and
+  converted-slider looping samples are now implemented and focused-tested.
+  Default fallback waveforms remain skin-owned rather than ruleset-owned.
 
 No selectable entry should be described as fully parity-proven until its
 affected contracts and configuration variants have focused upstream-derived
@@ -209,8 +226,8 @@ GameplaySession
 The original beatmap is never mutated. Conversion Mods produce an applied
 beatmap for that session.
 
-A future configuration envelope should be versioned and use stable string
-keys, for example:
+The current configuration envelope is versioned and uses stable string keys,
+for example:
 
 ```json
 {
@@ -223,6 +240,8 @@ keys, for example:
 ```
 
 Numeric enum values must not be persisted because enum order can change.
+Unknown schemas, duplicate entries, and unsupported keys fail closed rather
+than being interpreted as a different Mod configuration.
 
 ## Deterministic application order
 
@@ -331,9 +350,10 @@ variants stay explicit.
 - add 1K through 10K conversion;
 - add DS after single-stage key modes are stable.
 
-These structural items are now implemented. Further converter work should
-continue to close object-pattern edge cases against the pinned lazer corpus,
-especially complex repeat sliders and sample-driven chord generation.
+These structural items are now implemented. Converter object shape is covered
+by the pinned lazer corpus. The hit-sample, slider-node, and sliding-sample
+payload model is also implemented through Core, import, gameplay resolution,
+and native callback-owned looping playback.
 
 This is intentionally later because key-count conversion affects bindings,
 skins, imports, playfield layout, replays, and score identity together.

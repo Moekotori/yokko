@@ -8,7 +8,8 @@ public sealed record YokkoHitObject
         double? EndTimeMilliseconds,
         HitObjectKind Kind,
         string? SampleKey = null,
-        string? ScrollProfileId = null)
+        string? ScrollProfileId = null,
+        YokkoHitSamplePayload? SamplePayload = null)
     {
         if (!double.IsFinite(StartTimeMilliseconds))
             throw new ArgumentOutOfRangeException(nameof(StartTimeMilliseconds));
@@ -34,6 +35,7 @@ public sealed record YokkoHitObject
         this.Kind = Kind;
         this.SampleKey = SampleKey;
         this.ScrollProfileId = ScrollProfileId;
+        this.SamplePayload = SamplePayload;
     }
 
     public int Lane { get; }
@@ -47,4 +49,15 @@ public sealed record YokkoHitObject
     public string? SampleKey { get; }
 
     public string? ScrollProfileId { get; }
+
+    public YokkoHitSamplePayload? SamplePayload { get; }
+
+    public IReadOnlyList<YokkoHitSample> Samples =>
+        SamplePayload?.Samples ?? [];
+
+    public IReadOnlyList<IReadOnlyList<YokkoHitSample>> NodeSamples =>
+        SamplePayload?.NodeSamples ?? [];
+
+    public bool PlaySlidingSamples =>
+        SamplePayload?.PlaySlidingSamples == true;
 }

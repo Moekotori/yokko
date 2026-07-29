@@ -20,3 +20,11 @@ jobs:
 
       - name: Build
         run: dotnet build .\Yokko.Desktop.slnf --no-restore --configuration Release
+
+      - name: Check localisation font coverage
+        run: >-
+          dotnet test .\Yokko.Game.Tests\Yokko.Game.Tests.csproj
+          --no-build
+          --no-restore
+          --configuration Release
+          --filter "FullyQualifiedName~LocalisationTest"

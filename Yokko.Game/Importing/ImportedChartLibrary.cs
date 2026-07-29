@@ -82,6 +82,22 @@ internal sealed class ImportedChartLibrary
         }
     }
 
+    public ImportedChart FindByBeatmapFingerprint(string fingerprint)
+    {
+        if (string.IsNullOrWhiteSpace(fingerprint))
+            return null;
+
+        lock (syncRoot)
+        {
+            return charts.FirstOrDefault(chart =>
+                string.Equals(
+                    YokkoBeatmapFingerprint.Compute(
+                        chart.Result.Beatmap),
+                    fingerprint,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     public async Task<IReadOnlyList<ChartImportResult>> ImportAsync(
         ChartImportRequest request)
     {
@@ -460,6 +476,25 @@ internal sealed class ImportedChartLibrary
                || extension.Equals(".bmp", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool isLegacyHitSampleFile(string path)
+    {
+        string extension = Path.GetExtension(path);
+        if (!extension.Equals(".wav", StringComparison.OrdinalIgnoreCase)
+            && !extension.Equals(".ogg", StringComparison.OrdinalIgnoreCase)
+            && !extension.Equals(".mp3", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        string stem = Path.GetFileNameWithoutExtension(path)
+                          .ToLowerInvariant();
+        return (stem.StartsWith("normal-", StringComparison.Ordinal)
+                || stem.StartsWith("soft-", StringComparison.Ordinal)
+                || stem.StartsWith("drum-", StringComparison.Ordinal))
+               && (stem.Contains("-hit", StringComparison.Ordinal)
+                   || stem.Contains("-slider", StringComparison.Ordinal));
+    }
+
     private readonly record struct ArtworkCandidate(
         string Path,
         long Length,
@@ -492,12 +527,27 @@ internal sealed class ImportedChartLibrary
                                                         result.Beatmap.HitObjects
                                                               .Select(note =>
                                                                   note.SampleKey)))
+                                                .Concat(results.SelectMany(
+                                                    result =>
+                                                        result.Beatmap.HitObjects
+                                                              .SelectMany(note =>
+                                                                  note.Samples
+                                                                      .Concat(
+                                                                          note.NodeSamples
+                                                                              .SelectMany(
+                                                                                  static node =>
+                                                                                      node))
+                                                                      .Select(
+                                                                          static sample =>
+                                                                              sample.Filename))))
                                                  .Where(path =>
                                                      !string.IsNullOrWhiteSpace(
                                                          path))!
                                                  .Concat(Directory
                                                          .EnumerateFiles(sourceDirectory)
-                                                         .Where(isArtworkFile));
+                                                         .Where(path =>
+                                                             isArtworkFile(path)
+                                                             || isLegacyHitSampleFile(path)));
 
         foreach (string assetPath in assetPaths.Distinct(
                      StringComparer.OrdinalIgnoreCase))

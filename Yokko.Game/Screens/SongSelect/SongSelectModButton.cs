@@ -201,7 +201,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
                 Text = "MODS",
                 Font = HomeTypography.Display(10),
                 Spacing = new Vector2(1.4f, 0),
-                Colour = HomeControlColours.Navy,
+                Colour = SongSelectTheme.PaleCyan,
             },
         };
 

@@ -157,6 +157,8 @@ public partial class SettingsScreen : Screen
                 audioSettings,
                 host.Storage.GetFullPath("audio-tests", true),
                 clipboard),
+            SettingsPageKind.Shortcuts => new ShortcutSettingsPanel(
+                gameplaySettings),
             SettingsPageKind.Skins => new SkinSettingsPanel(skinLibrary),
             SettingsPageKind.Import => new ImportSettingsPanel(
                 importSettings,
@@ -192,6 +194,12 @@ public partial class SettingsScreen : Screen
         if (activePanel is GameplaySettingsPanel gameplayPanel &&
             gameplayPanel.HandleKeyDown(e.Key))
             return true;
+
+        if (activePanel is ShortcutSettingsPanel shortcutPanel &&
+            shortcutPanel.HandleKeyDown(e.Key))
+        {
+            return true;
+        }
 
         if (e.Key != Key.Escape)
             return base.OnKeyDown(e);

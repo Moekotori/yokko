@@ -8,4 +8,6 @@ public sealed record EditableNote(
     double StartTimeMilliseconds,
     double? EndTimeMilliseconds,
     HitObjectKind Kind,
-    string? ScrollProfileId = null);
+    string? ScrollProfileId = null,
+    string? SampleKey = null,
+    YokkoHitSamplePayload? SamplePayload = null);

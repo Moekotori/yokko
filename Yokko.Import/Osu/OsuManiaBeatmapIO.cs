@@ -14,6 +14,7 @@ public static class OsuManiaBeatmapIO
     private const int sliderType = 2;
     private const int spinnerType = 8;
     private const int holdType = 128;
+    private const double controlPointLeniency = 5;
 
     public static EditableBeatmap ReadEditableFromFile(string path)
     {
@@ -62,7 +63,25 @@ public static class OsuManiaBeatmapIO
                 $"Only osu!standard (Mode: 0) and osu!mania (Mode: 3) beatmaps are supported; received Mode: {mode}.");
         }
 
-        List<YokkoTimingPoint> timingPoints = parseTimingPoints(sections.GetValueOrDefault("TimingPoints") ?? []);
+        int defaultSampleSet = parseSampleSet(
+            general.GetValueOrDefault("SampleSet"));
+        int defaultSampleVolume = Math.Clamp(
+            parseInt(general.GetValueOrDefault("SampleVolume"), 100),
+            0,
+            100);
+        List<YokkoTimingPoint> timingPoints = parseTimingPoints(
+            sections.GetValueOrDefault("TimingPoints") ?? [],
+            defaultSampleSet,
+            defaultSampleVolume);
+        if (timingPoints.Count == 0)
+        {
+            timingPoints.Add(
+                new YokkoTimingPoint(
+                    0,
+                    500,
+                    SampleSet: normaliseSampleSet(defaultSampleSet),
+                    Volume: defaultSampleVolume));
+        }
         double overallDifficulty =
             parseDouble(
                 difficulty.GetValueOrDefault("OverallDifficulty"),
@@ -358,18 +377,36 @@ public static class OsuManiaBeatmapIO
             int lane = Math.Clamp((int)Math.Floor(x * keyCount / 512d), 0, keyCount - 1);
             double startTime = parseDouble(parts[2], 0);
             int type = parseInt(parts[3], 0);
+            int hitSound = parseInt(parts[4], 0);
 
             if ((type & holdType) != 0)
             {
                 double endTime = startTime;
+                LegacySampleBankInfo sampleBank = new();
 
                 if (parts.Length >= 6)
                 {
-                    string endTimePart = parts[5].Split(':')[0];
+                    string[] holdParts = parts[5].Split(':');
+                    string endTimePart = holdParts[0];
                     endTime = parseDouble(endTimePart, startTime);
+                    sampleBank = parseSampleBankInfo(
+                        string.Join(':', holdParts.Skip(1)));
                 }
 
-                hitObjects.Add(new YokkoHitObject(lane, startTime, endTime, HitObjectKind.Hold));
+                IReadOnlyList<YokkoHitSample> samples = createSamples(
+                    hitSound,
+                    sampleBank,
+                    samplePointAt(
+                        timingPoints,
+                        endTime + controlPointLeniency));
+                hitObjects.Add(
+                    new YokkoHitObject(
+                        lane,
+                        startTime,
+                        endTime,
+                        HitObjectKind.Hold,
+                        sampleBank.Filename,
+                        SamplePayload: defaultHoldPayload(samples)));
                 continue;
             }
 
@@ -384,32 +421,82 @@ public static class OsuManiaBeatmapIO
                                      spanCount,
                                      sliderMultiplier,
                                      timingPoints);
+                LegacySampleBankInfo sampleBank =
+                    parseSampleBankInfo(
+                        parts.ElementAtOrDefault(10),
+                        banksOnly: true);
+                IReadOnlyList<YokkoHitSample> samples = createSamples(
+                    hitSound,
+                    sampleBank,
+                    samplePointAt(
+                        timingPoints,
+                        startTime + controlPointLeniency + 1));
+                IReadOnlyList<IReadOnlyList<YokkoHitSample>> nodeSamples =
+                    createSliderNodeSamples(
+                        parts,
+                        hitSound,
+                        sampleBank,
+                        startTime,
+                        endTime,
+                        spanCount,
+                        timingPoints);
                 hitObjects.Add(
                     new YokkoHitObject(
                         lane,
                         startTime,
                         endTime,
-                        HitObjectKind.Hold));
+                        HitObjectKind.Hold,
+                        SamplePayload: new YokkoHitSamplePayload(
+                            samples,
+                            nodeSamples,
+                            PlaySlidingSamples: true)));
                 continue;
             }
 
             if ((type & spinnerType) != 0 && parts.Length >= 6)
             {
+                double endTime = Math.Max(
+                    startTime,
+                    parseDouble(parts[5], startTime));
+                LegacySampleBankInfo sampleBank =
+                    parseSampleBankInfo(parts.ElementAtOrDefault(6));
+                IReadOnlyList<YokkoHitSample> samples = createSamples(
+                    hitSound,
+                    sampleBank,
+                    samplePointAt(
+                        timingPoints,
+                        endTime + controlPointLeniency));
                 legacySpinners.Add(
                     new ManiaConversionHitObject(
                         256,
                         startTime,
-                        Math.Max(
-                            startTime,
-                            parseDouble(parts[5], startTime)),
+                        endTime,
                         ManiaConversionObjectKind.Spinner,
-                        parseInt(parts[4], 0),
-                        Y: 192));
+                        hitSound,
+                        Y: 192,
+                        Samples: samples));
                 continue;
             }
 
             if ((type & hitCircleType) != 0)
-                hitObjects.Add(new YokkoHitObject(lane, startTime, null, HitObjectKind.Tap));
+            {
+                LegacySampleBankInfo sampleBank =
+                    parseSampleBankInfo(parts.ElementAtOrDefault(5));
+                IReadOnlyList<YokkoHitSample> samples = createSamples(
+                    hitSound,
+                    sampleBank,
+                    samplePointAt(
+                        timingPoints,
+                        startTime + controlPointLeniency));
+                hitObjects.Add(
+                    new YokkoHitObject(
+                        lane,
+                        startTime,
+                        null,
+                        HitObjectKind.Tap,
+                        sampleBank.Filename,
+                        SamplePayload: new YokkoHitSamplePayload(samples)));
+            }
         }
 
         if (legacySpinners.Count > 0)
@@ -469,13 +556,22 @@ public static class OsuManiaBeatmapIO
             int hitSound = parseInt(parts[4], 0);
             if ((type & hitCircleType) != 0)
             {
+                LegacySampleBankInfo sampleBank =
+                    parseSampleBankInfo(parts.ElementAtOrDefault(5));
+                IReadOnlyList<YokkoHitSample> samples = createSamples(
+                    hitSound,
+                    sampleBank,
+                    samplePointAt(
+                        timingPoints,
+                        startTime + controlPointLeniency));
                 hitObjects.Add(new ManiaConversionHitObject(
                     x,
                     startTime,
                     startTime,
                     ManiaConversionObjectKind.Circle,
                     hitSound,
-                    Y: y));
+                    Y: y,
+                    Samples: samples));
                 continue;
             }
 
@@ -497,6 +593,25 @@ public static class OsuManiaBeatmapIO
                                      spanCount,
                                      sliderMultiplier,
                                      timingPoints);
+                LegacySampleBankInfo sampleBank =
+                    parseSampleBankInfo(
+                        parts.ElementAtOrDefault(10),
+                        banksOnly: true);
+                IReadOnlyList<YokkoHitSample> samples = createSamples(
+                    hitSound,
+                    sampleBank,
+                    samplePointAt(
+                        timingPoints,
+                        startTime + controlPointLeniency + 1));
+                IReadOnlyList<IReadOnlyList<YokkoHitSample>> nodeSamples =
+                    createSliderNodeSamples(
+                        parts,
+                        hitSound,
+                        sampleBank,
+                        startTime,
+                        endTime,
+                        spanCount,
+                        timingPoints);
                 hitObjects.Add(new ManiaConversionHitObject(
                     x,
                     startTime,
@@ -505,19 +620,33 @@ public static class OsuManiaBeatmapIO
                     hitSound,
                     spanCount,
                     y,
-                    nodeHitSounds));
+                    nodeHitSounds,
+                    samples,
+                    nodeSamples));
                 continue;
             }
 
             if ((type & spinnerType) != 0 && parts.Length >= 6)
             {
+                double endTime = Math.Max(
+                    startTime,
+                    parseDouble(parts[5], startTime));
+                LegacySampleBankInfo sampleBank =
+                    parseSampleBankInfo(parts.ElementAtOrDefault(6));
+                IReadOnlyList<YokkoHitSample> samples = createSamples(
+                    hitSound,
+                    sampleBank,
+                    samplePointAt(
+                        timingPoints,
+                        endTime + controlPointLeniency));
                 hitObjects.Add(new ManiaConversionHitObject(
                     256,
                     startTime,
-                    Math.Max(startTime, parseDouble(parts[5], startTime)),
+                    endTime,
                     ManiaConversionObjectKind.Spinner,
                     hitSound,
-                    Y: 192));
+                    Y: 192,
+                    Samples: samples));
             }
         }
 
@@ -527,6 +656,191 @@ public static class OsuManiaBeatmapIO
                .ThenBy(static hitObject => hitObject.X)
                .ToArray();
     }
+
+    private static YokkoHitSamplePayload defaultHoldPayload(
+        IReadOnlyList<YokkoHitSample> samples) =>
+        new(
+            samples,
+            [
+                samples,
+                [],
+            ]);
+
+    private static IReadOnlyList<IReadOnlyList<YokkoHitSample>>
+        createSliderNodeSamples(
+            IReadOnlyList<string> parts,
+            int defaultHitSound,
+            LegacySampleBankInfo defaultBank,
+            double startTime,
+            double endTime,
+            int spanCount,
+            IReadOnlyList<YokkoTimingPoint> timingPoints)
+    {
+        int nodeCount = spanCount + 1;
+        var banks = Enumerable
+                    .Range(0, nodeCount)
+                    .Select(_ => defaultBank)
+                    .ToArray();
+        string? edgeSets = parts.ElementAtOrDefault(9);
+        if (!string.IsNullOrWhiteSpace(edgeSets))
+        {
+            string[] values = edgeSets.Split('|');
+            for (int index = 0;
+                 index < Math.Min(values.Length, banks.Length);
+                 index++)
+            {
+                banks[index] = parseSampleBankInfo(values[index]);
+            }
+        }
+
+        int[] hitSounds = Enumerable
+                          .Repeat(defaultHitSound, nodeCount)
+                          .ToArray();
+        string? edgeSounds = parts.ElementAtOrDefault(8);
+        if (!string.IsNullOrWhiteSpace(edgeSounds))
+        {
+            string[] values = edgeSounds.Split('|');
+            for (int index = 0;
+                 index < Math.Min(values.Length, hitSounds.Length);
+                 index++)
+            {
+                hitSounds[index] = parseInt(values[index], defaultHitSound);
+            }
+        }
+
+        double segmentDuration =
+            (endTime - startTime) / Math.Max(1, spanCount);
+        return Enumerable.Range(0, nodeCount)
+                         .Select(index =>
+                             (IReadOnlyList<YokkoHitSample>)createSamples(
+                                 hitSounds[index],
+                                 banks[index],
+                                 samplePointAt(
+                                     timingPoints,
+                                     startTime
+                                     + segmentDuration * index
+                                     + controlPointLeniency)))
+                         .ToArray();
+    }
+
+    private static IReadOnlyList<YokkoHitSample> createSamples(
+        int hitSound,
+        LegacySampleBankInfo bankInfo,
+        YokkoTimingPoint samplePoint)
+    {
+        string controlBank = sampleBankName(samplePoint.SampleSet);
+        string normalBank = bankInfo.NormalBank ?? controlBank;
+        string additionBank = bankInfo.AdditionBank ?? normalBank;
+        int volume = bankInfo.Volume > 0
+            ? bankInfo.Volume
+            : Math.Clamp(samplePoint.Volume, 0, 100);
+        int customSampleBank = bankInfo.CustomSampleBank > 0
+            ? bankInfo.CustomSampleBank
+            : Math.Max(0, samplePoint.SampleIndex);
+        var samples = new List<YokkoHitSample>
+        {
+            new(
+                YokkoHitSample.HitNormal,
+                normalBank,
+                volume,
+                customSampleBank,
+                bankInfo.Filename,
+                IsLayered: hitSound != 0 && (hitSound & 1) == 0),
+        };
+
+        if ((hitSound & 4) != 0)
+        {
+            samples.Add(
+                new YokkoHitSample(
+                    YokkoHitSample.HitFinish,
+                    additionBank,
+                    volume,
+                    customSampleBank));
+        }
+        if ((hitSound & 2) != 0)
+        {
+            samples.Add(
+                new YokkoHitSample(
+                    YokkoHitSample.HitWhistle,
+                    additionBank,
+                    volume,
+                    customSampleBank));
+        }
+        if ((hitSound & 8) != 0)
+        {
+            samples.Add(
+                new YokkoHitSample(
+                    YokkoHitSample.HitClap,
+                    additionBank,
+                    volume,
+                    customSampleBank));
+        }
+
+        return samples;
+    }
+
+    private static LegacySampleBankInfo parseSampleBankInfo(
+        string? value,
+        bool banksOnly = false)
+    {
+        if (string.IsNullOrEmpty(value))
+            return new LegacySampleBankInfo();
+
+        string[] parts = value.Split(':');
+        string? normalBank = explicitSampleBank(
+            parseInt(parts.ElementAtOrDefault(0), 0));
+        string? additionBank = explicitSampleBank(
+            parseInt(parts.ElementAtOrDefault(1), 0))
+            ?? normalBank;
+        if (banksOnly)
+        {
+            return new LegacySampleBankInfo(
+                normalBank,
+                additionBank);
+        }
+
+        return new LegacySampleBankInfo(
+            normalBank,
+            additionBank,
+            Math.Max(0, parseInt(parts.ElementAtOrDefault(2), 0)),
+            Math.Max(0, parseInt(parts.ElementAtOrDefault(3), 0)),
+            parts.ElementAtOrDefault(4));
+    }
+
+    private static YokkoTimingPoint samplePointAt(
+        IReadOnlyList<YokkoTimingPoint> timingPoints,
+        double time)
+    {
+        return timingPoints
+                   .Select((point, index) => (point, index))
+                   .Where(item =>
+                       item.point.TimeMilliseconds <= time)
+                   .OrderBy(item =>
+                       item.point.TimeMilliseconds)
+                   .ThenBy(item => item.index)
+                   .Select(item => item.point)
+                   .LastOrDefault()
+               ?? YokkoTimingPoint.Default;
+    }
+
+    private static string? explicitSampleBank(int sampleSet) =>
+        sampleSet switch
+        {
+            1 => YokkoHitSample.BankNormal,
+            2 => YokkoHitSample.BankSoft,
+            3 => YokkoHitSample.BankDrum,
+            _ => null,
+        };
+
+    private static string sampleBankName(int sampleSet) =>
+        explicitSampleBank(sampleSet) ?? YokkoHitSample.BankNormal;
+
+    private sealed record LegacySampleBankInfo(
+        string? NormalBank = null,
+        string? AdditionBank = null,
+        int CustomSampleBank = 0,
+        int Volume = 0,
+        string? Filename = null);
 
     private static List<YokkoBreakPeriod> parseBreakPeriods(
         IReadOnlyList<string> lines)
@@ -611,7 +925,10 @@ public static class OsuManiaBeatmapIO
         }
     }
 
-    private static List<YokkoTimingPoint> parseTimingPoints(IReadOnlyList<string> lines)
+    private static List<YokkoTimingPoint> parseTimingPoints(
+        IReadOnlyList<string> lines,
+        int defaultSampleSet = 1,
+        int defaultSampleVolume = 100)
     {
         var timingPoints = new List<YokkoTimingPoint>();
 
@@ -633,9 +950,17 @@ public static class OsuManiaBeatmapIO
                 time,
                 beatLength,
                 Math.Max(1, parseInt(parts.ElementAtOrDefault(2), 4)),
-                parseInt(parts.ElementAtOrDefault(3), 2),
+                normaliseSampleSet(
+                    parseInt(
+                        parts.ElementAtOrDefault(3),
+                        defaultSampleSet)),
                 parseInt(parts.ElementAtOrDefault(4), 0),
-                Math.Clamp(parseInt(parts.ElementAtOrDefault(5), 100), 0, 100),
+                Math.Clamp(
+                    parseInt(
+                        parts.ElementAtOrDefault(5),
+                        defaultSampleVolume),
+                    0,
+                    100),
                 parseInt(parts.ElementAtOrDefault(6), 1) != 0,
                 parseInt(parts.ElementAtOrDefault(7), 0)));
         }
@@ -868,12 +1193,68 @@ public static class OsuManiaBeatmapIO
     {
         int x = laneToX(hitObject.Lane, keyCount);
         int time = roundMilliseconds(hitObject.StartTimeMilliseconds);
+        int hitSound = 0;
+        foreach (YokkoHitSample sample in hitObject.Samples)
+        {
+            hitSound |= sample.Name switch
+            {
+                YokkoHitSample.HitWhistle => 2,
+                YokkoHitSample.HitFinish => 4,
+                YokkoHitSample.HitClap => 8,
+                _ => 0,
+            };
+        }
+        string sampleBanks = formatSampleBanks(hitObject);
 
         if (hitObject.Kind == HitObjectKind.Hold && hitObject.EndTimeMilliseconds != null)
-            return $"{x},192,{time},{holdType},0,{roundMilliseconds(hitObject.EndTimeMilliseconds.Value)}:0:0:0:0:";
+        {
+            return $"{x},192,{time},{holdType},{hitSound},"
+                   + $"{roundMilliseconds(hitObject.EndTimeMilliseconds.Value)}:"
+                   + sampleBanks;
+        }
 
-        return $"{x},192,{time},{hitCircleType},0,0:0:0:0:";
+        return $"{x},192,{time},{hitCircleType},{hitSound},{sampleBanks}";
     }
+
+    private static string formatSampleBanks(YokkoHitObject hitObject)
+    {
+        YokkoHitSample? normal = hitObject.Samples.FirstOrDefault(
+            static sample =>
+                sample.Name == YokkoHitSample.HitNormal)
+            ?? hitObject.Samples.FirstOrDefault();
+        YokkoHitSample? addition = hitObject.Samples.FirstOrDefault(
+            static sample =>
+                sample.Name != YokkoHitSample.HitNormal);
+        int normalBank = sampleBankNumber(normal?.Bank);
+        int additionBank = sampleBankNumber(
+            addition?.Bank ?? normal?.Bank);
+        int customSampleBank =
+            normal?.CustomSampleBank
+            ?? addition?.CustomSampleBank
+            ?? 0;
+        int volume = normal?.Volume
+                     ?? addition?.Volume
+                     ?? 0;
+        string filename = normal?.Filename
+                          ?? hitObject.SampleKey
+                          ?? string.Empty;
+        return string.Join(
+            ":",
+            normalBank.ToString(CultureInfo.InvariantCulture),
+            additionBank.ToString(CultureInfo.InvariantCulture),
+            customSampleBank.ToString(CultureInfo.InvariantCulture),
+            volume.ToString(CultureInfo.InvariantCulture),
+            filename);
+    }
+
+    private static int sampleBankNumber(string? bank) =>
+        bank switch
+        {
+            YokkoHitSample.BankNormal => 1,
+            YokkoHitSample.BankSoft => 2,
+            YokkoHitSample.BankDrum => 3,
+            _ => 0,
+        };
 
     private static int laneToX(int lane, int keyCount)
     {
@@ -886,6 +1267,30 @@ public static class OsuManiaBeatmapIO
 
     private static string formatDouble(double value)
         => value.ToString("0.###############", CultureInfo.InvariantCulture);
+
+    private static int parseSampleSet(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return 1;
+        if (int.TryParse(
+                value,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out int numeric))
+        {
+            return normaliseSampleSet(numeric);
+        }
+
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "soft" => 2,
+            "drum" => 3,
+            _ => 1,
+        };
+    }
+
+    private static int normaliseSampleSet(int value) =>
+        value is >= 1 and <= 3 ? value : 1;
 
     private static int parseInt(string? value, int fallback)
         => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) ? parsed : fallback;

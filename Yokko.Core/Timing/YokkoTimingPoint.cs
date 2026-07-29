@@ -4,7 +4,7 @@ public sealed record YokkoTimingPoint(
     double TimeMilliseconds,
     double BeatLengthMilliseconds,
     int Meter = 4,
-    int SampleSet = 2,
+    int SampleSet = 1,
     int SampleIndex = 0,
     int Volume = 100,
     bool Uninherited = true,

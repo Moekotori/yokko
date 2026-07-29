@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -14,6 +15,7 @@ using osu.Framework.Screens;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
+using Yokko.Audio;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Editor;
 using Yokko.Game.Screens.Settings;
@@ -25,6 +27,9 @@ public partial class MainScreen : Screen
 {
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
+    private const float compactPlayerCardY = 638;
+    private const float fullPlayerCardY = 668;
+    private const float fullStatusBarY = 808;
     private const double exitHoldDuration = 2000;
 
     private static readonly Color4 ivory = new(0.992f, 0.992f, 0.988f, 1f);
@@ -55,6 +60,10 @@ public partial class MainScreen : Screen
     private HomeMascotBubble bubble;
     private HomeMusicPlayer musicPlayer;
     private HomeExitHoldIndicator exitIndicator;
+    private Drawable statusBar;
+    private HomePlayerProgressCard playerProgressCard;
+    private SpriteIcon heartbeatIcon;
+    private Circle readyDot;
     private readonly Box[] stageLines = new Box[2];
     private readonly List<SpriteIcon> decorationIcons = new();
     private readonly List<Drawable> floaters = new();
@@ -86,7 +95,14 @@ public partial class MainScreen : Screen
     [BackgroundDependencyLoader]
     private void load(TextureStore textures)
     {
-        Texture mascotTexture = textures.Get("yokko")
+        string availableBackend = AudioEngineFactory.AvailableBackends
+                                                    .Where(backend => backend.IsAvailable)
+                                                    .Select(backendDisplayName)
+                                                    .FirstOrDefault();
+        LocalisableString audioStatus = availableBackend ?? YokkoStrings.Get("main.audio_unavailable");
+
+        Texture yokkoTexture = textures.Get("yokko");
+        Texture mascotTexture = yokkoTexture
                                         .Crop(new RectangleF(80, 1840, 1200, 1360));
         Texture logoTexture = textures.Get("home-logo-hd");
 
@@ -197,6 +213,19 @@ public partial class MainScreen : Screen
                             {
                                 brandLockup = createBrandLockup(logoTexture),
                                 commandArea = createCommandArea(),
+                                playerProgressCard = new HomePlayerProgressCard(
+                                    mascotTexture,
+                                    new HomePlayerSummary(
+                                        "YOKKO_PLAYER",
+                                        7,
+                                        24,
+                                        72,
+                                        1284,
+                                        36))
+                                {
+                                    Position = new Vector2(72, fullPlayerCardY),
+                                },
+                                statusBar = createStatusBar(audioStatus),
                             },
                         },
                     },
@@ -218,6 +247,10 @@ public partial class MainScreen : Screen
         brandLockup.Alpha = 0;
         commandArea.Y += 24;
         commandArea.Alpha = 0;
+        playerProgressCard.Y += 24;
+        playerProgressCard.Alpha = 0;
+        statusBar.Y += 24;
+        statusBar.Alpha = 0;
         rightStage.X += 44;
         rightStage.Alpha = 0;
         utilityArea.Y -= 20;
@@ -241,6 +274,8 @@ public partial class MainScreen : Screen
         decorationLayer.Delay(240).FadeIn(600);
         brandLockup.Delay(60).FadeIn(420).MoveToX(56, 540, Easing.OutQuint);
         commandArea.Delay(150).FadeIn(420).MoveToY(208, 540, Easing.OutQuint);
+        playerProgressCard.Delay(250).FadeIn(420);
+        statusBar.Delay(320).FadeIn(420);
         utilityArea.Delay(340).FadeIn(360).MoveToY(24, 460, Easing.OutQuint);
     }
 
@@ -304,6 +339,7 @@ public partial class MainScreen : Screen
     {
         if (e.Key == Key.Escape)
             cancelExitHold();
+
         base.OnKeyUp(e);
     }
 
@@ -359,10 +395,37 @@ public partial class MainScreen : Screen
         utilityAreaLayout.X = extra.X;
         exitIndicator.Y = stageSize.Y - 50;
 
+        updatePlayerCardLayout(stageSize.Y < 840);
+
         float stageLeft = MathF.Max((DrawWidth - stageSize.X) / 2, 0);
         float ivoryWidth = stageLeft + 510;
         ivoryBase.Width = ivoryWidth;
         ivorySlant.X = ivoryWidth;
+    }
+
+    private void updatePlayerCardLayout(bool compact)
+    {
+        if (playerProgressCard == null)
+            return;
+
+        playerProgressCard.SetCompact(compact);
+
+        if (compact)
+        {
+            brandLockup.Position = new Vector2(56, 28);
+            brandLockup.Size = new Vector2(450, 152);
+            commandArea.Position = new Vector2(72, 180);
+            playerProgressCard.Position = new Vector2(72, compactPlayerCardY);
+            statusBar.Alpha = 0;
+            return;
+        }
+
+        brandLockup.Position = new Vector2(56, 46);
+        brandLockup.Size = new Vector2(500, 169);
+        commandArea.Position = new Vector2(72, 208);
+        playerProgressCard.Position = new Vector2(72, fullPlayerCardY);
+        statusBar.Position = new Vector2(72, fullStatusBarY);
+        statusBar.Alpha = 1;
     }
 
     internal static Vector2 CalculateResponsiveStageSize(Vector2 viewport) =>
@@ -422,6 +485,18 @@ public partial class MainScreen : Screen
 
         // 标题高亮标记在入场后刷出。
         heroHighlight.Delay(650).ScaleTo(Vector2.One, 380, Easing.OutQuint);
+
+        // 双跳模拟心拍。
+        heartbeatIcon.ScaleTo(1.28f, 110, Easing.Out)
+                     .Then().ScaleTo(1f, 150, Easing.Out)
+                     .Then().ScaleTo(1.16f, 100, Easing.Out)
+                     .Then().ScaleTo(1f, 640, Easing.OutQuint)
+                     .Loop();
+
+        // 就绪指示灯呼吸。
+        readyDot.FadeTo(0.25f, 700, Easing.InOutSine)
+                .Then().FadeTo(1f, 700, Easing.InOutSine)
+                .Loop();
 
         // 小形状缓慢浮沉。
         for (int i = 0; i < floaters.Count; i++)
@@ -570,6 +645,16 @@ public partial class MainScreen : Screen
                 {
                     X = 632,
                     Y = 365,
+                },
+                new SpriteText
+                {
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(1266, 380),
+                    Rotation = -90,
+                    Text = "MANIA CHART LAB · 4K",
+                    Font = HomeTypography.Display(12),
+                    Spacing = new Vector2(2.6f, 0),
+                    Colour = new Color4(1f, 1f, 1f, 0.3f),
                 },
                 new HomeTwinkle(14, 1700)
                 {
@@ -730,9 +815,93 @@ public partial class MainScreen : Screen
         },
     };
 
-    private Drawable createUtilityArea() => new Container
+    /// <summary>
+    /// 左下角状态栏：细分隔线 + 心跳 + 音频后端状态。
+    /// </summary>
+    private Drawable createStatusBar(LocalisableString audioStatus) => new Container
     {
-        Position = new Vector2(1016, 24),
+        Position = new Vector2(72, fullStatusBarY),
+        Size = new Vector2(520, 36),
+        Children = new Drawable[]
+        {
+            new Box
+            {
+                RelativeSizeAxes = Axes.X,
+                Height = 1,
+                Colour = new Color4(navy.R, navy.G, navy.B, 0.24f),
+            },
+            new Box
+            {
+                Width = 160,
+                Height = 1,
+                X = 110,
+                Colour = new Color4(paleCyan.R, paleCyan.G, paleCyan.B, 0.72f),
+            },
+            heartbeatIcon = new SpriteIcon
+            {
+                Origin = Anchor.Centre,
+                Position = new Vector2(260, 1.5f),
+                Size = new Vector2(23),
+                Icon = FontAwesome.Solid.Heartbeat,
+                Colour = navy,
+            },
+            new FillFlowContainer
+            {
+                Y = 10,
+                AutoSizeAxes = Axes.Both,
+                Direction = FillDirection.Horizontal,
+                Spacing = new Vector2(18, 0),
+                Children = new Drawable[]
+                {
+                    createAudioStatusItem(audioStatus),
+                },
+            },
+        },
+    };
+
+    private Drawable createAudioStatusItem(LocalisableString text) => new FillFlowContainer
+    {
+        AutoSizeAxes = Axes.Both,
+        Direction = FillDirection.Horizontal,
+        Spacing = new Vector2(8, 0),
+        Children = new Drawable[]
+        {
+            readyDot = new Circle
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Size = new Vector2(7),
+                Colour = pink,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Size = new Vector2(14),
+                Icon = FontAwesome.Solid.VolumeUp,
+                Colour = navy,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Text = text,
+                Font = HomeTypography.Display(14),
+                Colour = mutedNavy,
+            },
+        },
+    };
+
+    private static string backendDisplayName(AudioBackendCapabilities backend) => backend.Kind switch
+    {
+        AudioBackendKind.SharedWasapi => "WASAPI Shared",
+        AudioBackendKind.WasapiExclusive => "WASAPI Exclusive",
+        AudioBackendKind.Asio => "ASIO",
+        _ => backend.Kind.ToString(),
+    };
+
+    private Drawable createUtilityArea() => new Container
+    {        Position = new Vector2(1016, 24),
         Size = new Vector2(240, 150),
         Children = new Drawable[]
         {
