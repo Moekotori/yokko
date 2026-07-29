@@ -45,6 +45,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             @"C:\Charts\test-pack.osz"));
         AddUntilStep("imported charts visible", () => songSelectScreen.VisibleEntryCount == 2);
         AddAssert("newest import selected", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Seven");
+        AddUntilStep("box mascot gif decoded", () =>
+            songSelectScreen.MascotFrameCount > 1);
         AddAssert("ranking fits 1280x720 stage", () =>
             SongSelectScreen.RankingFitsDesignedStage);
         AddAssert("ranking is above footer", () =>
@@ -85,6 +87,14 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             result("Playable Import", DemoBeatmaps.CreateFourKeyDemo()),
             @"C:\Charts\playable.osu"));
         AddUntilStep("playable import selected", () => songSelectScreen.SelectedEntry?.Beatmap.Title == "Playable Import");
+        AddAssert("mod panel starts closed", () =>
+            !songSelectScreen.IsModPanelOpen);
+        AddStep("open mod panel", songSelectScreen.ToggleModPanel);
+        AddAssert("mod panel opened", () =>
+            songSelectScreen.IsModPanelOpen);
+        AddStep("close mod panel", songSelectScreen.ToggleModPanel);
+        AddAssert("mod panel closed", () =>
+            !songSelectScreen.IsModPanelOpen);
         AddStep("enable DT", () =>
             songSelectScreen.ToggleMod(ManiaModId.DoubleTime));
         AddAssert("DT selected", () =>

@@ -177,7 +177,7 @@ public partial class SongSelectScreen : Screen
                         Anchor = Anchor.BottomLeft,
                         Origin = Anchor.BottomLeft,
                         Position = new Vector2(12, -5),
-                        Size = new Vector2(168),
+                    Size = new Vector2(210),
                     },
                     createDecorations(),
                 },
@@ -328,14 +328,14 @@ public partial class SongSelectScreen : Screen
         {
             modPanel.Show();
             modPanel.Alpha = 0;
-            modPanel.Y = -70;
+            modPanel.Y = -162;
             modPanel.FadeIn(150, Easing.OutQuint)
-                    .MoveToY(-82, 190, Easing.OutQuint);
+                    .MoveToY(-174, 190, Easing.OutQuint);
         }
         else
         {
             modPanel.FadeOut(110, Easing.OutQuint)
-                    .MoveToY(-72, 140, Easing.OutQuint);
+                    .MoveToY(-164, 140, Easing.OutQuint);
         }
     }
 
@@ -653,6 +653,97 @@ public partial class SongSelectScreen : Screen
             },
         };
     }
+
+    private Container createModPanel() => new Container
+    {
+        Position = new Vector2(558, -174),
+        Size = new Vector2(196, 164),
+        Alpha = 0,
+        Depth = -5,
+        Masking = true,
+        CornerRadius = 4,
+        BorderThickness = 1.5f,
+        BorderColour = SongSelectTheme.Cyan,
+        Children = new Drawable[]
+        {
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = new Color4(
+                    SongSelectTheme.DeepNavy.R,
+                    SongSelectTheme.DeepNavy.G,
+                    SongSelectTheme.DeepNavy.B,
+                    0.97f),
+            },
+            new Box
+            {
+                RelativeSizeAxes = Axes.X,
+                Height = 3,
+                Colour = SongSelectTheme.Yellow,
+            },
+            new SpriteIcon
+            {
+                Position = new Vector2(16, 14),
+                Size = new Vector2(14),
+                Icon = FontAwesome.Solid.SlidersH,
+                Colour = SongSelectTheme.Cyan,
+            },
+            new SpriteText
+            {
+                Position = new Vector2(39, 11),
+                Text = "GAMEPLAY MODS",
+                Font = HomeTypography.Display(12),
+                Spacing = new Vector2(0.5f, 0),
+                Colour = SongSelectTheme.Ivory,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(-13, 12),
+                Text = "M",
+                Font = HomeTypography.Display(10),
+                Colour = SongSelectTheme.Pink,
+            },
+            new Box
+            {
+                Position = new Vector2(14, 37),
+                Size = new Vector2(168, 1),
+                Colour = new Color4(
+                    SongSelectTheme.Cyan.R,
+                    SongSelectTheme.Cyan.G,
+                    SongSelectTheme.Cyan.B,
+                    0.26f),
+            },
+            createModRow(
+                45,
+                doubleTimeMod,
+                nightcoreMod,
+                halfTimeMod),
+            createModRow(
+                84,
+                daycoreMod,
+                mirrorMod,
+                randomMod),
+            createModRow(
+                123,
+                holdOffMod,
+                noReleaseMod,
+                autoplayMod),
+        },
+    };
+
+    private static Drawable createModRow(
+        float y,
+        params SongSelectModButton[] buttons) =>
+        new FillFlowContainer
+        {
+            Position = new Vector2(18, y),
+            AutoSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+            Spacing = new Vector2(8, 0),
+            Children = buttons,
+        };
 
     protected override void Update()
     {
@@ -1238,12 +1329,7 @@ public partial class SongSelectScreen : Screen
         autoplayMod?.SetSelected(
             selectedMods.Contains(ManiaModId.Autoplay));
 
-        if (selectedModCount != null)
-        {
-            int count = selectedMods.Mods.Count;
-            selectedModCount.Text =
-                $"{count} MOD{(count == 1 ? string.Empty : "S")}";
-        }
+        modsToggleButton?.SetCount(selectedMods.Mods.Count);
     }
 
     private void onChartLibraryChanged() =>
