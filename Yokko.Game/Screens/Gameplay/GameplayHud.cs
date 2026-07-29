@@ -19,8 +19,8 @@ public partial class GameplayHud : CompositeDrawable
     private readonly SpriteText accuracyText;
     private readonly SpriteText countsText;
     private readonly SpriteText audioText;
-    private AudioBackendKind displayedRequestedBackend;
-    private AudioEngineStatus displayedAudioStatus;
+    private AudioReadoutState displayedAudioState;
+    private bool hasDisplayedAudioState;
 
     internal string DisplayedAudioStatus =>
         audioText?.Text.ToString() ?? string.Empty;
@@ -82,12 +82,22 @@ public partial class GameplayHud : CompositeDrawable
         AudioEngineStatus status,
         AudioBackendKind requestedBackend)
     {
-        if (status == displayedAudioStatus
-            && requestedBackend == displayedRequestedBackend)
+        var nextState = new AudioReadoutState(
+            requestedBackend,
+            status.ActiveBackend,
+            status.SampleRate,
+            status.BufferSize,
+            status.EstimatedOutputLatencyMilliseconds,
+            status.IsFaulted,
+            status.HasUnderrun,
+            status.CallbackDeadlineMissCount > 0,
+            status.CallbackCadenceMissCount > 0);
+        if (hasDisplayedAudioState
+            && nextState == displayedAudioState)
             return;
 
-        displayedAudioStatus = status;
-        displayedRequestedBackend = requestedBackend;
+        displayedAudioState = nextState;
+        hasDisplayedAudioState = true;
 
         bool fellBack =
             requestedBackend == AudioBackendKind.WasapiExclusive
@@ -124,10 +134,21 @@ public partial class GameplayHud : CompositeDrawable
 
     public void ShowFrameClock()
     {
-        displayedAudioStatus = null;
+        hasDisplayedAudioState = false;
         audioText.Text = "NO AUDIO · FRAME CLOCK";
         audioText.Colour = YokkoPalette.TextMuted;
     }
+
+    private readonly record struct AudioReadoutState(
+        AudioBackendKind RequestedBackend,
+        AudioBackendKind ActiveBackend,
+        int SampleRate,
+        int BufferSize,
+        double EstimatedOutputLatencyMilliseconds,
+        bool IsFaulted,
+        bool HasUnderrun,
+        bool HasCallbackDeadlineMiss,
+        bool HasCallbackCadenceMiss);
 
     private static SpriteText createLine(float size = 18) => new()
     {

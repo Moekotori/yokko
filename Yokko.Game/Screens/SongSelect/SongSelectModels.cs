@@ -29,4 +29,7 @@ internal sealed record SongSelectEntry(
     double Bpm,
     int BestScore,
     double BestAccuracy,
-    IReadOnlyList<SongSelectScore> Ranking);
+    IReadOnlyList<SongSelectScore> Ranking,
+    string PackageId,
+    string PackageName,
+    bool IsPackage);

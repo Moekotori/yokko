@@ -171,4 +171,20 @@ public sealed class GameplaySettingsTest
             settings.ScrollSpeed.Value,
             Is.EqualTo(OsuManiaScrollSpeed.Minimum));
     }
+
+    [Test]
+    public void LegacySkinHitPositionPreservesOsuManiaScrollVelocity()
+    {
+        double baseTimeRange = OsuManiaScrollSpeed.ComputeScrollTime(34);
+
+        Assert.That(
+            OsuManiaScrollSpeed.ComputeScrollTime(34, 402),
+            Is.EqualTo(baseTimeRange).Within(0.001));
+        Assert.That(
+            OsuManiaScrollSpeed.ComputeScrollTime(34, 460),
+            Is.EqualTo(baseTimeRange * 460 / 402).Within(0.001));
+        Assert.That(
+            OsuManiaScrollSpeed.ComputeScrollTime(34, 500),
+            Is.EqualTo(baseTimeRange * 480 / 402).Within(0.001));
+    }
 }

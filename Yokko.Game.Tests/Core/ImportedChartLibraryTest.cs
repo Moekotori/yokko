@@ -57,6 +57,8 @@ public sealed class ImportedChartLibraryTest
 
         Assert.That(library.GetCharts(), Has.Count.EqualTo(2));
         Assert.That(library.GetCharts().Select(chart => chart.Id), Is.Unique);
+        Assert.That(library.GetCharts().Select(chart => chart.PackageName), Is.All.EqualTo("pack"));
+        Assert.That(library.GetCharts().Select(chart => chart.IsPackage), Is.All.True);
         Assert.That(refreshCount, Is.EqualTo(1));
     }
 

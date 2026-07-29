@@ -31,6 +31,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     public void TestSongSelectInteractions()
     {
         AddAssert("song select is current", () => screenStack.CurrentScreen is SongSelectScreen);
+        AddStep("start with empty library", importedChartLibrary.Clear);
+        AddUntilStep("library is empty", () => songSelectScreen.VisibleEntryCount == 0);
         AddAssert("no built-in demo songs", () => songSelectScreen.VisibleEntryCount == 0);
         AddStep("import test charts", () => importedChartLibrary.AddOrReplace(
             [
@@ -70,6 +72,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     [Test]
     public void TestPlayPushesGameplay()
     {
+        AddStep("start with empty library", importedChartLibrary.Clear);
+        AddUntilStep("library is empty", () => songSelectScreen.VisibleEntryCount == 0);
         AddStep("ensure playable import", () => importedChartLibrary.AddOrReplace(
             result("Playable Import", DemoBeatmaps.CreateFourKeyDemo()),
             @"C:\Charts\playable.osu"));

@@ -160,8 +160,7 @@ public partial class GameplayScreen : Screen
                 beatmap,
                 keyBindings,
                 maniaSkin,
-                OsuManiaScrollSpeed.ComputeScrollTime(
-                    gameplaySettings.ScrollSpeed.Value),
+                computeApproachTime(gameplaySettings.ScrollSpeed.Value),
                 gameplaySettings.ShowLanePressFeedback.Value)
             {
                 Anchor = Anchor.BottomCentre,
@@ -223,7 +222,8 @@ public partial class GameplayScreen : Screen
         {
             AudioEngineStatus audioStatus = audioEngine.Status;
             hud.UpdateAudioStatus(audioStatus, activeRequestedBackend);
-            if (audioStatus.IsFaulted)
+            if (audioStatus.IsFaulted
+                || (!audioStatus.IsRunning && !introSkipInProgress))
             {
                 failAudioRuntime(audioStatus);
                 return;
@@ -825,9 +825,15 @@ public partial class GameplayScreen : Screen
     private void onScrollSpeedChanged(
         osu.Framework.Bindables.ValueChangedEvent<double> change)
     {
-        playfield.SetApproachTime(
-            OsuManiaScrollSpeed.ComputeScrollTime(change.NewValue));
+        playfield.SetApproachTime(computeApproachTime(change.NewValue));
     }
+
+    private double computeApproachTime(double scrollSpeed) =>
+        maniaSkin == null
+            ? OsuManiaScrollSpeed.ComputeScrollTime(scrollSpeed)
+            : OsuManiaScrollSpeed.ComputeScrollTime(
+                scrollSpeed,
+                maniaSkin.Configuration.HitPosition);
 
     internal bool HandleScrollSpeedShortcut(
         Key key,

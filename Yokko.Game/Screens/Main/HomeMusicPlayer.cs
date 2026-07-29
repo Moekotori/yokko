@@ -60,6 +60,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
     private SpriteText titleText;
     private SpriteText artistText;
     private SpriteText bpmText;
+    private SpriteText timeText;
     private Circle pulseDot;
     private Box progressFill;
     private PlayerButton playPauseButton;
@@ -121,6 +122,21 @@ public partial class HomeMusicPlayer : CompositeDrawable
                             Width = 0,
                             Colour = HomeControlColours.Pink,
                         },
+                    },
+                    new SeekBar(seekTo)
+                    {
+                        Anchor = Anchor.BottomLeft,
+                        Origin = Anchor.BottomLeft,
+                        Position = new Vector2(12, -7),
+                        Size = new Vector2(428, 12),
+                    },
+                    timeText = new SpriteText
+                    {
+                        Anchor = Anchor.BottomRight,
+                        Origin = Anchor.BottomRight,
+                        Position = new Vector2(-14, -11),
+                        Font = HomeTypography.Body(10),
+                        Colour = new Color4(0.18f, 0.28f, 0.58f, 0.55f),
                     },
                 },
             },
@@ -245,6 +261,37 @@ public partial class HomeMusicPlayer : CompositeDrawable
         audioEngine?.Status.IsRunning == true
             ? audioEngine.PlaybackTimeMilliseconds
             : pausedProgress;
+
+    internal void TogglePlayPause() => togglePlayPause();
+
+    internal void NextTrack() => nextTrack();
+
+    internal void PreviousTrack() => previousTrack();
+
+    /// <summary>
+    /// 点击进度条跳转。暂停中只更新位置，播放中立即 Seek。
+    /// </summary>
+    private void seekTo(double ratio)
+    {
+        if (tracks.Count == 0 || currentLength <= 0)
+            return;
+
+        double target = Math.Clamp(ratio, 0, 0.999) * currentLength;
+        pausedProgress = target;
+        progressFill.Width = (float)(target / currentLength);
+
+        if (audioEngine?.Status.IsRunning != true)
+            return;
+
+        int generation = playbackGeneration;
+        enqueueAudioOperation(async () =>
+        {
+            if (generation != playbackGeneration)
+                return;
+
+            await audioEngine.SeekAsync(target).ConfigureAwait(false);
+        }, generation);
+    }
 
     private void togglePlayPause()
     {
@@ -546,11 +593,21 @@ public partial class HomeMusicPlayer : CompositeDrawable
             ? 0
             : (float)Math.Clamp(currentProgress / currentLength, 0, 1);
 
+        timeText.Text = tracks.Count == 0 || currentLength <= 0
+            ? string.Empty
+            : $"{formatTime(currentProgress)} / {formatTime(currentLength)}";
+
         // BPM 圆点平缓呼吸，暂停时定格。
         pulseDot.Alpha = screenActive
                          && audioEngine?.Status.IsRunning == true
             ? 0.55f + 0.45f * MathF.Abs(MathF.Sin((float)(Time.Current / 1200 * Math.PI)))
             : 0.35f;
+    }
+
+    private static string formatTime(double milliseconds)
+    {
+        var time = TimeSpan.FromMilliseconds(milliseconds);
+        return $"{(int)time.TotalMinutes}:{time.Seconds:00}";
     }
 
     protected override void Dispose(bool isDisposing)
@@ -583,6 +640,25 @@ public partial class HomeMusicPlayer : CompositeDrawable
 
         if (audioEngine != null)
             await audioEngine.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 覆盖在进度条上的隐形点击区，把点击位置换算成跳转比例。
+    /// </summary>
+    private partial class SeekBar : ClickableContainer
+    {
+        private readonly Action<double> seek;
+
+        public SeekBar(Action<double> seek)
+        {
+            this.seek = seek;
+        }
+
+        protected override bool OnMouseDown(MouseDownEvent e)
+        {
+            seek(ToLocalSpace(e.ScreenSpaceMousePosition).X / DrawWidth);
+            return true;
+        }
     }
 
     /// <summary>

@@ -14,6 +14,9 @@ internal static class OsuManiaScrollSpeed
     public const double ShortcutStep = 1;
 
     private const double maximumTimeRangeMilliseconds = 11485;
+    private const double defaultLegacyHitPosition = 402;
+    private const double minimumLegacyHitPosition = 240;
+    private const double maximumLegacyHitPosition = 480;
 
     /// <remarks>
     /// Matches ppy/osu's ManiaRulesetConfigManager and DrawableManiaRuleset at
@@ -21,6 +24,21 @@ internal static class OsuManiaScrollSpeed
     /// </remarks>
     public static double ComputeScrollTime(double scrollSpeed) =>
         maximumTimeRangeMilliseconds / Clamp(scrollSpeed);
+
+    /// <summary>
+    /// Computes the effective time range for a legacy osu!mania skin.
+    /// Scaling with HitPosition keeps the visible scroll velocity stable when
+    /// a skin moves the receptor away from its default position.
+    /// </summary>
+    public static double ComputeScrollTime(
+        double scrollSpeed,
+        double legacyHitPosition) =>
+        ComputeScrollTime(scrollSpeed)
+        * Math.Clamp(
+            legacyHitPosition,
+            minimumLegacyHitPosition,
+            maximumLegacyHitPosition)
+        / defaultLegacyHitPosition;
 
     public static double Clamp(double scrollSpeed) =>
         Math.Clamp(

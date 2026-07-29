@@ -645,6 +645,36 @@ HitPosition: 400
         }
 
         [Test]
+        public void TestLegacySkinHitPositionAdjustsTimeRange()
+        {
+            double originalSpeed = OsuManiaScrollSpeed.Default;
+            const double testSpeed = 34;
+
+            AddStep("open HitPosition 460 skin", () =>
+            {
+                originalSpeed = gameplaySettings.ScrollSpeed.Value;
+                gameplaySettings.SetScrollSpeed(testSpeed);
+                screenStack.Push(new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: createTestSkin("HitPosition: 460")));
+            });
+            AddUntilStep("osu skin time range applied", () =>
+            {
+                GameplayPlayfield playfield = (screenStack.CurrentScreen as Drawable)?
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .SingleOrDefault();
+                return playfield != null
+                       && Math.Abs(
+                           playfield.ApproachTimeMilliseconds
+                           - OsuManiaScrollSpeed.ComputeScrollTime(
+                               testSpeed,
+                               460)) < 0.001;
+            });
+            AddStep("restore scroll speed", () =>
+                gameplaySettings.SetScrollSpeed(originalSpeed));
+        }
+
+        [Test]
         public void TestOsuManiaScrollSpeedShortcuts()
         {
             double originalSpeed = OsuManiaScrollSpeed.Default;

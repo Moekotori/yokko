@@ -40,6 +40,8 @@ public partial class SongSelectScreen : Screen
     private readonly Dictionary<string, SongSelectEntry> importedEntries =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<SongSelectSongRow> rows = new();
+    private readonly HashSet<string> collapsedPackages =
+        new(StringComparer.OrdinalIgnoreCase);
 
     private TextureStore textures;
     private TextureStore chartArtworkTextures;
@@ -57,6 +59,7 @@ public partial class SongSelectScreen : Screen
     private SongSelectSearchBox searchBox;
 
     private List<SongSelectEntry> visibleEntries;
+    private List<SongSelectEntry> navigableEntries = [];
     private SongSelectEntry selectedEntry;
     private KeyMode? keyModeFilter;
     private string searchQuery = string.Empty;
@@ -70,9 +73,24 @@ public partial class SongSelectScreen : Screen
 
     internal SongSelectEntry SelectedEntry => selectedEntry;
     internal int VisibleEntryCount => visibleEntries?.Count ?? 0;
+    internal int VisibleRowCount => navigableEntries.Count;
     internal KeyMode? KeyModeFilter => keyModeFilter;
     internal string SearchQuery => searchQuery;
     internal SongSelectScoreView ScoreView => scoreView;
+
+    internal bool IsPackageCollapsed(string packageId) =>
+        collapsedPackages.Contains(packageId);
+
+    internal void TogglePackage(string packageId)
+    {
+        if (string.IsNullOrWhiteSpace(packageId))
+            return;
+
+        if (!collapsedPackages.Add(packageId))
+            collapsedPackages.Remove(packageId);
+
+        applyFilters();
+    }
 
     [BackgroundDependencyLoader]
     private void load(TextureStore textureStore)
@@ -762,31 +780,70 @@ public partial class SongSelectScreen : Screen
 
         songList.Clear();
         rows.Clear();
+        navigableEntries = [];
+        int drawableIndex = 0;
 
-        for (int index = 0; index < visibleEntries.Count; index++)
+        foreach (IGrouping<string, SongSelectEntry> group in visibleEntries.GroupBy(
+                     entry => entry.PackageId,
+                     StringComparer.OrdinalIgnoreCase))
         {
-            SongSelectEntry entry = visibleEntries[index];
-            SongSelectSongRow row = null;
-            row = new SongSelectSongRow(
-                entry,
-                textureFor(entry),
-                () => select(entry),
-                () =>
-                {
-                    select(entry);
-                    PlaySelected();
-                });
-            row.SetSelected(entry == selectedEntry);
-            row.Alpha = 0;
-            row.X = 24;
-            rows.Add(row);
-            songList.Add(row);
+            SongSelectEntry first = group.First();
+            SongSelectEntry[] groupEntries = group.ToArray();
+            bool collapsed = first.IsPackage
+                             && collapsedPackages.Contains(first.PackageId)
+                             && string.IsNullOrWhiteSpace(searchQuery);
 
-            double delay = Math.Min(index, max_staggered_rows) * list_refresh_stagger;
-            float targetX = entry == selectedEntry ? -30 : 0;
-            row.Delay(delay)
-               .FadeIn(170, Easing.OutQuint)
-               .MoveToX(targetX, 240, Easing.OutQuint);
+            if (first.IsPackage)
+            {
+                int songCount = groupEntries
+                                .Select(entry =>
+                                    $"{entry.Beatmap.Artist}\u001f{entry.Beatmap.Title}")
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .Count();
+                var header = new SongSelectPackageHeader(
+                    first.PackageName,
+                    songCount,
+                    groupEntries.Length,
+                    collapsed,
+                    () => TogglePackage(first.PackageId))
+                {
+                    Alpha = 0,
+                    X = 12,
+                };
+                songList.Add(header);
+                header.Delay(Math.Min(drawableIndex++, max_staggered_rows) * list_refresh_stagger)
+                      .FadeIn(150, Easing.OutQuint)
+                      .MoveToX(0, 210, Easing.OutQuint);
+            }
+
+            if (collapsed)
+                continue;
+
+            foreach (SongSelectEntry entry in groupEntries)
+            {
+                SongSelectSongRow row = new(
+                    entry,
+                    textureFor(entry),
+                    () => select(entry),
+                    () =>
+                    {
+                        select(entry);
+                        PlaySelected();
+                    });
+                row.SetSelected(entry == selectedEntry);
+                row.Alpha = 0;
+                row.X = 24;
+                rows.Add(row);
+                navigableEntries.Add(entry);
+                songList.Add(row);
+
+                double delay = Math.Min(drawableIndex++, max_staggered_rows)
+                               * list_refresh_stagger;
+                float targetX = entry == selectedEntry ? -30 : 0;
+                row.Delay(delay)
+                   .FadeIn(170, Easing.OutQuint)
+                   .MoveToX(targetX, 240, Easing.OutQuint);
+            }
         }
 
         noResults.FadeTo(visibleEntries.Count == 0 ? 1 : 0, 140, Easing.OutQuint);
@@ -803,24 +860,25 @@ public partial class SongSelectScreen : Screen
              entry.Beatmap.DifficultyName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)))
                                 .ToList();
 
-        if (visibleEntries.Count > 0 && !visibleEntries.Contains(selectedEntry))
-            select(visibleEntries[0], rebuildList: false);
-
         rebuildSongList();
+
+        if (navigableEntries.Count > 0
+            && !navigableEntries.Contains(selectedEntry))
+            select(navigableEntries[0]);
     }
 
     private void selectOffset(int direction)
     {
-        if (visibleEntries.Count == 0)
+        if (navigableEntries.Count == 0)
             return;
 
-        int index = visibleEntries.IndexOf(selectedEntry);
+        int index = navigableEntries.IndexOf(selectedEntry);
         if (index < 0)
             index = 0;
         else
-            index = (index + direction + visibleEntries.Count) % visibleEntries.Count;
+            index = (index + direction + navigableEntries.Count) % navigableEntries.Count;
 
-        select(visibleEntries[index]);
+        select(navigableEntries[index]);
     }
 
     private void select(SongSelectEntry entry, bool rebuildList = true)
@@ -1008,7 +1066,10 @@ public partial class SongSelectScreen : Screen
             bpm,
             0,
             0,
-            []);
+            [],
+            imported.PackageId,
+            imported.PackageName,
+            imported.IsPackage);
     }
 
 }

@@ -408,6 +408,92 @@ internal partial class SongSelectSongRow : ClickableContainer
     }
 }
 
+internal partial class SongSelectPackageHeader : ClickableContainer
+{
+    private readonly SpriteIcon chevron;
+
+    public SongSelectPackageHeader(
+        string packageName,
+        int songCount,
+        int chartCount,
+        bool collapsed,
+        Action toggle)
+    {
+        Action = toggle;
+        Size = new Vector2(585, 42);
+        Masking = true;
+        CornerRadius = 3;
+        BorderThickness = 1;
+        BorderColour = new Color4(
+            SongSelectTheme.Cyan.R,
+            SongSelectTheme.Cyan.G,
+            SongSelectTheme.Cyan.B,
+            0.72f);
+
+        InternalChildren = new Drawable[]
+        {
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = new Color4(
+                    SongSelectTheme.DeepNavy.R,
+                    SongSelectTheme.DeepNavy.G,
+                    SongSelectTheme.DeepNavy.B,
+                    0.9f),
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 13,
+                Size = new Vector2(15),
+                Icon = FontAwesome.Solid.LayerGroup,
+                Colour = SongSelectTheme.Yellow,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 40,
+                Width = 350,
+                Truncate = true,
+                Text = packageName,
+                Font = HomeTypography.Display(17),
+                Colour = SongSelectTheme.Ivory,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -40,
+                Text = $"{songCount} SONG{(songCount == 1 ? string.Empty : "S")} · {chartCount} CHART{(chartCount == 1 ? string.Empty : "S")}",
+                Font = HomeTypography.Display(10),
+                Colour = SongSelectTheme.PaleCyan,
+            },
+            chevron = new SpriteIcon
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.Centre,
+                X = -17,
+                Size = new Vector2(13),
+                Icon = FontAwesome.Solid.ChevronDown,
+                Colour = SongSelectTheme.Cyan,
+            },
+        };
+
+        chevron.Rotation = collapsed ? -90 : 0;
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        this.FadeColour(new Color4(1f, 1f, 1f, 0.86f), 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e) =>
+        this.FadeColour(Color4.White, 100, Easing.OutQuint);
+}
+
 internal partial class SongSelectRankingPanel : CompositeDrawable
 {
     private readonly Container content;

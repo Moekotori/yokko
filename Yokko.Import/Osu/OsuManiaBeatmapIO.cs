@@ -73,8 +73,8 @@ public static class OsuManiaBeatmapIO
                 5);
 
         return new YokkoBeatmap(
-            metadata.GetValueOrDefault("Title", "Untitled"),
-            metadata.GetValueOrDefault("Artist", "Unknown Artist"),
+            preferredMetadataValue(metadata, "TitleUnicode", "Title", "Untitled"),
+            preferredMetadataValue(metadata, "ArtistUnicode", "Artist", "Unknown Artist"),
             metadata.GetValueOrDefault("Creator", "Unknown Creator"),
             metadata.GetValueOrDefault("Version", $"{keyCount}K"),
             keyMode,
@@ -85,6 +85,20 @@ public static class OsuManiaBeatmapIO
             overallDifficulty,
             scrollVelocity.Changes,
             scrollVelocity.InitialMultiplier);
+    }
+
+    private static string preferredMetadataValue(
+        IReadOnlyDictionary<string, string> metadata,
+        string preferredKey,
+        string fallbackKey,
+        string fallback)
+    {
+        string? preferred = metadata.GetValueOrDefault(preferredKey);
+        if (!string.IsNullOrWhiteSpace(preferred))
+            return preferred;
+
+        string? value = metadata.GetValueOrDefault(fallbackKey);
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
     }
 
     public static void WriteEditableToFile(EditableBeatmap beatmap, string path)

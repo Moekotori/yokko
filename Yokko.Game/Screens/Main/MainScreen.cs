@@ -27,7 +27,7 @@ public partial class MainScreen : Screen
 {
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
-    private const double exitHoldDuration = 5000;
+    private const double exitHoldDuration = 3000;
 
     private static readonly Color4 ivory = new(0.992f, 0.992f, 0.988f, 1f);
     private static readonly Color4 cyan = new(0.29f, 0.81f, 0.94f, 1f);
@@ -265,6 +265,22 @@ public partial class MainScreen : Screen
     {
         if (e.Key != Key.Escape)
         {
+            // 播放器键盘控制：P 播放/暂停，← → 切歌。
+            switch (e.Key)
+            {
+                case Key.P:
+                    musicPlayer.TogglePlayPause();
+                    return true;
+
+                case Key.Right:
+                    musicPlayer.NextTrack();
+                    return true;
+
+                case Key.Left:
+                    musicPlayer.PreviousTrack();
+                    return true;
+            }
+
             // 页脚键帽与真实键盘联动。
             if (!e.Repeat && keycapByKey.TryGetValue(e.Key, out HomeKeycap keycap))
                 keycap.SetPressed(true);

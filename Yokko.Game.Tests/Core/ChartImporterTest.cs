@@ -75,6 +75,48 @@ CircleSize:4
         }
 
         [Test]
+        public void OsuMetadataPrefersUnicodeSongTitleOverPackageFileName()
+        {
+            string archivePath = createArchivePath("This Is Only The Package Name", ".osz");
+
+            using (ZipArchive archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            {
+                writeEntry(archive, "chart.osu", """
+osu file format v14
+
+[General]
+Mode: 3
+
+[Metadata]
+Title:Romanised Song
+TitleUnicode:真正的歌曲名
+Artist:Romanised Artist
+ArtistUnicode:真正的歌手
+Creator:Mapper
+Version:4K
+
+[Difficulty]
+CircleSize:4
+
+[TimingPoints]
+0,500,4,2,0,100,1,0
+
+[HitObjects]
+64,192,500,1,0,0:0:0:0:
+""");
+            }
+
+            ChartImportResult result = import(archivePath);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Beatmap.Title, Is.EqualTo("真正的歌曲名"));
+                Assert.That(result.Beatmap.Artist, Is.EqualTo("真正的歌手"));
+                Assert.That(result.Beatmap.Title, Is.Not.EqualTo(Path.GetFileNameWithoutExtension(archivePath)));
+            });
+        }
+
+        [Test]
         public void OsuPackageSkipsUnsupportedChartsAndImportsCompatibleManiaChart()
         {
             string archivePath = createArchivePath("mixed-osu", ".osz");

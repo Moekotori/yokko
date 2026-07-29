@@ -17,7 +17,10 @@ internal sealed record ImportedChart(
     string SourcePath,
     ChartImportResult Result,
     string ArtworkPath,
-    double? StarRating);
+    double? StarRating,
+    string PackageId,
+    string PackageName,
+    bool IsPackage);
 
 /// <summary>
 /// Owns Yokko's persistent beatmap resource directory and notifies views which
@@ -51,6 +54,14 @@ internal sealed class ImportedChartLibrary
     {
         lock (syncRoot)
             return charts.ToArray();
+    }
+
+    internal void Clear()
+    {
+        lock (syncRoot)
+            charts.Clear();
+
+        LibraryChanged?.Invoke();
     }
 
     public ImportedChart FindBySourceHash(string sourceHash)
@@ -237,24 +248,41 @@ internal sealed class ImportedChartLibrary
 
     private ImportedChart[] createImportedCharts(
         IReadOnlyList<ChartImportResult> results,
-        string sourcePath) =>
-        results.Select((result, index) =>
-               {
-                   double? starRating =
-                       ManiaStarRatingCalculator.TryCalculate(
-                           result.Beatmap,
-                           out double calculated)
-                           ? calculated
-                           : null;
+        string sourcePath)
+    {
+        string packageName = Path.GetFileNameWithoutExtension(sourcePath);
+        bool isPackage = results.Count > 1 || isPackageExtension(sourcePath);
 
-                   return new ImportedChart(
-                       $"{sourcePath}\u001f{index}",
-                       sourcePath,
-                       result,
-                       resolveArtworkPath(result, sourcePath),
-                       starRating);
-               })
-               .ToArray();
+        return results.Select((result, index) =>
+                      {
+                          double? starRating =
+                              ManiaStarRatingCalculator.TryCalculate(
+                                  result.Beatmap,
+                                  out double calculated)
+                                  ? calculated
+                                  : null;
+
+                          return new ImportedChart(
+                              $"{sourcePath}\u001f{index}",
+                              sourcePath,
+                              result,
+                              resolveArtworkPath(result, sourcePath),
+                              starRating,
+                              sourcePath,
+                              packageName,
+                              isPackage);
+                      })
+                      .ToArray();
+    }
+
+    private static bool isPackageExtension(string path)
+    {
+        string extension = Path.GetExtension(path);
+        return extension.Equals(".osz", StringComparison.OrdinalIgnoreCase)
+               || extension.Equals(".mcz", StringComparison.OrdinalIgnoreCase)
+               || extension.Equals(".zip", StringComparison.OrdinalIgnoreCase)
+               || extension.Equals(".smzip", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string resolveArtworkPath(
         ChartImportResult result,
