@@ -116,7 +116,9 @@ public sealed class YokkoGameplaySettings
 
     public readonly BindableBool ShowLanePressFeedback = new(true);
 
-    public readonly BindableBool KeysoundsEnabled = new(true);
+    public readonly BindableBool ShowTimingBar = new(true);
+
+    public readonly BindableBool KeysoundsEnabled = new(false);
 
     public readonly BindableBool PauseWhenUnfocused = new(true);
 

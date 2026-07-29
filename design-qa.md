@@ -1,3 +1,154 @@
+# Pause overlay dynamic-content verification (2026-07-29, QA5)
+
+## Evidence
+
+- User-reported source state:
+  `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-4de8f446-73e4-4c16-91fd-bffef68720a6.png`
+- Source normalized from 2048 x 1152 to 1366 x 768:
+  `D:\YOKKO\.artifacts\pause-ui-qa5\before-user-1366x768.png`
+- Revised implementation, matching Comfortable 90% state:
+  `D:\YOKKO\.artifacts\pause-ui-qa5\comfortable-start.png`
+- Scrolled-title state:
+  `D:\YOKKO\.artifacts\pause-ui-qa5\comfortable-scrolled.png`
+- Full-view comparison, reported state left / revised state right:
+  `D:\YOKKO\.artifacts\pause-ui-qa5\matched-before-left-after-right.png`
+- Focused comparisons, reported state left / revised state right:
+  - Song header:
+    `D:\YOKKO\.artifacts\pause-ui-qa5\focused-header-before-left-after-right.png`
+  - Accuracy, rank, score, and combo:
+    `D:\YOKKO\.artifacts\pause-ui-qa5\focused-metrics-before-left-after-right.png`
+- Responsive captures:
+  - Large:
+    `D:\YOKKO\.artifacts\pause-ui-qa5\large-final.png`
+  - Comfortable:
+    `D:\YOKKO\.artifacts\pause-ui-qa5\comfortable-start.png`
+  - Compact:
+    `D:\YOKKO\.artifacts\pause-ui-qa5\compact-final.png`
+
+## Viewport and state
+
+- Source pixels: 2048 x 1152.
+- Implementation pixels: 1366 x 768.
+- Density normalization: source downsampled to 1366 x 768 before comparison.
+- UI scale: Comfortable 90%, matching the user's captured sheet bounds.
+- Song: Eternal Ending (aran Remix) / Kobaryo / 4K / AT /
+  00:05 of 04:28.
+- Performance: 100.00%, rank SS, score 11,342, combo 41 / 41,
+  judgments 41 / 0 / 0 / 0 / 0 / 0.
+
+## Comparison history
+
+1. Reported state
+   - P1: the fixed percentage position overlapped the final accuracy digits.
+   - P1: the two-letter rank overflowed the circular rank stamp.
+   - P2: the fixed combo suffix position overlapped a two-digit combo.
+   - P2: the truncated song title ended too close to the mode block and could
+     not reveal the full title.
+2. Fixes
+   - Accuracy and combo now use content-sized horizontal flows.
+   - Rank typography scales for one-, two-, and longer rank strings.
+   - The title uses a 235-unit masked lane with a ping-pong marquee and a
+     larger protected gap before the mode block.
+3. Post-fix evidence
+   - `100.00 %`, `SS`, and `41 / 41` remain fully legible with no collisions.
+   - The two title captures show the same text at different horizontal
+     positions, confirming that the full title scrolls through the lane.
+   - Large, Comfortable, and Compact preserve all controls and data.
+
+## Required fidelity surfaces
+
+- Fonts and typography: production Yokko fonts retained; dynamic values scale
+  without changing their visual hierarchy.
+- Spacing and layout rhythm: the title lane and mode block have a protected
+  gap; score, combo, and rank remain aligned to the existing grid.
+- Colors and tokens: existing navy, cyan, ivory, and judgment colors retained.
+- Image quality and assets: existing logo, mascot, music icon, and decorative
+  assets are unchanged and remain sharp.
+- Copy and content: the full song title is preserved by scrolling instead of
+  destructive truncation.
+
+## Verification
+
+- Build: passed with 0 warnings and 0 errors.
+- Focused pause/resume test:
+  `TestPauseOverlayStopsAndResumesAudio`
+  - Passed: 1 / 1.
+
+## Findings
+
+- No remaining actionable P0, P1, or P2 findings.
+
+final result: passed
+
+# Pause overlay true-target verification (2026-07-29, QA4)
+
+## Evidence
+
+- Authoritative source:
+  `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-d7e0b945-f981-4006-b3da-e8c84920934b.png`
+- Source normalized to the native 16:9 capture:
+  `D:\YOKKO\.artifacts\pause-ui-qa4\target-1366x768.png`
+- Verified native implementation:
+  `D:\YOKKO\.artifacts\pause-ui-qa4\verified-large.png`
+- Same-state comparison, source left / implementation right:
+  `D:\YOKKO\.artifacts\pause-ui-qa4\verified-comparison-source-left.png`
+- Long-title regression capture:
+  `D:\YOKKO\.artifacts\pause-ui-qa4\verified-long-title.png`
+- Responsive captures:
+  - Large 100%:
+    `D:\YOKKO\.artifacts\pause-ui-qa4\verified-large.png`
+  - Comfortable 90%:
+    `D:\YOKKO\.artifacts\pause-ui-qa4\verified-comfortable.png`
+  - Compact 80%:
+    `D:\YOKKO\.artifacts\pause-ui-qa4\verified-compact.png`
+
+## Viewport and state
+
+- Source pixels: 1672 x 941.
+- Native implementation pixels: 1366 x 768.
+- Authored logical viewport: 1600 x 900.
+- UI scale used for source matching: Large 100%.
+- Locale: Chinese.
+- Song state: Labyrinth / :Spiral_Eyes: / 4K / NM /
+  02:14 of 03:48.
+- Performance state: 97.18%, rank S, score 1,071,630,
+  combo 3 / 414, judgments 287 / 18 / 2 / 0 / 0 / 2.
+- Interaction state: paused, resume selected, no pointer hover.
+
+## Findings and fixes
+
+1. QA3 superseded
+   - QA3 used a different visual as its source of truth. It is retained only
+     as historical evidence and must not be used to judge this implementation.
+2. True-target geometry
+   - Restored the full-size report-sheet composition, large performance
+     numerals, split-colour combo, judgment ledger, tall YOKKO wordmark, and
+     the large lower-right mascot.
+   - Matched the primary action, secondary action row, angled divider,
+     song header, progress rule, footer barcode, dotted fields, rank stamp,
+     and mascot bubble against the normalized source.
+3. Runtime detail regressions
+   - Long song titles now truncate inside a fixed title lane and cannot cover
+     the mode, timer, or progress region.
+   - The angled divider is rendered behind the action cards, so it cannot cut
+     through the exit control or its border.
+4. Responsive result
+   - P0/P1/P2: pass. No clipping, overlap, unreadable text, or unreachable
+     controls in Large, Comfortable, or Compact.
+   - P3: the runtime rank glyph uses Yokko's production font and a subtle
+     dotted distress treatment; raster texture differs slightly from the
+     painted mockup but preserves its weight and hierarchy.
+
+## Functional verification
+
+- `dotnet build Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-restore
+  --artifacts-path D:\YOKKO\.artifacts\pause-ui-build`
+  - Passed with 0 warnings and 0 errors.
+- `dotnet test Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-restore
+  --artifacts-path D:\YOKKO\.artifacts\pause-ui-test
+  --filter FullyQualifiedName~TestPauseOverlayStopsAndResumesAudio`
+  - Passed: 1 / 1.
+
 # Pause overlay pixel-fidelity recheck (2026-07-29, QA3)
 
 ## Evidence

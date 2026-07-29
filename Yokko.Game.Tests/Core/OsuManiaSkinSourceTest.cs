@@ -161,6 +161,31 @@ public sealed class OsuManiaSkinSourceTest
         Assert.That(info.Width / (double)info.Height, Is.EqualTo(0.1).Within(0.02));
     }
 
+    [Test]
+    public void PreservesLongNoteBodyWidthWhenConstrainingHeight()
+    {
+        string directory = Path.GetDirectoryName(
+            createPath("hold-body.png"))!;
+        string texturePath = Path.Combine(directory, "hold-body.png");
+
+        using (var image = new Image<Rgba32>(10, 100))
+            image.Save(texturePath, new TiffEncoder());
+
+        using var store = new ConstrainedTextureResourceStore(
+            new OsuManiaSkinSource(directory),
+            64,
+            ["hold-body.png"]);
+
+        byte[] constrained = store.Get("HOLD-BODY.PNG");
+        ImageInfo info = Image.Identify(constrained);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(info.Width, Is.EqualTo(10));
+            Assert.That(info.Height, Is.EqualTo(64));
+        });
+    }
+
     private static string createPath(string name)
     {
         string directory = Path.Combine(

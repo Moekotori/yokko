@@ -134,6 +134,58 @@ public sealed class SongSelectPreviewPlayerTest
     }
 
     [Test]
+    public async Task RateChangeUpdatesPlayingPreviewInPlace()
+    {
+        string audioPath = createAudioPath();
+        var engine = new TrackingAudioEngine
+        {
+            DurationMilliseconds = 50000,
+        };
+
+        try
+        {
+            await using var player = new SongSelectPreviewPlayer(
+                engine,
+                new YokkoAudioSettings());
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                AudioPath = audioPath,
+            };
+
+            player.Play(beatmap, ManiaModSet.Empty);
+            await player.WaitForIdleAsync();
+            int seekCount = engine.Seeks.Count;
+
+            bool increased = player.TryUpdatePlaybackRate(
+                beatmap,
+                ManiaModSet.Empty.WithFixedRate(
+                    ManiaModId.DoubleTime,
+                    1.05));
+            bool restored = player.TryUpdatePlaybackRate(
+                beatmap,
+                ManiaModSet.Empty);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(increased, Is.True);
+                Assert.That(restored, Is.True);
+                Assert.That(engine.Starts, Has.Count.EqualTo(1));
+                Assert.That(engine.Seeks, Has.Count.EqualTo(seekCount));
+                Assert.That(
+                    engine.Starts[0].DynamicPlaybackRate,
+                    Is.True);
+                Assert.That(
+                    engine.RateChanges,
+                    Is.EqualTo(new[] { 1.05, 1 }));
+            });
+        }
+        finally
+        {
+            File.Delete(audioPath);
+        }
+    }
+
+    [Test]
     public async Task AudioChangingModRestartsPreviewWithMatchingPolicy()
     {
         string audioPath = createAudioPath();
@@ -190,7 +242,9 @@ public sealed class SongSelectPreviewPlayerTest
         return path;
     }
 
-    private sealed class TrackingAudioEngine : IAudioEngine
+    private sealed class TrackingAudioEngine :
+        IAudioEngine,
+        IAudioRateControl
     {
         private static readonly AudioEngineStatus stoppedStatus = new(
             AudioBackendKind.SharedWasapi,
@@ -213,6 +267,9 @@ public sealed class SongSelectPreviewPlayerTest
 
         public readonly List<AudioEngineStartRequest> Starts = [];
         public readonly List<double> Seeks = [];
+        public readonly List<double> RateChanges = [];
+
+        private AudioEngineStartRequest activeRequest;
 
         public AudioEngineStatus Status { get; private set; } =
             stoppedStatus;
@@ -220,6 +277,8 @@ public sealed class SongSelectPreviewPlayerTest
         public double PlaybackTimeMilliseconds { get; private set; }
 
         public double DurationMilliseconds { get; init; }
+
+        public double PlaybackRate { get; private set; } = 1;
 
         public IReadOnlyList<AudioBackendCapabilities> Backends => [];
 
@@ -242,9 +301,20 @@ public sealed class SongSelectPreviewPlayerTest
         {
             cancellationToken.ThrowIfCancellationRequested();
             Starts.Add(request);
+            activeRequest = request;
+            PlaybackRate = request.PlaybackRate;
             PlaybackTimeMilliseconds = 0;
             Status = stoppedStatus with { IsRunning = true };
             return ValueTask.CompletedTask;
+        }
+
+        public void SetPlaybackRate(double playbackRate)
+        {
+            if (activeRequest?.DynamicPlaybackRate != true)
+                throw new InvalidOperationException();
+
+            PlaybackRate = playbackRate;
+            RateChanges.Add(playbackRate);
         }
 
         public ValueTask PauseAsync(

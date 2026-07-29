@@ -539,10 +539,11 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
         refreshSelection();
         testControl.SetPlaying(kind);
         bool failed = false;
+        AudioEngineStatus? testedStatus = null;
 
         try
         {
-            await testPlayer.PlayAsync(
+            testedStatus = await testPlayer.PlayAsync(
                 kind,
                 gameplaySettings.KeysoundsEnabled.Value,
                 deviceLoadCancellation.Token);
@@ -565,9 +566,27 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
         {
             testPlaying = false;
             testControl.SetIdle();
-            if (!failed)
+            if (!failed && testedStatus.HasValue)
+                showTestedStatus(testedStatus.Value);
+            else if (!failed)
                 refreshSelection();
         }
+    }
+
+    private void showTestedStatus(AudioEngineStatus tested)
+    {
+        int actualPeriod = tested.DevicePeriodFrames > 0
+            ? tested.DevicePeriodFrames
+            : tested.BufferSize;
+        statusTitle.Text = YokkoStrings.Get(
+            "settings.audio.test_verified");
+        statusMetadata.Text = YokkoStrings.Get(
+            "settings.audio.test_result",
+            backendName(tested.ActiveBackend),
+            settings.PreferredBufferSize.Value,
+            tested.BufferSize,
+            actualPeriod,
+            tested.EstimatedOutputLatencyMilliseconds);
     }
 
     private void refreshSelection()

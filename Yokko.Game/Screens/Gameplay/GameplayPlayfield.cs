@@ -48,6 +48,25 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     internal float JudgementPosition => judgementY;
 
+    internal bool ReceptorAtBottom => receptorAtBottom;
+
+    internal float ReceptorPlayAreaEdge
+    {
+        get
+        {
+            float visualHeight = laneColumns.Length == 0
+                ? 0
+                : laneColumns.Max(column =>
+                    column.ReceptorVisualHeight);
+            if (visualHeight <= 0)
+                return judgementY;
+
+            return receptorAtBottom
+                ? Height - visualHeight
+                : visualHeight;
+        }
+    }
+
     internal double ApproachTimeMilliseconds => approachTimeMilliseconds;
 
     internal int VisibleNoteCount => visibleNoteIndices.Count;

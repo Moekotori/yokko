@@ -39,8 +39,10 @@ public sealed class AudioSettingsTestPlayerTest
                 directory,
                 static (_, _) => Task.CompletedTask);
 
-            await player.PlayAsync(AudioSettingsTestKind.Music, true);
-            await player.PlayAsync(AudioSettingsTestKind.HitSound, true);
+            AudioEngineStatus musicStatus =
+                await player.PlayAsync(AudioSettingsTestKind.Music, true);
+            AudioEngineStatus hitSoundStatus =
+                await player.PlayAsync(AudioSettingsTestKind.HitSound, true);
             await player.PlayCalibrationAsync(
                 () => calibrationStarted = true);
 
@@ -55,6 +57,7 @@ public sealed class AudioSettingsTestPlayerTest
                 Assert.That(
                     Path.GetFileName(engines[0].StartedPaths[0]),
                     Is.EqualTo("music-test.wav"));
+                Assert.That(musicStatus, Is.EqualTo(engines[0].Status));
 
                 Assert.That(engines[1].MusicVolume, Is.Zero);
                 Assert.That(
@@ -67,6 +70,7 @@ public sealed class AudioSettingsTestPlayerTest
                 Assert.That(
                     Path.GetFileName(engines[1].StartedPaths[0]),
                     Is.EqualTo("silence-test.wav"));
+                Assert.That(hitSoundStatus, Is.EqualTo(engines[1].Status));
 
                 Assert.That(calibrationStarted, Is.True);
                 Assert.That(
@@ -116,6 +120,35 @@ public sealed class AudioSettingsTestPlayerTest
                     AudioSettingsTestKind.HitSound,
                     false));
             await player.DisposeAsync();
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
+    public async Task InactiveFallbackCannotCountAsSuccessfulPlayback()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "inactive-audio-test-signals",
+            Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var settings = new YokkoAudioSettings();
+            await using var player = new AudioSettingsTestPlayer(
+                settings,
+                static () => new NullAudioEngine(),
+                directory,
+                static (_, _) => Task.CompletedTask);
+
+            Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await player.PlayAsync(
+                    AudioSettingsTestKind.Music,
+                    true));
         }
         finally
         {
@@ -175,7 +208,7 @@ public sealed class AudioSettingsTestPlayerTest
         public double HitSoundVolume { get; private set; } = 1;
         public double MetronomeVolume { get; private set; }
         public AudioEngineStatus Status { get; } = new(
-            AudioBackendKind.Fallback,
+            AudioBackendKind.SharedWasapi,
             null,
             48000,
             64,

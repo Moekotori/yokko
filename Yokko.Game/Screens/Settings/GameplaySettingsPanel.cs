@@ -82,6 +82,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal bool ShowLanePressFeedback =>
         settings.ShowLanePressFeedback.Value;
 
+    internal bool ShowTimingBar => settings.ShowTimingBar.Value;
+
     internal bool KeysoundsEnabled => settings.KeysoundsEnabled.Value;
 
     internal bool PauseWhenUnfocused =>
@@ -326,6 +328,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal void SetLanePressFeedback(bool enabled) =>
         settings.ShowLanePressFeedback.Value = enabled;
+
+    internal void SetShowTimingBar(bool enabled) =>
+        settings.ShowTimingBar.Value = enabled;
 
     internal void SetKeysoundsEnabled(bool enabled) =>
         settings.KeysoundsEnabled.Value = enabled;
@@ -841,6 +846,16 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                         FontAwesome.Solid.PauseCircle,
                         settings.PauseWhenUnfocused),
                 },
+            },
+            new GameplayInlineToggle(
+                YokkoStrings.Get(
+                    "settings.gameplay.show_timing_bar"),
+                YokkoStrings.Get(
+                    "settings.gameplay.show_timing_bar_note"),
+                settings.ShowTimingBar)
+            {
+                Position = new Vector2(20, 254),
+                Size = new Vector2(800, 30),
             },
         });
 
@@ -2056,6 +2071,127 @@ internal partial class GameplayStepperButton : ClickableContainer
     {
         base.OnFocusLost(e);
         focusLine.FadeOut(100, Easing.OutQuint);
+    }
+}
+
+internal partial class GameplayInlineToggle : ClickableContainer
+{
+    private readonly BindableBool value;
+    private readonly Box switchTrack;
+    private readonly Circle switchThumb;
+    private readonly SpriteText stateText;
+    private readonly SpriteText titleText;
+
+    public override bool AcceptsFocus => true;
+
+    public GameplayInlineToggle(
+        LocalisableString title,
+        LocalisableString note,
+        BindableBool value)
+    {
+        this.value = value;
+        Action = () => value.Value = !value.Value;
+
+        InternalChildren = new Drawable[]
+        {
+            titleText = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Text = title,
+                Font = HomeTypography.Display(15),
+                Colour = HomeControlColours.Navy,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 142,
+                Text = note,
+                Font = HomeTypography.Body(13),
+                Colour = SettingsTheme.MutedNavy,
+            },
+            new Container
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -82,
+                Size = new Vector2(48, 24),
+                Masking = true,
+                CornerRadius = 12,
+                Children = new Drawable[]
+                {
+                    switchTrack = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = SettingsTheme.Divider,
+                    },
+                    switchThumb = new Circle
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.Centre,
+                        X = 12,
+                        Size = new Vector2(18),
+                        Colour = Color4.White,
+                    },
+                },
+            },
+            stateText = new SpriteText
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                Font = HomeTypography.Display(13),
+                Colour = HomeControlColours.Navy,
+            },
+        };
+
+        value.BindValueChanged(onValueChanged, true);
+    }
+
+    private void onValueChanged(ValueChangedEvent<bool> change)
+    {
+        switchTrack.FadeColour(
+            change.NewValue ? HomeControlColours.Navy : SettingsTheme.Divider,
+            120,
+            Easing.OutQuint);
+        switchThumb.MoveToX(
+            change.NewValue ? 36 : 12,
+            120,
+            Easing.OutQuint);
+        stateText.Text = YokkoStrings.Get(change.NewValue
+            ? "settings.gameplay.enabled"
+            : "settings.gameplay.disabled");
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            TriggerClick();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        titleText.FadeColour(HomeControlColours.Pink, 100);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        titleText.FadeColour(HomeControlColours.Navy, 100);
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            value.ValueChanged -= onValueChanged;
+
+        base.Dispose(isDisposing);
     }
 }
 

@@ -25,12 +25,15 @@ public partial class LaneColumn : CompositeDrawable
     private readonly TextureAnimation[] hitExplosions = [];
     private readonly SpriteText keyLabel;
     private readonly float baseLaneWidth;
+    private readonly float baseReceptorVisualHeight;
     private readonly bool idleKeyFlipped;
     private readonly bool pressedKeyFlipped;
     private readonly bool showPressFeedback;
     private int nextHitExplosion;
 
     internal Container ReceptorLayer { get; }
+
+    internal float ReceptorVisualHeight { get; private set; }
 
     internal LaneColumn(
         int lane,
@@ -45,6 +48,7 @@ public partial class LaneColumn : CompositeDrawable
 
         if (skin == null)
         {
+            baseReceptorVisualHeight = 0;
             InternalChildren = new Drawable[]
             {
                 new Box
@@ -87,6 +91,12 @@ public partial class LaneColumn : CompositeDrawable
             480);
         Texture idleTexture = skin.GetTexture(configuration.KeyImages[lane]);
         Texture pressedTexture = skin.GetTexture(configuration.PressedKeyImages[lane]);
+        baseReceptorVisualHeight =
+            Math.Max(
+                idleTexture?.DisplayHeight ?? 0,
+                pressedTexture?.DisplayHeight ?? 0)
+            / OsuManiaSkinConfiguration.LegacyPositionScaleFactor;
+        ReceptorVisualHeight = baseReceptorVisualHeight;
         var backgroundChildren = new List<Drawable>
         {
             new Box
@@ -226,6 +236,7 @@ public partial class LaneColumn : CompositeDrawable
         value = System.Math.Max(0.01f, value);
         Width = baseLaneWidth * value;
         ReceptorLayer.Width = baseLaneWidth * value;
+        ReceptorVisualHeight = baseReceptorVisualHeight * value;
 
         if (idleKey != null)
         {

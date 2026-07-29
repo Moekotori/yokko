@@ -619,11 +619,13 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         this.FadeColour(Color4.White, 100, Easing.OutQuint);
 }
 
-internal partial class SongSelectRankingPanel : CompositeDrawable
+internal partial class SongSelectRankingPanel : ClickableContainer
 {
-    private const float panel_width = 400;
+    private const float panel_width = 440;
+    private const float content_height = 152;
 
     private readonly Container content;
+    private readonly Box selectorBackground;
     private readonly SpriteText selectorText;
     private readonly SpriteIcon selectorIcon;
     private readonly SongSelectEntry entry;
@@ -631,16 +633,18 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
     private SongSelectScoreView view;
 
     public SongSelectScoreView View => view;
+    internal Vector2 ContentSize => content.Size;
 
     public SongSelectRankingPanel(SongSelectEntry entry, TextureStore textures, Action<SongSelectScoreView> viewChanged)
     {
         this.entry = entry;
         this.textures = textures;
         Size = new Vector2(panel_width, 190);
+        Action = toggleView;
 
         InternalChildren = new Drawable[]
         {
-            new ClickableContainer
+            new Container
             {
                 Size = new Vector2(panel_width, 32),
                 Masking = true,
@@ -651,16 +655,9 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
                     SongSelectTheme.Cyan.G,
                     SongSelectTheme.Cyan.B,
                     0.24f),
-                Action = () =>
-                {
-                    SetView(view == SongSelectScoreView.GlobalRanking
-                        ? SongSelectScoreView.Personal
-                        : SongSelectScoreView.GlobalRanking);
-                    viewChanged(View);
-                },
                 Children = new Drawable[]
                 {
-                    new Box
+                    selectorBackground = new Box
                     {
                         RelativeSizeAxes = Axes.Both,
                         Colour = new Color4(
@@ -691,11 +688,19 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
             content = new Container
             {
                 Y = 38,
-                Size = new Vector2(panel_width, 152),
+                Size = new Vector2(panel_width, content_height),
             },
         };
 
         SetView(SongSelectScoreView.GlobalRanking, textures);
+
+        void toggleView()
+        {
+            SetView(view == SongSelectScoreView.GlobalRanking
+                ? SongSelectScoreView.Personal
+                : SongSelectScoreView.GlobalRanking);
+            viewChanged(View);
+        }
     }
 
     public void SetView(SongSelectScoreView newView, TextureStore textures = null)
@@ -766,7 +771,7 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
         {
             return new Container
             {
-                Size = new Vector2(panel_width, 58),
+                Size = new Vector2(panel_width, content_height),
                 Masking = true,
                 CornerRadius = 6,
                 BorderThickness = 1,
@@ -816,6 +821,11 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
             };
         }
 
+        int visibleScoreCount = Math.Min(entry.Ranking.Count, 5);
+        float rowHeight = MathF.Min(
+            52,
+            (content_height - visibleScoreCount + 1)
+            / visibleScoreCount);
         var flow = new FillFlowContainer
         {
             RelativeSizeAxes = Axes.X,
@@ -829,18 +839,47 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
             Texture avatar = score.IsCurrentPlayer
                 ? textures.Get("yokko").Crop(new RectangleF(270, 2200, 850, 850))
                 : textures.Get(score.AvatarTexture);
-            flow.Add(createRankingRow(score, avatar));
+            flow.Add(createRankingRow(score, avatar, rowHeight));
         }
 
-        return flow;
+        return new Container
+        {
+            Size = new Vector2(panel_width, content_height),
+            Masking = true,
+            CornerRadius = 6,
+            BorderThickness = 1,
+            BorderColour = new Color4(
+                SongSelectTheme.Cyan.R,
+                SongSelectTheme.Cyan.G,
+                SongSelectTheme.Cyan.B,
+                0.2f),
+            Children = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(
+                        SongSelectTheme.PaleCyan.R,
+                        SongSelectTheme.PaleCyan.G,
+                        SongSelectTheme.PaleCyan.B,
+                        0.34f),
+                },
+                flow,
+            },
+        };
     }
 
-    private static Drawable createRankingRow(SongSelectScore score, Texture avatar)
+    private static Drawable createRankingRow(
+        SongSelectScore score,
+        Texture avatar,
+        float rowHeight)
     {
+        bool spacious = rowHeight >= 40;
+        float avatarSize = spacious ? 34 : 22;
         Color4 accent = score.IsCurrentPlayer ? SongSelectTheme.Pink : score.Rank == 1 ? SongSelectTheme.Yellow : SongSelectTheme.Cyan;
         var row = new Container
         {
-            Size = new Vector2(panel_width, 29),
+            Size = new Vector2(panel_width, rowHeight),
             Masking = true,
             CornerRadius = 2,
             BorderThickness = score.IsCurrentPlayer ? 1 : 0,
@@ -862,7 +901,7 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
                     Origin = Anchor.CentreLeft,
                     X = 9,
                     Text = score.Rank.ToString(),
-                    Font = HomeTypography.Display(16),
+                    Font = HomeTypography.Display(spacious ? 18 : 16),
                     Colour = accent,
                 },
                 new Container
@@ -870,9 +909,9 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
                     X = 30,
-                    Size = new Vector2(22),
+                    Size = new Vector2(avatarSize),
                     Masking = true,
-                    CornerRadius = 11,
+                    CornerRadius = avatarSize / 2,
                     BorderThickness = 1,
                     BorderColour = accent,
                     Child = new Sprite
@@ -890,7 +929,7 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
                     Width = 78,
                     Truncate = true,
                     Text = score.PlayerName,
-                    Font = HomeTypography.Display(12),
+                    Font = HomeTypography.Display(spacious ? 14 : 12),
                     Colour = score.IsCurrentPlayer ? SongSelectTheme.Pink : SongSelectTheme.Navy,
                 },
                 new Container
@@ -898,7 +937,9 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
                     X = 143,
-                    Size = new Vector2(32, 22),
+                    Size = spacious
+                        ? new Vector2(38, 26)
+                        : new Vector2(32, 22),
                     Masking = true,
                     CornerRadius = 4,
                     BorderThickness = 1,
@@ -919,7 +960,7 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
                             Text = score.Grade.ToDisplayLabel(),
-                            Font = HomeTypography.Display(14),
+                            Font = HomeTypography.Display(spacious ? 16 : 14),
                             Colour = gradeColour(score.Grade),
                         },
                     },
@@ -929,9 +970,9 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
                     X = -54,
-                    Y = -3,
+                    Y = spacious ? -5 : -3,
                     Text = $"{score.Score:N0}",
-                    Font = HomeTypography.Display(12),
+                    Font = HomeTypography.Display(spacious ? 14 : 12),
                     Colour = SongSelectTheme.Navy,
                 },
                 new SpriteText
@@ -939,9 +980,9 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
                     X = -54,
-                    Y = 9,
+                    Y = spacious ? 10 : 9,
                     Text = $"{score.Accuracy:P2}",
-                    Font = HomeTypography.Display(9),
+                    Font = HomeTypography.Display(spacious ? 10 : 9),
                     Colour = SongSelectTheme.Cyan,
                 },
                 createMods(score.Mods),
@@ -963,6 +1004,31 @@ internal partial class SongSelectRankingPanel : CompositeDrawable
         }
 
         return row;
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        selectorBackground.FadeColour(
+            new Color4(
+                SongSelectTheme.PaleCyan.R,
+                SongSelectTheme.PaleCyan.G,
+                SongSelectTheme.PaleCyan.B,
+                0.88f),
+            90,
+            Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        selectorBackground.FadeColour(
+            new Color4(
+                SongSelectTheme.PaleCyan.R,
+                SongSelectTheme.PaleCyan.G,
+                SongSelectTheme.PaleCyan.B,
+                0.56f),
+            110,
+            Easing.OutQuint);
     }
 
     private static Drawable createMods(IReadOnlyList<string> mods)

@@ -318,6 +318,7 @@ namespace Yokko.Game.Tests.Visual
             GameplaySettingsPanel gameplay = null;
             double originalSpeed = OsuManiaScrollSpeed.Default;
             bool originalLaneFeedback = true;
+            bool originalTimingBar = true;
             bool originalKeysoundsEnabled = true;
             bool originalPauseWhenUnfocused = true;
 
@@ -327,6 +328,7 @@ namespace Yokko.Game.Tests.Visual
                 gameplay = (GameplaySettingsPanel)settingsScreen.ActivePanel;
                 originalSpeed = gameplay.CurrentScrollSpeed;
                 originalLaneFeedback = gameplay.ShowLanePressFeedback;
+                originalTimingBar = gameplay.ShowTimingBar;
                 originalKeysoundsEnabled = gameplay.KeysoundsEnabled;
                 originalPauseWhenUnfocused =
                     gameplay.PauseWhenUnfocused;
@@ -345,6 +347,10 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SetLanePressFeedback(false));
             AddAssert("feedback disabled", () =>
                 !gameplay.ShowLanePressFeedback);
+            AddStep("disable timing bar", () =>
+                gameplay.SetShowTimingBar(false));
+            AddAssert("timing bar disabled", () =>
+                !gameplay.ShowTimingBar);
             AddStep("disable gameplay keysounds", () =>
                 gameplay.SetKeysoundsEnabled(false));
             AddAssert("gameplay keysounds disabled", () =>
@@ -370,6 +376,7 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.ResetSelectedBindings();
                 gameplay.SetScrollSpeed(originalSpeed);
                 gameplay.SetLanePressFeedback(originalLaneFeedback);
+                gameplay.SetShowTimingBar(originalTimingBar);
                 gameplay.SetKeysoundsEnabled(originalKeysoundsEnabled);
                 gameplay.SetPauseWhenUnfocused(
                     originalPauseWhenUnfocused);

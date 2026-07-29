@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Textures;
 
@@ -38,14 +39,22 @@ internal sealed class OsuManiaSkin : IDisposable
         try
         {
             OsuManiaSkinInfo info = OsuManiaSkinIniDecoder.Decode(source.ReadSkinIni());
+            OsuManiaSkinConfiguration configuration = info.GetConfiguration(keys);
+            string[] holdBodyTextureNames = configuration.HoldBodyImages
+                                                         .Select(assetName =>
+                                                             source.ResolveTextureName(assetName).Name)
+                                                         .Where(name => name != null)
+                                                         .Distinct(StringComparer.OrdinalIgnoreCase)
+                                                         .ToArray();
             var constrainedSource = new ConstrainedTextureResourceStore(
                 source,
-                renderer.MaxTextureSize);
+                renderer.MaxTextureSize,
+                holdBodyTextureNames);
             var textureStore = new TextureStore(
                 renderer,
                 new TextureLoaderStore(constrainedSource),
                 scaleAdjust: 1);
-            return new OsuManiaSkin(path, info, info.GetConfiguration(keys), source, textureStore);
+            return new OsuManiaSkin(path, info, configuration, source, textureStore);
         }
         catch
         {

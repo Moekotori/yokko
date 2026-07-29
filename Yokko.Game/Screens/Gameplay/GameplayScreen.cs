@@ -115,6 +115,7 @@ public partial class GameplayScreen : Screen
     private GameplayPauseOverlay pauseOverlay;
     private GameplayFailOverlay failOverlay;
     private JudgementReadout judgementReadout;
+    private GameplayTimingBar timingBar;
     private GameplayScrollSpeedOverlay scrollSpeedOverlay;
     private GameplayPlaybackRateOverlay playbackRateOverlay;
     private double appliedScrollSpeed;
@@ -352,6 +353,13 @@ public partial class GameplayScreen : Screen
                 Position = new Vector2(0, 30),
                 Depth = -100,
             },
+            timingBar = new GameplayTimingBar(judgementState.Windows)
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.BottomCentre,
+                Depth = -101,
+                Alpha = gameplaySettings.ShowTimingBar.Value ? 1 : 0,
+            },
             scrollSpeedOverlay = new GameplayScrollSpeedOverlay
             {
                 Anchor = Anchor.TopLeft,
@@ -393,6 +401,7 @@ public partial class GameplayScreen : Screen
             playfield.Alpha = 0;
             hud.Alpha = 0;
             judgementReadout.Alpha = 0;
+            timingBar.Alpha = 0;
             AddInternal(cinemaIndicator = new GameplayCinemaIndicator
             {
                 Anchor = Anchor.TopRight,
@@ -516,6 +525,7 @@ public partial class GameplayScreen : Screen
                 DrawWidth * 0.94f / playfield.Width);
         }
         playfield.Scale = new Vector2(scale);
+        updateTimingBarLayout(scale);
 
         float playfieldLeft =
             DrawWidth / 2 - playfield.Width * scale / 2;
@@ -531,6 +541,35 @@ public partial class GameplayScreen : Screen
             - playbackRateOverlay.Width,
             20,
             GameplayPlaybackRateOverlay.PreferredLeft);
+    }
+
+    private void updateTimingBarLayout(float playfieldScale)
+    {
+        const float receptorGap = 12;
+
+        float playfieldTop =
+            DrawHeight - playfield.Height * playfieldScale;
+        float receptorEdgeY =
+            playfieldTop
+            + playfield.ReceptorPlayAreaEdge * playfieldScale;
+
+        timingBar.Anchor = Anchor.TopCentre;
+        if (playfield.ReceptorAtBottom)
+        {
+            timingBar.Origin = Anchor.BottomCentre;
+            timingBar.Y = Math.Clamp(
+                receptorEdgeY - receptorGap,
+                timingBar.Height,
+                DrawHeight);
+        }
+        else
+        {
+            timingBar.Origin = Anchor.TopCentre;
+            timingBar.Y = Math.Clamp(
+                receptorEdgeY + receptorGap,
+                0,
+                Math.Max(0, DrawHeight - timingBar.Height));
+        }
     }
 
     protected override bool OnScroll(ScrollEvent e)
@@ -1177,6 +1216,8 @@ public partial class GameplayScreen : Screen
         }
 
         playfield.ApplyJudgement(judgement);
+        if (gameplaySettings.ShowTimingBar.Value)
+            timingBar.Show(judgement);
         adaptiveSpeedState?.Apply(judgement);
         ManiaHealthUpdate healthUpdate = healthState.Apply(
             judgement,

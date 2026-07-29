@@ -17,4 +17,13 @@ public readonly record struct AudioEngineStatus(
     ulong CallbackCadenceMissCount,
     double MaxCallbackIntervalMilliseconds,
     int BackendError,
-    uint BackendErrorStage);
+    uint BackendErrorStage)
+{
+    public int DevicePeriodFrames { get; init; }
+
+    public bool UsesWasapiSharedExplicitPeriod { get; init; }
+
+    public int WasapiSharedExplicitPeriodError { get; init; }
+
+    public ulong BackendOverloadCount { get; init; }
+}

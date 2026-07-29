@@ -42,7 +42,8 @@ public sealed class GameplaySettingsTest
             settings.QuaverScrollRateNormalization.Value,
             Is.Zero);
         Assert.That(settings.ShowLanePressFeedback.Value, Is.True);
-        Assert.That(settings.KeysoundsEnabled.Value, Is.True);
+        Assert.That(settings.ShowTimingBar.Value, Is.True);
+        Assert.That(settings.KeysoundsEnabled.Value, Is.False);
         Assert.That(settings.PauseWhenUnfocused.Value, Is.True);
         Assert.That(settings.DecreaseScrollSpeedKey.Value, Is.EqualTo(Key.F3));
         Assert.That(settings.IncreaseScrollSpeedKey.Value, Is.EqualTo(Key.F4));
@@ -381,6 +382,7 @@ public sealed class GameplaySettingsTest
                 firstSettings.SetScrollSpeed(26.4);
                 firstSettings.QuaverScrollRateNormalization.Value = 60;
                 firstSettings.ShowLanePressFeedback.Value = false;
+                firstSettings.ShowTimingBar.Value = false;
                 firstSettings.KeysoundsEnabled.Value = false;
                 firstSettings.PauseWhenUnfocused.Value = false;
                 Assert.That(firstConfig.Save(), Is.True);
@@ -425,11 +427,49 @@ public sealed class GameplaySettingsTest
                     restoredSettings.ShowLanePressFeedback.Value,
                     Is.False);
                 Assert.That(
+                    restoredSettings.ShowTimingBar.Value,
+                    Is.False);
+                Assert.That(
                     restoredSettings.KeysoundsEnabled.Value,
                     Is.False);
                 Assert.That(
                     restoredSettings.PauseWhenUnfocused.Value,
                     Is.False);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
+    public void HitSoundPreferenceSavesImmediately()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "hitsound-settings-config",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            using (var firstConfig =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                var firstSettings = new YokkoGameplaySettings();
+                firstConfig.BindGameplaySettings(firstSettings);
+
+                Assert.That(firstSettings.KeysoundsEnabled.Value, Is.False);
+                firstSettings.KeysoundsEnabled.Value = true;
+
+                using var restoredConfig =
+                    new YokkoConfigManager(new NativeStorage(directory));
+                var restoredSettings = new YokkoGameplaySettings();
+                restoredConfig.BindGameplaySettings(restoredSettings);
+
+                Assert.That(restoredSettings.KeysoundsEnabled.Value, Is.True);
             }
         }
         finally

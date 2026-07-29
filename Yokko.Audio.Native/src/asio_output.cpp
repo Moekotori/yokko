@@ -212,8 +212,10 @@ namespace
         const float sample,
         const int valid_bits) noexcept
     {
-        return scaled_integer_sample(sample, valid_bits)
-               << (32 - valid_bits);
+        return static_cast<int32_t>(
+            static_cast<int64_t>(
+                scaled_integer_sample(sample, valid_bits))
+            * (int64_t{1} << (32 - valid_bits)));
     }
 
     void write_u16_be(
@@ -1002,10 +1004,10 @@ namespace yokko::audio
                 }
             }
 
-            refresh_latencies();
+            clear_device_buffers();
             output_ready_supported_ =
                 asio_succeeded(driver_->outputReady());
-            clear_device_buffers();
+            refresh_latencies();
 
             error = driver_->start();
             if (!asio_succeeded(error))

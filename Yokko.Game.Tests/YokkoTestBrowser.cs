@@ -154,20 +154,20 @@ namespace Yokko.Game.Tests
                     beatmap,
                     new YokkoGameplaySettings(),
                     new GameplayPauseSnapshot(
-                        longTitlePreview ? 1_000 : 134_000,
+                        longTitlePreview ? 5_000 : 134_000,
                         longTitlePreview ? 268_000 : 228_000,
-                        longTitlePreview ? 0 : 1_071_630,
-                        longTitlePreview ? 0 : 0.9718,
-                        longTitlePreview ? 0 : 3,
-                        longTitlePreview ? 0 : 414,
-                        longTitlePreview ? "D" : "S",
-                        longTitlePreview ? 0 : 287,
+                        longTitlePreview ? 11_342 : 1_071_630,
+                        longTitlePreview ? 1 : 0.9718,
+                        longTitlePreview ? 41 : 3,
+                        longTitlePreview ? 41 : 414,
+                        longTitlePreview ? "SS" : "S",
+                        longTitlePreview ? 41 : 287,
                         longTitlePreview ? 0 : 18,
                         longTitlePreview ? 0 : 2,
                         0,
                         0,
-                        longTitlePreview ? 4 : 2,
-                        "NM"),
+                        longTitlePreview ? 0 : 2,
+                        longTitlePreview ? "AT" : "NM"),
                     () => { },
                     () => { },
                     () => { },
@@ -192,6 +192,12 @@ namespace Yokko.Game.Tests
 
         private void schedulePreviewScreenshot(double delay = 1200)
         {
+            if (double.TryParse(
+                    Environment.GetEnvironmentVariable(
+                        "YOKKO_PREVIEW_SCREENSHOT_DELAY_MS"),
+                    out double configuredDelay))
+                delay = Math.Max(0, configuredDelay);
+
             string outputPath = Environment.GetEnvironmentVariable(
                 "YOKKO_PREVIEW_SCREENSHOT");
 

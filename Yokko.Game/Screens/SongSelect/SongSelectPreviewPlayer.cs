@@ -34,6 +34,16 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
             && Nullable.Equals(
                 FixedFrequencyScale,
                 other.FixedFrequencyScale);
+
+        public bool MatchesAudioPolicy(PreviewRequest other) =>
+            string.Equals(
+                AudioPath,
+                other.AudioPath,
+                StringComparison.OrdinalIgnoreCase)
+            && PitchMode == other.PitchMode
+            && Nullable.Equals(
+                FixedFrequencyScale,
+                other.FixedFrequencyScale);
     }
 
     private readonly object operationLock = new();
@@ -101,6 +111,42 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
                 return;
 
             queuePlaybackChange(currentRequest);
+        }
+    }
+
+    internal bool TryUpdatePlaybackRate(
+        YokkoBeatmap beatmap,
+        ManiaModSet mods)
+    {
+        PreviewRequest request = createRequest(beatmap, mods);
+
+        lock (operationLock)
+        {
+            if (disposed
+                || request == null
+                || currentRequest == null
+                || !currentRequest.MatchesAudioPolicy(request)
+                || !hasStartedCurrentRequest
+                || !operationQueue.IsCompleted
+                || audioEngine is not IAudioRateControl rateControl)
+            {
+                return false;
+            }
+
+            try
+            {
+                rateControl.SetPlaybackRate(request.PlaybackRate);
+                currentRequest = request;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Logger.Error(
+                    exception,
+                    "Could not change song-select preview rate in place.",
+                    LoggingTarget.Runtime);
+                return false;
+            }
         }
     }
 
@@ -221,12 +267,17 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
             if (audioEngine is IAudioMixControl mixControl)
                 audioSettings.ApplyMixSettings(mixControl);
 
+            AudioEngineStartRequest startRequest =
+                audioSettings.CreateStartRequest(
+                    request.AudioPath,
+                    request.PlaybackRate,
+                    request.PitchMode,
+                    request.FixedFrequencyScale) with
+                {
+                    DynamicPlaybackRate = true,
+                };
             await audioEngine.StartAsync(
-                                 audioSettings.CreateStartRequest(
-                                     request.AudioPath,
-                                     request.PlaybackRate,
-                                     request.PitchMode,
-                                     request.FixedFrequencyScale),
+                                 startRequest,
                                  cancellationToken)
                              .ConfigureAwait(false);
 

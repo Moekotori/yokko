@@ -559,6 +559,9 @@ namespace
             status.callback_cadence_miss_count == 1,
             "callback cadence miss count");
         require(
+            status.backend_overload_count == 0,
+            "callback cadence does not imply backend overload");
+        require(
             status.callback_max_interval_microseconds == 160,
             "callback maximum interval");
 
@@ -571,6 +574,9 @@ namespace
         require(
             status.callback_cadence_miss_count == 0,
             "stop clears callback cadence misses");
+        require(
+            status.backend_overload_count == 0,
+            "stop clears backend overload count");
         require(
             status.callback_max_interval_microseconds == 0,
             "stop clears callback maximum interval");

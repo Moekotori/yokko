@@ -251,16 +251,24 @@ public partial class GameplayHud : CompositeDrawable
         AudioEngineStatus status,
         AudioBackendKind requestedBackend)
     {
+        bool hasSustainedCadenceMisses =
+            status.CallbackCount >= 128
+            && status.CallbackCadenceMissCount
+               / (double)status.CallbackCount >= 0.01;
+        bool hasBackendOverload = status.BackendOverloadCount > 0;
         var nextState = new AudioReadoutState(
             requestedBackend,
             status.ActiveBackend,
             status.SampleRate,
             status.BufferSize,
+            status.DevicePeriodFrames,
             status.EstimatedOutputLatencyMilliseconds,
+            status.UsesWasapiSharedExplicitPeriod,
             status.IsFaulted,
             status.HasUnderrun,
             status.CallbackDeadlineMissCount > 0,
-            status.CallbackCadenceMissCount > 0);
+            hasSustainedCadenceMisses,
+            hasBackendOverload);
         if (hasDisplayedAudioState
             && nextState == displayedAudioState)
             return;
@@ -275,11 +283,15 @@ public partial class GameplayHud : CompositeDrawable
             status.IsFaulted
             || status.HasUnderrun
             || status.CallbackDeadlineMissCount > 0
-            || status.CallbackCadenceMissCount > 0;
+            || hasSustainedCadenceMisses
+            || hasBackendOverload;
         string backend = status.ActiveBackend switch
         {
             AudioBackendKind.WasapiExclusive => "WASAPI EXCLUSIVE",
-            AudioBackendKind.SharedWasapi => "WASAPI SHARED",
+            AudioBackendKind.SharedWasapi =>
+                status.UsesWasapiSharedExplicitPeriod
+                    ? "WASAPI SHARED EXPLICIT PERIOD"
+                    : "WASAPI SHARED LEGACY",
             AudioBackendKind.Asio => "ASIO",
             _ => "AUDIO STARTING",
         };
@@ -292,6 +304,9 @@ public partial class GameplayHud : CompositeDrawable
                     : string.Empty;
         string timing = status.SampleRate > 0 && status.BufferSize > 0
             ? $" · {status.BufferSize}f · "
+              + (status.DevicePeriodFrames > 0
+                  ? $"{status.DevicePeriodFrames}f period · "
+                  : string.Empty)
               + $"{status.EstimatedOutputLatencyMilliseconds:0.00} ms"
             : string.Empty;
 
@@ -363,11 +378,14 @@ public partial class GameplayHud : CompositeDrawable
         AudioBackendKind ActiveBackend,
         int SampleRate,
         int BufferSize,
+        int DevicePeriodFrames,
         double EstimatedOutputLatencyMilliseconds,
+        bool UsesWasapiSharedExplicitPeriod,
         bool IsFaulted,
         bool HasUnderrun,
         bool HasCallbackDeadlineMiss,
-        bool HasCallbackCadenceMiss);
+        bool HasSustainedCallbackCadenceMisses,
+        bool HasBackendOverload);
 
     private static SpriteText createLine(float size = 18) => new()
     {

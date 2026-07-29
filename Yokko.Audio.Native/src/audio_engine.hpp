@@ -144,6 +144,7 @@ namespace yokko::audio
         std::atomic<uint32_t> callback_max_duration_microseconds_{0};
         std::atomic<uint64_t> callback_cadence_miss_count_{0};
         std::atomic<uint32_t> callback_max_interval_microseconds_{0};
+        std::atomic<uint64_t> backend_overload_count_{0};
         std::atomic<int32_t> backend_error_{0};
         std::atomic<uint32_t> backend_error_stage_{0};
         mutable std::atomic<uint64_t> last_playback_frame_position_{0};

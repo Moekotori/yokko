@@ -3,8 +3,11 @@ using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Screens;
+using osu.Framework.Testing;
 using osuTK;
+using osuTK.Input;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
 using Yokko.Game.Importing;
@@ -52,6 +55,10 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             SongSelectScreen.RankingFitsDesignedStage);
         AddAssert("ranking is above footer", () =>
             songSelectScreen.RankingFitsAboveFooter);
+        AddAssert("ranking uses the available detail width", () =>
+            songSelectScreen.RankingPanelSize == new Vector2(440, 190));
+        AddAssert("ranking body uses its full height", () =>
+            songSelectScreen.RankingContentSize == new Vector2(440, 152));
         AddAssert("search box is compact", () =>
             songSelectScreen.SearchBoxSize == new Vector2(360, 44));
 
@@ -78,9 +85,90 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("all imports restored", () => songSelectScreen.VisibleEntryCount == 2);
 
         AddAssert("ranking shown by default", () => songSelectScreen.ScoreView == SongSelectScoreView.GlobalRanking);
-        AddStep("show personal record", songSelectScreen.ToggleScoreView);
+        AddStep("click ranking body", songSelectScreen.ActivateRankingPanel);
         AddAssert("personal record selected", () => songSelectScreen.ScoreView == SongSelectScoreView.Personal);
-        AddStep("restore ranking", songSelectScreen.ToggleScoreView);
+        AddStep("click personal record body", songSelectScreen.ActivateRankingPanel);
+        AddAssert("ranking restored", () => songSelectScreen.ScoreView == SongSelectScoreView.GlobalRanking);
+    }
+
+    [Test]
+    public void TestAltPlusMinusAdjustsSelectedRateAndDetails()
+    {
+        YokkoBeatmap beatmap =
+            DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Song Select Rate Shortcut",
+            };
+        ManiaStarRatingResult expectedFastRating =
+            ManiaStarRatingCalculator.CalculateResult(
+                beatmap,
+                1.05);
+        SongSelectSongRow originalRow = null;
+
+        AddStep("start with one rate test chart", () =>
+        {
+            importedChartLibrary.Clear();
+            importedChartLibrary.AddOrReplace(
+            [
+                result(beatmap.Title, beatmap),
+            ],
+            @"C:\Charts\rate-shortcut.osu");
+        });
+        AddUntilStep("rate test chart selected", () =>
+            songSelectScreen.SelectedEntry?.Beatmap.Title
+            == beatmap.Title);
+        AddStep("capture current list row", () =>
+            originalRow = songSelectScreen
+                .ChildrenOfType<SongSelectSongRow>()
+                .Single(row =>
+                    row.Entry.Beatmap.Title == beatmap.Title));
+        AddAssert("details start at normal rate", () =>
+            songSelectScreen.SelectedMods.PlaybackRate == 1
+            && songSelectScreen.DisplayedPlaybackRate == 1
+            && songSelectScreen.DisplayedBpm == "120");
+        AddStep("plain plus is ignored", () =>
+            songSelectScreen.HandlePlaybackRateShortcut(
+                Key.Plus,
+                false));
+        AddAssert("plain plus keeps normal rate", () =>
+            songSelectScreen.SelectedMods.PlaybackRate == 1);
+        AddStep("alt plus sets 1.05x", () =>
+            songSelectScreen.HandlePlaybackRateShortcut(
+                Key.Plus,
+                true));
+        AddAssert("fast rate refreshes bpm and stars", () =>
+            songSelectScreen.SelectedMods.Contains(
+                ManiaModId.DoubleTime)
+            && songSelectScreen.SelectedMods.PlaybackRate == 1.05
+            && songSelectScreen.DisplayedPlaybackRate == 1.05
+            && songSelectScreen.DisplayedBpm == "126"
+            && songSelectScreen.DisplayedStarRating?.Value
+               == expectedFastRating.Value);
+        AddAssert("rate change keeps the existing list row", () =>
+            ReferenceEquals(
+                originalRow,
+                songSelectScreen
+                    .ChildrenOfType<SongSelectSongRow>()
+                    .Single(row =>
+                        row.Entry.Beatmap.Title == beatmap.Title)));
+        AddStep("alt keypad minus restores 1x", () =>
+            songSelectScreen.HandlePlaybackRateShortcut(
+                Key.KeypadMinus,
+                true));
+        AddAssert("normal rate removes fixed-rate mod", () =>
+            songSelectScreen.SelectedMods.FixedRateMod == null
+            && songSelectScreen.DisplayedPlaybackRate == 1
+            && songSelectScreen.DisplayedBpm == "120");
+        AddStep("alt minus sets 0.95x", () =>
+            songSelectScreen.HandlePlaybackRateShortcut(
+                Key.Minus,
+                true));
+        AddAssert("slow rate uses HT and updates bpm", () =>
+            songSelectScreen.SelectedMods.Contains(
+                ManiaModId.HalfTime)
+            && songSelectScreen.SelectedMods.PlaybackRate == 0.95
+            && songSelectScreen.DisplayedPlaybackRate == 0.95
+            && songSelectScreen.DisplayedBpm == "114");
     }
 
     [Test]

@@ -252,6 +252,14 @@ internal static class YokkoStrings
             ["settings.audio.hitsounds"] = new("Hitsounds", "按键音", "ヒットサウンド"),
             ["settings.audio.test"] = new("Test playback", "播放", "テスト再生"),
             ["settings.audio.test_failed"] = new("Audio test failed", "音频播放失败", "オーディオテスト失敗"),
+            ["settings.audio.test_verified"] = new(
+                "Actual output verified",
+                "\u5df2\u9a8c\u8bc1\u5b9e\u9645\u8f93\u51fa",
+                "\u5b9f\u969b\u306e\u51fa\u529b\u3092\u78ba\u8a8d\u6e08\u307f"),
+            ["settings.audio.test_result"] = new(
+                "{0} \u00b7 req {1}f \u2192 buffer {2}f / period {3}f \u00b7 \u2264 {4:0.00} ms",
+                "{0} \u00b7 \u8bf7\u6c42 {1}f \u2192 \u7f13\u51b2 {2}f / \u5468\u671f {3}f \u00b7 \u2264 {4:0.00} ms",
+                "{0} \u00b7 \u8981\u6c42 {1}f \u2192 \u30d0\u30c3\u30d5\u30a1 {2}f / \u5468\u671f {3}f \u00b7 \u2264 {4:0.00} ms"),
             ["settings.audio.hitsounds_disabled"] = new(
                 "Enable hitsounds before testing",
                 "按键音已关闭",
@@ -727,6 +735,27 @@ internal static class YokkoStrings
                 "{0} input age · p50 {1:0.00} · p95 {2:0.00} · p99 {3:0.00} ms",
                 "{0} 输入年龄 · p50 {1:0.00} · p95 {2:0.00} · p99 {3:0.00} ms",
                 "{0} 入力エイジ · p50 {1:0.00} · p95 {2:0.00} · p99 {3:0.00} ms"),
+            ["gameplay.timing.early"] = new("EARLY", "快", "早い"),
+            ["gameplay.timing.late"] = new("LATE", "慢", "遅い"),
+            ["gameplay.timing.on_time"] = new("ON TIME", "准", "正確"),
+            ["gameplay.timing.press"] = new("PRESS", "按下", "押下"),
+            ["gameplay.timing.release"] = new("RELEASE", "松开", "離す"),
+            ["gameplay.timing.latest"] = new(
+                "{0} · {1} · {2:+0.0;-0.0;0.0} ms",
+                "{0} · {1} · {2:+0.0;-0.0;0.0} ms",
+                "{0} · {1} · {2:+0.0;-0.0;0.0} ms"),
+            ["gameplay.timing.trend_press"] = new(
+                "TREND · PRESS {0:+0.0;-0.0;0.0} ms",
+                "趋势 · 按下 {0:+0.0;-0.0;0.0} ms",
+                "傾向 · 押下 {0:+0.0;-0.0;0.0} ms"),
+            ["gameplay.timing.trend_release"] = new(
+                "TREND · RELEASE {0:+0.0;-0.0;0.0} ms",
+                "趋势 · 松开 {0:+0.0;-0.0;0.0} ms",
+                "傾向 · 離す {0:+0.0;-0.0;0.0} ms"),
+            ["gameplay.timing.trend_both"] = new(
+                "TREND · PRESS {0:+0.0;-0.0;0.0} · RELEASE {1:+0.0;-0.0;0.0} ms",
+                "趋势 · 按下 {0:+0.0;-0.0;0.0} · 松开 {1:+0.0;-0.0;0.0} ms",
+                "傾向 · 押下 {0:+0.0;-0.0;0.0} · 離す {1:+0.0;-0.0;0.0} ms"),
             ["settings.gameplay.speed_presets"] = new("Quick presets", "快捷预设", "クイック設定"),
             ["settings.gameplay.quaver_rate_normalization"] = new(
                 "Quaver rate normalization",
@@ -754,6 +783,14 @@ internal static class YokkoStrings
                 "Light lanes on key press",
                 "按住按键时提供反馈",
                 "キー入力時に反応"),
+            ["settings.gameplay.show_timing_bar"] = new(
+                "Timing bar",
+                "判定条",
+                "タイミングバー"),
+            ["settings.gameplay.show_timing_bar_note"] = new(
+                "Show early, late and timing trends",
+                "显示快慢与输入趋势",
+                "早遅と入力傾向を表示"),
             ["settings.gameplay.keysounds"] = new(
                 "Keysounds",
                 "按键音",

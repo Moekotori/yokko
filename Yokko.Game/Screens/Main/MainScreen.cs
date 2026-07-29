@@ -33,6 +33,8 @@ public partial class MainScreen : Screen
     private const float musicPlayerHeight = 72;
     private const float musicPlayerBottomMargin = 12;
     private const double exitHoldDuration = 2000;
+    private static readonly Vector2 mascotCentre = new(810, 500);
+    private static readonly Vector2 mascotSize = new(980, 1110);
 
     private static readonly Color4 ivory = new(0.992f, 0.992f, 0.988f, 1f);
     private static readonly Color4 cyan = new(0.29f, 0.81f, 0.94f, 1f);
@@ -108,7 +110,7 @@ public partial class MainScreen : Screen
         Texture yokkoTexture = textures.Get("yokko");
         Texture mascotTexture = yokkoTexture
                                         .Crop(new RectangleF(80, 1840, 1200, 1360));
-        Texture logoTexture = textures.Get("home-logo-hd");
+        Texture logoTexture = textures.Get("home-logo-light");
 
         InternalChildren = new Drawable[]
         {
@@ -203,6 +205,36 @@ public partial class MainScreen : Screen
                                     Position = new Vector2(36, 545),
                                     Size = new Vector2(84, 52),
                                     Colour = new Color4(navy.R, navy.G, navy.B, 0.13f),
+                                },
+                                new HomeDotField
+                                {
+                                    Position = new Vector2(520, 468),
+                                    Size = new Vector2(68, 38),
+                                    Colour = new Color4(navy.R, navy.G, navy.B, 0.1f),
+                                },
+                                new HomeRing(20, 2.5f, cyan)
+                                {
+                                    Position = new Vector2(566, 146),
+                                },
+                                new HomeTwinkle(10, 2200)
+                                {
+                                    Position = new Vector2(526, 116),
+                                    Colour = pink,
+                                },
+                                registerFloater(new osu.Framework.Graphics.Shapes.Triangle
+                                {
+                                    Position = new Vector2(548, 528),
+                                    Size = new Vector2(12, 11),
+                                    Rotation = 18,
+                                    Colour = new Color4(navy.R, navy.G, navy.B, 0.28f),
+                                }),
+                                new SpriteText
+                                {
+                                    Position = new Vector2(508, 516),
+                                    Text = "04 // INPUT",
+                                    Font = HomeTypography.Display(9),
+                                    Spacing = new Vector2(1.5f, 0),
+                                    Colour = new Color4(navy.R, navy.G, navy.B, 0.38f),
                                 },
                             },
                         },
@@ -476,8 +508,8 @@ public partial class MainScreen : Screen
 
     private void startAmbientMotion()
     {
-        mascot.MoveToY(396.5f + 7, 1900, Easing.InOutSine)
-              .Then().MoveToY(396.5f - 7, 1900, Easing.InOutSine)
+        mascot.MoveToY(mascotCentre.Y + 7, 1900, Easing.InOutSine)
+              .Then().MoveToY(mascotCentre.Y - 7, 1900, Easing.InOutSine)
               .Loop();
         mascot.RotateTo(1.1f, 2400, Easing.InOutSine)
               .Then().RotateTo(-1.1f, 2400, Easing.InOutSine)
@@ -553,7 +585,7 @@ public partial class MainScreen : Screen
             var star = new SpriteIcon
             {
                 Origin = Anchor.Centre,
-                Position = new Vector2(937.5f, 330),
+                Position = new Vector2(mascotCentre.X, mascotCentre.Y - 62),
                 Size = new Vector2(14),
                 Icon = FontAwesome.Solid.Star,
                 Colour = i % 2 == 0 ? yellow : Color4.White,
@@ -626,14 +658,103 @@ public partial class MainScreen : Screen
                     Size = new Vector2(72, 58),
                     Colour = new Color4(1f, 1f, 1f, 0.22f),
                 },
+                new HomeDotField
+                {
+                    Position = new Vector2(420, 82),
+                    Size = new Vector2(76, 42),
+                    Colour = new Color4(navy.R, navy.G, navy.B, 0.16f),
+                },
+                new HomeBeatPips(
+                    new Color4(navy.R, navy.G, navy.B, 0.48f),
+                    pink)
+                {
+                    Position = new Vector2(428, 150),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(428, 170),
+                    Text = "BEAT GRID // 08",
+                    Font = HomeTypography.Display(9),
+                    Spacing = new Vector2(1.4f, 0),
+                    Colour = new Color4(navy.R, navy.G, navy.B, 0.42f),
+                },
+                new HomeCrosshairMark
+                {
+                    Position = new Vector2(536, 104),
+                },
+                new HomeRing(22, 2.5f, yellow)
+                {
+                    Position = new Vector2(522, 214),
+                },
+                new HomeTwinkle(9, 2350)
+                {
+                    Position = new Vector2(472, 210),
+                    Colour = pink,
+                },
+                createDecorationIcon(
+                    FontAwesome.Solid.Plus,
+                    446,
+                    62,
+                    10,
+                    pink),
+                createDecorationIcon(
+                    FontAwesome.Solid.Plus,
+                    506,
+                    354,
+                    9,
+                    yellow),
+                new HomeRing(
+                    18,
+                    2,
+                    new Color4(navy.R, navy.G, navy.B, 0.46f))
+                {
+                    Position = new Vector2(456, 352),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(424, 382),
+                    Text = "CAL // 1.00",
+                    Font = HomeTypography.Display(9),
+                    Spacing = new Vector2(1.5f, 0),
+                    Colour = new Color4(navy.R, navy.G, navy.B, 0.42f),
+                },
+                registerFloater(new Circle
+                {
+                    Position = new Vector2(490, 426),
+                    Size = new Vector2(6),
+                    Colour = pink,
+                    Alpha = 0.82f,
+                }),
                 new HomeTickRuler(460)
                 {
                     Position = new Vector2(768, 10),
                 },
-                new HomeDashedRing(295)
+                new HomeRing(900, 1.5f, new Color4(1f, 1f, 1f, 0.14f))
                 {
-                    Position = new Vector2(937.5f, 396.5f),
+                    Position = mascotCentre,
+                },
+                new HomeDashedRing(420)
+                {
+                    Position = mascotCentre,
                     Colour = new Color4(1f, 1f, 1f, 0.3f),
+                },
+                new HomeSignalWave(new Color4(1f, 1f, 1f, 0.78f))
+                {
+                    Position = new Vector2(470, 240),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(470, 274),
+                    Text = "SYNC // 04.00",
+                    Font = HomeTypography.Display(10),
+                    Spacing = new Vector2(1.7f, 0),
+                    Colour = new Color4(1f, 1f, 1f, 0.68f),
+                },
+                new HomeDotField
+                {
+                    Position = new Vector2(480, 184),
+                    Size = new Vector2(58, 34),
+                    Colour = new Color4(1f, 1f, 1f, 0.22f),
                 },
                 registerFloater(new osu.Framework.Graphics.Shapes.Triangle
                 {
@@ -642,25 +763,32 @@ public partial class MainScreen : Screen
                     Rotation = 90,
                     Colour = new Color4(1f, 1f, 1f, 0.28f),
                 }),
+                registerFloater(new osu.Framework.Graphics.Shapes.Triangle
+                {
+                    Position = new Vector2(558, 286),
+                    Size = new Vector2(11, 10),
+                    Rotation = 225,
+                    Colour = new Color4(navy.R, navy.G, navy.B, 0.3f),
+                }),
                 mascot = new Sprite
                 {
                     Origin = Anchor.Centre,
-                    Position = new Vector2(937.5f, 396.5f),
-                    Size = new Vector2(675, 765),
+                    Position = mascotCentre,
+                    Size = mascotSize,
                     Texture = mascotTexture,
                 },
                 // 点击 mascot：弹跳、换台词、迸发星星。热区避开底部的播放器。
                 new ClickableContainer
                 {
                     Origin = Anchor.Centre,
-                    Position = new Vector2(937.5f, 355),
-                    Size = new Vector2(420, 470),
+                    Position = mascotCentre + new Vector2(0, -150),
+                    Size = new Vector2(600, 590),
                     Action = onMascotTapped,
                 },
                 bubble = new HomeMascotBubble(bubbleLines[0])
                 {
-                    X = 632,
-                    Y = 365,
+                    X = 484,
+                    Y = 380,
                 },
                 new SpriteText
                 {
@@ -690,10 +818,30 @@ public partial class MainScreen : Screen
                     Position = new Vector2(858, 578),
                     Colour = pink,
                 },
+                new HomeTwinkle(9, 2100)
+                {
+                    Position = new Vector2(752, 248),
+                    Colour = yellow,
+                },
+                new HomeTwinkle(8, 2450)
+                {
+                    Position = new Vector2(1155, 468),
+                },
                 new HomeRing(26, 3.5f, yellow)
                 {
                     Position = new Vector2(1248, 420),
                 },
+                new HomeRing(18, 2.5f, new Color4(1f, 1f, 1f, 0.7f))
+                {
+                    Position = new Vector2(742, 532),
+                },
+                registerFloater(new osu.Framework.Graphics.Shapes.Triangle
+                {
+                    Position = new Vector2(1168, 372),
+                    Size = new Vector2(13, 12),
+                    Rotation = 42,
+                    Colour = new Color4(1f, 1f, 1f, 0.38f),
+                }),
                 registerFloater(new Circle
                 {
                     Position = new Vector2(712, 648),
@@ -734,11 +882,53 @@ public partial class MainScreen : Screen
         return sprite;
     }
 
-    private static Drawable createBrandLockup(Texture logoTexture) => new Sprite
+    private static Drawable createBrandLockup(Texture logoTexture) => new Container
     {
         Position = new Vector2(56, 46),
         Size = new Vector2(500, 169),
-        Texture = logoTexture,
+        Children = new Drawable[]
+        {
+            new Sprite
+            {
+                RelativeSizeAxes = Axes.Both,
+                Texture = logoTexture,
+                Colour = navy,
+            },
+            new Container
+            {
+                Position = new Vector2(136, 41),
+                Size = new Vector2(19),
+                Children = new Drawable[]
+                {
+                    new Container
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(19, 7),
+                        Masking = true,
+                        CornerRadius = 3.5f,
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = yellow,
+                        },
+                    },
+                    new Container
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(7, 19),
+                        Masking = true,
+                        CornerRadius = 3.5f,
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = yellow,
+                        },
+                    },
+                },
+            },
+        },
     };
 
     private Drawable createCommandArea() => new Container

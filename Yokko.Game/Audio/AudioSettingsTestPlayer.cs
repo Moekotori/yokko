@@ -50,7 +50,7 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
         this.delay = delay ?? Task.Delay;
     }
 
-    internal async Task PlayAsync(
+    internal async Task<AudioEngineStatus> PlayAsync(
         AudioSettingsTestKind kind,
         bool hitSoundsEnabled,
         CancellationToken cancellationToken = default)
@@ -72,40 +72,23 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
                     "The active audio backend does not expose mix controls.");
             }
 
-            switch (kind)
+            return kind switch
             {
-                case AudioSettingsTestKind.Music:
-                    mix.SetMixVolumes(
-                        settings.EffectiveMusicVolume,
-                        0,
-                        0);
-                    await playMusicAsync(engine, token).ConfigureAwait(false);
-                    break;
-
-                case AudioSettingsTestKind.HitSound:
-                    if (!hitSoundsEnabled)
-                    {
-                        throw new InvalidOperationException(
-                            "Hitsounds must be enabled before testing.");
-                    }
-
-                    if (engine is not IAudioSamplePlayback samples)
-                    {
-                        throw new InvalidOperationException(
-                            "The active audio backend cannot test hitsounds.");
-                    }
-
-                    mix.SetMixVolumes(
-                        0,
-                        settings.EffectiveHitSoundVolume,
-                        0);
-                    await playHitSoundAsync(engine, samples, token)
-                        .ConfigureAwait(false);
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
-            }
+                AudioSettingsTestKind.Music =>
+                    await playMusicAsync(engine, mix, token)
+                        .ConfigureAwait(false),
+                AudioSettingsTestKind.HitSound =>
+                    await playHitSoundAsync(
+                            engine,
+                            mix,
+                            hitSoundsEnabled,
+                            token)
+                        .ConfigureAwait(false),
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(kind),
+                    kind,
+                    null),
+            };
         }
         finally
         {
@@ -155,26 +138,50 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
         }
     }
 
-    private async Task playMusicAsync(
+    private async Task<AudioEngineStatus> playMusicAsync(
         IAudioEngine engine,
+        IAudioMixControl mix,
         CancellationToken cancellationToken)
     {
+        mix.SetMixVolumes(
+            settings.EffectiveMusicVolume,
+            0,
+            0);
         await engine.StartAsync(
                         settings.CreateStartRequest(musicPath),
                         cancellationToken)
                     .ConfigureAwait(false);
+        AudioEngineStatus opened = requireActiveOutput(engine);
         await delay(
                   TimeSpan.FromMilliseconds(760),
                   cancellationToken)
               .ConfigureAwait(false);
         await engine.StopAsync(cancellationToken).ConfigureAwait(false);
+        return opened;
     }
 
-    private async Task playHitSoundAsync(
+    private async Task<AudioEngineStatus> playHitSoundAsync(
         IAudioEngine engine,
-        IAudioSamplePlayback samples,
+        IAudioMixControl mix,
+        bool hitSoundsEnabled,
         CancellationToken cancellationToken)
     {
+        if (!hitSoundsEnabled)
+        {
+            throw new InvalidOperationException(
+                "Hitsounds must be enabled before testing.");
+        }
+
+        if (engine is not IAudioSamplePlayback samples)
+        {
+            throw new InvalidOperationException(
+                "The active audio backend cannot test hitsounds.");
+        }
+
+        mix.SetMixVolumes(
+            0,
+            settings.EffectiveHitSoundVolume,
+            0);
         await samples.PrepareSamplesAsync(
                          new[] { hitSoundPath },
                          cancellationToken)
@@ -183,6 +190,7 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
                         settings.CreateStartRequest(silencePath),
                         cancellationToken)
                     .ConfigureAwait(false);
+        AudioEngineStatus opened = requireActiveOutput(engine);
         if (!samples.TriggerSample(hitSoundPath))
         {
             throw new InvalidOperationException(
@@ -194,6 +202,21 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
                   cancellationToken)
               .ConfigureAwait(false);
         await engine.StopAsync(cancellationToken).ConfigureAwait(false);
+        return opened;
+    }
+
+    private static AudioEngineStatus requireActiveOutput(
+        IAudioEngine engine)
+    {
+        AudioEngineStatus opened = engine.Status;
+        if (!opened.IsRunning
+            || opened.ActiveBackend == AudioBackendKind.Fallback)
+        {
+            throw new InvalidOperationException(
+                "The audio test did not open an active output stream.");
+        }
+
+        return opened;
     }
 
     private string musicPath => Path.Combine(testDirectory, "music-test.wav");

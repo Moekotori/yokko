@@ -28,6 +28,25 @@ using Microsoft::WRL::ComPtr;
 namespace
 {
     constexpr REFERENCE_TIME reference_times_per_second = 10'000'000;
+    constexpr DWORD shared_low_period_stream_flags =
+        AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
+    constexpr DWORD shared_legacy_stream_flags =
+        AUDCLNT_STREAMFLAGS_EVENTCALLBACK
+        | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
+        | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
+
+    static_assert(
+        (shared_low_period_stream_flags
+         & (AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
+            | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY))
+        == 0);
+
+    struct OutputInitializationDetails
+    {
+        UINT32 period_frames = 0;
+        uint32_t shared_explicit_period = 0;
+        HRESULT shared_explicit_period_error = S_OK;
+    };
 
     WAVEFORMATEXTENSIBLE make_wave_format(
         const uint32_t sample_rate,
@@ -100,6 +119,55 @@ namespace
             (static_cast<uint64_t>(frames) * reference_times_per_second
              + sample_rate - 1)
             / sample_rate);
+    }
+
+    HRESULT set_shared_client_properties(
+        const ComPtr<IAudioClient>& audio_client) noexcept
+    {
+        ComPtr<IAudioClient2> audio_client2;
+        const HRESULT query_result = audio_client.As(&audio_client2);
+        if (FAILED(query_result))
+            return query_result;
+
+        AudioClientProperties properties{};
+        properties.cbSize = sizeof(properties);
+        properties.bIsOffload = FALSE;
+        properties.eCategory = AudioCategory_GameMedia;
+        properties.Options = AUDCLNT_STREAMOPTIONS_NONE;
+        return audio_client2->SetClientProperties(&properties);
+    }
+
+    UINT32 get_shared_period_frames(
+        const ComPtr<IAudioClient>& audio_client,
+        const uint32_t sample_rate,
+        const UINT32 fallback_frames) noexcept
+    {
+        ComPtr<IAudioClient3> audio_client3;
+        if (SUCCEEDED(audio_client.As(&audio_client3)))
+        {
+            WAVEFORMATEX* current_format = nullptr;
+            UINT32 current_period = 0;
+            const HRESULT current_result =
+                audio_client3->GetCurrentSharedModeEnginePeriod(
+                    &current_format,
+                    &current_period);
+            CoTaskMemFree(current_format);
+            if (SUCCEEDED(current_result) && current_period > 0)
+                return current_period;
+        }
+
+        REFERENCE_TIME default_period = 0;
+        if (SUCCEEDED(audio_client->GetDevicePeriod(
+                &default_period,
+                nullptr)))
+        {
+            const UINT32 default_period_frames =
+                reference_time_to_frames(default_period, sample_rate);
+            if (default_period_frames > 0)
+                return default_period_frames;
+        }
+
+        return fallback_frames;
     }
 
     uint32_t callback_duration_microseconds(
@@ -384,6 +452,7 @@ namespace yokko::audio
             }
 
             UINT32 buffer_frames = 0;
+            OutputInitializationDetails initialization_details;
             REFERENCE_TIME stream_latency = 0;
             if (SUCCEEDED(result))
             {
@@ -392,7 +461,8 @@ namespace yokko::audio
                     *device.Get(),
                     audio_client,
                     selected_format,
-                    buffer_frames);
+                    buffer_frames,
+                    initialization_details);
             }
             if (SUCCEEDED(result))
             {
@@ -437,11 +507,18 @@ namespace yokko::audio
                     result = HRESULT_FROM_WIN32(GetLastError());
             }
 
-            const uint32_t latency_frames =
-                reference_time_to_frames(stream_latency, engine_.sample_rate());
+            const uint32_t latency_frames = std::max(
+                reference_time_to_frames(
+                    stream_latency,
+                    engine_.sample_rate()),
+                buffer_frames);
+            const uint32_t callback_period_frames =
+                initialization_details.period_frames > 0
+                    ? initialization_details.period_frames
+                    : buffer_frames;
             const uint32_t callback_budget_microseconds =
                 static_cast<uint32_t>(
-                    (static_cast<uint64_t>(buffer_frames) * 1'000'000
+                    (static_cast<uint64_t>(callback_period_frames) * 1'000'000
                      + engine_.sample_rate() - 1)
                     / engine_.sample_rate());
             LARGE_INTEGER performance_frequency{};
@@ -489,6 +566,12 @@ namespace yokko::audio
             output_status.backend_error = result;
             output_status.backend_error_stage =
                 SUCCEEDED(result) ? 0u : error_stage;
+            output_status.period_frames =
+                initialization_details.period_frames;
+            output_status.shared_explicit_period =
+                initialization_details.shared_explicit_period;
+            output_status.shared_explicit_period_error =
+                initialization_details.shared_explicit_period_error;
 
             finish_initialization(
                 SUCCEEDED(result)
@@ -629,8 +712,10 @@ namespace yokko::audio
             IMMDevice& device,
             ComPtr<IAudioClient>& audio_client,
             const WAVEFORMATEXTENSIBLE& format,
-            UINT32& buffer_frames) const noexcept
+            UINT32& buffer_frames,
+            OutputInitializationDetails& details) const noexcept
         {
+            details = {};
             const AUDCLNT_SHAREMODE share_mode =
                 backend_ == YOKKO_AUDIO_BACKEND_WASAPI_EXCLUSIVE
                     ? AUDCLNT_SHAREMODE_EXCLUSIVE
@@ -656,11 +741,23 @@ namespace yokko::audio
             }
             else
             {
-                stream_flags |= AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
-                                | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
+                stream_flags = shared_legacy_stream_flags;
 
                 ComPtr<IAudioClient3> audio_client3;
-                if (SUCCEEDED(audio_client.As(&audio_client3)))
+                const HRESULT properties_result =
+                    set_shared_client_properties(audio_client);
+                const HRESULT client3_result =
+                    audio_client.As(&audio_client3);
+                if (FAILED(properties_result))
+                {
+                    details.shared_explicit_period_error =
+                        properties_result;
+                }
+                else if (FAILED(client3_result))
+                {
+                    details.shared_explicit_period_error = client3_result;
+                }
+                else
                 {
                     UINT32 default_period = 0;
                     UINT32 fundamental_period = 0;
@@ -695,12 +792,28 @@ namespace yokko::audio
 
                         const HRESULT low_latency_result =
                             audio_client3->InitializeSharedAudioStream(
-                                stream_flags,
+                                shared_low_period_stream_flags,
                                 desired_period,
                                 &format.Format,
                                 nullptr);
                         if (SUCCEEDED(low_latency_result))
-                            return audio_client->GetBufferSize(&buffer_frames);
+                        {
+                            const HRESULT buffer_result =
+                                audio_client->GetBufferSize(&buffer_frames);
+                            if (SUCCEEDED(buffer_result))
+                            {
+                                details.period_frames =
+                                    get_shared_period_frames(
+                                        audio_client,
+                                        engine_.sample_rate(),
+                                        desired_period);
+                                details.shared_explicit_period = 1;
+                            }
+                            return buffer_result;
+                        }
+
+                        details.shared_explicit_period_error =
+                            low_latency_result;
 
                         // A shared engine can already be locked to another
                         // period. Re-activate the client before using the
@@ -714,6 +827,15 @@ namespace yokko::audio
                                 audio_client.GetAddressOf()));
                         if (FAILED(reactivate_result))
                             return reactivate_result;
+
+                        set_shared_client_properties(audio_client);
+                    }
+                    else
+                    {
+                        details.shared_explicit_period_error =
+                            FAILED(period_result)
+                                ? period_result
+                                : E_UNEXPECTED;
                     }
                 }
             }
@@ -742,6 +864,9 @@ namespace yokko::audio
                 if (FAILED(result))
                     return result;
 
+                if (share_mode == AUDCLNT_SHAREMODE_SHARED)
+                    set_shared_client_properties(audio_client);
+
                 buffer_duration = frames_to_reference_time(
                     aligned_frames,
                     engine_.sample_rate());
@@ -760,7 +885,18 @@ namespace yokko::audio
 
             if (FAILED(result))
                 return result;
-            return audio_client->GetBufferSize(&buffer_frames);
+            result = audio_client->GetBufferSize(&buffer_frames);
+            if (FAILED(result))
+                return result;
+
+            details.period_frames =
+                share_mode == AUDCLNT_SHAREMODE_SHARED
+                    ? get_shared_period_frames(
+                          audio_client,
+                          engine_.sample_rate(),
+                          buffer_frames)
+                    : buffer_frames;
+            return S_OK;
         }
 
         HRESULT fill_available_buffer(

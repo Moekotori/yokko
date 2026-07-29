@@ -141,6 +141,7 @@ namespace yokko::audio
         callback_max_duration_microseconds_.store(0, std::memory_order_release);
         callback_cadence_miss_count_.store(0, std::memory_order_release);
         callback_max_interval_microseconds_.store(0, std::memory_order_release);
+        backend_overload_count_.store(0, std::memory_order_release);
         backend_error_.store(0, std::memory_order_release);
         backend_error_stage_.store(0, std::memory_order_release);
         last_playback_frame_position_.store(0, std::memory_order_release);
@@ -597,7 +598,7 @@ namespace yokko::audio
 
     void AudioEngine::report_callback_overload() noexcept
     {
-        callback_cadence_miss_count_.fetch_add(
+        backend_overload_count_.fetch_add(
             1,
             std::memory_order_relaxed);
     }
@@ -650,6 +651,8 @@ namespace yokko::audio
             callback_cadence_miss_count_.load(std::memory_order_acquire);
         status.callback_max_interval_microseconds =
             callback_max_interval_microseconds_.load(std::memory_order_acquire);
+        status.backend_overload_count =
+            backend_overload_count_.load(std::memory_order_acquire);
     }
 
     yokko_audio_result AudioEngine::open_wasapi(

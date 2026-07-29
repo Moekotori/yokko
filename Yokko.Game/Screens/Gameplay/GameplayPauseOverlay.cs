@@ -528,14 +528,10 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                         },
                     },
                 },
-                new SpriteText
+                new ScrollingSongTitle(beatmap.Title)
                 {
-                    Position = new Vector2(97, 13),
-                    Width = 270,
-                    Truncate = true,
-                    Text = beatmap.Title,
-                    Font = HomeTypography.Display(38),
-                    Colour = HomeControlColours.Navy,
+                    Position = new Vector2(97, 7),
+                    Size = new Vector2(235, 52),
                 },
                 new SpriteText
                 {
@@ -675,20 +671,10 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                         },
                     },
                 },
-                new SpriteText
+                new AccuracyReadout(
+                    $"{snapshot.Accuracy * 100:0.00}")
                 {
-                    Position = new Vector2(66, 50),
-                    Text = $"{snapshot.Accuracy * 100:0.00}",
-                    Font = HomeTypography.Hero(154),
-                    Scale = new Vector2(0.89f, 1),
-                    Colour = HomeControlColours.Navy,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(362, 130),
-                    Text = "%",
-                    Font = HomeTypography.Hero(42),
-                    Colour = HomeControlColours.Cyan,
+                    Position = new Vector2(12, 50),
                 },
                 createRankStamp(),
                 createVerticalRule(new Vector2(12, 248), 112),
@@ -784,7 +770,13 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             Origin = Anchor.Centre,
                             Y = -5,
                             Text = snapshot.Rank,
-                            Font = HomeTypography.Hero(150),
+                            Font = HomeTypography.Hero(
+                                snapshot.Rank.Length switch
+                                {
+                                    <= 1 => 150,
+                                    2 => 92,
+                                    _ => 66,
+                                }),
                             Colour = HomeControlColours.Navy,
                         },
                         new HomeDotField
@@ -864,19 +856,31 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     Font = HomeTypography.Display(13),
                     Colour = HomeControlColours.Cyan,
                 },
-                new SpriteText
+                new FillFlowContainer
                 {
                     Position = new Vector2(0, 26),
-                    Text = snapshot.Combo.ToString(),
-                    Font = HomeTypography.Hero(62),
-                    Colour = HomeControlColours.Navy,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(49, 36),
-                    Text = $"/  {snapshot.MaxCombo}",
-                    Font = HomeTypography.Hero(42),
-                    Colour = HomeControlColours.Cyan,
+                    AutoSizeAxes = Axes.Both,
+                    Direction = FillDirection.Horizontal,
+                    Children = new Drawable[]
+                    {
+                        new SpriteText
+                        {
+                            Text = snapshot.Combo.ToString(),
+                            Font = HomeTypography.Hero(62),
+                            Colour = HomeControlColours.Navy,
+                        },
+                        new SpriteText
+                        {
+                            Margin = new MarginPadding
+                            {
+                                Left = 12,
+                                Top = 10,
+                            },
+                            Text = $"/  {snapshot.MaxCombo}",
+                            Font = HomeTypography.Hero(42),
+                            Colour = HomeControlColours.Cyan,
+                        },
+                    },
                 },
                 new Box
                 {
@@ -1082,6 +1086,92 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         return key == Key.Escape
             ? "ESC"
             : KeyModeBindings.FormatKey(key).ToUpperInvariant();
+    }
+
+    private partial class AccuracyReadout : CompositeDrawable
+    {
+        private const float maximumFlowWidth = 410;
+
+        private readonly FillFlowContainer flow;
+
+        public AccuracyReadout(string value)
+        {
+            Size = new Vector2(430, 160);
+            InternalChild = flow = new FillFlowContainer
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                AutoSizeAxes = Axes.Both,
+                Direction = FillDirection.Horizontal,
+                Children = new Drawable[]
+                {
+                    new SpriteText
+                    {
+                        Text = value,
+                        Font = HomeTypography.Hero(154),
+                        Scale = new Vector2(0.89f, 1),
+                        Colour = HomeControlColours.Navy,
+                    },
+                    new SpriteText
+                    {
+                        Margin = new MarginPadding
+                        {
+                            Left = 10,
+                            Top = 80,
+                        },
+                        Text = "%",
+                        Font = HomeTypography.Hero(42),
+                        Colour = HomeControlColours.Cyan,
+                    },
+                },
+            };
+        }
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            if (flow.DrawWidth <= maximumFlowWidth)
+                return;
+
+            float scale = maximumFlowWidth / flow.DrawWidth;
+            flow.Scale = new Vector2(scale);
+        }
+    }
+
+    private partial class ScrollingSongTitle : CompositeDrawable
+    {
+        private readonly SpriteText title;
+
+        public ScrollingSongTitle(LocalisableString text)
+        {
+            Masking = true;
+            InternalChild = title = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Text = text,
+                Font = HomeTypography.Display(38),
+                Colour = HomeControlColours.Navy,
+            };
+        }
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            float overflow = title.DrawWidth - DrawWidth;
+            if (overflow <= 1)
+                return;
+
+            double duration = Math.Max(1800, overflow / 45 * 1000);
+            title.Delay(1200)
+                 .MoveToX(-overflow, duration, Easing.InOutSine)
+                 .Delay(900)
+                 .MoveToX(0, duration, Easing.InOutSine)
+                 .Delay(1200)
+                 .Loop();
+        }
     }
 
     private partial class PauseActionButton : ClickableContainer

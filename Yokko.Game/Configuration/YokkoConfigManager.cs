@@ -54,6 +54,7 @@ internal enum YokkoSetting
     ManiaScrollSpeed,
     QuaverScrollRateNormalization,
     GameplayShowLanePressFeedback,
+    GameplayShowTimingBar,
     GameplayKeysoundsEnabled,
     GameplayPauseWhenUnfocused,
     ManiaModConfiguration,
@@ -139,7 +140,8 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             100.0,
             10.0);
         SetDefault(YokkoSetting.GameplayShowLanePressFeedback, true);
-        SetDefault(YokkoSetting.GameplayKeysoundsEnabled, true);
+        SetDefault(YokkoSetting.GameplayShowTimingBar, true);
+        SetDefault(YokkoSetting.GameplayKeysoundsEnabled, false);
         SetDefault(YokkoSetting.GameplayPauseWhenUnfocused, true);
         SetDefault(YokkoSetting.ManiaModConfiguration, string.Empty);
         SetDefault(YokkoSetting.DisplayUiScale, YokkoUiScale.Comfortable);
@@ -266,8 +268,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSetting.GameplayShowLanePressFeedback,
             settings.ShowLanePressFeedback);
         BindWith(
+            YokkoSetting.GameplayShowTimingBar,
+            settings.ShowTimingBar);
+        BindWith(
             YokkoSetting.GameplayKeysoundsEnabled,
             settings.KeysoundsEnabled);
+        settings.KeysoundsEnabled.BindValueChanged(_ => Save());
         BindWith(
             YokkoSetting.GameplayPauseWhenUnfocused,
             settings.PauseWhenUnfocused);

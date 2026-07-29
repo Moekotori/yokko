@@ -19,13 +19,18 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
 {
     private readonly IResourceStore<byte[]> source;
     private readonly int maximumDimension;
+    private readonly HashSet<string> preserveHorizontalResolutionFor;
 
     internal ConstrainedTextureResourceStore(
         IResourceStore<byte[]> source,
-        int maximumDimension)
+        int maximumDimension,
+        IEnumerable<string> preserveHorizontalResolutionFor = null)
     {
         this.source = source ?? throw new ArgumentNullException(nameof(source));
         this.maximumDimension = Math.Max(1, maximumDimension);
+        this.preserveHorizontalResolutionFor = new HashSet<string>(
+            preserveHorizontalResolutionFor ?? Array.Empty<string>(),
+            StringComparer.OrdinalIgnoreCase);
     }
 
     public byte[] Get(string name) =>
@@ -73,10 +78,20 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
             return data;
 
         using Image image = Image.Load(data);
+        bool preserveHorizontalResolution =
+            info.Width <= maximumDimension
+            && info.Height > maximumDimension
+            && preserveHorizontalResolutionFor.Contains(name);
+        var targetSize = preserveHorizontalResolution
+            ? new Size(info.Width, maximumDimension)
+            : new Size(maximumDimension, maximumDimension);
+
         image.Mutate(context => context.Resize(new ResizeOptions
         {
-            Size = new Size(maximumDimension, maximumDimension),
-            Mode = ResizeMode.Max,
+            Size = targetSize,
+            Mode = preserveHorizontalResolution
+                ? ResizeMode.Stretch
+                : ResizeMode.Max,
         }));
 
         using var output = new MemoryStream();
@@ -85,7 +100,10 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
         Logger.Log(
             $"Resized oversized osu! skin texture '{name}' from "
             + $"{info.Width}x{info.Height} to {image.Width}x{image.Height} "
-            + $"for the renderer's {maximumDimension}px texture limit.",
+            + $"for the renderer's {maximumDimension}px texture limit"
+            + (preserveHorizontalResolution
+                ? " while preserving long-note body width."
+                : "."),
             LoggingTarget.Runtime,
             LogLevel.Important);
 

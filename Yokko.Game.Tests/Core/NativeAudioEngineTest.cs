@@ -61,6 +61,7 @@ namespace Yokko.Game.Tests.Core
                 + $"callbacks={status.CallbackCount}, "
                 + $"workMisses={status.CallbackDeadlineMissCount}, "
                 + $"cadenceMisses={status.CallbackCadenceMissCount}, "
+                + $"backendOverloads={status.BackendOverloadCount}, "
                 + $"maxWork={status.MaxCallbackDurationMilliseconds:F3} ms, "
                 + $"maxInterval={status.MaxCallbackIntervalMilliseconds:F3} ms");
 
@@ -151,6 +152,7 @@ namespace Yokko.Game.Tests.Core
                 $"Callbacks={status.CallbackCount}, "
                 + $"deadline misses={status.CallbackDeadlineMissCount}, "
                 + $"cadence misses={status.CallbackCadenceMissCount}, "
+                + $"backend overloads={status.BackendOverloadCount}, "
                 + $"max={status.MaxCallbackDurationMilliseconds:F3} ms / "
                 + $"budget={status.CallbackBudgetMilliseconds:F3} ms, "
                 + $"interval={status.MaxCallbackIntervalMilliseconds:F3} ms, "

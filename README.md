@@ -64,6 +64,25 @@ dotnet run --project .\Yokko.Desktop\Yokko.Desktop.csproj
 
 Use `Yokko.Desktop.slnf` for fast desktop iteration. The full solution also contains the template iOS project for later platform work.
 
+## Windows Playtest Package
+
+Double-click `打包Yokko测试包.bat` to build a complete Windows x64 playtest
+package. The script builds the native audio library, publishes a self-contained
+.NET 8 desktop build, copies the playtest documents, creates a ZIP, verifies its
+required files, and writes a SHA-256 checksum under `artifacts\packages`.
+
+The package includes both WASAPI and ASIO and statically links the MSVC runtime.
+The script resolves the ASIO SDK from `YOKKO_ASIO_SDK_DIR` or the existing
+native-audio CMake cache. If no valid SDK is available, packaging fails instead
+of silently producing a build with disabled features. The SDK path can also be
+provided explicitly:
+
+```powershell
+.\scripts\package-playtest.ps1 `
+    -AsioSdkDir "D:\path\to\asio-sdk" `
+    -OpenOutputFolder
+```
+
 ## Crash Reports
 
 The desktop build writes a timestamped diagnostic report to the `crashes`

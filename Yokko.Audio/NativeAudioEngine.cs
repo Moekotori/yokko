@@ -102,6 +102,13 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
                             native.CallbackCadenceMissCount,
                         MaxCallbackIntervalMilliseconds =
                             native.CallbackMaxIntervalMicroseconds / 1000.0,
+                        EstimatedOutputLatencyMilliseconds =
+                            native.SampleRate == 0
+                                ? 0
+                                : native.DeviceLatencyFrames * 1000.0
+                                  / native.SampleRate,
+                        BackendOverloadCount =
+                            native.BackendOverloadCount,
                         BackendError = native.BackendError,
                         BackendErrorStage = native.BackendErrorStage,
                     },
@@ -689,28 +696,35 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
         }
 
         status = new AudioEngineStatus(
-            activeBackend,
-            resolveDeviceName(
-                request.DeviceId,
-                activeBackend),
-            (int)outputStatus.SampleRate,
-            (int)outputStatus.BufferFrames,
-            outputStatus.SampleRate == 0
-                ? 0
-                : outputStatus.LatencyFrames * 1000.0
-                  / outputStatus.SampleRate,
-            activeBackend != AudioBackendKind.SharedWasapi,
-            true,
-            false,
-            false,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0);
+                activeBackend,
+                resolveDeviceName(
+                    request.DeviceId,
+                    activeBackend),
+                (int)outputStatus.SampleRate,
+                (int)outputStatus.BufferFrames,
+                outputStatus.SampleRate == 0
+                    ? 0
+                    : outputStatus.LatencyFrames * 1000.0
+                      / outputStatus.SampleRate,
+                activeBackend != AudioBackendKind.SharedWasapi,
+                true,
+                false,
+                false,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0)
+            {
+                DevicePeriodFrames = (int)outputStatus.PeriodFrames,
+                UsesWasapiSharedExplicitPeriod =
+                    outputStatus.SharedExplicitPeriod != 0,
+                WasapiSharedExplicitPeriodError =
+                    outputStatus.SharedExplicitPeriodError,
+            };
     }
 
     private static string resolveDeviceName(

@@ -121,7 +121,8 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("Cinema hides playfield and HUD", () =>
                 gameplay.ChildrenOfType<GameplayPlayfield>().Single().Alpha == 0
                 && gameplay.ChildrenOfType<GameplayHud>().Single().Alpha == 0
-                && gameplay.ChildrenOfType<JudgementReadout>().Single().Alpha == 0);
+                && gameplay.ChildrenOfType<JudgementReadout>().Single().Alpha == 0
+                && gameplay.ChildrenOfType<GameplayTimingBar>().Single().Alpha == 0);
         }
 
         [Test]
@@ -360,19 +361,46 @@ namespace Yokko.Game.Tests.Visual
         [Test]
         public void TestRuntimeAudioTruthAndHitErrorAreVisible()
         {
+            GameplayScreen gameplay = null;
+            GameplayPlayfield playfield = null;
             GameplayHud hud = null;
             JudgementReadout readout = null;
+            GameplayTimingBar timingBar = null;
 
+            AddStep("open gameplay feedback fixture", () =>
+            {
+                gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo());
+                screenStack.Push(gameplay);
+            });
             AddUntilStep("gameplay feedback loaded", () =>
             {
-                Drawable current = screenStack.CurrentScreen as Drawable;
-                hud = current?
+                playfield = gameplay?
+                            .ChildrenOfType<GameplayPlayfield>()
+                            .SingleOrDefault();
+                hud = gameplay?
                       .ChildrenOfType<GameplayHud>()
                       .SingleOrDefault();
-                readout = current?
+                readout = gameplay?
                           .ChildrenOfType<JudgementReadout>()
                           .SingleOrDefault();
-                return hud != null && readout != null;
+                timingBar = gameplay?
+                            .ChildrenOfType<GameplayTimingBar>()
+                            .SingleOrDefault();
+                return playfield != null
+                       && hud != null
+                       && readout != null
+                       && timingBar != null;
+            });
+            AddAssert("timing bar sits above downscroll judgement line", () =>
+            {
+                float receptorEdgeY =
+                    gameplay.DrawHeight
+                    - playfield.Height * playfield.Scale.Y
+                    + playfield.ReceptorPlayAreaEdge * playfield.Scale.Y;
+                return playfield.ReceptorAtBottom
+                       && timingBar.Origin == Anchor.BottomCentre
+                       && timingBar.Y < receptorEdgeY;
             });
             AddStep("show shared fallback truth", () =>
                 hud.UpdateAudioStatus(
@@ -398,6 +426,93 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("rating and milliseconds are visible", () =>
                 readout.DisplayedRating == "PERFECT"
                 && readout.DisplayedError == "+12.5 ms");
+            AddStep("show early timing marker", () =>
+                timingBar.Show(new JudgementEvent(
+                    0,
+                    0,
+                    1000,
+                    987.5,
+                    -12.5,
+                    JudgementRating.Perfect)));
+            AddAssert("early timing is left of centre", () =>
+                timingBar.RecordedMarkerCount == 1
+                && timingBar.DisplayedDirectionKey
+                == "gameplay.timing.early"
+                && timingBar.LatestMarkerPosition
+                < timingBar.CentreMarkerPosition
+                && timingBar.LatestHitErrorMilliseconds == -12.5
+                && timingBar.PressTrendMilliseconds == -12.5);
+            AddStep("show late timing marker", () =>
+                timingBar.Show(new JudgementEvent(
+                    1,
+                    1,
+                    1200,
+                    1225,
+                    25,
+                    JudgementRating.Great)));
+            AddAssert("late timing is right of centre", () =>
+                timingBar.RecordedMarkerCount == 2
+                && timingBar.DisplayedDirectionKey
+                == "gameplay.timing.late"
+                && timingBar.LatestMarkerPosition
+                > timingBar.CentreMarkerPosition
+                && timingBar.LatestHitErrorMilliseconds == 25
+                && timingBar.PressTrendMilliseconds == -6.875);
+            AddStep("show manually pressed miss", () =>
+                timingBar.Show(new JudgementEvent(
+                    2,
+                    2,
+                    1400,
+                    1550,
+                    150,
+                    JudgementRating.Miss)));
+            AddAssert("manual miss uses the full miss axis", () =>
+                timingBar.RecordedMarkerCount == 3
+                && timingBar.LatestMarkerPosition
+                > timingBar.CentreMarkerPosition
+                && timingBar.LatestMarkerPosition
+                < timingBar.MaximumMarkerPosition);
+            AddStep("show late hold release", () =>
+                timingBar.Show(new JudgementEvent(
+                    3,
+                    3,
+                    1600,
+                    1660,
+                    60,
+                    JudgementRating.Great,
+                    JudgementPhase.HoldTail)));
+            AddAssert("hold release has an independent trend", () =>
+                timingBar.RecordedMarkerCount == 4
+                && timingBar.LatestPhase == JudgementPhase.HoldTail
+                && timingBar.ReleaseTrendMilliseconds == 60
+                && timingBar.LatestMarkerPosition
+                > timingBar.CentreMarkerPosition);
+            AddStep("ignore automatic miss without input time", () =>
+                timingBar.Show(new JudgementEvent(
+                    4,
+                    0,
+                    1800,
+                    null,
+                    190,
+                    JudgementRating.Miss)));
+            AddAssert("automatic miss adds no timing marker", () =>
+                timingBar.RecordedMarkerCount == 4);
+            AddStep("fill timing marker history", () =>
+            {
+                for (int i = 0; i < 60; i++)
+                {
+                    double error = i % 2 == 0 ? -30 : 30;
+                    timingBar.Show(new JudgementEvent(
+                        5 + i,
+                        i % 4,
+                        2000 + i,
+                        2000 + i + error,
+                        error,
+                        JudgementRating.Great));
+                }
+            });
+            AddUntilStep("visible marker history stays capped", () =>
+                timingBar.ActiveMarkerCount <= 50);
         }
 
         [Test]
@@ -1452,6 +1567,73 @@ HitPosition: 400
                                   .SelectMany(lane => lane.ReceptorLayer.ChildrenOfType<Sprite>())
                                   .Any(sprite => sprite.Scale.Y < 0) == true;
                 return noteFlipped && keyFlipped;
+            });
+            AddAssert("timing bar moves below upscroll judgement line", () =>
+            {
+                Drawable current = screenStack.CurrentScreen as Drawable;
+                GameplayPlayfield playfield = current?
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .SingleOrDefault();
+                GameplayTimingBar timingBar = current?
+                                              .ChildrenOfType<GameplayTimingBar>()
+                                              .SingleOrDefault();
+                if (playfield == null || timingBar == null)
+                    return false;
+
+                float receptorEdgeY =
+                    current.DrawHeight
+                    - playfield.Height * playfield.Scale.Y
+                    + playfield.ReceptorPlayAreaEdge * playfield.Scale.Y;
+                return !playfield.ReceptorAtBottom
+                       && timingBar.Origin == Anchor.TopCentre
+                       && timingBar.Y > receptorEdgeY;
+            });
+        }
+
+        [Test]
+        public void TestTimingBarClearsTallSkinReceptors()
+        {
+            string skinPath = createTestSkin();
+            using (var keyImage = new Image<Rgba32>(
+                       64,
+                       240,
+                       new Rgba32(72, 208, 240, 255)))
+            {
+                keyImage.SaveAsPng(Path.Combine(skinPath, "key.png"));
+                keyImage.SaveAsPng(Path.Combine(skinPath, "key-down.png"));
+            }
+
+            GameplayScreen gameplay = null;
+            GameplayPlayfield playfield = null;
+            GameplayTimingBar timingBar = null;
+
+            AddStep("open tall receptor skin", () =>
+            {
+                gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath);
+                screenStack.Push(gameplay);
+            });
+            AddUntilStep("tall receptor feedback loaded", () =>
+            {
+                playfield = gameplay?
+                            .ChildrenOfType<GameplayPlayfield>()
+                            .SingleOrDefault();
+                timingBar = gameplay?
+                            .ChildrenOfType<GameplayTimingBar>()
+                            .SingleOrDefault();
+                return playfield != null && timingBar != null;
+            });
+            AddAssert("timing bar clears actual receptor bounds", () =>
+            {
+                float receptorEdgeY =
+                    gameplay.DrawHeight
+                    - playfield.Height * playfield.Scale.Y
+                    + playfield.ReceptorPlayAreaEdge * playfield.Scale.Y;
+                return playfield.ReceptorPlayAreaEdge
+                       < playfield.JudgementPosition
+                       && timingBar.Origin == Anchor.BottomCentre
+                       && timingBar.Y <= receptorEdgeY - 11.5f;
             });
         }
 

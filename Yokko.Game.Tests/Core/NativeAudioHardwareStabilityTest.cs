@@ -141,6 +141,119 @@ public sealed class NativeAudioHardwareStabilityTest
         }
     }
 
+    [Test]
+    public async Task SharedDefaultEndpointUsesAndReportsExplicitPeriod()
+    {
+        if (Environment.GetEnvironmentVariable(
+                "YOKKO_RUN_SHARED_WASAPI_TEST") != "1")
+        {
+            Assert.Ignore(
+                "Set YOKKO_RUN_SHARED_WASAPI_TEST=1 to run the real-device "
+                + "WASAPI Shared low-period test.");
+        }
+        if (!NativeAudioEngine.IsAvailable)
+            Assert.Fail("The Yokko native audio library is unavailable.");
+
+        await using var enumerator = new NativeAudioEngine();
+        AudioDeviceInfo[] devices =
+            (await enumerator.GetOutputDevicesAsync())
+            .Where(device =>
+                device.Backend == AudioBackendKind.SharedWasapi)
+            .ToArray();
+        AudioDeviceInfo device =
+            devices.FirstOrDefault(candidate => candidate.IsDefault)
+            ?? devices.FirstOrDefault();
+        Assert.That(
+            device,
+            Is.Not.Null,
+            "No active WASAPI Shared output endpoint was found.");
+
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "native-audio-shared",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string audioPath = Path.Combine(directory, "probe-48000.wav");
+        createProbeWave(
+            audioPath,
+            sampleRate: 48000,
+            channels: 2,
+            durationSeconds: 5);
+
+        try
+        {
+            await using var engine = new NativeAudioEngine();
+            await engine.StartAsync(new AudioEngineStartRequest(
+                audioPath,
+                AudioBackendKind.SharedWasapi,
+                device.Id,
+                48000,
+                64,
+                0));
+
+            AudioEngineStatus opened = engine.Status;
+            TestContext.Progress.WriteLine(
+                $"{device.Name} | buffer={opened.BufferSize} frames | "
+                + $"period={opened.DevicePeriodFrames} frames | "
+                + $"latency={opened.EstimatedOutputLatencyMilliseconds:F3} ms | "
+                + $"explicitPeriod={opened.UsesWasapiSharedExplicitPeriod} | "
+                + $"explicitPeriodError="
+                + $"0x{opened.WasapiSharedExplicitPeriodError:X8}");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    opened.ActiveBackend,
+                    Is.EqualTo(AudioBackendKind.SharedWasapi));
+                Assert.That(opened.IsExclusive, Is.False);
+                Assert.That(opened.IsRunning, Is.True);
+                Assert.That(opened.BufferSize, Is.GreaterThan(0));
+                Assert.That(opened.DevicePeriodFrames, Is.GreaterThan(0));
+                Assert.That(
+                    opened.EstimatedOutputLatencyMilliseconds,
+                    Is.GreaterThanOrEqualTo(
+                        opened.BufferSize
+                        * 1000.0
+                        / opened.SampleRate),
+                    "A zero or sub-buffer latency estimate is not useful for "
+                    + "judging Shared-mode input-to-sound delay.");
+                Assert.That(
+                    opened.UsesWasapiSharedExplicitPeriod,
+                    Is.True,
+                    "IAudioClient3 low-period initialization fell back to "
+                    + "legacy Shared mode. HRESULT: "
+                    + $"0x{opened.WasapiSharedExplicitPeriodError:X8}.");
+            });
+
+            await Task.Delay(1500);
+            AudioEngineStatus current = engine.Status;
+            Assert.Multiple(() =>
+            {
+                Assert.That(current.IsRunning, Is.True);
+                Assert.That(current.IsFaulted, Is.False);
+                Assert.That(current.HasUnderrun, Is.False);
+                Assert.That(current.CallbackCount, Is.GreaterThan(1));
+                Assert.That(current.BackendError, Is.Zero);
+                Assert.That(
+                    current.CallbackBudgetMilliseconds,
+                    Is.EqualTo(
+                            current.DevicePeriodFrames
+                            * 1000.0
+                            / current.SampleRate)
+                      .Within(0.002),
+                    "The callback budget must use the accepted engine period, "
+                    + "not the endpoint buffer size.");
+            });
+
+            await engine.StopAsync();
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
     private static async Task<HardwareRunResult> runExclusiveAsync(
         AudioDeviceInfo device,
         string audioPath,

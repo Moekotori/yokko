@@ -290,3 +290,79 @@ public partial class HomeExitHoldIndicator : CompositeDrawable
         this.FadeOut(180, Easing.OutQuint);
     }
 }
+
+/// <summary>
+/// 主页青色舞台上的轻量节拍波形装饰。
+/// </summary>
+public partial class HomeSignalWave : CompositeDrawable
+{
+    private static readonly float[] barHeights =
+    {
+        7, 12, 19, 10, 24, 15, 8, 20, 28, 17, 11, 23, 14, 8,
+    };
+
+    public HomeSignalWave(Color4 colour)
+    {
+        Size = new Vector2(barHeights.Length * 8, 30);
+
+        for (int i = 0; i < barHeights.Length; i++)
+        {
+            AddInternal(new Box
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.Centre,
+                Position = new Vector2(i * 8 + 2, 0),
+                Size = new Vector2(3, barHeights[i]),
+                Colour = colour,
+            });
+        }
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        this.FadeTo(0.45f, 1600, Easing.InOutSine)
+            .Then().FadeTo(1f, 1600, Easing.InOutSine)
+            .Loop();
+    }
+}
+
+/// <summary>
+/// 以错峰呼吸表现八拍循环的小型节拍指示灯。
+/// </summary>
+public partial class HomeBeatPips : CompositeDrawable
+{
+    public HomeBeatPips(Color4 colour, Color4 accent)
+    {
+        Size = new Vector2(112, 10);
+
+        for (int i = 0; i < 8; i++)
+        {
+            bool accented = i is 0 or 4;
+            AddInternal(new Circle
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.Centre,
+                Position = new Vector2(i * 15 + 4, 0),
+                Size = new Vector2(accented ? 7 : 4),
+                Colour = accented ? accent : colour,
+            });
+        }
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        for (int i = 0; i < InternalChildren.Count; i++)
+        {
+            InternalChildren[i]
+                .Delay(i * 90)
+                .FadeTo(0.35f, 520, Easing.InOutSine)
+                .Then()
+                .FadeTo(1f, 520, Easing.InOutSine)
+                .Loop();
+        }
+    }
+}

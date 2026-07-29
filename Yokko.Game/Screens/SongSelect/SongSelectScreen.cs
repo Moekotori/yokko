@@ -39,6 +39,9 @@ namespace Yokko.Game.Screens.SongSelect;
 
 public partial class SongSelectScreen : Screen
 {
+    private const double playbackRateShortcutStep = 0.05;
+    private const double minimumPlaybackRate = 0.5;
+    private const double maximumPlaybackRate = 2;
     private const double list_refresh_stagger = 28;
     private const int max_staggered_rows = 7;
     private const float designed_height = 900;
@@ -119,6 +122,9 @@ public partial class SongSelectScreen : Screen
     private bool modPanelOpen;
     private bool previewActive;
     private bool transitionPending;
+    private double displayedPlaybackRate = 1;
+    private string displayedBpm = "0";
+    private ManiaStarRatingResult displayedStarRating;
     [Resolved]
     private GameplayScoreStore scoreStore { get; set; }
     [Resolved]
@@ -141,8 +147,16 @@ public partial class SongSelectScreen : Screen
     internal KeyMode? KeyModeFilter => keyModeFilter;
     internal string SearchQuery => searchQuery;
     internal Vector2 SearchBoxSize => searchBox?.Size ?? Vector2.Zero;
+    internal Vector2 RankingPanelSize =>
+        rankingPanel?.Size ?? Vector2.Zero;
+    internal Vector2 RankingContentSize =>
+        rankingPanel?.ContentSize ?? Vector2.Zero;
     internal SongSelectScoreView ScoreView => scoreView;
     internal ManiaModSet SelectedMods => selectedMods;
+    internal double DisplayedPlaybackRate => displayedPlaybackRate;
+    internal string DisplayedBpm => displayedBpm;
+    internal ManiaStarRatingResult DisplayedStarRating =>
+        displayedStarRating;
     internal SongSelectAccuracyChallengeSettings
         AccuracyChallengeSettings =>
             modSettingsHost?.AccuracySettings;
@@ -240,7 +254,7 @@ public partial class SongSelectScreen : Screen
                     detailsHost = new Container
                     {
                         Position = new Vector2(64, details_top),
-                        Size = new Vector2(400, 510),
+                        Size = new Vector2(440, 510),
                     },
                     createSongBrowser(),
                     createFooter(),
@@ -326,6 +340,9 @@ public partial class SongSelectScreen : Screen
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
+        if (HandlePlaybackRateShortcut(e.Key, e.AltPressed))
+            return true;
+
         switch (e.Key)
         {
             case Key.Up:
@@ -398,6 +415,8 @@ public partial class SongSelectScreen : Screen
             : SongSelectScoreView.GlobalRanking;
         rebuildDetails();
     }
+
+    internal void ActivateRankingPanel() => rankingPanel?.TriggerClick();
 
     internal void PlaySelected()
     {
@@ -580,6 +599,96 @@ public partial class SongSelectScreen : Screen
             selectedMods.FixedRateSpeedChange,
             value);
         onSelectedModsChanged();
+    }
+
+    internal bool HandlePlaybackRateShortcut(
+        Key key,
+        bool altPressed)
+    {
+        if (!altPressed || selectedEntry == null)
+            return false;
+
+        double amount = key switch
+        {
+            Key.Plus or Key.KeypadPlus =>
+                playbackRateShortcutStep,
+            Key.Minus or Key.KeypadMinus =>
+                -playbackRateShortcutStep,
+            _ => 0,
+        };
+        if (amount == 0)
+            return false;
+
+        double currentRate = selectedMods.PlaybackRate;
+        double nextRate = AdjustPlaybackRate(
+            currentRate,
+            amount);
+        if (Math.Abs(nextRate - currentRate) < 0.000001)
+            return true;
+
+        ManiaModId? currentMod = selectedMods.FixedRateMod;
+
+        if (Math.Abs(nextRate - 1) < 0.000001)
+        {
+            if (currentMod.HasValue)
+                selectedMods = selectedMods.With(
+                    currentMod.Value,
+                    false);
+        }
+        else
+        {
+            ManiaModId nextMod = fixedRateModFor(
+                nextRate,
+                currentMod);
+            bool keepPitchAdjustment =
+                currentMod == nextMod
+                && selectedMods.FixedRateAdjustPitch;
+            selectedMods = selectedMods.WithFixedRate(
+                nextMod,
+                nextRate,
+                keepPitchAdjustment);
+        }
+
+        onPlaybackRateShortcutChanged();
+        return true;
+    }
+
+    internal static double AdjustPlaybackRate(
+        double playbackRate,
+        double amount)
+    {
+        if (!double.IsFinite(playbackRate)
+            || !double.IsFinite(amount))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(playbackRate));
+        }
+
+        return Math.Clamp(
+            Math.Round(
+                playbackRate + amount,
+                2,
+                MidpointRounding.AwayFromZero),
+            minimumPlaybackRate,
+            maximumPlaybackRate);
+    }
+
+    private static ManiaModId fixedRateModFor(
+        double playbackRate,
+        ManiaModId? currentMod)
+    {
+        bool slow = playbackRate < 1;
+        bool sameFamily = slow
+            ? currentMod is ManiaModId.HalfTime
+                or ManiaModId.Daycore
+            : currentMod is ManiaModId.DoubleTime
+                or ManiaModId.Nightcore;
+        if (sameFamily)
+            return currentMod.Value;
+
+        return slow
+            ? ManiaModId.HalfTime
+            : ManiaModId.DoubleTime;
     }
 
     internal void SetDifficultyAdjustDrainRate(double? value)
@@ -774,6 +883,22 @@ public partial class SongSelectScreen : Screen
         refreshSavedScores();
         rebuildDetails();
         rebuildSongList();
+    }
+
+    private void onPlaybackRateShortcutChanged()
+    {
+        modPreferences?.Remember(selectedMods);
+        updateModSelection();
+        if (previewActive
+            && previewPlayer?.TryUpdatePlaybackRate(
+                selectedEntry?.Beatmap,
+                selectedMods) != true)
+        {
+            playSelectedPreview();
+        }
+        if (hoveredMod == null)
+            showModPanelSummary();
+        rebuildDetails();
     }
 
     internal void ToggleModPanel()
@@ -1395,12 +1520,26 @@ public partial class SongSelectScreen : Screen
                         ?? hitObject.StartTimeMilliseconds)
                 : appliedLengthMilliseconds
                   / selectedMods.PlaybackRate;
-        string displayedBpm = selectedMods.HasTimeRamp
+        string bpmLabel = selectedMods.HasTimeRamp
             ? $"{selectedEntry.Bpm * selectedMods.TimeRampInitialRate:0}"
               + "→"
               + $"{selectedEntry.Bpm * selectedMods.TimeRampFinalRate:0}"
             : (selectedEntry.Bpm * selectedMods.PlaybackRate)
                 .ToString("0");
+        string rateLabel = selectedMods.HasTimeRamp
+            ? $"{selectedMods.TimeRampInitialRate:0.00}"
+              + "→"
+              + $"{selectedMods.TimeRampFinalRate:0.00}×"
+            : $"{selectedMods.PlaybackRate:0.00}×";
+        ManiaStarRatingResult starRating =
+            ManiaStarRatingCalculator.CalculateResult(
+                difficultyBeatmap,
+                selectedMods.HasTimeRamp
+                    ? 1
+                    : selectedMods.PlaybackRate);
+        displayedPlaybackRate = selectedMods.PlaybackRate;
+        displayedBpm = bpmLabel;
+        displayedStarRating = starRating;
 
         rankingPanel = new SongSelectRankingPanel(selectedEntry, textures, newView => scoreView = newView)
         {
@@ -1434,6 +1573,7 @@ public partial class SongSelectScreen : Screen
                 Icon = FontAwesome.Solid.Plus,
                 Colour = SongSelectTheme.Pink,
             },
+            createPlaybackRateBadge(rateLabel),
             new SpriteText
             {
                 Position = new Vector2(0, 28),
@@ -1487,12 +1627,7 @@ public partial class SongSelectScreen : Screen
                     },
                 },
             },
-            createStarRating(
-                ManiaStarRatingCalculator.CalculateResult(
-                    difficultyBeatmap,
-                    selectedMods.HasTimeRamp
-                        ? 1
-                        : selectedMods.PlaybackRate)),
+            createStarRating(starRating),
             new Box
             {
                 Position = new Vector2(0, 216),
@@ -1516,7 +1651,7 @@ public partial class SongSelectScreen : Screen
                 232,
                 FontAwesome.Solid.WaveSquare,
                 "BPM",
-                displayedBpm),
+                bpmLabel),
             createBestScoreStat(225, 232),
             new Box
             {
@@ -1613,6 +1748,34 @@ public partial class SongSelectScreen : Screen
             },
         },
     };
+
+    private static Drawable createPlaybackRateBadge(
+        string rateLabel) =>
+        new Container
+        {
+            Position = new Vector2(292, -1),
+            Size = new Vector2(128, 24),
+            Masking = true,
+            CornerRadius = 4,
+            BorderThickness = 1,
+            BorderColour = SongSelectTheme.Cyan,
+            Children =
+            [
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = SongSelectTheme.PaleCyan,
+                },
+                new SpriteText
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Text = $"ALT +/-  {rateLabel}",
+                    Font = HomeTypography.Display(9),
+                    Colour = SongSelectTheme.Navy,
+                },
+            ],
+        };
 
     private static Drawable createStarRating(
         ManiaStarRatingResult rating)
