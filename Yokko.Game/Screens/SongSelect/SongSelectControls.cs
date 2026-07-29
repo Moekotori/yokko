@@ -170,7 +170,7 @@ internal partial class SongSelectSongRow : ClickableContainer
     {
         Entry = entry;
         Action = select;
-        Size = new Vector2(585, 68);
+        Size = new Vector2(660, 68);
 
         InternalChildren = new Drawable[]
         {
@@ -198,7 +198,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             thumbnail = new Container
             {
                 Position = new Vector2(0, 2),
-                Size = new Vector2(90, 64),
+                Size = new Vector2(104, 64),
                 Masking = true,
                 CornerRadius = 1,
                 BorderThickness = 1,
@@ -236,7 +236,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             },
             new Container
             {
-                X = 102,
+                X = 116,
                 RelativeSizeAxes = Axes.Both,
                 Width = 0.82f,
                 Children = new Drawable[]
@@ -244,7 +244,7 @@ internal partial class SongSelectSongRow : ClickableContainer
                     title = new SpriteText
                     {
                         Y = 7,
-                        Width = 300,
+                        Width = 330,
                         Truncate = true,
                         Text = entry.Beatmap.Title,
                         Font = HomeTypography.Display(19),
@@ -320,8 +320,8 @@ internal partial class SongSelectSongRow : ClickableContainer
             selectedLeftBorder = new Box
             {
                 RelativeSizeAxes = Axes.Y,
-                Width = 2,
-                Colour = SongSelectTheme.Cyan,
+                Width = 4,
+                Colour = SongSelectTheme.Yellow,
                 Alpha = 0,
             },
             selectedRightBorder = new Box
@@ -366,7 +366,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         thumbnail.Shear = Vector2.Zero;
         tint.FadeColour(
             selected
-                ? new Color4(SongSelectTheme.Navy.R, SongSelectTheme.Navy.G, SongSelectTheme.Navy.B, 0.58f)
+                ? new Color4(SongSelectTheme.Navy.R, SongSelectTheme.Navy.G, SongSelectTheme.Navy.B, 0.42f)
                 : new Color4(SongSelectTheme.DeepNavy.R, SongSelectTheme.DeepNavy.G, SongSelectTheme.DeepNavy.B, 0.76f),
             150,
             Easing.OutQuint);
@@ -461,7 +461,7 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         Action toggle)
     {
         Action = toggle;
-        Size = new Vector2(585, 38);
+        Size = new Vector2(660, 38);
         Masking = true;
         CornerRadius = 2;
         BorderThickness = 1;

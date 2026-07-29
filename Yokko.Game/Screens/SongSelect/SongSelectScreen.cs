@@ -176,8 +176,8 @@ public partial class SongSelectScreen : Screen
                     {
                         Anchor = Anchor.BottomLeft,
                         Origin = Anchor.BottomLeft,
-                        Position = new Vector2(12, -5),
-                    Size = new Vector2(210),
+                        Position = new Vector2(16, -24),
+                        Size = new Vector2(230),
                     },
                     createDecorations(),
                 },
@@ -328,14 +328,14 @@ public partial class SongSelectScreen : Screen
         {
             modPanel.Show();
             modPanel.Alpha = 0;
-            modPanel.Y = -162;
+            modPanel.Y = -2;
             modPanel.FadeIn(150, Easing.OutQuint)
-                    .MoveToY(-174, 190, Easing.OutQuint);
+                    .MoveToY(-10, 190, Easing.OutQuint);
         }
         else
         {
             modPanel.FadeOut(110, Easing.OutQuint)
-                    .MoveToY(-164, 140, Easing.OutQuint);
+                    .MoveToY(-2, 140, Easing.OutQuint);
         }
     }
 
@@ -406,7 +406,7 @@ public partial class SongSelectScreen : Screen
         Anchor = Anchor.TopRight,
         Origin = Anchor.TopRight,
         Position = new Vector2(0, 112),
-        Size = new Vector2(620, 520),
+        Size = new Vector2(684, 520),
         Children = new Drawable[]
         {
             songScroll = new BasicScrollContainer
@@ -415,8 +415,8 @@ public partial class SongSelectScreen : Screen
                 ScrollbarVisible = false,
                 Child = songList = new FillFlowContainer
                 {
-                    X = 34,
-                    RelativeSizeAxes = Axes.X,
+                    X = 24,
+                    Width = 660,
                     AutoSizeAxes = Axes.Y,
                     Direction = FillDirection.Vertical,
                     Spacing = Vector2.Zero,
@@ -476,7 +476,8 @@ public partial class SongSelectScreen : Screen
         var mods = modsToggleButton = new SongSelectModsToggleButton(
             ToggleModPanel)
         {
-            Position = new Vector2(632, 17),
+            Anchor = Anchor.Centre,
+            Origin = Anchor.Centre,
         };
         modPanel = createModPanel();
         updateModSelection();
@@ -581,7 +582,9 @@ public partial class SongSelectScreen : Screen
                 },
                 new Box
                 {
-                    Position = new Vector2(600, 7),
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(-76, 0),
                     Size = new Vector2(1, 62),
                     Rotation = 14,
                     Colour = new Color4(
@@ -656,13 +659,15 @@ public partial class SongSelectScreen : Screen
 
     private Container createModPanel() => new Container
     {
-        Position = new Vector2(558, -174),
-        Size = new Vector2(196, 164),
+        Anchor = Anchor.TopCentre,
+        Origin = Anchor.BottomCentre,
+        Position = new Vector2(0, -10),
+        Size = new Vector2(220, 184),
         Alpha = 0,
         Depth = -5,
         Masking = true,
-        CornerRadius = 4,
-        BorderThickness = 1.5f,
+        CornerRadius = 8,
+        BorderThickness = 1,
         BorderColour = SongSelectTheme.Cyan,
         Children = new Drawable[]
         {
@@ -683,16 +688,16 @@ public partial class SongSelectScreen : Screen
             },
             new SpriteIcon
             {
-                Position = new Vector2(16, 14),
+                Position = new Vector2(18, 15),
                 Size = new Vector2(14),
                 Icon = FontAwesome.Solid.SlidersH,
                 Colour = SongSelectTheme.Cyan,
             },
             new SpriteText
             {
-                Position = new Vector2(39, 11),
+                Position = new Vector2(42, 12),
                 Text = "GAMEPLAY MODS",
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Display(13),
                 Spacing = new Vector2(0.5f, 0),
                 Colour = SongSelectTheme.Ivory,
             },
@@ -700,15 +705,15 @@ public partial class SongSelectScreen : Screen
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-13, 12),
+                Position = new Vector2(-16, 13),
                 Text = "M",
                 Font = HomeTypography.Display(10),
                 Colour = SongSelectTheme.Pink,
             },
             new Box
             {
-                Position = new Vector2(14, 37),
-                Size = new Vector2(168, 1),
+                Position = new Vector2(16, 41),
+                Size = new Vector2(188, 1),
                 Colour = new Color4(
                     SongSelectTheme.Cyan.R,
                     SongSelectTheme.Cyan.G,
@@ -716,17 +721,17 @@ public partial class SongSelectScreen : Screen
                     0.26f),
             },
             createModRow(
-                45,
+                50,
                 doubleTimeMod,
                 nightcoreMod,
                 halfTimeMod),
             createModRow(
-                84,
+                94,
                 daycoreMod,
                 mirrorMod,
                 randomMod),
             createModRow(
-                123,
+                138,
                 holdOffMod,
                 noReleaseMod,
                 autoplayMod),
@@ -738,10 +743,10 @@ public partial class SongSelectScreen : Screen
         params SongSelectModButton[] buttons) =>
         new FillFlowContainer
         {
-            Position = new Vector2(18, y),
+            Position = new Vector2(19, y),
             AutoSizeAxes = Axes.Both,
             Direction = FillDirection.Horizontal,
-            Spacing = new Vector2(8, 0),
+            Spacing = new Vector2(10, 0),
             Children = buttons,
         };
 
@@ -1170,10 +1175,8 @@ public partial class SongSelectScreen : Screen
         SongSelectSongRow selectedRow = rows.FirstOrDefault(row =>
             row.Entry == selectedEntry);
         if (selectedRow != null)
-        {
-            Scheduler.Add(() =>
-                songScroll?.ScrollIntoView(selectedRow, true));
-        }
+            Scheduler.AddDelayed(() =>
+                songScroll?.ScrollIntoView(selectedRow, true), 260);
     }
 
     private void applyFilters()

@@ -23,7 +23,7 @@ internal partial class SongSelectModButton : ClickableContainer
     {
         this.accent = accent;
         Action = action;
-        Size = new Vector2(48, 34);
+        Size = new Vector2(54, 36);
         Masking = true;
         CornerRadius = 4;
         BorderThickness = 2;
@@ -40,7 +40,7 @@ internal partial class SongSelectModButton : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = acronym,
-                Font = HomeTypography.Display(18),
+                Font = HomeTypography.Display(16),
             },
         };
 
@@ -76,9 +76,9 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
     public SongSelectModsToggleButton(Action action)
     {
         Action = action;
-        Size = new Vector2(50, 42);
+        Size = new Vector2(54, 48);
         Masking = true;
-        CornerRadius = 4;
+        CornerRadius = 9;
         BorderThickness = 1.5f;
         BorderColour = SongSelectTheme.Cyan;
 
@@ -98,16 +98,16 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Position = new Vector2(-4, 1),
-                Size = new Vector2(21),
+                Position = new Vector2(0, 1),
+                Size = new Vector2(22),
                 Icon = FontAwesome.Solid.SlidersH,
             },
             badge = new Circle
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-4, 5),
-                Size = new Vector2(17),
+                Position = new Vector2(-5, 6),
+                Size = new Vector2(16),
                 BorderThickness = 1,
                 BorderColour = SongSelectTheme.DeepNavy,
             },
@@ -115,7 +115,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.Centre,
-                Position = new Vector2(-12.5f, 13.5f),
+                Position = new Vector2(-13, 14),
                 Font = HomeTypography.Display(9),
             },
         };
@@ -128,13 +128,11 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
     {
         count = Math.Max(0, value);
         countLabel.Text = count.ToString();
+        badge.Alpha = count > 0 ? 1 : 0;
+        countLabel.Alpha = count > 0 ? 1 : 0;
         badge.Colour = count > 0
             ? SongSelectTheme.Pink
-            : new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.9f);
+            : SongSelectTheme.Navy;
         countLabel.Colour = count > 0
             ? SongSelectTheme.Ivory
             : SongSelectTheme.PaleCyan;
@@ -144,14 +142,18 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
     {
         open = value;
         background.Colour = open
-            ? SongSelectTheme.PaleCyan
+            ? new Color4(
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.98f)
             : new Color4(
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
                 SongSelectTheme.Navy.B,
                 0.82f);
         icon.Colour = open
-            ? SongSelectTheme.DeepNavy
+            ? SongSelectTheme.Yellow
             : SongSelectTheme.Cyan;
         BorderColour = open
             ? SongSelectTheme.Yellow
