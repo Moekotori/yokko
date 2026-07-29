@@ -52,6 +52,56 @@ public sealed class FrameTimingTrackerTest
     }
 
     [Test]
+    public void SnapshotReportsTailLatencyAndBudgetMisses()
+    {
+        var tracker = new FrameTimingTracker();
+        for (int index = 0; index < 98; index++)
+            tracker.Record(2);
+        tracker.Record(4);
+        tracker.Record(8);
+
+        FrameTimingSnapshot snapshot = tracker.Snapshot(2);
+
+        Assert.That(
+            snapshot.P95FrameTimeMilliseconds,
+            Is.EqualTo(2).Within(0.001));
+        Assert.That(
+            snapshot.P99FrameTimeMilliseconds,
+            Is.GreaterThanOrEqualTo(4));
+        Assert.That(snapshot.MaximumFrameTimeMilliseconds, Is.EqualTo(8));
+        Assert.That(snapshot.BudgetMissCount, Is.EqualTo(2));
+        Assert.That(snapshot.BudgetMissRatio, Is.EqualTo(0.02).Within(0.001));
+    }
+
+    [Test]
+    public void SnapshotUsesApproximatelyTwoSecondWindow()
+    {
+        var tracker = new FrameTimingTracker();
+        tracker.Record(50);
+        for (int index = 0; index < 1000; index++)
+            tracker.Record(2);
+
+        FrameTimingSnapshot snapshot = tracker.Snapshot(2);
+
+        Assert.That(snapshot.MaximumFrameTimeMilliseconds, Is.EqualTo(2));
+        Assert.That(snapshot.BudgetMissCount, Is.Zero);
+    }
+
+    [Test]
+    public void ResetDropsPreviousModeHistory()
+    {
+        var tracker = new FrameTimingTracker();
+        tracker.Record(20);
+        tracker.Reset();
+        tracker.Record(2);
+
+        FrameTimingSnapshot snapshot = tracker.Snapshot(2);
+
+        Assert.That(snapshot.Count, Is.EqualTo(1));
+        Assert.That(snapshot.MaximumFrameTimeMilliseconds, Is.EqualTo(2));
+    }
+
+    [Test]
     public void DisplayIgnoresSmallNumericNoise()
     {
         Assert.That(

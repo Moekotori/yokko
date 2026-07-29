@@ -13,7 +13,13 @@ public enum YokkoUiScale
 
 public enum YokkoFrameLimit
 {
-    RefreshRate,
+    VSync,
+
+    // Keep the old persisted enum name readable. Existing installations which
+    // selected "RefreshRate" migrate to the equivalent tear-free mode.
+    [Obsolete("Use VSync.")]
+    RefreshRate = VSync,
+
     Limit2x,
     Limit4x,
     Limit8x,
@@ -27,7 +33,7 @@ public sealed class YokkoDisplaySettings
     public readonly Bindable<YokkoUiScale> UiScale = new(YokkoUiScale.Comfortable);
 
     public readonly Bindable<YokkoFrameLimit> FrameLimit =
-        new(YokkoFrameLimit.Limit8x);
+        new(YokkoFrameLimit.Limit2x);
     public readonly BindableBool ShowPerformanceReadout = new(false);
 
     public Vector2 TargetDrawSize => GetTargetDrawSize(UiScale.Value);

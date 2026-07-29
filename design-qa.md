@@ -739,3 +739,61 @@ visual language without making the card edge feel crowded.
 - Native captures passed for default, wheel focus, configurable, and inactive
   rate states at Large UI scale.
 - Focused interaction and display tests: passed, 30/30.
+
+---
+
+# Gameplay Mods redesign QA
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\generated_images\019fadd2-f94c-7d92-b4aa-e88843fa5928\call_2ZoM9XyaiFZYLw1ujWEsRsuL.png`
+- Source pixels: 1672 x 941
+- Implementation screenshot: `D:\YOKKO\artifacts\design-preview\mods-1600-large-final4.png`
+- Implementation pixels: 1366 x 768
+- Authored viewport: 1600 x 900 at Yokko UI scale `Large`
+- Density normalization: source resized to 1366 x 768; implementation is a native 1366 x 768 capture of the 1600 x 900 authored workspace at a 0.85375 content scale
+- State: All category, Half Time and Hidden active, Half Time selected
+- Full-view comparison: `D:\YOKKO\artifacts\design-preview\mods-design-comparison-final4.png`
+- Focused inspector comparison: `D:\YOKKO\artifacts\design-preview\mods-inspector-comparison-final4.png`
+- Responsive captures:
+  - `D:\YOKKO\artifacts\design-preview\mods-comfortable-final4.png`
+  - `D:\YOKKO\artifacts\design-preview\mods-compact-final4.png`
+
+## Findings
+
+No actionable P0, P1, or P2 differences remain.
+
+- Fonts and typography: Yokko display/body fonts preserve the source hierarchy. The final pass increased catalogue and inspector optical sizes so names, descriptions, settings, and shortcuts remain readable at the normalized viewport.
+- Spacing and layout rhythm: the implementation follows the shared 1600 x 900 authored grid. Loadout, search, category chips, two-column featured catalogue, inspector, and footer align with the source. Comfortable and Compact expose additional logical space without moving the primary workspace down; Compact uses three catalogue columns.
+- Colors and tokens: navy, cyan, pink, yellow, ivory, pale-cyan surfaces, selected states, dividers, and compatibility green use Yokko's existing tokens.
+- Image quality and assets: the existing high-resolution Yokko logo is reused. Visible icons use the project's Font Awesome set; no placeholder, CSS-art, or improvised image asset was introduced.
+- Copy and content: section labels, Mod names, settings, compatibility, and shortcuts match the design intent. Dynamic product truth intentionally overrides two mock values: the active loadout computes `0.3x`, and Half Time is constrained to `0.50x鈥?.99x`.
+- Interaction and accessibility: search, Escape-to-clear, category selection, keyboard Mod navigation/toggle, reset, rate drag, pitch toggle, selected indicators, and commit behavior are active. Focused tests cover the principal states and configuration paths.
+
+## Comparison history
+
+1. Initial comparison
+   - P1: the page still used a 1280 x 720 authored baseline, creating a large empty header gap and four catalogue columns at Compact.
+   - Fix: bound the screen to `YokkoDisplaySettings.ReferenceLayoutSize` and rebuilt the layout at 1600 x 900.
+   - Evidence after fix: `D:\YOKKO\artifacts\design-preview\mods-1600-large-pass3.png`
+2. Structural comparison
+   - P1: the catalogue composition and inspector controls did not match the selected visual.
+   - Fix: added the featured two-column composition, responsive three-column Compact variant, segmented pitch control, compatibility card, and shortcut area.
+   - Evidence after fix: `D:\YOKKO\artifacts\design-preview\mods-1600-large-pass5.png`
+3. Detail comparison
+   - P2: selected states and small typography were weaker than the source.
+   - Fix: added full-row selection outlines, rate/check indicators, uppercase inspector title, larger optical text, and source-aligned footer spacing.
+   - Post-fix evidence: `D:\YOKKO\artifacts\design-preview\mods-design-comparison-final4.png`
+
+## Follow-up polish
+
+- P3: the implementation keeps a small live shortcut/status line above Settings that is not present in the static mock.
+- P3: score multiplier and Half Time slider maximum differ from the generated mock because the implementation displays real gameplay constraints.
+
+## Verification
+
+- `dotnet build Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-restore --artifacts-path D:\YOKKO\artifacts\design-preview`
+- `dotnet test Yokko.Game.Tests\Yokko.Game.Tests.csproj --no-build --no-restore --artifacts-path D:\YOKKO\artifacts\design-preview --filter "FullyQualifiedName~TestSceneGameplayModsScreen"`
+- Result: build passed with 0 warnings and 0 errors; 7 focused tests passed.
+
+final result: passed

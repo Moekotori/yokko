@@ -192,7 +192,7 @@ public sealed class GameplayScrollVelocityTest
     }
 
     [Test]
-    public void QuaverRateKeepsRealTimeApproachDurationStable()
+    public void PlaybackRateUsesSourceSpecificScrollNormalization()
     {
         Assert.Multiple(() =>
         {
@@ -229,7 +229,83 @@ public sealed class GameplayScrollVelocityTest
                     1800,
                     ChartSourceFormat.OsuMania,
                     1.5),
+                Is.EqualTo(2700));
+            Assert.That(
+                GameplayScreen.AdjustApproachTimeForPlaybackRate(
+                    1800,
+                    ChartSourceFormat.OsuStandard,
+                    0.75),
+                Is.EqualTo(1350));
+            Assert.That(
+                GameplayScreen.AdjustApproachTimeForPlaybackRate(
+                    1800,
+                    ChartSourceFormat.Yokko,
+                    1.5),
                 Is.EqualTo(1800));
+        });
+    }
+
+    [Test]
+    public void ScrollSpeedAdjustmentMatchesLazerGameplayWindow()
+    {
+        const double longIntroGameplayStart = 28000;
+        const double shortIntroGameplayStart = -1000;
+        YokkoBreakPeriod[] breaks =
+        [
+            new YokkoBreakPeriod(45000, 48000),
+        ];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                GameplayScreen.IsScrollSpeedAdjustmentAllowed(
+                    10000,
+                    longIntroGameplayStart,
+                    false,
+                    breaks),
+                Is.True);
+            Assert.That(
+                GameplayScreen.IsScrollSpeedAdjustmentAllowed(
+                    38000,
+                    longIntroGameplayStart,
+                    false,
+                    breaks),
+                Is.True);
+            Assert.That(
+                GameplayScreen.IsScrollSpeedAdjustmentAllowed(
+                    38000.01,
+                    longIntroGameplayStart,
+                    false,
+                    breaks),
+                Is.False);
+            Assert.That(
+                GameplayScreen.IsScrollSpeedAdjustmentAllowed(
+                    9000,
+                    shortIntroGameplayStart,
+                    false,
+                    breaks),
+                Is.True);
+            Assert.That(
+                GameplayScreen.IsScrollSpeedAdjustmentAllowed(
+                    9000.01,
+                    shortIntroGameplayStart,
+                    false,
+                    breaks),
+                Is.False);
+            Assert.That(
+                GameplayScreen.IsScrollSpeedAdjustmentAllowed(
+                    46000,
+                    longIntroGameplayStart,
+                    false,
+                    breaks),
+                Is.True);
+            Assert.That(
+                GameplayScreen.IsScrollSpeedAdjustmentAllowed(
+                    46000,
+                    longIntroGameplayStart,
+                    true,
+                    breaks),
+                Is.False);
         });
     }
 

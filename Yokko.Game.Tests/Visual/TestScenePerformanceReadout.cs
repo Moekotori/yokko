@@ -29,36 +29,77 @@ public partial class TestScenePerformanceReadout : YokkoTestScene
                   == YokkoPerformanceReadout.CardWidth
                   && readout.Height
                   == YokkoPerformanceReadout.CardHeight);
-        AddStep("provide 480 fps frame", () =>
-            source.SetFrame(1, 1000.0 / 480));
+        AddStep("provide healthy frame data", () =>
+            source.SetFrame(
+                1000.0 / 480,
+                1,
+                1000,
+                480,
+                1000));
         AddUntilStep(
-            "shows real frame time",
-            () => readout.DisplayedFrameTime == "2.1 ms");
+            "shows update frame time",
+            () => readout.DisplayedUpdateFrameTime == "1.0 ms");
         AddAssert(
-            "shows matching fps",
-            () => readout.DisplayedFramesPerSecond == "480");
+            "shows draw fps",
+            () => readout.DisplayedDrawFramesPerSecond == "480");
+        AddAssert(
+            "shows input rate",
+            () => readout.DisplayedInputRate == "1000");
+        AddAssert(
+            "healthy pacing",
+            () => readout.DisplayedHealth
+                  == FramePacingHealth.Stable);
+
+        AddStep("provide repeated frame spikes", () =>
+            source.SetFrame(
+                20,
+                20,
+                1000,
+                480,
+                1000));
+        AddUntilStep(
+            "spikes become critical",
+            () => readout.DisplayedHealth
+                  == FramePacingHealth.Critical);
     }
 
     private sealed class FakeFrameTimingSource : IFrameTimingSource
     {
         private double marker;
-        private double frameTime;
+        private FrameTimingSample sample;
+        private bool enabled;
 
-        public bool TryRead(
-            out double frameMarker,
-            out double frameTimeMilliseconds)
+        public bool TryRead(out FrameTimingSample frameTimingSample)
         {
-            frameMarker = marker;
-            frameTimeMilliseconds = frameTime;
-            return marker > 0;
+            if (!enabled)
+            {
+                frameTimingSample = default;
+                return false;
+            }
+
+            marker++;
+            frameTimingSample = sample with
+            {
+                DrawMarker = marker,
+            };
+            return true;
         }
 
         public void SetFrame(
-            double frameMarker,
-            double frameTimeMilliseconds)
+            double drawFrameTime,
+            double updateFrameTime,
+            double inputFramesPerSecond,
+            double targetDrawFramesPerSecond,
+            double targetUpdateFramesPerSecond)
         {
-            marker = frameMarker;
-            frameTime = frameTimeMilliseconds;
+            sample = new FrameTimingSample(
+                marker,
+                drawFrameTime,
+                updateFrameTime,
+                inputFramesPerSecond,
+                targetDrawFramesPerSecond,
+                targetUpdateFramesPerSecond);
+            enabled = true;
         }
     }
 }

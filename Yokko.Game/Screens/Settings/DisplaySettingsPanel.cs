@@ -38,7 +38,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
     private static readonly YokkoFrameLimit[] supportedFrameLimits =
     {
-        YokkoFrameLimit.RefreshRate,
+        YokkoFrameLimit.VSync,
         YokkoFrameLimit.Limit2x,
         YokkoFrameLimit.Limit4x,
         YokkoFrameLimit.Limit8x,
@@ -369,7 +369,9 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
         foreach (SettingsFrameLimitChoiceButton button in frameLimitButtons)
         {
-            button.SetLabel(FormatFrameLimit(button.Value, refreshRate));
+            button.SetLabels(
+                FormatFrameLimitMode(button.Value),
+                FormatFrameLimit(button.Value, refreshRate));
             button.SetSelected(button.Value == frameLimit.Value);
         }
 
@@ -377,14 +379,25 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
     internal static string FormatFrameLimit(YokkoFrameLimit limit, float refreshRate)
     {
-        if (limit == YokkoFrameLimit.Unlimited)
-            return "∞";
-
         YokkoFrameRates rates = YokkoFrameRateLimits.Calculate(
             limit,
             refreshRate);
+
+        if (limit == YokkoFrameLimit.VSync)
+            return $"{Math.Round(rates.MaximumDrawHz):0} Hz";
+
         return $"{Math.Round(rates.MaximumDrawHz):0} FPS";
     }
+
+    internal static string FormatFrameLimitMode(YokkoFrameLimit limit) =>
+        limit switch
+        {
+            YokkoFrameLimit.VSync => "V-SYNC",
+            YokkoFrameLimit.Limit2x => "2×",
+            YokkoFrameLimit.Limit4x => "4×",
+            YokkoFrameLimit.Limit8x => "8×",
+            _ => "MAX",
+        };
 
     internal static string FormatRefreshRate(float refreshRate) =>
         $"{MathF.Round(MathF.Max(refreshRate, 1)):0}";

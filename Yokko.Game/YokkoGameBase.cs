@@ -91,7 +91,7 @@ namespace Yokko.Game
                 [FrameworkSetting.Locale] = YokkoLocale.English,
                 [FrameworkSetting.ExecutionMode] =
                     ExecutionMode.MultiThreaded,
-                [FrameworkSetting.FrameSync] = FrameSync.Unlimited,
+                [FrameworkSetting.FrameSync] = FrameSync.Limit2x,
             };
 
         public override void SetHost(GameHost host)
@@ -165,20 +165,12 @@ namespace Yokko.Game
                     LoggingTarget.Runtime,
                     LogLevel.Important));
 
-            // The framework's first FrameSync mode is VSync, not a true
-            // refresh-rate cap. Keep it disabled and apply Yokko's explicit
-            // draw/update limits so a missed present cannot fall to a fraction
-            // of the display refresh rate.
-            frameworkConfig.SetValue(
-                FrameworkSetting.FrameSync,
-                FrameSync.Unlimited);
             frameworkConfig.SetValue(
                 FrameworkSetting.ExecutionMode,
                 ExecutionMode.MultiThreaded);
             frameRateController = new YokkoFrameRateController(
-                host,
-                displaySettings.FrameLimit,
-                currentDisplayMode);
+                frameworkConfig,
+                displaySettings.FrameLimit);
 
             string configuredLocale = frameworkConfig.Get<string>(FrameworkSetting.Locale);
             string normalizedLocale = YokkoLocale.Normalize(configuredLocale);

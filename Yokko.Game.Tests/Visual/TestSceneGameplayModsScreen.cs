@@ -13,6 +13,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Presentation;
 using Yokko.Game.Screens.SongSelect;
 
 namespace Yokko.Game.Tests.Visual;
@@ -67,6 +68,17 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             == ManiaModCategory.DifficultyReduction);
         AddAssert("both difficulty groups are visible", () =>
             modsScreen.VisibleModCount == 15);
+        AddStep("search by name", () =>
+            modsScreen.SetSearchQuery("half time"));
+        AddAssert("search narrows the catalogue", () =>
+            modsScreen.SearchQuery == "half time"
+            && modsScreen.VisibleModCount == 1
+            && modsScreen.DetailMod == ManiaModId.HalfTime);
+        AddStep("Escape clears search before leaving", () =>
+            modsScreen.HandleInteractionKey(Key.Escape));
+        AddAssert("cleared search restores active category", () =>
+            modsScreen.SearchQuery.Length == 0
+            && modsScreen.VisibleModCount == 15);
         AddAssert("initial mods are preserved", () =>
             modsScreen.SelectedMods.Contains(ManiaModId.HalfTime)
             && modsScreen.SelectedMods.Contains(ManiaModId.Hidden));
@@ -103,8 +115,8 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddWaitStep("wait for hidden slider state", 10);
         AddAssert("plain detail keeps shortcut and clear spacing", () =>
             modsScreen.DetailHintVisible
-            && modsScreen.SettingsHeaderY == 170
-            && modsScreen.FixedRatePanelY == 200
+            && modsScreen.SettingsHeaderY == 116
+            && modsScreen.FixedRatePanelY == 138
             && !modsScreen.FixedRateSliderVisible
             && !modsScreen.FixedRateTicksVisible);
         AddStep("enable No Fail", () =>
@@ -284,11 +296,11 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddAssert("never collapses below authored layout", () =>
             GameplayModsScreen.CalculateResponsiveStageSize(
                 new Vector2(960, 540))
-            == new Vector2(1280, 720));
+            == YokkoDisplaySettings.ReferenceLayoutSize);
         AddAssert("browser gains columns as UI size shrinks", () =>
-            GameplayModsScreen.CalculateBrowserColumnCount(550) == 2
-            && GameplayModsScreen.CalculateBrowserColumnCount(870) == 3
-            && GameplayModsScreen.CalculateBrowserColumnCount(1270) == 4);
+            GameplayModsScreen.CalculateBrowserColumnCount(1032) == 2
+            && GameplayModsScreen.CalculateBrowserColumnCount(1210) == 3
+            && GameplayModsScreen.CalculateBrowserColumnCount(1700) == 4);
         AddStep("restore reference state", () =>
         {
             modsScreen.ResetMods();

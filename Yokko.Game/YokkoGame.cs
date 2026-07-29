@@ -82,6 +82,7 @@ namespace Yokko.Game
         private void onShowPerformanceReadoutChanged(
             ValueChangedEvent<bool> change)
         {
+            performanceReadout.SetTrackingEnabled(change.NewValue);
             performanceReadout.Alpha = change.NewValue ? 1 : 0;
         }
 

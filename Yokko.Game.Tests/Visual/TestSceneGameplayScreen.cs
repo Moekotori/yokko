@@ -1535,8 +1535,9 @@ HitPosition: 400
             Key originalDecreaseKey = Key.F3;
             Key originalIncreaseKey = Key.F4;
             GameplayScreen gameplayScreen = null;
+            GameplayScrollSpeedOverlay speedOverlay = null;
 
-            AddStep("save and reset scroll speed", () =>
+            AddStep("save and open fresh gameplay", () =>
             {
                 originalSpeed = gameplaySettings.ScrollSpeed.Value;
                 originalDecreaseKey =
@@ -1545,8 +1546,16 @@ HitPosition: 400
                     gameplaySettings.IncreaseScrollSpeedKey.Value;
                 gameplaySettings.ResetShortcutBindings();
                 gameplaySettings.SetScrollSpeed(8);
-                gameplayScreen =
-                    (GameplayScreen)screenStack.CurrentScreen;
+                gameplayScreen = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo());
+                screenStack.Push(gameplayScreen);
+            });
+            AddUntilStep("speed overlay loaded", () =>
+            {
+                speedOverlay = gameplayScreen?
+                    .ChildrenOfType<GameplayScrollSpeedOverlay>()
+                    .SingleOrDefault();
+                return speedOverlay != null;
             });
             AddStep("plain plus is ignored", () =>
                 gameplayScreen.HandleScrollSpeedShortcut(
@@ -1560,6 +1569,12 @@ HitPosition: 400
                     true));
             AddAssert("speed is 9", () =>
                 gameplaySettings.ScrollSpeed.Value == 9);
+            AddAssert("speed overlay shows value and time range", () =>
+                speedOverlay.DisplayedSpeed == 9
+                && speedOverlay.DisplayedTimeRangeMilliseconds
+                   == (int)OsuManiaScrollSpeed.ComputeScrollTime(9)
+                && !speedOverlay.IsLocked
+                && speedOverlay.Alpha > 0);
             AddAssert("playfield uses osu time range", () =>
                 Math.Abs(
                     ((Drawable)screenStack.CurrentScreen)
@@ -1612,6 +1627,15 @@ HitPosition: 400
                     false));
             AddAssert("custom decrease restores 8", () =>
                 gameplaySettings.ScrollSpeed.Value == 8);
+            AddStep("attempt late gameplay adjustment", () =>
+                gameplayScreen.HandleScrollSpeedShortcut(
+                    Key.F8,
+                    false,
+                    11000));
+            AddAssert("late adjustment is locked", () =>
+                gameplaySettings.ScrollSpeed.Value == 8
+                && speedOverlay.IsLocked
+                && speedOverlay.DisplayedSpeed == 8);
             AddStep("restore scroll speed and shortcuts", () =>
             {
                 gameplaySettings.SetScrollSpeed(originalSpeed);
@@ -1676,6 +1700,51 @@ HitPosition: 400
                 audioEngine.StartCount == 0);
             AddUntilStep("audio starts after lead-in", () =>
                 audioEngine.StartCount == 1);
+        }
+
+        [Test]
+        public void TestRetryWaitsForAudioReleaseAndReplacesGameplay()
+        {
+            var audioEngine = new SeekTrackingAudioEngine
+            {
+                StopCompletion = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously),
+            };
+            Screen parent = null;
+            GameplayScreen gameplay = null;
+            GameplayScreen replacement = null;
+
+            AddStep("open non-gameplay parent", () =>
+                screenStack.Push(parent = new Screen()));
+            AddUntilStep("non-gameplay parent is current", () =>
+                ReferenceEquals(screenStack.CurrentScreen, parent)
+                && parent?.IsLoaded == true);
+            AddStep("open gameplay", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    audioEngine)));
+            AddUntilStep("gameplay is current", () =>
+                ReferenceEquals(screenStack.CurrentScreen, gameplay)
+                && gameplay?.IsLoaded == true);
+            AddStep("request retry twice", () =>
+            {
+                gameplay.RetryGameplay();
+                gameplay.RetryGameplay();
+            });
+            AddAssert("retry waits and coalesces", () =>
+                audioEngine.StopCount == 1
+                && ReferenceEquals(screenStack.CurrentScreen, gameplay));
+            AddStep("release old audio session", () =>
+                audioEngine.StopCompletion.SetResult(true));
+            AddUntilStep("replacement gameplay is current", () =>
+            {
+                replacement = screenStack.CurrentScreen as GameplayScreen;
+                return replacement != null
+                       && !ReferenceEquals(replacement, gameplay);
+            });
+            AddAssert("replacement has non-gameplay parent", () =>
+                ReferenceEquals(replacement.GetParentScreen(), parent)
+                && !gameplay.ValidForResume);
         }
 
         [Test]
@@ -1979,6 +2048,10 @@ StageHint: stage-hint
 
             public int SeekCount { get; private set; }
 
+            public int StopCount { get; private set; }
+
+            public TaskCompletionSource<bool> StopCompletion { get; init; }
+
             public IReadOnlyList<AudioBackendCapabilities> Backends => [];
 
             public ValueTask<IReadOnlyList<AudioDeviceInfo>> GetOutputDevicesAsync(
@@ -2020,8 +2093,11 @@ StageHint: stage-hint
             public ValueTask StopAsync(
                 CancellationToken cancellationToken = default)
             {
+                StopCount++;
                 status = createStatus(false);
-                return ValueTask.CompletedTask;
+                return StopCompletion == null
+                    ? ValueTask.CompletedTask
+                    : new ValueTask(StopCompletion.Task);
             }
 
             public ValueTask DisposeAsync() =>

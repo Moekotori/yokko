@@ -16,6 +16,7 @@ using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -26,13 +27,25 @@ namespace Yokko.Game.Screens.SongSelect;
 /// </summary>
 internal partial class GameplayModsScreen : Screen
 {
-    private const float designed_width = 1280;
-    private const float designed_height = 720;
-    private const float detail_panel_width = 324;
-    private const float detail_panel_right_margin = 36;
-    private const float browser_left = 315;
-    private const float browser_detail_gap = 55;
-    private const float footer_height = 110;
+    private const float detail_panel_width = 448;
+    private const float detail_panel_right_margin = 48;
+    private const float browser_left = 48;
+    private const float browser_detail_gap = 24;
+    private const float loadout_top = 127;
+    private const float browser_controls_top = 224;
+    private const float mod_browser_top = 332;
+    private const float footer_height = 107;
+    private static readonly Vector2 designed_size =
+        YokkoDisplaySettings.ReferenceLayoutSize;
+
+    private enum ModsBrowseMode
+    {
+        All,
+        Difficulty,
+        Conversion,
+        Automation,
+        Fun,
+    }
 
     private static readonly ManiaModCategory[] visible_categories =
     [
@@ -45,7 +58,7 @@ internal partial class GameplayModsScreen : Screen
 
     private readonly YokkoBeatmap beatmap;
     private readonly Action<ManiaModSet> modsChanged;
-    private readonly Dictionary<ManiaModCategory, GameplayModsCategoryButton>
+    private readonly Dictionary<ModsBrowseMode, GameplayModsCategoryChip>
         categoryButtons = new();
     private readonly Dictionary<ManiaModId, GameplayModListItem> visibleItems =
         new();
@@ -53,7 +66,9 @@ internal partial class GameplayModsScreen : Screen
 
     private Container stage;
     private Drawable categoryRail;
+    private Container loadoutBar;
     private Container modBrowser;
+    private BasicScrollContainer modScroll;
     private Container modList;
     private Container detailPanel;
     private Container decorations;
@@ -61,8 +76,11 @@ internal partial class GameplayModsScreen : Screen
     private Container configurablePanel;
     private Box configurablePanelBackground;
     private FillFlowContainer activeMods;
-    private Box activeModsDivider;
-    private Box detailPanelDivider;
+    private SpriteText activeModsEmpty;
+    private SpriteText activeModsOverflow;
+    private SpriteText scoreMultiplierValue;
+    private SpriteText compatibilityValue;
+    private GameplayModsSearchBox searchBox;
     private Container detailBadge;
     private Box detailBadgeBackground;
     private SpriteText detailAcronym;
@@ -71,7 +89,6 @@ internal partial class GameplayModsScreen : Screen
     private TextFlowContainer detailDescription;
     private SpriteText settingsHeader;
     private Box settingsDivider;
-    private SpriteText activeModsHeader;
     private SpriteText fixedRateLabel;
     private SpriteText fixedRateValue;
     private SpriteText fixedRateMinimum;
@@ -85,16 +102,17 @@ internal partial class GameplayModsScreen : Screen
     private SongSelectModSettingsHost settingsHost;
     private ManiaModCategory activeCategory =
         ManiaModCategory.DifficultyReduction;
+    private ModsBrowseMode browseMode = ModsBrowseMode.All;
+    private string searchQuery = string.Empty;
     private ManiaModId detailMod = ManiaModId.HalfTime;
     private ManiaModSet selectedMods;
     private bool loadComplete;
     private bool selectionDirty;
     private bool pageTransitioning;
-    private double lastGlobalScrollAt = double.NegativeInfinity;
     private int modColumnCount = 2;
     private Vector2 lastResponsiveLayoutSize = new(-1);
-    private float modBrowserRestingY = 119;
-    private float detailPanelRestingY = 118;
+    private float modBrowserRestingY = mod_browser_top;
+    private float detailPanelRestingY = browser_controls_top;
     [Resolved]
     private YokkoManiaModPreferences modPreferences { get; set; }
 
@@ -143,16 +161,19 @@ internal partial class GameplayModsScreen : Screen
     internal bool NavigationHintVisible =>
         navigationHint?.Alpha > 0;
     internal bool IsPageTransitioning => pageTransitioning;
+    internal string SearchQuery => searchQuery;
     internal Color4 ConfigurablePanelColour =>
         configurablePanelBackground?.Colour ?? Color4.Transparent;
     internal bool ResetEnabled => resetButton?.IsEnabled ?? false;
     internal static Vector2 CalculateResponsiveStageSize(Vector2 viewport) =>
         new(
-            MathF.Max(viewport.X, designed_width),
-            MathF.Max(viewport.Y, designed_height));
+            MathF.Max(viewport.X, designed_size.X),
+            MathF.Max(viewport.Y, designed_size.Y));
 
     internal static int CalculateBrowserColumnCount(float browserWidth) =>
-        Math.Clamp((int)((browserWidth + 18) / 284), 2, 4);
+        browserWidth >= 1700 ? 4
+        : browserWidth >= 1180 ? 3
+        : 2;
 
     [BackgroundDependencyLoader]
     private void load(TextureStore textures)
@@ -172,6 +193,7 @@ internal partial class GameplayModsScreen : Screen
                 Children = new Drawable[]
                 {
                     createHeader(logo),
+                    loadoutBar = createLoadoutBar(),
                     categoryRail = createCategoryRail(),
                     modBrowser = createModBrowser(),
                     detailPanel = createDetailPanel(),
@@ -229,9 +251,7 @@ internal partial class GameplayModsScreen : Screen
         }
 
         lastResponsiveLayoutSize = stageSize;
-        Vector2 extra = stageSize
-                        - new Vector2(designed_width, designed_height);
-        float contentY = 118 + extra.Y * 0.5f;
+        Vector2 extra = stageSize - designed_size;
         float detailLeft = stageSize.X
                            - detail_panel_right_margin
                            - detail_panel_width;
@@ -239,25 +259,30 @@ internal partial class GameplayModsScreen : Screen
             550,
             detailLeft - browser_left - browser_detail_gap);
 
-        categoryRail.Y = contentY + 8;
-        modBrowserRestingY = contentY + 1;
-        detailPanelRestingY = contentY;
+        loadoutBar.Position = new Vector2(browser_left, loadout_top);
+        loadoutBar.Width = stageSize.X - browser_left * 2;
+        categoryRail.Y = browser_controls_top;
+        categoryRail.Width = browserWidth;
+        searchBox.SetLayoutWidth(MathF.Min(
+            browserWidth,
+            750 + MathF.Max(extra.X, 0) * 0.35f));
+        modBrowserRestingY = mod_browser_top;
+        detailPanelRestingY = browser_controls_top;
         if (!pageTransitioning)
         {
             modBrowser.Y = modBrowserRestingY;
             detailPanel.Y = detailPanelRestingY;
         }
         modBrowser.Width = browserWidth;
-        detailPanelDivider.Y = contentY - 8;
-
-        foreach (Box divider in sectionDividers)
-            divider.Width = MathF.Max(browserWidth - 145, 120);
+        modBrowser.Height = MathF.Max(
+            stageSize.Y - footer_height - modBrowserRestingY - 14,
+            260);
+        detailPanel.Height = MathF.Max(
+            stageSize.Y - footer_height - detailPanelRestingY - 14,
+            390);
 
         int nextColumnCount =
             CalculateBrowserColumnCount(browserWidth);
-        if (nextColumnCount == modColumnCount)
-            return;
-
         modColumnCount = nextColumnCount;
         rebuildModList();
         selectDetail(detailMod);
@@ -274,8 +299,21 @@ internal partial class GameplayModsScreen : Screen
         switch (key)
         {
             case Key.Escape:
+                if (searchQuery.Length > 0)
+                {
+                    searchBox.ClearQuery();
+                    showInteractionHint("SEARCH CLEARED");
+                    return true;
+                }
+                this.Exit();
+                return true;
+
             case Key.M:
                 this.Exit();
+                return true;
+
+            case Key.Slash:
+                GetContainingFocusManager().ChangeFocus(searchBox);
                 return true;
 
             case Key.R:
@@ -355,19 +393,6 @@ internal partial class GameplayModsScreen : Screen
         }
 
         return false;
-    }
-
-    protected override bool OnScroll(ScrollEvent e)
-    {
-        if (e.ScrollDelta.Y == 0)
-            return base.OnScroll(e);
-
-        if (Time.Current - lastGlobalScrollAt < 70)
-            return true;
-
-        lastGlobalScrollAt = Time.Current;
-        NavigatePageByScroll(e.ScrollDelta.Y);
-        return true;
     }
 
     internal void NavigatePageByScroll(double delta) =>
@@ -512,18 +537,61 @@ internal partial class GameplayModsScreen : Screen
             return;
 
         activeCategory = category;
-        foreach ((ManiaModCategory itemCategory,
-                     GameplayModsCategoryButton button)
-                 in categoryButtons)
-        {
-            button.SetSelected(itemCategory == category);
-        }
+        browseMode = browseModeFor(category);
+        updateBrowseModeVisual();
 
         rebuildModList();
         focusPreferredMod(category);
         showInteractionHint(
             $"{categoryLabel(category).ToUpperInvariant()} · {visibleItems.Count} MODS");
     }
+
+    private void setBrowseMode(ModsBrowseMode mode)
+    {
+        if (browseMode == mode)
+            return;
+
+        browseMode = mode;
+        activeCategory = mode switch
+        {
+            ModsBrowseMode.Conversion => ManiaModCategory.Conversion,
+            ModsBrowseMode.Automation => ManiaModCategory.Automation,
+            ModsBrowseMode.Fun => ManiaModCategory.Fun,
+            _ => ManiaModCategory.DifficultyReduction,
+        };
+        updateBrowseModeVisual();
+        rebuildModList();
+        focusPreferredMod(activeCategory);
+        modScroll?.ScrollToStart();
+        showInteractionHint(
+            $"{mode.ToString().ToUpperInvariant()} · {visibleItems.Count} MODS");
+    }
+
+    private void updateBrowseModeVisual()
+    {
+        foreach ((ModsBrowseMode mode, GameplayModsCategoryChip button)
+                 in categoryButtons)
+        {
+            button.SetSelected(mode == browseMode);
+        }
+    }
+
+    private void setSearchQuery(string query)
+    {
+        searchQuery = query?.Trim() ?? string.Empty;
+        rebuildModList();
+        if (visibleItems.Count > 0
+            && !visibleItems.ContainsKey(detailMod))
+        {
+            detailMod = visibleItems.Keys.First();
+            updateFocusVisual();
+            selectDetail(detailMod);
+        }
+        modScroll?.ScrollToStart();
+    }
+
+    internal void SetSearchQuery(string query) =>
+        searchBox.SetQuery(query);
 
     internal void ToggleMod(ManiaModId mod)
     {
@@ -825,19 +893,19 @@ internal partial class GameplayModsScreen : Screen
     private Drawable createHeader(Texture logo) => new Container
     {
         RelativeSizeAxes = Axes.X,
-        Height = 112,
+        Height = 102,
         Children = new Drawable[]
         {
             new Sprite
             {
-                Position = new Vector2(82, 20),
-                Size = new Vector2(260, 88),
+                Position = new Vector2(54, 12),
+                Size = new Vector2(290, 98),
                 Texture = logo,
             },
             new Box
             {
-                Position = new Vector2(361, 22),
-                Size = new Vector2(1.5f, 56),
+                Position = new Vector2(342, 18),
+                Size = new Vector2(1.5f, 55),
                 Colour = new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,
@@ -846,17 +914,17 @@ internal partial class GameplayModsScreen : Screen
             },
             new SpriteText
             {
-                Position = new Vector2(392, 19),
+                Position = new Vector2(370, 16),
                 Text = "GAMEPLAY MODS",
-                Font = HomeTypography.Hero(36),
+                Font = HomeTypography.Hero(39),
                 Scale = new Vector2(1.04f, 1),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
             {
-                Position = new Vector2(394, 67),
+                Position = new Vector2(372, 64),
                 Text = "Customize your play experience.",
-                Font = HomeTypography.Body(14),
+                Font = HomeTypography.Body(13),
                 Colour = new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,
@@ -866,39 +934,205 @@ internal partial class GameplayModsScreen : Screen
         },
     };
 
-    private Drawable createCategoryRail()
+    private Container createLoadoutBar()
     {
-        var flow = new FillFlowContainer
+        var bar = new Container
         {
-            Position = new Vector2(68, 126),
-            Width = 207,
-            AutoSizeAxes = Axes.Y,
-            Direction = FillDirection.Vertical,
-            Spacing = new Vector2(0, 8),
+            Position = new Vector2(browser_left, loadout_top),
+            Size = new Vector2(
+                designed_size.X - browser_left * 2,
+                75),
+            Masking = true,
+            CornerRadius = 5,
+            BorderThickness = 1.2f,
+            BorderColour = new Color4(
+                HomeControlColours.Cyan.R,
+                HomeControlColours.Cyan.G,
+                HomeControlColours.Cyan.B,
+                0.48f),
         };
 
-        foreach (ManiaModCategory category in visible_categories)
+        bar.Children =
+        [
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = new Color4(
+                    HomeControlColours.PaleCyan.R,
+                    HomeControlColours.PaleCyan.G,
+                    HomeControlColours.PaleCyan.B,
+                    0.42f),
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 22,
+                Text = "ACTIVE LOADOUT",
+                Font = HomeTypography.Display(13),
+                Spacing = new Vector2(1.1f, 0),
+                Colour = HomeControlColours.Cyan,
+            },
+            activeMods = new FillFlowContainer
+            {
+                Position = new Vector2(258, 12),
+                Width = 610,
+                Height = 50,
+                Direction = FillDirection.Horizontal,
+                Spacing = new Vector2(9, 0),
+            },
+            activeModsEmpty = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 266,
+                Text = "NO MODS ACTIVE",
+                Font = HomeTypography.Display(10),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.42f),
+            },
+            activeModsOverflow = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 880,
+                Font = HomeTypography.Display(9),
+                Colour = HomeControlColours.Cyan,
+                Alpha = 0,
+            },
+            new Box
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 870,
+                Size = new Vector2(1, 38),
+                Colour = new Color4(
+                    HomeControlColours.Cyan.R,
+                    HomeControlColours.Cyan.G,
+                    HomeControlColours.Cyan.B,
+                    0.62f),
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.BottomLeft,
+                Position = new Vector2(906, -2),
+                Text = "SCORE MULTIPLIER",
+                Font = HomeTypography.Display(8),
+                Spacing = new Vector2(0.8f, 0),
+                Colour = HomeControlColours.Cyan,
+            },
+            scoreMultiplierValue = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.TopLeft,
+                Position = new Vector2(906, 2),
+                Font = HomeTypography.Display(16),
+                Colour = HomeControlColours.Cyan,
+            },
+            new Box
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 1054,
+                Size = new Vector2(1, 38),
+                Colour = new Color4(
+                    HomeControlColours.Cyan.R,
+                    HomeControlColours.Cyan.G,
+                    HomeControlColours.Cyan.B,
+                    0.62f),
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.BottomLeft,
+                Position = new Vector2(1082, -2),
+                Text = "COMPATIBILITY",
+                Font = HomeTypography.Display(8),
+                Spacing = new Vector2(0.8f, 0),
+                Colour = HomeControlColours.Cyan,
+            },
+            compatibilityValue = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.TopLeft,
+                Position = new Vector2(1082, 2),
+                Font = HomeTypography.Body(10),
+                Colour = new Color4(0.22f, 0.64f, 0.34f, 1f),
+            },
+            new HomeMicroLine
+            {
+                Anchor = Anchor.BottomRight,
+                Origin = Anchor.BottomRight,
+                Position = new Vector2(-8, -1),
+                Width = 84,
+                Colour = HomeControlColours.Cyan,
+            },
+        ];
+        return bar;
+    }
+
+    private Drawable createCategoryRail()
+    {
+        var container = new Container
         {
-            var button = new GameplayModsCategoryButton(
-                categoryLabel(category),
-                categoryIcon(category),
-                categoryAccent(category),
-                () => NavigateToCategoryPage(category));
-            button.SetSelected(category == activeCategory);
-            categoryButtons[category] = button;
+            Position = new Vector2(browser_left, browser_controls_top),
+            Size = new Vector2(800, 85),
+        };
+
+        searchBox = new GameplayModsSearchBox(setSearchQuery);
+        container.Add(searchBox);
+
+        var flow = new FillFlowContainer
+        {
+            Position = new Vector2(0, 56),
+            Width = 790,
+            Height = 29,
+            Direction = FillDirection.Horizontal,
+            Spacing = new Vector2(10, 0),
+        };
+        container.Add(flow);
+
+        (ModsBrowseMode Mode, string Label, IconUsage Icon, Color4 Accent, float Width)[] chips =
+        [
+            (ModsBrowseMode.All, "All", FontAwesome.Solid.ThLarge, HomeControlColours.Cyan, 84),
+            (ModsBrowseMode.Difficulty, "Difficulty", FontAwesome.Solid.ChevronUp, HomeControlColours.Pink, 124),
+            (ModsBrowseMode.Conversion, "Conversion", FontAwesome.Solid.LayerGroup, HomeControlColours.Cyan, 128),
+            (ModsBrowseMode.Automation, "Automation", FontAwesome.Solid.Cog, HomeControlColours.Yellow, 132),
+            (ModsBrowseMode.Fun, "Fun", FontAwesome.Solid.Star, HomeControlColours.Pink, 84),
+        ];
+
+        foreach (var chip in chips)
+        {
+            var button = new GameplayModsCategoryChip(
+                chip.Label,
+                chip.Icon,
+                chip.Accent,
+                chip.Width,
+                () => setBrowseMode(chip.Mode));
+            button.SetSelected(chip.Mode == browseMode);
+            categoryButtons[chip.Mode] = button;
             flow.Add(button);
         }
 
-        return flow;
+        return container;
     }
 
     private Container createModBrowser() => new Container
     {
-        Position = new Vector2(315, 119),
-        Size = new Vector2(550, 472),
-        Child = modList = new Container
+        Position = new Vector2(browser_left, mod_browser_top),
+        Size = new Vector2(800, 454),
+        Child = modScroll = new BasicScrollContainer(Direction.Vertical)
         {
             RelativeSizeAxes = Axes.Both,
+            ScrollbarVisible = false,
+            Child = modList = new Container
+            {
+                RelativeSizeAxes = Axes.X,
+            },
         },
     };
 
@@ -930,34 +1164,52 @@ internal partial class GameplayModsScreen : Screen
             SetRandomSeed,
             ToggleMod)
         {
-            Position = new Vector2(20, 12),
-            Scale = new Vector2(1.18f),
+            Position = new Vector2(16, 12),
+            Scale = new Vector2(1.04f),
         };
 
         return new Container
         {
             Anchor = Anchor.TopRight,
             Origin = Anchor.TopRight,
-            Position = new Vector2(-detail_panel_right_margin, 118),
-            Size = new Vector2(324, 474),
+            Position = new Vector2(
+                -detail_panel_right_margin,
+                browser_controls_top),
+            Size = new Vector2(detail_panel_width, 562),
+            Masking = true,
+            CornerRadius = 7,
+            BorderThickness = 1.2f,
+            BorderColour = new Color4(
+                HomeControlColours.Cyan.R,
+                HomeControlColours.Cyan.G,
+                HomeControlColours.Cyan.B,
+                0.42f),
             Children = new Drawable[]
             {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(1f, 1f, 1f, 0.94f),
+                },
                 new SpriteText
                 {
+                    Position = new Vector2(18, 17),
                     Text = "SELECTED MOD",
                     Font = HomeTypography.Display(10),
                     Spacing = new Vector2(1.8f, 0),
                     Colour = HomeControlColours.Cyan,
+                    Alpha = 0,
                 },
                 new HomeMicroLine
                 {
-                    Position = new Vector2(111, 10),
-                    Width = 165,
+                    Position = new Vector2(129, 27),
+                    Width = 317,
+                    Alpha = 0,
                 },
                 detailBadge = new Container
                 {
-                    Position = new Vector2(5, 40),
-                    Size = new Vector2(78),
+                    Position = new Vector2(18, 52),
+                    Size = new Vector2(70),
                     Masking = true,
                     CornerRadius = 8,
                     BorderThickness = 1.5f,
@@ -977,16 +1229,26 @@ internal partial class GameplayModsScreen : Screen
                             Colour = HomeControlColours.Navy,
                         },
                     },
+                    Alpha = 0,
                 },
                 detailName = new SpriteText
                 {
-                    Position = new Vector2(100, 50),
-                    Font = HomeTypography.Display(17),
+                    Position = new Vector2(32, 25),
+                    Font = HomeTypography.Display(28),
                     Colour = HomeControlColours.Navy,
+                },
+                new SpriteIcon
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(-28, 27),
+                    Size = new Vector2(18),
+                    Icon = FontAwesome.Solid.ExternalLinkAlt,
+                    Colour = HomeControlColours.Cyan,
                 },
                 detailDescription = new TextFlowContainer(text =>
                 {
-                    text.Font = HomeTypography.Body(11);
+                    text.Font = HomeTypography.Body(14);
                     text.Colour = new Color4(
                         HomeControlColours.Navy.R,
                         HomeControlColours.Navy.G,
@@ -994,13 +1256,13 @@ internal partial class GameplayModsScreen : Screen
                         0.7f);
                 })
                 {
-                    Position = new Vector2(100, 80),
-                    Width = 208,
+                    Position = new Vector2(32, 65),
+                    Width = 380,
                     AutoSizeAxes = Axes.Y,
                 },
                 detailHint = new SpriteText
                 {
-                    Position = new Vector2(7, 130),
+                    Position = new Vector2(32, 93),
                     Text = "SPACE TO TOGGLE",
                     Font = HomeTypography.Display(9),
                     Spacing = new Vector2(1.1f, 0),
@@ -1008,13 +1270,13 @@ internal partial class GameplayModsScreen : Screen
                 },
                 new HomeDotField
                 {
-                    Position = new Vector2(303, 62),
+                    Position = new Vector2(423, 58),
                     Size = new Vector2(9, 58),
                     Colour = HomeControlColours.Cyan,
                 },
                 settingsHeader = new SpriteText
                 {
-                    Position = new Vector2(7, 127),
+                    Position = new Vector2(32, 116),
                     Text = "SETTINGS",
                     Font = HomeTypography.Display(10),
                     Spacing = new Vector2(1.8f, 0),
@@ -1022,15 +1284,15 @@ internal partial class GameplayModsScreen : Screen
                 },
                 settingsDivider = new Box
                 {
-                    Position = new Vector2(84, 136),
-                    Size = new Vector2(206, 1),
+                    Position = new Vector2(109, 125),
+                    Size = new Vector2(307, 1),
                     Colour = HomeControlColours.Cyan,
                 },
                 fixedRatePanel = createFixedRatePanel(),
                 configurablePanel = new Container
                 {
-                    Position = new Vector2(4, 149),
-                    Size = new Vector2(280, 318),
+                    Position = new Vector2(18, 138),
+                    Size = new Vector2(412, 198),
                     Masking = true,
                     CornerRadius = 8,
                     BorderThickness = 1.5f,
@@ -1050,37 +1312,152 @@ internal partial class GameplayModsScreen : Screen
                         settingsHost,
                     },
                 },
-                activeModsHeader = new SpriteText
+                new Container
                 {
-                    Position = new Vector2(7, 299),
-                    Font = HomeTypography.Display(10),
-                    Spacing = new Vector2(1.8f, 0),
+                    Position = new Vector2(18, 348),
+                    Size = new Vector2(412, 78),
+                    Masking = true,
+                    CornerRadius = 5,
+                    BorderThickness = 1,
+                    BorderColour = new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.24f),
+                    Children =
+                    [
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = new Color4(
+                                HomeControlColours.PaleCyan.R,
+                                HomeControlColours.PaleCyan.G,
+                                HomeControlColours.PaleCyan.B,
+                                0.26f),
+                        },
+                        new SpriteIcon
+                        {
+                            Position = new Vector2(14, 15),
+                            Size = new Vector2(14),
+                            Icon = FontAwesome.Solid.CheckCircle,
+                            Colour = new Color4(0.38f, 0.68f, 0.22f, 1f),
+                        },
+                        new SpriteText
+                        {
+                            Position = new Vector2(38, 13),
+                            Text = "COMPATIBILITY",
+                            Font = HomeTypography.Display(10.5f),
+                            Colour = new Color4(0.38f, 0.68f, 0.22f, 1f),
+                        },
+                        new SpriteText
+                        {
+                            Position = new Vector2(14, 38),
+                            Text = "This mod works with your active loadout.",
+                            Font = HomeTypography.Body(10.5f),
+                            Colour = new Color4(
+                                HomeControlColours.Navy.R,
+                                HomeControlColours.Navy.G,
+                                HomeControlColours.Navy.B,
+                                0.58f),
+                        },
+                        new SpriteText
+                        {
+                            Position = new Vector2(14, 56),
+                            Text = "No conflicts detected.",
+                            Font = HomeTypography.Body(10.5f),
+                            Colour = new Color4(
+                                HomeControlColours.Navy.R,
+                                HomeControlColours.Navy.G,
+                                HomeControlColours.Navy.B,
+                                0.58f),
+                        },
+                    ],
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(32, 449),
+                    Text = "SHORTCUTS",
+                    Font = HomeTypography.Display(11),
+                    Spacing = new Vector2(1.4f, 0),
                     Colour = HomeControlColours.Cyan,
                 },
-                activeModsDivider = new Box
-                {
-                    Position = new Vector2(132, 308),
-                    Size = new Vector2(158, 1),
-                    Colour = HomeControlColours.Cyan,
-                },
-                activeMods = new FillFlowContainer
-                {
-                    Position = new Vector2(7, 326),
-                    Width = 283,
-                    Height = 130,
-                    Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 11),
-                },
+                createDetailShortcut(
+                    "SPACE",
+                    "Toggle",
+                    new Vector2(32, 474),
+                    58),
+                createDetailShortcut(
+                    "R",
+                    "Reset setting",
+                    new Vector2(230, 474),
+                    34),
+                createDetailShortcut(
+                    "P",
+                    "Toggle pitch",
+                    new Vector2(32, 513),
+                    34),
             },
         };
     }
+
+    private static Drawable createDetailShortcut(
+        string key,
+        string label,
+        Vector2 position,
+        float keyWidth) =>
+        new Container
+        {
+            Position = position,
+            Size = new Vector2(186, 29),
+            Children =
+            [
+                new Container
+                {
+                    Size = new Vector2(keyWidth, 29),
+                    Masking = true,
+                    CornerRadius = 4,
+                    BorderThickness = 1,
+                    BorderColour = new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.32f),
+                    Children =
+                    [
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = Color4.White,
+                        },
+                        new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Text = key,
+                            Font = HomeTypography.Display(10),
+                            Colour = HomeControlColours.Navy,
+                        },
+                    ],
+                },
+                new SpriteText
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    X = keyWidth + 12,
+                    Text = label,
+                    Font = HomeTypography.Body(12),
+                    Colour = HomeControlColours.Navy,
+                },
+            ],
+        };
 
     private Container createFixedRatePanel()
     {
         var panel = new Container
         {
-            Position = new Vector2(7, 153),
+            Position = new Vector2(32, 138),
             Size = new Vector2(284, 132),
+            Scale = new Vector2(1.34f),
         };
         panel.Children = new Drawable[]
         {
@@ -1153,7 +1530,7 @@ internal partial class GameplayModsScreen : Screen
                 () => SetFixedRateAdjustPitch(
                     !selectedMods.FixedRateAdjustPitch))
             {
-                Y = 82,
+                Y = 65,
             },
         };
         return panel;
@@ -1214,21 +1591,6 @@ internal partial class GameplayModsScreen : Screen
                 Icon = FontAwesome.Regular.Heart,
                 Colour = HomeControlColours.Pink,
             },
-            detailPanelDivider = new Box
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                Position = new Vector2(
-                    -(detail_panel_right_margin
-                      + detail_panel_width + 32),
-                    110),
-                Size = new Vector2(2, 482),
-                Colour = new Color4(
-                    HomeControlColours.Navy.R,
-                    HomeControlColours.Navy.G,
-                    HomeControlColours.Navy.B,
-                    0.11f),
-            },
         },
     };
 
@@ -1243,37 +1605,41 @@ internal partial class GameplayModsScreen : Screen
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = HomeControlColours.Cyan,
+                Colour = Color4.White,
             },
             new Box
             {
                 RelativeSizeAxes = Axes.X,
                 Height = 2,
-                Colour = new Color4(1f, 1f, 1f, 0.75f),
+                Colour = HomeControlColours.Cyan,
             },
             new HomeDotField
             {
-                Position = new Vector2(8, 42),
-                Size = new Vector2(105, 55),
-                Colour = new Color4(1f, 1f, 1f, 0.32f),
+                Position = new Vector2(8, 34),
+                Size = new Vector2(94, 38),
+                Colour = new Color4(
+                    HomeControlColours.Cyan.R,
+                    HomeControlColours.Cyan.G,
+                    HomeControlColours.Cyan.B,
+                    0.22f),
             },
             new SongSelectFooterBackButton(this.Exit)
             {
-                Position = new Vector2(106, 23),
-                Scale = new Vector2(0.84f),
+                Position = new Vector2(110, 22),
+                Scale = new Vector2(1.05f),
             },
             resetButton = new GameplayModsResetButton(ResetMods)
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Position = new Vector2(0, 26),
+                Position = new Vector2(0, 18),
             },
             navigationHint = new SpriteText
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Y = 7,
-                Text = "WHEEL / TAB · CATEGORIES    ARROWS · MODS",
+                Y = 5,
+                Text = "TAB · CATEGORIES    ARROWS · MODS    SPACE · TOGGLE",
                 Font = HomeTypography.Display(8),
                 Spacing = new Vector2(0.8f, 0),
                 Colour = new Color4(
@@ -1286,7 +1652,7 @@ internal partial class GameplayModsScreen : Screen
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
-                Y = -6,
+                Y = -5,
                 Font = HomeTypography.Display(9),
                 Spacing = new Vector2(1.2f, 0),
                 Colour = new Color4(
@@ -1298,22 +1664,28 @@ internal partial class GameplayModsScreen : Screen
             },
             new SpriteIcon
             {
-                Position = new Vector2(412, 67),
+                Position = new Vector2(320, 56),
                 Size = new Vector2(8),
                 Icon = FontAwesome.Solid.Plus,
-                Colour = Color4.White,
+                Colour = HomeControlColours.Cyan,
             },
             new HomeDotField
             {
-                Position = new Vector2(751, 60),
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                Position = new Vector2(-320, 0),
                 Size = new Vector2(48, 28),
-                Colour = new Color4(1f, 1f, 1f, 0.3f),
+                Colour = new Color4(
+                    HomeControlColours.Cyan.R,
+                    HomeControlColours.Cyan.G,
+                    HomeControlColours.Cyan.B,
+                    0.2f),
             },
             new GameplayModsDoneButton(this.Exit)
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-19, 16),
+                Position = new Vector2(-19, 14),
             },
         },
     };
@@ -1327,91 +1699,319 @@ internal partial class GameplayModsScreen : Screen
         sectionDividers.Clear();
         modList.Clear();
 
-        if (activeCategory is ManiaModCategory.DifficultyReduction
-            or ManiaModCategory.DifficultyIncrease)
+        ManiaModCategory[] categories = searchQuery.Length > 0
+            || browseMode == ModsBrowseMode.All
+            ? visible_categories
+            : browseMode == ModsBrowseMode.Difficulty
+                ?
+                [
+                    ManiaModCategory.DifficultyReduction,
+                    ManiaModCategory.DifficultyIncrease,
+                ]
+                : [activeCategory];
+
+        float y;
+        if (browseMode == ModsBrowseMode.All
+            && searchQuery.Length == 0)
         {
-            addSection(ManiaModCategory.DifficultyReduction, 0);
-            addSection(
-                ManiaModCategory.DifficultyIncrease,
-                sectionHeight(
-                    ManiaModCategory.DifficultyReduction)
-                + 18);
+            y = addFeaturedAllLayout();
+        }
+        else if (categories.Length > 1)
+        {
+            int sectionColumnCount = Math.Min(
+                modColumnCount,
+                categories.Length);
+            const float sectionColumnGap = 38;
+            float sectionColumnWidth = MathF.Max(
+                (modBrowser.Width
+                 - sectionColumnGap * (sectionColumnCount - 1))
+                / sectionColumnCount,
+                260);
+            var sectionColumnHeights =
+                new float[sectionColumnCount];
+
+            foreach (ManiaModCategory category in categories)
+            {
+                int column = Array.IndexOf(
+                    sectionColumnHeights,
+                    sectionColumnHeights.Min());
+                float height = addSection(
+                    category,
+                    column * (sectionColumnWidth + sectionColumnGap),
+                    sectionColumnHeights[column],
+                    sectionColumnWidth,
+                    1);
+                if (height <= 0)
+                    continue;
+
+                sectionColumnHeights[column] += height + 24;
+            }
+
+            y = sectionColumnHeights.Max();
         }
         else
         {
-            addSection(activeCategory, 0);
+            y = addSection(
+                    categories[0],
+                    0,
+                    0,
+                    modBrowser.Width,
+                    modColumnCount)
+                + 18;
         }
 
+        if (visibleItems.Count == 0)
+        {
+            modList.Add(new SpriteText
+            {
+                Position = new Vector2(4, 18),
+                Text = "NO MODS MATCH YOUR SEARCH",
+                Font = HomeTypography.Display(12),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.46f),
+            });
+            y = 60;
+        }
+
+        modList.Height = MathF.Max(y, modBrowser?.Height ?? 0);
         updateFocusVisual();
     }
 
-    private void addSection(ManiaModCategory category, float y)
+    private float addFeaturedAllLayout()
     {
-        IReadOnlyList<ManiaModDefinition> definitions = definitionsFor(category);
-        Color4 accent = categoryAccent(category);
+        const float sectionColumnGap = 38;
+        float sectionColumnWidth =
+            (modBrowser.Width - sectionColumnGap) / 2;
+        float rightX = sectionColumnWidth + sectionColumnGap;
+
+        ManiaModId[] difficultyDown =
+        [
+            ManiaModId.HalfTime,
+            ManiaModId.Easy,
+            ManiaModId.NoFail,
+            ManiaModId.Daycore,
+        ];
+        ManiaModId[] difficultyUp =
+        [
+            ManiaModId.HardRock,
+            ManiaModId.SuddenDeath,
+            ManiaModId.Perfect,
+            ManiaModId.DoubleTime,
+        ];
+        ManiaModId[] funAndSpecial =
+        [
+            ManiaModId.Nightcore,
+            ManiaModId.Hidden,
+        ];
+        ManiaModId[] challenge =
+        [
+            ManiaModId.Flashlight,
+            ManiaModId.AccuracyChallenge,
+        ];
+        ManiaModId[] featured = difficultyDown
+            .Concat(difficultyUp)
+            .Concat(funAndSpecial)
+            .Concat(challenge)
+            .ToArray();
+        ManiaModDefinition[] remaining =
+            visible_categories
+                .SelectMany(definitionsFor)
+                .Where(definition => !featured.Contains(definition.Id))
+                .ToArray();
+
+        if (modColumnCount >= 3)
+        {
+            const float compactColumnGap = 34;
+            float compactColumnWidth =
+                (modBrowser.Width - compactColumnGap * 2) / 3;
+            float secondX = compactColumnWidth + compactColumnGap;
+            float thirdX = secondX
+                           + compactColumnWidth
+                           + compactColumnGap;
+
+            addDefinitionSection(
+                "DIFFICULTY DOWN",
+                HomeControlColours.Cyan,
+                definitionsForIds(difficultyDown),
+                0,
+                0,
+                compactColumnWidth,
+                1);
+            addDefinitionSection(
+                "DIFFICULTY UP",
+                HomeControlColours.Pink,
+                definitionsForIds(difficultyUp),
+                secondX,
+                0,
+                compactColumnWidth,
+                1);
+            addDefinitionSection(
+                "FUN & SPECIAL",
+                new Color4(0.63f, 0.28f, 0.72f, 1f),
+                definitionsForIds(funAndSpecial),
+                thirdX,
+                0,
+                compactColumnWidth,
+                1);
+            addDefinitionSection(
+                "CHALLENGE",
+                HomeControlColours.Yellow,
+                definitionsForIds(challenge),
+                thirdX,
+                154,
+                compactColumnWidth,
+                1);
+
+            float compactRemainingHeight = addDefinitionSection(
+                "MORE MODS",
+                HomeControlColours.Cyan,
+                remaining,
+                0,
+                312,
+                modBrowser.Width,
+                modColumnCount);
+            return 312 + compactRemainingHeight + 18;
+        }
+
+        addDefinitionSection(
+            "DIFFICULTY DOWN",
+            HomeControlColours.Cyan,
+            definitionsForIds(difficultyDown),
+            0,
+            0,
+            sectionColumnWidth,
+            1);
+        addDefinitionSection(
+            "DIFFICULTY UP",
+            HomeControlColours.Pink,
+            definitionsForIds(difficultyUp),
+            rightX,
+            0,
+            sectionColumnWidth,
+            1);
+        addDefinitionSection(
+            "FUN & SPECIAL",
+            new Color4(0.63f, 0.28f, 0.72f, 1f),
+            definitionsForIds(funAndSpecial),
+            0,
+            260,
+            sectionColumnWidth,
+            1);
+        addDefinitionSection(
+            "CHALLENGE",
+            HomeControlColours.Yellow,
+            definitionsForIds(challenge),
+            rightX,
+            260,
+            sectionColumnWidth,
+            1);
+
+        float remainingHeight = addDefinitionSection(
+            "MORE MODS",
+            HomeControlColours.Cyan,
+            remaining,
+            0,
+            470,
+            modBrowser.Width,
+            modColumnCount);
+        return 470 + remainingHeight + 18;
+    }
+
+    private float addSection(
+        ManiaModCategory category,
+        float x,
+        float y,
+        float width,
+        int itemColumnCount)
+    {
+        IReadOnlyList<ManiaModDefinition> definitions =
+            filteredDefinitionsFor(category);
+        return addDefinitionSection(
+            categoryLabel(category).ToUpperInvariant(),
+            categoryAccent(category),
+            definitions,
+            x,
+            y,
+            width,
+            itemColumnCount);
+    }
+
+    private float addDefinitionSection(
+        string label,
+        Color4 accent,
+        IReadOnlyList<ManiaModDefinition> definitions,
+        float x,
+        float y,
+        float width,
+        int itemColumnCount)
+    {
+        if (definitions.Count == 0)
+            return 0;
 
         modList.Add(new SpriteText
         {
-            Position = new Vector2(0, y),
-            Text = categoryLabel(category).ToUpperInvariant(),
+            Position = new Vector2(x, y),
+            Text = label,
             Font = HomeTypography.Display(10),
             Spacing = new Vector2(1.7f, 0),
             Colour = accent,
         });
         var divider = new Box
         {
-            Position = new Vector2(128, y + 9),
+            Position = new Vector2(x + 128, y + 9),
             Size = new Vector2(
-                MathF.Max(modBrowser.Width - 145, 120),
+                MathF.Max(width - 145, 120),
                 1),
             Colour = accent,
         };
         sectionDividers.Add(divider);
         modList.Add(divider);
 
-        float rowSpacing = category switch
-        {
-            ManiaModCategory.DifficultyReduction => 54,
-            ManiaModCategory.DifficultyIncrease => 50,
-            _ => 44,
-        };
+        float rowSpacing = 54;
+        float columnGap = 18;
+        float columnWidth = MathF.Max(
+            (width - columnGap * (itemColumnCount - 1))
+            / itemColumnCount,
+            220);
         for (int index = 0; index < definitions.Count; index++)
         {
             ManiaModDefinition definition = definitions[index];
             int rowCount =
-                (definitions.Count + modColumnCount - 1)
-                / modColumnCount;
+                (definitions.Count + itemColumnCount - 1)
+                / itemColumnCount;
             int column = index / rowCount;
             int row = index % rowCount;
             var item = new GameplayModListItem(
                 definition,
-                accentForMod(definition.Id, category),
+                accentForMod(definition.Id, definition.Category),
                 isSelectable(definition.Id),
                 () => ToggleMod(definition.Id),
                 null)
             {
                 Position = new Vector2(
-                    column * 284,
+                    x + column * (columnWidth + columnGap),
                     y + 27 + row * rowSpacing),
             };
+            item.SetLayoutWidth(columnWidth);
             item.SetSelected(selectedMods.Contains(definition.Id));
             visibleItems[definition.Id] = item;
             modList.Add(item);
         }
+
+        return sectionHeight(definitions.Count, itemColumnCount);
     }
 
-    private float sectionHeight(ManiaModCategory category)
+    private static float sectionHeight(
+        int definitionCount,
+        int itemColumnCount)
     {
-        int definitionCount = definitionsFor(category).Count;
         int rowCount =
-            (definitionCount + modColumnCount - 1)
-            / modColumnCount;
-        float rowSpacing = category switch
-        {
-            ManiaModCategory.DifficultyReduction => 54,
-            ManiaModCategory.DifficultyIncrease => 50,
-            _ => 44,
-        };
+            (definitionCount + itemColumnCount - 1)
+            / itemColumnCount;
+        const float rowSpacing = 54;
 
         return 27 + MathF.Max(rowCount - 1, 0) * rowSpacing + 42;
     }
@@ -1423,9 +2023,6 @@ internal partial class GameplayModsScreen : Screen
 
         settingsHost?.SetState(selectedMods, beatmap);
         rebuildActiveMods();
-        activeModsHeader.Text = selectedMods.Mods.Count == 0
-            ? "ACTIVE MODS"
-            : $"ACTIVE MODS ({selectedMods.Mods.Count})";
         resetButton?.SetEnabled(selectedMods.Mods.Count > 0);
         updateFocusVisual();
         if (loadComplete)
@@ -1448,47 +2045,35 @@ internal partial class GameplayModsScreen : Screen
             return;
 
         activeMods.Clear();
-        foreach (ManiaModId mod in selectedMods.Mods.Take(3))
+        foreach (ManiaModId mod in selectedMods.Mods.Take(2))
         {
             ManiaModDefinition definition = OsuManiaModParityCatalog.Get(mod);
             string value = isRateMod(mod)
-                ? $"{selectedMods.PlaybackRate:0.##}x"
+                ? $"{(selectedMods.FixedRateMod == mod
+                    ? selectedMods.FixedRateSpeedChange
+                    : selectedMods.PlaybackRate):0.##}x"
                 : string.Empty;
-            activeMods.Add(new GameplayActiveModRow(
+            activeMods.Add(new GameplayActiveModChip(
                 definition,
                 value,
+                accentForMod(definition.Id, definition.Category),
                 () => ToggleMod(mod)));
         }
 
-        if (selectedMods.Mods.Count == 0)
-        {
-            activeMods.Add(new SpriteText
-            {
-                Text = "NO MODS ACTIVE",
-                Font = HomeTypography.Display(10),
-                Colour = new Color4(
-                    HomeControlColours.Navy.R,
-                    HomeControlColours.Navy.G,
-                    HomeControlColours.Navy.B,
-                    0.45f),
-            });
-        }
-        else if (selectedMods.Mods.Count > 3)
-        {
-            activeMods.Add(new SpriteText
-            {
-                Text = $"+{selectedMods.Mods.Count - 3} MORE ACTIVE",
-                Font = HomeTypography.Display(9),
-                Colour = HomeControlColours.Cyan,
-            });
-        }
+        activeModsEmpty.Alpha = selectedMods.Mods.Count == 0 ? 1 : 0;
+        activeModsOverflow.Text = selectedMods.Mods.Count > 2
+            ? $"+{selectedMods.Mods.Count - 2} MORE"
+            : string.Empty;
+        activeModsOverflow.Alpha = selectedMods.Mods.Count > 2 ? 1 : 0;
+        scoreMultiplierValue.Text = $"{selectedMods.ScoreMultiplier:0.##}x";
+        compatibilityValue.Text = "All good!";
     }
 
     private void selectDetail(ManiaModId mod)
     {
         ManiaModDefinition definition = OsuManiaModParityCatalog.Get(mod);
         detailAcronym.Text = definition.Acronym;
-        detailName.Text = definition.Name;
+        detailName.Text = definition.Name.ToUpperInvariant();
         detailDescription.Clear();
         detailDescription.AddText(
             isSelectable(mod)
@@ -1506,9 +2091,7 @@ internal partial class GameplayModsScreen : Screen
             ? detailAccent
             : HomeControlColours.Cyan;
         detailBadge.BorderThickness = active ? 2.2f : 1.5f;
-        detailName.Colour = active
-            ? detailAccent
-            : HomeControlColours.Navy;
+        detailName.Colour = HomeControlColours.Navy;
 
         bool fixedRateMod = isFixedRateMod(mod);
         bool configurable = isConfigurable(mod) && !fixedRateMod;
@@ -1517,16 +2100,13 @@ internal partial class GameplayModsScreen : Screen
                 ? "SETTINGS · ACTIVE"
                 : "SETTINGS · PREVIEW"
             : "SETTINGS";
-        settingsHeader.Y = configurable ? 127 : 170;
-        settingsDivider.Y = configurable ? 136 : 179;
-        settingsDivider.X = configurable ? 132 : 84;
-        settingsDivider.Width = configurable ? 158 : 206;
-        fixedRatePanel.Y = 200;
+        settingsHeader.Y = 116;
+        settingsDivider.Y = 125;
+        settingsDivider.X = configurable ? 157 : 109;
+        settingsDivider.Width = configurable ? 259 : 307;
+        fixedRatePanel.Y = 138;
         configurablePanel.Alpha = configurable ? 1 : 0;
         fixedRatePanel.Alpha = configurable ? 0 : 1;
-        activeModsHeader.Alpha = configurable ? 0 : 1;
-        activeModsDivider.Alpha = configurable ? 0 : 1;
-        activeMods.Alpha = configurable ? 0 : 1;
         detailHint.Alpha = configurable ? 0 : 1;
         detailHint.Text = fixedRateMod && !active
             ? "DRAG RATE OR SPACE · ENABLE"
@@ -1878,6 +2458,49 @@ internal partial class GameplayModsScreen : Screen
                 !order.Contains(definition.Id)))
             .ToArray();
     }
+
+    private static IReadOnlyList<ManiaModDefinition> definitionsForIds(
+        IReadOnlyList<ManiaModId> ids)
+    {
+        var definitions = OsuManiaModParityCatalog.All
+            .ToDictionary(definition => definition.Id);
+        return ids
+            .Where(definitions.ContainsKey)
+            .Select(id => definitions[id])
+            .ToArray();
+    }
+
+    private IReadOnlyList<ManiaModDefinition> filteredDefinitionsFor(
+        ManiaModCategory category)
+    {
+        IReadOnlyList<ManiaModDefinition> definitions =
+            definitionsFor(category);
+        if (searchQuery.Length == 0)
+            return definitions;
+
+        return definitions
+            .Where(definition =>
+                definition.Name.Contains(
+                    searchQuery,
+                    StringComparison.OrdinalIgnoreCase)
+                || definition.Acronym.Contains(
+                    searchQuery,
+                    StringComparison.OrdinalIgnoreCase)
+                || definition.Description.Contains(
+                    searchQuery,
+                    StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+    }
+
+    private static ModsBrowseMode browseModeFor(
+        ManiaModCategory category) =>
+        category switch
+        {
+            ManiaModCategory.Conversion => ModsBrowseMode.Conversion,
+            ManiaModCategory.Automation => ModsBrowseMode.Automation,
+            ManiaModCategory.Fun => ModsBrowseMode.Fun,
+            _ => ModsBrowseMode.Difficulty,
+        };
 
     private static string categoryLabel(ManiaModCategory category) =>
         category switch

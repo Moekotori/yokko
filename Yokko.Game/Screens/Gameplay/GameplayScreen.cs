@@ -36,6 +36,12 @@ namespace Yokko.Game.Screens.Gameplay;
 public partial class GameplayScreen : Screen
 {
     private const double leadInMilliseconds = 900;
+
+    // Matches ppy/osu DrawableRuleset.GameplayStartTime and
+    // SubmittingPlayer.AllowCriticalSettingsAdjustment at commit 5da7100
+    // (MIT): the adjustment window starts two seconds before the first object.
+    private const double gameplayStartLeadInMilliseconds = 2000;
+    private const double scrollSpeedAdjustmentGraceMilliseconds = 10000;
     private const float playfieldWidthStep = 0.1f;
     private const float minimumPlayfieldWidthScale = 0.2f;
     private const float maximumPlayfieldWidthScale = 2.5f;
@@ -83,10 +89,12 @@ public partial class GameplayScreen : Screen
     private bool gameplayBlocked;
     private bool gameplayCompleted;
     private bool gameplayFailed;
+    private bool retryTransitionInProgress;
     private GameplayHud hud;
     private ManiaScoreResult completedResult;
     private readonly double completionTimeMilliseconds;
     private readonly double firstObjectTimeMilliseconds;
+    private readonly double gameplayStartTimeMilliseconds;
     private bool introSkipInProgress;
     private bool introSkipUsed;
     private double pendingIntroSkipMilliseconds = double.NaN;
@@ -101,6 +109,8 @@ public partial class GameplayScreen : Screen
     private GameplayPauseOverlay pauseOverlay;
     private GameplayFailOverlay failOverlay;
     private JudgementReadout judgementReadout;
+    private GameplayScrollSpeedOverlay scrollSpeedOverlay;
+    private double appliedScrollSpeed;
     private Task keysoundPreparationTask = Task.CompletedTask;
     private ResolvedGameplayHitSample[][] headSamplesByHitObject = [];
     private ResolvedGameplayHitSample[][] tailSamplesByHitObject = [];
@@ -207,6 +217,9 @@ public partial class GameplayScreen : Screen
             ? 0
             : this.beatmap.HitObjects.Min(hitObject =>
                 hitObject.StartTimeMilliseconds);
+        gameplayStartTimeMilliseconds = this.beatmap.HitObjects.Count == 0
+            ? 0
+            : firstObjectTimeMilliseconds - gameplayStartLeadInMilliseconds;
     }
 
     [BackgroundDependencyLoader]
@@ -319,6 +332,13 @@ public partial class GameplayScreen : Screen
                 Position = new Vector2(0, 30),
                 Depth = -100,
             },
+            scrollSpeedOverlay = new GameplayScrollSpeedOverlay
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Position = new Vector2(0, 104),
+                Depth = -110,
+            },
         };
 
         if (mods.IsCinema)
@@ -354,9 +374,9 @@ public partial class GameplayScreen : Screen
         if (!hasAudioClock)
             hud.ShowFrameClock();
 
+        appliedScrollSpeed = gameplaySettings.ScrollSpeed.Value;
         gameplaySettings.ScrollSpeed.BindValueChanged(
-            onScrollSpeedChanged,
-            true);
+            onScrollSpeedChanged);
         host.Deactivated += onHostDeactivated;
     }
 
@@ -387,6 +407,7 @@ public partial class GameplayScreen : Screen
         if (gameplayBlocked
             || gameplayCompleted
             || gameplayFailed
+            || retryTransitionInProgress
             || isPaused)
             return;
 
@@ -407,7 +428,7 @@ public partial class GameplayScreen : Screen
 
         double gameplayTime = clockObservation.GameplayTime;
         updateDynamicRate(gameplayTime);
-        updateQuaverScrollRate(gameplayTime);
+        updatePlaybackRateAdjustedApproachTime(gameplayTime);
         if (mutedAudio != null)
         {
             mutedAudio.Update(
@@ -478,6 +499,9 @@ public partial class GameplayScreen : Screen
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
+        if (retryTransitionInProgress)
+            return true;
+
         if (gameplayBlocked)
         {
             if (matchesShortcut(
@@ -500,7 +524,7 @@ public partial class GameplayScreen : Screen
         {
             if (matchesShortcut(ManiaShortcutAction.Retry, e.Key))
             {
-                retryGameplay();
+                RetryGameplay();
                 return true;
             }
 
@@ -549,7 +573,7 @@ public partial class GameplayScreen : Screen
 
         if (matchesShortcut(ManiaShortcutAction.QuickRetry, e.Key))
         {
-            retryGameplay();
+            RetryGameplay();
             return true;
         }
 
@@ -575,6 +599,7 @@ public partial class GameplayScreen : Screen
     {
         if (gameplayCompleted
             || gameplayFailed
+            || retryTransitionInProgress
             || ReplayMode
             || isPaused)
             return;
@@ -1152,7 +1177,7 @@ public partial class GameplayScreen : Screen
             healthState,
             mods,
             gameplaySettings,
-            retryGameplay,
+            RetryGameplay,
             () => this.Exit()));
     }
 
@@ -1187,7 +1212,7 @@ public partial class GameplayScreen : Screen
             completedResult,
             mods,
             isNewBest,
-            retryGameplay,
+            RetryGameplay,
             watchCompletedReplay,
             () => this.Exit()));
     }
@@ -1224,6 +1249,7 @@ public partial class GameplayScreen : Screen
     internal void TogglePause()
     {
         if (pauseTransitionInProgress
+            || retryTransitionInProgress
             || gameplayBlocked
             || gameplayCompleted
             || gameplayFailed)
@@ -1276,7 +1302,7 @@ public partial class GameplayScreen : Screen
             beatmap,
             gameplaySettings,
             TogglePause,
-            retryGameplay,
+            RetryGameplay,
             () => this.Push(new SettingsScreen()),
             exitPausedGameplay);
         AddInternal(pauseOverlay);
@@ -1373,12 +1399,62 @@ public partial class GameplayScreen : Screen
         this.Exit();
     }
 
-    private void retryGameplay() =>
-        this.Push(new GameplayScreen(
-            originalBeatmap,
-            skinPath: skinPath,
-            mods: mods,
-            cinemaArtworkPath: cinemaArtworkPath));
+    internal void RetryGameplay()
+    {
+        if (retryTransitionInProgress)
+            return;
+
+        retryTransitionInProgress = true;
+        if (!ReplayMode)
+            keyInputTimestamps.EndCapture();
+
+        _ = retryGameplayAsync();
+    }
+
+    private async Task retryGameplayAsync()
+    {
+        try
+        {
+            // A retry creates a fresh audio engine. Wait until this engine has
+            // released its WASAPI endpoint before loading the replacement.
+            await audioEngine.StopAsync().ConfigureAwait(true);
+
+            if (!this.IsCurrentScreen())
+                return;
+
+            var replacement = new GameplayScreen(
+                originalBeatmap,
+                skinPath: skinPath,
+                mods: mods,
+                cinemaArtworkPath: cinemaArtworkPath);
+            IScreen destination = this.GetParentScreen();
+            while (destination is GameplayScreen)
+                destination = destination.GetParentScreen();
+
+            if (destination == null)
+            {
+                // Only test harnesses normally use gameplay as a stack root.
+                // Prevent the stopped run from becoming active again.
+                ValidForResume = false;
+                this.Push(replacement);
+                return;
+            }
+
+            destination.MakeCurrent();
+            destination.Push(replacement);
+        }
+        catch (Exception exception)
+        {
+            retryTransitionInProgress = false;
+            if (!ReplayMode && this.IsCurrentScreen())
+                keyInputTimestamps.BeginCapture();
+
+            Logger.Error(
+                exception,
+                "Gameplay retry could not release the current audio session.",
+                LoggingTarget.Runtime);
+        }
+    }
 
     private void watchCompletedReplay()
     {
@@ -1470,9 +1546,22 @@ public partial class GameplayScreen : Screen
     private void onScrollSpeedChanged(
         osu.Framework.Bindables.ValueChangedEvent<double> change)
     {
+        double gameplayTime = currentGameplayTime;
+        if (!IsScrollSpeedAdjustmentAllowed(
+                gameplayTime,
+                gameplayStartTimeMilliseconds,
+                isPaused,
+                beatmap.BreakPeriods))
+        {
+            showScrollSpeedOverlay(appliedScrollSpeed, true);
+            return;
+        }
+
+        appliedScrollSpeed = change.NewValue;
         playfield.SetApproachTime(computeApproachTime(
             change.NewValue,
-            currentPlaybackRate(currentGameplayTime)));
+            currentPlaybackRate(gameplayTime)));
+        showScrollSpeedOverlay(appliedScrollSpeed, false);
     }
 
     private double computeApproachTime(
@@ -1492,13 +1581,20 @@ public partial class GameplayScreen : Screen
             quaverHasSignificantScrollVelocities);
     }
 
-    private void updateQuaverScrollRate(double gameplayTime)
+    private void updatePlaybackRateAdjustedApproachTime(
+        double gameplayTime)
     {
-        if (beatmap.SourceFormat != ChartSourceFormat.Quaver)
+        if (!mods.HasDynamicRate
+            || beatmap.SourceFormat is not (
+                ChartSourceFormat.Quaver
+                or ChartSourceFormat.OsuMania
+                or ChartSourceFormat.OsuStandard))
+        {
             return;
+        }
 
         playfield.SetApproachTime(computeApproachTime(
-            gameplaySettings.ScrollSpeed.Value,
+            appliedScrollSpeed,
             currentPlaybackRate(gameplayTime)));
     }
 
@@ -1518,6 +1614,15 @@ public partial class GameplayScreen : Screen
 
         if (!double.IsFinite(playbackRate) || playbackRate <= 0)
             throw new ArgumentOutOfRangeException(nameof(playbackRate));
+
+        if (sourceFormat is ChartSourceFormat.OsuMania
+            or ChartSourceFormat.OsuStandard)
+        {
+            // osu!lazer multiplies Mania's target time range by the active
+            // track tempo/frequency adjustment. Gameplay time advances by
+            // the same rate, keeping physical scroll velocity stable.
+            return baseApproachTime * playbackRate;
+        }
 
         if (sourceFormat != ChartSourceFormat.Quaver)
             return baseApproachTime;
@@ -1556,7 +1661,8 @@ public partial class GameplayScreen : Screen
 
     internal bool HandleScrollSpeedShortcut(
         Key key,
-        bool controlPressed)
+        bool controlPressed,
+        double? gameplayTimeOverride = null)
     {
         double amount = key switch
         {
@@ -1574,8 +1680,60 @@ public partial class GameplayScreen : Screen
         if (amount == 0)
             return false;
 
+        double gameplayTime =
+            gameplayTimeOverride ?? currentGameplayTime;
+        if (!IsScrollSpeedAdjustmentAllowed(
+                gameplayTime,
+                gameplayStartTimeMilliseconds,
+                isPaused,
+                beatmap.BreakPeriods))
+        {
+            showScrollSpeedOverlay(appliedScrollSpeed, true);
+            return true;
+        }
+
+        double previousSpeed = gameplaySettings.ScrollSpeed.Value;
         gameplaySettings.AdjustScrollSpeed(amount);
+        if (gameplaySettings.ScrollSpeed.Value == previousSpeed)
+            showScrollSpeedOverlay(appliedScrollSpeed, false);
+
         return true;
+    }
+
+    internal static bool IsScrollSpeedAdjustmentAllowed(
+        double gameplayTimeMilliseconds,
+        double gameplayStartTimeMilliseconds,
+        bool paused,
+        IReadOnlyList<YokkoBreakPeriod> breakPeriods)
+    {
+        if (!double.IsFinite(gameplayTimeMilliseconds)
+            || !double.IsFinite(gameplayStartTimeMilliseconds)
+            || paused)
+        {
+            return false;
+        }
+
+        if (gameplayTimeMilliseconds - gameplayStartTimeMilliseconds
+            <= scrollSpeedAdjustmentGraceMilliseconds)
+        {
+            return true;
+        }
+
+        return breakPeriods?.Any(period =>
+            gameplayTimeMilliseconds
+                >= period.StartTimeMilliseconds
+            && gameplayTimeMilliseconds
+                <= period.EndTimeMilliseconds) == true;
+    }
+
+    private void showScrollSpeedOverlay(
+        double speed,
+        bool locked)
+    {
+        scrollSpeedOverlay.Show(
+            speed,
+            (int)OsuManiaScrollSpeed.ComputeScrollTime(speed),
+            locked);
     }
 
     internal bool MatchesShortcut(

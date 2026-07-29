@@ -181,7 +181,8 @@ internal partial class SettingsSegmentedChoiceButton : ClickableContainer
 internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
 {
     private readonly Box background;
-    private readonly SpriteText text;
+    private readonly SpriteText modeText;
+    private readonly SpriteText rateText;
     private bool selected;
 
     public YokkoFrameLimit Value { get; }
@@ -207,23 +208,39 @@ internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
                 RelativeSizeAxes = Axes.Y,
                 Colour = SettingsTheme.Divider,
             },
-            text = new SpriteText
+            modeText = new SpriteText
             {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Font = HomeTypography.Body(16),
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 8,
+                Font = HomeTypography.Display(13)
+                    .With(fixedWidth: true),
+                Colour = HomeControlColours.Navy,
+            },
+            rateText = new SpriteText
+            {
+                Anchor = Anchor.BottomCentre,
+                Origin = Anchor.BottomCentre,
+                Y = -8,
+                Font = HomeTypography.Body(11)
+                    .With(fixedWidth: true),
                 Colour = HomeControlColours.Navy,
             },
         };
     }
 
-    public void SetLabel(string label) => text.Text = label;
+    public void SetLabels(string mode, string rate)
+    {
+        modeText.Text = mode;
+        rateText.Text = rate;
+    }
 
     public void SetSelected(bool isSelected)
     {
         selected = isSelected;
         background.FadeColour(selected ? HomeControlColours.Navy : Color4.White, 120, Easing.OutQuint);
-        text.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 120, Easing.OutQuint);
+        modeText.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 120, Easing.OutQuint);
+        rateText.FadeColour(selected ? HomeControlColours.Cyan : SettingsTheme.MutedNavy, 120, Easing.OutQuint);
     }
 
     protected override bool OnHover(HoverEvent e)

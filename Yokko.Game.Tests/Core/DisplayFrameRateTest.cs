@@ -1,4 +1,6 @@
+using System;
 using NUnit.Framework;
+using osu.Framework.Configuration;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Settings;
 
@@ -7,12 +9,12 @@ namespace Yokko.Game.Tests.Core;
 [TestFixture]
 public sealed class DisplayFrameRateTest
 {
-    [TestCase(YokkoFrameLimit.RefreshRate, 144, "144 FPS")]
+    [TestCase(YokkoFrameLimit.VSync, 144, "144 Hz")]
     [TestCase(YokkoFrameLimit.Limit2x, 144, "288 FPS")]
     [TestCase(YokkoFrameLimit.Limit4x, 60, "240 FPS")]
     [TestCase(YokkoFrameLimit.Limit8x, 60, "480 FPS")]
     [TestCase(YokkoFrameLimit.Limit8x, 165, "1000 FPS")]
-    [TestCase(YokkoFrameLimit.Unlimited, 60, "∞")]
+    [TestCase(YokkoFrameLimit.Unlimited, 60, "1000 FPS")]
     public void FrameLimitUsesCurrentDisplayRefreshRate(
         YokkoFrameLimit limit,
         float refreshRate,
@@ -23,7 +25,7 @@ public sealed class DisplayFrameRateTest
             Is.EqualTo(expected));
     }
 
-    [TestCase(YokkoFrameLimit.RefreshRate, 165, 165, 330)]
+    [TestCase(YokkoFrameLimit.VSync, 165, 165, 660)]
     [TestCase(YokkoFrameLimit.Limit2x, 165, 330, 660)]
     [TestCase(YokkoFrameLimit.Limit4x, 165, 660, 1000)]
     [TestCase(YokkoFrameLimit.Limit8x, 165, 1000, 1000)]
@@ -42,6 +44,48 @@ public sealed class DisplayFrameRateTest
 
         Assert.That(rates.MaximumDrawHz, Is.EqualTo(expectedDrawRate));
         Assert.That(rates.MaximumUpdateHz, Is.EqualTo(expectedUpdateRate));
+    }
+
+    [TestCase(YokkoFrameLimit.VSync, FrameSync.VSync)]
+    [TestCase(YokkoFrameLimit.Limit2x, FrameSync.Limit2x)]
+    [TestCase(YokkoFrameLimit.Limit4x, FrameSync.Limit4x)]
+    [TestCase(YokkoFrameLimit.Limit8x, FrameSync.Limit8x)]
+    [TestCase(YokkoFrameLimit.Unlimited, FrameSync.Unlimited)]
+    public void YokkoModeMapsToFrameworkSingleSourceOfTruth(
+        YokkoFrameLimit limit,
+        FrameSync expected)
+    {
+        Assert.That(
+            YokkoFrameRateLimits.ToFrameworkFrameSync(limit),
+            Is.EqualTo(expected));
+        Assert.That(
+            YokkoFrameRateLimits.FromFrameworkFrameSync(expected),
+            Is.EqualTo(limit));
+    }
+
+    [Test]
+    public void LegacyRefreshRateNameMigratesToVSync()
+    {
+        Assert.That(
+            Enum.TryParse(
+                "RefreshRate",
+                out YokkoFrameLimit parsed),
+            Is.True);
+        Assert.That(parsed, Is.EqualTo(YokkoFrameLimit.VSync));
+    }
+
+    [TestCase(YokkoFrameLimit.VSync, "V-SYNC")]
+    [TestCase(YokkoFrameLimit.Limit2x, "2×")]
+    [TestCase(YokkoFrameLimit.Limit4x, "4×")]
+    [TestCase(YokkoFrameLimit.Limit8x, "8×")]
+    [TestCase(YokkoFrameLimit.Unlimited, "MAX")]
+    public void FrameModesHaveStableCompactLabels(
+        YokkoFrameLimit limit,
+        string expected)
+    {
+        Assert.That(
+            DisplaySettingsPanel.FormatFrameLimitMode(limit),
+            Is.EqualTo(expected));
     }
 
     [TestCase(59.94f, "60")]
