@@ -236,6 +236,51 @@ HitObjects:
         }
 
         [Test]
+        public void PreservesQuaverImplicitZeroSliderVelocities()
+        {
+            string path = writeChart("quaver-implicit-zero-sv", ".qua", """
+Mode: Keys4
+Title: Legacy SV
+TimingPoints:
+- StartTime: 1704
+  Bpm: 70
+SliderVelocities:
+- {}
+- StartTime: 375.41949462890625
+  Multiplier: 0.10000000149011612
+- StartTime: 975.41949462890625
+  Multiplier: -20
+- StartTime: 1018.2766723632812
+HitObjects:
+- StartTime: 2000
+  Lane: 1
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.Beatmap.InitialScrollVelocity,
+                    Is.EqualTo(0));
+                Assert.That(
+                    result.Beatmap.ScrollVelocities,
+                    Is.EqualTo(new[]
+                    {
+                        new Yokko.Core.Timing.YokkoScrollVelocity(
+                            375.41949462890625,
+                            0.10000000149011612),
+                        new Yokko.Core.Timing.YokkoScrollVelocity(
+                            975.41949462890625,
+                            -20),
+                        new Yokko.Core.Timing.YokkoScrollVelocity(
+                            1018.2766723632812,
+                            0),
+                    }));
+            });
+        }
+
+        [Test]
         public void NormalizesLegacyQuaverBpmAndSliderVelocityChanges()
         {
             string path = writeChart("quaver-denormalized-sv", ".qua", """

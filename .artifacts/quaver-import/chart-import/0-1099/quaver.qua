@@ -1,0 +1,19 @@
+AudioFile: audio.ogg
+Mode: Keys4
+Title: Test Qua
+Artist: Test Artist
+Creator: Mapper
+DifficultyName: Hard
+TimingPoints:
+- StartTime: 0
+  Bpm: 120
+  TimeSignature: 4|4
+- StartTime: 2000
+  Bpm: 150
+SliderVelocities: []
+HitObjects:
+- StartTime: 500
+  Lane: 1
+- StartTime: 1000
+  Lane: 4
+  EndTime: 1500

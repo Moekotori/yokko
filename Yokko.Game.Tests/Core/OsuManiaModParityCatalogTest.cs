@@ -61,6 +61,9 @@ public class OsuManiaModParityCatalogTest
             Assert.That(
                 definitions.Select(mod => mod.Acronym),
                 Is.Unique);
+            Assert.That(
+                definitions.Select(mod => mod.Description),
+                Has.None.Empty);
         });
     }
 

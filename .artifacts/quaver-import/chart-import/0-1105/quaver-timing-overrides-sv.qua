@@ -1,0 +1,15 @@
+Mode: Keys4
+BPMDoesNotAffectScrollVelocity: false
+TimingPoints:
+  - StartTime: 0
+    Bpm: 1
+  - StartTime: 10
+    Bpm: 2
+SliderVelocities:
+  - StartTime: 5
+    Multiplier: 10
+HitObjects:
+  - StartTime: 0
+    Lane: 1
+  - StartTime: 11
+    Lane: 1

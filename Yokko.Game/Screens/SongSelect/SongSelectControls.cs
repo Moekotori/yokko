@@ -13,6 +13,7 @@ using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using osuTK.Input;
 using Yokko.Core.Difficulty;
 using Yokko.Core.Scoring;
 using Yokko.Game.Localisation;
@@ -23,49 +24,115 @@ namespace Yokko.Game.Screens.SongSelect;
 internal partial class SongSelectSearchBox : BasicTextBox
 {
     private readonly Action<string> queryChanged;
+    private readonly Action escapePressed;
+    private readonly Box focusRail;
+    private readonly SpriteText escapeHint;
 
-    protected override float LeftRightPadding => 42;
+    protected override float LeftRightPadding => 48;
 
-    public SongSelectSearchBox(Action<string> queryChanged)
+    public SongSelectSearchBox(
+        Action<string> queryChanged,
+        Action escapePressed)
     {
         this.queryChanged = queryChanged;
-        Size = new Vector2(500, 40);
+        this.escapePressed = escapePressed;
+        Size = new Vector2(360, 44);
         Masking = true;
-        CornerRadius = 4;
-        BorderThickness = 1.2f;
-        BorderColour = new Color4(1f, 1f, 1f, 0.78f);
-        BackgroundUnfocused = new Color4(SongSelectTheme.DeepNavy.R, SongSelectTheme.DeepNavy.G, SongSelectTheme.DeepNavy.B, 0.72f);
-        BackgroundFocused = new Color4(SongSelectTheme.Navy.R, SongSelectTheme.Navy.G, SongSelectTheme.Navy.B, 0.92f);
-        FontSize = 16;
-        PlaceholderText = "SEARCH";
+        CornerRadius = 7;
+        BorderThickness = 1.4f;
+        BorderColour = new Color4(
+            SongSelectTheme.Cyan.R,
+            SongSelectTheme.Cyan.G,
+            SongSelectTheme.Cyan.B,
+            0.56f);
+        BackgroundUnfocused = new Color4(
+            SongSelectTheme.DeepNavy.R,
+            SongSelectTheme.DeepNavy.G,
+            SongSelectTheme.DeepNavy.B,
+            0.86f);
+        BackgroundFocused = new Color4(
+            SongSelectTheme.Navy.R,
+            SongSelectTheme.Navy.G,
+            SongSelectTheme.Navy.B,
+            0.96f);
+        FontSize = 15;
+        PlaceholderText = YokkoStrings.Get("song_select.search");
 
-        AddInternal(new SpriteIcon
+        AddInternal(new Container
         {
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
-            X = 15,
-            Size = new Vector2(17),
-            Icon = FontAwesome.Solid.Search,
-            Colour = SongSelectTheme.Ivory,
+            X = 7,
+            Size = new Vector2(31),
+            Depth = -2,
+            Masking = true,
+            CornerRadius = 5,
+            Children = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(
+                        SongSelectTheme.Cyan.R,
+                        SongSelectTheme.Cyan.G,
+                        SongSelectTheme.Cyan.B,
+                        0.14f),
+                },
+                new SpriteIcon
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(15),
+                    Icon = FontAwesome.Solid.Search,
+                    Colour = SongSelectTheme.Cyan,
+                },
+            },
+        });
+
+        AddInternal(escapeHint = new SpriteText
+        {
+            Anchor = Anchor.CentreRight,
+            Origin = Anchor.CentreRight,
+            X = -13,
+            Text = "ESC",
+            Font = HomeTypography.Display(9),
+            Colour = new Color4(1f, 1f, 1f, 0.54f),
+            Depth = -2,
+        });
+
+        AddInternal(focusRail = new Box
+        {
+            Anchor = Anchor.BottomLeft,
+            Origin = Anchor.BottomLeft,
+            RelativeSizeAxes = Axes.X,
+            Height = 2,
+            Colour = SongSelectTheme.Cyan,
+            Alpha = 0.42f,
             Depth = -2,
         });
 
         Current.ValueChanged += onValueChanged;
     }
 
-    private void onValueChanged(ValueChangedEvent<string> change) => queryChanged(change.NewValue);
+    private void onValueChanged(ValueChangedEvent<string> change)
+    {
+        escapeHint.Colour = change.NewValue.Length > 0
+            ? SongSelectTheme.PaleCyan
+            : new Color4(1f, 1f, 1f, 0.54f);
+        queryChanged(change.NewValue);
+    }
 
     protected override Drawable GetDrawableCharacter(char c) => new SpriteText
     {
         Text = c.ToString(),
-        Font = HomeTypography.Body(16),
+        Font = HomeTypography.Body(15),
         Colour = SongSelectTheme.Ivory,
     };
 
     protected override SpriteText CreatePlaceholder() => new()
     {
-        Font = HomeTypography.Body(16),
-        Colour = new Color4(1f, 1f, 1f, 0.68f),
+        Font = HomeTypography.Body(15),
+        Colour = new Color4(1f, 1f, 1f, 0.58f),
     };
 
     protected override void OnFocus(FocusEvent e)
@@ -73,13 +140,30 @@ internal partial class SongSelectSearchBox : BasicTextBox
         base.OnFocus(e);
         BorderColour = SongSelectTheme.Cyan;
         BorderThickness = 2;
+        focusRail.FadeTo(1, 120, Easing.OutQuint);
+        escapeHint.FadeTo(0.9f, 120, Easing.OutQuint);
     }
 
     protected override void OnFocusLost(FocusLostEvent e)
     {
         base.OnFocusLost(e);
-        BorderColour = new Color4(1f, 1f, 1f, 0.78f);
-        BorderThickness = 1.2f;
+        BorderColour = new Color4(
+            SongSelectTheme.Cyan.R,
+            SongSelectTheme.Cyan.G,
+            SongSelectTheme.Cyan.B,
+            0.56f);
+        BorderThickness = 1.4f;
+        focusRail.FadeTo(0.42f, 140, Easing.OutQuint);
+        escapeHint.FadeTo(0.68f, 140, Easing.OutQuint);
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key != Key.Escape)
+            return base.OnKeyDown(e);
+
+        escapePressed();
+        return true;
     }
 }
 

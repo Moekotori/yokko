@@ -98,6 +98,9 @@ public partial class SongSelectScreen : Screen
     private SongSelectModsToggleButton modsToggleButton;
     private Container modPanel;
     private SongSelectModSettingsHost modSettingsHost;
+    private SpriteText modInfoTitle;
+    private SpriteText modInfoDescription;
+    private ManiaModId? hoveredMod;
     private AnimatedGifSprite mascotAnimation;
 
     private List<SongSelectEntry> visibleEntries;
@@ -120,6 +123,7 @@ public partial class SongSelectScreen : Screen
     internal int VisibleRowCount => navigableEntries.Count;
     internal KeyMode? KeyModeFilter => keyModeFilter;
     internal string SearchQuery => searchQuery;
+    internal Vector2 SearchBoxSize => searchBox?.Size ?? Vector2.Zero;
     internal SongSelectScoreView ScoreView => scoreView;
     internal ManiaModSet SelectedMods => selectedMods;
     internal SongSelectAccuracyChallengeSettings
@@ -137,6 +141,10 @@ public partial class SongSelectScreen : Screen
     internal SongSelectKeyConversionSettings KeyConversionSettings =>
         modSettingsHost?.KeySettings;
     internal bool IsModPanelOpen => modPanelOpen;
+    internal string ModInfoTitle =>
+        modInfoTitle?.Text.ToString() ?? string.Empty;
+    internal string ModInfoDescription =>
+        modInfoDescription?.Text.ToString() ?? string.Empty;
     internal int MascotFrameCount => mascotAnimation?.FrameCount ?? 0;
     internal static bool RankingFitsDesignedStage =>
         details_top + ranking_top + ranking_height
@@ -294,7 +302,7 @@ public partial class SongSelectScreen : Screen
                 return true;
 
             case Key.Escape:
-                this.Exit();
+                HandleEscape();
                 return true;
 
             default:
@@ -319,6 +327,27 @@ public partial class SongSelectScreen : Screen
         applyFilters();
     }
 
+    internal bool DismissSearch()
+    {
+        bool hasQuery = !string.IsNullOrEmpty(searchQuery)
+                        || !string.IsNullOrEmpty(searchBox?.Current.Value);
+        if (!hasQuery)
+            return false;
+
+        if (searchBox != null && searchBox.Current.Value.Length > 0)
+            searchBox.Current.Value = string.Empty;
+        else
+            SetSearchQuery(string.Empty);
+
+        return true;
+    }
+
+    internal void HandleEscape()
+    {
+        if (!DismissSearch())
+            this.Exit();
+    }
+
     internal void ToggleScoreView()
     {
         scoreView = scoreView == SongSelectScoreView.GlobalRanking
@@ -340,6 +369,7 @@ public partial class SongSelectScreen : Screen
 
     internal void ToggleMod(ManiaModId mod)
     {
+        ManiaModSet previous = selectedMods;
         bool enabled = !selectedMods.Contains(mod);
         selectedMods = mod == ManiaModId.Random && enabled
             ? selectedMods.WithRandomSeed(Random.Shared.Next())
@@ -358,6 +388,70 @@ public partial class SongSelectScreen : Screen
             modSettingsHost?.Show(mod);
         }
         onSelectedModsChanged();
+        showModFeedback(mod, enabled, previous);
+    }
+
+    private void showModFeedback(
+        ManiaModId mod,
+        bool enabled,
+        ManiaModSet previous)
+    {
+        if (modInfoTitle == null || modInfoDescription == null)
+            return;
+
+        ManiaModDefinition definition =
+            OsuManiaModParityCatalog.Get(mod);
+        ManiaModId[] replaced = previous.Mods
+            .Where(previousMod =>
+                previousMod != mod
+                && !selectedMods.Contains(previousMod))
+            .ToArray();
+
+        modInfoTitle.Text = enabled
+            ? $"{definition.Acronym} · {definition.Name.ToUpperInvariant()} ACTIVE"
+            : $"{definition.Acronym} · {definition.Name.ToUpperInvariant()} REMOVED";
+        modInfoTitle.Colour = enabled
+            ? SongSelectTheme.Yellow
+            : SongSelectTheme.PaleCyan;
+        modInfoDescription.Text = replaced.Length > 0
+            ? $"Replaced {string.Join(", ", replaced.Select(replacedMod => OsuManiaModParityCatalog.Get(replacedMod).Acronym))} · {definition.Description}"
+            : definition.Description;
+    }
+
+    private void onModHoverChanged(ManiaModId mod, bool hovered)
+    {
+        if (hovered)
+        {
+            hoveredMod = mod;
+            ManiaModDefinition definition =
+                OsuManiaModParityCatalog.Get(mod);
+            modInfoTitle.Text =
+                $"{definition.Acronym} · {definition.Name.ToUpperInvariant()}";
+            modInfoTitle.Colour = SongSelectTheme.Ivory;
+            modInfoDescription.Text = definition.Description;
+        }
+        else if (hoveredMod == mod)
+        {
+            hoveredMod = null;
+            showModPanelSummary();
+        }
+    }
+
+    private void showModPanelSummary()
+    {
+        if (modInfoTitle == null || modInfoDescription == null)
+            return;
+
+        int count = selectedMods.Mods.Count;
+        modInfoTitle.Text = count == 0
+            ? "GAMEPLAY MODS"
+            : $"GAMEPLAY MODS · {count} ACTIVE";
+        modInfoTitle.Colour = SongSelectTheme.Ivory;
+        modInfoDescription.Text = count == 0
+            ? "Hover a mod to see what it changes."
+            : string.Join(
+                "  ",
+                selectedMods.DisplayLabels.Take(8));
     }
 
     internal void SetAccuracyChallengeMinimum(double value)
@@ -520,6 +614,8 @@ public partial class SongSelectScreen : Screen
     private void onSelectedModsChanged()
     {
         updateModSelection();
+        if (hoveredMod == null)
+            showModPanelSummary();
         refreshSavedScores();
         rebuildDetails();
         rebuildSongList();
@@ -560,18 +656,17 @@ public partial class SongSelectScreen : Screen
                 Size = new Vector2(343, 105),
                 Texture = logo,
             },
-            searchBox = new SongSelectSearchBox(SetSearchQuery)
+            searchBox = new SongSelectSearchBox(SetSearchQuery, HandleEscape)
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
                 Position = new Vector2(-92, 23),
-                Size = new Vector2(487, 40),
             },
             new FillFlowContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-340, 72),
+                Position = new Vector2(-212, 75),
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(8, 0),
@@ -587,23 +682,31 @@ public partial class SongSelectScreen : Screen
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
                 Position = new Vector2(-44, 23),
-                Size = new Vector2(40),
+                Size = new Vector2(44),
                 Masking = true,
-                CornerRadius = 4,
-                BorderThickness = 1.2f,
-                BorderColour = new Color4(1f, 1f, 1f, 0.78f),
+                CornerRadius = 7,
+                BorderThickness = 1.4f,
+                BorderColour = new Color4(
+                    SongSelectTheme.Cyan.R,
+                    SongSelectTheme.Cyan.G,
+                    SongSelectTheme.Cyan.B,
+                    0.56f),
                 Children = new Drawable[]
                 {
                     new Box
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Colour = new Color4(SongSelectTheme.DeepNavy.R, SongSelectTheme.DeepNavy.G, SongSelectTheme.DeepNavy.B, 0.72f),
+                        Colour = new Color4(
+                            SongSelectTheme.DeepNavy.R,
+                            SongSelectTheme.DeepNavy.G,
+                            SongSelectTheme.DeepNavy.B,
+                            0.86f),
                     },
                     new SpriteIcon
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Size = new Vector2(17),
+                        Size = new Vector2(18),
                         Icon = FontAwesome.Solid.SlidersH,
                         Colour = SongSelectTheme.Cyan,
                     },
@@ -648,117 +751,145 @@ public partial class SongSelectScreen : Screen
     private Drawable createFooter()
     {
         doubleTimeMod = new SongSelectModButton(
-            "DT",
+            ManiaModId.DoubleTime,
             SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.DoubleTime));
+            () => ToggleMod(ManiaModId.DoubleTime),
+            onModHoverChanged);
         nightcoreMod = new SongSelectModButton(
-            "NC",
+            ManiaModId.Nightcore,
             SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.Nightcore));
+            () => ToggleMod(ManiaModId.Nightcore),
+            onModHoverChanged);
         halfTimeMod = new SongSelectModButton(
-            "HT",
+            ManiaModId.HalfTime,
             SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.HalfTime));
+            () => ToggleMod(ManiaModId.HalfTime),
+            onModHoverChanged);
         daycoreMod = new SongSelectModButton(
-            "DC",
+            ManiaModId.Daycore,
             SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.Daycore));
+            () => ToggleMod(ManiaModId.Daycore),
+            onModHoverChanged);
         easyMod = new SongSelectModButton(
-            "EZ",
+            ManiaModId.Easy,
             SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.Easy));
+            () => ToggleMod(ManiaModId.Easy),
+            onModHoverChanged);
         noFailMod = new SongSelectModButton(
-            "NF",
+            ManiaModId.NoFail,
             SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.NoFail));
+            () => ToggleMod(ManiaModId.NoFail),
+            onModHoverChanged);
         suddenDeathMod = new SongSelectModButton(
-            "SD",
+            ManiaModId.SuddenDeath,
             SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.SuddenDeath));
+            () => ToggleMod(ManiaModId.SuddenDeath),
+            onModHoverChanged);
         perfectMod = new SongSelectModButton(
-            "PF",
+            ManiaModId.Perfect,
             SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.Perfect));
+            () => ToggleMod(ManiaModId.Perfect),
+            onModHoverChanged);
         hardRockMod = new SongSelectModButton(
-            "HR",
+            ManiaModId.HardRock,
             SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.HardRock));
+            () => ToggleMod(ManiaModId.HardRock),
+            onModHoverChanged);
         accuracyChallengeMod = new SongSelectModButton(
-            "AC",
+            ManiaModId.AccuracyChallenge,
             SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.AccuracyChallenge));
+            () => ToggleMod(ManiaModId.AccuracyChallenge),
+            onModHoverChanged);
         mirrorMod = new SongSelectModButton(
-            "MR",
+            ManiaModId.Mirror,
             SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.Mirror));
+            () => ToggleMod(ManiaModId.Mirror),
+            onModHoverChanged);
         randomMod = new SongSelectModButton(
-            "RD",
+            ManiaModId.Random,
             SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.Random));
+            () => ToggleMod(ManiaModId.Random),
+            onModHoverChanged);
         holdOffMod = new SongSelectModButton(
-            "HO",
+            ManiaModId.HoldOff,
             SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.HoldOff));
+            () => ToggleMod(ManiaModId.HoldOff),
+            onModHoverChanged);
         noReleaseMod = new SongSelectModButton(
-            "NR",
+            ManiaModId.NoRelease,
             SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.NoRelease));
+            () => ToggleMod(ManiaModId.NoRelease),
+            onModHoverChanged);
         fadeInMod = new SongSelectModButton(
-            "FI",
+            ManiaModId.FadeIn,
             SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.FadeIn));
+            () => ToggleMod(ManiaModId.FadeIn),
+            onModHoverChanged);
         hiddenMod = new SongSelectModButton(
-            "HD",
+            ManiaModId.Hidden,
             SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.Hidden));
+            () => ToggleMod(ManiaModId.Hidden),
+            onModHoverChanged);
         coverMod = new SongSelectModButton(
-            "CO",
+            ManiaModId.Cover,
             SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.Cover));
+            () => ToggleMod(ManiaModId.Cover),
+            onModHoverChanged);
         flashlightMod = new SongSelectModButton(
-            "FL",
+            ManiaModId.Flashlight,
             SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.Flashlight));
+            () => ToggleMod(ManiaModId.Flashlight),
+            onModHoverChanged);
         constantSpeedMod = new SongSelectModButton(
-            "CS",
+            ManiaModId.ConstantSpeed,
             SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.ConstantSpeed));
+            () => ToggleMod(ManiaModId.ConstantSpeed),
+            onModHoverChanged);
         difficultyAdjustMod = new SongSelectModButton(
-            "DA",
+            ManiaModId.DifficultyAdjust,
             SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.DifficultyAdjust));
+            () => ToggleMod(ManiaModId.DifficultyAdjust),
+            onModHoverChanged);
         autoplayMod = new SongSelectModButton(
-            "AT",
+            ManiaModId.Autoplay,
             SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.Autoplay));
+            () => ToggleMod(ManiaModId.Autoplay),
+            onModHoverChanged);
         cinemaMod = new SongSelectModButton(
-            "CN",
+            ManiaModId.Cinema,
             SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.Cinema));
+            () => ToggleMod(ManiaModId.Cinema),
+            onModHoverChanged);
         invertMod = new SongSelectModButton(
-            "IN",
+            ManiaModId.Invert,
             SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.Invert));
+            () => ToggleMod(ManiaModId.Invert),
+            onModHoverChanged);
         classicMod = new SongSelectModButton(
-            "CL",
+            ManiaModId.Classic,
             SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.Classic));
+            () => ToggleMod(ManiaModId.Classic),
+            onModHoverChanged);
         mutedMod = new SongSelectModButton(
-            "MU",
+            ManiaModId.Muted,
             SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.Muted));
+            () => ToggleMod(ManiaModId.Muted),
+            onModHoverChanged);
         windUpMod = new SongSelectModButton(
-            "WU",
+            ManiaModId.WindUp,
             SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.WindUp));
+            () => ToggleMod(ManiaModId.WindUp),
+            onModHoverChanged);
         windDownMod = new SongSelectModButton(
-            "WD",
+            ManiaModId.WindDown,
             SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.WindDown));
+            () => ToggleMod(ManiaModId.WindDown),
+            onModHoverChanged);
         adaptiveSpeedMod = new SongSelectModButton(
-            "AS",
+            ManiaModId.AdaptiveSpeed,
             SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.AdaptiveSpeed));
+            () => ToggleMod(ManiaModId.AdaptiveSpeed),
+            onModHoverChanged);
 
         var mods = modsToggleButton = new SongSelectModsToggleButton(
             ToggleModPanel)
@@ -879,7 +1010,7 @@ public partial class SongSelectScreen : Screen
         Anchor = Anchor.TopCentre,
         Origin = Anchor.BottomCentre,
         Position = new Vector2(-14, -10),
-        Size = new Vector2(525, 326),
+        Size = new Vector2(525, 342),
         Alpha = 0,
         Depth = -5,
         Masking = true,
@@ -910,13 +1041,20 @@ public partial class SongSelectScreen : Screen
                 Icon = FontAwesome.Solid.SlidersH,
                 Colour = SongSelectTheme.Cyan,
             },
-            new SpriteText
+            modInfoTitle = new SpriteText
             {
                 Position = new Vector2(42, 12),
                 Text = "GAMEPLAY MODS",
                 Font = HomeTypography.Display(13),
                 Spacing = new Vector2(0.5f, 0),
                 Colour = SongSelectTheme.Ivory,
+            },
+            modInfoDescription = new SpriteText
+            {
+                Position = new Vector2(18, 32),
+                Text = "Hover a mod to see what it changes.",
+                Font = HomeTypography.Display(9),
+                Colour = SongSelectTheme.PaleCyan,
             },
             new SpriteText
             {
@@ -929,7 +1067,7 @@ public partial class SongSelectScreen : Screen
             },
             new Box
             {
-                Position = new Vector2(16, 41),
+                Position = new Vector2(16, 57),
                 Size = new Vector2(493, 1),
                 Colour = new Color4(
                     SongSelectTheme.Cyan.R,
@@ -938,48 +1076,48 @@ public partial class SongSelectScreen : Screen
                     0.26f),
             },
             createModRow(
-                50,
+                64,
                 easyMod,
                 noFailMod,
                 halfTimeMod,
                 daycoreMod,
                 noReleaseMod),
             createModRow(
-                94,
+                108,
                 hardRockMod,
                 suddenDeathMod,
                 perfectMod,
                 accuracyChallengeMod,
                 doubleTimeMod),
             createModRow(
-                138,
+                152,
                 nightcoreMod,
                 fadeInMod,
                 hiddenMod,
                 coverMod,
                 flashlightMod),
             createModRow(
-                182,
+                196,
                 mirrorMod,
                 randomMod,
                 holdOffMod,
                 invertMod,
                 classicMod),
             createModRow(
-                226,
+                240,
                 constantSpeedMod,
                 difficultyAdjustMod,
                 autoplayMod,
                 cinemaMod,
                 mutedMod),
             createModRow(
-                270,
+                284,
                 windUpMod,
                 windDownMod,
                 adaptiveSpeedMod),
             new Box
             {
-                Position = new Vector2(292, 50),
+                Position = new Vector2(292, 64),
                 Size = new Vector2(1, 260),
                 Colour = new Color4(
                     SongSelectTheme.Cyan.R,
@@ -1006,7 +1144,7 @@ public partial class SongSelectScreen : Screen
                     SetAdaptiveAdjustPitch,
                     ToggleMod)
                 {
-                    Position = new Vector2(306, 48),
+                    Position = new Vector2(306, 62),
                 },
         },
     };

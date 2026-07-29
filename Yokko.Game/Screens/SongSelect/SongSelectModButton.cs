@@ -6,6 +6,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Core.Mods;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -15,13 +16,18 @@ internal partial class SongSelectModButton : ClickableContainer
     private readonly Color4 accent;
     private readonly Box background;
     private readonly SpriteText label;
+    private readonly Action<ManiaModId, bool> hoverChanged;
+    private bool selected;
 
     public SongSelectModButton(
-        string acronym,
+        ManiaModId mod,
         Color4 accent,
-        Action action)
+        Action action,
+        Action<ManiaModId, bool> hoverChanged)
     {
+        Mod = mod;
         this.accent = accent;
+        this.hoverChanged = hoverChanged;
         Action = action;
         Size = new Vector2(49, 36);
         Masking = true;
@@ -39,7 +45,7 @@ internal partial class SongSelectModButton : ClickableContainer
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Text = acronym,
+                Text = OsuManiaModParityCatalog.Get(mod).Acronym,
                 Font = HomeTypography.Display(16),
             },
         };
@@ -47,8 +53,11 @@ internal partial class SongSelectModButton : ClickableContainer
         SetSelected(false);
     }
 
+    public ManiaModId Mod { get; }
+
     public void SetSelected(bool selected)
     {
+        this.selected = selected;
         background.Colour = selected
             ? accent
             : new Color4(
@@ -60,6 +69,23 @@ internal partial class SongSelectModButton : ClickableContainer
             ? SongSelectTheme.DeepNavy
             : accent;
         this.ScaleTo(selected ? 1.06f : 1, 120);
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        hoverChanged?.Invoke(Mod, true);
+        this.ScaleTo(selected ? 1.1f : 1.045f, 90, Easing.OutQuint);
+        background.FadeColour(
+            new Color4(accent.R, accent.G, accent.B, selected ? 1 : 0.2f),
+            90,
+            Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        hoverChanged?.Invoke(Mod, false);
+        SetSelected(selected);
     }
 }
 

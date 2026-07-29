@@ -18,6 +18,7 @@ public partial class GameplayHud : CompositeDrawable
     private readonly YokkoBeatmap beatmap;
     private readonly ManiaModSet mods;
     private readonly SpriteText timeText;
+    private readonly SpriteText modsText;
     private readonly SpriteText comboText;
     private readonly SpriteText accuracyText;
     private readonly SpriteText challengeText;
@@ -40,6 +41,8 @@ public partial class GameplayHud : CompositeDrawable
         challengeText?.Text.ToString() ?? string.Empty;
     internal string DisplayedDynamicRate =>
         rateText?.Text.ToString() ?? string.Empty;
+    internal string DisplayedMods =>
+        modsText?.Text.ToString() ?? string.Empty;
 
     public GameplayHud(
         YokkoBeatmap beatmap,
@@ -47,11 +50,8 @@ public partial class GameplayHud : CompositeDrawable
     {
         this.beatmap = beatmap;
         this.mods = mods ?? ManiaModSet.Empty;
-        string modSummary = this.mods.IsEmpty
-            ? string.Empty
-            : $" · {string.Join(' ', this.mods.Acronyms)}";
         Width = 340;
-        Height = 314;
+        Height = 330;
         Masking = true;
 
         InternalChildren = new Drawable[]
@@ -72,10 +72,19 @@ public partial class GameplayHud : CompositeDrawable
                     new SpriteText
                     {
                         Text =
-                            $"{beatmap.Title} [{beatmap.DifficultyName}]"
-                            + modSummary,
+                            $"{beatmap.Title} [{beatmap.DifficultyName}]",
                         Font = FontUsage.Default.With(size: 20),
                         Colour = YokkoPalette.Text,
+                    },
+                    modsText = new SpriteText
+                    {
+                        Text = this.mods.IsEmpty
+                            ? "MODS · NM"
+                            : $"MODS · {string.Join("  ", this.mods.DisplayLabels)}",
+                        Font = FontUsage.Default.With(
+                            size: 13,
+                            weight: "SemiBold"),
+                        Colour = YokkoPalette.Rose,
                     },
                     timeText = createLine(),
                     comboText = createLine(),

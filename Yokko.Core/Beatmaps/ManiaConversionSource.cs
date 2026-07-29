@@ -9,7 +9,8 @@ public sealed record ManiaConversionSource(
     double OverallDifficulty,
     double ApproachRate,
     double DrainRate,
-    IReadOnlyList<ManiaConversionHitObject> HitObjects);
+    IReadOnlyList<ManiaConversionHitObject> HitObjects,
+    double TotalBreakTimeMilliseconds = 0);
 
 public sealed record ManiaConversionHitObject(
     double X,
@@ -18,7 +19,8 @@ public sealed record ManiaConversionHitObject(
     ManiaConversionObjectKind Kind,
     int HitSound = 0,
     int SpanCount = 1,
-    double Y = 192);
+    double Y = 192,
+    IReadOnlyList<int>? NodeHitSounds = null);
 
 public enum ManiaConversionObjectKind
 {

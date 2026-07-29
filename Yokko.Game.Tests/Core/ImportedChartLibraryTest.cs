@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Platform;
@@ -201,5 +204,100 @@ public sealed class ImportedChartLibraryTest
             if (Directory.Exists(root))
                 Directory.Delete(root, true);
         }
+    }
+
+    [Test]
+    public async Task QuaverPackageDragImportPersistsEveryDifficulty()
+    {
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            $"yokko-quaver-library-{Guid.NewGuid():N}");
+        string source = Path.Combine(root, "source");
+        Directory.CreateDirectory(source);
+        string packagePath = Path.Combine(source, "mapset.qp");
+
+        try
+        {
+            using (ZipArchive archive =
+                   ZipFile.Open(packagePath, ZipArchiveMode.Create))
+            {
+                writeEntry(archive, "Mapset/audio.ogg", string.Empty);
+                writeEntry(archive, "Mapset/background.jpg", "art");
+                writeQuaEntry(archive, "Mapset/easy.qua", "Easy", 4);
+                writeQuaEntry(archive, "Mapset/hard.qua", "Hard", 7);
+            }
+
+            var first = new ImportedChartLibrary();
+            first.Initialise(new NativeStorage(root));
+            IReadOnlyList<ChartImportResult> results =
+                await first.ImportAsync(
+                    new ChartImportRequest(packagePath, true));
+
+            Assert.That(results, Has.Count.EqualTo(2));
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.GetCharts(), Has.Count.EqualTo(2));
+                Assert.That(
+                    first.GetCharts().Select(chart => chart.IsPackage),
+                    Is.All.True);
+                Assert.That(
+                    first.GetCharts().Select(
+                        chart => chart.Result.Beatmap.AudioPath),
+                    Is.All.Matches<string>(File.Exists));
+                Assert.That(
+                    first.GetCharts().Select(chart => chart.ArtworkPath),
+                    Is.All.Matches<string>(File.Exists));
+            });
+
+            File.Delete(packagePath);
+
+            var reloaded = new ImportedChartLibrary();
+            reloaded.Initialise(new NativeStorage(root));
+            int count = await reloaded.LoadFromDiskAsync(true, true);
+
+            Assert.That(count, Is.EqualTo(2));
+            Assert.That(
+                reloaded.GetCharts().Select(
+                    chart => chart.Result.Beatmap.DifficultyName),
+                Is.EquivalentTo(new[] { "Easy", "Hard" }));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    private static void writeQuaEntry(
+        ZipArchive archive,
+        string path,
+        string difficulty,
+        int keys)
+    {
+        writeEntry(archive, path, $"""
+AudioFile: audio.ogg
+BackgroundFile: background.jpg
+Mode: Keys{keys}
+Title: Quaver Package
+Artist: Artist
+Creator: Mapper
+DifficultyName: {difficulty}
+TimingPoints:
+- StartTime: 0
+  Bpm: 120
+HitObjects:
+- StartTime: 500
+  Lane: 1
+""");
+    }
+
+    private static void writeEntry(
+        ZipArchive archive,
+        string path,
+        string content)
+    {
+        using Stream stream = archive.CreateEntry(path).Open();
+        using var writer = new StreamWriter(stream, new UTF8Encoding(false));
+        writer.Write(content);
     }
 }

@@ -1,0 +1,10 @@
+Mode: Keys4
+Title: Early SV
+BPMDoesNotAffectScrollVelocity: false
+TimingPoints:
+  - StartTime: 0
+    Bpm: 120
+SliderVelocities:
+  - StartTime: -10
+    Multiplier: 10
+HitObjects: []

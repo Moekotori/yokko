@@ -249,14 +249,50 @@ public sealed class QuaverChartImporter : IChartImporter
                 continue;
             }
 
+            int indentation = rawLine.Length - rawLine.TrimStart().Length;
             int separator = trimmed.IndexOf(':');
             if (separator < 0)
+            {
+                if (trimmed.Equals("- {}", StringComparison.Ordinal))
+                {
+                    if (section.Equals(
+                            "SliderVelocities",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        sliderVelocity = addSliderVelocity(parsed);
+                    }
+                    else if (section.Equals(
+                                 "ScrollSpeedFactors",
+                                 StringComparison.OrdinalIgnoreCase))
+                    {
+                        scrollSpeedFactor = addScrollSpeedFactor(parsed);
+                    }
+                    else if (section.Equals(
+                                 "TimingGroups",
+                                 StringComparison.OrdinalIgnoreCase)
+                             && scrollGroup != null
+                             && indentation > 4)
+                    {
+                        if (timingGroupSubsection == "ScrollVelocities")
+                        {
+                            groupSliderVelocity =
+                                addSliderVelocity(scrollGroup);
+                        }
+                        else if (timingGroupSubsection
+                                 == "ScrollSpeedFactors")
+                        {
+                            groupScrollSpeedFactor =
+                                addScrollSpeedFactor(scrollGroup);
+                        }
+                    }
+                }
+
                 continue;
+            }
 
             string key = trimmed.TrimStart('-').Trim()[..trimmed.TrimStart('-').Trim().IndexOf(':')].Trim();
             string value = ImportParsing.Scalar(trimmed[(separator + 1)..]);
             bool startsItem = trimmed.StartsWith('-');
-            int indentation = rawLine.Length - rawLine.TrimStart().Length;
 
             if (section.Equals("TimingGroups", StringComparison.OrdinalIgnoreCase))
             {
@@ -485,7 +521,7 @@ public sealed class QuaverChartImporter : IChartImporter
         if (key.Equals("StartTime", StringComparison.OrdinalIgnoreCase))
             velocity.StartTime = ImportParsing.Double(value);
         else if (key.Equals("Multiplier", StringComparison.OrdinalIgnoreCase))
-            velocity.Multiplier = ImportParsing.Double(value, 1);
+            velocity.Multiplier = ImportParsing.Double(value);
     }
 
     private static void assignScrollSpeedFactor(
@@ -496,7 +532,7 @@ public sealed class QuaverChartImporter : IChartImporter
         if (key.Equals("StartTime", StringComparison.OrdinalIgnoreCase))
             factor.StartTime = ImportParsing.Double(value);
         else if (key.Equals("Multiplier", StringComparison.OrdinalIgnoreCase))
-            factor.Multiplier = ImportParsing.Double(value, 1);
+            factor.Multiplier = ImportParsing.Double(value);
     }
 
     private static bool parseBoolean(string? value)
@@ -668,13 +704,13 @@ public sealed class QuaverChartImporter : IChartImporter
     private sealed class QuaSliderVelocity
     {
         public double StartTime { get; set; }
-        public double Multiplier { get; set; } = 1;
+        public double Multiplier { get; set; }
     }
 
     private sealed class QuaScrollSpeedFactor
     {
         public double StartTime { get; set; }
-        public double Multiplier { get; set; } = 1;
+        public double Multiplier { get; set; }
     }
 
     private sealed class QuaScrollGroup

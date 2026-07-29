@@ -1,0 +1,24 @@
+Mode: Keys4
+Title: Indented Qua
+BPMDoesNotAffectScrollVelocity: true
+InitialScrollVelocity: 1
+TimingPoints:
+  - StartTime: 0
+    Bpm: 120
+  - StartTime: 2000
+    Bpm: 180
+SliderVelocities:
+  - StartTime: 500
+    Multiplier: 0.5
+  - StartTime: 1000
+    Multiplier: 2
+ScrollSpeedFactors:
+  - StartTime: 250
+    Multiplier: 0.75
+  - StartTime: 1250
+    Multiplier: 1.25
+HitObjects:
+  - StartTime: 1500
+    Lane: 1
+  - StartTime: 2000
+    Lane: 4

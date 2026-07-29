@@ -83,6 +83,7 @@ internal sealed class OsuStandardPatternGenerator
                      item.StartTimeMilliseconds))
         {
             Pattern pattern;
+            Pattern? nextPrevious = null;
             switch (hitObject.Kind)
             {
                 case ManiaConversionObjectKind.Circle:
@@ -99,7 +100,11 @@ internal sealed class OsuStandardPatternGenerator
                     break;
 
                 default:
-                    pattern = generateSliderBase(hitObject);
+                    pattern = generateSlider(hitObject);
+                    nextPrevious = sliderEndPattern(
+                        pattern,
+                        Math.Floor(
+                            hitObject.EndTimeMilliseconds));
                     double segmentDuration =
                         (hitObject.EndTimeMilliseconds
                          - hitObject.StartTimeMilliseconds)
@@ -115,7 +120,7 @@ internal sealed class OsuStandardPatternGenerator
                     break;
             }
             output.AddRange(pattern.Objects);
-            previous = pattern;
+            previous = nextPrevious ?? pattern;
         }
 
         return output
@@ -286,10 +291,10 @@ internal sealed class OsuStandardPatternGenerator
         ManiaConversionHitObject hitObject,
         PatternType type,
         double p2,
-        double p3)
+        double p3,
+        double p4 = 0,
+        double p5 = 0)
     {
-        double p4 = 0;
-        double p5 = 0;
         clampCircleProbabilities(ref p2, ref p3, ref p4, ref p5);
         if (hasClap(hitObject))
             p2 = 1;
@@ -350,7 +355,9 @@ internal sealed class OsuStandardPatternGenerator
                 hitObject,
                 type,
                 0.5 + p2 / 2,
-                p2);
+                p2,
+                (p2 + p3) / 2,
+                p3);
         }
 
         switch (totalColumns)
@@ -410,36 +417,401 @@ internal sealed class OsuStandardPatternGenerator
         return pattern;
     }
 
-    private Pattern generateSliderBase(
+    private Pattern generateSlider(
         ManiaConversionHitObject hitObject)
     {
+        int start = (int)Math.Round(
+            hitObject.StartTimeMilliseconds);
+        int end = (int)Math.Floor(
+            hitObject.EndTimeMilliseconds);
+        int spans = Math.Max(1, hitObject.SpanCount);
+        int segment = (end - start) / spans;
+        bool lowProbability =
+            !kiaiAt(hitObject.StartTimeMilliseconds);
+        if (totalColumns == 1)
+        {
+            var one = new Pattern();
+            one.Add(0, start, end);
+            return one;
+        }
+
+        if (spans > 1)
+        {
+            if (segment <= 90)
+                return randomHolds(hitObject, start, end, 1);
+            if (segment <= 120)
+            {
+                return sliderNotes(
+                    hitObject,
+                    start,
+                    segment,
+                    spans + 1,
+                    true);
+            }
+            if (segment <= 160)
+                return sliderStair(hitObject, start, segment, spans);
+            if (segment <= 200 && conversionDifficulty > 3)
+            {
+                return sliderMultiple(
+                    hitObject,
+                    start,
+                    segment,
+                    spans);
+            }
+            if (end - start >= 4000)
+            {
+                return randomHolds(
+                    hitObject,
+                    start,
+                    end,
+                    sliderHoldCount(
+                        hitObject,
+                        lowProbability,
+                        0.23,
+                        0,
+                        0));
+            }
+            if (segment > 400
+                && spans < totalColumns - 1 - randomStart)
+            {
+                return tiledHolds(
+                    hitObject,
+                    start,
+                    segment,
+                    spans);
+            }
+            return holdAndNormal(
+                hitObject,
+                start,
+                end,
+                segment,
+                spans);
+        }
+
+        if (segment <= 110)
+        {
+            return sliderNotes(
+                hitObject,
+                start,
+                segment,
+                segment < 80 ? 1 : 2,
+                previous.Columns.Count < totalColumns);
+        }
+
+        (double p2, double p3, double p4) = conversionDifficulty switch
+        {
+            > 6.5 when lowProbability => (0.78, 0.3, 0),
+            > 6.5 => (0.85, 0.36, 0.03),
+            > 4 when lowProbability => (0.43, 0.08, 0),
+            > 4 => (0.56, 0.18, 0),
+            > 2.5 when lowProbability => (0.3, 0, 0),
+            > 2.5 => (0.37, 0.08, 0),
+            _ when lowProbability => (0.17, 0, 0),
+            _ => (0.27, 0, 0),
+        };
+        return randomHolds(
+            hitObject,
+            start,
+            end,
+            sliderHoldCount(
+                hitObject,
+                lowProbability,
+                p2,
+                p3,
+                p4));
+    }
+
+    private Pattern randomHolds(
+        ManiaConversionHitObject hitObject,
+        int start,
+        int end,
+        int count)
+    {
+        var pattern = new Pattern();
+        int usable = totalColumns
+                     - randomStart
+                     - previous.Columns.Count;
+        int column = random.Next(randomStart, totalColumns);
+        for (int i = 0; i < Math.Min(usable, count); i++)
+        {
+            column = findAvailable(
+                column,
+                _ => random.Next(randomStart, totalColumns),
+                [pattern, previous]);
+            pattern.Add(column, start, end);
+        }
+        for (int i = 0; i < count - usable; i++)
+        {
+            column = findAvailable(
+                column,
+                _ => random.Next(randomStart, totalColumns),
+                [pattern]);
+            pattern.Add(column, start, end);
+        }
+        return pattern;
+    }
+
+    private Pattern sliderNotes(
+        ManiaConversionHitObject hitObject,
+        int start,
+        int segment,
+        int count,
+        bool forceNotStack)
+    {
+        var pattern = new Pattern();
         int column = columnAt(hitObject.X, allowSpecial: true);
-        if (previous.Columns.Count < totalColumns
-            && previous.Columns.Contains(column))
+        if (forceNotStack
+            && previous.Columns.Count < totalColumns)
         {
             column = findAvailable(
                 column,
                 _ => random.Next(randomStart, totalColumns),
                 [previous]);
         }
-        var pattern = new Pattern();
-        bool hold = hitObject.EndTimeMilliseconds
-                    - hitObject.StartTimeMilliseconds >= 100;
-        pattern.Add(
-            column,
-            hitObject.StartTimeMilliseconds,
-            hold ? hitObject.EndTimeMilliseconds : null);
+        int lastColumn = column;
+        for (int i = 0; i < count; i++)
+        {
+            pattern.Add(column, start);
+            column = findAvailable(
+                column,
+                _ => random.Next(randomStart, totalColumns),
+                [new Pattern { Columns = { lastColumn } }]);
+            lastColumn = column;
+            start += segment;
+        }
         return pattern;
+    }
+
+    private Pattern sliderStair(
+        ManiaConversionHitObject hitObject,
+        int start,
+        int segment,
+        int spans)
+    {
+        var pattern = new Pattern();
+        int column = columnAt(hitObject.X, allowSpecial: true);
+        bool increasing = random.NextDouble() > 0.5;
+        for (int i = 0; i <= spans; i++)
+        {
+            pattern.Add(column, start);
+            start += segment;
+            if (increasing)
+            {
+                if (column >= totalColumns - 1)
+                {
+                    increasing = false;
+                    column--;
+                }
+                else
+                    column++;
+            }
+            else if (column <= randomStart)
+            {
+                increasing = true;
+                column++;
+            }
+            else
+                column--;
+        }
+        return pattern;
+    }
+
+    private Pattern sliderMultiple(
+        ManiaConversionHitObject hitObject,
+        int start,
+        int segment,
+        int spans)
+    {
+        var pattern = new Pattern();
+        bool legacy = totalColumns is >= 4 and <= 8;
+        int interval = random.Next(
+            1,
+            totalColumns - (legacy ? 1 : 0));
+        int column = columnAt(hitObject.X, allowSpecial: true);
+        for (int i = 0; i <= spans; i++)
+        {
+            pattern.Add(column, start);
+            column += interval;
+            if (column >= totalColumns - randomStart)
+            {
+                column = column
+                         - totalColumns
+                         - randomStart
+                         + (legacy ? 1 : 0);
+            }
+            column += randomStart;
+            if (totalColumns > 2)
+                pattern.Add(column, start);
+            column = random.Next(randomStart, totalColumns);
+            start += segment;
+        }
+        return pattern;
+    }
+
+    private Pattern tiledHolds(
+        ManiaConversionHitObject hitObject,
+        int start,
+        int segment,
+        int spans)
+    {
+        var pattern = new Pattern();
+        int repeat = Math.Min(spans, totalColumns);
+        int end = start + segment * spans;
+        int column = columnAt(hitObject.X, allowSpecial: true);
+        if (previous.Columns.Count < totalColumns)
+        {
+            column = findAvailable(
+                column,
+                _ => random.Next(randomStart, totalColumns),
+                [previous]);
+        }
+        for (int i = 0; i < repeat; i++)
+        {
+            column = findAvailable(
+                column,
+                _ => random.Next(randomStart, totalColumns),
+                [pattern]);
+            pattern.Add(column, start, end);
+            start += segment;
+        }
+        return pattern;
+    }
+
+    private Pattern holdAndNormal(
+        ManiaConversionHitObject hitObject,
+        int start,
+        int end,
+        int segment,
+        int spans)
+    {
+        var pattern = new Pattern();
+        int holdColumn = columnAt(
+            hitObject.X,
+            allowSpecial: true);
+        if (previous.Columns.Count < totalColumns)
+        {
+            holdColumn = findAvailable(
+                holdColumn,
+                _ => random.Next(randomStart, totalColumns),
+                [previous]);
+        }
+        pattern.Add(holdColumn, start, end);
+        int noteCount = conversionDifficulty switch
+        {
+            > 6.5 => randomNoteCount(0.63, 0),
+            > 4 => randomNoteCount(
+                totalColumns < 6 ? 0.12 : 0.45,
+                0),
+            > 2.5 => randomNoteCount(
+                totalColumns < 6 ? 0 : 0.24,
+                0),
+            _ => 0,
+        };
+        noteCount = Math.Min(totalColumns - 1, noteCount);
+        bool ignoreHead =
+            (hitSoundAtNode(hitObject, 0) & (2 | 4 | 8)) == 0;
+        int column = random.Next(randomStart, totalColumns);
+        for (int row = 0; row <= spans; row++)
+        {
+            var rowPattern = new Pattern();
+            if (!(ignoreHead && row == 0))
+            {
+                for (int i = 0; i < noteCount; i++)
+                {
+                    column = findAvailable(
+                        column,
+                        _ => random.Next(randomStart, totalColumns),
+                        [rowPattern]);
+                    if (column == holdColumn)
+                    {
+                        column = findAvailable(
+                            column,
+                            _ => random.Next(randomStart, totalColumns),
+                            [rowPattern, new Pattern
+                            {
+                                Columns = { holdColumn },
+                            }]);
+                    }
+                    rowPattern.Add(column, start);
+                }
+            }
+            pattern.Objects.AddRange(rowPattern.Objects);
+            pattern.Columns.UnionWith(rowPattern.Columns);
+            start += segment;
+        }
+        return pattern;
+    }
+
+    private int sliderHoldCount(
+        ManiaConversionHitObject hitObject,
+        bool lowProbability,
+        double p2,
+        double p3,
+        double p4)
+    {
+        switch (totalColumns)
+        {
+            case 2:
+                p2 = p3 = p4 = 0;
+                break;
+            case 3:
+                p2 = Math.Min(p2, 0.1);
+                p3 = p4 = 0;
+                break;
+            case 4:
+                p2 = Math.Min(p2, 0.3);
+                p3 = Math.Min(p3, 0.04);
+                p4 = 0;
+                break;
+            case 5:
+                p2 = Math.Min(p2, 0.34);
+                p3 = Math.Min(p3, 0.1);
+                p4 = Math.Min(p4, 0.03);
+                break;
+        }
+        if (!lowProbability
+            && (hasClap(hitObject)
+                || hasFinish(hitObject)
+                || (hitSoundAtNode(hitObject, 0) & (4 | 8)) != 0))
+        {
+            p2 = 1;
+        }
+        return randomNoteCount(p2, p3, p4);
+    }
+
+    private static Pattern sliderEndPattern(
+        Pattern pattern,
+        double endTime)
+    {
+        if (pattern.Objects.Count == 1)
+            return pattern;
+        var ending = new Pattern();
+        foreach (YokkoHitObject hitObject in pattern.Objects)
+        {
+            double objectEnd = hitObject.EndTimeMilliseconds
+                               ?? hitObject.StartTimeMilliseconds;
+            if (Math.Round(objectEnd) == endTime)
+            {
+                ending.Objects.Add(hitObject);
+                ending.Columns.Add(hitObject.Lane);
+            }
+        }
+        return ending;
     }
 
     private Pattern generateSpinner(
         ManiaConversionHitObject hitObject)
     {
-        int lower = totalColumns == 8 && !hasFinish(hitObject)
-            ? randomStart
-            : 0;
-        int column = random.Next(lower, totalColumns);
-        if (previous.Columns.Count < totalColumns)
+        bool shortFinish = totalColumns == 8
+                           && hasFinish(hitObject)
+                           && hitObject.EndTimeMilliseconds
+                           - hitObject.StartTimeMilliseconds < 1000;
+        int lower = totalColumns == 8 ? randomStart : 0;
+        int column = shortFinish
+            ? 0
+            : random.Next(lower, totalColumns);
+        if (!shortFinish
+            && previous.Columns.Count < totalColumns)
         {
             column = findAvailable(
                 column,
@@ -540,11 +912,17 @@ internal sealed class OsuStandardPatternGenerator
     {
         get
         {
-            double first = source.HitObjects.FirstOrDefault()?
+            double first = source.HitObjects
+                                 .MinBy(static hitObject =>
+                                     hitObject.StartTimeMilliseconds)?
                                  .StartTimeMilliseconds ?? 0;
-            double last = source.HitObjects.LastOrDefault()?
+            double last = source.HitObjects
+                                .MaxBy(static hitObject =>
+                                    hitObject.StartTimeMilliseconds)?
                                 .StartTimeMilliseconds ?? 0;
-            int drainTime = (int)((last - first) / 1000);
+            int drainTime = (int)(
+                (last - first - source.TotalBreakTimeMilliseconds)
+                / 1000);
             if (drainTime == 0)
                 drainTime = 10000;
             double value =
@@ -597,4 +975,11 @@ internal sealed class OsuStandardPatternGenerator
     private static bool hasFinish(
         ManiaConversionHitObject hitObject) =>
         (hitObject.HitSound & 4) != 0;
+
+    private static int hitSoundAtNode(
+        ManiaConversionHitObject hitObject,
+        int index) =>
+        hitObject.NodeHitSounds is { Count: > 0 } nodeSounds
+            ? nodeSounds[Math.Min(index, nodeSounds.Count - 1)]
+            : hitObject.HitSound;
 }

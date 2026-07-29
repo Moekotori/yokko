@@ -1,3 +1,66 @@
+# Yokko Song Select search redesign design QA
+
+final result: passed
+
+## Evidence
+
+- Source visual truth: `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-6658cec6-d3ce-4f2c-b2e1-1543e6eb919a.png`
+- Final implementation, query state: `D:\yokko\artifacts\product-design\song-select-search-redesign-final.png`
+- Final implementation, first-Esc cleared state: `D:\yokko\artifacts\product-design\song-select-search-redesign-cleared-final.png`
+- Focused before/after comparison: `D:\yokko\artifacts\product-design\song-select-search-redesign-comparison.png`
+- Source pixels: 1990 x 700.
+- Implementation pixels and viewport: 1600 x 952 native Windows visual-test capture.
+- Density normalization: the source search region was cropped to 900 x 180 and scaled to 1200 x 240; the implementation search region was cropped to 500 x 140 and scaled to 858 x 240. Both are displayed together in the 2058 x 240 comparison.
+- State: search focused with `43` entered; a separate capture records the first-Esc cleared state.
+
+## Full-view comparison
+
+The full implementation capture confirms that the redesigned control remains anchored to the upper-right song-browser column, does not overlap the artwork, filters, or sliders button, and preserves the existing Yokko stage and footer. The filter row now begins on the same visual axis as the search control instead of being stranded beneath an oversized field.
+
+## Focused comparison
+
+The combined comparison shows the supplied state on the left and the implemented redesign on the right. The old field is excessively long and visually empty; the new 360 x 44 logical-pixel control uses a compact cyan icon well, stronger focus rail, localized placeholder, visible `ESC` affordance, and a matching 44 x 44 sliders button. The narrower width preserves enough room for normal song queries while restoring hierarchy to the right column.
+
+## Required fidelity surfaces
+
+- Fonts and typography: the control reuses `HomeTypography.Body` and `HomeTypography.Display`; entered text, placeholder, and the small `ESC` hint remain legible without competing with the filters.
+- Spacing and layout rhythm: search and sliders use the same 44 px height and 7 px corner radius; the filter row aligns to the search start with an 8 px inter-control gap.
+- Colors and visual tokens: deep navy, navy, cyan, pale cyan, and ivory all come from `SongSelectTheme`; focus raises the cyan border and bottom rail without introducing a new palette.
+- Image quality and asset fidelity: no raster asset was added or replaced. The search and sliders icons remain Font Awesome assets already used by Yokko.
+- Copy and content: the placeholder now uses the existing localized `song_select.search` string, while `ESC` communicates the new keyboard behavior.
+
+## Findings
+
+- No actionable P0, P1, or P2 issue remains.
+- The search control, sliders action, and filter row are visually balanced in the captured desktop viewport.
+- Typing `43` works, the first Esc clears the query while staying on Song Select, and the second Esc returns to the previous screen.
+- P3 accepted constraint: the visual-test browser adds a test navigation rail outside the app stage; it does not affect the captured app layout.
+
+## Comparison history
+
+1. Source state:
+   - P1: the search field occupied most of the right header and read as an unfinished debug input.
+   - P2: search and sliders used mismatched sizing and weak grouping.
+   - P2: no visible affordance explained the requested two-stage Esc behavior.
+2. Implementation:
+   - Reduced the field to 360 x 44 logical pixels.
+   - Added a contained search icon, localized placeholder, visible `ESC` hint, cyan focus rail, and matched 44 x 44 sliders control.
+   - Realigned the filter row and implemented clear-first, return-second Esc handling in both the focused text box and screen-level key path.
+3. Post-fix evidence:
+   - Native query and cleared-state captures show no clipping, overlap, or unreadable text.
+   - The focused before/after comparison has no remaining P0/P1/P2 issue.
+
+## Primary interactions and verification
+
+- Native Windows interaction: entered `43`; first Esc cleared it without leaving Song Select.
+- Automated screen-stack interaction: first Esc cleared the query and kept Song Select current; second Esc returned to the previous screen.
+- `Yokko.Game` focused build: passed with 0 warnings and 0 errors.
+- `Yokko.Game.Tests` focused build: passed with 0 warnings and 0 errors.
+- Focused `TestSceneSongSelectScreen` suite: passed, 5/5.
+- Native visual test: no runtime exception observed.
+
+---
+
 # Yokko Song Select full-screen reference-match design QA
 
 final result: passed

@@ -27,6 +27,8 @@ Things are expected to change quickly while the core loop is still being shaped.
 - Toggle notes on a timeline grid.
 - Import osu!mania `.osu` / `.osz`, Quaver `.qua` / `.qp`, Malody Key `.mc` / `.mcz`, Etterna/StepMania
   `.sm` / `.ssc` / `.zip` / `.smzip`, and BMS `.bms` / `.bme` / `.bml` charts.
+- Preserve Quaver normalized and legacy BPM-relative SV, including initial,
+  zero, negative, timing-group, and scroll-speed-factor changes.
 - Export editable charts as osu!mania `.osu` files.
 - Preserve osu! timing points, including BPM changes and inherited timing data.
 - Preview chart structure with waveform support where audio can be loaded.
@@ -38,9 +40,9 @@ Things are expected to change quickly while the core loop is still being shaped.
 Exports currently write to `Documents\Yokko Exports`.
 
 Import currently targets playable 4K/7K tap, hold, offset, and BPM semantics.
-Unsupported source features such as scratch lanes, BGA, warps, special scroll
-effects, or runtime keysound mixing are reported as import warnings instead of
-being silently discarded.
+Unsupported source features such as scratch lanes, BGA, warps, scroll effects
+outside the supported Quaver SV model, or runtime keysound mixing are reported
+as import warnings instead of being silently discarded.
 
 ## Project Layout
 

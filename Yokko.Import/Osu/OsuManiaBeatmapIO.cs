@@ -119,7 +119,9 @@ public static class OsuManiaBeatmapIO
                     timingPoints,
                     parseDouble(
                         difficulty.GetValueOrDefault("SliderMultiplier"),
-                        1.4)));
+                        1.4)),
+                parseBreakTime(
+                    sections.GetValueOrDefault("Events") ?? []));
             keyCount =
                 OsuStandardManiaConverter.DetermineDefaultColumnCount(
                     conversionSource);
@@ -389,6 +391,13 @@ public static class OsuManiaBeatmapIO
             {
                 int spanCount = Math.Max(1, parseInt(parts[6], 1));
                 double pixelLength = Math.Max(0, parseDouble(parts[7], 0));
+                IReadOnlyList<int>? nodeHitSounds =
+                    parts.Length >= 9
+                        ? parts[8]
+                          .Split('|')
+                          .Select(value => parseInt(value, hitSound))
+                          .ToArray()
+                        : null;
                 double endTime = startTime
                                  + sliderDuration(
                                      startTime,
@@ -403,7 +412,8 @@ public static class OsuManiaBeatmapIO
                     ManiaConversionObjectKind.Slider,
                     hitSound,
                     spanCount,
-                    y));
+                    y,
+                    nodeHitSounds));
                 continue;
             }
 
@@ -424,6 +434,28 @@ public static class OsuManiaBeatmapIO
                    hitObject.StartTimeMilliseconds)
                .ThenBy(static hitObject => hitObject.X)
                .ToArray();
+    }
+
+    private static double parseBreakTime(
+        IReadOnlyList<string> lines)
+    {
+        double total = 0;
+        foreach (string line in lines)
+        {
+            string[] parts = line.Split(',');
+            if (parts.Length < 3
+                || !parts[0].Trim().Equals(
+                    "2",
+                    StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            double start = parseDouble(parts[1], 0);
+            double end = parseDouble(parts[2], start);
+            total += Math.Max(0, end - start);
+        }
+        return total;
     }
 
     private static double sliderDuration(
@@ -449,15 +481,16 @@ public static class OsuManiaBeatmapIO
                                           && point.TimeMilliseconds
                                           <= startTime)
                                       .LastOrDefault();
-        double velocity = inherited == null
+        double beatLengthMultiplier = inherited == null
             ? 1
             : Math.Clamp(
-                -100 / inherited.BeatLengthMilliseconds,
-                0.1,
-                10);
+                (float)-inherited.BeatLengthMilliseconds,
+                10,
+                10000) / 100d;
         return pixelLength
-               / (sliderMultiplier * 100 * velocity)
+               / (sliderMultiplier * 100)
                * timing.BeatLengthMilliseconds
+               * beatLengthMultiplier
                * spanCount;
     }
 

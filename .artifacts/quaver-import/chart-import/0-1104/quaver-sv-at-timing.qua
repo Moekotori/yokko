@@ -1,0 +1,10 @@
+Mode: Keys4
+Title: Initial SV
+BPMDoesNotAffectScrollVelocity: false
+TimingPoints:
+  - StartTime: 0
+    Bpm: 120
+SliderVelocities:
+  - StartTime: 0
+    Multiplier: 10
+HitObjects: []

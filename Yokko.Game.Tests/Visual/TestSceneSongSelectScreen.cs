@@ -3,6 +3,7 @@ using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Screens;
+using osuTK;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
@@ -51,6 +52,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             SongSelectScreen.RankingFitsDesignedStage);
         AddAssert("ranking is above footer", () =>
             songSelectScreen.RankingFitsAboveFooter);
+        AddAssert("search box is compact", () =>
+            songSelectScreen.SearchBoxSize == new Vector2(360, 44));
 
         AddStep("select next song", songSelectScreen.SelectNext);
         AddAssert("selection wraps", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");
@@ -64,10 +67,12 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
 
         AddStep("search no results", () => songSelectScreen.SetSearchQuery("not-a-real-song"));
         AddAssert("empty result is stable", () => songSelectScreen.VisibleEntryCount == 0);
+        AddAssert("first escape dismisses search", songSelectScreen.DismissSearch);
+        AddAssert("search query cleared", () => songSelectScreen.SearchQuery.Length == 0);
+        AddAssert("empty search is not dismissed", () => !songSelectScreen.DismissSearch());
 
         AddStep("restore all songs", () =>
         {
-            songSelectScreen.SetSearchQuery(string.Empty);
             songSelectScreen.SetKeyModeFilter(null);
         });
         AddAssert("all imports restored", () => songSelectScreen.VisibleEntryCount == 2);
@@ -154,7 +159,10 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("HT replaces DT", () =>
             songSelectScreen.SelectedMods.Contains(
                 ManiaModId.HalfTime)
-            && songSelectScreen.SelectedMods.PlaybackRate == 0.75);
+            && songSelectScreen.SelectedMods.PlaybackRate == 0.75
+            && songSelectScreen.ModInfoTitle.Contains("HT")
+            && songSelectScreen.ModInfoDescription.Contains(
+                "Replaced DT"));
         AddStep("replace HT with DC", () =>
             songSelectScreen.ToggleMod(ManiaModId.Daycore));
         AddAssert("DC changes pitch", () =>
@@ -330,6 +338,27 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && gameplay.AutoplayMode);
         AddStep("return to song select", () => screenStack.CurrentScreen.Exit());
         AddUntilStep("song select resumes", () => screenStack.CurrentScreen is SongSelectScreen);
+    }
+
+    [Test]
+    public void TestEscapeClearsSearchBeforeReturning()
+    {
+        SongSelectScreen escapeScreen = null;
+
+        AddStep("push fresh song select", () =>
+            screenStack.Push(escapeScreen = new SongSelectScreen()));
+        AddUntilStep("fresh song select is current", () =>
+            screenStack.CurrentScreen == escapeScreen);
+        AddStep("enter search query", () =>
+            escapeScreen.SetSearchQuery("43"));
+        AddStep("first escape", () => escapeScreen.HandleEscape());
+        AddAssert("first escape clears query", () =>
+            escapeScreen.SearchQuery.Length == 0);
+        AddAssert("first escape stays in song select", () =>
+            screenStack.CurrentScreen == escapeScreen);
+        AddStep("second escape", () => escapeScreen.HandleEscape());
+        AddUntilStep("second escape returns", () =>
+            screenStack.CurrentScreen == songSelectScreen);
     }
 
     [Test]
