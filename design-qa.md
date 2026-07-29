@@ -68,16 +68,18 @@ The implementation follows the selected Studio Index composition: a logo/title h
 5. True responsive adaptation and interaction polish:
    - Removed the fixed inner scale and made the page stage consume the complete logical viewport produced by the global UI-size system.
    - Browser columns now adapt from two to four; the inspector, divider, footer actions, and decorations use edge-aware positioning.
-   - Added visible keyboard focus, arrow and Tab navigation, Enter/Space activation, global wheel navigation, precise keyboard/wheel rate changes, explicit active/preview configuration labels, transient interaction feedback, and a disabled Reset state.
+   - Added visible keyboard focus, arrow and Tab navigation, Enter/Space activation, page-level wheel navigation, precise keyboard and slider rate changes, explicit active/preview configuration labels, transient interaction feedback, and a disabled Reset state.
+   - Follow-up performance audit found that every slider tick notified the suspended Song Select screen, restarting preview and rebuilding scores, details, and the song list. Gameplay Mods now keeps edits local and commits once during page handoff.
+   - Slider dragging updates its own marker immediately, activates an inactive fixed-rate Mod on first interaction, ignores unchanged values, and avoids repeated focus/opacity transforms. Responsive layout only recalculates when the viewport changes, and list hover no longer rebuilds the inspector.
    - Native renderer captures across all three size modes show stable layout and no clipping.
 
 ## Primary interactions and verification
 
 - Category selection, Mod selection, activation/removal, Reset, Done, and Back remain functional.
-- The global wheel and arrow keys move the focused Mod vertically; Tab changes category; Enter/Space toggles the focused Mod.
-- `H` toggles Half Time; `P` toggles pitch when supported; plus/minus and wheel-over-slider adjust rate precisely.
+- The global wheel and Tab change category pages; arrow keys move the focused Mod inside the current page; Enter/Space toggles the focused Mod.
+- `H` toggles Half Time; `P` toggles pitch when supported; plus/minus and slider dragging adjust rate precisely.
 - Isolated `Yokko.Game` and `Yokko.Game.Tests` builds: passed with 0 warnings and 0 errors.
-- Focused Gameplay Mods, Song Select integration, and display-scale tests: passed, 26/26.
+- Focused Gameplay Mods, Song Select integration, and display-scale tests: passed, 30/30.
 - Native Windows visual inspection at 200% DPI and 100%/90%/80% UI size: passed.
 
 ---
@@ -550,3 +552,186 @@ The implementation preserves the selected game-first hierarchy: Play remains the
 - Player-card full/compact switching follows the available logical height and does not create a new route or fake interaction.
 - Isolated focused build plus `TestSceneMainScreen` and localisation/font coverage: passed, 8/8.
 - Native Windows visual inspection: passed.
+
+---
+
+# Yokko Home player card bottom-clipping design QA
+
+final result: passed
+
+## Evidence
+
+- Source visual truth:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-42505d70-c2d0-43ab-9e37-25b345c07b68.png`
+- Final native implementation:
+  `D:\yokko\artifacts\home-player-card-clipping-fixed-native.png`
+- Focused before/after comparison:
+  `D:\yokko\artifacts\home-player-card-clipping-comparison.png`
+- Source pixels: 1108 x 376.
+- Implementation pixels and viewport: 1600 x 1000 native desktop window.
+- Density normalization: the 522 x 146 logical-pixel implementation card
+  crop was enlarged 2x and compared with the matching 1043 x 290 source
+  crop.
+- State: Chinese locale, Home idle state, full player-card layout.
+
+## Full-view and focused comparison
+
+The native full-window capture preserves the existing Home composition and
+control hierarchy. The focused comparison confirms that `1,284` and `36`
+now render completely above the card's bottom border; the avatar, identity,
+level, experience rail, labels, divider, shadows, and corner diamond retain
+their previous alignment and styling.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing Yokko display/body fonts, sizes, weights,
+  and copy are unchanged; only the stat row baseline moved upward.
+- Spacing and layout rhythm: both bottom stat groups moved upward by 6
+  logical pixels, restoring bottom padding without changing the 148 px card
+  height or adjacent Home layout.
+- Colors and visual tokens: no color, opacity, border, shadow, or radius
+  changed.
+- Image quality and asset fidelity: the existing mascot avatar and framework
+  icons are unchanged.
+- Copy and content: `最高连击 1,284` and `游玩曲目 36` remain unchanged and
+  are now fully visible.
+
+## Findings
+
+- No actionable P0, P1, or P2 issue remains in the inspected native state.
+
+## Comparison history
+
+1. User-reported state:
+   - P1: both stat values crossed the white card surface and were clipped by
+     the bottom edge.
+2. Fix:
+   - Moved the stat row and divider from y=112 to y=106.
+   - Corrected the existing layout invariant to the actual 12 px and 16 px
+     full-layout gaps.
+3. Post-fix:
+   - Native focused comparison shows both values fully inside the card with
+     visible bottom padding and no new overlap.
+
+## Verification
+
+- `dotnet build .\Yokko.Desktop.slnf --no-restore
+  -p:AllowUnsafeBlocks=true --verbosity:minimal`: passed with 0 warnings and
+  0 errors.
+- Focused `TestSceneMainScreen`: passed, 2/2.
+- Native Windows visual inspection: passed at 1600 x 1000.
+
+---
+
+# Yokko Home highest-combo alignment design QA
+
+final result: passed
+
+## Evidence
+
+- Source visual truth:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-4be529e8-b0f6-4c61-8f96-dc5de4013676.png`
+- Final native implementation:
+  `D:\yokko\artifacts\home-highest-combo-shifted-more-native.png`
+- Focused comparison:
+  `D:\yokko\artifacts\home-highest-combo-shifted-more-comparison.png`
+- Implementation viewport: 1600 x 1000.
+- State: Chinese locale, Home idle state, full player-card layout.
+
+## Findings
+
+- The complete highest-combo group is shifted 32 logical pixels from its
+  original position, including a further 20 logical pixels (about 40 screen
+  pixels) after the first adjustment. Its icon, label, and value remain
+  aligned with each other and keep clear separation from the centre divider.
+- No typography, colors, imagery, copy, or adjacent layout changed.
+- No actionable P0, P1, or P2 issue remains.
+
+## Verification
+
+- Desktop build: passed with 0 warnings and 0 errors.
+- Focused MainScreen tests: passed, 2/2.
+- Native Windows visual inspection: passed at 1600 x 1000.
+
+---
+
+# Yokko Home card polish and bottom-anchored player design QA
+
+final result: passed
+
+## Evidence
+
+- Source close-up:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-5de2e159-2ebd-462f-9392-9e1c411ab3c8.png`
+- Source full view:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-d906eef5-b5ab-4398-877f-5d9d0d4a270b.png`
+- Final native implementation:
+  `D:\yokko\artifacts\home-layout-player-lowered-native.png`
+- Full before/after comparison:
+  `D:\yokko\artifacts\home-layout-player-lowered-comparison.png`
+- Source pixels: 3200 x 2000.
+- Implementation pixels and viewport: 1600 x 1000 native desktop window.
+- Density normalization: the source is an exact 2x-density capture of the
+  implementation viewport and was downsampled to 1600 x 1000 for comparison.
+- State: Chinese locale, Home idle state, no imported track selected.
+
+## Full-view and focused comparison
+
+The player is now bottom-anchored with a 12 px safe margin after the right
+stage offset is applied. In the 1600 x 1000 state it sits completely below
+the mascot rather than covering the character's feet and clothing. The Home
+player card no longer has a third oversized animated heartbeat hanging from
+its lower divider; the remaining progress and combo hearts keep the intended
+visual language without making the card edge feel crowded.
+
+## Required fidelity surfaces
+
+- Fonts and typography: no typography, wrapping, truncation, or copy changed.
+- Spacing and layout rhythm: the music player derives its y position from the
+  responsive stage height and keeps 12 px bottom clearance. The player card
+  and audio status now read as two separate surfaces.
+- Colors and visual tokens: existing ivory, cyan, navy, pink, and yellow
+  tokens are unchanged.
+- Image quality and asset fidelity: mascot and avatar textures remain
+  untouched and unobscured; no replacement assets were introduced.
+- Copy and content: player metadata, card labels, clock, status, and actions
+  remain unchanged.
+
+## Findings
+
+- No actionable P0, P1, or P2 issue remains in the inspected native state.
+
+## Comparison history
+
+1. User-reported state:
+   - P1: the music player covered the mascot's lower body.
+   - P2: the large animated heartbeat immediately below the player card made
+     the lower edge feel visually crowded.
+2. Fix:
+   - Replaced the fixed player y position with a responsive bottom anchor.
+   - Removed the redundant status-divider heartbeat while retaining the
+     progress and combo heart icons.
+3. Post-fix:
+   - The normalized before/after comparison shows the complete mascot above
+     the player and a cleaner separation below the progression card.
+
+## Verification
+
+- `dotnet build .\Yokko.Desktop.slnf --no-restore
+  -p:AllowUnsafeBlocks=true --verbosity:minimal`: passed with 0 warnings and
+  0 errors.
+- Focused display-settings and MainScreen tests: passed, 21/21.
+- Native Windows visual inspection: passed at 1600 x 1000.
+
+## Gameplay Mods interaction polish (2026-07-29)
+
+- Added persistent keyboard and wheel navigation guidance, page-level wheel
+  traversal, reverse category traversal with `Shift+Tab`, and explicit
+  feedback for unavailable mods.
+- Enlarged the fixed-rate slider target and added hover/press feedback; an
+  inactive rate mod now explains that dragging or pressing Space enables it.
+- Plain mods no longer show irrelevant rate controls, including after pending
+  hide animations complete.
+- Native captures passed for default, wheel focus, configurable, and inactive
+  rate states at Large UI scale.
+- Focused interaction and display tests: passed, 30/30.

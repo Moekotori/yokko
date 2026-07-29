@@ -59,6 +59,7 @@ internal partial class GameplayModsScreen : Screen
     private Container decorations;
     private Container fixedRatePanel;
     private Container configurablePanel;
+    private Box configurablePanelBackground;
     private FillFlowContainer activeMods;
     private Box activeModsDivider;
     private Box detailPanelDivider;
@@ -79,6 +80,7 @@ internal partial class GameplayModsScreen : Screen
     private GameplayModsRateSlider fixedRateSlider;
     private GameplayModsPitchButton fixedRatePitch;
     private GameplayModsResetButton resetButton;
+    private SpriteText navigationHint;
     private SpriteText interactionHint;
     private SongSelectModSettingsHost settingsHost;
     private ManiaModCategory activeCategory =
@@ -121,8 +123,24 @@ internal partial class GameplayModsScreen : Screen
     internal int VisibleModCount => visibleItems.Count;
     internal SongSelectModSettingsHost SettingsHost => settingsHost;
     internal bool DetailHintVisible => detailHint?.Alpha > 0;
+    internal string DetailHintText =>
+        detailHint?.Text.ToString() ?? string.Empty;
+    internal string InteractionHintText =>
+        interactionHint?.Text.ToString() ?? string.Empty;
     internal float SettingsHeaderY => settingsHeader?.Y ?? 0;
     internal float FixedRatePanelY => fixedRatePanel?.Y ?? 0;
+    internal float FixedRateSliderHeight =>
+        fixedRateSlider?.Height ?? 0;
+    internal bool FixedRateSliderVisible =>
+        fixedRateSlider?.Alpha > 0;
+    internal bool FixedRateTicksVisible =>
+        fixedRateMinimum?.Alpha > 0
+        || fixedRateMidpoint?.Alpha > 0
+        || fixedRateMaximum?.Alpha > 0;
+    internal bool NavigationHintVisible =>
+        navigationHint?.Alpha > 0;
+    internal Color4 ConfigurablePanelColour =>
+        configurablePanelBackground?.Colour ?? Color4.Transparent;
     internal bool ResetEnabled => resetButton?.IsEnabled ?? false;
     internal static Vector2 CalculateResponsiveStageSize(Vector2 viewport) =>
         new(
@@ -237,9 +255,12 @@ internal partial class GameplayModsScreen : Screen
     }
 
     protected override bool OnKeyDown(KeyDownEvent e) =>
-        HandleInteractionKey(e.Key) || base.OnKeyDown(e);
+        HandleInteractionKey(e.Key, e.ShiftPressed)
+        || base.OnKeyDown(e);
 
-    internal bool HandleInteractionKey(Key key)
+    internal bool HandleInteractionKey(
+        Key key,
+        bool shiftPressed = false)
     {
         switch (key)
         {
@@ -257,9 +278,11 @@ internal partial class GameplayModsScreen : Screen
                 return true;
 
             case Key.Tab:
-                CycleCategory(1);
+                CycleCategory(shiftPressed ? -1 : 1);
                 showInteractionHint(
-                    "TAB · NEXT CATEGORY   ARROWS · NAVIGATE");
+                    shiftPressed
+                        ? "SHIFT+TAB · PREVIOUS CATEGORY"
+                        : "TAB · NEXT CATEGORY");
                 return true;
 
             case Key.Left:
@@ -334,14 +357,14 @@ internal partial class GameplayModsScreen : Screen
             return true;
 
         lastGlobalScrollAt = Time.Current;
-        NavigateByScroll(e.ScrollDelta.Y);
+        NavigatePageByScroll(e.ScrollDelta.Y);
         showInteractionHint(
-            "WHEEL / ARROWS · NAVIGATE   SPACE · TOGGLE");
+            "WHEEL · CHANGE CATEGORY   ARROWS · SELECT MOD");
         return true;
     }
 
-    internal void NavigateByScroll(double delta) =>
-        MoveDetailFocus(new Vector2(0, delta > 0 ? -1 : 1));
+    internal void NavigatePageByScroll(double delta) =>
+        CycleCategory(delta > 0 ? -1 : 1);
 
     internal void SetCategory(ManiaModCategory category)
     {
@@ -368,6 +391,10 @@ internal partial class GameplayModsScreen : Screen
         if (!isSelectable(mod))
         {
             selectDetail(mod);
+            ManiaModDefinition unavailable =
+                OsuManiaModParityCatalog.Get(mod);
+            showInteractionHint(
+                $"{unavailable.Acronym} · REQUIRES OSU!STANDARD CHART");
             return;
         }
 
@@ -866,13 +893,19 @@ internal partial class GameplayModsScreen : Screen
                     Size = new Vector2(280, 318),
                     Masking = true,
                     CornerRadius = 8,
+                    BorderThickness = 1.5f,
+                    BorderColour = new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.7f),
                     Alpha = 0,
                     Children = new Drawable[]
                     {
-                        new Box
+                        configurablePanelBackground = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Colour = SongSelectTheme.DeepNavy,
+                            Colour = GameplayModSettingsTheme.Surface,
                         },
                         settingsHost,
                     },
@@ -1095,12 +1128,26 @@ internal partial class GameplayModsScreen : Screen
                 Origin = Anchor.TopCentre,
                 Position = new Vector2(0, 26),
             },
+            navigationHint = new SpriteText
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 7,
+                Text = "WHEEL / TAB · CATEGORIES    ARROWS · MODS",
+                Font = HomeTypography.Display(8),
+                Spacing = new Vector2(0.8f, 0),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.58f),
+            },
             interactionHint = new SpriteText
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
                 Y = -6,
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(9),
                 Spacing = new Vector2(1.2f, 0),
                 Colour = new Color4(
                     HomeControlColours.Navy.R,
@@ -1341,7 +1388,9 @@ internal partial class GameplayModsScreen : Screen
         activeModsDivider.Alpha = configurable ? 0 : 1;
         activeMods.Alpha = configurable ? 0 : 1;
         detailHint.Alpha = configurable ? 0 : 1;
-        detailHint.Text = mod == ManiaModId.HalfTime
+        detailHint.Text = fixedRateMod && !active
+            ? "DRAG RATE OR SPACE · ENABLE"
+            : mod == ManiaModId.HalfTime
             ? selectedMods.Contains(mod)
                 ? "SHORTCUT: H · SPACE REMOVE"
                 : "SHORTCUT: H · SPACE TOGGLE"
@@ -1360,7 +1409,9 @@ internal partial class GameplayModsScreen : Screen
                 ? selectedMods.FixedRateSpeedChange
                 : fixedRateFor(mod);
             fixedRateLabel.Text = fixedRateMod
-                ? "SPEED MULTIPLIER"
+                ? enabledRateMod
+                    ? "SPEED MULTIPLIER"
+                    : "SPEED MULTIPLIER · DRAG TO ENABLE"
                 : "NO EXTRA SETTINGS";
             fixedRateValue.Text = fixedRateMod
                 ? $"{rate:0.##}x"
@@ -1371,12 +1422,23 @@ internal partial class GameplayModsScreen : Screen
             fixedRateMinimum.Text = $"{minimum:0.00}x";
             fixedRateMidpoint.Text = $"{midpoint:0.00}x";
             fixedRateMaximum.Text = $"{maximum:0.00}x";
-            fixedRateSlider.SetState(
-                fixedRateMod,
-                minimum,
-                maximum,
-                rate);
-            fixedRateSlider.Alpha = fixedRateMod ? 1 : 0;
+            if (fixedRateMod)
+            {
+                fixedRateSlider.SetState(
+                    true,
+                    minimum,
+                    maximum,
+                    rate);
+                fixedRateSlider.Alpha = 1;
+            }
+            else
+            {
+                fixedRateSlider.ClearTransforms();
+                fixedRateSlider.Alpha = 0;
+            }
+            fixedRateMinimum.Alpha = fixedRateMod ? 1 : 0;
+            fixedRateMidpoint.Alpha = fixedRateMod ? 1 : 0;
+            fixedRateMaximum.Alpha = fixedRateMod ? 1 : 0;
             fixedRatePitch.SetState(
                 fixedRateMod && enabledRateMod,
                 isPitchAdjustableFixedRate(mod),

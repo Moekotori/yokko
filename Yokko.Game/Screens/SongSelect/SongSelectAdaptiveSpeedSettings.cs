@@ -33,14 +33,14 @@ internal partial class SongSelectAdaptiveSpeedSettings : CompositeDrawable
             {
                 Text = "ADAPTIVE SPEED",
                 Font = HomeTypography.Display(12),
-                Colour = SongSelectTheme.Ivory,
+                Colour = GameplayModSettingsTheme.Text,
             },
             new SpriteText
             {
                 Y = 34,
                 Text = "INITIAL RATE",
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             initialValue = new SpriteText
             {
@@ -48,7 +48,7 @@ internal partial class SongSelectAdaptiveSpeedSettings : CompositeDrawable
                 Origin = Anchor.TopRight,
                 Y = 29,
                 Font = HomeTypography.Display(18),
-                Colour = SongSelectTheme.Yellow,
+                Colour = GameplayModSettingsTheme.Selection,
             },
             new StepButton("−", () => changeInitial(-0.05))
             {
@@ -69,14 +69,14 @@ internal partial class SongSelectAdaptiveSpeedSettings : CompositeDrawable
                 Y = 159,
                 Text = "RESPONDS TO YOUR LAST 8 RESULTS",
                 Font = HomeTypography.Body(9),
-                Colour = SongSelectTheme.Cyan,
+                Colour = GameplayModSettingsTheme.Accent,
             },
             new SpriteText
             {
                 Y = 178,
                 Text = "EARLY HITS SPEED UP · MISSES SLOW DOWN",
                 Font = HomeTypography.Body(8),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
         ];
         SetState(false, 1, true);
@@ -115,16 +115,16 @@ internal partial class SongSelectAdaptiveSpeedSettings : CompositeDrawable
             Masking = true;
             CornerRadius = 4;
             BorderThickness = 1;
-            BorderColour = SongSelectTheme.Cyan;
+            BorderColour = GameplayModSettingsTheme.Accent;
             InternalChildren =
             [
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = new Color4(
-                        SongSelectTheme.Navy.R,
-                        SongSelectTheme.Navy.G,
-                        SongSelectTheme.Navy.B,
+                        GameplayModSettingsTheme.Control.R,
+                        GameplayModSettingsTheme.Control.G,
+                        GameplayModSettingsTheme.Control.B,
                         0.8f),
                 },
                 new SpriteText
@@ -133,7 +133,7 @@ internal partial class SongSelectAdaptiveSpeedSettings : CompositeDrawable
                     Origin = Anchor.Centre,
                     Text = text,
                     Font = HomeTypography.Display(14),
-                    Colour = SongSelectTheme.PaleCyan,
+                    Colour = GameplayModSettingsTheme.Text,
                 },
             ];
         }
@@ -160,7 +160,7 @@ internal partial class SongSelectAdaptiveSpeedSettings : CompositeDrawable
                     X = 9,
                     Text = text,
                     Font = HomeTypography.Body(10),
-                    Colour = SongSelectTheme.Ivory,
+                    Colour = GameplayModSettingsTheme.Text,
                 },
                 state = new SpriteText
                 {
@@ -175,12 +175,12 @@ internal partial class SongSelectAdaptiveSpeedSettings : CompositeDrawable
         internal void SetState(bool isEnabled, bool selected)
         {
             background.Colour = selected
-                ? SongSelectTheme.Pink
-                : SongSelectTheme.Navy;
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Control;
             state.Text = selected ? "ON" : "OFF";
             state.Colour = selected
-                ? SongSelectTheme.DeepNavy
-                : SongSelectTheme.Muted;
+                ? GameplayModSettingsTheme.AccentOn
+                : GameplayModSettingsTheme.Muted;
             Alpha = isEnabled ? 1 : 0.55f;
         }
     }

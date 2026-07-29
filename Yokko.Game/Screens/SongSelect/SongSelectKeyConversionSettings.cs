@@ -40,7 +40,7 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
             {
                 Text = "KEY CONVERSION",
                 Font = HomeTypography.Display(12),
-                Colour = SongSelectTheme.Ivory,
+                Colour = GameplayModSettingsTheme.Text,
             },
             new FillFlowContainer
             {
@@ -63,21 +63,21 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
             {
                 Y = 147,
                 Font = HomeTypography.Body(9),
-                Colour = SongSelectTheme.Cyan,
+                Colour = GameplayModSettingsTheme.Accent,
             },
             new SpriteText
             {
                 Y = 172,
                 Text = "REGENERATES FROM ORIGINAL OBJECTS",
                 Font = HomeTypography.Body(8),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             new SpriteText
             {
                 Y = 190,
                 Text = "NATIVE MANIA CHARTS STAY UNCHANGED",
                 Font = HomeTypography.Body(8),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
         ];
     }
@@ -105,8 +105,8 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
                     : "TARGET · LAZER DEFAULT"
             : "CURRENT SOURCE · MANIA NATIVE";
         status.Colour = isConvertible
-            ? SongSelectTheme.Cyan
-            : SongSelectTheme.Pink;
+            ? GameplayModSettingsTheme.Accent
+            : GameplayModSettingsTheme.Selection;
     }
 
     private partial class DualButton : ClickableContainer
@@ -131,7 +131,7 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
                     X = 9,
                     Text = "DUAL STAGES",
                     Font = HomeTypography.Body(10),
-                    Colour = SongSelectTheme.Ivory,
+                    Colour = GameplayModSettingsTheme.Text,
                 },
                 state = new SpriteText
                 {
@@ -146,15 +146,15 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
         internal void SetState(bool enabled, bool selected)
         {
             BorderColour = selected
-                ? SongSelectTheme.Yellow
-                : SongSelectTheme.Cyan;
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Accent;
             background.Colour = selected
-                ? SongSelectTheme.Pink
-                : SongSelectTheme.Navy;
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Control;
             state.Text = selected ? "2×" : "1×";
             state.Colour = selected
-                ? SongSelectTheme.DeepNavy
-                : SongSelectTheme.Muted;
+                ? GameplayModSettingsTheme.AccentOn
+                : GameplayModSettingsTheme.Muted;
             Alpha = enabled ? 1 : 0.42f;
         }
     }
@@ -209,16 +209,16 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
         internal void SetState(bool enabled, bool selected)
         {
             BorderColour = selected
-                ? SongSelectTheme.Yellow
-                : SongSelectTheme.Cyan;
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Accent;
             background.Colour = selected
-                ? SongSelectTheme.Pink
-                : SongSelectTheme.Navy;
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Control;
             label.Colour = selected
-                ? SongSelectTheme.DeepNavy
+                ? GameplayModSettingsTheme.AccentOn
                 : enabled
-                    ? SongSelectTheme.PaleCyan
-                    : SongSelectTheme.Muted;
+                    ? GameplayModSettingsTheme.Text
+                    : GameplayModSettingsTheme.Muted;
             Alpha = enabled ? 1 : 0.42f;
         }
     }

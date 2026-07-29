@@ -43,14 +43,14 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
             title = new SpriteText
             {
                 Font = HomeTypography.Display(12),
-                Colour = SongSelectTheme.Ivory,
+                Colour = GameplayModSettingsTheme.Text,
             },
             new SpriteText
             {
                 Y = 34,
                 Text = "SPEED CHANGE",
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             speedValue = new SpriteText
             {
@@ -58,7 +58,7 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
                 Origin = Anchor.TopRight,
                 Y = 29,
                 Font = HomeTypography.Display(18),
-                Colour = SongSelectTheme.Yellow,
+                Colour = GameplayModSettingsTheme.Selection,
             },
             new StepButton("−", () => changeSpeed(-0.01))
             {
@@ -82,14 +82,14 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
             {
                 Y = 153,
                 Font = HomeTypography.Body(9),
-                Colour = SongSelectTheme.Cyan,
+                Colour = GameplayModSettingsTheme.Accent,
             },
             new SpriteText
             {
                 Y = 178,
                 Text = "LAZER RANGE · 0.01× PRECISION",
                 Font = HomeTypography.Body(8),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
         ];
         SetState(
@@ -155,16 +155,16 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
             Masking = true;
             CornerRadius = 4;
             BorderThickness = 1;
-            BorderColour = SongSelectTheme.Cyan;
+            BorderColour = GameplayModSettingsTheme.Accent;
             InternalChildren =
             [
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = new Color4(
-                        SongSelectTheme.Navy.R,
-                        SongSelectTheme.Navy.G,
-                        SongSelectTheme.Navy.B,
+                        GameplayModSettingsTheme.Control.R,
+                        GameplayModSettingsTheme.Control.G,
+                        GameplayModSettingsTheme.Control.B,
                         0.8f),
                 },
                 new SpriteText
@@ -173,7 +173,7 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
                     Origin = Anchor.Centre,
                     Text = text,
                     Font = HomeTypography.Display(14),
-                    Colour = SongSelectTheme.PaleCyan,
+                    Colour = GameplayModSettingsTheme.Text,
                 },
             ];
         }
@@ -200,7 +200,7 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
                     X = 9,
                     Text = text,
                     Font = HomeTypography.Body(10),
-                    Colour = SongSelectTheme.Ivory,
+                    Colour = GameplayModSettingsTheme.Text,
                 },
                 state = new SpriteText
                 {
@@ -215,12 +215,12 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
         internal void SetState(bool isEnabled, bool selected)
         {
             background.Colour = selected
-                ? SongSelectTheme.Pink
-                : SongSelectTheme.Navy;
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Control;
             state.Text = selected ? "ON" : "OFF";
             state.Colour = selected
-                ? SongSelectTheme.DeepNavy
-                : SongSelectTheme.Muted;
+                ? GameplayModSettingsTheme.AccentOn
+                : GameplayModSettingsTheme.Muted;
             Alpha = isEnabled ? 1 : 0.55f;
         }
     }

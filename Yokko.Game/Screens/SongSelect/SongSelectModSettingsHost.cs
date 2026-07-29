@@ -165,7 +165,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                 Y = 5,
                 Text = "CFG",
                 Font = HomeTypography.Display(10),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             accuracyTab = new PageTab(
                 "AC",
@@ -208,9 +208,9 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                 Y = 34,
                 Size = new Vector2(202, 1),
                 Colour = new Color4(
-                    SongSelectTheme.Cyan.R,
-                    SongSelectTheme.Cyan.G,
-                    SongSelectTheme.Cyan.B,
+                    GameplayModSettingsTheme.Accent.R,
+                    GameplayModSettingsTheme.Accent.G,
+                    GameplayModSettingsTheme.Accent.B,
                     0.25f),
             },
             accuracyPage = new Container
@@ -571,18 +571,18 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         public void SetSelected(bool selected)
         {
             BorderColour = selected
-                ? SongSelectTheme.Yellow
-                : SongSelectTheme.Cyan;
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Accent;
             background.Colour = selected
-                ? SongSelectTheme.Pink
+                ? GameplayModSettingsTheme.Selection
                 : new Color4(
-                    SongSelectTheme.Navy.R,
-                    SongSelectTheme.Navy.G,
-                    SongSelectTheme.Navy.B,
+                    GameplayModSettingsTheme.Control.R,
+                    GameplayModSettingsTheme.Control.G,
+                    GameplayModSettingsTheme.Control.B,
                     0.72f);
             label.Colour = selected
-                ? SongSelectTheme.DeepNavy
-                : SongSelectTheme.PaleCyan;
+                ? GameplayModSettingsTheme.AccentOn
+                : GameplayModSettingsTheme.Text;
         }
 
         public void SetLabel(string text) =>

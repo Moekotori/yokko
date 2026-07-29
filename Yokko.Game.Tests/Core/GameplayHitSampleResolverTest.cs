@@ -209,6 +209,27 @@ public sealed class GameplayHitSampleResolverTest
             Is.EqualTo(skinSample));
     }
 
+    [Test]
+    public void SamplelessHoldDoesNotInventTailHitSound()
+    {
+        string skinSample = Path.Combine(directory, "skin-hitnormal.wav");
+        File.WriteAllBytes(skinSample, [0]);
+        var hitObject = new YokkoHitObject(
+            0,
+            1000,
+            2000,
+            HitObjectKind.Hold);
+        var resolver = new GameplayHitSampleResolver(
+            beatmap(ChartSourceFormat.Yokko, hitObject),
+            _ => skinSample);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(resolver.ResolveHead(hitObject), Has.Count.EqualTo(1));
+            Assert.That(resolver.ResolveTail(hitObject), Is.Empty);
+        });
+    }
+
     private YokkoBeatmap beatmap(
         ChartSourceFormat sourceFormat,
         YokkoHitObject hitObject) =>

@@ -175,7 +175,7 @@ namespace Yokko.Game.Tests
                     break;
 
                 case "scroll":
-                    modsScreen.NavigateByScroll(-1);
+                    modsScreen.NavigatePageByScroll(-1);
                     break;
             }
         }

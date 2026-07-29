@@ -56,6 +56,7 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
         HomePlayerSummary summary)
     {
         const float progressWidth = 378;
+        const float statRowY = 106;
         float completedProgressWidth = progressWidth * Math.Clamp(summary.NextLevelPercent / 100f, 0, 1);
         LocalisableString rank = YokkoStrings.Get(
             "main.player.rank",
@@ -141,13 +142,13 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                         0.74f),
                 },
                 createStat(
-                    new Vector2(23, 112),
+                    new Vector2(55, statRowY),
                     FontAwesome.Solid.Heartbeat,
                     YokkoStrings.Get("main.player.highest_combo"),
                     summary.HighestCombo.ToString("N0", CultureInfo.InvariantCulture)),
                 new Box
                 {
-                    Position = new Vector2(260, 112),
+                    Position = new Vector2(260, statRowY),
                     Size = new Vector2(1, 25),
                     Colour = new Color4(
                         HomeControlColours.Navy.R,
@@ -156,7 +157,7 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                         0.22f),
                 },
                 createStat(
-                    new Vector2(288, 112),
+                    new Vector2(288, statRowY),
                     FontAwesome.Solid.Music,
                     YokkoStrings.Get("main.player.played_songs"),
                     summary.PlayedSongs.ToString(CultureInfo.InvariantCulture)),

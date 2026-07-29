@@ -911,7 +911,9 @@ public partial class GameplayScreen : Screen
     {
         hitSampleResolver = new GameplayHitSampleResolver(
             beatmap,
-            maniaSkin?.GetHitSamplePath);
+            maniaSkin == null
+                ? null
+                : maniaSkin.GetHitSamplePath);
         headSamplesByHitObject = beatmap.HitObjects
             .Select(hitObject =>
                 hitSampleResolver.ResolveHead(hitObject).ToArray())

@@ -30,6 +30,8 @@ public partial class MainScreen : Screen
     private const float compactPlayerCardY = 638;
     private const float fullPlayerCardY = 700;
     private const float fullStatusBarY = 864;
+    private const float musicPlayerHeight = 72;
+    private const float musicPlayerBottomMargin = 12;
     private const double exitHoldDuration = 2000;
 
     private static readonly Color4 ivory = new(0.992f, 0.992f, 0.988f, 1f);
@@ -65,7 +67,6 @@ public partial class MainScreen : Screen
     private HomeExitHoldIndicator exitIndicator;
     private Drawable statusBar;
     private HomePlayerProgressCard playerProgressCard;
-    private SpriteIcon heartbeatIcon;
     private Circle readyDot;
     private readonly Box[] stageLines = new Box[2];
     private readonly List<SpriteIcon> decorationIcons = new();
@@ -395,6 +396,7 @@ public partial class MainScreen : Screen
         leftStageLayout.Y = extra.Y * 0.18f;
         decorationStageLayout.Y = extra.Y * 0.18f;
         rightStageLayout.Position = rightStageOffset;
+        musicPlayer.Y = CalculateMusicPlayerY(stageSize);
         utilityAreaLayout.X = extra.X;
         exitIndicator.Y = stageSize.Y - 50;
 
@@ -445,8 +447,8 @@ public partial class MainScreen : Screen
     internal static bool PlayerCardLayoutsHaveBreathingRoom =>
         180 + 366 + 82 + 10 <= compactPlayerCardY
         && compactPlayerCardY + HomePlayerProgressCard.CompactHeight <= designedHeight
-        && 208 + 398 + 82 + 16 <= fullPlayerCardY
-        && fullPlayerCardY + HomePlayerProgressCard.FullHeight + 18 <= fullStatusBarY;
+        && 208 + 398 + 82 + 12 <= fullPlayerCardY
+        && fullPlayerCardY + HomePlayerProgressCard.FullHeight + 16 <= fullStatusBarY;
 
     internal static Vector2 CalculateRightStageOffset(Vector2 stageSize)
     {
@@ -455,6 +457,12 @@ public partial class MainScreen : Screen
             MathF.Max(extra.X, 0),
             MathF.Max(extra.Y, 0) * 0.5f);
     }
+
+    internal static float CalculateMusicPlayerY(Vector2 stageSize) =>
+        stageSize.Y
+        - CalculateRightStageOffset(stageSize).Y
+        - musicPlayerHeight
+        - musicPlayerBottomMargin;
 
     private void cancelExitHold()
     {
@@ -500,13 +508,6 @@ public partial class MainScreen : Screen
 
         // 标题高亮标记在入场后刷出。
         heroHighlight.Delay(650).ScaleTo(Vector2.One, 380, Easing.OutQuint);
-
-        // 双跳模拟心拍。
-        heartbeatIcon.ScaleTo(1.28f, 110, Easing.Out)
-                     .Then().ScaleTo(1f, 150, Easing.Out)
-                     .Then().ScaleTo(1.16f, 100, Easing.Out)
-                     .Then().ScaleTo(1f, 640, Easing.OutQuint)
-                     .Loop();
 
         // 就绪指示灯呼吸。
         readyDot.FadeTo(0.25f, 700, Easing.InOutSine)
@@ -702,7 +703,7 @@ public partial class MainScreen : Screen
                 }),
                 musicPlayer = new HomeMusicPlayer
                 {
-                    Position = new Vector2(788, 624),
+                    Position = new Vector2(788, 636),
                 },
             },
         },
@@ -851,14 +852,6 @@ public partial class MainScreen : Screen
                 Height = 1,
                 X = 110,
                 Colour = new Color4(paleCyan.R, paleCyan.G, paleCyan.B, 0.72f),
-            },
-            heartbeatIcon = new SpriteIcon
-            {
-                Origin = Anchor.Centre,
-                Position = new Vector2(260, 1.5f),
-                Size = new Vector2(23),
-                Icon = FontAwesome.Solid.Heartbeat,
-                Colour = navy,
             },
             new FillFlowContainer
             {

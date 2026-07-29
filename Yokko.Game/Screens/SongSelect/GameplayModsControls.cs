@@ -378,6 +378,7 @@ internal partial class GameplayModsRateSlider : ClickableContainer
     private double maximum;
     private double value;
     private bool enabled;
+    private bool pressed;
 
     internal GameplayModsRateSlider(
         Action<double> changed,
@@ -385,25 +386,25 @@ internal partial class GameplayModsRateSlider : ClickableContainer
     {
         this.changed = changed;
         this.interactionCompleted = interactionCompleted;
-        Size = new Vector2(track_width, 20);
+        Size = new Vector2(track_width, 28);
         InternalChildren =
         [
             new Box
             {
-                Y = 7,
+                Y = 11,
                 Size = new Vector2(track_width, 6),
                 Colour = new Color4(0.78f, 0.81f, 0.88f, 1f),
             },
             fill = new Box
             {
-                Y = 7,
+                Y = 11,
                 Height = 6,
                 Colour = HomeControlColours.Cyan,
             },
             marker = new Circle
             {
                 Origin = Anchor.Centre,
-                Y = 10,
+                Y = 14,
                 Size = new Vector2(16),
                 BorderThickness = 3,
                 BorderColour = HomeControlColours.Cyan,
@@ -450,6 +451,10 @@ internal partial class GameplayModsRateSlider : ClickableContainer
         if (!enabled || e.Button != MouseButton.Left)
             return false;
 
+        pressed = true;
+        marker.ClearTransforms();
+        marker.BorderColour = HomeControlColours.Pink;
+        marker.ScaleTo(1.18f, 80, Easing.OutQuint);
         updateFrom(e.ScreenSpaceMousePosition);
         return true;
     }
@@ -464,25 +469,26 @@ internal partial class GameplayModsRateSlider : ClickableContainer
         if (enabled && e.Button == MouseButton.Left)
             interactionCompleted?.Invoke();
 
+        pressed = false;
+        marker.BorderColour = HomeControlColours.Cyan;
+        marker.ScaleTo(IsHovered ? 1.1f : 1, 110, Easing.OutQuint);
         base.OnMouseUp(e);
     }
 
-    protected override bool OnScroll(ScrollEvent e)
+    protected override bool OnHover(HoverEvent e)
     {
-        if (!enabled || e.ScrollDelta.Y == 0)
+        if (!enabled)
             return false;
 
-        double nextValue = Math.Clamp(
-            Math.Round(value + Math.Sign(e.ScrollDelta.Y) * 0.01, 2),
-            minimum,
-            maximum);
-        if (Math.Abs(nextValue - value) < 0.0001)
-            return true;
-
-        updateVisualValue(nextValue);
-        changed(nextValue);
-        interactionCompleted?.Invoke();
+        if (!pressed)
+            marker.ScaleTo(1.1f, 90, Easing.OutQuint);
         return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        if (!pressed)
+            marker.ScaleTo(1, 110, Easing.OutQuint);
     }
 
     private void updateFrom(Vector2 screenPosition)
@@ -534,9 +540,11 @@ internal partial class GameplayModsPitchButton : ClickableContainer
     {
         enabled = isEnabled && supported;
         this.selected = selected;
-        label.Text = supported
-            ? $"MUSIC PITCH · {(selected ? "ON" : "OFF")}  (P)"
-            : "MUSIC FREQUENCY LOCKED BY THIS MOD";
+        label.Text = !supported
+            ? "MUSIC FREQUENCY LOCKED BY THIS MOD"
+            : !isEnabled
+                ? "DRAG RATE TO ENABLE · THEN P FOR PITCH"
+                : $"MUSIC PITCH · {(selected ? "ON" : "OFF")}  (P)";
         label.Colour = selected
             ? HomeControlColours.Pink
             : new Color4(

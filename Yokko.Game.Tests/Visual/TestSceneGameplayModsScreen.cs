@@ -100,10 +100,13 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             && !modsScreen.DetailHintVisible);
         AddStep("preview plain mod", () =>
             modsScreen.ToggleMod(ManiaModId.Easy));
+        AddWaitStep("wait for hidden slider state", 10);
         AddAssert("plain detail keeps shortcut and clear spacing", () =>
             modsScreen.DetailHintVisible
             && modsScreen.SettingsHeaderY == 170
-            && modsScreen.FixedRatePanelY == 200);
+            && modsScreen.FixedRatePanelY == 200
+            && !modsScreen.FixedRateSliderVisible
+            && !modsScreen.FixedRateTicksVisible);
         AddStep("enable No Fail", () =>
             modsScreen.ToggleMod(ManiaModId.NoFail));
         AddAssert("page selection receives No Fail", () =>
@@ -113,13 +116,19 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddAssert("conversion catalogue is complete", () =>
             modsScreen.VisibleModCount == 18
             && modsScreen.DetailMod == ManiaModId.Random);
-        AddStep("global wheel moves down one visible Mod", () =>
-            modsScreen.NavigateByScroll(-1));
-        AddAssert("wheel follows visual order", () =>
-            modsScreen.DetailMod == ManiaModId.DualStages);
+        AddStep("global wheel moves to next category", () =>
+            modsScreen.NavigatePageByScroll(-1));
+        AddAssert("wheel changes page instead of focused Mod", () =>
+            modsScreen.ActiveCategory == ManiaModCategory.Automation
+            && modsScreen.DetailMod == ManiaModId.Autoplay);
         AddStep("Tab category cycle", () =>
             modsScreen.CycleCategory(1));
         AddAssert("category cycle focuses relevant first Mod", () =>
+            modsScreen.ActiveCategory == ManiaModCategory.Fun
+            && modsScreen.DetailMod == ManiaModId.WindUp);
+        AddStep("Shift Tab category cycle", () =>
+            modsScreen.HandleInteractionKey(Key.Tab, true));
+        AddAssert("reverse category cycle is predictable", () =>
             modsScreen.ActiveCategory == ManiaModCategory.Automation
             && modsScreen.DetailMod == ManiaModId.Autoplay);
         AddStep("return to conversion category", () =>
@@ -127,7 +136,9 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddStep("try unavailable native key conversion", () =>
             modsScreen.ToggleMod(ManiaModId.Key4));
         AddAssert("native chart key conversion stays disabled", () =>
-            !modsScreen.SelectedMods.Contains(ManiaModId.Key4));
+            !modsScreen.SelectedMods.Contains(ManiaModId.Key4)
+            && modsScreen.InteractionHintText.Contains(
+                "REQUIRES OSU!STANDARD CHART"));
         AddStep("reset gameplay mods", modsScreen.ResetMods);
         AddAssert("reset clears page selection", () =>
             modsScreen.SelectedMods.Mods.Count == 0
@@ -143,6 +154,11 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.ResetMods();
             commitsBeforePreview = observedCommitCount;
         });
+        AddAssert("inactive rate control explains activation", () =>
+            modsScreen.FixedRateSliderHeight == 28
+            && modsScreen.FixedRateTicksVisible
+            && modsScreen.DetailHintText.Contains("DRAG RATE")
+            && modsScreen.NavigationHintVisible);
         AddStep("drag preview activates rate Mod", () =>
             modsScreen.PreviewFixedRateSpeedChange(0.82));
         AddAssert("drag is immediate and does not rebuild Song Select", () =>
@@ -276,6 +292,24 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         });
         AddWaitStep("wait for entrance animation", 30);
         AddStep("capture gameplay mods", captureScreenshot);
+        AddUntilStep("screenshot saved", () => screenshotSaved);
+    }
+
+    [Test]
+    public void TestConfigurableSettingsUseLightWorkspace()
+    {
+        AddStep("show Difficulty Adjust settings", () =>
+        {
+            modsScreen.ResetMods();
+            modsScreen.SetCategory(ManiaModCategory.Conversion);
+            modsScreen.ToggleMod(ManiaModId.DifficultyAdjust);
+        });
+        AddAssert("configuration card uses the light workspace", () =>
+            modsScreen.ConfigurablePanelColour.R > 0.9f
+            && modsScreen.ConfigurablePanelColour.G > 0.9f
+            && modsScreen.ConfigurablePanelColour.B > 0.9f);
+        AddWaitStep("wait for settings transition", 10);
+        AddStep("capture light settings workspace", captureScreenshot);
         AddUntilStep("screenshot saved", () => screenshotSaved);
     }
 

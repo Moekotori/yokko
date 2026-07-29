@@ -44,14 +44,14 @@ internal partial class SongSelectMutedSettings : CompositeDrawable
             {
                 Text = "MUTED",
                 Font = HomeTypography.Display(12),
-                Colour = SongSelectTheme.Ivory,
+                Colour = GameplayModSettingsTheme.Text,
             },
             new SpriteText
             {
                 Y = 25,
                 Text = "FADE LENGTH",
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             comboValue = new SpriteText
             {
@@ -59,7 +59,7 @@ internal partial class SongSelectMutedSettings : CompositeDrawable
                 Origin = Anchor.TopRight,
                 Y = 19,
                 Font = HomeTypography.Display(18),
-                Colour = SongSelectTheme.Yellow,
+                Colour = GameplayModSettingsTheme.Selection,
             },
             new StepButton("− 25", () => changeCombo(-25))
             {
@@ -92,7 +92,7 @@ internal partial class SongSelectMutedSettings : CompositeDrawable
                 Y = 204,
                 Text = "500 MS SMOOTH AUDIO FADE",
                 Font = HomeTypography.Body(9),
-                Colour = SongSelectTheme.Cyan,
+                Colour = GameplayModSettingsTheme.Accent,
             },
         ];
     }
@@ -136,16 +136,16 @@ internal partial class SongSelectMutedSettings : CompositeDrawable
             Masking = true;
             CornerRadius = 5;
             BorderThickness = 1;
-            BorderColour = SongSelectTheme.Cyan;
+            BorderColour = GameplayModSettingsTheme.Accent;
             InternalChildren =
             [
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = new Color4(
-                        SongSelectTheme.Navy.R,
-                        SongSelectTheme.Navy.G,
-                        SongSelectTheme.Navy.B,
+                        GameplayModSettingsTheme.Control.R,
+                        GameplayModSettingsTheme.Control.G,
+                        GameplayModSettingsTheme.Control.B,
                         0.78f),
                 },
                 new SpriteText
@@ -154,7 +154,7 @@ internal partial class SongSelectMutedSettings : CompositeDrawable
                     Origin = Anchor.Centre,
                     Text = text,
                     Font = HomeTypography.Display(10),
-                    Colour = SongSelectTheme.PaleCyan,
+                    Colour = GameplayModSettingsTheme.Text,
                 },
             ];
         }
@@ -184,7 +184,7 @@ internal partial class SongSelectMutedSettings : CompositeDrawable
                     X = 9,
                     Text = text,
                     Font = HomeTypography.Body(10),
-                    Colour = SongSelectTheme.Ivory,
+                    Colour = GameplayModSettingsTheme.Text,
                 },
                 stateText = new SpriteText
                 {
@@ -200,19 +200,19 @@ internal partial class SongSelectMutedSettings : CompositeDrawable
         {
             background.Colour = selected
                 ? new Color4(
-                    SongSelectTheme.Pink.R,
-                    SongSelectTheme.Pink.G,
-                    SongSelectTheme.Pink.B,
+                    GameplayModSettingsTheme.Selection.R,
+                    GameplayModSettingsTheme.Selection.G,
+                    GameplayModSettingsTheme.Selection.B,
                     0.72f)
                 : new Color4(
-                    SongSelectTheme.Navy.R,
-                    SongSelectTheme.Navy.G,
-                    SongSelectTheme.Navy.B,
+                    GameplayModSettingsTheme.Control.R,
+                    GameplayModSettingsTheme.Control.G,
+                    GameplayModSettingsTheme.Control.B,
                     0.8f);
             stateText.Text = selected ? "ON" : "OFF";
             stateText.Colour = selected
-                ? SongSelectTheme.DeepNavy
-                : SongSelectTheme.Muted;
+                ? GameplayModSettingsTheme.AccentOn
+                : GameplayModSettingsTheme.Muted;
             Alpha = enabled ? 1 : 0.55f;
         }
     }

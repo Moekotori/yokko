@@ -40,7 +40,7 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
             title = new SpriteText
             {
                 Font = HomeTypography.Display(12),
-                Colour = SongSelectTheme.Ivory,
+                Colour = GameplayModSettingsTheme.Text,
             },
             label("INITIAL RATE", 29),
             initialValue = value(24),
@@ -73,7 +73,7 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
                 Y = 204,
                 Text = "FINAL RATE AT 75% OF MAP",
                 Font = HomeTypography.Body(9),
-                Colour = SongSelectTheme.Cyan,
+                Colour = GameplayModSettingsTheme.Accent,
             },
         ];
         SetState(false, ManiaModId.WindUp, 1, 1.5, true);
@@ -132,7 +132,7 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
         Y = y,
         Text = text,
         Font = HomeTypography.Body(10),
-        Colour = SongSelectTheme.Muted,
+        Colour = GameplayModSettingsTheme.Muted,
     };
 
     private static SpriteText value(float y) => new()
@@ -141,7 +141,7 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
         Origin = Anchor.TopRight,
         Y = y,
         Font = HomeTypography.Display(18),
-        Colour = SongSelectTheme.Yellow,
+        Colour = GameplayModSettingsTheme.Selection,
     };
 
     private partial class StepButton : ClickableContainer
@@ -153,16 +153,16 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
             Masking = true;
             CornerRadius = 4;
             BorderThickness = 1;
-            BorderColour = SongSelectTheme.Cyan;
+            BorderColour = GameplayModSettingsTheme.Accent;
             InternalChildren =
             [
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = new Color4(
-                        SongSelectTheme.Navy.R,
-                        SongSelectTheme.Navy.G,
-                        SongSelectTheme.Navy.B,
+                        GameplayModSettingsTheme.Control.R,
+                        GameplayModSettingsTheme.Control.G,
+                        GameplayModSettingsTheme.Control.B,
                         0.8f),
                 },
                 new SpriteText
@@ -171,7 +171,7 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
                     Origin = Anchor.Centre,
                     Text = text,
                     Font = HomeTypography.Display(14),
-                    Colour = SongSelectTheme.PaleCyan,
+                    Colour = GameplayModSettingsTheme.Text,
                 },
             ];
         }
@@ -198,7 +198,7 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
                     X = 9,
                     Text = text,
                     Font = HomeTypography.Body(10),
-                    Colour = SongSelectTheme.Ivory,
+                    Colour = GameplayModSettingsTheme.Text,
                 },
                 state = new SpriteText
                 {
@@ -213,12 +213,12 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
         internal void SetState(bool enabled, bool selected)
         {
             background.Colour = selected
-                ? SongSelectTheme.Pink
-                : SongSelectTheme.Navy;
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Control;
             state.Text = selected ? "ON" : "OFF";
             state.Colour = selected
-                ? SongSelectTheme.DeepNavy
-                : SongSelectTheme.Muted;
+                ? GameplayModSettingsTheme.AccentOn
+                : GameplayModSettingsTheme.Muted;
             Alpha = enabled ? 1 : 0.55f;
         }
     }

@@ -1160,6 +1160,25 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestPreparesOsuManiaSkinHitSounds()
+        {
+            string skinPath = createTestSkin();
+            string hitSoundPath = Path.Combine(
+                skinPath,
+                "normal-hitnormal.wav");
+            File.WriteAllBytes(hitSoundPath, [1, 2, 3]);
+            var audioEngine = new SampleTrackingAudioEngine();
+
+            AddStep("open gameplay with skin hit sounds", () =>
+                screenStack.Push(new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    audioEngine,
+                    skinPath)));
+            AddUntilStep("skin hit sound is prepared", () =>
+                audioEngine.PreparedSamples.Contains(hitSoundPath));
+        }
+
+        [Test]
         public void TestOversizedHoldBodyIsConstrainedBeforeUpload()
         {
             string skinPath = null;
@@ -1940,7 +1959,7 @@ StageHint: stage-hint
             public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
 
-        private sealed class SeekTrackingAudioEngine : IAudioEngine
+        private class SeekTrackingAudioEngine : IAudioEngine
         {
             private AudioEngineStatus status = createStatus(false);
 
@@ -2028,6 +2047,23 @@ StageHint: stage-hint
                     running,
                     144,
                     3);
+        }
+
+        private sealed class SampleTrackingAudioEngine
+            : SeekTrackingAudioEngine, IAudioSamplePlayback
+        {
+            public HashSet<string> PreparedSamples { get; } =
+                new(StringComparer.OrdinalIgnoreCase);
+
+            public ValueTask PrepareSamplesAsync(
+                IReadOnlyCollection<string> samplePaths,
+                CancellationToken cancellationToken = default)
+            {
+                PreparedSamples.UnionWith(samplePaths);
+                return ValueTask.CompletedTask;
+            }
+
+            public bool TriggerSample(string samplePath) => true;
         }
 
         private static AudioEngineStatus createAudioStatus(

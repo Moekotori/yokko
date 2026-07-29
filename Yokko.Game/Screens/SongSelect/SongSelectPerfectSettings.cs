@@ -29,30 +29,30 @@ internal partial class SongSelectPerfectSettings
                 Text = "PERFECT",
                 Font = HomeTypography.Display(12),
                 Spacing = new Vector2(0.35f, 0),
-                Colour = SongSelectTheme.Ivory,
+                Colour = GameplayModSettingsTheme.Text,
             },
             new SpriteText
             {
                 Y = 28,
                 Text = "DEFAULT LAZER MANIA",
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             new SpriteText
             {
                 Y = 48,
                 Text = "Great or better keeps the run alive.",
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.PaleCyan,
+                Colour = GameplayModSettingsTheme.Text,
             },
             new Box
             {
                 Y = 78,
                 Size = new Vector2(202, 1),
                 Colour = new Color4(
-                    SongSelectTheme.Cyan.R,
-                    SongSelectTheme.Cyan.G,
-                    SongSelectTheme.Cyan.B,
+                    GameplayModSettingsTheme.Accent.R,
+                    GameplayModSettingsTheme.Accent.G,
+                    GameplayModSettingsTheme.Accent.B,
                     0.25f),
             },
             new SpriteText
@@ -60,7 +60,7 @@ internal partial class SongSelectPerfectSettings
                 Y = 94,
                 Text = "OPTION",
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             strictModeButton = new StrictModeButton(
                 "REQUIRE PERFECT HITS",
@@ -73,7 +73,7 @@ internal partial class SongSelectPerfectSettings
             {
                 Y = 180,
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Cyan,
+                Colour = GameplayModSettingsTheme.Accent,
             },
         };
 
@@ -139,18 +139,18 @@ internal partial class SongSelectPerfectSettings
         {
             enabled = isEnabled;
             BorderColour = selected
-                ? SongSelectTheme.Yellow
-                : SongSelectTheme.Cyan;
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Accent;
             background.Colour = selected
-                ? SongSelectTheme.Pink
+                ? GameplayModSettingsTheme.Selection
                 : new Color4(
-                    SongSelectTheme.Navy.R,
-                    SongSelectTheme.Navy.G,
-                    SongSelectTheme.Navy.B,
+                    GameplayModSettingsTheme.Control.R,
+                    GameplayModSettingsTheme.Control.G,
+                    GameplayModSettingsTheme.Control.B,
                     0.72f);
             label.Colour = selected
-                ? SongSelectTheme.DeepNavy
-                : SongSelectTheme.PaleCyan;
+                ? GameplayModSettingsTheme.AccentOn
+                : GameplayModSettingsTheme.Text;
         }
     }
 }

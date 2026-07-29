@@ -38,14 +38,14 @@ internal partial class SongSelectAccuracyChallengeSettings
                 Text = "ACCURACY CHALLENGE",
                 Font = HomeTypography.Display(12),
                 Spacing = new Vector2(0.35f, 0),
-                Colour = SongSelectTheme.Ivory,
+                Colour = GameplayModSettingsTheme.Text,
             },
             new SpriteText
             {
                 Y = 24,
                 Text = "MINIMUM ACCURACY",
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             valueText = new SpriteText
             {
@@ -53,7 +53,7 @@ internal partial class SongSelectAccuracyChallengeSettings
                 Origin = Anchor.TopRight,
                 Y = 19,
                 Font = HomeTypography.Display(19),
-                Colour = SongSelectTheme.Yellow,
+                Colour = GameplayModSettingsTheme.Selection,
             },
             slider = new AccuracySlider(minimumChanged)
             {
@@ -64,7 +64,7 @@ internal partial class SongSelectAccuracyChallengeSettings
                 Y = 85,
                 Text = "60.0%",
                 Font = HomeTypography.Body(9),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             new SpriteText
             {
@@ -73,16 +73,16 @@ internal partial class SongSelectAccuracyChallengeSettings
                 Y = 85,
                 Text = "99.9%",
                 Font = HomeTypography.Body(9),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             new Box
             {
                 Y = 108,
                 Size = new Vector2(202, 1),
                 Colour = new Color4(
-                    SongSelectTheme.Cyan.R,
-                    SongSelectTheme.Cyan.G,
-                    SongSelectTheme.Cyan.B,
+                    GameplayModSettingsTheme.Accent.R,
+                    GameplayModSettingsTheme.Accent.G,
+                    GameplayModSettingsTheme.Accent.B,
                     0.25f),
             },
             new SpriteText
@@ -90,7 +90,7 @@ internal partial class SongSelectAccuracyChallengeSettings
                 Y = 122,
                 Text = "JUDGE AGAINST",
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             maximumButton = new ModeButton(
                 "MAX POSSIBLE",
@@ -109,7 +109,7 @@ internal partial class SongSelectAccuracyChallengeSettings
             {
                 Y = 195,
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Cyan,
+                Colour = GameplayModSettingsTheme.Accent,
             },
         };
 
@@ -166,16 +166,16 @@ internal partial class SongSelectAccuracyChallengeSettings
                     Y = 11,
                     Size = new Vector2(trackWidth, 5),
                     Colour = new Color4(
-                        SongSelectTheme.Navy.R,
-                        SongSelectTheme.Navy.G,
-                        SongSelectTheme.Navy.B,
+                        GameplayModSettingsTheme.Control.R,
+                        GameplayModSettingsTheme.Control.G,
+                        GameplayModSettingsTheme.Control.B,
                         0.9f),
                 },
                 fill = new Box
                 {
                     Y = 11,
                     Height = 5,
-                    Colour = SongSelectTheme.Pink,
+                    Colour = GameplayModSettingsTheme.Selection,
                 },
                 knob = new Circle
                 {
@@ -183,9 +183,9 @@ internal partial class SongSelectAccuracyChallengeSettings
                     Origin = Anchor.Centre,
                     Y = 2,
                     Size = new Vector2(14),
-                    Colour = SongSelectTheme.Ivory,
+                    Colour = GameplayModSettingsTheme.Text,
                     BorderThickness = 2.5f,
-                    BorderColour = SongSelectTheme.Pink,
+                    BorderColour = GameplayModSettingsTheme.Selection,
                 },
             };
         }
@@ -264,18 +264,18 @@ internal partial class SongSelectAccuracyChallengeSettings
         {
             enabled = isEnabled;
             BorderColour = selected
-                ? SongSelectTheme.Yellow
-                : SongSelectTheme.Cyan;
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Accent;
             background.Colour = selected
-                ? SongSelectTheme.Pink
+                ? GameplayModSettingsTheme.Selection
                 : new Color4(
-                    SongSelectTheme.Navy.R,
-                    SongSelectTheme.Navy.G,
-                    SongSelectTheme.Navy.B,
+                    GameplayModSettingsTheme.Control.R,
+                    GameplayModSettingsTheme.Control.G,
+                    GameplayModSettingsTheme.Control.B,
                     0.72f);
             label.Colour = selected
-                ? SongSelectTheme.DeepNavy
-                : SongSelectTheme.PaleCyan;
+                ? GameplayModSettingsTheme.AccentOn
+                : GameplayModSettingsTheme.Text;
         }
     }
 }

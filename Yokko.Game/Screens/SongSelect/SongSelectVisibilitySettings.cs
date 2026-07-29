@@ -54,13 +54,13 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
             {
                 Font = HomeTypography.Display(12),
                 Spacing = new Vector2(0.35f, 0),
-                Colour = SongSelectTheme.Ivory,
+                Colour = GameplayModSettingsTheme.Text,
             },
             settingLabel = new SpriteText
             {
                 Y = 24,
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             valueText = new SpriteText
             {
@@ -68,7 +68,7 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
                 Origin = Anchor.TopRight,
                 Y = 19,
                 Font = HomeTypography.Display(19),
-                Colour = SongSelectTheme.Yellow,
+                Colour = GameplayModSettingsTheme.Selection,
             },
             slider = new VisibilitySlider(onSliderChanged)
             {
@@ -78,7 +78,7 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
             {
                 Y = 85,
                 Font = HomeTypography.Body(9),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             maximumText = new SpriteText
             {
@@ -86,16 +86,16 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
                 Origin = Anchor.TopRight,
                 Y = 85,
                 Font = HomeTypography.Body(9),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             new Box
             {
                 Y = 108,
                 Size = new Vector2(202, 1),
                 Colour = new Color4(
-                    SongSelectTheme.Cyan.R,
-                    SongSelectTheme.Cyan.G,
-                    SongSelectTheme.Cyan.B,
+                    GameplayModSettingsTheme.Accent.R,
+                    GameplayModSettingsTheme.Accent.G,
+                    GameplayModSettingsTheme.Accent.B,
                     0.25f),
             },
             primaryOption = new OptionButton(onPrimaryOption)
@@ -110,7 +110,7 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
             {
                 Y = 195,
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Cyan,
+                Colour = GameplayModSettingsTheme.Accent,
             },
         };
 
@@ -258,16 +258,16 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
                     Y = 11,
                     Size = new Vector2(track_width, 5),
                     Colour = new Color4(
-                        SongSelectTheme.Navy.R,
-                        SongSelectTheme.Navy.G,
-                        SongSelectTheme.Navy.B,
+                        GameplayModSettingsTheme.Control.R,
+                        GameplayModSettingsTheme.Control.G,
+                        GameplayModSettingsTheme.Control.B,
                         0.9f),
                 },
                 fill = new Box
                 {
                     Y = 11,
                     Height = 5,
-                    Colour = SongSelectTheme.Pink,
+                    Colour = GameplayModSettingsTheme.Selection,
                 },
                 knob = new Circle
                 {
@@ -275,9 +275,9 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
                     Origin = Anchor.Centre,
                     Y = 2,
                     Size = new Vector2(14),
-                    Colour = SongSelectTheme.Ivory,
+                    Colour = GameplayModSettingsTheme.Text,
                     BorderThickness = 2.5f,
-                    BorderColour = SongSelectTheme.Pink,
+                    BorderColour = GameplayModSettingsTheme.Selection,
                 },
             };
         }
@@ -365,18 +365,18 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
         {
             enabled = isEnabled;
             BorderColour = selected
-                ? SongSelectTheme.Yellow
-                : SongSelectTheme.Cyan;
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Accent;
             background.Colour = selected
-                ? SongSelectTheme.Pink
+                ? GameplayModSettingsTheme.Selection
                 : new Color4(
-                    SongSelectTheme.Navy.R,
-                    SongSelectTheme.Navy.G,
-                    SongSelectTheme.Navy.B,
+                    GameplayModSettingsTheme.Control.R,
+                    GameplayModSettingsTheme.Control.G,
+                    GameplayModSettingsTheme.Control.B,
                     0.72f);
             label.Colour = selected
-                ? SongSelectTheme.DeepNavy
-                : SongSelectTheme.PaleCyan;
+                ? GameplayModSettingsTheme.AccentOn
+                : GameplayModSettingsTheme.Text;
         }
     }
 }

@@ -40,14 +40,14 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
                 Text = "RANDOM",
                 Font = HomeTypography.Display(12),
                 Spacing = new Vector2(0.35f, 0),
-                Colour = SongSelectTheme.Ivory,
+                Colour = GameplayModSettingsTheme.Text,
             },
             new SpriteText
             {
                 Y = 24,
                 Text = "CUSTOM SEED",
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             seedTextBox = new SeedTextBox
             {
@@ -58,9 +58,9 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
                 Y = 105,
                 Size = new Vector2(202, 1),
                 Colour = new Color4(
-                    SongSelectTheme.Cyan.R,
-                    SongSelectTheme.Cyan.G,
-                    SongSelectTheme.Cyan.B,
+                    GameplayModSettingsTheme.Accent.R,
+                    GameplayModSettingsTheme.Accent.G,
+                    GameplayModSettingsTheme.Accent.B,
                     0.25f),
             },
             rerollButton = new RerollButton(reroll)
@@ -71,7 +71,7 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
             {
                 Y = 190,
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Cyan,
+                Colour = GameplayModSettingsTheme.Accent,
             },
         };
 
@@ -92,7 +92,7 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
         statusText.Text = isEnabled
             ? "SAME SEED · SAME LANE SHUFFLE"
             : "SELECT RD TO CONFIGURE";
-        statusText.Colour = SongSelectTheme.Cyan;
+        statusText.Colour = GameplayModSettingsTheme.Accent;
         this.ClearTransforms();
         this.FadeTo(isEnabled ? 1 : 0.42f, 120, Easing.OutQuint);
     }
@@ -109,13 +109,13 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
                 out int seed))
         {
             statusText.Text = "ENTER A 32-BIT INTEGER";
-            statusText.Colour = SongSelectTheme.Pink;
+            statusText.Colour = GameplayModSettingsTheme.Selection;
             return;
         }
 
         Seed = seed;
         statusText.Text = "CUSTOM SEED APPLIED";
-        statusText.Colour = SongSelectTheme.Cyan;
+        statusText.Colour = GameplayModSettingsTheme.Accent;
         seedChanged(seed);
     }
 
@@ -139,16 +139,16 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
             Masking = true;
             CornerRadius = 5;
             BorderThickness = 1.5f;
-            BorderColour = SongSelectTheme.Cyan;
+            BorderColour = GameplayModSettingsTheme.Accent;
             BackgroundUnfocused = new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
+                GameplayModSettingsTheme.Control.R,
+                GameplayModSettingsTheme.Control.G,
+                GameplayModSettingsTheme.Control.B,
                 0.72f);
             BackgroundFocused = new Color4(
-                SongSelectTheme.DeepNavy.R,
-                SongSelectTheme.DeepNavy.G,
-                SongSelectTheme.DeepNavy.B,
+                GameplayModSettingsTheme.AccentOn.R,
+                GameplayModSettingsTheme.AccentOn.G,
+                GameplayModSettingsTheme.AccentOn.B,
                 0.96f);
             FontSize = 16;
             PlaceholderText = "integer seed";
@@ -159,25 +159,25 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
             {
                 Text = c.ToString(),
                 Font = HomeTypography.Body(16),
-                Colour = SongSelectTheme.Ivory,
+                Colour = GameplayModSettingsTheme.Text,
             };
 
         protected override SpriteText CreatePlaceholder() => new()
         {
             Font = HomeTypography.Body(14),
-            Colour = SongSelectTheme.Muted,
+            Colour = GameplayModSettingsTheme.Muted,
         };
 
         protected override void OnFocus(FocusEvent e)
         {
             base.OnFocus(e);
-            BorderColour = SongSelectTheme.Yellow;
+            BorderColour = GameplayModSettingsTheme.Selection;
         }
 
         protected override void OnFocusLost(FocusLostEvent e)
         {
             base.OnFocusLost(e);
-            BorderColour = SongSelectTheme.Cyan;
+            BorderColour = GameplayModSettingsTheme.Accent;
         }
     }
 
@@ -217,15 +217,15 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
         internal void SetEnabled(bool value)
         {
             enabled = value;
-            BorderColour = SongSelectTheme.Cyan;
+            BorderColour = GameplayModSettingsTheme.Accent;
             background.Colour = new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
+                GameplayModSettingsTheme.Control.R,
+                GameplayModSettingsTheme.Control.G,
+                GameplayModSettingsTheme.Control.B,
                 0.72f);
             label.Colour = value
-                ? SongSelectTheme.PaleCyan
-                : SongSelectTheme.Muted;
+                ? GameplayModSettingsTheme.Text
+                : GameplayModSettingsTheme.Muted;
         }
     }
 }

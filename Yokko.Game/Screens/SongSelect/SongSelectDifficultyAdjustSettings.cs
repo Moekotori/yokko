@@ -40,14 +40,14 @@ internal partial class SongSelectDifficultyAdjustSettings
                 Text = "DIFFICULTY ADJUST",
                 Font = HomeTypography.Display(12),
                 Spacing = new Vector2(0.35f, 0),
-                Colour = SongSelectTheme.Ivory,
+                Colour = GameplayModSettingsTheme.Text,
             },
             new SpriteText
             {
                 Y = 24,
                 Text = "HP DRAIN",
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             drainValueText = valueText(19),
             drainSlider = new DifficultySlider(drainRateChanged)
@@ -59,7 +59,7 @@ internal partial class SongSelectDifficultyAdjustSettings
                 Y = 80,
                 Text = "ACCURACY · OD",
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Muted,
+                Colour = GameplayModSettingsTheme.Muted,
             },
             difficultyValueText = valueText(75),
             difficultySlider =
@@ -83,7 +83,7 @@ internal partial class SongSelectDifficultyAdjustSettings
             {
                 Y = 190,
                 Font = HomeTypography.Body(10),
-                Colour = SongSelectTheme.Cyan,
+                Colour = GameplayModSettingsTheme.Accent,
             },
         };
     }
@@ -137,7 +137,7 @@ internal partial class SongSelectDifficultyAdjustSettings
         Origin = Anchor.TopRight,
         Y = y,
         Font = HomeTypography.Display(17),
-        Colour = SongSelectTheme.Yellow,
+        Colour = GameplayModSettingsTheme.Selection,
     };
 
     private static string formatValue(
@@ -168,16 +168,16 @@ internal partial class SongSelectDifficultyAdjustSettings
                     Y = 11,
                     Size = new Vector2(trackWidth, 5),
                     Colour = new Color4(
-                        SongSelectTheme.Navy.R,
-                        SongSelectTheme.Navy.G,
-                        SongSelectTheme.Navy.B,
+                        GameplayModSettingsTheme.Control.R,
+                        GameplayModSettingsTheme.Control.G,
+                        GameplayModSettingsTheme.Control.B,
                         0.9f),
                 },
                 fill = new Box
                 {
                     Y = 11,
                     Height = 5,
-                    Colour = SongSelectTheme.Pink,
+                    Colour = GameplayModSettingsTheme.Selection,
                 },
                 knob = new Circle
                 {
@@ -185,9 +185,9 @@ internal partial class SongSelectDifficultyAdjustSettings
                     Origin = Anchor.Centre,
                     Y = 2,
                     Size = new Vector2(14),
-                    Colour = SongSelectTheme.Ivory,
+                    Colour = GameplayModSettingsTheme.Text,
                     BorderThickness = 2.5f,
-                    BorderColour = SongSelectTheme.Pink,
+                    BorderColour = GameplayModSettingsTheme.Selection,
                 },
             };
         }
@@ -273,18 +273,18 @@ internal partial class SongSelectDifficultyAdjustSettings
         {
             enabled = isEnabled;
             BorderColour = selected
-                ? SongSelectTheme.Yellow
-                : SongSelectTheme.Cyan;
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Accent;
             background.Colour = selected
-                ? SongSelectTheme.Pink
+                ? GameplayModSettingsTheme.Selection
                 : new Color4(
-                    SongSelectTheme.Navy.R,
-                    SongSelectTheme.Navy.G,
-                    SongSelectTheme.Navy.B,
+                    GameplayModSettingsTheme.Control.R,
+                    GameplayModSettingsTheme.Control.G,
+                    GameplayModSettingsTheme.Control.B,
                     0.72f);
             label.Colour = selected
-                ? SongSelectTheme.DeepNavy
-                : SongSelectTheme.PaleCyan;
+                ? GameplayModSettingsTheme.AccentOn
+                : GameplayModSettingsTheme.Text;
         }
     }
 }

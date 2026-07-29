@@ -44,7 +44,7 @@ internal sealed class GameplayHitSampleResolver
             hitObject.NodeSamples.Count > 0
                 ? hitObject.NodeSamples[0]
                 : hitObject.Samples;
-        return resolve(samples, hitObject.SampleKey);
+        return resolve(samples, hitObject.SampleKey, defaultToNormal: true);
     }
 
     internal IReadOnlyList<ResolvedGameplayHitSample> ResolveTail(
@@ -54,7 +54,7 @@ internal sealed class GameplayHitSampleResolver
             hitObject.NodeSamples.Count > 0
                 ? hitObject.NodeSamples[^1]
                 : [];
-        return resolve(samples, null);
+        return resolve(samples, null, defaultToNormal: false);
     }
 
     internal IReadOnlyList<ResolvedGameplayHitSample> ResolveSliding(
@@ -76,7 +76,7 @@ internal sealed class GameplayHitSampleResolver
             })
             .Where(static sample => sample is not null)
             .ToArray();
-        return resolve(samples, null);
+        return resolve(samples, null, defaultToNormal: false);
     }
 
     internal IReadOnlyCollection<string> AllPaths()
@@ -104,9 +104,13 @@ internal sealed class GameplayHitSampleResolver
 
     private IReadOnlyList<ResolvedGameplayHitSample> resolve(
         IReadOnlyList<YokkoHitSample> samples,
-        string legacySampleKey)
+        string legacySampleKey,
+        bool defaultToNormal)
     {
-        if (samples.Count == 0 && skinSampleResolver != null)
+        if (defaultToNormal
+            && samples.Count == 0
+            && string.IsNullOrWhiteSpace(legacySampleKey)
+            && skinSampleResolver != null)
         {
             samples =
             [
@@ -139,6 +143,7 @@ internal sealed class GameplayHitSampleResolver
             && !string.IsNullOrWhiteSpace(legacySampleKey))
         {
             string path = resolvePath(legacySampleKey);
+            path ??= skinSampleResolver?.Invoke(legacySampleKey);
             if (path is not null)
                 resolved.Add(new ResolvedGameplayHitSample(path, 1));
         }
