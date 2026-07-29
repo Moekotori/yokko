@@ -128,6 +128,29 @@ public sealed class OsuStandardPatternGeneratorTest
     }
 
     [Test]
+    public void LongRepeatedSliderKeepsLazerPositionalHold()
+    {
+        ManiaConversionSource source = createSource(
+            circle(168, 1000),
+            new ManiaConversionHitObject(
+                168,
+                2000,
+                2932,
+                ManiaConversionObjectKind.Slider,
+                SpanCount: 4));
+
+        IReadOnlyList<YokkoHitObject> converted =
+            OsuStandardManiaConverter.Convert(source, 6);
+        YokkoHitObject hold = converted.Single(hitObject =>
+            hitObject.StartTimeMilliseconds == 2000
+            && hitObject.Kind == HitObjectKind.Hold);
+
+        // SliderPatternGenerator does not force this branch away from the
+        // previous pattern; its hold stays in the X-position-derived column.
+        Assert.That(hold.Lane, Is.EqualTo(1));
+    }
+
+    [Test]
     public void ShortFinishSpinnerUsesSpecialColumnInEightKey()
     {
         ManiaConversionSource source = createSource(

@@ -28,6 +28,7 @@ namespace Yokko.Game.Screens.Settings;
 internal enum GameplaySettingsSection
 {
     Input,
+    Shortcuts,
     Timing,
     Feedback,
 }
@@ -59,6 +60,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private bool calibrationResultVisible;
     private bool disposed;
     private bool sequentialCapture;
+    private ManiaShortcutAction? capturingShortcut;
     private KeyMode selectedKeyMode = KeyMode.FourKey;
 
     internal GameplaySettingsSection CurrentSection { get; private set; } =
@@ -70,7 +72,11 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal bool IsSequentialCapture => sequentialCapture;
 
+    internal bool IsCapturingShortcut => capturingShortcut.HasValue;
+
     internal int SequentialCaptureIndex => sequentialKeys.Count;
+
+    internal int VisibleBindingCardCount => bindingCards.Count;
 
     internal double CurrentScrollSpeed => settings.ScrollSpeed.Value;
 
@@ -233,6 +239,23 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             YokkoStrings.Get("settings.gameplay.preset_standard")));
     }
 
+    internal void BeginShortcutCapture(ManiaShortcutAction action)
+    {
+        if (CurrentSection != GameplaySettingsSection.Shortcuts)
+            showSection(GameplaySettingsSection.Shortcuts, false);
+
+        cancelCapture();
+        capturingShortcut = action;
+        setContent(createShortcutsSection(), false);
+    }
+
+    internal void ResetShortcutBindings()
+    {
+        cancelCapture();
+        settings.ResetShortcutBindings();
+        setContent(createShortcutsSection(), false);
+    }
+
     internal void ApplyBindingPreset(GameplayKeyPreset preset)
     {
         cancelCapture();
@@ -333,6 +356,21 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal bool HandleKeyDown(Key key)
     {
+        if (capturingShortcut.HasValue)
+        {
+            if (key == Key.Escape)
+            {
+                capturingShortcut = null;
+                setContent(createShortcutsSection(), false);
+                return true;
+            }
+
+            settings.SetShortcutBinding(capturingShortcut.Value, key);
+            capturingShortcut = null;
+            setContent(createShortcutsSection(), false);
+            return true;
+        }
+
         if (capturingCard != null)
         {
             if (key == Key.Escape)
@@ -385,6 +423,13 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     public bool DismissTransientUi()
     {
+        if (capturingShortcut.HasValue)
+        {
+            capturingShortcut = null;
+            setContent(createShortcutsSection(), false);
+            return true;
+        }
+
         if (capturingCard != null)
         {
             cancelCapture();
@@ -414,17 +459,26 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             flow,
             GameplaySettingsSection.Input,
             YokkoStrings.Get("settings.gameplay.section_input"),
-            FontAwesome.Solid.Keyboard);
+            FontAwesome.Solid.Keyboard,
+            203);
+        addTab(
+            flow,
+            GameplaySettingsSection.Shortcuts,
+            YokkoStrings.Get("settings.gameplay.section_shortcuts"),
+            FontAwesome.Solid.Bolt,
+            203);
         addTab(
             flow,
             GameplaySettingsSection.Timing,
             YokkoStrings.Get("settings.gameplay.section_timing"),
-            FontAwesome.Solid.WaveSquare);
+            FontAwesome.Solid.WaveSquare,
+            203);
         addTab(
             flow,
             GameplaySettingsSection.Feedback,
             YokkoStrings.Get("settings.gameplay.section_feedback"),
-            FontAwesome.Solid.Heartbeat);
+            FontAwesome.Solid.Heartbeat,
+            203);
 
         return flow;
     }
@@ -433,13 +487,14 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         FillFlowContainer flow,
         GameplaySettingsSection section,
         LocalisableString label,
-        IconUsage icon)
+        IconUsage icon,
+        float width)
     {
         var tab = new GameplaySectionTab(
             label,
             icon,
             () => showSection(section, true),
-            274);
+            width);
         tab.Value = section;
         sectionTabs.Add(tab);
         flow.Add(tab);
@@ -463,6 +518,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         {
             case GameplaySettingsSection.Input:
                 showInputSection(animate);
+                break;
+
+            case GameplaySettingsSection.Shortcuts:
+                setContent(createShortcutsSection(), animate);
                 break;
 
             case GameplaySettingsSection.Timing:
@@ -761,6 +820,77 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         return panel;
     }
 
+    private Drawable createShortcutsSection()
+    {
+        var panel = createPanel();
+        setPanelChildren(panel, new Drawable[]
+        {
+            createControlLabel(
+                YokkoStrings.Get(
+                    "settings.gameplay.shortcut_decrease_speed"),
+                YokkoStrings.Get(
+                    "settings.gameplay.shortcut_decrease_speed_note"),
+                20,
+                24),
+            createShortcutButton(
+                ManiaShortcutAction.DecreaseScrollSpeed,
+                new Vector2(610, 24)),
+            new Box
+            {
+                Position = new Vector2(20, 105),
+                Size = new Vector2(800, 1),
+                Colour = SettingsTheme.Divider,
+            },
+            createControlLabel(
+                YokkoStrings.Get(
+                    "settings.gameplay.shortcut_increase_speed"),
+                YokkoStrings.Get(
+                    "settings.gameplay.shortcut_increase_speed_note"),
+                20,
+                126),
+            createShortcutButton(
+                ManiaShortcutAction.IncreaseScrollSpeed,
+                new Vector2(610, 126)),
+            new GameplayCompactButton(
+                YokkoStrings.Get(
+                    "settings.gameplay.shortcut_reset"),
+                ResetShortcutBindings,
+                190,
+                FontAwesome.Solid.ArrowLeft)
+            {
+                Position = new Vector2(610, 220),
+            },
+            new SpriteText
+            {
+                Position = new Vector2(20, 238),
+                Text = YokkoStrings.Get(
+                    "settings.gameplay.shortcut_hint"),
+                Font = HomeTypography.Body(14),
+                Colour = SettingsTheme.MutedNavy,
+            },
+        });
+        return panel;
+    }
+
+    private Drawable createShortcutButton(
+        ManiaShortcutAction action,
+        Vector2 position)
+    {
+        string label = capturingShortcut == action
+            ? YokkoStrings.Get("settings.gameplay.press_key").ToString()
+            : KeyModeBindings.FormatKey(
+                settings.GetShortcutBinding(action)).ToUpperInvariant();
+        return new GameplayCompactButton(
+            label,
+            () => BeginShortcutCapture(action),
+            190,
+            FontAwesome.Solid.Keyboard)
+        {
+            Position = position,
+            IsSelected = capturingShortcut == action,
+        };
+    }
+
     private Drawable createSpeedPresets()
     {
         double[] speeds = { 8, 15, 20, 30 };
@@ -1036,6 +1166,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             card.SetCapturing(false);
 
         capturingCard = null;
+        capturingShortcut = null;
         sequentialCapture = false;
         sequentialKeys.Clear();
 

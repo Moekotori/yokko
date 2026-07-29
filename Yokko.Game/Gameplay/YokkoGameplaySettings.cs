@@ -14,6 +14,12 @@ public enum GameplayKeyPreset
     Split,
 }
 
+public enum ManiaShortcutAction
+{
+    DecreaseScrollSpeed,
+    IncreaseScrollSpeed,
+}
+
 /// <summary>
 /// Application-owned gameplay preferences. Chart rules and scoring windows stay
 /// in Yokko.Core; this type only owns player input and presentation choices.
@@ -83,6 +89,10 @@ public sealed class YokkoGameplaySettings
     public readonly BindableBool KeysoundsEnabled = new(true);
 
     public readonly BindableBool PauseWhenUnfocused = new(true);
+
+    public readonly Bindable<Key> DecreaseScrollSpeedKey = new(Key.F3);
+
+    public readonly Bindable<Key> IncreaseScrollSpeedKey = new(Key.F4);
 
     public YokkoGameplaySettings()
     {
@@ -179,6 +189,47 @@ public sealed class YokkoGameplaySettings
             bindings[index].Value = defaults[index];
     }
 
+    public Key GetShortcutBinding(ManiaShortcutAction action) =>
+        action switch
+        {
+            ManiaShortcutAction.DecreaseScrollSpeed =>
+                DecreaseScrollSpeedKey.Value,
+            ManiaShortcutAction.IncreaseScrollSpeed =>
+                IncreaseScrollSpeedKey.Value,
+            _ => throw new ArgumentOutOfRangeException(nameof(action)),
+        };
+
+    /// <summary>
+    /// Changes a Mania action key while keeping the two actions unique. A
+    /// duplicate assignment swaps the actions instead of silently unbinding one.
+    /// </summary>
+    public void SetShortcutBinding(ManiaShortcutAction action, Key key)
+    {
+        if (key is Key.Escape or Key.Unknown)
+        {
+            throw new ArgumentException(
+                "Escape and unknown keys cannot be Mania shortcuts.",
+                nameof(key));
+        }
+
+        Bindable<Key> target = shortcutBindable(action);
+        Bindable<Key> other = shortcutBindable(
+            action == ManiaShortcutAction.DecreaseScrollSpeed
+                ? ManiaShortcutAction.IncreaseScrollSpeed
+                : ManiaShortcutAction.DecreaseScrollSpeed);
+        Key previous = target.Value;
+        target.Value = key;
+
+        if (other.Value == key)
+            other.Value = previous;
+    }
+
+    public void ResetShortcutBindings()
+    {
+        DecreaseScrollSpeedKey.Value = Key.F3;
+        IncreaseScrollSpeedKey.Value = Key.F4;
+    }
+
     public void ApplyBindingPreset(
         KeyMode keyMode,
         GameplayKeyPreset preset)
@@ -236,6 +287,16 @@ public sealed class YokkoGameplaySettings
 
     private static Bindable<Key>[] createBindings(IEnumerable<Key> defaults) =>
         defaults.Select(key => new Bindable<Key>(key)).ToArray();
+
+    private Bindable<Key> shortcutBindable(ManiaShortcutAction action) =>
+        action switch
+        {
+            ManiaShortcutAction.DecreaseScrollSpeed =>
+                DecreaseScrollSpeedKey,
+            ManiaShortcutAction.IncreaseScrollSpeed =>
+                IncreaseScrollSpeedKey,
+            _ => throw new ArgumentOutOfRangeException(nameof(action)),
+        };
 
     private void copyFourKeyToSevenKey()
     {

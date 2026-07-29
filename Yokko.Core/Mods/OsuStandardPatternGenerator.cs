@@ -660,13 +660,6 @@ internal sealed class OsuStandardPatternGenerator
         int repeat = Math.Min(spans, totalColumns);
         int end = start + segment * spans;
         int column = columnAt(hitObject.X, allowSpecial: true);
-        if (previous.Columns.Count < totalColumns)
-        {
-            column = findAvailable(
-                column,
-                _ => random.Next(randomStart, totalColumns),
-                [previous]);
-        }
         for (int i = 0; i < repeat; i++)
         {
             column = findAvailable(
@@ -690,14 +683,8 @@ internal sealed class OsuStandardPatternGenerator
         int holdColumn = columnAt(
             hitObject.X,
             allowSpecial: true);
-        if (previous.Columns.Count < totalColumns)
-        {
-            holdColumn = findAvailable(
-                holdColumn,
-                _ => random.Next(randomStart, totalColumns),
-                [previous]);
-        }
         pattern.Add(holdColumn, start, end);
+        int column = random.Next(randomStart, totalColumns);
         int noteCount = conversionDifficulty switch
         {
             > 6.5 => randomNoteCount(0.63, 0),
@@ -712,7 +699,6 @@ internal sealed class OsuStandardPatternGenerator
         noteCount = Math.Min(totalColumns - 1, noteCount);
         bool ignoreHead =
             (hitSoundAtNode(hitObject, 0) & (2 | 4 | 8)) == 0;
-        int column = random.Next(randomStart, totalColumns);
         for (int row = 0; row <= spans; row++)
         {
             var rowPattern = new Pattern();

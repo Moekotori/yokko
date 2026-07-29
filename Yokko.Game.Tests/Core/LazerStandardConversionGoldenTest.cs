@@ -152,6 +152,51 @@ public sealed class LazerStandardConversionGoldenTest
         });
     }
 
+    [Test]
+    public void LegacyManiaSliderPassesThroughAsLazerHold()
+    {
+        YokkoBeatmap beatmap =
+            OsuManiaBeatmapIO.ReadBeatmap(legacyManiaSlider);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(beatmap.KeyMode, Is.EqualTo(KeyMode.FiveKey));
+            Assert.That(beatmap.HitObjects, Has.Count.EqualTo(1));
+            assertObject(
+                beatmap.HitObjects[0],
+                2,
+                500,
+                2500,
+                HitObjectKind.Hold);
+        });
+    }
+
+    [Test]
+    public void LegacyManiaSpinnersUseLazerSeededColumns()
+    {
+        YokkoBeatmap beatmap =
+            OsuManiaBeatmapIO.ReadBeatmap(legacyManiaSpinners);
+        (int lane, double start, double end)[] expected =
+        [
+            (0, 11783, 15116),
+            (0, 91545, 92735),
+            (1, 152497, 153687),
+            (3, 231545, 232974),
+        ];
+
+        Assert.That(beatmap.KeyMode, Is.EqualTo(KeyMode.FourKey));
+        Assert.That(beatmap.HitObjects, Has.Count.EqualTo(expected.Length));
+        for (int index = 0; index < expected.Length; index++)
+        {
+            assertObject(
+                beatmap.HitObjects[index],
+                expected[index].lane,
+                expected[index].start,
+                expected[index].end,
+                HitObjectKind.Hold);
+        }
+    }
+
     private static void assertObject(
         YokkoHitObject actual,
         int lane,
@@ -283,5 +328,53 @@ SliderTickRate:1
 
 [HitObjects]
 256,192,1000,8,4,8000,0:2:0:0:
+""";
+
+    private const string legacyManiaSlider = """
+osu file format v14
+
+[General]
+Mode: 3
+
+[Difficulty]
+HPDrainRate:2
+CircleSize:5
+OverallDifficulty:2
+SliderMultiplier:1
+
+[TimingPoints]
+355,476.190476190476,4,2,1,60,1,0
+
+[HitObjects]
+256,352,500,2,0,L|256:208,3,140
+""";
+
+    private const string legacyManiaSpinners = """
+osu file format v14
+
+[General]
+Mode: 3
+
+[Difficulty]
+HPDrainRate:5
+CircleSize:4
+OverallDifficulty:5
+ApproachRate:0
+SliderMultiplier:2.6
+
+[TimingPoints]
+355,476.190476190476,4,2,1,60,1,0
+60652,-100,4,2,1,60,0,1
+92735,-100,4,2,1,60,0,0
+121485,-100,4,2,1,60,0,1
+153688,-100,4,2,1,60,0,0
+182497,-100,4,2,1,60,0,1
+213688,-100,4,2,1,60,0,0
+
+[HitObjects]
+256,192,11783,12,0,15116,0:0:0:0:
+256,192,91545,12,0,92735,0:0:0:0:
+256,192,152497,12,0,153687,0:0:0:0:
+256,192,231545,12,0,232974,0:0:0:0:
 """;
 }

@@ -25,11 +25,8 @@ namespace Yokko.Game.Screens.SongSelect;
 /// </summary>
 internal partial class GameplayModsScreen : Screen
 {
-    private const float designed_width = 1600;
-    private const float designed_height = 900;
-    private const float authored_width = 1280;
-    private const float authored_height = 720;
-    private const float authored_scale = designed_width / authored_width;
+    private const float designed_width = 1280;
+    private const float designed_height = 720;
 
     private static readonly ManiaModCategory[] visible_categories =
     [
@@ -62,6 +59,9 @@ internal partial class GameplayModsScreen : Screen
     private SpriteText activeModsHeader;
     private SpriteText fixedRateLabel;
     private SpriteText fixedRateValue;
+    private SpriteText fixedRateMinimum;
+    private SpriteText fixedRateMidpoint;
+    private SpriteText fixedRateMaximum;
     private GameplayModsRateSlider fixedRateSlider;
     private GameplayModsPitchButton fixedRatePitch;
     private SongSelectModSettingsHost settingsHost;
@@ -116,19 +116,14 @@ internal partial class GameplayModsScreen : Screen
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Size = new Vector2(designed_width, designed_height),
-                Child = new Container
+                Children = new Drawable[]
                 {
-                    Size = new Vector2(authored_width, authored_height),
-                    Scale = new Vector2(authored_scale),
-                    Children = new Drawable[]
-                    {
-                        createHeader(logo),
-                        createCategoryRail(),
-                        createModBrowser(),
-                        createDetailPanel(),
-                        createDecorations(),
-                        createFooter(),
-                    },
+                    createHeader(logo),
+                    createCategoryRail(),
+                    createModBrowser(),
+                    createDetailPanel(),
+                    createDecorations(),
+                    createFooter(),
                 },
             },
         };
@@ -187,6 +182,10 @@ internal partial class GameplayModsScreen : Screen
                     return true;
                 }
                 break;
+
+            case Key.H:
+                ToggleMod(ManiaModId.HalfTime);
+                return true;
 
             default:
                 break;
@@ -650,24 +649,24 @@ internal partial class GameplayModsScreen : Screen
                 },
                 activeModsHeader = new SpriteText
                 {
-                    Position = new Vector2(7, 310),
+                    Position = new Vector2(7, 299),
                     Font = HomeTypography.Display(10),
                     Spacing = new Vector2(1.8f, 0),
                     Colour = HomeControlColours.Cyan,
                 },
                 activeModsDivider = new Box
                 {
-                    Position = new Vector2(132, 319),
+                    Position = new Vector2(132, 308),
                     Size = new Vector2(158, 1),
                     Colour = HomeControlColours.Cyan,
                 },
                 activeMods = new FillFlowContainer
                 {
-                    Position = new Vector2(7, 337),
+                    Position = new Vector2(7, 326),
                     Width = 283,
                     Height = 130,
                     Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 6),
+                    Spacing = new Vector2(0, 11),
                 },
             },
         };
@@ -707,11 +706,11 @@ internal partial class GameplayModsScreen : Screen
             fixedRateSlider = new GameplayModsRateSlider(
                 SetFixedRateSpeedChange)
             {
-                Position = new Vector2(0, 45),
+                Position = new Vector2(0, 35),
             },
-            new SpriteText
+            fixedRateMinimum = new SpriteText
             {
-                Position = new Vector2(0, 63),
+                Position = new Vector2(0, 54),
                 Text = "0.25x",
                 Font = HomeTypography.Body(9),
                 Colour = new Color4(
@@ -720,11 +719,11 @@ internal partial class GameplayModsScreen : Screen
                     HomeControlColours.Navy.B,
                     0.58f),
             },
-            new SpriteText
+            fixedRateMidpoint = new SpriteText
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Position = new Vector2(0, 63),
+                Position = new Vector2(0, 54),
                 Text = "1.00x",
                 Font = HomeTypography.Body(9),
                 Colour = new Color4(
@@ -733,11 +732,11 @@ internal partial class GameplayModsScreen : Screen
                     HomeControlColours.Navy.B,
                     0.58f),
             },
-            new SpriteText
+            fixedRateMaximum = new SpriteText
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(0, 63),
+                Position = new Vector2(0, 54),
                 Text = "2.00x",
                 Font = HomeTypography.Body(9),
                 Colour = new Color4(
@@ -750,7 +749,7 @@ internal partial class GameplayModsScreen : Screen
                 () => SetFixedRateAdjustPitch(
                     !selectedMods.FixedRateAdjustPitch))
             {
-                Y = 96,
+                Y = 82,
             },
         };
         return panel;
@@ -882,7 +881,7 @@ internal partial class GameplayModsScreen : Screen
             or ManiaModCategory.DifficultyIncrease)
         {
             addSection(ManiaModCategory.DifficultyReduction, 0);
-            addSection(ManiaModCategory.DifficultyIncrease, 191);
+            addSection(ManiaModCategory.DifficultyIncrease, 195);
         }
         else
         {
@@ -910,6 +909,12 @@ internal partial class GameplayModsScreen : Screen
             Colour = accent,
         });
 
+        float rowSpacing = category switch
+        {
+            ManiaModCategory.DifficultyReduction => 54,
+            ManiaModCategory.DifficultyIncrease => 50,
+            _ => 44,
+        };
         for (int index = 0; index < definitions.Count; index++)
         {
             ManiaModDefinition definition = definitions[index];
@@ -925,7 +930,7 @@ internal partial class GameplayModsScreen : Screen
             {
                 Position = new Vector2(
                     column * 284,
-                    y + 25 + row * 44),
+                    y + 27 + row * rowSpacing),
             };
             item.SetSelected(selectedMods.Contains(definition.Id));
             visibleItems[definition.Id] = item;
@@ -1010,14 +1015,21 @@ internal partial class GameplayModsScreen : Screen
 
         bool fixedRateMod = isFixedRateMod(mod);
         bool configurable = isConfigurable(mod) && !fixedRateMod;
+        settingsHeader.Y = fixedRateMod ? 170 : 127;
+        settingsDivider.Y = fixedRateMod ? 179 : 136;
+        fixedRatePanel.Y = fixedRateMod ? 200 : 153;
         configurablePanel.Alpha = configurable ? 1 : 0;
         fixedRatePanel.Alpha = configurable ? 0 : 1;
         activeModsHeader.Alpha = configurable ? 0 : 1;
         activeModsDivider.Alpha = configurable ? 0 : 1;
         activeMods.Alpha = configurable ? 0 : 1;
-        detailHint.Text = selectedMods.Contains(mod)
-            ? "SPACE TO REMOVE"
-            : "SPACE TO TOGGLE";
+        detailHint.Text = mod == ManiaModId.HalfTime
+            ? selectedMods.Contains(mod)
+                ? "SHORTCUT: H · SPACE REMOVE"
+                : "SHORTCUT: H · SPACE TOGGLE"
+            : selectedMods.Contains(mod)
+                ? "SPACE TO REMOVE"
+                : "SPACE TO TOGGLE";
         if (configurable)
         {
             settingsHost.Show(mod);
@@ -1037,6 +1049,10 @@ internal partial class GameplayModsScreen : Screen
                 : "—";
             double minimum = isSlowFixedRateMod(mod) ? 0.5 : 1.01;
             double maximum = isSlowFixedRateMod(mod) ? 0.99 : 2;
+            double midpoint = Math.Round((minimum + maximum) / 2, 2);
+            fixedRateMinimum.Text = $"{minimum:0.00}x";
+            fixedRateMidpoint.Text = $"{midpoint:0.00}x";
+            fixedRateMaximum.Text = $"{maximum:0.00}x";
             fixedRateSlider.SetState(
                 fixedRateMod && enabledRateMod,
                 minimum,
@@ -1102,12 +1118,51 @@ internal partial class GameplayModsScreen : Screen
         };
 
     private static IReadOnlyList<ManiaModDefinition> definitionsFor(
-        ManiaModCategory category) =>
-        OsuManiaModParityCatalog.All
+        ManiaModCategory category)
+    {
+        ManiaModDefinition[] definitions = OsuManiaModParityCatalog.All
             .Where(definition =>
                 definition.Category == category
                 && definition.Id != ManiaModId.ScoreV2)
             .ToArray();
+
+        ManiaModId[] order = category switch
+        {
+            ManiaModCategory.DifficultyReduction =>
+            [
+                ManiaModId.Easy,
+                ManiaModId.HalfTime,
+                ManiaModId.NoRelease,
+                ManiaModId.NoFail,
+                ManiaModId.Daycore,
+            ],
+            ManiaModCategory.DifficultyIncrease =>
+            [
+                ManiaModId.HardRock,
+                ManiaModId.Perfect,
+                ManiaModId.Nightcore,
+                ManiaModId.Hidden,
+                ManiaModId.Flashlight,
+                ManiaModId.SuddenDeath,
+                ManiaModId.DoubleTime,
+                ManiaModId.FadeIn,
+                ManiaModId.Cover,
+                ManiaModId.AccuracyChallenge,
+            ],
+            _ => [],
+        };
+
+        if (order.Length == 0)
+            return definitions;
+
+        var byId = definitions.ToDictionary(definition => definition.Id);
+        return order
+            .Where(byId.ContainsKey)
+            .Select(id => byId[id])
+            .Concat(definitions.Where(definition =>
+                !order.Contains(definition.Id)))
+            .ToArray();
+    }
 
     private static string categoryLabel(ManiaModCategory category) =>
         category switch

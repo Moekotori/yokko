@@ -37,6 +37,8 @@ internal enum YokkoSetting
     GameplaySevenKeyLane6,
     GameplaySevenKeyLane7,
     GameplayKeyProfiles,
+    ManiaDecreaseScrollSpeedKey,
+    ManiaIncreaseScrollSpeedKey,
     ManiaScrollSpeed,
     QuaverScrollRateNormalization,
     GameplayShowLanePressFeedback,
@@ -91,6 +93,8 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(YokkoSetting.GameplaySevenKeyLane6, osuTK.Input.Key.K);
         SetDefault(YokkoSetting.GameplaySevenKeyLane7, osuTK.Input.Key.L);
         SetDefault(YokkoSetting.GameplayKeyProfiles, string.Empty);
+        SetDefault(YokkoSetting.ManiaDecreaseScrollSpeedKey, osuTK.Input.Key.F3);
+        SetDefault(YokkoSetting.ManiaIncreaseScrollSpeedKey, osuTK.Input.Key.F4);
         SetDefault(
             YokkoSetting.ManiaScrollSpeed,
             OsuManiaScrollSpeed.Default,
@@ -190,6 +194,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         settings.BindingsChanged += persistKeyProfiles;
         persistKeyProfiles();
 
+        BindWith(
+            YokkoSetting.ManiaDecreaseScrollSpeedKey,
+            settings.DecreaseScrollSpeedKey);
+        BindWith(
+            YokkoSetting.ManiaIncreaseScrollSpeedKey,
+            settings.IncreaseScrollSpeedKey);
         BindWith(YokkoSetting.ManiaScrollSpeed, settings.ScrollSpeed);
         BindWith(
             YokkoSetting.QuaverScrollRateNormalization,

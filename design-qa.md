@@ -301,6 +301,8 @@ final result: passed
   `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-3919f73f-3bba-4876-8063-0b1fa665e627.png`
 - Source visual truth, Settings 100% maximised:
   `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-ebdf7339-3222-4e67-bbda-b86facaf9fbe.png`
+- Source visual truth, Home 80% maximised:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-f79dd367-fb9b-494a-871b-891b0b0823ba.png`
 - Final Home implementation:
   `D:\yokko\.artifacts\ui-scale-resolution-test\main-100-native-3200x2000.png`
 - Final Settings implementation:
@@ -311,13 +313,16 @@ final result: passed
   `D:\yokko\.artifacts\ui-scale-resolution-test\qa-main-side-by-side.png`
 - Combined Settings comparison:
   `D:\yokko\.artifacts\ui-scale-settings-responsive-test\settings-responsive-comparison.png`
+- Current-code Home 100% / 90% / 80% comparison:
+  `D:\yokko\.artifacts\ui-scale-compact-responsive-test\main-100-90-80-current.png`
 - Source pixels: Home 3200 x 1898; Settings 3196 x 1870.
 - Implementation pixels and client viewport: 3200 x 2000.
 - Density normalization: each source and implementation was normalized
   to 1600 px width and padded to 1000 px height before horizontal
   comparison. Window-title and crop-height differences were excluded from
   density findings.
-- State: Chinese locale, maximised desktop, interface size 100%.
+- State: Chinese locale, maximised desktop source captures, interface
+  sizes 100%, 90%, and 80%; current-code comparison at one identical viewport.
 
 ## Full-view comparison
 
@@ -328,16 +333,21 @@ space. At 3200x2000 the 100% scale resolves to 2.0x, fills the useful
 desktop area, and preserves the responsive Home and Song Select regions.
 Settings now migrates its authored 1280x720 stage into that same shared
 space instead of leaving it as a smaller centred island.
+When 90% or 80% exposes a larger logical viewport, Home now expands its
+responsive stage to that complete viewport instead of capping itself back
+to 1600x900.
 
 ## Focused comparison
 
 The combined comparisons keep the same overall state and show the intended
 density correction without typography, icon, image, or control clipping.
 Settings' sidebar, content panel, and footer now use the full shared
-1600x900 reference stage; Home uses the same responsive stage rather than
-a small centred content island. No additional crop was needed because
-labels, icon alignment, and control boundaries remain readable in the
-combined images.
+1600x900 reference stage. The same-code Home comparison proves that 90%
+and 80% progressively reduce fixed UI density while redistributing the
+left controls, right mascot, utility controls, and player across the newly
+available logical space.
+No additional crop was needed because labels, icon alignment, and control
+boundaries remain readable in the combined images.
 
 ## Required fidelity surfaces
 
@@ -356,7 +366,7 @@ combined images.
 ## Findings
 
 - No actionable P0, P1, or P2 issue remains in the inspected 3200x2000
-  100% state.
+  100% state or current-code 100%/90%/80% comparison.
 
 ## Comparison history
 
@@ -375,7 +385,15 @@ combined images.
      the new 1600x900 reference, so it remained visibly undersized.
    - Scaled that local stage by 1.25 so it maps exactly to 1600x900 while
      continuing to inherit the global 100%, 90%, and 80% scale.
-4. Post-fix evidence:
+4. Compact-scale follow-up:
+   - P1: Home capped its own responsive stage at 1600x900, cancelling the
+     extra layout space exposed by 90% and 80% and leaving a centred island.
+   - Removed that second cap; the stage now consumes the complete logical
+     viewport while retaining the authored 1280x720 minimum.
+5. Post-fix evidence:
    - Native Home, Settings, and Song Select captures show no clipping,
      overlap, or unreadable persistent controls.
+   - Same-build 100%/90%/80% Home captures visibly differ and the smaller
+     layouts use the complete viewport rather than retaining the 100%
+     footprint.
    - Focused scaling tests pass 15/15.

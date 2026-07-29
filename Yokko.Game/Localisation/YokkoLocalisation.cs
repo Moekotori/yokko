@@ -284,6 +284,7 @@ internal static class YokkoStrings
                 "游玩偏好将与谱面规则和计分逻辑保持分离。",
                 "プレイ設定は譜面ルールやスコア処理から分離します。"),
             ["settings.gameplay.section_input"] = new("Input & key bindings", "输入与按键", "入力とキー設定"),
+            ["settings.gameplay.section_shortcuts"] = new("Mania shortcuts", "Mania 快捷键", "Maniaショートカット"),
             ["settings.gameplay.section_timing"] = new("Timing & judgement", "时序与判定", "タイミングと判定"),
             ["settings.gameplay.section_feedback"] = new("Feedback & behavior", "反馈与行为", "フィードバックと動作"),
 
@@ -448,6 +449,30 @@ internal static class YokkoStrings
                 "Clipboard does not contain a valid Yokko key profile.",
                 "剪贴板中没有有效的 Yokko 键位方案。",
                 "クリップボードに有効なYokkoキー設定がありません。"),
+            ["settings.gameplay.shortcut_decrease_speed"] = new(
+                "Decrease scroll speed",
+                "降低滚速",
+                "スクロール速度を下げる"),
+            ["settings.gameplay.shortcut_decrease_speed_note"] = new(
+                "osu!lazer default: F3",
+                "osu!lazer 默认：F3",
+                "osu!lazer 既定：F3"),
+            ["settings.gameplay.shortcut_increase_speed"] = new(
+                "Increase scroll speed",
+                "提高滚速",
+                "スクロール速度を上げる"),
+            ["settings.gameplay.shortcut_increase_speed_note"] = new(
+                "osu!lazer default: F4",
+                "osu!lazer 默认：F4",
+                "osu!lazer 既定：F4"),
+            ["settings.gameplay.shortcut_reset"] = new(
+                "Reset F3 / F4",
+                "恢复 F3 / F4",
+                "F3 / F4 に戻す"),
+            ["settings.gameplay.shortcut_hint"] = new(
+                "Click a shortcut, then press a key · duplicates swap automatically · Esc cancels",
+                "点击快捷键后按下新按键 · 重复时自动交换 · Esc 取消",
+                "項目を選んでキーを入力 · 重複時は自動交換 · Escでキャンセル"),
             ["settings.gameplay.key_capture_hint"] = new(
                 "Choose a lane, then press the key you want to use.",
                 "选择一个轨道，然后按下你想使用的按键。",

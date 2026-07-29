@@ -65,6 +65,29 @@ public sealed class GameplaySettingsTest
     }
 
     [Test]
+    public void EveryLazerManiaLayoutCanBeCustomised()
+    {
+        var settings = new YokkoGameplaySettings();
+
+        Assert.That(settings.SupportedKeyModes, Has.Count.EqualTo(15));
+        foreach (KeyMode mode in settings.SupportedKeyModes)
+        {
+            Assert.That(
+                settings.GetKeys(mode),
+                Has.Count.EqualTo((int)mode),
+                mode.ToString());
+        }
+
+        settings.SetBinding(KeyMode.TenKey, 0, Key.Z);
+        settings.SetBinding(KeyMode.TwentyKey, 19, Key.Slash);
+
+        Assert.That(settings.GetKeys(KeyMode.TenKey)[0], Is.EqualTo(Key.Z));
+        Assert.That(
+            settings.GetKeys(KeyMode.TwentyKey)[19],
+            Is.EqualTo(Key.Slash));
+    }
+
+    [Test]
     public void DualStageModesUseLazerDefaultLayout()
     {
         KeyModeBindings bindings = KeyModeBindings.ForMode(
@@ -262,6 +285,8 @@ public sealed class GameplaySettingsTest
                 firstConfig.BindGameplaySettings(firstSettings);
                 firstSettings.SetBinding(KeyMode.FourKey, 0, Key.A);
                 firstSettings.SetBinding(KeyMode.SevenKey, 3, Key.V);
+                firstSettings.SetBinding(KeyMode.TenKey, 0, Key.Z);
+                firstSettings.SetBinding(KeyMode.TwentyKey, 19, Key.Slash);
                 firstSettings.SetScrollSpeed(26.4);
                 firstSettings.QuaverScrollRateNormalization.Value = 60;
                 firstSettings.ShowLanePressFeedback.Value = false;
@@ -281,6 +306,12 @@ public sealed class GameplaySettingsTest
                 Assert.That(
                     restoredSettings.GetKeys(KeyMode.SevenKey)[3],
                     Is.EqualTo(Key.V));
+                Assert.That(
+                    restoredSettings.GetKeys(KeyMode.TenKey)[0],
+                    Is.EqualTo(Key.Z));
+                Assert.That(
+                    restoredSettings.GetKeys(KeyMode.TwentyKey)[19],
+                    Is.EqualTo(Key.Slash));
                 Assert.That(
                     restoredSettings.ScrollSpeed.Value,
                     Is.EqualTo(26.4).Within(0.001));
@@ -303,6 +334,59 @@ public sealed class GameplaySettingsTest
             if (Directory.Exists(directory))
                 Directory.Delete(directory, true);
         }
+    }
+
+    [Test]
+    public void KeyProfileRoundTripIncludesEveryManiaMode()
+    {
+        var source = new YokkoGameplaySettings();
+        source.SetBinding(KeyMode.TwoKey, 0, Key.Z);
+        source.SetBinding(KeyMode.TwentyKey, 19, Key.Slash);
+
+        string encoded = GameplayKeyProfileCodec.Encode(source);
+        var restored = new YokkoGameplaySettings();
+        GameplayKeyProfileCodec.DecodeAndApply(encoded, restored);
+
+        Assert.That(encoded, Does.StartWith("YOKKO-KEYS-V2|1K="));
+        foreach (KeyMode mode in source.SupportedKeyModes)
+        {
+            Assert.That(
+                restored.GetKeys(mode),
+                Is.EqualTo(source.GetKeys(mode)),
+                mode.ToString());
+        }
+    }
+
+    [Test]
+    public void LegacyFourAndSevenKeyProfileStillImports()
+    {
+        var settings = new YokkoGameplaySettings();
+
+        GameplayKeyProfileCodec.DecodeAndApply(
+            "YOKKO-KEYS-V1|4K=Z,X,Period,Slash|7K=A,S,D,Space,J,K,L",
+            settings);
+
+        Assert.That(
+            settings.GetKeys(KeyMode.FourKey),
+            Is.EqualTo(new[] { Key.Z, Key.X, Key.Period, Key.Slash }));
+        Assert.That(
+            settings.GetKeys(KeyMode.SevenKey),
+            Is.EqualTo(new[]
+            {
+                Key.A,
+                Key.S,
+                Key.D,
+                Key.Space,
+                Key.J,
+                Key.K,
+                Key.L,
+            }));
+        Assert.That(
+            settings.GetKeys(KeyMode.TenKey)[0],
+            Is.EqualTo(Key.A));
+        Assert.That(
+            settings.GetKeys(KeyMode.TenKey)[9],
+            Is.EqualTo(Key.Semicolon));
     }
 
     [Test]

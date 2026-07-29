@@ -1372,8 +1372,10 @@ public partial class GameplayScreen : Screen
     {
         double amount = key switch
         {
-            Key.F4 => OsuManiaScrollSpeed.ShortcutStep,
-            Key.F3 => -OsuManiaScrollSpeed.ShortcutStep,
+            _ when key == gameplaySettings.IncreaseScrollSpeedKey.Value =>
+                OsuManiaScrollSpeed.ShortcutStep,
+            _ when key == gameplaySettings.DecreaseScrollSpeedKey.Value =>
+                -OsuManiaScrollSpeed.ShortcutStep,
             Key.Plus or Key.KeypadPlus when controlPressed =>
                 OsuManiaScrollSpeed.ShortcutStep,
             Key.Minus or Key.KeypadMinus when controlPressed =>

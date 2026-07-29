@@ -160,7 +160,7 @@ internal partial class GameplayModListItem : ClickableContainer
             {
                 Position = new Vector2(52, 2),
                 Text = definition.Name,
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Display(13),
                 Colour = HomeControlColours.Navy,
             },
             description = new SpriteText
@@ -169,7 +169,7 @@ internal partial class GameplayModListItem : ClickableContainer
                 Text = selectable
                     ? shorten(definition.Description, 34)
                     : "Requires an osu!standard chart.",
-                Font = HomeTypography.Body(9),
+                Font = HomeTypography.Body(9.5f),
                 Colour = new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,

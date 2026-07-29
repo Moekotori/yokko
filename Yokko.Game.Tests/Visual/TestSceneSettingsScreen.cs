@@ -311,6 +311,39 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestEveryManiaKeyModeCanBeEdited()
+        {
+            GameplaySettingsPanel gameplay = null;
+
+            AddStep("open Gameplay", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Gameplay));
+            AddStep("capture Gameplay", () =>
+                gameplay = (GameplaySettingsPanel)settingsScreen.ActivePanel);
+            AddStep("select 10K + 10K", () =>
+                gameplay.SelectKeyMode(KeyMode.TwentyKey));
+            AddAssert("all dual-stage lanes are visible", () =>
+                gameplay.SelectedKeyMode == KeyMode.TwentyKey
+                && gameplay.VisibleBindingCardCount == 20);
+            AddStep("bind final dual-stage lane", () =>
+            {
+                gameplay.BeginKeyCapture(19);
+                gameplay.HandleKeyDown(Key.Slash);
+            });
+            AddAssert("20K custom key saved", () =>
+                gameplay.GetBinding(KeyMode.TwentyKey, 19) == Key.Slash);
+            AddStep("next wraps to 1K", () =>
+                gameplay.SelectAdjacentKeyMode(1));
+            AddAssert("mode picker wrapped", () =>
+                gameplay.SelectedKeyMode == KeyMode.OneKey
+                && gameplay.VisibleBindingCardCount == 1);
+            AddStep("restore 10K + 10K defaults", () =>
+            {
+                gameplay.SelectKeyMode(KeyMode.TwentyKey);
+                gameplay.ResetSelectedBindings();
+            });
+        }
+
+        [Test]
         public void TestGameplayInputMonitorPresetsAndCalibrationState()
         {
             GameplaySettingsPanel gameplay = null;
@@ -355,7 +388,8 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("split preset applied", () =>
                 gameplay.GetBinding(KeyMode.FourKey, 0) == Key.Z
                 && gameplay.GetBinding(KeyMode.FourKey, 3) == Key.Slash);
-            AddStep("copy 4K to 7K", gameplay.CopySelectedBindings);
+            AddStep("copy 4K to 7K", () =>
+                gameplay.CopySelectedBindings());
             AddAssert("central lanes copied to 7K", () =>
                 gameplay.GetBinding(KeyMode.SevenKey, 1) == Key.Z
                 && gameplay.GetBinding(KeyMode.SevenKey, 2) == Key.X
