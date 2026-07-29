@@ -276,6 +276,9 @@ HitObjects:
                         new Yokko.Core.Timing.YokkoScrollVelocity(
                             1018.2766723632812,
                             0),
+                        new Yokko.Core.Timing.YokkoScrollVelocity(
+                            1704,
+                            1),
                     }));
             });
         }

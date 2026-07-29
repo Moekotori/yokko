@@ -247,7 +247,10 @@ internal static class ScrollVelocityConversion
             : hitObjects.Max(static hitObject =>
                 hitObject.EndTimeMilliseconds ?? hitObject.StartTimeMilliseconds);
 
-        var durations = new Dictionary<double, double>();
+        var durations =
+            new Dictionary<
+                double,
+                (double Duration, double BeatLength)>();
 
         for (int i = 0; i < activePoints.Length; i++)
         {
@@ -264,15 +267,21 @@ internal static class ScrollVelocityConversion
                 Math.Round(point.BeatLengthMilliseconds * 1000) / 1000;
             double duration = Math.Max(0, nextTime - currentTime);
 
-            durations[roundedBeatLength] =
-                durations.GetValueOrDefault(roundedBeatLength) + duration;
+            (double accumulatedDuration, double representativeBeatLength) =
+                durations.GetValueOrDefault(
+                    roundedBeatLength,
+                    (0, point.BeatLengthMilliseconds));
+            durations[roundedBeatLength] = (
+                accumulatedDuration + duration,
+                representativeBeatLength);
         }
 
         return durations.Count == 0
             ? activePoints[0].BeatLengthMilliseconds
-            : durations.OrderByDescending(static pair => pair.Value)
+            : durations.OrderByDescending(
+                           static pair => pair.Value.Duration)
                        .First()
-                       .Key;
+                       .Value.BeatLength;
     }
 }
 
