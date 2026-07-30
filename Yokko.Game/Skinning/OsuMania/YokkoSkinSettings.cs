@@ -9,4 +9,10 @@ namespace Yokko.Game.Skinning.OsuMania;
 internal sealed class YokkoSkinSettings
 {
     public readonly Bindable<string> SelectedSkinId = new(string.Empty);
+
+    /// <summary>
+    /// osu!stable exposes the same choice in its options; when disabled the
+    /// skin's comboburst-mania character is never shown during gameplay.
+    /// </summary>
+    public readonly BindableBool ShowComboBursts = new(true);
 }

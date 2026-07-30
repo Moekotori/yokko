@@ -23,7 +23,7 @@ internal partial class SkinSettingsPanel : CompositeDrawable
 
     internal int SkinCount { get; private set; }
 
-    public SkinSettingsPanel(OsuManiaSkinLibrary library)
+    public SkinSettingsPanel(OsuManiaSkinLibrary library, YokkoSkinSettings settings)
     {
         this.library = library;
         RelativeSizeAxes = Axes.Both;
@@ -46,7 +46,7 @@ internal partial class SkinSettingsPanel : CompositeDrawable
             new BasicScrollContainer
             {
                 Position = new Vector2(378, 310),
-                Size = new Vector2(840, 282),
+                Size = new Vector2(840, 236),
                 ScrollbarVisible = false,
                 Child = skinList = new FillFlowContainer
                 {
@@ -55,6 +55,21 @@ internal partial class SkinSettingsPanel : CompositeDrawable
                     Direction = FillDirection.Vertical,
                     Spacing = new Vector2(0, 10),
                 },
+            },
+            new SpriteText
+            {
+                Position = new Vector2(378, 558),
+                Text = YokkoStrings.Get("settings.skins.section_gameplay"),
+                Font = HomeTypography.Display(24),
+                Colour = HomeControlColours.Navy,
+            },
+            new GameplayInlineToggle(
+                YokkoStrings.Get("settings.skins.combo_bursts"),
+                YokkoStrings.Get("settings.skins.combo_bursts_note"),
+                settings.ShowComboBursts)
+            {
+                Position = new Vector2(380, 592),
+                Size = new Vector2(826, 26),
             },
             new SettingsPanelFooter(
                 YokkoStrings.Get("settings.skins.drop_hint")),

@@ -454,6 +454,18 @@ internal static class YokkoStrings
             ["settings.skins.importing"] = new("Importing osu!mania skin", "正在导入 osu!mania 皮肤", "osu!mania スキンを導入中"),
             ["settings.skins.import_success"] = new("Skin ready", "皮肤已就绪", "スキンの準備完了"),
             ["settings.skins.import_failed"] = new("Skin import failed", "皮肤导入失败", "スキンの導入に失敗"),
+            ["settings.skins.section_gameplay"] = new(
+                "Gameplay",
+                "游玩效果",
+                "ゲームプレイ"),
+            ["settings.skins.combo_bursts"] = new(
+                "Combo bursts",
+                "连击人物",
+                "コンボバースト"),
+            ["settings.skins.combo_bursts_note"] = new(
+                "Show the skin's character when a combo milestone is reached",
+                "达到连击里程碑时展示皮肤人物",
+                "コンボ達成時にスキンのキャラクターを表示"),
             ["settings.gameplay.ready"] = new(
                 "Gameplay controls are live",
                 "游玩控制已实装",

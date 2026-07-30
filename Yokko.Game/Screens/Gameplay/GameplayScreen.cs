@@ -69,6 +69,8 @@ public partial class GameplayScreen : Screen
     private YokkoAudioSettings audioSettings { get; set; }
     [Resolved]
     private OsuManiaSkinLibrary skinLibrary { get; set; }
+    [Resolved(canBeNull: true)]
+    private YokkoSkinSettings skinSettings { get; set; }
     [Resolved]
     private YokkoGameplaySettings gameplaySettings { get; set; }
     [Resolved]
@@ -365,7 +367,8 @@ public partial class GameplayScreen : Screen
                     currentPlaybackRate(0)),
                 gameplaySettings.ShowLanePressFeedback.Value,
                 mods,
-                minesEnabled)
+                minesEnabled,
+                skinSettings?.ShowComboBursts.Value != false)
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,

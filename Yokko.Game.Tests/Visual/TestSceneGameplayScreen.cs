@@ -2099,6 +2099,93 @@ LightingLWidth: 20,20,20,20
                 state.Combo == 100
                 && playfield.ComboBurstCount == 1
                 && playfield.LastComboBurstRightSide == false);
+            AddAssert("burst hugs the left stage edge", () =>
+            {
+                // The fixture texture is 120px wide, displayed at 75 units.
+                // The burst must start off-stage left and rest with only a
+                // small overlap onto the stage, never sweeping across it.
+                const float spriteWidth = 120
+                                          / OsuManiaSkinConfiguration
+                                              .LegacyPositionScaleFactor;
+                return playfield.LastComboBurstStartX < 0
+                       && playfield.LastComboBurstRestX >= 0
+                       && playfield.LastComboBurstRestX
+                       <= spriteWidth * 0.25f;
+            });
+            AddStep("remove combo burst fixture", () =>
+            {
+                playfield.Expire();
+                skin.Dispose();
+            });
+        }
+
+        [Test]
+        public void TestLegacyManiaComboBurstDisabledBySetting()
+        {
+            string skinPath = createTestSkin(
+                "ComboBurstStyle: Left");
+            using (var image = new Image<Rgba32>(
+                       120,
+                       240,
+                       new Rgba32(240, 120, 180, 255)))
+            {
+                image.SaveAsPng(
+                    Path.Combine(skinPath, "comboburst-mania.png"));
+            }
+
+            YokkoBeatmap beatmap = new(
+                "Combo burst disabled fixture",
+                "Yokko",
+                "Codex",
+                "100 combo",
+                KeyMode.FourKey,
+                ChartSourceFormat.Yokko,
+                [YokkoTimingPoint.Default],
+                null,
+                Enumerable.Range(0, 100)
+                          .Select(index => new YokkoHitObject(
+                              index % 4,
+                              1000 + index * 20,
+                              null,
+                              HitObjectKind.Tap))
+                          .ToArray());
+            var state = new BeatmapJudgementState(beatmap);
+            OsuManiaSkin skin = null;
+            GameplayPlayfield playfield = null;
+
+            AddStep("load combo burst skin with bursts disabled", () =>
+            {
+                skin = OsuManiaSkin.Load(
+                    skinPath,
+                    4,
+                    renderer);
+                Add(playfield = new GameplayPlayfield(
+                    beatmap,
+                    KeyModeBindings.ForMode(KeyMode.FourKey),
+                    skin,
+                    showComboBursts: false));
+            });
+            AddUntilStep("combo burst playfield loaded", () =>
+                playfield?.IsLoaded == true);
+            AddStep("reach 100 combo", () =>
+            {
+                for (int index = 0; index < beatmap.HitObjects.Count; index++)
+                {
+                    YokkoHitObject note = beatmap.HitObjects[index];
+                    if (state.TryJudgeLanePress(
+                            note.Lane,
+                            note.StartTimeMilliseconds) == null)
+                    {
+                        throw new InvalidOperationException(
+                            $"Could not judge combo fixture note {index}.");
+                    }
+                }
+
+                playfield.UpdateGameplayTime(3000, state);
+            });
+            AddAssert("no combo burst is emitted", () =>
+                state.Combo == 100
+                && playfield.ComboBurstCount == 0);
             AddStep("remove combo burst fixture", () =>
             {
                 playfield.Expire();

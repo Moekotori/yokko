@@ -31,7 +31,7 @@ public partial class MainScreen : Screen
     private const float fullPlayerCardY = 700;
     private const float fullStatusBarY = 864;
     private const float musicPlayerHeight = 72;
-    // 播放器底部为贴底整曲波形带（56 + 8）让位，并留 4px 呼吸缝。
+    // 播放器底部为贴底波形带让位（带高约 64，并留 4px 呼吸缝）；带内立柱经卡片下方时自动收低。
     private const float musicPlayerBottomMargin = 68;
     private const double exitHoldDuration = 2000;
     private const double bubbleIdleLineInterval = 8000;
@@ -155,11 +155,10 @@ public partial class MainScreen : Screen
                         Size = new Vector2(designedWidth, designedHeight),
                         Child = rightStage = createRightStage(mascotTexture, bubbleStickerTexture),
                     },
-                    // 贴底整曲波形带：横贯舞台底部，盖在右舞台之上、左侧卡片之下，
-                    // 与顶部字幕带、底部框线一起给构图收口。
+                    // 贴底整曲波形带：横贯舞台底边，立柱压在底部框线上生长，
+                    // 盖在右舞台之上、左侧卡片之下，与顶部字幕带一起给构图收口。
                     waveform = new HomeWaveformVisualiser
                     {
-                        Position = new Vector2(0, -HomeWaveformVisualiser.BottomMargin),
                         Alpha = 0,
                     },
                     // 点击涟漪：盖在右舞台之上、左侧卡片与工具区之下。
@@ -562,7 +561,7 @@ public partial class MainScreen : Screen
     /// </summary>
     private void updateWaveformObstacles(Vector2 stageSize, Vector2 rightStageOffset)
     {
-        float bandBottom = stageSize.Y - HomeWaveformVisualiser.BottomMargin;
+        float bandBottom = stageSize.Y;
         float playerLeft = 788 + rightStageOffset.X;
         // 播放器卡片高 72，含 4px 投影。
         float playerBottom = rightStageOffset.Y + musicPlayer.Y + 76;

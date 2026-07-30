@@ -121,6 +121,10 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     internal bool? LastComboBurstRightSide { get; private set; }
 
+    internal float? LastComboBurstStartX { get; private set; }
+
+    internal float? LastComboBurstRestX { get; private set; }
+
     internal bool ConstantSpeedEnabled =>
         mods.Contains(ManiaModId.ConstantSpeed);
 
@@ -131,7 +135,8 @@ public partial class GameplayPlayfield : CompositeDrawable
         double approachTimeMilliseconds = 1800,
         bool showLanePressFeedback = true,
         ManiaModSet mods = null,
-        bool showMines = true)
+        bool showMines = true,
+        bool showComboBursts = true)
     {
         this.mods = mods ?? ManiaModSet.Empty;
         this.approachTimeMilliseconds = approachTimeMilliseconds;
@@ -693,7 +698,7 @@ public partial class GameplayPlayfield : CompositeDrawable
             }
         }
 
-        if (activeSkin != null)
+        if (activeSkin != null && showComboBursts)
         {
             comboBurstTextures =
                 activeSkin.GetAnimationFrames("comboburst-mania");
@@ -1062,19 +1067,29 @@ public partial class GameplayPlayfield : CompositeDrawable
         float stageLeft = baseStageXs[stageIndex];
         float stageRight =
             stageLeft + baseStageWidths[stageIndex];
+        float width =
+            texture.DisplayWidth
+            / OsuManiaSkinConfiguration.LegacyPositionScaleFactor;
+        // osu!stable anchors combobursts at the side of the stage, not across
+        // it: the character slides in from outside the stage edge, rests with
+        // only a small overlap onto the stage, then slides back out the same
+        // side. Right-side bursts are horizontally flipped.
+        const float restOverlap = 0.12f;
+        float restX = rightSide
+            ? stageRight + width * (1 - restOverlap)
+            : stageLeft + width * restOverlap;
+        float startX = rightSide
+            ? restX + width
+            : restX - width;
         var burst = new Sprite
         {
             Name = "Legacy mania combo burst",
-            Origin = rightSide
-                ? Anchor.BottomLeft
-                : Anchor.BottomRight,
-            Position = new Vector2(
-                rightSide ? stageLeft : stageRight,
-                480),
+            // Origin is always the bottom-right corner so the sprite occupies
+            // [X - width, X] regardless of the right-side flip.
+            Origin = Anchor.BottomRight,
+            Position = new Vector2(startX, 480),
             Size = new Vector2(
-                texture.DisplayWidth
-                / OsuManiaSkinConfiguration
-                    .LegacyPositionScaleFactor,
+                width,
                 texture.DisplayHeight
                 / OsuManiaSkinConfiguration
                     .LegacyPositionScaleFactor),
@@ -1083,16 +1098,17 @@ public partial class GameplayPlayfield : CompositeDrawable
             Alpha = 0,
         };
         comboBurstLayer.Add(burst);
-        burst.FadeIn(250);
-        burst.MoveToX(
-            rightSide ? stageRight : stageLeft,
-            1400,
-            Easing.OutQuint);
-        burst.Delay(400)
-             .FadeOut(1000)
+        burst.FadeIn(200);
+        burst.MoveToX(restX, 650, Easing.OutQuint)
+             .Delay(450)
+             .MoveToX(startX, 600, Easing.InQuint);
+        burst.Delay(1350)
+             .FadeOut(350)
              .Expire();
         ComboBurstCount++;
         LastComboBurstRightSide = rightSide;
+        LastComboBurstStartX = startX;
+        LastComboBurstRestX = restX;
     }
 
     private void applyVisibilityPolicy()

@@ -65,6 +65,7 @@ internal enum YokkoSetting
     DisplayFrameLimit,
     DisplayShowPerformanceReadout,
     SkinSelectedId,
+    SkinShowComboBursts,
     SettingsLastPage,
 }
 
@@ -166,6 +167,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoFrameRateLimits.LowLatencyDefault);
         SetDefault(YokkoSetting.DisplayShowPerformanceReadout, false);
         SetDefault(YokkoSetting.SkinSelectedId, string.Empty);
+        SetDefault(YokkoSetting.SkinShowComboBursts, true);
         SetDefault(YokkoSetting.SettingsLastPage, "Display");
     }
 
@@ -325,6 +327,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
     public void BindSkinSettings(YokkoSkinSettings settings)
     {
         BindWith(YokkoSetting.SkinSelectedId, settings.SelectedSkinId);
+        BindWith(YokkoSetting.SkinShowComboBursts, settings.ShowComboBursts);
     }
 
     public string GetLastSettingsPage() =>

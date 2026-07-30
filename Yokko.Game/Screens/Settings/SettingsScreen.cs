@@ -55,6 +55,8 @@ public partial class SettingsScreen : Screen
     [Resolved]
     private OsuManiaSkinLibrary skinLibrary { get; set; }
     [Resolved]
+    private YokkoSkinSettings skinSettings { get; set; }
+    [Resolved]
     private YokkoResourceStorage resourceStorage { get; set; }
 
     private Bindable<Size> windowedSize;
@@ -549,7 +551,9 @@ public partial class SettingsScreen : Screen
                 clipboard),
             SettingsPageKind.Shortcuts => new ShortcutSettingsPanel(
                 gameplaySettings),
-            SettingsPageKind.Skins => new SkinSettingsPanel(skinLibrary),
+            SettingsPageKind.Skins => new SkinSettingsPanel(
+                skinLibrary,
+                skinSettings),
             SettingsPageKind.Import => new ImportSettingsPanel(
                 importSettings,
                 resourceStorage,
