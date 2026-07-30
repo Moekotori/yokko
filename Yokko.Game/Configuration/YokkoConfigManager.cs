@@ -60,6 +60,8 @@ internal enum YokkoSetting
     GameplayKeysoundsEnabled,
     GameplayMinesEnabled,
     GameplayPauseWhenUnfocused,
+    GameplayResumeCountdownEnabled,
+    GameplayResumeCountdownMilliseconds,
     ManiaModConfiguration,
     DisplayUiScale,
     DisplayFrameLimit,
@@ -160,6 +162,13 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(YokkoSetting.GameplayKeysoundsEnabled, false);
         SetDefault(YokkoSetting.GameplayMinesEnabled, true);
         SetDefault(YokkoSetting.GameplayPauseWhenUnfocused, true);
+        SetDefault(YokkoSetting.GameplayResumeCountdownEnabled, true);
+        SetDefault(
+            YokkoSetting.GameplayResumeCountdownMilliseconds,
+            YokkoGameplaySettings.DefaultResumeCountdownMilliseconds,
+            YokkoGameplaySettings.MinimumResumeCountdownMilliseconds,
+            YokkoGameplaySettings.MaximumResumeCountdownMilliseconds,
+            YokkoGameplaySettings.ResumeCountdownStepMilliseconds);
         SetDefault(YokkoSetting.ManiaModConfiguration, string.Empty);
         SetDefault(YokkoSetting.DisplayUiScale, YokkoUiScale.Comfortable);
         SetDefault(
@@ -304,6 +313,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.GameplayPauseWhenUnfocused,
             settings.PauseWhenUnfocused);
+        BindWith(
+            YokkoSetting.GameplayResumeCountdownEnabled,
+            settings.ResumeCountdownEnabled);
+        BindWith(
+            YokkoSetting.GameplayResumeCountdownMilliseconds,
+            settings.ResumeCountdownMilliseconds);
     }
 
     public void BindDisplaySettings(YokkoDisplaySettings settings)

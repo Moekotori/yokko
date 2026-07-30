@@ -57,6 +57,8 @@ public partial class SongSelectScreen : Screen
     private readonly List<SongSelectSongRow> rows = new();
     private readonly HashSet<string> collapsedPackages =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, SongSelectPackageHeader> packageHeaders =
+        new(StringComparer.OrdinalIgnoreCase);
 
     private TextureStore textures;
     private TextureStore chartArtworkTextures;
@@ -203,7 +205,17 @@ public partial class SongSelectScreen : Screen
         if (!collapsedPackages.Add(packageId))
             collapsedPackages.Remove(packageId);
 
-        applyFilters();
+        // 展开/折叠只影响列表排布：不走 applyFilters（会把折叠进去的选中顶
+        // 替换成第一首歌），也不重播整列表的入场动画、不把滚动条拽回选中行。
+        // 只就地重建，并让被点的图包头保持在视野里。
+        rebuildSongList(animate: false);
+
+        if (packageHeaders.TryGetValue(packageId, out SongSelectPackageHeader header))
+        {
+            Scheduler.AddDelayed(
+                () => songScroll?.ScrollIntoView(header, false),
+                80);
+        }
     }
 
     [BackgroundDependencyLoader]
@@ -1818,13 +1830,14 @@ public partial class SongSelectScreen : Screen
         return flow;
     }
 
-    private void rebuildSongList()
+    private void rebuildSongList(bool animate = true)
     {
         if (songList == null)
             return;
 
         songList.Clear();
         rows.Clear();
+        packageHeaders.Clear();
         navigableEntries = [];
         int drawableIndex = 0;
 
@@ -1850,15 +1863,19 @@ public partial class SongSelectScreen : Screen
                     songCount,
                     groupEntries.Length,
                     collapsed,
-                    () => TogglePackage(first.PackageId))
+                    () => TogglePackage(first.PackageId));
+                packageHeaders[first.PackageId] = header;
+
+                if (animate)
                 {
-                    Alpha = 0,
-                    X = 8,
-                };
+                    header.Alpha = 0;
+                    header.X = 8;
+                    header.Delay(Math.Min(drawableIndex++, max_staggered_rows) * list_refresh_stagger)
+                          .FadeIn(150, Easing.OutQuint)
+                          .MoveToX(0, 210, Easing.OutQuint);
+                }
+
                 songList.Add(header);
-                header.Delay(Math.Min(drawableIndex++, max_staggered_rows) * list_refresh_stagger)
-                      .FadeIn(150, Easing.OutQuint)
-                      .MoveToX(0, 210, Easing.OutQuint);
             }
 
             if (collapsed)
@@ -1876,21 +1893,29 @@ public partial class SongSelectScreen : Screen
                         PlaySelected();
                     });
                 row.SetSelected(entry == selectedEntry);
-                row.Alpha = 0;
-                row.X = 14;
+
+                if (animate)
+                {
+                    row.Alpha = 0;
+                    row.X = 14;
+                    double delay = Math.Min(drawableIndex++, max_staggered_rows)
+                                   * list_refresh_stagger;
+                    row.Delay(delay)
+                       .FadeIn(170, Easing.OutQuint)
+                       .MoveToX(0, 240, Easing.OutQuint);
+                }
+
                 rows.Add(row);
                 navigableEntries.Add(entry);
                 songList.Add(row);
-
-                double delay = Math.Min(drawableIndex++, max_staggered_rows)
-                               * list_refresh_stagger;
-                row.Delay(delay)
-                   .FadeIn(170, Easing.OutQuint)
-                   .MoveToX(0, 240, Easing.OutQuint);
             }
         }
 
         noResults.FadeTo(visibleEntries.Count == 0 ? 1 : 0, 140, Easing.OutQuint);
+
+        // 展开/折叠重建时不把滚动条拽回选中行，由 TogglePackage 自行锚定图包头。
+        if (!animate)
+            return;
 
         SongSelectSongRow selectedRow = rows.FirstOrDefault(row =>
             row.Entry == selectedEntry);

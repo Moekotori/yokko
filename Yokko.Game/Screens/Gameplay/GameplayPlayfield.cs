@@ -267,6 +267,7 @@ public partial class GameplayPlayfield : CompositeDrawable
                                 })
                                 .ToArray();
 
+        float[] noteDepths = computeNoteDepths(beatmap.HitObjects);
         noteDrawables = beatmap.HitObjects.Select((hitObject, index) =>
         {
             float width = configuration?.ColumnWidths[hitObject.Lane] ?? laneWidth - 16;
@@ -293,9 +294,13 @@ public partial class GameplayPlayfield : CompositeDrawable
             {
                 X = x,
                 Alpha = 0,
-                // Preserve beatmap ordering when notes leave and re-enter
-                // the active scene graph after seeks.
-                Depth = -index,
+                // osu!mania draws earlier hit objects on top of later ones
+                // within a column, so notes covered by a long note body (or
+                // stacked at the same position by SV) stay hidden behind the
+                // earlier object — the "hidden note" (藏键) behaviour.
+                // Reference: ppy/osu HitObjectContainer.Compare — "Put
+                // earlier hitobjects towards the end of the list".
+                Depth = noteDepths[index],
             };
         }).ToArray();
         ScrollVelocityMap[] noteScrollVelocityMaps =
@@ -1188,6 +1193,27 @@ public partial class GameplayPlayfield : CompositeDrawable
         double first,
         double second) =>
         new(Math.Min(first, second), Math.Max(first, second));
+
+    /// <summary>
+    /// Ranks hit objects by start time so earlier objects receive the lower
+    /// (front-most) depth. osu!framework draws higher-depth children first
+    /// (behind), mirroring osu!mania's per-column draw order.
+    /// </summary>
+    private static float[] computeNoteDepths(
+        IReadOnlyList<YokkoHitObject> hitObjects)
+    {
+        int[] order = Enumerable.Range(0, hitObjects.Count)
+                                .OrderBy(index =>
+                                    hitObjects[index].StartTimeMilliseconds)
+                                .ThenBy(static index => index)
+                                .ToArray();
+        float[] depths = new float[hitObjects.Count];
+
+        for (int rank = 0; rank < order.Length; rank++)
+            depths[order[rank]] = rank;
+
+        return depths;
+    }
 
     private static bool tryGetWarningArrowStartTime(
         YokkoBeatmap beatmap,

@@ -128,6 +128,9 @@ internal static class YokkoStrings
             ["gameplay.pause.title"] = new("Paused", "暂停", "一時停止"),
             ["gameplay.pause.subtitle"] = new("Catch your breath.", "先喘口气。", "ひと休み。"),
             ["gameplay.pause.bubble"] = new("Take a break!", "休息一下！", "ひと休み！"),
+            ["gameplay.pause.bubble_alt1"] = new("Ready?", "随时继续！", "いつでも！"),
+            ["gameplay.pause.bubble_alt2"] = new("Stretch!", "伸个懒腰！", "のびのび！"),
+            ["gameplay.pause.bubble_alt3"] = new("Hydrate!", "喝口水吧！", "水分補給！"),
             ["gameplay.pause.resume"] = new("Resume", "继续游戏", "ゲームに戻る"),
             ["gameplay.pause.resume_hint"] = new("ESC  RESUME", "ESC  继续", "ESC  再開"),
             ["gameplay.pause.retry"] = new("Restart", "重新开始", "リスタート"),
@@ -871,6 +874,14 @@ internal static class YokkoStrings
                 "Pause when Yokko loses focus",
                 "切换到其他窗口时自动暂停",
                 "別のウィンドウに切り替えると自動停止"),
+            ["settings.gameplay.resume_countdown"] = new(
+                "Resume countdown",
+                "恢复倒计时",
+                "再開カウントダウン"),
+            ["settings.gameplay.resume_countdown_note"] = new(
+                "Show a 3-2-1 buffer before resuming",
+                "恢复前显示 3·2·1 缓冲",
+                "再開前に 3・2・1 を表示"),
             ["settings.gameplay.enabled"] = new("Enabled", "已启用", "オン"),
             ["settings.gameplay.disabled"] = new("Disabled", "已关闭", "オフ"),
 

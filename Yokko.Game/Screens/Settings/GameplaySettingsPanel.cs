@@ -99,6 +99,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal bool PauseWhenUnfocused =>
         settings.PauseWhenUnfocused.Value;
 
+    internal bool ResumeCountdownEnabled =>
+        settings.ResumeCountdownEnabled.Value;
+
+    internal double ResumeCountdownMilliseconds =>
+        settings.ResumeCountdownMilliseconds.Value;
+
     internal bool IsCalibrationActive =>
         calibrationPreparing || calibrationSession != null;
 
@@ -344,6 +350,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal void SetPauseWhenUnfocused(bool enabled) =>
         settings.PauseWhenUnfocused.Value = enabled;
+
+    internal void SetResumeCountdownEnabled(bool enabled) =>
+        settings.ResumeCountdownEnabled.Value = enabled;
+
+    internal void SetResumeCountdownMilliseconds(double milliseconds) =>
+        settings.ResumeCountdownMilliseconds.Value = milliseconds;
 
     internal bool HandleKeyDown(Key key)
     {
@@ -898,8 +910,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             },
             new FillFlowContainer
             {
-                Position = new Vector2(20, 78),
-                Size = new Vector2(826, 84),
+                Position = new Vector2(20, 74),
+                Size = new Vector2(826, 76),
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(14, 0),
                 Children = new Drawable[]
@@ -910,20 +922,22 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                         YokkoStrings.Get(
                             "settings.gameplay.show_lane_feedback_note"),
                         FontAwesome.Solid.Keyboard,
-                        settings.ShowLanePressFeedback),
+                        settings.ShowLanePressFeedback,
+                        76),
                     new GameplayToggleCard(
                         YokkoStrings.Get(
                             "settings.gameplay.mines"),
                         YokkoStrings.Get(
                             "settings.gameplay.mines_note"),
                         FontAwesome.Solid.Bomb,
-                        settings.MinesEnabled),
+                        settings.MinesEnabled,
+                        76),
                 },
             },
             new FillFlowContainer
             {
-                Position = new Vector2(20, 172),
-                Size = new Vector2(826, 84),
+                Position = new Vector2(20, 156),
+                Size = new Vector2(826, 76),
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(14, 0),
                 Children = new Drawable[]
@@ -934,14 +948,16 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                         YokkoStrings.Get(
                             "settings.gameplay.keysounds_note"),
                         FontAwesome.Solid.VolumeUp,
-                        settings.KeysoundsEnabled),
+                        settings.KeysoundsEnabled,
+                        76),
                     new GameplayToggleCard(
                         YokkoStrings.Get(
                             "settings.gameplay.pause_when_unfocused"),
                         YokkoStrings.Get(
                             "settings.gameplay.pause_when_unfocused_note"),
                         FontAwesome.Solid.PauseCircle,
-                        settings.PauseWhenUnfocused),
+                        settings.PauseWhenUnfocused,
+                        76),
                 },
             },
             new GameplayInlineToggle(
@@ -951,7 +967,18 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                     "settings.gameplay.show_timing_bar_note"),
                 settings.ShowTimingBar)
             {
-                Position = new Vector2(20, 264),
+                Position = new Vector2(20, 240),
+                Size = new Vector2(800, 26),
+            },
+            new GameplayCountdownSettingRow(
+                YokkoStrings.Get(
+                    "settings.gameplay.resume_countdown"),
+                YokkoStrings.Get(
+                    "settings.gameplay.resume_countdown_note"),
+                settings.ResumeCountdownEnabled,
+                settings.ResumeCountdownMilliseconds)
+            {
+                Position = new Vector2(20, 272),
                 Size = new Vector2(800, 26),
             },
         });
@@ -2360,11 +2387,12 @@ internal partial class GameplayToggleCard : ClickableContainer
         LocalisableString title,
         LocalisableString note,
         IconUsage itemIcon,
-        BindableBool value)
+        BindableBool value,
+        float height = 84)
     {
         this.value = value;
         Action = () => value.Value = !value.Value;
-        Size = new Vector2(406, 84);
+        Size = new Vector2(406, height);
         Masking = true;
         CornerRadius = 8;
         BorderThickness = 1.2f;
@@ -2500,4 +2528,237 @@ internal partial class GameplayToggleCard : ClickableContainer
 
         base.Dispose(isDisposing);
     }
+}
+
+/// <summary>
+/// Feedback-section row combining the resume-countdown toggle with a compact
+/// duration stepper. Visually follows <see cref="GameplayInlineToggle"/> and
+/// dims the stepper while the countdown is disabled.
+/// </summary>
+internal partial class GameplayCountdownSettingRow : ClickableContainer
+{
+    private readonly BindableBool enabled;
+    private readonly Bindable<double> duration;
+    private readonly Box switchTrack;
+    private readonly Circle switchThumb;
+    private readonly SpriteText stateText;
+    private readonly SpriteText titleText;
+    private readonly SpriteText valueText;
+    private readonly Container stepperHost;
+
+    public override bool AcceptsFocus => true;
+
+    public GameplayCountdownSettingRow(
+        LocalisableString title,
+        LocalisableString note,
+        BindableBool enabled,
+        Bindable<double> duration)
+    {
+        this.enabled = enabled;
+        this.duration = duration;
+        Action = () => enabled.Value = !enabled.Value;
+
+        InternalChildren = new Drawable[]
+        {
+            titleText = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Text = title,
+                Font = HomeTypography.Display(15),
+                Colour = HomeControlColours.Navy,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 142,
+                Text = note,
+                Font = HomeTypography.Body(13),
+                Colour = SettingsTheme.MutedNavy,
+            },
+            stepperHost = new Container
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -142,
+                Size = new Vector2(136, 24),
+                Children = new Drawable[]
+                {
+                    new GameplayCountdownStepButton(
+                        FontAwesome.Solid.Minus,
+                        Anchor.CentreLeft,
+                        () => adjust(
+                            -YokkoGameplaySettings
+                                .ResumeCountdownStepMilliseconds)),
+                    valueText = new SpriteText
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Font = HomeTypography.Display(13),
+                        Colour = HomeControlColours.Navy,
+                    },
+                    new GameplayCountdownStepButton(
+                        FontAwesome.Solid.Plus,
+                        Anchor.CentreRight,
+                        () => adjust(
+                            YokkoGameplaySettings
+                                .ResumeCountdownStepMilliseconds)),
+                },
+            },
+            new Container
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -82,
+                Size = new Vector2(48, 24),
+                Masking = true,
+                CornerRadius = 12,
+                Children = new Drawable[]
+                {
+                    switchTrack = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = SettingsTheme.Divider,
+                    },
+                    switchThumb = new Circle
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.Centre,
+                        X = 12,
+                        Size = new Vector2(18),
+                        Colour = Color4.White,
+                    },
+                },
+            },
+            stateText = new SpriteText
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                Font = HomeTypography.Display(13),
+                Colour = HomeControlColours.Navy,
+            },
+        };
+
+        enabled.BindValueChanged(onEnabledChanged, true);
+        duration.BindValueChanged(onDurationChanged, true);
+    }
+
+    internal void AdjustDuration(double delta) => adjust(delta);
+
+    private void adjust(double delta)
+    {
+        if (!enabled.Value)
+            return;
+
+        double step =
+            YokkoGameplaySettings.ResumeCountdownStepMilliseconds;
+        double next = Math.Clamp(
+            duration.Value + delta,
+            YokkoGameplaySettings.MinimumResumeCountdownMilliseconds,
+            YokkoGameplaySettings.MaximumResumeCountdownMilliseconds);
+        duration.Value = Math.Round(next / step) * step;
+    }
+
+    private void onEnabledChanged(ValueChangedEvent<bool> change)
+    {
+        switchTrack.FadeColour(
+            change.NewValue ? HomeControlColours.Navy : SettingsTheme.Divider,
+            120,
+            Easing.OutQuint);
+        switchThumb.MoveToX(
+            change.NewValue ? 36 : 12,
+            120,
+            Easing.OutQuint);
+        stepperHost.FadeTo(
+            change.NewValue ? 1 : 0.35f,
+            120,
+            Easing.OutQuint);
+        stateText.Text = YokkoStrings.Get(change.NewValue
+            ? "settings.gameplay.enabled"
+            : "settings.gameplay.disabled");
+    }
+
+    private void onDurationChanged(ValueChangedEvent<double> change) =>
+        valueText.Text = $"{change.NewValue:0} ms";
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            TriggerClick();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        titleText.FadeColour(HomeControlColours.Pink, 100);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        titleText.FadeColour(HomeControlColours.Navy, 100);
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+        {
+            enabled.ValueChanged -= onEnabledChanged;
+            duration.ValueChanged -= onDurationChanged;
+        }
+
+        base.Dispose(isDisposing);
+    }
+}
+
+internal partial class GameplayCountdownStepButton : ClickableContainer
+{
+    private readonly Box background;
+
+    public GameplayCountdownStepButton(
+        IconUsage itemIcon,
+        Anchor anchor,
+        Action action)
+    {
+        Anchor = anchor;
+        Origin = anchor;
+        Size = new Vector2(26, 24);
+        Masking = true;
+        CornerRadius = 6;
+        BorderThickness = 1.2f;
+        BorderColour = SettingsTheme.Divider;
+        Action = action;
+
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.White,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(11),
+                Icon = itemIcon,
+                Colour = HomeControlColours.Pink,
+            },
+        };
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e) =>
+        background.FadeColour(Color4.White, 120, Easing.OutQuint);
 }

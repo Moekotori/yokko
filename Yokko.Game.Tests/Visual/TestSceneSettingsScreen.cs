@@ -386,6 +386,14 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SetPauseWhenUnfocused(false));
             AddAssert("pause when unfocused disabled", () =>
                 !gameplay.PauseWhenUnfocused);
+            AddStep("disable resume countdown", () =>
+                gameplay.SetResumeCountdownEnabled(false));
+            AddAssert("resume countdown disabled", () =>
+                !gameplay.ResumeCountdownEnabled);
+            AddStep("set countdown duration to 1500", () =>
+                gameplay.SetResumeCountdownMilliseconds(1500));
+            AddAssert("countdown duration applied", () =>
+                gameplay.ResumeCountdownMilliseconds == 1500);
             AddStep("open 7K bindings", () =>
             {
                 gameplay.SelectSection(GameplaySettingsSection.Input);
@@ -410,6 +418,10 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SetMinesEnabled(originalMinesEnabled);
                 gameplay.SetPauseWhenUnfocused(
                     originalPauseWhenUnfocused);
+                gameplay.SetResumeCountdownEnabled(true);
+                gameplay.SetResumeCountdownMilliseconds(
+                    YokkoGameplaySettings
+                        .DefaultResumeCountdownMilliseconds);
             });
         }
 

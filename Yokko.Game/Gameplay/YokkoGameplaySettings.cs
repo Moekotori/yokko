@@ -131,6 +131,23 @@ public sealed class YokkoGameplaySettings
 
     public readonly BindableBool PauseWhenUnfocused = new(true);
 
+    /// <summary>
+    /// Minimum buffered resume countdown. Anything shorter reads as an
+    /// instant resume rather than a readable countdown.
+    /// </summary>
+    public const double MinimumResumeCountdownMilliseconds = 300;
+
+    public const double MaximumResumeCountdownMilliseconds = 3000;
+
+    public const double DefaultResumeCountdownMilliseconds = 1050;
+
+    public const double ResumeCountdownStepMilliseconds = 50;
+
+    public readonly BindableBool ResumeCountdownEnabled = new(true);
+
+    public readonly Bindable<double> ResumeCountdownMilliseconds =
+        new(DefaultResumeCountdownMilliseconds);
+
     public readonly Bindable<Key> DecreaseScrollSpeedKey = new(Key.F3);
 
     public readonly Bindable<Key> IncreaseScrollSpeedKey = new(Key.F4);

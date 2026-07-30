@@ -274,7 +274,9 @@ internal sealed class ImportedChartLibrary
     {
         string packageName = resolvePackageName(results, sourcePath);
         results = normaliseCompilationMetadata(results);
-        bool isPackage = results.Count > 1 || isPackageExtension(sourcePath);
+        // 只有真正包含多张谱面的合集才算图包；单曲 .osz/.zip 只是一首歌，
+        // 不能因为扩展名就给它套上图包外壳。
+        bool isPackage = results.Count > 1;
 
         return results.Select((result, index) =>
                       {
@@ -380,16 +382,6 @@ internal sealed class ImportedChartLibrary
             libraryPath,
             ".yokko-cache",
             "star-ratings.json"));
-
-    private static bool isPackageExtension(string path)
-    {
-        string extension = Path.GetExtension(path);
-        return extension.Equals(".osz", StringComparison.OrdinalIgnoreCase)
-               || extension.Equals(".qp", StringComparison.OrdinalIgnoreCase)
-               || extension.Equals(".mcz", StringComparison.OrdinalIgnoreCase)
-               || extension.Equals(".zip", StringComparison.OrdinalIgnoreCase)
-               || extension.Equals(".smzip", StringComparison.OrdinalIgnoreCase);
-    }
 
     private static string resolveArtworkPath(
         ChartImportResult result,

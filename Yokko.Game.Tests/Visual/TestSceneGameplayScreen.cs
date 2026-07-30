@@ -626,6 +626,65 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestEarlierNotesDrawOnTopLikeOsuMania()
+        {
+            GameplayPlayfield playfield = null;
+            BeatmapJudgementState state = null;
+
+            AddStep("create hidden-note fixture", () =>
+            {
+                // Deliberately unsorted input: the covered tap (index 0)
+                // starts inside the hold (index 1). osu!mania hides notes
+                // underneath a long note body by drawing the earlier object
+                // on top, regardless of beatmap ordering.
+                // Reference: ppy/osu HitObjectContainer.Compare.
+                var beatmap = new YokkoBeatmap(
+                    "Hidden note draw order fixture",
+                    "Yokko",
+                    "Codex",
+                    "4K",
+                    KeyMode.FourKey,
+                    ChartSourceFormat.Yokko,
+                    [YokkoTimingPoint.Default],
+                    null,
+                    [
+                        new YokkoHitObject(
+                            0,
+                            3000,
+                            null,
+                            HitObjectKind.Tap),
+                        new YokkoHitObject(
+                            0,
+                            1000,
+                            5000,
+                            HitObjectKind.Hold),
+                        new YokkoHitObject(
+                            0,
+                            7000,
+                            null,
+                            HitObjectKind.Tap),
+                    ]);
+                state = new BeatmapJudgementState(beatmap);
+                playfield = new GameplayPlayfield(
+                    beatmap,
+                    KeyModeBindings.ForMode(KeyMode.FourKey));
+                Add(playfield);
+            });
+            AddUntilStep("hidden-note playfield loaded", () =>
+                playfield?.IsLoaded == true);
+            AddStep("update to middle of hold", () =>
+                playfield.UpdateGameplayTime(3000, state));
+            AddAssert("covered note sits behind the hold", () =>
+                playfield.GetDrawableNote(0).Depth
+                > playfield.GetDrawableNote(1).Depth);
+            AddAssert("later note sits behind earlier notes", () =>
+                playfield.GetDrawableNote(2).Depth
+                > playfield.GetDrawableNote(0).Depth);
+            AddStep("remove hidden-note playfield", () =>
+                playfield.Expire());
+        }
+
+        [Test]
         public void TestLazerStyleVisibilityModOverlays()
         {
             GameplayPlayfield hiddenPlayfield = null;
@@ -3038,6 +3097,254 @@ HitPosition: 400
                 gameplaySettings.SetShortcutBinding(
                     ManiaShortcutAction.MenuNext,
                     originalMenuNextKey);
+            });
+        }
+
+        [Test]
+        public void TestKeyRepeatDoesNotRetriggerOneShotActions()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                AudioPath = "repeat-fixture.mp3",
+            };
+            GameplayScreen gameplayScreen = null;
+            double originalSpeed = 0;
+
+            AddStep("open gameplay with audio", () =>
+            {
+                originalSpeed = gameplaySettings.ScrollSpeed.Value;
+                gameplaySettings.ResetShortcutBindings();
+                gameplaySettings.SetScrollSpeed(8);
+                gameplayScreen = new GameplayScreen(beatmap, audioEngine);
+                screenStack.Push(gameplayScreen);
+            });
+            AddUntilStep("audio starts", () =>
+                audioEngine.StartCount == 1);
+            AddStep("hold escape into auto-repeat", () =>
+            {
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Escape,
+                    true,
+                    false,
+                    false);
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Escape,
+                    true,
+                    false,
+                    false);
+            });
+            AddAssert("escape repeat never pauses", () =>
+                !gameplayScreen.IsPaused
+                && !gameplayScreen.PauseTransitionInProgress
+                && audioEngine.PauseCount == 0);
+            AddStep("press escape once", () =>
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Escape,
+                    false,
+                    false,
+                    false));
+            AddUntilStep("pause completes", () =>
+                gameplayScreen.IsPaused
+                && !gameplayScreen.PauseTransitionInProgress
+                && audioEngine.PauseCount == 1);
+            AddStep("escape keeps auto-repeating", () =>
+            {
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Escape,
+                    true,
+                    false,
+                    false);
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Escape,
+                    true,
+                    false,
+                    false);
+            });
+            AddAssert("repeat never resumes", () =>
+                gameplayScreen.IsPaused
+                && audioEngine.SeekCount == 0);
+            AddStep("press escape again", () =>
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Escape,
+                    false,
+                    false,
+                    false));
+            AddUntilStep("resume completes", () =>
+                !gameplayScreen.IsPaused
+                && !gameplayScreen.PauseTransitionInProgress
+                && audioEngine.SeekCount == 1);
+            AddStep("hold ctrl plus into auto-repeat", () =>
+            {
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Plus,
+                    true,
+                    false,
+                    true);
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Plus,
+                    true,
+                    false,
+                    true);
+            });
+            AddAssert("scroll speed adjustment repeats", () =>
+                gameplaySettings.ScrollSpeed.Value == 10);
+            AddStep("restore scroll speed", () =>
+                gameplaySettings.SetScrollSpeed(originalSpeed));
+        }
+
+        [Test]
+        public void TestResumeCountdownBuffersAndCancels()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                AudioPath = "resume-countdown-fixture.mp3",
+            };
+            GameplayScreen gameplayScreen = null;
+
+            AddStep("open gameplay with audio", () =>
+            {
+                gameplaySettings.ResetShortcutBindings();
+                gameplayScreen = new GameplayScreen(beatmap, audioEngine);
+                screenStack.Push(gameplayScreen);
+                gameplayScreen.ResumeCountdownMillisecondsOverride = 400;
+            });
+            AddUntilStep("audio starts", () =>
+                audioEngine.StartCount == 1);
+            AddStep("pause gameplay", () =>
+                gameplayScreen.TogglePause());
+            AddUntilStep("pause completes", () =>
+                gameplayScreen.IsPaused
+                && !gameplayScreen.PauseTransitionInProgress
+                && audioEngine.PauseCount == 1);
+            AddStep("request resume", () =>
+                gameplayScreen.TogglePause());
+            AddAssert("countdown buffers the resume", () =>
+                gameplayScreen.ResumeCountdownInProgress
+                && gameplayScreen.IsPaused
+                && audioEngine.SeekCount == 0);
+            AddStep("cancel resume with escape", () =>
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Escape,
+                    false,
+                    false,
+                    false));
+            AddAssert("cancel returns to the pause menu", () =>
+                !gameplayScreen.ResumeCountdownInProgress
+                && gameplayScreen.IsPaused
+                && gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Any()
+                && audioEngine.SeekCount == 0);
+            AddStep("resume for real", () =>
+                gameplayScreen.TogglePause());
+            AddUntilStep("countdown completes and resumes", () =>
+                !gameplayScreen.ResumeCountdownInProgress
+                && !gameplayScreen.IsPaused
+                && audioEngine.SeekCount == 1);
+            AddStep("restore countdown", () =>
+                gameplayScreen.ResumeCountdownMillisecondsOverride = null);
+        }
+
+        [Test]
+        public void TestResumeCountdownCanBeDisabled()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                AudioPath = "resume-countdown-off-fixture.mp3",
+            };
+            GameplayScreen gameplayScreen = null;
+            bool originalEnabled = true;
+
+            AddStep("open gameplay with countdown disabled", () =>
+            {
+                gameplaySettings.ResetShortcutBindings();
+                originalEnabled =
+                    gameplaySettings.ResumeCountdownEnabled.Value;
+                gameplaySettings.ResumeCountdownEnabled.Value = false;
+                gameplayScreen = new GameplayScreen(beatmap, audioEngine);
+                screenStack.Push(gameplayScreen);
+            });
+            AddUntilStep("audio starts", () =>
+                audioEngine.StartCount == 1);
+            AddStep("pause gameplay", () =>
+                gameplayScreen.TogglePause());
+            AddUntilStep("pause completes", () =>
+                gameplayScreen.IsPaused
+                && !gameplayScreen.PauseTransitionInProgress
+                && audioEngine.PauseCount == 1);
+            AddStep("request resume", () =>
+                gameplayScreen.TogglePause());
+            AddUntilStep("resume is immediate", () =>
+                !gameplayScreen.IsPaused
+                && audioEngine.SeekCount == 1);
+            AddAssert("countdown never engaged", () =>
+                !gameplayScreen.ResumeCountdownInProgress
+                && gameplayScreen
+                    .ChildrenOfType<GameplayResumeCountdown>()
+                    .Any() == false);
+            AddStep("restore countdown setting", () =>
+                gameplaySettings.ResumeCountdownEnabled.Value =
+                    originalEnabled);
+        }
+
+        [Test]
+        public void TestQuickRetryRequiresHold()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                AudioPath = "quick-retry-fixture.mp3",
+            };
+            GameplayScreen gameplayScreen = null;
+            double originalHold = 0;
+
+            AddStep("open gameplay with audio", () =>
+            {
+                gameplaySettings.ResetShortcutBindings();
+                gameplayScreen = new GameplayScreen(beatmap, audioEngine);
+                screenStack.Push(gameplayScreen);
+                originalHold = gameplayScreen.QuickRetryHoldMilliseconds;
+            });
+            AddUntilStep("audio starts", () =>
+                audioEngine.StartCount == 1);
+            AddStep("tap quick retry briefly", () =>
+            {
+                gameplayScreen.QuickRetryHoldMilliseconds = 10000;
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Tilde,
+                    false,
+                    false,
+                    false);
+            });
+            AddAssert("hold indicator activates without retry", () =>
+                gameplayScreen.QuickRetryHoldActive
+                && audioEngine.StopCount == 0);
+            AddStep("release before the threshold", () =>
+                gameplayScreen.HandleKeyUpInput(Key.Tilde));
+            AddAssert("release cancels the hold", () =>
+                !gameplayScreen.QuickRetryHoldActive);
+            AddWaitStep("wait past any hidden retry", 10);
+            AddAssert("no retry happened", () =>
+                audioEngine.StopCount == 0);
+            AddStep("hold quick retry to the threshold", () =>
+            {
+                gameplayScreen.QuickRetryHoldMilliseconds = 60;
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Tilde,
+                    false,
+                    false,
+                    false);
+            });
+            AddUntilStep("hold fires the retry", () =>
+                audioEngine.StopCount == 1);
+            AddStep("restore hold duration", () =>
+            {
+                if (gameplayScreen != null)
+                    gameplayScreen.QuickRetryHoldMilliseconds =
+                        originalHold;
             });
         }
 

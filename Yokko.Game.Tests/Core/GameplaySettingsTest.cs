@@ -53,6 +53,11 @@ public sealed class GameplaySettingsTest
         Assert.That(settings.KeysoundsEnabled.Value, Is.False);
         Assert.That(settings.MinesEnabled.Value, Is.True);
         Assert.That(settings.PauseWhenUnfocused.Value, Is.True);
+        Assert.That(settings.ResumeCountdownEnabled.Value, Is.True);
+        Assert.That(
+            settings.ResumeCountdownMilliseconds.Value,
+            Is.EqualTo(
+                YokkoGameplaySettings.DefaultResumeCountdownMilliseconds));
         Assert.That(settings.DecreaseScrollSpeedKey.Value, Is.EqualTo(Key.F3));
         Assert.That(settings.IncreaseScrollSpeedKey.Value, Is.EqualTo(Key.F4));
         Assert.That(settings.PauseOrBackKey.Value, Is.EqualTo(Key.Escape));
@@ -397,6 +402,8 @@ public sealed class GameplaySettingsTest
                 firstSettings.KeysoundsEnabled.Value = false;
                 firstSettings.MinesEnabled.Value = false;
                 firstSettings.PauseWhenUnfocused.Value = false;
+                firstSettings.ResumeCountdownEnabled.Value = false;
+                firstSettings.ResumeCountdownMilliseconds.Value = 1500;
                 Assert.That(firstConfig.Save(), Is.True);
             }
 
@@ -456,6 +463,12 @@ public sealed class GameplaySettingsTest
                 Assert.That(
                     restoredSettings.PauseWhenUnfocused.Value,
                     Is.False);
+                Assert.That(
+                    restoredSettings.ResumeCountdownEnabled.Value,
+                    Is.False);
+                Assert.That(
+                    restoredSettings.ResumeCountdownMilliseconds.Value,
+                    Is.EqualTo(1500).Within(0.001));
             }
         }
         finally

@@ -124,11 +124,11 @@ CircleSize:4
 
             using (ZipArchive archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
             {
-                writeEntry(archive, "00-standard.osu", """
+                writeEntry(archive, "00-taiko.osu", """
 osu file format v14
 
 [General]
-Mode: 0
+Mode: 1
 
 [Difficulty]
 CircleSize:4

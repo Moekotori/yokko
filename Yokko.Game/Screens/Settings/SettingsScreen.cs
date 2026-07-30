@@ -38,6 +38,14 @@ public partial class SettingsScreen : Screen
     private const float designedHeight = 720;
     internal const float ReferenceLayoutScale = 1.25f;
 
+    /// <summary>
+    /// 吉祥物在 1280x720 设计稿里的位置。窗口更大时保持它与右/下边缘的
+    /// 设计间距，而不是留在原地把右侧让成空地。
+    /// </summary>
+    internal static readonly Vector2 MascotHomePosition = new(1185, 618);
+
+    private static readonly Vector2 watermarkHomePosition = new(614, 548);
+
     [Resolved]
     private FrameworkConfigManager frameworkConfig { get; set; }
 
@@ -71,8 +79,11 @@ public partial class SettingsScreen : Screen
     private Vector2 lastResponsiveStageSize;
     private Container decorationLayer;
     private Container mascotLayer;
+    private MascotButton mascotButton;
     private Sprite mascotPeek;
     private SpriteText watermark;
+    private Vector2 watermarkHome = watermarkHomePosition;
+    private Vector2[] decorationHomePositions;
     private Vector2 parallaxCurrent;
 
     [Resolved]
@@ -178,6 +189,12 @@ public partial class SettingsScreen : Screen
     protected override void LoadComplete()
     {
         base.LoadComplete();
+
+        // 记录装饰在设计稿中的位置，窗口变大时按比例铺到整个舞台，
+        // 避免装饰全挤在左上角、右侧空成一片。
+        decorationHomePositions = decorationLayer.Children
+                                                 .Select(child => child.Position)
+                                                 .ToArray();
 
         // 吉祥物呼吸式起伏，保持页面“活着”。
         mascotPeek.MoveToY(-8).MoveToY(0, 1800, Easing.InOutSine)
@@ -365,10 +382,10 @@ public partial class SettingsScreen : Screen
         var layer = new Container
         {
             RelativeSizeAxes = Axes.Both,
-            Child = new MascotButton
+            Child = mascotButton = new MascotButton
             {
                 Origin = Anchor.Centre,
-                Position = new Vector2(1185, 618),
+                Position = MascotHomePosition,
                 Size = new Vector2(165, 187),
                 Action = onMascotTapped,
                 Child = mascotSprite,
@@ -420,6 +437,8 @@ public partial class SettingsScreen : Screen
     /// </summary>
     private void spawnMascotSparkles()
     {
+        Vector2 origin = mascotButton.Position + new Vector2(0, -52);
+
         for (int i = 0; i < 4; i++)
         {
             (IconUsage icon, Color4 colour) = sparkleKinds[i % sparkleKinds.Length];
@@ -429,7 +448,7 @@ public partial class SettingsScreen : Screen
             var star = new SpriteIcon
             {
                 Origin = Anchor.Centre,
-                Position = new Vector2(1185, 566),
+                Position = origin,
                 Size = new Vector2(12 + (i % 2) * 5),
                 Icon = icon,
                 Colour = colour,
@@ -440,7 +459,7 @@ public partial class SettingsScreen : Screen
             mascotLayer.Add(star);
 
             star.Delay(i * 45)
-                .MoveTo(new Vector2(1185 + driftX, 468 - i * 10), 640, Easing.OutQuint);
+                .MoveTo(origin + new Vector2(driftX, -98 - i * 10), 640, Easing.OutQuint);
             star.Delay(i * 45)
                 .RotateTo(star.Rotation + 150, 640, Easing.OutQuint);
             star.Delay(i * 45 + 180)
@@ -465,10 +484,51 @@ public partial class SettingsScreen : Screen
             lastResponsiveStageSize = stageSize;
             stage.Size = stageSize;
             stage.Scale = new Vector2(stageScale);
+            applyResponsiveLayout(stageSize);
         }
 
         updateParallax();
     }
+
+    /// <summary>
+    /// 窗口比设计稿大时舞台会跟着变大。内容在设计稿里是固定坐标，不重排的
+    /// 话会全部堆在左上、右侧空成一片。这里把多出来的空间用起来：内容列
+    /// 居中、装饰按比例铺满舞台、吉祥物保持贴近右下角。
+    /// </summary>
+    private void applyResponsiveLayout(Vector2 stageSize)
+    {
+        contentHost.Position = CalculateContentOffset(stageSize);
+
+        if (mascotButton != null)
+            mascotButton.Position = CalculateMascotPosition(stageSize);
+
+        var stretch = new Vector2(
+            stageSize.X / designedWidth,
+            stageSize.Y / designedHeight);
+        watermarkHome = watermarkHomePosition * stretch;
+
+        if (decorationHomePositions == null)
+            return;
+
+        var decorations = decorationLayer.Children;
+        for (int i = 0; i < decorations.Count && i < decorationHomePositions.Length; i++)
+            decorations[i].Position = decorationHomePositions[i] * stretch;
+    }
+
+    /// <summary>
+    /// 内容列在设计稿里固定在 x=378、宽 840。舞台变宽时把多出来的空间
+    /// 均分到两侧，让内容在侧边栏与右边缘之间保持居中。
+    /// </summary>
+    internal static Vector2 CalculateContentOffset(Vector2 stageSize) =>
+        new(
+            MathF.Max(0, stageSize.X - designedWidth) / 2,
+            MathF.Max(0, stageSize.Y - designedHeight) / 2);
+
+    /// <summary>
+    /// 吉祥物始终与舞台右/下边缘保持设计稿里的间距。
+    /// </summary>
+    internal static Vector2 CalculateMascotPosition(Vector2 stageSize) =>
+        MascotHomePosition + CalculateContentOffset(stageSize) * 2;
 
     private void updateParallax()
     {
@@ -486,7 +546,7 @@ public partial class SettingsScreen : Screen
 
         decorationLayer.Position = parallaxCurrent * new Vector2(22, 14);
         mascotLayer.Position = parallaxCurrent * new Vector2(14, 9);
-        watermark.Position = new Vector2(614, 548)
+        watermark.Position = watermarkHome
                              + parallaxCurrent * new Vector2(-8, -5);
     }
 

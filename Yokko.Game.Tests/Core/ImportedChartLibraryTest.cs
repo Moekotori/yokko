@@ -91,6 +91,24 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
+    public void SingleChartArchiveIsNotAPackage()
+    {
+        // 单曲 .osz 只是一首歌，不能仅凭扩展名就当成图包。
+        var library = new ImportedChartLibrary();
+
+        library.AddOrReplace(
+            new ChartImportResult(DemoBeatmaps.CreateFourKeyDemo(), []),
+            @"C:\Charts\single-song.osz");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(library.GetCharts(), Has.Count.EqualTo(1));
+            Assert.That(library.GetCharts()[0].IsPackage, Is.False);
+            Assert.That(library.GetCharts()[0].PackageName, Is.EqualTo("single-song"));
+        });
+    }
+
+    [Test]
     public void MultiSongPackageUsesChartVersionAsSongTitle()
     {
         var library = new ImportedChartLibrary();

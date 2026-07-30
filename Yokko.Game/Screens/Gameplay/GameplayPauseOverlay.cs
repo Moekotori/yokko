@@ -62,6 +62,14 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             HomeControlColours.Navy.B,
             0.5f);
 
+    private static readonly string[] bubblePhraseKeys =
+    {
+        "gameplay.pause.bubble",
+        "gameplay.pause.bubble_alt1",
+        "gameplay.pause.bubble_alt2",
+        "gameplay.pause.bubble_alt3",
+    };
+
     private readonly YokkoBeatmap beatmap;
     private readonly YokkoGameplaySettings gameplaySettings;
     private readonly GameplayPauseSnapshot snapshot;
@@ -72,6 +80,10 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     private readonly PauseActionButton[] actions = new PauseActionButton[4];
 
     private Container stage;
+    private Container parallaxBack;
+    private Container parallaxFront;
+    private HomeMascotBubble bubble;
+    private int bubblePhraseIndex;
     private int selectedAction;
 
     internal int ActionCount => actions.Length;
@@ -121,7 +133,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 Alpha = 0,
                 Children = new Drawable[]
                 {
-                    createGameplayGrid(),
+                    parallaxBack = createGameplayGrid(),
                     createSheetShadow(),
                     createReportSheet(textures, titlePrefersCjkFallback),
                 },
@@ -153,6 +165,33 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             DrawWidth / ReferenceSize.X,
             DrawHeight / ReferenceSize.Y);
         stage.Scale = new Vector2(MathF.Max(fit, 0.01f));
+
+        updateParallax();
+    }
+
+    /// <summary>
+    /// 背景轨道线与纸面装饰跟随光标做反向/正向的轻微漂移，
+    /// 让暂停单在静态画面里保留一点空间层次。位移很小，
+    /// 不会影响任何阅读或点击目标。
+    /// </summary>
+    private void updateParallax()
+    {
+        if (parallaxBack == null || parallaxFront == null)
+            return;
+
+        var inputManager = GetContainingInputManager();
+        if (inputManager == null)
+            return;
+
+        Vector2 mouse = ToLocalSpace(inputManager.CurrentState.Mouse.Position);
+        var normalized = new Vector2(
+            Math.Clamp(mouse.X / DrawWidth - 0.5f, -0.5f, 0.5f) * 2,
+            Math.Clamp(mouse.Y / DrawHeight - 0.5f, -0.5f, 0.5f) * 2);
+
+        Vector2 targetBack = normalized * -8;
+        Vector2 targetFront = normalized * 10;
+        parallaxBack.Position += (targetBack - parallaxBack.Position) * 0.06f;
+        parallaxFront.Position += (targetFront - parallaxFront.Position) * 0.06f;
     }
 
     public bool HandleKey(Key key)
@@ -222,7 +261,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             },
         };
 
-    private static Drawable createGameplayGrid()
+    private static Container createGameplayGrid()
     {
         var grid = new Container
         {
@@ -294,8 +333,9 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 createSongHeader(),
                 createPerformanceSummary(),
                 createJudgementLedger(),
+                createSuspendedAudioStrip(),
                 createMascot(textures.Get("yokko")),
-                createSheetDecorations(),
+                parallaxFront = createSheetDecorations(),
             },
         };
 
@@ -370,13 +410,9 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     Size = new Vector2(26, 5),
                     Colour = HomeControlColours.Pink,
                 },
-                new SpriteText
+                new PausedStatusRow
                 {
                     Position = new Vector2(1, 168),
-                    Text = "PAUSED",
-                    Font = PauseTypography.Display(12),
-                    Spacing = new Vector2(6, 0),
-                    Colour = HomeControlColours.Cyan,
                 },
             },
         };
@@ -411,7 +447,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             false,
             HomeControlColours.Pink,
             retry,
-            () => selectAction(1))
+            () => selectAction(1),
+            1)
         {
             Position = new Vector2(leftContentX, 562),
         };
@@ -422,7 +459,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             false,
             HomeControlColours.Cyan,
             openSettings,
-            () => selectAction(2))
+            () => selectAction(2),
+            2)
         {
             Position = new Vector2(
                 leftContentX + leftContentWidth / 3,
@@ -435,7 +473,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             false,
             HomeControlColours.Pink,
             exitGameplay,
-            () => selectAction(3))
+            () => selectAction(3),
+            3)
         {
             Position = new Vector2(
                 leftContentX + leftContentWidth * 2 / 3,
@@ -885,7 +924,11 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 {
                     Position = new Vector2(12, 50),
                 },
-                createRankStamp(),
+                new RankStamp(snapshot.Rank)
+                {
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(500 + 245 / 2f, 20 + 235 / 2f),
+                },
                 createVerticalRule(new Vector2(12, 248), 112),
                 createSummaryMetric(
                     new Vector2(60, 268),
@@ -929,12 +972,19 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             },
         };
 
-    private Drawable createRankStamp() =>
-        new Container
+    /// <summary>
+    /// 评级印章。悬停时整枚印章像被重新按下一样倾斜晃动，
+    /// 评级字母闪过青色高光。
+    /// </summary>
+    private partial class RankStamp : CompositeDrawable
+    {
+        private readonly SpriteText rankText;
+
+        public RankStamp(string rank)
         {
-            Position = new Vector2(500, 20),
-            Size = new Vector2(245, 235),
-            Children = new Drawable[]
+            Size = new Vector2(245, 235);
+
+            InternalChildren = new Drawable[]
             {
                 new SpriteText
                 {
@@ -982,14 +1032,14 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                                 HomeControlColours.Navy.B,
                                 0.18f),
                         },
-                        new SpriteText
+                        rankText = new SpriteText
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
                             Y = -5,
-                            Text = snapshot.Rank,
+                            Text = rank,
                             Font = PauseTypography.Poster(
-                                snapshot.Rank.Length switch
+                                rank.Length switch
                                 {
                                     <= 1 => 108,
                                     2 => 72,
@@ -1009,8 +1059,21 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 {
                     Position = new Vector2(240, 178),
                 },
-            },
-        };
+            };
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            this.RotateTo(-3.5f, 240, Easing.OutQuint);
+            rankText.FlashColour(HomeControlColours.Cyan, 420, Easing.OutQuint);
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            this.RotateTo(0, 520, Easing.OutElastic);
+        }
+    }
 
     private static Drawable createRankStar(float x, float y) =>
         new SpriteIcon
@@ -1172,14 +1235,15 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         for (int i = 0; i < judgements.Length; i++)
         {
             (string label, int value, Color4 colour) = judgements[i];
-            ledger.Add(createJudgementCell(
-                i * cellWidth,
-                cellWidth,
+            ledger.Add(new JudgementCell(
                 $"0{i + 1}",
                 label,
                 value,
                 colour,
-                i < judgements.Length - 1));
+                i < judgements.Length - 1)
+            {
+                X = i * cellWidth,
+            });
         }
 
         ledger.Add(new HomeMicroLine
@@ -1191,20 +1255,48 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         return ledger;
     }
 
-    private static Drawable createJudgementCell(
-        float x,
-        float width,
-        string index,
-        string label,
-        int value,
-        Color4 colour,
-        bool showDivider) =>
-        new Container
+    private static Drawable createSuspendedAudioStrip() =>
+        new SuspendedAudioStrip
         {
-            Position = new Vector2(x, 0),
-            Size = new Vector2(width, 124),
-            Children = new Drawable[]
+            Position = new Vector2(performanceX - 2, 754),
+        };
+
+    /// <summary>
+    /// 判定明细格子。悬停时整格浮起淡色高光、计数数字弹跳放大、
+    /// 底部色条伸长，方便逐项核对成绩构成。
+    /// </summary>
+    private partial class JudgementCell : CompositeDrawable
+    {
+        private const float cell_width = 102;
+
+        private readonly Box highlight;
+        private readonly SpriteText valueText;
+        private readonly Box underline;
+
+        public JudgementCell(
+            string index,
+            string label,
+            int value,
+            Color4 colour,
+            bool showDivider)
+        {
+            Size = new Vector2(cell_width, 124);
+
+            InternalChildren = new Drawable[]
             {
+                highlight = new Box
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Y = 4,
+                    Size = new Vector2(cell_width - 18, 112),
+                    Colour = new Color4(
+                        colour.R,
+                        colour.G,
+                        colour.B,
+                        0.1f),
+                    Alpha = 0,
+                },
                 new SpriteText
                 {
                     Anchor = Anchor.TopCentre,
@@ -1229,7 +1321,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     Spacing = new Vector2(1, 0),
                     Colour = colour,
                 },
-                new SpriteText
+                valueText = new SpriteText
                 {
                     Anchor = Anchor.TopCentre,
                     Origin = Anchor.TopCentre,
@@ -1238,7 +1330,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     Font = PauseTypography.Poster(30),
                     Colour = colour,
                 },
-                new Box
+                underline = new Box
                 {
                     Anchor = Anchor.BottomCentre,
                     Origin = Anchor.BottomCentre,
@@ -1247,8 +1339,24 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     Colour = colour,
                 },
                 createJudgementDivider(showDivider),
-            },
-        };
+            };
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            highlight.FadeIn(140, Easing.OutQuint);
+            valueText.ScaleTo(1.18f, 260, Easing.OutBack);
+            underline.ResizeWidthTo(66, 200, Easing.OutQuint);
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            highlight.FadeOut(220, Easing.OutQuint);
+            valueText.ScaleTo(1f, 260, Easing.OutQuint);
+            underline.ResizeWidthTo(48, 220, Easing.OutQuint);
+        }
+    }
 
     private static Drawable createJudgementDivider(bool visible)
     {
@@ -1277,21 +1385,21 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         return divider;
     }
 
-    private static Drawable createMascot(Texture mascotTexture) =>
+    private Drawable createMascot(Texture mascotTexture) =>
         new Container
         {
             RelativeSizeAxes = Axes.Both,
             Children = new Drawable[]
             {
-                new Sprite
+                new InteractiveMascot(mascotTexture, cycleBubblePhrase)
                 {
                     Position = new Vector2(1192, 79),
-                    Size = new Vector2(630, 765),
-                    Texture = mascotTexture,
-                    FillMode = FillMode.Fit,
                 },
-                new HomeMascotBubble(
-                    YokkoStrings.Get("gameplay.pause.bubble"))
+                bubble = new HomeMascotBubble(
+                    YokkoStrings.Get("gameplay.pause.bubble"),
+                    HomeMascotBubbleStyle.Rounded,
+                    null,
+                    cycleBubblePhrase)
                 {
                     Position = new Vector2(1328, 454),
                 },
@@ -1306,7 +1414,13 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             },
         };
 
-    private static Drawable createSheetDecorations() =>
+    private void cycleBubblePhrase()
+    {
+        bubblePhraseIndex = (bubblePhraseIndex + 1) % bubblePhraseKeys.Length;
+        bubble.SetText(YokkoStrings.Get(bubblePhraseKeys[bubblePhraseIndex]));
+    }
+
+    private static Container createSheetDecorations() =>
         new Container
         {
             RelativeSizeAxes = Axes.Both,
@@ -1547,6 +1661,268 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     }
 
     /// <summary>
+    /// 暂停状态行：闪烁指示灯 + PAUSED 字样 + 本次暂停已持续的实时计时。
+    /// </summary>
+    private partial class PausedStatusRow : CompositeDrawable
+    {
+        private readonly SpriteText timer;
+        private double pauseStartTime = double.MinValue;
+
+        public PausedStatusRow()
+        {
+            Size = new Vector2(240, 22);
+
+            InternalChildren = new Drawable[]
+            {
+                new PauseBlinkDot
+                {
+                    Position = new Vector2(1, 5),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(18, -1),
+                    Text = "PAUSED",
+                    Font = PauseTypography.Display(12),
+                    Spacing = new Vector2(6, 0),
+                    Colour = HomeControlColours.Cyan,
+                },
+                timer = new SpriteText
+                {
+                    Position = new Vector2(122, 2),
+                    Text = "00:00",
+                    Font = PauseTypography.Display(11),
+                    Spacing = new Vector2(1.6f, 0),
+                    Colour = faintNavy,
+                },
+            };
+        }
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+            pauseStartTime = Clock.CurrentTime;
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+
+            if (pauseStartTime == double.MinValue)
+                return;
+
+            timer.Text = formatTime(Clock.CurrentTime - pauseStartTime);
+        }
+    }
+
+    /// <summary>
+    /// 录像机式的暂停指示灯：光晕长明，核心以 1 秒节奏明暗呼吸。
+    /// </summary>
+    private partial class PauseBlinkDot : CompositeDrawable
+    {
+        public PauseBlinkDot()
+        {
+            Size = new Vector2(12);
+
+            InternalChildren = new Drawable[]
+            {
+                new Circle
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(12),
+                    Colour = new Color4(
+                        HomeControlColours.Pink.R,
+                        HomeControlColours.Pink.G,
+                        HomeControlColours.Pink.B,
+                        0.25f),
+                },
+                new BlinkCore(),
+            };
+        }
+
+        private partial class BlinkCore : Circle
+        {
+            public BlinkCore()
+            {
+                Anchor = Anchor.Centre;
+                Origin = Anchor.Centre;
+                Size = new Vector2(7);
+                Colour = HomeControlColours.Pink;
+            }
+
+            protected override void LoadComplete()
+            {
+                base.LoadComplete();
+
+                this.FadeTo(0.3f, 480, Easing.InOutSine)
+                    .Then().FadeTo(1f, 480, Easing.InOutSine)
+                    .Loop();
+            }
+        }
+    }
+
+    /// <summary>
+    /// 判定明细下方的冻结均衡器：音频已暂停，柱条停在随机高度，
+    /// 只有少数几根偶尔抽动一下，暗示声音只是被按住而不是消失。
+    /// </summary>
+    private partial class SuspendedAudioStrip : CompositeDrawable
+    {
+        private const int bar_count = 44;
+
+        private readonly Box[] bars = new Box[bar_count];
+        private readonly float[] restHeights = new float[bar_count];
+
+        public SuspendedAudioStrip()
+        {
+            Size = new Vector2(540, 48);
+
+            var random = new Random(20260730);
+
+            InternalChildren = new Drawable[]
+            {
+                new SpriteText
+                {
+                    Position = new Vector2(2, 0),
+                    Text = "AUDIO SUSPENDED",
+                    Font = PauseTypography.Display(9.5f),
+                    Spacing = new Vector2(2.2f, 0),
+                    Colour = faintNavy,
+                },
+                new Container
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(-2, 0),
+                    Size = new Vector2(14, 12),
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Y,
+                            Width = 4,
+                            Colour = faintNavy,
+                        },
+                        new Box
+                        {
+                            Anchor = Anchor.TopRight,
+                            Origin = Anchor.TopRight,
+                            RelativeSizeAxes = Axes.Y,
+                            Width = 4,
+                            Colour = faintNavy,
+                        },
+                    },
+                },
+            };
+
+            for (int i = 0; i < bar_count; i++)
+            {
+                restHeights[i] = 5 + (float)random.NextDouble() * 21;
+                bool cyan = i % 3 == 0;
+
+                AddInternal(bars[i] = new Box
+                {
+                    Anchor = Anchor.BottomLeft,
+                    Origin = Anchor.BottomLeft,
+                    Position = new Vector2(i * 7 + 2, -3),
+                    Width = 4,
+                    Height = restHeights[i],
+                    Colour = cyan
+                        ? new Color4(
+                            HomeControlColours.Cyan.R,
+                            HomeControlColours.Cyan.G,
+                            HomeControlColours.Cyan.B,
+                            0.5f)
+                        : new Color4(
+                            HomeControlColours.Navy.R,
+                            HomeControlColours.Navy.G,
+                            HomeControlColours.Navy.B,
+                            0.3f),
+                });
+            }
+        }
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            var random = new Random(7);
+
+            for (int i = 3; i < bar_count; i += 9)
+            {
+                float peak = Math.Min(30, restHeights[i] + 6 + (float)random.NextDouble() * 8);
+                bars[i]
+                    .ResizeHeightTo(peak, 520, Easing.InOutSine)
+                    .Then().ResizeHeightTo(restHeights[i], 620, Easing.InOutSine)
+                    .Loop(i * 260 + 900);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 可戳的吉祥物：待机时缓慢呼吸浮动，悬停微微倾斜放大，
+    /// 点击先压扁再回弹，并切换气泡台词。
+    /// </summary>
+    private partial class InteractiveMascot : CompositeDrawable
+    {
+        private readonly Container body;
+        private readonly Action onPoke;
+        private bool hovered;
+
+        public InteractiveMascot(Texture texture, Action onPoke)
+        {
+            this.onPoke = onPoke;
+
+            Size = new Vector2(630, 765);
+
+            InternalChild = body = new Container
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                RelativeSizeAxes = Axes.Both,
+                Child = new Sprite
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Texture = texture,
+                    FillMode = FillMode.Fit,
+                },
+            };
+        }
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            body.MoveToY(-7, 1900, Easing.InOutSine)
+                .Then().MoveToY(0, 1900, Easing.InOutSine)
+                .Loop();
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            hovered = true;
+            body.ScaleTo(1.02f, 240, Easing.OutQuint);
+            body.RotateTo(-1.2f, 240, Easing.OutQuint);
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            hovered = false;
+            body.ScaleTo(1f, 320, Easing.OutQuint);
+            body.RotateTo(0, 320, Easing.OutQuint);
+        }
+
+        protected override bool OnClick(ClickEvent e)
+        {
+            body.ClearTransforms(targetMember: nameof(Scale));
+            body.ScaleTo(new Vector2(1.05f, 0.93f), 90, Easing.OutQuint)
+                .Then().ScaleTo(hovered ? 1.02f : 1f, 620, Easing.OutElastic);
+            onPoke();
+            return true;
+        }
+    }
+
+    /// <summary>
     /// 四点星光装饰，周期性弹出收回。Position 视为中心。
     /// </summary>
     private partial class PauseSparkle : CompositeDrawable
@@ -1597,6 +1973,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         private readonly Box background;
         private readonly Box accent;
         private readonly SpriteIcon chevron;
+        private bool selected;
 
         public PauseActionButton(
             LocalisableString title,
@@ -1605,7 +1982,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             bool primary,
             Color4 accentColour,
             Action action,
-            Action hoverAction)
+            Action hoverAction,
+            int index = 0)
         {
             this.primary = primary;
             this.hoverAction = hoverAction;
@@ -1620,6 +1998,22 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
             InternalChildren = new Drawable[]
             {
+                primary
+                    ? new Container { Alpha = 0 }
+                    : new SpriteText
+                    {
+                        Anchor = Anchor.TopRight,
+                        Origin = Anchor.TopRight,
+                        Position = new Vector2(-9, 6),
+                        Text = $"0{index}",
+                        Font = PauseTypography.Display(8.5f),
+                        Spacing = new Vector2(1.2f, 0),
+                        Colour = new Color4(
+                            HomeControlColours.Navy.R,
+                            HomeControlColours.Navy.G,
+                            HomeControlColours.Navy.B,
+                            0.38f),
+                    },
                 primary
                     ? new Container
                     {
@@ -1775,6 +2169,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
         public void SetSelected(bool selected)
         {
+            this.selected = selected;
+
             background.FadeColour(
                 primary
                     ? selected
@@ -1803,6 +2199,18 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         {
             hoverAction();
             return true;
+        }
+
+        protected override bool OnMouseDown(MouseDownEvent e)
+        {
+            this.ScaleTo((selected ? 1.01f : 1f) * 0.95f, 90, Easing.OutQuint);
+            return base.OnMouseDown(e);
+        }
+
+        protected override void OnMouseUp(MouseUpEvent e)
+        {
+            this.ScaleTo(selected ? 1.01f : 1f, 240, Easing.OutBack);
+            base.OnMouseUp(e);
         }
     }
 }
