@@ -94,7 +94,8 @@ namespace yokko::audio
 
     private:
         static constexpr uint32_t sample_trigger_capacity = 128;
-        static constexpr uint32_t sample_voice_capacity = 32;
+        static constexpr uint32_t sample_voice_capacity =
+            sample_trigger_capacity;
         static constexpr uint32_t sample_telemetry_capacity = 512;
 
         struct RegisteredSample
@@ -111,6 +112,10 @@ namespace yokko::audio
             float gain{1.0f};
             uint32_t loop_id{0};
             bool looping{false};
+            uint64_t trace_id{0};
+            uint64_t capture_time_100ns{0};
+            uint64_t enqueue_time_100ns{0};
+            uint64_t callback_time_100ns{0};
         };
 
         enum class SampleTriggerAction : uint8_t

@@ -107,4 +107,5 @@ if(BUILD_TESTING)
     endif()
 
     add_test(NAME yokko_audio_native_tests COMMAND yokko_audio_native_tests)
+    set_tests_properties(yokko_audio_native_tests PROPERTIES TIMEOUT 30)
 endif()

@@ -167,7 +167,7 @@ internal sealed class KeyInputTimestampSource : IDisposable
         return false;
     }
 
-    internal void SetRawInputFastPathSink(IKeyInputFastPathSink? sink)
+    internal void SetRawInputFastPathSink(IKeyInputFastPathSink sink)
     {
         if (platformBackend is IKeyInputFastPathBackend fastPathBackend)
             fastPathBackend.SetFastPathSink(sink);

@@ -519,10 +519,11 @@ namespace yokko::audio
     {
         SampleTrigger trigger{};
         uint64_t callback_time_100ns = 0;
-        const uint64_t first_output_frame_position =
-            device_frames_rendered_.load(std::memory_order_relaxed);
-        while (try_dequeue_sample_trigger(trigger))
+        uint32_t activated_count = 0;
+        while (activated_count < sample_trigger_capacity
+               && try_dequeue_sample_trigger(trigger))
         {
+            activated_count++;
             if (trigger.action == SampleTriggerAction::stop_loop)
             {
                 for (SampleVoice& voice : sample_voices_)
@@ -536,6 +537,12 @@ namespace yokko::audio
 
             SampleVoice& voice =
                 sample_voices_[next_sample_voice_ % sample_voice_capacity];
+            if (voice.trace_id != 0)
+            {
+                sample_telemetry_dropped_.fetch_add(
+                    1,
+                    std::memory_order_relaxed);
+            }
             voice.sample_id = trigger.sample_id;
             voice.frame_position = 0;
             voice.gain = trigger.gain;
@@ -548,10 +555,10 @@ namespace yokko::audio
             {
                 if (callback_time_100ns == 0)
                     callback_time_100ns = monotonic_time_100ns();
-                publish_sample_telemetry(
-                    trigger,
-                    callback_time_100ns,
-                    first_output_frame_position);
+                voice.trace_id = trigger.trace_id;
+                voice.capture_time_100ns = trigger.capture_time_100ns;
+                voice.enqueue_time_100ns = trigger.enqueue_time_100ns;
+                voice.callback_time_100ns = callback_time_100ns;
             }
         }
     }
@@ -639,6 +646,27 @@ namespace yokko::audio
             if (voice.sample_id == 0 || voice.sample_id > sample_bank_.size())
                 continue;
 
+            if (voice.trace_id != 0)
+            {
+                publish_sample_telemetry(
+                    {
+                        SampleTriggerAction::play,
+                        voice.sample_id,
+                        voice.gain,
+                        voice.loop_id,
+                        voice.trace_id,
+                        voice.capture_time_100ns,
+                        voice.enqueue_time_100ns,
+                    },
+                    voice.callback_time_100ns,
+                    device_frames_rendered_.load(
+                        std::memory_order_relaxed));
+                voice.trace_id = 0;
+                voice.capture_time_100ns = 0;
+                voice.enqueue_time_100ns = 0;
+                voice.callback_time_100ns = 0;
+            }
+
             const RegisteredSample& sample =
                 sample_bank_[voice.sample_id - 1];
             const float volume = sample.metronome
@@ -708,12 +736,6 @@ namespace yokko::audio
             voice = {};
         next_sample_voice_ = 0;
 
-        sample_telemetry_read_.store(0, std::memory_order_relaxed);
-        sample_telemetry_write_.store(0, std::memory_order_relaxed);
-        sample_telemetry_dropped_.store(0, std::memory_order_relaxed);
-        for (yokko_audio_sample_trigger_telemetry& telemetry
-             : sample_telemetry_queue_)
-            telemetry = {};
     }
 
     yokko_audio_result AudioEngine::report_presented_position(

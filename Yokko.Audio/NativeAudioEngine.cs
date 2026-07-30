@@ -411,8 +411,20 @@ public sealed class NativeAudioEngine :
         }
     }
 
-    public bool SupportsSampleTriggerTelemetry =>
-        core?.SupportsSampleTriggerTelemetry == true;
+    public bool SupportsSampleTriggerTelemetry
+    {
+        get
+        {
+            try
+            {
+                return NativeAudioLibrary.HasSampleTriggerTelemetry;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
 
     public bool TriggerPreparedSample(
         PreparedAudioSampleHandle handle,

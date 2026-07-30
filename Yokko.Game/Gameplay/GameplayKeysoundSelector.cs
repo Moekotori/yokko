@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
@@ -23,6 +24,40 @@ internal readonly record struct GameplayKeysoundFastSelection(
         if (inputTime >= CandidateThreshold)
             return inputTime <= CandidateSafeUntil ? Candidate : -1;
         return Selected >= 0 ? Selected : First;
+    }
+
+    internal bool TrySelectSafely(
+        double inputTime,
+        double guardMilliseconds,
+        out int selected)
+    {
+        selected = -1;
+        if (SelectedIsUnresolved)
+        {
+            if (inputTime > SelectedSafeUntil - guardMilliseconds)
+                return false;
+            selected = Selected;
+            return selected >= 0;
+        }
+
+        if (Candidate < 0)
+        {
+            selected = Last;
+            return selected >= 0;
+        }
+
+        if (Math.Abs(inputTime - CandidateThreshold) <= guardMilliseconds)
+            return false;
+        if (inputTime > CandidateThreshold)
+        {
+            if (inputTime > CandidateSafeUntil - guardMilliseconds)
+                return false;
+            selected = Candidate;
+            return true;
+        }
+
+        selected = Selected >= 0 ? Selected : First;
+        return selected >= 0;
     }
 }
 

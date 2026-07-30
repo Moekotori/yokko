@@ -1,6 +1,7 @@
 #include "yokko_audio.h"
 #include "spsc_pcm_ring_buffer.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstdint>
@@ -233,6 +234,211 @@ namespace
         require(output[2] == 1.0f, "keysound mix clamps positive peak");
         require(std::abs(output[3] + 0.5f) < 0.00001f, "keysound second frame mixed");
         require(output[4] == 0.25f && output[7] == 0.25f, "keysound ends cleanly");
+    }
+
+    void test_traced_keysound_reports_callback_and_output_frame()
+    {
+        EngineHandle engine;
+        const std::vector<float> sample{0.25f, -0.25f};
+        uint32_t sample_id = 0;
+        require(
+            yokko_audio_register_sample_f32(
+                engine,
+                sample.data(),
+                1,
+                &sample_id) == YOKKO_AUDIO_OK,
+            "traced sample registration");
+
+        const std::vector<float> music(8, 0.0f);
+        uint32_t accepted = 0;
+        require(
+            yokko_audio_submit_interleaved_f32(
+                engine,
+                music.data(),
+                4,
+                &accepted) == YOKKO_AUDIO_OK,
+            "traced sample prime");
+        require(yokko_audio_start(engine) == YOKKO_AUDIO_OK, "traced start");
+        require(
+            yokko_audio_report_presented_position(
+                engine,
+                0,
+                96,
+                0) == YOKKO_AUDIO_OK,
+            "traced output latency");
+
+        uint64_t trace_id = 0;
+        require(
+            yokko_audio_trigger_sample_traced(
+                engine,
+                sample_id,
+                1.0f,
+                1,
+                1,
+                &trace_id) == YOKKO_AUDIO_OK,
+            "traced trigger");
+        require(trace_id != 0, "traced trigger id");
+
+        float output[2]{};
+        uint32_t rendered = 0;
+        require(
+            yokko_audio_render_interleaved_f32(
+                engine,
+                output,
+                1,
+                &rendered) == YOKKO_AUDIO_OK,
+            "traced render");
+
+        yokko_audio_sample_trigger_telemetry telemetry{};
+        telemetry.struct_size = sizeof(telemetry);
+        require(
+            yokko_audio_try_dequeue_sample_telemetry(
+                engine,
+                &telemetry) == YOKKO_AUDIO_OK,
+            "traced telemetry dequeue");
+        require(telemetry.trace_id == trace_id, "traced telemetry id");
+        require(telemetry.sample_id == sample_id, "traced telemetry sample");
+        require(telemetry.sample_rate == 48000, "traced sample rate");
+        require(
+            telemetry.estimated_output_latency_frames == 96,
+            "traced output latency frames");
+        require(
+            telemetry.enqueue_time_100ns >= telemetry.capture_time_100ns,
+            "traced enqueue follows capture");
+        require(
+            telemetry.callback_time_100ns >= telemetry.enqueue_time_100ns,
+            "traced callback follows enqueue");
+        require(
+            telemetry.first_output_frame_position == 0,
+            "traced first output frame");
+    }
+
+    void test_sample_trigger_queue_accepts_multiple_producers()
+    {
+        constexpr uint32_t producer_count = 4;
+        constexpr uint32_t triggers_per_producer = 100;
+        constexpr uint32_t trigger_count =
+            producer_count * triggers_per_producer;
+
+        EngineHandle engine(512, 1);
+        const std::vector<float> sample{0.1f, -0.1f};
+        uint32_t sample_id = 0;
+        require(
+            yokko_audio_register_sample_f32(
+                engine,
+                sample.data(),
+                1,
+                &sample_id) == YOKKO_AUDIO_OK,
+            "MPSC sample registration");
+
+        const std::vector<float> music(1024, 0.0f);
+        uint32_t accepted = 0;
+        require(
+            yokko_audio_submit_interleaved_f32(
+                engine,
+                music.data(),
+                512,
+                &accepted) == YOKKO_AUDIO_OK,
+            "MPSC sample prime");
+        require(yokko_audio_start(engine) == YOKKO_AUDIO_OK, "MPSC start");
+
+        std::atomic<bool> keep_rendering{true};
+        std::thread renderer([&]
+        {
+            float output[2]{};
+            while (keep_rendering.load(std::memory_order_acquire))
+            {
+                uint32_t rendered = 0;
+                if (yokko_audio_render_interleaved_f32(
+                        engine,
+                        output,
+                        1,
+                        &rendered) != YOKKO_AUDIO_OK)
+                    std::abort();
+            }
+        });
+
+        std::vector<uint64_t> trace_ids(trigger_count);
+        std::vector<std::thread> producers;
+        producers.reserve(producer_count);
+        for (uint32_t producer = 0; producer < producer_count; ++producer)
+        {
+            producers.emplace_back([&, producer]
+            {
+                for (uint32_t index = 0;
+                     index < triggers_per_producer;
+                     ++index)
+                {
+                    uint64_t trace_id = 0;
+                    yokko_audio_result result{};
+                    uint32_t attempts = 0;
+                    do
+                    {
+                        result = yokko_audio_trigger_sample_traced(
+                            engine,
+                            sample_id,
+                            1.0f,
+                            1,
+                            1,
+                            &trace_id);
+                        if (result == YOKKO_AUDIO_QUEUE_FULL)
+                            std::this_thread::yield();
+                        attempts++;
+                    }
+                    while (result == YOKKO_AUDIO_QUEUE_FULL
+                           && attempts < 1'000'000);
+                    if (result != YOKKO_AUDIO_OK || trace_id == 0)
+                        std::abort();
+                    trace_ids[
+                        producer * triggers_per_producer + index] = trace_id;
+                }
+            });
+        }
+
+        for (std::thread& producer : producers)
+            producer.join();
+
+        yokko_audio_sample_telemetry_status telemetry_status{};
+        telemetry_status.struct_size = sizeof(telemetry_status);
+        uint32_t status_attempts = 0;
+        do
+        {
+            require(
+                yokko_audio_get_sample_telemetry_status(
+                    engine,
+                    &telemetry_status) == YOKKO_AUDIO_OK,
+                "MPSC telemetry status");
+            if (telemetry_status.pending_count < trigger_count)
+                std::this_thread::yield();
+            status_attempts++;
+        }
+        while (telemetry_status.pending_count < trigger_count
+               && status_attempts < 1'000'000);
+
+        keep_rendering.store(false, std::memory_order_release);
+        renderer.join();
+        require(
+            telemetry_status.pending_count == trigger_count,
+            "MPSC telemetry completes");
+        require(telemetry_status.dropped_count == 0, "MPSC telemetry retained");
+
+        for (uint32_t index = 0; index < trigger_count; ++index)
+        {
+            yokko_audio_sample_trigger_telemetry telemetry{};
+            telemetry.struct_size = sizeof(telemetry);
+            require(
+                yokko_audio_try_dequeue_sample_telemetry(
+                    engine,
+                    &telemetry) == YOKKO_AUDIO_OK,
+                "MPSC telemetry dequeue");
+            require(telemetry.trace_id != 0, "MPSC telemetry trace id");
+        }
+
+        std::sort(trace_ids.begin(), trace_ids.end());
+        require(
+            std::adjacent_find(trace_ids.begin(), trace_ids.end())
+                == trace_ids.end(),
+            "MPSC trace ids are unique");
     }
 
     void test_mix_buses_apply_independent_gains()
@@ -694,6 +900,8 @@ int main()
     test_start_requires_priming();
     test_render_and_underrun();
     test_keysounds_mix_on_the_next_callback();
+    test_traced_keysound_reports_callback_and_output_frame();
+    test_sample_trigger_queue_accepts_multiple_producers();
     test_mix_buses_apply_independent_gains();
     test_keysound_playback_rate_is_callback_side();
     test_looping_keysound_starts_wraps_and_stops();

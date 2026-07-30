@@ -23,5 +23,5 @@ public interface IKeyInputFastPathSink
 /// </summary>
 public interface IKeyInputFastPathBackend
 {
-    void SetFastPathSink(IKeyInputFastPathSink? sink);
+    void SetFastPathSink(IKeyInputFastPathSink sink);
 }

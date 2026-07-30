@@ -157,6 +157,18 @@ public sealed class GameplayInputClockTest
     }
 
     [Test]
+    public void TimestampSourceForwardsOptionalRawFastPathSink()
+    {
+        using var backend = new FakeTimestampBackend();
+        using var source = new KeyInputTimestampSource(backend);
+        var sink = new FakeFastPathSink();
+
+        source.SetRawInputFastPathSink(sink);
+
+        Assert.That(backend.FastPathSink, Is.SameAs(sink));
+    }
+
+    [Test]
     public void InputAgeStatisticsReportTailLatencyAndRawCoverage()
     {
         var tracker = new InputAgeTracker();
@@ -212,6 +224,41 @@ public sealed class GameplayInputClockTest
                 Is.EqualTo(300));
             Assert.That(
                 statistics.Processing.P50Milliseconds,
+                Is.EqualTo(100));
+        });
+    }
+
+    [Test]
+    public void NativeSampleStatisticsReportQueueAndPresentationLatency()
+    {
+        var tracker = new AudioSampleTriggerLatencyTracker();
+        for (int index = 1; index <= 100; index++)
+        {
+            tracker.Record(new AudioSampleTriggerTelemetry(
+                (ulong)index,
+                1,
+                index,
+                index * 2,
+                index * 3,
+                index * 4,
+                (ulong)index));
+        }
+
+        AudioSampleTriggerLatencyStatistics statistics =
+            tracker.Snapshot();
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                statistics.CaptureToEnqueue.P99Milliseconds,
+                Is.EqualTo(99));
+            Assert.That(
+                statistics.EnqueueToCallback.P95Milliseconds,
+                Is.EqualTo(190));
+            Assert.That(
+                statistics.CaptureToCallback.MaximumMilliseconds,
+                Is.EqualTo(300));
+            Assert.That(
+                statistics.EstimatedCaptureToPresentation.Count,
                 Is.EqualTo(100));
         });
     }
@@ -290,12 +337,16 @@ public sealed class GameplayInputClockTest
         public void RaiseKeyUp(Key key) => KeyUp?.Invoke(key);
     }
 
-    private sealed class FakeTimestampBackend : IKeyInputTimestampBackend
+    private sealed class FakeTimestampBackend :
+        IKeyInputTimestampBackend,
+        IKeyInputFastPathBackend
     {
         private readonly System.Collections.Generic.Queue<TimestampedKeyInput>
             pending = new();
 
         public string Name => "Fake raw input";
+
+        public IKeyInputFastPathSink FastPathSink { get; private set; }
 
         public bool IsAvailable => true;
 
@@ -333,6 +384,22 @@ public sealed class GameplayInputClockTest
 
         public void Dispose()
         {
+        }
+
+        public void SetFastPathSink(IKeyInputFastPathSink sink) =>
+            FastPathSink = sink;
+    }
+
+    private sealed class FakeFastPathSink : IKeyInputFastPathSink
+    {
+        public bool TryDispatch(
+            Key key,
+            bool isPressed,
+            long captureTimestamp,
+            out KeyInputFastPathResult result)
+        {
+            result = default;
+            return false;
         }
     }
 

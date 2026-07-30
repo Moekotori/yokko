@@ -10,12 +10,14 @@ namespace Yokko.Game.Screens.Gameplay;
 
 internal sealed class RawInputKeysoundDispatcher : IKeyInputFastPathSink
 {
+    private const double selectionGuardMilliseconds = 0.5;
     private readonly KeyModeBindings keyBindings;
     private readonly IAudioEngine audioEngine;
     private readonly ITimestampedAudioClock audioClock;
     private readonly ITimestampedPreparedAudioSamplePlayback samplePlayback;
     private readonly GameplayKeysoundSelector selector;
     private readonly GameplayHitSamplePlaybackBinding[][] samplesByHitObject;
+    private readonly bool[] eligibleHitObjects;
     private readonly LaneSlot[] lanes;
     private int enabled;
     private int activeDispatches;
@@ -35,6 +37,18 @@ internal sealed class RawInputKeysoundDispatcher : IKeyInputFastPathSink
         this.samplePlayback = samplePlayback;
         this.selector = selector;
         this.samplesByHitObject = samplesByHitObject;
+        eligibleHitObjects = new bool[samplesByHitObject.Length];
+        for (int hitObject = 0;
+             hitObject < samplesByHitObject.Length;
+             hitObject++)
+        {
+            GameplayHitSamplePlaybackBinding[] samples =
+                samplesByHitObject[hitObject];
+            bool eligible = samples.Length is > 0 and <= 64;
+            for (int sample = 0; eligible && sample < samples.Length; sample++)
+                eligible = samples[sample].HasPreparedHandle;
+            eligibleHitObjects[hitObject] = eligible;
+        }
         lanes = Enumerable.Range(0, keyBindings.KeyCount)
                           .Select(static _ => new LaneSlot())
                           .ToArray();
@@ -47,7 +61,10 @@ internal sealed class RawInputKeysoundDispatcher : IKeyInputFastPathSink
     {
         suspendAndWait();
         for (int lane = 0; lane < lanes.Length; lane++)
+        {
             publishLane(lane);
+            Volatile.Write(ref lanes[lane].Claimed, 0);
+        }
         Volatile.Write(ref enabled, 1);
     }
 
@@ -106,28 +123,38 @@ internal sealed class RawInputKeysoundDispatcher : IKeyInputFastPathSink
             }
 
             GameplayKeysoundFastSelection selection = readSelection(slot);
-            int selected = selection.Select(inputTime);
-            if ((uint)selected >= samplesByHitObject.Length)
+            if (!selection.TrySelectSafely(
+                    inputTime,
+                    selectionGuardMilliseconds,
+                    out int selected)
+                || (uint)selected >= samplesByHitObject.Length)
                 return false;
 
             GameplayHitSamplePlaybackBinding[] samples =
                 samplesByHitObject[selected];
-            if (samples.Length is 0 or > 64
-                || samples.Any(static sample => !sample.HasPreparedHandle))
-            {
+            if (!eligibleHitObjects[selected])
                 return false;
-            }
 
             ulong triggeredMask = 0;
             for (int index = 0; index < samples.Length; index++)
             {
                 GameplayHitSamplePlaybackBinding sample = samples[index];
-                if (samplePlayback.TriggerPreparedSample(
+                bool triggered;
+                try
+                {
+                    triggered = samplePlayback.TriggerPreparedSample(
                         sample.PreparedHandle,
                         sample.Gain,
                         captureTimestamp,
                         Stopwatch.Frequency,
-                        out _))
+                        out _);
+                }
+                catch
+                {
+                    triggered = false;
+                }
+
+                if (triggered)
                 {
                     triggeredMask |= 1UL << index;
                 }

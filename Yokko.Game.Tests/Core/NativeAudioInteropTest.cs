@@ -31,6 +31,10 @@ namespace Yokko.Game.Tests.Core
                 ringCapacityFrames: 8,
                 startupThresholdFrames: 4);
 
+            Assert.That(
+                NativeAudioInterop.GetSampleTelemetryAbiVersion(),
+                Is.EqualTo(1));
+            Assert.That(core.SupportsSampleTriggerTelemetry, Is.True);
             Assert.That(core.GetStatus().State, Is.EqualTo(NativeAudioState.Idle));
             uint sampleId = core.RegisterSample(
                 new float[] { 0.25f, -0.25f, 0.5f, -0.5f });

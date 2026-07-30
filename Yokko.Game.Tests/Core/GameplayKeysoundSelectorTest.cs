@@ -102,4 +102,54 @@ public sealed class GameplayKeysoundSelectorTest
         judgementState.JudgeLanePress(0, 5000).ToArray();
         Assert.That(selector.Select(0, 5200), Is.EqualTo(1));
     }
+
+    [Test]
+    public void FastSelectionMatchesSafeSelectorStates()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+        {
+            HitObjects =
+            [
+                new YokkoHitObject(
+                    0,
+                    1000,
+                    null,
+                    HitObjectKind.Tap,
+                    "first.wav"),
+                new YokkoHitObject(
+                    0,
+                    2000,
+                    null,
+                    HitObjectKind.Tap,
+                    "second.wav"),
+            ],
+        };
+        var judgementState = new BeatmapJudgementState(beatmap);
+        var selector = new GameplayKeysoundSelector(
+            beatmap,
+            judgementState);
+
+        GameplayKeysoundFastSelection initial =
+            selector.CaptureFastSelection(0);
+        Assert.That(initial.Select(1000), Is.EqualTo(selector.Select(0, 1000)));
+        judgementState.JudgeLanePress(0, 1000).ToArray();
+
+        GameplayKeysoundFastSelection advanced =
+            selector.CaptureFastSelection(0);
+        double boundary =
+            beatmap.HitObjects[1].StartTimeMilliseconds
+            - judgementState.Windows.MehMilliseconds * 2;
+        Assert.Multiple(() =>
+        {
+            Assert.That(advanced.Select(1200), Is.EqualTo(0));
+            Assert.That(advanced.Select(1800), Is.EqualTo(1));
+            Assert.That(advanced.Select(5000), Is.EqualTo(-1));
+            Assert.That(
+                advanced.TrySelectSafely(
+                    boundary,
+                    0.5,
+                    out _),
+                Is.False);
+        });
+    }
 }

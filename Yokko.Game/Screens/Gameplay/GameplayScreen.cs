@@ -96,6 +96,10 @@ public partial class GameplayScreen : Screen
     private readonly InputAgeTracker inputAgeTracker = new();
     private readonly InputPipelineLatencyTracker inputPipelineLatencyTracker =
         new();
+    private readonly AudioSampleTriggerLatencyTracker
+        audioSampleTriggerLatencyTracker = new();
+    private ulong previousAudioSampleTelemetryDropped;
+    private ulong accumulatedAudioSampleTelemetryDropped;
     private bool gameplayBlocked;
     private bool gameplayCompleted;
     private bool gameplayFailed;
@@ -129,6 +133,8 @@ public partial class GameplayScreen : Screen
     private GameplayHitSamplePlaybackBinding[][] slidingSamplesByHitObject = [];
     private readonly Dictionary<int, List<uint>> activeSlidingSampleLoops = new();
     private GameplayKeysoundSelector keysoundSelector;
+    private RawInputKeysoundDispatcher rawKeysoundDispatcher;
+    private bool rawKeysoundFastPathAllowed = true;
     private GameplaySlidingSampleIndex slidingSampleIndex;
     private GameplayHitSampleResolver hitSampleResolver;
     private GameplayMutedAudioController mutedAudio;
@@ -479,6 +485,7 @@ public partial class GameplayScreen : Screen
     {
         base.Update();
         updatePlayfieldLayout();
+        drainAudioSampleTriggerTelemetry();
 
         if (gameplayBlocked
             || gameplayCompleted
@@ -778,9 +785,12 @@ public partial class GameplayScreen : Screen
 
     public override bool OnExiting(ScreenExitEvent e)
     {
-        logInputTimingSummary();
         if (!ReplayMode)
+        {
+            disableRawKeysoundFastPath();
             keyInputTimestamps.EndCapture();
+        }
+        logInputTimingSummary();
 
         mutedAudio?.Restore();
         stopAllSlidingSamples();
@@ -793,7 +803,10 @@ public partial class GameplayScreen : Screen
         if (isDisposing)
         {
             if (!ReplayMode)
+            {
+                disableRawKeysoundFastPath();
                 keyInputTimestamps.EndCapture();
+            }
 
             host.Deactivated -= onHostDeactivated;
             gameplaySettings.ScrollSpeed.ValueChanged -=
@@ -815,6 +828,8 @@ public partial class GameplayScreen : Screen
             await keysoundPreparationTask.ConfigureAwait(true);
             activeUserOffsetMilliseconds =
                 audioSettings.UserOffsetMilliseconds.Value;
+            rawKeysoundDispatcher?.SetUserOffset(
+                activeUserOffsetMilliseconds);
             double initialPlaybackRate =
                 currentPlaybackRate(currentGameplayTime);
             AudioEngineStartRequest startRequest =
@@ -1044,7 +1059,16 @@ public partial class GameplayScreen : Screen
                 observation);
             long audioEnqueueTimestamp;
             if (input.IsPressed)
-                audioEnqueueTimestamp = applyLanePress(lane, inputTime);
+            {
+                audioEnqueueTimestamp = applyLanePress(
+                    lane,
+                    inputTime,
+                    input.FastPathHitObjectIndex,
+                    input.FastPathTriggeredSampleMask,
+                    input.FastPathAudioEnqueueTimestamp,
+                    input.Timestamp);
+                rawKeysoundDispatcher?.RefreshLane(lane);
+            }
             else
             {
                 applyLaneRelease(lane, inputTime);
@@ -1077,7 +1101,13 @@ public partial class GameplayScreen : Screen
         }
     }
 
-    private long applyLanePress(int lane, double inputTime)
+    private long applyLanePress(
+        int lane,
+        double inputTime,
+        int fastPathHitObjectIndex = -1,
+        ulong fastPathTriggeredSampleMask = 0,
+        long fastPathAudioEnqueueTimestamp = 0,
+        long captureTimestamp = 0)
     {
         if (pressedLanes[lane])
             return 0;
@@ -1085,7 +1115,13 @@ public partial class GameplayScreen : Screen
         pressedLanes[lane] = true;
         // Enter the native audio queue before touching drawable state.
         long audioEnqueueTimestamp =
-            triggerKeysoundForLanePress(lane, inputTime);
+            triggerKeysoundForLanePress(
+                lane,
+                inputTime,
+                fastPathHitObjectIndex,
+                fastPathTriggeredSampleMask,
+                fastPathAudioEnqueueTimestamp,
+                captureTimestamp);
         playfield.SetLanePressed(lane, true);
 
         if (!ReplayMode)
@@ -1162,6 +1198,7 @@ public partial class GameplayScreen : Screen
                                 .ConfigureAwait(true);
             if (samplePlayback is IPreparedAudioSamplePlayback preparedPlayback)
                 bindPreparedSampleHandles(preparedPlayback, paths);
+            enableRawKeysoundFastPath();
         }
         catch (Exception ex)
         {
@@ -1207,7 +1244,45 @@ public partial class GameplayScreen : Screen
         }
     }
 
-    private long triggerKeysoundForLanePress(int lane, double inputTime)
+    private void enableRawKeysoundFastPath()
+    {
+        if (!rawKeysoundFastPathAllowed
+            || ReplayMode
+            || audioEngine is not ITimestampedAudioClock audioClock
+            || audioEngine is not
+                ITimestampedPreparedAudioSamplePlayback samplePlayback
+            || !samplePlayback.SupportsSampleTriggerTelemetry)
+        {
+            return;
+        }
+
+        rawKeysoundDispatcher = new RawInputKeysoundDispatcher(
+            keyBindings,
+            audioEngine,
+            audioClock,
+            samplePlayback,
+            keysoundSelector,
+            headSamplesByHitObject);
+        rawKeysoundDispatcher.SetUserOffset(activeUserOffsetMilliseconds);
+        rawKeysoundDispatcher.RefreshAllAndEnable();
+        keyInputTimestamps.SetRawInputFastPathSink(
+            rawKeysoundDispatcher);
+    }
+
+    private void disableRawKeysoundFastPath()
+    {
+        rawKeysoundFastPathAllowed = false;
+        keyInputTimestamps.SetRawInputFastPathSink(null);
+        rawKeysoundDispatcher?.Disable();
+    }
+
+    private long triggerKeysoundForLanePress(
+        int lane,
+        double inputTime,
+        int fastPathHitObjectIndex = -1,
+        ulong fastPathTriggeredSampleMask = 0,
+        long fastPathAudioEnqueueTimestamp = 0,
+        long captureTimestamp = 0)
     {
         if (!gameplaySettings.KeysoundsEnabled.Value
             || audioEngine is not IAudioSamplePlayback samplePlayback)
@@ -1217,11 +1292,20 @@ public partial class GameplayScreen : Screen
         if ((uint)selected >= headSamplesByHitObject.Length)
             return 0;
 
-        return GameplayHitSamplePlayer.TriggerSamples(
+        GameplayHitSamplePlayer.TriggerResult result =
+            GameplayHitSamplePlayer.TriggerSamples(
             samplePlayback,
-            headSamplesByHitObject[selected])
-                ? Stopwatch.GetTimestamp()
-                : 0;
+            headSamplesByHitObject[selected],
+            selected == fastPathHitObjectIndex
+                ? fastPathTriggeredSampleMask
+                : 0,
+            captureTimestamp,
+            Stopwatch.Frequency);
+        return result.LastAudioEnqueueTimestamp != 0
+            ? result.LastAudioEnqueueTimestamp
+            : selected == fastPathHitObjectIndex
+              ? fastPathAudioEnqueueTimestamp
+              : 0;
     }
 
     private void applyLaneRelease(int lane, double inputTime)
@@ -1375,6 +1459,7 @@ public partial class GameplayScreen : Screen
             return;
 
         gameplayFailed = true;
+        disableRawKeysoundFastPath();
         mutedAudio?.Restore();
         stopAllSlidingSamples();
         for (int lane = 0; lane < pressedLanes.Length; lane++)
@@ -1400,6 +1485,7 @@ public partial class GameplayScreen : Screen
             return;
 
         gameplayCompleted = true;
+        disableRawKeysoundFastPath();
         mutedAudio?.Restore();
         stopAllSlidingSamples();
         ManiaScoreResult rawResult =
@@ -1874,13 +1960,39 @@ public partial class GameplayScreen : Screen
         }
     }
 
+    private void drainAudioSampleTriggerTelemetry()
+    {
+        if (audioEngine is not ITimestampedPreparedAudioSamplePlayback telemetry)
+            return;
+
+        while (telemetry.TryDequeueSampleTriggerTelemetry(
+                   out AudioSampleTriggerTelemetry sample))
+        {
+            audioSampleTriggerLatencyTracker.Record(sample);
+        }
+
+        ulong dropped = telemetry.SampleTriggerTelemetryStatus.DroppedCount;
+        if (dropped < previousAudioSampleTelemetryDropped)
+        {
+            accumulatedAudioSampleTelemetryDropped +=
+                previousAudioSampleTelemetryDropped;
+        }
+        previousAudioSampleTelemetryDropped = dropped;
+    }
+
     private void logInputTimingSummary()
     {
+        drainAudioSampleTriggerTelemetry();
         KeyInputTimestampBackendStatus backend =
             keyInputTimestamps.Status;
         InputAgeStatistics ages = inputAgeTracker.Snapshot();
         InputPipelineLatencyStatistics pipeline =
             inputPipelineLatencyTracker.Snapshot();
+        AudioSampleTriggerLatencyStatistics nativeSamples =
+            audioSampleTriggerLatencyTracker.Snapshot();
+        ulong nativeTelemetryDropped =
+            accumulatedAudioSampleTelemetryDropped
+            + previousAudioSampleTelemetryDropped;
         string ageSummary = ages.Count == 0
             ? "no scored input samples"
             : $"input age p50={ages.P50Milliseconds:0.00} ms, "
@@ -1896,6 +2008,16 @@ public partial class GameplayScreen : Screen
               + $"p99={pipeline.CaptureToCompletion.P99Milliseconds:0.00} ms, "
               + $"max={pipeline.CaptureToCompletion.MaximumMilliseconds:0.00} ms; "
               + formatAudioEnqueue(pipeline.CaptureToAudioEnqueue);
+        string nativeSampleSummary =
+            nativeSamples.CaptureToCallback.Count == 0
+                ? "no native sample telemetry"
+                : $"native sample capture->enqueue p50={nativeSamples.CaptureToEnqueue.P50Milliseconds:0.00} ms, "
+                  + $"p99={nativeSamples.CaptureToEnqueue.P99Milliseconds:0.00} ms; "
+                  + $"enqueue->callback p50={nativeSamples.EnqueueToCallback.P50Milliseconds:0.00} ms, "
+                  + $"p99={nativeSamples.EnqueueToCallback.P99Milliseconds:0.00} ms; "
+                  + $"capture->callback p99={nativeSamples.CaptureToCallback.P99Milliseconds:0.00} ms; "
+                  + $"capture->estimated-presentation p99={nativeSamples.EstimatedCaptureToPresentation.P99Milliseconds:0.00} ms; "
+                  + $"telemetry-dropped={nativeTelemetryDropped}";
 
         Logger.Log(
             $"Gameplay input timing: {backend.Name}; "
@@ -1903,7 +2025,8 @@ public partial class GameplayScreen : Screen
             + $"pending={backend.PendingEdgeCount}, "
             + $"dropped={backend.DroppedEdgeCount}; "
             + ageSummary + "; "
-            + pipelineSummary);
+            + pipelineSummary + "; "
+            + nativeSampleSummary);
     }
 
     private static string formatAudioEnqueue(

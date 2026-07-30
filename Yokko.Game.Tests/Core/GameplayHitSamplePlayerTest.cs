@@ -62,6 +62,40 @@ namespace Yokko.Game.Tests.Core
             });
         }
 
+        [Test]
+        public void TimestampedPlaybackSkipsSamplesAlreadyTriggeredByRawInput()
+        {
+            var playback = new TimestampedTrackingPlayback();
+            var first = new GameplayHitSamplePlaybackBinding(
+                "first.wav",
+                0.4,
+                new PreparedAudioSampleHandle(new object(), 1, 0),
+                true);
+            var second = new GameplayHitSamplePlaybackBinding(
+                "second.wav",
+                0.7,
+                new PreparedAudioSampleHandle(new object(), 1, 1),
+                true);
+
+            GameplayHitSamplePlayer.TriggerResult result =
+                GameplayHitSamplePlayer.TriggerSamples(
+                    playback,
+                    [first, second],
+                    alreadyTriggeredMask: 1,
+                    captureTimestamp: 100,
+                    timestampFrequency: 1000);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(playback.TimestampedTriggerCount, Is.EqualTo(1));
+                Assert.That(playback.RegularPreparedTriggerCount, Is.Zero);
+                Assert.That(playback.LastGain, Is.EqualTo(0.7));
+                Assert.That(result.AnyTriggered, Is.True);
+                Assert.That(result.TriggeredSampleMask, Is.EqualTo(3));
+                Assert.That(result.LastAudioEnqueueTimestamp, Is.GreaterThan(0));
+            });
+        }
+
         private class LegacyTrackingPlayback : IAudioLoopingSamplePlayback
         {
             public int StringTriggerCount { get; private set; }
@@ -131,6 +165,61 @@ namespace Yokko.Game.Tests.Core
                 PreparedLoopCount++;
                 LastGain = gain;
                 return 42;
+            }
+        }
+
+        private sealed class TimestampedTrackingPlayback :
+            LegacyTrackingPlayback,
+            ITimestampedPreparedAudioSamplePlayback
+        {
+            public int TimestampedTriggerCount { get; private set; }
+
+            public int RegularPreparedTriggerCount { get; private set; }
+
+            public bool SupportsSampleTriggerTelemetry => true;
+
+            public AudioSampleTriggerTelemetryStatus
+                SampleTriggerTelemetryStatus => default;
+
+            public bool TryGetPreparedSampleHandle(
+                string samplePath,
+                out PreparedAudioSampleHandle handle)
+            {
+                handle = new PreparedAudioSampleHandle(new object(), 1, 0);
+                return true;
+            }
+
+            public bool TriggerPreparedSample(
+                PreparedAudioSampleHandle handle,
+                double gain)
+            {
+                RegularPreparedTriggerCount++;
+                LastGain = gain;
+                return true;
+            }
+
+            public bool TriggerPreparedSample(
+                PreparedAudioSampleHandle handle,
+                double gain,
+                long captureTimestamp,
+                long timestampFrequency,
+                out ulong traceId)
+            {
+                TimestampedTriggerCount++;
+                LastGain = gain;
+                traceId = (ulong)TimestampedTriggerCount;
+                return true;
+            }
+
+            public uint StartLoopingPreparedSample(
+                PreparedAudioSampleHandle handle,
+                double gain) => 1;
+
+            public bool TryDequeueSampleTriggerTelemetry(
+                out AudioSampleTriggerTelemetry telemetry)
+            {
+                telemetry = default;
+                return false;
             }
         }
     }

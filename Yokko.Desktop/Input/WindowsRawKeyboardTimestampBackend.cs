@@ -40,7 +40,7 @@ internal sealed class WindowsRawKeyboardTimestampBackend :
     private bool isAvailable;
     private bool disposed;
     private int activeCaptureWriters;
-    private IKeyInputFastPathSink? fastPathSink;
+    private IKeyInputFastPathSink fastPathSink;
 
     public WindowsRawKeyboardTimestampBackend()
     {
@@ -151,7 +151,7 @@ internal sealed class WindowsRawKeyboardTimestampBackend :
         return pending.TryDequeue(out input);
     }
 
-    public void SetFastPathSink(IKeyInputFastPathSink? sink) =>
+    public void SetFastPathSink(IKeyInputFastPathSink sink) =>
         Volatile.Write(ref fastPathSink, sink);
 
     public void Dispose()
@@ -239,7 +239,7 @@ internal sealed class WindowsRawKeyboardTimestampBackend :
             var fastPath = new KeyInputFastPathResult(-1, 0, 0);
             try
             {
-                IKeyInputFastPathSink? sink =
+                IKeyInputFastPathSink sink =
                     Volatile.Read(ref fastPathSink);
                 if (sink != null
                     && !sink.TryDispatch(
