@@ -51,23 +51,11 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
 
         InternalChildren = new Drawable[]
         {
-            new SpriteText
-            {
-                Position = new Vector2(378, 42),
-                Text = YokkoStrings.Get("settings.import.title"),
-                Font = HomeTypography.Display(58),
-                Spacing = new Vector2(0.45f, 0),
-                Colour = HomeControlColours.Navy,
-            },
-            new SpriteText
-            {
-                Position = new Vector2(378, 105),
-                Text = YokkoStrings.Get("settings.import.subtitle"),
-                Font = HomeTypography.Body(20),
-                Spacing = new Vector2(0.2f, 0),
-                Colour = SettingsTheme.MutedNavy,
-            },
-            createCategoryMark(),
+            SettingsChrome.CreateHeader(
+                YokkoStrings.Get("settings.import.title"),
+                YokkoStrings.Get("settings.import.subtitle"),
+                FontAwesome.Solid.FolderOpen,
+                8),
             createImporterStatus(),
             new SpriteText
             {
@@ -110,40 +98,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
 
     internal void SetShowCompatibilityWarnings(bool value) => settings.ShowCompatibilityWarnings.Value = value;
 
-    private static Drawable createCategoryMark() => new Container
-    {
-        Position = new Vector2(1094, 40),
-        Size = new Vector2(124, 92),
-        Children = new Drawable[]
-        {
-            new Circle
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(78),
-                Colour = SettingsTheme.PaleCyan,
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(34),
-                Icon = FontAwesome.Solid.FolderOpen,
-                Colour = HomeControlColours.Navy,
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.Centre,
-                Position = new Vector2(-8, 8),
-                Size = new Vector2(14),
-                Icon = FontAwesome.Solid.Plus,
-                Colour = HomeControlColours.Pink,
-            },
-        },
-    };
-
-    private Drawable createImporterStatus() => new Container
+    private Drawable createImporterStatus() => SettingsChrome.CreateStickerFrame(new Container
     {
         Position = new Vector2(378, 157),
         Size = new Vector2(840, 72),
@@ -202,7 +157,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
             },
             createStatusBadge(),
         },
-    };
+    });
 
     private static Drawable createStatusBadge() => new Container
     {

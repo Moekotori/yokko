@@ -41,30 +41,24 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
 
         InternalChildren = new Drawable[]
         {
-            new SpriteText
-            {
-                Position = new Vector2(378, 42),
-                Text = YokkoStrings.Get("settings.general.title"),
-                Font = HomeTypography.Display(58),
-                Spacing = new Vector2(0.45f, 0),
-                Colour = HomeControlColours.Navy,
-            },
-            new SpriteText
-            {
-                Position = new Vector2(378, 105),
-                Text = YokkoStrings.Get("settings.general.subtitle"),
-                Font = HomeTypography.Body(20),
-                Spacing = new Vector2(0.2f, 0),
-                Colour = SettingsTheme.MutedNavy,
-            },
-            createLanguageStatus(out currentLanguage),
-            createDivider(292),
-            createSettingRow(
+            SettingsChrome.CreateHeader(
+                YokkoStrings.Get("settings.general.title"),
+                YokkoStrings.Get("settings.general.subtitle"),
+                FontAwesome.Solid.Cog,
+                1),
+            SettingsChrome.CreateStatusCard(
+                174,
+                FontAwesome.Solid.Globe,
+                YokkoStrings.Get("settings.general.current_language"),
+                FontAwesome.Solid.Language,
+                out currentLanguage),
+            SettingsChrome.CreateDivider(292),
+            SettingsChrome.CreateSettingRow(
                 318,
                 YokkoStrings.Get("settings.general.language"),
                 createLanguageControl()),
-            createDivider(406),
-            createSettingRow(
+            SettingsChrome.CreateDivider(406),
+            SettingsChrome.CreateSettingRow(
                 424,
                 YokkoStrings.Get(
                     "settings.general.mania_scroll_speed"),
@@ -144,124 +138,8 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
             });
         }
 
-        return new Container
-        {
-            Size = new Vector2(598, 54),
-            Masking = true,
-            CornerRadius = 7,
-            BorderThickness = 1.4f,
-            BorderColour = HomeControlColours.Navy,
-            Child = new FillFlowContainer
-            {
-                RelativeSizeAxes = Axes.Both,
-                Direction = FillDirection.Horizontal,
-                Children = languageButtons.Cast<Drawable>().ToArray(),
-            },
-        };
+        return SettingsChrome.CreateSegmentedControl(languageButtons.Cast<Drawable>());
     }
-
-    private static Drawable createLanguageStatus(out SpriteText value)
-    {
-        var result = new Container
-        {
-            Position = new Vector2(378, 174),
-            Size = new Vector2(840, 86),
-            Masking = true,
-            CornerRadius = 8,
-        };
-
-        result.Children = new Drawable[]
-        {
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = SettingsTheme.StatusCyan,
-            },
-            new Circle
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.Centre,
-                X = 48,
-                Size = new Vector2(56),
-                Colour = Color4.White,
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.Centre,
-                X = 48,
-                Size = new Vector2(26),
-                Icon = FontAwesome.Solid.Globe,
-                Colour = HomeControlColours.Navy,
-            },
-            new FillFlowContainer
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 105,
-                AutoSizeAxes = Axes.Both,
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 4),
-                Children = new Drawable[]
-                {
-                    new SpriteText
-                    {
-                        Text = YokkoStrings.Get("settings.general.current_language"),
-                        Font = HomeTypography.Display(22),
-                        Colour = HomeControlColours.Navy,
-                    },
-                    value = new SpriteText
-                    {
-                        Font = HomeTypography.Body(18),
-                        Colour = HomeControlColours.Navy,
-                    },
-                },
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
-                X = -34,
-                Size = new Vector2(44),
-                Icon = FontAwesome.Solid.Language,
-                Colour = Color4.White,
-            },
-        };
-
-        return result;
-    }
-
-    private static Drawable createSettingRow(float y, LocalisableString title, Drawable control) => new Container
-    {
-        Position = new Vector2(378, y),
-        Size = new Vector2(840, 68),
-        Children = new Drawable[]
-        {
-            new SpriteText
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                Text = title,
-                Font = HomeTypography.Display(25),
-                Colour = HomeControlColours.Navy,
-            },
-            new Container
-            {
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
-                Size = new Vector2(598, 54),
-                Child = control,
-            },
-        },
-    };
-
-    private static Drawable createDivider(float y) => new Box
-    {
-        Position = new Vector2(378, y),
-        Width = 840,
-        Height = 1,
-        Colour = SettingsTheme.Divider,
-    };
 
     private static Drawable createDecorationIcon(IconUsage icon, float x, float y, float size, Color4 colour) => new SpriteIcon
     {

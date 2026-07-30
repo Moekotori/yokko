@@ -266,6 +266,37 @@ public sealed class DisplaySettingsTest
     }
 
     [Test]
+    public void SettingsStageShrinksBelowReferenceInsteadOfClipping()
+    {
+        Assert.Multiple(() =>
+        {
+            // 参考布局（1600x900）下保持 1.25 倍放大。
+            var referenceStage = SettingsScreen.CalculateResponsiveStageSize(
+                YokkoDisplaySettings.ReferenceLayoutSize);
+            Assert.That(
+                SettingsScreen.CalculateStageScale(
+                    YokkoDisplaySettings.ReferenceLayoutSize,
+                    referenceStage),
+                Is.EqualTo(SettingsScreen.ReferenceLayoutScale).Within(0.001f));
+
+            // 小于参考布局的窗口不再裁切左右/底部，而是整体缩小到完整可见。
+            var smallViewport = new osuTK.Vector2(1280, 720);
+            var smallStage = SettingsScreen.CalculateResponsiveStageSize(smallViewport);
+            float smallScale = SettingsScreen.CalculateStageScale(smallViewport, smallStage);
+            Assert.That(smallScale, Is.EqualTo(1f).Within(0.001f));
+            Assert.That(smallStage.X * smallScale, Is.LessThanOrEqualTo(smallViewport.X));
+            Assert.That(smallStage.Y * smallScale, Is.LessThanOrEqualTo(smallViewport.Y));
+
+            var tinyViewport = new osuTK.Vector2(1024, 600);
+            var tinyStage = SettingsScreen.CalculateResponsiveStageSize(tinyViewport);
+            float tinyScale = SettingsScreen.CalculateStageScale(tinyViewport, tinyStage);
+            Assert.That(tinyScale, Is.LessThan(1f));
+            Assert.That(tinyStage.X * tinyScale, Is.LessThanOrEqualTo(tinyViewport.X + 0.01f));
+            Assert.That(tinyStage.Y * tinyScale, Is.LessThanOrEqualTo(tinyViewport.Y + 0.01f));
+        });
+    }
+
+    [Test]
     public void ResolutionOnlyUsesWindowedSizeInWindowedMode()
     {
         var windowedResolution = new System.Drawing.Size(2560, 1440);

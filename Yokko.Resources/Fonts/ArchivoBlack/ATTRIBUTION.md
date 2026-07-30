@@ -10,7 +10,9 @@ The atlas covers printable ASCII (codepoints 32–126) and is used for the
 playful sticker-style display text on the home screen. CJK text falls back to
 the `Yokko` atlas.
 
-Regenerate with the shared BMFont pipeline (downloads the source TTF first):
+Regenerate with the shared BMFont pipeline (downloads the source TTF first).
+The atlas is baked at a 128px base size (overriding the script's default 64)
+so poster-scale display text stays crisp:
 
 ```bash
 curl -sL -o artifacts/fontgen/ArchivoBlack-Regular.ttf \
@@ -24,6 +26,7 @@ gen = importlib.util.module_from_spec(spec)
 sys.modules["gen"] = gen
 spec.loader.exec_module(gen)
 
+gen.FONT_SIZE = 128
 gen.render_font(
     Path("artifacts/fontgen/ArchivoBlack-Regular.ttf"),
     "ArchivoBlack",

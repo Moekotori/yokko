@@ -287,6 +287,49 @@ namespace Yokko.Game.Tests
                 return;
             }
 
+            if (Environment.GetEnvironmentVariable(
+                    "YOKKO_SETTINGS_PREVIEW") == "1")
+            {
+                if (Environment.GetEnvironmentVariable(
+                        "YOKKO_PREVIEW_LOCALE")
+                    is { Length: > 0 } settingsLocale)
+                {
+                    frameworkConfig.SetValue(
+                        FrameworkSetting.Locale,
+                        settingsLocale);
+                }
+
+                if (Enum.TryParse(
+                        Environment.GetEnvironmentVariable(
+                            "YOKKO_PREVIEW_UI_SCALE"),
+                        true,
+                        out YokkoUiScale settingsScale))
+                {
+                    DisplaySettings.UiScale.Value = settingsScale;
+                }
+
+                var settingsScreen = new Screens.Settings.SettingsScreen();
+                Add(new ScreenStack(settingsScreen)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                Add(new CursorContainer());
+
+                if (Enum.TryParse(
+                        Environment.GetEnvironmentVariable(
+                            "YOKKO_SETTINGS_PAGE"),
+                        true,
+                        out Screens.Settings.SettingsPageKind settingsPage))
+                {
+                    Scheduler.AddDelayed(
+                        () => settingsScreen.OpenPage(settingsPage),
+                        400);
+                }
+
+                schedulePreviewScreenshot(1200);
+                return;
+            }
+
             AddRange(new Drawable[]
             {
                 new TestBrowser("Yokko"),

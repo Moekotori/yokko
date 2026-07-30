@@ -72,15 +72,21 @@ internal partial class SettingsPanelFooter : CompositeDrawable
                         Size = new Vector2(30, 24),
                         Masking = true,
                         CornerRadius = 4,
-                        BorderThickness = 1,
-                        BorderColour = SettingsTheme.MutedNavy,
-                        Child = new SpriteText
+                        Children = new Drawable[]
                         {
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
-                            Text = "Esc",
-                            Font = HomeTypography.Body(14),
-                            Colour = HomeControlColours.Navy,
+                            new Box
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                Colour = HomeControlColours.Navy,
+                            },
+                            new SpriteText
+                            {
+                                Anchor = Anchor.Centre,
+                                Origin = Anchor.Centre,
+                                Text = "Esc",
+                                Font = HomeTypography.Body(14),
+                                Colour = Color4.White,
+                            },
                         },
                     },
                     new SpriteText
@@ -100,6 +106,8 @@ internal partial class SettingsSegmentedChoiceButton : ClickableContainer
 {
     private readonly Box background;
     private readonly Box focusLine;
+    private readonly Box hoverUnderline;
+    private readonly Container content;
     private readonly SpriteIcon icon;
     private readonly SpriteText text;
     private readonly SpriteIcon check;
@@ -128,32 +136,49 @@ internal partial class SettingsSegmentedChoiceButton : ClickableContainer
                 RelativeSizeAxes = Axes.Y,
                 Colour = SettingsTheme.Divider,
             },
-            icon = new SpriteIcon
+            content = new Container
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 28,
-                Size = new Vector2(16),
-                Icon = itemIcon,
-                Colour = HomeControlColours.Navy,
+                RelativeSizeAxes = Axes.Both,
+                Children = new Drawable[]
+                {
+                    icon = new SpriteIcon
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        X = 28,
+                        Size = new Vector2(16),
+                        Icon = itemIcon,
+                        Colour = HomeControlColours.Navy,
+                    },
+                    text = new SpriteText
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        X = 59,
+                        Text = label,
+                        Font = HomeTypography.Body(18),
+                        Colour = HomeControlColours.Navy,
+                    },
+                    check = new SpriteIcon
+                    {
+                        Anchor = Anchor.CentreRight,
+                        Origin = Anchor.CentreRight,
+                        X = -22,
+                        Size = new Vector2(17),
+                        Icon = FontAwesome.Solid.Check,
+                        Colour = HomeControlColours.Yellow,
+                        Alpha = 0,
+                    },
+                },
             },
-            text = new SpriteText
+            hoverUnderline = new Box
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 59,
-                Text = label,
-                Font = HomeTypography.Body(18),
-                Colour = HomeControlColours.Navy,
-            },
-            check = new SpriteIcon
-            {
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
-                X = -22,
-                Size = new Vector2(17),
-                Icon = FontAwesome.Solid.Check,
-                Colour = HomeControlColours.Yellow,
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                X = 14,
+                Width = 0,
+                Height = 2,
+                Colour = HomeControlColours.Cyan,
                 Alpha = 0,
             },
             focusLine = new Box
@@ -170,25 +195,61 @@ internal partial class SettingsSegmentedChoiceButton : ClickableContainer
 
     public void SetSelected(bool isSelected)
     {
+        bool becameSelected = isSelected && !selected;
         selected = isSelected;
         background.FadeColour(selected ? HomeControlColours.Navy : Color4.White, 120, Easing.OutQuint);
         icon.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 120, Easing.OutQuint);
         text.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 120, Easing.OutQuint);
         check.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
+
+        if (becameSelected)
+        {
+            check.ScaleTo(0.4f).ScaleTo(1f, 220, Easing.OutBack);
+            content.MoveToX(4).MoveToX(0, 200, Easing.OutQuint);
+        }
     }
 
     protected override bool OnHover(HoverEvent e)
     {
+        hoverUnderline.FadeIn(120, Easing.OutQuint)
+                      .ResizeWidthTo(90, 160, Easing.OutQuint);
+
         if (!selected)
+        {
             background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
+            icon.MoveToX(32, 120, Easing.OutQuint)
+                .RotateTo(-10, 140, Easing.OutQuint);
+            text.MoveToX(63, 140, Easing.OutQuint);
+        }
 
         return true;
     }
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
+        hoverUnderline.FadeOut(140, Easing.OutQuint)
+                      .ResizeWidthTo(0, 140, Easing.OutQuint);
+
         if (!selected)
+        {
             background.FadeColour(Color4.White, 140, Easing.OutQuint);
+        }
+
+        icon.MoveToX(28, 150, Easing.OutQuint)
+            .RotateTo(0, 180, Easing.OutQuint);
+        text.MoveToX(59, 160, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        content.ScaleTo(0.94f, 400, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        content.ScaleTo(1f, 220, Easing.OutQuint);
+        base.OnMouseUp(e);
     }
 
     protected override bool OnKeyDown(KeyDownEvent e)
@@ -219,6 +280,8 @@ internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
 {
     private readonly Box background;
     private readonly Box focusLine;
+    private readonly Box hoverUnderline;
+    private readonly Container content;
     private readonly SpriteText modeText;
     private readonly SpriteText rateText;
     private bool selected;
@@ -247,23 +310,40 @@ internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
                 RelativeSizeAxes = Axes.Y,
                 Colour = SettingsTheme.Divider,
             },
-            modeText = new SpriteText
+            content = new Container
             {
-                Anchor = Anchor.TopCentre,
-                Origin = Anchor.TopCentre,
-                Y = 8,
-                Font = HomeTypography.Display(13)
-                    .With(fixedWidth: true),
-                Colour = HomeControlColours.Navy,
+                RelativeSizeAxes = Axes.Both,
+                Children = new Drawable[]
+                {
+                    modeText = new SpriteText
+                    {
+                        Anchor = Anchor.TopCentre,
+                        Origin = Anchor.TopCentre,
+                        Y = 8,
+                        Font = HomeTypography.Display(13)
+                            .With(fixedWidth: true),
+                        Colour = HomeControlColours.Navy,
+                    },
+                    rateText = new SpriteText
+                    {
+                        Anchor = Anchor.BottomCentre,
+                        Origin = Anchor.BottomCentre,
+                        Y = -8,
+                        Font = HomeTypography.Body(11)
+                            .With(fixedWidth: true),
+                        Colour = HomeControlColours.Navy,
+                    },
+                },
             },
-            rateText = new SpriteText
+            hoverUnderline = new Box
             {
-                Anchor = Anchor.BottomCentre,
-                Origin = Anchor.BottomCentre,
-                Y = -8,
-                Font = HomeTypography.Body(11)
-                    .With(fixedWidth: true),
-                Colour = HomeControlColours.Navy,
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                X = 12,
+                Width = 0,
+                Height = 2,
+                Colour = HomeControlColours.Cyan,
+                Alpha = 0,
             },
             focusLine = new Box
             {
@@ -285,24 +365,51 @@ internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
 
     public void SetSelected(bool isSelected)
     {
+        bool becameSelected = isSelected && !selected;
         selected = isSelected;
         background.FadeColour(selected ? HomeControlColours.Navy : Color4.White, 120, Easing.OutQuint);
         modeText.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 120, Easing.OutQuint);
         rateText.FadeColour(selected ? HomeControlColours.Cyan : SettingsTheme.MutedNavy, 120, Easing.OutQuint);
+
+        if (becameSelected)
+            content.ScaleTo(0.9f).ScaleTo(1f, 220, Easing.OutBack);
     }
 
     protected override bool OnHover(HoverEvent e)
     {
+        hoverUnderline.FadeIn(120, Easing.OutQuint)
+                      .ResizeWidthTo(60, 160, Easing.OutQuint);
+
         if (!selected)
+        {
             background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
+            content.MoveToY(-2, 130, Easing.OutQuint);
+        }
 
         return true;
     }
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
+        hoverUnderline.FadeOut(140, Easing.OutQuint)
+                      .ResizeWidthTo(0, 140, Easing.OutQuint);
+
         if (!selected)
             background.FadeColour(Color4.White, 140, Easing.OutQuint);
+
+        content.MoveToY(0, 160, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        content.ScaleTo(0.92f, 400, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        content.ScaleTo(1f, 220, Easing.OutQuint);
+        base.OnMouseUp(e);
     }
 
     protected override bool OnKeyDown(KeyDownEvent e)
@@ -355,16 +462,13 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
         this.onSelected = onSelected;
         Size = new Vector2(598, 54);
 
+        Box focusLine;
         var header = new SettingsDropdownHeader(
             () => open,
             Toggle,
             () => enabled)
         {
             RelativeSizeAxes = Axes.Both,
-            Masking = true,
-            CornerRadius = 7,
-            BorderThickness = 1.4f,
-            BorderColour = HomeControlColours.Navy,
             Children = new Drawable[]
             {
                 headerBackground = new Box
@@ -389,10 +493,24 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
                     Icon = FontAwesome.Solid.ChevronDown,
                     Colour = HomeControlColours.Pink,
                 },
+                focusLine = new Box
+                {
+                    Anchor = Anchor.BottomLeft,
+                    Origin = Anchor.BottomLeft,
+                    RelativeSizeAxes = Axes.X,
+                    Height = 3,
+                    Colour = HomeControlColours.Pink,
+                    Alpha = 0,
+                },
             },
         };
 
         header.Background = headerBackground;
+        header.FocusLine = focusLine;
+        header.ValueText = valueText;
+
+        var headerCard = new SettingsStickerCard(new Vector2(598, 54), 8);
+        headerCard.SetContent(header);
 
         var flow = new FillFlowContainer
         {
@@ -409,30 +527,22 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
             flow.Add(row);
         }
 
+        var menuCard = new SettingsStickerCard(
+            new Vector2(598, options.Count * SettingsResolutionOption.RowHeight),
+            8);
+        menuCard.SetContent(flow);
+
         menu = new Container
         {
             Y = 59,
-            Width = 598,
-            Height = options.Count * SettingsResolutionOption.RowHeight,
-            Masking = true,
-            CornerRadius = 7,
-            BorderThickness = 1.4f,
-            BorderColour = HomeControlColours.Navy,
+            AutoSizeAxes = Axes.Both,
             Alpha = 0,
             Scale = new Vector2(1, 0.96f),
             Depth = -20,
-            Children = new Drawable[]
-            {
-                new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = Color4.White,
-                },
-                flow,
-            },
+            Child = menuCard,
         };
 
-        InternalChildren = new Drawable[] { header, menu };
+        InternalChildren = new Drawable[] { headerCard, menu };
     }
 
     public void SetSelected(Size size)
@@ -506,6 +616,8 @@ internal partial class SettingsDropdownHeader : ClickableContainer
     private readonly Func<bool> isEnabled;
 
     public Box Background { private get; set; }
+    public Box FocusLine { private get; set; }
+    public SpriteText ValueText { private get; set; }
     public override bool AcceptsFocus => isEnabled();
 
     public SettingsDropdownHeader(
@@ -521,6 +633,7 @@ internal partial class SettingsDropdownHeader : ClickableContainer
     protected override bool OnHover(HoverEvent e)
     {
         Background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
+        ValueText?.MoveToX(22, 130, Easing.OutQuint);
         return true;
     }
 
@@ -528,6 +641,20 @@ internal partial class SettingsDropdownHeader : ClickableContainer
     {
         if (!isOpen())
             Background.FadeColour(Color4.White, 140, Easing.OutQuint);
+
+        ValueText?.MoveToX(18, 150, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        this.ScaleTo(0.985f, 400, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        this.ScaleTo(1f, 220, Easing.OutQuint);
+        base.OnMouseUp(e);
     }
 
     protected override bool OnKeyDown(KeyDownEvent e)
@@ -544,15 +671,27 @@ internal partial class SettingsDropdownHeader : ClickableContainer
     protected override void OnFocus(FocusEvent e)
     {
         base.OnFocus(e);
-        BorderColour = HomeControlColours.Pink;
-        BorderThickness = 2.4f;
+
+        if (FocusLine != null)
+            FocusLine.FadeIn(100, Easing.OutQuint);
+        else
+        {
+            BorderColour = HomeControlColours.Pink;
+            BorderThickness = 2.4f;
+        }
     }
 
     protected override void OnFocusLost(FocusLostEvent e)
     {
         base.OnFocusLost(e);
-        BorderColour = HomeControlColours.Navy;
-        BorderThickness = 1.4f;
+
+        if (FocusLine != null)
+            FocusLine.FadeOut(100, Easing.OutQuint);
+        else
+        {
+            BorderColour = HomeControlColours.Navy;
+            BorderThickness = 1.4f;
+        }
     }
 }
 
@@ -562,6 +701,7 @@ internal partial class SettingsResolutionOption : ClickableContainer
 
     private readonly Box background;
     private readonly SpriteIcon check;
+    private readonly SpriteText label;
     private readonly Box focusLine;
 
     public Size Value { get; }
@@ -581,7 +721,7 @@ internal partial class SettingsResolutionOption : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.White,
             },
-            new SpriteText
+            label = new SpriteText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -623,11 +763,15 @@ internal partial class SettingsResolutionOption : ClickableContainer
     protected override bool OnHover(HoverEvent e)
     {
         background.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
+        label.MoveToX(24, 110, Easing.OutQuint);
         return true;
     }
 
-    protected override void OnHoverLost(HoverLostEvent e) =>
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
         background.FadeColour(Color4.White, 120, Easing.OutQuint);
+        label.MoveToX(18, 130, Easing.OutQuint);
+    }
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {

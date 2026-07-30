@@ -133,6 +133,9 @@ internal static class YokkoStrings
             ["gameplay.pause.retry"] = new("Restart", "重新开始", "リスタート"),
             ["gameplay.pause.settings"] = new("Settings", "设置", "設定"),
             ["gameplay.pause.exit"] = new("Exit play", "退出游玩", "選曲へ戻る"),
+            ["gameplay.pause.hint_select"] = new("SELECT", "选择", "選択"),
+            ["gameplay.pause.hint_confirm"] = new("CONFIRM", "确认", "決定"),
+            ["gameplay.pause.hint_retry"] = new("RETRY", "重试", "リトライ"),
 
             ["gameplay.result.title"] = new("Result", "结算", "リザルト"),
             ["gameplay.result.max_combo"] = new("MAX COMBO", "最大连击", "MAX COMBO"),

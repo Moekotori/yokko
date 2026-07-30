@@ -66,7 +66,6 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     internal YokkoUiScale CurrentUiScale => uiScale.Value;
 
     public DisplaySettingsPanel(
-        Texture mascotTexture,
         Bindable<Size> windowedSize,
         Bindable<WindowMode> windowMode,
         Bindable<YokkoUiScale> uiScale,
@@ -87,38 +86,31 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
         InternalChildren = new Drawable[]
         {
-            new SpriteText
-            {
-                Position = new Vector2(378, 42),
-                Text = YokkoStrings.Get("settings.display.title"),
-                Font = HomeTypography.Display(58),
-                Spacing = new Vector2(0.45f, 0),
-                Colour = HomeControlColours.Navy,
-            },
-            new SpriteText
-            {
-                Position = new Vector2(378, 105),
-                Text = YokkoStrings.Get("settings.display.subtitle"),
-                Font = HomeTypography.Body(20),
-                Spacing = new Vector2(0.2f, 0),
-                Colour = SettingsTheme.MutedNavy,
-            },
-            createMascotCrop(mascotTexture),
-            createDisplayStatus(out currentDisplayMetadata),
-            createDivider(270),
-            createSettingRow(276, YokkoStrings.Get("settings.display.window_mode"), createModeControl()),
-            createDivider(340),
-            createSettingRow(
+            SettingsChrome.CreateHeader(
+                YokkoStrings.Get("settings.display.title"),
+                YokkoStrings.Get("settings.display.subtitle"),
+                FontAwesome.Solid.Desktop,
+                2),
+            SettingsChrome.CreateStatusCard(
+                174,
+                FontAwesome.Solid.Desktop,
+                YokkoStrings.Get("settings.display.current_display"),
+                FontAwesome.Solid.Heartbeat,
+                out currentDisplayMetadata),
+            SettingsChrome.CreateDivider(270),
+            SettingsChrome.CreateSettingRow(276, YokkoStrings.Get("settings.display.window_mode"), createModeControl()),
+            SettingsChrome.CreateDivider(340),
+            SettingsChrome.CreateSettingRow(
                 346,
                 YokkoStrings.Get("settings.display.resolution"),
                 resolutionDropdown = new SettingsResolutionDropdown(supportedResolutions, setWindowedSize),
                 -10),
-            createDivider(410),
-            createSettingRow(416, YokkoStrings.Get("settings.display.frame_limit"), createFrameLimitControl()),
-            createDivider(480),
-            createSettingRow(486, YokkoStrings.Get("settings.display.interface_scale"), createScaleControl()),
-            createDivider(550),
-            createSettingRow(
+            SettingsChrome.CreateDivider(410),
+            SettingsChrome.CreateSettingRow(416, YokkoStrings.Get("settings.display.frame_limit"), createFrameLimitControl()),
+            SettingsChrome.CreateDivider(480),
+            SettingsChrome.CreateSettingRow(486, YokkoStrings.Get("settings.display.interface_scale"), createScaleControl()),
+            SettingsChrome.CreateDivider(550),
+            SettingsChrome.CreateSettingRow(
                 556,
                 YokkoStrings.Get("settings.display.performance_readout"),
                 new DisplayPerformanceReadoutToggle(showPerformanceReadout)),
@@ -130,90 +122,6 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         uiScale.BindValueChanged(onUiScaleChanged, true);
         frameLimit.BindValueChanged(onFrameLimitChanged, true);
         currentDisplayMode.BindValueChanged(onCurrentDisplayModeChanged, true);
-    }
-
-    private static Drawable createMascotCrop(Texture mascotTexture) => new Container
-    {
-        Position = new Vector2(944, -8),
-        Size = new Vector2(252, 182),
-        Masking = true,
-        Child = new Sprite
-        {
-            Position = new Vector2(0, -8),
-            Size = new Vector2(250, 284),
-            Texture = mascotTexture,
-        },
-    };
-
-    private static Drawable createDisplayStatus(out SpriteText metadata)
-    {
-        var result = new Container
-        {
-            Position = new Vector2(378, 174),
-            Size = new Vector2(840, 86),
-            Masking = true,
-            CornerRadius = 8,
-        };
-
-        result.Children = new Drawable[]
-        {
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = SettingsTheme.StatusCyan,
-            },
-            new Circle
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.Centre,
-                X = 48,
-                Size = new Vector2(56),
-                Colour = Color4.White,
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.Centre,
-                X = 48,
-                Size = new Vector2(26),
-                Icon = FontAwesome.Solid.Desktop,
-                Colour = HomeControlColours.Navy,
-            },
-            new FillFlowContainer
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 105,
-                AutoSizeAxes = Axes.Both,
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 4),
-                Children = new Drawable[]
-                {
-                    new SpriteText
-                    {
-                        Text = YokkoStrings.Get("settings.display.current_display"),
-                        Font = HomeTypography.Display(22),
-                        Colour = HomeControlColours.Navy,
-                    },
-                    metadata = new SpriteText
-                    {
-                        Font = HomeTypography.Body(18),
-                        Colour = HomeControlColours.Navy,
-                    },
-                },
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
-                X = -34,
-                Size = new Vector2(44),
-                Icon = FontAwesome.Solid.Heartbeat,
-                Colour = Color4.White,
-            },
-        };
-
-        return result;
     }
 
     private Drawable createModeControl()
@@ -234,7 +142,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             });
         }
 
-        return createSegmentedControl(modeButtons);
+        return SettingsChrome.CreateSegmentedControl(modeButtons);
     }
 
     private Drawable createFrameLimitControl()
@@ -250,7 +158,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
                 buttonWidth));
         }
 
-        return createSegmentedControl(frameLimitButtons);
+        return SettingsChrome.CreateSegmentedControl(frameLimitButtons);
     }
 
     private Drawable createScaleControl()
@@ -275,56 +183,8 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             });
         }
 
-        return createSegmentedControl(scaleButtons);
+        return SettingsChrome.CreateSegmentedControl(scaleButtons);
     }
-
-    private static Drawable createSegmentedControl(IEnumerable<Drawable> buttons) => new Container
-    {
-        Size = new Vector2(598, 54),
-        Masking = true,
-        CornerRadius = 7,
-        BorderThickness = 1.4f,
-        BorderColour = HomeControlColours.Navy,
-        Child = new FillFlowContainer
-        {
-            RelativeSizeAxes = Axes.Both,
-            Direction = FillDirection.Horizontal,
-            Children = buttons.ToArray(),
-        },
-    };
-
-    private static Drawable createSettingRow(float y, LocalisableString title, Drawable control, float depth = 0) => new Container
-    {
-        Position = new Vector2(378, y),
-        Size = new Vector2(840, 60),
-        Depth = depth,
-        Children = new Drawable[]
-        {
-            new SpriteText
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                Text = title,
-                Font = HomeTypography.Display(25),
-                Colour = HomeControlColours.Navy,
-            },
-            new Container
-            {
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
-                Size = new Vector2(598, 54),
-                Child = control,
-            },
-        },
-    };
-
-    private static Drawable createDivider(float y) => new Box
-    {
-        Position = new Vector2(378, y),
-        Width = 840,
-        Height = 1,
-        Colour = SettingsTheme.Divider,
-    };
 
     private void onWindowedSizeChanged(ValueChangedEvent<Size> _) => refreshSelection();
 
@@ -436,6 +296,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 internal partial class DisplayPerformanceReadoutToggle : ClickableContainer
 {
     private readonly BindableBool value;
+    private readonly Container cardBody;
     private readonly Box background;
     private readonly Box switchTrack;
     private readonly Circle switchThumb;
@@ -448,17 +309,49 @@ internal partial class DisplayPerformanceReadoutToggle : ClickableContainer
         this.value = value;
         Action = () => value.Value = !value.Value;
         Size = new Vector2(598, 54);
-        Masking = true;
-        CornerRadius = 7;
-        BorderThickness = 1.4f;
-        BorderColour = HomeControlColours.Navy;
 
         InternalChildren = new Drawable[]
         {
-            background = new Box
+            new Container
+            {
+                Position = new Vector2(0, 4),
+                Size = new Vector2(598, 50),
+                Masking = true,
+                CornerRadius = 9,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.2f),
+                },
+            },
+            new Container
+            {
+                Position = new Vector2(-1.5f, -1.5f),
+                Size = new Vector2(601, 57),
+                Masking = true,
+                CornerRadius = 9,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.4f),
+                },
+            },
+            cardBody = new Container
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = Color4.White,
+                Masking = true,
+                CornerRadius = 8,
+                BorderThickness = 1.6f,
+                BorderColour = HomeControlColours.Navy,
+                Child = background = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
             },
             stateText = new SpriteText
             {
@@ -476,6 +369,8 @@ internal partial class DisplayPerformanceReadoutToggle : ClickableContainer
                 Size = new Vector2(48, 24),
                 Masking = true,
                 CornerRadius = 12,
+                BorderThickness = 1.5f,
+                BorderColour = HomeControlColours.Navy,
                 Children = new Drawable[]
                 {
                     switchTrack = new Box
@@ -504,12 +399,12 @@ internal partial class DisplayPerformanceReadoutToggle : ClickableContainer
             change.NewValue
                 ? HomeControlColours.Navy
                 : SettingsTheme.Divider,
-            120,
+            160,
             Easing.OutQuint);
         switchThumb.MoveToX(
             change.NewValue ? 36 : 12,
-            120,
-            Easing.OutQuint);
+            280,
+            Easing.OutBack);
         stateText.Text = YokkoStrings.Get(
             change.NewValue
                 ? "settings.display.enabled"
@@ -522,11 +417,27 @@ internal partial class DisplayPerformanceReadoutToggle : ClickableContainer
             SettingsTheme.PaleCyan,
             120,
             Easing.OutQuint);
+        stateText.MoveToX(22, 130, Easing.OutQuint);
         return true;
     }
 
-    protected override void OnHoverLost(HoverLostEvent e) =>
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
         background.FadeColour(Color4.White, 140, Easing.OutQuint);
+        stateText.MoveToX(18, 150, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        this.MoveToY(2, 300, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        this.MoveToY(0, 200, Easing.OutQuint);
+        base.OnMouseUp(e);
+    }
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
@@ -542,15 +453,15 @@ internal partial class DisplayPerformanceReadoutToggle : ClickableContainer
     protected override void OnFocus(FocusEvent e)
     {
         base.OnFocus(e);
-        BorderColour = HomeControlColours.Pink;
-        BorderThickness = 2.4f;
+        cardBody.BorderColour = HomeControlColours.Pink;
+        cardBody.BorderThickness = 2.4f;
     }
 
     protected override void OnFocusLost(FocusLostEvent e)
     {
         base.OnFocusLost(e);
-        BorderColour = HomeControlColours.Navy;
-        BorderThickness = 1.4f;
+        cardBody.BorderColour = HomeControlColours.Navy;
+        cardBody.BorderThickness = 1.6f;
     }
 
     protected override void Dispose(bool isDisposing)

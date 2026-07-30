@@ -58,6 +58,25 @@ internal partial class SettingsSidebar : CompositeDrawable
                 Size = new Vector2(244, 83),
                 Texture = logoTexture,
             },
+            new HomeRing(20, 2.5f, HomeControlColours.Cyan)
+            {
+                Position = new Vector2(272, 22),
+            },
+            new HomeTwinkle(11, 2300)
+            {
+                Position = new Vector2(296, 92),
+                Colour = HomeControlColours.Pink,
+            },
+            new HomeDotField
+            {
+                Position = new Vector2(198, 128),
+                Size = new Vector2(84, 40),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.1f),
+            },
             new SpriteText
             {
                 Position = new Vector2(38, 126),
@@ -99,6 +118,12 @@ internal partial class SettingsSidebar : CompositeDrawable
                 Width = 1,
                 Height = 664,
                 Colour = SettingsTheme.Divider,
+            },
+            new HomeBarcode("NO.010-SET", showLabel: false)
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                Position = new Vector2(38, -18),
             },
         };
 
@@ -272,8 +297,8 @@ internal partial class SettingsSearchTextBox : BasicTextBox
         Size = new Vector2(244, 44);
         Masking = true;
         CornerRadius = 7;
-        BorderThickness = 1.2f;
-        BorderColour = SettingsTheme.MutedNavy;
+        BorderThickness = 1.5f;
+        BorderColour = HomeControlColours.Navy;
         BackgroundUnfocused = Color4.White;
         BackgroundFocused = SettingsTheme.PaleCyan;
         FontSize = 18;
@@ -328,45 +353,84 @@ internal partial class SettingsSearchTextBox : BasicTextBox
     protected override void OnFocusLost(FocusLostEvent e)
     {
         base.OnFocusLost(e);
-        BorderColour = SettingsTheme.MutedNavy;
-        BorderThickness = 1.2f;
+        BorderColour = HomeControlColours.Navy;
+        BorderThickness = 1.5f;
     }
 }
 
 internal partial class SettingsOutlineButton : ClickableContainer
 {
     private readonly Box background;
+    private readonly Container cardBody;
+    private readonly SpriteIcon icon;
+    private readonly SpriteText text;
     private readonly float restingX;
 
     public override bool AcceptsFocus => true;
 
-    public SettingsOutlineButton(LocalisableString label, IconUsage icon, Action action)
+    public SettingsOutlineButton(LocalisableString label, IconUsage buttonIcon, Action action)
     {
         Action = action;
         Size = new Vector2(244, 44);
-        Masking = true;
-        CornerRadius = 7;
-        BorderThickness = 1.2f;
-        BorderColour = SettingsTheme.MutedNavy;
         restingX = 38;
 
         InternalChildren = new Drawable[]
         {
-            background = new Box
+            // 主页贴纸卡片的偏移底衬，让按钮像一枚贴纸。
+            new Container
+            {
+                Position = new Vector2(0, 3),
+                Size = new Vector2(244, 41),
+                Masking = true,
+                CornerRadius = 8,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.18f),
+                },
+            },
+            new Container
+            {
+                Position = new Vector2(-1.5f, -1.5f),
+                Size = new Vector2(247, 47),
+                Masking = true,
+                CornerRadius = 8,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.4f),
+                },
+            },
+            cardBody = new Container
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = Color4.White,
+                Masking = true,
+                CornerRadius = 7,
+                BorderThickness = 1.5f,
+                BorderColour = HomeControlColours.Navy,
+                Children = new Drawable[]
+                {
+                    background = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = Color4.White,
+                    },
+                },
             },
-            new SpriteIcon
+            icon = new SpriteIcon
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = 16,
                 Size = new Vector2(17),
-                Icon = icon,
+                Icon = buttonIcon,
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            text = new SpriteText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -381,14 +445,28 @@ internal partial class SettingsOutlineButton : ClickableContainer
     protected override bool OnHover(HoverEvent e)
     {
         background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
-        this.MoveToX(restingX + 2, 120, Easing.OutQuint);
+        icon.MoveToX(12, 130, Easing.OutQuint);
+        this.MoveToX(restingX + 3, 120, Easing.OutQuint);
         return true;
     }
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
         background.FadeColour(Color4.White, 140, Easing.OutQuint);
+        icon.MoveToX(16, 150, Easing.OutQuint);
         this.MoveToX(restingX, 140, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        this.MoveToY(2, 300, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        this.MoveToY(0, 200, Easing.OutQuint);
+        base.OnMouseUp(e);
     }
 
     protected override bool OnKeyDown(KeyDownEvent e)
@@ -405,16 +483,16 @@ internal partial class SettingsOutlineButton : ClickableContainer
     protected override void OnFocus(FocusEvent e)
     {
         base.OnFocus(e);
-        BorderColour = HomeControlColours.Pink;
-        BorderThickness = 2.4f;
+        cardBody.BorderColour = HomeControlColours.Pink;
+        cardBody.BorderThickness = 2.4f;
         background.FadeColour(SettingsTheme.PaleCyan, 100);
     }
 
     protected override void OnFocusLost(FocusLostEvent e)
     {
         base.OnFocusLost(e);
-        BorderColour = SettingsTheme.MutedNavy;
-        BorderThickness = 1.2f;
+        cardBody.BorderColour = HomeControlColours.Navy;
+        cardBody.BorderThickness = 1.5f;
         background.FadeColour(Color4.White, 100);
     }
 }
@@ -532,6 +610,7 @@ internal partial class SettingsNavItem : ClickableContainer
 
     public void SetSelected(bool isSelected)
     {
+        bool becameSelected = isSelected && !selected;
         selected = isSelected;
         background.FadeColour(selected ? HomeControlColours.Navy : Color4.Transparent, 120, Easing.OutQuint);
         selectionBar.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
@@ -539,6 +618,14 @@ internal partial class SettingsNavItem : ClickableContainer
         icon.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 120, Easing.OutQuint);
         text.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 120, Easing.OutQuint);
         plus.FadeColour(selected ? HomeControlColours.Yellow : HomeControlColours.Pink, 120, Easing.OutQuint);
+
+        if (becameSelected)
+        {
+            selectionBar.ScaleTo(new Vector2(1, 0.3f))
+                        .ScaleTo(Vector2.One, 240, Easing.OutBack);
+            icon.MoveToX(26).MoveToX(22, 220, Easing.OutQuint);
+            text.MoveToX(61).MoveToX(57, 220, Easing.OutQuint);
+        }
     }
 
     public void SetFiltered(bool visible)
@@ -557,6 +644,9 @@ internal partial class SettingsNavItem : ClickableContainer
         {
             background.FadeColour(SettingsTheme.PaleCyan, 120, Easing.OutQuint);
             icon.FadeColour(HomeControlColours.Cyan, 120, Easing.OutQuint);
+            icon.MoveToX(26, 120, Easing.OutQuint)
+                .RotateTo(-10, 140, Easing.OutQuint);
+            text.MoveToX(61, 130, Easing.OutQuint);
             plus.RotateTo(90, 120, Easing.OutQuint);
         }
         else
@@ -571,7 +661,22 @@ internal partial class SettingsNavItem : ClickableContainer
     {
         background.FadeColour(selected ? HomeControlColours.Navy : Color4.Transparent, 140, Easing.OutQuint);
         icon.FadeColour(selected ? Color4.White : HomeControlColours.Navy, 140, Easing.OutQuint);
+        icon.MoveToX(22, 150, Easing.OutQuint)
+            .RotateTo(0, 170, Easing.OutQuint);
+        text.MoveToX(57, 150, Easing.OutQuint);
         plus.RotateTo(0, 140, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        this.ScaleTo(0.97f, 400, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        this.ScaleTo(1f, 220, Easing.OutQuint);
+        base.OnMouseUp(e);
     }
 
     protected override bool OnKeyDown(KeyDownEvent e)

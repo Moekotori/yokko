@@ -80,22 +80,11 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
 
         InternalChildren = new Drawable[]
         {
-            new SpriteText
-            {
-                Position = new Vector2(378, 42),
-                Text = YokkoStrings.Get("settings.audio.title"),
-                Font = HomeTypography.Display(58),
-                Spacing = new Vector2(0.45f, 0),
-                Colour = HomeControlColours.Navy,
-            },
-            new SpriteText
-            {
-                Position = new Vector2(378, 105),
-                Text = YokkoStrings.Get("settings.audio.subtitle"),
-                Font = HomeTypography.Body(20),
-                Spacing = new Vector2(0.2f, 0),
-                Colour = SettingsTheme.MutedNavy,
-            },
+            SettingsChrome.CreateHeader(
+                YokkoStrings.Get("settings.audio.title"),
+                YokkoStrings.Get("settings.audio.subtitle"),
+                FontAwesome.Solid.VolumeUp,
+                3),
             createStatusCard(out statusTitle, out statusMetadata),
             createDivider(232),
                 createSettingRow(
@@ -288,20 +277,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
 
     private static Drawable segmentedControl(
         IReadOnlyList<SettingsSegmentedChoiceButton> buttons) =>
-        new Container
-        {
-            Size = new Vector2(598, 54),
-            Masking = true,
-            CornerRadius = 7,
-            BorderThickness = 1.4f,
-            BorderColour = HomeControlColours.Navy,
-            Child = new FillFlowContainer
-            {
-                RelativeSizeAxes = Axes.Both,
-                Direction = FillDirection.Horizontal,
-                Children = buttons.Cast<Drawable>().ToArray(),
-            },
-        };
+        SettingsChrome.CreateSegmentedControl(buttons.Cast<Drawable>());
 
     private async Task loadDevicesAsync(CancellationToken cancellationToken)
     {
@@ -410,7 +386,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             },
         };
 
-        return result;
+        return SettingsChrome.CreateStickerFrame(result);
     }
 
     private static Drawable createSettingRow(

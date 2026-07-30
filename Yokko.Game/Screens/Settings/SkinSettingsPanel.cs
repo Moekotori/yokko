@@ -30,21 +30,11 @@ internal partial class SkinSettingsPanel : CompositeDrawable
 
         InternalChildren = new Drawable[]
         {
-            new SpriteText
-            {
-                Position = new Vector2(378, 42),
-                Text = YokkoStrings.Get("settings.skins.title"),
-                Font = HomeTypography.Display(58),
-                Spacing = new Vector2(0.45f, 0),
-                Colour = HomeControlColours.Navy,
-            },
-            new SpriteText
-            {
-                Position = new Vector2(378, 105),
-                Text = YokkoStrings.Get("settings.skins.subtitle"),
-                Font = HomeTypography.Body(20),
-                Colour = SettingsTheme.MutedNavy,
-            },
+            SettingsChrome.CreateHeader(
+                YokkoStrings.Get("settings.skins.title"),
+                YokkoStrings.Get("settings.skins.subtitle"),
+                FontAwesome.Solid.PaintBrush,
+                6),
             createDropCard(),
             new SpriteText
             {

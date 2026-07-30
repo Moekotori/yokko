@@ -1814,7 +1814,7 @@ public partial class HomeBarcode : CompositeDrawable
 {
     private static readonly int[] barWidths = { 2, 1, 3, 1, 1, 2, 1, 4, 1, 2, 2, 1, 3, 1, 2, 1, 1, 3, 2, 1, 2, 2 };
 
-    public HomeBarcode(string label)
+    public HomeBarcode(string label, bool showLabel = true)
     {
         AutoSizeAxes = Axes.Both;
 
@@ -1835,18 +1835,21 @@ public partial class HomeBarcode : CompositeDrawable
             });
         }
 
-        InternalChildren = new Drawable[]
+        var children = new List<Drawable> { bars };
+
+        if (showLabel)
         {
-            bars,
-            new SpriteText
+            children.Add(new SpriteText
             {
                 Y = 29,
                 Text = label,
                 Font = HomeTypography.Display(10),
                 Spacing = new Vector2(1.6f, 0),
                 Colour = new Color4(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.5f),
-            },
-        };
+            });
+        }
+
+        InternalChildren = children;
     }
 
     protected override void LoadComplete()

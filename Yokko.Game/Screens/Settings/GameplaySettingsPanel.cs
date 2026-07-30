@@ -124,23 +124,11 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
         InternalChildren = new Drawable[]
         {
-            new SpriteText
-            {
-                Position = new Vector2(378, 42),
-                Text = YokkoStrings.Get("settings.gameplay.title"),
-                Font = HomeTypography.Display(58),
-                Spacing = new Vector2(0.45f, 0),
-                Colour = HomeControlColours.Navy,
-            },
-            new SpriteText
-            {
-                Position = new Vector2(378, 105),
-                Text = YokkoStrings.Get("settings.gameplay.subtitle"),
-                Font = HomeTypography.Body(20),
-                Spacing = new Vector2(0.2f, 0),
-                Colour = SettingsTheme.MutedNavy,
-            },
-            createCategoryMark(),
+            SettingsChrome.CreateHeader(
+                YokkoStrings.Get("settings.gameplay.title"),
+                YokkoStrings.Get("settings.gameplay.subtitle"),
+                FontAwesome.Solid.Gamepad,
+                4),
             createStatusCard(),
             createSectionTabs(),
             contentHost = new Container
@@ -1035,40 +1023,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         },
     };
 
-    private static Drawable createCategoryMark() => new Container
-    {
-        Position = new Vector2(1094, 40),
-        Size = new Vector2(124, 92),
-        Children = new Drawable[]
-        {
-            new Circle
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(78),
-                Colour = SettingsTheme.PaleCyan,
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(34),
-                Icon = FontAwesome.Solid.Gamepad,
-                Colour = HomeControlColours.Navy,
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.Centre,
-                Position = new Vector2(-8, 8),
-                Size = new Vector2(14),
-                Icon = FontAwesome.Solid.Plus,
-                Colour = HomeControlColours.Pink,
-            },
-        },
-    };
-
-    private Drawable createStatusCard() => new Container
+    private Drawable createStatusCard() => SettingsChrome.CreateStickerFrame(new Container
     {
         Position = new Vector2(378, 150),
         Size = new Vector2(840, 92),
@@ -1130,7 +1085,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(648, 25),
             },
         },
-    };
+    });
 
     private void refreshStatusMetadata()
     {
@@ -2055,17 +2010,49 @@ internal partial class GameplayValueStepper : CompositeDrawable
         this.maximum = maximum;
         this.formatter = formatter;
         Size = new Vector2(390, 54);
-        Masking = true;
-        CornerRadius = 7;
-        BorderThickness = 1.4f;
-        BorderColour = HomeControlColours.Navy;
 
         InternalChildren = new Drawable[]
         {
-            new Box
+            new Container
+            {
+                Position = new Vector2(0, 4),
+                Size = new Vector2(390, 50),
+                Masking = true,
+                CornerRadius = 8,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.2f),
+                },
+            },
+            new Container
+            {
+                Position = new Vector2(-1.5f, -1.5f),
+                Size = new Vector2(393, 57),
+                Masking = true,
+                CornerRadius = 8,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.4f),
+                },
+            },
+            new Container
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = Color4.White,
+                Masking = true,
+                CornerRadius = 7,
+                BorderThickness = 1.6f,
+                BorderColour = HomeControlColours.Navy,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
             },
             createButton(FontAwesome.Solid.Minus, Anchor.CentreLeft, -step),
             valueText = new SpriteText
@@ -2117,7 +2104,8 @@ internal partial class GameplayJudgementModeSelector : CompositeDrawable
         this.mode = mode;
         Size = new Vector2(800, 54);
 
-        InternalChild = new FillFlowContainer
+        var card = new SettingsStickerCard(new Vector2(800, 54), 8);
+        card.SetContent(new FillFlowContainer
         {
             RelativeSizeAxes = Axes.Both,
             Direction = FillDirection.Horizontal,
@@ -2136,7 +2124,8 @@ internal partial class GameplayJudgementModeSelector : CompositeDrawable
                     () => mode.Value = JudgementMode.Etterna,
                     400),
             },
-        };
+        });
+        InternalChild = card;
 
         mode.BindValueChanged(onModeChanged, true);
     }

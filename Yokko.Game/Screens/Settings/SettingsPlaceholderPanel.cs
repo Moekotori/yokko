@@ -30,23 +30,11 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
 
         InternalChildren = new Drawable[]
         {
-            new SpriteText
-            {
-                Position = new Vector2(378, 42),
-                Text = page.Title,
-                Font = HomeTypography.Display(58),
-                Spacing = new Vector2(0.45f, 0),
-                Colour = HomeControlColours.Navy,
-            },
-            new SpriteText
-            {
-                Position = new Vector2(378, 105),
-                Text = page.Subtitle,
-                Font = HomeTypography.Body(20),
-                Spacing = new Vector2(0.2f, 0),
-                Colour = SettingsTheme.MutedNavy,
-            },
-            createCategoryMark(page.Icon),
+            SettingsChrome.CreateHeader(
+                page.Title,
+                page.Subtitle,
+                page.Icon,
+                (int)page.Kind + 1),
             createComingSoonCard(page),
             new SpriteText
             {
@@ -67,40 +55,7 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
         };
     }
 
-    private static Drawable createCategoryMark(IconUsage icon) => new Container
-    {
-        Position = new Vector2(1094, 40),
-        Size = new Vector2(124, 92),
-        Children = new Drawable[]
-        {
-            new Circle
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(78),
-                Colour = SettingsTheme.PaleCyan,
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(34),
-                Icon = icon,
-                Colour = HomeControlColours.Navy,
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.Centre,
-                Position = new Vector2(-8, 8),
-                Size = new Vector2(14),
-                Icon = FontAwesome.Solid.Plus,
-                Colour = HomeControlColours.Pink,
-            },
-        },
-    };
-
-    private static Drawable createComingSoonCard(SettingsPageDefinition page) => new Container
+    private static Drawable createComingSoonCard(SettingsPageDefinition page) => SettingsChrome.CreateStickerFrame(new Container
     {
         Position = new Vector2(378, 174),
         Size = new Vector2(840, 118),
@@ -182,7 +137,7 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
                 },
             },
         },
-    };
+    });
 
     public bool DismissTransientUi()
     {

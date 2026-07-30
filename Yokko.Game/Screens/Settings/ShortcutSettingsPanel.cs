@@ -58,23 +58,11 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
 
         InternalChildren = new Drawable[]
         {
-            new SpriteText
-            {
-                Position = new Vector2(378, 42),
-                Text = YokkoStrings.Get("settings.shortcuts.title"),
-                Font = HomeTypography.Display(58),
-                Spacing = new Vector2(0.45f, 0),
-                Colour = HomeControlColours.Navy,
-            },
-            new SpriteText
-            {
-                Position = new Vector2(378, 105),
-                Text = YokkoStrings.Get("settings.shortcuts.subtitle"),
-                Font = HomeTypography.Body(20),
-                Spacing = new Vector2(0.2f, 0),
-                Colour = SettingsTheme.MutedNavy,
-            },
-            createCategoryMark(),
+            SettingsChrome.CreateHeader(
+                YokkoStrings.Get("settings.shortcuts.title"),
+                YokkoStrings.Get("settings.shortcuts.subtitle"),
+                FontAwesome.Solid.Keyboard,
+                5),
             createStatusCard(
                 out statusTitle,
                 out statusMetadata,
@@ -516,44 +504,11 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
         content.MoveToX(0, 170, Easing.OutQuint);
     }
 
-    private static Drawable createCategoryMark() => new Container
-    {
-        Position = new Vector2(1094, 40),
-        Size = new Vector2(124, 92),
-        Children = new Drawable[]
-        {
-            new Circle
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(78),
-                Colour = SettingsTheme.PaleCyan,
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(34),
-                Icon = FontAwesome.Solid.Keyboard,
-                Colour = HomeControlColours.Navy,
-            },
-            new SpriteIcon
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.Centre,
-                Position = new Vector2(-8, 8),
-                Size = new Vector2(14),
-                Icon = FontAwesome.Solid.Plus,
-                Colour = HomeControlColours.Pink,
-            },
-        },
-    };
-
     private static Drawable createStatusCard(
         out SpriteText title,
         out SpriteText metadata,
         out SpriteIcon icon,
-        out Circle iconBackground) => new Container
+        out Circle iconBackground) => SettingsChrome.CreateStickerFrame(new Container
     {
         Position = new Vector2(378, 150),
         Size = new Vector2(840, 92),
@@ -607,7 +562,7 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
                 },
             },
         },
-    };
+    });
 
     private void onBindingsChanged()
     {
