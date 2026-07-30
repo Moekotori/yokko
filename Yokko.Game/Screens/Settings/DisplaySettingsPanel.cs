@@ -397,7 +397,9 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             YokkoFrameLimit.Limit2x => "2×",
             YokkoFrameLimit.Limit4x => "4×",
             YokkoFrameLimit.Limit8x => "8×",
-            _ => "MAX",
+            YokkoFrameLimit.Unlimited => "MAX",
+            YokkoFrameLimit.Auto => "AUTO",
+            _ => throw new ArgumentOutOfRangeException(nameof(limit)),
         };
 
     internal static string FormatRefreshRate(float refreshRate) =>
