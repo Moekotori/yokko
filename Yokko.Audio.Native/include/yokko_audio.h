@@ -21,6 +21,7 @@ extern "C"
 #endif
 
 #define YOKKO_AUDIO_ABI_VERSION 11u
+#define YOKKO_AUDIO_SAMPLE_TELEMETRY_ABI_VERSION 1u
 
     typedef struct yokko_audio_engine yokko_audio_engine;
 
@@ -123,6 +124,30 @@ extern "C"
         int32_t shared_explicit_period_error;
     } yokko_audio_output_status;
 
+    typedef struct yokko_audio_sample_trigger_telemetry
+    {
+        uint32_t struct_size;
+        uint32_t telemetry_abi_version;
+        uint64_t trace_id;
+        uint32_t sample_id;
+        uint32_t estimated_output_latency_frames;
+        uint32_t sample_rate;
+        uint32_t reserved;
+        uint64_t capture_time_100ns;
+        uint64_t enqueue_time_100ns;
+        uint64_t callback_time_100ns;
+        uint64_t first_output_frame_position;
+    } yokko_audio_sample_trigger_telemetry;
+
+    typedef struct yokko_audio_sample_telemetry_status
+    {
+        uint32_t struct_size;
+        uint32_t telemetry_abi_version;
+        uint32_t capacity;
+        uint32_t pending_count;
+        uint64_t dropped_count;
+    } yokko_audio_sample_telemetry_status;
+
     YOKKO_AUDIO_API uint32_t YOKKO_AUDIO_CALL yokko_audio_get_abi_version(void);
 
     YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_create(
@@ -186,6 +211,33 @@ extern "C"
         yokko_audio_engine* engine,
         uint32_t sample_id,
         float gain);
+
+    /*
+     * Adds opt-in timing to the existing sample trigger path. The capture
+     * timestamp uses the caller's monotonic counter and is converted to the
+     * native 100 ns QPC domain before the command is published.
+     */
+    YOKKO_AUDIO_API uint32_t YOKKO_AUDIO_CALL
+        yokko_audio_get_sample_telemetry_abi_version(void);
+
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_trigger_sample_traced(
+            yokko_audio_engine* engine,
+            uint32_t sample_id,
+            float gain,
+            uint64_t capture_timestamp,
+            uint64_t timestamp_frequency,
+            uint64_t* trace_id);
+
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_try_dequeue_sample_telemetry(
+            yokko_audio_engine* engine,
+            yokko_audio_sample_trigger_telemetry* telemetry);
+
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_get_sample_telemetry_status(
+            const yokko_audio_engine* engine,
+            yokko_audio_sample_telemetry_status* status);
 
     /*
      * Starts or stops a callback-owned looping sample voice. A successful

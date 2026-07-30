@@ -61,7 +61,13 @@ def collect_characters(strings_path: Path) -> list[str]:
     characters = set(chr(codepoint) for codepoint in range(32, 127))
 
     for literal in re.findall(r'"((?:[^"\\]|\\.)*)"', source):
-        characters.update(character for character in literal if ord(character) >= 127)
+        # Decode C# \uXXXX escapes so escape-written characters still reach the subset.
+        decoded = re.sub(
+            r"\\u([0-9a-fA-F]{4})",
+            lambda match: chr(int(match.group(1), 16)),
+            literal,
+        )
+        characters.update(character for character in decoded if ord(character) >= 127)
 
     return sorted(characters, key=ord)
 

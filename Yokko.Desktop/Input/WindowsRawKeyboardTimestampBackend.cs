@@ -9,7 +9,9 @@ using Yokko.Game.Input;
 
 namespace Yokko.Desktop.Input;
 
-internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBackend
+internal sealed class WindowsRawKeyboardTimestampBackend :
+    IKeyInputTimestampBackend,
+    IKeyInputFastPathBackend
 {
     private const uint wm_input = 0x00ff;
     private const uint rid_input = 0x10000003;
@@ -38,6 +40,7 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
     private bool isAvailable;
     private bool disposed;
     private int activeCaptureWriters;
+    private IKeyInputFastPathSink? fastPathSink;
 
     public WindowsRawKeyboardTimestampBackend()
     {
@@ -148,6 +151,9 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
         return pending.TryDequeue(out input);
     }
 
+    public void SetFastPathSink(IKeyInputFastPathSink? sink) =>
+        Volatile.Write(ref fastPathSink, sink);
+
     public void Dispose()
     {
         lock (sync)
@@ -230,10 +236,33 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
             if (!changed)
                 return;
 
+            var fastPath = new KeyInputFastPathResult(-1, 0, 0);
+            try
+            {
+                IKeyInputFastPathSink? sink =
+                    Volatile.Read(ref fastPathSink);
+                if (sink != null
+                    && !sink.TryDispatch(
+                        key,
+                        isPressed,
+                        timestamp,
+                        out fastPath))
+                {
+                    fastPath = new KeyInputFastPathResult(-1, 0, 0);
+                }
+            }
+            catch
+            {
+                fastPath = new KeyInputFastPathResult(-1, 0, 0);
+            }
+
             pending.Enqueue(new TimestampedKeyInput(
                 key,
                 isPressed,
-                timestamp));
+                timestamp,
+                fastPath.HitObjectIndex,
+                fastPath.TriggeredSampleMask,
+                fastPath.AudioEnqueueTimestamp));
         }
         finally
         {

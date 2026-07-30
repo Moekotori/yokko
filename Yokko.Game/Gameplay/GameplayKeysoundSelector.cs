@@ -4,6 +4,28 @@ using Yokko.Core.Scoring;
 
 namespace Yokko.Game.Gameplay;
 
+internal readonly record struct GameplayKeysoundFastSelection(
+    int Selected,
+    bool SelectedIsUnresolved,
+    double SelectedSafeUntil,
+    int Candidate,
+    double CandidateThreshold,
+    double CandidateSafeUntil,
+    int First,
+    int Last)
+{
+    internal int Select(double inputTime)
+    {
+        if (SelectedIsUnresolved)
+            return inputTime <= SelectedSafeUntil ? Selected : -1;
+        if (Candidate < 0)
+            return Last;
+        if (inputTime >= CandidateThreshold)
+            return inputTime <= CandidateSafeUntil ? Candidate : -1;
+        return Selected >= 0 ? Selected : First;
+    }
+}
+
 /// <summary>
 /// Selects the sample associated with the most appropriate object for a lane
 /// press, including early presses and spam presses.
@@ -86,5 +108,64 @@ internal sealed class GameplayKeysoundSelector
 
         mostValidObjects[lane] = selected;
         return selected;
+    }
+
+    internal GameplayKeysoundFastSelection CaptureFastSelection(int lane)
+    {
+        if ((uint)lane >= objectIndicesByLane.Length)
+            return default;
+
+        int[] laneObjects = objectIndicesByLane[lane];
+        if (laneObjects.Length == 0)
+        {
+            return new GameplayKeysoundFastSelection(
+                -1,
+                false,
+                0,
+                -1,
+                0,
+                0,
+                -1,
+                -1);
+        }
+
+        int selected = mostValidObjects[lane];
+        bool selectedIsUnresolved =
+            selected >= 0 && !judgementState.IsResolved(selected);
+        double selectedSafeUntil = selectedIsUnresolved
+            ? safeUntil(selected)
+            : 0;
+
+        int candidatePosition = nextUnresolvedPositions[lane];
+        while (candidatePosition < laneObjects.Length
+               && judgementState.IsResolved(laneObjects[candidatePosition]))
+        {
+            candidatePosition++;
+        }
+        nextUnresolvedPositions[lane] = candidatePosition;
+
+        int candidate = candidatePosition < laneObjects.Length
+            ? laneObjects[candidatePosition]
+            : -1;
+        return new GameplayKeysoundFastSelection(
+            selected,
+            selectedIsUnresolved,
+            selectedSafeUntil,
+            candidate,
+            candidate < 0
+                ? 0
+                : beatmap.HitObjects[candidate].StartTimeMilliseconds
+                  - judgementState.Windows.MehMilliseconds * 2,
+            candidate < 0 ? 0 : safeUntil(candidate),
+            laneObjects[0],
+            laneObjects[^1]);
+    }
+
+    private double safeUntil(int hitObjectIndex)
+    {
+        YokkoHitObject hitObject = beatmap.HitObjects[hitObjectIndex];
+        return (hitObject.EndTimeMilliseconds
+                ?? hitObject.StartTimeMilliseconds)
+               + judgementState.Windows.MehMilliseconds;
     }
 }

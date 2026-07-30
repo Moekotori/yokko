@@ -167,6 +167,12 @@ internal sealed class KeyInputTimestampSource : IDisposable
         return false;
     }
 
+    internal void SetRawInputFastPathSink(IKeyInputFastPathSink? sink)
+    {
+        if (platformBackend is IKeyInputFastPathBackend fastPathBackend)
+            fastPathBackend.SetFastPathSink(sink);
+    }
+
     internal void Record(Key key, bool isPressed, long timestamp)
     {
         lock (sync)
@@ -210,6 +216,7 @@ internal sealed class KeyInputTimestampSource : IDisposable
             pending.Clear();
             pressedKeys.Clear();
             detachWindow();
+            SetRawInputFastPathSink(null);
             platformBackend?.Dispose();
         }
     }

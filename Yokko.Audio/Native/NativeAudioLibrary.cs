@@ -8,6 +8,7 @@ internal static class NativeAudioLibrary
     private static readonly object sync = new();
     private static nint loadedHandle;
     private static bool resolverInstalled;
+    private static int sampleTelemetrySupport = -1;
 
     internal static void EnsureLoaded()
     {
@@ -52,6 +53,39 @@ internal static class NativeAudioLibrary
             {
                 return false;
             }
+        }
+    }
+
+    internal static bool HasSampleTriggerTelemetry
+    {
+        get
+        {
+            EnsureLoaded();
+            int cached = Volatile.Read(ref sampleTelemetrySupport);
+            if (cached >= 0)
+                return cached != 0;
+
+            bool supported =
+                NativeLibrary.TryGetExport(
+                    loadedHandle,
+                    "yokko_audio_get_sample_telemetry_abi_version",
+                    out _)
+                && NativeLibrary.TryGetExport(
+                    loadedHandle,
+                    "yokko_audio_trigger_sample_traced",
+                    out _)
+                && NativeLibrary.TryGetExport(
+                    loadedHandle,
+                    "yokko_audio_try_dequeue_sample_telemetry",
+                    out _)
+                && NativeLibrary.TryGetExport(
+                    loadedHandle,
+                    "yokko_audio_get_sample_telemetry_status",
+                    out _)
+                && NativeAudioInterop.GetSampleTelemetryAbiVersion()
+                   == NativeAudioInterop.SampleTelemetryAbiVersion;
+            Volatile.Write(ref sampleTelemetrySupport, supported ? 1 : 0);
+            return supported;
         }
     }
 

@@ -11,6 +11,9 @@ using osu.Framework.Screens;
 using osu.Framework.Testing;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using osuTK.Input;
+using Yokko.Core.Gameplay;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Tests.Visual
@@ -20,6 +23,9 @@ namespace Yokko.Game.Tests.Visual
     {
         [Resolved]
         private IRenderer renderer { get; set; }
+
+        [Resolved]
+        private YokkoGameplaySettings gameplaySettings { get; set; }
 
         private bool screenshotSaved;
 
@@ -111,6 +117,68 @@ namespace Yokko.Game.Tests.Visual
                 "line index advanced",
                 () => screen.BubbleLineIndex
                       == (startIndex + 1) % screen.BubbleLineCount);
+        }
+
+        [Test]
+        public void TestBubbleStickerLabelFitsInsideSticker()
+        {
+            HomeMascotBubble bubble = null;
+            AddStep(
+                "find bubble",
+                () => bubble = this
+                    .ChildrenOfType<HomeMascotBubble>()
+                    .Single());
+            AddStep("set long text", () => bubble.SetText("Again! Again!"));
+            AddWaitStep("wait for fit", 5);
+            AddAssert(
+                "label fits sticker",
+                () => bubble.StickerLabelDrawWidth <= 150);
+        }
+
+        [Test]
+        public void TestKeyTestPadFollowsConfiguredBindings()
+        {
+            HomeKeyTestPad pad = null;
+            Key original = Key.Unknown;
+            int hits = 0;
+            AddStep(
+                "find key test pad",
+                () => pad = this.ChildrenOfType<HomeKeyTestPad>().Single());
+            AddStep(
+                "remember original binding",
+                () => original = gameplaySettings.FourKeyBindings[0].Value);
+            AddStep(
+                "rebind lane 1 to F12",
+                () => gameplaySettings.SetBinding(KeyMode.FourKey, 0, Key.F12));
+            AddUntilStep(
+                "cap label updated",
+                () => pad.ChildrenOfType<SpriteText>()
+                         .Any(text => text.Text.ToString() == "F12"));
+            AddStep("record hits", () => hits = pad.HitCount);
+            AddStep("press F12", () => pad.TryHandleKey(Key.F12, true));
+            AddAssert("rebound key hits lane", () => pad.HitCount == hits + 1);
+            AddStep("press D", () => pad.TryHandleKey(Key.D, true));
+            AddAssert(
+                "old key no longer bound",
+                () => pad.HitCount == hits + 1);
+            AddStep(
+                "restore binding",
+                () => gameplaySettings.SetBinding(KeyMode.FourKey, 0, original));
+        }
+
+        [Test]
+        public void TestKeyTestPadTracksKps()
+        {
+            HomeKeyTestPad pad = null;
+            AddStep(
+                "find key test pad",
+                () => pad = this.ChildrenOfType<HomeKeyTestPad>().Single());
+            AddStep("press lane rapidly", () =>
+            {
+                for (int i = 0; i < 6; i++)
+                    pad.PressLane(0);
+            });
+            AddAssert("kps counted", () => pad.CurrentKps >= 6);
         }
 
         private void captureScreenshot()

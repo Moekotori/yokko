@@ -41,6 +41,16 @@ namespace yokko::audio
         yokko_audio_result trigger_sample(
             uint32_t sample_id,
             float gain = 1.0f) noexcept;
+        yokko_audio_result trigger_sample_traced(
+            uint32_t sample_id,
+            float gain,
+            uint64_t capture_timestamp,
+            uint64_t timestamp_frequency,
+            uint64_t& trace_id) noexcept;
+        yokko_audio_result try_dequeue_sample_telemetry(
+            yokko_audio_sample_trigger_telemetry& telemetry) noexcept;
+        void get_sample_telemetry_status(
+            yokko_audio_sample_telemetry_status& status) const noexcept;
         yokko_audio_result start_looping_sample(
             uint32_t sample_id,
             float gain,
@@ -85,6 +95,7 @@ namespace yokko::audio
     private:
         static constexpr uint32_t sample_trigger_capacity = 128;
         static constexpr uint32_t sample_voice_capacity = 32;
+        static constexpr uint32_t sample_telemetry_capacity = 512;
 
         struct RegisteredSample
         {
@@ -115,6 +126,15 @@ namespace yokko::audio
             uint32_t sample_id{0};
             float gain{1.0f};
             uint32_t loop_id{0};
+            uint64_t trace_id{0};
+            uint64_t capture_time_100ns{0};
+            uint64_t enqueue_time_100ns{0};
+        };
+
+        struct SampleTriggerCell
+        {
+            std::atomic<uint64_t> sequence{0};
+            SampleTrigger trigger{};
         };
 
         [[nodiscard]] double playback_time_milliseconds(
@@ -122,7 +142,14 @@ namespace yokko::audio
             uint64_t presented_frame_position,
             uint64_t observation_time_100ns) const noexcept;
         void update_primed_state() noexcept;
+        yokko_audio_result enqueue_sample_trigger(
+            const SampleTrigger& trigger) noexcept;
+        bool try_dequeue_sample_trigger(SampleTrigger& trigger) noexcept;
         void activate_pending_samples() noexcept;
+        void publish_sample_telemetry(
+            const SampleTrigger& trigger,
+            uint64_t callback_time_100ns,
+            uint64_t first_output_frame_position) noexcept;
         void mix_active_samples(float* output, uint32_t frame_count) noexcept;
         void reset_sample_playback() noexcept;
 
@@ -159,12 +186,22 @@ namespace yokko::audio
         std::atomic<float> metronome_volume_{0.0f};
         std::atomic<float> sample_playback_rate_{1.0f};
         std::atomic<uint32_t> next_sample_loop_id_{1};
+        std::atomic<bool> accepting_sample_triggers_{true};
+        std::atomic<uint32_t> active_sample_trigger_calls_{0};
+        std::atomic<uint64_t> next_sample_trace_id_{1};
         std::vector<RegisteredSample> sample_bank_;
-        std::array<SampleTrigger, sample_trigger_capacity> sample_trigger_queue_{};
-        std::atomic<uint32_t> sample_trigger_read_{0};
-        std::atomic<uint32_t> sample_trigger_write_{0};
+        std::array<SampleTriggerCell, sample_trigger_capacity>
+            sample_trigger_queue_{};
+        std::atomic<uint64_t> sample_trigger_dequeue_{0};
+        std::atomic<uint64_t> sample_trigger_enqueue_{0};
         std::array<SampleVoice, sample_voice_capacity> sample_voices_{};
         uint32_t next_sample_voice_{0};
+        std::array<yokko_audio_sample_trigger_telemetry,
+                   sample_telemetry_capacity>
+            sample_telemetry_queue_{};
+        std::atomic<uint64_t> sample_telemetry_read_{0};
+        std::atomic<uint64_t> sample_telemetry_write_{0};
+        std::atomic<uint64_t> sample_telemetry_dropped_{0};
         std::unique_ptr<WasapiOutput> output_;
         std::unique_ptr<AsioOutput> asio_output_;
     };

@@ -6,11 +6,18 @@ namespace Yokko.Audio.Native;
 internal static partial class NativeAudioInterop
 {
     internal const uint AbiVersion = 11;
+    internal const uint SampleTelemetryAbiVersion = 1;
     internal const string LibraryName = "yokko_audio_native";
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_abi_version")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     internal static partial uint GetAbiVersion();
+
+    [LibraryImport(
+        LibraryName,
+        EntryPoint = "yokko_audio_get_sample_telemetry_abi_version")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial uint GetSampleTelemetryAbiVersion();
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_create")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
@@ -84,6 +91,32 @@ internal static partial class NativeAudioInterop
         NativeAudioSafeHandle engine,
         uint sampleId,
         float gain);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_trigger_sample_traced")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult TriggerSampleTraced(
+        NativeAudioSafeHandle engine,
+        uint sampleId,
+        float gain,
+        ulong captureTimestamp,
+        ulong timestampFrequency,
+        out ulong traceId);
+
+    [LibraryImport(
+        LibraryName,
+        EntryPoint = "yokko_audio_try_dequeue_sample_telemetry")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult TryDequeueSampleTelemetry(
+        NativeAudioSafeHandle engine,
+        ref NativeAudioSampleTriggerTelemetry telemetry);
+
+    [LibraryImport(
+        LibraryName,
+        EntryPoint = "yokko_audio_get_sample_telemetry_status")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult GetSampleTelemetryStatus(
+        NativeAudioSafeHandle engine,
+        ref NativeAudioSampleTelemetryStatus status);
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_start_looping_sample")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
@@ -234,6 +267,43 @@ internal struct NativeAudioStatus
         {
             StructSize = (uint)Marshal.SizeOf<NativeAudioStatus>(),
         };
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeAudioSampleTriggerTelemetry
+{
+    internal uint StructSize;
+    internal uint TelemetryAbiVersion;
+    internal ulong TraceId;
+    internal uint SampleId;
+    internal uint EstimatedOutputLatencyFrames;
+    internal uint SampleRate;
+    internal uint Reserved;
+    internal ulong CaptureTime100ns;
+    internal ulong EnqueueTime100ns;
+    internal ulong CallbackTime100ns;
+    internal ulong FirstOutputFramePosition;
+
+    internal static NativeAudioSampleTriggerTelemetry Create() => new()
+    {
+        StructSize =
+            (uint)Marshal.SizeOf<NativeAudioSampleTriggerTelemetry>(),
+    };
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeAudioSampleTelemetryStatus
+{
+    internal uint StructSize;
+    internal uint TelemetryAbiVersion;
+    internal uint Capacity;
+    internal uint PendingCount;
+    internal ulong DroppedCount;
+
+    internal static NativeAudioSampleTelemetryStatus Create() => new()
+    {
+        StructSize = (uint)Marshal.SizeOf<NativeAudioSampleTelemetryStatus>(),
+    };
 }
 
 [StructLayout(LayoutKind.Sequential)]

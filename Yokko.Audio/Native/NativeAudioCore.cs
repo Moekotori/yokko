@@ -141,6 +141,73 @@ internal sealed class NativeAudioCore : IDisposable
         return true;
     }
 
+    internal bool SupportsSampleTriggerTelemetry =>
+        NativeAudioLibrary.HasSampleTriggerTelemetry;
+
+    internal bool TriggerSampleTraced(
+        uint sampleId,
+        float gain,
+        long captureTimestamp,
+        long timestampFrequency,
+        out ulong traceId)
+    {
+        traceId = 0;
+        if (!SupportsSampleTriggerTelemetry
+            || captureTimestamp <= 0
+            || timestampFrequency <= 0)
+            return false;
+
+        NativeAudioResult result = NativeAudioInterop.TriggerSampleTraced(
+            getHandle(),
+            sampleId,
+            gain,
+            (ulong)captureTimestamp,
+            (ulong)timestampFrequency,
+            out traceId);
+        if (result is NativeAudioResult.NotReady
+            or NativeAudioResult.QueueFull)
+        {
+            traceId = 0;
+            return false;
+        }
+
+        throwForResult(result, "trigger traced sample");
+        return true;
+    }
+
+    internal bool TryDequeueSampleTriggerTelemetry(
+        out NativeAudioSampleTriggerTelemetry telemetry)
+    {
+        telemetry = NativeAudioSampleTriggerTelemetry.Create();
+        if (!SupportsSampleTriggerTelemetry)
+            return false;
+
+        NativeAudioResult result =
+            NativeAudioInterop.TryDequeueSampleTelemetry(
+                getHandle(),
+                ref telemetry);
+        if (result == NativeAudioResult.NotReady)
+            return false;
+
+        throwForResult(result, "dequeue sample telemetry");
+        return true;
+    }
+
+    internal NativeAudioSampleTelemetryStatus GetSampleTelemetryStatus()
+    {
+        if (!SupportsSampleTriggerTelemetry)
+            return default;
+
+        NativeAudioSampleTelemetryStatus status =
+            NativeAudioSampleTelemetryStatus.Create();
+        throwForResult(
+            NativeAudioInterop.GetSampleTelemetryStatus(
+                getHandle(),
+                ref status),
+            "get sample telemetry status");
+        return status;
+    }
+
     internal uint StartLoopingSample(uint sampleId, float gain)
     {
         NativeAudioResult result =

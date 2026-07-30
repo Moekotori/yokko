@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -229,7 +230,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
     private const double combo_window_milliseconds = 1200;
     private const int combo_display_threshold = 4;
 
-    private static readonly Key[] laneKeys = { Key.D, Key.F, Key.J, Key.K };
+    private static readonly Key[] defaultLaneKeys = { Key.D, Key.F, Key.J, Key.K };
     private static readonly string[] laneLabels = { "D", "F", "J", "K" };
     private static readonly Color4 hintColour = new(1f, 1f, 1f, 0.65f);
     private static readonly Color4[] laneAccents =
@@ -240,10 +241,17 @@ public partial class HomeKeyTestPad : CompositeDrawable
         HomeControlColours.Pink,
     };
 
+    [Resolved(canBeNull: true)]
+    private YokkoGameplaySettings gameplaySettings { get; set; }
+
+    private Key[] laneKeys = (Key[])defaultLaneKeys.Clone();
+    private readonly List<double> recentHitTimes = new();
     private readonly HomeKeycap[] caps = new HomeKeycap[4];
     private readonly Box[] lineSegments = new Box[4];
     private readonly SpriteText hitCounter;
     private readonly SpriteText hintText;
+    private readonly SpriteText kpsText;
+    private int displayedKps = -1;
     private int hitCount;
     private int comboCount;
     private double lastHitTime = double.MinValue;
@@ -251,6 +259,8 @@ public partial class HomeKeyTestPad : CompositeDrawable
     public int HitCount => hitCount;
 
     internal int ComboCount => comboCount;
+
+    internal int CurrentKps => recentHitTimes.Count;
 
     public HomeKeyTestPad()
     {
@@ -364,6 +374,48 @@ public partial class HomeKeyTestPad : CompositeDrawable
             Spacing = new Vector2(1.4f, 0),
             Colour = hintColour,
         });
+        AddInternal(kpsText = new SpriteText
+        {
+            Anchor = Anchor.TopRight,
+            Origin = Anchor.TopRight,
+            Position = new Vector2(0, 60),
+            Text = "KPS 0",
+            Font = HomeTypography.Display(8),
+            Spacing = new Vector2(1.2f, 0),
+            Colour = hintColour,
+        });
+    }
+
+    [BackgroundDependencyLoader]
+    private void load()
+    {
+        refreshBindings();
+
+        if (gameplaySettings != null)
+            gameplaySettings.BindingsChanged += onBindingsChanged;
+    }
+
+    private void onBindingsChanged() => Schedule(refreshBindings);
+
+    /// <summary>
+    /// 跟随 4K 游玩键位配置刷新键帽字符与按键映射，换绑立即生效。
+    /// </summary>
+    private void refreshBindings()
+    {
+        Key[] keys = gameplaySettings?.GetKeys(KeyMode.FourKey).ToArray()
+                     ?? defaultLaneKeys;
+        laneKeys = keys;
+
+        for (int i = 0; i < caps.Length; i++)
+            caps[i].SetLabel(KeyModeBindings.FormatKey(keys[i]));
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (gameplaySettings != null)
+            gameplaySettings.BindingsChanged -= onBindingsChanged;
+
+        base.Dispose(isDisposing);
     }
 
     /// <summary>
@@ -411,6 +463,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
             ? comboCount + 1
             : 1;
         lastHitTime = now;
+        recentHitTimes.Add(now);
 
         if (comboCount % 10 == 0)
             playComboMilestone();
@@ -424,8 +477,18 @@ public partial class HomeKeyTestPad : CompositeDrawable
     {
         base.Update();
 
+        double now = Clock.CurrentTime;
+
+        // KPS：滚动统计最近 1 秒内的敲击数。
+        recentHitTimes.RemoveAll(time => now - time > 1000);
+        if (recentHitTimes.Count != displayedKps)
+        {
+            displayedKps = recentHitTimes.Count;
+            kpsText.Text = $"KPS {displayedKps}";
+        }
+
         if (comboCount > 0
-            && Clock.CurrentTime - lastHitTime > combo_window_milliseconds)
+            && now - lastHitTime > combo_window_milliseconds)
         {
             comboCount = 0;
             updateComboHint();

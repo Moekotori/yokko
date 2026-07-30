@@ -184,6 +184,15 @@ namespace Yokko.Game.Tests
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_MAIN_PREVIEW") == "1")
             {
+                if (Environment.GetEnvironmentVariable(
+                        "YOKKO_PREVIEW_LOCALE")
+                    is { Length: > 0 } previewLocale)
+                {
+                    frameworkConfig.SetValue(
+                        FrameworkSetting.Locale,
+                        previewLocale);
+                }
+
                 Add(new ScreenStack(
                         new Screens.Main.MainScreen(host.Exit))
                 {

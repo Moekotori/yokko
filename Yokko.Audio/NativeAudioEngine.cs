@@ -7,6 +7,7 @@ public sealed class NativeAudioEngine :
     IAudioEngine,
     IAudioLoopingSamplePlayback,
     IPreparedAudioSamplePlayback,
+    ITimestampedPreparedAudioSamplePlayback,
     IAudioMixControl,
     IAudioRateControl,
     ITimestampedAudioClock
@@ -407,6 +408,118 @@ public sealed class NativeAudioEngine :
             when (exception is ObjectDisposedException or NativeAudioException)
         {
             return false;
+        }
+    }
+
+    public bool SupportsSampleTriggerTelemetry =>
+        core?.SupportsSampleTriggerTelemetry == true;
+
+    public bool TriggerPreparedSample(
+        PreparedAudioSampleHandle handle,
+        double gain,
+        long captureTimestamp,
+        long timestampFrequency,
+        out ulong traceId)
+    {
+        traceId = 0;
+        if (!tryGetActiveSample(
+                handle,
+                gain,
+                out NativeAudioCore? current,
+                out uint sampleId)
+            || current is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return current.TriggerSampleTraced(
+                sampleId,
+                (float)gain,
+                captureTimestamp,
+                timestampFrequency,
+                out traceId);
+        }
+        catch (Exception exception)
+            when (exception is ObjectDisposedException or NativeAudioException)
+        {
+            traceId = 0;
+            return false;
+        }
+    }
+
+    public bool TryDequeueSampleTriggerTelemetry(
+        out AudioSampleTriggerTelemetry telemetry)
+    {
+        telemetry = default;
+        NativeAudioCore? current = core;
+        if (current == null)
+            return false;
+
+        try
+        {
+            if (!current.TryDequeueSampleTriggerTelemetry(
+                    out NativeAudioSampleTriggerTelemetry native)
+                || native.SampleRate == 0
+                || native.EnqueueTime100ns < native.CaptureTime100ns
+                || native.CallbackTime100ns < native.EnqueueTime100ns)
+            {
+                return false;
+            }
+
+            double captureToEnqueue =
+                toMilliseconds(
+                    native.EnqueueTime100ns - native.CaptureTime100ns);
+            double enqueueToCallback =
+                toMilliseconds(
+                    native.CallbackTime100ns - native.EnqueueTime100ns);
+            double captureToCallback =
+                toMilliseconds(
+                    native.CallbackTime100ns - native.CaptureTime100ns);
+            double estimatedOutputLatency =
+                native.EstimatedOutputLatencyFrames * 1000.0
+                / native.SampleRate;
+            telemetry = new AudioSampleTriggerTelemetry(
+                native.TraceId,
+                native.SampleId,
+                captureToEnqueue,
+                enqueueToCallback,
+                captureToCallback,
+                captureToCallback + estimatedOutputLatency,
+                native.FirstOutputFramePosition);
+            return true;
+        }
+        catch (Exception exception)
+            when (exception is ObjectDisposedException or NativeAudioException)
+        {
+            return false;
+        }
+    }
+
+    public AudioSampleTriggerTelemetryStatus SampleTriggerTelemetryStatus
+    {
+        get
+        {
+            NativeAudioCore? current = core;
+            if (current == null)
+                return default;
+
+            try
+            {
+                NativeAudioSampleTelemetryStatus native =
+                    current.GetSampleTelemetryStatus();
+                return new AudioSampleTriggerTelemetryStatus(
+                    native.Capacity,
+                    native.PendingCount,
+                    native.DroppedCount);
+            }
+            catch (Exception exception)
+                when (exception is ObjectDisposedException
+                    or NativeAudioException)
+            {
+                return default;
+            }
         }
     }
 
@@ -1063,6 +1176,9 @@ public sealed class NativeAudioEngine :
             (long)native.PositionObservationTime100ns,
             10_000_000);
     }
+
+    private static double toMilliseconds(ulong ticks100ns) =>
+        ticks100ns / 10_000.0;
 
     private static readonly AudioEngineStatus stoppedStatus = new(
         AudioBackendKind.Fallback,
