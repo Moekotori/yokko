@@ -67,4 +67,39 @@ public sealed class GameplayKeysoundSelectorTest
 
         Assert.That(selector.Select(0, 1000), Is.EqualTo(-1));
     }
+
+    [Test]
+    public void SpamBetweenObjectsKeepsPreviousSampleThenAdvances()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+        {
+            HitObjects =
+            [
+                new YokkoHitObject(
+                    0,
+                    1000,
+                    null,
+                    HitObjectKind.Tap,
+                    "first.wav"),
+                new YokkoHitObject(
+                    0,
+                    5000,
+                    null,
+                    HitObjectKind.Tap,
+                    "second.wav"),
+            ],
+        };
+        var judgementState = new BeatmapJudgementState(beatmap);
+        var selector = new GameplayKeysoundSelector(
+            beatmap,
+            judgementState);
+
+        Assert.That(selector.Select(0, 1000), Is.Zero);
+        judgementState.JudgeLanePress(0, 1000).ToArray();
+
+        Assert.That(selector.Select(0, 1200), Is.Zero);
+        Assert.That(selector.Select(0, 5000), Is.EqualTo(1));
+        judgementState.JudgeLanePress(0, 5000).ToArray();
+        Assert.That(selector.Select(0, 5200), Is.EqualTo(1));
+    }
 }

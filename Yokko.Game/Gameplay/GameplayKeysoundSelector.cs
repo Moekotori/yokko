@@ -17,6 +17,7 @@ internal sealed class GameplayKeysoundSelector
     private readonly BeatmapJudgementState judgementState;
     private readonly int[][] objectIndicesByLane;
     private readonly int[] mostValidObjects;
+    private readonly int[] nextUnresolvedPositions;
 
     internal GameplayKeysoundSelector(
         YokkoBeatmap beatmap,
@@ -38,6 +39,7 @@ internal sealed class GameplayKeysoundSelector
             .ToArray();
         mostValidObjects =
             Enumerable.Repeat(-1, (int)beatmap.KeyMode).ToArray();
+        nextUnresolvedPositions = new int[(int)beatmap.KeyMode];
     }
 
     internal int Select(int lane, double inputTime)
@@ -50,13 +52,24 @@ internal sealed class GameplayKeysoundSelector
             return selected;
 
         int[] laneObjects = objectIndicesByLane[lane];
-        int candidate = laneObjects.FirstOrDefault(
-            index => !judgementState.IsResolved(index),
-            -1);
+        int candidatePosition = nextUnresolvedPositions[lane];
+        while (candidatePosition < laneObjects.Length
+               && judgementState.IsResolved(
+                   laneObjects[candidatePosition]))
+        {
+            candidatePosition++;
+        }
+
+        nextUnresolvedPositions[lane] = candidatePosition;
+        int candidate = candidatePosition < laneObjects.Length
+            ? laneObjects[candidatePosition]
+            : -1;
 
         if (candidate < 0)
         {
-            selected = laneObjects.LastOrDefault(-1);
+            selected = laneObjects.Length == 0
+                ? -1
+                : laneObjects[^1];
         }
         else if (inputTime >= beatmap.HitObjects[candidate]
                                      .StartTimeMilliseconds
@@ -66,7 +79,9 @@ internal sealed class GameplayKeysoundSelector
         }
         else if (selected < 0)
         {
-            selected = laneObjects.FirstOrDefault(-1);
+            selected = laneObjects.Length == 0
+                ? -1
+                : laneObjects[0];
         }
 
         mostValidObjects[lane] = selected;

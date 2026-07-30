@@ -126,6 +126,7 @@ public partial class GameplayScreen : Screen
     private ResolvedGameplayHitSample[][] slidingSamplesByHitObject = [];
     private readonly Dictionary<int, List<uint>> activeSlidingSampleLoops = new();
     private GameplayKeysoundSelector keysoundSelector;
+    private GameplaySlidingSampleIndex slidingSampleIndex;
     private GameplayHitSampleResolver hitSampleResolver;
     private GameplayMutedAudioController mutedAudio;
     private GameplayCinemaIndicator cinemaIndicator;
@@ -275,6 +276,9 @@ public partial class GameplayScreen : Screen
                 beatmap.KeyMode,
                 beatmap.StageCount);
         pressedLanes = new bool[keyBindings.KeyCount];
+        slidingSampleIndex = new GameplaySlidingSampleIndex(
+            beatmap,
+            pressedLanes.Length);
         healthState = new ManiaHealthState(beatmap, mods);
         if (mods.HasAdaptiveSpeed)
         {
@@ -496,7 +500,18 @@ public partial class GameplayScreen : Screen
         }
 
         double gameplayTime = clockObservation.GameplayTime;
-        updatePlaybackRate(gameplayTime);
+        double playbackRate = currentPlaybackRate(gameplayTime);
+        applyAudioPlaybackRate(playbackRate);
+        if (!ReplayMode)
+        {
+            drainRawInput(clockObservation);
+            if (gameplayFailed)
+                return;
+        }
+
+        updatePlaybackRateReadout(
+            gameplayTime,
+            playbackRate);
         updatePlaybackRateAdjustedApproachTime(gameplayTime);
         if (mutedAudio != null)
         {
@@ -514,8 +529,6 @@ public partial class GameplayScreen : Screen
 
         if (ReplayMode)
             drainReplayInput(gameplayTime);
-        else
-            drainRawInput(clockObservation);
 
         expiredJudgements.Clear();
         judgementState.CollectMineJudgements(
@@ -714,15 +727,20 @@ public partial class GameplayScreen : Screen
         if (lane < 0)
             return base.OnKeyDown(e);
 
+        if (keyInputTimestamps.IsRawInputAvailable)
+        {
+            // Close the ordering gap when framework dispatch happens after
+            // this screen's regular raw-input drain in the same update cycle.
+            drainRawInput(observeGameplayClock());
+            return true;
+        }
+
         if (pressedLanes[lane])
             return true;
 
-        if (!keyInputTimestamps.IsRawInputAvailable)
-        {
-            applyLanePress(
-                lane,
-                gameplayTimeForInput(e.Key, true));
-        }
+        applyLanePress(
+            lane,
+            gameplayTimeForInput(e.Key, true));
 
         return true;
     }
@@ -744,12 +762,15 @@ public partial class GameplayScreen : Screen
             return;
         }
 
-        if (!keyInputTimestamps.IsRawInputAvailable)
+        if (keyInputTimestamps.IsRawInputAvailable)
         {
-            applyLaneRelease(
-                lane,
-                gameplayTimeForInput(e.Key, false));
+            drainRawInput(observeGameplayClock());
+            return;
         }
+
+        applyLaneRelease(
+            lane,
+            gameplayTimeForInput(e.Key, false));
     }
 
     public override bool OnExiting(ScreenExitEvent e)
@@ -1047,8 +1068,9 @@ public partial class GameplayScreen : Screen
             return;
 
         pressedLanes[lane] = true;
-        playfield.SetLanePressed(lane, true);
+        // Enter the native audio queue before touching drawable state.
         triggerKeysoundForLanePress(lane, inputTime);
+        playfield.SetLanePressed(lane, true);
 
         if (!ReplayMode)
         {
@@ -1174,15 +1196,10 @@ public partial class GameplayScreen : Screen
 
     private void syncSlidingSamplesForLane(int lane)
     {
-        for (int index = 0; index < beatmap.HitObjects.Count; index++)
+        foreach (int index in slidingSampleIndex.GetObjectIndices(lane))
         {
-            YokkoHitObject hitObject = beatmap.HitObjects[index];
-            if (hitObject.Lane != lane
-                || !hitObject.PlaySlidingSamples
-                || (uint)index >= slidingSamplesByHitObject.Length)
-            {
+            if ((uint)index >= slidingSamplesByHitObject.Length)
                 continue;
-            }
 
             if (judgementState.IsHoldActive(index))
                 startSlidingSamples(index);
@@ -1665,6 +1682,18 @@ public partial class GameplayScreen : Screen
         bool showOverlay = false)
     {
         double rate = currentPlaybackRate(gameplayTime);
+        applyAudioPlaybackRate(rate);
+        updatePlaybackRateReadout(
+            gameplayTime,
+            rate,
+            showOverlay);
+    }
+
+    private void updatePlaybackRateReadout(
+        double gameplayTime,
+        double rate,
+        bool showOverlay = false)
+    {
         double bpm =
             beatTimingMap.TimingPointAt(gameplayTime).BeatsPerMinute
             * rate;
@@ -1687,7 +1716,10 @@ public partial class GameplayScreen : Screen
             playbackRateOverlay.Show(rate, bpm, difficulty);
         else if (playbackRateOverlay.IsVisible)
             playbackRateOverlay.UpdateValues(rate, bpm, difficulty);
+    }
 
+    private void applyAudioPlaybackRate(double rate)
+    {
         if (!audioStarted
             || audioEngine is not IAudioRateControl rateControl
             || Math.Abs(rate - lastAppliedPlaybackRate) < 0.005)

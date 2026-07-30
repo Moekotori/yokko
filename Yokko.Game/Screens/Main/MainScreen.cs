@@ -1126,7 +1126,7 @@ public partial class MainScreen : Screen
                 createDecorationIcon(FontAwesome.Solid.Plus, 240, 590, 9, yellow),
                 keyTestPad = new HomeKeyTestPad
                 {
-                    Position = new Vector2(262, 622),
+                    Position = new Vector2(440, 676),
                     Alpha = 0,
                 },
                 musicPlayer = new HomeMusicPlayer

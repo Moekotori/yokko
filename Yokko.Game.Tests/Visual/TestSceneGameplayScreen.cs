@@ -1663,7 +1663,7 @@ LightingLWidth: 20,20,20,20
         }
 
         [Test]
-        public void TestLegacyHoldBodyExtendsConfiguredEdgeRow()
+        public void TestLegacyHoldBodyRepeatsFromConfiguredEdge()
         {
             string skinPath = null;
 
@@ -1681,7 +1681,7 @@ LightingLWidth: 20,20,20,20
                 screenStack.Push(new GameplayScreen(
                     createHoldDemo(KeyMode.FourKey),
                     skinPath: skinPath)));
-            AddUntilStep("top row extends instead of tiling", () =>
+            AddUntilStep("body tiles from the configured edge", () =>
             {
                 DrawableNote hold = (screenStack.CurrentScreen as Drawable)?
                                     .ChildrenOfType<GameplayPlayfield>()
@@ -1707,7 +1707,10 @@ LightingLWidth: 20,20,20,20
                        && body.TextureRectangle.Y < 0
                        && Math.Abs(
                            body.TextureRectangle.Height
-                           - clip.Height) < 0.01f;
+                           - body.Texture.DisplayHeight
+                           * body.Width
+                           / body.Texture.DisplayWidth) < 0.01f
+                       && body.Texture.WrapModeT == WrapMode.Repeat;
             });
         }
 
@@ -1730,6 +1733,129 @@ LightingLWidth: 20,20,20,20
                 (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<GameplayPlayfield>().SingleOrDefault() != null);
             AddUntilStep("real skin textures decoded", () =>
                 (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null) == true);
+        }
+
+        [Test]
+        [Category("Integration")]
+        public void TestRendersConfiguredRealSkinCorpusLongNotes()
+        {
+            string root = Environment.GetEnvironmentVariable(
+                "YOKKO_OSU_MANIA_SKIN_CORPUS");
+
+            if (string.IsNullOrWhiteSpace(root)
+                || !Directory.Exists(root))
+            {
+                Assert.Ignore(
+                    "Set YOKKO_OSU_MANIA_SKIN_CORPUS to a directory containing real osu! skins.");
+            }
+
+            string[] packages = Directory
+                                .EnumerateFiles(root, "*", SearchOption.TopDirectoryOnly)
+                                .Where(path => Path.GetExtension(path).Equals(
+                                    ".osk",
+                                    StringComparison.OrdinalIgnoreCase)
+                                    || Path.GetExtension(path).Equals(
+                                        ".zip",
+                                        StringComparison.OrdinalIgnoreCase))
+                                .Concat(Directory.EnumerateDirectories(root))
+                                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+                                .ToArray();
+            int renderedConfigurations = 0;
+
+            foreach (string package in packages)
+            {
+                OsuManiaSkinInfo info;
+
+                using (var source = new OsuManiaSkinSource(package))
+                {
+                    string skinIni = source.ReadSkinIni();
+                    info = OsuManiaSkinIniDecoder.Decode(
+                        skinIni,
+                        source.Contains("skin.ini"),
+                        source.UsesLatestVersion);
+                }
+
+                foreach (int keys in info.ManiaConfigurations.Keys.Order())
+                {
+                    if (!Enum.IsDefined(typeof(KeyMode), keys))
+                        continue;
+
+                    var keyMode = (KeyMode)keys;
+                    string caseName =
+                        $"{Path.GetFileName(package)} {keys}K";
+                    GameplayScreen gameplay = null;
+
+                    AddStep($"open {caseName}", () =>
+                        screenStack.Push(gameplay = new GameplayScreen(
+                            createAllHoldDemo(keyMode),
+                            skinPath: package)));
+                    AddUntilStep($"render {caseName} LN geometry", () =>
+                    {
+                        GameplayPlayfield playfield = gameplay?
+                            .ChildrenOfType<GameplayPlayfield>()
+                            .SingleOrDefault();
+                        if (playfield?.KeyCount != keys
+                            || playfield.ActiveDrawableNoteCount < keys)
+                        {
+                            return false;
+                        }
+
+                        for (int lane = 0; lane < keys; lane++)
+                        {
+                            DrawableNote note = playfield.GetDrawableNote(lane);
+                            if (note == null)
+                                return false;
+
+                            note.UpdatePosition(
+                                1000,
+                                false,
+                                false,
+                                0,
+                                460,
+                                1800);
+
+                            Container bodyClip = note
+                                .ChildrenOfType<Container>()
+                                .FirstOrDefault(container =>
+                                    container.Masking);
+                            Box fallbackBody = note
+                                .ChildrenOfType<Box>()
+                                .FirstOrDefault(box => box.Height > 0);
+                            bool hasVisual = note
+                                                 .ChildrenOfType<Sprite>()
+                                                 .Any(sprite =>
+                                                     sprite.Texture?.Available
+                                                     == true)
+                                             || fallbackBody != null;
+                            float bodyHeight =
+                                bodyClip?.Height
+                                ?? fallbackBody?.Height
+                                ?? 0;
+                            if (!hasVisual
+                                || bodyHeight <= 0
+                                || !float.IsFinite(bodyHeight)
+                                || note.Width <= 0
+                                || note.Height <= 0
+                                || !float.IsFinite(note.Width)
+                                || !float.IsFinite(note.Height)
+                                || !float.IsFinite(note.Y))
+                            {
+                                return false;
+                            }
+                        }
+
+                        return true;
+                    });
+                    AddStep($"close {caseName}", () => gameplay.Exit());
+                    AddUntilStep($"closed {caseName}", () =>
+                        !ReferenceEquals(screenStack.CurrentScreen, gameplay));
+                    renderedConfigurations++;
+                }
+            }
+
+            AddAssert(
+                "rendered every configured key mode",
+                () => renderedConfigurations > 0);
         }
 
         [Test]
@@ -2046,18 +2172,24 @@ LightingLWidth: 20,20,20,20
                     : Enumerable.Range(0, 4)
                                 .Select(playfield.GetDrawableNote)
                                 .ToArray();
-                Sprite tiledBody = notes?
-                                   .FirstOrDefault()?
-                                   .ChildrenOfType<Sprite>()
-                                   .FirstOrDefault(sprite => sprite.Texture?.WrapModeT == WrapMode.Repeat);
+                Sprite legacyBody = notes?
+                                    .FirstOrDefault()?
+                                    .ChildrenOfType<Sprite>()
+                                    .FirstOrDefault(sprite =>
+                                        sprite.Texture?.WrapModeT
+                                        == WrapMode.Repeat);
+                bool bodyUsesLegacyGeometry =
+                    legacyBody?.Parent is Container bodyClip
+                    && (legacyBody.TextureRelativeSizeAxes == Axes.None
+                        || legacyBody.Height > bodyClip.Height);
                 return notes?.Length == 4 &&
                        notes.All(note => note.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null)) &&
                        notes.SelectMany(note => note.ChildrenOfType<Sprite>())
                             .Select(sprite => sprite.Texture)
-                            .Where(texture => texture != null)
-                            .Distinct()
-                            .Count() >= 4 &&
-                       tiledBody?.TextureRelativeSizeAxes == Axes.None;
+                             .Where(texture => texture != null)
+                             .Distinct()
+                             .Count() >= 4 &&
+                       bodyUsesLegacyGeometry;
             });
         }
 
@@ -2911,6 +3043,31 @@ StageHint: stage-hint
                 "Yokko",
                 "Codex",
                 $"{keys}K Special Skin",
+                keyMode,
+                ChartSourceFormat.Yokko,
+                [YokkoTimingPoint.Default],
+                null,
+                hitObjects);
+        }
+
+        private static YokkoBeatmap createAllHoldDemo(KeyMode keyMode)
+        {
+            int keys = (int)keyMode;
+            YokkoHitObject[] hitObjects = Enumerable
+                                          .Range(0, keys)
+                                          .Select(lane =>
+                                              new YokkoHitObject(
+                                                  lane,
+                                                  1600,
+                                                  2800,
+                                                  HitObjectKind.Hold))
+                                          .ToArray();
+
+            return new YokkoBeatmap(
+                "Skin LN Corpus",
+                "Yokko",
+                "Codex",
+                $"{keys}K Long Notes",
                 keyMode,
                 ChartSourceFormat.Yokko,
                 [YokkoTimingPoint.Default],

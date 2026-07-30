@@ -98,34 +98,6 @@ public partial class GameplayTimingBar : CompositeDrawable
         InternalChildren = new Drawable[]
         {
             markerPool,
-            new Container
-            {
-                Position = new Vector2(-12, -2),
-                Size = new Vector2(barWidth + 24, 49),
-                Masking = true,
-                CornerRadius = 10,
-                BorderThickness = 1,
-                BorderColour = new Color4(0.58f, 0.66f, 0.78f, 0.14f),
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.012f, 0.017f, 0.028f, 0.58f),
-                },
-            },
-            new Container
-            {
-                Position = new Vector2(-5, markerY - 7),
-                Size = new Vector2(barWidth + 10, 14),
-                Masking = true,
-                CornerRadius = 7,
-                BorderThickness = 1,
-                BorderColour = new Color4(0.58f, 0.66f, 0.78f, 0.24f),
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.012f, 0.017f, 0.028f, 0.9f),
-                },
-            },
             colourBar,
             new Box
             {
