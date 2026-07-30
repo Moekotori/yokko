@@ -1,8 +1,14 @@
+using System.Threading;
+
 namespace Yokko.Audio;
 
 internal sealed class PlaybackRateTimeline
 {
-    private readonly List<Segment> segments = [];
+    private const int initialCapacity = 16;
+    private readonly object writeLock = new();
+    private Segment[] segments = new Segment[initialCapacity];
+    private int segmentCount;
+    private int version;
 
     internal PlaybackRateTimeline() => Reset(0, 1);
 
@@ -11,11 +17,22 @@ internal sealed class PlaybackRateTimeline
         double playbackRate)
     {
         validate(sourceTimeMilliseconds, playbackRate);
-        segments.Clear();
-        segments.Add(new Segment(
-            0,
-            sourceTimeMilliseconds,
-            playbackRate));
+        lock (writeLock)
+        {
+            beginWrite();
+            try
+            {
+                segments[0] = new Segment(
+                    0,
+                    sourceTimeMilliseconds,
+                    playbackRate);
+                segmentCount = 1;
+            }
+            finally
+            {
+                endWrite();
+            }
+        }
     }
 
     internal void SetRate(
@@ -23,27 +40,39 @@ internal sealed class PlaybackRateTimeline
         double playbackRate)
     {
         validate(outputTimeMilliseconds, playbackRate);
-
-        Segment current = segments[^1];
-        outputTimeMilliseconds = Math.Max(
-            outputTimeMilliseconds,
-            current.OutputTimeMilliseconds);
-        double sourceTimeMilliseconds = Map(outputTimeMilliseconds);
-
-        if (outputTimeMilliseconds == current.OutputTimeMilliseconds)
+        lock (writeLock)
         {
-            segments[^1] = current with
+            beginWrite();
+            try
             {
-                SourceTimeMilliseconds = sourceTimeMilliseconds,
-                PlaybackRate = playbackRate,
-            };
-            return;
-        }
+                Segment current = segments[segmentCount - 1];
+                outputTimeMilliseconds = Math.Max(
+                    outputTimeMilliseconds,
+                    current.OutputTimeMilliseconds);
+                double sourceTimeMilliseconds = mapUnsafe(
+                    segments,
+                    segmentCount,
+                    outputTimeMilliseconds);
 
-        segments.Add(new Segment(
-            outputTimeMilliseconds,
-            sourceTimeMilliseconds,
-            playbackRate));
+                var next = new Segment(
+                    outputTimeMilliseconds,
+                    sourceTimeMilliseconds,
+                    playbackRate);
+                if (outputTimeMilliseconds == current.OutputTimeMilliseconds)
+                {
+                    segments[segmentCount - 1] = next;
+                    return;
+                }
+
+                if (segmentCount == segments.Length)
+                    Array.Resize(ref segments, segments.Length * 2);
+                segments[segmentCount++] = next;
+            }
+            finally
+            {
+                endWrite();
+            }
+        }
     }
 
     internal double Map(double outputTimeMilliseconds)
@@ -54,26 +83,81 @@ internal sealed class PlaybackRateTimeline
                 nameof(outputTimeMilliseconds));
         }
 
+        var spinner = new SpinWait();
+        while (true)
+        {
+            int before = Volatile.Read(ref version);
+            if ((before & 1) != 0)
+            {
+                spinner.SpinOnce();
+                continue;
+            }
+
+            int count = Volatile.Read(ref segmentCount);
+            Segment[] currentSegments = Volatile.Read(ref segments);
+            double mapped = mapUnsafe(
+                currentSegments,
+                count,
+                outputTimeMilliseconds);
+            if (before == Volatile.Read(ref version))
+                return mapped;
+
+            spinner.SpinOnce();
+        }
+    }
+
+    internal double PlaybackRate
+    {
+        get
+        {
+            var spinner = new SpinWait();
+            while (true)
+            {
+                int before = Volatile.Read(ref version);
+                if ((before & 1) != 0)
+                {
+                    spinner.SpinOnce();
+                    continue;
+                }
+
+                int count = Volatile.Read(ref segmentCount);
+                Segment[] currentSegments = Volatile.Read(ref segments);
+                double rate = currentSegments[count - 1].PlaybackRate;
+                if (before == Volatile.Read(ref version))
+                    return rate;
+
+                spinner.SpinOnce();
+            }
+        }
+    }
+
+    private static double mapUnsafe(
+        Segment[] currentSegments,
+        int count,
+        double outputTimeMilliseconds)
+    {
         int low = 0;
-        int high = segments.Count - 1;
+        int high = count - 1;
         while (low < high)
         {
             int middle = (low + high + 1) / 2;
-            if (segments[middle].OutputTimeMilliseconds
+            if (currentSegments[middle].OutputTimeMilliseconds
                 <= outputTimeMilliseconds)
-            {
                 low = middle;
-            }
             else
                 high = middle - 1;
         }
 
-        Segment segment = segments[low];
+        Segment segment = currentSegments[low];
         return segment.SourceTimeMilliseconds
                + (outputTimeMilliseconds
                   - segment.OutputTimeMilliseconds)
                * segment.PlaybackRate;
     }
+
+    private void beginWrite() => Interlocked.Increment(ref version);
+
+    private void endWrite() => Interlocked.Increment(ref version);
 
     private static void validate(
         double timeMilliseconds,

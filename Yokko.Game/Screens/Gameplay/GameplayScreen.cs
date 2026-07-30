@@ -94,6 +94,8 @@ public partial class GameplayScreen : Screen
     private AudioBackendKind activeRequestedBackend;
     private double lastStableAudioGameplayTime;
     private readonly InputAgeTracker inputAgeTracker = new();
+    private readonly InputPipelineLatencyTracker inputPipelineLatencyTracker =
+        new();
     private bool gameplayBlocked;
     private bool gameplayCompleted;
     private bool gameplayFailed;
@@ -566,20 +568,54 @@ public partial class GameplayScreen : Screen
         if (DrawHeight <= 0 || playfield.Height <= 0)
             return;
 
-        float scale = DrawHeight / playfield.Height;
-        if (DrawWidth > 0)
+        float verticalScale = DrawHeight / playfield.Height;
+        float horizontalScale = verticalScale;
+        float playfieldLeft;
+        if (playfield.SkinColumnStart is float columnStart
+            && playfield.SkinColumnRight is float columnRight
+            && DrawWidth > 0)
         {
-            scale = Math.Min(
-                scale,
-                DrawWidth * 0.94f / playfield.Width);
-        }
-        playfield.Anchor = Anchor.BottomCentre;
-        playfield.Origin = Anchor.BottomCentre;
-        playfield.X = 0;
-        playfield.Scale = new Vector2(scale);
+            // osu!stable lays legacy mania skins out in a 480px-high logical
+            // screen. ColumnRight is the reserved right margin; only the
+            // stage contents are squeezed when the requested geometry would
+            // extend past the screen.
+            float logicalScreenWidth = DrawWidth / verticalScale;
+            float logicalLeft = Math.Min(
+                columnStart,
+                logicalScreenWidth - columnRight);
+            float rightMargin = Math.Min(
+                columnRight,
+                logicalScreenWidth - logicalLeft);
+            float overflow = Math.Max(
+                0,
+                logicalLeft + playfield.Width + rightMargin
+                - logicalScreenWidth);
+            float horizontalFit = Math.Max(
+                0.01f,
+                (playfield.Width - overflow) / playfield.Width);
 
-        float playfieldLeft =
-            DrawWidth / 2 - playfield.Width * scale / 2;
+            horizontalScale *= horizontalFit;
+            playfield.Anchor = Anchor.BottomLeft;
+            playfield.Origin = Anchor.BottomLeft;
+            playfield.X = logicalLeft * verticalScale;
+            playfieldLeft = playfield.X;
+        }
+        else
+        {
+            if (beatmap.StageCount == 2 && DrawWidth > 0)
+            {
+                verticalScale = Math.Min(
+                    verticalScale,
+                    DrawWidth * 0.94f / playfield.Width);
+                horizontalScale = verticalScale;
+            }
+            playfield.Anchor = Anchor.BottomCentre;
+            playfield.Origin = Anchor.BottomCentre;
+            playfield.X = 0;
+            playfieldLeft =
+                DrawWidth / 2 - playfield.Width * horizontalScale / 2;
+        }
+        playfield.Scale = new Vector2(horizontalScale, verticalScale);
 
         scrollSpeedOverlay.X = Math.Clamp(
             playfieldLeft
@@ -994,6 +1030,7 @@ public partial class GameplayScreen : Screen
     {
         while (keyInputTimestamps.TryDequeueRaw(out TimestampedKeyInput input))
         {
+            long dequeueTimestamp = Stopwatch.GetTimestamp();
             if (gameplayFailed)
                 break;
 
@@ -1005,10 +1042,21 @@ public partial class GameplayScreen : Screen
                 input.Timestamp,
                 KeyInputTimestampKind.RawInput,
                 observation);
+            long audioEnqueueTimestamp;
             if (input.IsPressed)
-                applyLanePress(lane, inputTime);
+                audioEnqueueTimestamp = applyLanePress(lane, inputTime);
             else
+            {
                 applyLaneRelease(lane, inputTime);
+                audioEnqueueTimestamp = 0;
+            }
+
+            inputPipelineLatencyTracker.Record(
+                input.Timestamp,
+                dequeueTimestamp,
+                audioEnqueueTimestamp,
+                Stopwatch.GetTimestamp(),
+                Stopwatch.Frequency);
         }
     }
 
@@ -1029,14 +1077,15 @@ public partial class GameplayScreen : Screen
         }
     }
 
-    private void applyLanePress(int lane, double inputTime)
+    private long applyLanePress(int lane, double inputTime)
     {
         if (pressedLanes[lane])
-            return;
+            return 0;
 
         pressedLanes[lane] = true;
         // Enter the native audio queue before touching drawable state.
-        triggerKeysoundForLanePress(lane, inputTime);
+        long audioEnqueueTimestamp =
+            triggerKeysoundForLanePress(lane, inputTime);
         playfield.SetLanePressed(lane, true);
 
         if (!ReplayMode)
@@ -1055,6 +1104,7 @@ public partial class GameplayScreen : Screen
         }
         if (!gameplayFailed)
             syncSlidingSamplesForLane(lane);
+        return audioEnqueueTimestamp;
     }
 
     private void prepareHitSamples()
@@ -1157,19 +1207,21 @@ public partial class GameplayScreen : Screen
         }
     }
 
-    private void triggerKeysoundForLanePress(int lane, double inputTime)
+    private long triggerKeysoundForLanePress(int lane, double inputTime)
     {
         if (!gameplaySettings.KeysoundsEnabled.Value
             || audioEngine is not IAudioSamplePlayback samplePlayback)
-            return;
+            return 0;
 
         int selected = keysoundSelector.Select(lane, inputTime);
         if ((uint)selected >= headSamplesByHitObject.Length)
-            return;
+            return 0;
 
-        GameplayHitSamplePlayer.TriggerSamples(
+        return GameplayHitSamplePlayer.TriggerSamples(
             samplePlayback,
-            headSamplesByHitObject[selected]);
+            headSamplesByHitObject[selected])
+                ? Stopwatch.GetTimestamp()
+                : 0;
     }
 
     private void applyLaneRelease(int lane, double inputTime)
@@ -1827,19 +1879,41 @@ public partial class GameplayScreen : Screen
         KeyInputTimestampBackendStatus backend =
             keyInputTimestamps.Status;
         InputAgeStatistics ages = inputAgeTracker.Snapshot();
+        InputPipelineLatencyStatistics pipeline =
+            inputPipelineLatencyTracker.Snapshot();
         string ageSummary = ages.Count == 0
             ? "no scored input samples"
             : $"input age p50={ages.P50Milliseconds:0.00} ms, "
               + $"p95={ages.P95Milliseconds:0.00} ms, "
               + $"p99={ages.P99Milliseconds:0.00} ms";
+        string pipelineSummary = pipeline.CaptureToCompletion.Count == 0
+            ? "no raw pipeline samples"
+            : $"raw dequeue p50={pipeline.CaptureToDequeue.P50Milliseconds:0.00} ms, "
+              + $"p99={pipeline.CaptureToDequeue.P99Milliseconds:0.00} ms; "
+              + $"processing p50={pipeline.Processing.P50Milliseconds:0.00} ms, "
+              + $"p99={pipeline.Processing.P99Milliseconds:0.00} ms; "
+              + $"complete p50={pipeline.CaptureToCompletion.P50Milliseconds:0.00} ms, "
+              + $"p99={pipeline.CaptureToCompletion.P99Milliseconds:0.00} ms, "
+              + $"max={pipeline.CaptureToCompletion.MaximumMilliseconds:0.00} ms; "
+              + formatAudioEnqueue(pipeline.CaptureToAudioEnqueue);
 
         Logger.Log(
             $"Gameplay input timing: {backend.Name}; "
             + $"captured={backend.CapturedEdgeCount}, "
             + $"pending={backend.PendingEdgeCount}, "
             + $"dropped={backend.DroppedEdgeCount}; "
-            + ageSummary);
+            + ageSummary + "; "
+            + pipelineSummary);
     }
+
+    private static string formatAudioEnqueue(
+        PipelineStageLatencyStatistics audioEnqueue) =>
+        audioEnqueue.Count == 0
+            ? "no successful keysound enqueue samples"
+            : $"keysound enqueue n={audioEnqueue.Count}, "
+              + $"p50={audioEnqueue.P50Milliseconds:0.00} ms, "
+              + $"p99={audioEnqueue.P99Milliseconds:0.00} ms, "
+              + $"max={audioEnqueue.MaximumMilliseconds:0.00} ms";
 
     private void onScrollSpeedChanged(
         osu.Framework.Bindables.ValueChangedEvent<double> change)

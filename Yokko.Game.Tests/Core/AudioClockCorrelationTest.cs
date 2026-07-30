@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Concurrent;
+using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Yokko.Audio;
 
@@ -126,5 +129,62 @@ public sealed class AudioClockCorrelationTest
             Is.True);
         Assert.That(eventOutputTime, Is.EqualTo(900).Within(0.000001));
         Assert.That(timeline.Map(eventOutputTime), Is.EqualTo(900));
+    }
+
+    [Test]
+    public async Task RateTimelineSupportsConcurrentLockFreeReaders()
+    {
+        var timeline = new PlaybackRateTimeline();
+        var failures = new ConcurrentQueue<string>();
+
+        Task writer = Task.Run(() =>
+        {
+            for (int index = 1; index <= 10_000; index++)
+                timeline.SetRate(index, 0.5 + index % 7 * 0.25);
+        });
+        Task[] readers = Enumerable.Range(0, 4)
+            .Select(_ => Task.Run(() =>
+            {
+                while (!writer.IsCompleted)
+                {
+                    double mapped = timeline.Map(10_000);
+                    double rate = timeline.PlaybackRate;
+                    if (!double.IsFinite(mapped)
+                        || !double.IsFinite(rate)
+                        || mapped < 0
+                        || rate <= 0)
+                    {
+                        failures.Enqueue($"mapped={mapped}, rate={rate}");
+                        return;
+                    }
+                }
+            }))
+            .ToArray();
+
+        await writer;
+        await Task.WhenAll(readers);
+
+        Assert.That(failures, Is.Empty);
+        Assert.That(timeline.Map(10_000), Is.GreaterThan(0));
+    }
+
+    [Test]
+    public void RateTimelineReadsDoNotAllocateAfterWarmup()
+    {
+        var timeline = new PlaybackRateTimeline();
+        timeline.SetRate(100, 1.5);
+        for (int index = 0; index < 1000; index++)
+            _ = timeline.Map(index);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int index = 0; index < 10_000; index++)
+        {
+            _ = timeline.Map(index);
+            _ = timeline.PlaybackRate;
+        }
+
+        Assert.That(
+            GC.GetAllocatedBytesForCurrentThread() - before,
+            Is.Zero);
     }
 }

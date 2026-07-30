@@ -32,9 +32,7 @@ public sealed class NativeAudioEngine :
     private double musicVolume = 1;
     private double hitSoundVolume = 1;
     private double metronomeVolume;
-    private readonly object rateClockLock = new();
     private readonly PlaybackRateTimeline rateTimeline = new();
-    private double currentPlaybackRate = 1;
     private bool disposed;
 
     public static bool IsAvailable => NativeAudioLibrary.IsAvailable;
@@ -150,11 +148,7 @@ public sealed class NativeAudioEngine :
             return false;
         }
 
-        lock (rateClockLock)
-        {
-            playbackTimeMilliseconds =
-                rateTimeline.Map(outputTimeMilliseconds);
-        }
+        playbackTimeMilliseconds = rateTimeline.Map(outputTimeMilliseconds);
 
         return true;
     }
@@ -168,14 +162,7 @@ public sealed class NativeAudioEngine :
 
     public double MetronomeVolume => metronomeVolume;
 
-    public double PlaybackRate
-    {
-        get
-        {
-            lock (rateClockLock)
-                return currentPlaybackRate;
-        }
-    }
+    public double PlaybackRate => rateTimeline.PlaybackRate;
 
     public IReadOnlyList<AudioBackendCapabilities> Backends
         => SupportedBackends;
@@ -542,11 +529,7 @@ public sealed class NativeAudioEngine :
 
         double outputTime =
             core?.GetStatus().PlaybackTimeMilliseconds ?? 0;
-        lock (rateClockLock)
-        {
-            rateTimeline.SetRate(outputTime, playbackRate);
-            currentPlaybackRate = playbackRate;
-        }
+        rateTimeline.SetRate(outputTime, playbackRate);
         source?.SetPlaybackRate(playbackRate);
         core?.SetSamplePlaybackRate((float)playbackRate);
     }
@@ -653,13 +636,9 @@ public sealed class NativeAudioEngine :
             playbackBaseMilliseconds =
                 currentSource.CurrentTime.TotalMilliseconds;
         }
-        lock (rateClockLock)
-        {
-            currentPlaybackRate = request.PlaybackRate;
-            rateTimeline.Reset(
-                playbackBaseMilliseconds,
-                request.PlaybackRate);
-        }
+        rateTimeline.Reset(
+            playbackBaseMilliseconds,
+            request.PlaybackRate);
 
         uint preferredBufferFrames = (uint)Math.Clamp(
             request.PreferredBufferSize <= 0 ? 128 : request.PreferredBufferSize,
@@ -972,11 +951,7 @@ public sealed class NativeAudioEngine :
         outputStatus = default;
         playbackBaseMilliseconds = 0;
         status = stoppedStatus;
-        lock (rateClockLock)
-        {
-            currentPlaybackRate = 1;
-            rateTimeline.Reset(0, 1);
-        }
+        rateTimeline.Reset(0, 1);
     }
 
     private void throwIfDisposed()
@@ -1067,11 +1042,8 @@ public sealed class NativeAudioEngine :
                + outputTimeMilliseconds * playbackRate;
     }
 
-    private double scaledPlaybackTime(double outputTimeMilliseconds)
-    {
-        lock (rateClockLock)
-            return rateTimeline.Map(outputTimeMilliseconds);
-    }
+    private double scaledPlaybackTime(double outputTimeMilliseconds) =>
+        rateTimeline.Map(outputTimeMilliseconds);
 
     private static AudioClockCorrelation createClockCorrelation(
         NativeAudioStatus native)

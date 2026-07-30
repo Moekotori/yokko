@@ -1263,18 +1263,18 @@ namespace Yokko.Game.Tests.Visual
                     skinPath: skinPath)));
             AddUntilStep("custom playfield width applied", () =>
                 gameplay?.ChildrenOfType<GameplayPlayfield>().SingleOrDefault()?.Width == 160);
-            AddUntilStep("legacy stage remains centred", () =>
+            AddUntilStep("legacy column start positions the stage", () =>
             {
                 GameplayPlayfield playfield =
                     gameplay?
                         .ChildrenOfType<GameplayPlayfield>()
                         .SingleOrDefault();
                 return playfield != null
-                       && playfield.Anchor == Anchor.BottomCentre
-                       && playfield.Origin == Anchor.BottomCentre
-                       && Math.Abs(playfield.X) < 0.01f
-                       && Math.Abs(playfield.Scale.X - playfield.Scale.Y)
-                       < 0.001f;
+                       && playfield.Anchor == Anchor.BottomLeft
+                       && playfield.Origin == Anchor.BottomLeft
+                       && Math.Abs(
+                           playfield.X / playfield.Scale.X
+                           - 136) < 0.01f;
             });
             AddUntilStep("skin sprites loaded", () =>
                 gameplay?.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null) == true);
@@ -1285,7 +1285,7 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
-        public void TestLegacyColumnOffsetsCannotMoveOversizedStage()
+        public void TestLegacyColumnRightFitsOversizedStage()
         {
             string skinPath = createTestSkin("""
 ColumnWidth: 100,100,100,100
@@ -1298,7 +1298,7 @@ ColumnRight: 50
                 screenStack.Push(gameplay = new GameplayScreen(
                     DemoBeatmaps.CreateFourKeyDemo(),
                     skinPath: skinPath)));
-            AddUntilStep("oversized legacy stage is centred and fitted", () =>
+            AddUntilStep("ColumnRight fit is applied", () =>
             {
                 GameplayPlayfield playfield = gameplay?
                                               .ChildrenOfType<GameplayPlayfield>()
@@ -1308,15 +1308,14 @@ ColumnRight: 50
                     || playfield.Scale.Y <= 0)
                     return false;
 
-                float displayedWidth =
-                    playfield.Width * playfield.Scale.X;
-                return playfield.Anchor == Anchor.BottomCentre
-                       && playfield.Origin == Anchor.BottomCentre
-                       && Math.Abs(playfield.X) < 0.01f
-                       && Math.Abs(playfield.Scale.X - playfield.Scale.Y)
-                       < 0.001f
-                       && displayedWidth
-                       <= gameplay.DrawWidth * 0.94f + 0.01f;
+                float rightMargin =
+                    50 * playfield.Scale.Y;
+                float rightEdge =
+                    playfield.X
+                    + playfield.Width * playfield.Scale.X;
+                return playfield.Scale.X < playfield.Scale.Y
+                       && rightEdge + rightMargin
+                          <= gameplay.DrawWidth + 0.01f;
             });
         }
 
@@ -1707,8 +1706,13 @@ LightingLWidth: 20,20,20,20
                 return body.TextureRelativeSizeAxes == Axes.None
                        && Math.Abs(body.TextureRectangle.Y) < 0.01f
                        && Math.Abs(
+                           body.TextureRectangle.Width
+                           - body.Width) < 0.01f
+                       && Math.Abs(
                            body.TextureRectangle.Height
-                           - clip.Height) < 0.01f
+                           - body.Texture.DisplayHeight
+                           * body.Width
+                           / body.Texture.DisplayWidth) < 0.01f
                        && body.Texture.WrapModeT == WrapMode.ClampToEdge;
             });
         }
@@ -1799,16 +1803,6 @@ LightingLWidth: 20,20,20,20
                             return false;
                         }
 
-                        if (playfield.Anchor != Anchor.BottomCentre
-                            || playfield.Origin != Anchor.BottomCentre
-                            || Math.Abs(playfield.X) >= 0.01f
-                            || Math.Abs(
-                                playfield.Scale.X
-                                - playfield.Scale.Y) >= 0.001f)
-                        {
-                            return false;
-                        }
-
                         for (int lane = 0; lane < keys; lane++)
                         {
                             DrawableNote note = playfield.GetDrawableNote(lane);
@@ -1827,6 +1821,9 @@ LightingLWidth: 20,20,20,20
                                 .ChildrenOfType<Container>()
                                 .FirstOrDefault(container =>
                                     container.Masking);
+                            Sprite body = bodyClip?
+                                .ChildrenOfType<Sprite>()
+                                .SingleOrDefault();
                             Box fallbackBody = note
                                 .ChildrenOfType<Box>()
                                 .FirstOrDefault(box => box.Height > 0);
@@ -1848,6 +1845,16 @@ LightingLWidth: 20,20,20,20
                                 || !float.IsFinite(note.Width)
                                 || !float.IsFinite(note.Height)
                                 || !float.IsFinite(note.Y))
+                            {
+                                return false;
+                            }
+
+                            if (body?.TextureRelativeSizeAxes == Axes.None
+                                && (Math.Abs(
+                                        body.TextureRectangle.X) >= 0.01f
+                                    || Math.Abs(
+                                        body.TextureRectangle.Width
+                                        - body.Width) >= 0.01f))
                             {
                                 return false;
                             }

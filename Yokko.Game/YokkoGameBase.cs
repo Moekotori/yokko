@@ -189,6 +189,7 @@ namespace Yokko.Game
             Resources.AddStore(resources);
             AddFont(Resources, @"Fonts/Yokko/Yokko");
             AddFont(Resources, @"Fonts/Yokko/Yokko-Bold");
+            AddFont(Resources, @"Fonts/ArchivoBlack/ArchivoBlack");
             _ = Task.Run(() => importedChartLibrary.LoadFromDiskAsync(
                 importSettings.PreferKeysounds.Value,
                 importSettings.PreferSscSimfiles.Value))

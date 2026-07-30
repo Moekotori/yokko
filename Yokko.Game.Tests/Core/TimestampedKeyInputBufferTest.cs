@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using osuTK.Input;
 using Yokko.Desktop.Input;
@@ -38,5 +43,93 @@ public sealed class TimestampedKeyInputBufferTest
         Assert.That(buffer.Count, Is.Zero);
         Assert.That(buffer.CapturedEdgeCount, Is.Zero);
         Assert.That(buffer.DroppedEdgeCount, Is.Zero);
+    }
+
+    [Test]
+    public async Task ConcurrentProducerAndConsumerPreserveOrder()
+    {
+        const int edgeCount = 50_000;
+        var buffer = new TimestampedKeyInputBuffer(edgeCount);
+        var consumed = new List<long>(edgeCount);
+
+        Task producer = Task.Run(() =>
+        {
+            for (int index = 1; index <= edgeCount; index++)
+            {
+                buffer.Enqueue(new TimestampedKeyInput(
+                    Key.D,
+                    (index & 1) == 0,
+                    index));
+            }
+        });
+
+        var spinner = new SpinWait();
+        while (consumed.Count < edgeCount)
+        {
+            if (buffer.TryDequeue(out TimestampedKeyInput input))
+            {
+                consumed.Add(input.Timestamp);
+                continue;
+            }
+
+            if (producer.IsCompleted && buffer.Count == 0)
+                break;
+            spinner.SpinOnce();
+        }
+        await producer;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(buffer.DroppedEdgeCount, Is.Zero);
+            Assert.That(consumed, Has.Count.EqualTo(edgeCount));
+            Assert.That(
+                consumed,
+                Is.EqualTo(Enumerable.Range(1, edgeCount)
+                    .Select(static value => (long)value)));
+        });
+    }
+
+    [Test]
+    public void EnqueueAndDequeueDoNotAllocateAfterConstruction()
+    {
+        var buffer = new TimestampedKeyInputBuffer(8);
+        for (int index = 0; index < 1000; index++)
+        {
+            buffer.Enqueue(new TimestampedKeyInput(Key.D, true, index + 1));
+            buffer.TryDequeue(out _);
+        }
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int index = 0; index < 10_000; index++)
+        {
+            buffer.Enqueue(new TimestampedKeyInput(Key.D, true, index + 1));
+            buffer.TryDequeue(out _);
+        }
+
+        Assert.That(
+            GC.GetAllocatedBytesForCurrentThread() - before,
+            Is.Zero);
+    }
+
+    [Test]
+    public void RawKeyStateSuppressesDuplicateEdgesWithoutHashing()
+    {
+        var state = new WindowsRawKeyboardTimestampBackend.RawKeyState();
+        int regular = WindowsRawKeyboardTimestampBackend.RawKeyState
+            .IdentityIndex(30, 0, 0x41);
+        int extended = WindowsRawKeyboardTimestampBackend.RawKeyState
+            .IdentityIndex(30, 0x0002, 0x41);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.Set(regular, true), Is.True);
+            Assert.That(state.Set(regular, true), Is.False);
+            Assert.That(state.Set(extended, true), Is.True);
+            Assert.That(state.Set(regular, false), Is.True);
+            Assert.That(state.Set(regular, false), Is.False);
+        });
+
+        state.Clear();
+        Assert.That(state.Set(extended, true), Is.True);
     }
 }

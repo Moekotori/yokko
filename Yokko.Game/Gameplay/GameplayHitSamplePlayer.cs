@@ -5,28 +5,31 @@ namespace Yokko.Game.Gameplay;
 
 internal static class GameplayHitSamplePlayer
 {
-    internal static void TriggerSamples(
+    internal static bool TriggerSamples(
         IAudioSamplePlayback samplePlayback,
         IReadOnlyList<GameplayHitSamplePlaybackBinding> samples)
     {
+        bool triggered = false;
         foreach (GameplayHitSamplePlaybackBinding sample in samples)
         {
             if (sample.HasPreparedHandle
                 && samplePlayback is IPreparedAudioSamplePlayback prepared)
             {
-                prepared.TriggerPreparedSample(
+                triggered |= prepared.TriggerPreparedSample(
                     sample.PreparedHandle,
                     sample.Gain);
             }
             else if (samplePlayback is IAudioSamplePlaybackWithGain withGain)
             {
-                withGain.TriggerSample(sample.Path, sample.Gain);
+                triggered |= withGain.TriggerSample(sample.Path, sample.Gain);
             }
             else if (sample.Gain > 0)
             {
-                samplePlayback.TriggerSample(sample.Path);
+                triggered |= samplePlayback.TriggerSample(sample.Path);
             }
         }
+
+        return triggered;
     }
 
     internal static uint StartLoopingSample(

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -7,6 +9,9 @@ using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
+using Yokko.Core.Gameplay;
+using Yokko.Game.Gameplay;
+using Yokko.Game.Screens.Gameplay;
 
 namespace Yokko.Game.Screens.Main;
 

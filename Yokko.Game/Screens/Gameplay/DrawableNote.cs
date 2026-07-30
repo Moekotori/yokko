@@ -568,14 +568,12 @@ public partial class DrawableNote : CompositeDrawable
             }
             else
             {
-                float textureWidth =
-                    holdBody.Texture?.DisplayWidth ?? Width;
                 float textureY = noteBodyStyle switch
                 {
                     1 => 0,
-                    2 => bodyTextureHeight - holdBodyHeight,
+                    2 => holdBodyHeight - bodyTextureHeight,
                     3 => 0,
-                    4 => (bodyTextureHeight - holdBodyHeight) / 2,
+                    4 => (holdBodyHeight - bodyTextureHeight) / 2,
                     _ => 0,
                 };
 
@@ -583,8 +581,8 @@ public partial class DrawableNote : CompositeDrawable
                 holdBody.TextureRectangle = new RectangleF(
                     0,
                     textureY,
-                    textureWidth,
-                    holdBodyHeight);
+                    Width,
+                    bodyTextureHeight);
             }
 
             holdBody.Scale = new Vector2(1, flipHoldBody ? -1 : 1);

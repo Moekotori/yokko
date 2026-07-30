@@ -1,8 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
 using osu.Framework.Platform;
 using osuTK.Input;
 using Yokko.Game.Input;
@@ -30,13 +30,14 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
 
     private readonly TimestampedKeyInputBuffer pending =
         new(max_pending_edges);
-    private readonly HashSet<RawKeyIdentity> pressedKeys = new();
+    private readonly RawKeyState pressedKeys = new();
     private readonly SubclassProcedure subclassProcedure;
 
     private IntPtr windowHandle;
     private bool isCapturing;
     private bool isAvailable;
     private bool disposed;
+    private int activeCaptureWriters;
 
     public WindowsRawKeyboardTimestampBackend()
     {
@@ -46,28 +47,19 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
     public string Name => "Windows Raw Input";
 
     public bool IsAvailable
-    {
-        get
-        {
-            lock (sync)
-                return isAvailable;
-        }
-    }
+        => Volatile.Read(ref isAvailable);
 
     public KeyInputTimestampBackendStatus Status
     {
         get
         {
-            lock (sync)
-            {
-                return new KeyInputTimestampBackendStatus(
-                    Name,
-                    isAvailable,
-                    isCapturing,
-                    pending.Count,
-                    pending.CapturedEdgeCount,
-                    pending.DroppedEdgeCount);
-            }
+            return new KeyInputTimestampBackendStatus(
+                Name,
+                Volatile.Read(ref isAvailable),
+                Volatile.Read(ref isCapturing),
+                pending.Count,
+                pending.CapturedEdgeCount,
+                pending.DroppedEdgeCount);
         }
     }
 
@@ -122,7 +114,7 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
                 return false;
             }
 
-            isAvailable = true;
+            Volatile.Write(ref isAvailable, true);
             return true;
         }
     }
@@ -132,9 +124,12 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
         lock (sync)
         {
             throwIfDisposed();
+            stopCaptureAndWait();
             pending.Reset();
             pressedKeys.Clear();
-            isCapturing = isAvailable;
+            Volatile.Write(
+                ref isCapturing,
+                Volatile.Read(ref isAvailable));
         }
     }
 
@@ -142,7 +137,7 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
     {
         lock (sync)
         {
-            isCapturing = false;
+            stopCaptureAndWait();
             pending.Clear();
             pressedKeys.Clear();
         }
@@ -150,10 +145,7 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
 
     public bool TryDequeue(out TimestampedKeyInput input)
     {
-        lock (sync)
-        {
-            return pending.TryDequeue(out input);
-        }
+        return pending.TryDequeue(out input);
     }
 
     public void Dispose()
@@ -194,50 +186,47 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
 
     private void captureRawKeyboardEdge(IntPtr rawInputHandle, long timestamp)
     {
-        uint headerSize = (uint)Marshal.SizeOf<RawInputHeader>();
-        uint headerBytes = headerSize;
-        uint headerResult = GetRawInputData(
-            rawInputHandle,
-            rid_header,
-            out RawInputHeader header,
-            ref headerBytes,
-            headerSize);
-        if (headerResult == uint.MaxValue
-            || header.Type != rim_typekeyboard)
+        if (!tryEnterCapture())
             return;
 
-        uint inputBytes = (uint)Marshal.SizeOf<RawInput>();
-        uint inputResult = GetRawInputData(
-            rawInputHandle,
-            rid_input,
-            out RawInput input,
-            ref inputBytes,
-            headerSize);
-        if (inputResult == uint.MaxValue)
-            return;
-
-        RawKeyboard keyboard = input.Data.Keyboard;
-        bool isPressed = (keyboard.Flags & ri_key_break) == 0;
-        if (!WindowsVirtualKeyMapper.TryMap(
-                keyboard.VirtualKey,
-                keyboard.MakeCode,
-                keyboard.Flags,
-                out Key key))
-            return;
-
-        var identity = new RawKeyIdentity(
-            keyboard.MakeCode,
-            (ushort)(keyboard.Flags & (ri_key_e0 | ri_key_e1)),
-            keyboard.VirtualKey);
-
-        lock (sync)
+        try
         {
-            if (!isCapturing)
+            uint headerSize = (uint)Marshal.SizeOf<RawInputHeader>();
+            uint headerBytes = headerSize;
+            uint headerResult = GetRawInputData(
+                rawInputHandle,
+                rid_header,
+                out RawInputHeader header,
+                ref headerBytes,
+                headerSize);
+            if (headerResult == uint.MaxValue
+                || header.Type != rim_typekeyboard)
                 return;
 
-            bool changed = isPressed
-                ? pressedKeys.Add(identity)
-                : pressedKeys.Remove(identity);
+            uint inputBytes = (uint)Marshal.SizeOf<RawInput>();
+            uint inputResult = GetRawInputData(
+                rawInputHandle,
+                rid_input,
+                out RawInput input,
+                ref inputBytes,
+                headerSize);
+            if (inputResult == uint.MaxValue)
+                return;
+
+            RawKeyboard keyboard = input.Data.Keyboard;
+            bool isPressed = (keyboard.Flags & ri_key_break) == 0;
+            if (!WindowsVirtualKeyMapper.TryMap(
+                    keyboard.VirtualKey,
+                    keyboard.MakeCode,
+                    keyboard.Flags,
+                    out Key key))
+                return;
+
+            int identity = RawKeyState.IdentityIndex(
+                keyboard.MakeCode,
+                keyboard.Flags,
+                keyboard.VirtualKey);
+            bool changed = pressedKeys.Set(identity, isPressed);
             if (!changed)
                 return;
 
@@ -246,12 +235,16 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
                 isPressed,
                 timestamp));
         }
+        finally
+        {
+            Interlocked.Decrement(ref activeCaptureWriters);
+        }
     }
 
     private void detach()
     {
-        isCapturing = false;
-        isAvailable = false;
+        stopCaptureAndWait();
+        Volatile.Write(ref isAvailable, false);
         pending.Clear();
         pressedKeys.Clear();
 
@@ -284,10 +277,65 @@ internal sealed class WindowsRawKeyboardTimestampBackend : IKeyInputTimestampBac
                 nameof(WindowsRawKeyboardTimestampBackend));
     }
 
-    private readonly record struct RawKeyIdentity(
-        ushort MakeCode,
-        ushort ExtendedFlags,
-        ushort VirtualKey);
+    private bool tryEnterCapture()
+    {
+        if (!Volatile.Read(ref isCapturing))
+            return false;
+
+        Interlocked.Increment(ref activeCaptureWriters);
+        if (Volatile.Read(ref isCapturing))
+            return true;
+
+        Interlocked.Decrement(ref activeCaptureWriters);
+        return false;
+    }
+
+    private void stopCaptureAndWait()
+    {
+        Volatile.Write(ref isCapturing, false);
+        var spinner = new SpinWait();
+        while (Volatile.Read(ref activeCaptureWriters) != 0)
+            spinner.SpinOnce();
+    }
+
+    internal sealed class RawKeyState
+    {
+        private const int physical_key_count = 4096;
+        private readonly ulong[] bits = new ulong[physical_key_count / 64];
+
+        internal bool Set(int identity, bool isPressed)
+        {
+            int wordIndex = identity >> 6;
+            ulong mask = 1UL << (identity & 63);
+            ulong current = bits[wordIndex];
+            bool wasPressed = (current & mask) != 0;
+            if (wasPressed == isPressed)
+                return false;
+
+            bits[wordIndex] = isPressed
+                ? current | mask
+                : current & ~mask;
+            return true;
+        }
+
+        internal void Clear() => Array.Clear(bits);
+
+        internal static int IdentityIndex(
+            ushort makeCode,
+            ushort flags,
+            ushort virtualKey)
+        {
+            if (makeCode == 0)
+                return 2048 + (virtualKey & 0xff);
+
+            int identity = makeCode & 0x1ff;
+            if ((flags & ri_key_e0) != 0)
+                identity |= 1 << 9;
+            if ((flags & ri_key_e1) != 0)
+                identity |= 1 << 10;
+            return identity;
+        }
+    }
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     private delegate IntPtr SubclassProcedure(

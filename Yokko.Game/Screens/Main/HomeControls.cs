@@ -32,6 +32,9 @@ internal static class HomeTypography
 
     public static FontUsage Brand(float size) => new("Roboto", readableSize(size), "Bold");
 
+    // 贴纸气泡用的粗海报体（Archivo Black 位图图集，CJK 自动回退 Yokko 字体）。
+    public static FontUsage Sticker(float size) => new("ArchivoBlack", readableSize(size));
+
     // At high-DPI desktop resolutions the framework renders in physical pixels.
     // Give compact labels a meaningful readability floor without inflating hero text.
     private static float readableSize(float size) => size <= 22 ? size + 3 : size;
@@ -1006,6 +1009,9 @@ internal enum HomeMascotBubbleStyle
 
 public partial class HomeMascotBubble : ClickableContainer
 {
+    private const float sticker_label_max_width = 148;
+    private const float sticker_label_max_height = 62;
+
     private readonly Drawable underline;
     private readonly SpriteText label;
     private readonly HomeMascotBubbleStyle style;
@@ -1015,6 +1021,7 @@ public partial class HomeMascotBubble : ClickableContainer
     private readonly SpriteIcon[] accentStars;
     private readonly float underlineRestWidth;
     private readonly float underlinePulseWidth;
+    private bool stickerLabelFitDirty;
 
     public HomeMascotBubble(LocalisableString text)
         : this(text, HomeMascotBubbleStyle.Rounded)
@@ -1096,7 +1103,6 @@ public partial class HomeMascotBubble : ClickableContainer
                                     Origin = Anchor.Centre,
                                     Text = text,
                                     Font = stickerFontFor(text),
-                                    Scale = new Vector2(0.94f, 1),
                                     Colour = HomeControlColours.Navy,
                                 },
                             },
@@ -1107,6 +1113,10 @@ public partial class HomeMascotBubble : ClickableContainer
                     },
                 },
             };
+
+            // 长文案在文本重排后自动收缩，任何语言都不会顶出贴纸边框。
+            stickerLabelFitDirty = true;
+            label.OnUpdate += _ => fitStickerLabel();
 
             return;
         }
@@ -1171,8 +1181,32 @@ public partial class HomeMascotBubble : ClickableContainer
     private static FontUsage stickerFontFor(LocalisableString text)
     {
         int length = text.ToString().Length;
-        return HomeTypography.Display(length >= 9 ? 30 : length >= 6 ? 38 : 50);
+        return HomeTypography.Sticker(length >= 9 ? 24 : length >= 6 ? 32 : 44);
     }
+
+    /// <summary>
+    /// 文本重排后按贴纸内框收缩标签，超长文案缩到放得下为止。
+    /// </summary>
+    private void fitStickerLabel()
+    {
+        if (!stickerLabelFitDirty)
+            return;
+
+        float naturalWidth = label.DrawWidth / label.Scale.X;
+        float naturalHeight = label.DrawHeight / label.Scale.Y;
+        if (naturalWidth <= 0 || naturalHeight <= 0)
+            return;
+
+        stickerLabelFitDirty = false;
+        float fit = MathF.Min(
+            1f,
+            MathF.Min(
+                sticker_label_max_width / naturalWidth,
+                sticker_label_max_height / naturalHeight));
+        label.Scale = new Vector2(fit);
+    }
+
+    internal float StickerLabelDrawWidth => label.DrawWidth;
 
     /// <summary>
     /// 换一句台词，文字淡入、气泡轻弹。
@@ -1183,6 +1217,7 @@ public partial class HomeMascotBubble : ClickableContainer
         if (style == HomeMascotBubbleStyle.PopSignalSticker)
         {
             label.Font = stickerFontFor(text);
+            stickerLabelFitDirty = true;
             playPop();
         }
 
@@ -1481,6 +1516,7 @@ public partial class HomeKeycap : ClickableContainer
 {
     private readonly Container cap;
     private readonly Box background;
+    private readonly SpriteText label;
     private bool isPressed;
 
     public HomeKeycap(string label)
@@ -1523,7 +1559,7 @@ public partial class HomeKeycap : ClickableContainer
                             Colour = Color4.White,
                         },
                     },
-                    new SpriteText
+                    this.label = new SpriteText
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
@@ -1534,6 +1570,16 @@ public partial class HomeKeycap : ClickableContainer
                 },
             },
         };
+    }
+
+    /// <summary>
+    /// 换绑后刷新键帽字符；多字符键名自动缩小字号避免溢出。
+    /// </summary>
+    public void SetLabel(string text)
+    {
+        label.Text = text;
+        label.Font = HomeTypography.Display(
+            text.Length >= 3 ? 8 : text.Length == 2 ? 10.5f : 13);
     }
 
     public void SetPressed(bool pressed)

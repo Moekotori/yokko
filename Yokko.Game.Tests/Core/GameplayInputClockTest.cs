@@ -178,6 +178,44 @@ public sealed class GameplayInputClockTest
         Assert.That(statistics.P99Milliseconds, Is.EqualTo(99));
     }
 
+    [Test]
+    public void InputPipelineStatisticsReportEachManagedStage()
+    {
+        var tracker = new InputPipelineLatencyTracker();
+        for (int index = 1; index <= 100; index++)
+        {
+            long capture = index * 1000;
+            tracker.Record(
+                capture,
+                capture + index,
+                index <= 75 ? capture + index * 2 : 0,
+                capture + index * 3,
+                1000);
+        }
+
+        InputPipelineLatencyStatistics statistics = tracker.Snapshot();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(statistics.CaptureToDequeue.Count, Is.EqualTo(100));
+            Assert.That(
+                statistics.CaptureToDequeue.P99Milliseconds,
+                Is.EqualTo(99));
+            Assert.That(
+                statistics.CaptureToAudioEnqueue.Count,
+                Is.EqualTo(75));
+            Assert.That(
+                statistics.CaptureToAudioEnqueue.P95Milliseconds,
+                Is.EqualTo(144));
+            Assert.That(
+                statistics.CaptureToCompletion.MaximumMilliseconds,
+                Is.EqualTo(300));
+            Assert.That(
+                statistics.Processing.P50Milliseconds,
+                Is.EqualTo(100));
+        });
+    }
+
     [TestCase(1000.5)]
     [TestCase(1002.083333)]
     [TestCase(1008.333333)]
