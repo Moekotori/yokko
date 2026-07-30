@@ -278,6 +278,25 @@ namespace Yokko.Game.Tests.Core
                 Is.True,
                 "Prepared handles must survive a native core rebuild on seek.");
 
+            await engine.PrepareSamplesAsync([audioPath]);
+            Assert.That(
+                engine.TryGetPreparedSampleHandle(audioPath, out var replacementHandle),
+                Is.True);
+            Assert.That(
+                engine.TriggerPreparedSample(sampleHandle, 1),
+                Is.False,
+                "Preparing a new sample set must invalidate old handles.");
+            await engine.SeekAsync(1000);
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    engine.TriggerPreparedSample(replacementHandle, 1),
+                    Is.True);
+                Assert.That(
+                    engine.TriggerPreparedSample(sampleHandle, 1),
+                    Is.False);
+            });
+
             await engine.StopAsync();
             Assert.That(engine.Status.IsRunning, Is.False);
 

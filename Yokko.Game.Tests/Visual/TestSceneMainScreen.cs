@@ -46,14 +46,16 @@ namespace Yokko.Game.Tests.Visual
         public void TestKeyTestPadCountsKeyPresses()
         {
             HomeKeyTestPad pad = null;
+            int baseline = 0;
             AddStep(
                 "find key test pad",
                 () => pad = this.ChildrenOfType<HomeKeyTestPad>().Single());
+            AddStep("record baseline", () => baseline = pad.HitCount);
             AddStep("press D", () => pad.TryHandleKey(osuTK.Input.Key.D, true));
             AddStep("release D", () => pad.TryHandleKey(osuTK.Input.Key.D, false));
             AddStep("press K", () => pad.TryHandleKey(osuTK.Input.Key.K, true));
             AddStep("press unmapped key", () => pad.TryHandleKey(osuTK.Input.Key.Q, true));
-            AddAssert("two hits counted", () => pad.HitCount == 2);
+            AddAssert("two hits counted", () => pad.HitCount == baseline + 2);
         }
 
         [Test]

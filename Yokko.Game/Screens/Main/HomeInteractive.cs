@@ -420,7 +420,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
         base.Update();
 
         if (comboCount > 0
-            && Clock.Time.Current - lastHitTime > combo_window_milliseconds)
+            && Clock.CurrentTime - lastHitTime > combo_window_milliseconds)
         {
             comboCount = 0;
             updateComboHint();

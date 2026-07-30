@@ -566,54 +566,20 @@ public partial class GameplayScreen : Screen
         if (DrawHeight <= 0 || playfield.Height <= 0)
             return;
 
-        float verticalScale = DrawHeight / playfield.Height;
-        float horizontalScale = verticalScale;
-        float playfieldLeft;
-        if (playfield.SkinColumnStart is float columnStart
-            && playfield.SkinColumnRight is float columnRight
-            && DrawWidth > 0)
+        float scale = DrawHeight / playfield.Height;
+        if (DrawWidth > 0)
         {
-            // osu!stable lays legacy mania skins out in a 480px-high logical
-            // screen. ColumnRight is the reserved right margin; only the
-            // stage contents are squeezed when the requested geometry would
-            // extend past the screen.
-            float logicalScreenWidth = DrawWidth / verticalScale;
-            float logicalLeft = Math.Min(
-                columnStart,
-                logicalScreenWidth - columnRight);
-            float rightMargin = Math.Min(
-                columnRight,
-                logicalScreenWidth - logicalLeft);
-            float overflow = Math.Max(
-                0,
-                logicalLeft + playfield.Width + rightMargin
-                - logicalScreenWidth);
-            float horizontalFit = Math.Max(
-                0.01f,
-                (playfield.Width - overflow) / playfield.Width);
+            scale = Math.Min(
+                scale,
+                DrawWidth * 0.94f / playfield.Width);
+        }
+        playfield.Anchor = Anchor.BottomCentre;
+        playfield.Origin = Anchor.BottomCentre;
+        playfield.X = 0;
+        playfield.Scale = new Vector2(scale);
 
-            horizontalScale *= horizontalFit;
-            playfield.Anchor = Anchor.BottomLeft;
-            playfield.Origin = Anchor.BottomLeft;
-            playfield.X = logicalLeft * verticalScale;
-            playfieldLeft = playfield.X;
-        }
-        else
-        {
-            if (beatmap.StageCount == 2 && DrawWidth > 0)
-            {
-                verticalScale = Math.Min(
-                    verticalScale,
-                    DrawWidth * 0.94f / playfield.Width);
-                horizontalScale = verticalScale;
-            }
-            playfield.Anchor = Anchor.BottomCentre;
-            playfield.Origin = Anchor.BottomCentre;
-            playfield.X = 0;
-            playfieldLeft =
-                DrawWidth / 2 - playfield.Width * horizontalScale / 2;
-        }
-        playfield.Scale = new Vector2(horizontalScale, verticalScale);
+        float playfieldLeft =
+            DrawWidth / 2 - playfield.Width * scale / 2;
 
         scrollSpeedOverlay.X = Math.Clamp(
             playfieldLeft

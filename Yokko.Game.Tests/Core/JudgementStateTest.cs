@@ -44,7 +44,27 @@ namespace Yokko.Game.Tests.Core
             Assert.Multiple(() =>
             {
                 Assert.That(events, Is.EqualTo(expectedTail));
-                Assert.That(actual.Counts, Is.EqualTo(expected.Counts));
+                Assert.That(
+                    new[]
+                    {
+                        actual.Counts.Perfect,
+                        actual.Counts.Great,
+                        actual.Counts.Good,
+                        actual.Counts.Ok,
+                        actual.Counts.Meh,
+                        actual.Counts.Miss,
+                        actual.Counts.ComboBreak,
+                    },
+                    Is.EqualTo(new[]
+                    {
+                        expected.Counts.Perfect,
+                        expected.Counts.Great,
+                        expected.Counts.Good,
+                        expected.Counts.Ok,
+                        expected.Counts.Meh,
+                        expected.Counts.Miss,
+                        expected.Counts.ComboBreak,
+                    }));
                 Assert.That(actual.Score, Is.EqualTo(expected.Score));
                 Assert.That(actual.Combo, Is.EqualTo(expected.Combo));
                 Assert.That(actual.IsComplete, Is.EqualTo(expected.IsComplete));

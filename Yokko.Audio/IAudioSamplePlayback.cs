@@ -38,7 +38,7 @@ public interface IAudioLoopingSamplePlayback : IAudioSamplePlaybackWithGain
 /// Optional prepared-sample fast path. Path lookup happens once while binding
 /// the handle rather than for every gameplay input edge.
 /// </summary>
-public interface IPreparedAudioSamplePlayback : IAudioSamplePlaybackWithGain
+public interface IPreparedAudioSamplePlayback : IAudioLoopingSamplePlayback
 {
     bool TryGetPreparedSampleHandle(
         string samplePath,

@@ -1263,18 +1263,18 @@ namespace Yokko.Game.Tests.Visual
                     skinPath: skinPath)));
             AddUntilStep("custom playfield width applied", () =>
                 gameplay?.ChildrenOfType<GameplayPlayfield>().SingleOrDefault()?.Width == 160);
-            AddUntilStep("legacy column start positions the stage", () =>
+            AddUntilStep("legacy stage remains centred", () =>
             {
                 GameplayPlayfield playfield =
                     gameplay?
                         .ChildrenOfType<GameplayPlayfield>()
                         .SingleOrDefault();
                 return playfield != null
-                       && playfield.Anchor == Anchor.BottomLeft
-                       && playfield.Origin == Anchor.BottomLeft
-                       && Math.Abs(
-                           playfield.X / playfield.Scale.X
-                           - 136) < 0.01f;
+                       && playfield.Anchor == Anchor.BottomCentre
+                       && playfield.Origin == Anchor.BottomCentre
+                       && Math.Abs(playfield.X) < 0.01f
+                       && Math.Abs(playfield.Scale.X - playfield.Scale.Y)
+                       < 0.001f;
             });
             AddUntilStep("skin sprites loaded", () =>
                 gameplay?.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null) == true);
@@ -1285,7 +1285,7 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
-        public void TestLegacyColumnRightFitsOversizedStage()
+        public void TestLegacyColumnOffsetsCannotMoveOversizedStage()
         {
             string skinPath = createTestSkin("""
 ColumnWidth: 100,100,100,100
@@ -1298,7 +1298,7 @@ ColumnRight: 50
                 screenStack.Push(gameplay = new GameplayScreen(
                     DemoBeatmaps.CreateFourKeyDemo(),
                     skinPath: skinPath)));
-            AddUntilStep("ColumnRight fit is applied", () =>
+            AddUntilStep("oversized legacy stage is centred and fitted", () =>
             {
                 GameplayPlayfield playfield = gameplay?
                                               .ChildrenOfType<GameplayPlayfield>()
@@ -1308,14 +1308,15 @@ ColumnRight: 50
                     || playfield.Scale.Y <= 0)
                     return false;
 
-                float rightMargin =
-                    50 * playfield.Scale.Y;
-                float rightEdge =
-                    playfield.X
-                    + playfield.Width * playfield.Scale.X;
-                return playfield.Scale.X < playfield.Scale.Y
-                       && rightEdge + rightMargin
-                          <= gameplay.DrawWidth + 0.01f;
+                float displayedWidth =
+                    playfield.Width * playfield.Scale.X;
+                return playfield.Anchor == Anchor.BottomCentre
+                       && playfield.Origin == Anchor.BottomCentre
+                       && Math.Abs(playfield.X) < 0.01f
+                       && Math.Abs(playfield.Scale.X - playfield.Scale.Y)
+                       < 0.001f
+                       && displayedWidth
+                       <= gameplay.DrawWidth * 0.94f + 0.01f;
             });
         }
 
@@ -1794,6 +1795,16 @@ LightingLWidth: 20,20,20,20
                             .SingleOrDefault();
                         if (playfield?.KeyCount != keys
                             || playfield.ActiveDrawableNoteCount < keys)
+                        {
+                            return false;
+                        }
+
+                        if (playfield.Anchor != Anchor.BottomCentre
+                            || playfield.Origin != Anchor.BottomCentre
+                            || Math.Abs(playfield.X) >= 0.01f
+                            || Math.Abs(
+                                playfield.Scale.X
+                                - playfield.Scale.Y) >= 0.001f)
                         {
                             return false;
                         }
