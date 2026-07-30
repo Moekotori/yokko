@@ -10,6 +10,14 @@ using SixLabors.ImageSharp.Processing;
 
 namespace Yokko.Game.Skinning.OsuMania;
 
+internal enum OversizedLongNoteBodyMode
+{
+    Resize,
+    CropStart,
+    CropCentre,
+    CropEnd,
+}
+
 /// <summary>
 /// Keeps legacy skin images within the active renderer's texture limits.
 /// Some osu! skins use extremely tall hold-body images which are valid image
@@ -19,18 +27,21 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
 {
     private readonly IResourceStore<byte[]> source;
     private readonly int maximumDimension;
-    private readonly HashSet<string> preserveHorizontalResolutionFor;
+    private readonly IReadOnlyDictionary<string, OversizedLongNoteBodyMode>
+        longNoteBodyModes;
 
     internal ConstrainedTextureResourceStore(
         IResourceStore<byte[]> source,
         int maximumDimension,
-        IEnumerable<string> preserveHorizontalResolutionFor = null)
+        IReadOnlyDictionary<string, OversizedLongNoteBodyMode>
+            longNoteBodyModes = null)
     {
         this.source = source ?? throw new ArgumentNullException(nameof(source));
         this.maximumDimension = Math.Max(1, maximumDimension);
-        this.preserveHorizontalResolutionFor = new HashSet<string>(
-            preserveHorizontalResolutionFor ?? Array.Empty<string>(),
-            StringComparer.OrdinalIgnoreCase);
+        this.longNoteBodyModes =
+            longNoteBodyModes
+            ?? new Dictionary<string, OversizedLongNoteBodyMode>(
+                StringComparer.OrdinalIgnoreCase);
     }
 
     public byte[] Get(string name) =>
@@ -78,31 +89,55 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
             return data;
 
         using Image image = Image.Load(data);
-        bool preserveHorizontalResolution =
+        OversizedLongNoteBodyMode bodyMode =
+            OversizedLongNoteBodyMode.Resize;
+        bool isLongNoteBody =
             info.Width <= maximumDimension
             && info.Height > maximumDimension
-            && preserveHorizontalResolutionFor.Contains(name);
-        var targetSize = preserveHorizontalResolution
-            ? new Size(info.Width, maximumDimension)
-            : new Size(maximumDimension, maximumDimension);
+            && longNoteBodyModes.TryGetValue(
+                name,
+                out bodyMode);
 
-        image.Mutate(context => context.Resize(new ResizeOptions
+        if (isLongNoteBody
+            && bodyMode != OversizedLongNoteBodyMode.Resize)
         {
-            Size = targetSize,
-            Mode = preserveHorizontalResolution
-                ? ResizeMode.Stretch
-                : ResizeMode.Max,
-        }));
+            int sourceY = bodyMode switch
+            {
+                OversizedLongNoteBodyMode.CropEnd =>
+                    info.Height - maximumDimension,
+                OversizedLongNoteBodyMode.CropCentre =>
+                    (info.Height - maximumDimension) / 2,
+                _ => 0,
+            };
+            image.Mutate(context => context.Crop(new Rectangle(
+                0,
+                sourceY,
+                info.Width,
+                maximumDimension)));
+        }
+        else
+        {
+            var targetSize = isLongNoteBody
+                ? new Size(info.Width, maximumDimension)
+                : new Size(maximumDimension, maximumDimension);
+            image.Mutate(context => context.Resize(new ResizeOptions
+            {
+                Size = targetSize,
+                Mode = isLongNoteBody
+                    ? ResizeMode.Stretch
+                    : ResizeMode.Max,
+            }));
+        }
 
         using var output = new MemoryStream();
         image.SaveAsPng(output);
 
         Logger.Log(
-            $"Resized oversized osu! skin texture '{name}' from "
+            $"{(isLongNoteBody && bodyMode != OversizedLongNoteBodyMode.Resize ? "Cropped" : "Resized")} oversized osu! skin texture '{name}' from "
             + $"{info.Width}x{info.Height} to {image.Width}x{image.Height} "
             + $"for the renderer's {maximumDimension}px texture limit"
-            + (preserveHorizontalResolution
-                ? " while preserving long-note body width."
+            + (isLongNoteBody
+                ? " while preserving long-note body pixels."
                 : "."),
             LoggingTarget.Runtime,
             LogLevel.Important);

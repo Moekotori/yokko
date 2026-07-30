@@ -221,9 +221,12 @@ public partial class HomeMarqueeTicker : CompositeDrawable
 public partial class HomeKeyTestPad : CompositeDrawable
 {
     private const float cap_pitch = 34;
+    private const double combo_window_milliseconds = 1200;
+    private const int combo_display_threshold = 4;
 
     private static readonly Key[] laneKeys = { Key.D, Key.F, Key.J, Key.K };
     private static readonly string[] laneLabels = { "D", "F", "J", "K" };
+    private static readonly Color4 hintColour = new(1f, 1f, 1f, 0.65f);
     private static readonly Color4[] laneAccents =
     {
         HomeControlColours.Pink,
@@ -235,9 +238,14 @@ public partial class HomeKeyTestPad : CompositeDrawable
     private readonly HomeKeycap[] caps = new HomeKeycap[4];
     private readonly Box[] lineSegments = new Box[4];
     private readonly SpriteText hitCounter;
+    private readonly SpriteText hintText;
     private int hitCount;
+    private int comboCount;
+    private double lastHitTime = double.MinValue;
 
     public int HitCount => hitCount;
+
+    internal int ComboCount => comboCount;
 
     public HomeKeyTestPad()
     {
@@ -343,13 +351,13 @@ public partial class HomeKeyTestPad : CompositeDrawable
             });
         }
 
-        AddInternal(new SpriteText
+        AddInternal(hintText = new SpriteText
         {
             Position = new Vector2(0, 60),
             Text = "TAP OR PRESS KEYS",
             Font = HomeTypography.Display(8),
             Spacing = new Vector2(1.4f, 0),
-            Colour = new Color4(1f, 1f, 1f, 0.65f),
+            Colour = hintColour,
         });
     }
 
@@ -392,9 +400,75 @@ public partial class HomeKeyTestPad : CompositeDrawable
 
         hitCount++;
         hitCounter.Text = $"HITS {hitCount % 10000:0000}";
+
+        double now = Clock.CurrentTime;
+        comboCount = now - lastHitTime <= combo_window_milliseconds
+            ? comboCount + 1
+            : 1;
+        lastHitTime = now;
+
+        if (comboCount % 10 == 0)
+            playComboMilestone();
+
+        updateComboHint();
     }
 
     public void ReleaseLane(int lane) => caps[lane].SetPressed(false);
+
+    protected override void Update()
+    {
+        base.Update();
+
+        if (comboCount > 0
+            && Clock.Time.Current - lastHitTime > combo_window_milliseconds)
+        {
+            comboCount = 0;
+            updateComboHint();
+        }
+    }
+
+    private void updateComboHint()
+    {
+        if (comboCount >= combo_display_threshold)
+        {
+            hintText.Text = $"COMBO x{comboCount}";
+            hintText.Colour = HomeControlColours.Pink;
+            return;
+        }
+
+        hintText.Text = "TAP OR PRESS KEYS";
+        hintText.Colour = hintColour;
+    }
+
+    /// <summary>
+    /// 每 10 连击庆祝一次：盘体轻弹、计数器闪粉、向上迸发星星。
+    /// </summary>
+    private void playComboMilestone()
+    {
+        this.ScaleTo(1.06f, 90, Easing.Out)
+            .Then().ScaleTo(1f, 320, Easing.OutBack);
+        hitCounter.FlashColour(HomeControlColours.Pink, 320, Easing.OutQuint);
+
+        for (int i = 0; i < 5; i++)
+        {
+            float angle = -MathF.PI / 2 + (i - 2) * 0.42f;
+            var direction = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+
+            var star = new SpriteIcon
+            {
+                Origin = Anchor.Centre,
+                Position = new Vector2(75, 10),
+                Size = new Vector2(11),
+                Icon = FontAwesome.Solid.Star,
+                Colour = i % 2 == 0 ? HomeControlColours.Yellow : Color4.White,
+            };
+
+            AddInternal(star);
+            star.MoveToOffset(direction * 46, 520, Easing.OutQuint);
+            star.RotateTo(120, 520);
+            star.FadeOut(520, Easing.InQuart).Expire();
+        }
+    }
 }
 
 /// <summary>

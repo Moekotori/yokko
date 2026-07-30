@@ -33,6 +33,7 @@ public partial class MainScreen : Screen
     private const float musicPlayerHeight = 72;
     private const float musicPlayerBottomMargin = 12;
     private const double exitHoldDuration = 2000;
+    private const double bubbleIdleLineInterval = 8000;
     private static readonly Vector2 mascotCentre = new(785, 500);
     private static readonly Vector2 mascotSize = new(1070, 1210);
 
@@ -87,7 +88,12 @@ public partial class MainScreen : Screen
     };
 
     private int bubbleLineIndex;
+    private double lastBubbleInteraction;
     private float sparkleAngleOffset;
+
+    internal int BubbleLineIndex => bubbleLineIndex;
+
+    internal int BubbleLineCount => bubbleLines.Length;
 
     private Vector2 parallaxCurrent;
     private double escapeHoldStartedAt;
@@ -264,7 +270,7 @@ public partial class MainScreen : Screen
                             RelativeSizeAxes = Axes.Both,
                             Children = new Drawable[]
                             {
-                                brandLockup = createBrandLockup(logoTexture),
+                                brandLockup = new HomeBrandLockup(logoTexture, navy, yellow),
                                 commandArea = createCommandArea(),
                                 playerProgressCard = new HomePlayerProgressCard(
                                     mascotTexture,
@@ -426,6 +432,13 @@ public partial class MainScreen : Screen
         var inputManager = GetContainingInputManager();
         if (inputManager == null)
             return;
+
+        // 待机一段时间后吉祥物自己换台词，让主页保持“活着”。
+        if (Time.Current - lastBubbleInteraction > bubbleIdleLineInterval)
+        {
+            lastBubbleInteraction = Time.Current;
+            advanceBubbleLine();
+        }
 
         Vector2 local = ToLocalSpace(inputManager.CurrentState.Mouse.Position);
         Vector2 target = new Vector2(
@@ -603,10 +616,18 @@ public partial class MainScreen : Screen
         mascot.ScaleTo(new Vector2(1.05f, 0.93f), 90, Easing.Out)
               .Then().ScaleTo(Vector2.One, 700, Easing.OutElastic);
 
+        advanceBubbleLine();
+        spawnSparkles();
+        lastBubbleInteraction = Time.Current;
+    }
+
+    /// <summary>
+    /// 切到下一句气泡台词；点击 mascot 或待机超时都会走到这里。
+    /// </summary>
+    internal void advanceBubbleLine()
+    {
         bubbleLineIndex = (bubbleLineIndex + 1) % bubbleLines.Length;
         bubble.SetText(bubbleLines[bubbleLineIndex]);
-
-        spawnSparkles();
     }
 
     private void spawnSparkles()
@@ -1157,55 +1178,6 @@ public partial class MainScreen : Screen
         return spark;
     }
 
-    private static Drawable createBrandLockup(Texture logoTexture) => new Container
-    {
-        Position = new Vector2(56, 46),
-        Size = new Vector2(500, 169),
-        Children = new Drawable[]
-        {
-            new Sprite
-            {
-                RelativeSizeAxes = Axes.Both,
-                Texture = logoTexture,
-                Colour = navy,
-            },
-            new Container
-            {
-                Position = new Vector2(136, 41),
-                Size = new Vector2(19),
-                Children = new Drawable[]
-                {
-                    new Container
-                    {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        Size = new Vector2(19, 7),
-                        Masking = true,
-                        CornerRadius = 3.5f,
-                        Child = new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Colour = yellow,
-                        },
-                    },
-                    new Container
-                    {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        Size = new Vector2(7, 19),
-                        Masking = true,
-                        CornerRadius = 3.5f,
-                        Child = new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Colour = yellow,
-                        },
-                    },
-                },
-            },
-        },
-    };
-
     private Drawable createCommandArea() => new Container
     {
         Position = new Vector2(72, 208),
@@ -1420,6 +1392,7 @@ public partial class MainScreen : Screen
     {
         bubble.SetText(YokkoStrings.Get("settings.coming_soon"));
         spawnSparkles();
+        lastBubbleInteraction = Time.Current;
     }
 
 }

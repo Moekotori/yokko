@@ -13,6 +13,60 @@ namespace Yokko.Game.Tests.Core
     public sealed class NativeAudioEngineTest
     {
         [Test]
+        public async Task PreparedSampleHandlesAreVersionedAndValidated()
+        {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "prepared-sample-handles",
+                TestContext.CurrentContext.Test.ID);
+            Directory.CreateDirectory(directory);
+            string audioPath = Path.Combine(directory, "sample.wav");
+            string corruptPath = Path.Combine(directory, "corrupt.wav");
+            createSilentWave(audioPath, 48000, 2, 50);
+            File.WriteAllBytes(corruptPath, [1, 2, 3]);
+
+            await using var engine = new NativeAudioEngine();
+            await using var foreignEngine = new NativeAudioEngine();
+
+            Assert.That(
+                engine.TryGetPreparedSampleHandle(audioPath, out _),
+                Is.False);
+            await engine.PrepareSamplesAsync(
+                ["missing.wav", corruptPath, audioPath]);
+            Assert.That(
+                engine.TryGetPreparedSampleHandle(audioPath, out var first),
+                Is.True);
+            Assert.That(
+                engine.TryGetPreparedSampleHandle(corruptPath, out _),
+                Is.False);
+
+            await engine.PrepareSamplesAsync([audioPath]);
+            Assert.That(
+                engine.TryGetPreparedSampleHandle(audioPath, out var second),
+                Is.True);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.Generation, Is.Not.Zero);
+                Assert.That(second.Generation, Is.Not.EqualTo(first.Generation));
+                Assert.That(first.Slot, Is.Zero);
+                Assert.That(second.Slot, Is.Zero);
+                Assert.That(
+                    engine.TriggerPreparedSample(default, 1),
+                    Is.False);
+                Assert.That(
+                    engine.TriggerPreparedSample(second, double.NaN),
+                    Is.False);
+                Assert.That(
+                    engine.StartLoopingPreparedSample(second, -1),
+                    Is.Zero);
+                Assert.That(
+                    foreignEngine.TriggerPreparedSample(second, 1),
+                    Is.False);
+            });
+        }
+
+        [Test]
         [Platform(Include = "Win")]
         [NonParallelizable]
         public async Task NativeEngineOpensARealAsioStream()
@@ -104,6 +158,9 @@ namespace Yokko.Game.Tests.Core
 
             await using var engine = new NativeAudioEngine();
             await engine.PrepareSamplesAsync([audioPath]);
+            Assert.That(
+                engine.TryGetPreparedSampleHandle(audioPath, out var sampleHandle),
+                Is.True);
             var devices = await engine.GetOutputDevicesAsync();
             AudioDeviceInfo[] uniqueDevices = devices
                                               .Where(device => device.Backend == AudioBackendKind.WasapiExclusive)
@@ -172,6 +229,13 @@ namespace Yokko.Game.Tests.Core
                 Is.True,
                 "A prepared keysound must enter the native callback queue.");
             Assert.That(
+                engine.TriggerPreparedSample(sampleHandle, 0.5),
+                Is.True,
+                "A prepared handle must enter the same native callback queue.");
+            uint loopId = engine.StartLoopingPreparedSample(sampleHandle, 0.5);
+            Assert.That(loopId, Is.GreaterThan(0));
+            Assert.That(engine.StopLoopingSample(loopId), Is.True);
+            Assert.That(
                 status.CallbackCount,
                 Is.GreaterThan(1),
                 "The event-driven output callback must continue after startup.");
@@ -209,6 +273,10 @@ namespace Yokko.Game.Tests.Core
                 positionAfterSeek,
                 Is.InRange(950, 1250),
                 "The public playback clock must retain the seek base position.");
+            Assert.That(
+                engine.TriggerPreparedSample(sampleHandle, 1),
+                Is.True,
+                "Prepared handles must survive a native core rebuild on seek.");
 
             await engine.StopAsync();
             Assert.That(engine.Status.IsRunning, Is.False);

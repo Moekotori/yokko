@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -209,27 +210,114 @@ public sealed class OsuManiaSkinSourceTest
     }
 
     [Test]
-    public void PreservesLongNoteBodyWidthWhenConstrainingHeight()
+    public void CropsLongNoteBodyFromEndWithoutResampling()
     {
         string directory = Path.GetDirectoryName(
             createPath("hold-body.png"))!;
         string texturePath = Path.Combine(directory, "hold-body.png");
 
         using (var image = new Image<Rgba32>(10, 100))
+        {
+            for (int y = 0; y < image.Height; y++)
+            for (int x = 0; x < image.Width; x++)
+                image[x, y] = new Rgba32((byte)y, 0, 0, 255);
+
             image.Save(texturePath, new TiffEncoder());
+        }
 
         using var store = new ConstrainedTextureResourceStore(
             new OsuManiaSkinSource(directory),
             64,
-            ["hold-body.png"]);
+            new Dictionary<string, OversizedLongNoteBodyMode>(
+                StringComparer.OrdinalIgnoreCase)
+            {
+                ["hold-body.png"] = OversizedLongNoteBodyMode.CropEnd,
+            });
 
         byte[] constrained = store.Get("HOLD-BODY.PNG");
         ImageInfo info = Image.Identify(constrained);
+        using Image<Rgba32> result = Image.Load<Rgba32>(constrained);
 
         Assert.Multiple(() =>
         {
             Assert.That(info.Width, Is.EqualTo(10));
             Assert.That(info.Height, Is.EqualTo(64));
+            Assert.That(result[0, 0].R, Is.EqualTo(36));
+            Assert.That(result[0, 63].R, Is.EqualTo(99));
+        });
+    }
+
+    [Test]
+    public void CropsLongNoteBodyFromStartWithoutResampling()
+    {
+        string directory = Path.GetDirectoryName(
+            createPath("hold-body.png"))!;
+        string texturePath = Path.Combine(directory, "hold-body.png");
+
+        using (var image = new Image<Rgba32>(10, 100))
+        {
+            for (int y = 0; y < image.Height; y++)
+            for (int x = 0; x < image.Width; x++)
+                image[x, y] = new Rgba32((byte)y, 0, 0, 255);
+
+            image.Save(texturePath, new TiffEncoder());
+        }
+
+        using var store = new ConstrainedTextureResourceStore(
+            new OsuManiaSkinSource(directory),
+            64,
+            new Dictionary<string, OversizedLongNoteBodyMode>(
+                StringComparer.OrdinalIgnoreCase)
+            {
+                ["hold-body.png"] = OversizedLongNoteBodyMode.CropStart,
+            });
+
+        using Image<Rgba32> result = Image.Load<Rgba32>(
+            store.Get("hold-body.png"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Width, Is.EqualTo(10));
+            Assert.That(result.Height, Is.EqualTo(64));
+            Assert.That(result[0, 0].R, Is.EqualTo(0));
+            Assert.That(result[0, 63].R, Is.EqualTo(63));
+        });
+    }
+
+    [Test]
+    public void CropsLongNoteBodyFromCentreWithoutResampling()
+    {
+        string directory = Path.GetDirectoryName(
+            createPath("hold-body.png"))!;
+        string texturePath = Path.Combine(directory, "hold-body.png");
+
+        using (var image = new Image<Rgba32>(10, 100))
+        {
+            for (int y = 0; y < image.Height; y++)
+            for (int x = 0; x < image.Width; x++)
+                image[x, y] = new Rgba32((byte)y, 0, 0, 255);
+
+            image.Save(texturePath, new TiffEncoder());
+        }
+
+        using var store = new ConstrainedTextureResourceStore(
+            new OsuManiaSkinSource(directory),
+            64,
+            new Dictionary<string, OversizedLongNoteBodyMode>(
+                StringComparer.OrdinalIgnoreCase)
+            {
+                ["hold-body.png"] = OversizedLongNoteBodyMode.CropCentre,
+            });
+
+        using Image<Rgba32> result = Image.Load<Rgba32>(
+            store.Get("hold-body.png"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Width, Is.EqualTo(10));
+            Assert.That(result.Height, Is.EqualTo(64));
+            Assert.That(result[0, 0].R, Is.EqualTo(18));
+            Assert.That(result[0, 63].R, Is.EqualTo(81));
         });
     }
 

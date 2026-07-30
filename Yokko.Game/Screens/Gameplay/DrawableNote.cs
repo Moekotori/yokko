@@ -197,7 +197,9 @@ public partial class DrawableNote : CompositeDrawable
         IReadOnlyList<Texture> bodyFrames = skin.GetAnimationFrames(
             configuration.HoldBodyImages[lane],
             fallback.HoldBodyImages[lane],
-            repeatVertically: noteBodyStyle != 0);
+            // Style 1 repeats the complete image. Styles 2-4 preserve an
+            // edge (or the centre) and extend it using clamp-to-edge.
+            repeatVertically: noteBodyStyle == 1);
         IReadOnlyList<Texture> tailFrames =
             skin.GetAnimationFrames(
                 configuration.HoldTailImages[lane],
@@ -554,51 +556,35 @@ public partial class DrawableNote : CompositeDrawable
             holdBodyClip.Y = holdBodyY;
             holdBodyClip.Height = holdBodyHeight;
 
-            bool repeatBody = noteBodyStyle != 0
-                              && bodyTextureHeight < holdBodyHeight;
-            bool alignToHead = noteBodyStyle is 2 or 3;
+            holdBody.Position = new Vector2(
+                Width / 2,
+                holdBodyHeight / 2);
+            holdBody.Size = new Vector2(Width, holdBodyHeight);
 
-            if (repeatBody)
+            if (noteBodyStyle == 0)
             {
-                bool alignTextureEnd = alignToHead ^ flipHoldBody;
-                float textureOffset = alignTextureEnd
-                    ? holdBodyHeight
-                      - MathF.Ceiling(holdBodyHeight / bodyTextureHeight)
-                      * bodyTextureHeight
-                    : 0;
-
-                holdBody.Position = new Vector2(
-                    Width / 2,
-                    holdBodyHeight / 2);
-                holdBody.Size = new Vector2(Width, holdBodyHeight);
-                holdBody.TextureRelativeSizeAxes = Axes.None;
-                holdBody.TextureRectangle = new RectangleF(
-                    0,
-                    textureOffset,
-                    Width,
-                    bodyTextureHeight);
+                holdBody.TextureRelativeSizeAxes = Axes.Both;
+                holdBody.TextureRectangle = new RectangleF(0, 0, 1, 1);
             }
             else
             {
-                float textureHeight = noteBodyStyle == 0
-                    ? holdBodyHeight
-                    : bodyTextureHeight;
-                float textureTop = alignToHead
-                    ? holdBodyHeight - textureHeight
-                    : 0;
-
-                if (flipHoldBody)
+                float textureWidth =
+                    holdBody.Texture?.DisplayWidth ?? Width;
+                float textureY = noteBodyStyle switch
                 {
-                    textureTop =
-                        holdBodyHeight - textureTop - textureHeight;
-                }
+                    1 => 0,
+                    2 => bodyTextureHeight - holdBodyHeight,
+                    3 => 0,
+                    4 => (bodyTextureHeight - holdBodyHeight) / 2,
+                    _ => 0,
+                };
 
-                holdBody.Position = new Vector2(
-                    Width / 2,
-                    textureTop + textureHeight / 2);
-                holdBody.Size = new Vector2(Width, textureHeight);
-                holdBody.TextureRelativeSizeAxes = Axes.Both;
-                holdBody.TextureRectangle = new RectangleF(0, 0, 1, 1);
+                holdBody.TextureRelativeSizeAxes = Axes.None;
+                holdBody.TextureRectangle = new RectangleF(
+                    0,
+                    textureY,
+                    textureWidth,
+                    holdBodyHeight);
             }
 
             holdBody.Scale = new Vector2(1, flipHoldBody ? -1 : 1);

@@ -1663,13 +1663,13 @@ LightingLWidth: 20,20,20,20
         }
 
         [Test]
-        public void TestLegacyHoldBodyRepeatsFromConfiguredEdge()
+        public void TestLegacyRepeatBottomPreservesBodyStart()
         {
             string skinPath = null;
 
-            AddStep("create top-repeat hold body", () =>
+            AddStep("create bottom-repeat hold body", () =>
             {
-                skinPath = createTestSkin("NoteBodyStyle0: 2");
+                skinPath = createTestSkin("NoteBodyStyle0: 3");
 
                 using var image = new Image<Rgba32>(
                     8,
@@ -1677,11 +1677,11 @@ LightingLWidth: 20,20,20,20
                     new Rgba32(142, 136, 145, 255));
                 image.SaveAsPng(Path.Combine(skinPath, "hold-body.png"));
             });
-            AddStep("open top-repeat hold", () =>
+            AddStep("open bottom-repeat hold", () =>
                 screenStack.Push(new GameplayScreen(
                     createHoldDemo(KeyMode.FourKey),
                     skinPath: skinPath)));
-            AddUntilStep("body tiles from the configured edge", () =>
+            AddUntilStep("body starts at the texture start", () =>
             {
                 DrawableNote hold = (screenStack.CurrentScreen as Drawable)?
                                     .ChildrenOfType<GameplayPlayfield>()
@@ -1704,13 +1704,11 @@ LightingLWidth: 20,20,20,20
                     1800);
 
                 return body.TextureRelativeSizeAxes == Axes.None
-                       && body.TextureRectangle.Y < 0
+                       && Math.Abs(body.TextureRectangle.Y) < 0.01f
                        && Math.Abs(
                            body.TextureRectangle.Height
-                           - body.Texture.DisplayHeight
-                           * body.Width
-                           / body.Texture.DisplayWidth) < 0.01f
-                       && body.Texture.WrapModeT == WrapMode.Repeat;
+                           - clip.Height) < 0.01f
+                       && body.Texture.WrapModeT == WrapMode.ClampToEdge;
             });
         }
 

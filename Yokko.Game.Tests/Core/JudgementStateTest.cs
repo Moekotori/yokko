@@ -13,6 +13,92 @@ namespace Yokko.Game.Tests.Core
     public sealed class JudgementStateTest
     {
         [Test]
+        public void DestinationOverloadsMatchConvenienceMethods()
+        {
+            var expected = new BeatmapJudgementState(createHoldBeatmap());
+            var actual = new BeatmapJudgementState(createHoldBeatmap());
+            var events = new List<JudgementEvent>();
+
+            IReadOnlyList<JudgementEvent> expectedHead =
+                expected.JudgeLanePress(1, 1000);
+            actual.JudgeLanePress(1, 1000, events);
+            Assert.That(events, Is.EqualTo(expectedHead));
+
+            events.Clear();
+            IReadOnlyList<JudgementEvent> expectedDrop =
+                expected.JudgeLaneRelease(1, 1250);
+            actual.JudgeLaneRelease(1, 1250, events);
+            Assert.That(events, Is.EqualTo(expectedDrop));
+
+            events.Clear();
+            IReadOnlyList<JudgementEvent> expectedRegrab =
+                expected.JudgeLanePress(1, 1400);
+            actual.JudgeLanePress(1, 1400, events);
+            Assert.That(events, Is.EqualTo(expectedRegrab));
+
+            events.Clear();
+            IReadOnlyList<JudgementEvent> expectedTail =
+                expected.JudgeLaneRelease(1, 1500);
+            actual.JudgeLaneRelease(1, 1500, events);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(events, Is.EqualTo(expectedTail));
+                Assert.That(actual.Counts, Is.EqualTo(expected.Counts));
+                Assert.That(actual.Score, Is.EqualTo(expected.Score));
+                Assert.That(actual.Combo, Is.EqualTo(expected.Combo));
+                Assert.That(actual.IsComplete, Is.EqualTo(expected.IsComplete));
+            });
+        }
+
+        [Test]
+        public void DestinationOverloadsAppendNothingForInvalidLane()
+        {
+            var state = new BeatmapJudgementState(createTapBeatmap(1000));
+            var marker = new JudgementEvent(
+                0,
+                0,
+                0,
+                null,
+                0,
+                JudgementRating.None,
+                JudgementPhase.Tap);
+            var events = new List<JudgementEvent> { marker };
+
+            state.JudgeLanePress(-1, 0, events);
+            state.JudgeLaneRelease(99, 0, events);
+
+            Assert.That(events, Is.EqualTo(new[] { marker }));
+        }
+
+        [Test]
+        public void EmptyInputEdgesDoNotAllocateAfterWarmup()
+        {
+            var state = new BeatmapJudgementState(createTapBeatmap(1000));
+            var events = new List<JudgementEvent>(8);
+
+            for (int index = 0; index < 1000; index++)
+            {
+                state.JudgeLanePress(3, 0, events);
+                events.Clear();
+                state.JudgeLaneRelease(3, 0, events);
+                events.Clear();
+            }
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            for (int index = 0; index < 10_000; index++)
+            {
+                state.JudgeLanePress(3, 0, events);
+                events.Clear();
+                state.JudgeLaneRelease(3, 0, events);
+                events.Clear();
+            }
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.That(allocated, Is.Zero);
+        }
+
+        [Test]
         public void ClassicUsesStableManiaWindowsUnlessScoreV2IsPresent()
         {
             var classic = new JudgementWindows(

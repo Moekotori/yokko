@@ -33,3 +33,22 @@ public interface IAudioLoopingSamplePlayback : IAudioSamplePlaybackWithGain
 
     bool StopLoopingSample(uint loopId);
 }
+
+/// <summary>
+/// Optional prepared-sample fast path. Path lookup happens once while binding
+/// the handle rather than for every gameplay input edge.
+/// </summary>
+public interface IPreparedAudioSamplePlayback : IAudioSamplePlaybackWithGain
+{
+    bool TryGetPreparedSampleHandle(
+        string samplePath,
+        out PreparedAudioSampleHandle handle);
+
+    bool TriggerPreparedSample(
+        PreparedAudioSampleHandle handle,
+        double gain);
+
+    uint StartLoopingPreparedSample(
+        PreparedAudioSampleHandle handle,
+        double gain);
+}

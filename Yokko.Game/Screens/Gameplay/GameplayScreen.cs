@@ -64,6 +64,7 @@ public partial class GameplayScreen : Screen
     private TextureStore cinemaArtworkTextures;
     private readonly List<GameplayReplayInput> recordedReplayInputs = new();
     private readonly List<JudgementEvent> expiredJudgements = new();
+    private readonly List<JudgementEvent> inputJudgements = new(8);
     [Resolved]
     private YokkoAudioSettings audioSettings { get; set; }
     [Resolved]
@@ -121,9 +122,9 @@ public partial class GameplayScreen : Screen
     private GameplayPlaybackRateOverlay playbackRateOverlay;
     private double appliedScrollSpeed;
     private Task keysoundPreparationTask = Task.CompletedTask;
-    private ResolvedGameplayHitSample[][] headSamplesByHitObject = [];
-    private ResolvedGameplayHitSample[][] tailSamplesByHitObject = [];
-    private ResolvedGameplayHitSample[][] slidingSamplesByHitObject = [];
+    private GameplayHitSamplePlaybackBinding[][] headSamplesByHitObject = [];
+    private GameplayHitSamplePlaybackBinding[][] tailSamplesByHitObject = [];
+    private GameplayHitSamplePlaybackBinding[][] slidingSamplesByHitObject = [];
     private readonly Dictionary<int, List<uint>> activeSlidingSampleLoops = new();
     private GameplayKeysoundSelector keysoundSelector;
     private GameplaySlidingSampleIndex slidingSampleIndex;
@@ -1080,8 +1081,9 @@ public partial class GameplayScreen : Screen
                 inputTime));
         }
 
-        foreach (JudgementEvent judgement in
-                 judgementState.JudgeLanePress(lane, inputTime))
+        inputJudgements.Clear();
+        judgementState.JudgeLanePress(lane, inputTime, inputJudgements);
+        foreach (JudgementEvent judgement in inputJudgements)
         {
             applyJudgement(judgement);
         }
@@ -1099,15 +1101,24 @@ public partial class GameplayScreen : Screen
             maniaSkin?.Info.LayeredHitSounds ?? true);
         headSamplesByHitObject = beatmap.HitObjects
             .Select(hitObject =>
-                hitSampleResolver.ResolveHead(hitObject).ToArray())
+                hitSampleResolver.ResolveHead(hitObject)
+                                 .Select(static sample =>
+                                     new GameplayHitSamplePlaybackBinding(sample))
+                                 .ToArray())
             .ToArray();
         tailSamplesByHitObject = beatmap.HitObjects
             .Select(hitObject =>
-                hitSampleResolver.ResolveTail(hitObject).ToArray())
+                hitSampleResolver.ResolveTail(hitObject)
+                                 .Select(static sample =>
+                                     new GameplayHitSamplePlaybackBinding(sample))
+                                 .ToArray())
             .ToArray();
         slidingSamplesByHitObject = beatmap.HitObjects
             .Select(hitObject =>
-                hitSampleResolver.ResolveSliding(hitObject).ToArray())
+                hitSampleResolver.ResolveSliding(hitObject)
+                                 .Select(static sample =>
+                                     new GameplayHitSamplePlaybackBinding(sample))
+                                 .ToArray())
             .ToArray();
     }
 
@@ -1133,6 +1144,8 @@ public partial class GameplayScreen : Screen
         {
             await samplePlayback.PrepareSamplesAsync(paths)
                                 .ConfigureAwait(true);
+            if (samplePlayback is IPreparedAudioSamplePlayback preparedPlayback)
+                bindPreparedSampleHandles(preparedPlayback, paths);
         }
         catch (Exception ex)
         {
@@ -1140,6 +1153,41 @@ public partial class GameplayScreen : Screen
                 ex,
                 "Gameplay keysounds could not be prepared; backing audio will continue.",
                 LoggingTarget.Runtime);
+        }
+    }
+
+    private void bindPreparedSampleHandles(
+        IPreparedAudioSamplePlayback samplePlayback,
+        IReadOnlyList<string> paths)
+    {
+        var handlesByPath = new Dictionary<string, PreparedAudioSampleHandle>(
+            StringComparer.OrdinalIgnoreCase);
+        foreach (string path in paths)
+        {
+            if (samplePlayback.TryGetPreparedSampleHandle(path, out var handle))
+                handlesByPath[path] = handle;
+        }
+
+        bindPreparedSampleHandles(headSamplesByHitObject, handlesByPath);
+        bindPreparedSampleHandles(tailSamplesByHitObject, handlesByPath);
+        bindPreparedSampleHandles(slidingSamplesByHitObject, handlesByPath);
+    }
+
+    private static void bindPreparedSampleHandles(
+        GameplayHitSamplePlaybackBinding[][] samplesByHitObject,
+        IReadOnlyDictionary<string, PreparedAudioSampleHandle> handlesByPath)
+    {
+        foreach (GameplayHitSamplePlaybackBinding[] samples in samplesByHitObject)
+        {
+            for (int index = 0; index < samples.Length; index++)
+            {
+                if (handlesByPath.TryGetValue(
+                        samples[index].Path,
+                        out PreparedAudioSampleHandle handle))
+                {
+                    samples[index] = samples[index].WithPreparedHandle(handle);
+                }
+            }
         }
     }
 
@@ -1153,20 +1201,9 @@ public partial class GameplayScreen : Screen
         if ((uint)selected >= headSamplesByHitObject.Length)
             return;
 
-        triggerSamples(samplePlayback, headSamplesByHitObject[selected]);
-    }
-
-    private static void triggerSamples(
-        IAudioSamplePlayback samplePlayback,
-        IReadOnlyList<ResolvedGameplayHitSample> samples)
-    {
-        foreach (ResolvedGameplayHitSample sample in samples)
-        {
-            if (samplePlayback is IAudioSamplePlaybackWithGain withGain)
-                withGain.TriggerSample(sample.Path, sample.Gain);
-            else if (sample.Gain > 0)
-                samplePlayback.TriggerSample(sample.Path);
-        }
+        GameplayHitSamplePlayer.TriggerSamples(
+            samplePlayback,
+            headSamplesByHitObject[selected]);
     }
 
     private void applyLaneRelease(int lane, double inputTime)
@@ -1185,8 +1222,9 @@ public partial class GameplayScreen : Screen
                 inputTime));
         }
 
-        foreach (JudgementEvent judgement in
-                 judgementState.JudgeLaneRelease(lane, inputTime))
+        inputJudgements.Clear();
+        judgementState.JudgeLaneRelease(lane, inputTime, inputJudgements);
+        foreach (JudgementEvent judgement in inputJudgements)
         {
             applyJudgement(judgement);
         }
@@ -1224,21 +1262,21 @@ public partial class GameplayScreen : Screen
             return;
         }
 
-        IReadOnlyList<ResolvedGameplayHitSample> samples =
+        IReadOnlyList<GameplayHitSamplePlaybackBinding> samples =
             slidingSamplesByHitObject[hitObjectIndex];
         if (audioEngine is not IAudioLoopingSamplePlayback looping)
         {
             if (audioEngine is IAudioSamplePlayback oneShot)
-                triggerSamples(oneShot, samples);
+                GameplayHitSamplePlayer.TriggerSamples(oneShot, samples);
             return;
         }
 
         var loopIds = new List<uint>(samples.Count);
-        foreach (ResolvedGameplayHitSample sample in samples)
+        foreach (GameplayHitSamplePlaybackBinding sample in samples)
         {
-            uint loopId = looping.StartLoopingSample(
-                sample.Path,
-                sample.Gain);
+            uint loopId = GameplayHitSamplePlayer.StartLoopingSample(
+                looping,
+                sample);
             if (loopId != 0)
                 loopIds.Add(loopId);
         }
@@ -1284,7 +1322,7 @@ public partial class GameplayScreen : Screen
             && (uint)judgement.HitObjectIndex
             < tailSamplesByHitObject.Length)
         {
-            triggerSamples(
+            GameplayHitSamplePlayer.TriggerSamples(
                 samplePlayback,
                 tailSamplesByHitObject[judgement.HitObjectIndex]);
         }

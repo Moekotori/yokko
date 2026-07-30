@@ -6,6 +6,7 @@ using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Rendering;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using SixLabors.ImageSharp;
@@ -53,6 +54,61 @@ namespace Yokko.Game.Tests.Visual
             AddStep("press K", () => pad.TryHandleKey(osuTK.Input.Key.K, true));
             AddStep("press unmapped key", () => pad.TryHandleKey(osuTK.Input.Key.Q, true));
             AddAssert("two hits counted", () => pad.HitCount == 2);
+        }
+
+        [Test]
+        public void TestKeyTestPadBuildsCombo()
+        {
+            HomeKeyTestPad pad = null;
+            AddStep(
+                "find key test pad",
+                () => pad = this.ChildrenOfType<HomeKeyTestPad>().Single());
+
+            int baseline = 0;
+            AddStep("press D once", () => pad.PressLane(0));
+            AddStep("record combo baseline", () => baseline = pad.ComboCount);
+            AddStep("press F three times", () =>
+            {
+                pad.PressLane(1);
+                pad.PressLane(1);
+                pad.PressLane(1);
+            });
+            AddAssert(
+                "combo builds on quick hits",
+                () => pad.ComboCount == baseline + 3);
+            AddAssert(
+                "combo hint shown",
+                () => pad.ChildrenOfType<SpriteText>()
+                         .Any(text => text.Text.ToString().StartsWith("COMBO x")));
+
+            AddStep("press to milestone", () =>
+            {
+                int remaining = 10 - pad.ComboCount % 10;
+                for (int i = 0; i < remaining; i++)
+                    pad.PressLane(2);
+            });
+            AddAssert(
+                "milestone combo reached",
+                () => pad.ComboCount % 10 == 0);
+        }
+
+        [Test]
+        public void TestBubbleLineAdvances()
+        {
+            MainScreen screen = null;
+            AddStep(
+                "find main screen",
+                () => screen = this.ChildrenOfType<MainScreen>().Single());
+
+            int startIndex = 0;
+            AddStep(
+                "remember current line",
+                () => startIndex = screen.BubbleLineIndex);
+            AddStep("advance line", () => screen.advanceBubbleLine());
+            AddAssert(
+                "line index advanced",
+                () => screen.BubbleLineIndex
+                      == (startIndex + 1) % screen.BubbleLineCount);
         }
 
         private void captureScreenshot()

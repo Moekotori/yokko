@@ -36,6 +36,7 @@ public sealed class BeatmapJudgementState
     private readonly int[] nextForceMissPositions;
     private readonly double?[] lanePressedSinceMilliseconds;
     private readonly HashSet<int>[] openHoldIndices;
+    private readonly List<int> openHoldSnapshot = [];
     private readonly ExpirationEntry[] expirations;
     private readonly ManiaScoreProcessor scoreProcessor;
     private readonly int totalJudgementObjectCount;
@@ -246,6 +247,19 @@ public sealed class BeatmapJudgementState
             return [];
 
         var events = new List<JudgementEvent>();
+        JudgeLanePress(lane, gameplayTimeMilliseconds, events);
+        return events;
+    }
+
+    public void JudgeLanePress(
+        int lane,
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+        if ((uint)lane >= laneObjectIndices.Length)
+            return;
+
         int[] laneIndices = laneObjectIndices[lane];
         lanePressedSinceMilliseconds[lane] ??=
             gameplayTimeMilliseconds;
@@ -282,7 +296,7 @@ public sealed class BeatmapJudgementState
                 lane,
                 gameplayTimeMilliseconds,
                 events);
-            return events;
+            return;
         }
 
         judgeMinePress(lane, gameplayTimeMilliseconds, events);
@@ -331,8 +345,6 @@ public sealed class BeatmapJudgementState
             advanceHeadPosition(lane);
             break;
         }
-
-        return events;
     }
 
     public IReadOnlyList<JudgementEvent> CollectMineJudgements(
@@ -501,6 +513,19 @@ public sealed class BeatmapJudgementState
             return [];
 
         var events = new List<JudgementEvent>();
+        JudgeLaneRelease(lane, gameplayTimeMilliseconds, events);
+        return events;
+    }
+
+    public void JudgeLaneRelease(
+        int lane,
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+        if ((uint)lane >= laneObjectIndices.Length)
+            return;
+
         if (lanePressedSinceMilliseconds[lane] is double pressedSince)
         {
             collectCrossedMines(
@@ -512,7 +537,9 @@ public sealed class BeatmapJudgementState
 
         lanePressedSinceMilliseconds[lane] = null;
 
-        foreach (int index in openHoldIndices[lane].ToArray())
+        openHoldSnapshot.Clear();
+        openHoldSnapshot.AddRange(openHoldIndices[lane]);
+        foreach (int index in openHoldSnapshot)
         {
             YokkoHitObject hitObject = beatmap.HitObjects[index];
             ObjectState state = states[index];
@@ -568,8 +595,6 @@ public sealed class BeatmapJudgementState
 
             state.Holding = false;
         }
-
-        return events;
     }
 
     public IReadOnlyList<JudgementEvent> CollectExpiredMisses(

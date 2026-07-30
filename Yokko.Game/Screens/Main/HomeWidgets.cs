@@ -3,11 +3,89 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Textures;
+using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 
 namespace Yokko.Game.Screens.Main;
+
+/// <summary>
+/// 左上角品牌标志。悬停时黄色十字徽章旋转一周、标志轻轻弹动。
+/// </summary>
+public partial class HomeBrandLockup : CompositeDrawable
+{
+    private readonly Container plusBadge;
+    private readonly Sprite logo;
+    private double lastSpin = double.MinValue;
+
+    public HomeBrandLockup(Texture logoTexture, Color4 logoColour, Color4 badgeColour)
+    {
+        Size = new Vector2(500, 169);
+
+        InternalChildren = new Drawable[]
+        {
+            logo = new Sprite
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                RelativeSizeAxes = Axes.Both,
+                Texture = logoTexture,
+                Colour = logoColour,
+            },
+            plusBadge = new Container
+            {
+                Position = new Vector2(136 + 9.5f, 41 + 9.5f),
+                Origin = Anchor.Centre,
+                Size = new Vector2(19),
+                Children = new Drawable[]
+                {
+                    new Container
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(19, 7),
+                        Masking = true,
+                        CornerRadius = 3.5f,
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = badgeColour,
+                        },
+                    },
+                    new Container
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(7, 19),
+                        Masking = true,
+                        CornerRadius = 3.5f,
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = badgeColour,
+                        },
+                    },
+                },
+            },
+        };
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        // 反复掠过时别让动画叠得太疯。
+        if (Time.Current - lastSpin > 520)
+        {
+            lastSpin = Time.Current;
+            plusBadge.RotateTo(0).RotateTo(360, 520, Easing.OutQuint);
+            logo.ScaleTo(1.03f, 120, Easing.Out)
+                .Then().ScaleTo(1f, 380, Easing.OutBack);
+        }
+
+        return true;
+    }
+}
 
 /// <summary>
 /// 右上角的实时时钟小卡片，与工具按钮同一套错位描边风格。

@@ -6,6 +6,7 @@ namespace Yokko.Audio;
 public sealed class NativeAudioEngine :
     IAudioEngine,
     IAudioLoopingSamplePlayback,
+    IPreparedAudioSamplePlayback,
     IAudioMixControl,
     IAudioRateControl,
     ITimestampedAudioClock
@@ -14,10 +15,10 @@ public sealed class NativeAudioEngine :
     private const int decodeBlockFrames = 4096;
     private const long maximumPreparedSampleBytes = 256L * 1024 * 1024;
     private readonly SemaphoreSlim lifecycle = new(1, 1);
-    private readonly Dictionary<string, DecodedAudioSample> preparedSamples =
-        new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, uint> activeSampleIds =
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly object preparedSampleOwner = new();
+    private PreparedSampleSet preparedSampleSet = PreparedSampleSet.Empty;
+    private ActiveSampleSet? activeSampleSet;
+    private int preparedSampleGeneration;
 
     private NativeAudioCore? core;
     private DecodedAudioSource? source;
@@ -299,8 +300,14 @@ public sealed class NativeAudioEngine :
         try
         {
             throwIfDisposed();
-            preparedSamples.Clear();
-            activeSampleIds.Clear();
+            int generation = nextPreparedSampleGeneration();
+            Volatile.Write(
+                ref preparedSampleSet,
+                PreparedSampleSet.EmptyFor(generation));
+            Volatile.Write(ref activeSampleSet, null);
+            var samples = new List<PreparedSample>();
+            var slotsByPath = new Dictionary<string, int>(
+                StringComparer.OrdinalIgnoreCase);
             long preparedBytes = 0;
 
             foreach (string path in samplePaths
@@ -321,7 +328,8 @@ public sealed class NativeAudioEngine :
                     if (preparedBytes > maximumPreparedSampleBytes - sampleBytes)
                         break;
 
-                    preparedSamples[path] = sample;
+                    slotsByPath.Add(path, samples.Count);
+                    samples.Add(new PreparedSample(sample));
                     preparedBytes += sampleBytes;
                 }
                 catch (Exception exception)
@@ -331,6 +339,13 @@ public sealed class NativeAudioEngine :
                     // not prevent the backing track from starting.
                 }
             }
+
+            Volatile.Write(
+                ref preparedSampleSet,
+                new PreparedSampleSet(
+                    generation,
+                    slotsByPath,
+                    samples.ToArray()));
         }
         finally
         {
@@ -343,9 +358,23 @@ public sealed class NativeAudioEngine :
 
     public bool TriggerSample(string samplePath, double gain)
     {
+        return TryGetPreparedSampleHandle(samplePath, out var handle)
+               && TriggerPreparedSample(handle, gain);
+    }
+
+    public uint StartLoopingSample(string samplePath, double gain)
+    {
+        return TryGetPreparedSampleHandle(samplePath, out var handle)
+            ? StartLoopingPreparedSample(handle, gain)
+            : 0;
+    }
+
+    public bool TryGetPreparedSampleHandle(
+        string samplePath,
+        out PreparedAudioSampleHandle handle)
+    {
+        handle = default;
         if (string.IsNullOrWhiteSpace(samplePath))
-            return false;
-        if (!double.IsFinite(gain) || gain is < 0 or > 1)
             return false;
 
         string path;
@@ -358,34 +387,55 @@ public sealed class NativeAudioEngine :
             return false;
         }
 
-        NativeAudioCore? current = core;
-        if (current == null
-            || !activeSampleIds.TryGetValue(path, out uint sampleId))
+        PreparedSampleSet prepared = Volatile.Read(ref preparedSampleSet);
+        if (!prepared.SlotsByPath.TryGetValue(path, out int slot))
             return false;
+
+        handle = new PreparedAudioSampleHandle(
+            preparedSampleOwner,
+            prepared.Generation,
+            slot);
+        return true;
+    }
+
+    public bool TriggerPreparedSample(
+        PreparedAudioSampleHandle handle,
+        double gain)
+    {
+        if (!tryGetActiveSample(
+                handle,
+                gain,
+                out NativeAudioCore? current,
+                out uint sampleId)
+            || current is null)
+        {
+            return false;
+        }
 
         try
         {
             return current.TriggerSample(sampleId, (float)gain);
         }
-        catch (ObjectDisposedException)
-        {
-            return false;
-        }
-        catch (NativeAudioException)
+        catch (Exception exception)
+            when (exception is ObjectDisposedException or NativeAudioException)
         {
             return false;
         }
     }
 
-    public uint StartLoopingSample(string samplePath, double gain)
+    public uint StartLoopingPreparedSample(
+        PreparedAudioSampleHandle handle,
+        double gain)
     {
         if (!tryGetActiveSample(
-                samplePath,
+                handle,
                 gain,
                 out NativeAudioCore? current,
                 out uint sampleId)
             || current is null)
+        {
             return 0;
+        }
 
         try
         {
@@ -415,33 +465,31 @@ public sealed class NativeAudioEngine :
     }
 
     private bool tryGetActiveSample(
-        string samplePath,
+        PreparedAudioSampleHandle handle,
         double gain,
         out NativeAudioCore? current,
         out uint sampleId)
     {
         current = null;
         sampleId = 0;
-        if (string.IsNullOrWhiteSpace(samplePath)
+        if (!handle.BelongsTo(preparedSampleOwner)
             || !double.IsFinite(gain)
             || gain is < 0 or > 1)
         {
             return false;
         }
 
-        string path;
-        try
-        {
-            path = Path.GetFullPath(samplePath);
-        }
-        catch
+        ActiveSampleSet? active = Volatile.Read(ref activeSampleSet);
+        if (active == null
+            || active.Generation != handle.Generation
+            || (uint)handle.Slot >= active.SampleIds.Length)
         {
             return false;
         }
 
-        current = core;
-        return current != null
-               && activeSampleIds.TryGetValue(path, out sampleId);
+        current = active.Core;
+        sampleId = active.SampleIds[handle.Slot];
+        return sampleId != 0;
     }
 
     public void SetMixVolumes(
@@ -533,6 +581,7 @@ public sealed class NativeAudioEngine :
                 return;
 
             await stopFeederAsync().ConfigureAwait(false);
+            Volatile.Write(ref activeSampleSet, null);
             core?.CloseOutput();
             core?.Stop();
             core?.Dispose();
@@ -636,9 +685,11 @@ public sealed class NativeAudioEngine :
                 : 1);
         metronomeSampleId = core.RegisterMetronomeSample(
             createMetronomeClick(sampleRate));
-        activeSampleIds.Clear();
-        foreach ((string path, DecodedAudioSample sample) in preparedSamples)
+        PreparedSampleSet prepared = Volatile.Read(ref preparedSampleSet);
+        var sampleIds = new uint[prepared.Samples.Length];
+        for (int slot = 0; slot < prepared.Samples.Length; slot++)
         {
+            DecodedAudioSample sample = prepared.Samples[slot].Sample;
             // osu! applies fixed rate Mods to gameplay samples as frequency
             // changes, so DT and NC keysounds both become shorter and higher.
             float[] pcm = sample.GetSamplesAt(
@@ -646,8 +697,11 @@ public sealed class NativeAudioEngine :
                 request.DynamicPlaybackRate
                     ? 1
                     : request.PlaybackRate);
-            activeSampleIds[path] = core.RegisterSample(pcm);
+            sampleIds[slot] = core.RegisterSample(pcm);
         }
+        Volatile.Write(
+            ref activeSampleSet,
+            new ActiveSampleSet(prepared.Generation, core, sampleIds));
 
         var primed = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -901,6 +955,7 @@ public sealed class NativeAudioEngine :
 
     private async Task stopCurrentAsync()
     {
+        Volatile.Write(ref activeSampleSet, null);
         await stopFeederAsync().ConfigureAwait(false);
         if (core != null)
         {
@@ -913,7 +968,6 @@ public sealed class NativeAudioEngine :
         source?.Dispose();
         source = null;
         activeRequest = null;
-        activeSampleIds.Clear();
         metronomeSampleId = 0;
         outputStatus = default;
         playbackBaseMilliseconds = 0;
@@ -929,6 +983,48 @@ public sealed class NativeAudioEngine :
     {
         ObjectDisposedException.ThrowIf(disposed, this);
     }
+
+    private int nextPreparedSampleGeneration()
+    {
+        int generation = unchecked(++preparedSampleGeneration);
+        if (generation == 0)
+            generation = ++preparedSampleGeneration;
+        return generation;
+    }
+
+    private sealed record PreparedSample(DecodedAudioSample Sample);
+
+    private sealed class PreparedSampleSet
+    {
+        internal static PreparedSampleSet Empty { get; } = EmptyFor(0);
+
+        internal PreparedSampleSet(
+            int generation,
+            Dictionary<string, int> slotsByPath,
+            PreparedSample[] samples)
+        {
+            Generation = generation;
+            SlotsByPath = slotsByPath;
+            Samples = samples;
+        }
+
+        internal int Generation { get; }
+
+        internal Dictionary<string, int> SlotsByPath { get; }
+
+        internal PreparedSample[] Samples { get; }
+
+        internal static PreparedSampleSet EmptyFor(int generation) =>
+            new(
+                generation,
+                new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                []);
+    }
+
+    private sealed record ActiveSampleSet(
+        int Generation,
+        NativeAudioCore Core,
+        uint[] SampleIds);
 
     private static float[] createMetronomeClick(int sampleRate)
     {

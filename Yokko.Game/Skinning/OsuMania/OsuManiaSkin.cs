@@ -65,19 +65,15 @@ internal sealed class OsuManiaSkin : IDisposable
                     info.Version,
                     configuration.SplitStages ?? stageCount == 2,
                     configuration.SpecialStyle);
-            string[] holdBodyTextureNames = configuration.HoldBodyImages
-                                                         .Concat(
-                                                             fallbackConfiguration
-                                                                 .HoldBodyImages)
-                                                         .SelectMany(assetName =>
-                                                             source.ResolveAnimationTextureNames(assetName)
-                                                                   .Select(frame => frame.Name))
-                                                         .Distinct(StringComparer.OrdinalIgnoreCase)
-                                                         .ToArray();
+            IReadOnlyDictionary<string, OversizedLongNoteBodyMode>
+                holdBodyTextureModes = resolveHoldBodyTextureModes(
+                    source,
+                    configuration,
+                    fallbackConfiguration);
             var constrainedSource = new ConstrainedTextureResourceStore(
                 source,
                 renderer.MaxTextureSize,
-                holdBodyTextureNames);
+                holdBodyTextureModes);
             var textureStore = new TextureStore(
                 renderer,
                 new TextureLoaderStore(constrainedSource),
@@ -182,6 +178,49 @@ internal sealed class OsuManiaSkin : IDisposable
     public void Dispose()
     {
         textureStore.Dispose();
+    }
+
+    private static IReadOnlyDictionary<string, OversizedLongNoteBodyMode>
+        resolveHoldBodyTextureModes(
+            OsuManiaSkinSource source,
+            params OsuManiaSkinConfiguration[] configurations)
+    {
+        var modes = new Dictionary<string, OversizedLongNoteBodyMode>(
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (OsuManiaSkinConfiguration configuration in configurations)
+        {
+            for (int lane = 0; lane < configuration.Keys; lane++)
+            {
+                OversizedLongNoteBodyMode mode =
+                    configuration.NoteBodyStyles[lane] switch
+                    {
+                        0 => OversizedLongNoteBodyMode.Resize,
+                        2 => OversizedLongNoteBodyMode.CropEnd,
+                        4 => OversizedLongNoteBodyMode.CropCentre,
+                        _ => OversizedLongNoteBodyMode.CropStart,
+                    };
+
+                foreach ((string name, _) in
+                         source.ResolveAnimationTextureNames(
+                             configuration.HoldBodyImages[lane]))
+                {
+                    if (modes.TryGetValue(
+                            name,
+                            out OversizedLongNoteBodyMode existing)
+                        && existing != mode)
+                    {
+                        modes[name] = OversizedLongNoteBodyMode.Resize;
+                    }
+                    else
+                    {
+                        modes[name] = mode;
+                    }
+                }
+            }
+        }
+
+        return modes;
     }
 
     private Texture getResolvedTexture(
