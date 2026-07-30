@@ -31,8 +31,8 @@ public partial class MainScreen : Screen
     private const float fullPlayerCardY = 700;
     private const float fullStatusBarY = 864;
     private const float musicPlayerHeight = 72;
-    // 播放器底部为贴底波形带（44 + 8）让位，并留 4px 呼吸缝。
-    private const float musicPlayerBottomMargin = 56;
+    // 播放器底部为贴底整曲波形带（56 + 8）让位，并留 4px 呼吸缝。
+    private const float musicPlayerBottomMargin = 68;
     private const double exitHoldDuration = 2000;
     private const double bubbleIdleLineInterval = 8000;
     private static readonly Vector2 mascotCentre = new(785, 500);
@@ -155,13 +155,11 @@ public partial class MainScreen : Screen
                         Size = new Vector2(designedWidth, designedHeight),
                         Child = rightStage = createRightStage(mascotTexture, bubbleStickerTexture),
                     },
-                    // 底部滚动波形带：盖在右舞台之上、左侧卡片之下，
+                    // 贴底整曲波形带：横贯舞台底部，盖在右舞台之上、左侧卡片之下，
                     // 与顶部字幕带、底部框线一起给构图收口。
                     waveform = new HomeWaveformVisualiser
                     {
-                        Position = new Vector2(
-                            HomeWaveformVisualiser.LeftEdge,
-                            -HomeWaveformVisualiser.BottomMargin),
+                        Position = new Vector2(0, -HomeWaveformVisualiser.BottomMargin),
                         Alpha = 0,
                     },
                     // 点击涟漪：盖在右舞台之上、左侧卡片与工具区之下。
@@ -487,6 +485,7 @@ public partial class MainScreen : Screen
         exitIndicator.Y = stageSize.Y - 50;
 
         updatePlayerCardLayout(stageSize.Y < 900);
+        updateWaveformObstacles(stageSize, rightStageOffset);
 
         float stageLeft = MathF.Max((DrawWidth - stageSize.X) / 2, 0);
         float ivoryWidth = stageLeft + 510;
@@ -511,6 +510,8 @@ public partial class MainScreen : Screen
             secondaryActionRow.Y = 278;
             multiplayerAction.Y = 366;
             playerProgressCard.Position = new Vector2(72, compactPlayerCardY);
+            // 键位试玩盘上移到播放器左侧，给贴底波形带让位。
+            keyTestPad.Position = new Vector2(620, 588);
             statusBar.Alpha = 0;
             return;
         }
@@ -522,6 +523,7 @@ public partial class MainScreen : Screen
         secondaryActionRow.Y = 300;
         multiplayerAction.Y = 398;
         playerProgressCard.Position = new Vector2(72, fullPlayerCardY);
+        keyTestPad.Position = new Vector2(440, 676);
         statusBar.Position = new Vector2(72, fullStatusBarY);
         statusBar.Alpha = 1;
     }
@@ -552,7 +554,26 @@ public partial class MainScreen : Screen
         - musicPlayerBottomMargin;
 
     internal static float CalculateWaveformWidth(Vector2 stageSize) =>
-        MathF.Max(0, stageSize.X - HomeWaveformVisualiser.LeftEdge);
+        MathF.Max(0, stageSize.X);
+
+    /// <summary>
+    /// 把悬浮在波形带上的卡片（播放器、键位试玩盘）登记为收低区间，
+    /// 立柱经过它们下方时自动变矮，看起来像从卡片背后穿过。
+    /// </summary>
+    private void updateWaveformObstacles(Vector2 stageSize, Vector2 rightStageOffset)
+    {
+        float bandBottom = stageSize.Y - HomeWaveformVisualiser.BottomMargin;
+        float playerLeft = 788 + rightStageOffset.X;
+        // 播放器卡片高 72，含 4px 投影。
+        float playerBottom = rightStageOffset.Y + musicPlayer.Y + 76;
+        // 键位试玩盘本体高 74，含四周各约 8px 的投影与角标。
+        float keypadLeft = keyTestPad.Position.X + rightStageOffset.X - 8;
+        float keypadBottom = keyTestPad.Position.Y + rightStageOffset.Y + 82;
+
+        waveform.SetObstacles(
+            (playerLeft, playerLeft + 456, bandBottom - playerBottom - 6),
+            (keypadLeft, keypadLeft + 166, bandBottom - keypadBottom - 6));
+    }
 
     private void cancelExitHold()
     {

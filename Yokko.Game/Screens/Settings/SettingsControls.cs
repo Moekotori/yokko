@@ -18,6 +18,9 @@ namespace Yokko.Game.Screens.Settings;
 
 internal partial class SettingsPanelFooter : CompositeDrawable
 {
+    private readonly Container escChip;
+    private readonly Box escChipBackground;
+
     public SettingsPanelFooter()
         : this(YokkoStrings.Get("settings.changes_apply_instantly"))
     {
@@ -67,14 +70,14 @@ internal partial class SettingsPanelFooter : CompositeDrawable
                         Margin = new MarginPadding { Horizontal = 6 },
                         Colour = SettingsTheme.Divider,
                     },
-                    new Container
+                    escChip = new Container
                     {
                         Size = new Vector2(30, 24),
                         Masking = true,
                         CornerRadius = 4,
                         Children = new Drawable[]
                         {
-                            new Box
+                            escChipBackground = new Box
                             {
                                 RelativeSizeAxes = Axes.Both,
                                 Colour = HomeControlColours.Navy,
@@ -99,6 +102,16 @@ internal partial class SettingsPanelFooter : CompositeDrawable
                 },
             },
         };
+    }
+
+    /// <summary>
+    /// 按下 Esc 时键帽下压闪粉，提示这个键真的能用。
+    /// </summary>
+    public void FlashEsc()
+    {
+        escChip.ScaleTo(0.85f, 70, Easing.OutQuint)
+               .Then().ScaleTo(1f, 200, Easing.OutBack);
+        escChipBackground.FlashColour(HomeControlColours.Pink, 320, Easing.OutQuint);
     }
 }
 

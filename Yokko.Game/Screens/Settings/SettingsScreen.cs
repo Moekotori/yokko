@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Configuration;
@@ -11,6 +12,7 @@ using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
+using osu.Framework.Testing;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
@@ -248,6 +250,19 @@ public partial class SettingsScreen : Screen
                 {
                     Position = new Vector2(1252, 232),
                 },
+                // 吉祥物身后的公转节点光环，让她像站在舞台中央。
+                new HomeOrbitNodes(
+                    68,
+                    new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.5f),
+                    HomeControlColours.Pink,
+                    5)
+                {
+                    Position = new Vector2(1185, 618),
+                },
                 new HomeDotField
                 {
                     Position = new Vector2(336, 528),
@@ -348,10 +363,11 @@ public partial class SettingsScreen : Screen
         var layer = new Container
         {
             RelativeSizeAxes = Axes.Both,
-            Child = new ClickableContainer
+            Child = new MascotButton
             {
-                Position = new Vector2(1138, 567),
-                Size = new Vector2(128, 145),
+                Origin = Anchor.Centre,
+                Position = new Vector2(1185, 618),
+                Size = new Vector2(165, 187),
                 Action = onMascotTapped,
                 Child = mascotSprite,
             },
@@ -359,6 +375,25 @@ public partial class SettingsScreen : Screen
 
         mascotPeek = mascotSprite;
         return layer;
+    }
+
+    /// <summary>
+    /// 吉祥物本体：悬停时微微放大前倾，提示可以点她。
+    /// </summary>
+    private partial class MascotButton : ClickableContainer
+    {
+        protected override bool OnHover(HoverEvent e)
+        {
+            this.ScaleTo(1.06f, 160, Easing.OutQuint)
+                .RotateTo(-2, 160, Easing.OutQuint);
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            this.ScaleTo(1f, 220, Easing.OutQuint)
+                .RotateTo(0, 220, Easing.OutQuint);
+        }
     }
 
     private void onMascotTapped()
@@ -392,7 +427,7 @@ public partial class SettingsScreen : Screen
             var star = new SpriteIcon
             {
                 Origin = Anchor.Centre,
-                Position = new Vector2(1202, 604),
+                Position = new Vector2(1185, 566),
                 Size = new Vector2(12 + (i % 2) * 5),
                 Icon = icon,
                 Colour = colour,
@@ -403,7 +438,7 @@ public partial class SettingsScreen : Screen
             mascotLayer.Add(star);
 
             star.Delay(i * 45)
-                .MoveTo(new Vector2(1202 + driftX, 492 - i * 10), 640, Easing.OutQuint);
+                .MoveTo(new Vector2(1185 + driftX, 468 - i * 10), 640, Easing.OutQuint);
             star.Delay(i * 45)
                 .RotateTo(star.Rotation + 150, 640, Easing.OutQuint);
             star.Delay(i * 45 + 180)
@@ -581,6 +616,9 @@ public partial class SettingsScreen : Screen
 
         if (e.Key != Key.Escape)
             return base.OnKeyDown(e);
+
+        (activePanel as CompositeDrawable)?.ChildrenOfType<SettingsPanelFooter>()
+                                           .FirstOrDefault()?.FlashEsc();
 
         if (DismissTransientUi())
             return true;

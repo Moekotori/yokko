@@ -30,6 +30,8 @@ internal partial class SettingsSidebar : CompositeDrawable
     private readonly SettingsSearchTextBox searchBox;
     private readonly SpriteText noResults;
     private readonly Box divider;
+    private readonly Container selectionGlider;
+    private float gliderTargetY = -1;
 
     internal string SearchQuery => searchBox.Current.Value;
     internal bool SearchHasFocus => searchBox.HasFocus;
@@ -112,6 +114,19 @@ internal partial class SettingsSidebar : CompositeDrawable
                 Colour = SettingsTheme.MutedNavy,
                 Alpha = 0,
             },
+            // 沿导航左缘滑动到当前选中项的指示条。
+            selectionGlider = new Container
+            {
+                Position = new Vector2(22, 292),
+                Size = new Vector2(5, 27),
+                Masking = true,
+                CornerRadius = 2.5f,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = HomeControlColours.Pink,
+                },
+            },
             divider = new Box
             {
                 Position = new Vector2(319, 28),
@@ -153,6 +168,28 @@ internal partial class SettingsSidebar : CompositeDrawable
     {
         base.Update();
         divider.Height = MathF.Max(DrawHeight - 56, 0);
+        updateSelectionGlider();
+    }
+
+    private void updateSelectionGlider()
+    {
+        var selectedItem = orderedNavigationItems.FirstOrDefault(item => item.IsSelected);
+
+        if (selectedItem?.IsFilteredVisible != true)
+        {
+            gliderTargetY = -1;
+            selectionGlider.Hide();
+            return;
+        }
+
+        float target = 288 + selectedItem.Position.Y + 4;
+        selectionGlider.Show();
+
+        if (MathF.Abs(target - gliderTargetY) > 0.5f)
+        {
+            gliderTargetY = target;
+            selectionGlider.MoveToY(target, 260, Easing.OutQuint);
+        }
     }
 
     private Drawable[] createNavigation()
@@ -555,6 +592,7 @@ internal partial class SettingsNavItem : ClickableContainer
     public SettingsPageKind Page { get; }
     public string SearchTerms { get; }
     public bool IsFilteredVisible { get; private set; } = true;
+    internal bool IsSelected => selected;
     public override bool AcceptsFocus => true;
 
     public SettingsNavItem(

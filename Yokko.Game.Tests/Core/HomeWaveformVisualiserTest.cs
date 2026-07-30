@@ -7,61 +7,68 @@ namespace Yokko.Game.Tests.Core;
 public sealed class HomeWaveformVisualiserTest
 {
     [Test]
-    public void SamplePeakInterpolatesBetweenPoints()
+    public void SampleChannelInterpolatesBetweenPoints()
     {
-        float[] peaks = { 0f, 1f, 0.5f, 0.25f };
+        float[] channel = { 0f, 1f, 0.5f, 0.25f };
 
         Assert.Multiple(() =>
         {
             Assert.That(
-                HomeWaveformVisualiser.SamplePeak(peaks, 0),
+                HomeWaveformVisualiser.SampleChannel(channel, 0),
                 Is.EqualTo(0f).Within(0.0001f));
             Assert.That(
-                HomeWaveformVisualiser.SamplePeak(peaks, 1),
+                HomeWaveformVisualiser.SampleChannel(channel, 1),
                 Is.EqualTo(1f).Within(0.0001f));
             Assert.That(
-                HomeWaveformVisualiser.SamplePeak(peaks, 1.5),
+                HomeWaveformVisualiser.SampleChannel(channel, 1.5),
                 Is.EqualTo(0.75f).Within(0.0001f));
             Assert.That(
-                HomeWaveformVisualiser.SamplePeak(peaks, 3),
+                HomeWaveformVisualiser.SampleChannel(channel, 3),
                 Is.EqualTo(0.25f).Within(0.0001f));
         });
     }
 
     [Test]
-    public void SamplePeakFlattensOutsideTrackBounds()
+    public void SampleChannelFlattensOutsideTrackBounds()
     {
-        float[] peaks = { 0.4f, 0.9f };
+        float[] channel = { 0.4f, 0.9f };
 
         Assert.Multiple(() =>
         {
-            Assert.That(HomeWaveformVisualiser.SamplePeak(peaks, -0.5), Is.EqualTo(0f));
-            Assert.That(HomeWaveformVisualiser.SamplePeak(peaks, 1.5), Is.EqualTo(0f));
-            Assert.That(HomeWaveformVisualiser.SamplePeak(null, 0), Is.EqualTo(0f));
+            Assert.That(HomeWaveformVisualiser.SampleChannel(channel, -0.5), Is.EqualTo(0f));
+            Assert.That(HomeWaveformVisualiser.SampleChannel(channel, 1.5), Is.EqualTo(0f));
+            Assert.That(HomeWaveformVisualiser.SampleChannel(null, 0), Is.EqualTo(0f));
             Assert.That(
-                HomeWaveformVisualiser.SamplePeak(System.Array.Empty<float>(), 0),
+                HomeWaveformVisualiser.SampleChannel(System.Array.Empty<float>(), 0),
                 Is.EqualTo(0f));
         });
     }
 
     [Test]
-    public void WaveformBandClearsLeftColumnAndPlayer()
+    public void ObstacleMaxHeightIsClamped()
     {
-        var compactStage = new osuTK.Vector2(1280, 720);
+        var visualiser = new HomeWaveformVisualiser();
+
+        visualiser.SetObstacles((0, 100, 5), (200, 300, 999));
 
         Assert.Multiple(() =>
         {
-            // 波形带左缘避开左下玩家卡片（X 72 + 宽 520 = 592）与键位试玩盘。
-            Assert.That(HomeWaveformVisualiser.LeftEdge, Is.GreaterThan(72 + 520));
+            Assert.That(visualiser.Obstacles[0].MaxHeight, Is.EqualTo(24));
+            Assert.That(visualiser.Obstacles[1].MaxHeight, Is.EqualTo(110));
+        });
+    }
+
+    [Test]
+    public void WaveformBandSpansFullStageWidth()
+    {
+        Assert.Multiple(() =>
+        {
             Assert.That(
-                MainScreen.CalculateWaveformWidth(compactStage),
-                Is.EqualTo(1280 - HomeWaveformVisualiser.LeftEdge));
-            // 播放器已上移：其底缘与波形带顶缘之间保留缝隙。
-            float playerBottom = MainScreen.CalculateMusicPlayerY(compactStage) + 72;
-            float bandTop = compactStage.Y
-                            - HomeWaveformVisualiser.BottomMargin
-                            - HomeWaveformVisualiser.BandHeight;
-            Assert.That(playerBottom, Is.LessThan(bandTop));
+                MainScreen.CalculateWaveformWidth(new osuTK.Vector2(1280, 720)),
+                Is.EqualTo(1280));
+            Assert.That(
+                MainScreen.CalculateWaveformWidth(new osuTK.Vector2(2133, 1303)),
+                Is.EqualTo(2133));
         });
     }
 }
