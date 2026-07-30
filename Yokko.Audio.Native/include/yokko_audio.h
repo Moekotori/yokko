@@ -20,7 +20,7 @@ extern "C"
 {
 #endif
 
-#define YOKKO_AUDIO_ABI_VERSION 10u
+#define YOKKO_AUDIO_ABI_VERSION 11u
 
     typedef struct yokko_audio_engine yokko_audio_engine;
 
@@ -78,6 +78,9 @@ extern "C"
         uint64_t callback_cadence_miss_count;
         uint32_t callback_max_interval_microseconds;
         uint64_t backend_overload_count;
+        uint32_t has_presented_position;
+        uint64_t presented_frame_position;
+        uint64_t position_observation_time_100ns;
     } yokko_audio_status;
 
     typedef enum yokko_audio_backend_mode

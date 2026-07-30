@@ -981,6 +981,19 @@ public partial class GameplayScreen : Screen
             inputAgeTracker.Record(eventAgeMilliseconds, timestampKind);
         }
 
+        if (GameplayInputClock.TryAtAudioTimestamp(
+                hasAudioClock
+                    ? audioEngine as ITimestampedAudioClock
+                    : null,
+                observation.Audio,
+                eventTimestamp,
+                Stopwatch.Frequency,
+                activeUserOffsetMilliseconds,
+                out double timestampedGameplayTime))
+        {
+            return timestampedGameplayTime;
+        }
+
         return GameplayInputClock.AtEventTimestamp(
             observation.GameplayTime,
             eventTimestamp,

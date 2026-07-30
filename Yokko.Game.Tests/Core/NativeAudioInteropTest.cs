@@ -40,6 +40,15 @@ namespace Yokko.Game.Tests.Core
 
             core.Start();
             Assert.That(core.GetStatus().State, Is.EqualTo(NativeAudioState.Running));
+            core.ReportPresentedPosition(4800, 480, 0);
+            NativeAudioStatus correlated = core.GetStatus();
+            Assert.Multiple(() =>
+            {
+                Assert.That(correlated.AbiVersion, Is.EqualTo(11));
+                Assert.That(correlated.HasPresentedPosition, Is.EqualTo(1));
+                Assert.That(correlated.PresentedFramePosition, Is.EqualTo(4800));
+                Assert.That(correlated.PositionObservationTime100ns, Is.Zero);
+            });
             Assert.That(core.TriggerSample(sampleId), Is.True);
             uint loopId = core.StartLoopingSample(sampleId, 0.5f);
             Assert.That(loopId, Is.GreaterThan(0));

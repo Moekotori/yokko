@@ -117,7 +117,10 @@ namespace yokko::audio
             uint32_t loop_id{0};
         };
 
-        [[nodiscard]] double playback_time_milliseconds() const noexcept;
+        [[nodiscard]] double playback_time_milliseconds(
+            bool has_presented_position,
+            uint64_t presented_frame_position,
+            uint64_t observation_time_100ns) const noexcept;
         void update_primed_state() noexcept;
         void activate_pending_samples() noexcept;
         void mix_active_samples(float* output, uint32_t frame_count) noexcept;

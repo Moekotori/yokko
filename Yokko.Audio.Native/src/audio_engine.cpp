@@ -646,13 +646,45 @@ namespace yokko::audio
             backend_error_.load(std::memory_order_acquire);
         status.backend_error_stage =
             backend_error_stage_.load(std::memory_order_acquire);
-        status.playback_time_milliseconds = playback_time_milliseconds();
         status.callback_cadence_miss_count =
             callback_cadence_miss_count_.load(std::memory_order_acquire);
         status.callback_max_interval_microseconds =
             callback_max_interval_microseconds_.load(std::memory_order_acquire);
         status.backend_overload_count =
             backend_overload_count_.load(std::memory_order_acquire);
+        status.has_presented_position =
+            has_reported_presented_position_.load(std::memory_order_acquire)
+                ? 1u
+                : 0u;
+        if (status.has_presented_position != 0)
+        {
+            uint32_t sequence_before = 0;
+            uint32_t sequence_after = 0;
+            do
+            {
+                sequence_before =
+                    reported_position_sequence_.load(
+                        std::memory_order_acquire);
+                if ((sequence_before & 1u) != 0)
+                    continue;
+
+                status.presented_frame_position =
+                    reported_presented_frame_position_.load(
+                        std::memory_order_relaxed);
+                status.position_observation_time_100ns =
+                    reported_position_time_100ns_.load(
+                        std::memory_order_relaxed);
+                sequence_after =
+                    reported_position_sequence_.load(
+                        std::memory_order_acquire);
+            }
+            while (sequence_before != sequence_after
+                   || (sequence_before & 1u) != 0);
+        }
+        status.playback_time_milliseconds = playback_time_milliseconds(
+            status.has_presented_position != 0,
+            status.presented_frame_position,
+            status.position_observation_time_100ns);
     }
 
     yokko_audio_result AudioEngine::open_wasapi(
@@ -726,38 +758,19 @@ namespace yokko::audio
         }
     }
 
-    double AudioEngine::playback_time_milliseconds() const noexcept
+    double AudioEngine::playback_time_milliseconds(
+        const bool has_presented_position,
+        const uint64_t reported_presented_position,
+        const uint64_t observation_time) const noexcept
     {
         // Frames submitted to the endpoint are not necessarily audible yet.
         // Keep the public clock at the stream origin until IAudioClock reports
         // the first device-presented position.
         uint64_t presented_position = 0;
 
-        if (has_reported_presented_position_.load(std::memory_order_acquire))
+        if (has_presented_position)
         {
-            uint32_t sequence_before = 0;
-            uint32_t sequence_after = 0;
-            uint64_t observation_time = 0;
-            do
-            {
-                sequence_before =
-                    reported_position_sequence_.load(
-                        std::memory_order_acquire);
-                if ((sequence_before & 1u) != 0)
-                    continue;
-
-                presented_position =
-                    reported_presented_frame_position_.load(
-                        std::memory_order_relaxed);
-                observation_time =
-                    reported_position_time_100ns_.load(
-                        std::memory_order_relaxed);
-                sequence_after =
-                    reported_position_sequence_.load(
-                        std::memory_order_acquire);
-            }
-            while (sequence_before != sequence_after
-                   || (sequence_before & 1u) != 0);
+            presented_position = reported_presented_position;
 
             const uint64_t now = monotonic_time_100ns();
 

@@ -3,7 +3,12 @@ using Yokko.Audio.Native;
 
 namespace Yokko.Audio;
 
-public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlayback, IAudioMixControl, IAudioRateControl
+public sealed class NativeAudioEngine :
+    IAudioEngine,
+    IAudioLoopingSamplePlayback,
+    IAudioMixControl,
+    IAudioRateControl,
+    ITimestampedAudioClock
 {
     private const int outputChannels = 2;
     private const int decodeBlockFrames = 4096;
@@ -27,9 +32,8 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
     private double hitSoundVolume = 1;
     private double metronomeVolume;
     private readonly object rateClockLock = new();
+    private readonly PlaybackRateTimeline rateTimeline = new();
     private double currentPlaybackRate = 1;
-    private double rateClockOutputAnchorMilliseconds;
-    private double rateClockSourceAnchorMilliseconds;
     private bool disposed;
 
     public static bool IsAvailable => NativeAudioLibrary.IsAvailable;
@@ -83,6 +87,8 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
             try
             {
                 NativeAudioStatus native = current.GetStatus();
+                AudioClockCorrelation correlation =
+                    createClockCorrelation(native);
                 return new AudioEngineSnapshot(
                     status with
                     {
@@ -113,7 +119,8 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
                         BackendErrorStage = native.BackendErrorStage,
                     },
                     scaledPlaybackTime(
-                        native.PlaybackTimeMilliseconds));
+                        native.PlaybackTimeMilliseconds),
+                    correlation);
             }
             catch (ObjectDisposedException)
             {
@@ -126,6 +133,30 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
 
     public double PlaybackTimeMilliseconds =>
         Snapshot.PlaybackTimeMilliseconds;
+
+    public bool TryGetPlaybackTimeAtTimestamp(
+        AudioEngineSnapshot snapshot,
+        long timestamp,
+        long timestampFrequency,
+        out double playbackTimeMilliseconds)
+    {
+        if (!snapshot.ClockCorrelation.TryGetOutputTimeAtTimestamp(
+                timestamp,
+                timestampFrequency,
+                out double outputTimeMilliseconds))
+        {
+            playbackTimeMilliseconds = 0;
+            return false;
+        }
+
+        lock (rateClockLock)
+        {
+            playbackTimeMilliseconds =
+                rateTimeline.Map(outputTimeMilliseconds);
+        }
+
+        return true;
+    }
 
     public double DurationMilliseconds =>
         source?.TotalTime.TotalMilliseconds ?? 0;
@@ -465,10 +496,7 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
             core?.GetStatus().PlaybackTimeMilliseconds ?? 0;
         lock (rateClockLock)
         {
-            rateClockSourceAnchorMilliseconds +=
-                (outputTime - rateClockOutputAnchorMilliseconds)
-                * currentPlaybackRate;
-            rateClockOutputAnchorMilliseconds = outputTime;
+            rateTimeline.SetRate(outputTime, playbackRate);
             currentPlaybackRate = playbackRate;
         }
         source?.SetPlaybackRate(playbackRate);
@@ -579,9 +607,9 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
         lock (rateClockLock)
         {
             currentPlaybackRate = request.PlaybackRate;
-            rateClockOutputAnchorMilliseconds = 0;
-            rateClockSourceAnchorMilliseconds =
-                playbackBaseMilliseconds;
+            rateTimeline.Reset(
+                playbackBaseMilliseconds,
+                request.PlaybackRate);
         }
 
         uint preferredBufferFrames = (uint)Math.Clamp(
@@ -893,8 +921,7 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
         lock (rateClockLock)
         {
             currentPlaybackRate = 1;
-            rateClockOutputAnchorMilliseconds = 0;
-            rateClockSourceAnchorMilliseconds = 0;
+            rateTimeline.Reset(0, 1);
         }
     }
 
@@ -946,22 +973,27 @@ public sealed class NativeAudioEngine : IAudioEngine, IAudioLoopingSamplePlaybac
 
     private double scaledPlaybackTime(double outputTimeMilliseconds)
     {
-        AudioEngineStartRequest? request = activeRequest;
-        if (request?.DynamicPlaybackRate != true)
+        lock (rateClockLock)
+            return rateTimeline.Map(outputTimeMilliseconds);
+    }
+
+    private static AudioClockCorrelation createClockCorrelation(
+        NativeAudioStatus native)
+    {
+        if (native.HasPresentedPosition == 0
+            || native.SampleRate == 0
+            || native.PositionObservationTime100ns == 0
+            || native.PositionObservationTime100ns > long.MaxValue)
         {
-            return ScalePlaybackTime(
-                playbackBaseMilliseconds,
-                outputTimeMilliseconds,
-                request?.PlaybackRate ?? 1);
+            return default;
         }
 
-        lock (rateClockLock)
-        {
-            return rateClockSourceAnchorMilliseconds
-                   + (outputTimeMilliseconds
-                      - rateClockOutputAnchorMilliseconds)
-                   * currentPlaybackRate;
-        }
+        return new AudioClockCorrelation(
+            native.PresentedFramePosition,
+            native.DeviceFramesRendered,
+            (int)native.SampleRate,
+            (long)native.PositionObservationTime100ns,
+            10_000_000);
     }
 
     private static readonly AudioEngineStatus stoppedStatus = new(

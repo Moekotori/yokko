@@ -95,16 +95,22 @@ the related osu!framework logs.
 
 Gameplay judgement should be driven by audio time and input timestamps, not frame time.
 
-The intended judgement path is:
+The authoritative hardware-clock judgement path is:
 
 ```text
-input gameplay time = presented audio time - input event age + user offset
+input QPC -> endpoint presented-frame/QPC correlation -> chart time + user offset
 hit error = input gameplay time - object time
 ```
+
+When a backend cannot provide a correlated position, Yokko falls back to
+`presented audio time - input event age + user offset`.
 
 The audio clock already reports presented position, so device latency is
 diagnostic data and is not subtracted a second time. Frame time is only for
 presentation. A dropped frame may look bad, but it should not shift judgement.
+
+Hardware qualification and Yokko/osu!lazer A/B measurement requirements are
+documented in `docs/LATENCY_LAB.md`.
 
 ## osu!mania skins
 

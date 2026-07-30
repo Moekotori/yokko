@@ -1,6 +1,7 @@
 using System;
 using NUnit.Framework;
 using osuTK.Input;
+using Yokko.Audio;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
@@ -36,6 +37,23 @@ public sealed class GameplayInputClockTest
             1.5);
 
         Assert.That(eventTime, Is.EqualTo(1197).Within(0.0001));
+    }
+
+    [Test]
+    public void TimestampedAudioClockWinsAndAppliesUserOffsetOnce()
+    {
+        var clock = new FakeTimestampedAudioClock(997.5);
+
+        Assert.That(
+            GameplayInputClock.TryAtAudioTimestamp(
+                clock,
+                default,
+                10_000,
+                1_000,
+                12.25,
+                out double gameplayTime),
+            Is.True);
+        Assert.That(gameplayTime, Is.EqualTo(1009.75));
     }
 
     [TestCase(60)]
@@ -277,6 +295,20 @@ public sealed class GameplayInputClockTest
 
         public void Dispose()
         {
+        }
+    }
+
+    private sealed class FakeTimestampedAudioClock(
+        double playbackTimeMilliseconds) : ITimestampedAudioClock
+    {
+        public bool TryGetPlaybackTimeAtTimestamp(
+            AudioEngineSnapshot snapshot,
+            long timestamp,
+            long timestampFrequency,
+            out double mappedPlaybackTimeMilliseconds)
+        {
+            mappedPlaybackTimeMilliseconds = playbackTimeMilliseconds;
+            return true;
         }
     }
 }

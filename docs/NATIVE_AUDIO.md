@@ -61,6 +61,8 @@ The P0 ABI covers:
 - pre-roll enforcement before playback can start;
 - interleaved float PCM submission and callback rendering;
 - presented-position/QPC correlation and output-latency reporting;
+- ABI v11 exposure of that raw correlation to the managed timestamped gameplay
+  clock;
 - buffer, clock, underrun, callback-work and callback-cadence telemetry.
 
 The audio callback entry point exists for native output backends. It is not a

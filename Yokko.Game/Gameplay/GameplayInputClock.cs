@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Yokko.Audio;
 
 namespace Yokko.Game.Gameplay;
 
@@ -8,6 +9,30 @@ namespace Yokko.Game.Gameplay;
 /// </summary>
 internal static class GameplayInputClock
 {
+    public static bool TryAtAudioTimestamp(
+        ITimestampedAudioClock timestampedAudioClock,
+        AudioEngineSnapshot snapshot,
+        long eventTimestamp,
+        long timestampFrequency,
+        double userOffsetMilliseconds,
+        out double gameplayTimeMilliseconds)
+    {
+        if (timestampedAudioClock == null
+            || !timestampedAudioClock.TryGetPlaybackTimeAtTimestamp(
+                snapshot,
+                eventTimestamp,
+                timestampFrequency,
+                out double playbackTimeMilliseconds))
+        {
+            gameplayTimeMilliseconds = 0;
+            return false;
+        }
+
+        gameplayTimeMilliseconds = playbackTimeMilliseconds
+                                   + userOffsetMilliseconds;
+        return true;
+    }
+
     public static double AtEventTimestamp(
         double gameplayTimeAtObservationMilliseconds,
         long eventTimestamp,

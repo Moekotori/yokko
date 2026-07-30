@@ -5,4 +5,5 @@ namespace Yokko.Audio;
 /// </summary>
 public readonly record struct AudioEngineSnapshot(
     AudioEngineStatus Status,
-    double PlaybackTimeMilliseconds);
+    double PlaybackTimeMilliseconds,
+    AudioClockCorrelation ClockCorrelation = default);

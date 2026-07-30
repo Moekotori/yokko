@@ -523,6 +523,13 @@ namespace
             "presented clock report");
         const yokko_audio_status status = status_of(engine);
         require(status.device_latency_frames == 480, "latency report");
+        require(status.has_presented_position == 1, "presented position flag");
+        require(
+            status.presented_frame_position == 4800,
+            "presented position correlation");
+        require(
+            status.position_observation_time_100ns == 0,
+            "presented timestamp correlation");
         require(
             std::abs(status.playback_time_milliseconds - 100.0) < 0.000001,
             "presented hardware clock is not latency-adjusted twice");

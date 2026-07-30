@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Yokko.Audio;
@@ -116,6 +117,11 @@ public sealed class NativeAudioHardwareStabilityTest
                 48000,
                 lowestLatency.RequestedBufferFrames,
                 TimeSpan.FromSeconds(stabilitySeconds));
+
+            writeQualificationReport(
+                device,
+                profileResults,
+                stability);
 
             Assert.That(
                 stability.CallbackDeadlineMissCount,
@@ -304,6 +310,27 @@ public sealed class NativeAudioHardwareStabilityTest
             Is.GreaterThanOrEqualTo(5),
             "The endpoint did not reach a stable event cadence within 2 seconds.");
 
+        long snapshotStart = Stopwatch.GetTimestamp();
+        AudioEngineSnapshot clockSnapshot = engine.Snapshot;
+        long snapshotEnd = Stopwatch.GetTimestamp();
+        long snapshotMidpoint = snapshotStart
+                                + (snapshotEnd - snapshotStart) / 2;
+        Assert.That(clockSnapshot.ClockCorrelation.IsValid, Is.True);
+        Assert.That(
+            engine.TryGetPlaybackTimeAtTimestamp(
+                clockSnapshot,
+                snapshotMidpoint,
+                Stopwatch.Frequency,
+                out double timestampedPlaybackTime),
+            Is.True);
+        double timestampCorrelationError = Math.Abs(
+            timestampedPlaybackTime
+            - clockSnapshot.PlaybackTimeMilliseconds);
+        Assert.That(
+            timestampCorrelationError,
+            Is.LessThan(2),
+            "The native 100 ns clock and Stopwatch QPC correlation disagree.");
+
         ulong firstCallbackCount = current.CallbackCount;
         double firstClock = engine.PlaybackTimeMilliseconds;
         double previousClock = firstClock;
@@ -356,7 +383,8 @@ public sealed class NativeAudioHardwareStabilityTest
             startupStopwatch.Elapsed.TotalMilliseconds,
             clockElapsed,
             stopwatch.Elapsed.TotalMilliseconds,
-            clockDrift);
+            clockDrift,
+            timestampCorrelationError);
 
         TestContext.Progress.WriteLine(
             $"{sampleRate} Hz | requested={requestedBufferFrames} frames | "
@@ -371,7 +399,8 @@ public sealed class NativeAudioHardwareStabilityTest
             + $"startup={result.StartupMilliseconds:F3} ms | "
             + $"clock={result.ClockElapsedMilliseconds:F3} ms / "
             + $"wall={result.WallElapsedMilliseconds:F3} ms | "
-            + $"drift={result.ClockDriftMilliseconds:F3} ms");
+            + $"drift={result.ClockDriftMilliseconds:F3} ms | "
+            + $"QPC error={result.TimestampCorrelationErrorMilliseconds:F3} ms");
 
         Assert.That(observedCallbacks, Is.GreaterThan(1));
         Assert.That(
@@ -444,6 +473,45 @@ public sealed class NativeAudioHardwareStabilityTest
         }
     }
 
+    private static void writeQualificationReport(
+        AudioDeviceInfo device,
+        IReadOnlyList<HardwareRunResult> profileResults,
+        HardwareRunResult recommendedProfile)
+    {
+        string reportPath = Environment.GetEnvironmentVariable(
+            "YOKKO_AUDIO_HARDWARE_REPORT");
+        if (string.IsNullOrWhiteSpace(reportPath))
+            return;
+
+        string directory = Path.GetDirectoryName(
+            Path.GetFullPath(reportPath));
+        if (!string.IsNullOrWhiteSpace(directory))
+            Directory.CreateDirectory(directory);
+
+        var report = new HardwareQualificationReport(
+            1,
+            DateTimeOffset.UtcNow,
+            device.Id,
+            device.Name,
+            profileResults,
+            recommendedProfile);
+        File.WriteAllText(
+            reportPath,
+            JsonSerializer.Serialize(
+                report,
+                new JsonSerializerOptions { WriteIndented = true }));
+        TestContext.Progress.WriteLine(
+            $"Hardware qualification report: {Path.GetFullPath(reportPath)}");
+    }
+
+    private sealed record HardwareQualificationReport(
+        int SchemaVersion,
+        DateTimeOffset CapturedAtUtc,
+        string DeviceId,
+        string DeviceName,
+        IReadOnlyList<HardwareRunResult> Profiles,
+        HardwareRunResult RecommendedProfile);
+
     private sealed record HardwareRunResult(
         int SampleRate,
         int RequestedBufferFrames,
@@ -458,5 +526,6 @@ public sealed class NativeAudioHardwareStabilityTest
         double StartupMilliseconds,
         double ClockElapsedMilliseconds,
         double WallElapsedMilliseconds,
-        double ClockDriftMilliseconds);
+        double ClockDriftMilliseconds,
+        double TimestampCorrelationErrorMilliseconds);
 }

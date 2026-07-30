@@ -5,7 +5,7 @@ namespace Yokko.Audio.Native;
 
 internal static partial class NativeAudioInterop
 {
-    internal const uint AbiVersion = 10;
+    internal const uint AbiVersion = 11;
     internal const string LibraryName = "yokko_audio_native";
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_abi_version")]
@@ -98,6 +98,14 @@ internal static partial class NativeAudioInterop
     internal static partial NativeAudioResult StopLoopingSample(
         NativeAudioSafeHandle engine,
         uint loopId);
+
+    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_report_presented_position")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult ReportPresentedPosition(
+        NativeAudioSafeHandle engine,
+        ulong presentedFramePosition,
+        uint outputLatencyFrames,
+        ulong observationTime100ns);
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_status")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
@@ -217,6 +225,9 @@ internal struct NativeAudioStatus
     internal ulong CallbackCadenceMissCount;
     internal uint CallbackMaxIntervalMicroseconds;
     internal ulong BackendOverloadCount;
+    internal uint HasPresentedPosition;
+    internal ulong PresentedFramePosition;
+    internal ulong PositionObservationTime100ns;
 
     internal static NativeAudioStatus Create()
         => new()

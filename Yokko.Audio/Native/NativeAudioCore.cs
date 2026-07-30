@@ -171,6 +171,18 @@ internal sealed class NativeAudioCore : IDisposable
         return true;
     }
 
+    internal void ReportPresentedPosition(
+        ulong presentedFramePosition,
+        uint outputLatencyFrames,
+        ulong observationTime100ns) =>
+        throwForResult(
+            NativeAudioInterop.ReportPresentedPosition(
+                getHandle(),
+                presentedFramePosition,
+                outputLatencyFrames,
+                observationTime100ns),
+            "report presented position");
+
     internal NativeAudioStatus GetStatus()
     {
         NativeAudioStatus status = NativeAudioStatus.Create();
