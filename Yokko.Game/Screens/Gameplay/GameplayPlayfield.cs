@@ -49,11 +49,21 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly Box[] skinJudgementLines = [];
     private readonly Sprite[] warningArrows = [];
     private readonly double firstObjectTime;
+    private readonly double warningArrowStartTime =
+        double.PositiveInfinity;
     private readonly OsuManiaSkinOverlay[] skinOverlays = [];
     private readonly bool separateSkinScore;
     private readonly ManiaModSet mods;
     private readonly bool receptorAtBottom;
     private readonly bool skinUpsideDown;
+    private readonly LegacyManiaHealthBar legacyHealthBar;
+    private readonly IReadOnlyList<Texture> comboBurstTextures =
+        Array.Empty<Texture>();
+    private readonly Container comboBurstLayer;
+    private readonly int comboBurstStyle = 1;
+    private readonly bool comboBurstRandom;
+    private int comboBurstTextureIndex;
+    private int lastComboBurstMilestone;
     private readonly ManiaNoteVisibilityCover noteVisibilityCover;
     private readonly ManiaFlashlightOverlay flashlightOverlay;
     private ManiaVisibilityPolicy visibilityPolicy;
@@ -89,13 +99,27 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     internal int SkinStageHintCount => stageHintSprites.Length;
 
+    internal float SkinStageHintHeight =>
+        stageHintSprites.FirstOrDefault()?.Height ?? 0;
+
     internal int SkinJudgementLineCount => skinJudgementLines.Length;
 
     internal int SkinWarningArrowCount => warningArrows.Length;
 
+    internal double SkinWarningArrowStartTime => warningArrowStartTime;
+
     internal int SkinBarLineCount => barLines?.Length ?? 0;
 
     internal float? SkinColumnStart { get; }
+
+    internal float? SkinColumnRight { get; }
+
+    internal bool HasSkinHealthBar =>
+        legacyHealthBar?.IsAvailable == true;
+
+    internal int ComboBurstCount { get; private set; }
+
+    internal bool? LastComboBurstRightSide { get; private set; }
 
     internal bool ConstantSpeedEnabled =>
         mods.Contains(ManiaModId.ConstantSpeed);
@@ -143,6 +167,7 @@ public partial class GameplayPlayfield : CompositeDrawable
         OsuManiaSkinConfiguration fallbackConfiguration =
             activeSkin?.FallbackConfiguration;
         SkinColumnStart = configuration?.ColumnStart;
+        SkinColumnRight = configuration?.ColumnRight;
         separateSkinScore = configuration?.SeparateScore ?? true;
         skinUpsideDown = configuration?.UpsideDown == true;
         const float dualStageGap = 24;
@@ -440,9 +465,13 @@ public partial class GameplayPlayfield : CompositeDrawable
                         Origin = Anchor.TopRight,
                         X = stageX + 0.05f,
                         // Legacy mania stretches stage sides vertically to
-                        // the 480px field while preserving their source width.
+                        // the field and preserves source width in its 768px
+                        // render space. Convert that width back to Yokko's
+                        // 480px legacy coordinate space.
                         Size = new Vector2(
-                            stageLeft.DisplayWidth,
+                            stageLeft.DisplayWidth
+                            / OsuManiaSkinConfiguration
+                                .LegacyPositionScaleFactor,
                             480),
                         Texture = stageLeft,
                     });
@@ -456,7 +485,9 @@ public partial class GameplayPlayfield : CompositeDrawable
                     Origin = Anchor.TopLeft,
                     X = stageX + stageWidth - 0.05f,
                     Size = new Vector2(
-                        stageRight.DisplayWidth,
+                        stageRight.DisplayWidth
+                        / OsuManiaSkinConfiguration
+                            .LegacyPositionScaleFactor,
                         480),
                     Texture = stageRight,
                 });
@@ -549,13 +580,11 @@ public partial class GameplayPlayfield : CompositeDrawable
         {
             baseStageHintHeights = stageSegments
                                    .Select(segment =>
-                                       stageHint.DisplayWidth > 0
-                                           ? stageHint.DisplayHeight
-                                             * segment.Width
-                                             / stageHint.DisplayWidth
-                                             * 0.9f
-                                             * 1.6025f
-                                           : 1)
+                                       stageHint.DisplayHeight
+                                       / OsuManiaSkinConfiguration
+                                           .LegacyPositionScaleFactor
+                                       * 0.9f
+                                       * 1.6025f)
                                    .ToArray();
             stageHintSprites = stageSegments
                                .Select((segment, index) => new Sprite
@@ -603,7 +632,11 @@ public partial class GameplayPlayfield : CompositeDrawable
             activeSkin?.GetTexture(
                 configuration.WarningArrow,
                 fallbackConfiguration.WarningArrow);
-        if (warningArrow != null && firstObjectTime >= 1000)
+        if (warningArrow != null
+            && tryGetWarningArrowStartTime(
+                beatmap,
+                firstObjectTime,
+                out warningArrowStartTime))
         {
             warningArrows = stageSegments.Select(segment => new Sprite
             {
@@ -644,6 +677,36 @@ public partial class GameplayPlayfield : CompositeDrawable
                            })
                            .ToArray();
             children.AddRange(skinOverlays);
+        }
+
+        if (activeSkin?.HasLegacyHealthBar == true)
+        {
+            var healthBar = new LegacyManiaHealthBar(activeSkin)
+            {
+                X = playfieldWidth,
+                Y = 480,
+            };
+            if (healthBar.IsAvailable)
+            {
+                legacyHealthBar = healthBar;
+                children.Add(legacyHealthBar);
+            }
+        }
+
+        if (activeSkin != null)
+        {
+            comboBurstTextures =
+                activeSkin.GetAnimationFrames("comboburst-mania");
+            comboBurstStyle = configuration.ComboBurstStyle;
+            comboBurstRandom = activeSkin.Info.ComboBurstRandom;
+            if (comboBurstTextures.Count > 0)
+            {
+                children.Add(comboBurstLayer = new Container
+                {
+                    RelativeSizeAxes = Axes.Y,
+                    Width = basePlayfieldWidth,
+                });
+            }
         }
 
         if (visibilityPolicy.Mode == ManiaVisibilityMode.Flashlight)
@@ -790,15 +853,34 @@ public partial class GameplayPlayfield : CompositeDrawable
             skinOverlays[i].Width = baseStageWidths[i] * value;
             skinOverlays[i].SetPlayfieldScale(value);
         }
+
+        if (legacyHealthBar != null)
+        {
+            legacyHealthBar.X = basePlayfieldWidth * value;
+            legacyHealthBar.SetPlayfieldWidthScale(value);
+        }
+
+        if (comboBurstLayer != null)
+            comboBurstLayer.Scale = new Vector2(value, 1);
     }
 
-    public void UpdateGameplayTime(double gameplayTimeMilliseconds, BeatmapJudgementState state)
+    public void UpdateGameplayTime(
+        double gameplayTimeMilliseconds,
+        BeatmapJudgementState state,
+        ManiaHealthState healthState = null)
     {
+        if (healthState != null)
+            legacyHealthBar?.SetHealth(healthState.Health);
+        updateComboBurst(state.Combo);
+
         foreach (OsuManiaSkinOverlay overlay in skinOverlays)
             overlay.SetCombo(state.Combo);
         foreach (Sprite warningArrow in warningArrows)
             warningArrow.Alpha =
-                gameplayTimeMilliseconds < firstObjectTime ? 1 : 0;
+                gameplayTimeMilliseconds >= warningArrowStartTime
+                && gameplayTimeMilliseconds < firstObjectTime
+                    ? 1
+                    : 0;
         foreach (LegacyManiaBarLine barLine in barLines)
         {
             barLine.UpdatePosition(
@@ -945,6 +1027,74 @@ public partial class GameplayPlayfield : CompositeDrawable
         }
     }
 
+    private void updateComboBurst(int combo)
+    {
+        if (comboBurstLayer == null)
+            return;
+
+        int milestone = Math.Max(0, combo / 100 * 100);
+        if (milestone < lastComboBurstMilestone)
+            lastComboBurstMilestone = milestone;
+
+        if (milestone < 100
+            || milestone <= lastComboBurstMilestone)
+            return;
+
+        lastComboBurstMilestone = milestone;
+        bool rightSide = comboBurstStyle switch
+        {
+            0 => false,
+            1 => true,
+            _ => Random.Shared.Next(2) == 1,
+        };
+        showComboBurst(rightSide);
+    }
+
+    private void showComboBurst(bool rightSide)
+    {
+        int textureIndex = comboBurstRandom
+            ? Random.Shared.Next(comboBurstTextures.Count)
+            : comboBurstTextureIndex++ % comboBurstTextures.Count;
+        Texture texture = comboBurstTextures[textureIndex];
+        int stageIndex = rightSide
+            ? baseStageXs.Length - 1
+            : 0;
+        float stageLeft = baseStageXs[stageIndex];
+        float stageRight =
+            stageLeft + baseStageWidths[stageIndex];
+        var burst = new Sprite
+        {
+            Name = "Legacy mania combo burst",
+            Origin = rightSide
+                ? Anchor.BottomLeft
+                : Anchor.BottomRight,
+            Position = new Vector2(
+                rightSide ? stageLeft : stageRight,
+                480),
+            Size = new Vector2(
+                texture.DisplayWidth
+                / OsuManiaSkinConfiguration
+                    .LegacyPositionScaleFactor,
+                texture.DisplayHeight
+                / OsuManiaSkinConfiguration
+                    .LegacyPositionScaleFactor),
+            Scale = new Vector2(rightSide ? -1 : 1, 1),
+            Texture = texture,
+            Alpha = 0,
+        };
+        comboBurstLayer.Add(burst);
+        burst.FadeIn(250);
+        burst.MoveToX(
+            rightSide ? stageRight : stageLeft,
+            1400,
+            Easing.OutQuint);
+        burst.Delay(400)
+             .FadeOut(1000)
+             .Expire();
+        ComboBurstCount++;
+        LastComboBurstRightSide = rightSide;
+    }
+
     private void applyVisibilityPolicy()
     {
         if (noteVisibilityCover != null)
@@ -1022,6 +1172,50 @@ public partial class GameplayPlayfield : CompositeDrawable
         double first,
         double second) =>
         new(Math.Min(first, second), Math.Max(first, second));
+
+    private static bool tryGetWarningArrowStartTime(
+        YokkoBeatmap beatmap,
+        double firstObjectTimeMilliseconds,
+        out double startTimeMilliseconds)
+    {
+        startTimeMilliseconds = double.PositiveInfinity;
+
+        if (!double.IsFinite(firstObjectTimeMilliseconds)
+            || firstObjectTimeMilliseconds <= 0)
+        {
+            return false;
+        }
+
+        var timingMap = new BeatTimingMap(beatmap.TimingPoints);
+        int row = timingMap.ClosestRowAt(firstObjectTimeMilliseconds);
+
+        while (row >= 0
+               && timingMap.TimeAtRow(row)
+               >= firstObjectTimeMilliseconds - 0.0001)
+        {
+            row--;
+        }
+
+        int precedingMeasureLines = 0;
+        for (; row >= 0; row--)
+        {
+            if (!timingMap.IsMeasureRow(row))
+                continue;
+
+            double lineTime = timingMap.TimeAtRow(row);
+            if (lineTime < 0)
+                continue;
+
+            precedingMeasureLines++;
+            if (precedingMeasureLines != 3)
+                continue;
+
+            startTimeMilliseconds = lineTime;
+            return true;
+        }
+
+        return false;
+    }
 
     private static IReadOnlyList<(float X, float Width)>
         createStageSegments(

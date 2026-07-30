@@ -131,9 +131,9 @@ public sealed class OsuManiaSkinLibraryTest
     }
 
     [Test]
-    public void FolderWithoutManiaSkinIsRejected()
+    public void StandardOsuSkinWithoutManiaSectionIsAccepted()
     {
-        string folder = Path.Combine(testRoot, "not-a-mania-skin");
+        string folder = Path.Combine(testRoot, "standard-osu-skin");
         Directory.CreateDirectory(folder);
         File.WriteAllText(
             Path.Combine(folder, "skin.ini"),
@@ -144,8 +144,29 @@ public sealed class OsuManiaSkinLibraryTest
 
         Assert.Multiple(() =>
         {
+            Assert.That(result.Success, Is.True, result.Message);
+            Assert.That(result.Skin?.Name, Is.EqualTo("Standard only"));
+            Assert.That(result.Skin?.KeyModes, Is.Empty);
+            Assert.That(library.GetInstalledSkins(), Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void FolderWithoutSkinIniOrSupportedAssetsIsRejected()
+    {
+        string folder = Path.Combine(testRoot, "not-an-osu-skin");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(
+            Path.Combine(folder, "README.txt"),
+            "This directory has no usable skin resources.");
+        var library = createLibrary(new YokkoSkinSettings());
+
+        SkinImportResult result = library.Import(folder);
+
+        Assert.Multiple(() =>
+        {
             Assert.That(result.Success, Is.False);
-            Assert.That(result.Message, Does.Contain("osu!mania"));
+            Assert.That(result.Message, Does.Contain("supported osu! skin assets"));
             Assert.That(library.GetInstalledSkins(), Is.Empty);
         });
     }
@@ -168,6 +189,139 @@ public sealed class OsuManiaSkinLibraryTest
             Assert.That(result.Skin?.Version, Is.EqualTo("latest"));
             Assert.That(result.Skin?.KeyModes, Is.Empty);
             Assert.That(library.GetInstalledSkins(), Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void WrappedAssetsOnlyFolderResolvesTexturesFromItsContentRoot()
+    {
+        string folder = Path.Combine(testRoot, "wrapped-assets-only");
+        string wrapper = Path.Combine(folder, "downloaded-skin");
+        Directory.CreateDirectory(wrapper);
+        File.WriteAllText(
+            Path.Combine(folder, "README.txt"),
+            "A top-level download note must not become the skin root.");
+        File.WriteAllText(
+            Path.Combine(wrapper, "mania-note1.png"),
+            "not decoded during library discovery");
+        var library = createLibrary(new YokkoSkinSettings());
+
+        SkinImportResult result = library.Import(folder);
+
+        using var source = new OsuManiaSkinSource(result.Skin!.FullPath);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True, result.Message);
+            Assert.That(source.Contains("mania-note1.png"), Is.True);
+            Assert.That(source.HasManiaAssets(), Is.True);
+        });
+    }
+
+    [Test]
+    public void FolderImportIgnoresMacMetadataSkinIni()
+    {
+        string folder = Path.Combine(testRoot, "mac-metadata-wrapper");
+        string actual = Path.Combine(folder, "downloaded-skin");
+        string metadata = Path.Combine(folder, "__MACOSX", "downloaded-skin");
+        Directory.CreateDirectory(actual);
+        Directory.CreateDirectory(metadata);
+        File.WriteAllText(
+            Path.Combine(actual, "skin.ini"),
+            """
+            [General]
+            Name: Actual Skin
+
+            [Mania]
+            Keys: 4
+            """);
+        File.WriteAllText(
+            Path.Combine(metadata, "skin.ini"),
+            "[General]\nName: Metadata Artifact\n");
+        var library = createLibrary(new YokkoSkinSettings());
+
+        SkinImportResult result = library.Import(folder);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True, result.Message);
+            Assert.That(result.Skin?.Name, Is.EqualTo("Actual Skin"));
+            Assert.That(result.Skin?.KeyModes, Is.EqualTo(new[] { 4 }));
+        });
+    }
+
+    [Test]
+    public void WrappedAssetsOnlyPackageResolvesTexturesFromItsContentRoot()
+    {
+        string package = Path.Combine(testRoot, "wrapped-assets-only.osk");
+
+        using (ZipArchive archive = ZipFile.Open(package, ZipArchiveMode.Create))
+        {
+            archive.CreateEntry("README.txt");
+            archive.CreateEntry("./downloaded-skin/mania-note1.png");
+            archive.CreateEntry("__MACOSX/downloaded-skin/._mania-note1.png");
+        }
+
+        var library = createLibrary(new YokkoSkinSettings());
+        SkinImportResult result = library.Import(package);
+
+        using var source = new OsuManiaSkinSource(result.Skin!.FullPath);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True, result.Message);
+            Assert.That(source.Contains("mania-note1.png"), Is.True);
+            Assert.That(source.HasManiaAssets(), Is.True);
+        });
+    }
+
+    [Test]
+    public void WrappedScorebarOnlyPackageUsesItsContentRoot()
+    {
+        string package = Path.Combine(testRoot, "wrapped-scorebar-only.osk");
+
+        using (ZipArchive archive = ZipFile.Open(package, ZipArchiveMode.Create))
+        {
+            archive.CreateEntry("README.txt");
+            archive.CreateEntry("./interface/scorebar-bg.png");
+            archive.CreateEntry("./interface/scorebar-colour-0.png");
+        }
+
+        var library = createLibrary(new YokkoSkinSettings());
+        SkinImportResult result = library.Import(package);
+
+        using var source = new OsuManiaSkinSource(result.Skin!.FullPath);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True, result.Message);
+            Assert.That(source.Contains("scorebar-bg.png"), Is.True);
+            Assert.That(source.Contains("scorebar-colour-0.png"), Is.True);
+            Assert.That(source.HasManiaAssets(), Is.False);
+            Assert.That(source.HasSupportedSkinAssets(), Is.True);
+        });
+    }
+
+    [Test]
+    public void UserFolderAlwaysUsesLatestSkinVersion()
+    {
+        string folder = Path.Combine(testRoot, "User");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(
+            Path.Combine(folder, "skin.ini"),
+            """
+            [General]
+            Name: User overrides
+            Version: 1.0
+
+            [Mania]
+            Keys: 4
+            """);
+        var library = createLibrary(new YokkoSkinSettings());
+
+        SkinImportResult result = library.Import(folder);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True, result.Message);
+            Assert.That(result.Skin?.Version, Is.EqualTo("latest"));
         });
     }
 

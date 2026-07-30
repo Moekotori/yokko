@@ -23,11 +23,16 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
     private readonly string audioCacheRoot;
     private readonly object archiveLock = new();
 
+    public bool UsesLatestVersion { get; }
+
     public OsuManiaSkinSource(string path)
     {
         if (Directory.Exists(path))
         {
             string root = findSkinRoot(path);
+            UsesLatestVersion = Path.GetFileName(
+                    Path.TrimEndingDirectorySeparator(root))
+                .Equals("User", StringComparison.OrdinalIgnoreCase);
 
             foreach (string file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
             {
@@ -46,6 +51,9 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
         if (Path.GetFileName(path).Equals("skin.ini", StringComparison.OrdinalIgnoreCase))
         {
             string root = Path.GetDirectoryName(Path.GetFullPath(path));
+            UsesLatestVersion = Path.GetFileName(
+                    Path.TrimEndingDirectorySeparator(root))
+                .Equals("User", StringComparison.OrdinalIgnoreCase);
 
             foreach (string file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
             {
@@ -101,39 +109,10 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
     }
 
     public bool HasManiaAssets() =>
-        GetAvailableResources().Any(resource =>
-        {
-            string fileName = Path.GetFileNameWithoutExtension(resource);
-            fileName = stripHighResolutionSuffix(fileName);
-            int animationSuffix = fileName.LastIndexOf('-');
+        GetAvailableResources().Any(isManiaResource);
 
-            if (animationSuffix >= 0
-                && int.TryParse(
-                    fileName[(animationSuffix + 1)..],
-                    out _))
-            {
-                fileName = fileName[..animationSuffix];
-            }
-
-            return fileName.StartsWith(
-                       "mania-key",
-                       StringComparison.OrdinalIgnoreCase)
-                   || fileName.StartsWith(
-                       "mania-note",
-                       StringComparison.OrdinalIgnoreCase)
-                   || fileName.StartsWith(
-                       "mania-stage-",
-                       StringComparison.OrdinalIgnoreCase)
-                   || fileName.StartsWith(
-                       "mania-hit",
-                       StringComparison.OrdinalIgnoreCase)
-                   || fileName.Equals(
-                       "lightingL",
-                       StringComparison.OrdinalIgnoreCase)
-                   || fileName.Equals(
-                       "lightingN",
-                       StringComparison.OrdinalIgnoreCase);
-        });
+    public bool HasSupportedSkinAssets() =>
+        GetAvailableResources().Any(isSupportedSkinResource);
 
     public (string Name, bool HighResolution) ResolveTextureName(string assetName)
     {
@@ -331,32 +310,119 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
     {
         string nestedSkinIni = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories)
                                         .Where(candidate => Path.GetFileName(candidate)
-                                                                .Equals("skin.ini", StringComparison.OrdinalIgnoreCase))
+                                                                .Equals("skin.ini", StringComparison.OrdinalIgnoreCase)
+                                                            && !isIgnorableArchiveArtifact(
+                                                                normalize(Path.GetRelativePath(path, candidate))))
                                         .OrderBy(candidate => candidate.Count(character => character is '\\' or '/'))
                                         .FirstOrDefault();
 
-        return nestedSkinIni == null
-            ? Path.GetFullPath(path)
-            : Path.GetDirectoryName(nestedSkinIni);
+        if (nestedSkinIni != null)
+            return Path.GetDirectoryName(nestedSkinIni);
+
+        string[] files = Directory.EnumerateFiles(
+                                      path,
+                                      "*",
+                                      SearchOption.AllDirectories)
+                                  .Where(file => !isIgnorableArchiveArtifact(
+                                      normalize(Path.GetRelativePath(path, file))))
+                                  .ToArray();
+        if (files.Length == 0)
+            return Path.GetFullPath(path);
+
+        string[] skinFiles = files.Where(file =>
+                                      isSupportedSkinResource(
+                                          normalize(Path.GetRelativePath(path, file))))
+                                  .ToArray();
+        string[] rootCandidates =
+            skinFiles.Length > 0 ? skinFiles : files;
+        string commonRoot =
+            Path.GetDirectoryName(Path.GetFullPath(rootCandidates[0]));
+
+        foreach (string file in rootCandidates.Skip(1))
+        {
+            string fullPath = Path.GetFullPath(file);
+
+            while (!isWithinDirectory(fullPath, commonRoot))
+            {
+                string parent = Path.GetDirectoryName(commonRoot);
+                if (parent == null)
+                    return Path.GetFullPath(path);
+
+                commonRoot = parent;
+            }
+        }
+
+        string requestedRoot = Path.GetFullPath(path);
+        return isWithinDirectory(commonRoot, requestedRoot)
+            ? commonRoot
+            : requestedRoot;
     }
 
     private static string findArchivePrefix(IEnumerable<ZipArchiveEntry> entries)
     {
-        string skinIni = entries.Where(entry => normalize(entry.FullName).EndsWith("skin.ini", StringComparison.OrdinalIgnoreCase))
-                                .OrderBy(entry => entry.FullName.Count(character => character is '\\' or '/'))
-                                .Select(entry => normalize(entry.FullName))
-                                .FirstOrDefault();
+        string[] resourceNames = entries.Where(entry => !string.IsNullOrEmpty(entry.Name))
+                                        .Select(entry => normalize(entry.FullName))
+                                        .Where(name => !isIgnorableArchiveArtifact(name))
+                                        .ToArray();
+        string skinIni = resourceNames.Where(name => name.EndsWith(
+                                                   "skin.ini",
+                                                   StringComparison.OrdinalIgnoreCase))
+                                      .OrderBy(name => name.Count(
+                                          character => character == '/'))
+                                      .FirstOrDefault();
 
-        if (skinIni == null)
+        if (skinIni != null)
+        {
+            int slash = skinIni.LastIndexOf('/');
+            return slash < 0 ? string.Empty : skinIni[..(slash + 1)];
+        }
+
+        if (resourceNames.Length == 0)
             return string.Empty;
 
-        int slash = skinIni.LastIndexOf('/');
-        return slash < 0 ? string.Empty : skinIni[..(slash + 1)];
+        string[] skinResources =
+            resourceNames.Where(isSupportedSkinResource).ToArray();
+        string[] rootCandidates =
+            skinResources.Length > 0 ? skinResources : resourceNames;
+        string[][] directories = rootCandidates.Select(name =>
+                                             {
+                                                 string[] segments = name.Split('/');
+                                                 return segments.Length <= 1
+                                                     ? Array.Empty<string>()
+                                                     : segments[..^1];
+                                             })
+                                             .ToArray();
+        int commonLength = directories.Min(parts => parts.Length);
+
+        for (int index = 0; index < commonLength; index++)
+        {
+            string segment = directories[0][index];
+
+            if (directories.Any(parts => !parts[index].Equals(
+                    segment,
+                    StringComparison.OrdinalIgnoreCase)))
+            {
+                commonLength = index;
+                break;
+            }
+        }
+
+        return commonLength == 0
+            ? string.Empty
+            : string.Join('/', directories[0][..commonLength]) + "/";
     }
 
-    private static string normalize(string path) => (path ?? string.Empty)
-                                                     .Replace('\\', '/')
-                                                     .TrimStart('/');
+    private static string normalize(string path)
+    {
+        string[] segments = (path ?? string.Empty)
+                            .Replace('\\', '/')
+                            .Split(
+                                '/',
+                                StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(
+            '/',
+            segments.Where(segment => segment != "."));
+    }
 
     private IReadOnlyList<(string Name, bool HighResolution)> animationFrames(
         string baseName,
@@ -384,6 +450,110 @@ internal sealed class OsuManiaSkinSource : IResourceStore<byte[]>
         path.EndsWith("@2x", StringComparison.OrdinalIgnoreCase)
             ? path[..^3]
             : path;
+
+    private static bool isManiaResource(string resource)
+    {
+        string fileName = Path.GetFileNameWithoutExtension(resource);
+        fileName = stripHighResolutionSuffix(fileName);
+        int animationSuffix = fileName.LastIndexOf('-');
+
+        if (animationSuffix >= 0
+            && int.TryParse(
+                fileName[(animationSuffix + 1)..],
+                out _))
+        {
+            fileName = fileName[..animationSuffix];
+        }
+
+        return fileName.StartsWith(
+                   "mania-key",
+                   StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith(
+                   "mania-note",
+                   StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith(
+                   "mania-stage-",
+                   StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith(
+                   "mania-hit",
+                   StringComparison.OrdinalIgnoreCase)
+               || fileName.Equals(
+                   "lightingL",
+                   StringComparison.OrdinalIgnoreCase)
+               || fileName.Equals(
+                   "lightingN",
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool isSupportedSkinResource(string resource)
+    {
+        if (isManiaResource(resource))
+            return true;
+
+        string extension = Path.GetExtension(resource);
+        string fileName = Path.GetFileNameWithoutExtension(resource);
+        fileName = stripHighResolutionSuffix(fileName);
+        int animationSuffix = fileName.LastIndexOf('-');
+
+        if (animationSuffix >= 0
+            && int.TryParse(fileName[(animationSuffix + 1)..], out _))
+        {
+            fileName = fileName[..animationSuffix];
+        }
+
+        if (fileName.Equals("scorebar-bg", StringComparison.OrdinalIgnoreCase)
+            || fileName.Equals("scorebar-colour", StringComparison.OrdinalIgnoreCase)
+            || fileName.Equals("scorebar-marker", StringComparison.OrdinalIgnoreCase)
+            || fileName.Equals("comboburst-mania", StringComparison.OrdinalIgnoreCase)
+            || fileName.Equals("score", StringComparison.OrdinalIgnoreCase))
+        {
+            return extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
+                   || extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
+                   || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (!extension.Equals(".wav", StringComparison.OrdinalIgnoreCase)
+            && !extension.Equals(".ogg", StringComparison.OrdinalIgnoreCase)
+            && !extension.Equals(".mp3", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return fileName.StartsWith("normal-hit", StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith("soft-hit", StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith("drum-hit", StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith("normal-slider", StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith("soft-slider", StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith("drum-slider", StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith("hitnormal", StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith("hitwhistle", StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith("hitfinish", StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith("hitclap", StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith("sliderslide", StringComparison.OrdinalIgnoreCase)
+               || fileName.StartsWith("sliderwhistle", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool isWithinDirectory(string path, string directory)
+    {
+        string relative = Path.GetRelativePath(directory, path);
+        return relative != ".."
+               && !relative.StartsWith(
+                   ".." + Path.DirectorySeparatorChar,
+                   StringComparison.Ordinal)
+               && !Path.IsPathRooted(relative);
+    }
+
+    private static bool isIgnorableArchiveArtifact(string path)
+    {
+        string normalized = normalize(path);
+        string fileName = Path.GetFileName(normalized);
+        return normalized.Split('/').Any(segment => segment.Equals(
+                   "__MACOSX",
+                   StringComparison.OrdinalIgnoreCase))
+               || fileName.StartsWith("._", StringComparison.OrdinalIgnoreCase)
+               || fileName.Equals(".DS_Store", StringComparison.OrdinalIgnoreCase)
+               || fileName.Equals("Thumbs.db", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static bool isSafe(string path) =>
         path.Length > 0 &&

@@ -309,7 +309,8 @@ internal partial class HomePlayerProgressCard : CompositeDrawable
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Alpha = 0,
+                            // 子节点 Alpha 为 0 会被剔除并连带描边消失，给趋近 0 的值保住描边。
+                            Alpha = 0.01f,
                         },
                     },
                 },

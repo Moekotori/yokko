@@ -106,9 +106,9 @@ The audio clock already reports presented position, so device latency is
 diagnostic data and is not subtracted a second time. Frame time is only for
 presentation. A dropped frame may look bad, but it should not shift judgement.
 
-## osu!mania skin preview
+## osu!mania skins
 
-Yokko can load an initial subset of osu!stable mania skins directly. No
+Yokko can load legacy osu!mania skins directly. No
 Yokko-specific skin conversion is performed. Drop an `.osk` package, a
 `skin.ini`, or an extracted skin folder anywhere in the Yokko window to import
 and enable it. Installed skins can be selected or removed from
@@ -124,18 +124,14 @@ Alternatively, place a packaged skin at `Skins/current.osk`, or set
 `YOKKO_OSU_MANIA_SKIN` to an absolute extracted-folder or `.osk` path before
 launching Yokko.
 
-The current compatibility slice supports 4K/7K repeated `[Mania]` sections,
-column widths/spacing/colours, hit position, key-up/key-down textures, tap notes,
-long-note heads/bodies/tails, custom asset paths, `.png`/`.jpg`/`.jpeg`, `@2x`
-assets, and first-frame fallback for animated assets. Arrow and LN-focused skins
-also honour `UpsideDown`, per-element flip settings, `KeysUnderNotes`,
-`WidthForNoteHeightScale`, and the common stretch/top-crop/bottom-crop
-`NoteBodyStyle` modes. This includes very tall body textures used by Chinese
-community “投皮” variants. Missing or invalid resources fall back to Yokko's
-built-in rendering instead of preventing gameplay.
-
-Animation playback, hit bursts, skin sounds, stage splitting, and rare extended
-long-note body modes are still in progress.
+Legacy `[Mania]` geometry, colours, stage pieces, upscroll and split-stage
+settings are honoured for every key count defined by the osu! skin format.
+This includes animated keys, notes, long-note parts, stage lights, hit lighting, hitbursts, combo
+digits, combo bursts, warning arrows, key reminders, custom hit sounds and the
+vertical mania scorebar health display. Custom paths, case-insensitive names,
+`.png`/`.jpg`/`.jpeg`, `@2x` assets, numbered animation frames and oversized
+long-note bodies are supported. Missing or invalid resources fall back to
+Yokko's built-in rendering instead of preventing gameplay.
 
 Editor rows are derived from the active uninherited timing point and beat divisor. They are not fixed-duration rows, so BPM changes remain aligned to the song grid.
 

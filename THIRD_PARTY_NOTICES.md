@@ -1,5 +1,15 @@
 # Third-party notices
 
+## osu! and osu!framework
+
+Yokko uses osu!framework and ports selected osu!mania legacy skinning,
+gameplay, input-layout, and ruleset semantics from osu!.
+
+- Copyright (c) ppy Pty Ltd
+- Licence: MIT
+- Source: <https://github.com/ppy/osu>
+- Framework source: <https://github.com/ppy/osu-framework>
+
 ## SoundTouch.NET
 
 Yokko uses `SoundTouch.Net` through

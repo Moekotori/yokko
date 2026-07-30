@@ -223,11 +223,13 @@ internal sealed class OsuManiaSkinConfiguration
     public static OsuManiaSkinConfiguration CreateDefault(
         int keys,
         string version = "1.0",
-        bool? splitStages = null)
+        bool? splitStages = null,
+        int specialStyle = 0)
     {
         string[] styles = defaultStyles(
             keys,
-            splitStages ?? keys > 9);
+            splitStages ?? keys > 9,
+            specialStyle);
         var widths = new float[keys];
         var spacings = new float[keys];
         var lineWidths = new float[keys + 1];
@@ -260,7 +262,7 @@ internal sealed class OsuManiaSkinConfiguration
             spacings,
             lineWidths,
             402,
-            300,
+            325,
             111,
             false,
             false,
@@ -281,6 +283,7 @@ internal sealed class OsuManiaSkinConfiguration
             "mania-hit300",
             "mania-hit300g")
         {
+            SpecialStyle = specialStyle,
             SkinVersion = skinVersion(version),
         };
     }
@@ -301,7 +304,8 @@ internal sealed class OsuManiaSkinConfiguration
 
     private static string[] defaultStyles(
         int keys,
-        bool splitStages)
+        bool splitStages,
+        int specialStyle)
     {
         var styles = new string[keys];
 
@@ -314,14 +318,50 @@ internal sealed class OsuManiaSkinConfiguration
                 ? stageStart == 0 ? keys / 2 : keys - keys / 2
                 : keys;
             int columnInStage = i - stageStart;
-            bool special = columnsInStage % 2 == 1
-                           && columnInStage == columnsInStage / 2;
-            int distanceToEdge = Math.Min(
-                columnInStage,
-                columnsInStage - 1 - columnInStage);
-            styles[i] = special
-                ? "S"
-                : distanceToEdge % 2 == 0 ? "1" : "2";
+            int stageIndex = splitStages && stageStart > 0 ? 1 : 0;
+            int stageSpecialStyle = stageIndex % 2 == 0
+                ? specialStyle
+                : specialStyle switch
+                {
+                    1 => 2,
+                    2 => 1,
+                    _ => 0,
+                };
+            bool supportsEdgeSpecial =
+                columnsInStage > 4 && columnsInStage % 2 == 0;
+            int specialColumn = supportsEdgeSpecial
+                ? stageSpecialStyle switch
+                {
+                    1 => 0,
+                    2 => columnsInStage - 1,
+                    _ => -1,
+                }
+                : columnsInStage % 2 == 1
+                    ? columnsInStage / 2
+                    : -1;
+
+            if (columnInStage == specialColumn)
+            {
+                styles[i] = "S";
+                continue;
+            }
+
+            if (supportsEdgeSpecial && stageSpecialStyle is 1 or 2)
+            {
+                bool styleTwo =
+                    columnInStage % 2 == (stageSpecialStyle == 1 ? 0 : 1);
+                styles[i] = styleTwo ? "2" : "1";
+                continue;
+            }
+
+            int centre = columnsInStage / 2;
+            bool defaultStyleTwo =
+                columnsInStage % 2 == 1
+                    ? columnInStage != centre && columnInStage % 2 == 1
+                    : columnInStage < centre
+                        ? columnInStage % 2 == 1
+                        : columnInStage % 2 == 0;
+            styles[i] = defaultStyleTwo ? "2" : "1";
         }
 
         return styles;

@@ -156,6 +156,7 @@ public partial class DrawableNote : CompositeDrawable
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     RelativeSizeAxes = Axes.Both,
+                    Size = Vector2.One,
                     Scale = new Vector2(
                         1,
                         upsideDown && configuration.NoteFlipWhenUpsideDown[lane] ? -1 : 1),

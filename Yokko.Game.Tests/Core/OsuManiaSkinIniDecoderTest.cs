@@ -1,3 +1,4 @@
+using System.Linq;
 using NUnit.Framework;
 using osuTK.Graphics;
 using Yokko.Game.Skinning.OsuMania;
@@ -15,6 +16,9 @@ public sealed class OsuManiaSkinIniDecoderTest
 Name: Test Skin
 Author: Yokko
 Version: 2.5
+AnimationFramerate: 24
+LayeredHitSounds: 0
+ComboBurstRandom: 1
 
 [Fonts]
 ComboPrefix: custom/combo
@@ -78,6 +82,9 @@ HitPosition: 400
         Assert.That(info.Name, Is.EqualTo("Test Skin"));
         Assert.That(info.Author, Is.EqualTo("Yokko"));
         Assert.That(info.Version, Is.EqualTo("2.5"));
+        Assert.That(info.AnimationFrameRate, Is.EqualTo(24));
+        Assert.That(info.LayeredHitSounds, Is.False);
+        Assert.That(info.ComboBurstRandom, Is.True);
         Assert.That(info.ComboPrefix, Is.EqualTo("custom/combo"));
         Assert.That(info.ComboOverlap, Is.EqualTo(7));
         Assert.That(info.ManiaConfigurations.Keys, Is.EquivalentTo(new[] { 4, 7 }));
@@ -157,7 +164,7 @@ NoteImage0H: head
         }));
         Assert.That(configuration.HoldTailImages[0], Is.EqualTo("head"));
         Assert.That(configuration.HitPosition, Is.EqualTo(402));
-        Assert.That(configuration.ScorePosition, Is.EqualTo(300));
+        Assert.That(configuration.ScorePosition, Is.EqualTo(325));
         Assert.That(configuration.ComboPosition, Is.EqualTo(111));
         Assert.That(configuration.Hit300g, Is.EqualTo("mania-hit300g"));
         Assert.That(configuration.WidthForNoteHeightScale, Is.EqualTo(30));
@@ -262,6 +269,40 @@ Version: 2.7
     }
 
     [Test]
+    public void AcceptsNamedBodyStylesAndRejectsNonFiniteGeometry()
+    {
+        OsuManiaSkinConfiguration configuration =
+            OsuManiaSkinIniDecoder.Decode("""
+            [General]
+            Version: 2.5
+
+            [Mania]
+            Keys: 4
+            NoteBodyStyle: RepeatTop
+            NoteBodyStyle1: RepeatTopAndBottom
+            ColumnWidth: NaN,Infinity,-Infinity,42
+            HitPosition: NaN
+            ColumnStart: -Infinity
+            StageSeparation: Infinity
+            BarlineHeight: NaN
+            """).GetConfiguration(4);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                configuration.NoteBodyStyles,
+                Is.EqualTo(new[] { 2, 4, 2, 2 }));
+            Assert.That(
+                configuration.ColumnWidths,
+                Is.EqualTo(new[] { 5f, 5f, 5f, 42f }));
+            Assert.That(configuration.HitPosition, Is.EqualTo(402));
+            Assert.That(configuration.ColumnStart, Is.EqualTo(136));
+            Assert.That(configuration.StageSeparation, Is.EqualTo(40));
+            Assert.That(configuration.BarLineHeight, Is.EqualTo(1.2f));
+        });
+    }
+
+    [Test]
     public void DefaultDualStageAssetsRepeatPerStage()
     {
         OsuManiaSkinConfiguration configuration =
@@ -288,6 +329,93 @@ Version: 2.7
             "mania-note2",
             "mania-note1",
         }));
+    }
+
+    [TestCase("Left", new[]
+    {
+        "mania-noteS",
+        "mania-note1",
+        "mania-note2",
+        "mania-note1",
+        "mania-note2",
+        "mania-note1",
+    })]
+    [TestCase("Right", new[]
+    {
+        "mania-note1",
+        "mania-note2",
+        "mania-note1",
+        "mania-note2",
+        "mania-note1",
+        "mania-noteS",
+    })]
+    public void SpecialStyleSelectsStableFallbackAssets(
+        string specialStyle,
+        string[] expected)
+    {
+        OsuManiaSkinConfiguration configuration =
+            OsuManiaSkinIniDecoder.Decode($"""
+                [Mania]
+                Keys: 6
+                SpecialStyle: {specialStyle}
+                """).GetConfiguration(6);
+
+        Assert.That(configuration.NoteImages, Is.EqualTo(expected));
+    }
+
+    [TestCase("Left", 0, 11)]
+    [TestCase("Right", 5, 6)]
+    public void SpecialStyleFlipsAcrossDualStages(
+        string specialStyle,
+        int firstSpecial,
+        int secondSpecial)
+    {
+        OsuManiaSkinConfiguration configuration =
+            OsuManiaSkinIniDecoder.Decode($"""
+                [Mania]
+                Keys: 12
+                SplitStages: 1
+                SpecialStyle: {specialStyle}
+                """).GetConfiguration(12);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(configuration.NoteImages[firstSpecial], Is.EqualTo("mania-noteS"));
+            Assert.That(configuration.NoteImages[secondSpecial], Is.EqualTo("mania-noteS"));
+            Assert.That(
+                configuration.NoteImages
+                             .Where(image => image == "mania-noteS")
+                             .Count(),
+                Is.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public void SanitisesLegacyGeometryLikeOsuStable()
+    {
+        OsuManiaSkinConfiguration configuration =
+            OsuManiaSkinIniDecoder.Decode("""
+                [Mania]
+                Keys: 4
+                ColumnWidth: -5, 3, 50, 500
+                ColumnSpacing: -999, -60, 7
+                ColumnLineWidth: 1, 0, -1, 1.99, 2
+                StageSeparation: 0
+                """).GetConfiguration(4);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                configuration.ColumnWidths,
+                Is.EqualTo(new[] { 5f, 5f, 50f, 100f }));
+            Assert.That(
+                configuration.ColumnSpacings[..3],
+                Is.EqualTo(new[] { -5f, -50f, 7f }));
+            Assert.That(
+                configuration.ColumnLineWidths,
+                Is.EqualTo(new[] { 2f, 0f, -1f, 2f, 2f }));
+            Assert.That(configuration.StageSeparation, Is.EqualTo(5));
+        });
     }
 
     [Test]

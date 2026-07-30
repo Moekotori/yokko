@@ -82,6 +82,32 @@ public sealed class GameplayHitSampleResolverTest
     }
 
     [Test]
+    public void SkinCanDisableLayeredSamplesOnConvertedMaps()
+    {
+        File.WriteAllBytes(
+            Path.Combine(directory, "normal-hitnormal.wav"),
+            [0]);
+        File.WriteAllBytes(
+            Path.Combine(directory, "normal-hitclap.wav"),
+            [0]);
+        YokkoHitObject hitObject = tap(
+            new YokkoHitSample(
+                YokkoHitSample.HitNormal,
+                IsLayered: true),
+            new YokkoHitSample(YokkoHitSample.HitClap));
+
+        var resolver = new GameplayHitSampleResolver(
+            beatmap(ChartSourceFormat.OsuStandard, hitObject),
+            playLayeredHitSounds: false);
+
+        ResolvedGameplayHitSample resolved =
+            resolver.ResolveHead(hitObject).Single();
+        Assert.That(
+            Path.GetFileName(resolved.Path),
+            Is.EqualTo("normal-hitclap.wav"));
+    }
+
+    [Test]
     public void HoldHeadAndTailUseTheirOwnNodeSamples()
     {
         string headPath = Path.Combine(directory, "normal-hitnormal.wav");

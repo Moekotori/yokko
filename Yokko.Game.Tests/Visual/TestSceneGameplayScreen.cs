@@ -17,6 +17,7 @@ using osu.Framework.Graphics.Textures;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osuTK;
+using osuTK.Graphics;
 using osuTK.Input;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Tiff;
@@ -1284,6 +1285,66 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestLegacyColumnRightFitsOversizedStage()
+        {
+            string skinPath = createTestSkin("""
+ColumnWidth: 100,100,100,100
+ColumnStart: 500
+ColumnRight: 50
+""");
+            GameplayScreen gameplay = null;
+
+            AddStep("open oversized legacy stage", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath)));
+            AddUntilStep("ColumnRight fit is applied", () =>
+            {
+                GameplayPlayfield playfield = gameplay?
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .SingleOrDefault();
+                if (playfield == null
+                    || gameplay.DrawWidth <= 0
+                    || playfield.Scale.Y <= 0)
+                    return false;
+
+                float rightMargin =
+                    50 * playfield.Scale.Y;
+                float rightEdge =
+                    playfield.X
+                    + playfield.Width * playfield.Scale.X;
+                return playfield.Scale.X < playfield.Scale.Y
+                       && rightEdge + rightMargin
+                          <= gameplay.DrawWidth + 0.01f;
+            });
+        }
+
+        [Test]
+        public void TestLegacySkinShowsKeyBindingReminder()
+        {
+            string skinPath = createTestSkin(
+                "ColourKeyWarning: 10,20,30");
+            GameplayScreen gameplay = null;
+
+            AddStep("open key warning skin", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath)));
+            AddUntilStep("skinned receptors show binding reminder", () =>
+            {
+                SpriteText reminder = gameplay?
+                                      .ChildrenOfType<LaneColumn>()
+                                      .FirstOrDefault()?
+                                      .SkinKeyWarning;
+                return reminder != null
+                       && !string.IsNullOrWhiteSpace(
+                           reminder.Text.ToString())
+                       && reminder.Colour
+                          == new Color4(10, 20, 30, 255);
+            });
+        }
+
+        [Test]
         public void TestMatchesLegacyCircleSkinGeometryAndStageFlags()
         {
             string skinPath = createTestSkin("""
@@ -1309,27 +1370,40 @@ LightingLWidth: 20,20,20,20
                 screenStack.Push(gameplay = new GameplayScreen(
                     DemoBeatmaps.CreateFourKeyDemo(),
                     skinPath: skinPath)));
-            AddUntilStep("legacy key keeps natural height", () =>
+            AddUntilStep("legacy key converts 768-space height", () =>
                 Math.Abs(
                     (gameplay?
                          .ChildrenOfType<LaneColumn>()
                          .FirstOrDefault()?
                          .IdleKeyHeight
                      ?? 0)
-                    - 160) < 0.01f);
+                    - 100) < 0.01f);
             AddAssert("hold lighting and stage foreground loaded", () =>
             {
                 GameplayPlayfield playfield =
                     gameplay.ChildrenOfType<GameplayPlayfield>().Single();
                 LaneColumn firstLane =
                     gameplay.ChildrenOfType<LaneColumn>().First();
+                LegacyManiaAnimatedSprite firstNote =
+                    playfield.GetDrawableNote(0)
+                             .ChildrenOfType<LegacyManiaAnimatedSprite>()
+                             .Single();
                 return firstLane.HasHoldLight
                        && playfield.HasSkinStageBottom
                        && !playfield.ShowsSkinJudgementLine
+                       && firstNote.RelativeSizeAxes == Axes.Both
+                       && firstNote.Size == Vector2.One
+                       && Math.Abs(
+                           playfield.SkinStageHintHeight
+                           - 8
+                           / OsuManiaSkinConfiguration
+                               .LegacyPositionScaleFactor
+                           * 0.9f
+                           * 1.6025f) < 0.01f
                        && gameplay.ChildrenOfType<Sprite>().Any(sprite =>
                            sprite.Texture?.DisplayWidth == 100
                            && sprite.Texture.DisplayHeight == 160
-                           && Math.Abs(sprite.Width - 100) < 0.01f
+                           && Math.Abs(sprite.Width - 62.5f) < 0.01f
                            && Math.Abs(sprite.Height - 480) < 0.01f);
             });
         }
@@ -1365,13 +1439,20 @@ LightingLWidth: 20,20,20,20
                     skinPath: skinPath)));
             AddUntilStep("animated notes and stage foreground loaded", () =>
             {
-                LegacyManiaAnimatedSprite[] animations =
-                    gameplay?
-                        .ChildrenOfType<LegacyManiaAnimatedSprite>()
-                        .ToArray();
-                return animations?.Count(animation =>
-                           animation.FrameCount == 2)
-                       >= 2;
+                GameplayPlayfield playfield = gameplay?
+                    .ChildrenOfType<GameplayPlayfield>()
+                    .SingleOrDefault();
+                if (playfield == null)
+                    return false;
+
+                bool animatedNoteLoaded =
+                    playfield.GetDrawableNote(0)
+                             .ChildrenOfType<LegacyManiaAnimatedSprite>()
+                             .Any(animation => animation.FrameCount == 2);
+                bool animatedStageForegroundLoaded =
+                    gameplay.ChildrenOfType<LegacyManiaAnimatedSprite>()
+                            .Any(animation => animation.FrameCount == 2);
+                return animatedNoteLoaded && animatedStageForegroundLoaded;
             });
             AddAssert("measure barlines are generated", () =>
                 gameplay.ChildrenOfType<GameplayPlayfield>()
@@ -1384,6 +1465,22 @@ LightingLWidth: 20,20,20,20
         {
             string skinPath = createTestSkin();
             GameplayScreen gameplay = null;
+            YokkoBeatmap beatmap = createHoldDemo(KeyMode.EightKey);
+            beatmap = beatmap with
+            {
+                HitObjects = beatmap.HitObjects
+                                    .Select(hitObject => new YokkoHitObject(
+                                        hitObject.Lane,
+                                        hitObject.StartTimeMilliseconds + 6000,
+                                        hitObject.EndTimeMilliseconds is double endTime
+                                            ? endTime + 6000
+                                            : null,
+                                        hitObject.Kind,
+                                        hitObject.SampleKey,
+                                        hitObject.ScrollProfileId,
+                                        hitObject.SamplePayload))
+                                    .ToArray(),
+            };
             File.WriteAllText(Path.Combine(skinPath, "skin.ini"), """
             [General]
             Name: Split Stage Fixture
@@ -1400,7 +1497,7 @@ LightingLWidth: 20,20,20,20
 
             AddStep("open forced split-stage skin", () =>
                 screenStack.Push(gameplay = new GameplayScreen(
-                    createHoldDemo(KeyMode.EightKey),
+                    beatmap,
                     skinPath: skinPath)));
             AddUntilStep("split-stage playfield loaded", () =>
                 gameplay?
@@ -1409,7 +1506,36 @@ LightingLWidth: 20,20,20,20
                 && playfield.SkinStageBottomCount == 2
                 && playfield.SkinStageHintCount == 2
                 && playfield.SkinJudgementLineCount == 2
-                && playfield.SkinWarningArrowCount == 2);
+                && playfield.SkinWarningArrowCount == 2
+                && Math.Abs(
+                    playfield.SkinWarningArrowStartTime - 2000)
+                < 0.001);
+        }
+
+        [Test]
+        public void TestLegacyWarningArrowRequiresThreePriorMeasures()
+        {
+            string skinPath = createTestSkin();
+            GameplayScreen gameplay = null;
+            File.WriteAllText(Path.Combine(skinPath, "skin.ini"), """
+            [General]
+            Name: Warning Arrow Fixture
+            Version: 2.5
+
+            [Mania]
+            Keys: 4
+            WarningArrow: stage-hint
+            """);
+
+            AddStep("open short lead-in skin", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath)));
+            AddUntilStep("warning arrow omitted without three measures", () =>
+                gameplay?
+                    .ChildrenOfType<GameplayPlayfield>()
+                    .SingleOrDefault() is { } playfield
+                && playfield.SkinWarningArrowCount == 0);
         }
 
         [Test]
@@ -1604,6 +1730,238 @@ LightingLWidth: 20,20,20,20
                 (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<GameplayPlayfield>().SingleOrDefault() != null);
             AddUntilStep("real skin textures decoded", () =>
                 (screenStack.CurrentScreen as Drawable)?.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null) == true);
+        }
+
+        [Test]
+        public void TestOsuScorebarReplacesDefaultHealthBar()
+        {
+            string skinPath = createTestSkin();
+            using (var background = new Image<Rgba32>(
+                       200,
+                       40,
+                       new Rgba32(25, 30, 45, 255)))
+            using (var fill = new Image<Rgba32>(
+                       160,
+                       20,
+                       new Rgba32(72, 208, 240, 255)))
+            using (var alternateFill = new Image<Rgba32>(
+                       160,
+                       20,
+                       new Rgba32(240, 120, 180, 255)))
+            using (var marker = new Image<Rgba32>(
+                       1,
+                       1,
+                       new Rgba32(255, 255, 255, 255)))
+            {
+                background.SaveAsPng(
+                    Path.Combine(skinPath, "scorebar-bg.png"));
+                fill.SaveAsPng(
+                    Path.Combine(skinPath, "scorebar-colour-0.png"));
+                alternateFill.SaveAsPng(
+                    Path.Combine(skinPath, "scorebar-colour-1.png"));
+                marker.SaveAsPng(
+                    Path.Combine(skinPath, "scorebar-marker.png"));
+            }
+
+            GameplayScreen gameplay = null;
+            LegacyManiaHealthBar scorebar = null;
+
+            AddStep("open scorebar skin", () =>
+            {
+                gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath);
+                screenStack.Push(gameplay);
+            });
+            AddUntilStep("legacy scorebar loaded", () =>
+            {
+                scorebar = gameplay?
+                           .ChildrenOfType<LegacyManiaHealthBar>()
+                           .SingleOrDefault();
+                return scorebar?.IsAvailable == true;
+            });
+            AddAssert("mania scorebar geometry matches stable", () =>
+            {
+                GameplayPlayfield playfield = gameplay
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .Single();
+                return scorebar.Rotation == -90
+                       && Math.Abs(scorebar.X - playfield.Width) < 0.01
+                       && scorebar.Y == 480
+                       && Math.Abs(scorebar.Scale.X - 0.7f) < 0.001
+                       && scorebar.AnimationFrameCount == 2
+                       && scorebar.UsesMarkerStyle
+                       && Vector2.Distance(
+                           scorebar.FillPosition,
+                           new Vector2(12, 12)
+                           / OsuManiaSkinConfiguration
+                               .LegacyPositionScaleFactor) < 0.001f;
+            });
+            AddAssert("default health bar is replaced", () =>
+                gameplay.ChildrenOfType<GameplayHud>()
+                        .Single()
+                        .UsesLegacySkinHealthBar);
+            double expectedHealth = 1;
+            AddStep("change actual mania health", () =>
+            {
+                gameplay.HealthState.Apply(new JudgementEvent(
+                    0,
+                    0,
+                    1000,
+                    1000,
+                    0,
+                    JudgementRating.Miss));
+                expectedHealth = gameplay.HealthState.Health;
+            });
+            AddUntilStep("skin scorebar follows actual health", () =>
+                Math.Abs(
+                    scorebar.TargetFillFraction - expectedHealth) < 0.001);
+            AddAssert("skin fill targets actual health", () =>
+            {
+                scorebar.SetHealth(0.25);
+                return Math.Abs(
+                           scorebar.TargetFillFraction - 0.25f) < 0.001f
+                       && Math.Abs(scorebar.FillColour.R - 0.5f) < 0.001f
+                       && Math.Abs(scorebar.FillColour.G - 0.5f) < 0.001f
+                       && Math.Abs(scorebar.FillColour.B - 0.5f) < 0.001f;
+            });
+        }
+
+        [Test]
+        public void TestStandardOsuSkinWithoutManiaSectionStillAppliesInterface()
+        {
+            string skinPath = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "osu-standard-skin-visual",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(skinPath);
+            File.WriteAllText(Path.Combine(skinPath, "skin.ini"), """
+            [General]
+            Name: Standard osu skin
+            Version: latest
+            """);
+            using (var background = new Image<Rgba32>(
+                       200,
+                       40,
+                       new Rgba32(25, 30, 45, 255)))
+            using (var fill = new Image<Rgba32>(
+                       160,
+                       20,
+                       new Rgba32(72, 208, 240, 255)))
+            {
+                background.SaveAsPng(
+                    Path.Combine(skinPath, "scorebar-bg.png"));
+                fill.SaveAsPng(
+                    Path.Combine(skinPath, "scorebar-colour.png"));
+            }
+
+            GameplayScreen gameplay = null;
+
+            AddStep("open standard skin in mania", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath)));
+            AddUntilStep("default mania stage and skinned scorebar coexist", () =>
+            {
+                GameplayPlayfield playfield = gameplay?
+                                              .ChildrenOfType<GameplayPlayfield>()
+                                              .SingleOrDefault();
+                LegacyManiaHealthBar scorebar = gameplay?
+                                                .ChildrenOfType<LegacyManiaHealthBar>()
+                                                .SingleOrDefault();
+                return playfield?.KeyCount == 4
+                       && playfield.HasSkinHealthBar
+                       && playfield.GetDrawableNote(0)
+                                   .ChildrenOfType<Box>()
+                                   .Any()
+                       && scorebar is
+                       {
+                           IsAvailable: true,
+                           UsesMarkerStyle: false,
+                       }
+                       && Vector2.Distance(
+                           scorebar.FillPosition,
+                           new Vector2(5, 16)
+                           / OsuManiaSkinConfiguration
+                               .LegacyPositionScaleFactor) < 0.001f
+                       && gameplay.ChildrenOfType<GameplayHud>()
+                                  .Single()
+                                  .UsesLegacySkinHealthBar;
+            });
+        }
+
+        [Test]
+        public void TestLegacyManiaComboBurstAtHundredCombo()
+        {
+            string skinPath = createTestSkin(
+                "ComboBurstStyle: Left");
+            using (var image = new Image<Rgba32>(
+                       120,
+                       240,
+                       new Rgba32(240, 120, 180, 255)))
+            {
+                image.SaveAsPng(
+                    Path.Combine(skinPath, "comboburst-mania.png"));
+            }
+
+            YokkoBeatmap beatmap = new(
+                "Combo burst fixture",
+                "Yokko",
+                "Codex",
+                "100 combo",
+                KeyMode.FourKey,
+                ChartSourceFormat.Yokko,
+                [YokkoTimingPoint.Default],
+                null,
+                Enumerable.Range(0, 100)
+                          .Select(index => new YokkoHitObject(
+                              index % 4,
+                              1000 + index * 20,
+                              null,
+                              HitObjectKind.Tap))
+                          .ToArray());
+            var state = new BeatmapJudgementState(beatmap);
+            OsuManiaSkin skin = null;
+            GameplayPlayfield playfield = null;
+
+            AddStep("load combo burst skin", () =>
+            {
+                skin = OsuManiaSkin.Load(
+                    skinPath,
+                    4,
+                    renderer);
+                Add(playfield = new GameplayPlayfield(
+                    beatmap,
+                    KeyModeBindings.ForMode(KeyMode.FourKey),
+                    skin));
+            });
+            AddUntilStep("combo burst playfield loaded", () =>
+                playfield?.IsLoaded == true);
+            AddStep("reach 100 combo", () =>
+            {
+                for (int index = 0; index < beatmap.HitObjects.Count; index++)
+                {
+                    YokkoHitObject note = beatmap.HitObjects[index];
+                    if (state.TryJudgeLanePress(
+                            note.Lane,
+                            note.StartTimeMilliseconds) == null)
+                    {
+                        throw new InvalidOperationException(
+                            $"Could not judge combo fixture note {index}.");
+                    }
+                }
+
+                playfield.UpdateGameplayTime(3000, state);
+            });
+            AddAssert("left combo burst is emitted once", () =>
+                state.Combo == 100
+                && playfield.ComboBurstCount == 1
+                && playfield.LastComboBurstRightSide == false);
+            AddStep("remove combo burst fixture", () =>
+            {
+                playfield.Expire();
+                skin.Dispose();
+            });
         }
 
         [Test]

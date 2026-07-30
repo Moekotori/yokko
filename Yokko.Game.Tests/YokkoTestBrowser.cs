@@ -114,6 +114,43 @@ namespace Yokko.Game.Tests
             }
 
             if (Environment.GetEnvironmentVariable(
+                    "YOKKO_OSU_MANIA_SKIN_PREVIEW") == "1")
+            {
+                string skinPath = Environment.GetEnvironmentVariable(
+                    "YOKKO_OSU_MANIA_SKIN_SAMPLE");
+                if (string.IsNullOrWhiteSpace(skinPath)
+                    || !File.Exists(skinPath)
+                       && !Directory.Exists(skinPath))
+                {
+                    throw new InvalidOperationException(
+                        "YOKKO_OSU_MANIA_SKIN_SAMPLE must point to a skin package or folder.");
+                }
+
+                bool sevenKey = Environment.GetEnvironmentVariable(
+                    "YOKKO_OSU_MANIA_SKIN_SAMPLE_KEYS") == "7";
+                var gameplay = new GameplayScreen(
+                    sevenKey
+                        ? DemoBeatmaps.CreateSevenKeyDemo()
+                        : DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath);
+                Add(new ScreenStack(gameplay)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                Add(new CursorContainer());
+                Scheduler.AddDelayed(() =>
+                {
+                    if (gameplay.IsPaused
+                        && !gameplay.PauseTransitionInProgress)
+                    {
+                        gameplay.TogglePause();
+                    }
+                }, 500);
+                schedulePreviewScreenshot(800);
+                return;
+            }
+
+            if (Environment.GetEnvironmentVariable(
                     "YOKKO_MODS_PREVIEW") == "1")
             {
                 if (Enum.TryParse(
@@ -141,6 +178,19 @@ namespace Yokko.Game.Tests
                     () => applyModsPreviewState(modsScreen),
                     250);
                 schedulePreviewScreenshot();
+                return;
+            }
+
+            if (Environment.GetEnvironmentVariable(
+                    "YOKKO_MAIN_PREVIEW") == "1")
+            {
+                Add(new ScreenStack(
+                        new Screens.Main.MainScreen(host.Exit))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                Add(new CursorContainer());
+                schedulePreviewScreenshot(1500);
                 return;
             }
 

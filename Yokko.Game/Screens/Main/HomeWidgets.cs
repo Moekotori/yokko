@@ -133,6 +133,36 @@ public partial class HomeClock : CompositeDrawable
 }
 
 /// <summary>
+/// 竖向虚线数据脊，把同列排布的遥测装饰在视觉上串成一条线。
+/// </summary>
+public partial class HomeDottedRail : CompositeDrawable
+{
+    public HomeDottedRail(float length, Color4 colour, float dash = 5, float gap = 9)
+    {
+        Size = new Vector2(2, length);
+
+        for (float y = 0; y + dash <= length; y += dash + gap)
+        {
+            AddInternal(new Box
+            {
+                Y = y,
+                Size = new Vector2(2, dash),
+                Colour = colour,
+            });
+        }
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+
+        this.FadeTo(0.6f, 2600, Easing.InOutSine)
+            .Then().FadeTo(1f, 2600, Easing.InOutSine)
+            .Loop();
+    }
+}
+
+/// <summary>
 /// 警示带风格的斜纹装饰条，纯色斜杠等距排列，整体缓慢呼吸。
 /// </summary>
 public partial class HomeHazardStripes : CompositeDrawable
@@ -498,7 +528,8 @@ public partial class HomePulseBeacon : CompositeDrawable
             Child = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Alpha = 0,
+                // Alpha 为 0 时子节点被剔除会导致边框一并消失，给一个趋近于 0 的值保住描边。
+                Alpha = 0.01f,
             },
         };
 

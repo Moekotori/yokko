@@ -27,13 +27,16 @@ internal sealed class GameplayHitSampleResolver
     private readonly YokkoBeatmap beatmap;
     private readonly string beatmapDirectory;
     private readonly Func<string, string> skinSampleResolver;
+    private readonly bool playLayeredHitSounds;
 
     internal GameplayHitSampleResolver(
         YokkoBeatmap beatmap,
-        Func<string, string> skinSampleResolver = null)
+        Func<string, string> skinSampleResolver = null,
+        bool playLayeredHitSounds = true)
     {
         this.beatmap = beatmap;
         this.skinSampleResolver = skinSampleResolver;
+        this.playLayeredHitSounds = playLayeredHitSounds;
         beatmapDirectory = resolveBeatmapDirectory(beatmap.AudioPath);
     }
 
@@ -124,7 +127,8 @@ internal sealed class GameplayHitSampleResolver
             // lazer's ManiaLegacySkinTransformer suppresses layered normal
             // samples on native Mania maps while retaining them on converts.
             if (sample.IsLayered
-                && beatmap.SourceFormat == ChartSourceFormat.OsuMania)
+                && (beatmap.SourceFormat == ChartSourceFormat.OsuMania
+                    || !playLayeredHitSounds))
             {
                 continue;
             }

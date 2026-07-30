@@ -11,11 +11,17 @@ internal static class OsuManiaSkinIniDecoder
 {
     public static OsuManiaSkinInfo Decode(
         string contents,
-        bool skinIniPresent = true)
+        bool skinIniPresent = true,
+        bool forceLatestVersion = false)
     {
         string name = "Unknown";
         string author = string.Empty;
-        string version = readVersion(contents, skinIniPresent);
+        string version = forceLatestVersion
+            ? "latest"
+            : readVersion(contents, skinIniPresent);
+        int animationFrameRate = 0;
+        bool layeredHitSounds = true;
+        bool comboBurstRandom = false;
         string comboPrefix = "score";
         int comboOverlap = 0;
         string section = string.Empty;
@@ -56,6 +62,33 @@ internal static class OsuManiaSkinIniDecoder
                     name = value;
                 else if (key.Equals("Author", StringComparison.OrdinalIgnoreCase))
                     author = value;
+                else if (key.Equals(
+                             "AnimationFramerate",
+                             StringComparison.OrdinalIgnoreCase)
+                         && int.TryParse(
+                             value,
+                             NumberStyles.Integer,
+                             CultureInfo.InvariantCulture,
+                             out int parsedFrameRate))
+                    animationFrameRate = Math.Max(0, parsedFrameRate);
+                else if (key.Equals(
+                             "LayeredHitSounds",
+                             StringComparison.OrdinalIgnoreCase)
+                         && int.TryParse(
+                             value,
+                             NumberStyles.Integer,
+                             CultureInfo.InvariantCulture,
+                             out int parsedLayeredHitSounds))
+                    layeredHitSounds = parsedLayeredHitSounds == 1;
+                else if (key.Equals(
+                             "ComboBurstRandom",
+                             StringComparison.OrdinalIgnoreCase)
+                         && int.TryParse(
+                             value,
+                             NumberStyles.Integer,
+                             CultureInfo.InvariantCulture,
+                             out int parsedComboBurstRandom))
+                    comboBurstRandom = parsedComboBurstRandom == 1;
             }
             else if (section.Equals("Fonts", StringComparison.OrdinalIgnoreCase))
             {
@@ -79,6 +112,9 @@ internal static class OsuManiaSkinIniDecoder
             name,
             author,
             version,
+            animationFrameRate,
+            layeredHitSounds,
+            comboBurstRandom,
             comboPrefix,
             comboOverlap,
             configurations);
@@ -145,11 +181,19 @@ internal static class OsuManiaSkinIniDecoder
             return;
 
         bool? splitStages = nullableBoolean(values, "SplitStages");
+        int specialStyle = namedInteger(
+            values,
+            "SpecialStyle",
+            0,
+            ("None", 0),
+            ("Left", 1),
+            ("Right", 2));
         OsuManiaSkinConfiguration defaults =
             OsuManiaSkinConfiguration.CreateDefault(
                 keys,
                 version,
-                splitStages);
+                splitStages,
+                specialStyle);
         float[] widths = floatList(values, "ColumnWidth", defaults.ColumnWidths, keys);
         float[] spacings = floatList(values, "ColumnSpacing", defaults.ColumnSpacings, keys);
         float[] lineWidths = floatList(
@@ -167,6 +211,18 @@ internal static class OsuManiaSkinIniDecoder
             "LightingLWidth",
             defaults.HoldNoteLightWidths,
             keys);
+
+        for (int lane = 0; lane < keys; lane++)
+            widths[lane] = Math.Clamp(widths[lane], 5, 100);
+
+        for (int lane = 0; lane < keys - 1; lane++)
+            spacings[lane] = Math.Max(spacings[lane], -widths[lane + 1]);
+
+        for (int edge = 0; edge < lineWidths.Length; edge++)
+        {
+            if (lineWidths[edge] > 0 && lineWidths[edge] < 2)
+                lineWidths[edge] = 2;
+        }
         var laneColours = new Color4[keys];
         var laneLightColours = new Color4[keys];
         var keyImages = new string[keys];
@@ -183,7 +239,7 @@ internal static class OsuManiaSkinIniDecoder
         var holdBodyFlips = new bool[keys];
         var holdTailFlips = new bool[keys];
         int defaultBodyStyle = Math.Clamp(
-            integer(
+            noteBodyStyle(
                 values,
                 "NoteBodyStyle",
                 defaults.NoteBodyStyles[0]),
@@ -205,7 +261,13 @@ internal static class OsuManiaSkinIniDecoder
             holdHeadImages[lane] = text(values, $"NoteImage{lane}H", defaults.HoldHeadImages[lane]);
             holdBodyImages[lane] = text(values, $"NoteImage{lane}L", defaults.HoldBodyImages[lane]);
             holdTailImages[lane] = text(values, $"NoteImage{lane}T", holdHeadImages[lane]);
-            noteBodyStyles[lane] = Math.Clamp(integer(values, $"NoteBodyStyle{lane}", defaultBodyStyle), 0, 4);
+            noteBodyStyles[lane] = Math.Clamp(
+                noteBodyStyle(
+                    values,
+                    $"NoteBodyStyle{lane}",
+                    defaultBodyStyle),
+                0,
+                4);
             keyFlips[lane] = boolean(values, $"KeyFlipWhenUpsideDown{lane}", defaultKeyFlip);
             pressedKeyFlips[lane] = boolean(values, $"KeyFlipWhenUpsideDown{lane}D", keyFlips[lane]);
             noteFlips[lane] = boolean(values, $"NoteFlipWhenUpsideDown{lane}", defaultNoteFlip);
@@ -297,19 +359,13 @@ internal static class OsuManiaSkinIniDecoder
                 defaults.WarningArrow),
             SplitStages = splitStages,
             StageSeparation = Math.Max(
-                0,
+                5,
                 number(values, "StageSeparation", defaults.StageSeparation)),
             SeparateScore = boolean(
                 values,
                 "SeparateScore",
                 defaults.SeparateScore),
-            SpecialStyle = namedInteger(
-                values,
-                "SpecialStyle",
-                defaults.SpecialStyle,
-                ("None", 0),
-                ("Left", 1),
-                ("Right", 2)),
+            SpecialStyle = specialStyle,
             ColumnStart = number(
                 values,
                 "ColumnStart",
@@ -353,6 +409,20 @@ internal static class OsuManiaSkinIniDecoder
     private static int positiveFrameRate(int value) =>
         value <= 0 ? 24 : Math.Min(value, 1000);
 
+    private static int noteBodyStyle(
+        IReadOnlyDictionary<string, string> values,
+        string key,
+        int fallback) =>
+        namedInteger(
+            values,
+            key,
+            fallback,
+            ("Stretch", 0),
+            ("Repeat", 1),
+            ("RepeatTop", 2),
+            ("RepeatBottom", 3),
+            ("RepeatTopAndBottom", 4));
+
     private static int namedInteger(
         IReadOnlyDictionary<string, string> values,
         string key,
@@ -380,7 +450,8 @@ internal static class OsuManiaSkinIniDecoder
 
     private static float number(IReadOnlyDictionary<string, string> values, string key, float fallback) =>
         values.TryGetValue(key, out string value) &&
-        float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed)
+        float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed) &&
+        float.IsFinite(parsed)
             ? parsed
             : fallback;
 
@@ -403,10 +474,11 @@ internal static class OsuManiaSkinIniDecoder
         for (int i = 0; i < Math.Min(count, parts.Length); i++)
         {
             result[i] = float.TryParse(
-                parts[i].Trim(),
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out float parsed)
+                            parts[i].Trim(),
+                            NumberStyles.Float,
+                            CultureInfo.InvariantCulture,
+                            out float parsed)
+                        && float.IsFinite(parsed)
                 ? parsed
                 : 0;
         }

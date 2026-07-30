@@ -6,6 +6,9 @@ internal sealed record OsuManiaSkinInfo(
     string Name,
     string Author,
     string Version,
+    int AnimationFrameRate,
+    bool LayeredHitSounds,
+    bool ComboBurstRandom,
     string ComboPrefix,
     int ComboOverlap,
     IReadOnlyDictionary<int, OsuManiaSkinConfiguration> ManiaConfigurations)

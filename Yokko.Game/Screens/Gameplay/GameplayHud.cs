@@ -30,6 +30,7 @@ public partial class GameplayHud : CompositeDrawable
     private readonly SpriteText audioText;
     private readonly Box healthFill;
     private readonly SpriteText healthText;
+    private readonly Container healthContainer;
     private AudioReadoutState displayedAudioState;
     private bool hasDisplayedAudioState;
 
@@ -45,16 +46,19 @@ public partial class GameplayHud : CompositeDrawable
         rateText?.Text.ToString() ?? string.Empty;
     internal string DisplayedMods =>
         modsText?.Text.ToString() ?? string.Empty;
+    internal bool UsesLegacySkinHealthBar { get; }
 
     public GameplayHud(
         YokkoBeatmap beatmap,
         ManiaModSet mods = null,
-        JudgementConfiguration? judgementConfiguration = null)
+        JudgementConfiguration? judgementConfiguration = null,
+        bool useLegacySkinHealthBar = false)
     {
         this.beatmap = beatmap;
         this.mods = mods ?? ManiaModSet.Empty;
         this.judgementConfiguration =
             judgementConfiguration ?? JudgementConfiguration.YokkoDefault;
+        UsesLegacySkinHealthBar = useLegacySkinHealthBar;
         Width = 340;
         Height = 330;
         Masking = true;
@@ -98,9 +102,11 @@ public partial class GameplayHud : CompositeDrawable
                     mutedText = createLine(14),
                     rateText = createLine(14),
                     countsText = createLine(16),
-                    new Container
+                    healthContainer = new Container
                     {
-                        Size = new Vector2(304, 25),
+                        Size = useLegacySkinHealthBar
+                            ? Vector2.Zero
+                            : new Vector2(304, 25),
                         Masking = true,
                         CornerRadius = 5,
                         Children = new Drawable[]

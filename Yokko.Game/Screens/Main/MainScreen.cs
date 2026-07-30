@@ -54,6 +54,7 @@ public partial class MainScreen : Screen
     private Container rightParallax;
     private Box ivoryBase;
     private Box ivorySlant;
+    private Container slantStripe;
     private Drawable rightStage;
     private Drawable brandLockup;
     private Drawable commandArea;
@@ -67,6 +68,8 @@ public partial class MainScreen : Screen
     private HomeMascotBubble bubble;
     private HomeMusicPlayer musicPlayer;
     private HomeExitHoldIndicator exitIndicator;
+    private HomeKeyTestPad keyTestPad;
+    private HomeMarqueeTicker ticker;
     private Drawable statusBar;
     private HomePlayerProgressCard playerProgressCard;
     private Circle readyDot;
@@ -128,11 +131,24 @@ public partial class MainScreen : Screen
                 Size = new Vector2(designedWidth, designedHeight),
                 Children = new Drawable[]
                 {
+                    // 底部框线：与顶部字幕带呼应，给构图收口。
+                    new Container
+                    {
+                        Anchor = Anchor.BottomLeft,
+                        Origin = Anchor.BottomLeft,
+                        RelativeSizeAxes = Axes.X,
+                        Height = 8,
+                        Child = new HomeHazardStripes(
+                            4000,
+                            new Color4(navy.R, navy.G, navy.B, 0.3f)),
+                    },
                     rightStageLayout = new Container
                     {
                         Size = new Vector2(designedWidth, designedHeight),
                         Child = rightStage = createRightStage(mascotTexture, bubbleStickerTexture),
                     },
+                    // 点击涟漪：盖在右舞台之上、左侧卡片与工具区之下。
+                    new HomeTapRippleLayer(),
                     decorationStageLayout = new Container
                     {
                         Size = new Vector2(designedWidth, designedHeight),
@@ -275,6 +291,7 @@ public partial class MainScreen : Screen
                     {
                         Position = new Vector2(60, 670),
                     },
+                    ticker = new HomeMarqueeTicker(),
                 },
             },
         };
@@ -292,6 +309,7 @@ public partial class MainScreen : Screen
         rightStage.Alpha = 0;
         utilityArea.Y -= 20;
         utilityArea.Alpha = 0;
+        ticker.Alpha = 0;
     }
 
     protected override void LoadComplete()
@@ -314,6 +332,8 @@ public partial class MainScreen : Screen
         playerProgressCard.Delay(250).FadeIn(420);
         statusBar.Delay(320).FadeIn(420);
         utilityArea.Delay(340).FadeIn(360).MoveToY(24, 460, Easing.OutQuint);
+        ticker.Delay(430).FadeIn(520);
+        keyTestPad.Delay(560).FadeIn(420);
     }
 
     public override void OnResuming(ScreenTransitionEvent e)
@@ -359,6 +379,10 @@ public partial class MainScreen : Screen
                     return true;
             }
 
+            // 4K 键位试玩盘：D F J K 点亮对应键帽。
+            if (!e.Repeat && keyTestPad.TryHandleKey(e.Key, true))
+                return true;
+
             return base.OnKeyDown(e);
         }
 
@@ -376,6 +400,8 @@ public partial class MainScreen : Screen
     {
         if (e.Key == Key.Escape)
             cancelExitHold();
+        else
+            keyTestPad.TryHandleKey(e.Key, false);
 
         base.OnKeyUp(e);
     }
@@ -439,6 +465,7 @@ public partial class MainScreen : Screen
         float ivoryWidth = stageLeft + 510;
         ivoryBase.Width = ivoryWidth;
         ivorySlant.X = ivoryWidth;
+        slantStripe.X = ivoryWidth + 220;
     }
 
     private void updatePlayerCardLayout(bool compact)
@@ -628,8 +655,52 @@ public partial class MainScreen : Screen
                 Rotation = 11,
                 Colour = ivory,
             },
+            slantStripe = createSlantStripe(),
         },
     };
+
+    /// <summary>
+    /// 沿象牙面板斜边的描边条：细亮线 + 刻度短杠，强化主对角线。
+    /// 与 ivorySlant 共用同一旋转基准，右缘始终贴合。
+    /// </summary>
+    private static Container createSlantStripe()
+    {
+        var stripe = new Container
+        {
+            RelativeSizeAxes = Axes.Y,
+            Height = 1.14f,
+            Width = 30,
+            X = 510 + 220,
+            Y = -20,
+            Rotation = 11,
+        };
+
+        stripe.Add(new Box
+        {
+            RelativeSizeAxes = Axes.Y,
+            Width = 3,
+            Colour = new Color4(paleCyan.R, paleCyan.G, paleCyan.B, 0.9f),
+        });
+
+        for (int i = 1; i <= 12; i++)
+        {
+            bool major = i % 4 == 0;
+            stripe.Add(new Box
+            {
+                RelativePositionAxes = Axes.Y,
+                Y = i / 13f,
+                X = 7,
+                Size = new Vector2(major ? 15 : 9, 2),
+                Colour = major
+                    ? new Color4(yellow.R, yellow.G, yellow.B, 0.95f)
+                    : i % 4 == 2
+                        ? new Color4(pink.R, pink.G, pink.B, 0.9f)
+                        : new Color4(navy.R, navy.G, navy.B, 0.32f),
+            });
+        }
+
+        return stripe;
+    }
 
     private Drawable createRightStage(Texture mascotTexture, Texture bubbleStickerTexture) => new Container
     {
@@ -784,7 +855,7 @@ public partial class MainScreen : Screen
                 }),
                 new HomeTickRuler(460)
                 {
-                    Position = new Vector2(768, 10),
+                    Position = new Vector2(768, 26),
                 },
                 new HomeRing(900, 1.5f, new Color4(1f, 1f, 1f, 0.14f))
                 {
@@ -936,6 +1007,128 @@ public partial class MainScreen : Screen
                     Colour = pink,
                     Alpha = 0.9f,
                 }),
+                new HomeSignalWave(new Color4(navy.R, navy.G, navy.B, 0.5f))
+                {
+                    Position = new Vector2(452, 640),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(452, 672),
+                    Text = "GROOVE // LINK",
+                    Font = HomeTypography.Display(9),
+                    Spacing = new Vector2(1.5f, 0),
+                    Colour = new Color4(navy.R, navy.G, navy.B, 0.55f),
+                },
+                new HomeDottedRail(340, new Color4(navy.R, navy.G, navy.B, 0.3f))
+                {
+                    Position = new Vector2(88, 292),
+                },
+                new HomeBeatPips(
+                    new Color4(navy.R, navy.G, navy.B, 0.5f),
+                    pink)
+                {
+                    Position = new Vector2(100, 638),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(100, 658),
+                    Text = "READY // GO",
+                    Font = HomeTypography.Display(9),
+                    Spacing = new Vector2(1.5f, 0),
+                    Colour = new Color4(navy.R, navy.G, navy.B, 0.48f),
+                },
+                new HomeDotField
+                {
+                    Position = new Vector2(60, 700),
+                    Size = new Vector2(110, 48),
+                    Colour = new Color4(navy.R, navy.G, navy.B, 0.22f),
+                },
+                new HomeRing(24, 2.5f, yellow)
+                {
+                    Position = new Vector2(-60, 640),
+                },
+                new HomeRing(22, 2.5f, pink)
+                {
+                    Position = new Vector2(232, 652),
+                },
+                registerFloater(new Circle
+                {
+                    Position = new Vector2(90, 780),
+                    Size = new Vector2(7),
+                    Colour = pink,
+                    Alpha = 0.85f,
+                }),
+                new HomeSignalWave(new Color4(navy.R, navy.G, navy.B, 0.45f))
+                {
+                    Position = new Vector2(-200, 700),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(-200, 730),
+                    Text = "BEAT // STREAM",
+                    Font = HomeTypography.Display(9),
+                    Spacing = new Vector2(1.5f, 0),
+                    Colour = new Color4(navy.R, navy.G, navy.B, 0.45f),
+                },
+                new HomeDotField
+                {
+                    Position = new Vector2(-180, 770),
+                    Size = new Vector2(120, 52),
+                    Colour = new Color4(navy.R, navy.G, navy.B, 0.22f),
+                },
+                new HomeRing(24, 2.5f, yellow)
+                {
+                    Position = new Vector2(-60, 850),
+                },
+                new HomeTwinkle(9, 2050)
+                {
+                    Position = new Vector2(-180, 850),
+                    Colour = pink,
+                },
+                registerFloater(new osu.Framework.Graphics.Shapes.Triangle
+                {
+                    Position = new Vector2(-20, 760),
+                    Size = new Vector2(10, 9),
+                    Rotation = 70,
+                    Colour = new Color4(navy.R, navy.G, navy.B, 0.3f),
+                }),
+                new HomeCrosshairMark
+                {
+                    Position = new Vector2(-220, 800),
+                },
+                registerFloater(new Circle
+                {
+                    Position = new Vector2(-140, 900),
+                    Size = new Vector2(6),
+                    Colour = pink,
+                    Alpha = 0.8f,
+                }),
+                new HomeRing(20, 2.5f, yellow)
+                {
+                    Position = new Vector2(452, 704),
+                },
+                new HomeTwinkle(10, 1900)
+                {
+                    Position = new Vector2(700, 700),
+                    Colour = pink,
+                },
+                new HomeCrosshairMark
+                {
+                    Position = new Vector2(556, 706),
+                },
+                registerFloater(new osu.Framework.Graphics.Shapes.Triangle
+                {
+                    Position = new Vector2(352, 576),
+                    Size = new Vector2(11, 10),
+                    Rotation = 42,
+                    Colour = new Color4(navy.R, navy.G, navy.B, 0.3f),
+                }),
+                createDecorationIcon(FontAwesome.Solid.Plus, 240, 590, 9, yellow),
+                keyTestPad = new HomeKeyTestPad
+                {
+                    Position = new Vector2(262, 622),
+                    Alpha = 0,
+                },
                 musicPlayer = new HomeMusicPlayer
                 {
                     Position = new Vector2(788, 636),
@@ -955,18 +1148,13 @@ public partial class MainScreen : Screen
 
     private Drawable createDecorationIcon(IconUsage icon, float x, float y, float size, Color4 colour)
     {
-        var sprite = new SpriteIcon
+        var spark = new HomeSparkIcon(icon, size, colour)
         {
-            Origin = Anchor.Centre,
             Position = new Vector2(x + size / 2f, y + size / 2f),
-            Size = new Vector2(size),
-            Icon = icon,
-            Colour = colour,
-            Alpha = 0.9f,
         };
 
-        decorationIcons.Add(sprite);
-        return sprite;
+        decorationIcons.Add(spark.Icon);
+        return spark;
     }
 
     private static Drawable createBrandLockup(Texture logoTexture) => new Container

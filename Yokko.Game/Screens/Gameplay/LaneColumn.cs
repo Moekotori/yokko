@@ -18,6 +18,7 @@ public partial class LaneColumn : CompositeDrawable
     // osu! pools legacy hit explosions so dense jacks can overlap for 200ms.
     // Reference: ppy/osu PoolableHitExplosion.cs @ 9f227ed.
     private const int hit_explosion_pool_size = 10;
+    private const double key_release_delay = 80;
 
     private readonly Sprite idleKey;
     private readonly Sprite pressedKey;
@@ -26,6 +27,7 @@ public partial class LaneColumn : CompositeDrawable
     private readonly TextureAnimation[] hitExplosions = [];
     private readonly Container mineExplosion;
     private readonly SpriteText keyLabel;
+    private readonly SpriteText skinKeyWarning;
     private readonly float baseLaneWidth;
     private readonly float baseLaneLightHeight;
     private readonly bool idleKeyFlipped;
@@ -40,6 +42,8 @@ public partial class LaneColumn : CompositeDrawable
     internal float IdleKeyHeight => idleKey?.Height ?? 0;
 
     internal bool HasHoldLight => holdLight != null;
+
+    internal SpriteText SkinKeyWarning => skinKeyWarning;
 
     internal LaneColumn(
         int lane,
@@ -165,7 +169,9 @@ public partial class LaneColumn : CompositeDrawable
         {
             Texture firstLightTexture = lightTextures[0];
             baseLaneLightHeight =
-                firstLightTexture.DisplayHeight;
+                firstLightTexture.DisplayHeight
+                / OsuManiaSkinConfiguration
+                    .LegacyPositionScaleFactor;
             backgroundChildren.Add(laneLight = new TextureAnimation
             {
                 Name = "Lane light",
@@ -213,6 +219,23 @@ public partial class LaneColumn : CompositeDrawable
                     pressedKeyFlipped));
                 pressedKey.Alpha = 0;
             }
+
+            float keyHeight = idleKey.Height;
+            receptorChildren.Add(skinKeyWarning = new SpriteText
+            {
+                Name = "Legacy key binding reminder",
+                Anchor = configuration.UpsideDown
+                    ? Anchor.TopCentre
+                    : Anchor.BottomCentre,
+                Origin = Anchor.Centre,
+                Y = configuration.UpsideDown
+                    ? keyHeight / 2
+                    : -keyHeight / 2,
+                Text = keyLabel,
+                Font = FontUsage.Default.With(size: 16),
+                Colour = configuration.KeyWarningColour,
+            });
+            skinKeyWarning.Delay(500).FadeOut(3000);
         }
         else
         {
@@ -335,6 +358,9 @@ public partial class LaneColumn : CompositeDrawable
             keyLabel.Scale = new Vector2(value);
         }
 
+        if (skinKeyWarning != null)
+            skinKeyWarning.Scale = new Vector2(value);
+
         foreach (TextureAnimation hitExplosion in hitExplosions)
             hitExplosion.Scale = new Vector2(value);
 
@@ -357,8 +383,19 @@ public partial class LaneColumn : CompositeDrawable
 
         if (pressedKey != null)
         {
-            pressedKey.Alpha = pressed ? 1 : 0;
-            idleKey.Alpha = pressed ? 0 : 1;
+            idleKey.FinishTransforms();
+            pressedKey.FinishTransforms();
+
+            if (pressed)
+            {
+                pressedKey.Alpha = 1;
+                idleKey.Alpha = 0;
+            }
+            else
+            {
+                idleKey.Delay(key_release_delay).FadeTo(1);
+                pressedKey.Delay(key_release_delay).FadeTo(0);
+            }
         }
 
         if (keyLabel != null)
@@ -446,7 +483,9 @@ public partial class LaneColumn : CompositeDrawable
             : upsideDown ? Anchor.TopLeft : Anchor.BottomLeft,
         Size = new Vector2(
             laneWidth,
-            texture.DisplayHeight),
+            texture.DisplayHeight
+            / OsuManiaSkinConfiguration
+                .LegacyPositionScaleFactor),
         Scale = new Vector2(1, flip ? -1 : 1),
         Texture = texture,
     };

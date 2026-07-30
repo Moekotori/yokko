@@ -36,6 +36,10 @@ internal sealed class OsuManiaSkin : IDisposable
 
     public OsuManiaSkinConfiguration FallbackConfiguration { get; }
 
+    public bool HasLegacyHealthBar =>
+        GetTexture("scorebar-bg") != null
+        && GetAnimationFrames("scorebar-colour").Count > 0;
+
     public static OsuManiaSkin Load(
         string path,
         int keys,
@@ -49,7 +53,8 @@ internal sealed class OsuManiaSkin : IDisposable
             string skinIni = source.ReadSkinIni();
             OsuManiaSkinInfo info = OsuManiaSkinIniDecoder.Decode(
                 skinIni,
-                source.Contains("skin.ini"));
+                source.Contains("skin.ini"),
+                source.UsesLatestVersion);
             OsuManiaSkinConfiguration configuration =
                 info.GetConfiguration(
                     keys,
@@ -58,7 +63,8 @@ internal sealed class OsuManiaSkin : IDisposable
                 OsuManiaSkinConfiguration.CreateDefault(
                     keys,
                     info.Version,
-                    configuration.SplitStages ?? stageCount == 2);
+                    configuration.SplitStages ?? stageCount == 2,
+                    configuration.SpecialStyle);
             string[] holdBodyTextureNames = configuration.HoldBodyImages
                                                          .Concat(
                                                              fallbackConfiguration

@@ -365,7 +365,8 @@ public partial class GameplayScreen : Screen
             hud = new GameplayHud(
                 beatmap,
                 mods,
-                judgementConfiguration)
+                judgementConfiguration,
+                playfield.HasSkinHealthBar)
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
@@ -533,7 +534,10 @@ public partial class GameplayScreen : Screen
         if (expiredJudgements.Count > 0)
             syncAllSlidingSamples();
 
-        playfield.UpdateGameplayTime(visualGameplayTime, judgementState);
+        playfield.UpdateGameplayTime(
+            visualGameplayTime,
+            judgementState,
+            healthState);
         hud.UpdateState(gameplayTime, judgementState, healthState);
 
         if (judgementState.IsComplete
@@ -548,33 +552,55 @@ public partial class GameplayScreen : Screen
         if (DrawHeight <= 0 || playfield.Height <= 0)
             return;
 
-        float scale = DrawHeight / playfield.Height;
-        if (beatmap.StageCount == 2 && DrawWidth > 0)
-        {
-            scale = Math.Min(
-                scale,
-                DrawWidth * 0.94f / playfield.Width);
-        }
-        playfield.Scale = new Vector2(scale);
-
+        float verticalScale = DrawHeight / playfield.Height;
+        float horizontalScale = verticalScale;
         float playfieldLeft;
-        if (playfield.SkinColumnStart is float columnStart)
+        if (playfield.SkinColumnStart is float columnStart
+            && playfield.SkinColumnRight is float columnRight
+            && DrawWidth > 0)
         {
-            // osu!stable defines horizontal mania skin positions in the
-            // same 480px-high coordinate space as the stage itself.
+            // osu!stable lays legacy mania skins out in a 480px-high logical
+            // screen. ColumnRight is the reserved right margin; only the
+            // stage contents are squeezed when the requested geometry would
+            // extend past the screen.
+            float logicalScreenWidth = DrawWidth / verticalScale;
+            float logicalLeft = Math.Min(
+                columnStart,
+                logicalScreenWidth - columnRight);
+            float rightMargin = Math.Min(
+                columnRight,
+                logicalScreenWidth - logicalLeft);
+            float overflow = Math.Max(
+                0,
+                logicalLeft + playfield.Width + rightMargin
+                - logicalScreenWidth);
+            float horizontalFit = Math.Max(
+                0.01f,
+                (playfield.Width - overflow) / playfield.Width);
+
+            horizontalScale *= horizontalFit;
             playfield.Anchor = Anchor.BottomLeft;
             playfield.Origin = Anchor.BottomLeft;
-            playfield.X = columnStart * scale;
+            playfield.X = logicalLeft * verticalScale;
             playfieldLeft = playfield.X;
         }
         else
         {
+            if (beatmap.StageCount == 2 && DrawWidth > 0)
+            {
+                verticalScale = Math.Min(
+                    verticalScale,
+                    DrawWidth * 0.94f / playfield.Width);
+                horizontalScale = verticalScale;
+            }
             playfield.Anchor = Anchor.BottomCentre;
             playfield.Origin = Anchor.BottomCentre;
             playfield.X = 0;
             playfieldLeft =
-                DrawWidth / 2 - playfield.Width * scale / 2;
+                DrawWidth / 2 - playfield.Width * horizontalScale / 2;
         }
+        playfield.Scale = new Vector2(horizontalScale, verticalScale);
+
         scrollSpeedOverlay.X = Math.Clamp(
             playfieldLeft
             - GameplayScrollSpeedOverlay.PlayfieldGap
@@ -1034,7 +1060,8 @@ public partial class GameplayScreen : Screen
             beatmap,
             maniaSkin == null
                 ? null
-                : maniaSkin.GetHitSamplePath);
+                : maniaSkin.GetHitSamplePath,
+            maniaSkin?.Info.LayeredHitSounds ?? true);
         headSamplesByHitObject = beatmap.HitObjects
             .Select(hitObject =>
                 hitSampleResolver.ResolveHead(hitObject).ToArray())

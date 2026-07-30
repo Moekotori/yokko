@@ -30,7 +30,7 @@ namespace Yokko.Game.Tests.Visual
         [Test]
         public void TestMainScreenLayout()
         {
-            AddWaitStep("wait for entrance animation", 40);
+            AddWaitStep("wait for entrance animation", 80);
             AddAssert(
                 "player progress card is present",
                 () => this.ChildrenOfType<HomePlayerProgressCard>().SingleOrDefault() != null);
@@ -39,6 +39,20 @@ namespace Yokko.Game.Tests.Visual
                 () => MainScreen.PlayerCardLayoutsHaveBreathingRoom);
             AddStep("capture main screen", captureScreenshot);
             AddUntilStep("screenshot saved", () => screenshotSaved);
+        }
+
+        [Test]
+        public void TestKeyTestPadCountsKeyPresses()
+        {
+            HomeKeyTestPad pad = null;
+            AddStep(
+                "find key test pad",
+                () => pad = this.ChildrenOfType<HomeKeyTestPad>().Single());
+            AddStep("press D", () => pad.TryHandleKey(osuTK.Input.Key.D, true));
+            AddStep("release D", () => pad.TryHandleKey(osuTK.Input.Key.D, false));
+            AddStep("press K", () => pad.TryHandleKey(osuTK.Input.Key.K, true));
+            AddStep("press unmapped key", () => pad.TryHandleKey(osuTK.Input.Key.Q, true));
+            AddAssert("two hits counted", () => pad.HitCount == 2);
         }
 
         private void captureScreenshot()

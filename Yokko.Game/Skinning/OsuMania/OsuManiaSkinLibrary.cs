@@ -124,13 +124,13 @@ internal sealed class OsuManiaSkinLibrary
         ensureInitialised();
 
         if (!IsSupportedDrop(sourcePath))
-            return new SkinImportResult(false, "Only .osk packages and folders containing skin.ini are supported.");
+            return new SkinImportResult(false, "Only .osk packages, skin.ini files, and osu! skin folders are supported.");
 
         string importSource = resolveImportSource(sourcePath);
         string error = null;
 
         if (importSource == null || !tryReadInfo(importSource, out OsuManiaSkinInfo info, out error))
-            return new SkinImportResult(false, error ?? "No usable osu!mania skin.ini was found.");
+            return new SkinImportResult(false, error ?? "No usable osu! skin was found.");
 
         string baseName = File.Exists(importSource)
             ? Path.GetFileNameWithoutExtension(importSource)
@@ -244,24 +244,20 @@ internal sealed class OsuManiaSkinLibrary
         {
             using var source = new OsuManiaSkinSource(path);
             string contents = source.ReadSkinIni();
+            bool hasSkinIni = source.Contains("skin.ini");
 
             if (string.IsNullOrWhiteSpace(contents)
-                && !source.HasManiaAssets())
+                && !hasSkinIni
+                && !source.HasSupportedSkinAssets())
             {
-                error = "The dropped item contains neither skin.ini nor osu!mania assets.";
+                error = "The dropped item contains neither skin.ini nor supported osu! skin assets.";
                 return false;
             }
 
             info = OsuManiaSkinIniDecoder.Decode(
                 contents,
-                source.Contains("skin.ini"));
-
-            if (info.ManiaConfigurations.Count == 0
-                && !source.HasManiaAssets())
-            {
-                error = "This skin contains neither an osu!mania section nor osu!mania assets.";
-                return false;
-            }
+                hasSkinIni,
+                source.UsesLatestVersion);
 
             return true;
         }
@@ -285,6 +281,8 @@ internal sealed class OsuManiaSkinLibrary
         string skinIni = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories)
                                   .Where(candidate => Path.GetFileName(candidate)
                                                           .Equals("skin.ini", StringComparison.OrdinalIgnoreCase))
+                                  .Where(candidate => !isMetadataArtifact(
+                                      Path.GetRelativePath(path, candidate)))
                                   .OrderBy(candidate => candidate.Count(character => character is '\\' or '/'))
                                   .FirstOrDefault();
 
@@ -292,6 +290,15 @@ internal sealed class OsuManiaSkinLibrary
             ? Path.GetFullPath(path)
             : Path.GetDirectoryName(skinIni);
     }
+
+    private static bool isMetadataArtifact(string relativePath) =>
+        relativePath.Replace('\\', '/')
+                    .Split(
+                        '/',
+                        StringSplitOptions.RemoveEmptyEntries)
+                    .Any(segment => segment.Equals(
+                        "__MACOSX",
+                        StringComparison.OrdinalIgnoreCase));
 
     private string findAvailableId(string baseName, string extension)
     {

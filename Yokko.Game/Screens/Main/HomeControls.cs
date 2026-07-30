@@ -127,7 +127,8 @@ public partial class HomePrimaryAction : ClickableContainer
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Alpha = 0,
+                            // 子节点 Alpha 为 0 会被剔除并连带描边消失，给趋近 0 的值保住描边。
+                            Alpha = 0.01f,
                         },
                     },
                     new Container
@@ -373,7 +374,8 @@ public partial class HomeSecondaryAction : ClickableContainer
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Alpha = 0,
+                            // 子节点 Alpha 为 0 会被剔除并连带描边消失，给趋近 0 的值保住描边。
+                            Alpha = 0.01f,
                         },
                     },
                 },
@@ -677,7 +679,8 @@ public partial class HomeMultiplayerAction : ClickableContainer
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Alpha = 0,
+                            // 子节点 Alpha 为 0 会被剔除并连带描边消失，给趋近 0 的值保住描边。
+                            Alpha = 0.01f,
                         },
                     },
                 },
@@ -877,7 +880,8 @@ public partial class HomeUtilityButton : ClickableContainer
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Alpha = 0,
+                            // 子节点 Alpha 为 0 会被剔除并连带描边消失，给趋近 0 的值保住描边。
+                            Alpha = 0.01f,
                         },
                     },
                 },
@@ -1502,7 +1506,7 @@ public partial class HomeKeycap : ClickableContainer
             },
             cap = new Container
             {
-                RelativeSizeAxes = Axes.Both,
+                RelativeSizeAxes = Axes.X,
                 Height = 21,
                 Children = new Drawable[]
                 {
@@ -1635,7 +1639,8 @@ public partial class HomeCrosshairMark : CompositeDrawable
                     Child = new Box
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Alpha = 0,
+                        // 子节点 Alpha 为 0 会被剔除并连带描边消失，给趋近 0 的值保住描边。
+                        Alpha = 0.01f,
                     },
                 },
                 new Circle
@@ -1696,7 +1701,8 @@ public partial class HomeRing : CompositeDrawable
             Child = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Alpha = 0,
+                // Alpha 为 0 时子节点被剔除会导致边框一并消失，给一个趋近于 0 的值保住描边。
+                Alpha = 0.01f,
             },
         };
     }
