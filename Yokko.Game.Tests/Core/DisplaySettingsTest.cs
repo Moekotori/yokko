@@ -205,11 +205,11 @@ public sealed class DisplaySettingsTest
                 Is.EqualTo(new osuTK.Vector2(853, 291.5f)));
             Assert.That(
                 MainScreen.CalculateMusicPlayerY(stage),
-                Is.EqualTo(927.5f));
+                Is.EqualTo(883.5f));
             Assert.That(
                 MainScreen.CalculateMusicPlayerY(
                     new osuTK.Vector2(1280, 720)),
-                Is.EqualTo(636));
+                Is.EqualTo(592));
             Assert.That(
                 MainScreen.CalculateResponsiveStageSize(
                     new osuTK.Vector2(1280, 720)),

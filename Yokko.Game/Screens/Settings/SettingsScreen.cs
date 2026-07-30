@@ -67,7 +67,6 @@ public partial class SettingsScreen : Screen
     private Vector2 lastResponsiveStageSize;
     private Container decorationLayer;
     private Container mascotLayer;
-    private HomeMascotBubble bubble;
     private Sprite mascotPeek;
     private SpriteText watermark;
     private Vector2 parallaxCurrent;
@@ -95,7 +94,6 @@ public partial class SettingsScreen : Screen
         locale = frameworkConfig.GetBindable<string>(FrameworkSetting.Locale);
         mascotTexture = textures.Get("yokko")
                                 .Crop(new RectangleF(80, 1840, 1200, 1360));
-        Texture bubbleStickerTexture = textures.Get("Home/home-mascot-bubble-sticker");
         CurrentPage = parseRememberedPage(yokkoConfig.GetLastSettingsPage());
 
         sidebar = new SettingsSidebar(
@@ -137,7 +135,8 @@ public partial class SettingsScreen : Screen
                     new HomeTapRippleLayer(),
                     sidebar,
                     contentHost,
-                    mascotLayer = createMascotLayer(bubbleStickerTexture),
+                    // 右下角吉祥物立绘，完整露出在最上层。
+                    mascotLayer = createMascotLayer(),
                     // 底部警示条纹收边，与主页构图呼应。
                     new Container
                     {
@@ -176,9 +175,9 @@ public partial class SettingsScreen : Screen
     {
         base.LoadComplete();
 
-        // 吉祥物探头呼吸式起伏，保持页面“活着”。
-        mascotPeek.MoveToY(-26).MoveToY(-18, 1800, Easing.InOutSine)
-                  .Then().MoveToY(-26, 1800, Easing.InOutSine)
+        // 吉祥物呼吸式起伏，保持页面“活着”。
+        mascotPeek.MoveToY(-8).MoveToY(0, 1800, Easing.InOutSine)
+                  .Then().MoveToY(-8, 1800, Easing.InOutSine)
                   .Loop();
 
         watermark.FadeTo(0.075f, 2600, Easing.InOutSine)
@@ -208,18 +207,46 @@ public partial class SettingsScreen : Screen
                 plus(352, 44, 11, HomeControlColours.Pink),
                 plus(1248, 36, 12, HomeControlColours.Cyan),
                 plus(356, 676, 10, HomeControlColours.Yellow),
-                plus(1246, 664, 14, HomeControlColours.Pink),
+                plus(1260, 492, 14, HomeControlColours.Pink),
                 plus(640, 700, 9, HomeControlColours.Cyan),
                 plus(1150, 44, 9, HomeControlColours.Yellow),
+                plus(700, 30, 8, HomeControlColours.Pink),
+                plus(1220, 240, 9, HomeControlColours.Cyan),
                 new HomeDotField
                 {
-                    Position = new Vector2(1128, 596),
+                    Position = new Vector2(876, 600),
                     Size = new Vector2(96, 56),
                     Colour = new Color4(
                         HomeControlColours.Navy.R,
                         HomeControlColours.Navy.G,
                         HomeControlColours.Navy.B,
                         0.13f),
+                },
+                new HomeBeatPips(
+                    new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.3f),
+                    HomeControlColours.Pink)
+                {
+                    Position = new Vector2(352, 648),
+                },
+                new HomeOrbitNodes(
+                    26,
+                    new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.6f),
+                    HomeControlColours.Cyan,
+                    4)
+                {
+                    Position = new Vector2(1232, 350),
+                },
+                new HomePulseBeacon(20, HomeControlColours.Cyan, HomeControlColours.Pink)
+                {
+                    Position = new Vector2(1252, 232),
                 },
                 new HomeDotField
                 {
@@ -251,7 +278,7 @@ public partial class SettingsScreen : Screen
                 },
                 new HomeTwinkle(9, 1700)
                 {
-                    Position = new Vector2(1150, 692),
+                    Position = new Vector2(1072, 696),
                     Colour = HomeControlColours.Cyan,
                 },
                 new HomeCrosshairMark
@@ -271,7 +298,7 @@ public partial class SettingsScreen : Screen
                 },
                 new osu.Framework.Graphics.Shapes.Triangle
                 {
-                    Position = new Vector2(1246, 590),
+                    Position = new Vector2(1048, 556),
                     Size = new Vector2(12, 11),
                     Rotation = 18,
                     Colour = new Color4(
@@ -283,7 +310,7 @@ public partial class SettingsScreen : Screen
                 new SpriteText
                 {
                     Origin = Anchor.Centre,
-                    Position = new Vector2(1268, 420),
+                    Position = new Vector2(1256, 420),
                     Rotation = -90,
                     Text = "MAKE IT YOURS · SETTINGS",
                     Font = HomeTypography.Display(14),
@@ -296,7 +323,7 @@ public partial class SettingsScreen : Screen
                 },
                 new HomeBarcode("TUNE-128", showLabel: false)
                 {
-                    Position = new Vector2(1096, 688),
+                    Position = new Vector2(856, 690),
                 },
                 new HomeMicroLine
                 {
@@ -308,37 +335,25 @@ public partial class SettingsScreen : Screen
     }
 
     /// <summary>
-    /// 右上角的吉祥物与台词气泡：切页时气泡报出当前分类，点气泡 mascot 会弹一下。
+    /// 右下角的吉祥物立绘：完整露出不遮挡内容，点一下会弹跳，随鼠标轻微视差。
     /// </summary>
-    private Container createMascotLayer(Texture bubbleStickerTexture)
+    private Container createMascotLayer()
     {
         var mascotSprite = new Sprite
         {
-            Position = new Vector2(0, -22),
-            Size = new Vector2(294, 333),
+            RelativeSizeAxes = Axes.Both,
             Texture = mascotTexture,
         };
 
         var layer = new Container
         {
             RelativeSizeAxes = Axes.Both,
-            Children = new Drawable[]
+            Child = new ClickableContainer
             {
-                new Container
-                {
-                    Position = new Vector2(992, -16),
-                    Size = new Vector2(296, 232),
-                    Masking = true,
-                    Child = mascotSprite,
-                },
-                bubble = new HomeMascotBubble(
-                    SettingsPages.Get(CurrentPage).Title,
-                    HomeMascotBubbleStyle.PopSignalSticker,
-                    bubbleStickerTexture,
-                    onMascotTapped)
-                {
-                    Position = new Vector2(688, 28),
-                },
+                Position = new Vector2(1138, 567),
+                Size = new Vector2(128, 145),
+                Action = onMascotTapped,
+                Child = mascotSprite,
             },
         };
 
@@ -350,7 +365,50 @@ public partial class SettingsScreen : Screen
     {
         mascotLayer.ScaleTo(1.04f, 90, Easing.Out)
                    .Then().ScaleTo(1f, 380, Easing.OutBack);
-        bubble.SetText(SettingsPages.Get(CurrentPage).Title);
+        spawnMascotSparkles();
+    }
+
+    private static readonly (IconUsage icon, Color4 colour)[] sparkleKinds =
+    {
+        (FontAwesome.Solid.Star, HomeControlColours.Yellow),
+        (FontAwesome.Solid.Star, HomeControlColours.Pink),
+        (FontAwesome.Solid.Heart, HomeControlColours.Pink),
+        (FontAwesome.Solid.Star, HomeControlColours.Cyan),
+    };
+
+    private int sparkleSeed;
+
+    /// <summary>
+    /// 点吉祥物时从头顶飘起一小串星星/爱心，上升旋转后消散。
+    /// </summary>
+    private void spawnMascotSparkles()
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            (IconUsage icon, Color4 colour) = sparkleKinds[i % sparkleKinds.Length];
+            float driftX = -26 + (sparkleSeed * 37 + i * 53) % 52;
+            sparkleSeed++;
+
+            var star = new SpriteIcon
+            {
+                Origin = Anchor.Centre,
+                Position = new Vector2(1202, 604),
+                Size = new Vector2(12 + (i % 2) * 5),
+                Icon = icon,
+                Colour = colour,
+                Rotation = (i * 71) % 40 - 20,
+                LifetimeEnd = Clock.CurrentTime + 900,
+            };
+
+            mascotLayer.Add(star);
+
+            star.Delay(i * 45)
+                .MoveTo(new Vector2(1202 + driftX, 492 - i * 10), 640, Easing.OutQuint);
+            star.Delay(i * 45)
+                .RotateTo(star.Rotation + 150, 640, Easing.OutQuint);
+            star.Delay(i * 45 + 180)
+                .FadeOut(460, Easing.OutQuint);
+        }
     }
 
     protected override void Update()
@@ -429,7 +487,6 @@ public partial class SettingsScreen : Screen
 
         CurrentPage = page;
         yokkoConfig.SetLastSettingsPage(page.ToString());
-        bubble?.SetText(SettingsPages.Get(page).Title);
 
         sidebar.SetSelected(page);
         activePanel = page switch

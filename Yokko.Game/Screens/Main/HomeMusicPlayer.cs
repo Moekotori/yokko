@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
@@ -56,6 +57,13 @@ public partial class HomeMusicPlayer : CompositeDrawable
     private string loadedAudioPath;
     private double pausedProgress;
     private double currentLength;
+
+    private HomeWaveformVisualiser waveformVisualiser;
+    private readonly Dictionary<string, AudioWaveformAnalysis> waveformCache =
+        new(StringComparer.OrdinalIgnoreCase);
+    private CancellationTokenSource waveformCancellation;
+    private int waveformGeneration;
+    private string waveformRequestedPath;
 
     private SpriteText titleText;
     private SpriteText artistText;
@@ -274,6 +282,92 @@ public partial class HomeMusicPlayer : CompositeDrawable
     internal void PreviousTrack() => previousTrack();
 
     /// <summary>
+    /// 挂上底部波形带；挂接时立即为当前曲目补齐波形数据。
+    /// </summary>
+    internal void AttachWaveform(HomeWaveformVisualiser visualiser)
+    {
+        waveformVisualiser = visualiser;
+        waveformRequestedPath = null;
+        ensureWaveformForCurrentTrack();
+    }
+
+    /// <summary>
+    /// 确保波形带展示当前曲目的波形：命中缓存直接给，否则后台分析后回填。
+    /// 分析期间先把波形带收平，避免短暂显示上一首的形状。
+    /// </summary>
+    private void ensureWaveformForCurrentTrack()
+    {
+        if (waveformVisualiser == null)
+            return;
+
+        if (trackIndex < 0 || trackIndex >= tracks.Count)
+        {
+            waveformRequestedPath = null;
+            waveformGeneration++;
+            waveformVisualiser.SetWaveform(null);
+            return;
+        }
+
+        string path = tracks[trackIndex].AudioPath;
+        if (waveformRequestedPath == path)
+            return;
+
+        waveformRequestedPath = path;
+
+        if (waveformCache.TryGetValue(path, out AudioWaveformAnalysis cached))
+        {
+            waveformVisualiser.SetWaveform(cached);
+            return;
+        }
+
+        waveformVisualiser.SetWaveform(null);
+
+        int generation = ++waveformGeneration;
+        waveformCancellation?.Cancel();
+        waveformCancellation = new CancellationTokenSource();
+        CancellationToken token = waveformCancellation.Token;
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                AudioWaveformAnalysis analysis = await AudioWaveformAnalyzer
+                                                       .AnalyzeAsync(
+                                                           path,
+                                                           HomeWaveformVisualiser
+                                                               .AnalysisPointCount,
+                                                           token)
+                                                       .ConfigureAwait(false);
+                waveformCache[path] = analysis;
+                Scheduler.Add(() =>
+                {
+                    if (disposed || generation != waveformGeneration)
+                        return;
+
+                    waveformVisualiser?.SetWaveform(analysis);
+                });
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception exception)
+            {
+                Logger.Error(
+                    exception,
+                    "Could not analyse the home music waveform.",
+                    LoggingTarget.Runtime);
+                Scheduler.Add(() =>
+                {
+                    if (disposed || generation != waveformGeneration)
+                        return;
+
+                    waveformVisualiser?.SetWaveform(null);
+                });
+            }
+        }, token);
+    }
+
+    /// <summary>
     /// 点击进度条跳转。暂停中只更新位置，播放中立即 Seek。
     /// </summary>
     private void seekTo(double ratio)
@@ -334,6 +428,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
         currentLength = tracks[index].FallbackLength;
         playbackGeneration++;
         updateTrackDisplay(tracks[index], true);
+        ensureWaveformForCurrentTrack();
 
         if (screenActive && desiredPlaying)
             startOrResumeCurrentTrack();
@@ -454,6 +549,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
             loadedAudioPath = null;
             playbackGeneration++;
             showEmptyState();
+            ensureWaveformForCurrentTrack();
             enqueueAudioOperation(
                 () => audioEngine.StopAsync().AsTask(),
                 playbackGeneration);
@@ -484,6 +580,8 @@ public partial class HomeMusicPlayer : CompositeDrawable
             currentLength = current.FallbackLength;
             playbackGeneration++;
         }
+
+        ensureWaveformForCurrentTrack();
 
         if (screenActive
             && desiredPlaying
@@ -611,6 +709,8 @@ public partial class HomeMusicPlayer : CompositeDrawable
             ? 0
             : (float)Math.Clamp(currentProgress / currentLength, 0, 1);
 
+        waveformVisualiser?.UpdatePlayback(currentProgress);
+
         timeText.Text = tracks.Count == 0 || currentLength <= 0
             ? string.Empty
             : $"{formatTime(currentProgress)} / {formatTime(currentLength)}";
@@ -633,6 +733,7 @@ public partial class HomeMusicPlayer : CompositeDrawable
         if (isDisposing)
         {
             disposed = true;
+            waveformCancellation?.Cancel();
             if (importedChartLibrary != null)
                 importedChartLibrary.LibraryChanged -= onChartLibraryChanged;
 

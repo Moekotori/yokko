@@ -31,7 +31,8 @@ public partial class MainScreen : Screen
     private const float fullPlayerCardY = 700;
     private const float fullStatusBarY = 864;
     private const float musicPlayerHeight = 72;
-    private const float musicPlayerBottomMargin = 12;
+    // 播放器底部为贴底波形带（44 + 8）让位，并留 4px 呼吸缝。
+    private const float musicPlayerBottomMargin = 56;
     private const double exitHoldDuration = 2000;
     private const double bubbleIdleLineInterval = 8000;
     private static readonly Vector2 mascotCentre = new(785, 500);
@@ -68,6 +69,7 @@ public partial class MainScreen : Screen
     private Box heroHighlight;
     private HomeMascotBubble bubble;
     private HomeMusicPlayer musicPlayer;
+    private HomeWaveformVisualiser waveform;
     private HomeExitHoldIndicator exitIndicator;
     private HomeKeyTestPad keyTestPad;
     private HomeMarqueeTicker ticker;
@@ -152,6 +154,15 @@ public partial class MainScreen : Screen
                     {
                         Size = new Vector2(designedWidth, designedHeight),
                         Child = rightStage = createRightStage(mascotTexture, bubbleStickerTexture),
+                    },
+                    // 底部滚动波形带：盖在右舞台之上、左侧卡片之下，
+                    // 与顶部字幕带、底部框线一起给构图收口。
+                    waveform = new HomeWaveformVisualiser
+                    {
+                        Position = new Vector2(
+                            HomeWaveformVisualiser.LeftEdge,
+                            -HomeWaveformVisualiser.BottomMargin),
+                        Alpha = 0,
                     },
                     // 点击涟漪：盖在右舞台之上、左侧卡片与工具区之下。
                     new HomeTapRippleLayer(),
@@ -303,6 +314,7 @@ public partial class MainScreen : Screen
         };
 
         // 入场初始状态，OnEntering 中归位。
+        musicPlayer.AttachWaveform(waveform);
         brandLockup.X -= 26;
         brandLockup.Alpha = 0;
         commandArea.Y += 24;
@@ -339,6 +351,7 @@ public partial class MainScreen : Screen
         statusBar.Delay(320).FadeIn(420);
         utilityArea.Delay(340).FadeIn(360).MoveToY(24, 460, Easing.OutQuint);
         ticker.Delay(430).FadeIn(520);
+        waveform.Delay(500).FadeIn(560);
         keyTestPad.Delay(560).FadeIn(420);
     }
 
@@ -469,6 +482,7 @@ public partial class MainScreen : Screen
         decorationStageLayout.Y = extra.Y * 0.18f;
         rightStageLayout.Position = rightStageOffset;
         musicPlayer.Y = CalculateMusicPlayerY(stageSize);
+        waveform.Width = CalculateWaveformWidth(stageSize);
         utilityAreaLayout.X = extra.X;
         exitIndicator.Y = stageSize.Y - 50;
 
@@ -536,6 +550,9 @@ public partial class MainScreen : Screen
         - CalculateRightStageOffset(stageSize).Y
         - musicPlayerHeight
         - musicPlayerBottomMargin;
+
+    internal static float CalculateWaveformWidth(Vector2 stageSize) =>
+        MathF.Max(0, stageSize.X - HomeWaveformVisualiser.LeftEdge);
 
     private void cancelExitHold()
     {
@@ -956,7 +973,7 @@ public partial class MainScreen : Screen
                 {
                     Origin = Anchor.Centre,
                     Position = mascotCentre + new Vector2(0, -150),
-                    Size = new Vector2(600, 590),
+                    Size = new Vector2(600, 540),
                     Action = onMascotTapped,
                 },
                 bubble = new HomeMascotBubble(

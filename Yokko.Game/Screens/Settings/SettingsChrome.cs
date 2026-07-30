@@ -4,6 +4,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
@@ -303,6 +304,8 @@ internal static partial class SettingsChrome
     {
         private readonly Container tile;
 
+        public override bool HandlePositionalInput => true;
+
         public HeaderIconTile(IconUsage icon)
         {
             Size = new Vector2(60);
@@ -381,6 +384,17 @@ internal static partial class SettingsChrome
             tile.RotateTo(-4).RotateTo(4, 1900, Easing.InOutSine)
                 .Then().RotateTo(-4, 1900, Easing.InOutSine)
                 .Loop();
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            tile.ScaleTo(1.12f, 170, Easing.OutQuint);
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            tile.ScaleTo(1f, 240, Easing.OutQuint);
         }
     }
 }

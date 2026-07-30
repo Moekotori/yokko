@@ -125,6 +125,24 @@ internal partial class SettingsSidebar : CompositeDrawable
                 Origin = Anchor.BottomLeft,
                 Position = new Vector2(38, -18),
             },
+            new HomeBeatPips(
+                new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.32f),
+                HomeControlColours.Pink)
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                Position = new Vector2(38, -54),
+            },
+            new HomePulseBeacon(18, HomeControlColours.Cyan, HomeControlColours.Pink)
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                Position = new Vector2(180, -30),
+            },
         };
 
         searchBox.Current.BindValueChanged(e => filterNavigation(e.NewValue), true);
