@@ -7,7 +7,8 @@ internal static class ScrollVelocityConversion
 {
     public static ScrollVelocityProfile FromOsu(
         IReadOnlyList<YokkoTimingPoint> timingPoints,
-        IReadOnlyList<YokkoHitObject> hitObjects)
+        IReadOnlyList<YokkoHitObject> hitObjects,
+        bool applyInheritedScrollSpeed = true)
     {
         YokkoTimingPoint[] relevantPoints = relevantTimingPoints(timingPoints, hitObjects);
 
@@ -37,7 +38,8 @@ internal static class ScrollVelocityConversion
 
                     currentInheritedMultiplier = 1;
                 }
-                else if (double.IsFinite(point.BeatLengthMilliseconds)
+                else if (applyInheritedScrollSpeed
+                         && double.IsFinite(point.BeatLengthMilliseconds)
                          && point.BeatLengthMilliseconds < 0)
                 {
                     currentInheritedMultiplier = Math.Clamp(

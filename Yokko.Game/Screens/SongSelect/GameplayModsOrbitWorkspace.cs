@@ -198,7 +198,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             new Sprite
             {
                 Position = new Vector2(70, 26),
-                Size = new Vector2(430, 146),
+                Size = new Vector2(390, 132),
                 Texture = logo,
             },
             new Box
@@ -289,12 +289,11 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             container.Add(button);
         }
 
-        container.Add(new SpriteIcon
+        container.Add(new OrbitRailArrow(
+            FontAwesome.Solid.ChevronLeft,
+            () => selectRelativePage(-1))
         {
-            Position = new Vector2(24, 502),
-            Size = new Vector2(11),
-            Icon = FontAwesome.Solid.ChevronLeft,
-            Colour = HomeControlColours.Cyan,
+            Position = new Vector2(7, 489),
         });
         container.Add(pageIndicator = new SpriteText
         {
@@ -302,12 +301,11 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             Font = HomeTypography.Display(13),
             Colour = HomeControlColours.Pink,
         });
-        container.Add(new SpriteIcon
+        container.Add(new OrbitRailArrow(
+            FontAwesome.Solid.ChevronRight,
+            () => selectRelativePage(1))
         {
-            Position = new Vector2(200, 502),
-            Size = new Vector2(11),
-            Icon = FontAwesome.Solid.ChevronRight,
-            Colour = HomeControlColours.Cyan,
+            Position = new Vector2(190, 489),
         });
 
         return container;
@@ -600,7 +598,9 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 "BACK",
                 FontAwesome.Solid.ChevronLeft,
                 back,
-                205)
+                205,
+                false,
+                "ESC")
             {
                 Position = new Vector2(108, 26),
             },
@@ -786,6 +786,17 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         rateSlider.SetState(true, 0.5, 2, value);
         rateMinus.SetEnabled(enabled || value > 0.5);
         ratePlus.SetEnabled(enabled || value < 2);
+    }
+
+    private void selectRelativePage(int offset)
+    {
+        int currentIndex = Array.IndexOf(pages, category);
+        int nextIndex = Math.Clamp(
+            currentIndex + Math.Sign(offset),
+            0,
+            pages.Length - 1);
+        if (nextIndex != currentIndex)
+            selectCategory(pages[nextIndex]);
     }
 
     private static Color4 accentFor(ManiaModDefinition definition) =>
@@ -1196,7 +1207,8 @@ internal partial class OrbitFooterButton : ClickableContainer
         IconUsage icon,
         Action action,
         float width,
-        bool primary = false)
+        bool primary = false,
+        string badgeText = null)
     {
         this.primary = primary;
         Action = action;
@@ -1229,14 +1241,23 @@ internal partial class OrbitFooterButton : ClickableContainer
                         RelativeSizeAxes = Axes.Both,
                         Colour = Color4.White,
                     },
-                    new SpriteIcon
-                    {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        Size = new Vector2(primary ? 30 : 17),
-                        Icon = icon,
-                        Colour = HomeControlColours.Navy,
-                    },
+                    badgeText == null
+                        ? new SpriteIcon
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Size = new Vector2(primary ? 30 : 17),
+                            Icon = icon,
+                            Colour = HomeControlColours.Navy,
+                        }
+                        : new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Text = badgeText,
+                            Font = HomeTypography.Display(9),
+                            Colour = HomeControlColours.Navy,
+                        },
                 ],
             },
             new SpriteText
@@ -1279,5 +1300,37 @@ internal partial class OrbitFooterButton : ClickableContainer
         background.FadeColour(
             primary ? HomeControlColours.Navy : Color4.White,
             120);
+    }
+}
+
+internal partial class OrbitRailArrow : ClickableContainer
+{
+    private readonly SpriteIcon icon;
+
+    internal OrbitRailArrow(IconUsage iconUsage, Action action)
+    {
+        Action = action;
+        Size = new Vector2(36);
+        Child = icon = new SpriteIcon
+        {
+            Anchor = Anchor.Centre,
+            Origin = Anchor.Centre,
+            Size = new Vector2(11),
+            Icon = iconUsage,
+            Colour = HomeControlColours.Cyan,
+        };
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        icon.ScaleTo(1.25f, 80, Easing.OutQuint);
+        icon.FadeColour(HomeControlColours.Pink, 80);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        icon.ScaleTo(1, 110, Easing.OutQuint);
+        icon.FadeColour(HomeControlColours.Cyan, 110);
     }
 }

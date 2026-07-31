@@ -11,6 +11,43 @@ namespace Yokko.Game.Tests.Core;
 public sealed class GameplayScrollVelocityTest
 {
     [Test]
+    public void BarLinesFollowTimingSectionsAndOmitFirstFlag()
+    {
+        var beatmap = new YokkoBeatmap(
+            "Bar lines",
+            "Artist",
+            "Mapper",
+            "4K",
+            KeyMode.FourKey,
+            ChartSourceFormat.OsuMania,
+            [
+                new YokkoTimingPoint(-2000, 500, Meter: 4),
+                new YokkoTimingPoint(
+                    3000,
+                    250,
+                    Meter: 4,
+                    Effects: 8),
+            ],
+            null,
+            [
+                new YokkoHitObject(
+                    0,
+                    1000,
+                    null,
+                    HitObjectKind.Tap),
+                new YokkoHitObject(
+                    1,
+                    4500,
+                    null,
+                    HitObjectKind.Tap),
+            ]);
+
+        Assert.That(
+            GameplayPlayfield.GenerateBarLineTimes(beatmap),
+            Is.EqualTo(new[] { 0d, 2000d, 4000d, 5000d }));
+    }
+
+    [Test]
     public void ZeroVelocityFreezesDrawableAndNegativeVelocityReversesIt()
     {
         var hitObject = new YokkoHitObject(

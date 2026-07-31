@@ -1289,32 +1289,71 @@ public partial class GameplayPlayfield : CompositeDrawable
         IReadOnlyList<(float X, float Width)> stageSegments,
         OsuManiaSkinConfiguration configuration)
     {
-        var timingMap = new BeatTimingMap(beatmap.TimingPoints);
-        double lastObjectTime = beatmap.HitObjects.Count == 0
-            ? 0
-            : beatmap.HitObjects.Max(hitObject =>
-                hitObject.EndTimeMilliseconds
-                ?? hitObject.StartTimeMilliseconds);
-        int finalRow = timingMap.ClosestRowAt(lastObjectTime)
-                       + timingMap.BeatDivisor
-                       * Math.Max(
-                           1,
-                           timingMap.TimingPointAt(lastObjectTime).Meter);
-        var result = new List<LegacyManiaBarLine>();
+        if (beatmap.HitObjects.Count == 0)
+            return [];
 
-        for (int row = 0; row <= finalRow; row++)
-        {
-            if (!timingMap.IsMeasureRow(row))
-                continue;
-
-            double time = timingMap.TimeAtRow(row);
-            result.Add(new LegacyManiaBarLine(
+        return GenerateBarLineTimes(beatmap)
+            .Select(time => new LegacyManiaBarLine(
                 time,
                 velocityMap,
                 stageSegments,
                 configuration.BarLineHeight
                 / OsuManiaSkinConfiguration.LegacyPositionScaleFactor,
-                configuration.BarLineColour));
+                configuration.BarLineColour))
+            .ToArray();
+    }
+
+    internal static double[] GenerateBarLineTimes(YokkoBeatmap beatmap)
+    {
+        if (beatmap.HitObjects.Count == 0)
+            return [];
+
+        YokkoTimingPoint[] timingPoints = beatmap.TimingPoints
+            .Where(static point =>
+                point.Uninherited
+                && double.IsFinite(point.TimeMilliseconds)
+                && double.IsFinite(point.BeatLengthMilliseconds)
+                && point.BeatLengthMilliseconds > 0)
+            .OrderBy(static point => point.TimeMilliseconds)
+            .GroupBy(static point => point.TimeMilliseconds)
+            .Select(static group => group.Last())
+            .ToArray();
+        if (timingPoints.Length == 0)
+            return [];
+
+        double firstObjectTime = beatmap.HitObjects.Min(static hitObject =>
+            hitObject.StartTimeMilliseconds);
+        double lastObjectTime = beatmap.HitObjects.Max(static hitObject =>
+            hitObject.EndTimeMilliseconds
+            ?? hitObject.StartTimeMilliseconds);
+        double generationStartTime = Math.Min(0, firstObjectTime);
+        var result = new List<double>();
+
+        for (int index = 0; index < timingPoints.Length; index++)
+        {
+            YokkoTimingPoint point = timingPoints[index];
+            double barLength = point.BeatLengthMilliseconds
+                               * Math.Max(1, point.Meter);
+            double endTime = index < timingPoints.Length - 1
+                ? timingPoints[index + 1].TimeMilliseconds
+                : lastObjectTime + 1 + barLength;
+            double startTime = point.TimeMilliseconds > generationStartTime
+                ? point.TimeMilliseconds
+                : point.TimeMilliseconds
+                  + Math.Ceiling(
+                      (generationStartTime - point.TimeMilliseconds)
+                      / barLength) * barLength;
+
+            const int omitFirstBarLineFlag = 8;
+            if ((point.Effects & omitFirstBarLineFlag) != 0)
+                startTime += barLength;
+
+            for (double time = startTime;
+                 time < endTime - 0.000001;
+                 time += barLength)
+            {
+                result.Add(time);
+            }
         }
 
         return result.ToArray();

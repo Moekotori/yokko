@@ -111,6 +111,50 @@ namespace Yokko.Game.Tests.Core
                     beatmap.HitObjects.All(hitObject =>
                         hitObject.Lane is >= 0 and < 7),
                     Is.True);
+                Assert.That(
+                    beatmap.InitialScrollVelocity,
+                    Is.EqualTo(1));
+                Assert.That(
+                    beatmap.ScrollVelocities,
+                    Is.Empty,
+                    "lazer ignores inherited SV when converting a non-mania beatmap");
+            });
+        }
+
+        [Test]
+        public void AppliesLegacyV4TimingOffsetToImportedTimeline()
+        {
+            string source = sampleOsu
+                .Replace("osu file format v14", "osu file format v4")
+                .Replace(
+                    "[TimingPoints]",
+                    "[Events]\n2,1100,1400\n\n[TimingPoints]");
+
+            YokkoBeatmap beatmap =
+                OsuManiaBeatmapIO.ReadBeatmap(source);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    beatmap.PreviewTimeMilliseconds,
+                    Is.EqualTo(12369));
+                Assert.That(
+                    beatmap.TimingPoints.Select(static point =>
+                        point.TimeMilliseconds),
+                    Is.EqualTo(new[] { 24d, 1024d, 2024d }));
+                Assert.That(
+                    beatmap.HitObjects.Select(static hitObject =>
+                        hitObject.StartTimeMilliseconds),
+                    Is.EqualTo(new[] { 1024d, 1524d, 2024d }));
+                Assert.That(
+                    beatmap.HitObjects[1].EndTimeMilliseconds,
+                    Is.EqualTo(1774));
+                Assert.That(
+                    beatmap.BreakPeriods,
+                    Is.EqualTo(new[]
+                    {
+                        new YokkoBreakPeriod(1124, 1424),
+                    }));
             });
         }
 

@@ -51,6 +51,8 @@ public static class OsuManiaBeatmapIO
 
     public static YokkoBeatmap ReadBeatmap(string text)
     {
+        int formatVersion = parseFormatVersion(text);
+        double legacyTimingOffset = formatVersion < 5 ? 24 : 0;
         var sections = parseSections(text);
         Dictionary<string, string> general = parseKeyValueSection(sections, "General");
         Dictionary<string, string> metadata = parseKeyValueSection(sections, "Metadata");
@@ -72,7 +74,8 @@ public static class OsuManiaBeatmapIO
         List<YokkoTimingPoint> timingPoints = parseTimingPoints(
             sections.GetValueOrDefault("TimingPoints") ?? [],
             defaultSampleSet,
-            defaultSampleVolume);
+            defaultSampleVolume,
+            legacyTimingOffset);
         if (timingPoints.Count == 0)
         {
             timingPoints.Add(
@@ -104,7 +107,8 @@ public static class OsuManiaBeatmapIO
                 difficulty.GetValueOrDefault("ApproachRate"),
                 overallDifficulty);
         List<YokkoBreakPeriod> breakPeriods = parseBreakPeriods(
-            sections.GetValueOrDefault("Events") ?? []);
+            sections.GetValueOrDefault("Events") ?? [],
+            legacyTimingOffset);
         ManiaConversionSource? conversionSource = null;
         int keyCount;
         int stageCount = 1;
@@ -131,7 +135,8 @@ public static class OsuManiaBeatmapIO
                 circleSize,
                 overallDifficulty,
                 approachRate,
-                drainRate);
+                drainRate,
+                legacyTimingOffset);
             sourceFormat = ChartSourceFormat.OsuMania;
         }
         else
@@ -148,7 +153,8 @@ public static class OsuManiaBeatmapIO
                     timingPoints,
                     parseDouble(
                         difficulty.GetValueOrDefault("SliderMultiplier"),
-                        1.4)),
+                        1.4),
+                    legacyTimingOffset),
                 breakPeriods.Sum(static period =>
                     period.DurationMilliseconds));
             keyCount =
@@ -164,7 +170,18 @@ public static class OsuManiaBeatmapIO
         }
         KeyMode keyMode = (KeyMode)keyCount;
         ScrollVelocityProfile scrollVelocity =
-            ScrollVelocityConversion.FromOsu(timingPoints, hitObjects);
+            ScrollVelocityConversion.FromOsu(
+                timingPoints,
+                hitObjects,
+                // lazer resets effect control points when converting a
+                // non-mania beatmap: BPM changes remain, inherited SV does not.
+                applyInheritedScrollSpeed:
+                    sourceFormat == ChartSourceFormat.OsuMania);
+        double previewTime = parseDouble(
+            general.GetValueOrDefault("PreviewTime"),
+            -1);
+        if (previewTime >= 0)
+            previewTime += legacyTimingOffset;
 
         return new YokkoBeatmap(
             preferredMetadataValue(metadata, "TitleUnicode", "Title", "Untitled"),
@@ -182,10 +199,32 @@ public static class OsuManiaBeatmapIO
             DrainRate: drainRate,
             ConversionSource: conversionSource,
             StageCount: stageCount,
-            PreviewTimeMilliseconds: parseDouble(
-                general.GetValueOrDefault("PreviewTime"),
-                -1),
+            PreviewTimeMilliseconds: previewTime,
             BreakPeriods: breakPeriods);
+    }
+
+    private static int parseFormatVersion(string text)
+    {
+        using var reader = new StringReader(text);
+
+        while (reader.ReadLine() is { } rawLine)
+        {
+            string line = rawLine.Trim().TrimStart('\uFEFF');
+            if (line.Length == 0)
+                continue;
+
+            const string prefix = "osu file format v";
+            return line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                   && int.TryParse(
+                       line[prefix.Length..],
+                       NumberStyles.Integer,
+                       CultureInfo.InvariantCulture,
+                       out int version)
+                ? version
+                : 14;
+        }
+
+        return 14;
     }
 
     private static string preferredMetadataValue(
@@ -351,7 +390,8 @@ public static class OsuManiaBeatmapIO
         double circleSize,
         double overallDifficulty,
         double approachRate,
-        double drainRate)
+        double drainRate,
+        double timingOffset)
     {
         if (!double.IsFinite(sliderMultiplier)
             || sliderMultiplier <= 0)
@@ -375,7 +415,7 @@ public static class OsuManiaBeatmapIO
 
             int x = parseInt(parts[0], 0);
             int lane = Math.Clamp((int)Math.Floor(x * keyCount / 512d), 0, keyCount - 1);
-            double startTime = parseDouble(parts[2], 0);
+            double startTime = parseDouble(parts[2], 0) + timingOffset;
             int type = parseInt(parts[3], 0);
             int hitSound = parseInt(parts[4], 0);
 
@@ -388,7 +428,9 @@ public static class OsuManiaBeatmapIO
                 {
                     string[] holdParts = parts[5].Split(':');
                     string endTimePart = holdParts[0];
-                    endTime = parseDouble(endTimePart, startTime);
+                    endTime = parseDouble(
+                        endTimePart,
+                        startTime - timingOffset) + timingOffset;
                     sampleBank = parseSampleBankInfo(
                         string.Join(':', holdParts.Skip(1)));
                 }
@@ -457,7 +499,9 @@ public static class OsuManiaBeatmapIO
             {
                 double endTime = Math.Max(
                     startTime,
-                    parseDouble(parts[5], startTime));
+                    parseDouble(
+                        parts[5],
+                        startTime - timingOffset) + timingOffset);
                 LegacySampleBankInfo sampleBank =
                     parseSampleBankInfo(parts.ElementAtOrDefault(6));
                 IReadOnlyList<YokkoHitSample> samples = createSamples(
@@ -530,7 +574,8 @@ public static class OsuManiaBeatmapIO
         parseStandardHitObjects(
             IReadOnlyList<string> lines,
             IReadOnlyList<YokkoTimingPoint> timingPoints,
-            double sliderMultiplier)
+            double sliderMultiplier,
+            double timingOffset)
     {
         if (!double.IsFinite(sliderMultiplier)
             || sliderMultiplier <= 0)
@@ -551,7 +596,7 @@ public static class OsuManiaBeatmapIO
 
             double x = Math.Clamp(parseDouble(parts[0], 0), 0, 512);
             double y = Math.Clamp(parseDouble(parts[1], 192), 0, 384);
-            double startTime = parseDouble(parts[2], 0);
+            double startTime = parseDouble(parts[2], 0) + timingOffset;
             int type = parseInt(parts[3], 0);
             int hitSound = parseInt(parts[4], 0);
             if ((type & hitCircleType) != 0)
@@ -630,7 +675,9 @@ public static class OsuManiaBeatmapIO
             {
                 double endTime = Math.Max(
                     startTime,
-                    parseDouble(parts[5], startTime));
+                    parseDouble(
+                        parts[5],
+                        startTime - timingOffset) + timingOffset);
                 LegacySampleBankInfo sampleBank =
                     parseSampleBankInfo(parts.ElementAtOrDefault(6));
                 IReadOnlyList<YokkoHitSample> samples = createSamples(
@@ -843,7 +890,8 @@ public static class OsuManiaBeatmapIO
         string? Filename = null);
 
     private static List<YokkoBreakPeriod> parseBreakPeriods(
-        IReadOnlyList<string> lines)
+        IReadOnlyList<string> lines,
+        double timingOffset)
     {
         var periods = new List<YokkoBreakPeriod>();
         foreach (string line in lines)
@@ -857,8 +905,10 @@ public static class OsuManiaBeatmapIO
                 continue;
             }
 
-            double start = parseDouble(parts[1], 0);
-            double end = parseDouble(parts[2], start);
+            double start = parseDouble(parts[1], 0) + timingOffset;
+            double end = parseDouble(
+                parts[2],
+                start - timingOffset) + timingOffset;
             if (!double.IsFinite(start)
                 || !double.IsFinite(end)
                 || end < start)
@@ -928,7 +978,8 @@ public static class OsuManiaBeatmapIO
     private static List<YokkoTimingPoint> parseTimingPoints(
         IReadOnlyList<string> lines,
         int defaultSampleSet = 1,
-        int defaultSampleVolume = 100)
+        int defaultSampleVolume = 100,
+        double timingOffset = 0)
     {
         var parsedPoints = new List<ParsedOsuTimingPoint>();
 
@@ -958,7 +1009,7 @@ public static class OsuManiaBeatmapIO
                 continue;
 
             parsedPoints.Add(new ParsedOsuTimingPoint(
-                time,
+                time + timingOffset,
                 beatLength,
                 Math.Max(1, parseInt(parts.ElementAtOrDefault(2), 4)),
                 normaliseSampleSet(

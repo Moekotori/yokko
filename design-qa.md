@@ -82,6 +82,61 @@ final result: passed
 
 ---
 
+# Gameplay Mods orbit workspace QA (2026-07-31)
+
+## Evidence
+
+- Source visual truth:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-fd661d85-dd8d-4cba-b5ef-047e5e1a6fc5.png`
+- Native implementation:
+  `D:\yokko\artifacts\mods\orbit-redesign-final.png`
+- Density-normalized implementation:
+  `D:\yokko\artifacts\mods\orbit-redesign-final-1600.png`
+- Side-by-side comparison:
+  `D:\yokko\artifacts\mods\orbit-redesign-comparison-final.png`
+- Authored viewport: 1600 x 900 at Yokko UI scale `Large`.
+- State: Difficulty Up page, Hard Rock selected, Hard Rock and Half Time active.
+
+## Review
+
+- Structure: the numbered category rail, central orbit, selected Mod hero,
+  global rate controls, active slots, and cyan footer follow the source grid.
+- Typography and colour: the production Yokko logo and existing navy, cyan,
+  pink, yellow, ivory, and pale-cyan tokens preserve the source hierarchy.
+- Interaction: category rows and rail arrows are clickable; mouse wheel and
+  Tab move between pages; orbit nodes support hover, click, and keyboard focus;
+  the rate slider supports continuous drag and +/- nudging; active rows remove
+  Mods; Back, Reset, and Done are functional.
+- Behaviour: all 1K-10K conversion Mods remain hidden. Real Mod compatibility,
+  mutual exclusion, preferences, configuration state, score multiplier, and
+  commit-on-handoff behaviour remain owned by `GameplayModsScreen`.
+- Responsive behaviour: the authored workspace remains centred on the shared
+  1600 x 900 layout and is scaled by Yokko's global UI-size container.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- P3: the source uses subtle paper grain and partially broken technical arcs;
+  the implementation uses the existing clean ivory surface and crisp native
+  ring primitives.
+- P3: the reference shows `1.00x` while Half Time is active. The implementation
+  intentionally shows the truthful `0.75x` playback rate.
+
+## Verification
+
+- `dotnet build Yokko.Game\Yokko.Game.csproj --no-restore`: passed with
+  0 warnings and 0 errors.
+- Focused `TestSceneGameplayModsScreen` suite: passed, 7/7.
+- Native Direct3D 11 preview and screenshot: exited with code 0.
+- Final source/implementation comparison reviewed at matching 1600 x 900
+  density.
+
+final result: passed
+
+---
+
 # Yokko Home mascot sticker-bubble fidelity QA (2026-07-30)
 
 ## Evidence
