@@ -137,6 +137,9 @@ public partial class GameplayScreen : Screen
     private GameplayHitSamplePlaybackBinding[][] headSamplesByHitObject = [];
     private GameplayHitSamplePlaybackBinding[][] tailSamplesByHitObject = [];
     private GameplayHitSamplePlaybackBinding[][] slidingSamplesByHitObject = [];
+    private GameplayHitSamplePlaybackBinding[] scheduledSamples = [];
+    private int nextScheduledSampleIndex;
+    private double previousScheduledSampleTime = double.NegativeInfinity;
     private readonly Dictionary<int, List<uint>> activeSlidingSampleLoops = new();
     private GameplayKeysoundSelector keysoundSelector;
     private RawInputKeysoundDispatcher rawKeysoundDispatcher;
@@ -274,6 +277,13 @@ public partial class GameplayScreen : Screen
             : gameplayObjects.Max(hitObject =>
                 hitObject.EndTimeMilliseconds
                 ?? hitObject.StartTimeMilliseconds);
+        if (beatmap.ScheduledSamples.Count > 0)
+        {
+            completionTimeMilliseconds = Math.Max(
+                completionTimeMilliseconds,
+                beatmap.ScheduledSamples.Max(
+                    static sample => sample.TimeMilliseconds));
+        }
         firstObjectTimeMilliseconds = gameplayObjects.Length == 0
             ? 0
             : gameplayObjects.Min(hitObject =>
@@ -492,6 +502,7 @@ public partial class GameplayScreen : Screen
             -leadInMilliseconds
             * currentPlaybackRate(-leadInMilliseconds);
         frameClockLastFrameworkTime = Time.Current;
+        previousScheduledSampleTime = frameClockGameplayTime;
 
         if (hasAudioClock)
         {
@@ -533,6 +544,7 @@ public partial class GameplayScreen : Screen
         double gameplayTime = clockObservation.GameplayTime;
         double playbackRate = currentPlaybackRate(gameplayTime);
         applyAudioPlaybackRate(playbackRate);
+        triggerScheduledSamples(gameplayTime);
         if (!ReplayMode)
         {
             drainRawInput(clockObservation);
@@ -1253,6 +1265,14 @@ public partial class GameplayScreen : Screen
                                      new GameplayHitSamplePlaybackBinding(sample))
                                  .ToArray())
             .ToArray();
+        scheduledSamples = beatmap.ScheduledSamples
+            .Select(static sample =>
+                new GameplayHitSamplePlaybackBinding(
+                    sample.Path,
+                    sample.Volume / 100d,
+                    default,
+                    false))
+            .ToArray();
     }
 
     private async Task prepareKeysoundsAsync()
@@ -1267,6 +1287,7 @@ public partial class GameplayScreen : Screen
                 static samples => samples))
             .Concat(slidingSamplesByHitObject.SelectMany(
                 static samples => samples))
+            .Concat(scheduledSamples)
             .Select(static sample => sample.Path)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -1305,6 +1326,60 @@ public partial class GameplayScreen : Screen
         bindPreparedSampleHandles(headSamplesByHitObject, handlesByPath);
         bindPreparedSampleHandles(tailSamplesByHitObject, handlesByPath);
         bindPreparedSampleHandles(slidingSamplesByHitObject, handlesByPath);
+        for (int index = 0; index < scheduledSamples.Length; index++)
+        {
+            if (handlesByPath.TryGetValue(
+                    scheduledSamples[index].Path,
+                    out PreparedAudioSampleHandle handle))
+            {
+                scheduledSamples[index] =
+                    scheduledSamples[index].WithPreparedHandle(handle);
+            }
+        }
+    }
+
+    private void triggerScheduledSamples(double gameplayTime)
+    {
+        if (beatmap.ScheduledSamples.Count == 0)
+            return;
+
+        bool movedBackwards = gameplayTime < previousScheduledSampleTime;
+        bool discontinuity =
+            gameplayTime - previousScheduledSampleTime > 1000;
+        if (movedBackwards || discontinuity)
+        {
+            nextScheduledSampleIndex = 0;
+            while (nextScheduledSampleIndex
+                       < beatmap.ScheduledSamples.Count
+                   && beatmap.ScheduledSamples[nextScheduledSampleIndex]
+                             .TimeMilliseconds <= gameplayTime)
+            {
+                nextScheduledSampleIndex++;
+            }
+
+            previousScheduledSampleTime = gameplayTime;
+            return;
+        }
+
+        while (nextScheduledSampleIndex < beatmap.ScheduledSamples.Count
+               && beatmap.ScheduledSamples[nextScheduledSampleIndex]
+                         .TimeMilliseconds <= gameplayTime)
+        {
+            YokkoScheduledSample scheduled =
+                beatmap.ScheduledSamples[nextScheduledSampleIndex];
+            if (scheduled.TimeMilliseconds > previousScheduledSampleTime
+                && gameplaySettings.KeysoundsEnabled.Value
+                && audioEngine is IAudioSamplePlayback samplePlayback)
+            {
+                GameplayHitSamplePlayer.TriggerSamples(
+                    samplePlayback,
+                    [scheduledSamples[nextScheduledSampleIndex]]);
+            }
+
+            nextScheduledSampleIndex++;
+        }
+
+        previousScheduledSampleTime = gameplayTime;
     }
 
     private static void bindPreparedSampleHandles(

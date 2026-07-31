@@ -257,6 +257,25 @@ namespace Yokko.Game.Tests.Core
             });
         }
 
+        [Test]
+        public void QuaverMinesUseMarvelousWindow()
+        {
+            var state = new BeatmapJudgementState(
+                createMineBeatmap(),
+                new JudgementWindows(
+                    configuration: JudgementConfiguration.QuaverDefault));
+
+            Assert.That(
+                state.ActiveMineWindowMilliseconds,
+                Is.EqualTo(18));
+            Assert.That(
+                state.JudgeLanePress(0, 1000 - 18.001),
+                Is.Empty);
+            Assert.That(
+                state.JudgeLanePress(0, 1000 - 18).Single().Phase,
+                Is.EqualTo(JudgementPhase.Mine));
+        }
+
         [TestCase(4, 22.5, 45, 90, 135)]
         [TestCase(5, 18.9, 37.8, 75.6, 113.4)]
         [TestCase(6, 14.85, 29.7, 59.4, 89.1)]
@@ -846,7 +865,43 @@ namespace Yokko.Game.Tests.Core
                 Assert.That(
                     promoted.Rating,
                     Is.EqualTo(JudgementRating.Ok));
-                Assert.That(outside, Is.Empty);
+                Assert.That(
+                    outside.Select(static judgement => judgement.Phase),
+                    Is.EqualTo(new[] { JudgementPhase.HoldBody }));
+                Assert.That(
+                    outside.Single().Rating,
+                    Is.EqualTo(JudgementRating.ComboBreak));
+            });
+        }
+
+        [Test]
+        public void QuaverScoreUsesUpstreamWeightsAndMultiplierCurve()
+        {
+            var beatmap = new YokkoBeatmap(
+                "Quaver score",
+                "Yokko",
+                "Yokko",
+                "4K",
+                KeyMode.FourKey,
+                ChartSourceFormat.Quaver,
+                [YokkoTimingPoint.Default],
+                null,
+                [
+                    new YokkoHitObject(0, 1000, null, HitObjectKind.Tap),
+                    new YokkoHitObject(1, 1100, null, HitObjectKind.Tap),
+                ]);
+            var processor = new ManiaScoreProcessor(beatmap);
+
+            processor.Apply(JudgementRating.Great);
+            long firstScore = processor.TotalScore;
+            processor.Apply(JudgementRating.Perfect);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstScore, Is.EqualTo(250_000));
+                Assert.That(processor.TotalScore, Is.EqualTo(750_000));
+                Assert.That(processor.Accuracy, Is.EqualTo(0.99125));
+                Assert.That(processor.Combo, Is.EqualTo(2));
             });
         }
 

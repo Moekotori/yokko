@@ -135,7 +135,13 @@ public sealed class QuaverChartImporter : IChartImporter
                 ScrollProfileId:
                     normalizeScrollProfileId(note.TimingGroup),
                 SamplePayload:
-                    isMine ? null : quaverHitSoundPayload(note.HitSound));
+                    isMine
+                        ? null
+                        : quaverHitSoundPayload(
+                            path,
+                            note,
+                            parsed.CustomAudioSamples,
+                            warnings));
         }).OrderBy(static note => note.StartTimeMilliseconds)
           .ThenBy(static note => note.Lane)
           .ToArray();
@@ -190,6 +196,17 @@ public sealed class QuaverChartImporter : IChartImporter
                 $"Quaver timing groups were missing: {string.Join(", ", missingProfileIds)}. Those notes use the default scroll profile.");
         }
 
+        YokkoScheduledSample[] scheduledSamples = parsed.SoundEffects
+            .Select(effect => resolveSoundEffect(
+                path,
+                effect,
+                parsed.CustomAudioSamples,
+                warnings))
+            .Where(static sample => sample != null)
+            .Select(static sample => sample!)
+            .OrderBy(static sample => sample.TimeMilliseconds)
+            .ToArray();
+
         var beatmap = new YokkoBeatmap(
             parsed.Values.GetValueOrDefault("Title", "Untitled"),
             parsed.Values.GetValueOrDefault("Artist", "Unknown Artist"),
@@ -208,7 +225,8 @@ public sealed class QuaverChartImporter : IChartImporter
                 parsed.Values.GetValueOrDefault("SongPreviewTime"),
                 -1),
             LegacyLongNoteRendering: parseBoolean(
-                parsed.Values.GetValueOrDefault("LegacyLNRendering")));
+                parsed.Values.GetValueOrDefault("LegacyLNRendering")),
+            ScheduledSamples: scheduledSamples);
 
         string? artworkPath = ImportParsing.ResolveAdjacentAsset(
             path,
@@ -228,6 +246,11 @@ public sealed class QuaverChartImporter : IChartImporter
         QuaSliderVelocity? groupSliderVelocity = null;
         QuaScrollSpeedFactor? groupScrollSpeedFactor = null;
         QuaHitObject? hitObject = null;
+        int? hitObjectIndentation = null;
+        QuaKeySound? keySound = null;
+        bool parsingKeySounds = false;
+        QuaCustomAudioSample? customAudioSample = null;
+        QuaSoundEffect? soundEffect = null;
 
         foreach (string rawLine in lines)
         {
@@ -265,6 +288,11 @@ public sealed class QuaverChartImporter : IChartImporter
                 groupSliderVelocity = null;
                 groupScrollSpeedFactor = null;
                 hitObject = null;
+                hitObjectIndentation = null;
+                keySound = null;
+                parsingKeySounds = false;
+                customAudioSample = null;
+                soundEffect = null;
 
                 continue;
             }
@@ -445,14 +473,77 @@ public sealed class QuaverChartImporter : IChartImporter
 
             if (section.Equals("HitObjects", StringComparison.OrdinalIgnoreCase))
             {
+                if (key.Equals(
+                        "KeySounds",
+                        StringComparison.OrdinalIgnoreCase)
+                    && !startsItem
+                    && hitObject != null)
+                {
+                    parsingKeySounds = true;
+                    keySound = null;
+                    continue;
+                }
+
+                if (startsItem
+                    && parsingKeySounds
+                    && hitObjectIndentation is int objectIndentation
+                    && indentation > objectIndentation)
+                {
+                    keySound = new QuaKeySound();
+                    hitObject!.KeySounds.Add(keySound);
+                    assignKeySound(keySound, key, value);
+                    continue;
+                }
+
+                if (parsingKeySounds && keySound != null
+                    && hitObjectIndentation is int nestedObjectIndentation
+                    && indentation > nestedObjectIndentation)
+                {
+                    assignKeySound(keySound, key, value);
+                    continue;
+                }
+
                 if (startsItem)
                 {
                     hitObject = new QuaHitObject();
                     parsed.HitObjects.Add(hitObject);
+                    hitObjectIndentation ??= indentation;
+                    parsingKeySounds = false;
+                    keySound = null;
                 }
 
                 hitObject ??= addHitObject(parsed);
                 assignHitObject(hitObject, key, value);
+                continue;
+            }
+
+            if (section.Equals(
+                    "CustomAudioSamples",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                if (startsItem)
+                {
+                    customAudioSample = new QuaCustomAudioSample();
+                    parsed.CustomAudioSamples.Add(customAudioSample);
+                }
+
+                customAudioSample ??= addCustomAudioSample(parsed);
+                assignCustomAudioSample(customAudioSample, key, value);
+                continue;
+            }
+
+            if (section.Equals(
+                    "SoundEffects",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                if (startsItem)
+                {
+                    soundEffect = new QuaSoundEffect();
+                    parsed.SoundEffects.Add(soundEffect);
+                }
+
+                soundEffect ??= addSoundEffect(parsed);
+                assignSoundEffect(soundEffect, key, value);
                 continue;
             }
 
@@ -535,10 +626,100 @@ public sealed class QuaverChartImporter : IChartImporter
             note.TimingGroup = value;
     }
 
+    private static void assignKeySound(
+        QuaKeySound keySound,
+        string key,
+        string value)
+    {
+        if (key.Equals("Sample", StringComparison.OrdinalIgnoreCase))
+            keySound.Sample = ImportParsing.Int(value);
+        else if (key.Equals("Volume", StringComparison.OrdinalIgnoreCase))
+            keySound.Volume = Math.Clamp(ImportParsing.Int(value, 100), 0, 100);
+    }
+
+    private static QuaCustomAudioSample addCustomAudioSample(
+        ParsedQua parsed)
+    {
+        var sample = new QuaCustomAudioSample();
+        parsed.CustomAudioSamples.Add(sample);
+        return sample;
+    }
+
+    private static void assignCustomAudioSample(
+        QuaCustomAudioSample sample,
+        string key,
+        string value)
+    {
+        if (key.Equals("Path", StringComparison.OrdinalIgnoreCase))
+            sample.Path = value;
+        else if (key.Equals(
+                     "UnaffectedByRate",
+                     StringComparison.OrdinalIgnoreCase))
+        {
+            sample.UnaffectedByRate = parseBoolean(value);
+        }
+    }
+
+    private static QuaSoundEffect addSoundEffect(ParsedQua parsed)
+    {
+        var effect = new QuaSoundEffect();
+        parsed.SoundEffects.Add(effect);
+        return effect;
+    }
+
+    private static void assignSoundEffect(
+        QuaSoundEffect effect,
+        string key,
+        string value)
+    {
+        if (key.Equals("StartTime", StringComparison.OrdinalIgnoreCase))
+            effect.StartTime = ImportParsing.Double(value);
+        else if (key.Equals("Sample", StringComparison.OrdinalIgnoreCase))
+            effect.Sample = ImportParsing.Int(value);
+        else if (key.Equals("Volume", StringComparison.OrdinalIgnoreCase))
+            effect.Volume = Math.Clamp(ImportParsing.Int(value, 100), 0, 100);
+    }
+
+    private static YokkoScheduledSample? resolveSoundEffect(
+        string chartPath,
+        QuaSoundEffect effect,
+        IReadOnlyList<QuaCustomAudioSample> customAudioSamples,
+        ICollection<string> warnings)
+    {
+        int index = effect.Sample - 1;
+        if ((uint)index >= customAudioSamples.Count)
+        {
+            warnings.Add(
+                $"Quaver sound effect sample {effect.Sample} is outside CustomAudioSamples.");
+            return null;
+        }
+
+        QuaCustomAudioSample customSample = customAudioSamples[index];
+        string? filename = ImportParsing.ResolveAdjacentAsset(
+            chartPath,
+            customSample.Path);
+        if (filename == null)
+        {
+            warnings.Add(
+                $"Quaver sound effect asset was missing: {customSample.Path}.");
+            return null;
+        }
+
+        return new YokkoScheduledSample(
+            effect.StartTime,
+            filename,
+            effect.Volume <= 0 ? 100 : effect.Volume,
+            customSample.UnaffectedByRate);
+    }
+
     private static YokkoHitSamplePayload quaverHitSoundPayload(
-        string? value)
+        string chartPath,
+        QuaHitObject note,
+        IReadOnlyList<QuaCustomAudioSample> customAudioSamples,
+        ICollection<string> warnings)
     {
         int flags = 0;
+        string? value = note.HitSound;
         if (!string.IsNullOrWhiteSpace(value))
         {
             if (!int.TryParse(value, out flags))
@@ -570,6 +751,34 @@ public sealed class QuaverChartImporter : IChartImporter
             samples.Add(new YokkoHitSample(YokkoHitSample.HitFinish));
         if ((flags & 8) != 0)
             samples.Add(new YokkoHitSample(YokkoHitSample.HitClap));
+
+        foreach (QuaKeySound keySound in note.KeySounds)
+        {
+            int index = keySound.Sample - 1;
+            if ((uint)index >= customAudioSamples.Count)
+            {
+                warnings.Add(
+                    $"Quaver keysound sample {keySound.Sample} is outside CustomAudioSamples.");
+                continue;
+            }
+
+            QuaCustomAudioSample customSample =
+                customAudioSamples[index];
+            string? filename = ImportParsing.ResolveAdjacentAsset(
+                chartPath,
+                customSample.Path);
+            if (filename == null)
+            {
+                warnings.Add(
+                    $"Quaver keysound asset was missing: {customSample.Path}.");
+                continue;
+            }
+
+            samples.Add(new YokkoHitSample(
+                YokkoHitSample.HitNormal,
+                Volume: keySound.Volume <= 0 ? 100 : keySound.Volume,
+                Filename: filename));
+        }
 
         return new YokkoHitSamplePayload(samples);
     }
@@ -797,6 +1006,8 @@ public sealed class QuaverChartImporter : IChartImporter
         public Dictionary<string, QuaScrollGroup> ScrollGroups { get; } =
             new(StringComparer.Ordinal);
         public List<QuaHitObject> HitObjects { get; } = [];
+        public List<QuaCustomAudioSample> CustomAudioSamples { get; } = [];
+        public List<QuaSoundEffect> SoundEffects { get; } = [];
         public string Mode { get; set; } = string.Empty;
     }
 
@@ -840,5 +1051,25 @@ public sealed class QuaverChartImporter : IChartImporter
         public string? HitSound { get; set; }
         public string Type { get; set; } = "Normal";
         public string? TimingGroup { get; set; }
+        public List<QuaKeySound> KeySounds { get; } = [];
+    }
+
+    private sealed class QuaKeySound
+    {
+        public int Sample { get; set; }
+        public int Volume { get; set; } = 100;
+    }
+
+    private sealed class QuaCustomAudioSample
+    {
+        public string Path { get; set; } = string.Empty;
+        public bool UnaffectedByRate { get; set; }
+    }
+
+    private sealed class QuaSoundEffect
+    {
+        public double StartTime { get; set; }
+        public int Sample { get; set; }
+        public int Volume { get; set; } = 100;
     }
 }

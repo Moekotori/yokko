@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.IO.Stores;
+using Yokko.Core.Mods;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 using Yokko.Resources;
@@ -49,6 +50,22 @@ public class LocalisationTest
 
         Assert.That(strings.Keys, Is.EquivalentTo(YokkoStrings.Keys));
         Assert.That(strings.Values.All(value => !string.IsNullOrWhiteSpace(value)), Is.True);
+    }
+
+    [Test]
+    public void EveryGameplayModHasLocalisedNameAndDescription()
+    {
+        foreach (ManiaModDefinition definition in OsuManiaModParityCatalog.All)
+        {
+            Assert.That(
+                YokkoStrings.ModName(definition).ToString(),
+                Is.Not.Empty,
+                $"{definition.Key} name");
+            Assert.That(
+                YokkoStrings.ModDescription(definition).ToString(),
+                Is.Not.Empty,
+                $"{definition.Key} description");
+        }
     }
 
     [Test]

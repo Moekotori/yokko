@@ -7,6 +7,7 @@ namespace Yokko.Core.Editing;
 public sealed class EditableBeatmap
 {
     private readonly List<EditableNote> notes = [];
+    private IReadOnlyList<YokkoHitObject> preservedObjects = [];
     private double overallDifficulty = 5;
     private double drainRate = 5;
     private bool legacyLongNoteRendering;
@@ -66,6 +67,14 @@ public sealed class EditableBeatmap
     public string? AudioPath { get; set; }
 
     public string? SourcePath { get; set; }
+
+    public ChartSourceFormat SourceFormat { get; private set; } =
+        ChartSourceFormat.Yokko;
+
+    public IReadOnlyList<YokkoScheduledSample> ScheduledSamples {
+        get;
+        private set;
+    } = [];
 
     public double PreviewTimeMilliseconds { get; set; } = -1;
 
@@ -132,9 +141,16 @@ public sealed class EditableBeatmap
             DrainRate = beatmap.DrainRate,
             AudioPath = beatmap.AudioPath,
             SourcePath = sourcePath,
+            SourceFormat = beatmap.SourceFormat,
             PreviewTimeMilliseconds = beatmap.PreviewTimeMilliseconds,
             BreakPeriods = beatmap.BreakPeriods.ToArray(),
             LegacyLongNoteRendering = beatmap.LegacyLongNoteRendering,
+            ScheduledSamples = beatmap.ScheduledSamples.ToArray(),
+            preservedObjects = beatmap.HitObjects
+                .Where(static hitObject =>
+                    hitObject.Kind is not (
+                        HitObjectKind.Tap or HitObjectKind.Hold))
+                .ToArray(),
         };
 
         foreach (YokkoHitObject hitObject in beatmap.HitObjects)
@@ -206,17 +222,21 @@ public sealed class EditableBeatmap
             Creator,
             DifficultyName,
             KeyMode,
-            ChartSourceFormat.Yokko,
+            SourceFormat,
             TimingPoints,
             AudioPath,
             notes.Select(note => new YokkoHitObject(
-                    note.Lane,
-                    note.StartTimeMilliseconds,
-                    note.EndTimeMilliseconds,
-                    note.Kind,
-                    note.SampleKey,
-                    note.ScrollProfileId,
-                    note.SamplePayload))
+                         note.Lane,
+                         note.StartTimeMilliseconds,
+                         note.EndTimeMilliseconds,
+                         note.Kind,
+                         note.SampleKey,
+                         note.ScrollProfileId,
+                         note.SamplePayload))
+                 .Concat(preservedObjects)
+                 .OrderBy(static hitObject =>
+                     hitObject.StartTimeMilliseconds)
+                 .ThenBy(static hitObject => hitObject.Lane)
                  .ToArray(),
             OverallDifficulty,
             ScrollVelocities,
@@ -226,7 +246,8 @@ public sealed class EditableBeatmap
             DrainRate,
             PreviewTimeMilliseconds: PreviewTimeMilliseconds,
             BreakPeriods: BreakPeriods,
-            LegacyLongNoteRendering: LegacyLongNoteRendering);
+            LegacyLongNoteRendering: LegacyLongNoteRendering,
+            ScheduledSamples: ScheduledSamples);
 
     private void sortNotes()
     {

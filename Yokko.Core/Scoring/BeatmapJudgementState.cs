@@ -183,6 +183,8 @@ public sealed class BeatmapJudgementState
     public double ActiveMineWindowMilliseconds =>
         Windows.Configuration.Mode == JudgementMode.Etterna
             ? EtternaMineWindowMilliseconds * Windows.SpeedMultiplier
+            : Windows.Configuration.Mode == JudgementMode.Quaver
+                ? Windows.PerfectMilliseconds
             : MineWindowMilliseconds;
 
     // Etterna turns an untouched mine into AvoidMine at the same rate-adjusted
@@ -1076,7 +1078,7 @@ public sealed class BeatmapJudgementState
             ? JudgementRating.IgnoreMiss
             : JudgementRating.IgnoreHit;
         trackCompletion(state, wasComplete);
-        scoreProcessor.Apply(state.HeadRating);
+        scoreProcessor.ApplyMine(wasHit);
 
         return createEvent(
             hitObjectIndex,

@@ -7,6 +7,7 @@ using System.Text;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
 using Yokko.Import;
+using Yokko.Import.Quaver;
 
 namespace Yokko.Game.Tests.Core
 {
@@ -244,6 +245,181 @@ HitObjects:
         }
 
         [Test]
+        public void ImportsQuaverNestedCustomKeysoundsWithoutCreatingNotes()
+        {
+            string path = writeChart("quaver-custom-keysound", ".qua", """
+Mode: Keys4
+Title: Custom keysound
+CustomAudioSamples:
+- Path: kick.wav
+  UnaffectedByRate: true
+TimingPoints:
+- StartTime: 0
+  Bpm: 120
+HitObjects:
+- StartTime: 500
+  Lane: 2
+  KeySounds:
+  - Sample: 1
+    Volume: 35
+- StartTime: 1000
+  Lane: 3
+""");
+            string samplePath = Path.Combine(
+                Path.GetDirectoryName(path)!,
+                "kick.wav");
+            File.WriteAllBytes(samplePath, []);
+
+            ChartImportResult result = import(path);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Beatmap.HitObjects, Has.Count.EqualTo(2));
+                Assert.That(result.Beatmap.HitObjects[0].Lane, Is.EqualTo(1));
+                Assert.That(
+                    result.Beatmap.HitObjects[0].Samples,
+                    Has.Count.EqualTo(2));
+                Assert.That(
+                    result.Beatmap.HitObjects[0].Samples[1].Filename,
+                    Is.EqualTo(samplePath));
+                Assert.That(
+                    result.Beatmap.HitObjects[0].Samples[1].Volume,
+                    Is.EqualTo(35));
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void ImportsQuaverTimelineSoundEffects()
+        {
+            string path = writeChart("quaver-sound-effects", ".qua", """
+Mode: Keys7
+Title: Timeline sounds
+CustomAudioSamples:
+- Path: effect.wav
+  UnaffectedByRate: true
+TimingPoints:
+- StartTime: 0
+  Bpm: 120
+SoundEffects:
+- StartTime: 750
+  Sample: 1
+  Volume: 42
+HitObjects:
+- StartTime: 1000
+  Lane: 7
+""");
+            string samplePath = Path.Combine(
+                Path.GetDirectoryName(path)!,
+                "effect.wav");
+            File.WriteAllBytes(samplePath, []);
+
+            ChartImportResult result = import(path);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Beatmap.KeyMode, Is.EqualTo(KeyMode.SevenKey));
+                Assert.That(result.Beatmap.ScheduledSamples, Has.Count.EqualTo(1));
+                Assert.That(
+                    result.Beatmap.ScheduledSamples[0].TimeMilliseconds,
+                    Is.EqualTo(750));
+                Assert.That(
+                    result.Beatmap.ScheduledSamples[0].Path,
+                    Is.EqualTo(samplePath));
+                Assert.That(result.Beatmap.ScheduledSamples[0].Volume, Is.EqualTo(42));
+                Assert.That(
+                    result.Beatmap.ScheduledSamples[0].UnaffectedByRate,
+                    Is.True);
+            });
+        }
+
+        [Test]
+        public void QuaverExportRoundTripsFourAndSevenKeyGameplayData()
+        {
+            string path = writeChart("quaver-roundtrip", ".qua", """
+Mode: Keys7
+Title: Roundtrip
+BPMDoesNotAffectScrollVelocity: true
+InitialScrollVelocity: 1.25
+CustomAudioSamples:
+- Path: effect.wav
+  UnaffectedByRate: true
+TimingPoints:
+- StartTime: 0
+  Bpm: 120
+SliderVelocities:
+- StartTime: 500
+  Multiplier: -2
+TimingGroups:
+  Reverse: !ScrollGroup
+    InitialScrollVelocity: -1
+    ScrollVelocities:
+      - StartTime: 800
+        Multiplier: -3
+    ScrollSpeedFactors:
+      - StartTime: 900
+        Multiplier: 1.5
+SoundEffects:
+- StartTime: 750
+  Sample: 1
+  Volume: 42
+HitObjects:
+- StartTime: 1000
+  Lane: 7
+  TimingGroup: Reverse
+  KeySounds:
+  - Sample: 1
+    Volume: 35
+- StartTime: 1500
+  Lane: 1
+  Type: Mine
+""");
+            File.WriteAllBytes(
+                Path.Combine(Path.GetDirectoryName(path)!, "effect.wav"),
+                []);
+            ChartImportResult original = import(path);
+            string exported = Path.Combine(
+                Path.GetDirectoryName(path)!,
+                "roundtrip-export.qua");
+
+            QuaverBeatmapIO.WriteToFile(original.Beatmap, exported);
+            ChartImportResult restored = import(exported);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(restored.Beatmap.KeyMode, Is.EqualTo(KeyMode.SevenKey));
+                Assert.That(
+                    restored.Beatmap.InitialScrollVelocity,
+                    Is.EqualTo(1.25));
+                Assert.That(
+                    restored.Beatmap.ScrollVelocities.Single().Multiplier,
+                    Is.EqualTo(-2));
+                Assert.That(
+                    restored.Beatmap.HitObjects.Count(
+                        static hitObject =>
+                            hitObject.Kind == HitObjectKind.Mine),
+                    Is.EqualTo(1));
+                Assert.That(
+                    restored.Beatmap.HitObjects[0].Samples.Last().Volume,
+                    Is.EqualTo(35));
+                Assert.That(
+                    restored.Beatmap.HitObjects[0].ScrollProfileId,
+                    Is.EqualTo("Reverse"));
+                Assert.That(
+                    restored.Beatmap.ScrollProfiles["Reverse"]
+                        .ScrollVelocities.Single().Multiplier,
+                    Is.EqualTo(-3));
+                Assert.That(
+                    restored.Beatmap.ScrollProfiles["Reverse"]
+                        .ScrollSpeedFactors.Single().Multiplier,
+                    Is.EqualTo(1.5));
+                Assert.That(
+                    restored.Beatmap.ScheduledSamples.Single().Volume,
+                    Is.EqualTo(42));
+            });
+        }
+
+        [Test]
         public void RejectsQuaverScratchKeyCharts()
         {
             string path = writeChart("quaver-scratch", ".qua", """
@@ -262,6 +438,25 @@ HitObjects:
                 () => import(path))!;
 
             Assert.That(exception.Message, Does.Contain("pure 4K and 7K"));
+        }
+
+        [TestCase("Keys5")]
+        [TestCase("Keys8")]
+        public void RejectsQuaverModesOutsideFourAndSevenKey(string mode)
+        {
+            string path = writeChart("quaver-unsupported-mode", ".qua", $"""
+Mode: {mode}
+Title: Unsupported
+TimingPoints:
+- StartTime: 0
+  Bpm: 120
+HitObjects: []
+""");
+
+            Assert.That(
+                () => import(path),
+                Throws.TypeOf<InvalidDataException>()
+                      .With.Message.Contains("Unsupported Quaver mode"));
         }
 
         [Test]

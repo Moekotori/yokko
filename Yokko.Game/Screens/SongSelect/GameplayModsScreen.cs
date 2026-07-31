@@ -16,6 +16,7 @@ using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
 
@@ -183,7 +184,7 @@ internal partial class GameplayModsScreen : Screen
     [BackgroundDependencyLoader]
     private void load(TextureStore textures)
     {
-        Texture logo = textures.Get("home-logo-hd");
+        Texture logo = textures.Get("Mods/home-logo-transparent");
         Texture paperTexture = textures.Get("Mods/ivory-paper");
         Texture waveformTexture = textures.Get("Mods/orbit-waveform");
 
@@ -2125,12 +2126,12 @@ internal partial class GameplayModsScreen : Screen
             mod,
             selectedMods);
         detailAcronym.Text = definition.Acronym;
-        detailName.Text = definition.Name.ToUpperInvariant();
+        detailName.Text = YokkoStrings.ModName(definition);
         detailDescription.Clear();
         detailDescription.AddText(
             isSelectable(mod)
-                ? definition.Description
-                : "Available only for charts imported from osu!standard.");
+                ? YokkoStrings.ModDescription(definition)
+                : YokkoStrings.Get("mods.standard_only"));
 
         bool active = selectedMods.Contains(mod);
         Color4 detailAccent = accentForMod(

@@ -194,6 +194,7 @@ public static class ManiaBeatmapModTransformer
             structurallyApplied.StageCount,
             structurallyApplied.PreviewTimeMilliseconds,
             structurallyApplied.BreakPeriods,
-            structurallyApplied.LegacyLongNoteRendering);
+            structurallyApplied.LegacyLongNoteRendering,
+            structurallyApplied.ScheduledSamples);
     }
 }

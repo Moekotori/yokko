@@ -153,6 +153,9 @@ namespace Yokko.Game.Tests
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_MODS_PREVIEW") == "1")
             {
+                frameworkConfig.SetValue(
+                    FrameworkSetting.Locale,
+                    YokkoLocale.English);
                 if (Enum.TryParse(
                         Environment.GetEnvironmentVariable(
                             "YOKKO_PREVIEW_UI_SCALE"),

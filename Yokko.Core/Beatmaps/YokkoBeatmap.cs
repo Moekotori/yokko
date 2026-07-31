@@ -25,7 +25,8 @@ public sealed record YokkoBeatmap
         int StageCount = 1,
         double PreviewTimeMilliseconds = -1,
         IReadOnlyList<YokkoBreakPeriod>? BreakPeriods = null,
-        bool LegacyLongNoteRendering = false)
+        bool LegacyLongNoteRendering = false,
+        IReadOnlyList<YokkoScheduledSample>? ScheduledSamples = null)
     {
         if (!double.IsFinite(OverallDifficulty)
             || OverallDifficulty is < -15 or > 15)
@@ -75,6 +76,7 @@ public sealed record YokkoBeatmap
         this.PreviewTimeMilliseconds = PreviewTimeMilliseconds;
         this.BreakPeriods = BreakPeriods ?? [];
         this.LegacyLongNoteRendering = LegacyLongNoteRendering;
+        this.ScheduledSamples = ScheduledSamples ?? [];
     }
 
     public string Title { get; init; }
@@ -114,6 +116,8 @@ public sealed record YokkoBeatmap
     /// direction extrema. This preserves Quaver's LegacyLNRendering mode.
     /// </summary>
     public bool LegacyLongNoteRendering { get; init; }
+
+    public IReadOnlyList<YokkoScheduledSample> ScheduledSamples { get; init; }
 
     public int KeysPerStage => (int)KeyMode / StageCount;
 

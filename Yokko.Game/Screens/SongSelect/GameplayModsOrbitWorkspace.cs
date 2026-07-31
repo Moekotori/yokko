@@ -114,7 +114,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 RelativeSizeAxes = Axes.Both,
                 Texture = paperTexture,
                 FillMode = FillMode.Fill,
-                Alpha = 0.66f,
+                Alpha = 0.38f,
             },
             createHeader(logo),
             createCategoryRail(),
@@ -333,31 +333,31 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             Size = new Vector2(790, 620),
         };
 
-        orbitHost.Add(createRing(new Vector2(14, 82), 470, 1f, 0.38f));
-        orbitHost.Add(createRing(new Vector2(34, 102), 430, 1.2f, 0.62f));
-        orbitHost.Add(createRing(new Vector2(59, 127), 380, 1f, 0.25f));
-        orbitHost.Add(createRing(new Vector2(91, 159), 316, 1f, 0.2f));
+        orbitHost.Add(createRing(new Vector2(34, 102), 430, 1f, 0.38f));
+        orbitHost.Add(createRing(new Vector2(52, 120), 394, 1.2f, 0.62f));
+        orbitHost.Add(createRing(new Vector2(79, 147), 340, 1f, 0.25f));
+        orbitHost.Add(createRing(new Vector2(104, 172), 290, 1f, 0.2f));
         orbitHost.Add(createRingArc(
             new Vector2(-35, 30),
             570,
-            new Vector2(-10, 34),
-            new Vector2(390, 100),
-            HomeControlColours.Cyan,
-            1.8f));
+            new Vector2(20, 45),
+            new Vector2(350, 75),
+            new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.68f),
+            1.2f));
         orbitHost.Add(createRingArc(
             new Vector2(15, 80),
             470,
-            new Vector2(14, 170),
-            new Vector2(68, 250),
-            HomeControlColours.Pink,
-            1.8f));
+            new Vector2(15, 190),
+            new Vector2(45, 210),
+            new Color4(HomeControlColours.Pink.R, HomeControlColours.Pink.G, HomeControlColours.Pink.B, 0.64f),
+            1.2f));
         orbitHost.Add(createRingArc(
             new Vector2(-35, 30),
             570,
-            new Vector2(30, 492),
-            new Vector2(430, 92),
-            HomeControlColours.Cyan,
-            1.8f));
+            new Vector2(65, 480),
+            new Vector2(360, 70),
+            new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.68f),
+            1.2f));
         orbitHost.Add(hero = createHero());
         orbitHost.Add(nodeHost = new Container
         {
@@ -418,7 +418,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     {
         var result = new Container
         {
-            Position = new Vector2(105, 178),
+            Position = new Vector2(105, 160),
             Size = new Vector2(300, 266),
         };
         result.Children =
@@ -428,14 +428,14 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
                 Y = 0,
-                Font = HomeTypography.Hero(118),
+                Font = HomeTypography.Hero(126),
                 Colour = HomeControlColours.Pink,
             },
             heroName = new SpriteText
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Y = 126,
+                Y = 132,
                 Font = HomeTypography.Display(20),
                 Colour = HomeControlColours.Navy,
             },
@@ -451,8 +451,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Position = new Vector2(0, 160),
-                Width = 205,
+                Position = new Vector2(0, 166),
+                Width = 175,
                 AutoSizeAxes = Axes.Y,
                 TextAnchor = Anchor.TopCentre,
             },
@@ -460,7 +460,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Position = new Vector2(0, 220),
+                Position = new Vector2(0, 226),
                 Size = new Vector2(126, 34),
                 Colour = HomeControlColours.Pink,
             },
@@ -526,9 +526,9 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Position = new Vector2(0, 76),
+                Position = new Vector2(0, 72),
                 Text = "1.00x",
-                Font = HomeTypography.Hero(55),
+                Font = HomeTypography.Hero(62),
                 Colour = HomeControlColours.Navy,
             },
             rateMinus = new OrbitSquareButton(
@@ -598,7 +598,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             },
             activeRows = new Container
             {
-                Position = new Vector2(31, 303),
+                Position = new Vector2(31, 315),
                 Size = new Vector2(365, 250),
             },
         ];
@@ -780,8 +780,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             new(523, 109),
             new(555, 248),
             new(530, 386),
-            new(396, 508),
-            new(246, 554),
+            new(396, 488),
+            new(246, 524),
         ];
 
         Vector2? previousNodeCentre = null;
@@ -875,9 +875,9 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         Color4 accent = accentFor(definition);
         heroAcronym.Text = definition.Acronym;
         heroAcronym.Colour = accent;
-        heroName.Text = definition.Name.ToUpperInvariant();
+        heroName.Text = YokkoStrings.ModName(definition);
         heroDescription.Clear();
-        heroDescription.AddText(definition.Description);
+        heroDescription.AddText(YokkoStrings.ModDescription(definition));
         heroState.Text = YokkoStrings.Get(
             active ? "mods.active" : "mods.activate_hint");
         heroState.X = active ? 9 : 0;
@@ -1141,7 +1141,7 @@ internal partial class OrbitModNode : ClickableContainer
             name = new SpriteText
             {
                 Position = new Vector2(104, 15),
-                Text = definition.Name.ToUpperInvariant(),
+                Text = YokkoStrings.ModName(definition),
                 Font = HomeTypography.Display(11),
                 Colour = HomeControlColours.Navy,
             },
@@ -1160,7 +1160,7 @@ internal partial class OrbitModNode : ClickableContainer
                 AutoSizeAxes = Axes.Y,
             },
         ];
-        description.AddText(shorten(definition.Description, 52));
+        description.AddText(YokkoStrings.ModDescription(definition));
     }
 
     internal void SetState(bool active, bool focused, bool enabled)
@@ -1212,12 +1212,13 @@ internal partial class OrbitActiveModRow : ClickableContainer
     {
         Action = action;
         Size = new Vector2(365, 54);
-        background = createHexagonLayer(Color4.White);
+        background = createHexagonLayer(
+            Color4.White,
+            new Vector2(362, 51));
         background.Position = new Vector2(1.5f);
-        background.Size = new Vector2(362, 51);
         InternalChildren =
         [
-            createHexagonLayer(accent),
+            createHexagonLayer(accent, new Vector2(365, 54)),
             background,
             new SpriteText
             {
@@ -1233,7 +1234,7 @@ internal partial class OrbitActiveModRow : ClickableContainer
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = 102,
-                Text = definition.Name.ToUpperInvariant(),
+                Text = YokkoStrings.ModName(definition),
                 Font = HomeTypography.Display(11),
                 Colour = HomeControlColours.Navy,
             },
@@ -1262,24 +1263,25 @@ internal partial class OrbitActiveModRow : ClickableContainer
         remove.RotateTo(0, 120, Easing.OutQuint);
     }
 
-    private static Container createHexagonLayer(Color4 colour) => new()
+    private static Container createHexagonLayer(
+        Color4 colour,
+        Vector2 size) => new()
     {
-        RelativeSizeAxes = Axes.Both,
+        Size = size,
         Children =
         [
             new Box
             {
-                Position = new Vector2(14, 0),
-                RelativeSizeAxes = Axes.Both,
-                Width = -28,
+                Position = new Vector2(10, 0),
+                Size = new Vector2(size.X - 20, size.Y),
                 Colour = colour,
             },
             new osu.Framework.Graphics.Shapes.Triangle
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.Centre,
-                Position = new Vector2(14, 0),
-                Size = new Vector2(54, 28),
+                Position = new Vector2(10, 0),
+                Size = new Vector2(size.Y, 20),
                 Rotation = -90,
                 Colour = colour,
             },
@@ -1287,8 +1289,8 @@ internal partial class OrbitActiveModRow : ClickableContainer
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.Centre,
-                Position = new Vector2(-14, 0),
-                Size = new Vector2(54, 28),
+                Position = new Vector2(-10, 0),
+                Size = new Vector2(size.Y, 20),
                 Rotation = 90,
                 Colour = colour,
             },

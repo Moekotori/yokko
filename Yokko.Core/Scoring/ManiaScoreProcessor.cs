@@ -16,11 +16,16 @@ public sealed class ManiaScoreProcessor
     private readonly int maximumAccuracyJudgementCount;
     private readonly double maximumComboPortion;
     private readonly double scoreMultiplier;
+    private readonly bool useQuaverScoring;
+    private readonly int quaverMaximumScoreCount;
 
     private double currentBaseScore;
     private double currentMaximumBaseScore;
     private int currentAccuracyJudgementCount;
     private double currentComboPortion;
+    private int quaverMultiplierCount;
+    private int quaverScoreCount;
+    private double quaverAccuracyWeightTotal;
 
     public ManiaScoreProcessor(
         YokkoBeatmap beatmap,
@@ -34,12 +39,16 @@ public sealed class ManiaScoreProcessor
         }
 
         this.scoreMultiplier = scoreMultiplier;
+        useQuaverScoring = beatmap.SourceFormat == ChartSourceFormat.Quaver;
         maximumAccuracyJudgementCount = beatmap.HitObjects.Sum(static hitObject => hitObject.Kind switch
         {
             HitObjectKind.Tap => 1,
             HitObjectKind.Hold => 2,
             _ => 0,
         });
+        quaverMaximumScoreCount =
+            calculateQuaverMaximumScoreCount(
+                maximumAccuracyJudgementCount);
 
         for (int combo = 1; combo <= maximumAccuracyJudgementCount; combo++)
             maximumComboPortion += comboScoreChange(JudgementRating.Perfect, combo);
@@ -51,7 +60,15 @@ public sealed class ManiaScoreProcessor
 
     public int MaxCombo { get; private set; }
 
-    public double Accuracy => currentMaximumBaseScore > 0
+    public double Accuracy => useQuaverScoring
+        ? maximumAccuracyJudgementCount > 0
+            ? Math.Max(
+                quaverAccuracyWeightTotal
+                / maximumAccuracyJudgementCount
+                / 100,
+                0)
+            : 1
+        : currentMaximumBaseScore > 0
         ? currentBaseScore / currentMaximumBaseScore
         : 1;
 
@@ -66,6 +83,15 @@ public sealed class ManiaScoreProcessor
                 0,
                 maximumAccuracyJudgementCount
                 - currentAccuracyJudgementCount);
+            if (useQuaverScoring)
+            {
+                return Math.Max(
+                    (quaverAccuracyWeightTotal + remainingJudgements * 100)
+                    / maximumAccuracyJudgementCount
+                    / 100,
+                    0);
+            }
+
             double maximumFinalBaseScore =
                 currentBaseScore
                 + remainingJudgements
@@ -87,6 +113,12 @@ public sealed class ManiaScoreProcessor
     {
         if (rating == JudgementRating.None)
             throw new ArgumentOutOfRangeException(nameof(rating));
+
+        if (useQuaverScoring)
+        {
+            applyQuaver(rating, isMine: false);
+            return;
+        }
 
         Counts.Add(rating);
 
@@ -110,6 +142,14 @@ public sealed class ManiaScoreProcessor
             currentComboPortion += comboScoreChange(rating, Combo);
 
         updateScore();
+    }
+
+    public void ApplyMine(bool wasHit)
+    {
+        if (!useQuaverScoring || !wasHit)
+            return;
+
+        applyQuaver(JudgementRating.Miss, isMine: true);
     }
 
     public static int BaseScoreFor(JudgementRating rating) => baseScoreFor(rating);
@@ -162,6 +202,115 @@ public sealed class ManiaScoreProcessor
             TotalScoreWithoutMods * scoreMultiplier);
         Rank = RankFromScore(Accuracy, Counts);
     }
+
+    private void applyQuaver(
+        JudgementRating rating,
+        bool isMine)
+    {
+        if (!rating.IsScorable())
+            return;
+
+        if (rating == JudgementRating.ComboBreak)
+        {
+            Counts.Add(rating);
+            quaverMultiplierCount = Math.Max(
+                0,
+                quaverMultiplierCount - 20);
+            Combo = 0;
+            updateQuaverScore();
+            return;
+        }
+
+        JudgementRating effectiveRating =
+            rating;
+        Counts.Add(effectiveRating);
+
+        if (effectiveRating != JudgementRating.Miss)
+        {
+            quaverMultiplierCount += effectiveRating
+                == JudgementRating.Ok
+                ? -10
+                : 1;
+            if (!isMine)
+                Combo++;
+        }
+        else
+        {
+            quaverMultiplierCount -= 20;
+            Combo = 0;
+        }
+
+        quaverMultiplierCount = Math.Clamp(
+            quaverMultiplierCount,
+            0,
+            150);
+        MaxCombo = Math.Max(MaxCombo, Combo);
+
+        int multiplierIndex = quaverMultiplierCount / 10;
+        quaverScoreCount +=
+            quaverScoreWeight(effectiveRating)
+            + multiplierIndex * 10;
+        if (!isMine)
+        {
+            currentAccuracyJudgementCount++;
+            quaverAccuracyWeightTotal +=
+                quaverAccuracyWeight(effectiveRating);
+        }
+
+        updateQuaverScore();
+    }
+
+    private void updateQuaverScore()
+    {
+        TotalScoreWithoutMods = quaverMaximumScoreCount > 0
+            ? (long)(1_000_000d
+                     * quaverScoreCount
+                     / quaverMaximumScoreCount)
+            : 0;
+        TotalScore = (long)Math.Round(
+            TotalScoreWithoutMods * scoreMultiplier);
+        Rank = RankFromScore(Accuracy, Counts);
+    }
+
+    private static int calculateQuaverMaximumScoreCount(
+        int judgementCount)
+    {
+        int result = 0;
+        for (int index = 1;
+             index <= judgementCount && index < 150;
+             index++)
+        {
+            result += 100 + 10 * (index / 10);
+        }
+
+        if (judgementCount >= 150)
+            result += (judgementCount - 149) * 250;
+
+        return result;
+    }
+
+    private static int quaverScoreWeight(
+        JudgementRating rating) => rating switch
+        {
+            JudgementRating.Perfect => 100,
+            JudgementRating.Great => 50,
+            JudgementRating.Good => 25,
+            JudgementRating.Ok => 10,
+            JudgementRating.Meh => 5,
+            _ => 0,
+        };
+
+    private static double quaverAccuracyWeight(
+        JudgementRating rating) => rating switch
+        {
+            JudgementRating.Perfect => 100,
+            JudgementRating.Great => 98.25,
+            JudgementRating.Good => 65,
+            JudgementRating.Ok => 25,
+            JudgementRating.Meh => -100,
+            JudgementRating.Miss => -50,
+            _ => 0,
+        };
 
     private static JudgementRating maximumResultFor(JudgementRating rating)
         => rating switch

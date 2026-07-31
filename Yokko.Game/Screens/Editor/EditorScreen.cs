@@ -16,6 +16,7 @@ using osu.Framework.Screens;
 using osuTK;
 using osuTK.Input;
 using Yokko.Core.Editing;
+using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
@@ -23,6 +24,7 @@ using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Import;
 using Yokko.Import.Osu;
+using Yokko.Import.Quaver;
 
 namespace Yokko.Game.Screens.Editor;
 
@@ -301,7 +303,10 @@ public partial class EditorScreen : Screen
         try
         {
             string outputPath = getExportPath();
-            OsuManiaBeatmapIO.WriteEditableToFile(editableBeatmap, outputPath);
+            if (editableBeatmap.SourceFormat == ChartSourceFormat.Quaver)
+                QuaverBeatmapIO.WriteEditableToFile(editableBeatmap, outputPath);
+            else
+                OsuManiaBeatmapIO.WriteEditableToFile(editableBeatmap, outputPath);
             editableBeatmap.SourcePath = outputPath;
             inspector.Refresh();
             setStatus(YokkoStrings.Get("editor.status.exported", outputPath));
@@ -321,7 +326,13 @@ public partial class EditorScreen : Screen
         if (string.IsNullOrWhiteSpace(fileName))
             fileName = "yokko-chart";
 
-        return Path.Combine(exportDirectory, $"{fileName}-{(int)editableBeatmap.KeyMode}K.osu");
+        string extension =
+            editableBeatmap.SourceFormat == ChartSourceFormat.Quaver
+                ? ".qua"
+                : ".osu";
+        return Path.Combine(
+            exportDirectory,
+            $"{fileName}-{(int)editableBeatmap.KeyMode}K{extension}");
     }
 
     private void setStatus(LocalisableString message)

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using osu.Framework.Configuration;
 using osu.Framework.IO.Stores;
 using osu.Framework.Localisation;
+using Yokko.Core.Mods;
 
 namespace Yokko.Game.Localisation;
 
@@ -153,6 +154,72 @@ internal static class YokkoStrings
             ["mods.back"] = new("BACK", "返回", "戻る"),
             ["mods.reset"] = new("RESET", "重置", "リセット"),
             ["mods.done"] = new("DONE", "完成", "完了"),
+            ["mods.standard_only"] = new(
+                "Available only for charts imported from osu!standard.",
+                "仅适用于从 osu!standard 导入的谱面。",
+                "osu!standard からインポートした譜面でのみ利用できます。"),
+            ["mods.definition.easy.name"] = new("Easy", "简单", "イージー"),
+            ["mods.definition.easy.description"] = new("Forgiving difficulty and gentler health drain.", "降低难度与生命值损耗。", "難易度とライフ減少を緩和します。"),
+            ["mods.definition.no-fail.name"] = new("No Fail", "不会失败", "ノーフェイル"),
+            ["mods.definition.no-fail.description"] = new("Keep playing even when your health reaches zero.", "生命值归零后仍可继续游玩。", "ライフがゼロになってもプレイを続けられます。"),
+            ["mods.definition.half-time.name"] = new("Half Time", "半速", "ハーフタイム"),
+            ["mods.definition.half-time.description"] = new("Slow the song down to 75% speed.", "将歌曲速度降低至 75%。", "楽曲速度を 75% に下げます。"),
+            ["mods.definition.daycore.name"] = new("Daycore", "降调半速", "デイコア"),
+            ["mods.definition.daycore.description"] = new("Slow down with a lower-pitched soundtrack.", "降低速度，同时降低音调。", "速度と音程を下げます。"),
+            ["mods.definition.no-release.name"] = new("No Release", "忽略松键", "ノーリリース"),
+            ["mods.definition.no-release.description"] = new("Ignore judgements when hold notes are released.", "忽略长按音符松键时的判定。", "長押しノーツを離した時の判定を無視します。"),
+            ["mods.definition.hard-rock.name"] = new("Hard Rock", "困难", "ハードロック"),
+            ["mods.definition.hard-rock.description"] = new("Raise the difficulty and health drain.", "提高难度与生命值损耗。", "難易度とライフ減少を上げます。"),
+            ["mods.definition.sudden-death.name"] = new("Sudden Death", "突然死亡", "サドンデス"),
+            ["mods.definition.sudden-death.description"] = new("A single miss ends the run.", "一次 Miss 即结束游玩。", "1 回の Miss でプレイ終了になります。"),
+            ["mods.definition.perfect.name"] = new("Perfect", "完美", "パーフェクト"),
+            ["mods.definition.perfect.description"] = new("Any judgement below Great ends the run.", "出现低于 Great 的判定即结束游玩。", "Great 未満の判定でプレイ終了になります。"),
+            ["mods.definition.double-time.name"] = new("Double Time", "加速", "ダブルタイム"),
+            ["mods.definition.double-time.description"] = new("Speed the song up to 150%.", "将歌曲速度提高至 150%。", "楽曲速度を 150% に上げます。"),
+            ["mods.definition.nightcore.name"] = new("Nightcore", "升调加速", "ナイトコア"),
+            ["mods.definition.nightcore.description"] = new("Speed up with a higher-pitched soundtrack.", "提高速度，同时提高音调。", "速度と音程を上げます。"),
+            ["mods.definition.fade-in.name"] = new("Fade In", "渐入", "フェードイン"),
+            ["mods.definition.fade-in.description"] = new("Notes appear gradually as they approach.", "音符接近时逐渐出现。", "接近するノーツが徐々に現れます。"),
+            ["mods.definition.hidden.name"] = new("Hidden", "隐藏", "ヒドゥン"),
+            ["mods.definition.hidden.description"] = new("Notes fade before reaching the judgement line.", "音符到达判定线前逐渐消失。", "ノーツが判定ラインの前で消えていきます。"),
+            ["mods.definition.cover.name"] = new("Cover", "遮挡", "カバー"),
+            ["mods.definition.cover.description"] = new("Hide part of the playfield with a cover.", "用遮罩隐藏部分游玩区域。", "カバーでプレイフィールドの一部を隠します。"),
+            ["mods.definition.flashlight.name"] = new("Flashlight", "手电筒", "フラッシュライト"),
+            ["mods.definition.flashlight.description"] = new("See notes only through a limited viewing area.", "只能在有限的可视范围内看到音符。", "限られた範囲内だけノーツが見えます。"),
+            ["mods.definition.accuracy-challenge.name"] = new("Accuracy Challenge", "准确率挑战", "精度チャレンジ"),
+            ["mods.definition.accuracy-challenge.description"] = new("Fail when accuracy drops below your target.", "准确率低于目标时失败。", "精度が目標を下回ると失敗します。"),
+            ["mods.definition.random.name"] = new("Random", "随机", "ランダム"),
+            ["mods.definition.random.description"] = new("Shuffle note columns with a repeatable seed.", "使用可复现的种子随机排列音符轨道。", "再現可能なシードでノーツ列を並べ替えます。"),
+            ["mods.definition.dual-stages.name"] = new("Dual Stages", "双舞台", "デュアルステージ"),
+            ["mods.definition.dual-stages.description"] = new("Split converted charts across two playfields.", "将转换后的谱面分布到两个游玩区域。", "変換した譜面を 2 つのプレイフィールドに分けます。"),
+            ["mods.definition.mirror.name"] = new("Mirror", "镜像", "ミラー"),
+            ["mods.definition.mirror.description"] = new("Reverse every note column.", "反转所有音符轨道。", "すべてのノーツ列を反転します。"),
+            ["mods.definition.difficulty-adjust.name"] = new("Difficulty Adjust", "难度调整", "難易度調整"),
+            ["mods.definition.difficulty-adjust.description"] = new("Customise health drain and judgement difficulty.", "自定义生命值损耗与判定难度。", "ライフ減少と判定難易度を調整します。"),
+            ["mods.definition.classic.name"] = new("Classic", "经典", "クラシック"),
+            ["mods.definition.classic.description"] = new("Use classic mania scoring and behaviour.", "使用经典 mania 计分与行为。", "クラシックな mania のスコアと動作を使用します。"),
+            ["mods.definition.invert.name"] = new("Invert", "反转音符", "インバート"),
+            ["mods.definition.invert.description"] = new("Swap tap notes and hold-note bodies.", "交换短按音符与长按音符主体。", "タップノーツと長押しノーツの本体を入れ替えます。"),
+            ["mods.definition.constant-speed.name"] = new("Constant Speed", "恒定流速", "コンスタントスピード"),
+            ["mods.definition.constant-speed.description"] = new("Keep the visual scroll velocity constant.", "保持视觉滚动速度恒定。", "見た目のスクロール速度を一定にします。"),
+            ["mods.definition.hold-off.name"] = new("Hold Off", "移除长按", "ホールドオフ"),
+            ["mods.definition.hold-off.description"] = new("Convert hold notes into regular tap notes.", "将长按音符转换为普通短按音符。", "長押しノーツを通常のタップノーツに変換します。"),
+            ["mods.definition.key-count.name"] = new("{0} Keys", "{0} 键", "{0} キー"),
+            ["mods.definition.key-count.description"] = new("Convert a standard-mode chart to this key count.", "将标准模式谱面转换为此键数。", "standard モードの譜面をこのキー数に変換します。"),
+            ["mods.definition.autoplay.name"] = new("Autoplay", "自动游玩", "オートプレイ"),
+            ["mods.definition.autoplay.description"] = new("Watch a perfect automated performance.", "观看完美的自动演示。", "完璧な自動プレイを鑑賞します。"),
+            ["mods.definition.cinema.name"] = new("Cinema", "影院模式", "シネマ"),
+            ["mods.definition.cinema.description"] = new("Watch an automated performance without the playfield.", "隐藏游玩区域并观看自动演示。", "プレイフィールドを隠して自動プレイを鑑賞します。"),
+            ["mods.definition.wind-up.name"] = new("Wind Up", "逐渐加速", "ウインドアップ"),
+            ["mods.definition.wind-up.description"] = new("Gradually increase playback speed.", "逐渐提高播放速度。", "再生速度を徐々に上げます。"),
+            ["mods.definition.wind-down.name"] = new("Wind Down", "逐渐减速", "ウインドダウン"),
+            ["mods.definition.wind-down.description"] = new("Gradually decrease playback speed.", "逐渐降低播放速度。", "再生速度を徐々に下げます。"),
+            ["mods.definition.muted.name"] = new("Muted", "静音玩法", "ミュート"),
+            ["mods.definition.muted.description"] = new("Play with configurable audio cues muted.", "游玩时按设置静音部分音频提示。", "設定したオーディオキューを消してプレイします。"),
+            ["mods.definition.adaptive-speed.name"] = new("Adaptive Speed", "自适应速度", "アダプティブスピード"),
+            ["mods.definition.adaptive-speed.description"] = new("Change speed in response to recent accuracy.", "根据近期准确率动态调整速度。", "直近の精度に応じて速度を変えます。"),
+            ["mods.definition.score-v2.name"] = new("Score V2", "新版计分", "スコア V2"),
+            ["mods.definition.score-v2.description"] = new("Use the modern score calculation.", "使用现代计分方式。", "新しいスコア計算を使用します。"),
 
             ["gameplay.pause.title"] = new("Paused", "暂停", "一時停止"),
             ["gameplay.pause.subtitle"] = new("Catch your breath.", "先喘口气。", "ひと休み。"),
@@ -1143,6 +1210,25 @@ internal static class YokkoStrings
             throw new ArgumentException($"Unknown localisation key: {key}", nameof(key));
 
         return new TranslatableString(key, translation.English, args);
+    }
+
+    public static LocalisableString ModName(ManiaModDefinition definition)
+    {
+        if (definition.Id is >= ManiaModId.Key1 and <= ManiaModId.Key10)
+        {
+            int keys = (int)definition.Id - (int)ManiaModId.Key1 + 1;
+            return Get("mods.definition.key-count.name", keys);
+        }
+
+        return Get($"mods.definition.{definition.Key}.name");
+    }
+
+    public static LocalisableString ModDescription(ManiaModDefinition definition)
+    {
+        if (definition.Id is >= ManiaModId.Key1 and <= ManiaModId.Key10)
+            return Get("mods.definition.key-count.description");
+
+        return Get($"mods.definition.{definition.Key}.description");
     }
 
     public static string SearchTerms(params string[] keys) =>

@@ -105,6 +105,22 @@ public static class YokkoBeatmapFingerprint
             }
 
             writeConversionSource(writer, beatmap.ConversionSource);
+
+            // Keep fingerprints for charts without timeline samples stable.
+            // The marker makes the appended optional block unambiguous.
+            if (beatmap.ScheduledSamples.Count > 0)
+            {
+                writer.Write("scheduled-samples-v1");
+                writer.Write(beatmap.ScheduledSamples.Count);
+                foreach (YokkoScheduledSample sample in
+                         beatmap.ScheduledSamples)
+                {
+                    writer.Write(sample.TimeMilliseconds);
+                    writer.Write(Path.GetFileName(sample.Path));
+                    writer.Write(sample.Volume);
+                    writer.Write(sample.UnaffectedByRate);
+                }
+            }
         }
 
         return Convert.ToHexString(SHA256.HashData(stream.ToArray()));
