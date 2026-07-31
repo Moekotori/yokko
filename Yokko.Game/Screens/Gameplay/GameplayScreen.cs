@@ -153,6 +153,7 @@ public partial class GameplayScreen : Screen
     private IRenderer renderer;
     private bool isPaused;
     private bool pauseTransitionInProgress;
+    private int pausesUsed;
     private bool resumeCountdownInProgress;
     private double pausedGameplayTime;
     private double pausedAudioPosition;
@@ -209,6 +210,10 @@ public partial class GameplayScreen : Screen
     internal float LayoutOverviewAspectRatio =>
         layoutEditor?.OverviewAspectRatio ?? 0;
     internal bool PauseTransitionInProgress => pauseTransitionInProgress;
+    internal int PausesUsed => pausesUsed;
+    internal int PausesRemaining => mods.Contains(ManiaModId.NoPause)
+        ? Math.Max(0, mods.NoPauseAllowedPauses - pausesUsed)
+        : int.MaxValue;
     internal bool ResumeCountdownInProgress => resumeCountdownInProgress;
     internal bool QuickRetryHoldActive =>
         !double.IsNaN(quickRetryHoldStartTime);
@@ -2218,8 +2223,15 @@ public partial class GameplayScreen : Screen
 
         if (isPaused)
             beginResumeCountdown();
-        else
+        else if (!mods.Contains(ManiaModId.NoPause)
+                 || pausesUsed < mods.NoPauseAllowedPauses)
             _ = pauseGameplayAsync();
+        else
+            diagnostics.Trace(
+                "GAMEPLAY",
+                "pause-blocked",
+                $"No Pause allowance exhausted ({pausesUsed}/{mods.NoPauseAllowedPauses}).",
+                LogLevel.Important);
     }
 
     internal void HandleHostDeactivated()
@@ -2284,6 +2296,7 @@ public partial class GameplayScreen : Screen
         {
             if (hasAudioClock)
                 await audioEngine.PauseAsync().ConfigureAwait(true);
+            pausesUsed++;
             diagnostics.Trace("GAMEPLAY", "paused", $"time={pausedGameplayTime:0.###}ms");
         }
         catch (Exception ex)

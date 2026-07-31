@@ -971,6 +971,15 @@ internal partial class GameplayModsScreen : Screen
         updateSelection();
     }
 
+    internal void SetNoPauseAllowedPauses(int value)
+    {
+        if (!selectedMods.Contains(ManiaModId.NoPause))
+            return;
+
+        selectedMods = selectedMods.WithNoPause(value);
+        updateSelection();
+    }
+
     internal void SetTimeRampInitialRate(double value)
     {
         if (!selectedMods.HasTimeRamp)
@@ -1313,6 +1322,7 @@ internal partial class GameplayModsScreen : Screen
             SetAdaptiveInitialRate,
             SetAdaptiveAdjustPitch,
             SetRandomSeed,
+            SetNoPauseAllowedPauses,
             ToggleMod)
         {
             Position = new Vector2(16, 12),
@@ -2589,7 +2599,8 @@ internal partial class GameplayModsScreen : Screen
             || beatmap.ConversionSource is not null);
 
     private static bool isConfigurable(ManiaModId mod) =>
-        mod is ManiaModId.Perfect
+        mod is ManiaModId.NoPause
+            or ManiaModId.Perfect
             or ManiaModId.AccuracyChallenge
             or ManiaModId.DifficultyAdjust
             or ManiaModId.Muted

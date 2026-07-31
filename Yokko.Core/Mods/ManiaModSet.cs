@@ -101,7 +101,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
         bool adaptiveAdjustPitch = true,
         bool perfectRequirePerfectHits = false,
         double? fixedRateSpeedChange = null,
-        bool fixedRateAdjustPitch = false)
+        bool fixedRateAdjustPitch = false,
+        int noPauseAllowedPauses = 0)
     {
         ArgumentNullException.ThrowIfNull(mods);
         this.mods = mods.Distinct()
@@ -242,6 +243,15 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
         }
         AdaptiveInitialRate = adaptive ? adaptiveInitialRate : 1;
         AdaptiveAdjustPitch = adaptive && adaptiveAdjustPitch;
+        if (noPauseAllowedPauses is < 0 or > 10)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(noPauseAllowedPauses),
+                "No Pause allowance must be between 0 and 10.");
+        }
+        NoPauseAllowedPauses = Contains(ManiaModId.NoPause)
+            ? noPauseAllowedPauses
+            : 0;
 
         int selectedRateMods = this.mods.Count(rateMods.Contains);
         if (selectedRateMods > 1)
@@ -305,6 +315,14 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
         {
             throw new ArgumentException(
                 "No Fail, Sudden Death and Perfect are mutually exclusive.",
+                nameof(mods));
+        }
+
+        if (Contains(ManiaModId.NoPause)
+            && Contains(ManiaModId.NoFail))
+        {
+            throw new ArgumentException(
+                "No Pause and No Fail are mutually exclusive.",
                 nameof(mods));
         }
 
@@ -431,6 +449,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
     public double FixedRateSpeedChange { get; }
 
     public bool FixedRateAdjustPitch { get; }
+
+    public int NoPauseAllowedPauses { get; }
 
     public bool HasTimeRamp =>
         Contains(ManiaModId.WindUp)
@@ -697,6 +717,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                             CultureInfo.InvariantCulture)
                         + ":"
                         + (AdaptiveAdjustPitch ? "pitch" : "tempo"),
+                    ManiaModId.NoPause =>
+                        $"{key}:{NoPauseAllowedPauses}",
                     _ => key,
                 };
             }));
@@ -741,6 +763,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                     + $"{TimeRampInitialRate:0.00}→{TimeRampFinalRate:0.00}",
                 ManiaModId.AdaptiveSpeed =>
                     $"AS {AdaptiveInitialRate:0.00}",
+                ManiaModId.NoPause =>
+                    $"NP {NoPauseAllowedPauses}",
                 _ => OsuManiaModParityCatalog.Get(mod).Acronym,
             })
             .ToArray();
@@ -823,6 +847,10 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             {
                 next.Remove(ManiaModId.Cinema);
             }
+            if (mod == ManiaModId.NoPause)
+                next.Remove(ManiaModId.NoFail);
+            else if (mod == ManiaModId.NoFail)
+                next.Remove(ManiaModId.NoPause);
 
             next.Add(mod);
         }
@@ -870,7 +898,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                 && !Contains(mod)
                     ? null
                     : FixedRateSpeedChange,
-                FixedRateAdjustPitch);
+                FixedRateAdjustPitch,
+                NoPauseAllowedPauses);
     }
 
     public ManiaModSet WithRandomSeed(int seed)
@@ -902,7 +931,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             AdaptiveAdjustPitch,
             PerfectRequirePerfectHits,
             FixedRateSpeedChange,
-            FixedRateAdjustPitch);
+            FixedRateAdjustPitch,
+            NoPauseAllowedPauses);
     }
 
     public ManiaModSet WithCover(
@@ -935,7 +965,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             AdaptiveAdjustPitch,
             PerfectRequirePerfectHits,
             FixedRateSpeedChange,
-            FixedRateAdjustPitch);
+            FixedRateAdjustPitch,
+            NoPauseAllowedPauses);
     }
 
     public ManiaModSet WithFlashlight(
@@ -968,7 +999,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             AdaptiveAdjustPitch,
             PerfectRequirePerfectHits,
             FixedRateSpeedChange,
-            FixedRateAdjustPitch);
+            FixedRateAdjustPitch,
+            NoPauseAllowedPauses);
     }
 
     public ManiaModSet WithAccuracyChallenge(
@@ -1005,7 +1037,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             AdaptiveAdjustPitch,
             PerfectRequirePerfectHits,
             FixedRateSpeedChange,
-            FixedRateAdjustPitch);
+            FixedRateAdjustPitch,
+            NoPauseAllowedPauses);
     }
 
     public ManiaModSet WithPerfect(bool requirePerfectHits)
@@ -1039,7 +1072,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             enabled.AdaptiveAdjustPitch,
             requirePerfectHits,
             enabled.FixedRateSpeedChange,
-            enabled.FixedRateAdjustPitch);
+            enabled.FixedRateAdjustPitch,
+            enabled.NoPauseAllowedPauses);
     }
 
     public ManiaModSet WithFixedRate(
@@ -1078,7 +1112,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             enabled.AdaptiveAdjustPitch,
             enabled.PerfectRequirePerfectHits,
             speedChange,
-            adjustPitch);
+            adjustPitch,
+            enabled.NoPauseAllowedPauses);
     }
 
     public ManiaModSet WithDifficultyAdjust(
@@ -1124,7 +1159,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             AdaptiveAdjustPitch,
             PerfectRequirePerfectHits,
             FixedRateSpeedChange,
-            FixedRateAdjustPitch);
+            FixedRateAdjustPitch,
+            NoPauseAllowedPauses);
     }
 
     public ManiaModSet WithMuted(
@@ -1161,7 +1197,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             AdaptiveAdjustPitch,
             PerfectRequirePerfectHits,
             FixedRateSpeedChange,
-            FixedRateAdjustPitch);
+            FixedRateAdjustPitch,
+            NoPauseAllowedPauses);
     }
 
     public ManiaModSet WithTimeRamp(
@@ -1203,7 +1240,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             AdaptiveAdjustPitch,
             PerfectRequirePerfectHits,
             null,
-            false);
+            false,
+            NoPauseAllowedPauses);
     }
 
     public ManiaModSet WithAdaptiveSpeed(
@@ -1238,7 +1276,39 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             adjustPitch,
             PerfectRequirePerfectHits,
             null,
-            false);
+            false,
+            NoPauseAllowedPauses);
+    }
+
+    public ManiaModSet WithNoPause(int allowedPauses)
+    {
+        allowedPauses = Math.Clamp(allowedPauses, 0, 10);
+        ManiaModSet enabled = With(ManiaModId.NoPause, true);
+        return new ManiaModSet(
+            enabled.mods,
+            enabled.RandomSeed,
+            enabled.CoverCoverage,
+            enabled.CoverDirection,
+            enabled.FlashlightSizeMultiplier,
+            enabled.FlashlightComboBasedSize,
+            enabled.AccuracyChallengeMinimum,
+            enabled.AccuracyChallengeMode,
+            enabled.DifficultyAdjustDrainRate,
+            enabled.DifficultyAdjustOverallDifficulty,
+            enabled.DifficultyAdjustExtendedLimits,
+            enabled.MutedInverse,
+            enabled.MutedMetronome,
+            enabled.MutedComboCount,
+            enabled.MutedAffectsHitSounds,
+            enabled.HasTimeRamp ? enabled.TimeRampInitialRate : null,
+            enabled.HasTimeRamp ? enabled.TimeRampFinalRate : null,
+            enabled.TimeRampAdjustPitch,
+            enabled.AdaptiveInitialRate,
+            enabled.AdaptiveAdjustPitch,
+            enabled.PerfectRequirePerfectHits,
+            enabled.FixedRateSpeedChange,
+            enabled.FixedRateAdjustPitch,
+            allowedPauses);
     }
 
     public bool Equals(ManiaModSet? other) =>
@@ -1273,7 +1343,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
         && AdaptiveInitialRate.Equals(other.AdaptiveInitialRate)
         && AdaptiveAdjustPitch == other.AdaptiveAdjustPitch
         && FixedRateSpeedChange.Equals(other.FixedRateSpeedChange)
-        && FixedRateAdjustPitch == other.FixedRateAdjustPitch;
+        && FixedRateAdjustPitch == other.FixedRateAdjustPitch
+        && NoPauseAllowedPauses == other.NoPauseAllowedPauses;
 
     public override bool Equals(object? obj) =>
         obj is ManiaModSet other && Equals(other);
@@ -1305,6 +1376,7 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
         hash.Add(AdaptiveAdjustPitch);
         hash.Add(FixedRateSpeedChange);
         hash.Add(FixedRateAdjustPitch);
+        hash.Add(NoPauseAllowedPauses);
 
         return hash.ToHashCode();
     }

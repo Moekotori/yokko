@@ -53,6 +53,7 @@ internal sealed class YokkoManiaModPreferences
         ManiaModId.WindDown,
         ManiaModId.Muted,
         ManiaModId.AdaptiveSpeed,
+        ManiaModId.NoPause,
     ];
 
     private static readonly HashSet<ManiaModId> configurable_mods =
@@ -70,6 +71,7 @@ internal sealed class YokkoManiaModPreferences
         ManiaModId.WindUp,
         ManiaModId.WindDown,
         ManiaModId.AdaptiveSpeed,
+        ManiaModId.NoPause,
     ];
 
     private static readonly JsonSerializerOptions json_options = new()
@@ -227,6 +229,9 @@ internal sealed class YokkoManiaModPreferences
                 selectedMods.WithAdaptiveSpeed(
                     preferred.AdaptiveInitialRate,
                     preferred.AdaptiveAdjustPitch),
+            ManiaModId.NoPause =>
+                selectedMods.WithNoPause(
+                    preferred.NoPauseAllowedPauses),
             _ => selectedMods,
         };
     }

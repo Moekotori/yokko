@@ -243,9 +243,9 @@ internal static class YokkoStrings
                 "HUD 布局",
                 "HUD レイアウト"),
             ["gameplay.layout_editor.hint"] = new(
-                "Tab select · arrows move · Home centre · double-click reset",
-                "Tab 切换 · 方向键移动 · Home 居中 · 双击重置",
-                "Tab 切替 · 矢印移動 · Home 中央 · ダブルクリックでリセット"),
+                "Tab select · arrows move · Ctrl+S save",
+                "Tab 切换 · 方向键移动 · Ctrl+S 保存",
+                "Tab 切替 · 矢印移動 · Ctrl+S 保存"),
             ["gameplay.layout_editor.hide_hint"] = new(
                 "Saved · {0} hide UI · Ctrl+arrows resize",
                 "已保存 · {0} 隐藏界面 · Ctrl+方向键缩放",
@@ -351,9 +351,9 @@ internal static class YokkoStrings
                 "垂直居中",
                 "垂直中央"),
             ["gameplay.layout_editor.snap_hint"] = new(
-                "DRAG: Shift locks axis · Alt bypasses snap",
-                "拖动：Shift 锁定方向 · Alt 关闭吸附",
-                "ドラッグ：Shift で軸固定 · Alt でスナップ解除"),
+                "Shift locks axis · Alt bypasses snap · Ctrl+wheel resizes lanes",
+                "Shift 锁定方向 · Alt 关闭吸附 · Ctrl+滚动缩放轨道",
+                "Shift 軸固定 · Alt スナップ解除 · Ctrl+ホイールでレーン拡縮"),
             ["gameplay.layout_editor.covers"] = new(
                 "LANE BLOCKERS",
                 "轨道挡板",

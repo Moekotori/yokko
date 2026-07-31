@@ -22,6 +22,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
     private readonly Container timeRampPage;
     private readonly Container adaptivePage;
     private readonly Container randomPage;
+    private readonly Container noPausePage;
     private readonly Container keyPage;
     private readonly PageTab accuracyTab;
     private readonly PageTab difficultyTab;
@@ -40,6 +41,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
     internal SongSelectTimeRampSettings TimeRampSettings { get; }
     internal SongSelectAdaptiveSpeedSettings AdaptiveSettings { get; }
     internal SongSelectRandomSettings RandomSettings { get; }
+    internal SongSelectNoPauseSettings NoPauseSettings { get; }
     internal SongSelectKeyConversionSettings KeySettings { get; }
     internal ManiaModId ActivePage => activePage;
 
@@ -91,6 +93,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             adaptiveInitialChanged,
             adaptivePitchChanged,
             randomSeedChanged,
+            _ => { },
             _ => { })
     {
     }
@@ -119,6 +122,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         Action<double> adaptiveInitialChanged,
         Action<bool> adaptivePitchChanged,
         Action<int> randomSeedChanged,
+        Action<int> noPauseAllowedPausesChanged,
         Action<ManiaModId> keyModToggled)
     {
         Size = new Vector2(202, 270);
@@ -155,6 +159,8 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             adaptivePitchChanged);
         RandomSettings = new SongSelectRandomSettings(
             randomSeedChanged);
+        NoPauseSettings = new SongSelectNoPauseSettings(
+            noPauseAllowedPausesChanged);
         KeySettings = new SongSelectKeyConversionSettings(
             keyModToggled);
 
@@ -275,6 +281,13 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                 Alpha = 0,
                 Child = RandomSettings,
             },
+            noPausePage = new Container
+            {
+                Y = 43,
+                Size = new Vector2(202, 224),
+                Alpha = 0,
+                Child = NoPauseSettings,
+            },
             keyPage = new Container
             {
                 Y = 43,
@@ -290,6 +303,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
     public void Show(ManiaModId mod)
     {
         if (mod is not ManiaModId.Perfect
+            and not ManiaModId.NoPause
             and not ManiaModId.AccuracyChallenge
             and not ManiaModId.DifficultyAdjust
             and not ManiaModId.Cover
@@ -333,6 +347,8 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             mods.Contains(ManiaModId.AccuracyChallenge);
         bool perfectEnabled =
             mods.Contains(ManiaModId.Perfect);
+        bool noPauseEnabled =
+            mods.Contains(ManiaModId.NoPause);
         bool difficultyEnabled =
             mods.Contains(ManiaModId.DifficultyAdjust);
         bool mutedEnabled = mods.Contains(ManiaModId.Muted);
@@ -352,13 +368,16 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         bool windDownEnabled = mods.Contains(ManiaModId.WindDown);
         bool adaptiveEnabled = mods.HasAdaptiveSpeed;
         bool randomEnabled = mods.Contains(ManiaModId.Random);
-        if (activePage is ManiaModId.Perfect
+        if (activePage is ManiaModId.NoPause
+                or ManiaModId.Perfect
                 or ManiaModId.AccuracyChallenge
                 or ManiaModId.DifficultyAdjust
             && !isActivePageEnabled())
         {
-            activePage = perfectEnabled
-                ? ManiaModId.Perfect
+            activePage = noPauseEnabled
+                ? ManiaModId.NoPause
+                : perfectEnabled
+                    ? ManiaModId.Perfect
                 : accuracyEnabled
                     ? ManiaModId.AccuracyChallenge
                     : difficultyEnabled
@@ -379,6 +398,9 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         PerfectSettings.SetState(
             perfectEnabled,
             mods.PerfectRequirePerfectHits);
+        NoPauseSettings.SetState(
+            noPauseEnabled,
+            mods.NoPauseAllowedPauses);
         AccuracySettings.SetState(
             accuracyEnabled,
             mods.AccuracyChallengeMinimum,
@@ -447,6 +469,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
 
         bool isActivePageEnabled() => activePage switch
         {
+            ManiaModId.NoPause => noPauseEnabled,
             ManiaModId.Perfect => perfectEnabled,
             ManiaModId.AccuracyChallenge => accuracyEnabled,
             ManiaModId.DifficultyAdjust => difficultyEnabled,
@@ -459,6 +482,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
     private void updatePage()
     {
         bool showPerfect = activePage == ManiaModId.Perfect;
+        bool showNoPause = activePage == ManiaModId.NoPause;
         bool showAccuracy =
             activePage == ManiaModId.AccuracyChallenge;
         bool showDifficulty =
@@ -467,6 +491,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             activePage is ManiaModId.Cover
                 or ManiaModId.Flashlight;
         perfectPage.Alpha = showPerfect ? 1 : 0;
+        noPausePage.Alpha = showNoPause ? 1 : 0;
         accuracyPage.Alpha = showAccuracy ? 1 : 0;
         difficultyPage.Alpha = showDifficulty ? 1 : 0;
         visibilityPage.Alpha = showVisibility ? 1 : 0;
@@ -491,8 +516,10 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             and <= ManiaModId.Key10
             || activePage == ManiaModId.DualStages;
         keyPage.Alpha = showKey ? 1 : 0;
-        accuracyTab.SetLabel(showPerfect ? "PF" : "AC");
-        accuracyTab.SetSelected(showPerfect || showAccuracy);
+        accuracyTab.SetLabel(
+            showNoPause ? "NP" : showPerfect ? "PF" : "AC");
+        accuracyTab.SetSelected(
+            showNoPause || showPerfect || showAccuracy);
         difficultyTab.SetSelected(showDifficulty);
         visibilityTab.SetLabel(
             activePage == ManiaModId.Cover
@@ -535,7 +562,8 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                 : ManiaModId.Key4;
 
     private ManiaModId activeFailPage() =>
-        activePage is ManiaModId.Perfect
+        activePage is ManiaModId.NoPause
+            or ManiaModId.Perfect
             or ManiaModId.AccuracyChallenge
             ? activePage
             : ManiaModId.AccuracyChallenge;

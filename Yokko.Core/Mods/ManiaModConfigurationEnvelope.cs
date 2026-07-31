@@ -34,7 +34,8 @@ public sealed record ManiaModConfigurationSettings(
     double? InitialRate = null,
     double? FinalRate = null,
     bool? AdjustPitch = null,
-    double? SpeedChange = null);
+    double? SpeedChange = null,
+    int? AllowedPauses = null);
 
 /// <summary>
 /// Converts the immutable runtime Mod set to and from the versioned envelope.
@@ -121,6 +122,8 @@ public static class ManiaModConfigurationCodec
                     : ManiaModId.WindUp);
         ManiaModConfigurationSettings adaptive =
             get(settings, ManiaModId.AdaptiveSpeed);
+        ManiaModConfigurationSettings noPause =
+            get(settings, ManiaModId.NoPause);
         ManiaModId? fixedRate = ids
             .Where(static id => id is ManiaModId.HalfTime
                 or ManiaModId.Daycore
@@ -158,7 +161,8 @@ public static class ManiaModConfigurationCodec
                 adaptive.AdjustPitch ?? true,
                 perfect.RequirePerfectHits ?? false,
                 fixedRateSettings.SpeedChange,
-                fixedRateSettings.AdjustPitch ?? false);
+                fixedRateSettings.AdjustPitch ?? false,
+                noPause.AllowedPauses ?? 0);
         }
         catch (ArgumentException exception)
         {
@@ -209,6 +213,8 @@ public static class ManiaModConfigurationCodec
             ManiaModId.AdaptiveSpeed => new(
                 InitialRate: mods.AdaptiveInitialRate,
                 AdjustPitch: mods.AdaptiveAdjustPitch),
+            ManiaModId.NoPause => new(
+                AllowedPauses: mods.NoPauseAllowedPauses),
             ManiaModId.HalfTime
                 or ManiaModId.Daycore
                 or ManiaModId.DoubleTime
