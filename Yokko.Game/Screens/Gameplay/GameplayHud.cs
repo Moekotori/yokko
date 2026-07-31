@@ -166,10 +166,10 @@ public partial class GameplayHud : CompositeDrawable
         bool etterna =
             judgementConfiguration.Mode == JudgementMode.Etterna;
         comboText.Text = etterna
-            ? $"Score {state.Score:0000000}  Combo {state.Combo}"
-              + $" / Miss {state.MissCombo} / Max {state.MaxCombo}"
+            ? $"Score {state.Score:0000000}  Max {state.MaxCombo}"
+              + $" / Miss {state.MissCombo}"
               + $"  ·  CB {state.ComboBreaks}"
-            : $"Score {state.Score:0000000}  Combo {state.Combo} / Max {state.MaxCombo}";
+            : $"Score {state.Score:0000000}  Max {state.MaxCombo}";
         comboText.Colour =
             etterna && state.MissCombo > 0
                 ? YokkoPalette.Rose

@@ -153,6 +153,8 @@ public partial class GameplayScreen : Screen
     private double quickRetryHoldStartTime = double.NaN;
     private GameplayQuickRetryIndicator quickRetryIndicator;
     private GameplayFailOverlay failOverlay;
+    private Box backgroundDim;
+    private GameplayComboReadout comboReadout;
     private JudgementReadout judgementReadout;
     private GameplayTimingBar timingBar;
     private GameplayScrollSpeedOverlay scrollSpeedOverlay;
@@ -429,12 +431,27 @@ public partial class GameplayScreen : Screen
             {
                 Colour = YokkoPalette.Background,
                 RelativeSizeAxes = Axes.Both,
+                Depth = 1000,
+            },
+            backgroundDim = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = osuTK.Graphics.Color4.Black,
+                Alpha = (float)gameplaySettings.BackgroundDim.Value,
+                Depth = 900,
             },
             playfield = createGameplayPlayfield(),
             laneCovers = new GameplayLaneCovers(
                 playfield,
                 gameplaySettings),
             hud = createGameplayHud(playfield),
+            comboReadout = new GameplayComboReadout
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Position = new Vector2(0, 120),
+                Depth = -99,
+            },
             judgementReadout = new JudgementReadout(
                 configuration: judgementConfiguration)
             {
@@ -473,6 +490,8 @@ public partial class GameplayScreen : Screen
                 playfield,
                 hud,
                 timingBar,
+                comboReadout,
+                judgementReadout,
                 gameplaySettings,
                 createLayoutEditorLiveSettings(),
                 beginLayoutTestPlay,
@@ -501,11 +520,12 @@ public partial class GameplayScreen : Screen
                         0.82f,
                         0.86f,
                         1),
-                    Depth = -10,
+                    Depth = 950,
                 });
             }
             playfield.Alpha = 0;
             hud.Alpha = 0;
+            comboReadout.Alpha = 0;
             judgementReadout.Alpha = 0;
             timingBar.Alpha = 0;
             AddInternal(cinemaIndicator = new GameplayCinemaIndicator
@@ -636,6 +656,8 @@ public partial class GameplayScreen : Screen
             judgementState,
             healthState);
         hud.UpdateState(gameplayTime, judgementState, healthState);
+        if (!mods.IsCinema)
+            comboReadout.UpdateState(judgementState.Combo);
 
         if (judgementState.IsComplete
             && gameplayTime >= completionTimeMilliseconds)
@@ -749,6 +771,40 @@ public partial class GameplayScreen : Screen
                 gameplaySettings.LayoutTimingBarScaleY.Value,
                 YokkoGameplaySettings.MinimumLayoutScale,
                 YokkoGameplaySettings.MaximumLayoutScale));
+
+        comboReadout.Position = new Vector2(
+            (float)gameplaySettings.LayoutComboOffsetX.Value * DrawWidth,
+            120
+            + (float)gameplaySettings.LayoutComboOffsetY.Value * DrawHeight);
+        comboReadout.Scale = new Vector2(
+            (float)Math.Clamp(
+                gameplaySettings.LayoutComboScaleX.Value,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale),
+            (float)Math.Clamp(
+                gameplaySettings.LayoutComboScaleY.Value,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale));
+
+        judgementReadout.Position = new Vector2(
+            (float)gameplaySettings.LayoutJudgementOffsetX.Value * DrawWidth,
+            30
+            + (float)gameplaySettings.LayoutJudgementOffsetY.Value
+            * DrawHeight);
+        judgementReadout.Scale = new Vector2(
+            (float)Math.Clamp(
+                gameplaySettings.LayoutJudgementScaleX.Value,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale),
+            (float)Math.Clamp(
+                gameplaySettings.LayoutJudgementScaleY.Value,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale));
+
+        backgroundDim.Alpha = (float)Math.Clamp(
+            gameplaySettings.BackgroundDim.Value,
+            YokkoGameplaySettings.MinimumBackgroundDim,
+            YokkoGameplaySettings.MaximumBackgroundDim);
 
         scrollSpeedOverlay.X = Math.Clamp(
             playfieldLeft
@@ -3077,7 +3133,12 @@ public partial class GameplayScreen : Screen
             () => gameplaySettings.ScrollSpeed.Value,
             gameplaySettings.SetScrollSpeed,
             () => gameplaySettings.ScrollDirection.Value,
-            setLayoutEditorScrollDirection);
+            setLayoutEditorScrollDirection,
+            () => gameplaySettings.BackgroundDim.Value,
+            value => gameplaySettings.BackgroundDim.Value = Math.Clamp(
+                value,
+                YokkoGameplaySettings.MinimumBackgroundDim,
+                YokkoGameplaySettings.MaximumBackgroundDim));
 
     private IReadOnlyList<GameplayLayoutEditorSkinOption>
         layoutEditorSkinOptions()
@@ -3213,6 +3274,15 @@ public partial class GameplayScreen : Screen
         gameplaySettings.ScrollDirection.Value;
 
     internal double AppliedScrollSpeedForTest => appliedScrollSpeed;
+
+    internal double LayoutEditorBackgroundDimForTest =>
+        gameplaySettings.BackgroundDim.Value;
+
+    internal void SetLayoutEditorBackgroundDimForTest(double dim) =>
+        gameplaySettings.BackgroundDim.Value = Math.Clamp(
+            dim,
+            YokkoGameplaySettings.MinimumBackgroundDim,
+            YokkoGameplaySettings.MaximumBackgroundDim);
 
     private void beginLayoutTestPlay()
     {

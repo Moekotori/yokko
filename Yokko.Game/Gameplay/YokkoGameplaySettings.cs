@@ -163,6 +163,10 @@ public sealed class YokkoGameplaySettings
 
     public const double MaximumBottomCoverRatio = 0.5;
 
+    public const double MinimumBackgroundDim = 0;
+
+    public const double MaximumBackgroundDim = 1;
+
     /// <summary>
     /// Normalised presentation offsets. These are relative to the gameplay
     /// viewport so a saved layout remains usable across resolutions.
@@ -191,9 +195,27 @@ public sealed class YokkoGameplaySettings
 
     public readonly Bindable<double> LayoutTimingBarScaleY = new(1);
 
+    public readonly Bindable<double> LayoutComboOffsetX = new(0);
+
+    public readonly Bindable<double> LayoutComboOffsetY = new(0);
+
+    public readonly Bindable<double> LayoutComboScaleX = new(1);
+
+    public readonly Bindable<double> LayoutComboScaleY = new(1);
+
+    public readonly Bindable<double> LayoutJudgementOffsetX = new(0);
+
+    public readonly Bindable<double> LayoutJudgementOffsetY = new(0);
+
+    public readonly Bindable<double> LayoutJudgementScaleX = new(1);
+
+    public readonly Bindable<double> LayoutJudgementScaleY = new(1);
+
     public readonly Bindable<double> LayoutTopCoverRatio = new(0);
 
     public readonly Bindable<double> LayoutBottomCoverRatio = new(0);
+
+    public readonly Bindable<double> BackgroundDim = new(0.35);
 
     public readonly BindableBool KeysoundsEnabled = new(false);
 
@@ -485,8 +507,17 @@ public sealed class YokkoGameplaySettings
         LayoutTimingBarOffsetY.SetDefault();
         LayoutTimingBarScaleX.SetDefault();
         LayoutTimingBarScaleY.SetDefault();
+        LayoutComboOffsetX.SetDefault();
+        LayoutComboOffsetY.SetDefault();
+        LayoutComboScaleX.SetDefault();
+        LayoutComboScaleY.SetDefault();
+        LayoutJudgementOffsetX.SetDefault();
+        LayoutJudgementOffsetY.SetDefault();
+        LayoutJudgementScaleX.SetDefault();
+        LayoutJudgementScaleY.SetDefault();
         LayoutTopCoverRatio.SetDefault();
         LayoutBottomCoverRatio.SetDefault();
+        BackgroundDim.SetDefault();
     }
 
     public void AdjustScrollSpeed(double amount) =>

@@ -2237,9 +2237,9 @@ final result: passed
 - Selected source visual:
   `C:\Users\mochi\.codex\generated_images\019fb72c-4c90-73c0-8b44-35807879ec2f\call_IHh6LBcdS7126znzk0JEpQ4H.png`
 - Final native implementation:
-  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-pass2.png`
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-faithful-pass2.png`
 - Same-input focused comparison:
-  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-comparison.png`
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-faithful-comparison.png`
 
 ## Viewport, density, and state
 
@@ -2257,15 +2257,22 @@ final result: passed
 
 ## Comparison history
 
-1. Pass 1 established the selected three-control composition and removed the
-   old microcopy-heavy footer treatment.
-2. Focused review found P2 legibility mismatches: Back and Done labels were
-   still too timid, and the icon-only Reset control did not have enough visual
-   weight.
-3. The Back card increased from 310 to 330 units, its label from 30 to 36,
-   Done from 34 to 42, Reset from 32 to 38, and Play from 34 to 36.
-4. Pass 2 confirms that all three actions are immediately distinguishable,
-   with no clipping, overlap, or accidental bottom whitespace.
+1. The first implementation preserved only the source palette and three-part
+   arrangement. User review correctly rejected it as P1 design drift: Back was
+   330 x 88, Reset only 84 x 84, and Done 410 x 94, leaving the production
+   footer much flatter, emptier, and more generic than the selected concept.
+2. The rejected sizes and decoration system were replaced rather than tuned:
+   Back is now 430 x 104, Reset 102 x 102, and Done 500 x 106. Back and Done
+   typography increased to 46 and 50, with 52px Undo and 48px Play icons.
+3. Source-specific visual structure was restored: tall ESC tile, strong corner
+   cuts, navy surface depth, outer white guide frames, yellow top markers,
+   pink primary underline, and diagonal technical hatch marks.
+4. The first faithful native capture still lacked the source's lower hatch
+   rhythm. The second pass added white hatches under Back/Reset and cyan
+   hatches inside Done.
+5. The final combined comparison shows the same left/centre/right proportions,
+   control hierarchy, labels, icon scale, accents, and frame language within
+   the real 1600 x 130 production footer.
 
 ## Required fidelity review
 
@@ -2289,9 +2296,10 @@ final result: passed
 
 - P0: none.
 - P1: none.
-- P2: none after the pass-2 size refinement.
-- P3: the concept's tall outer guide frames were reduced to dividers and small
-  markers so they do not compete with controls in the 130px production bar.
+- P2: none after the rejected implementation was replaced.
+- P3: the source concept has a very subtle cyan lighting gradient; production
+  keeps the shared solid Yokko cyan token so the footer remains consistent
+  with other screens.
 
 ## Verification
 

@@ -30,6 +30,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private GameplayPlayfield playfield;
     private GameplayHud hud;
     private readonly GameplayTimingBar timingBar;
+    private readonly GameplayComboReadout comboReadout;
+    private readonly JudgementReadout judgementReadout;
     private readonly YokkoGameplaySettings settings;
     private readonly GameplayLayoutEditorLiveSettings liveSettings;
     private readonly Action beginTestPlay;
@@ -38,6 +40,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private readonly LayoutTransformTarget playfieldTarget;
     private readonly LayoutTransformTarget hudTarget;
     private readonly LayoutTransformTarget timingBarTarget;
+    private readonly LayoutTransformTarget comboTarget;
+    private readonly LayoutTransformTarget judgementTarget;
     private readonly CoverDragHandle topCoverHandle;
     private readonly CoverDragHandle bottomCoverHandle;
     private readonly Stack<LayoutSnapshot> undoHistory = new();
@@ -47,6 +51,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private Container miniPlayfield;
     private Container miniHud;
     private Container miniTimingBar;
+    private Container miniCombo;
+    private Container miniJudgement;
     private Box miniTopCover;
     private Box miniBottomCover;
     private LayoutActionButton undoButton;
@@ -70,12 +76,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     internal float OverviewAspectRatio =>
         overviewContent.Width / overviewContent.Height;
 
-    internal int TransformTargetCount => 3;
+    internal int TransformTargetCount => 5;
 
     internal int ResizeHandleCount =>
         playfieldTarget.ResizeHandleCount
         + hudTarget.ResizeHandleCount
-        + timingBarTarget.ResizeHandleCount;
+        + timingBarTarget.ResizeHandleCount
+        + comboTarget.ResizeHandleCount
+        + judgementTarget.ResizeHandleCount;
 
     internal void MoveTimingBarForTest(Vector2 delta) =>
         moveTimingBar(delta);
@@ -103,6 +111,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         GameplayPlayfield playfield,
         GameplayHud hud,
         GameplayTimingBar timingBar,
+        GameplayComboReadout comboReadout,
+        JudgementReadout judgementReadout,
         YokkoGameplaySettings settings,
         GameplayLayoutEditorLiveSettings liveSettings,
         Action beginTestPlay,
@@ -112,6 +122,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         this.playfield = playfield;
         this.hud = hud;
         this.timingBar = timingBar;
+        this.comboReadout = comboReadout;
+        this.judgementReadout = judgementReadout;
         this.settings = settings;
         this.liveSettings = liveSettings;
         this.beginTestPlay = beginTestPlay;
@@ -169,6 +181,30 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     moveTimingBar,
                     resizeTimingBar,
                     resetTimingBar,
+                    beginChange,
+                    selectTarget,
+                    snapTargetMove,
+                    clearSnapGuides),
+                comboTarget = new LayoutTransformTarget(
+                    this,
+                    LayoutElementKind.Combo,
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.combo"),
+                    moveCombo,
+                    resizeCombo,
+                    resetCombo,
+                    beginChange,
+                    selectTarget,
+                    snapTargetMove,
+                    clearSnapGuides),
+                judgementTarget = new LayoutTransformTarget(
+                    this,
+                    LayoutElementKind.Judgement,
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.judgement"),
+                    moveJudgement,
+                    resizeJudgement,
+                    resetJudgement,
                     beginChange,
                     selectTarget,
                     snapTargetMove,
@@ -236,6 +272,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         restoreOriginalAlpha(LayoutElementKind.Playfield);
         restoreOriginalAlpha(LayoutElementKind.Hud);
         restoreOriginalAlpha(LayoutElementKind.TimingBar);
+        comboReadout.SetEditorPreview(false);
+        judgementReadout.SetEditorPreview(false);
         this.FadeTo(0, 90, Easing.OutQuint);
     }
 
@@ -247,6 +285,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         IsTestingLayout = false;
         IsEditing = true;
         setChromeVisible(true, animate: false);
+        comboReadout.SetEditorPreview(true);
+        judgementReadout.SetEditorPreview(true);
         applyElementAlpha(
             LayoutElementKind.Playfield,
             playfieldTarget.EditorHidden);
@@ -256,6 +296,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         applyElementAlpha(
             LayoutElementKind.TimingBar,
             timingBarTarget.EditorHidden);
+        applyElementAlpha(
+            LayoutElementKind.Combo,
+            comboTarget.EditorHidden);
+        applyElementAlpha(
+            LayoutElementKind.Judgement,
+            judgementTarget.EditorHidden);
         this.FadeTo(1, 100, Easing.OutQuint);
     }
 
@@ -423,6 +469,10 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             GameplayLayoutGeometry.BoundsIn(this, hud);
         (Vector2 timingBarTopLeft, Vector2 timingBarBottomRight) =
             GameplayLayoutGeometry.BoundsIn(this, timingBar);
+        (Vector2 comboTopLeft, Vector2 comboBottomRight) =
+            GameplayLayoutGeometry.BoundsIn(this, comboReadout);
+        (Vector2 judgementTopLeft, Vector2 judgementBottomRight) =
+            GameplayLayoutGeometry.BoundsIn(this, judgementReadout);
 
         setBounds(
             playfieldTarget,
@@ -433,6 +483,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             timingBarTarget,
             timingBarTopLeft,
             timingBarBottomRight);
+        setBounds(comboTarget, comboTopLeft, comboBottomRight);
+        setBounds(
+            judgementTarget,
+            judgementTopLeft,
+            judgementBottomRight);
 
         float playfieldHeight = Math.Max(
             1,
@@ -465,7 +520,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             hudTopLeft,
             hudBottomRight,
             timingBarTopLeft,
-            timingBarBottomRight);
+            timingBarBottomRight,
+            comboTopLeft,
+            comboBottomRight,
+            judgementTopLeft,
+            judgementBottomRight);
         refreshInspector();
     }
 
@@ -762,6 +821,10 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                             0.68f),
                                     },
                                 },
+                                miniCombo = createMiniReadout(
+                                    HomeControlColours.Pink),
+                                miniJudgement = createMiniReadout(
+                                    HomeControlColours.Yellow),
                                 miniTopCover = createMiniCover(),
                                 miniBottomCover = createMiniCover(),
                             },
@@ -783,6 +846,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     private LayoutTransformTarget hoveredTarget()
     {
+        if (judgementTarget.IsHovered)
+            return judgementTarget;
+
+        if (comboTarget.IsHovered)
+            return comboTarget;
+
         if (timingBarTarget.IsHovered)
             return timingBarTarget;
 
@@ -812,6 +881,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             playfieldTarget,
             hudTarget,
             timingBarTarget,
+            comboTarget,
+            judgementTarget,
         ];
 
         if (selectedTarget == null)
@@ -876,6 +947,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         settings.LayoutTimingBarOffsetY.Value,
         settings.LayoutTimingBarScaleX.Value,
         settings.LayoutTimingBarScaleY.Value,
+        settings.LayoutComboOffsetX.Value,
+        settings.LayoutComboOffsetY.Value,
+        settings.LayoutComboScaleX.Value,
+        settings.LayoutComboScaleY.Value,
+        settings.LayoutJudgementOffsetX.Value,
+        settings.LayoutJudgementOffsetY.Value,
+        settings.LayoutJudgementScaleX.Value,
+        settings.LayoutJudgementScaleY.Value,
         settings.LayoutTopCoverRatio.Value,
         settings.LayoutBottomCoverRatio.Value);
 
@@ -901,6 +980,18 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             snapshot.TimingBarScaleX;
         settings.LayoutTimingBarScaleY.Value =
             snapshot.TimingBarScaleY;
+        settings.LayoutComboOffsetX.Value = snapshot.ComboOffsetX;
+        settings.LayoutComboOffsetY.Value = snapshot.ComboOffsetY;
+        settings.LayoutComboScaleX.Value = snapshot.ComboScaleX;
+        settings.LayoutComboScaleY.Value = snapshot.ComboScaleY;
+        settings.LayoutJudgementOffsetX.Value =
+            snapshot.JudgementOffsetX;
+        settings.LayoutJudgementOffsetY.Value =
+            snapshot.JudgementOffsetY;
+        settings.LayoutJudgementScaleX.Value =
+            snapshot.JudgementScaleX;
+        settings.LayoutJudgementScaleY.Value =
+            snapshot.JudgementScaleY;
         settings.LayoutTopCoverRatio.Value = snapshot.TopCoverRatio;
         settings.LayoutBottomCoverRatio.Value =
             snapshot.BottomCoverRatio;
@@ -936,6 +1027,26 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             + delta.Y / Math.Max(1, DrawHeight));
     }
 
+    private void moveCombo(Vector2 delta)
+    {
+        settings.LayoutComboOffsetX.Value = clampOffset(
+            settings.LayoutComboOffsetX.Value
+            + delta.X / Math.Max(1, DrawWidth));
+        settings.LayoutComboOffsetY.Value = clampOffset(
+            settings.LayoutComboOffsetY.Value
+            + delta.Y / Math.Max(1, DrawHeight));
+    }
+
+    private void moveJudgement(Vector2 delta)
+    {
+        settings.LayoutJudgementOffsetX.Value = clampOffset(
+            settings.LayoutJudgementOffsetX.Value
+            + delta.X / Math.Max(1, DrawWidth));
+        settings.LayoutJudgementOffsetY.Value = clampOffset(
+            settings.LayoutJudgementOffsetY.Value
+            + delta.Y / Math.Max(1, DrawHeight));
+    }
+
     private void resetPlayfield()
     {
         settings.LayoutPlayfieldOffsetX.SetDefault();
@@ -960,6 +1071,22 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         settings.LayoutTimingBarOffsetY.SetDefault();
         settings.LayoutTimingBarScaleX.SetDefault();
         settings.LayoutTimingBarScaleY.SetDefault();
+    }
+
+    private void resetCombo()
+    {
+        settings.LayoutComboOffsetX.SetDefault();
+        settings.LayoutComboOffsetY.SetDefault();
+        settings.LayoutComboScaleX.SetDefault();
+        settings.LayoutComboScaleY.SetDefault();
+    }
+
+    private void resetJudgement()
+    {
+        settings.LayoutJudgementOffsetX.SetDefault();
+        settings.LayoutJudgementOffsetY.SetDefault();
+        settings.LayoutJudgementScaleX.SetDefault();
+        settings.LayoutJudgementScaleY.SetDefault();
     }
 
     private void resizePlayfield(
@@ -1098,6 +1225,87 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         }
     }
 
+    private void resizeCombo(ResizeEdges edges, Vector2 delta) =>
+        resizeReadout(
+            comboReadout,
+            edges,
+            delta,
+            () => settings.LayoutComboScaleX.Value,
+            value => settings.LayoutComboScaleX.Value = value,
+            () => settings.LayoutComboScaleY.Value,
+            value => settings.LayoutComboScaleY.Value = value,
+            () => settings.LayoutComboOffsetX.Value,
+            value => settings.LayoutComboOffsetX.Value = value,
+            () => settings.LayoutComboOffsetY.Value,
+            value => settings.LayoutComboOffsetY.Value = value);
+
+    private void resizeJudgement(ResizeEdges edges, Vector2 delta) =>
+        resizeReadout(
+            judgementReadout,
+            edges,
+            delta,
+            () => settings.LayoutJudgementScaleX.Value,
+            value => settings.LayoutJudgementScaleX.Value = value,
+            () => settings.LayoutJudgementScaleY.Value,
+            value => settings.LayoutJudgementScaleY.Value = value,
+            () => settings.LayoutJudgementOffsetX.Value,
+            value => settings.LayoutJudgementOffsetX.Value = value,
+            () => settings.LayoutJudgementOffsetY.Value,
+            value => settings.LayoutJudgementOffsetY.Value = value);
+
+    private void resizeReadout(
+        Drawable drawable,
+        ResizeEdges edges,
+        Vector2 delta,
+        Func<double> scaleX,
+        Action<double> setScaleX,
+        Func<double> scaleY,
+        Action<double> setScaleY,
+        Func<double> offsetX,
+        Action<double> setOffsetX,
+        Func<double> offsetY,
+        Action<double> setOffsetY)
+    {
+        (Vector2 topLeft, Vector2 bottomRight) =
+            GameplayLayoutGeometry.BoundsIn(this, drawable);
+        float width = Math.Max(1, bottomRight.X - topLeft.X);
+        float height = Math.Max(1, bottomRight.Y - topLeft.Y);
+
+        if (hasHorizontalEdge(edges))
+        {
+            bool fromRight = edges.HasFlag(ResizeEdges.Right);
+            float realisedChange = resizeDimension(
+                scaleX(),
+                width,
+                (fromRight ? 1 : -1) * delta.X,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale,
+                setScaleX);
+            setOffsetX(clampOffset(
+                offsetX()
+                + (fromRight ? realisedChange : -realisedChange)
+                / 2
+                / Math.Max(1, DrawWidth)));
+        }
+
+        if (hasVerticalEdge(edges))
+        {
+            bool fromBottom = edges.HasFlag(ResizeEdges.Bottom);
+            float realisedChange = resizeDimension(
+                scaleY(),
+                height,
+                (fromBottom ? 1 : -1) * delta.Y,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale,
+                setScaleY);
+            setOffsetY(clampOffset(
+                offsetY()
+                + (fromBottom ? realisedChange : -realisedChange)
+                / 2
+                / Math.Max(1, DrawHeight)));
+        }
+    }
+
     private void resizePlayfieldWithWheel(float direction)
     {
         settings.LayoutPlayfieldWidthScale.Value = Math.Clamp(
@@ -1169,7 +1377,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         Vector2 hudTopLeft,
         Vector2 hudBottomRight,
         Vector2 timingBarTopLeft,
-        Vector2 timingBarBottomRight)
+        Vector2 timingBarBottomRight,
+        Vector2 comboTopLeft,
+        Vector2 comboBottomRight,
+        Vector2 judgementTopLeft,
+        Vector2 judgementBottomRight)
     {
         setOverviewBounds(
             miniPlayfield,
@@ -1180,6 +1392,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             miniTimingBar,
             timingBarTopLeft,
             timingBarBottomRight);
+        setOverviewBounds(miniCombo, comboTopLeft, comboBottomRight);
+        setOverviewBounds(
+            miniJudgement,
+            judgementTopLeft,
+            judgementBottomRight);
 
         float playfieldMiniHeight = miniPlayfield.Height;
         miniTopCover.Position = miniPlayfield.Position;
@@ -1279,6 +1496,18 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private static Box createMiniCover() => new()
     {
         Colour = new Color4(0f, 0f, 0f, 0.94f),
+    };
+
+    private static Container createMiniReadout(Color4 colour) => new()
+    {
+        Masking = true,
+        BorderThickness = 1,
+        BorderColour = colour,
+        Child = new Box
+        {
+            RelativeSizeAxes = Axes.Both,
+            Colour = new Color4(colour.R, colour.G, colour.B, 0.5f),
+        },
     };
 
     [Flags]
@@ -1915,6 +2144,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         double TimingBarOffsetY,
         double TimingBarScaleX,
         double TimingBarScaleY,
+        double ComboOffsetX,
+        double ComboOffsetY,
+        double ComboScaleX,
+        double ComboScaleY,
+        double JudgementOffsetX,
+        double JudgementOffsetY,
+        double JudgementScaleX,
+        double JudgementScaleY,
         double TopCoverRatio,
         double BottomCoverRatio);
 

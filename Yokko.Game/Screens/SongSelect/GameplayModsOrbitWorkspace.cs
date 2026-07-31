@@ -1334,17 +1334,17 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 Size = new Vector2(72, 7),
                 Colour = HomeControlColours.Yellow,
             },
-            new Box
+            new HomeHazardStripes(
+                120,
+                new Color4(1, 1, 1, 0.82f))
             {
-                Position = new Vector2(112, 121),
-                Size = new Vector2(120, 3),
-                Colour = new Color4(1, 1, 1, 0.82f),
+                Position = new Vector2(112, 116),
             },
-            new Box
+            new HomeHazardStripes(
+                62,
+                new Color4(1, 1, 1, 0.72f))
             {
-                Position = new Vector2(905, 116),
-                Size = new Vector2(62, 3),
-                Colour = new Color4(1, 1, 1, 0.72f),
+                Position = new Vector2(905, 112),
             },
             new OrbitFooterButton(
                 YokkoStrings.Get("mods.back"),
@@ -3764,6 +3764,18 @@ internal partial class OrbitFooterButton : ClickableContainer
                     Position = new Vector2(164, -1),
                     Size = new Vector2(132, 4),
                     Colour = HomeControlColours.Pink,
+                });
+                children.Add(new HomeHazardStripes(
+                    84,
+                    new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.76f))
+                {
+                    Anchor = Anchor.BottomRight,
+                    Origin = Anchor.BottomRight,
+                    Position = new Vector2(-24, -12),
                 });
             }
             else

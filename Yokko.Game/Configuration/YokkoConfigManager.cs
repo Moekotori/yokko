@@ -74,8 +74,17 @@ internal enum YokkoSetting
     GameplayLayoutTimingBarOffsetY,
     GameplayLayoutTimingBarScaleX,
     GameplayLayoutTimingBarScaleY,
+    GameplayLayoutComboOffsetX,
+    GameplayLayoutComboOffsetY,
+    GameplayLayoutComboScaleX,
+    GameplayLayoutComboScaleY,
+    GameplayLayoutJudgementOffsetX,
+    GameplayLayoutJudgementOffsetY,
+    GameplayLayoutJudgementScaleX,
+    GameplayLayoutJudgementScaleY,
     GameplayLayoutTopCoverRatio,
     GameplayLayoutBottomCoverRatio,
+    GameplayBackgroundDim,
     GameplayKeysoundsEnabled,
     GameplayMinesEnabled,
     GameplayPauseWhenUnfocused,
@@ -268,6 +277,54 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoGameplaySettings.MaximumLayoutScale,
             0.05);
         SetDefault(
+            YokkoSetting.GameplayLayoutComboOffsetX,
+            0.0,
+            YokkoGameplaySettings.MinimumLayoutOffset,
+            YokkoGameplaySettings.MaximumLayoutOffset,
+            0.005);
+        SetDefault(
+            YokkoSetting.GameplayLayoutComboOffsetY,
+            0.0,
+            YokkoGameplaySettings.MinimumLayoutOffset,
+            YokkoGameplaySettings.MaximumLayoutOffset,
+            0.005);
+        SetDefault(
+            YokkoSetting.GameplayLayoutComboScaleX,
+            1.0,
+            YokkoGameplaySettings.MinimumLayoutScale,
+            YokkoGameplaySettings.MaximumLayoutScale,
+            0.05);
+        SetDefault(
+            YokkoSetting.GameplayLayoutComboScaleY,
+            1.0,
+            YokkoGameplaySettings.MinimumLayoutScale,
+            YokkoGameplaySettings.MaximumLayoutScale,
+            0.05);
+        SetDefault(
+            YokkoSetting.GameplayLayoutJudgementOffsetX,
+            0.0,
+            YokkoGameplaySettings.MinimumLayoutOffset,
+            YokkoGameplaySettings.MaximumLayoutOffset,
+            0.005);
+        SetDefault(
+            YokkoSetting.GameplayLayoutJudgementOffsetY,
+            0.0,
+            YokkoGameplaySettings.MinimumLayoutOffset,
+            YokkoGameplaySettings.MaximumLayoutOffset,
+            0.005);
+        SetDefault(
+            YokkoSetting.GameplayLayoutJudgementScaleX,
+            1.0,
+            YokkoGameplaySettings.MinimumLayoutScale,
+            YokkoGameplaySettings.MaximumLayoutScale,
+            0.05);
+        SetDefault(
+            YokkoSetting.GameplayLayoutJudgementScaleY,
+            1.0,
+            YokkoGameplaySettings.MinimumLayoutScale,
+            YokkoGameplaySettings.MaximumLayoutScale,
+            0.05);
+        SetDefault(
             YokkoSetting.GameplayLayoutTopCoverRatio,
             0.0,
             0.0,
@@ -279,6 +336,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             0.0,
             YokkoGameplaySettings.MaximumBottomCoverRatio,
             0.01);
+        SetDefault(
+            YokkoSetting.GameplayBackgroundDim,
+            0.35,
+            YokkoGameplaySettings.MinimumBackgroundDim,
+            YokkoGameplaySettings.MaximumBackgroundDim,
+            0.05);
         SetDefault(YokkoSetting.GameplayKeysoundsEnabled, false);
         SetDefault(YokkoSetting.GameplayMinesEnabled, true);
         SetDefault(YokkoSetting.GameplayPauseWhenUnfocused, true);
@@ -489,11 +552,38 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSetting.GameplayLayoutTimingBarScaleY,
             settings.LayoutTimingBarScaleY);
         BindWith(
+            YokkoSetting.GameplayLayoutComboOffsetX,
+            settings.LayoutComboOffsetX);
+        BindWith(
+            YokkoSetting.GameplayLayoutComboOffsetY,
+            settings.LayoutComboOffsetY);
+        BindWith(
+            YokkoSetting.GameplayLayoutComboScaleX,
+            settings.LayoutComboScaleX);
+        BindWith(
+            YokkoSetting.GameplayLayoutComboScaleY,
+            settings.LayoutComboScaleY);
+        BindWith(
+            YokkoSetting.GameplayLayoutJudgementOffsetX,
+            settings.LayoutJudgementOffsetX);
+        BindWith(
+            YokkoSetting.GameplayLayoutJudgementOffsetY,
+            settings.LayoutJudgementOffsetY);
+        BindWith(
+            YokkoSetting.GameplayLayoutJudgementScaleX,
+            settings.LayoutJudgementScaleX);
+        BindWith(
+            YokkoSetting.GameplayLayoutJudgementScaleY,
+            settings.LayoutJudgementScaleY);
+        BindWith(
             YokkoSetting.GameplayLayoutTopCoverRatio,
             settings.LayoutTopCoverRatio);
         BindWith(
             YokkoSetting.GameplayLayoutBottomCoverRatio,
             settings.LayoutBottomCoverRatio);
+        BindWith(
+            YokkoSetting.GameplayBackgroundDim,
+            settings.BackgroundDim);
         BindWith(
             YokkoSetting.GameplayKeysoundsEnabled,
             settings.KeysoundsEnabled);

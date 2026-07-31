@@ -15,6 +15,7 @@ public partial class JudgementReadout : CompositeDrawable
     private readonly bool showHitError;
     private readonly JudgementConfiguration configuration;
     private double hideAtMilliseconds;
+    private bool editorPreview;
 
     internal string DisplayedRating =>
         ratingText?.Text.ToString() ?? string.Empty;
@@ -81,9 +82,32 @@ public partial class JudgementReadout : CompositeDrawable
         Alpha = 1;
     }
 
+    internal void SetEditorPreview(bool preview)
+    {
+        editorPreview = preview;
+        if (preview)
+        {
+            ratingText.Text = "GREAT";
+            ratingText.Colour = RatingColours.For(
+                JudgementRating.Great);
+            if (showHitError)
+                errorText.Text = "+12.0 ms";
+            Alpha = 1;
+            return;
+        }
+
+        Alpha = Time.Current < hideAtMilliseconds ? 1 : 0;
+    }
+
     protected override void Update()
     {
         base.Update();
+
+        if (editorPreview)
+        {
+            Alpha = 1;
+            return;
+        }
 
         if (Time.Current >= hideAtMilliseconds)
         {

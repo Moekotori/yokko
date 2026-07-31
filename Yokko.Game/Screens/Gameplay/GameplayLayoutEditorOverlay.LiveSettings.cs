@@ -26,7 +26,9 @@ internal sealed record GameplayLayoutEditorLiveSettings(
     Func<double> ScrollSpeed,
     Action<double> SetScrollSpeed,
     Func<ManiaScrollDirection> ScrollDirection,
-    Action<ManiaScrollDirection> SetScrollDirection);
+    Action<ManiaScrollDirection> SetScrollDirection,
+    Func<double> BackgroundDim,
+    Action<double> SetBackgroundDim);
 
 internal partial class GameplayLayoutEditorOverlay
 {
@@ -43,6 +45,7 @@ internal partial class GameplayLayoutEditorOverlay
         private readonly GameplayLayoutEditorLiveSettings settings;
         private readonly SpriteText skinName;
         private readonly SpriteText speedValue;
+        private readonly SpriteText dimValue;
         private readonly CompactTextButton downscrollButton;
         private readonly CompactTextButton upscrollButton;
 
@@ -56,7 +59,7 @@ internal partial class GameplayLayoutEditorOverlay
             Anchor = Anchor.TopRight;
             Origin = Anchor.TopRight;
             Position = new Vector2(-18, 650);
-            Size = new Vector2(320, 104);
+            Size = new Vector2(320, 140);
             Depth = -100;
             Masking = true;
             CornerRadius = 8;
@@ -204,6 +207,54 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(246, 68),
                     Size = new Vector2(62, 28),
                 },
+                new SpriteText
+                {
+                    Anchor = Anchor.TopLeft,
+                    Origin = Anchor.CentreLeft,
+                    Position = new Vector2(12, 120),
+                    Text = YokkoStrings.Get(
+                        "gameplay.layout_editor.background_dim"),
+                    Font = LayoutEditorTypography.Bold(8),
+                    Colour = HomeControlColours.Navy,
+                },
+                new CompactIconButton(
+                    FontAwesome.Solid.Minus,
+                    () => adjustDim(-0.05))
+                {
+                    Position = new Vector2(116, 104),
+                    Size = new Vector2(28),
+                },
+                new Container
+                {
+                    Position = new Vector2(150, 104),
+                    Size = new Vector2(72, 28),
+                    Masking = true,
+                    CornerRadius = 5,
+                    BorderThickness = 1,
+                    BorderColour = HomeControlColours.Navy,
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = Color4.White,
+                        },
+                        dimValue = new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Font = LayoutEditorTypography.Bold(8),
+                            Colour = HomeControlColours.Navy,
+                        },
+                    },
+                },
+                new CompactIconButton(
+                    FontAwesome.Solid.Plus,
+                    () => adjustDim(0.05))
+                {
+                    Position = new Vector2(228, 104),
+                    Size = new Vector2(28),
+                },
             };
         }
 
@@ -230,6 +281,8 @@ internal partial class GameplayLayoutEditorOverlay
                     "gameplay.layout_editor.default_skin")
                 : selected.Name;
             speedValue.Text = settings.ScrollSpeed().ToString("0.0");
+            dimValue.Text =
+                $"{Math.Round(settings.BackgroundDim() * 100):0}%";
 
             ManiaScrollDirection direction =
                 settings.ScrollDirection();
@@ -272,6 +325,16 @@ internal partial class GameplayLayoutEditorOverlay
                 OsuManiaScrollSpeed.Adjust(
                     settings.ScrollSpeed(),
                     direction));
+            refresh();
+        }
+
+        private void adjustDim(double amount)
+        {
+            settings.SetBackgroundDim(
+                Math.Clamp(
+                    settings.BackgroundDim() + amount,
+                    YokkoGameplaySettings.MinimumBackgroundDim,
+                    YokkoGameplaySettings.MaximumBackgroundDim));
             refresh();
         }
     }
