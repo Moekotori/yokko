@@ -193,6 +193,7 @@ Packaging stopped instead of silently disabling ASIO.
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $desktopProject = Join-Path $repoRoot "Yokko.Desktop\Yokko.Desktop.csproj"
 $nativeSource = Join-Path $repoRoot "Yokko.Audio.Native"
+$minacalcSource = Join-Path $repoRoot "Yokko.MinaCalc.Native"
 $packageRoot = Join-Path $repoRoot "artifacts\packages"
 $intermediateRoot = Join-Path $repoRoot ".artifacts\package-build"
 
@@ -230,6 +231,7 @@ $publishPath = Join-Path $packageRoot $packageName
 $zipPath = "$publishPath.zip"
 $checksumPath = "$zipPath.sha256"
 $nativeBuildPath = Join-Path $intermediateRoot "native-$audioVariant"
+$minacalcBuildPath = Join-Path $intermediateRoot "native-minacalc"
 
 if (Test-Path -LiteralPath $publishPath)
 {
@@ -259,6 +261,18 @@ try
         "--config", "Release"
     ) "Building the native audio library"
 
+    invokeChecked "cmake" @(
+        "-S", $minacalcSource,
+        "-B", $minacalcBuildPath,
+        "-G", "Visual Studio 17 2022",
+        "-A", "x64"
+    ) "Configuring Etterna MinaCalc"
+
+    invokeChecked "cmake" @(
+        "--build", $minacalcBuildPath,
+        "--config", "Release"
+    ) "Building the Etterna MinaCalc library"
+
     invokeChecked "dotnet" @(
         "restore", $desktopProject,
         "-r", "win-x64"
@@ -283,6 +297,18 @@ try
 
     Copy-Item -LiteralPath $nativeLibrary `
         -Destination (Join-Path $publishPath "yokko_audio_native.dll") `
+        -Force
+
+    $minacalcLibrary =
+        Join-Path $minacalcBuildPath "Release\yokko_minacalc_native.dll"
+    if (!(Test-Path -LiteralPath $minacalcLibrary))
+    {
+        throw "Etterna MinaCalc output was not found: $minacalcLibrary"
+    }
+
+    Copy-Item -LiteralPath $minacalcLibrary `
+        -Destination (
+            Join-Path $publishPath "yokko_minacalc_native.dll") `
         -Force
 
     $packagedNativeLibrary =
@@ -330,6 +356,7 @@ file, the reproduction steps, Windows version, and the relevant logs.
     foreach ($requiredFile in @(
         "Yokko.exe",
         "yokko_audio_native.dll",
+        "yokko_minacalc_native.dll",
         "PLAYTEST.txt"
     ))
     {
@@ -357,6 +384,7 @@ file, the reproduction steps, Windows version, and the relevant logs.
         foreach ($requiredEntry in @(
             "Yokko.exe",
             "yokko_audio_native.dll",
+            "yokko_minacalc_native.dll",
             "PLAYTEST.txt"
         ))
         {
