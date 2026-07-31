@@ -174,6 +174,8 @@ internal partial class GameplayModsScreen : Screen
         visibleItems.ContainsKey(mod);
     internal bool IsOrbitModVisible(ManiaModId mod) =>
         orbitWorkspace?.VisibleMods.Contains(mod) == true;
+    internal bool OrbitRepresentsMod(ManiaModId mod) =>
+        orbitWorkspace?.RepresentsMod(mod) == true;
     internal int VisibleOrbitModCount =>
         orbitWorkspace?.VisibleMods.Count ?? 0;
     internal string OrbitActiveCountText =>

@@ -87,6 +87,52 @@ final result: passed
 
 ---
 
+# Gameplay layout editor blocker visibility and 1080p readability QA (2026-07-31)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-4bdf2997-c59b-4425-bbd4-e15be02485ae.png` (2560 x 1440).
+- Revised native implementation: `D:\YOKKO\.artifacts\layout-editor-1080p-after.png` (1920 x 1080).
+- Full-view comparison, source left and implementation right: `D:\YOKKO\.artifacts\layout-editor-reference-left-after-right.png`.
+- Focused left controls comparison: `D:\YOKKO\.artifacts\layout-editor-left-controls-reference-after.png`.
+- Focused right controls comparison: `D:\YOKKO\.artifacts\layout-editor-right-controls-reference-after.png`.
+- Viewport/state: shared 1920 x 1080 reference, Comfortable UI scale, Chinese HUD layout editor, top and bottom blockers disabled.
+- Density normalization: the 2560 x 1440 source was downsampled to 1920 x 1080 without cropping; the implementation remained at native 1x output. Chart metadata differs between fixtures and was excluded from layout judgment.
+
+## Comparison history
+
+1. The reported state showed the inactive top blocker resize strip across the full playfield, obscuring chart content and retaining a misleading drag affordance.
+2. Inactive blocker handles now render at zero alpha and reject mouse, drag, and hover input. Blockers remain addable from the dedicated right-side panel.
+3. The reported 1080p-normalized controls used a narrow 264-unit action card, 320-unit right panels, and an 18-unit minimum body size.
+4. The revised editor widens the action card and right-side panels, expands numeric fields and overview space, and raises the minimum body typography to 20 while preserving the existing Yokko hierarchy and all 1080p panel bounds.
+
+## Required fidelity review
+
+- Fonts and typography: the existing Yokko regular/bold families are retained; body text is larger and remains centred or baseline-aligned without clipping in the focused control comparisons.
+- Spacing and layout rhythm: left and right control cards gain horizontal breathing room; all right-side cards remain vertically separated and the full-page preview stays inside the 1080p viewport.
+- Colors and visual tokens: existing navy, cyan, pink, yellow, pale-cyan, and ivory tokens are unchanged; enabled states retain their prior semantic colors.
+- Image quality and assets: no imagery or decorative asset was replaced. The native Direct3D 11 capture remains sharp at 1920 x 1080.
+- Copy and content: all editor actions, layer labels, live settings, feedback settings, and localized hints remain present. Only inactive in-canvas blocker affordances are intentionally absent.
+
+## Findings
+
+- P0: none.
+- P1: none after removing the inactive blocker strip and its input interception.
+- P2: none after the 1080p typography and control-width pass.
+- P3: the editor remains intentionally dense so the inspector, blocker settings, live settings, and overview can coexist in a single 1080p column.
+
+## Verification
+
+- `Yokko.Game` isolated build: passed with 0 warnings and 0 errors.
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- Focused `TestGameplayLayoutEditorPausesAndShowsFullPagePreview`: 1 passed, 0 failed, including blocker add, resize, independent removal, and editor interaction paths.
+- Native Direct3D 11 preview captured at 1920 x 1080 and inspected in full-view and focused same-input comparisons.
+- `git diff --check` passed for the four edited gameplay layout editor files.
+
+final result: passed
+
+---
+
 # Song Select 1920 x 1080 layout pass QA (2026-07-31)
 
 ## Evidence
@@ -3035,5 +3081,40 @@ final result: passed
 - `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
 - `TestPauseOverlayStopsAndResumesAudio`: 1 passed, 0 failed, including the settings and secondary-selection paths.
 - Native Direct3D 11 preview and same-state comparison were opened and inspected.
+
+final result: passed
+
+---
+
+# Song Select paper-layout polish QA (2026-07-31)
+
+## Evidence
+
+- Selected reference: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png`.
+- Native Direct3D 11 implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\yokko-song-select-polish-final.png` (1920 x 1080).
+- Same-viewport comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-polish-comparison-final.png`.
+- Asset alpha-edge check: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\paper-assets-alpha-check.png`.
+
+## Required fidelity review
+
+- Left information hierarchy: selected artwork, difficulty, title, artist, mapper, rate, difficulty rating, length, BPM, notes, best score, and best accuracy are presented on one restrained paper surface instead of independent generic cards.
+- Ranking hierarchy: the seven individual ribbons were replaced with one continuous paper table, quiet row separators, and one explicit current-player selection state.
+- Browser hierarchy: package headers and ordinary difficulty rows use ivory surfaces; the selected difficulty uses a restrained yellow wash and outline instead of tinting the whole expanded group cyan.
+- Assets: only `paper-song-info` and `paper-ranking` were introduced in this pass. Both were inspected against a checkerboard and show no white halo, black fringe, or dirty semitransparent edge. Other unverified library decorations were not used.
+- Typography: the long-title fixture fits on two complete lines without mid-line truncation. Score, accuracy, mode, mapper, and difficulty labels remain legible at native scale.
+
+## Findings
+
+- P0: none.
+- P1: none after replacing the disconnected left cards and restoring a clear selected difficulty state.
+- P2: none after shortening the long-title line measure and inspecting the two used raster assets at their transparent edges.
+- P3: the reference has additional mascot speech art and denser hand-drawn micro-decoration; these were deliberately not added because the available unverified cutouts may not meet production quality.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- Native Direct3D 11 preview captured at 1920 x 1080 using the dedicated Song Select fixture.
+- Reference and implementation inspected together in one combined comparison image.
+- `git diff --check` passed for the touched Song Select and QA files.
 
 final result: passed

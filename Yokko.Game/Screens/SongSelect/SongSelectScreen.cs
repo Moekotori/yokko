@@ -2225,7 +2225,7 @@ public partial class SongSelectScreen : Screen
 
     private static Drawable createAdaptiveDetailsTitle(string title)
     {
-        string[] lines = SongSelectTextLayout.TwoLines(title, 30);
+        string[] lines = SongSelectTextLayout.TwoLines(title, 22);
         var flow = new FillFlowContainer
         {
             Position = new Vector2(252, 49),

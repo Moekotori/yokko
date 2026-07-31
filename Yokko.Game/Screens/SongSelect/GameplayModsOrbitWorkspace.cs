@@ -93,6 +93,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private bool stateInitialized;
 
     internal IReadOnlyCollection<ManiaModId> VisibleMods => nodes.Keys;
+    internal bool RepresentsMod(ManiaModId mod) =>
+        nodes.Keys.Any(node => nodeRepresents(node, mod));
     internal string ActiveCountText => activeCount?.Text.ToString() ?? string.Empty;
     internal string CapacityTelemetryText =>
         capacityTelemetry?.Text.ToString() ?? string.Empty;
@@ -1483,7 +1485,9 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private IReadOnlyList<ManiaModDefinition> orbitDefinitions(
         ManiaModCategory page)
         => definitionsForCategory(page)
-            .Where(definition => isSelectable(definition.Id))
+            .Where(definition =>
+                isSelectable(definition.Id)
+                && definition.Id != ManiaModId.Nightcore)
             .ToArray();
 
     private static IReadOnlyList<Vector2> compactOrbitPositions(int count)

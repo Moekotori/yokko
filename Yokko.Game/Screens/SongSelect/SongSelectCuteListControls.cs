@@ -103,7 +103,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         {
             RelativeSizeAxes = Axes.Both,
             Colour = compact
-                ? new Color4(1f, 0.98f, 0.78f, 1f)
+                ? new Color4(1f, 0.97f, 0.68f, 0.58f)
                 : new Color4(1f, 0.98f, 0.78f, 1f),
             Alpha = 0,
         };

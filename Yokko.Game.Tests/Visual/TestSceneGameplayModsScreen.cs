@@ -436,9 +436,10 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             && !modsScreen.IsOrbitModVisible(ManiaModId.Easy)
             && !modsScreen.IsOrbitModVisible(ManiaModId.HalfTime));
         AddAssert("all increase mods remain reachable", () =>
-            modsScreen.VisibleOrbitModCount == 11
+            modsScreen.VisibleOrbitModCount == 10
             && modsScreen.IsOrbitModVisible(ManiaModId.Perfect)
-            && modsScreen.IsOrbitModVisible(ManiaModId.Nightcore)
+            && !modsScreen.IsOrbitModVisible(ManiaModId.Nightcore)
+            && modsScreen.OrbitRepresentsMod(ManiaModId.Nightcore)
             && modsScreen.IsOrbitModVisible(ManiaModId.FadeIn)
             && modsScreen.IsOrbitModVisible(ManiaModId.Cover)
             && modsScreen.IsOrbitModVisible(ManiaModId.AccuracyChallenge));
