@@ -314,6 +314,32 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     }
 
     [Test]
+    public void TestOrbitQuickInteractions()
+    {
+        OrbitEmptySlot emptySlot = null;
+        OrbitRatePresetButton fastPreset = null;
+        ManiaModId focused = default;
+        AddStep("prepare quick interaction controls", () =>
+        {
+            modsScreen.ResetMods();
+            modsScreen.SetCategory(ManiaModCategory.DifficultyReduction);
+            focused = modsScreen.DetailMod;
+            emptySlot = this.ChildrenOfType<OrbitEmptySlot>().First();
+            fastPreset = this.ChildrenOfType<OrbitRatePresetButton>()
+                .Single(button => Math.Abs(button.Value - 1.5) < 0.005);
+        });
+        AddStep("add focused mod from empty slot", () =>
+            emptySlot.ActivateForTest());
+        AddAssert("empty slot activates focused mod", () =>
+            modsScreen.SelectedMods.Contains(focused));
+        AddStep("select 1.50x rate preset", () =>
+            fastPreset.ActivateForTest());
+        AddAssert("rate preset applies Double Time rate", () =>
+            modsScreen.SelectedMods.FixedRateMod == ManiaModId.DoubleTime
+            && Math.Abs(modsScreen.SelectedMods.PlaybackRate - 1.5) < 0.005);
+    }
+
+    [Test]
     public void TestGameplayModsLayout()
     {
         AddAssert("uses the complete scaled workspace", () =>

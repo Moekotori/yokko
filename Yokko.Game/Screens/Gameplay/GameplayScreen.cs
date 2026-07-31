@@ -1793,21 +1793,29 @@ public partial class GameplayScreen : Screen
         if (completionMixControl == null)
             return;
 
-        double remainingMusic = completionFadeRemaining(
+        double remainingMusic = calculateCompletionFadeRemaining(
+            completionTransitionElapsedMilliseconds,
             completionSettleMilliseconds);
-        double remainingTail = completionFadeRemaining(
-            completionTailFadeStartMilliseconds);
+        double remainingTail = CalculateCompletionTailFadeRemaining(
+            completionTransitionElapsedMilliseconds);
         completionMixControl.SetMixVolumes(
             completionMusicVolume * remainingMusic,
             completionHitSoundVolume * remainingTail,
             completionMetronomeVolume * remainingTail);
     }
 
-    private double completionFadeRemaining(double fadeStartMilliseconds)
+    internal static double CalculateCompletionTailFadeRemaining(
+        double elapsedMilliseconds) =>
+        calculateCompletionFadeRemaining(
+            elapsedMilliseconds,
+            completionTailFadeStartMilliseconds);
+
+    private static double calculateCompletionFadeRemaining(
+        double elapsedMilliseconds,
+        double fadeStartMilliseconds)
     {
         double progress = Math.Clamp(
-            (completionTransitionElapsedMilliseconds
-             - fadeStartMilliseconds)
+            (elapsedMilliseconds - fadeStartMilliseconds)
             / (completionTransitionMilliseconds
                - fadeStartMilliseconds),
             0,

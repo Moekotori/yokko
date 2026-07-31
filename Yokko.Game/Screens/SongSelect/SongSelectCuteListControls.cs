@@ -15,6 +15,7 @@ namespace Yokko.Game.Screens.SongSelect;
 internal partial class SongSelectSongRow : ClickableContainer
 {
     private readonly Box paper;
+    private readonly Container card;
     private readonly Container thumbnail;
     private readonly SpriteIcon arrow;
     private readonly SpriteText title;
@@ -36,7 +37,7 @@ internal partial class SongSelectSongRow : ClickableContainer
 
         InternalChildren =
         [
-            new Container
+            card = new Container
             {
                 RelativeSizeAxes = Axes.Both,
                 Masking = true,
@@ -111,8 +112,14 @@ internal partial class SongSelectSongRow : ClickableContainer
                 : new Color4(1f, 0.985f, 0.94f, 0.96f),
             140,
             Easing.OutQuint);
-        BorderThickness = selected ? 2 : 0;
-        BorderColour = SongSelectTheme.Cyan;
+        card.BorderThickness = selected ? 2 : 1.2f;
+        card.BorderColour = selected
+            ? SongSelectTheme.Cyan
+            : new Color4(
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.18f);
         arrow.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
         title.Colour = selected ? SongSelectTheme.Navy : SongSelectTheme.Navy;
         this.ResizeHeightTo(selected ? 96 : 88, 160, Easing.OutQuint);

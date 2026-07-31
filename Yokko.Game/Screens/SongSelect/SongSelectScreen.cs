@@ -374,6 +374,18 @@ public partial class SongSelectScreen : Screen
 
     internal void SelectPrevious() => selectOffset(-1);
 
+    protected override void Update()
+    {
+        base.Update();
+
+        if (songBrowser != null)
+        {
+            songBrowser.Height = Math.Max(
+                320,
+                DrawHeight - footer_height - songBrowser.Y - 12);
+        }
+    }
+
     internal void SetKeyModeFilter(KeyMode? mode)
     {
         keyModeFilter = mode;
@@ -979,6 +991,7 @@ public partial class SongSelectScreen : Screen
         Origin = Anchor.TopRight,
         Position = new Vector2(-32, 110),
         Size = new Vector2(540, 660),
+        Masking = true,
         Children = new Drawable[]
         {
             songScroll = new BasicScrollContainer
@@ -1186,21 +1199,11 @@ public partial class SongSelectScreen : Screen
                 createAccountCard(),
                 modPanel,
                 mods,
-                new HomePrimaryAction(
-                    "PLAY",
-                    "SONG SELECT",
-                    FontAwesome.Solid.Play,
-                    PlaySelected,
-                    iconTileSize: 84,
-                    iconTileX: 26,
-                    iconSize: 35,
-                    iconTileY: 4,
-                    contentX: 140)
+                new SongSelectPlayButton(PlaySelected)
                 {
                     Anchor = Anchor.BottomRight,
                     Origin = Anchor.BottomRight,
-                    Position = new Vector2(-20, -10),
-                    Scale = new Vector2(0.77f),
+                    Position = new Vector2(-20, -12),
                 },
             },
         };
@@ -1686,7 +1689,7 @@ public partial class SongSelectScreen : Screen
             createAdaptiveDetailsTitle(selectedEntry.Beatmap.Title),
             new SpriteText
             {
-                Position = new Vector2(24, 116),
+                Position = new Vector2(24, 80),
                 Width = 340,
                 Truncate = true,
                 Text = selectedEntry.Beatmap.Artist,
@@ -1695,7 +1698,7 @@ public partial class SongSelectScreen : Screen
             },
             new SpriteText
             {
-                Position = new Vector2(24, 140),
+                Position = new Vector2(24, 104),
                 Width = 340,
                 Truncate = true,
                 Text = $"mapped by {selectedEntry.Beatmap.Creator}",
@@ -1704,7 +1707,7 @@ public partial class SongSelectScreen : Screen
             },
             new Container
             {
-                Position = new Vector2(24, 166),
+                Position = new Vector2(24, 130),
                 Size = new Vector2(174, 24),
                 Masking = true,
                 CornerRadius = 5,
@@ -1734,18 +1737,19 @@ public partial class SongSelectScreen : Screen
             },
             createStarRating(starRating),
             createSongStat(
-                218,
-                165,
+                24,
+                203,
                 FontAwesome.Regular.Clock,
                 "LENGTH",
                 TimeSpan.FromMilliseconds(
                     displayedLengthMilliseconds).ToString(@"mm\:ss")),
             createSongStat(
-                288,
-                165,
+                120,
+                203,
                 FontAwesome.Solid.WaveSquare,
                 "BPM",
                 bpmLabel),
+            createBestScoreStat(218, 195),
             rankingPanel,
         });
     }
@@ -1786,7 +1790,7 @@ public partial class SongSelectScreen : Screen
         string[] lines = SongSelectTextLayout.TwoLines(title, 22);
         var flow = new FillFlowContainer
         {
-            Position = new Vector2(24, 42),
+            Position = new Vector2(24, 35),
             Width = 340,
             AutoSizeAxes = Axes.Y,
             Direction = FillDirection.Vertical,
@@ -1918,7 +1922,7 @@ public partial class SongSelectScreen : Screen
 
         var flow = new FillFlowContainer
         {
-            Position = new Vector2(24, 207),
+            Position = new Vector2(24, 164),
             AutoSizeAxes = Axes.Both,
             Direction = FillDirection.Horizontal,
             Spacing = new Vector2(4, 0),

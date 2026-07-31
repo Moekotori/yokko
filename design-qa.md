@@ -100,6 +100,12 @@ final result: passed
   `D:\yokko\artifacts\mods\connector-polish-comparison.png`
 - Post-transition regression capture:
   `D:\yokko\artifacts\mods\transition-fixed-scroll.png`
+- Interaction-polish implementation:
+  `D:\yokko\artifacts\mods\interaction-polish-active.png`
+- Interaction-polish full comparison:
+  `D:\yokko\artifacts\mods\interaction-polish-comparison.png`
+- Interaction-polish focused orbit/right-panel comparison:
+  `D:\yokko\artifacts\mods\interaction-polish-focused-comparison.png`
 - Authored viewport: 1600 x 900, verified through the native 3168 x 1785
   renderer capture used by the 3200 x 2000 desktop.
 - States: empty Difficulty Down page and active Difficulty Up page with
@@ -143,6 +149,14 @@ final result: passed
   X=335 resting position and always returns there. Previously it animated to
   absolute X=0, permanently moving the central workspace over the category
   rail after the first page change.
+- Quick interactions: the right panel now provides 0.75x, 1.00x, and 1.50x
+  rate presets with selected, hover, and pressed states. Empty active slots
+  add the currently focused Mod and reveal an explicit `ADD FOCUSED MOD`
+  affordance on hover. Active orbit nodes show a check badge; focused inactive
+  nodes show a plus badge, and both receive tactile press feedback.
+- Responsive decoration: the orbit adds a slowly rotating, focus-coloured
+  scanner and a live `FOCUS / ACTIVE` telemetry readout. These stay subordinate
+  to the hero copy and use the existing cyan/pink/yellow token system.
 
 ## Findings
 
@@ -163,6 +177,12 @@ final result: passed
   8/8.
 - Category-transition regression assertions now verify the orbit returns to
   X=335 after wheel, Tab, and Shift+Tab navigation; focused suite passed 8/8.
+- Interaction-polish build: passed with 0 warnings and 0 errors.
+- Focused suite: passed 9/9, including empty-slot activation and the 1.50x
+  rate-preset path.
+- Full and focused comparisons show no actionable P0, P1, or P2 visual
+  regressions. The preset row remains clear of the multiplier and slider, node
+  badges do not obscure labels, and telemetry stays outside the hero copy.
 - Native Direct3D 11 empty-state and active-state previews: exited with code 0.
 - Final source/implementation comparison and 2K readability captures were
   reviewed at matching authored density.

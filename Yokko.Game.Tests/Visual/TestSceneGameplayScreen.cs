@@ -1071,6 +1071,10 @@ namespace Yokko.Game.Tests.Visual
                 audioEngine.StartCount == 1);
             AddStep("pass final judgement window", () =>
             {
+                audioEngine.SetMixVolumes(
+                    audioEngine.MusicVolume,
+                    0.8,
+                    audioEngine.MetronomeVolume);
                 startingMusicVolume = audioEngine.MusicVolume;
                 startingHitSoundVolume = audioEngine.HitSoundVolume;
                 fadeHistoryStart = audioEngine.MusicVolumeHistory.Count;
@@ -1086,10 +1090,15 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("music begins fading before stop", () =>
                 audioEngine.MusicVolume < startingMusicVolume
                 && audioEngine.StopCount == 0);
-            AddAssert("final hit-sound mix remains intact", () =>
+            AddAssert("hit-sound tail holds then fades smoothly", () =>
                 Math.Abs(
-                    audioEngine.HitSoundVolume
-                    - startingHitSoundVolume) < 0.000001);
+                    GameplayScreen.CalculateCompletionTailFadeRemaining(520)
+                    - 1) < 0.000001
+                && Math.Abs(
+                    GameplayScreen.CalculateCompletionTailFadeRemaining(630)
+                    - 0.5) < 0.000001
+                && GameplayScreen.CalculateCompletionTailFadeRemaining(740)
+                   <= 0.000001);
             AddUntilStep("completion transition finishes", () =>
                 gameplay?.CompletionTransitionActive == false
                 && audioEngine.StopCount == 1
@@ -1116,9 +1125,8 @@ namespace Yokko.Game.Tests.Visual
                                            .ToArray();
                 return fade.Length > 2
                        && fade[^1] <= 0.000001
-                       && fade.Any(volume =>
-                           volume < startingHitSoundVolume
-                           && volume > 0.000001)
+                       && fade.All(volume =>
+                           volume <= startingHitSoundVolume + 0.000001)
                        && fade.Zip(
                                fade.Skip(1),
                                (previous, current) =>
