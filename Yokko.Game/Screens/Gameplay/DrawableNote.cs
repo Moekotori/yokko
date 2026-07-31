@@ -71,10 +71,12 @@ public partial class DrawableNote : CompositeDrawable
         OsuManiaSkin skin = null,
         bool legacyLongNoteRendering = false,
         bool isScratchNote = false,
-        double longNoteCutAmount = 0)
+        double longNoteCutAmount = 0,
+        bool upscroll = false)
     {
         HitObjectIndex = hitObjectIndex;
         this.hitObject = hitObject;
+        upsideDown = upscroll;
         IsScratchNote = isScratchNote;
         this.legacyLongNoteRendering = legacyLongNoteRendering;
         this.longNoteCutAmount = Math.Max(0, longNoteCutAmount);
@@ -143,7 +145,6 @@ public partial class DrawableNote : CompositeDrawable
         OsuManiaSkinConfiguration fallback =
             skin.FallbackConfiguration;
         int lane = hitObject.Lane;
-        upsideDown = configuration.UpsideDown;
 
         if (hitObject.Kind == HitObjectKind.Tap)
         {

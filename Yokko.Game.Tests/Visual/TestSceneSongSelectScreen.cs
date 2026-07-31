@@ -11,6 +11,7 @@ using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
 using Yokko.Game.Importing;
+using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.SongSelect;
 using Yokko.Import;
@@ -25,6 +26,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     private int? selectedRandomSeed;
     [Resolved]
     private ImportedChartLibrary importedChartLibrary { get; set; }
+    [Resolved]
+    private YokkoDisplaySettings displaySettings { get; set; }
 
     public TestSceneSongSelectScreen()
     {
@@ -89,6 +92,52 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("personal record selected", () => songSelectScreen.ScoreView == SongSelectScoreView.Personal);
         AddStep("click personal record body", songSelectScreen.ActivateRankingPanel);
         AddAssert("ranking restored", () => songSelectScreen.ScoreView == SongSelectScoreView.GlobalRanking);
+    }
+
+    [Test]
+    public void TestDifficultyRatingDisplayCanSwitch()
+    {
+        ManiaDifficultyRatingMode originalMode =
+            ManiaDifficultyRatingMode.EtternaMsd;
+
+        AddStep("remember difficulty display mode", () =>
+            originalMode =
+                displaySettings.DifficultyRatingMode.Value);
+        AddStep("load rating test chart", () =>
+        {
+            displaySettings.DifficultyRatingMode.Value =
+                ManiaDifficultyRatingMode.EtternaMsd;
+            importedChartLibrary.Clear();
+            importedChartLibrary.AddOrReplace(
+                [
+                    result(
+                        "Rating switch",
+                        DemoBeatmaps.CreateFourKeyDemo()),
+                ],
+                @"C:\Charts\rating-switch.osz");
+        });
+        AddUntilStep("MSD mode is visible", () =>
+            songSelectScreen.DisplayedDifficultyRatingMode
+                == ManiaDifficultyRatingMode.EtternaMsd
+            && songSelectScreen.DisplayedMsdRating?.IsSuccess
+                == true
+            && songSelectScreen.ChildrenOfType<
+                    osu.Framework.Graphics.Sprites.SpriteText>()
+                .Any(text => text.Text.ToString() == "MSD"));
+        AddStep("switch to Rebirth stars", () =>
+            displaySettings.DifficultyRatingMode.Value =
+                ManiaDifficultyRatingMode.RebirthStars);
+        AddUntilStep("star mode is visible", () =>
+            songSelectScreen.DisplayedDifficultyRatingMode
+                == ManiaDifficultyRatingMode.RebirthStars
+            && songSelectScreen.DisplayedStarRating?.IsSuccess
+                == true
+            && songSelectScreen.ChildrenOfType<
+                    osu.Framework.Graphics.Sprites.SpriteText>()
+                .Any(text => text.Text.ToString() == "STAR"));
+        AddStep("restore difficulty display mode", () =>
+            displaySettings.DifficultyRatingMode.Value =
+                originalMode);
     }
 
     [Test]

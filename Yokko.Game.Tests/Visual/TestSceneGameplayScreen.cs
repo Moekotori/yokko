@@ -46,6 +46,9 @@ namespace Yokko.Game.Tests.Visual
         private YokkoGameplaySettings gameplaySettings { get; set; }
 
         [Resolved]
+        private YokkoDisplaySettings displaySettings { get; set; }
+
+        [Resolved]
         private YokkoSkinSettings skinSettings { get; set; }
 
         [Resolved]
@@ -878,6 +881,33 @@ namespace Yokko.Game.Tests.Visual
                 Math.Abs(
                     gameplayScreen.LayoutOverviewAspectRatio
                     - 16f / 9f) < 0.001f);
+            AddStep("add top and bottom blockers", () =>
+            {
+                layoutEditor.SetTopCoverEnabledForTest(true);
+                layoutEditor.SetBottomCoverEnabledForTest(true);
+            });
+            AddUntilStep("new blockers use a useful default height", () =>
+                layoutEditor.TopCoverEnabledForTest
+                && layoutEditor.BottomCoverEnabledForTest
+                && Math.Abs(layoutEditor.TopCoverHeightForTest - 120) < 2
+                && Math.Abs(layoutEditor.BottomCoverHeightForTest - 120) < 2);
+            AddStep("set exact blocker heights", () =>
+            {
+                layoutEditor.SetTopCoverHeightForTest(210);
+                layoutEditor.SetBottomCoverHeightForTest(84);
+            });
+            AddUntilStep("exact blocker heights are applied", () =>
+                Math.Abs(layoutEditor.TopCoverHeightForTest - 210) < 2
+                && Math.Abs(layoutEditor.BottomCoverHeightForTest - 84) < 2);
+            AddStep("remove top blocker", () =>
+                layoutEditor.SetTopCoverEnabledForTest(false));
+            AddAssert("blockers can be removed independently", () =>
+                !layoutEditor.TopCoverEnabledForTest
+                && layoutEditor.BottomCoverEnabledForTest
+                && gameplaySettings.LayoutTopCoverRatio.Value == 0
+                && gameplaySettings.LayoutBottomCoverRatio.Value > 0);
+            AddStep("restore layout after blocker checks", () =>
+                gameplaySettings.ResetGameplayLayout());
             double timingBarOffsetX = 0;
             double timingBarOffsetY = 0;
             AddStep("nudge timing bar with arrow keys", () =>
@@ -2897,15 +2927,26 @@ LightingLWidth: 20,20,20,20
         }
 
         [Test]
-        public void TestUpsideDownSkinFlipsArrowElements()
+        public void TestUpscrollSettingFlipsArrowElements()
         {
             string skinPath = createTestSkin("""
-UpsideDown: 1
+UpsideDown: 0
 HitPosition: 400
 """);
+            ManiaScrollDirection originalDirection =
+                ManiaScrollDirection.Downscroll;
 
-            AddStep("open upside-down skin", () =>
-                screenStack.Push(new GameplayScreen(DemoBeatmaps.CreateFourKeyDemo(), skinPath: skinPath)));
+            AddStep("select upscroll", () =>
+            {
+                originalDirection =
+                    gameplaySettings.ScrollDirection.Value;
+                gameplaySettings.ScrollDirection.Value =
+                    ManiaScrollDirection.Upscroll;
+            });
+            AddStep("open skin in upscroll", () =>
+                screenStack.Push(new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath)));
             AddUntilStep("upscroll geometry applied", () =>
             {
                 GameplayPlayfield playfield = (screenStack.CurrentScreen as Drawable)?
@@ -2939,6 +2980,9 @@ HitPosition: 400
                        && timingBar.Origin == Anchor.BottomCentre
                        && timingBar.Y == 8;
             });
+            AddStep("restore scroll direction", () =>
+                gameplaySettings.ScrollDirection.Value =
+                    originalDirection);
         }
 
         [Test]
@@ -3240,6 +3284,8 @@ HitPosition: 400
         [Test]
         public void TestAltPlusMinusAdjustsPlaybackRateAndLiveStats()
         {
+            ManiaDifficultyRatingMode originalDifficultyMode =
+                ManiaDifficultyRatingMode.EtternaMsd;
             var audioEngine = new RateTrackingAudioEngine();
             YokkoBeatmap beatmap =
                 DemoBeatmaps.CreateFourKeyDemo() with
@@ -3256,6 +3302,10 @@ HitPosition: 400
 
             AddStep("open rate-adjustable gameplay", () =>
             {
+                originalDifficultyMode =
+                    displaySettings.DifficultyRatingMode.Value;
+                displaySettings.DifficultyRatingMode.Value =
+                    ManiaDifficultyRatingMode.EtternaMsd;
                 gameplayScreen = new GameplayScreen(
                     beatmap,
                     audioEngine);
@@ -3316,6 +3366,20 @@ HitPosition: 400
                 && hud.DisplayedDynamicRate.Contains(
                     "LIVE RATE 1.00×")
                 && hud.DisplayedDynamicRate.Contains("PRACTICE"));
+            AddStep("switch live readout to Rebirth stars", () =>
+            {
+                displaySettings.DifficultyRatingMode.Value =
+                    ManiaDifficultyRatingMode.RebirthStars;
+                gameplayScreen.HandlePlaybackRateShortcut(
+                    Key.Plus,
+                    true);
+            });
+            AddUntilStep("gameplay readouts follow star mode", () =>
+                rateOverlay.DisplayedDetail.Contains("STAR")
+                && hud.DisplayedDynamicRate.Contains("STAR"));
+            AddStep("restore difficulty display mode", () =>
+                displaySettings.DifficultyRatingMode.Value =
+                    originalDifficultyMode);
         }
 
         [Test]

@@ -140,8 +140,10 @@ Alternatively, place a packaged skin at `Skins/current.osk`, or set
 `YOKKO_OSU_MANIA_SKIN` to an absolute extracted-folder or `.osk` path before
 launching Yokko.
 
-Legacy `[Mania]` geometry, colours, stage pieces, upscroll and split-stage
-settings are honoured for every key count defined by the osu! skin format.
+Legacy `[Mania]` geometry, colours, stage pieces, upscroll-compatible
+orientation and split-stage settings are honoured for every key count defined
+by the osu! skin format. The player-owned Downscroll/Upscroll preference
+controls the effective direction independently of the selected skin.
 This includes animated keys, notes, long-note parts, stage lights, hit lighting, hitbursts, combo
 digits, combo bursts, warning arrows, key reminders, custom hit sounds and the
 vertical mania scorebar health display. Custom paths, case-insensitive names,

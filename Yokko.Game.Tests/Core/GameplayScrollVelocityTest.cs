@@ -3,6 +3,7 @@ using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Settings;
 using Yokko.Game.Skinning.OsuMania;
@@ -396,6 +397,58 @@ public sealed class GameplayScrollVelocityTest
                     true,
                     breaks),
                 Is.False);
+        });
+    }
+
+    [Test]
+    public void PlayerScrollDirectionMirrorsBuiltInPlayfield()
+    {
+        YokkoBeatmap beatmap = createBeatmap(
+            new YokkoHitObject(
+                0,
+                2500,
+                null,
+                HitObjectKind.Tap));
+        var downscroll = new GameplayPlayfield(
+            beatmap,
+            KeyModeBindings.ForMode(KeyMode.FourKey));
+        var upscroll = new GameplayPlayfield(
+            beatmap,
+            KeyModeBindings.ForMode(KeyMode.FourKey),
+            scrollDirection: ManiaScrollDirection.Upscroll);
+
+        downscroll.GetDrawableNote(0).UpdatePosition(
+            2500,
+            false,
+            false,
+            downscroll.ScrollOrigin,
+            downscroll.JudgementPosition,
+            1800);
+        upscroll.GetDrawableNote(0).UpdatePosition(
+            2500,
+            false,
+            false,
+            upscroll.ScrollOrigin,
+            upscroll.JudgementPosition,
+            1800);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(downscroll.ScrollOrigin, Is.EqualTo(28));
+            Assert.That(
+                downscroll.JudgementPosition,
+                Is.EqualTo(528));
+            Assert.That(upscroll.ScrollOrigin, Is.EqualTo(592));
+            Assert.That(
+                upscroll.JudgementPosition,
+                Is.EqualTo(92));
+            Assert.That(
+                downscroll.GetDrawableNote(0).Y
+                + downscroll.GetDrawableNote(0).Height,
+                Is.EqualTo(528).Within(0.01));
+            Assert.That(
+                upscroll.GetDrawableNote(0).Y,
+                Is.EqualTo(92).Within(0.01));
         });
     }
 

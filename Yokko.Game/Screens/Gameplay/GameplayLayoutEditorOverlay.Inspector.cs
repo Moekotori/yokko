@@ -10,6 +10,7 @@ using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
@@ -674,8 +675,8 @@ internal partial class GameplayLayoutEditorOverlay
                 },
                 toggleButton = new CoverToggleButton(setEnabled)
                 {
-                    Position = new Vector2(234, 6),
-                    Size = new Vector2(56, 34),
+                    Position = new Vector2(232, 5),
+                    Size = new Vector2(60, 36),
                 },
             };
         }
@@ -733,6 +734,25 @@ internal partial class GameplayLayoutEditorOverlay
             BorderColour = enabled
                 ? HomeControlColours.Pink
                 : HomeControlColours.Navy;
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            background.FadeColour(
+                enabled
+                    ? HomeControlColours.Yellow
+                    : Color4.White,
+                80,
+                Easing.OutQuint);
+            this.ScaleTo(1.035f, 90, Easing.OutQuint);
+            BorderColour = HomeControlColours.Pink;
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            this.ScaleTo(1, 110, Easing.OutQuint);
+            SetValue(enabled);
         }
     }
 
@@ -994,6 +1014,7 @@ internal partial class GameplayLayoutEditorOverlay
         private readonly Box accent;
         private readonly ToggleIconButton visibilityButton;
         private readonly ToggleIconButton lockButton;
+        private bool selected;
 
         public LayerRow(
             LocalisableString text,
@@ -1002,7 +1023,7 @@ internal partial class GameplayLayoutEditorOverlay
             Action<bool> setLocked)
         {
             Action = select;
-            Size = new Vector2(296, 30);
+            Size = new Vector2(296, 32);
             Masking = true;
             CornerRadius = 5;
             BorderThickness = 1;
@@ -1041,8 +1062,8 @@ internal partial class GameplayLayoutEditorOverlay
                 {
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
-                    X = -38,
-                    Size = new Vector2(28),
+                    X = -39,
+                    Size = new Vector2(30),
                 },
                 lockButton = new ToggleIconButton(
                     FontAwesome.Solid.Lock,
@@ -1052,13 +1073,14 @@ internal partial class GameplayLayoutEditorOverlay
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
                     X = -5,
-                    Size = new Vector2(28),
+                    Size = new Vector2(30),
                 },
             };
         }
 
         internal void SetSelected(bool selected)
         {
+            this.selected = selected;
             background.Colour = selected
                 ? HomeControlColours.PaleCyan
                 : Color4.White;
@@ -1080,6 +1102,37 @@ internal partial class GameplayLayoutEditorOverlay
             visibilityButton.SetValue(hidden);
             Alpha = hidden ? 0.62f : 1;
         }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            if (!selected)
+            {
+                background.FadeColour(
+                    HomeControlColours.PaleCyan,
+                    90,
+                    Easing.OutQuint);
+                BorderColour = HomeControlColours.Cyan;
+            }
+
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            background.FadeColour(
+                selected
+                    ? HomeControlColours.PaleCyan
+                    : Color4.White,
+                110,
+                Easing.OutQuint);
+            BorderColour = selected
+                ? HomeControlColours.Navy
+                : new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.32f);
+        }
     }
 
     private partial class ToggleIconButton : ClickableContainer
@@ -1091,6 +1144,7 @@ internal partial class GameplayLayoutEditorOverlay
         private readonly SpriteIcon icon;
         private bool value;
         private bool available = true;
+        private bool hovered;
 
         public ToggleIconButton(
             IconUsage trueIcon,
@@ -1128,7 +1182,7 @@ internal partial class GameplayLayoutEditorOverlay
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Size = new Vector2(13),
+                    Size = new Vector2(14),
                     Colour = HomeControlColours.Navy,
                 },
             };
@@ -1147,14 +1201,36 @@ internal partial class GameplayLayoutEditorOverlay
             Alpha = next ? 1 : 0.42f;
         }
 
+        protected override bool OnHover(HoverEvent e)
+        {
+            if (!available)
+                return false;
+
+            hovered = true;
+            updateVisual();
+            this.ScaleTo(1.06f, 90, Easing.OutQuint);
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            hovered = false;
+            updateVisual();
+            this.ScaleTo(1, 110, Easing.OutQuint);
+        }
+
         private void updateVisual()
         {
             icon.Icon = value ? trueIcon : falseIcon;
             background.Colour = value
                 ? HomeControlColours.PaleCyan
-                : Color4.White;
+                : hovered
+                    ? HomeControlColours.PaleCyan
+                    : Color4.White;
             BorderColour = value
                 ? HomeControlColours.Pink
+                : hovered
+                    ? HomeControlColours.Cyan
                 : new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,

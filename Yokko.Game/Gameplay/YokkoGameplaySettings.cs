@@ -21,6 +21,12 @@ public enum ScrollSpeedAdjustmentMode
     Milliseconds,
 }
 
+public enum ManiaScrollDirection
+{
+    Downscroll,
+    Upscroll,
+}
+
 public enum ManiaShortcutAction
 {
     PauseOrBack,
@@ -117,6 +123,9 @@ public sealed class YokkoGameplaySettings
         ScrollSpeedAdjustmentMode =
             new(global::Yokko.Game.Gameplay
                 .ScrollSpeedAdjustmentMode.OsuManiaScale);
+
+    public readonly Bindable<ManiaScrollDirection> ScrollDirection =
+        new(ManiaScrollDirection.Downscroll);
 
     /// <summary>
     /// Matches Quaver's optional playback-rate scroll normalization.

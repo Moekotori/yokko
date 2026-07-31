@@ -81,6 +81,8 @@ public partial class GameplayScreen : Screen
     [Resolved]
     private YokkoGameplaySettings gameplaySettings { get; set; }
     [Resolved]
+    private YokkoDisplaySettings displaySettings { get; set; }
+    [Resolved]
     private KeyInputTimestampSource keyInputTimestamps { get; set; }
     [Resolved]
     private GameplayScoreStore scoreStore { get; set; }
@@ -176,9 +178,9 @@ public partial class GameplayScreen : Screen
     private double lastApproachPlaybackRate = double.NaN;
     private double manualPlaybackRateAdjustment;
     private bool manualPlaybackRateUsed;
-    private readonly Dictionary<double, ManiaMsdResult>
+    private readonly Dictionary<double, ManiaDifficultyRatings>
         difficultyByRate = new();
-    private Task<ManiaMsdResult> difficultyCalculationTask;
+    private Task<ManiaDifficultyRatings> difficultyCalculationTask;
     private double difficultyCalculationRate = double.NaN;
 
     internal bool GameplayBlocked => gameplayBlocked;
@@ -439,7 +441,8 @@ public partial class GameplayScreen : Screen
                         skinSettings.LongNoteCutAmount.Value,
                         YokkoSkinSettings.MinimumLongNoteCutAmount,
                         YokkoSkinSettings.MaximumLongNoteCutAmount)
-                    : 0)
+                    : 0,
+                gameplaySettings.ScrollDirection.Value)
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
@@ -2507,20 +2510,35 @@ public partial class GameplayScreen : Screen
             || manualPlaybackRateUsed;
         bool overlayVisible =
             showOverlay || playbackRateOverlay.IsVisible;
-        ManiaMsdResult difficulty =
+        ManiaDifficultyRatings difficulty =
             showReadout || overlayVisible
                 ? difficultyAt(rate)
                 : null;
+        ManiaDifficultyRatingMode difficultyMode =
+            displaySettings.DifficultyRatingMode.Value;
         hud.UpdatePlaybackRate(
             rate,
             bpm,
             difficulty,
+            difficultyMode,
             showReadout,
             manualPlaybackRateUsed);
         if (showOverlay)
-            playbackRateOverlay.Show(rate, bpm, difficulty);
+        {
+            playbackRateOverlay.Show(
+                rate,
+                bpm,
+                difficulty,
+                difficultyMode);
+        }
         else if (playbackRateOverlay.IsVisible)
-            playbackRateOverlay.UpdateValues(rate, bpm, difficulty);
+        {
+            playbackRateOverlay.UpdateValues(
+                rate,
+                bpm,
+                difficulty,
+                difficultyMode);
+        }
     }
 
     private void applyAudioPlaybackRate(double rate)
@@ -2554,7 +2572,7 @@ public partial class GameplayScreen : Screen
             firstObjectTimeMilliseconds,
             completionTimeMilliseconds);
 
-    private ManiaMsdResult difficultyAt(double rate)
+    private ManiaDifficultyRatings difficultyAt(double rate)
     {
         collectCompletedDifficultyCalculation();
 
@@ -2567,7 +2585,7 @@ public partial class GameplayScreen : Screen
             MidpointRounding.AwayFromZero);
         if (difficultyByRate.TryGetValue(
                 roundedRate,
-                out ManiaMsdResult cached))
+                out ManiaDifficultyRatings cached))
         {
             return cached;
         }
@@ -2575,9 +2593,17 @@ public partial class GameplayScreen : Screen
         if (difficultyCalculationTask == null)
         {
             difficultyCalculationRate = roundedRate;
-            difficultyCalculationTask = Task.Run(
-                () => ManiaMsdCalculator.CalculateResult(
+            ManiaStarRatingContext starRatingContext =
+                ManiaStarRatingContext.ForGameplay(
                     beatmap,
+                    mods,
+                    judgementConfiguration,
+                    minesEnabled,
+                    roundedRate);
+            difficultyCalculationTask = Task.Run(
+                () => ManiaDifficultyCalculator.CalculateResult(
+                    beatmap,
+                    starRatingContext,
                     roundedRate));
         }
 

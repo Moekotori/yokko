@@ -3,6 +3,7 @@ using System.IO;
 using NUnit.Framework;
 using osu.Framework.Configuration;
 using osu.Framework.Platform;
+using Yokko.Core.Difficulty;
 using Yokko.Game.Configuration;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
@@ -414,6 +415,53 @@ public sealed class DisplaySettingsTest
                 Assert.That(
                     restoredSettings.ShowPerformanceReadout.Value,
                     Is.True);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
+    public void DifficultyRatingModeDefaultsToMsdAndPersists()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "difficulty-rating-mode-config",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            var firstSettings = new YokkoDisplaySettings();
+            using (var firstConfig =
+                   new YokkoConfigManager(
+                       new NativeStorage(directory)))
+            {
+                firstConfig.BindDisplaySettings(firstSettings);
+                Assert.That(
+                    firstSettings.DifficultyRatingMode.Value,
+                    Is.EqualTo(
+                        ManiaDifficultyRatingMode.EtternaMsd));
+
+                firstSettings.DifficultyRatingMode.Value =
+                    ManiaDifficultyRatingMode.RebirthStars;
+                Assert.That(firstConfig.Save(), Is.True);
+            }
+
+            var restoredSettings = new YokkoDisplaySettings();
+            using (var restoredConfig =
+                   new YokkoConfigManager(
+                       new NativeStorage(directory)))
+            {
+                restoredConfig.BindDisplaySettings(
+                    restoredSettings);
+                Assert.That(
+                    restoredSettings.DifficultyRatingMode.Value,
+                    Is.EqualTo(
+                        ManiaDifficultyRatingMode.RebirthStars));
             }
         }
         finally

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -9,6 +10,7 @@ using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osuTK.Input;
 using Yokko.Audio;
+using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
 using Yokko.Game.Gameplay;
@@ -22,6 +24,8 @@ namespace Yokko.Game.Tests.Visual
     {
         private readonly ScreenStack screenStack;
         private readonly SettingsScreen settingsScreen;
+        [Resolved]
+        private YokkoDisplaySettings displaySettings { get; set; }
 
         public TestSceneSettingsScreen()
         {
@@ -183,6 +187,42 @@ namespace Yokko.Game.Tests.Visual
                 settingsScreen.ActivePanel
                     .ChildrenOfType<SettingsPlaceholderSection>()
                     .All(control => control.AcceptsFocus));
+        }
+
+        [Test]
+        public void TestDifficultyRatingModeCanBeChangedFromDisplayPage()
+        {
+            ManiaDifficultyRatingMode originalMode =
+                ManiaDifficultyRatingMode.EtternaMsd;
+            DisplaySettingsPanel display = null;
+
+            AddStep("remember difficulty rating mode", () =>
+                originalMode =
+                    displaySettings.DifficultyRatingMode.Value);
+            AddStep("open Display", () =>
+            {
+                settingsScreen.OpenPage(SettingsPageKind.Display);
+                display =
+                    (DisplaySettingsPanel)settingsScreen.ActivePanel;
+            });
+            AddStep("select Rebirth stars", () =>
+                display.ChildrenOfType<
+                        SettingsSegmentedChoiceButton>()
+                    .Single(button =>
+                        button.Value is ManiaDifficultyRatingMode
+                            mode
+                        && mode
+                            == ManiaDifficultyRatingMode
+                                .RebirthStars)
+                    .TriggerClick());
+            AddAssert("Rebirth stars is selected", () =>
+                display.CurrentDifficultyRatingMode
+                    == ManiaDifficultyRatingMode.RebirthStars
+                && displaySettings.DifficultyRatingMode.Value
+                    == ManiaDifficultyRatingMode.RebirthStars);
+            AddStep("restore difficulty rating mode", () =>
+                displaySettings.DifficultyRatingMode.Value =
+                    originalMode);
         }
 
         [Test]
@@ -352,6 +392,8 @@ namespace Yokko.Game.Tests.Visual
             double originalSpeed = OsuManiaScrollSpeed.Default;
             ScrollSpeedAdjustmentMode originalAdjustmentMode =
                 ScrollSpeedAdjustmentMode.OsuManiaScale;
+            ManiaScrollDirection originalScrollDirection =
+                ManiaScrollDirection.Downscroll;
             bool originalLaneFeedback = true;
             bool originalTimingBar = true;
             bool originalKeysoundsEnabled = true;
@@ -371,6 +413,8 @@ namespace Yokko.Game.Tests.Visual
                 originalSpeed = gameplay.CurrentScrollSpeed;
                 originalAdjustmentMode =
                     gameplay.CurrentScrollSpeedAdjustmentMode;
+                originalScrollDirection =
+                    gameplay.CurrentScrollDirection;
                 originalLaneFeedback = gameplay.ShowLanePressFeedback;
                 originalTimingBar = gameplay.ShowTimingBar;
                 originalKeysoundsEnabled = gameplay.KeysoundsEnabled;
@@ -409,6 +453,12 @@ namespace Yokko.Game.Tests.Visual
                 System.Math.Abs(
                     OsuManiaScrollSpeed.ComputeScrollTime(
                         gameplay.CurrentScrollSpeed) - 442) < 0.02);
+            AddStep("select upscroll", () =>
+                gameplay.SetScrollDirection(
+                    ManiaScrollDirection.Upscroll));
+            AddAssert("upscroll selected", () =>
+                gameplay.CurrentScrollDirection
+                    == ManiaScrollDirection.Upscroll);
             AddStep("open playback rate", () =>
                 gameplay.SelectSection(
                     GameplaySettingsSection.PlaybackRate));
@@ -483,6 +533,8 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SetScrollSpeed(originalSpeed);
                 gameplay.SetScrollSpeedAdjustmentMode(
                     originalAdjustmentMode);
+                gameplay.SetScrollDirection(
+                    originalScrollDirection);
                 gameplay.SetJudgementMode(originalJudgementMode);
                 gameplay.SetEtternaJustice(originalEtternaJustice);
                 gameplay.SetManualPlaybackRatePitchMode(

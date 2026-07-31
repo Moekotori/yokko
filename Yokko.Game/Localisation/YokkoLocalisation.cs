@@ -1066,6 +1066,22 @@ internal static class YokkoStrings
                 "ADVANCED · 1 MS",
                 "进阶 · 1 MS",
                 "上級 · 1 MS"),
+            ["settings.gameplay.scroll_direction"] = new(
+                "Scroll direction",
+                "滚动方向",
+                "スクロール方向"),
+            ["settings.gameplay.scroll_direction_note"] = new(
+                "Changes presentation only; timing and judgement stay the same.",
+                "只改变音符移动方向，不影响谱面时间与判定。",
+                "表示方向のみを変更し、タイミングと判定には影響しません。"),
+            ["settings.gameplay.scroll_direction_down"] = new(
+                "Downscroll",
+                "Downscroll · 向下",
+                "Downscroll · 下向き"),
+            ["settings.gameplay.scroll_direction_up"] = new(
+                "Upscroll",
+                "Upscroll · 向上",
+                "Upscroll · 上向き"),
             ["settings.gameplay.playback_rate_heading"] = new(
                 "Shortcut rate mode",
                 "快捷键倍速模式",

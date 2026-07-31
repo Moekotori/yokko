@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
@@ -134,6 +135,7 @@ public partial class SongSelectScreen : Screen
     private double displayedPlaybackRate = 1;
     private string displayedBpm = "0";
     private ManiaMsdResult displayedMsdRating;
+    private ManiaStarRatingResult displayedStarRating;
     [Resolved]
     private GameplayScoreStore scoreStore { get; set; }
     [Resolved]
@@ -146,6 +148,8 @@ public partial class SongSelectScreen : Screen
     private YokkoGameplaySettings gameplaySettings { get; set; }
     [Resolved]
     private YokkoManiaModPreferences modPreferences { get; set; }
+    [Resolved]
+    private YokkoDisplaySettings displaySettings { get; set; }
 
     public SongSelectScreen(IAudioEngine previewAudioEngine = null)
     {
@@ -168,6 +172,10 @@ public partial class SongSelectScreen : Screen
     internal string DisplayedBpm => displayedBpm;
     internal ManiaMsdResult DisplayedMsdRating =>
         displayedMsdRating;
+    internal ManiaStarRatingResult DisplayedStarRating =>
+        displayedStarRating;
+    internal ManiaDifficultyRatingMode DisplayedDifficultyRatingMode =>
+        displaySettings.DifficultyRatingMode.Value;
     internal SongSelectAccuracyChallengeSettings
         AccuracyChallengeSettings =>
             modSettingsHost?.AccuracySettings;
@@ -287,6 +295,8 @@ public partial class SongSelectScreen : Screen
         rebuildDetails();
         applyFilters();
         updateFilters();
+        displaySettings.DifficultyRatingMode.BindValueChanged(
+            onDifficultyRatingModeChanged);
 
         stage.Alpha = 0;
         stage.Y = 14;
@@ -340,6 +350,11 @@ public partial class SongSelectScreen : Screen
         {
             if (importedChartLibrary != null)
                 importedChartLibrary.LibraryChanged -= onChartLibraryChanged;
+            if (displaySettings != null)
+            {
+                displaySettings.DifficultyRatingMode.ValueChanged -=
+                    onDifficultyRatingModeChanged;
+            }
 
             chartArtworkTextures?.Dispose();
             if (previewPlayer != null)
@@ -1873,13 +1888,25 @@ public partial class SongSelectScreen : Screen
             selectedMods.HasTimeRamp
                 ? 1
                 : selectedMods.PlaybackRate;
-        ManiaMsdResult difficultyRating =
-            ManiaMsdCalculator.CalculateResult(
+        ManiaStarRatingContext starRatingContext =
+            ManiaStarRatingContext.ForGameplay(
                 difficultyBeatmap,
+                selectedMods,
+                difficultyBeatmap.SourceFormat
+                    == ChartSourceFormat.Quaver
+                    ? JudgementConfiguration.QuaverDefault
+                    : gameplaySettings.GetJudgementConfiguration(),
+                gameplaySettings.MinesEnabled.Value,
+                difficultyTimelineRate);
+        ManiaDifficultyRatings difficultyRatings =
+            ManiaDifficultyCalculator.CalculateResult(
+                difficultyBeatmap,
+                starRatingContext,
                 difficultyTimelineRate);
         displayedPlaybackRate = selectedMods.PlaybackRate;
         displayedBpm = bpmLabel;
-        displayedMsdRating = difficultyRating;
+        displayedMsdRating = difficultyRatings.EtternaMsd;
+        displayedStarRating = difficultyRatings.RebirthStars;
 
         rankingPanel = new SongSelectRankingPanel(selectedEntry, textures, newView => scoreView = newView)
         {
@@ -1974,7 +2001,9 @@ public partial class SongSelectScreen : Screen
                     },
                 },
             },
-            createDifficultyRating(difficultyRating),
+            createDifficultyRating(
+                difficultyRatings,
+                displaySettings.DifficultyRatingMode.Value),
             new Box
             {
                 Position = new Vector2(436, 143),
@@ -2315,7 +2344,8 @@ public partial class SongSelectScreen : Screen
         };
 
     private static Drawable createDifficultyRating(
-        ManiaMsdResult rating)
+        ManiaDifficultyRatings ratings,
+        ManiaDifficultyRatingMode mode)
     {
         var flow = new FillFlowContainer
         {
@@ -2329,7 +2359,7 @@ public partial class SongSelectScreen : Screen
         {
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
-            Text = "MSD",
+            Text = ManiaDifficultyPresentation.Unit(mode),
             Font = HomeTypography.Display(9),
             Colour = SongSelectTheme.Cyan,
         });
@@ -2339,7 +2369,9 @@ public partial class SongSelectScreen : Screen
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
             X = 6,
-            Text = ManiaMsdPresentation.FormatValue(rating),
+            Text = ManiaDifficultyPresentation.FormatValue(
+                ratings,
+                mode),
             Font = HomeTypography.Display(15),
             Colour = Color4.White,
         });
@@ -2348,7 +2380,9 @@ public partial class SongSelectScreen : Screen
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
             X = 7,
-            Text = ManiaMsdPresentation.Qualifier(rating),
+            Text = ManiaDifficultyPresentation.Qualifier(
+                ratings,
+                mode),
             Font = HomeTypography.Display(8),
             Colour = SongSelectTheme.Cyan,
         });
@@ -2413,6 +2447,7 @@ public partial class SongSelectScreen : Screen
             {
                 SongSelectSongRow row = new(
                     entry,
+                    displaySettings.DifficultyRatingMode.Value,
                     textureFor(entry),
                     textures.Get("SongSelect/Cute/sticker-star"),
                     () => select(entry),
@@ -2473,7 +2508,9 @@ public partial class SongSelectScreen : Screen
         {
             visibleEntries = visibleEntries
                              .OrderBy(entry => entry.PackageName, StringComparer.OrdinalIgnoreCase)
-                             .ThenBy(entry => entry.DifficultyRating.Value ?? double.MaxValue)
+                             .ThenBy(entry =>
+                                 selectedDifficultyValue(entry)
+                                 ?? double.MaxValue)
                              .ThenBy(entry => entry.Beatmap.Title, StringComparer.OrdinalIgnoreCase)
                              .ToList();
         }
@@ -2738,6 +2775,24 @@ public partial class SongSelectScreen : Screen
 
     private void onChartLibraryChanged() =>
         Scheduler.Add(() => synchroniseImportedCharts(true));
+
+    private void onDifficultyRatingModeChanged(
+        ValueChangedEvent<ManiaDifficultyRatingMode> _)
+    {
+        applyFilters();
+        rebuildDetails();
+    }
+
+    private double? selectedDifficultyValue(
+        SongSelectEntry entry) =>
+        displaySettings.DifficultyRatingMode.Value switch
+        {
+            ManiaDifficultyRatingMode.EtternaMsd =>
+                entry.DifficultyRating.Value,
+            ManiaDifficultyRatingMode.RebirthStars =>
+                entry.StarRating.Value,
+            _ => null,
+        };
 
     private void synchroniseImportedCharts(bool selectNewest = false)
     {

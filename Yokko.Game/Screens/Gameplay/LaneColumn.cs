@@ -56,7 +56,8 @@ public partial class LaneColumn : CompositeDrawable
         OsuManiaSkin skin = null,
         bool showPressFeedback = true,
         bool isLastLaneInStage = false,
-        bool isScratchLane = false)
+        bool isScratchLane = false,
+        bool upscroll = false)
     {
         this.showPressFeedback = showPressFeedback;
         IsScratchLane = isScratchLane;
@@ -116,7 +117,7 @@ public partial class LaneColumn : CompositeDrawable
                     {
                         Anchor = Anchor.TopCentre,
                         Origin = Anchor.Centre,
-                        Y = 528,
+                        Y = upscroll ? 92 : 528,
                         Width = Math.Max(18, laneWidth - 18),
                         Height = 8,
                         Colour = new Color4(
@@ -130,23 +131,29 @@ public partial class LaneColumn : CompositeDrawable
                     {
                         Anchor = Anchor.TopCentre,
                         Origin = Anchor.Centre,
-                        Y = 528,
+                        Y = upscroll ? 92 : 528,
                         Width = Math.Max(14, laneWidth - 28),
                         Height = 2,
                         Colour = new Color4(1f, 1f, 1f, 0.72f),
                     },
                     this.keyLabel = new SpriteText
                     {
-                        Anchor = Anchor.BottomCentre,
-                        Origin = Anchor.BottomCentre,
-                        Y = -26,
+                        Anchor = upscroll
+                            ? Anchor.TopCentre
+                            : Anchor.BottomCentre,
+                        Origin = upscroll
+                            ? Anchor.TopCentre
+                            : Anchor.BottomCentre,
+                        Y = upscroll ? 26 : -26,
                         Text = displayKey,
                         Font = FontUsage.Default.With(size: 18),
                         Colour = YokkoPalette.TextMuted,
                     },
                     mineExplosion = createMineExplosion(
-                        Anchor.BottomCentre,
-                        -92,
+                        upscroll
+                            ? Anchor.TopCentre
+                            : Anchor.BottomCentre,
+                        upscroll ? 92 : -92,
                         54),
                 },
             };
@@ -253,13 +260,13 @@ public partial class LaneColumn : CompositeDrawable
             backgroundChildren.Add(laneLight = new TextureAnimation
             {
                 Name = "Lane light",
-                Anchor = configuration.UpsideDown
+                Anchor = upscroll
                     ? Anchor.TopCentre
                     : Anchor.BottomCentre,
-                Origin = configuration.UpsideDown
+                Origin = upscroll
                     ? Anchor.TopCentre
                     : Anchor.BottomCentre,
-                Y = configuration.UpsideDown
+                Y = upscroll
                     ? 480 - lightPosition
                     : -(480 - lightPosition),
                 Size = new Vector2(
@@ -278,22 +285,22 @@ public partial class LaneColumn : CompositeDrawable
 
         if (idleTexture != null)
         {
-            idleKeyFlipped = configuration.UpsideDown
+            idleKeyFlipped = upscroll
                              && configuration.KeyFlipWhenUpsideDown[lane];
             receptorChildren.Add(idleKey = createKeySprite(
                 idleTexture,
                 laneWidth,
-                configuration.UpsideDown,
+                upscroll,
                 idleKeyFlipped));
 
             if (pressedTexture != null)
             {
-                pressedKeyFlipped = configuration.UpsideDown
+                pressedKeyFlipped = upscroll
                                     && configuration.PressedKeyFlipWhenUpsideDown[lane];
                 receptorChildren.Add(pressedKey = createKeySprite(
                     pressedTexture,
                     laneWidth,
-                    configuration.UpsideDown,
+                    upscroll,
                     pressedKeyFlipped));
                 pressedKey.Alpha = 0;
             }
@@ -302,11 +309,11 @@ public partial class LaneColumn : CompositeDrawable
             receptorChildren.Add(skinKeyWarning = new SpriteText
             {
                 Name = "Legacy key binding reminder",
-                Anchor = configuration.UpsideDown
+                Anchor = upscroll
                     ? Anchor.TopCentre
                     : Anchor.BottomCentre,
                 Origin = Anchor.Centre,
-                Y = configuration.UpsideDown
+                Y = upscroll
                     ? keyHeight / 2
                     : -keyHeight / 2,
                 Text = displayKey,
@@ -319,9 +326,13 @@ public partial class LaneColumn : CompositeDrawable
         {
             receptorChildren.Add(this.keyLabel = new SpriteText
             {
-                Anchor = Anchor.BottomCentre,
-                Origin = Anchor.BottomCentre,
-                Y = -26,
+                Anchor = upscroll
+                    ? Anchor.TopCentre
+                    : Anchor.BottomCentre,
+                Origin = upscroll
+                    ? Anchor.TopCentre
+                    : Anchor.BottomCentre,
+                Y = upscroll ? 26 : -26,
                 Text = displayKey,
                 Font = FontUsage.Default.With(size: 18),
                 Colour = YokkoPalette.TextMuted,
@@ -346,11 +357,11 @@ public partial class LaneColumn : CompositeDrawable
                 var explosion = new TextureAnimation
                 {
                     Name = "Hit explosion",
-                    Anchor = configuration.UpsideDown
+                    Anchor = upscroll
                         ? Anchor.TopCentre
                         : Anchor.BottomCentre,
                     Origin = Anchor.Centre,
-                    Y = configuration.UpsideDown
+                    Y = upscroll
                         ? 480 - hitPosition
                         : -(480 - hitPosition),
                     Size = explosionSize,
@@ -374,11 +385,11 @@ public partial class LaneColumn : CompositeDrawable
             holdLight = new TextureAnimation
             {
                 Name = "Hold light",
-                Anchor = configuration.UpsideDown
+                Anchor = upscroll
                     ? Anchor.TopCentre
                     : Anchor.BottomCentre,
                 Origin = Anchor.Centre,
-                Y = configuration.UpsideDown
+                Y = upscroll
                     ? 480 - hitPosition
                     : -(480 - hitPosition),
                 Size = holdLightSize,
@@ -393,10 +404,10 @@ public partial class LaneColumn : CompositeDrawable
         }
 
         receptorChildren.Add(mineExplosion = createMineExplosion(
-            configuration.UpsideDown
+            upscroll
                 ? Anchor.TopCentre
                 : Anchor.BottomCentre,
-            configuration.UpsideDown
+            upscroll
                 ? 480 - hitPosition
                 : -(480 - hitPosition),
             Math.Clamp(laneWidth * 1.25f, 28, 54)));

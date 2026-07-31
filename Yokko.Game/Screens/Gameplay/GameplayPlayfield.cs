@@ -12,6 +12,7 @@ using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
 using Yokko.Game.Skinning.OsuMania;
 
@@ -55,7 +56,7 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly bool separateSkinScore;
     private readonly ManiaModSet mods;
     private readonly bool receptorAtBottom;
-    private readonly bool skinUpsideDown;
+    private readonly bool upscroll;
     private readonly LegacyManiaHealthBar legacyHealthBar;
     private readonly IReadOnlyList<Texture> comboBurstTextures =
         Array.Empty<Texture>();
@@ -139,9 +140,12 @@ public partial class GameplayPlayfield : CompositeDrawable
         ManiaModSet mods = null,
         bool showMines = true,
         bool showComboBursts = true,
-        double longNoteCutAmount = 0)
+        double longNoteCutAmount = 0,
+        ManiaScrollDirection scrollDirection =
+            ManiaScrollDirection.Downscroll)
     {
         this.mods = mods ?? ManiaModSet.Empty;
+        upscroll = scrollDirection == ManiaScrollDirection.Upscroll;
         this.approachTimeMilliseconds = approachTimeMilliseconds;
         bool constantSpeed =
             this.mods.Contains(ManiaModId.ConstantSpeed);
@@ -177,7 +181,6 @@ public partial class GameplayPlayfield : CompositeDrawable
         SkinColumnStart = configuration?.ColumnStart;
         SkinColumnRight = configuration?.ColumnRight;
         separateSkinScore = configuration?.SeparateScore ?? true;
-        skinUpsideDown = configuration?.UpsideDown == true;
         const float dualStageGap = 24;
         int keysPerStage = beatmap.KeysPerStage;
         bool splitSkinStages = configuration != null
@@ -219,15 +222,23 @@ public partial class GameplayPlayfield : CompositeDrawable
             : beatmap.HitObjects.Min(hitObject =>
                 hitObject.StartTimeMilliseconds);
 
-        topY = activeSkin == null
-            ? 28
-            : configuration.UpsideDown ? 480 : 0;
-        judgementY = activeSkin == null
-            ? 528
-            : configuration.UpsideDown
-                ? 480 - Math.Clamp(configuration.HitPosition, 0, 480)
-                : Math.Clamp(configuration.HitPosition, 0, 480);
-        receptorAtBottom = configuration?.UpsideDown != true;
+        if (activeSkin == null)
+        {
+            topY = upscroll ? 592 : 28;
+            judgementY = upscroll ? 92 : 528;
+        }
+        else
+        {
+            topY = upscroll ? 480 : 0;
+            float hitPosition = Math.Clamp(
+                configuration.HitPosition,
+                0,
+                480);
+            judgementY = upscroll
+                ? 480 - hitPosition
+                : hitPosition;
+        }
+        receptorAtBottom = !upscroll;
         Size = new Vector2(
             playfieldWidth,
             activeSkin == null ? 620 : 480);
@@ -261,7 +272,8 @@ public partial class GameplayPlayfield : CompositeDrawable
                                         lane == keyCount - 1
                                         || splitSkinStages
                                         && lane == keyCount / 2 - 1,
-                                        beatmap.ScratchLane == lane)
+                                        beatmap.ScratchLane == lane,
+                                        upscroll)
                                     {
                                         X = x,
                                         Width = width,
@@ -296,7 +308,8 @@ public partial class GameplayPlayfield : CompositeDrawable
                 activeSkin,
                 beatmap.LegacyLongNoteRendering,
                 beatmap.ScratchLane == hitObject.Lane,
-                longNoteCutAmount)
+                longNoteCutAmount,
+                upscroll)
             {
                 X = x,
                 Alpha = 0,
@@ -564,10 +577,10 @@ public partial class GameplayPlayfield : CompositeDrawable
                     var sprite = new LegacyManiaAnimatedSprite(
                         stageBottomFrames)
                     {
-                        Anchor = configuration.UpsideDown
+                        Anchor = upscroll
                             ? Anchor.TopLeft
                             : Anchor.BottomLeft,
-                        Origin = configuration.UpsideDown
+                        Origin = upscroll
                             ? Anchor.TopCentre
                             : Anchor.BottomCentre,
                         X = segment.X + segment.Width / 2,
@@ -669,7 +682,7 @@ public partial class GameplayPlayfield : CompositeDrawable
                     warningArrow.DisplayHeight),
                 Scale = new Vector2(
                     1,
-                    configuration.UpsideDown ? -1 : 1),
+                    upscroll ? -1 : 1),
                 Texture = warningArrow,
                 Alpha = 0,
             }).ToArray();
@@ -682,7 +695,7 @@ public partial class GameplayPlayfield : CompositeDrawable
             {
                 RelativeSizeAxes = Axes.X,
                 Height = 1,
-                Y = judgementY - 36,
+                Y = judgementY + (upscroll ? 36 : -36),
                 Colour = new Color4(1f, 1f, 1f, 0.18f),
             });
         }
@@ -690,7 +703,8 @@ public partial class GameplayPlayfield : CompositeDrawable
         {
             skinOverlays = stageSegments
                            .Select(segment => new OsuManiaSkinOverlay(
-                               activeSkin)
+                               activeSkin,
+                               upscroll)
                            {
                                X = segment.X,
                                Width = segment.Width,
@@ -861,7 +875,7 @@ public partial class GameplayPlayfield : CompositeDrawable
                 (baseStageXs[i] + baseStageWidths[i] / 2) * value;
             warningArrows[i].Scale = new Vector2(
                 value,
-                (skinUpsideDown ? -1 : 1) * value);
+                (upscroll ? -1 : 1) * value);
         }
 
         foreach (LegacyManiaBarLine barLine in barLines)

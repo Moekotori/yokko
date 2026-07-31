@@ -83,6 +83,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal ScrollSpeedAdjustmentMode CurrentScrollSpeedAdjustmentMode =>
         settings.ScrollSpeedAdjustmentMode.Value;
 
+    internal ManiaScrollDirection CurrentScrollDirection =>
+        settings.ScrollDirection.Value;
+
     internal double QuaverScrollRateNormalization =>
         settings.QuaverScrollRateNormalization.Value;
 
@@ -353,6 +356,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal void SetScrollSpeedAdjustmentMode(
         ScrollSpeedAdjustmentMode mode) =>
         settings.ScrollSpeedAdjustmentMode.Value = mode;
+
+    internal void SetScrollDirection(ManiaScrollDirection direction) =>
+        settings.ScrollDirection.Value = direction;
 
     internal void SetJudgementMode(JudgementMode mode) =>
         settings.JudgementMode.Value = mode;
@@ -804,11 +810,17 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Colour = HomeControlColours.Navy,
             },
             createSpeedPresets(),
-            new Box
+            createControlLabel(
+                YokkoStrings.Get(
+                    "settings.gameplay.scroll_direction"),
+                YokkoStrings.Get(
+                    "settings.gameplay.scroll_direction_note"),
+                20,
+                143),
+            new GameplayScrollDirectionSelector(
+                settings.ScrollDirection)
             {
-                Position = new Vector2(20, 143),
-                Size = new Vector2(800, 1),
-                Colour = SettingsTheme.Divider,
+                Position = new Vector2(430, 137),
             },
             createControlLabel(
                 YokkoStrings.Get(
@@ -816,7 +828,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 YokkoStrings.Get(
                     "settings.gameplay.quaver_rate_normalization_note"),
                 20,
-                157),
+                205),
             new GameplayValueStepper(
                 settings.QuaverScrollRateNormalization,
                 10,
@@ -824,14 +836,14 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 100,
                 value => $"{value:0}%")
             {
-                Position = new Vector2(430, 153),
+                Position = new Vector2(430, 199),
             },
             createControlLabel(
                 YokkoStrings.Get("settings.gameplay.input_offset"),
                 YokkoStrings.Get(
                     "settings.gameplay.input_offset_note"),
                 20,
-                225),
+                263),
             new GameplayValueStepper(
                 audioSettings.UserOffsetMilliseconds,
                 1,
@@ -839,7 +851,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 200,
                 value => $"{value:+0;-0;0} ms")
             {
-                Position = new Vector2(430, 221),
+                Position = new Vector2(430, 257),
             },
         });
 
@@ -2590,6 +2602,64 @@ internal partial class GameplayJudgementModeSelector : CompositeDrawable
     {
         if (isDisposing)
             mode.ValueChanged -= onModeChanged;
+
+        base.Dispose(isDisposing);
+    }
+}
+
+internal partial class GameplayScrollDirectionSelector : CompositeDrawable
+{
+    private readonly Bindable<ManiaScrollDirection> direction;
+    private readonly SettingsSegmentedChoiceButton downscrollButton;
+    private readonly SettingsSegmentedChoiceButton upscrollButton;
+
+    public GameplayScrollDirectionSelector(
+        Bindable<ManiaScrollDirection> direction)
+    {
+        this.direction = direction;
+        Size = new Vector2(390, 54);
+
+        var card = new SettingsStickerCard(new Vector2(390, 54), 8);
+        card.SetContent(new FillFlowContainer
+        {
+            RelativeSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+            Children = new Drawable[]
+            {
+                downscrollButton = new SettingsSegmentedChoiceButton(
+                    YokkoStrings.Get(
+                        "settings.gameplay.scroll_direction_down"),
+                    FontAwesome.Solid.ChevronDown,
+                    () => direction.Value =
+                        ManiaScrollDirection.Downscroll,
+                    195),
+                upscrollButton = new SettingsSegmentedChoiceButton(
+                    YokkoStrings.Get(
+                        "settings.gameplay.scroll_direction_up"),
+                    FontAwesome.Solid.ChevronUp,
+                    () => direction.Value =
+                        ManiaScrollDirection.Upscroll,
+                    195),
+            },
+        });
+        InternalChild = card;
+
+        direction.BindValueChanged(onDirectionChanged, true);
+    }
+
+    private void onDirectionChanged(
+        ValueChangedEvent<ManiaScrollDirection> change)
+    {
+        downscrollButton.SetSelected(
+            change.NewValue == ManiaScrollDirection.Downscroll);
+        upscrollButton.SetSelected(
+            change.NewValue == ManiaScrollDirection.Upscroll);
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            direction.ValueChanged -= onDirectionChanged;
 
         base.Dispose(isDisposing);
     }

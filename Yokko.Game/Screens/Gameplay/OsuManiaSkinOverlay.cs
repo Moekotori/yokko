@@ -31,7 +31,9 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
     private readonly float overlayScale;
     private int displayedCombo = -1;
 
-    public OsuManiaSkinOverlay(OsuManiaSkin skin)
+    public OsuManiaSkinOverlay(
+        OsuManiaSkin skin,
+        bool upscroll = false)
     {
         this.skin = skin ?? throw new ArgumentNullException(nameof(skin));
         OsuManiaSkinConfiguration configuration = skin.Configuration;
@@ -39,11 +41,11 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             ? 1 / OsuManiaSkinConfiguration.LegacyPositionScaleFactor
             : 1;
         (Anchor judgementAnchor, float judgementY) =
-            judgementPlacement(configuration);
-        Anchor comboAnchor = configuration.UpsideDown
+            judgementPlacement(configuration, upscroll);
+        Anchor comboAnchor = upscroll
             ? Anchor.BottomCentre
             : Anchor.TopCentre;
-        float comboY = configuration.UpsideDown
+        float comboY = upscroll
             ? -configuration.ComboPosition
             : configuration.ComboPosition;
 
@@ -360,19 +362,20 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         && parsed >= 2.4;
 
     private static (Anchor Anchor, float Y) judgementPlacement(
-        OsuManiaSkinConfiguration configuration)
+        OsuManiaSkinConfiguration configuration,
+        bool upscroll)
     {
         float hitPosition = Math.Clamp(configuration.HitPosition, 240, 480);
         float scorePosition = configuration.ScorePosition;
 
         if (scorePosition > hitPosition / 2)
         {
-            return configuration.UpsideDown
+            return upscroll
                 ? (Anchor.TopCentre, hitPosition - scorePosition)
                 : (Anchor.BottomCentre, scorePosition - hitPosition);
         }
 
-        return configuration.UpsideDown
+        return upscroll
             ? (Anchor.BottomCentre, -scorePosition)
             : (Anchor.TopCentre, scorePosition);
     }

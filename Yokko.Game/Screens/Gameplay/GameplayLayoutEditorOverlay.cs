@@ -1045,8 +1045,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         float boundaryY,
         float width)
     {
-        handle.Position = new Vector2(x, boundaryY - 10);
-        handle.Size = new Vector2(Math.Max(60, width), 20);
+        handle.Position = new Vector2(x, boundaryY - 13);
+        handle.Size = new Vector2(Math.Max(60, width), 26);
     }
 
     private static double clampOffset(double value) => Math.Clamp(
@@ -1180,7 +1180,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                         labelPanel = new Container
                         {
                             Position = new Vector2(8, 6),
-                            Size = new Vector2(202, 27),
+                            Size = new Vector2(218, 32),
                             Masking = true,
                             CornerRadius = 5,
                             BorderThickness = 1,
@@ -1246,9 +1246,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 Origin = anchor,
                 Size = edge
                     ? anchor is Anchor.TopCentre or Anchor.BottomCentre
-                        ? new Vector2(22, 10)
-                        : new Vector2(10, 22)
-                    : new Vector2(13),
+                        ? new Vector2(28, 12)
+                        : new Vector2(12, 28)
+                    : new Vector2(16),
             };
 
         protected override bool OnMouseDown(MouseDownEvent e)
@@ -1446,6 +1446,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     {
         private readonly Action<Vector2> update;
         private readonly Action beginChange;
+        private readonly Box background;
 
         public CoverDragHandle(
             Drawable coordinateSpace,
@@ -1464,7 +1465,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
             InternalChildren = new Drawable[]
             {
-                new Box
+                background = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = HomeControlColours.Ivory,
@@ -1502,6 +1503,25 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         protected override void OnDrag(DragEvent e) =>
             update(e.ScreenSpaceMousePosition);
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            background.FadeColour(
+                HomeControlColours.PaleCyan,
+                90,
+                Easing.OutQuint);
+            BorderColour = HomeControlColours.Pink;
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            background.FadeColour(
+                HomeControlColours.Ivory,
+                120,
+                Easing.OutQuint);
+            BorderColour = HomeControlColours.Navy;
+        }
     }
 
     private partial class LayoutActionButton : ClickableContainer
@@ -1522,7 +1542,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 if (available)
                     action();
             };
-            Size = new Vector2(112, 34);
+            Size = new Vector2(112, 38);
             Masking = true;
             CornerRadius = 6;
             BorderThickness = 1.5f;
@@ -1630,6 +1650,6 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             new("Yokko", readableSize(size), "Bold");
 
         private static float readableSize(float size) =>
-            MathF.Max(16, size + MathF.Min(8, 6 + size * 0.05f));
+            MathF.Max(18, size + MathF.Min(10, 8 + size * 0.08f));
     }
 }

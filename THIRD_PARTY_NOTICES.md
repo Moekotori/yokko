@@ -1,5 +1,19 @@
 # Third-party notices
 
+## Star Rating Rebirth
+
+Yokko optionally uses the `StarRatingRebirth` 0.1.1 NuGet package when the
+user selects the Rebirth star-rating display mode.
+
+- C# port: <https://github.com/zzzzv/StarRatingRebirth>
+- Original algorithm and paper: <https://github.com/sunnyxxy/Star-Rating-Rebirth>
+- C# package licence declaration: MIT
+- Algorithm revision: `2025/04/15`
+
+The C# port declares MIT, but the original repository does not currently carry
+an explicit licence. Distribution approval for this dependency must therefore
+be confirmed before treating it as release-cleared.
+
 ## osu! and osu!framework
 
 Yokko uses osu!framework and ports selected osu!mania legacy skinning,

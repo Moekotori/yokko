@@ -55,6 +55,7 @@ internal enum YokkoSetting
     ManiaWatchReplayKey,
     ManiaScrollSpeed,
     ManiaScrollSpeedAdjustmentMode,
+    ManiaScrollDirection,
     QuaverScrollRateNormalization,
     GameplayJudgementMode,
     GameplayEtternaJustice,
@@ -167,6 +168,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(
             YokkoSetting.ManiaScrollSpeedAdjustmentMode,
             ScrollSpeedAdjustmentMode.OsuManiaScale);
+        SetDefault(
+            YokkoSetting.ManiaScrollDirection,
+            ManiaScrollDirection.Downscroll);
         SetDefault(
             YokkoSetting.QuaverScrollRateNormalization,
             0.0,
@@ -423,6 +427,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.ManiaScrollSpeedAdjustmentMode,
             settings.ScrollSpeedAdjustmentMode);
+        BindWith(
+            YokkoSetting.ManiaScrollDirection,
+            settings.ScrollDirection);
         BindWith(
             YokkoSetting.QuaverScrollRateNormalization,
             settings.QuaverScrollRateNormalization);

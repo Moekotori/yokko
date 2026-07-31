@@ -44,6 +44,9 @@ public sealed class GameplaySettingsTest
             settings.ScrollSpeedAdjustmentMode.Value,
             Is.EqualTo(ScrollSpeedAdjustmentMode.OsuManiaScale));
         Assert.That(
+            settings.ScrollDirection.Value,
+            Is.EqualTo(ManiaScrollDirection.Downscroll));
+        Assert.That(
             settings.QuaverScrollRateNormalization.Value,
             Is.Zero);
         Assert.That(
@@ -459,6 +462,8 @@ public sealed class GameplaySettingsTest
                 firstSettings.SetScrollTimeMilliseconds(700);
                 firstSettings.ScrollSpeedAdjustmentMode.Value =
                     ScrollSpeedAdjustmentMode.Milliseconds;
+                firstSettings.ScrollDirection.Value =
+                    ManiaScrollDirection.Upscroll;
                 firstSettings.QuaverScrollRateNormalization.Value = 60;
                 firstSettings.JudgementMode.Value =
                     JudgementMode.Etterna;
@@ -523,6 +528,9 @@ public sealed class GameplaySettingsTest
                 Assert.That(
                     restoredSettings.ScrollSpeedAdjustmentMode.Value,
                     Is.EqualTo(ScrollSpeedAdjustmentMode.Milliseconds));
+                Assert.That(
+                    restoredSettings.ScrollDirection.Value,
+                    Is.EqualTo(ManiaScrollDirection.Upscroll));
                 Assert.That(
                     restoredSettings.QuaverScrollRateNormalization.Value,
                     Is.EqualTo(60));
