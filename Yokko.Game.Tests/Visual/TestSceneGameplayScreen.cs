@@ -1020,11 +1020,11 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("miss result was captured", () =>
                 (screenStack.CurrentScreen as GameplayScreen)?
                 .CompletedResult?.Miss == 1);
-            AddUntilStep("result mascot GIF decoded", () =>
+            AddUntilStep("result mascot texture loaded", () =>
                 (screenStack.CurrentScreen as Drawable)?
                 .ChildrenOfType<GameplayResultOverlay>()
                 .SingleOrDefault()?
-                .MascotFrameCount == 15);
+                .MascotReady == true);
             AddAssert("result exposes three actions", () =>
                 (screenStack.CurrentScreen as Drawable)?
                 .ChildrenOfType<GameplayResultOverlay>()
@@ -2914,6 +2914,13 @@ HitPosition: 400
             ManiaStarRatingResult expectedDifficulty =
                 ManiaStarRatingCalculator.CalculateResult(
                     beatmap,
+                    ManiaStarRatingContext.ForGameplay(
+                        beatmap,
+                        ManiaModSet.Empty,
+                        gameplaySettings
+                            .GetJudgementConfiguration(),
+                        gameplaySettings.MinesEnabled.Value,
+                        1.05),
                     1.05);
 
             AddStep("open rate-adjustable gameplay", () =>

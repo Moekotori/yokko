@@ -111,6 +111,9 @@ internal partial class GameplayModsScreen : Screen
     private bool loadComplete;
     private bool selectionDirty;
     private bool pageTransitioning;
+    private double scrollGestureAccumulator;
+    private double lastScrollGestureDirection;
+    private double lastScrollNavigationTime = double.NegativeInfinity;
     private int modColumnCount = 2;
     private Vector2 lastResponsiveLayoutSize = new(-1);
     private float modBrowserRestingY = mod_browser_top;
@@ -332,7 +335,45 @@ internal partial class GameplayModsScreen : Screen
 
     protected override bool OnScroll(ScrollEvent e)
     {
-        NavigatePageByScroll(e.ScrollDelta.Y);
+        ProcessScrollGesture(e.ScrollDelta.Y, Time.Current);
+        return true;
+    }
+
+    internal bool ProcessScrollGesture(double delta, double timestamp)
+    {
+        const double gesture_threshold = 0.45;
+        const double gesture_lockout = 430;
+
+        double direction = Math.Sign(delta);
+        if (direction == 0)
+            return false;
+
+        if (direction != lastScrollGestureDirection)
+        {
+            scrollGestureAccumulator = 0;
+            lastScrollGestureDirection = direction;
+        }
+
+        if (timestamp - lastScrollNavigationTime < gesture_lockout)
+        {
+            scrollGestureAccumulator = 0;
+            return false;
+        }
+
+        scrollGestureAccumulator += delta;
+        if (Math.Abs(scrollGestureAccumulator) < gesture_threshold)
+            return false;
+
+        double completedGesture = scrollGestureAccumulator;
+        scrollGestureAccumulator = 0;
+        if (!NavigatePageByScroll(completedGesture))
+            return false;
+
+        lastScrollNavigationTime = timestamp;
+        showInteractionHint(
+            completedGesture > 0
+                ? "WHEEL · PREVIOUS PAGE"
+                : "WHEEL · NEXT PAGE");
         return true;
     }
 
@@ -439,8 +480,22 @@ internal partial class GameplayModsScreen : Screen
         return false;
     }
 
-    internal void NavigatePageByScroll(double delta) =>
-        NavigateCategoryPage(delta > 0 ? -1 : 1, false);
+    internal bool NavigatePageByScroll(double delta)
+    {
+        if (pageTransitioning || Math.Abs(delta) < 0.001)
+            return false;
+
+        int offset = delta > 0 ? -1 : 1;
+        int currentIndex = Array.IndexOf(
+            visible_categories,
+            activeCategory);
+        int nextIndex = currentIndex + offset;
+        if (nextIndex < 0 || nextIndex >= visible_categories.Length)
+            return false;
+
+        NavigateCategoryPage(offset, false);
+        return true;
+    }
 
     private void NavigateCategoryPage(int offset, bool wrap)
     {

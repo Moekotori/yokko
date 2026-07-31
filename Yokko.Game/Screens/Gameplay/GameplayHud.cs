@@ -390,9 +390,8 @@ public partial class GameplayHud : CompositeDrawable
         string bpmText = bpm > 0
             ? $"{bpm:0.##} BPM"
             : "-- BPM";
-        string difficultyText = difficulty?.IsSuccess == true
-            ? $"{difficulty.Value:0.00} STAR"
-            : "-- STAR";
+        string difficultyText =
+            ManiaStarRatingPresentation.FormatStar(difficulty);
         rateText.Text =
             $"{mode} · LIVE RATE {rate:0.00}×"
             + $" · {bpmText} · {difficultyText}"

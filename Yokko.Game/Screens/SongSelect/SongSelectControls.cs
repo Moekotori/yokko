@@ -17,6 +17,7 @@ using osuTK.Input;
 using Yokko.Core.Difficulty;
 using Yokko.Core.Scoring;
 using Yokko.Game.Localisation;
+using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -504,7 +505,7 @@ internal partial class LegacySongSelectSongRow : ClickableContainer
         {
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
-            Text = rating.Value?.ToString("0.00") ?? "--",
+            Text = ManiaStarRatingPresentation.FormatValue(rating),
             Font = HomeTypography.Display(15),
             Colour = rating.IsSuccess ? SongSelectTheme.Ivory : SongSelectTheme.PaleCyan,
         });

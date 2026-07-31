@@ -63,6 +63,7 @@ public partial class GameplayScreen : Screen
     private readonly ManiaModSet mods;
     private readonly GameplayReplay replay;
     private JudgementConfiguration judgementConfiguration;
+    private bool minesEnabled;
     private readonly string cinemaArtworkPath;
     private readonly bool quaverHasSignificantScrollVelocities;
     private readonly BeatTimingMap beatTimingMap;
@@ -322,7 +323,7 @@ public partial class GameplayScreen : Screen
     private void load(IRenderer renderer, GameHost host)
     {
         this.host = host;
-        bool minesEnabled = gameplaySettings.MinesEnabled.Value;
+        minesEnabled = gameplaySettings.MinesEnabled.Value;
         updateGameplayBounds(minesEnabled);
         judgementConfiguration =
             replay?.JudgementConfiguration
@@ -2471,9 +2472,17 @@ public partial class GameplayScreen : Screen
         if (difficultyCalculationTask == null)
         {
             difficultyCalculationRate = roundedRate;
+            ManiaStarRatingContext context =
+                ManiaStarRatingContext.ForGameplay(
+                    beatmap,
+                    mods,
+                    judgementConfiguration,
+                    minesEnabled,
+                    roundedRate);
             difficultyCalculationTask = Task.Run(
                 () => ManiaStarRatingCalculator.CalculateResult(
                     beatmap,
+                    context,
                     roundedRate));
         }
 

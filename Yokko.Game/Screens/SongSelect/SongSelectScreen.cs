@@ -239,7 +239,7 @@ public partial class SongSelectScreen : Screen
         visibleEntries = entries.ToList();
 
         Texture firstWallpaper = textureFor(selectedEntry);
-        Texture logo = textures.Get("home-logo-hd");
+        Texture logo = textures.Get("Mods/home-logo-transparent");
 
         InternalChildren = new Drawable[]
         {
@@ -373,18 +373,6 @@ public partial class SongSelectScreen : Screen
     internal void SelectNext() => selectOffset(1);
 
     internal void SelectPrevious() => selectOffset(-1);
-
-    protected override void Update()
-    {
-        base.Update();
-
-        if (songBrowser != null)
-        {
-            songBrowser.Height = Math.Max(
-                320,
-                DrawHeight - footer_height - songBrowser.Y - 12);
-        }
-    }
 
     internal void SetKeyModeFilter(KeyMode? mode)
     {
@@ -942,22 +930,20 @@ public partial class SongSelectScreen : Screen
                 Position = new Vector2(30, 20),
                 Size = new Vector2(300, 105),
                 Rotation = -2,
-                Masking = true,
-                CornerRadius = 6,
-                BorderThickness = 1,
-                BorderColour = new Color4(0.12f, 0.35f, 0.55f, 0.22f),
                 Children =
                 [
-                    new Box
+                    new Sprite
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Colour = new Color4(1f, 0.985f, 0.94f, 0.96f),
+                        Texture = textures.Get("SongSelect/Cute/paper-song-info"),
+                        FillMode = FillMode.Fill,
                     },
                     new Sprite
                     {
-                        Position = new Vector2(25, 14),
-                        Size = new Vector2(250, 76),
+                        Position = new Vector2(24, 17),
+                        Size = new Vector2(252, 70),
                         Texture = logo,
+                        FillMode = FillMode.Fit,
                     },
                 ],
             },
@@ -1192,14 +1178,20 @@ public partial class SongSelectScreen : Screen
                     Colour = new Color4(1f, 1f, 1f, 0.42f),
                 },
                 new SongSelectFooterBackButton(
-                    () => stopPreviewThen(this.Exit))
+                    () => stopPreviewThen(this.Exit),
+                    textures.Get("SongSelect/Cute/paper-song-row"),
+                    textures.Get("SongSelect/Cute/sticker-diamond"))
                 {
                     Position = new Vector2(225, 18),
                 },
                 createAccountCard(),
                 modPanel,
                 mods,
-                new SongSelectPlayButton(PlaySelected)
+                new SongSelectPlayButton(
+                    PlaySelected,
+                    textures.Get("SongSelect/Cute/paper-song-row"),
+                    textures.Get("SongSelect/Cute/tape-long"),
+                    textures.Get("SongSelect/Cute/sticker-heart-medical"))
                 {
                     Anchor = Anchor.BottomRight,
                     Origin = Anchor.BottomRight,
@@ -1217,16 +1209,13 @@ public partial class SongSelectScreen : Screen
         {
             Position = new Vector2(430, 15),
             Size = new Vector2(390, 82),
-            Masking = true,
-            CornerRadius = 9,
-            BorderThickness = 1.5f,
-            BorderColour = SongSelectTheme.Cyan,
             Children =
             [
-                new Box
+                new Sprite
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(1f, 0.985f, 0.94f, 0.96f),
+                    Texture = textures.Get("SongSelect/Cute/paper-song-row"),
+                    FillMode = FillMode.Fill,
                 },
                 new Container
                 {
@@ -1518,8 +1507,8 @@ public partial class SongSelectScreen : Screen
 
         if (songBrowser != null)
             songBrowser.Height = MathF.Max(
-                360,
-                DrawHeight - footer_height - songBrowser.Y);
+                320,
+                DrawHeight - footer_height - songBrowser.Y - 12);
     }
 
     private static Drawable createDecorations() => new Container
@@ -1641,12 +1630,22 @@ public partial class SongSelectScreen : Screen
               + "→"
               + $"{selectedMods.TimeRampFinalRate:0.00}×"
             : $"{selectedMods.PlaybackRate:0.00}×";
+        double starRatingTimelineRate =
+            selectedMods.HasTimeRamp
+                ? 1
+                : selectedMods.PlaybackRate;
+        ManiaStarRatingContext starRatingContext =
+            ManiaStarRatingContext.ForGameplay(
+                difficultyBeatmap,
+                selectedMods,
+                gameplaySettings.GetJudgementConfiguration(),
+                gameplaySettings.MinesEnabled.Value,
+                starRatingTimelineRate);
         ManiaStarRatingResult starRating =
             ManiaStarRatingCalculator.CalculateResult(
                 difficultyBeatmap,
-                selectedMods.HasTimeRamp
-                    ? 1
-                    : selectedMods.PlaybackRate);
+                starRatingContext,
+                starRatingTimelineRate);
         displayedPlaybackRate = selectedMods.PlaybackRate;
         displayedBpm = bpmLabel;
         displayedStarRating = starRating;
@@ -1660,6 +1659,13 @@ public partial class SongSelectScreen : Screen
         detailsHost.AddRange(new Drawable[]
         {
             createSongInfoPaper(),
+            new Sprite
+            {
+                Position = new Vector2(350, -20),
+                Size = new Vector2(58),
+                Texture = textures.Get("SongSelect/Cute/sticker-star"),
+                FillMode = FillMode.Fit,
+            },
             new SpriteText
             {
                 Position = new Vector2(24, 17),
@@ -1754,35 +1760,12 @@ public partial class SongSelectScreen : Screen
         });
     }
 
-    private static Drawable createSongInfoPaper() => new Container
+    private Drawable createSongInfoPaper() => new Sprite
     {
         Size = new Vector2(390, 255),
         Rotation = -0.6f,
-        Masking = true,
-        CornerRadius = 8,
-        BorderThickness = 1.2f,
-        BorderColour = new Color4(
-            SongSelectTheme.Navy.R,
-            SongSelectTheme.Navy.G,
-            SongSelectTheme.Navy.B,
-            0.18f),
-        Children =
-        [
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(1f, 0.985f, 0.94f, 0.97f),
-            },
-            new Box
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.Centre,
-                Position = new Vector2(-17, 4),
-                Size = new Vector2(46, 15),
-                Rotation = 8,
-                Colour = new Color4(1f, 0.33f, 0.67f, 0.8f),
-            },
-        ],
+        Texture = textures.Get("SongSelect/Cute/paper-song-info"),
+        FillMode = FillMode.Fill,
     };
 
     private static Drawable createAdaptiveDetailsTitle(string title)
@@ -1945,9 +1928,20 @@ public partial class SongSelectScreen : Screen
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
             X = 6,
-            Text = rating.Value?.ToString("0.00") ?? "--",
+            Text = ManiaStarRatingPresentation.FormatValue(rating),
             Font = HomeTypography.Display(18),
             Colour = SongSelectTheme.Navy,
+        });
+        flow.Add(new SpriteText
+        {
+            Anchor = Anchor.CentreLeft,
+            Origin = Anchor.CentreLeft,
+            X = 7,
+            Text = ManiaStarRatingPresentation.Qualifier(rating),
+            Font = HomeTypography.Display(8),
+            Colour = rating.IsPartial
+                ? SongSelectTheme.Pink
+                : SongSelectTheme.Cyan,
         });
 
         return flow;
@@ -1986,6 +1980,7 @@ public partial class SongSelectScreen : Screen
                     songCount,
                     groupEntries.Length,
                     collapsed,
+                    textures.Get("SongSelect/Cute/paper-song-row"),
                     () => TogglePackage(first.PackageId));
                 packageHeaders[first.PackageId] = header;
 
@@ -2009,6 +2004,7 @@ public partial class SongSelectScreen : Screen
                 SongSelectSongRow row = new(
                     entry,
                     textureFor(entry),
+                    textures.Get("SongSelect/Cute/paper-song-row"),
                     () => select(entry),
                     () =>
                     {

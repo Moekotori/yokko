@@ -80,6 +80,97 @@
 
 final result: passed
 
+# Song Select background-agnostic redesign QA
+
+## Evidence
+
+- Selected visual:
+  `D:\yokko\docs\design\song-select\yokko-song-select-final-cute-ranking-account.png`
+- Current implementation capture supplied from the native Yokko renderer:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-4a58e8ad-fa8a-406d-9cea-062455c896e9.png`
+- Normalized implementation evidence:
+  `D:\yokko\artifacts\song-select\implementation-current-1600x900.png`
+- Same-viewport side-by-side comparison:
+  `D:\yokko\artifacts\song-select\comparison-reference-vs-current.png`
+
+## Viewport and state
+
+- Source dimensions: 1676 x 943.
+- Native implementation capture: 3840 x 2160.
+- Comparison normalization: both images resized to 1600 x 900 and placed
+  side by side without cropping.
+- Authored layout space: 1600 x 900.
+- Selected chart state: Waterfall / VA / 4K PACK.
+- Background comparison state: the selected visual uses a bright illustrated
+  beatmap background while the native implementation uses the chart's dark
+  geometric artwork. This intentionally validates the shared UI system across
+  opposite background luminance and visual density.
+
+## Comparison history
+
+1. The first implementation retained the old dark list treatment and left
+   insufficient room for rankings and account context.
+2. The selected cute direction introduced warm paper surfaces, a six-row
+   avatar ranking, Global and My History tabs, account summary, compact Mods,
+   and the yellow Play action.
+3. A runtime border/masking fault in song rows was fixed by moving the selected
+   border onto the masked paper card.
+4. The final density pass restored Best Score in the song card and made the
+   song browser height follow the available area above the footer.
+5. Background handling was made chart-owned: every non-empty artwork path is
+   preserved, no Waterfall/title-specific branch exists, and a fixed neutral
+   navy isolation layer is used instead of sampling or adapting UI colors to
+   the artwork.
+
+## Final review
+
+- Fonts and typography: the navy hierarchy, cyan metadata, pink difficulty
+  labels, yellow stars, and compact numeric columns remain readable on both
+  bright and dark chart art.
+- Spacing and layout: song details, six ranking rows, right-side chart browser,
+  account card, Mods, Back, and Play preserve the selected composition while
+  fitting more list information than the concept image.
+- Long content: title layout supports two lines, CJK and no-space strings, and
+  applies ellipsis when the available title region is exhausted. Pack headers
+  remain separate from chart titles.
+- Colors and surfaces: all information-bearing surfaces use fixed ivory,
+  navy, cyan, pink, and yellow Yokko tokens. The UI does not inherit colors
+  from the selected background.
+- Background policy: selected chart artwork always remains the visual
+  background. Only missing artwork uses the generic fallback texture. A fixed
+  18% deep-navy isolation veil stabilizes contrast across arbitrary artwork.
+- States and interactions: search, key-mode filters, pack expansion, chart
+  selection, ranking/history tabs, Mods, Back, and Play remain active.
+- Responsive behavior: the song browser is masked and dynamically bounded
+  above the footer, preventing selected rows from drawing underneath account
+  and Play controls.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after the final information-density and footer-bounds pass.
+- P3: the generated concept has richer paper grain and hand-painted edge
+  texture. The implementation deliberately retains crisp production surfaces
+  so dynamic text and arbitrary beatmap art stay clear at different
+  resolutions.
+
+## Verification
+
+- `dotnet build Yokko.Desktop\Yokko.Desktop.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- Focused Song Select persistence, long-title, and background-policy tests
+  passed: 14 tests, 0 failures.
+- The exact comparison input above was reviewed at a shared 1600 x 900
+  viewport. The fixed surface hierarchy remains legible on both the bright
+  reference artwork and the dark native beatmap artwork.
+- Computer Use was stopped by the user before a post-patch recapture; the
+  supplied native capture remains the visual evidence, while the final
+  footer-bound and Best Score adjustments are covered by the successful build
+  and focused tests.
+
+final result: passed
+
 ---
 
 # Gameplay Mods orbit workspace QA (2026-07-31)
@@ -106,6 +197,16 @@ final result: passed
   `D:\yokko\artifacts\mods\interaction-polish-comparison.png`
 - Interaction-polish focused orbit/right-panel comparison:
   `D:\yokko\artifacts\mods\interaction-polish-focused-comparison.png`
+- Decoration-density implementation:
+  `D:\yokko\artifacts\mods\decoration-density-active.png`
+- Decoration-density full comparison:
+  `D:\yokko\artifacts\mods\decoration-density-comparison.png`
+- Decoration-density focused comparison:
+  `D:\yokko\artifacts\mods\decoration-density-focused-comparison.png`
+- Micro-polish active-state implementation:
+  `D:\yokko\artifacts\mods\micro-polish-active.png`
+- Micro-polish source/implementation comparison:
+  `D:\yokko\artifacts\mods\micro-polish-comparison.png`
 - Authored viewport: 1600 x 900, verified through the native 3168 x 1785
   renderer capture used by the 3200 x 2000 desktop.
 - States: empty Difficulty Down page and active Difficulty Up page with
@@ -157,6 +258,18 @@ final result: passed
 - Responsive decoration: the orbit adds a slowly rotating, focus-coloured
   scanner and a live `FOCUS / ACTIVE` telemetry readout. These stay subordinate
   to the hero copy and use the existing cyan/pink/yellow token system.
+- Density refinement: the central matrix now has 36 radial scale marks,
+  cardinal index labels, and six node identifiers. The right panel adds an
+  animated level meter, live five-step Mod-bus capacity, and edge scale; the
+  canvas and footer add input-route, refresh-rate, input-ready, and session-bus
+  readouts. All additions use low-opacity production tokens and preserve the
+  primary copy and control hit targets.
+- Material and feedback refinement: orbit nodes now use a restrained offset
+  depth layer that strengthens focus without reading as a card shadow. Active
+  rows gain compact status lamps and a one-shot hover scan; empty slots reuse
+  the same scan language. Rate presets keep a persistent pink selection rail,
+  while the speed panel uses sparse cyan/pink corner brackets to group its
+  controls without adding another filled surface.
 
 ## Findings
 
@@ -183,6 +296,18 @@ final result: passed
 - Full and focused comparisons show no actionable P0, P1, or P2 visual
   regressions. The preset row remains clear of the multiplier and slider, node
   badges do not obscure labels, and telemetry stays outside the hero copy.
+- Decoration-density build: passed with 0 warnings and 0 errors.
+- Focused Gameplay Mods suite after density changes: passed 9/9.
+- Micro-polish build: passed with 0 warnings and 0 errors.
+- Focused Gameplay Mods suite after micro-polish: passed 9/9. This includes
+  page transitions, global wheel paging, slider drag/commit, orbit hero,
+  active-slot activation, and rate presets.
+- Native Direct3D 11 micro-polish preview exited with code 0. The matching
+  authored-density comparison shows the new depth and status accents remain
+  subordinate to labels and do not introduce clipping or overlap.
+- Full and focused density comparisons show no text collisions, clipped
+  controls, or decoration over primary hit targets. No actionable P0, P1, or
+  P2 findings remain.
 - Native Direct3D 11 empty-state and active-state previews: exited with code 0.
 - Final source/implementation comparison and 2K readability captures were
   reviewed at matching authored density.

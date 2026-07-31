@@ -51,8 +51,10 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
                 () => { },
                 () => { }));
         });
-        AddUntilStep("GIF decoded", () =>
-            overlay?.MascotFrameCount == 15);
+        AddUntilStep("mascot texture loaded", () =>
+            overlay?.MascotReady == true);
+        AddAssert("mod chip is visible", () =>
+            overlay?.RenderedModChipCount > 0);
         AddUntilStep("entrance animation completes", () =>
             overlay?.EntranceComplete == true);
         AddStep("capture result screen", () =>

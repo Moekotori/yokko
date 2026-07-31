@@ -63,25 +63,31 @@ clock truth, fallback policy, and backend rollout gates.
 `Yokko.Core.Difficulty.ManiaStarRatingCalculator` adapts the canonical
 `YokkoBeatmap` model to
 [StarRatingRebirth](https://github.com/zzzzv/StarRatingRebirth) 0.1.1
-(MIT, algorithm revision `2025/04/15`). This keeps difficulty calculation
+(C# port declares MIT, algorithm revision `2025/04/15`). This keeps difficulty calculation
 independent of the original chart format: osu!mania, Quaver, Malody, Etterna,
 and BMS imports all use the same tap/hold note data after conversion.
 
 The calculator accepts an explicit playback rate: `1.5` compresses note times
 like DT while `0.75` expands them like HT. Cache keys include the normalized
-tap/hold data, OD, rate, adapter revision, package version, and algorithm
-revision. Successful results persist beneath
+tap/hold data, effective judgement context, rate, adapter revision, package
+version, and algorithm revision. `ManiaStarRatingContext` converts Yokko's
+effective real-time Great window into the equivalent OD consumed by Rebirth,
+so Easy, Hard Rock, Quaver and configurable judgement rules no longer reuse an
+unmodified chart OD. Successful results persist beneath
 `Beatmaps/.yokko-cache/star-ratings.json`; missing, stale, or corrupt cache data
 falls back to calculation.
 
 The song-select screen presents this value as `REBIRTH INPUT SR · BETA`, not a
-general reading or gimmick rating. It uses one star glyph beside the unbounded
-numeric value instead of implying a five-star scale. Charts with fewer than 20
-playable notes or data the upstream algorithm cannot represent expose no
-rating (`--`) instead of reusing Overall Difficulty as a misleading star
-value. Structured failure status distinguishes unsupported input from an
-upstream algorithm failure. Mines and sample-only objects are not currently
-playable notes and do not contribute to the rating.
+general reading or gimmick rating. The numeric value is unbounded; decorative
+stars must not be read as a five-point scale. Charts with fewer than 20 playable
+notes or data the upstream algorithm cannot represent expose no rating (`--`)
+instead of reusing Overall Difficulty as a misleading star value. Structured
+failure status distinguishes unsupported input from an upstream algorithm
+failure. Sample-only objects do not contribute to the rating. Mines are
+playable in Yokko but are outside Rebirth's model; when enabled they leave the
+tap/hold base value intact and mark it `PARTIAL`. No Release charts with holds
+and dynamic-rate estimates are also explicitly partial instead of being
+presented as complete difficulty.
 
 ## Beat Timing
 

@@ -11,7 +11,10 @@ namespace Yokko.Game.Importing;
 internal sealed record StoredStarRating(
     double Value,
     double PlaybackRate,
-    string AlgorithmIdentifier);
+    string AlgorithmIdentifier,
+    ManiaStarRatingLimitations Limitations =
+        ManiaStarRatingLimitations.None,
+    double? EffectiveOverallDifficulty = null);
 
 internal sealed class StarRatingCache
 {
@@ -81,7 +84,10 @@ internal sealed class StarRatingCache
                     ManiaStarRatingStatus.Success,
                     cached.Value,
                     playbackRate,
-                    cached.AlgorithmIdentifier);
+                    cached.AlgorithmIdentifier,
+                    Limitations: cached.Limitations,
+                    EffectiveOverallDifficulty:
+                        cached.EffectiveOverallDifficulty);
             }
         }
 
@@ -98,7 +104,9 @@ internal sealed class StarRatingCache
             entries[key] = new StoredStarRating(
                 calculated.Value!.Value,
                 playbackRate,
-                calculated.AlgorithmIdentifier);
+                calculated.AlgorithmIdentifier,
+                calculated.Limitations,
+                calculated.EffectiveOverallDifficulty);
             changed = true;
             changeVersion++;
         }

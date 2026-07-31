@@ -8,14 +8,16 @@ using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Difficulty;
+using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectSongRow : ClickableContainer
 {
-    private readonly Box paper;
+    private readonly Sprite paper;
     private readonly Container card;
+    private readonly Container selectionOutline;
     private readonly Container thumbnail;
     private readonly SpriteIcon arrow;
     private readonly SpriteText title;
@@ -27,6 +29,7 @@ internal partial class SongSelectSongRow : ClickableContainer
     public SongSelectSongRow(
         SongSelectEntry entry,
         Texture wallpaper,
+        Texture paperTexture,
         Action select,
         Action play)
     {
@@ -40,20 +43,28 @@ internal partial class SongSelectSongRow : ClickableContainer
             card = new Container
             {
                 RelativeSizeAxes = Axes.Both,
-                Masking = true,
-                CornerRadius = 7,
-                BorderThickness = 1.2f,
-                BorderColour = new Color4(
-                    SongSelectTheme.Navy.R,
-                    SongSelectTheme.Navy.G,
-                    SongSelectTheme.Navy.B,
-                    0.18f),
                 Children =
                 [
-                    paper = new Box
+                    paper = new Sprite
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Colour = new Color4(1f, 0.985f, 0.94f, 0.96f),
+                        Texture = paperTexture,
+                        FillMode = FillMode.Fill,
+                    },
+                    selectionOutline = new Container
+                    {
+                        Position = new Vector2(5, 4),
+                        Size = new Vector2(530, 80),
+                        Masking = true,
+                        CornerRadius = 7,
+                        BorderThickness = 2,
+                        BorderColour = SongSelectTheme.Cyan,
+                        Alpha = 0,
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Alpha = 0,
+                        },
                     },
                 ],
             },
@@ -108,18 +119,11 @@ internal partial class SongSelectSongRow : ClickableContainer
         selected = value;
         paper.FadeColour(
             selected
-                ? new Color4(1f, 0.95f, 0.82f, 0.99f)
-                : new Color4(1f, 0.985f, 0.94f, 0.96f),
+                ? new Color4(1f, 0.94f, 0.78f, 1f)
+                : Color4.White,
             140,
             Easing.OutQuint);
-        card.BorderThickness = selected ? 2 : 1.2f;
-        card.BorderColour = selected
-            ? SongSelectTheme.Cyan
-            : new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.18f);
+        selectionOutline.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
         arrow.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
         title.Colour = selected ? SongSelectTheme.Navy : SongSelectTheme.Navy;
         this.ResizeHeightTo(selected ? 96 : 88, 160, Easing.OutQuint);
@@ -128,7 +132,7 @@ internal partial class SongSelectSongRow : ClickableContainer
 
     protected override bool OnHover(HoverEvent e)
     {
-        paper.FadeColour(new Color4(0.9f, 0.98f, 1f, 0.98f), 100);
+        paper.FadeColour(new Color4(0.9f, 0.98f, 1f, 1f), 100);
         this.MoveToX(-3, 120, Easing.OutQuint);
         return true;
     }
@@ -174,7 +178,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             Spacing = new Vector2(2, 0),
         };
         flow.Add(label(
-            rating.Value?.ToString("0.00") ?? "--",
+            ManiaStarRatingPresentation.FormatValue(rating),
             0, 0, 38, 12, SongSelectTheme.Navy));
         int filled = rating.IsSuccess
             ? (int)Math.Min(5, Math.Floor(rating.Value ?? 0))
@@ -201,20 +205,32 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         int songCount,
         int chartCount,
         bool collapsed,
+        Texture paperTexture,
         Action toggle)
     {
         Action = toggle;
         Size = new Vector2(540, 38);
-        Masking = true;
-        CornerRadius = 7;
-        BorderThickness = 1;
-        BorderColour = SongSelectTheme.Cyan;
         InternalChildren =
         [
-            new Box
+            new Sprite
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(1f, 0.985f, 0.94f, 0.96f),
+                Texture = paperTexture,
+                FillMode = FillMode.Fill,
+            },
+            new Container
+            {
+                Position = new Vector2(4, 3),
+                Size = new Vector2(532, 32),
+                Masking = true,
+                CornerRadius = 6,
+                BorderThickness = 1,
+                BorderColour = SongSelectTheme.Cyan,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Alpha = 0,
+                },
             },
             new SpriteIcon
             {

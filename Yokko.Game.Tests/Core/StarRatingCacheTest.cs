@@ -1,7 +1,9 @@
 using System;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Difficulty;
 using Yokko.Game.Importing;
 
 namespace Yokko.Game.Tests.Core;
@@ -17,22 +19,42 @@ public sealed class StarRatingCacheTest
 
         try
         {
-            YokkoBeatmap chart = DemoBeatmaps.CreateFourKeyDemo();
+            YokkoBeatmap chart = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                HitObjects = DemoBeatmaps.CreateFourKeyDemo()
+                    .HitObjects
+                    .Append(new YokkoHitObject(
+                        0,
+                        2500,
+                        null,
+                        HitObjectKind.Mine))
+                    .ToArray(),
+            };
             var first = new StarRatingCache();
             first.Initialise(path);
-            double expected = first.GetOrCalculate(chart).Value!.Value;
+            ManiaStarRatingResult expected =
+                first.GetOrCalculate(chart);
             first.SaveIfChanged();
 
             var second = new StarRatingCache();
             second.Initialise(path);
-            double actual = second.GetOrCalculate(chart).Value!.Value;
+            ManiaStarRatingResult actual =
+                second.GetOrCalculate(chart);
 
             Assert.Multiple(() =>
             {
                 Assert.That(File.Exists(path), Is.True);
                 Assert.That(second.Count, Is.EqualTo(1));
                 Assert.That(second.HitCount, Is.EqualTo(1));
-                Assert.That(actual, Is.EqualTo(expected));
+                Assert.That(actual.Value, Is.EqualTo(expected.Value));
+                Assert.That(actual.IsPartial, Is.True);
+                Assert.That(
+                    actual.Limitations,
+                    Is.EqualTo(expected.Limitations));
+                Assert.That(
+                    actual.EffectiveOverallDifficulty,
+                    Is.EqualTo(
+                        expected.EffectiveOverallDifficulty));
             });
         }
         finally

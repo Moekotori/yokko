@@ -5,6 +5,7 @@ using osu.Framework.Graphics.Sprites;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Difficulty;
+using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Gameplay;
@@ -204,9 +205,8 @@ internal partial class GameplayPlaybackRateOverlay : CompositeDrawable
         string bpmText = bpm > 0
             ? $"{bpm:0.##} BPM"
             : "-- BPM";
-        string difficultyText = difficulty?.IsSuccess == true
-            ? $"{difficulty.Value:0.00} STAR"
-            : "-- STAR";
+        string difficultyText =
+            ManiaStarRatingPresentation.FormatStar(difficulty);
         detailText.Text = $"{bpmText} / {difficultyText}";
     }
 }

@@ -4,6 +4,8 @@ using NUnit.Framework;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Mods;
+using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
 
 namespace Yokko.Game.Tests.Core;
@@ -20,13 +22,12 @@ public sealed class ManiaStarRatingCalculatorTest
     }
 
     [Test]
-    public void NonPlayableObjectsDoNotAffectRating()
+    public void SampleObjectsDoNotAffectRating()
     {
         YokkoBeatmap chart = createChart();
         double baseline = ManiaStarRatingCalculator.Calculate(chart);
         YokkoHitObject[] extras =
         [
-            new YokkoHitObject(0, 2500, null, HitObjectKind.Mine),
             new YokkoHitObject(1, 2600, null, HitObjectKind.Sample),
         ];
 
@@ -36,6 +37,50 @@ public sealed class ManiaStarRatingCalculatorTest
         });
 
         Assert.That(withExtras, Is.EqualTo(baseline));
+    }
+
+    [Test]
+    public void MinesKeepBaseInputValueButMarkRatingPartial()
+    {
+        YokkoBeatmap chart = createChart();
+        ManiaStarRatingResult baseline =
+            ManiaStarRatingCalculator.CalculateResult(chart);
+        YokkoBeatmap withMine = chart with
+        {
+            HitObjects = chart.HitObjects
+                              .Append(new YokkoHitObject(
+                                  0,
+                                  2500,
+                                  null,
+                                  HitObjectKind.Mine))
+                              .ToArray(),
+        };
+
+        ManiaStarRatingResult enabled =
+            ManiaStarRatingCalculator.CalculateResult(withMine);
+        ManiaStarRatingContext minesDisabled =
+            ManiaStarRatingContext.ForGameplay(
+                withMine,
+                ManiaModSet.Empty,
+                JudgementConfiguration.YokkoDefault,
+                minesEnabled: false,
+                timelineRate: 1);
+        ManiaStarRatingResult disabled =
+            ManiaStarRatingCalculator.CalculateResult(
+                withMine,
+                minesDisabled);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(enabled.Value, Is.EqualTo(baseline.Value));
+            Assert.That(enabled.IsPartial, Is.True);
+            Assert.That(
+                enabled.Limitations.HasFlag(
+                    ManiaStarRatingLimitations.MinesExcluded),
+                Is.True);
+            Assert.That(disabled.Value, Is.EqualTo(baseline.Value));
+            Assert.That(disabled.IsPartial, Is.False);
+        });
     }
 
     [Test]
@@ -190,6 +235,125 @@ public sealed class ManiaStarRatingCalculatorTest
             ManiaStarRatingCalculator.CreateCacheKey(chart, 1.5),
             Is.Not.EqualTo(
                 ManiaStarRatingCalculator.CreateCacheKey(chart)));
+    }
+
+    [Test]
+    public void EffectiveJudgementWindowsAffectRating()
+    {
+        YokkoBeatmap chart = createChart();
+        ManiaStarRatingResult normal = calculateWithMods(
+            chart,
+            ManiaModSet.Empty);
+        ManiaStarRatingResult easy = calculateWithMods(
+            chart,
+            new ManiaModSet([ManiaModId.Easy]));
+        ManiaStarRatingResult hardRock = calculateWithMods(
+            chart,
+            new ManiaModSet([ManiaModId.HardRock]));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(easy.Value, Is.LessThan(normal.Value));
+            Assert.That(hardRock.Value, Is.GreaterThan(normal.Value));
+            Assert.That(
+                easy.EffectiveOverallDifficulty,
+                Is.LessThan(normal.EffectiveOverallDifficulty));
+            Assert.That(
+                hardRock.EffectiveOverallDifficulty,
+                Is.GreaterThan(normal.EffectiveOverallDifficulty));
+        });
+    }
+
+    [Test]
+    public void NoReleaseIsExplicitlyMarkedPartial()
+    {
+        YokkoBeatmap chart = createChart();
+        ManiaStarRatingResult normal = calculateWithMods(
+            chart,
+            ManiaModSet.Empty);
+        ManiaStarRatingResult noRelease = calculateWithMods(
+            chart,
+            new ManiaModSet([ManiaModId.NoRelease]));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(noRelease.Value, Is.EqualTo(normal.Value));
+            Assert.That(noRelease.IsPartial, Is.True);
+            Assert.That(
+                noRelease.Limitations.HasFlag(
+                    ManiaStarRatingLimitations.NoReleaseNotModelled),
+                Is.True);
+        });
+    }
+
+    [Test]
+    public void QuaverMapsItsFixedGreatWindowToEquivalentOd()
+    {
+        YokkoBeatmap chart = createChart() with
+        {
+            SourceFormat = ChartSourceFormat.Quaver,
+        };
+
+        ManiaStarRatingResult result =
+            ManiaStarRatingCalculator.CalculateResult(chart);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsSuccess, Is.True);
+            Assert.That(
+                result.EffectiveOverallDifficulty,
+                Is.EqualTo((64.5 - 43) / 3).Within(0.000001));
+            Assert.That(
+                result.Value,
+                Is.Not.EqualTo(
+                    ManiaStarRatingCalculator.Calculate(
+                        createChart()))
+                  .Within(0.000001));
+        });
+    }
+
+    [Test]
+    public void CacheKeyIncludesJudgementAndCoverageContext()
+    {
+        YokkoBeatmap chart = createChart();
+        ManiaStarRatingContext easy =
+            ManiaStarRatingContext.ForGameplay(
+                chart,
+                new ManiaModSet([ManiaModId.Easy]),
+                JudgementConfiguration.YokkoDefault,
+                minesEnabled: true,
+                timelineRate: 1);
+        ManiaStarRatingContext noRelease =
+            ManiaStarRatingContext.ForGameplay(
+                chart,
+                new ManiaModSet([ManiaModId.NoRelease]),
+                JudgementConfiguration.YokkoDefault,
+                minesEnabled: true,
+                timelineRate: 1);
+
+        Assert.That(
+            ManiaStarRatingCalculator.CreateCacheKey(chart, easy),
+            Is.Not.EqualTo(
+                ManiaStarRatingCalculator.CreateCacheKey(
+                    chart,
+                    noRelease)));
+    }
+
+    private static ManiaStarRatingResult calculateWithMods(
+        YokkoBeatmap chart,
+        ManiaModSet mods)
+    {
+        ManiaStarRatingContext context =
+            ManiaStarRatingContext.ForGameplay(
+                chart,
+                mods,
+                JudgementConfiguration.YokkoDefault,
+                minesEnabled: true,
+                timelineRate: mods.PlaybackRate);
+        return ManiaStarRatingCalculator.CalculateResult(
+            chart,
+            context,
+            mods.PlaybackRate);
     }
 
     private static YokkoBeatmap createChart()

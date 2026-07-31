@@ -56,6 +56,8 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     [Test]
     public void TestDedicatedModsInteractions()
     {
+        bool residualWheelAccepted = true;
+
         AddStep("restore interaction fixture", () =>
         {
             modPreferences.SerializedConfiguration.Value = string.Empty;
@@ -135,7 +137,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             && !modsScreen.IsModVisible(ManiaModId.Key10)
             && modsScreen.DetailMod == ManiaModId.Random);
         AddStep("global wheel moves to next category", () =>
-            modsScreen.NavigatePageByScroll(-1));
+            modsScreen.ProcessScrollGesture(-1, 1000));
         AddAssert("wheel starts a real page transition", () =>
             modsScreen.IsPageTransitioning);
         AddWaitStep("wait for wheel page transition", 25);
@@ -144,6 +146,13 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             && modsScreen.ActiveCategory == ManiaModCategory.Automation
             && modsScreen.DetailMod == ManiaModId.Autoplay
             && Math.Abs(modsScreen.OrbitContentX - 335) < 0.01f);
+        AddStep("reject residual wheel momentum", () =>
+            residualWheelAccepted =
+                modsScreen.ProcessScrollGesture(-1, 1200));
+        AddAssert("one wheel gesture moves exactly one page", () =>
+            !residualWheelAccepted
+            && modsScreen.ActiveCategory
+            == ManiaModCategory.Automation);
         AddStep("Tab category cycle", () =>
             modsScreen.HandleInteractionKey(Key.Tab));
         AddWaitStep("wait for Tab page transition", 25);
@@ -318,6 +327,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     {
         OrbitEmptySlot emptySlot = null;
         OrbitRatePresetButton fastPreset = null;
+        OrbitRateSlider rateSlider = null;
         ManiaModId focused = default;
         AddStep("prepare quick interaction controls", () =>
         {
@@ -327,7 +337,10 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             emptySlot = this.ChildrenOfType<OrbitEmptySlot>().First();
             fastPreset = this.ChildrenOfType<OrbitRatePresetButton>()
                 .Single(button => Math.Abs(button.Value - 1.5) < 0.005);
+            rateSlider = this.ChildrenOfType<OrbitRateSlider>().Single();
         });
+        AddAssert("rate slider has a forgiving pointer target", () =>
+            rateSlider.Height == 44);
         AddStep("add focused mod from empty slot", () =>
             emptySlot.ActivateForTest());
         AddAssert("empty slot activates focused mod", () =>

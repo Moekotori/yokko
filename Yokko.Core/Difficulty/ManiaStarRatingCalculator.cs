@@ -21,10 +21,16 @@ public sealed record ManiaStarRatingResult(
     double? Value,
     double PlaybackRate,
     string AlgorithmIdentifier,
-    string? FailureReason = null)
+    string? FailureReason = null,
+    ManiaStarRatingLimitations Limitations =
+        ManiaStarRatingLimitations.None,
+    double? EffectiveOverallDifficulty = null)
 {
     public bool IsSuccess =>
         Status == ManiaStarRatingStatus.Success && Value.HasValue;
+
+    public bool IsPartial =>
+        IsSuccess && Limitations != ManiaStarRatingLimitations.None;
 }
 
 /// <summary>
@@ -38,7 +44,7 @@ public static class ManiaStarRatingCalculator
         "StarRatingRebirth 0.1.1 (2025/04/15)";
     public const int MinimumNoteCount = 20;
 
-    private const string adapter_cache_version = "YokkoAdapter/2";
+    private const string adapter_cache_version = "YokkoAdapter/3";
 
     /// <summary>
     /// Calculates an input-difficulty rating at the requested playback rate.
@@ -53,11 +59,20 @@ public static class ManiaStarRatingCalculator
     public static double Calculate(
         YokkoBeatmap beatmap,
         double playbackRate = 1)
-    {
-        ManiaStarRatingResult result = CalculateResult(
-            beatmap,
-            playbackRate);
+        => calculateOrThrow(CalculateResult(beatmap, playbackRate));
 
+    public static double Calculate(
+        YokkoBeatmap beatmap,
+        ManiaStarRatingContext context,
+        double playbackRate = 1)
+        => calculateOrThrow(CalculateResult(
+            beatmap,
+            context,
+            playbackRate));
+
+    private static double calculateOrThrow(
+        ManiaStarRatingResult result)
+    {
         if (result.IsSuccess)
             return result.Value!.Value;
 
@@ -79,11 +94,27 @@ public static class ManiaStarRatingCalculator
         double playbackRate = 1)
     {
         ArgumentNullException.ThrowIfNull(beatmap);
+        return CalculateResult(
+            beatmap,
+            ManiaStarRatingContext.ForBeatmap(beatmap),
+            playbackRate);
+    }
+
+    public static ManiaStarRatingResult CalculateResult(
+        YokkoBeatmap beatmap,
+        ManiaStarRatingContext context,
+        double playbackRate = 1)
+    {
+        ArgumentNullException.ThrowIfNull(beatmap);
+        ArgumentNullException.ThrowIfNull(context);
 
         try
         {
-            ManiaData data = prepareData(beatmap, playbackRate);
-            double rating = SRCalculator.Calculate(data);
+            PreparedStarRatingInput input = prepareData(
+                beatmap,
+                context,
+                playbackRate);
+            double rating = SRCalculator.Calculate(input.Data);
 
             if (!double.IsFinite(rating) || rating < 0)
             {
@@ -97,7 +128,9 @@ public static class ManiaStarRatingCalculator
                 ManiaStarRatingStatus.Success,
                 rating,
                 playbackRate,
-                AlgorithmIdentifier);
+                AlgorithmIdentifier,
+                Limitations: input.Limitations,
+                EffectiveOverallDifficulty: input.Data.OD);
         }
         catch (StarRatingInputException exception)
         {
@@ -135,7 +168,24 @@ public static class ManiaStarRatingCalculator
         double playbackRate = 1)
     {
         ArgumentNullException.ThrowIfNull(beatmap);
-        ManiaData data = prepareData(beatmap, playbackRate);
+        return CreateCacheKey(
+            beatmap,
+            ManiaStarRatingContext.ForBeatmap(beatmap),
+            playbackRate);
+    }
+
+    public static string CreateCacheKey(
+        YokkoBeatmap beatmap,
+        ManiaStarRatingContext context,
+        double playbackRate = 1)
+    {
+        ArgumentNullException.ThrowIfNull(beatmap);
+        ArgumentNullException.ThrowIfNull(context);
+        PreparedStarRatingInput input = prepareData(
+            beatmap,
+            context,
+            playbackRate);
+        ManiaData data = input.Data;
         var source = new StringBuilder()
                      .Append(adapter_cache_version).Append('\u001f')
                      .Append(AlgorithmIdentifier).Append('\u001f')
@@ -145,7 +195,8 @@ public static class ManiaStarRatingCalculator
                      .Append(data.CS).Append('\u001f')
                      .Append(data.OD.ToString(
                          "R",
-                         CultureInfo.InvariantCulture));
+                         CultureInfo.InvariantCulture)).Append('\u001f')
+                     .Append((int)input.Limitations);
 
         foreach (Note note in data.Notes)
         {
@@ -159,8 +210,9 @@ public static class ManiaStarRatingCalculator
             SHA256.HashData(Encoding.UTF8.GetBytes(source.ToString())));
     }
 
-    private static ManiaData prepareData(
+    private static PreparedStarRatingInput prepareData(
         YokkoBeatmap beatmap,
+        ManiaStarRatingContext context,
         double playbackRate)
     {
         if (!double.IsFinite(playbackRate) || playbackRate <= 0)
@@ -192,13 +244,36 @@ public static class ManiaStarRatingCalculator
                 $"Star Rating Rebirth requires at least {MinimumNoteCount} playable notes.");
         }
 
-        return new ManiaData
+        var data = new ManiaData
         {
             CS = keyCount,
-            OD = beatmap.OverallDifficulty,
+            OD = equivalentOverallDifficulty(
+                context.GreatWindowMilliseconds),
             Notes = notes,
         };
+        ManiaStarRatingLimitations limitations =
+            context.AdditionalLimitations;
+        if (context.MinesEnabled
+            && beatmap.HitObjects.Any(static hitObject =>
+                hitObject.Kind == HitObjectKind.Mine))
+        {
+            limitations |= ManiaStarRatingLimitations.MinesExcluded;
+        }
+
+        if (!context.ReleaseJudgementsRequired
+            && beatmap.HitObjects.Any(static hitObject =>
+                hitObject.Kind == HitObjectKind.Hold))
+        {
+            limitations |=
+                ManiaStarRatingLimitations.NoReleaseNotModelled;
+        }
+
+        return new PreparedStarRatingInput(data, limitations);
     }
+
+    private static double equivalentOverallDifficulty(
+        double greatWindowMilliseconds) =>
+        (64.5 - greatWindowMilliseconds) / 3;
 
     private static Note toUpstreamNote(
         YokkoHitObject hitObject,
@@ -257,4 +332,8 @@ public static class ManiaStarRatingCalculator
     {
         public ManiaStarRatingStatus Status { get; } = status;
     }
+
+    private sealed record PreparedStarRatingInput(
+        ManiaData Data,
+        ManiaStarRatingLimitations Limitations);
 }
