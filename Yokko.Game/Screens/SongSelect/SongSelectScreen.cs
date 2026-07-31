@@ -984,8 +984,8 @@ public partial class SongSelectScreen : Screen
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopRight,
-                    Position = new Vector2(-250, 16),
-                    Size = new Vector2(350, 48),
+                    Position = new Vector2(-316, 16),
+                    Size = new Vector2(420, 48),
                 },
                 new FillFlowContainer
                 {
@@ -999,16 +999,16 @@ public partial class SongSelectScreen : Screen
                     [
                         allFilter = new SongSelectFilterButton(
                             "ALL",
-                            78,
+                            92,
                             () => SetKeyModeFilter(null),
                             accentDot: true),
                         fourKeyFilter = new SongSelectFilterButton(
                             "4K",
-                            62,
+                            80,
                             () => SetKeyModeFilter(KeyMode.FourKey)),
                         sevenKeyFilter = new SongSelectFilterButton(
                             "7K",
-                            62,
+                            80,
                             () => SetKeyModeFilter(KeyMode.SevenKey)),
                     ],
                 },

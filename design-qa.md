@@ -2237,9 +2237,9 @@ final result: passed
 - Selected source visual:
   `C:\Users\mochi\.codex\generated_images\019fb72c-4c90-73c0-8b44-35807879ec2f\call_IHh6LBcdS7126znzk0JEpQ4H.png`
 - Final native implementation:
-  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-balanced-pass1.png`
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-final-small-button-large-type.png`
 - Same-input focused comparison:
-  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-balanced-comparison.png`
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-final-comparison.png`
 
 ## Viewport, density, and state
 
@@ -2284,6 +2284,13 @@ final result: passed
    than aligned to a fixed left offset. Corner-cut overlays are clipped inside
    the button bounds and matched to the footer gradient, removing the visible
    diamond seams found during the zoomed detail review.
+9. User review found the balanced pass still occupied too much footer area.
+   Reducing both controls and type together produced a 320 x 88 / 410 x 92
+   intermediate pass, but repeated the unwanted large-frame/small-copy ratio.
+10. The final pass intentionally decouples footprint from emphasis: Back is
+    260 x 78 with 52 type, Reset is 72 x 72 with a 42px icon, and Done is
+    350 x 82 with 58 type. The controls now leave the footer breathing room
+    while the two action labels remain the first readable elements.
 
 ## Required fidelity review
 
@@ -2307,8 +2314,8 @@ final result: passed
 
 - P0: none.
 - P1: none.
-- P2: none after the rejected implementation and over-large typography pass
-  were replaced.
+- P2: none after the oversized-control and small-copy intermediate passes were
+  replaced.
 - P3: the source concept has a very subtle cyan lighting gradient; production
   keeps the shared solid Yokko cyan token so the footer remains consistent
   with other screens.

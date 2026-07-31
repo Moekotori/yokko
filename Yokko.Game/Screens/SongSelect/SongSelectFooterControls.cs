@@ -16,6 +16,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
     private readonly Box background;
     private readonly Box underline;
     private readonly SpriteIcon chevron;
+    private readonly SpriteText backLabel;
 
     public SongSelectFooterBackButton(Action action)
         : this(action, null)
@@ -72,7 +73,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
                     },
                 },
             },
-            new SpriteText
+            backLabel = new SpriteText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -127,6 +128,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
     protected override bool OnHover(HoverEvent e)
     {
         background.FadeColour(SongSelectTheme.Navy, 120, Easing.OutQuint);
+        backLabel.FadeColour(Color4.White, 120, Easing.OutQuint);
         underline.ResizeWidthTo(58, 150, Easing.OutQuint);
         chevron.MoveToX(-9, 150, Easing.OutQuint);
         this.ScaleTo(1.018f, 120, Easing.OutQuint);
@@ -139,6 +141,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
             SongSelectSurface.Ivory(0.99f),
             140,
             Easing.OutQuint);
+        backLabel.FadeColour(SongSelectTheme.Navy, 140, Easing.OutQuint);
         underline.ResizeWidthTo(0, 130, Easing.OutQuint);
         chevron.MoveToX(-13, 130, Easing.OutQuint);
         this.ScaleTo(1, 140, Easing.OutQuint);
