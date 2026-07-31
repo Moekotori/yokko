@@ -249,15 +249,15 @@ public sealed class DisplaySettingsTest
             Assert.That(
                 GameplayResultOverlay.CalculateResponsiveStageScale(
                     new osuTK.Vector2(1777.7778f, 1000)),
-                Is.EqualTo(1.3888889f).Within(0.0001f));
+                Is.EqualTo(1.1111111f).Within(0.0001f));
             Assert.That(
                 GameplayResultOverlay.CalculateResponsiveStageScale(
                     new osuTK.Vector2(1024, 576)),
-                Is.EqualTo(0.8f).Within(0.0001f));
+                Is.EqualTo(0.64f).Within(0.0001f));
             Assert.That(
                 GameplayResultOverlay.CalculateResponsiveStageScale(
                     new osuTK.Vector2(1600, 1000)),
-                Is.EqualTo(1.25f).Within(0.0001f));
+                Is.EqualTo(1f).Within(0.0001f));
         });
     }
 

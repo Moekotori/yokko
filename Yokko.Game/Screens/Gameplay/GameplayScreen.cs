@@ -452,7 +452,7 @@ public partial class GameplayScreen : Screen
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
-                Y = 28,
+                Y = 8,
                 Depth = -101,
                 Alpha = gameplaySettings.ShowTimingBar.Value ? 1 : 0,
             },

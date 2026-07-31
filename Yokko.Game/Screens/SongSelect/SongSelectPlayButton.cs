@@ -36,7 +36,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
 
         InternalChildren =
         [
-            SongSelectSurface.CreateShadow(11, 0.38f, 5),
+            SongSelectSurface.CreateShadow(11, 0.24f, 4),
             new Container
             {
                 Size = new Vector2(387, 77),

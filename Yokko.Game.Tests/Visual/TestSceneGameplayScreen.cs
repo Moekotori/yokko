@@ -57,6 +57,47 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestBmsScratchLaneHasDistinctGameplayPresentation()
+        {
+            GameplayScreen gameplay = null;
+            AddStep("open BMS scratch chart", () =>
+            {
+                var beatmap = new YokkoBeatmap(
+                    "Scratch",
+                    "Yokko",
+                    "Yokko",
+                    "7K + SCR",
+                    KeyMode.EightKey,
+                    ChartSourceFormat.Bms,
+                    [YokkoTimingPoint.Default],
+                    null,
+                    [
+                        new YokkoHitObject(
+                            0,
+                            1000,
+                            null,
+                            HitObjectKind.Tap),
+                        new YokkoHitObject(
+                            1,
+                            1100,
+                            null,
+                            HitObjectKind.Tap),
+                    ],
+                    ScratchLane: 0);
+                gameplay = new GameplayScreen(beatmap);
+                screenStack.Push(gameplay);
+            });
+            AddUntilStep("scratch playfield loaded", () =>
+                gameplay?.ChildrenOfType<GameplayPlayfield>()
+                        .SingleOrDefault() is { } playfield
+                && playfield.KeyCount == 8
+                && playfield.GetLaneColumn(0).IsScratchLane
+                && !playfield.GetLaneColumn(1).IsScratchLane
+                && playfield.GetDrawableNote(0).IsScratchNote
+                && !playfield.GetDrawableNote(1).IsScratchNote);
+        }
+
+        [Test]
         public void TestCustomNightcoreAudioPolicyMatchesLazer()
         {
             var audioEngine = new SeekTrackingAudioEngine();
@@ -397,7 +438,24 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("timing bar is fixed to the screen bottom", () =>
                 timingBar.Anchor == Anchor.BottomCentre
                 && timingBar.Origin == Anchor.BottomCentre
-                && timingBar.Y == 28);
+                && timingBar.Y == 8);
+            AddAssert("fast and slow limits flank the timing bar", () =>
+            {
+                SpriteText early = timingBar
+                                   .ChildrenOfType<SpriteText>()
+                                   .Single(text =>
+                                       text.Name == "Timing early limit");
+                SpriteText late = timingBar
+                                  .ChildrenOfType<SpriteText>()
+                                  .Single(text =>
+                                      text.Name == "Timing late limit");
+                return early.Anchor == Anchor.TopLeft
+                       && early.Origin == Anchor.CentreRight
+                       && early.X < 0
+                       && late.Anchor == Anchor.TopRight
+                       && late.Origin == Anchor.CentreLeft
+                       && late.X > 0;
+            });
             AddStep("show shared fallback truth", () =>
                 hud.UpdateAudioStatus(
                     createAudioStatus(
@@ -2624,7 +2682,7 @@ HitPosition: 400
                                               .SingleOrDefault();
                 return timingBar?.Anchor == Anchor.BottomCentre
                        && timingBar.Origin == Anchor.BottomCentre
-                       && timingBar.Y == 28;
+                       && timingBar.Y == 8;
             });
         }
 
@@ -2661,7 +2719,7 @@ HitPosition: 400
             AddAssert("tall receptors do not move the timing bar", () =>
                 timingBar.Anchor == Anchor.BottomCentre
                 && timingBar.Origin == Anchor.BottomCentre
-                && timingBar.Y == 28);
+                && timingBar.Y == 8);
         }
 
         [Test]

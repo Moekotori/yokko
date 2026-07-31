@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Scoring;
 using Yokko.Import;
 using Yokko.Import.Quaver;
 
@@ -1327,10 +1328,19 @@ M000
                                                             .AsTask()
                                                             .GetAwaiter()
                                                             .GetResult();
+            YokkoHitObject scratchTap = enabled.Beatmap.HitObjects.Single(
+                note => note.Lane == 0 && note.Kind == HitObjectKind.Tap);
+            JudgementEvent scratchJudgement = new BeatmapJudgementState(
+                    enabled.Beatmap)
+                .JudgeLanePress(
+                    0,
+                    scratchTap.StartTimeMilliseconds)
+                .Single();
 
             Assert.Multiple(() =>
             {
                 Assert.That(disabled.Beatmap.KeyMode, Is.EqualTo(KeyMode.SevenKey));
+                Assert.That(disabled.Beatmap.ScratchLane, Is.Null);
                 Assert.That(disabled.Beatmap.HitObjects, Has.Count.EqualTo(7));
                 Assert.That(
                     disabled.Warnings.Any(warning =>
@@ -1340,6 +1350,8 @@ M000
                     Is.True);
 
                 Assert.That(enabled.Beatmap.KeyMode, Is.EqualTo(KeyMode.EightKey));
+                Assert.That(enabled.Beatmap.ScratchLane, Is.Zero);
+                Assert.That(enabled.Beatmap.RegularLaneCount, Is.EqualTo(7));
                 Assert.That(enabled.Beatmap.HitObjects, Has.Count.EqualTo(9));
                 Assert.That(
                     enabled.Beatmap.HitObjects.Count(note => note.Lane == 0),
@@ -1360,6 +1372,12 @@ M000
                             "scratch",
                             StringComparison.OrdinalIgnoreCase)),
                     Is.False);
+                Assert.That(
+                    scratchJudgement.Lane,
+                    Is.Zero);
+                Assert.That(
+                    scratchJudgement.Rating,
+                    Is.EqualTo(JudgementRating.Perfect));
             });
         }
 

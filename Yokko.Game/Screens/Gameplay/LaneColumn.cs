@@ -28,6 +28,8 @@ public partial class LaneColumn : CompositeDrawable
     private readonly Container mineExplosion;
     private readonly SpriteText keyLabel;
     private readonly SpriteText skinKeyWarning;
+    private readonly Box builtInReceptorGlow;
+    private readonly Box builtInReceptorCore;
     private readonly float baseLaneWidth;
     private readonly float baseLaneLightHeight;
     private readonly bool idleKeyFlipped;
@@ -45,26 +47,35 @@ public partial class LaneColumn : CompositeDrawable
 
     internal SpriteText SkinKeyWarning => skinKeyWarning;
 
+    internal bool IsScratchLane { get; }
+
     internal LaneColumn(
         int lane,
         string keyLabel,
         float laneWidth,
         OsuManiaSkin skin = null,
         bool showPressFeedback = true,
-        bool isLastLaneInStage = false)
+        bool isLastLaneInStage = false,
+        bool isScratchLane = false)
     {
         this.showPressFeedback = showPressFeedback;
+        IsScratchLane = isScratchLane;
         baseLaneWidth = laneWidth;
         RelativeSizeAxes = Axes.Y;
+        string displayKey = isScratchLane
+            ? $"SCR · {keyLabel}"
+            : keyLabel;
 
         if (skin == null)
         {
-            InternalChildren = new Drawable[]
+            var builtInBackground = new List<Drawable>
             {
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.04f, 0.052f, 0.07f, 0.9f),
+                    Colour = isScratchLane
+                        ? new Color4(0.12f, 0.09f, 0.22f, 0.94f)
+                        : new Color4(0.04f, 0.052f, 0.07f, 0.9f),
                 },
                 new Box
                 {
@@ -73,18 +84,63 @@ public partial class LaneColumn : CompositeDrawable
                     Colour = new Color4(1f, 1f, 1f, 0.08f),
                 },
             };
+            if (isScratchLane)
+            {
+                builtInBackground.Add(new Box
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    RelativeSizeAxes = Axes.Y,
+                    Width = 4,
+                    Colour = YokkoPalette.Violet,
+                });
+                builtInBackground.Add(new SpriteText
+                {
+                    Name = "BMS scratch lane label",
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Y = 10,
+                    Text = "SCRATCH",
+                    Font = FontUsage.Default.With(size: 12, weight: "Bold"),
+                    Colour = YokkoPalette.Violet,
+                });
+            }
+            InternalChildren = builtInBackground.ToArray();
             ReceptorLayer = new Container
             {
                 RelativeSizeAxes = Axes.Y,
                 Width = laneWidth,
                 Children = new Drawable[]
                 {
+                    builtInReceptorGlow = new Box
+                    {
+                        Anchor = Anchor.TopCentre,
+                        Origin = Anchor.Centre,
+                        Y = 528,
+                        Width = Math.Max(18, laneWidth - 18),
+                        Height = 8,
+                        Colour = new Color4(
+                            YokkoPalette.Rose.R,
+                            YokkoPalette.Rose.G,
+                            YokkoPalette.Rose.B,
+                            0.16f),
+                        Blending = BlendingParameters.Additive,
+                    },
+                    builtInReceptorCore = new Box
+                    {
+                        Anchor = Anchor.TopCentre,
+                        Origin = Anchor.Centre,
+                        Y = 528,
+                        Width = Math.Max(14, laneWidth - 28),
+                        Height = 2,
+                        Colour = new Color4(1f, 1f, 1f, 0.72f),
+                    },
                     this.keyLabel = new SpriteText
                     {
                         Anchor = Anchor.BottomCentre,
                         Origin = Anchor.BottomCentre,
                         Y = -26,
-                        Text = keyLabel,
+                        Text = displayKey,
                         Font = FontUsage.Default.With(size: 18),
                         Colour = YokkoPalette.TextMuted,
                     },
@@ -134,6 +190,28 @@ public partial class LaneColumn : CompositeDrawable
             laneBackground,
             leftLine,
         };
+        if (isScratchLane)
+        {
+            backgroundChildren.Add(new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = new Color4(
+                    YokkoPalette.Violet.R,
+                    YokkoPalette.Violet.G,
+                    YokkoPalette.Violet.B,
+                    0.14f),
+            });
+            backgroundChildren.Add(new SpriteText
+            {
+                Name = "BMS scratch lane label",
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 8,
+                Text = "SCRATCH",
+                Font = FontUsage.Default.With(size: 12, weight: "Bold"),
+                Colour = YokkoPalette.Violet,
+            });
+        }
         float rightLineWidth = configuration.ColumnLineWidths[lane + 1];
         bool showRightLine = isLastLaneInStage
                              || lane == configuration.Keys - 1
@@ -231,7 +309,7 @@ public partial class LaneColumn : CompositeDrawable
                 Y = configuration.UpsideDown
                     ? keyHeight / 2
                     : -keyHeight / 2,
-                Text = keyLabel,
+                Text = displayKey,
                 Font = FontUsage.Default.With(size: 16),
                 Colour = configuration.KeyWarningColour,
             });
@@ -244,7 +322,7 @@ public partial class LaneColumn : CompositeDrawable
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
                 Y = -26,
-                Text = keyLabel,
+                Text = displayKey,
                 Font = FontUsage.Default.With(size: 18),
                 Colour = YokkoPalette.TextMuted,
             });
@@ -338,6 +416,10 @@ public partial class LaneColumn : CompositeDrawable
         columnScale = value;
         Width = baseLaneWidth * value;
         ReceptorLayer.Width = baseLaneWidth * value;
+        if (builtInReceptorGlow != null)
+            builtInReceptorGlow.Scale = new Vector2(value, 1);
+        if (builtInReceptorCore != null)
+            builtInReceptorCore.Scale = new Vector2(value, 1);
         if (idleKey != null)
         {
             idleKey.Scale = new Vector2(

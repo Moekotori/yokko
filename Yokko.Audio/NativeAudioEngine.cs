@@ -656,7 +656,6 @@ public sealed class NativeAudioEngine :
             core?.GetStatus().PlaybackTimeMilliseconds ?? 0;
         rateTimeline.SetRate(outputTime, playbackRate);
         source?.SetPlaybackRate(playbackRate);
-        core?.SetSamplePlaybackRate((float)playbackRate);
     }
 
     public async ValueTask PauseAsync(
@@ -783,10 +782,8 @@ public sealed class NativeAudioEngine :
             (float)musicVolume,
             (float)hitSoundVolume,
             (float)metronomeVolume);
-        core.SetSamplePlaybackRate(
-            request.DynamicPlaybackRate
-                ? (float)request.PlaybackRate
-                : 1);
+        // Song rate changes must not alter hitsound pitch or duration.
+        core.SetSamplePlaybackRate(1);
         metronomeSampleId = core.RegisterMetronomeSample(
             createMetronomeClick(sampleRate));
         PreparedSampleSet prepared = Volatile.Read(ref preparedSampleSet);
@@ -794,13 +791,7 @@ public sealed class NativeAudioEngine :
         for (int slot = 0; slot < prepared.Samples.Length; slot++)
         {
             DecodedAudioSample sample = prepared.Samples[slot].Sample;
-            // osu! applies fixed rate Mods to gameplay samples as frequency
-            // changes, so DT and NC keysounds both become shorter and higher.
-            float[] pcm = sample.GetSamplesAt(
-                sampleRate,
-                request.DynamicPlaybackRate
-                    ? 1
-                    : request.PlaybackRate);
+            float[] pcm = PrepareHitSampleForOutput(sample, sampleRate);
             sampleIds[slot] = core.RegisterSample(pcm);
         }
         Volatile.Write(
@@ -1166,6 +1157,11 @@ public sealed class NativeAudioEngine :
         return baseTimeMilliseconds
                + outputTimeMilliseconds * playbackRate;
     }
+
+    internal static float[] PrepareHitSampleForOutput(
+        DecodedAudioSample sample,
+        int outputSampleRate)
+        => sample.GetSamplesAt(outputSampleRate);
 
     private double scaledPlaybackTime(double outputTimeMilliseconds) =>
         rateTimeline.Map(outputTimeMilliseconds);

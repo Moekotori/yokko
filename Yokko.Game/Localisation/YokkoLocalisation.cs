@@ -966,6 +966,10 @@ internal static class YokkoStrings
                 "{0} · {1} · {2:+0.0;-0.0;0.0} ms",
                 "{0} · {1} · {2:+0.0;-0.0;0.0} ms",
                 "{0} · {1} · {2:+0.0;-0.0;0.0} ms"),
+            ["gameplay.timing.latest_compact"] = new(
+                "{0}  {1:+0.0;-0.0;0.0} ms",
+                "{0}  {1:+0.0;-0.0;0.0} ms",
+                "{0}  {1:+0.0;-0.0;0.0} ms"),
             ["gameplay.timing.trend_press"] = new(
                 "TREND · PRESS {0:+0.0;-0.0;0.0} ms",
                 "趋势 · 按下 {0:+0.0;-0.0;0.0} ms",

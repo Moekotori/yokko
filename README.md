@@ -40,7 +40,9 @@ Things are expected to change quickly while the core loop is still being shaped.
 Exports currently write to `Documents\Yokko Exports`.
 
 Import targets playable 4K/7K tap, hold, offset, and BPM semantics. BMS scratch
-can optionally be preserved as an extra playable lane from `Settings > Import`.
+can optionally be preserved as a dedicated `SCRATCH` lane from
+`Settings > Import`; regular and long-scratch objects use the same judgement
+and hold pipeline as key notes while retaining their BMS lane identity.
 Unsupported source features such as BGA, warps, scroll effects outside the
 supported Quaver SV model, or runtime keysound mixing are reported as import
 warnings instead of being silently discarded.

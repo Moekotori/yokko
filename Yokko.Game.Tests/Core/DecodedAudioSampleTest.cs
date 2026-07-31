@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using NUnit.Framework;
+using Yokko.Audio;
 using Yokko.Audio.Decoding;
 
 namespace Yokko.Game.Tests.Core;
@@ -36,7 +37,29 @@ public sealed class DecodedAudioSampleTest
         Assert.That(
             halfTime.Length,
             Is.InRange(12700, 12900),
-            "HT/DC keysounds should be about 1.33x longer.");
+            "Explicit rate-adjusted resampling should remain available.");
+    }
+
+    [Test]
+    public void GameplayHitsoundPreparationKeepsOriginalSpeed()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "original-speed-hitsounds",
+            TestContext.CurrentContext.Test.ID);
+        Directory.CreateDirectory(directory);
+        string path = Path.Combine(directory, "keysound.wav");
+        writeWave(path, 44100, 100);
+
+        DecodedAudioSample sample = DecodedAudioSample.Decode(path);
+        float[] prepared =
+            NativeAudioEngine.PrepareHitSampleForOutput(sample, 48000);
+
+        Assert.That(
+            prepared.Length,
+            Is.InRange(9500, 9700),
+            "Gameplay hitsounds must keep their original duration when the "
+            + "song playback rate changes.");
     }
 
     private static void writeWave(

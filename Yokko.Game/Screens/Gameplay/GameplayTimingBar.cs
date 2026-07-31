@@ -24,8 +24,8 @@ public partial class GameplayTimingBar : CompositeDrawable
     private const float barHeight = 6;
     private const float markerY = 54;
     private const float componentHeight = 92;
-    private const int markerLifetimeMilliseconds = 4200;
-    private const int maxConcurrentMarkers = 50;
+    private const int markerLifetimeMilliseconds = 2400;
+    private const int maxConcurrentMarkers = 30;
     private const double trendWeight = 0.15;
 
     private readonly double maximumHitErrorMilliseconds;
@@ -34,7 +34,6 @@ public partial class GameplayTimingBar : CompositeDrawable
     private readonly Container<TimingMarker> markerLayer;
     private readonly Circle pressTrendMarker;
     private readonly Box releaseTrendMarker;
-    private readonly SpriteText trendText;
     private readonly SpriteText latestText;
     private bool hasPressTrend;
     private bool hasReleaseTrend;
@@ -139,47 +138,39 @@ public partial class GameplayTimingBar : CompositeDrawable
                 Colour = YokkoPalette.Violet,
                 Alpha = 0,
             },
-            trendText = new SpriteText
-            {
-                Anchor = Anchor.TopCentre,
-                Origin = Anchor.TopCentre,
-                Y = 1,
-                Text = YokkoStrings.Get("gameplay.timing.title"),
-                Font = FontUsage.Default.With(size: 10.5f, weight: "SemiBold"),
-                Colour = YokkoPalette.TextDim,
-                Alpha = 0.44f,
-            },
             new SpriteText
             {
+                Name = "Timing early limit",
                 Anchor = Anchor.TopLeft,
-                Origin = Anchor.BottomLeft,
-                Position = new Vector2(0, markerY - 12),
+                Origin = Anchor.CentreRight,
+                Position = new Vector2(-12, markerY),
                 Text = YokkoStrings.Get(
                     "gameplay.timing.early_limit",
                     maximumHitErrorMilliseconds),
-                Font = FontUsage.Default.With(size: 10.5f, weight: "SemiBold"),
-                Colour = YokkoPalette.TextDim,
+                Font = FontUsage.Default.With(size: 11.5f, weight: "SemiBold"),
+                Colour = YokkoPalette.TextMuted,
                 Spacing = new Vector2(0.25f, 0),
             },
             new SpriteText
             {
+                Name = "Timing late limit",
                 Anchor = Anchor.TopRight,
-                Origin = Anchor.BottomRight,
-                Position = new Vector2(0, markerY - 12),
+                Origin = Anchor.CentreLeft,
+                Position = new Vector2(12, markerY),
                 Text = YokkoStrings.Get(
                     "gameplay.timing.late_limit",
                     maximumHitErrorMilliseconds),
-                Font = FontUsage.Default.With(size: 10.5f, weight: "SemiBold"),
-                Colour = YokkoPalette.TextDim,
+                Font = FontUsage.Default.With(size: 11.5f, weight: "SemiBold"),
+                Colour = YokkoPalette.TextMuted,
                 Spacing = new Vector2(0.25f, 0),
             },
             latestText = new SpriteText
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Y = 17,
+                Y = markerY + 15,
                 Text = string.Empty,
-                Font = FontUsage.Default.With(size: 13, weight: "SemiBold"),
+                Font = FontUsage.Default.With(size: 11.5f, weight: "SemiBold"),
                 Colour = YokkoPalette.TextMuted,
             },
         };
@@ -239,8 +230,6 @@ public partial class GameplayTimingBar : CompositeDrawable
                 hitError);
             moveTrendMarker(pressTrendMarker, pressTrendMilliseconds);
         }
-        updateTrendText();
-
         string directionKey = hitError switch
         {
             < -0.05 => "gameplay.timing.early",
@@ -249,11 +238,10 @@ public partial class GameplayTimingBar : CompositeDrawable
         };
         DisplayedDirectionKey = directionKey;
         latestText.Text = YokkoStrings.Get(
-            "gameplay.timing.latest",
+            "gameplay.timing.latest_compact",
             YokkoStrings.Get(release
                 ? "gameplay.timing.release"
                 : "gameplay.timing.press"),
-            YokkoStrings.Get(directionKey),
             hitError);
         latestText.Colour = RatingColours.For(judgement.Rating);
         latestText.FinishTransforms();
@@ -287,9 +275,6 @@ public partial class GameplayTimingBar : CompositeDrawable
         releaseTrendMilliseconds = 0;
         pressTrendMarker.Alpha = 0;
         releaseTrendMarker.Alpha = 0;
-        trendText.Text = YokkoStrings.Get("gameplay.timing.title");
-        trendText.Colour = YokkoPalette.TextDim;
-        trendText.Alpha = 0.44f;
         latestText.Text = string.Empty;
         latestText.Alpha = 0;
     }
@@ -301,28 +286,6 @@ public partial class GameplayTimingBar : CompositeDrawable
                   positionFor(error),
                   180,
                   Easing.OutQuint);
-    }
-
-    private void updateTrendText()
-    {
-        trendText.Text = hasPressTrend && hasReleaseTrend
-            ? YokkoStrings.Get(
-                "gameplay.timing.trend_both",
-                pressTrendMilliseconds,
-                releaseTrendMilliseconds)
-            : hasReleaseTrend
-                ? YokkoStrings.Get(
-                    "gameplay.timing.trend_release",
-                    releaseTrendMilliseconds)
-                : YokkoStrings.Get(
-                    "gameplay.timing.trend_press",
-                    pressTrendMilliseconds);
-        trendText.Colour = hasPressTrend && hasReleaseTrend
-            ? YokkoPalette.TextMuted
-            : hasReleaseTrend
-                ? YokkoPalette.Violet
-                : YokkoPalette.Cyan;
-        trendText.Alpha = 0.78f;
     }
 
     private static void updateTrend(

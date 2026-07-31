@@ -35,9 +35,11 @@ internal static class HomeTypography
     // 贴纸气泡用的粗海报体（Archivo Black 位图图集，CJK 自动回退 Yokko 字体）。
     public static FontUsage Sticker(float size) => new("ArchivoBlack", readableSize(size));
 
-    // At high-DPI desktop resolutions the framework renders in physical pixels.
-    // Give compact labels a meaningful readability floor without inflating hero text.
-    private static float readableSize(float size) => size <= 22 ? size + 3 : size;
+    // Keep every shared UI label readable after the 80–100% interface scale is
+    // applied. The bounded continuous gain preserves authored hierarchy while
+    // preventing micro labels from collapsing into single-digit pixel sizes.
+    private static float readableSize(float size) =>
+        MathF.Max(14, size + MathF.Min(6, 4 + size * 0.05f));
 }
 
 public partial class HomePrimaryAction : ClickableContainer
@@ -1021,7 +1023,7 @@ public partial class HomeMascotBubble : ClickableContainer
     private readonly SpriteIcon[] accentStars;
     private readonly float underlineRestWidth;
     private readonly float underlinePulseWidth;
-    private bool stickerLabelFitDirty;
+    private int stickerLabelFitFramesRemaining;
 
     public HomeMascotBubble(LocalisableString text)
         : this(text, HomeMascotBubbleStyle.Rounded)
@@ -1115,7 +1117,7 @@ public partial class HomeMascotBubble : ClickableContainer
             };
 
             // 长文案在文本重排后自动收缩，任何语言都不会顶出贴纸边框。
-            stickerLabelFitDirty = true;
+            stickerLabelFitFramesRemaining = 3;
             label.OnUpdate += _ => fitStickerLabel();
 
             return;
@@ -1189,15 +1191,15 @@ public partial class HomeMascotBubble : ClickableContainer
     /// </summary>
     private void fitStickerLabel()
     {
-        if (!stickerLabelFitDirty)
+        if (stickerLabelFitFramesRemaining <= 0)
             return;
 
-        float naturalWidth = label.DrawWidth / label.Scale.X;
-        float naturalHeight = label.DrawHeight / label.Scale.Y;
+        float naturalWidth = label.DrawWidth;
+        float naturalHeight = label.DrawHeight;
         if (naturalWidth <= 0 || naturalHeight <= 0)
             return;
 
-        stickerLabelFitDirty = false;
+        stickerLabelFitFramesRemaining--;
         float fit = MathF.Min(
             1f,
             MathF.Min(
@@ -1206,7 +1208,8 @@ public partial class HomeMascotBubble : ClickableContainer
         label.Scale = new Vector2(fit);
     }
 
-    internal float StickerLabelDrawWidth => label.DrawWidth;
+    internal float StickerLabelDrawWidth =>
+        label.DrawWidth * label.Scale.X;
 
     /// <summary>
     /// 换一句台词，文字淡入、气泡轻弹。
@@ -1217,7 +1220,7 @@ public partial class HomeMascotBubble : ClickableContainer
         if (style == HomeMascotBubbleStyle.PopSignalSticker)
         {
             label.Font = stickerFontFor(text);
-            stickerLabelFitDirty = true;
+            stickerLabelFitFramesRemaining = 3;
             playPop();
         }
 

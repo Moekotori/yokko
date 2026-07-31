@@ -69,13 +69,16 @@ public class LocalisationTest
     }
 
     [Test]
-    public void LatinTypographyKeepsFrameworkFontMetrics()
+    public void SharedTypographyMaintainsReadableFontMetrics()
     {
         Assert.That(HomeTypography.Body(16).Family, Is.EqualTo("Roboto"));
         Assert.That(HomeTypography.Display(16).Family, Is.EqualTo("Roboto"));
-        Assert.That(HomeTypography.Body(16).Size, Is.EqualTo(19));
-        Assert.That(HomeTypography.Display(22).Size, Is.EqualTo(25));
-        Assert.That(HomeTypography.Hero(72).Size, Is.EqualTo(72));
+        Assert.That(HomeTypography.Display(6).Size, Is.EqualTo(14));
+        Assert.That(HomeTypography.Body(16).Size, Is.EqualTo(20.8f)
+            .Within(0.001f));
+        Assert.That(HomeTypography.Display(22).Size, Is.EqualTo(27.1f)
+            .Within(0.001f));
+        Assert.That(HomeTypography.Hero(72).Size, Is.EqualTo(78));
     }
 
     [TestCase("Fonts/Yokko/Yokko.bin")]

@@ -696,9 +696,9 @@ internal partial class GameplayModsScreen : Screen
 
     internal void ToggleMod(ManiaModId mod)
     {
-        detailMod = mod;
         if (!isSelectable(mod))
         {
+            detailMod = mod;
             selectDetail(mod);
             ManiaModDefinition unavailable =
                 OsuManiaModParityCatalog.Get(mod);
@@ -707,22 +707,45 @@ internal partial class GameplayModsScreen : Screen
             return;
         }
 
-        bool enabled = !selectedMods.Contains(mod);
+        ManiaModId appliedMod = mod;
+        bool enabled;
+        if (mod == ManiaModId.DoubleTime
+            && selectedMods.Contains(ManiaModId.DoubleTime))
+        {
+            appliedMod = ManiaModId.Nightcore;
+            enabled = true;
+        }
+        else if (mod == ManiaModId.DoubleTime
+                 && selectedMods.Contains(ManiaModId.Nightcore))
+        {
+            appliedMod = ManiaModId.Nightcore;
+            enabled = false;
+        }
+        else
+        {
+            enabled = !selectedMods.Contains(mod);
+        }
+
+        detailMod = enabled ? appliedMod : mod;
         modPreferences?.Remember(selectedMods);
-        selectedMods = mod == ManiaModId.Random && enabled
+        selectedMods = appliedMod == ManiaModId.Random && enabled
             ? selectedMods.WithRandomSeed(Random.Shared.Next())
-            : selectedMods.With(mod, enabled);
+            : selectedMods.With(appliedMod, enabled);
         if (enabled)
             selectedMods = modPreferences?.Apply(
                 selectedMods,
-                mod) ?? selectedMods;
+                appliedMod) ?? selectedMods;
 
-        if (enabled && isConfigurable(mod))
-            settingsHost.Show(mod);
+        if (enabled && isConfigurable(appliedMod))
+            settingsHost.Show(appliedMod);
 
-        orbitWorkspace?.QueueModTransition(mod, enabled);
+        orbitWorkspace?.QueueModTransition(
+            mod == ManiaModId.DoubleTime
+                ? ManiaModId.DoubleTime
+                : appliedMod,
+            enabled);
         updateSelection();
-        selectDetail(mod);
+        selectDetail(detailMod);
     }
 
     internal void ResetMods()

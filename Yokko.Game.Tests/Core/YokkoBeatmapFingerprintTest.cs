@@ -73,4 +73,21 @@ public sealed class YokkoBeatmapFingerprintTest
             YokkoBeatmapFingerprint.Compute(changed),
             Is.Not.EqualTo(YokkoBeatmapFingerprint.Compute(original)));
     }
+
+    [Test]
+    public void BmsScratchIdentityParticipatesInReplayFingerprint()
+    {
+        YokkoBeatmap ordinary = DemoBeatmaps.CreateFourKeyDemo() with
+        {
+            SourceFormat = ChartSourceFormat.Bms,
+        };
+        YokkoBeatmap scratch = ordinary with
+        {
+            ScratchLane = 0,
+        };
+
+        Assert.That(
+            YokkoBeatmapFingerprint.Compute(scratch),
+            Is.Not.EqualTo(YokkoBeatmapFingerprint.Compute(ordinary)));
+    }
 }

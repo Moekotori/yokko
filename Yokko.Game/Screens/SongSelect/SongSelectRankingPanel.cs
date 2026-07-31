@@ -18,13 +18,14 @@ internal partial class SongSelectRankingPanel : ClickableContainer
     private const float panel_width = 800;
     private const float panel_height = 340;
     private const float rows_top = 78;
-    private const float row_height = 42;
+    private const float row_height = 40;
 
     private readonly Container content;
     private readonly Box globalTab;
     private readonly Box historyTab;
     private readonly SpriteText globalLabel;
     private readonly SpriteText historyLabel;
+    private readonly SpriteText playerCount;
     private readonly SongSelectEntry entry;
     private readonly TextureStore textures;
     private readonly Action<SongSelectScoreView> viewChanged;
@@ -60,31 +61,75 @@ internal partial class SongSelectRankingPanel : ClickableContainer
 
         InternalChildren =
         [
-            SongSelectSurface.CreateShadow(12, 0.32f, 5),
+            SongSelectSurface.CreateShadow(12, 0.21f, 4),
             panel,
+            new Container
+            {
+                Position = new Vector2(1),
+                Size = new Vector2(panel_width - 2, 49),
+                Masking = true,
+                CornerRadius = 11,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(
+                        SongSelectTheme.PaleCyan.R,
+                        SongSelectTheme.PaleCyan.G,
+                        SongSelectTheme.PaleCyan.B,
+                        0.20f),
+                },
+            },
+            new Box
+            {
+                Position = new Vector2(24, 49),
+                Size = new Vector2(panel_width - 48, 1),
+                Colour = new Color4(
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.10f),
+            },
             new SpriteText
             {
-                Position = new Vector2(28, 16),
+                Position = new Vector2(24, 14),
                 Text = "RANKING",
-                Font = HomeTypography.Display(20),
+                Font = HomeTypography.Display(17),
                 Colour = SongSelectTheme.Navy,
             },
             new SpriteIcon
             {
-                Position = new Vector2(132, 18),
-                Size = new Vector2(16),
+                Position = new Vector2(124, 16),
+                Size = new Vector2(13),
                 Icon = FontAwesome.Solid.Trophy,
                 Colour = SongSelectTheme.Yellow,
             },
-            createTab("GLOBAL", 208, out globalTab, out globalLabel,
+            createTab("GLOBAL", 190, out globalTab, out globalLabel,
                 () => setAndNotify(SongSelectScoreView.GlobalRanking)),
-            createTab("MY HISTORY", 318, out historyTab, out historyLabel,
+            createTab("MY HISTORY", 288, out historyTab, out historyLabel,
                 () => setAndNotify(SongSelectScoreView.Personal)),
+            new Box
+            {
+                Position = new Vector2(430, 25),
+                Size = new Vector2(208, 1),
+                Colour = new Color4(
+                    SongSelectTheme.Cyan.R,
+                    SongSelectTheme.Cyan.G,
+                    SongSelectTheme.Cyan.B,
+                    0.48f),
+            },
+            playerCount = new SpriteText
+            {
+                Position = new Vector2(655, 16),
+                Width = 112,
+                Text = "0 PLAYERS",
+                Font = HomeTypography.Display(9),
+                Colour = SongSelectTheme.Navy,
+            },
             createColumnHeader(),
             content = new Container
             {
                 Position = new Vector2(18, rows_top),
-                Size = new Vector2(panel_width - 36, row_height * 6),
+                Size = new Vector2(panel_width - 36, row_height * 6 + 10),
                 Masking = true,
             },
             new SpriteIcon
@@ -131,6 +176,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
 
     private void rebuildRows(System.Collections.Generic.IReadOnlyList<SongSelectScore> scores)
     {
+        playerCount.Text = $"{scores.Count} {(scores.Count == 1 ? "PLAY" : "PLAYS")}";
         content.Clear();
         if (scores.Count == 0)
         {
@@ -156,7 +202,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
             RelativeSizeAxes = Axes.X,
             AutoSizeAxes = Axes.Y,
             Direction = FillDirection.Vertical,
-            Spacing = new Vector2(0, 1),
+            Spacing = new Vector2(0, 2),
         };
         foreach (SongSelectScore score in scores.Take(6))
             flow.Add(createRow(score));
@@ -176,8 +222,8 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         {
             Size = new Vector2(panel_width - 36, row_height),
             Masking = true,
-            CornerRadius = 4,
-            BorderThickness = score.IsCurrentPlayer ? 1.5f : 0,
+            CornerRadius = 6,
+            BorderThickness = score.IsCurrentPlayer ? 1.25f : 0,
             BorderColour = accent,
             Children =
             [
@@ -185,16 +231,23 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = score.IsCurrentPlayer
-                        ? new Color4(1f, 0.82f, 0.91f, 0.78f)
-                        : new Color4(1f, 1f, 1f, 0.70f),
+                        ? new Color4(1f, 0.84f, 0.92f, 0.50f)
+                        : new Color4(1f, 1f, 1f,
+                            score.Rank % 2 == 0 ? 0.66f : 0.52f),
                 },
-                text($"{score.Rank}", 12, 12, 32, 16, accent),
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Y,
+                    Width = score.IsCurrentPlayer ? 3 : 0,
+                    Colour = SongSelectTheme.Pink,
+                },
+                text($"{score.Rank}", 12, 11, 30, 13, accent),
                 new Container
                 {
-                    Position = new Vector2(44, 4),
-                    Size = new Vector2(34),
+                    Position = new Vector2(42, 4),
+                    Size = new Vector2(32),
                     Masking = true,
-                    CornerRadius = 17,
+                    CornerRadius = 16,
                     BorderThickness = 1,
                     BorderColour = accent,
                     Child = new Sprite
@@ -204,32 +257,32 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                         FillMode = FillMode.Fill,
                     },
                 },
-                text(score.PlayerName, 90, 12, 112, 15,
+                text(score.PlayerName, 84, 11, 118, 13,
                     score.IsCurrentPlayer ? SongSelectTheme.Pink : SongSelectTheme.Navy),
-                text(score.Grade.ToDisplayLabel(), 218, 9, 42, 20,
+                text(score.Grade.ToDisplayLabel(), 218, 8, 42, 17,
                     gradeColour(score.Grade)),
-                text($"{score.Score:N0}", 278, 12, 132, 14, SongSelectTheme.Navy),
-                text($"{score.Accuracy:P2}", 430, 12, 90, 14, SongSelectTheme.Navy),
-                text($"{score.MaxCombo:N0}×", 540, 12, 88, 14, SongSelectTheme.Navy),
+                text($"{score.Score:N0}", 278, 11, 132, 12, SongSelectTheme.Navy, false),
+                text($"{score.Accuracy:P2}", 430, 11, 90, 12, SongSelectTheme.Navy, false),
+                text($"{score.MaxCombo:N0}×", 540, 11, 88, 12, SongSelectTheme.Navy, false),
                 text(score.Mods.Count == 0 ? "NM" : string.Join(" ", score.Mods),
-                    650, 12, 92, 13, SongSelectTheme.Pink),
+                    650, 11, 92, 11, SongSelectTheme.Pink),
             ],
         };
     }
 
     private static Drawable createColumnHeader() => new Container
     {
-        Position = new Vector2(18, 54),
+        Position = new Vector2(18, 56),
         Size = new Vector2(panel_width - 36, 22),
         Children =
         [
-            text("#", 12, 0, 32, 10, SongSelectTheme.Cyan),
-            text("PLAYER", 90, 0, 112, 10, SongSelectTheme.Cyan),
-            text("GRADE", 218, 0, 48, 10, SongSelectTheme.Cyan),
-            text("SCORE", 278, 0, 132, 10, SongSelectTheme.Cyan),
-            text("ACCURACY", 430, 0, 90, 10, SongSelectTheme.Cyan),
-            text("MAX COMBO", 540, 0, 88, 10, SongSelectTheme.Cyan),
-            text("MODS", 650, 0, 92, 10, SongSelectTheme.Cyan),
+            text("#", 12, 0, 30, 8, SongSelectTheme.Cyan),
+            text("PLAYER", 84, 0, 118, 8, SongSelectTheme.Cyan),
+            text("GRADE", 218, 0, 48, 8, SongSelectTheme.Cyan),
+            text("SCORE", 278, 0, 132, 8, SongSelectTheme.Cyan),
+            text("ACCURACY", 430, 0, 90, 8, SongSelectTheme.Cyan),
+            text("MAX COMBO", 540, 0, 88, 8, SongSelectTheme.Cyan),
+            text("MODS", 650, 0, 92, 8, SongSelectTheme.Cyan),
         ],
     };
 
@@ -249,14 +302,14 @@ internal partial class SongSelectRankingPanel : ClickableContainer
             Anchor = Anchor.Centre,
             Origin = Anchor.Centre,
             Text = label,
-            Font = HomeTypography.Display(11),
+            Font = HomeTypography.Display(9),
         };
         return new ClickableContainer
         {
-            Position = new Vector2(x, 8),
-            Size = new Vector2(label == "GLOBAL" ? 96 : 126, 34),
+            Position = new Vector2(x, 9),
+            Size = new Vector2(label == "GLOBAL" ? 88 : 118, 30),
             Masking = true,
-            CornerRadius = 17,
+            CornerRadius = 15,
             Action = action,
             Children = [tabBackground, tabLabel],
         };
@@ -268,13 +321,16 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         float y,
         float width,
         float size,
-        Color4 colour) => new()
+        Color4 colour,
+        bool strong = true) => new()
     {
         Position = new Vector2(x, y),
         Width = width,
         Truncate = true,
         Text = value,
-        Font = HomeTypography.Display(size),
+        Font = strong
+            ? HomeTypography.Display(size)
+            : HomeTypography.Body(size),
         Colour = colour,
     };
 

@@ -1665,3 +1665,98 @@ final result: passed
   capture above.
 
 final result: passed
+
+# Gameplay result broadcast redesign (2026-07-31, QA2)
+
+## Evidence
+
+- Source visual truth:
+  `D:\yokko\docs\design\gameplay\yokko-result-broadcast-selected.png`
+- Final native implementation:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-option2-final-en.png`
+- Equal-size full-view comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-option2-comparison-final.png`
+- Focused mascot comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-option2-focus-mascot.png`
+- Focused result-data and action comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-option2-focus-results-final.png`
+
+## Viewport, density, and state
+
+- Source pixels: 1672 x 941.
+- Implementation pixels: 1600 x 900.
+- Yokko authored/CSS-equivalent viewport: 1600 x 900; native Direct3D 11
+  capture, device-scale normalization not applicable.
+- The source was downsampled to 1600 x 900 before comparison. No browser
+  chrome, window frame, or surrounding canvas is present.
+- State: English locale, `Afterimage [Insane]`, rank B, score 0537761,
+  accuracy 82.51%, max combo 20, HD + DT 1.50x, judgments
+  8 / 12 / 0 / 0 / 0 / 4.
+
+## Comparison history
+
+1. Pass 1 used the old kneeling production mascot and a cyan left field.
+   This produced a P1 silhouette mismatch and a P2 backdrop mismatch against
+   the selected standing composition.
+2. Pass 3 replaced the field with the selected ivory/cyan diagonal broadcast
+   split. The layout, result ribbon, metrics, MOD row, judgments, and actions
+   then aligned, but the kneeling mascot remained a P1 mismatch.
+3. Pass 4 introduced a dedicated standing mascot asset, generated from the
+   selected pose and official Yokko identity art, then chroma-keyed and
+   validated as an RGBA resource. The focused mascot comparison confirms the
+   full character, shoes, IV stand, cable, and transparent edges are present.
+4. The pass-4 focused result crop showed a P2 hierarchy drift: rank, score,
+   metrics, judgment values, and Retry copy were visibly smaller than the
+   source. The final pass increased those optical sizes while keeping every
+   dynamic value inside its panel.
+
+## Final review
+
+- Fonts and typography: Roboto Bold preserves the selected dense broadcast
+  hierarchy. RESULT, rank, score, metrics, judgments, and actions now match
+  the source's optical emphasis without wrapping or truncation. The song title
+  remains dynamic and uses Yokko's existing non-italic display face.
+- Spacing and layout rhythm: the 1600 x 900 authored canvas uses the same
+  left-character/right-result split, ribbon height, three-part metric row,
+  judgment baseline, and bottom action rail. No element clips or overlaps.
+- Colors and visual tokens: the implementation reuses Yokko's navy, cyan,
+  pale cyan, ivory, yellow, and pink tokens. The diagonal field and score
+  ribbon maintain the source foreground/background balance.
+- Image quality and asset fidelity: the official logo remains a real texture.
+  The standing mascot is a separate 1024 x 1536 RGBA resource with transparent
+  corners, crisp opaque subject edges, and no visible chroma fringe. No
+  flattened full-screen mockup is shipped.
+- Copy and content: score, rank, accuracy, combo, every judgment, MOD acronyms,
+  fixed rate, and localized action labels remain code-driven. English and
+  Chinese localization continue to work.
+- Icons and interactions: Font Awesome replay, play, music, star, and chevron
+  icons remain aligned inside real clickable controls. Focused gameplay
+  regression coverage confirms the result appears after completion, exposes
+  all three actions, and Watch Replay starts a recorded replay.
+- Responsiveness and accessibility: proportional 1600 x 900 scaling is
+  covered at 1777.78 x 1000, 1024 x 576, and 1600 x 1000. Buttons retain
+  high-contrast fills, 78-pixel visible height, keyboard callbacks, hover
+  feedback, and localized labels.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- P3: the selected concept uses star separators in the ticker and an italic
+  song title; production keeps Yokko's existing plus-separated ticker and
+  non-italic localized display face.
+- P3: the selected concept colors the first score digit cyan; production keeps
+  the entire dynamic score white to avoid per-digit styling complexity.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- Focused result, display-scale, completion, and replay tests:
+  25 passed, 0 failed.
+- Final Direct3D 11 preview: exited normally and captured at 1600 x 900.
+- Shared-tree test build was not used because the user-visible Yokko process
+  locks its desktop output and unrelated concurrent importer-test edits are
+  incomplete; the isolated worktree contains the exact result files and asset.
+
+final result: passed

@@ -1,5 +1,4 @@
 using osu.Framework.Graphics;
-using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osuTK;
@@ -18,8 +17,8 @@ internal static class SongSelectSurface
 
     public static Drawable CreateShadow(
         float cornerRadius = CardRadius,
-        float opacity = 0.28f,
-        float yOffset = 4) => new Container
+        float opacity = 0.18f,
+        float yOffset = 3) => new Container
     {
         RelativeSizeAxes = Axes.Both,
         Position = new Vector2(0, yOffset),
@@ -63,37 +62,19 @@ internal static class SongSelectSurface
                 {
                     RelativeSizeAxes = Axes.X,
                     Height = 1,
-                    Colour = new Color4(1f, 1f, 1f, 0.72f),
-                },
-                new Box
-                {
-                    Anchor = Anchor.BottomLeft,
-                    Origin = Anchor.BottomLeft,
-                    RelativeSizeAxes = Axes.X,
-                    Height = 2,
-                    Colour = ColourInfo.GradientHorizontal(
-                        new Color4(
-                            SongSelectTheme.Cyan.R,
-                            SongSelectTheme.Cyan.G,
-                            SongSelectTheme.Cyan.B,
-                            0.52f),
-                        new Color4(
-                            SongSelectTheme.Pink.R,
-                            SongSelectTheme.Pink.G,
-                            SongSelectTheme.Pink.B,
-                            0.18f)),
+                    Colour = new Color4(1f, 1f, 1f, 0.82f),
                 },
             ],
         };
     }
 
     public static Color4 Ivory(float alpha = 0.97f) => new(
+        1f,
         0.995f,
-        0.982f,
-        0.925f,
+        0.972f,
         alpha);
 
-    public static Color4 Border(float alpha = 0.22f) => new(
+    public static Color4 Border(float alpha = 0.18f) => new(
         SongSelectTheme.Navy.R,
         SongSelectTheme.Navy.G,
         SongSelectTheme.Navy.B,

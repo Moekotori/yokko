@@ -84,6 +84,8 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     internal DrawableNote GetDrawableNote(int index) => noteDrawables[index];
 
+    internal LaneColumn GetLaneColumn(int lane) => laneColumns[lane];
+
     internal double GetNoteStartScrollPosition(int index) =>
         noteUpdateStates[index].StartPosition;
 
@@ -257,7 +259,8 @@ public partial class GameplayPlayfield : CompositeDrawable
                                         showLanePressFeedback,
                                         lane == keyCount - 1
                                         || splitSkinStages
-                                        && lane == keyCount / 2 - 1)
+                                        && lane == keyCount / 2 - 1,
+                                        beatmap.ScratchLane == lane)
                                     {
                                         X = x,
                                         Width = width,
@@ -290,7 +293,8 @@ public partial class GameplayPlayfield : CompositeDrawable
                 hitObject,
                 width,
                 activeSkin,
-                beatmap.LegacyLongNoteRendering)
+                beatmap.LegacyLongNoteRendering,
+                beatmap.ScratchLane == hitObject.Lane)
             {
                 X = x,
                 Alpha = 0,
@@ -615,9 +619,13 @@ public partial class GameplayPlayfield : CompositeDrawable
             children.Add(new Box
             {
                 RelativeSizeAxes = Axes.X,
-                Height = 4,
-                Y = judgementY,
-                Colour = YokkoPalette.Rose,
+                Height = 2,
+                Y = judgementY - 1,
+                Colour = new Color4(
+                    YokkoPalette.Rose.R,
+                    YokkoPalette.Rose.G,
+                    YokkoPalette.Rose.B,
+                    0.62f),
             });
         }
 

@@ -42,7 +42,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
 
         InternalChildren = new Drawable[]
         {
-            SongSelectSurface.CreateShadow(10, 0.30f, 4),
+            SongSelectSurface.CreateShadow(10, 0.18f, 3),
             panel,
             new Container
             {

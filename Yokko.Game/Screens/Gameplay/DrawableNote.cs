@@ -67,10 +67,12 @@ public partial class DrawableNote : CompositeDrawable
         YokkoHitObject hitObject,
         float laneWidth,
         OsuManiaSkin skin = null,
-        bool legacyLongNoteRendering = false)
+        bool legacyLongNoteRendering = false,
+        bool isScratchNote = false)
     {
         HitObjectIndex = hitObjectIndex;
         this.hitObject = hitObject;
+        IsScratchNote = isScratchNote;
         this.legacyLongNoteRendering = legacyLongNoteRendering;
         baseWidth = laneWidth;
         Width = laneWidth;
@@ -117,7 +119,9 @@ public partial class DrawableNote : CompositeDrawable
                 fallbackBody = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = YokkoPalette.Cyan,
+                    Colour = isScratchNote
+                        ? YokkoPalette.Violet
+                        : YokkoPalette.Cyan,
                 },
                 new Box
                 {
@@ -178,7 +182,9 @@ public partial class DrawableNote : CompositeDrawable
             InternalChild = fallbackBody = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = YokkoPalette.Cyan,
+                Colour = isScratchNote
+                    ? YokkoPalette.Violet
+                    : YokkoPalette.Cyan,
             };
             return;
         }
@@ -303,6 +309,8 @@ public partial class DrawableNote : CompositeDrawable
     }
 
     public int HitObjectIndex { get; }
+
+    internal bool IsScratchNote { get; }
 
     internal bool ReverseHoldTailForScrollVelocity =>
         reverseHoldTailForScrollVelocity;

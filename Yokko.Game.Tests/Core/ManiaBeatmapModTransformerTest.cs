@@ -57,6 +57,51 @@ public sealed class ManiaBeatmapModTransformerTest
     }
 
     [Test]
+    public void BmsScratchLaneStaysFixedUnderRandomAndMirror()
+    {
+        var original = new YokkoBeatmap(
+            "Scratch",
+            "Yokko",
+            "Yokko",
+            "7K + SCR",
+            KeyMode.EightKey,
+            ChartSourceFormat.Bms,
+            [YokkoTimingPoint.Default],
+            null,
+            Enumerable.Range(0, 8)
+                      .Select(lane => new YokkoHitObject(
+                          lane,
+                          1000 + lane * 100,
+                          null,
+                          HitObjectKind.Tap))
+                      .ToArray(),
+            ScratchLane: 0);
+
+        YokkoBeatmap mirrored = ManiaBeatmapModTransformer.Apply(
+            original,
+            new ManiaModSet([ManiaModId.Mirror]));
+        YokkoBeatmap random = ManiaBeatmapModTransformer.Apply(
+            original,
+            new ManiaModSet([ManiaModId.Random], 741852));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(mirrored.ScratchLane, Is.Zero);
+            Assert.That(mirrored.HitObjects[0].Lane, Is.Zero);
+            Assert.That(
+                mirrored.HitObjects.Skip(1).Select(note => note.Lane),
+                Is.EqualTo(Enumerable.Range(1, 7).Reverse()));
+            Assert.That(random.ScratchLane, Is.Zero);
+            Assert.That(random.HitObjects[0].Lane, Is.Zero);
+            Assert.That(
+                random.HitObjects.Skip(1)
+                      .Select(note => note.Lane)
+                      .Order(),
+                Is.EqualTo(Enumerable.Range(1, 7)));
+        });
+    }
+
+    [Test]
     public void HoldOffKeepsTheHeadAndRemovesTheTail()
     {
         YokkoBeatmap original = createBeatmap();
