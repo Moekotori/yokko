@@ -30,6 +30,7 @@ internal enum GameplaySettingsSection
 {
     Input,
     Timing,
+    PlaybackRate,
     Judgement,
     Feedback,
 }
@@ -104,6 +105,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal double ResumeCountdownMilliseconds =>
         settings.ResumeCountdownMilliseconds.Value;
+
+    internal AudioPitchMode ManualPlaybackRatePitchMode =>
+        audioSettings.ManualPlaybackRatePitchMode.Value;
 
     internal bool IsCalibrationActive =>
         calibrationPreparing || calibrationSession != null;
@@ -357,6 +361,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal void SetResumeCountdownMilliseconds(double milliseconds) =>
         settings.ResumeCountdownMilliseconds.Value = milliseconds;
 
+    internal void SetManualPlaybackRatePitchMode(AudioPitchMode mode) =>
+        audioSettings.ManualPlaybackRatePitchMode.Value = mode;
+
     internal bool HandleKeyDown(Key key)
     {
         if (capturingCard != null)
@@ -441,25 +448,31 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             GameplaySettingsSection.Input,
             YokkoStrings.Get("settings.gameplay.section_input"),
             FontAwesome.Solid.Keyboard,
-            203);
+            160.8f);
         addTab(
             flow,
             GameplaySettingsSection.Timing,
             YokkoStrings.Get("settings.gameplay.section_timing"),
             FontAwesome.Solid.WaveSquare,
-            203);
+            160.8f);
+        addTab(
+            flow,
+            GameplaySettingsSection.PlaybackRate,
+            YokkoStrings.Get("settings.gameplay.section_playback_rate"),
+            FontAwesome.Solid.Bolt,
+            160.8f);
         addTab(
             flow,
             GameplaySettingsSection.Judgement,
             YokkoStrings.Get("settings.gameplay.section_judgement"),
             FontAwesome.Solid.Bullseye,
-            203);
+            160.8f);
         addTab(
             flow,
             GameplaySettingsSection.Feedback,
             YokkoStrings.Get("settings.gameplay.section_feedback"),
             FontAwesome.Solid.Heartbeat,
-            203);
+            160.8f);
 
         return flow;
     }
@@ -503,6 +516,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
             case GameplaySettingsSection.Timing:
                 setContent(createTimingSection(), animate);
+                break;
+
+            case GameplaySettingsSection.PlaybackRate:
+                setContent(createPlaybackRateSection(), animate);
                 break;
 
             case GameplaySettingsSection.Judgement:
@@ -796,6 +813,57 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             {
                 Position = new Vector2(430, 221),
             },
+        });
+
+        return panel;
+    }
+
+    private Drawable createPlaybackRateSection()
+    {
+        var panel = createPanel();
+        setPanelChildren(panel, new Drawable[]
+        {
+            new SpriteText
+            {
+                Position = new Vector2(20, 18),
+                Text = YokkoStrings.Get(
+                    "settings.gameplay.playback_rate_heading"),
+                Font = HomeTypography.Display(19),
+                Colour = HomeControlColours.Navy,
+            },
+            new SpriteText
+            {
+                Position = new Vector2(20, 47),
+                Text = YokkoStrings.Get(
+                    "settings.gameplay.playback_rate_note"),
+                Font = HomeTypography.Body(15),
+                Colour = SettingsTheme.MutedNavy,
+            },
+            new GameplayRatePitchModeSelector(
+                audioSettings.ManualPlaybackRatePitchMode)
+            {
+                Position = new Vector2(20, 82),
+            },
+            new Box
+            {
+                Position = new Vector2(20, 154),
+                Size = new Vector2(800, 1),
+                Colour = SettingsTheme.Divider,
+            },
+            createControlLabel(
+                YokkoStrings.Get(
+                    "settings.gameplay.playback_rate_shortcut"),
+                YokkoStrings.Get(
+                    "settings.gameplay.playback_rate_shortcut_note"),
+                20,
+                172),
+            createControlLabel(
+                YokkoStrings.Get(
+                    "settings.gameplay.playback_rate_mod_priority"),
+                YokkoStrings.Get(
+                    "settings.gameplay.playback_rate_mod_priority_note"),
+                430,
+                172),
         });
 
         return panel;
@@ -2163,6 +2231,62 @@ internal partial class GameplayJudgementModeSelector : CompositeDrawable
         yokkoButton.SetSelected(change.NewValue == JudgementMode.Yokko);
         etternaButton.SetSelected(
             change.NewValue == JudgementMode.Etterna);
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            mode.ValueChanged -= onModeChanged;
+
+        base.Dispose(isDisposing);
+    }
+}
+
+internal partial class GameplayRatePitchModeSelector : CompositeDrawable
+{
+    private readonly Bindable<AudioPitchMode> mode;
+    private readonly SettingsSegmentedChoiceButton doubleTimeButton;
+    private readonly SettingsSegmentedChoiceButton nightcoreButton;
+
+    public GameplayRatePitchModeSelector(
+        Bindable<AudioPitchMode> mode)
+    {
+        this.mode = mode;
+        Size = new Vector2(800, 54);
+
+        var card = new SettingsStickerCard(new Vector2(800, 54), 8);
+        card.SetContent(new FillFlowContainer
+        {
+            RelativeSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+            Children = new Drawable[]
+            {
+                doubleTimeButton = new SettingsSegmentedChoiceButton(
+                    YokkoStrings.Get(
+                        "settings.gameplay.playback_rate_dt"),
+                    FontAwesome.Solid.Clock,
+                    () => mode.Value = AudioPitchMode.Preserve,
+                    400),
+                nightcoreButton = new SettingsSegmentedChoiceButton(
+                    YokkoStrings.Get(
+                        "settings.gameplay.playback_rate_nc"),
+                    FontAwesome.Solid.Bolt,
+                    () => mode.Value = AudioPitchMode.ScaleWithRate,
+                    400),
+            },
+        });
+        InternalChild = card;
+
+        mode.BindValueChanged(onModeChanged, true);
+    }
+
+    private void onModeChanged(
+        ValueChangedEvent<AudioPitchMode> change)
+    {
+        doubleTimeButton.SetSelected(
+            change.NewValue == AudioPitchMode.Preserve);
+        nightcoreButton.SetSelected(
+            change.NewValue == AudioPitchMode.ScaleWithRate);
     }
 
     protected override void Dispose(bool isDisposing)

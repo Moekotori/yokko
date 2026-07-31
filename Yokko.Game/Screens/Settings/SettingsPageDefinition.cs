@@ -102,6 +102,7 @@ internal static class SettingsPages
             {
                 YokkoStrings.Get("settings.gameplay.section_input"),
                 YokkoStrings.Get("settings.gameplay.section_timing"),
+                YokkoStrings.Get("settings.gameplay.section_playback_rate"),
                 YokkoStrings.Get("settings.gameplay.section_judgement"),
                 YokkoStrings.Get("settings.gameplay.section_feedback"),
             },
@@ -110,6 +111,9 @@ internal static class SettingsPages
                 "settings.gameplay.subtitle",
                 "settings.gameplay.section_input",
                 "settings.gameplay.section_timing",
+                "settings.gameplay.section_playback_rate",
+                "settings.gameplay.playback_rate_dt",
+                "settings.gameplay.playback_rate_nc",
                 "settings.gameplay.section_judgement",
                 "settings.gameplay.etterna_justice",
                 "settings.gameplay.section_feedback",

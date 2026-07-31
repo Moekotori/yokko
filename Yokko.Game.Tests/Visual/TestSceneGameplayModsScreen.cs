@@ -361,6 +361,60 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     }
 
     [Test]
+    public void TestDoubleTimeCyclesThroughNightcore()
+    {
+        AddStep("prepare Double Time cycle", () =>
+        {
+            modsScreen.ResetMods();
+            modsScreen.SetCategory(ManiaModCategory.DifficultyIncrease);
+        });
+        AddStep("enable Double Time", () =>
+            modsScreen.ToggleMod(ManiaModId.DoubleTime));
+        AddAssert("first press enables Double Time", () =>
+            modsScreen.SelectedMods.Contains(ManiaModId.DoubleTime)
+            && !modsScreen.SelectedMods.Contains(ManiaModId.Nightcore));
+        AddStep("cycle Double Time to Nightcore", () =>
+            modsScreen.ToggleMod(ManiaModId.DoubleTime));
+        AddAssert("second press enables Nightcore", () =>
+            !modsScreen.SelectedMods.Contains(ManiaModId.DoubleTime)
+            && modsScreen.SelectedMods.Contains(ManiaModId.Nightcore)
+            && this.ChildrenOfType<OrbitModNode>()
+                .Single(node => node.ModId == ManiaModId.DoubleTime)
+                .PresentationMod == ManiaModId.Nightcore);
+        AddStep("cycle Nightcore off", () =>
+            modsScreen.ToggleMod(ManiaModId.DoubleTime));
+        AddAssert("third press disables the speed mod", () =>
+            !modsScreen.SelectedMods.Contains(ManiaModId.DoubleTime)
+            && !modsScreen.SelectedMods.Contains(ManiaModId.Nightcore));
+    }
+
+    [Test]
+    public void TestActiveModRowsFocusBeforeRemoving()
+    {
+        OrbitActiveModRow activeRow = null;
+        AddStep("prepare active row", () =>
+        {
+            modsScreen.ResetMods();
+            modsScreen.ToggleMod(ManiaModId.HalfTime);
+            modsScreen.SetCategory(ManiaModCategory.Fun);
+            activeRow = this.ChildrenOfType<OrbitActiveModRow>()
+                .Single(row => row.ModId == ManiaModId.HalfTime);
+        });
+        AddStep("activate the active row", () =>
+            activeRow.ActivateForTest());
+        AddAssert("row focuses without removing", () =>
+            modsScreen.ActiveCategory
+                == ManiaModCategory.DifficultyReduction
+            && modsScreen.DetailMod == ManiaModId.HalfTime
+            && modsScreen.SelectedMods.Contains(ManiaModId.HalfTime));
+        AddStep("remove from dedicated control", () =>
+            activeRow.RemoveForTest());
+        AddWaitStep("wait for removal motion", 12);
+        AddAssert("dedicated remove control disables mod", () =>
+            !modsScreen.SelectedMods.Contains(ManiaModId.HalfTime));
+    }
+
+    [Test]
     public void TestGameplayModsLayout()
     {
         AddAssert("uses the complete scaled workspace", () =>

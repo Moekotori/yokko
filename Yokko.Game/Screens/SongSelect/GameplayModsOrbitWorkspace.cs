@@ -1478,7 +1478,9 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                             selectCategory(definition.Category);
                         focusMod(definition.Id);
                     },
-                    () => toggleMod(definition.Id))
+                    () => Scheduler.AddDelayed(
+                        () => toggleMod(definition.Id),
+                        135))
                 {
                     Y = i * 66,
                 };
@@ -2236,6 +2238,7 @@ internal partial class OrbitModNode : ClickableContainer
     private ManiaModId presentationMod;
 
     internal ManiaModId ModId { get; }
+    internal ManiaModId PresentationMod => presentationMod;
     internal bool ActivationTransitionRunning =>
         activationTransitionRunning || activationTransitionPending;
 
@@ -2780,7 +2783,7 @@ internal partial class OrbitActiveModRow : ClickableContainer
         this.MoveToX(20, 150, Easing.InQuint)
             .FadeOut(130, Easing.OutQuint)
             .ScaleTo(0.96f, 140, Easing.InOutSine);
-        Scheduler.AddDelayed(remove, 135);
+        remove();
     }
 
     private static Container createHexagonLayer(

@@ -80,6 +80,93 @@
 
 final result: passed
 
+# Yokko Song Select whole-page polish QA (2026-07-31)
+
+## Evidence
+
+- Selected visual direction:
+  `D:\yokko\docs\design\song-select\yokko-song-select-final-cute-ranking-account.png`
+- Final native implementation:
+  `D:\yokko\artifacts\song-select\song-select-rework-qa-02.png`
+- Same-input full-view comparison:
+  `D:\yokko\artifacts\song-select\song-select-target-vs-qa-02.png`
+
+## Viewport, density, and state
+
+- Source pixels: 1672 x 941.
+- Implementation pixels: 1600 x 1000, native Direct3D 11 capture.
+- The comparison fits the source into a 1600 x 1000 cell without cropping and
+  places the native implementation beside it at 1:1.
+- State: `Cold Sweat`, 4K PACK, global ranking, six visible score records,
+  account summary present, Mods closed, song library scrolled near the selected
+  chart.
+- The beatmap artwork is intentionally different from the source. Production
+  always uses the selected beatmap background and applies code-native
+  readability isolation instead of relying on one authored waterfall image.
+
+## Comparison history
+
+1. The previous implementation left the song information and ranking cluster
+   too close to the page centre. The final pass moved the shared details host
+   left while preserving the stagger between the smaller song card and wider
+   ranking table.
+2. Search and filter controls previously had weak inactive contrast and a
+   cramped escape hint. Their ivory surfaces, navy copy, radii, spacing, and
+   hover treatment now match the rest of the screen.
+3. The right library could lose separation on arbitrary bright or detailed
+   beatmap art. A restrained navy isolation gradient now sits behind the
+   library only; individual rows remain code-native ivory surfaces.
+4. Ranking values were visually lighter than the player names and grades.
+   Score, accuracy, and combo now use a compact bold display treatment while
+   keeping six avatar rows visible.
+5. The Mods marker is now the real transparent Yokko diamond asset. Stable
+   panels, rows, dividers, and dynamic text remain code-drawn rather than
+   flattened raster cutouts.
+
+## Final review
+
+- Typography and long content: title, artist, mapper, difficulty, stats, pack
+  headers, and library rows retain a clear hierarchy. Long titles use the
+  existing bounded multi-line treatment and no visible text overlaps the song
+  card or library metadata.
+- Spacing and layout: the left cluster now begins close to the logo edge, the
+  ranking card is aligned underneath it, and the dense library has a distinct
+  right rail. Header, content, and footer keep separate visual bands.
+- Colors and surfaces: ivory, navy, cyan, pink, and yellow remain the shared
+  Yokko palette. The background isolation is deliberately low-opacity, so
+  beatmap artwork remains recognizable without controlling component colors.
+- Image quality: logo, avatars, mascot, tape, star, and diamond are real
+  textures. Dynamic panels and interactive states are not screenshots or
+  whole-panel cutouts.
+- Information density: six leaderboard entries with avatars and six scoring
+  columns remain visible, the account card exposes PP, accuracy, global rank,
+  level, mode, and online state, and the compact song library preserves more
+  simultaneous charts than the concept.
+- Interactions and states: search, filters, ranking tabs, chart selection,
+  Mods, Back, and Play remain separate code-native controls. Selected ranking
+  and song states have distinct pink/yellow emphasis.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- P3: the selected concept uses a bright waterfall background and larger
+  library rows. Production intentionally uses arbitrary beatmap artwork and
+  denser fixed-height rows to satisfy the background-agnostic and
+  more-information requirements.
+
+## Verification
+
+- `dotnet build Yokko.Desktop.slnf --no-restore`: passed with 0 warnings and
+  0 errors.
+- Focused Song Select score-store, long-text layout, and artwork-policy tests:
+  14 passed, 0 failed.
+- Final native preview was captured with Yokko foregrounded and without
+  keyboard or pointer input.
+
+final result: passed
+
 # Song Select background-agnostic redesign QA
 
 ## Evidence
@@ -1758,5 +1845,93 @@ final result: passed
 - Shared-tree test build was not used because the user-visible Yokko process
   locks its desktop output and unrelated concurrent importer-test edits are
   incomplete; the isolated worktree contains the exact result files and asset.
+
+final result: passed
+
+# Gameplay result broadcast redesign (2026-07-31, QA3)
+
+## Evidence
+
+- Source visual truth:
+  `D:\yokko\docs\design\gameplay\yokko-result-broadcast-selected.png`
+- Final native implementation:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-option2-deep-final.png`
+- Equal-size full-view comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-option2-comparison-deep-final.png`
+- Focused score-ribbon comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-option2-focus-score-deep-final.png`
+- Focused data-and-controls comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-option2-focus-controls-deep-final.png`
+
+## Viewport, density, and state
+
+- Source pixels: 1672 x 941, normalized to 1600 x 900.
+- Implementation pixels: 1600 x 900.
+- Authored viewport: 1600 x 900; native Direct3D 11 capture, with no browser
+  chrome, window frame, device frame, or density mismatch.
+- State: English locale, `Afterimage [Insane]`, rank B, score 0537761,
+  accuracy 82.51%, max combo 20, HD + DT 1.50x, judgments
+  8 / 12 / 0 / 0 / 0 / 4.
+
+## Comparison history
+
+1. The user rejected QA2 because the production ribbon still read as a plain
+   rectangle, the first score digit was not cyan, the RESULT/title hierarchy
+   was undersized, the mascot was too tall, and the action rail sat too low.
+   These were reclassified as one P1 composition mismatch plus several P2
+   fidelity mismatches.
+2. Deep pass 1 replaced the approximate box-built score panel with a dedicated
+   transparent ribbon asset. It restored the slanted lead-in, clipped tail,
+   cyan keyline, yellow accent, right-side diamonds, and dot matrix while
+   keeping rank and score live.
+3. Deep pass 2 aligned the 1600 x 900 geometry: RESULT and title sizing,
+   title underline, rank/score baselines, mascot crop and height, summary
+   metrics, judgment row, and 96-pixel action rail.
+4. The final pass restored the compact secondary icon tiles, exact button
+   spacing, unobstructed labels, source-style English capitalization,
+   lower-right dot field, and pulse-line detail. The final full-view and both
+   focused comparisons show no actionable P0/P1/P2 mismatch.
+
+## Required fidelity review
+
+- Fonts and typography: RESULT now matches the source's optical width and
+  height. The B rank, seven-digit score, metric values, judgment values, and
+  Retry label share the source hierarchy. The first live score digit is cyan
+  and the remaining digits stay white. No text wraps or truncates.
+- Spacing and layout rhythm: score-ribbon bounds, divider, mascot silhouette,
+  metric columns, judgment baseline, and all three buttons align to the
+  normalized 1600 x 900 source. Persistent controls remain fully visible.
+- Colors and visual tokens: navy, cyan, pale cyan, ivory, yellow, and pink
+  preserve the selected broadcast balance. The lower result surface uses a
+  restrained pale-cyan wash rather than a flat white block.
+- Image quality and asset fidelity: the irregular ribbon is a separate RGBA
+  project resource, not a code-drawn approximation or flattened screen. It
+  has transparent corners and clean chroma-removed edges. The official logo
+  and standing mascot remain separate real textures.
+- Copy and content: song data, rank, score, MODs, accuracy, combo, judgments,
+  and localized actions remain code-driven. English labels now read
+  `Watch Replay` and `Song Select`, matching the source capitalization.
+- Interactions and responsiveness: Retry, Watch Replay, and Song Select remain
+  live clickable controls with existing keyboard callbacks and hover states.
+  The authored 1600 x 900 composition continues to scale proportionally.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- P3: the generated ribbon has a slightly softer navy depth gradient and a
+  denser right dot field than the concept.
+- P3: the production ticker keeps plus separators instead of the concept's
+  occasional star separators.
+
+## Verification
+
+- Isolated desktop solution build: passed with 0 warnings and 0 errors.
+- Focused display-scale, result-overlay, completed-play, and replay tests:
+  25 passed, 0 failed.
+- Final Direct3D 11 preview: exited normally and captured at 1600 x 900.
+- The isolated worktree was used to avoid the running Yokko process and
+  unrelated concurrent edits in the shared tree.
 
 final result: passed

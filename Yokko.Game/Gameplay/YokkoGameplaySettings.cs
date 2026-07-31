@@ -125,6 +125,36 @@ public sealed class YokkoGameplaySettings
 
     public readonly BindableBool ShowTimingBar = new(true);
 
+    public const double MinimumLayoutOffset = -0.75;
+
+    public const double MaximumLayoutOffset = 0.75;
+
+    public const double MinimumPlayfieldWidthScale = 0.35;
+
+    public const double MaximumPlayfieldWidthScale = 2.5;
+
+    public const double MaximumTopCoverRatio = 0.75;
+
+    public const double MaximumBottomCoverRatio = 0.5;
+
+    /// <summary>
+    /// Normalised presentation offsets. These are relative to the gameplay
+    /// viewport so a saved layout remains usable across resolutions.
+    /// </summary>
+    public readonly Bindable<double> LayoutPlayfieldOffsetX = new(0);
+
+    public readonly Bindable<double> LayoutPlayfieldOffsetY = new(0);
+
+    public readonly Bindable<double> LayoutHudOffsetX = new(0);
+
+    public readonly Bindable<double> LayoutHudOffsetY = new(0);
+
+    public readonly Bindable<double> LayoutPlayfieldWidthScale = new(1);
+
+    public readonly Bindable<double> LayoutTopCoverRatio = new(0);
+
+    public readonly Bindable<double> LayoutBottomCoverRatio = new(0);
+
     public readonly BindableBool KeysoundsEnabled = new(false);
 
     public readonly BindableBool MinesEnabled = new(true);
@@ -393,6 +423,17 @@ public sealed class YokkoGameplaySettings
 
     public void SetScrollSpeed(double speed) =>
         ScrollSpeed.Value = OsuManiaScrollSpeed.Clamp(speed);
+
+    public void ResetGameplayLayout()
+    {
+        LayoutPlayfieldOffsetX.SetDefault();
+        LayoutPlayfieldOffsetY.SetDefault();
+        LayoutHudOffsetX.SetDefault();
+        LayoutHudOffsetY.SetDefault();
+        LayoutPlayfieldWidthScale.SetDefault();
+        LayoutTopCoverRatio.SetDefault();
+        LayoutBottomCoverRatio.SetDefault();
+    }
 
     public void AdjustScrollSpeed(double amount) =>
         ScrollSpeed.Value = OsuManiaScrollSpeed.Adjust(

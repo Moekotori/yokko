@@ -29,6 +29,9 @@ public sealed class YokkoAudioSettings
 
     public readonly Bindable<double> UserOffsetMilliseconds = new(0);
 
+    public readonly Bindable<AudioPitchMode> ManualPlaybackRatePitchMode =
+        new(AudioPitchMode.Preserve);
+
     public double EffectiveMusicVolume =>
         clampVolume(MasterVolume.Value) * clampVolume(MusicVolume.Value);
 

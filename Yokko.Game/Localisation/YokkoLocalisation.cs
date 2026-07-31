@@ -240,8 +240,8 @@ internal static class YokkoStrings
             ["gameplay.result.max_combo"] = new("MAX COMBO", "最大连击", "MAX COMBO"),
             ["gameplay.result.new_best"] = new("NEW BEST", "新纪录", "NEW BEST"),
             ["gameplay.result.retry"] = new("Retry", "再来一次", "リトライ"),
-            ["gameplay.result.watch_replay"] = new("Watch replay", "观看回放", "リプレイを見る"),
-            ["gameplay.result.return"] = new("Song select", "返回选曲", "曲選択へ"),
+            ["gameplay.result.watch_replay"] = new("Watch Replay", "观看回放", "リプレイを見る"),
+            ["gameplay.result.return"] = new("Song Select", "返回选曲", "曲選択へ"),
 
             ["gameplay.audio_failed_title"] = new(
                 "Audio could not start",
@@ -508,6 +508,7 @@ internal static class YokkoStrings
                 "プレイ設定は譜面ルールやスコア処理から分離します。"),
             ["settings.gameplay.section_input"] = new("Input", "输入", "入力"),
             ["settings.gameplay.section_timing"] = new("Timing", "时序", "タイミング"),
+            ["settings.gameplay.section_playback_rate"] = new("Rate", "倍速", "倍速"),
             ["settings.gameplay.section_judgement"] = new("Judgement", "判定", "判定"),
             ["settings.gameplay.section_feedback"] = new("Feedback", "反馈", "フィードバック"),
 
@@ -933,6 +934,38 @@ internal static class YokkoStrings
                 "osu!mania 1–40 scale · Ctrl + / Ctrl − or F3 / F4.",
                 "osu!mania 1–40 档位 · Ctrl + / Ctrl − 或 F3 / F4。",
                 "osu!mania の 1–40 段階 · Ctrl + / Ctrl − または F3 / F4。"),
+            ["settings.gameplay.playback_rate_heading"] = new(
+                "Shortcut rate mode",
+                "快捷键倍速模式",
+                "ショートカット倍速モード"),
+            ["settings.gameplay.playback_rate_note"] = new(
+                "Choose how Alt + / Alt − changes the song audio.",
+                "选择 Alt + / Alt − 调整歌曲倍速时的音调方式。",
+                "Alt + / Alt − で曲の倍速を変えるときの音程を選びます。"),
+            ["settings.gameplay.playback_rate_dt"] = new(
+                "DT · Preserve pitch",
+                "DT · 保持音调",
+                "DT · 音程を維持"),
+            ["settings.gameplay.playback_rate_nc"] = new(
+                "NC · Raise pitch",
+                "NC · 音调随速度升高",
+                "NC · 速度と音程を上げます"),
+            ["settings.gameplay.playback_rate_shortcut"] = new(
+                "In-game shortcut",
+                "游玩内快捷键",
+                "プレイ中のショートカット"),
+            ["settings.gameplay.playback_rate_shortcut_note"] = new(
+                "Alt + / Alt − adjusts the rate in 0.05× steps.",
+                "Alt + / Alt − 调整 0.05×。",
+                "Alt + / Alt − で 0.05× 調整します。"),
+            ["settings.gameplay.playback_rate_mod_priority"] = new(
+                "Mod priority",
+                "Mod 优先级",
+                "Mod 設定"),
+            ["settings.gameplay.playback_rate_mod_priority_note"] = new(
+                "Explicit DT/NC and rate Mods keep their own pitch policy.",
+                "显式 DT/NC 与倍速 Mod 仍使用各自的音调规则。",
+                "DT/NC と倍速 Mod の設定を使用します。"),
             ["gameplay.scroll_speed_status"] = new(
                 "Scroll speed  {0:0.0}",
                 "流速  {0:0.0}",

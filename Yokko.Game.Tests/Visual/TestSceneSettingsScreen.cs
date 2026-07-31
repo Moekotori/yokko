@@ -327,6 +327,8 @@ namespace Yokko.Game.Tests.Visual
                 JudgementMode.Yokko;
             int originalEtternaJustice =
                 JudgementConfiguration.DefaultEtternaJustice;
+            AudioPitchMode originalPlaybackRatePitchMode =
+                AudioPitchMode.Preserve;
 
             AddStep("open Gameplay", () => settingsScreen.OpenPage(SettingsPageKind.Gameplay));
             AddStep("capture Gameplay preferences", () =>
@@ -343,6 +345,8 @@ namespace Yokko.Game.Tests.Visual
                     gameplay.CurrentJudgementMode;
                 originalEtternaJustice =
                     gameplay.CurrentEtternaJustice;
+                originalPlaybackRatePitchMode =
+                    gameplay.ManualPlaybackRatePitchMode;
             });
             AddStep("open timing", () =>
                 gameplay.SelectSection(GameplaySettingsSection.Timing));
@@ -352,6 +356,15 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SetScrollSpeed(26));
             AddAssert("speed changed", () =>
                 gameplay.CurrentScrollSpeed == 26);
+            AddStep("open playback rate", () =>
+                gameplay.SelectSection(
+                    GameplaySettingsSection.PlaybackRate));
+            AddStep("select Nightcore shortcut rate mode", () =>
+                gameplay.SetManualPlaybackRatePitchMode(
+                    AudioPitchMode.ScaleWithRate));
+            AddAssert("Nightcore shortcut rate mode selected", () =>
+                gameplay.ManualPlaybackRatePitchMode
+                    == AudioPitchMode.ScaleWithRate);
             AddStep("open judgement", () =>
                 gameplay.SelectSection(
                     GameplaySettingsSection.Judgement));
@@ -412,6 +425,8 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SetScrollSpeed(originalSpeed);
                 gameplay.SetJudgementMode(originalJudgementMode);
                 gameplay.SetEtternaJustice(originalEtternaJustice);
+                gameplay.SetManualPlaybackRatePitchMode(
+                    originalPlaybackRatePitchMode);
                 gameplay.SetLanePressFeedback(originalLaneFeedback);
                 gameplay.SetShowTimingBar(originalTimingBar);
                 gameplay.SetKeysoundsEnabled(originalKeysoundsEnabled);

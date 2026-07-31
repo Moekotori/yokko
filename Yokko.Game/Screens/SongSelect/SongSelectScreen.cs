@@ -252,6 +252,7 @@ public partial class SongSelectScreen : Screen
                 RelativeSizeAxes = Axes.Both,
                 Children = new Drawable[]
                 {
+                    createLibraryShade(),
                     createHeader(logo),
                     detailsHost = new Container
                     {
@@ -969,7 +970,7 @@ public partial class SongSelectScreen : Screen
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-352, 28),
+                Position = new Vector2(-360, 28),
             },
             new FillFlowContainer
             {
@@ -1167,7 +1168,8 @@ public partial class SongSelectScreen : Screen
             onModHoverChanged);
 
         var mods = modsToggleButton = new SongSelectModsToggleButton(
-            ToggleModPanel)
+            ToggleModPanel,
+            textures.Get("SongSelect/Cute/sticker-diamond"))
         {
             Anchor = Anchor.TopCentre,
             Origin = Anchor.TopCentre,
@@ -1754,7 +1756,7 @@ public partial class SongSelectScreen : Screen
                 Position = new Vector2(24, 130),
                 Size = new Vector2(174, 24),
                 Masking = true,
-                CornerRadius = 5,
+                CornerRadius = 7,
                 Children = new Drawable[]
                 {
                     new Box
@@ -1789,6 +1791,26 @@ public partial class SongSelectScreen : Screen
                     SongSelectTheme.Navy.G,
                     SongSelectTheme.Navy.B,
                     0.12f),
+            },
+            new Box
+            {
+                Position = new Vector2(102, 202),
+                Size = new Vector2(1, 36),
+                Colour = new Color4(
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.10f),
+            },
+            new Box
+            {
+                Position = new Vector2(205, 202),
+                Size = new Vector2(1, 36),
+                Colour = new Color4(
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.10f),
             },
             createSongStat(
                 24,
@@ -1872,7 +1894,7 @@ public partial class SongSelectScreen : Screen
                 Width = 340,
                 Truncate = true,
                 Text = line,
-                Font = HomeTypography.Display(lines.Length == 1 ? 28 : 23),
+                Font = HomeTypography.Display(lines.Length == 1 ? 27 : 18),
                 Colour = SongSelectTheme.Navy,
             });
         }
@@ -2443,18 +2465,18 @@ public partial class SongSelectScreen : Screen
         RelativeSizeAxes = Axes.Y,
         Anchor = Anchor.TopRight,
         Origin = Anchor.TopRight,
-        Width = 720,
+        Width = 660,
         Colour = ColourInfo.GradientHorizontal(
             new Color4(
                 SongSelectTheme.DeepNavy.R,
                 SongSelectTheme.DeepNavy.G,
                 SongSelectTheme.DeepNavy.B,
-                0.28f),
+                0.02f),
             new Color4(
                 SongSelectTheme.DeepNavy.R,
                 SongSelectTheme.DeepNavy.G,
                 SongSelectTheme.DeepNavy.B,
-                0.985f)),
+                0.30f)),
     };
 
     private static Drawable createIvoryStage() => new Container

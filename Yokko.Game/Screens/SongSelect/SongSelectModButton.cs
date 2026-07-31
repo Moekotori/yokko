@@ -3,6 +3,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
@@ -99,7 +100,9 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
     private readonly SpriteText countLabel;
     private bool open;
 
-    public SongSelectModsToggleButton(Action action)
+    public SongSelectModsToggleButton(
+        Action action,
+        Texture diamondTexture)
     {
         Action = action;
         Size = new Vector2(88, 108);
@@ -119,7 +122,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
                         HomeControlColours.Navy.R,
                         HomeControlColours.Navy.G,
                         HomeControlColours.Navy.B,
-                        0.34f),
+                        0.18f),
                 },
             },
             card = new Container
@@ -168,14 +171,14 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
                     },
                 },
             },
-            new Box
+            new Sprite
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.Centre,
                 Position = new Vector2(0, 7),
-                Size = new Vector2(17),
-                Rotation = 45,
-                Colour = HomeControlColours.Yellow,
+                Size = new Vector2(28),
+                Texture = diamondTexture,
+                FillMode = FillMode.Fit,
             },
             badge = new Circle
             {
@@ -228,7 +231,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
         open = value;
         background.Colour = open
             ? HomeControlColours.PaleCyan
-            : Color4.White;
+            : SongSelectSurface.Ivory();
         icon.Colour = open
             ? HomeControlColours.Pink
             : HomeControlColours.Navy;

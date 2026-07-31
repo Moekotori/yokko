@@ -4,8 +4,10 @@ using NUnit.Framework;
 using osu.Framework.Platform;
 using osuTK.Input;
 using Yokko.Audio;
+using Yokko.Core.Mods;
 using Yokko.Game.Audio;
 using Yokko.Game.Configuration;
+using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Settings;
 
 namespace Yokko.Game.Tests.Core;
@@ -29,6 +31,9 @@ public sealed class AudioSettingsTest
         Assert.That(settings.AsioDeviceId.Value, Is.Empty);
         Assert.That(settings.PreferredBufferSize.Value, Is.EqualTo(64));
         Assert.That(settings.UserOffsetMilliseconds.Value, Is.Zero);
+        Assert.That(
+            settings.ManualPlaybackRatePitchMode.Value,
+            Is.EqualTo(AudioPitchMode.Preserve));
     }
 
     [Test]
@@ -128,6 +133,8 @@ public sealed class AudioSettingsTest
                 firstSettings.MusicVolume.Value = 0.8;
                 firstSettings.HitSoundVolume.Value = 0.55;
                 firstSettings.UserOffsetMilliseconds.Value = -8;
+                firstSettings.ManualPlaybackRatePitchMode.Value =
+                    AudioPitchMode.ScaleWithRate;
                 Assert.That(firstConfig.Save(), Is.True);
             }
 
@@ -163,6 +170,9 @@ public sealed class AudioSettingsTest
                 Assert.That(
                     restoredSettings.UserOffsetMilliseconds.Value,
                     Is.EqualTo(-8));
+                Assert.That(
+                    restoredSettings.ManualPlaybackRatePitchMode.Value,
+                    Is.EqualTo(AudioPitchMode.ScaleWithRate));
             }
         }
         finally
@@ -170,6 +180,33 @@ public sealed class AudioSettingsTest
             if (Directory.Exists(directory))
                 Directory.Delete(directory, true);
         }
+    }
+
+    [Test]
+    public void ManualRatePitchModeDoesNotOverrideExplicitRateMods()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                GameplayScreen.ResolvePlaybackRatePitchMode(
+                    ManiaModSet.Empty,
+                    AudioPitchMode.ScaleWithRate),
+                Is.EqualTo(AudioPitchMode.ScaleWithRate));
+            Assert.That(
+                GameplayScreen.ResolvePlaybackRatePitchMode(
+                    ManiaModSet.Empty.WithFixedRate(
+                        ManiaModId.DoubleTime,
+                        1.5),
+                    AudioPitchMode.ScaleWithRate),
+                Is.EqualTo(AudioPitchMode.Preserve));
+            Assert.That(
+                GameplayScreen.ResolvePlaybackRatePitchMode(
+                    ManiaModSet.Empty.WithFixedRate(
+                        ManiaModId.Nightcore,
+                        1.25),
+                    AudioPitchMode.Preserve),
+                Is.EqualTo(AudioPitchMode.ScaleWithRate));
+        });
     }
 
     [Test]

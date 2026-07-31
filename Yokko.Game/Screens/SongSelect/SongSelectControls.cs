@@ -37,16 +37,16 @@ internal partial class SongSelectSearchBox : BasicTextBox
     {
         this.queryChanged = queryChanged;
         this.escapePressed = escapePressed;
-        Size = new Vector2(198, 44);
+        Size = new Vector2(206, 44);
         Masking = true;
-        CornerRadius = 6;
-        BorderThickness = 1;
+        CornerRadius = 10;
+        BorderThickness = 1.25f;
         BorderColour = new Color4(
             SongSelectTheme.Cyan.R,
             SongSelectTheme.Cyan.G,
             SongSelectTheme.Cyan.B,
             0.56f);
-        BackgroundUnfocused = new Color4(1f, 0.985f, 0.94f, 0.96f);
+        BackgroundUnfocused = SongSelectSurface.Ivory(0.98f);
         BackgroundFocused = Color4.White;
         FontSize = 15;
         PlaceholderText = YokkoStrings.Get("song_select.search");
@@ -89,7 +89,11 @@ internal partial class SongSelectSearchBox : BasicTextBox
             X = -13,
             Text = "ESC",
             Font = HomeTypography.Display(9),
-            Colour = new Color4(1f, 1f, 1f, 0.54f),
+            Colour = new Color4(
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.34f),
             Depth = -2,
         });
 
@@ -110,8 +114,12 @@ internal partial class SongSelectSearchBox : BasicTextBox
     private void onValueChanged(ValueChangedEvent<string> change)
     {
         escapeHint.Colour = change.NewValue.Length > 0
-            ? SongSelectTheme.PaleCyan
-            : new Color4(1f, 1f, 1f, 0.54f);
+            ? SongSelectTheme.Pink
+            : new Color4(
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.34f);
         queryChanged(change.NewValue);
     }
 
@@ -176,9 +184,9 @@ internal partial class SongSelectFilterButton : ClickableContainer
     {
         Action = action;
         showAccentDot = accentDot;
-        Size = new Vector2(width, 32);
+        Size = new Vector2(width, 34);
         Masking = true;
-        CornerRadius = 6;
+        CornerRadius = 9;
         BorderThickness = 1;
         BorderColour = new Color4(
             SongSelectTheme.Cyan.R,
@@ -216,7 +224,7 @@ internal partial class SongSelectFilterButton : ClickableContainer
         selected = value;
         background.Colour = selected
             ? SongSelectTheme.Navy
-            : new Color4(1f, 0.985f, 0.94f, 0.96f);
+            : SongSelectSurface.Ivory(0.98f);
         label.Colour = selected
             ? Color4.White
             : SongSelectTheme.Navy;
@@ -230,11 +238,11 @@ internal partial class SongSelectFilterButton : ClickableContainer
 
     protected override bool OnHover(HoverEvent e)
     {
-        this.ScaleTo(1.04f, 110, Easing.OutQuint);
+        this.ScaleTo(1.02f, 110, Easing.OutQuint);
         background.FadeColour(
             selected
                 ? new Color4(0.055f, 0.14f, 0.52f, 1f)
-                : SongSelectTheme.SurfaceRaised,
+                : SongSelectTheme.PaleCyan,
             110,
             Easing.OutQuint);
         return true;

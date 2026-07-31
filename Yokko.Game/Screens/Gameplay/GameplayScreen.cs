@@ -984,9 +984,9 @@ public partial class GameplayScreen : Screen
                 audioSettings.CreateStartRequest(
                     beatmap.AudioPath,
                     initialPlaybackRate,
-                    mods.ChangesAudioPitch
-                        ? AudioPitchMode.ScaleWithRate
-                        : AudioPitchMode.Preserve,
+                    ResolvePlaybackRatePitchMode(
+                        mods,
+                        audioSettings.ManualPlaybackRatePitchMode.Value),
                     mods.FixedAudioFrequencyScale) with
             {
                 DynamicPlaybackRate = true,
@@ -2785,6 +2785,21 @@ public partial class GameplayScreen : Screen
                 MidpointRounding.AwayFromZero),
             minimumPlaybackRate,
             maximumPlaybackRate);
+    }
+
+    internal static AudioPitchMode ResolvePlaybackRatePitchMode(
+        ManiaModSet mods,
+        AudioPitchMode manualPlaybackRatePitchMode)
+    {
+        ArgumentNullException.ThrowIfNull(mods);
+
+        if (mods.ChangesAudioPitch)
+            return AudioPitchMode.ScaleWithRate;
+
+        if (mods.FixedRateMod is not null || mods.HasDynamicRate)
+            return AudioPitchMode.Preserve;
+
+        return manualPlaybackRatePitchMode;
     }
 
     internal bool HandleScrollSpeedShortcut(
