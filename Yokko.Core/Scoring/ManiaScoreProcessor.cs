@@ -31,6 +31,8 @@ public sealed class ManiaScoreProcessor
     private double etternaMaximumAppliedWifePoints;
     private readonly double etternaMaximumWifePoints;
     private double? etternaBrokenRowTimeMilliseconds;
+    private int etternaMissCombo;
+    private int etternaMaxMissCombo;
 
     public ManiaScoreProcessor(
         YokkoBeatmap beatmap,
@@ -85,6 +87,12 @@ public sealed class ManiaScoreProcessor
     public int ComboBreaks => useEtternaScoring
         ? Counts.Ok + Counts.Meh + Counts.Miss
         : Counts.ComboBreak;
+
+    public int MissCombo =>
+        useEtternaScoring ? etternaMissCombo : 0;
+
+    public int MaxMissCombo =>
+        useEtternaScoring ? etternaMaxMissCombo : 0;
 
     public double Accuracy => useEtternaScoring
         ? etternaMaximumAppliedWifePoints > 0
@@ -310,6 +318,10 @@ public sealed class ManiaScoreProcessor
         if (EtternaScoringRules.BreaksCombo(rating))
         {
             Combo = 0;
+            etternaMissCombo++;
+            etternaMaxMissCombo = Math.Max(
+                etternaMaxMissCombo,
+                etternaMissCombo);
             etternaBrokenRowTimeMilliseconds =
                 objectTimeMilliseconds;
         }
@@ -318,6 +330,7 @@ public sealed class ManiaScoreProcessor
                      || brokenTime != objectTimeMilliseconds))
         {
             Combo++;
+            etternaMissCombo = 0;
         }
 
         MaxCombo = Math.Max(MaxCombo, Combo);

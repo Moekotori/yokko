@@ -276,7 +276,44 @@ public class GameplayScoreStoreTest
         });
     }
 
-    private static ManiaScoreResult result(long score, double accuracy) => new(
+    [Test]
+    public void EtternaComboStatisticsPersist()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var first = new GameplayScoreStore();
+        first.Initialise(new NativeStorage(testRoot));
+
+        Assert.That(
+            first.SaveBest(
+                beatmap,
+                ManiaModSet.Empty,
+                JudgementConfiguration.EtternaDefault,
+                result(
+                    800_000,
+                    0.90,
+                    comboBreaks: 3,
+                    maxMissCombo: 2)),
+            Is.True);
+
+        var restored = new GameplayScoreStore();
+        restored.Initialise(new NativeStorage(testRoot));
+        StoredGameplayScore saved = restored.GetBest(
+            beatmap,
+            ManiaModSet.Empty,
+            JudgementConfiguration.EtternaDefault);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.ComboBreaks, Is.EqualTo(3));
+            Assert.That(saved.MaxMissCombo, Is.EqualTo(2));
+        });
+    }
+
+    private static ManiaScoreResult result(
+        long score,
+        double accuracy,
+        int comboBreaks = 0,
+        int maxMissCombo = 0) => new(
         score,
         accuracy,
         123,
@@ -286,5 +323,7 @@ public class GameplayScoreStoreTest
         1,
         0,
         0,
-        0);
+        0,
+        comboBreaks,
+        maxMissCombo);
 }

@@ -10,6 +10,7 @@ using osu.Framework.Graphics.Rendering;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
+using osuTK;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Core.Beatmaps;
@@ -42,6 +43,45 @@ namespace Yokko.Game.Tests
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            if (Environment.GetEnvironmentVariable(
+                    "YOKKO_LAYOUT_EDITOR_PREVIEW") == "1")
+            {
+                frameworkConfig.SetValue(
+                    FrameworkSetting.WindowMode,
+                    WindowMode.Windowed);
+                frameworkConfig.SetValue(
+                    FrameworkSetting.WindowedSize,
+                    new System.Drawing.Size(1600, 1000));
+                frameworkConfig.SetValue(
+                    FrameworkSetting.Locale,
+                    YokkoLocale.Chinese);
+                var gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo());
+                Add(new ScreenStack(gameplay)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                Add(new CursorContainer());
+                Scheduler.AddDelayed(gameplay.TogglePause, 250);
+                Scheduler.AddDelayed(() =>
+                {
+                    GameplayPauseOverlay pauseOverlay = gameplay
+                        .ChildrenOfType<GameplayPauseOverlay>()
+                        .Single();
+                    pauseOverlay.SelectNext();
+                    pauseOverlay.SelectNext();
+                    pauseOverlay.TriggerSelected();
+
+                    GameplayLayoutEditorOverlay editor = gameplay
+                        .ChildrenOfType<GameplayLayoutEditorOverlay>()
+                        .Single();
+                    editor.MoveTimingBarForTest(new Vector2(70, -58));
+                    editor.ResizeTimingBarForTest(new Vector2(58, 20));
+                }, 650);
+                schedulePreviewScreenshot(1100);
+                return;
+            }
 
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_TIMING_BAR_PREVIEW") == "1")

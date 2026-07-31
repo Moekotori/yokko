@@ -465,13 +465,13 @@ public sealed class GameplaySettingsTest
                 firstSettings.LayoutHudOffsetX.Value = -0.18;
                 firstSettings.LayoutHudOffsetY.Value = 0.2;
                 firstSettings.LayoutPlayfieldWidthScale.Value = 1.35;
-                firstSettings.LayoutPlayfieldHeightScale.Value = 0.82;
-                firstSettings.LayoutHudScaleX.Value = 1.18;
-                firstSettings.LayoutHudScaleY.Value = 0.76;
+                firstSettings.LayoutPlayfieldHeightScale.Value = 0.85;
+                firstSettings.LayoutHudScaleX.Value = 1.2;
+                firstSettings.LayoutHudScaleY.Value = 0.75;
                 firstSettings.LayoutTimingBarOffsetX.Value = 0.15;
                 firstSettings.LayoutTimingBarOffsetY.Value = -0.11;
-                firstSettings.LayoutTimingBarScaleX.Value = 1.42;
-                firstSettings.LayoutTimingBarScaleY.Value = 0.68;
+                firstSettings.LayoutTimingBarScaleX.Value = 1.4;
+                firstSettings.LayoutTimingBarScaleY.Value = 0.7;
                 firstSettings.LayoutTopCoverRatio.Value = 0.28;
                 firstSettings.LayoutBottomCoverRatio.Value = 0.12;
                 firstSettings.KeysoundsEnabled.Value = false;
@@ -546,13 +546,13 @@ public sealed class GameplaySettingsTest
                     Is.EqualTo(1.35).Within(0.001));
                 Assert.That(
                     restoredSettings.LayoutPlayfieldHeightScale.Value,
-                    Is.EqualTo(0.82).Within(0.001));
+                    Is.EqualTo(0.85).Within(0.001));
                 Assert.That(
                     restoredSettings.LayoutHudScaleX.Value,
-                    Is.EqualTo(1.18).Within(0.001));
+                    Is.EqualTo(1.2).Within(0.001));
                 Assert.That(
                     restoredSettings.LayoutHudScaleY.Value,
-                    Is.EqualTo(0.76).Within(0.001));
+                    Is.EqualTo(0.75).Within(0.001));
                 Assert.That(
                     restoredSettings.LayoutTimingBarOffsetX.Value,
                     Is.EqualTo(0.15).Within(0.001));
@@ -561,10 +561,10 @@ public sealed class GameplaySettingsTest
                     Is.EqualTo(-0.11).Within(0.001));
                 Assert.That(
                     restoredSettings.LayoutTimingBarScaleX.Value,
-                    Is.EqualTo(1.42).Within(0.001));
+                    Is.EqualTo(1.4).Within(0.001));
                 Assert.That(
                     restoredSettings.LayoutTimingBarScaleY.Value,
-                    Is.EqualTo(0.68).Within(0.001));
+                    Is.EqualTo(0.7).Within(0.001));
                 Assert.That(
                     restoredSettings.LayoutTopCoverRatio.Value,
                     Is.EqualTo(0.28).Within(0.001));

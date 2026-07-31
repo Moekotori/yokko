@@ -26,7 +26,9 @@ internal sealed record StoredGameplayScore(
     int Meh,
     int Miss,
     DateTimeOffset PlayedAt,
-    string[] Mods = null);
+    string[] Mods = null,
+    int ComboBreaks = 0,
+    int MaxMissCombo = 0);
 
 internal sealed class GameplayScoreStore
 {
@@ -108,7 +110,9 @@ internal sealed class GameplayScoreStore
             result.Meh,
             result.Miss,
             DateTimeOffset.UtcNow,
-            mods.Acronyms.ToArray());
+            mods.Acronyms.ToArray(),
+            result.ComboBreaks,
+            result.MaxMissCombo);
         string historyKey = historyKeyFor(
             beatmap,
             judgementConfiguration);
@@ -305,6 +309,12 @@ internal sealed class GameplayScoreStore
                       "R",
                       CultureInfo.InvariantCulture)).Append(',')
                   .Append((int)hitObject.Kind);
+            if (hitObject.HoldType != HoldNoteType.Standard)
+            {
+                source.Append(',')
+                      .Append("hold:")
+                      .Append((int)hitObject.HoldType);
+            }
         }
 
         return Convert.ToHexString(

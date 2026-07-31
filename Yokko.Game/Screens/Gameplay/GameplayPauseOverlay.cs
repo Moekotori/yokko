@@ -1157,7 +1157,11 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             {
                 new SpriteText
                 {
-                    Text = "COMBO",
+                    Text =
+                        snapshot.JudgementConfiguration.Mode
+                        == JudgementMode.Etterna
+                            ? "COMBO · MISS"
+                            : "COMBO",
                     Font = PauseTypography.Display(12),
                     Spacing = new Vector2(3, 0),
                     Colour = HomeControlColours.Cyan,
@@ -1171,7 +1175,11 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     {
                         new SpriteText
                         {
-                            Text = snapshot.Combo.ToString(),
+                            Text =
+                                snapshot.JudgementConfiguration.Mode
+                                == JudgementMode.Etterna
+                                    ? $"{snapshot.Combo} · {snapshot.MissCombo}"
+                                    : snapshot.Combo.ToString(),
                             Font = PauseTypography.Display(40),
                             Colour = HomeControlColours.Navy,
                         },
@@ -1182,7 +1190,12 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                                 Left = 10,
                                 Top = 8,
                             },
-                            Text = $"/  {snapshot.MaxCombo}",
+                            Text =
+                                snapshot.JudgementConfiguration.Mode
+                                == JudgementMode.Etterna
+                                    ? $"/  MAX {snapshot.MaxCombo}"
+                                      + $"  CB {snapshot.ComboBreaks}"
+                                    : $"/  {snapshot.MaxCombo}",
                             Font = PauseTypography.Display(26),
                             Colour = HomeControlColours.Cyan,
                         },

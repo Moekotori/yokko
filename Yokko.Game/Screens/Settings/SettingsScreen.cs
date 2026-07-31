@@ -24,7 +24,6 @@ using Yokko.Game.Presentation;
 using Yokko.Game.Resources;
 using Yokko.Game.Screens.Main;
 using Yokko.Game.Skinning.OsuMania;
-using RectangleF = osu.Framework.Graphics.Primitives.RectangleF;
 
 namespace Yokko.Game.Screens.Settings;
 
@@ -37,12 +36,6 @@ public partial class SettingsScreen : Screen
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
     internal const float ReferenceLayoutScale = 1.25f;
-
-    /// <summary>
-    /// 吉祥物在 1280x720 设计稿里的位置。窗口更大时保持它与右/下边缘的
-    /// 设计间距，而不是留在原地把右侧让成空地。
-    /// </summary>
-    internal static readonly Vector2 MascotHomePosition = new(1185, 618);
 
     private static readonly Vector2 watermarkHomePosition = new(614, 548);
 
@@ -71,16 +64,12 @@ public partial class SettingsScreen : Screen
     private Bindable<WindowMode> windowMode;
     private IBindable<DisplayMode> currentDisplayMode;
     private Bindable<string> locale;
-    private Texture mascotTexture;
     private SettingsSidebar sidebar;
     private Container stage;
     private Container contentHost;
     private Drawable activePanel;
     private Vector2 lastResponsiveStageSize;
     private Container decorationLayer;
-    private Container mascotLayer;
-    private MascotButton mascotButton;
-    private Sprite mascotPeek;
     private SpriteText watermark;
     private Vector2 watermarkHome = watermarkHomePosition;
     private Vector2[] decorationHomePositions;
@@ -107,8 +96,6 @@ public partial class SettingsScreen : Screen
                                  60,
                                  0));
         locale = frameworkConfig.GetBindable<string>(FrameworkSetting.Locale);
-        mascotTexture = textures.Get("yokko")
-                                .Crop(new RectangleF(80, 1840, 1200, 1360));
         CurrentPage = parseRememberedPage(yokkoConfig.GetLastSettingsPage());
 
         sidebar = new SettingsSidebar(
@@ -150,8 +137,6 @@ public partial class SettingsScreen : Screen
                     new HomeTapRippleLayer(),
                     sidebar,
                     contentHost,
-                    // 右下角吉祥物立绘，完整露出在最上层。
-                    mascotLayer = createMascotLayer(),
                     // 底部警示条纹收边，与主页构图呼应。
                     new Container
                     {
@@ -181,8 +166,6 @@ public partial class SettingsScreen : Screen
         sidebar.MoveToX(-28).MoveToX(0, 520, Easing.OutQuint)
                .FadeInFromZero(360);
         decorationLayer.Delay(180).FadeIn(560);
-        mascotLayer.MoveToX(36).MoveToX(0, 620, Easing.OutQuint)
-                   .FadeInFromZero(420);
         watermark.FadeInFromZero(700);
     }
 
@@ -195,11 +178,6 @@ public partial class SettingsScreen : Screen
         decorationHomePositions = decorationLayer.Children
                                                  .Select(child => child.Position)
                                                  .ToArray();
-
-        // 吉祥物呼吸式起伏，保持页面“活着”。
-        mascotPeek.MoveToY(-8).MoveToY(0, 1800, Easing.InOutSine)
-                  .Then().MoveToY(-8, 1800, Easing.InOutSine)
-                  .Loop();
 
         watermark.FadeTo(0.075f, 2600, Easing.InOutSine)
                  .Then().FadeTo(0.045f, 2600, Easing.InOutSine)
@@ -368,105 +346,6 @@ public partial class SettingsScreen : Screen
         };
     }
 
-    /// <summary>
-    /// 右下角的吉祥物立绘：完整露出不遮挡内容，点一下会弹跳，随鼠标轻微视差。
-    /// </summary>
-    private Container createMascotLayer()
-    {
-        var mascotSprite = new Sprite
-        {
-            RelativeSizeAxes = Axes.Both,
-            Texture = mascotTexture,
-        };
-
-        var layer = new Container
-        {
-            RelativeSizeAxes = Axes.Both,
-            Child = mascotButton = new MascotButton
-            {
-                Origin = Anchor.Centre,
-                Position = MascotHomePosition,
-                Size = new Vector2(165, 187),
-                Action = onMascotTapped,
-                Child = mascotSprite,
-            },
-        };
-
-        mascotPeek = mascotSprite;
-        return layer;
-    }
-
-    /// <summary>
-    /// 吉祥物本体：悬停时微微放大前倾，提示可以点她。
-    /// </summary>
-    private partial class MascotButton : ClickableContainer
-    {
-        protected override bool OnHover(HoverEvent e)
-        {
-            this.ScaleTo(1.06f, 160, Easing.OutQuint)
-                .RotateTo(-2, 160, Easing.OutQuint);
-            return true;
-        }
-
-        protected override void OnHoverLost(HoverLostEvent e)
-        {
-            this.ScaleTo(1f, 220, Easing.OutQuint)
-                .RotateTo(0, 220, Easing.OutQuint);
-        }
-    }
-
-    private void onMascotTapped()
-    {
-        mascotLayer.ScaleTo(1.04f, 90, Easing.Out)
-                   .Then().ScaleTo(1f, 380, Easing.OutBack);
-        spawnMascotSparkles();
-    }
-
-    private static readonly (IconUsage icon, Color4 colour)[] sparkleKinds =
-    {
-        (FontAwesome.Solid.Star, HomeControlColours.Yellow),
-        (FontAwesome.Solid.Star, HomeControlColours.Pink),
-        (FontAwesome.Solid.Heart, HomeControlColours.Pink),
-        (FontAwesome.Solid.Star, HomeControlColours.Cyan),
-    };
-
-    private int sparkleSeed;
-
-    /// <summary>
-    /// 点吉祥物时从头顶飘起一小串星星/爱心，上升旋转后消散。
-    /// </summary>
-    private void spawnMascotSparkles()
-    {
-        Vector2 origin = mascotButton.Position + new Vector2(0, -52);
-
-        for (int i = 0; i < 4; i++)
-        {
-            (IconUsage icon, Color4 colour) = sparkleKinds[i % sparkleKinds.Length];
-            float driftX = -26 + (sparkleSeed * 37 + i * 53) % 52;
-            sparkleSeed++;
-
-            var star = new SpriteIcon
-            {
-                Origin = Anchor.Centre,
-                Position = origin,
-                Size = new Vector2(12 + (i % 2) * 5),
-                Icon = icon,
-                Colour = colour,
-                Rotation = (i * 71) % 40 - 20,
-                LifetimeEnd = Clock.CurrentTime + 900,
-            };
-
-            mascotLayer.Add(star);
-
-            star.Delay(i * 45)
-                .MoveTo(origin + new Vector2(driftX, -98 - i * 10), 640, Easing.OutQuint);
-            star.Delay(i * 45)
-                .RotateTo(star.Rotation + 150, 640, Easing.OutQuint);
-            star.Delay(i * 45 + 180)
-                .FadeOut(460, Easing.OutQuint);
-        }
-    }
-
     protected override void Update()
     {
         base.Update();
@@ -493,14 +372,11 @@ public partial class SettingsScreen : Screen
     /// <summary>
     /// 窗口比设计稿大时舞台会跟着变大。内容在设计稿里是固定坐标，不重排的
     /// 话会全部堆在左上、右侧空成一片。这里把多出来的空间用起来：内容列
-    /// 居中、装饰按比例铺满舞台、吉祥物保持贴近右下角。
+    /// 居中，装饰按比例铺满舞台。
     /// </summary>
     private void applyResponsiveLayout(Vector2 stageSize)
     {
         contentHost.Position = CalculateContentOffset(stageSize);
-
-        if (mascotButton != null)
-            mascotButton.Position = CalculateMascotPosition(stageSize);
 
         var stretch = new Vector2(
             stageSize.X / designedWidth,
@@ -524,12 +400,6 @@ public partial class SettingsScreen : Screen
             MathF.Max(0, stageSize.X - designedWidth) / 2,
             MathF.Max(0, stageSize.Y - designedHeight) / 2);
 
-    /// <summary>
-    /// 吉祥物始终与舞台右/下边缘保持设计稿里的间距。
-    /// </summary>
-    internal static Vector2 CalculateMascotPosition(Vector2 stageSize) =>
-        MascotHomePosition + CalculateContentOffset(stageSize) * 2;
-
     private void updateParallax()
     {
         var inputManager = GetContainingInputManager();
@@ -545,7 +415,6 @@ public partial class SettingsScreen : Screen
         parallaxCurrent = Vector2.Lerp(parallaxCurrent, target, blend);
 
         decorationLayer.Position = parallaxCurrent * new Vector2(22, 14);
-        mascotLayer.Position = parallaxCurrent * new Vector2(14, 9);
         watermark.Position = watermarkHome
                              + parallaxCurrent * new Vector2(-8, -5);
     }

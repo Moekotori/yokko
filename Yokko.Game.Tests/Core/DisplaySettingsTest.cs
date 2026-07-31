@@ -293,7 +293,7 @@ public sealed class DisplaySettingsTest
     }
 
     [Test]
-    public void SettingsContentCentresAndMascotPinsToCornerOnLargeStages()
+    public void SettingsContentCentresOnLargeStages()
     {
         // 2560x1440 全屏时舞台放大到 2048x1152，多出的空间要重新分配，
         // 不能把内容留在左上角让右侧空成一片。
@@ -306,24 +306,20 @@ public sealed class DisplaySettingsTest
                 SettingsScreen.CalculateContentOffset(largeStage),
                 Is.EqualTo(new osuTK.Vector2(384, 216)));
 
-            // 吉祥物与右/下边缘保持设计稿里的间距（95 / 102）。
-            var mascot = SettingsScreen.CalculateMascotPosition(largeStage);
-            Assert.That(
-                largeStage.X - mascot.X,
-                Is.EqualTo(1280 - SettingsScreen.MascotHomePosition.X).Within(0.001f));
-            Assert.That(
-                largeStage.Y - mascot.Y,
-                Is.EqualTo(720 - SettingsScreen.MascotHomePosition.Y).Within(0.001f));
-
             // 参考布局下一切保持设计稿原样，零偏移。
             var designedStage = new osuTK.Vector2(1280, 720);
             Assert.That(
                 SettingsScreen.CalculateContentOffset(designedStage),
                 Is.EqualTo(osuTK.Vector2.Zero));
-            Assert.That(
-                SettingsScreen.CalculateMascotPosition(designedStage),
-                Is.EqualTo(SettingsScreen.MascotHomePosition));
         });
+    }
+
+    [Test]
+    public void SettingsBackButtonPressKeepsItsLayoutPosition()
+    {
+        Assert.That(
+            SettingsOutlineButton.CalculatePressedY(182),
+            Is.EqualTo(184));
     }
 
     [Test]

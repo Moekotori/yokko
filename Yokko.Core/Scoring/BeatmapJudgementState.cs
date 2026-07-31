@@ -30,6 +30,12 @@ public sealed class BeatmapJudgementState
     // commit b65660062ef2a23121e331c36e23c23a8f6eafaa (MIT).
     public const double EtternaHoldDropWindowMilliseconds = 250;
 
+    // Etterna rolls drain continuously and every press refills their life.
+    // Unlike Judge-scaled tap windows, this interval is fixed at 0.5 seconds.
+    // Source: etternagame/etterna GameConstantsAndTypes.h and Player.cpp
+    // commit b65660062ef2a23121e331c36e23c23a8f6eafaa (MIT).
+    public const double EtternaRollDropWindowMilliseconds = 500;
+
     private readonly YokkoBeatmap beatmap;
     private readonly ObjectState[] states;
     private readonly int[][] laneObjectIndices;
@@ -204,6 +210,9 @@ public sealed class BeatmapJudgementState
     public double ActiveEtternaHoldDropWindowMilliseconds =>
         EtternaHoldDropWindowMilliseconds * Windows.SpeedMultiplier;
 
+    public double ActiveEtternaRollDropWindowMilliseconds =>
+        EtternaRollDropWindowMilliseconds * Windows.SpeedMultiplier;
+
     public JudgementCounter Counts => scoreProcessor.Counts;
 
     public int Combo => scoreProcessor.Combo;
@@ -211,6 +220,10 @@ public sealed class BeatmapJudgementState
     public int MaxCombo => scoreProcessor.MaxCombo;
 
     public int ComboBreaks => scoreProcessor.ComboBreaks;
+
+    public int MissCombo => scoreProcessor.MissCombo;
+
+    public int MaxMissCombo => scoreProcessor.MaxMissCombo;
 
     public double Accuracy => scoreProcessor.Accuracy;
 
@@ -231,7 +244,9 @@ public sealed class BeatmapJudgementState
         Counts.Good,
         Counts.Ok,
         Counts.Meh,
-        Counts.Miss);
+        Counts.Miss,
+        ComboBreaks,
+        MaxMissCombo);
 
     public int ResolvedObjectCount => resolvedJudgementObjectCount;
 
@@ -280,6 +295,10 @@ public sealed class BeatmapJudgementState
 
         if (Windows.Configuration.Mode == JudgementMode.Etterna)
         {
+            handleEtternaOpenRollPress(
+                lane,
+                gameplayTimeMilliseconds,
+                events);
             handleEtternaOpenHoldPress(
                 lane,
                 gameplayTimeMilliseconds,
@@ -535,6 +554,7 @@ public sealed class BeatmapJudgementState
             YokkoHitObject hitObject = beatmap.HitObjects[index];
             ObjectState state = states[index];
             if (hitObject.Kind != HitObjectKind.Hold
+                || hitObject.HoldType == HoldNoteType.Roll
                 || !state.HeadResolved
                 || !state.HeadRating.IsHit()
                 || state.TailResolved
@@ -569,6 +589,60 @@ public sealed class BeatmapJudgementState
 
             state.Holding = true;
             state.EtternaReleasedAtMilliseconds = null;
+        }
+    }
+
+    private void handleEtternaOpenRollPress(
+        int lane,
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events)
+    {
+        openHoldSnapshot.Clear();
+        openHoldSnapshot.AddRange(openHoldIndices[lane]);
+        foreach (int index in openHoldSnapshot)
+        {
+            YokkoHitObject hitObject = beatmap.HitObjects[index];
+            ObjectState state = states[index];
+            if (hitObject.Kind != HitObjectKind.Hold
+                || hitObject.HoldType != HoldNoteType.Roll
+                || !state.HeadResolved
+                || !state.HeadRating.IsHit()
+                || state.TailResolved
+                || hitObject.EndTimeMilliseconds is not double endTime)
+            {
+                continue;
+            }
+
+            double expiry =
+                state.EtternaRollLifeExpiresAtMilliseconds
+                ?? hitObject.StartTimeMilliseconds
+                + ActiveEtternaRollDropWindowMilliseconds;
+            if (expiry <= Math.Min(
+                    gameplayTimeMilliseconds,
+                    endTime))
+            {
+                resolveEtternaHold(
+                    index,
+                    expiry,
+                    wasHeld: false,
+                    events);
+                continue;
+            }
+
+            if (gameplayTimeMilliseconds >= endTime)
+            {
+                resolveEtternaHold(
+                    index,
+                    endTime,
+                    wasHeld: true,
+                    events);
+                continue;
+            }
+
+            state.Holding = true;
+            state.EtternaRollLifeExpiresAtMilliseconds =
+                gameplayTimeMilliseconds
+                + ActiveEtternaRollDropWindowMilliseconds;
         }
     }
 
@@ -616,6 +690,12 @@ public sealed class BeatmapJudgementState
                 || state.TailResolved
                 || hitObject.EndTimeMilliseconds is not double endTime)
                 continue;
+
+            if (Windows.Configuration.Mode == JudgementMode.Etterna
+                && hitObject.HoldType == HoldNoteType.Roll)
+            {
+                continue;
+            }
 
             if (Windows.Configuration.Mode == JudgementMode.Etterna)
             {
@@ -860,6 +940,16 @@ public sealed class BeatmapJudgementState
                     continue;
                 }
 
+                if (hitObject.HoldType == HoldNoteType.Roll)
+                {
+                    resolveEtternaRoll(
+                        index,
+                        gameplayTimeMilliseconds,
+                        endTime,
+                        events);
+                    continue;
+                }
+
                 bool wasHeld = state.HeadRating.IsHit()
                                && !state.BodyBroken
                                && (state.Holding
@@ -900,6 +990,54 @@ public sealed class BeatmapJudgementState
                     wasHeld,
                     events);
             }
+        }
+    }
+
+    private void resolveEtternaRoll(
+        int hitObjectIndex,
+        double gameplayTimeMilliseconds,
+        double endTime,
+        List<JudgementEvent> events)
+    {
+        ObjectState state = states[hitObjectIndex];
+        if (!state.HeadRating.IsHit())
+        {
+            if (gameplayTimeMilliseconds >= endTime)
+            {
+                resolveEtternaHold(
+                    hitObjectIndex,
+                    endTime,
+                    wasHeld: false,
+                    events);
+            }
+
+            return;
+        }
+
+        double expiry =
+            state.EtternaRollLifeExpiresAtMilliseconds
+            ?? beatmap.HitObjects[hitObjectIndex]
+                      .StartTimeMilliseconds
+               + ActiveEtternaRollDropWindowMilliseconds;
+        if (expiry <= Math.Min(
+                gameplayTimeMilliseconds,
+                endTime))
+        {
+            resolveEtternaHold(
+                hitObjectIndex,
+                expiry,
+                wasHeld: false,
+                events);
+            return;
+        }
+
+        if (gameplayTimeMilliseconds >= endTime)
+        {
+            resolveEtternaHold(
+                hitObjectIndex,
+                endTime,
+                wasHeld: true,
+                events);
         }
     }
 
@@ -952,6 +1090,7 @@ public sealed class BeatmapJudgementState
 
         state.Holding = false;
         state.EtternaReleasedAtMilliseconds = null;
+        state.EtternaRollLifeExpiresAtMilliseconds = null;
     }
 
     private bool isHittableByOrderedPolicy(
@@ -1197,6 +1336,15 @@ public sealed class BeatmapJudgementState
                 openHoldIndices[
                     beatmap.HitObjects[hitObjectIndex].Lane].Add(
                     hitObjectIndex);
+                if (Windows.Configuration.Mode == JudgementMode.Etterna
+                    && beatmap.HitObjects[hitObjectIndex].HoldType
+                    == HoldNoteType.Roll
+                    && rating.IsHit())
+                {
+                    state.EtternaRollLifeExpiresAtMilliseconds =
+                        (hitTimeMilliseconds ?? objectTimeMilliseconds)
+                        + ActiveEtternaRollDropWindowMilliseconds;
+                }
                 break;
 
             case JudgementPhase.HoldTail:
@@ -1368,6 +1516,7 @@ public sealed class BeatmapJudgementState
         public bool BodyBroken { get; set; }
         public bool Holding { get; set; }
         public double? EtternaReleasedAtMilliseconds { get; set; }
+        public double? EtternaRollLifeExpiresAtMilliseconds { get; set; }
         public bool IsComplete =>
             ParentResolved && HeadResolved && TailResolved && BodyResolved;
     }

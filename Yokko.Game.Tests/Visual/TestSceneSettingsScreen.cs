@@ -449,7 +449,7 @@ namespace Yokko.Game.Tests.Visual
         public void TestGameplayOverflowContentCanScroll()
         {
             GameplaySettingsPanel gameplay = null;
-            SettingsContentScrollContainer content = null;
+            ScrollContainer<Drawable> content = null;
 
             AddStep("open Gameplay feedback", () =>
             {
@@ -458,11 +458,15 @@ namespace Yokko.Game.Tests.Visual
                     (GameplaySettingsPanel)settingsScreen.ActivePanel;
                 gameplay.SelectSection(GameplaySettingsSection.Feedback);
                 content = gameplay
-                    .ChildrenOfType<SettingsContentScrollContainer>()
+                    .ChildrenOfType<ScrollContainer<Drawable>>()
                     .Single();
             });
             AddAssert("feedback content fits comfortably", () =>
                 gameplay.ContentScrollableExtent == 0);
+            AddStep("try to scroll fitting feedback", () =>
+                gameplay.ScrollContentBy(1000));
+            AddAssert("fitting feedback stays at top", () =>
+                gameplay.ContentScrollPosition == 0);
             AddStep("simulate future overflow", () =>
                 content.Child.Height = content.Height + 64);
             AddAssert("larger content becomes scrollable", () =>

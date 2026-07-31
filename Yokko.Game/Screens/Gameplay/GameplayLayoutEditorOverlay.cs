@@ -9,6 +9,7 @@ using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
+using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Gameplay;
 
@@ -34,12 +35,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private readonly LayoutTransformTarget timingBarTarget;
     private readonly CoverDragHandle topCoverHandle;
     private readonly CoverDragHandle bottomCoverHandle;
-    private readonly Container overviewContent;
-    private readonly Container miniPlayfield;
-    private readonly Container miniHud;
-    private readonly Container miniTimingBar;
-    private readonly Box miniTopCover;
-    private readonly Box miniBottomCover;
+    private Container overviewContent;
+    private Container miniPlayfield;
+    private Container miniHud;
+    private Container miniTimingBar;
+    private Box miniTopCover;
+    private Box miniBottomCover;
 
     internal bool IsEditing { get; private set; }
 
@@ -85,7 +86,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(0f, 0f, 0f, 0.08f),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.055f),
             },
             createTopBar(),
             playfieldTarget = new LayoutTransformTarget(
@@ -112,85 +117,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 this,
                 "BOTTOM COVER",
                 updateBottomCover),
-            new Container
-            {
-                Anchor = Anchor.BottomRight,
-                Origin = Anchor.BottomRight,
-                Position = new Vector2(-18, -18),
-                Size = new Vector2(
-                    overviewWidth + overviewPadding * 2,
-                    overviewHeight + 42),
-                Masking = true,
-                CornerRadius = 5,
-                BorderThickness = 2,
-                BorderColour = YokkoPalette.Cyan,
-                Children = new Drawable[]
-                {
-                    new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = new Color4(0.025f, 0.032f, 0.046f, 0.98f),
-                    },
-                    new SpriteText
-                    {
-                        Position = new Vector2(overviewPadding, 8),
-                        Text = "FULL PAGE PREVIEW",
-                        Font = FontUsage.Default.With(
-                            size: 13,
-                            weight: "SemiBold"),
-                        Colour = YokkoPalette.Text,
-                    },
-                    overviewContent = new Container
-                    {
-                        Position = new Vector2(overviewPadding, 32),
-                        Size = new Vector2(overviewWidth, overviewHeight),
-                        Masking = true,
-                        BorderThickness = 1,
-                        BorderColour = YokkoPalette.Border,
-                        Children = new Drawable[]
-                        {
-                            new Box
-                            {
-                                RelativeSizeAxes = Axes.Both,
-                                Colour = YokkoPalette.Background,
-                            },
-                            miniPlayfield = createMiniPlayfield(),
-                            miniHud = new Container
-                            {
-                                Masking = true,
-                                BorderThickness = 1,
-                                BorderColour = YokkoPalette.TextDim,
-                                Child = new Box
-                                {
-                                    RelativeSizeAxes = Axes.Both,
-                                    Colour = new Color4(
-                                        0.035f,
-                                        0.045f,
-                                        0.065f,
-                                        0.96f),
-                                },
-                            },
-                            miniTimingBar = new Container
-                            {
-                                Masking = true,
-                                BorderThickness = 1,
-                                BorderColour = YokkoPalette.Lime,
-                                Child = new Box
-                                {
-                                    RelativeSizeAxes = Axes.Both,
-                                    Colour = new Color4(
-                                        YokkoPalette.Lime.R,
-                                        YokkoPalette.Lime.G,
-                                        YokkoPalette.Lime.B,
-                                        0.55f),
-                                },
-                            },
-                            miniTopCover = createMiniCover(),
-                            miniBottomCover = createMiniCover(),
-                        },
-                    },
-                },
-            },
+            createOverviewCard(),
         };
     }
 
@@ -276,48 +203,231 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private Drawable createTopBar() =>
         new Container
         {
-            RelativeSizeAxes = Axes.X,
-            Height = 44,
-            Masking = true,
+            Position = new Vector2(16, 14),
+            Size = new Vector2(414, 60),
+            Depth = -100,
             Children = new Drawable[]
             {
+                new Container
+                {
+                    Position = new Vector2(4, 4),
+                    Size = new Vector2(410, 56),
+                    Masking = true,
+                    CornerRadius = 8,
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(
+                            HomeControlColours.Cyan.R,
+                            HomeControlColours.Cyan.G,
+                            HomeControlColours.Cyan.B,
+                            0.48f),
+                    },
+                },
+                new Container
+                {
+                    Size = new Vector2(410, 56),
+                    Masking = true,
+                    CornerRadius = 8,
+                    BorderThickness = 1.5f,
+                    BorderColour = HomeControlColours.Navy,
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = HomeControlColours.Ivory,
+                        },
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Y,
+                            Width = 5,
+                            Colour = HomeControlColours.Cyan,
+                        },
+                        new FillFlowContainer
+                        {
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
+                            X = 16,
+                            AutoSizeAxes = Axes.Both,
+                            Direction = FillDirection.Vertical,
+                            Spacing = new Vector2(0, -2),
+                            Children = new Drawable[]
+                            {
+                                new SpriteText
+                                {
+                                    Text = "HUD 布局",
+                                    Font = HomeTypography.Display(14),
+                                    Colour = HomeControlColours.Navy,
+                                },
+                                new SpriteText
+                                {
+                                    Text = "拖动元素 · 拉边缩放",
+                                    Font = HomeTypography.Body(9),
+                                    Colour = new Color4(
+                                        HomeControlColours.Navy.R,
+                                        HomeControlColours.Navy.G,
+                                        HomeControlColours.Navy.B,
+                                        0.64f),
+                                },
+                            },
+                        },
+                        new LayoutActionButton(
+                            "重置",
+                            FontAwesome.Solid.Undo,
+                            reset)
+                        {
+                            Anchor = Anchor.CentreRight,
+                            Origin = Anchor.CentreRight,
+                            X = -132,
+                            Width = 96,
+                        },
+                        new LayoutActionButton(
+                            "保存并返回",
+                            FontAwesome.Solid.Check,
+                            SaveAndClose,
+                            true)
+                        {
+                            Anchor = Anchor.CentreRight,
+                            Origin = Anchor.CentreRight,
+                            X = -10,
+                            Width = 116,
+                        },
+                    },
+                },
                 new Box
                 {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.018f, 0.023f, 0.036f, 0.97f),
-                },
-                new SpriteText
-                {
-                    Anchor = Anchor.CentreLeft,
-                    Origin = Anchor.CentreLeft,
-                    X = 18,
-                    Text =
-                        "布局编辑  ·  拖动元素  ·  拉动边框或控制点缩放",
-                    Font = FontUsage.Default.With(
-                        size: 14,
-                        weight: "SemiBold"),
-                    Colour = YokkoPalette.Text,
-                },
-                new LayoutActionButton(
-                    "重置布局",
-                    reset)
-                {
-                    Anchor = Anchor.CentreRight,
-                    Origin = Anchor.CentreRight,
-                    X = -174,
-                },
-                new LayoutActionButton(
-                    "保存并返回",
-                    SaveAndClose,
-                    YokkoPalette.Lime)
-                {
-                    Anchor = Anchor.CentreRight,
-                    Origin = Anchor.CentreRight,
-                    X = -12,
-                    Width = 148,
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(-6, 3),
+                    Size = new Vector2(11),
+                    Rotation = 45,
+                    Colour = HomeControlColours.Yellow,
                 },
             },
         };
+
+    private Drawable createOverviewCard()
+    {
+        Vector2 cardSize = new(
+            overviewWidth + overviewPadding * 2,
+            overviewHeight + 42);
+
+        return new Container
+        {
+            Anchor = Anchor.BottomRight,
+            Origin = Anchor.BottomRight,
+            Position = new Vector2(-18, -18),
+            Size = cardSize + new Vector2(5),
+            Children = new Drawable[]
+            {
+                new Container
+                {
+                    Position = new Vector2(5),
+                    Size = cardSize,
+                    Masking = true,
+                    CornerRadius = 8,
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(
+                            HomeControlColours.Cyan.R,
+                            HomeControlColours.Cyan.G,
+                            HomeControlColours.Cyan.B,
+                            0.45f),
+                    },
+                },
+                new Container
+                {
+                    Size = cardSize,
+                    Masking = true,
+                    CornerRadius = 8,
+                    BorderThickness = 1.5f,
+                    BorderColour = HomeControlColours.Navy,
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = HomeControlColours.Ivory,
+                        },
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.X,
+                            Height = 4,
+                            Colour = HomeControlColours.Cyan,
+                        },
+                        new SpriteText
+                        {
+                            Position = new Vector2(overviewPadding, 8),
+                            Text = "完整页面预览",
+                            Font = HomeTypography.Display(11),
+                            Colour = HomeControlColours.Navy,
+                        },
+                        overviewContent = new Container
+                        {
+                            Position = new Vector2(overviewPadding, 32),
+                            Size = new Vector2(overviewWidth, overviewHeight),
+                            Masking = true,
+                            CornerRadius = 4,
+                            BorderThickness = 1.5f,
+                            BorderColour = HomeControlColours.Navy,
+                            Children = new Drawable[]
+                            {
+                                new Box
+                                {
+                                    RelativeSizeAxes = Axes.Both,
+                                    Colour = YokkoPalette.Background,
+                                },
+                                miniPlayfield = createMiniPlayfield(),
+                                miniHud = new Container
+                                {
+                                    Masking = true,
+                                    BorderThickness = 1,
+                                    BorderColour = HomeControlColours.Cyan,
+                                    Child = new Box
+                                    {
+                                        RelativeSizeAxes = Axes.Both,
+                                        Colour = new Color4(
+                                            HomeControlColours.PaleCyan.R,
+                                            HomeControlColours.PaleCyan.G,
+                                            HomeControlColours.PaleCyan.B,
+                                            0.18f),
+                                    },
+                                },
+                                miniTimingBar = new Container
+                                {
+                                    Masking = true,
+                                    BorderThickness = 1,
+                                    BorderColour = HomeControlColours.Yellow,
+                                    Child = new Box
+                                    {
+                                        RelativeSizeAxes = Axes.Both,
+                                        Colour = new Color4(
+                                            HomeControlColours.Yellow.R,
+                                            HomeControlColours.Yellow.G,
+                                            HomeControlColours.Yellow.B,
+                                            0.68f),
+                                    },
+                                },
+                                miniTopCover = createMiniCover(),
+                                miniBottomCover = createMiniCover(),
+                            },
+                        },
+                    },
+                },
+                new Box
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(-7, 3),
+                    Size = new Vector2(10),
+                    Rotation = 45,
+                    Colour = HomeControlColours.Yellow,
+                },
+            },
+        };
+    }
 
     private void movePlayfield(Vector2 delta)
     {
@@ -643,8 +753,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         new()
         {
             Masking = true,
-            BorderThickness = 1,
-            BorderColour = YokkoPalette.Cyan,
+            BorderThickness = 1.5f,
+            BorderColour = HomeControlColours.Cyan,
             Children = new Drawable[]
             {
                 new Box
@@ -659,7 +769,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     RelativeSizeAxes = Axes.X,
                     Height = 2,
                     Y = -5,
-                    Colour = YokkoPalette.TextDim,
+                    Colour = HomeControlColours.PaleCyan,
                 },
             },
         };
@@ -709,26 +819,49 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     RelativeSizeAxes = Axes.Both,
                     Masking = true,
                     BorderThickness = 2,
-                    BorderColour = YokkoPalette.Cyan,
+                    BorderColour = HomeControlColours.Cyan,
                     Children = new Drawable[]
                     {
                         new Box
                         {
                             RelativeSizeAxes = Axes.Both,
                             Colour = new Color4(
-                                YokkoPalette.Cyan.R,
-                                YokkoPalette.Cyan.G,
-                                YokkoPalette.Cyan.B,
-                                0.025f),
+                                HomeControlColours.PaleCyan.R,
+                                HomeControlColours.PaleCyan.G,
+                                HomeControlColours.PaleCyan.B,
+                                0.035f),
                         },
-                        new SpriteText
+                        new Container
                         {
                             Position = new Vector2(8, 6),
-                            Text = label,
-                            Font = FontUsage.Default.With(
-                                size: 12,
-                                weight: "SemiBold"),
-                            Colour = YokkoPalette.Cyan,
+                            Size = new Vector2(202, 27),
+                            Masking = true,
+                            CornerRadius = 5,
+                            BorderThickness = 1,
+                            BorderColour = HomeControlColours.Navy,
+                            Children = new Drawable[]
+                            {
+                                new Box
+                                {
+                                    RelativeSizeAxes = Axes.Both,
+                                    Colour = HomeControlColours.Ivory,
+                                },
+                                new Box
+                                {
+                                    RelativeSizeAxes = Axes.Y,
+                                    Width = 4,
+                                    Colour = HomeControlColours.Cyan,
+                                },
+                                new SpriteText
+                                {
+                                    Anchor = Anchor.CentreLeft,
+                                    Origin = Anchor.CentreLeft,
+                                    X = 10,
+                                    Text = label,
+                                    Font = HomeTypography.Display(9),
+                                    Colour = HomeControlColours.Navy,
+                                },
+                            },
                         },
                     },
                 },
@@ -757,7 +890,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             bool edge = false) =>
             new ResizeHandle(
                 coordinateSpace,
-                delta => resize(edges, delta))
+                delta => resize(edges, delta),
+                edge)
             {
                 Anchor = anchor,
                 Origin = anchor,
@@ -806,19 +940,22 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         public ResizeHandle(
             Drawable coordinateSpace,
-            Action<Vector2> resize)
+            Action<Vector2> resize,
+            bool edge)
         {
             this.coordinateSpace = coordinateSpace;
             this.resize = resize;
             Depth = -30;
             Masking = true;
-            CornerRadius = 2;
+            CornerRadius = edge ? 3 : 2;
             BorderThickness = 2;
-            BorderColour = new Color4(0.015f, 0.025f, 0.045f, 1f);
+            BorderColour = HomeControlColours.Navy;
             InternalChild = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = YokkoPalette.Cyan,
+                Colour = edge
+                    ? HomeControlColours.PaleCyan
+                    : HomeControlColours.Yellow,
             };
         }
 
@@ -856,26 +993,32 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             this.update = update;
             Depth = -10;
             Masking = true;
-            CornerRadius = 4;
-            BorderThickness = 1;
-            BorderColour = YokkoPalette.Text;
+            CornerRadius = 5;
+            BorderThickness = 1.5f;
+            BorderColour = HomeControlColours.Navy;
 
             InternalChildren = new Drawable[]
             {
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.03f, 0.04f, 0.058f, 0.96f),
+                    Colour = HomeControlColours.Ivory,
+                },
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Y,
+                    Width = 5,
+                    Colour = label.StartsWith("TOP", StringComparison.Ordinal)
+                        ? HomeControlColours.Cyan
+                        : HomeControlColours.Pink,
                 },
                 new SpriteText
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Text = label,
-                    Font = FontUsage.Default.With(
-                        size: 11,
-                        weight: "SemiBold"),
-                    Colour = YokkoPalette.Text,
+                    Font = HomeTypography.Display(8),
+                    Colour = HomeControlColours.Navy,
                 },
             };
         }
@@ -898,51 +1041,87 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private partial class LayoutActionButton : ClickableContainer
     {
         private readonly Box background;
-        private readonly Color4 accent;
+        private readonly Color4 idleColour;
+        private readonly Color4 hoverColour;
 
         public LayoutActionButton(
             string text,
+            IconUsage icon,
             Action action,
-            Color4? accent = null)
+            bool primary = false)
         {
             Action = action;
-            this.accent = accent ?? YokkoPalette.Cyan;
-            Size = new Vector2(140, 30);
+            Size = new Vector2(112, 34);
             Masking = true;
-            CornerRadius = 4;
-            BorderThickness = 1;
-            BorderColour = this.accent;
+            CornerRadius = 6;
+            BorderThickness = 1.5f;
+            BorderColour = primary
+                ? HomeControlColours.Navy
+                : new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.72f);
+
+            idleColour = primary
+                ? HomeControlColours.Navy
+                : Color4.White;
+            hoverColour = primary
+                ? new Color4(0.055f, 0.15f, 0.7f, 1f)
+                : HomeControlColours.PaleCyan;
 
             InternalChildren = new Drawable[]
             {
                 background = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.04f, 0.05f, 0.07f, 1f),
+                    Colour = idleColour,
                 },
-                new SpriteText
+                new FillFlowContainer
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Text = text,
-                    Font = FontUsage.Default.With(
-                        size: 12,
-                        weight: "SemiBold"),
-                    Colour = YokkoPalette.Text,
+                    AutoSizeAxes = Axes.Both,
+                    Direction = FillDirection.Horizontal,
+                    Spacing = new Vector2(6, 0),
+                    Children = new Drawable[]
+                    {
+                        new SpriteIcon
+                        {
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
+                            Size = new Vector2(13),
+                            Icon = icon,
+                            Colour = primary
+                                ? HomeControlColours.Yellow
+                                : HomeControlColours.Navy,
+                        },
+                        new SpriteText
+                        {
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
+                            Text = text,
+                            Font = HomeTypography.Display(9),
+                            Colour = primary
+                                ? Color4.White
+                                : HomeControlColours.Navy,
+                        },
+                    },
                 },
             };
         }
 
         protected override bool OnHover(HoverEvent e)
         {
-            background.FadeColour(accent, 90, Easing.OutQuint);
+            background.FadeColour(hoverColour, 90, Easing.OutQuint);
+            this.ScaleTo(1.025f, 100, Easing.OutQuint);
             return true;
         }
 
-        protected override void OnHoverLost(HoverLostEvent e) =>
-            background.FadeColour(
-                new Color4(0.04f, 0.05f, 0.07f, 1f),
-                120,
-                Easing.OutQuint);
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            background.FadeColour(idleColour, 120, Easing.OutQuint);
+            this.ScaleTo(1f, 120, Easing.OutQuint);
+        }
     }
 }

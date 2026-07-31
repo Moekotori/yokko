@@ -18,7 +18,10 @@ internal sealed record GameplayPauseSnapshot(
     int Ok,
     int Meh,
     int Miss,
-    string DisplayedMods)
+    string DisplayedMods,
+    int MissCombo = 0,
+    int ComboBreaks = 0,
+    int MaxMissCombo = 0)
 {
     public JudgementConfiguration JudgementConfiguration { get; init; } =
         JudgementConfiguration.YokkoDefault;
@@ -66,7 +69,10 @@ internal sealed record GameplayPauseSnapshot(
             state.Counts.Ok,
             state.Counts.Meh,
             state.Counts.Miss,
-            displayedMods)
+            displayedMods,
+            state.MissCombo,
+            state.ComboBreaks,
+            state.MaxMissCombo)
         {
             JudgementConfiguration = state.Windows.Configuration,
         };

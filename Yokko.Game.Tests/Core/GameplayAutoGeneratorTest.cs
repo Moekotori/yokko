@@ -3,6 +3,7 @@ using NUnit.Framework;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
+using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
 using Yokko.Game.Gameplay;
 
@@ -68,6 +69,54 @@ public sealed class GameplayAutoGeneratorTest
             Assert.That(state.IsComplete, Is.True);
             Assert.That(state.Accuracy, Is.EqualTo(1));
             Assert.That(state.Counts.Miss, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void GeneratedReplayRetapsEtternaRollUntilItsEnd()
+    {
+        YokkoBeatmap chart = beatmap(new YokkoHitObject(
+            1,
+            200,
+            1200,
+            HitObjectKind.Hold,
+            HoldType: HoldNoteType.Roll));
+        GameplayReplay replay = GameplayAutoGenerator.Generate(
+            chart,
+            judgementConfiguration:
+                JudgementConfiguration.EtternaDefault);
+        GameplayReplay yokkoReplay =
+            GameplayAutoGenerator.Generate(chart);
+        var state = new BeatmapJudgementState(
+            chart,
+            new JudgementWindows(
+                configuration:
+                    JudgementConfiguration.EtternaDefault));
+
+        foreach (GameplayReplayInput input in replay.Inputs)
+        {
+            if (input.IsPressed)
+                state.JudgeLanePress(input.Lane, input.TimeMilliseconds);
+            else
+                state.JudgeLaneRelease(input.Lane, input.TimeMilliseconds);
+        }
+        state.CollectExpiredMisses(1200);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                replay.Inputs.Count(static input => input.IsPressed),
+                Is.EqualTo(4));
+            Assert.That(
+                yokkoReplay.Inputs,
+                Is.EqualTo(new[]
+                {
+                    new GameplayReplayInput(1, true, 200),
+                    new GameplayReplayInput(1, false, 1200),
+                }));
+            Assert.That(state.IsComplete, Is.True);
+            Assert.That(state.Accuracy, Is.EqualTo(1));
+            Assert.That(state.MissCombo, Is.Zero);
         });
     }
 

@@ -255,6 +255,111 @@ internal partial class SongSelectFilterButton : ClickableContainer
     }
 }
 
+internal partial class SongSelectBrowseToolButton : ClickableContainer
+{
+    private readonly Box background;
+    private readonly SpriteText valueText;
+
+    public SongSelectBrowseToolButton(
+        string label,
+        string value,
+        float width,
+        IconUsage icon,
+        Action action)
+    {
+        Action = action;
+        Size = new Vector2(width, 34);
+        Masking = true;
+        CornerRadius = 7;
+        BorderThickness = 1;
+        BorderColour = new Color4(
+            SongSelectTheme.Cyan.R,
+            SongSelectTheme.Cyan.G,
+            SongSelectTheme.Cyan.B,
+            0.24f);
+
+        InternalChildren =
+        [
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = new Color4(
+                    SongSelectTheme.SurfaceRaised.R,
+                    SongSelectTheme.SurfaceRaised.G,
+                    SongSelectTheme.SurfaceRaised.B,
+                    0.94f),
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 10,
+                Size = new Vector2(12),
+                Icon = icon,
+                Colour = SongSelectTheme.Cyan,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 30,
+                Text = label,
+                Font = HomeTypography.Display(8),
+                Colour = new Color4(
+                    SongSelectTheme.PaleCyan.R,
+                    SongSelectTheme.PaleCyan.G,
+                    SongSelectTheme.PaleCyan.B,
+                    0.70f),
+            },
+            valueText = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 86,
+                Width = width - 116,
+                Truncate = true,
+                Text = value,
+                Font = HomeTypography.Display(10),
+                Colour = Color4.White,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -10,
+                Size = new Vector2(9),
+                Icon = FontAwesome.Solid.ChevronDown,
+                Colour = SongSelectTheme.PaleCyan,
+            },
+        ];
+    }
+
+    public void SetValue(string value) => valueText.Text = value;
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(
+            new Color4(
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.98f),
+            110,
+            Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e) =>
+        background.FadeColour(
+            new Color4(
+                SongSelectTheme.SurfaceRaised.R,
+                SongSelectTheme.SurfaceRaised.G,
+                SongSelectTheme.SurfaceRaised.B,
+                0.94f),
+            130,
+            Easing.OutQuint);
+}
+
 internal partial class LegacySongSelectSongRow : ClickableContainer
 {
     private readonly Box tint;

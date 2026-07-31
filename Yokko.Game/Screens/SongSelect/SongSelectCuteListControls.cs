@@ -1,5 +1,6 @@
 using System;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
@@ -15,7 +16,7 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectSongRow : ClickableContainer
 {
-    private const float row_width = 600;
+    private const float row_width = 760;
 
     private readonly Box surface;
     private readonly Container selectionOutline;
@@ -38,7 +39,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         Action = select;
         DoubleClickAction = play;
         bool compact = entry.IsPackage;
-        float rowHeight = compact ? 58 : 72;
+        float rowHeight = compact ? 54 : 76;
         accent = difficultyColour(entry.StarRating);
         Size = new Vector2(row_width, rowHeight);
 
@@ -68,7 +69,7 @@ internal partial class SongSelectSongRow : ClickableContainer
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
                 RelativeSizeAxes = Axes.Y,
-                Width = 190,
+                Width = 226,
                 Colour = new Color4(
                     accent.R,
                     accent.G,
@@ -94,9 +95,9 @@ internal partial class SongSelectSongRow : ClickableContainer
         children.Add(arrow = new SpriteIcon
         {
             Anchor = Anchor.CentreLeft,
-            Origin = Anchor.CentreRight,
-            X = -7,
-            Size = new Vector2(15),
+            Origin = Anchor.CentreLeft,
+            X = 8,
+            Size = new Vector2(12),
             Icon = FontAwesome.Solid.Play,
             Colour = SongSelectTheme.Pink,
             Alpha = 0,
@@ -140,7 +141,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         selectionOutline.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
         arrow.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
         selectedSticker.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
-        this.MoveToX(selected ? -8 : 0, 170, Easing.OutQuint);
+        this.MoveToX(selected ? -4 : 0, 170, Easing.OutQuint);
     }
 
     protected override bool OnHover(HoverEvent e)
@@ -171,8 +172,8 @@ internal partial class SongSelectSongRow : ClickableContainer
     {
         children.Add(new Container
         {
-            Position = new Vector2(14, 12),
-            Size = new Vector2(44, 34),
+            Position = new Vector2(24, 10),
+            Size = new Vector2(46, 34),
             Masking = true,
             CornerRadius = 9,
             BorderThickness = 1,
@@ -201,23 +202,23 @@ internal partial class SongSelectSongRow : ClickableContainer
         });
         children.Add(label(
             entry.Beatmap.Title,
-            70,
-            7,
-            330,
-            14,
+            84,
+            5,
+            458,
+            15,
             Color4.White,
             true));
         children.Add(label(
             $"{entry.Beatmap.DifficultyName} · mapped by "
             + entry.Beatmap.Creator,
-            70,
-            31,
-            360,
+            84,
+            29,
+            478,
             9,
             SongSelectTheme.PaleCyan,
             true,
             false));
-        children.Add(createModePill(entry, 428, 10));
+        children.Add(createModePill(entry, 584, 8));
         children.Add(createStars(entry.StarRating, -18, -10));
     }
 
@@ -229,7 +230,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         children.Add(new Container
         {
             Position = new Vector2(8),
-            Size = new Vector2(108, 56),
+            Size = new Vector2(128, 60),
             Masking = true,
             CornerRadius = 7,
             BorderThickness = 1,
@@ -243,30 +244,30 @@ internal partial class SongSelectSongRow : ClickableContainer
         });
         children.Add(label(
             entry.Beatmap.Title,
-            128,
+            150,
             8,
-            300,
+            390,
             15,
             Color4.White,
             true));
         children.Add(label(
             entry.Beatmap.Artist,
-            128,
+            150,
             32,
-            232,
+            322,
             10,
             SongSelectTheme.PaleCyan,
             true));
         children.Add(label(
             $"mapped by {entry.Beatmap.Creator}",
-            128,
+            150,
             50,
-            232,
+            322,
             8,
             SongSelectTheme.Cyan,
             true,
             false));
-        children.Add(createModePill(entry, 428, 17));
+        children.Add(createModePill(entry, 584, 18));
         children.Add(createStars(entry.StarRating, -18, -11));
     }
 
@@ -276,7 +277,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         float y) => new Container
     {
         Position = new Vector2(x, y),
-        Size = new Vector2(126, 22),
+        Size = new Vector2(144, 22),
         Masking = true,
         CornerRadius = 7,
         Children =
@@ -294,7 +295,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Width = 112,
+                Width = 130,
                 Truncate = true,
                 Text = $"{(int)entry.Beatmap.KeyMode}K · "
                        + entry.Beatmap.DifficultyName,
@@ -385,7 +386,7 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         Action toggle)
     {
         Action = toggle;
-        Size = new Vector2(600, 72);
+        Size = new Vector2(760, 84);
         Masking = true;
         CornerRadius = 10;
         BorderThickness = selected ? 2 : 1;
@@ -408,7 +409,22 @@ internal partial class SongSelectPackageHeader : ClickableContainer
                     SongSelectTheme.DeepNavy.R,
                     SongSelectTheme.DeepNavy.G,
                     SongSelectTheme.DeepNavy.B,
-                    selected ? 0.58f : 0.72f),
+                    selected ? 0.48f : 0.64f),
+            },
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = ColourInfo.GradientHorizontal(
+                    new Color4(
+                        SongSelectTheme.DeepNavy.R,
+                        SongSelectTheme.DeepNavy.G,
+                        SongSelectTheme.DeepNavy.B,
+                        0.92f),
+                    new Color4(
+                        SongSelectTheme.DeepNavy.R,
+                        SongSelectTheme.DeepNavy.G,
+                        SongSelectTheme.DeepNavy.B,
+                        0.18f)),
             },
             new Box
             {
@@ -420,7 +436,7 @@ internal partial class SongSelectPackageHeader : ClickableContainer
             },
             new Container
             {
-                Position = new Vector2(16, 12),
+                Position = new Vector2(18, 14),
                 Size = new Vector2(54, 20),
                 Masking = true,
                 CornerRadius = 7,
@@ -441,12 +457,12 @@ internal partial class SongSelectPackageHeader : ClickableContainer
                     },
                 ],
             },
-            label(packageName, 82, 9, 414, 17, Color4.White),
+            label(packageName, 88, 10, 598, 18, Color4.White),
             label(
                 $"{songCount} SONGS · {chartCount} CHARTS",
-                82,
-                37,
-                320,
+                88,
+                43,
+                460,
                 9,
                 SongSelectTheme.PaleCyan),
             new SpriteIcon

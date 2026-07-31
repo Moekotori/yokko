@@ -445,6 +445,8 @@ namespace Yokko.Game.Tests.Core
                 Assert.That(state.Counts.Ok, Is.EqualTo(1));
                 Assert.That(state.Counts.Meh, Is.EqualTo(1));
                 Assert.That(state.Counts.Miss, Is.EqualTo(1));
+                Assert.That(state.MissCombo, Is.EqualTo(2));
+                Assert.That(state.MaxMissCombo, Is.EqualTo(2));
             });
         }
 
@@ -477,9 +479,12 @@ namespace Yokko.Game.Tests.Core
                 Assert.That(yokko.Combo, Is.EqualTo(4));
                 Assert.That(yokko.MaxCombo, Is.EqualTo(4));
                 Assert.That(yokko.ComboBreaks, Is.Zero);
+                Assert.That(yokko.MissCombo, Is.Zero);
                 Assert.That(etterna.Combo, Is.Zero);
                 Assert.That(etterna.MaxCombo, Is.EqualTo(1));
                 Assert.That(etterna.ComboBreaks, Is.EqualTo(2));
+                Assert.That(etterna.MissCombo, Is.EqualTo(1));
+                Assert.That(etterna.MaxMissCombo, Is.EqualTo(1));
             });
         }
 
@@ -518,6 +523,7 @@ namespace Yokko.Game.Tests.Core
                 Assert.That(state.Combo, Is.Zero);
                 Assert.That(state.MaxCombo, Is.Zero);
                 Assert.That(state.ComboBreaks, Is.EqualTo(1));
+                Assert.That(state.MissCombo, Is.EqualTo(1));
             });
         }
 
@@ -604,9 +610,72 @@ namespace Yokko.Game.Tests.Core
                     Is.True);
                 Assert.That(state.Combo, Is.EqualTo(1));
                 Assert.That(state.ComboBreaks, Is.Zero);
+                Assert.That(state.MissCombo, Is.Zero);
                 Assert.That(
                     state.Accuracy,
                     Is.EqualTo(-1.25).Within(1e-12));
+                Assert.That(state.IsComplete, Is.True);
+            });
+        }
+
+        [Test]
+        public void EtternaRollDropsWhenItIsNotRetapped()
+        {
+            BeatmapJudgementState state = createEtternaState(
+                createHoldBeatmap(
+                    endTime: 2000,
+                    holdType: HoldNoteType.Roll));
+
+            state.JudgeLanePress(1, 1000);
+            Assert.That(state.JudgeLaneRelease(1, 1020), Is.Empty);
+            Assert.That(
+                state.CollectExpiredMisses(1499.999),
+                Is.Empty);
+            IReadOnlyList<JudgementEvent> drop =
+                state.CollectExpiredMisses(1500);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    drop.Single(static judgement =>
+                        judgement.Phase == JudgementPhase.HoldBody)
+                        .Rating,
+                    Is.EqualTo(JudgementRating.ComboBreak));
+                Assert.That(state.Combo, Is.EqualTo(1));
+                Assert.That(state.MissCombo, Is.Zero);
+                Assert.That(
+                    state.Accuracy,
+                    Is.EqualTo(-1.25).Within(1e-12));
+                Assert.That(state.IsComplete, Is.True);
+            });
+        }
+
+        [Test]
+        public void EtternaRollPressesRefillLifeUntilItsEnd()
+        {
+            BeatmapJudgementState state = createEtternaState(
+                createHoldBeatmap(
+                    endTime: 2000,
+                    holdType: HoldNoteType.Roll));
+
+            state.JudgeLanePress(1, 1000);
+            state.JudgeLaneRelease(1, 1020);
+            Assert.That(state.JudgeLanePress(1, 1400), Is.Empty);
+            state.JudgeLaneRelease(1, 1420);
+            Assert.That(state.JudgeLanePress(1, 1800), Is.Empty);
+            state.JudgeLaneRelease(1, 1820);
+            IReadOnlyList<JudgementEvent> end =
+                state.CollectExpiredMisses(2000);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    end.All(static judgement =>
+                        judgement.Rating == JudgementRating.IgnoreHit),
+                    Is.True);
+                Assert.That(state.Accuracy, Is.EqualTo(1));
+                Assert.That(state.Combo, Is.EqualTo(1));
+                Assert.That(state.MissCombo, Is.Zero);
                 Assert.That(state.IsComplete, Is.True);
             });
         }
@@ -1379,7 +1448,8 @@ namespace Yokko.Game.Tests.Core
 
         private static YokkoBeatmap createHoldBeatmap(
             double startTime = 1000,
-            double endTime = 1500)
+            double endTime = 1500,
+            HoldNoteType holdType = HoldNoteType.Standard)
             => new(
                 "Hold test",
                 "Yokko",
@@ -1393,7 +1463,8 @@ namespace Yokko.Game.Tests.Core
                     1,
                     startTime,
                     endTime,
-                    HitObjectKind.Hold)],
+                    HitObjectKind.Hold,
+                    HoldType: holdType)],
                 8);
 
         private static YokkoBeatmap createMineBeatmap()

@@ -44,12 +44,14 @@ assemblies.
 Yokko's optional Etterna judgement mode ports the timing-window constants,
 Judge/Justice scales, inclusive boundary checks, closest-note selection,
 Wife3 scoring, combo thresholds, and default life/mine/hold semantics from
-Etterna.
+Etterna. StepMania roll heads are preserved as rolls and use Etterna's fixed
+roll-life drain/refill behaviour.
 
 - Copyright (c) 2016-2023 Etterna <etternadev@gmail.com>
 - Licence: MIT
 - Source: <https://github.com/etternagame/etterna>
-- Reference commit: `939a26ae042d3a689999a0dae630721c7701f187`
+- Reference commits: `939a26ae042d3a689999a0dae630721c7701f187`,
+  `b65660062ef2a23121e331c36e23c23a8f6eafaa`
 
 ## StepMania
 

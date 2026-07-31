@@ -10,4 +10,5 @@ public sealed record EditableNote(
     HitObjectKind Kind,
     string? ScrollProfileId = null,
     string? SampleKey = null,
-    YokkoHitSamplePayload? SamplePayload = null);
+    YokkoHitSamplePayload? SamplePayload = null,
+    HoldNoteType HoldType = HoldNoteType.Standard);

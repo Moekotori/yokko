@@ -60,7 +60,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("ranking body uses its full height", () =>
             songSelectScreen.RankingContentSize == new Vector2(736, 378));
         AddAssert("search box uses the full browse rail", () =>
-            songSelectScreen.SearchBoxSize == new Vector2(600, 44));
+            songSelectScreen.SearchBoxSize == new Vector2(760, 42));
 
         AddStep("select next song", songSelectScreen.SelectNext);
         AddAssert("selection wraps", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");

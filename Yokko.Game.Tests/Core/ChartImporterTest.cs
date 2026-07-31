@@ -1072,6 +1072,44 @@ M000
         }
 
         [Test]
+        public void ImportsStepManiaRollAsDistinctLongNoteType()
+        {
+            string path = writeChart("etterna-roll", ".sm", """
+#TITLE:Roll Test;
+#ARTIST:Artist;
+#BPMS:0=120;
+#NOTES:
+     dance-single:
+     Mapper:
+     Hard:
+     10:
+     0,0,0,0,0:
+4000
+0000
+3000
+0000
+;
+""");
+
+            ChartImportResult result = import(path);
+            YokkoHitObject roll = result.Beatmap.HitObjects.Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(roll.Kind, Is.EqualTo(HitObjectKind.Hold));
+                Assert.That(
+                    roll.HoldType,
+                    Is.EqualTo(HoldNoteType.Roll));
+                Assert.That(
+                    roll.StartTimeMilliseconds,
+                    Is.EqualTo(0).Within(0.001));
+                Assert.That(
+                    roll.EndTimeMilliseconds,
+                    Is.EqualTo(1000).Within(0.001));
+            });
+        }
+
+        [Test]
         public void ImportsSscChartLevelTimingAndReportsWarps()
         {
             string path = writeChart("etterna-ssc", ".ssc", """

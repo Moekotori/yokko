@@ -114,7 +114,8 @@ public sealed partial class EtternaChartImporter : IChartImporter
                                                        note.EndBeat.HasValue
                                                            ? converter.ToMilliseconds(note.EndBeat.Value)
                                                            : null,
-                                                       note.Kind))
+                                                       note.Kind,
+                                                       HoldType: note.HoldType))
                                                 .OrderBy(static note => note.StartTimeMilliseconds)
                                                 .ThenBy(static note => note.Lane)
                                                 .ToArray();
@@ -258,7 +259,8 @@ public sealed partial class EtternaChartImporter : IChartImporter
     private static List<BeatNote> parseNotes(string notes, int laneCount, ICollection<string> warnings)
     {
         var result = new List<BeatNote>();
-        var openHolds = new Dictionary<int, double>();
+        var openHolds =
+            new Dictionary<int, (double StartBeat, HoldNoteType Type)>();
         string[] measures = notes.Split(',');
 
         for (int measureIndex = 0; measureIndex < measures.Length; measureIndex++)
@@ -293,18 +295,27 @@ public sealed partial class EtternaChartImporter : IChartImporter
                             break;
 
                         case '2':
+                            openHolds[lane] =
+                                (beat, HoldNoteType.Standard);
+                            break;
+
                         case '4':
-                            openHolds[lane] = beat;
+                            openHolds[lane] =
+                                (beat, HoldNoteType.Roll);
                             break;
 
                         case '3':
-                            if (openHolds.Remove(lane, out double startBeat))
+                            if (openHolds.Remove(
+                                    lane,
+                                    out (double StartBeat, HoldNoteType Type)
+                                    openHold))
                             {
                                 result.Add(new BeatNote(
                                     lane,
-                                    startBeat,
+                                    openHold.StartBeat,
                                     beat,
-                                    HitObjectKind.Hold));
+                                    HitObjectKind.Hold,
+                                    openHold.Type));
                             }
                             else
                                 warnings.Add("Ignored a StepMania hold end without a matching start.");
@@ -389,5 +400,6 @@ public sealed partial class EtternaChartImporter : IChartImporter
         int Lane,
         double StartBeat,
         double? EndBeat,
-        HitObjectKind Kind);
+        HitObjectKind Kind,
+        HoldNoteType HoldType = HoldNoteType.Standard);
 }

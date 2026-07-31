@@ -62,7 +62,7 @@ public partial class GameplayScreen : Screen
     private IAudioEngine audioEngine;
     private readonly string skinPath;
     private readonly ManiaModSet mods;
-    private readonly GameplayReplay replay;
+    private GameplayReplay replay;
     private JudgementConfiguration judgementConfiguration;
     private bool minesEnabled;
     private readonly string cinemaArtworkPath;
@@ -288,12 +288,7 @@ public partial class GameplayScreen : Screen
             && !this.mods.Contains(ManiaModId.ConstantSpeed)
             && hasSignificantScrollVelocities(this.beatmap);
         beatTimingMap = new BeatTimingMap(this.beatmap.TimingPoints);
-        this.replay = replay
-                      ?? (this.mods.IsAutomation
-                          ? GameplayAutoGenerator.Generate(
-                              this.beatmap,
-                              this.mods)
-                          : null);
+        this.replay = replay;
         this.cinemaArtworkPath = cinemaArtworkPath;
         updateGameplayBounds(includeMines: true);
     }
@@ -338,6 +333,13 @@ public partial class GameplayScreen : Screen
             ?? (beatmap.SourceFormat == ChartSourceFormat.Quaver
                 ? JudgementConfiguration.QuaverDefault
                 : gameplaySettings.GetJudgementConfiguration());
+        if (replay == null && mods.IsAutomation)
+        {
+            replay = GameplayAutoGenerator.Generate(
+                beatmap,
+                mods,
+                judgementConfiguration);
+        }
         keyBindings = gameplaySettings.SupportedKeyModes.Contains(
             beatmap.KeyMode)
             ? KeyModeBindings.ForMode(

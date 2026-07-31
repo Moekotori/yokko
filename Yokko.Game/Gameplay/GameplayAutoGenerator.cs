@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
+using Yokko.Core.Scoring;
 
 namespace Yokko.Game.Gameplay;
 
@@ -16,10 +17,12 @@ namespace Yokko.Game.Gameplay;
 internal static class GameplayAutoGenerator
 {
     internal const double ReleaseDelayMilliseconds = 20;
+    internal const double EtternaRollPulseMilliseconds = 250;
 
     public static GameplayReplay Generate(
         YokkoBeatmap beatmap,
-        ManiaModSet mods = null)
+        ManiaModSet mods = null,
+        JudgementConfiguration? judgementConfiguration = null)
     {
         ArgumentNullException.ThrowIfNull(beatmap);
 
@@ -46,6 +49,43 @@ internal static class GameplayAutoGenerator
                 sequence++,
                 current.Lane,
                 true));
+            if (current.Kind == HitObjectKind.Hold
+                && current.HoldType == HoldNoteType.Roll
+                && judgementConfiguration?.Mode
+                == JudgementMode.Etterna
+                && current.EndTimeMilliseconds is double rollEnd)
+            {
+                actionPoints.Add(new ActionPoint(
+                    Math.Min(
+                        current.StartTimeMilliseconds
+                        + ReleaseDelayMilliseconds,
+                        rollEnd),
+                    sequence++,
+                    current.Lane,
+                    false));
+                for (double pulse =
+                         current.StartTimeMilliseconds
+                         + EtternaRollPulseMilliseconds;
+                     pulse < rollEnd;
+                     pulse += EtternaRollPulseMilliseconds)
+                {
+                    actionPoints.Add(new ActionPoint(
+                        pulse,
+                        sequence++,
+                        current.Lane,
+                        true));
+                    actionPoints.Add(new ActionPoint(
+                        Math.Min(
+                            pulse + ReleaseDelayMilliseconds,
+                            rollEnd),
+                        sequence++,
+                        current.Lane,
+                        false));
+                }
+
+                continue;
+            }
+
             actionPoints.Add(new ActionPoint(
                 releaseTime,
                 sequence++,
@@ -60,7 +100,8 @@ internal static class GameplayAutoGenerator
                             point.Lane,
                             point.IsPressed,
                             point.TimeMilliseconds)),
-            mods);
+            mods,
+            judgementConfiguration);
     }
 
     private static YokkoHitObject findNextInLane(

@@ -9,7 +9,8 @@ public sealed record YokkoHitObject
         HitObjectKind Kind,
         string? SampleKey = null,
         string? ScrollProfileId = null,
-        YokkoHitSamplePayload? SamplePayload = null)
+        YokkoHitSamplePayload? SamplePayload = null,
+        HoldNoteType HoldType = HoldNoteType.Standard)
     {
         if (!double.IsFinite(StartTimeMilliseconds))
             throw new ArgumentOutOfRangeException(nameof(StartTimeMilliseconds));
@@ -28,6 +29,12 @@ public sealed record YokkoHitObject
                 "Hold notes require an end time at or after their start time.",
                 nameof(EndTimeMilliseconds));
         }
+        if (!Enum.IsDefined(HoldType)
+            || Kind != HitObjectKind.Hold
+            && HoldType != HoldNoteType.Standard)
+        {
+            throw new ArgumentOutOfRangeException(nameof(HoldType));
+        }
 
         this.Lane = Lane;
         this.StartTimeMilliseconds = StartTimeMilliseconds;
@@ -36,6 +43,7 @@ public sealed record YokkoHitObject
         this.SampleKey = SampleKey;
         this.ScrollProfileId = ScrollProfileId;
         this.SamplePayload = SamplePayload;
+        this.HoldType = HoldType;
     }
 
     public int Lane { get; }
@@ -51,6 +59,8 @@ public sealed record YokkoHitObject
     public string? ScrollProfileId { get; }
 
     public YokkoHitSamplePayload? SamplePayload { get; }
+
+    public HoldNoteType HoldType { get; }
 
     public IReadOnlyList<YokkoHitSample> Samples =>
         SamplePayload?.Samples ?? [];

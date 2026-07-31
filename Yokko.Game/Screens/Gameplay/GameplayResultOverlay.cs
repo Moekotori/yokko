@@ -454,10 +454,11 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 },
                 createMetricCell(
                     judgementConfiguration.Mode == JudgementMode.Etterna
-                        ? "MAX COMBO · CB"
+                        ? "MAX · CB · MISS"
                         : YokkoStrings.Get("gameplay.result.max_combo"),
                     judgementConfiguration.Mode == JudgementMode.Etterna
-                        ? $"{result.MaxCombo} · {result.Ok + result.Meh + result.Miss}"
+                        ? $"{result.MaxCombo} · {result.ComboBreaks}"
+                          + $" · {result.MaxMissCombo}"
                         : result.MaxCombo.ToString(),
                     738,
                     214),

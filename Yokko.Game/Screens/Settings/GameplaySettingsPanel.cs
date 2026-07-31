@@ -975,7 +975,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             new FillFlowContainer
             {
                 Position = new Vector2(20, 74),
-                Size = new Vector2(826, 76),
+                Size = new Vector2(800, 76),
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(14, 0),
                 Children = new Drawable[]
@@ -1001,7 +1001,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             new FillFlowContainer
             {
                 Position = new Vector2(20, 156),
-                Size = new Vector2(826, 76),
+                Size = new Vector2(800, 76),
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(14, 0),
                 Children = new Drawable[]
@@ -1617,10 +1617,22 @@ internal partial class SettingsContentScrollContainer
         : base(Direction.Vertical)
     {
         ScrollbarOverlapsContent = true;
+        ClampExtension = 0;
     }
 
     protected override ScrollbarContainer CreateScrollbar(
         Direction direction) => new SettingsScrollbar(direction);
+
+    protected override bool OnScroll(ScrollEvent e)
+    {
+        if (ScrollableExtent <= 0.5)
+        {
+            ScrollToStart(false);
+            return false;
+        }
+
+        return base.OnScroll(e);
+    }
 
     private partial class SettingsScrollbar : ScrollbarContainer
     {
@@ -2686,7 +2698,7 @@ internal partial class GameplayToggleCard : ClickableContainer
     {
         this.value = value;
         Action = () => value.Value = !value.Value;
-        Size = new Vector2(406, height);
+        Size = new Vector2(393, height);
         Masking = true;
         CornerRadius = 8;
         BorderThickness = 1.2f;

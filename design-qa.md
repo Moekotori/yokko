@@ -80,6 +80,81 @@
 
 final result: passed
 
+---
+
+# Gameplay layout resize editor verification (2026-07-31)
+
+## Evidence
+
+- Source visual truth:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-a5c5267a-a0ea-4053-af5a-ffacf969554c.png`
+- Native Direct3D 11 implementation:
+  `D:\yokko\artifacts\gameplay-layout-editor\layout-editor-resize-implementation.png`
+- Full-view comparison, source left and implementation right:
+  `D:\yokko\artifacts\gameplay-layout-editor\source-left-implementation-right.png`
+- Focused timing-bar comparison, source left and implementation right:
+  `D:\yokko\artifacts\gameplay-layout-editor\timing-bar-source-left-implementation-right.png`
+
+## Viewport, density, and state
+
+- Source: 3200 x 2000 at 2x density.
+- Implementation: 1600 x 1000 at 1x density.
+- The source was downsampled to 1600 x 1000 without cropping before the
+  full-view comparison.
+- State: paused four-key gameplay with layout editor active, Chinese locale,
+  timing bar moved upward/right and resized from its bottom-right handle.
+- Primary interactions checked: pause-menu entry, three draggable targets,
+  24 resize handles, timing-bar move/resize, reset, save/back, and 16:9
+  full-page overview synchronization.
+
+## Comparison history
+
+1. First native capture
+   - P1: the HUD top handles occupied the same region as reset/save.
+   - Fix: moved editor actions into a dedicated left-side toolbar region and
+     raised its input layer.
+2. Second native capture
+   - P1: the full-width toolbar obscured the playfield's top resize handles
+     when the playfield touched the viewport edge.
+   - Fix: reduced the toolbar to the action buttons only, leaving the rest of
+     the top edge available for direct manipulation.
+3. Final native capture
+   - All playfield, HUD, and timing-bar edge/corner handles are visible and
+     separable.
+   - The timing bar remains readable while moved and non-uniformly resized.
+   - The full-page overview reflects the transformed timing-bar bounds.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing Yokko gameplay fonts and weights are
+  preserved; editor labels use the established compact UI type treatment.
+- Spacing and layout rhythm: target frames track the exact rendered bounds;
+  action buttons, target handles, covers, and preview no longer overlap.
+- Colors and visual tokens: existing cyan selection, lime action, navy
+  background, and gameplay judgment-window colors are retained.
+- Image quality and assets: no raster assets were replaced or approximated;
+  the change uses standard editor geometry over the real native gameplay.
+- Copy and content: controls are Chinese and explicitly describe drag/edge
+  resize behavior; reset and save/back remain directly clickable.
+
+## Findings
+
+- P0: none.
+- P1: none after the two fixes above.
+- P2: none.
+- P3: the compact labels are intentionally subtle so they do not cover notes
+  or timing information during layout work.
+
+## Verification
+
+- Focused tests: 24 passed, 0 failed.
+- Isolated build: passed.
+- Shared-worktree build was temporarily blocked by unrelated concurrent
+  SongSelect edits, so final verification used the current HEAD in an
+  isolated worktree with only the layout-editor files overlaid.
+
+final result: passed
+
 # Yokko Song Select whole-page polish QA (2026-07-31)
 
 ## Evidence
@@ -1967,5 +2042,141 @@ final result: passed
 - The shared worktree's current SongSelect compilation errors are unrelated; the final settings files were verified in an isolated worktree.
 
 The focused comparison was required because the final two controls are too small to judge reliably in the full-screen comparison.
+
+final result: passed
+
+---
+
+# Settings gameplay frame refinement (2026-07-31)
+
+## Evidence
+
+- Source state: `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-c27516b7-08f8-47e0-bd1b-73b77f005fa8.png`
+- Boundary defect crop: `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-c6dbf932-9909-4365-be51-6256b0d388ee.png`
+- Final implementation: `C:\Users\mochi\AppData\Local\Temp\yokko-settings-feedback-bounded-final.png`
+- Full comparison: `C:\Users\mochi\AppData\Local\Temp\yokko-settings-feedback-final-comparison.png`
+- Focused before/after comparison: `C:\Users\mochi\AppData\Local\Temp\yokko-settings-feedback-boundary-comparison.png`
+- Viewport: final implementation 1600x1000 at 1x. The 2590x1492 source is a cropped 2x capture and was normalized to 1295x746 before comparison.
+- State: Settings > Gameplay > Feedback, Chinese locale, large UI scale.
+
+## Comparison history
+
+1. The first overflow fix made the current 320px content taller than its 296px viewport. Its almost-full-height cyan scrollbar read as a broken right border.
+2. The viewport and shared panel height were raised to 328px so the current feedback controls fit with 30px bottom padding; scrolling remains latent for genuinely larger future content.
+3. The user then identified that the right side still looked unbounded. The two 406px cards plus 14px gutter occupied 826px; with the 20px left inset they exceeded the 840px parent by 6px and were visibly clipped.
+4. The card grid was corrected to 393px + 14px + 393px = 800px, restoring matching 20px left and right insets. The final focused comparison shows both card borders and the outer panel border without clipping.
+5. The settings-page mascot layer, interaction, animation, sparkles, responsive positioning, and its obsolete layout assertion were removed at the user's request. Other screens and the shared mascot resource were intentionally left untouched for future reuse.
+
+## Required fidelity review
+
+- Fonts and typography: unchanged; Chinese headings, notes, values, and state labels retain the existing type scale and remain fully visible.
+- Spacing and layout rhythm: the feedback frame now reaches the footer cleanly, the two-column cards have symmetric 20px insets, and the final rows retain comfortable bottom padding.
+- Colors and visual tokens: existing navy, cyan, pink, pale-cyan, divider, and ivory tokens are unchanged.
+- Image quality and asset fidelity: no replacement assets were introduced. The settings mascot was intentionally removed rather than altered; logo and decorative assets remain sharp.
+- Copy and content: unchanged. Toggle values and key bindings in the captures reflect live persisted preferences and are not visual regressions.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- P3: none.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- Direct3D 11 settings preview: exited normally and captured at 1600x1000.
+- Shared-worktree compilation remains blocked by unrelated in-progress gameplay layout editor types; the settings changes were therefore verified in an isolated worktree.
+
+final result: passed
+
+---
+
+# Settings interaction stability verification (2026-07-31)
+
+## Evidence
+
+- Reported button defect: `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-4c241004-208a-41b3-8a2d-ffa7690c3b7b.png`
+- Final implementation: `C:\Users\mochi\AppData\Local\Temp\yokko-settings-interaction-stable-final.png`
+- Full-view comparison: `C:\Users\mochi\AppData\Local\Temp\yokko-settings-interaction-final-comparison.png`
+- Focused button comparison: `C:\Users\mochi\AppData\Local\Temp\yokko-settings-button-position-comparison.png`
+- Viewport: final implementation 1600x1000 at 1x. The 968x942 defect image is a focused 2x crop and was normalized to 484x471 before comparing the same sidebar region.
+- State: Settings > Gameplay > Feedback, Chinese locale, large UI scale.
+
+## Comparison history
+
+1. P1 interaction defect: pressing the Back button animated the entire button to absolute `Y=2`, moving it from its 182px layout slot over the logo. The release animation then left it at absolute `Y=0`.
+2. The press animation now records the button's actual resting Y, moves only 2px relative to it, and restores that exact resting position on release.
+3. P1 interaction defect: the Gameplay content scroll container allowed elastic clamp extension even when its content exactly matched the viewport, so wheel input could pull the entire panel into a blank state.
+4. Clamp extension is now zero. Wheel events are rejected and the container is reset to the top when the scrollable extent is at most 0.5px; genuinely overflowing future content remains scrollable.
+
+## Required fidelity review
+
+- Fonts and typography: unchanged; all labels retain the existing family, weights, sizes, line height, and wrapping.
+- Spacing and layout rhythm: the Back button remains in its authored 182px slot through press feedback; the Gameplay panel stays pinned to its frame when content fits.
+- Colors and visual tokens: unchanged.
+- Image quality and asset fidelity: existing logo and decorations remain intact and sharp; no new or replacement assets were introduced.
+- Copy and content: unchanged.
+
+## Findings
+
+- P0: none.
+- P1: none after the two interaction fixes.
+- P2: none.
+- P3: none.
+
+## Verification
+
+- Focused regressions: 2 passed, 0 failed.
+- Scroll regression covers non-overflow rejection, real overflow scrolling, and section-change reset.
+- Button regression locks the pressed position to 184px for the authored 182px resting slot.
+- Isolated `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- Direct3D 11 settings preview: exited normally and captured at 1600x1000.
+- The shared worktree became temporarily uncompilable because of an unrelated concurrent layout-editor edit, so final focused verification was repeated in an isolated worktree at the current committed baseline.
+
+final result: passed
+
+---
+
+# Gameplay layout editor Yokko style verification (2026-07-31)
+
+## Evidence
+
+- Source visual truth: `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-738f6afe-51bf-4566-8e9b-ef56cc12bd5a.jpg`
+- Previous editor structure reference: `D:\yokko\artifacts\gameplay-layout-editor\layout-editor-resize-implementation.png`
+- Final native implementation: `D:\yokko\artifacts\gameplay-layout-editor\layout-editor-yokko-style.png`
+- Side-by-side visual-language comparison: `D:\yokko\artifacts\gameplay-layout-editor\homepage-style-reference-left-editor-right.png`
+- Source pixels: 1920x1200. Implementation pixels and CSS viewport: 1600x1000 at 1x. The source was normalized to 1600x1000 before the 3200x1000 side-by-side comparison.
+- State: paused four-key gameplay with the HUD layout editor open, Chinese locale, timing bar moved and resized.
+
+## Comparison history
+
+1. P1 visual-language mismatch: the first editor used nearly black toolbars and panels, thin generic cyan outlines, and debugger-like microcopy. It worked but did not belong to the white/navy/cyan/yellow Yokko home system.
+2. The top toolbar was rebuilt as an ivory card with navy border, cyan edge and shadow, yellow corner node, Roboto/Yokko typography, and home-style secondary/primary actions with Font Awesome icons.
+3. The preview was rebuilt as an ivory/navy card while preserving the real dark gameplay thumbnail. This keeps the preview readable without falsely turning gameplay into a light theme.
+4. Transform labels now use compact ivory/navy badges. Corner handles use Yokko yellow and edge handles use pale cyan, both with navy borders, so corners and single-axis edges are visually distinguishable.
+5. Top and bottom cover handles now use ivory cards with navy type and cyan/pink semantic edge accents. No illustration, custom SVG, emoji, or ornamental raster asset was added.
+6. Post-fix native capture at 1600x1000 shows the toolbar, all three target frames, all 24 handles, cover bars, and full-page preview without overlap or clipping.
+
+## Required fidelity review
+
+- Fonts and typography: editor titles and actions now use the same Roboto-based home typography with Yokko fallback for Chinese. Hierarchy is compact but no longer debug-console styled.
+- Spacing and layout rhythm: 8px card radii, 1.5px navy borders, cyan offset shadows, compact 56px toolbar, and consistent internal padding match the home control proportions without covering the playfield.
+- Colors and visual tokens: all editor chrome now reuses `HomeControlColours.Navy`, `Cyan`, `PaleCyan`, `Yellow`, `Pink`, and `Ivory`. The gameplay canvas intentionally remains dark.
+- Image quality and asset fidelity: no image asset was required for this functional overlay. Existing gameplay rendering remains live and sharp; standard controls use the bundled Font Awesome icon set.
+- Copy and content: labels are concise Chinese product copy: HUD layout, drag/resize guidance, reset, save and return, element labels, and full-page preview.
+
+## Findings
+
+- P0: none.
+- P1: none after the visual-language rebuild.
+- P2: none.
+- P3: the small editor labels intentionally remain quieter than the home menu because they sit over active gameplay content.
+
+## Verification
+
+- Focused tests: 24 passed, 0 failed.
+- Direct3D 11 native preview: exited normally and captured at 1600x1000.
+- Primary interaction paths retained: move, four-edge resize, four-corner resize, cover adjustment, reset, save and return, and live overview synchronization.
 
 final result: passed

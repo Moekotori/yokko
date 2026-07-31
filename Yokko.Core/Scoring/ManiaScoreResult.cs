@@ -10,4 +10,6 @@ public sealed record ManiaScoreResult(
     int Good,
     int Ok,
     int Meh,
-    int Miss);
+    int Miss,
+    int ComboBreaks = 0,
+    int MaxMissCombo = 0);

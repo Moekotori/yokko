@@ -11,7 +11,10 @@
              Link="JudgementStateTest.cs" />
     <Compile Include="..\..\Yokko.Game.Tests\Core\ManiaHealthStateTest.cs"
              Link="ManiaHealthStateTest.cs" />
+    <Compile Include="..\..\Yokko.Game.Tests\Core\ChartImporterTest.cs"
+             Link="ChartImporterTest.cs" />
     <ProjectReference Include="..\..\Yokko.Core\Yokko.Core.csproj" />
+    <ProjectReference Include="..\..\Yokko.Import\Yokko.Import.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.0.0" />
     <PackageReference Include="NUnit" Version="3.13.3" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.4.2" />

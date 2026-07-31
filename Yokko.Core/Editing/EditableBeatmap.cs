@@ -169,7 +169,8 @@ public sealed class EditableBeatmap
                 hitObject.Kind,
                 hitObject.ScrollProfileId,
                 hitObject.SampleKey,
-                hitObject.SamplePayload));
+                hitObject.SamplePayload,
+                hitObject.HoldType));
         }
 
         editable.sortNotes();
@@ -235,7 +236,8 @@ public sealed class EditableBeatmap
                          note.Kind,
                          note.SampleKey,
                          note.ScrollProfileId,
-                         note.SamplePayload))
+                         note.SamplePayload,
+                         note.HoldType))
                  .Concat(preservedObjects)
                  .OrderBy(static hitObject =>
                      hitObject.StartTimeMilliseconds)

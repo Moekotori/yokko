@@ -420,6 +420,8 @@ internal partial class SettingsOutlineButton : ClickableContainer
     private readonly SpriteIcon icon;
     private readonly SpriteText text;
     private readonly float restingX;
+    private float pressedRestingY;
+    private bool isPressed;
 
     public override bool AcceptsFocus => true;
 
@@ -514,15 +516,29 @@ internal partial class SettingsOutlineButton : ClickableContainer
 
     protected override bool OnMouseDown(MouseDownEvent e)
     {
-        this.MoveToY(2, 300, Easing.OutQuint);
+        if (!isPressed)
+        {
+            pressedRestingY = Y;
+            isPressed = true;
+        }
+
+        this.MoveToY(CalculatePressedY(pressedRestingY), 80, Easing.OutQuint);
         return base.OnMouseDown(e);
     }
 
     protected override void OnMouseUp(MouseUpEvent e)
     {
-        this.MoveToY(0, 200, Easing.OutQuint);
+        if (isPressed)
+        {
+            this.MoveToY(pressedRestingY, 120, Easing.OutQuint);
+            isPressed = false;
+        }
+
         base.OnMouseUp(e);
     }
+
+    internal static float CalculatePressedY(float restingY) =>
+        restingY + 2;
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
