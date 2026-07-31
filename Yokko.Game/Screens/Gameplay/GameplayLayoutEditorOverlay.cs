@@ -27,10 +27,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private const float overviewHeight = 168.75f;
     private const float overviewPadding = 10;
 
-    private readonly GameplayPlayfield playfield;
-    private readonly GameplayHud hud;
+    private GameplayPlayfield playfield;
+    private GameplayHud hud;
     private readonly GameplayTimingBar timingBar;
     private readonly YokkoGameplaySettings settings;
+    private readonly GameplayLayoutEditorLiveSettings liveSettings;
+    private readonly Action beginTestPlay;
     private readonly Action save;
     private readonly Action close;
     private readonly LayoutTransformTarget playfieldTarget;
@@ -40,6 +42,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private readonly CoverDragHandle bottomCoverHandle;
     private readonly Stack<LayoutSnapshot> undoHistory = new();
     private readonly Stack<LayoutSnapshot> redoHistory = new();
+    private readonly Container editorChrome;
     private Container overviewContent;
     private Container miniPlayfield;
     private Container miniHud;
@@ -48,10 +51,21 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private Box miniBottomCover;
     private LayoutActionButton undoButton;
     private LayoutActionButton redoButton;
+    private SpriteText editorHint;
     private LayoutTransformTarget selectedTarget;
     private LayoutSnapshot sessionStart;
 
     internal bool IsEditing { get; private set; }
+
+    internal bool IsTestingLayout { get; private set; }
+
+    internal bool IsSessionActive => IsEditing || IsTestingLayout;
+
+    internal bool IsChromeVisible { get; private set; } = true;
+
+    internal bool IsChromeVisibleForTest => IsChromeVisible;
+
+    internal float ChromeAlphaForTest => editorChrome.Alpha;
 
     internal float OverviewAspectRatio =>
         overviewContent.Width / overviewContent.Height;
@@ -90,6 +104,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         GameplayHud hud,
         GameplayTimingBar timingBar,
         YokkoGameplaySettings settings,
+        GameplayLayoutEditorLiveSettings liveSettings,
+        Action beginTestPlay,
         Action save,
         Action close)
     {
@@ -97,6 +113,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         this.hud = hud;
         this.timingBar = timingBar;
         this.settings = settings;
+        this.liveSettings = liveSettings;
+        this.beginTestPlay = beginTestPlay;
         this.save = save;
         this.close = close;
 
@@ -104,77 +122,92 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         Depth = -2000;
         Alpha = 0;
 
-        InternalChildren = new Drawable[]
+        InternalChild = editorChrome = new Container
         {
-            new Box
+            RelativeSizeAxes = Axes.Both,
+            Children = new Drawable[]
             {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(
-                    HomeControlColours.Navy.R,
-                    HomeControlColours.Navy.G,
-                    HomeControlColours.Navy.B,
-                    0.055f),
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.055f),
+                },
+                verticalSnapGuide = createSnapGuide(true),
+                horizontalSnapGuide = createSnapGuide(false),
+                createTopBar(),
+                playfieldTarget = new LayoutTransformTarget(
+                    this,
+                    LayoutElementKind.Playfield,
+                    YokkoStrings.Get("gameplay.layout_editor.playfield"),
+                    movePlayfield,
+                    resizePlayfield,
+                    resetPlayfield,
+                    beginChange,
+                    selectTarget,
+                    snapTargetMove,
+                    clearSnapGuides,
+                    resizePlayfieldWithWheel),
+                hudTarget = new LayoutTransformTarget(
+                    this,
+                    LayoutElementKind.Hud,
+                    YokkoStrings.Get("gameplay.layout_editor.hud"),
+                    moveHud,
+                    resizeHud,
+                    resetHud,
+                    beginChange,
+                    selectTarget,
+                    snapTargetMove,
+                    clearSnapGuides),
+                timingBarTarget = new LayoutTransformTarget(
+                    this,
+                    LayoutElementKind.TimingBar,
+                    YokkoStrings.Get("gameplay.layout_editor.timing_bar"),
+                    moveTimingBar,
+                    resizeTimingBar,
+                    resetTimingBar,
+                    beginChange,
+                    selectTarget,
+                    snapTargetMove,
+                    clearSnapGuides),
+                topCoverHandle = new CoverDragHandle(
+                    this,
+                    "TOP COVER",
+                    updateTopCover,
+                    beginChange),
+                bottomCoverHandle = new CoverDragHandle(
+                    this,
+                    "BOTTOM COVER",
+                    updateBottomCover,
+                    beginChange),
+                createOverviewCard(),
+                createInspectorCard(),
+                createCoverPanel(),
+                createLiveSettingsCard(),
             },
-            verticalSnapGuide = createSnapGuide(true),
-            horizontalSnapGuide = createSnapGuide(false),
-            createTopBar(),
-            playfieldTarget = new LayoutTransformTarget(
-                this,
-                LayoutElementKind.Playfield,
-                YokkoStrings.Get("gameplay.layout_editor.playfield"),
-                movePlayfield,
-                resizePlayfield,
-                resetPlayfield,
-                beginChange,
-                selectTarget,
-                snapTargetMove,
-                clearSnapGuides,
-                resizePlayfieldWithWheel),
-            hudTarget = new LayoutTransformTarget(
-                this,
-                LayoutElementKind.Hud,
-                YokkoStrings.Get("gameplay.layout_editor.hud"),
-                moveHud,
-                resizeHud,
-                resetHud,
-                beginChange,
-                selectTarget,
-                snapTargetMove,
-                clearSnapGuides),
-            timingBarTarget = new LayoutTransformTarget(
-                this,
-                LayoutElementKind.TimingBar,
-                YokkoStrings.Get("gameplay.layout_editor.timing_bar"),
-                moveTimingBar,
-                resizeTimingBar,
-                resetTimingBar,
-                beginChange,
-                selectTarget,
-                snapTargetMove,
-                clearSnapGuides),
-            topCoverHandle = new CoverDragHandle(
-                this,
-                "TOP COVER",
-                updateTopCover,
-                beginChange),
-            bottomCoverHandle = new CoverDragHandle(
-                this,
-                "BOTTOM COVER",
-                updateBottomCover,
-                beginChange),
-            createOverviewCard(),
-            createInspectorCard(),
-            createCoverPanel(),
         };
+
+        settings.ToggleLayoutEditorUiKey.ValueChanged +=
+            _ => updateEditorHint();
+        updateEditorHint();
     }
 
     internal void SetEditing(bool editing)
     {
+        if (editing && IsSessionActive)
+            return;
+
+        bool hadActiveSession = IsSessionActive;
         IsEditing = editing;
+        IsTestingLayout = false;
         ClearTransforms();
 
         if (editing)
         {
+            setChromeVisible(true, animate: false);
             sessionStart = captureLayout();
             undoHistory.Clear();
             redoHistory.Clear();
@@ -183,11 +216,67 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             updateHistoryButtons();
             this.FadeTo(1, 100, Easing.OutQuint);
         }
-        else
+        else if (hadActiveSession)
         {
+            setChromeVisible(true, animate: false);
             endEditorSession();
             selectTarget(null);
             this.FadeTo(0, 100, Easing.OutQuint);
+        }
+    }
+
+    internal void BeginTestPlay()
+    {
+        if (!IsEditing)
+            return;
+
+        IsEditing = false;
+        IsTestingLayout = true;
+        ClearTransforms();
+        restoreOriginalAlpha(LayoutElementKind.Playfield);
+        restoreOriginalAlpha(LayoutElementKind.Hud);
+        restoreOriginalAlpha(LayoutElementKind.TimingBar);
+        this.FadeTo(0, 90, Easing.OutQuint);
+    }
+
+    internal void EndTestPlay()
+    {
+        if (!IsTestingLayout)
+            return;
+
+        IsTestingLayout = false;
+        IsEditing = true;
+        setChromeVisible(true, animate: false);
+        applyElementAlpha(
+            LayoutElementKind.Playfield,
+            playfieldTarget.EditorHidden);
+        applyElementAlpha(
+            LayoutElementKind.Hud,
+            hudTarget.EditorHidden);
+        applyElementAlpha(
+            LayoutElementKind.TimingBar,
+            timingBarTarget.EditorHidden);
+        this.FadeTo(1, 100, Easing.OutQuint);
+    }
+
+    internal void ReplaceTargets(
+        GameplayPlayfield nextPlayfield,
+        GameplayHud nextHud)
+    {
+        playfield = nextPlayfield
+                    ?? throw new ArgumentNullException(
+                        nameof(nextPlayfield));
+        hud = nextHud
+              ?? throw new ArgumentNullException(nameof(nextHud));
+
+        if (IsEditing)
+        {
+            applyElementAlpha(
+                LayoutElementKind.Playfield,
+                playfieldTarget.EditorHidden);
+            applyElementAlpha(
+                LayoutElementKind.Hud,
+                hudTarget.EditorHidden);
         }
     }
 
@@ -209,9 +298,28 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         settings.ResetGameplayLayout();
     }
 
+    internal void ToggleChrome()
+    {
+        if (!IsEditing)
+            return;
+
+        setChromeVisible(!IsChromeVisible, animate: true);
+    }
+
     protected override bool OnKeyDown(KeyDownEvent e)
     {
         if (!IsEditing)
+            return false;
+
+        if (!e.Repeat
+            && e.Key == settings.GetShortcutBinding(
+                ManiaShortcutAction.ToggleLayoutEditorUi))
+        {
+            ToggleChrome();
+            return true;
+        }
+
+        if (!IsChromeVisible)
             return false;
 
         if (!e.Repeat
@@ -291,7 +399,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     protected override bool OnMouseDown(MouseDownEvent e)
     {
-        if (e.Button != MouseButton.Left)
+        if (!IsChromeVisible || e.Button != MouseButton.Left)
             return false;
 
         return true;
@@ -302,6 +410,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         base.Update();
 
         if (!IsEditing
+            || !IsChromeVisible
             || DrawWidth <= 0
             || DrawHeight <= 0)
         {
@@ -364,14 +473,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         new Container
         {
             Position = new Vector2(16, 14),
-            Size = new Vector2(764, 68),
+            Size = new Vector2(864, 68),
             Depth = -100,
             Children = new Drawable[]
             {
                 new Container
                 {
                     Position = new Vector2(4, 4),
-                    Size = new Vector2(760, 64),
+                    Size = new Vector2(860, 64),
                     Masking = true,
                     CornerRadius = 8,
                     Child = new Box
@@ -386,7 +495,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 },
                 new Container
                 {
-                    Size = new Vector2(760, 64),
+                    Size = new Vector2(860, 64),
                     Masking = true,
                     CornerRadius = 8,
                     BorderThickness = 1.5f,
@@ -425,12 +534,17 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                 {
                                     Text = YokkoStrings.Get(
                                         "gameplay.layout_editor.hint"),
-                                    Font = LayoutEditorTypography.Regular(9),
+                                    Font = LayoutEditorTypography.Regular(9.5f),
                                     Colour = new Color4(
                                         HomeControlColours.Navy.R,
                                         HomeControlColours.Navy.G,
                                         HomeControlColours.Navy.B,
                                         0.64f),
+                                },
+                                editorHint = new SpriteText
+                                {
+                                    Font = LayoutEditorTypography.Bold(9.5f),
+                                    Colour = HomeControlColours.Pink,
                                 },
                             },
                         },
@@ -478,6 +592,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                 },
                                 new LayoutActionButton(
                                     YokkoStrings.Get(
+                                        "gameplay.layout_editor.test_play"),
+                                    FontAwesome.Solid.Play,
+                                    beginTestPlay)
+                                {
+                                    Width = 92,
+                                },
+                                new LayoutActionButton(
+                                    YokkoStrings.Get(
                                         "gameplay.layout_editor.save"),
                                     FontAwesome.Solid.Check,
                                     SaveAndClose,
@@ -500,6 +622,41 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 },
             },
         };
+
+    private void setChromeVisible(bool visible, bool animate)
+    {
+        IsChromeVisible = visible;
+        editorChrome.ClearTransforms();
+
+        if (animate)
+        {
+            editorChrome.FadeTo(
+                visible ? 1 : 0,
+                visible ? 100 : 80,
+                Easing.OutQuint);
+        }
+        else
+        {
+            editorChrome.Alpha = visible ? 1 : 0;
+        }
+
+        if (!visible)
+            clearSnapGuides();
+    }
+
+    private void updateEditorHint()
+    {
+        if (editorHint == null)
+            return;
+
+        string key = KeyModeBindings.FormatKey(
+                settings.GetShortcutBinding(
+                    ManiaShortcutAction.ToggleLayoutEditorUi))
+            .ToUpperInvariant();
+        editorHint.Text = YokkoStrings.Get(
+            "gameplay.layout_editor.hide_hint",
+            key);
+    }
 
     private Drawable createOverviewCard()
     {

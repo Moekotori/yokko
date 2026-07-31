@@ -30,6 +30,7 @@ public enum ManiaScrollDirection
 public enum ManiaShortcutAction
 {
     PauseOrBack,
+    ToggleLayoutEditorUi,
     SkipIntro,
     QuickRetry,
     DecreaseScrollSpeed,
@@ -64,6 +65,7 @@ public sealed class YokkoGameplaySettings
         PauseMenu = 4,
         Failure = 8,
         Results = 16,
+        LayoutEditor = 32,
     }
 
     private static readonly ManiaShortcutAction[] supportedShortcutActions =
@@ -221,6 +223,9 @@ public sealed class YokkoGameplaySettings
     public readonly Bindable<Key> IncreaseScrollSpeedKey = new(Key.F4);
 
     public readonly Bindable<Key> PauseOrBackKey = new(Key.Escape);
+
+    public readonly Bindable<Key> ToggleLayoutEditorUiKey =
+        new(Key.BackSlash);
 
     public readonly Bindable<Key> SkipIntroKey = new(Key.Space);
 
@@ -515,6 +520,8 @@ public sealed class YokkoGameplaySettings
         action switch
         {
             ManiaShortcutAction.PauseOrBack => PauseOrBackKey,
+            ManiaShortcutAction.ToggleLayoutEditorUi =>
+                ToggleLayoutEditorUiKey,
             ManiaShortcutAction.SkipIntro => SkipIntroKey,
             ManiaShortcutAction.QuickRetry => QuickRetryKey,
             ManiaShortcutAction.DecreaseScrollSpeed =>
@@ -538,6 +545,7 @@ public sealed class YokkoGameplaySettings
         action switch
         {
             ManiaShortcutAction.PauseOrBack => Key.Escape,
+            ManiaShortcutAction.ToggleLayoutEditorUi => Key.BackSlash,
             ManiaShortcutAction.SkipIntro => Key.Space,
             ManiaShortcutAction.QuickRetry => Key.Tilde,
             ManiaShortcutAction.DecreaseScrollSpeed => Key.F3,
@@ -562,6 +570,8 @@ public sealed class YokkoGameplaySettings
                 | ShortcutContext.PauseMenu
                 | ShortcutContext.Failure
                 | ShortcutContext.Results,
+            ManiaShortcutAction.ToggleLayoutEditorUi =>
+                ShortcutContext.LayoutEditor,
             ManiaShortcutAction.SkipIntro => ShortcutContext.Intro,
             ManiaShortcutAction.QuickRetry
                 or ManiaShortcutAction.DecreaseScrollSpeed

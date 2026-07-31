@@ -2227,3 +2227,78 @@ final result: passed
 - A later broad rebuild of the concurrently edited shared tree was blocked by unrelated in-progress changes in `SkinSettingsPanel.cs` and a `GameplayScrollVelocityTest`/`DrawableNote` API mismatch; those files were not changed for this result-overlay pass.
 
 final result: passed
+
+---
+
+# Gameplay Mods footer option 1 QA (2026-07-31)
+
+## Evidence
+
+- Selected source visual:
+  `C:\Users\mochi\.codex\generated_images\019fb72c-4c90-73c0-8b44-35807879ec2f\call_IHh6LBcdS7126znzk0JEpQ4H.png`
+- Final native implementation:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-pass2.png`
+- Same-input focused comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-comparison.png`
+
+## Viewport, density, and state
+
+- Source image: 1391 x 1131. Its authored footer occupies y=387..709,
+  producing a 1391 x 323 focused crop.
+- The source crop was normalized proportionally to 1600 x 372 for comparison;
+  no horizontal crop or stretch was applied.
+- Native implementation: 1600 x 1000 at 1x. The real footer occupies the
+  exact 1600 x 130 bottom region.
+- The source is an intentionally tall concept study. Production preserves its
+  hierarchy and component language inside Yokko's real 130px footer instead
+  of increasing the footer and reducing gameplay workspace height.
+- State: Chinese locale, Difficulty Increase page, active gameplay Mods, and
+  1.00x rate.
+
+## Comparison history
+
+1. Pass 1 established the selected three-control composition and removed the
+   old microcopy-heavy footer treatment.
+2. Focused review found P2 legibility mismatches: Back and Done labels were
+   still too timid, and the icon-only Reset control did not have enough visual
+   weight.
+3. The Back card increased from 310 to 330 units, its label from 30 to 36,
+   Done from 34 to 42, Reset from 32 to 38, and Play from 34 to 36.
+4. Pass 2 confirms that all three actions are immediately distinguishable,
+   with no clipping, overlap, or accidental bottom whitespace.
+
+## Required fidelity review
+
+- Typography: Back and Done now use large bold Chinese labels. Reset contains
+  no redundant text, matching the selected source and user request.
+- Spacing and layout: Back anchors the left, Reset is isolated at the centre,
+  and Done remains the dominant right-side action. All controls are vertically
+  centred within the real footer.
+- Colors and tokens: the implementation uses Yokko's production cyan, ivory,
+  navy, pink, and yellow palette.
+- Icons and assets: Play, Undo, and Chevron use the project's standard Font
+  Awesome icon source. Their sizes and semantic colors match the selected
+  visual hierarchy.
+- Shape language: ivory/navy surfaces use clipped corner cuts, thin technical
+  separators, a pink primary underline, and restrained yellow/pink markers.
+- Copy and interaction: Back and Done retain live localized labels; Reset is
+  icon-only with its existing action behavior. Hover and press feedback remain
+  component-native and do not reflow the footer.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after the pass-2 size refinement.
+- P3: the concept's tall outer guide frames were reduced to dividers and small
+  markers so they do not compete with controls in the 130px production bar.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- Focused responsive footer tests: 4 passed, 0 failed.
+- Native Direct3D 11 capture: 1600 x 1000, Chinese locale.
+- The selected source and production footer were reviewed together in the
+  comparison image above.
+
+final result: passed

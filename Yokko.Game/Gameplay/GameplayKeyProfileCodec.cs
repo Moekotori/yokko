@@ -154,12 +154,27 @@ internal static class GameplayKeyProfileCodec
             }
         }
 
-        if (decoded.Count != settings.SupportedShortcutActions.Count
-            || settings.SupportedShortcutActions.Any(
-                action => !decoded.ContainsKey(action)))
+        ManiaShortcutAction[] missingActions =
+            settings.SupportedShortcutActions
+                .Where(action => !decoded.ContainsKey(action))
+                .ToArray();
+        bool isLegacyLayoutEditorProfile =
+            missingActions.Length == 1
+            && missingActions[0]
+                == ManiaShortcutAction.ToggleLayoutEditorUi;
+        if (decoded.Count > settings.SupportedShortcutActions.Count
+            || (!isLegacyLayoutEditorProfile
+                && missingActions.Length > 0))
         {
             throw new FormatException(
                 "The Mania shortcut profile is incomplete.");
+        }
+
+        if (isLegacyLayoutEditorProfile)
+        {
+            decoded[ManiaShortcutAction.ToggleLayoutEditorUi] =
+                settings.GetDefaultShortcutBinding(
+                    ManiaShortcutAction.ToggleLayoutEditorUi);
         }
 
         return decoded;

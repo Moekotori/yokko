@@ -20,6 +20,7 @@ namespace Yokko.Game.Screens.Settings;
 internal enum ManiaShortcutPage
 {
     Gameplay,
+    Editor,
     Menu,
     Results,
 }
@@ -311,6 +312,14 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
                 IsSelected = shortcutPage == ManiaShortcutPage.Results,
             },
             new GameplayCompactButton(
+                YokkoStrings.Get("settings.gameplay.shortcuts_editor"),
+                () => SelectShortcutPage(ManiaShortcutPage.Editor),
+                126)
+            {
+                Position = new Vector2(422, 10),
+                IsSelected = shortcutPage == ManiaShortcutPage.Editor,
+            },
+            new GameplayCompactButton(
                 resetAllButtonLabel(),
                 RequestResetShortcutBindings,
                 176,
@@ -418,6 +427,10 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
                 ManiaShortcutAction.DecreaseScrollSpeed,
                 ManiaShortcutAction.IncreaseScrollSpeed,
             ],
+            ManiaShortcutPage.Editor =>
+            [
+                ManiaShortcutAction.ToggleLayoutEditorUi,
+            ],
             ManiaShortcutPage.Menu =>
             [
                 ManiaShortcutAction.MenuPrevious,
@@ -441,6 +454,8 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
         {
             ManiaShortcutAction.PauseOrBack =>
                 "settings.gameplay.shortcut_pause_back",
+            ManiaShortcutAction.ToggleLayoutEditorUi =>
+                "settings.gameplay.shortcut_toggle_layout_editor_ui",
             ManiaShortcutAction.SkipIntro =>
                 "settings.gameplay.shortcut_skip_intro",
             ManiaShortcutAction.QuickRetry =>

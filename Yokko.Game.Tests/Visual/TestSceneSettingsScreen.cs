@@ -690,6 +690,22 @@ namespace Yokko.Game.Tests.Visual
                     ManiaShortcutAction.PauseOrBack);
                 shortcuts.HandleKeyDown(Key.F10);
             });
+            AddStep("open editor shortcuts", () =>
+                shortcuts.SelectShortcutPage(ManiaShortcutPage.Editor));
+            AddAssert("editor shortcut page selected", () =>
+                shortcuts.CurrentShortcutPage == ManiaShortcutPage.Editor);
+            AddStep("customise layout editor UI toggle", () =>
+            {
+                shortcuts.BeginShortcutCapture(
+                    ManiaShortcutAction.ToggleLayoutEditorUi);
+                shortcuts.HandleKeyDown(Key.H);
+            });
+            AddAssert("layout editor shortcut is editable", () =>
+                shortcuts.GetShortcutBinding(
+                    ManiaShortcutAction.ToggleLayoutEditorUi) == Key.H);
+            AddStep("restore layout editor shortcut", () =>
+                shortcuts.ResetShortcutBinding(
+                    ManiaShortcutAction.ToggleLayoutEditorUi));
             AddStep("open results shortcuts", () =>
                 shortcuts.SelectShortcutPage(ManiaShortcutPage.Results));
             AddAssert("results shortcut page selected", () =>

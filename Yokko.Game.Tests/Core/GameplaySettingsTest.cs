@@ -82,6 +82,9 @@ public sealed class GameplaySettingsTest
         Assert.That(settings.DecreaseScrollSpeedKey.Value, Is.EqualTo(Key.F3));
         Assert.That(settings.IncreaseScrollSpeedKey.Value, Is.EqualTo(Key.F4));
         Assert.That(settings.PauseOrBackKey.Value, Is.EqualTo(Key.Escape));
+        Assert.That(
+            settings.ToggleLayoutEditorUiKey.Value,
+            Is.EqualTo(Key.BackSlash));
         Assert.That(settings.SkipIntroKey.Value, Is.EqualTo(Key.Space));
         Assert.That(settings.QuickRetryKey.Value, Is.EqualTo(Key.Tilde));
         Assert.That(settings.MenuPreviousKey.Value, Is.EqualTo(Key.Up));
@@ -94,7 +97,7 @@ public sealed class GameplaySettingsTest
         Assert.That(settings.ConfirmAlternateKey.Value, Is.EqualTo(Key.Space));
         Assert.That(settings.RetryKey.Value, Is.EqualTo(Key.R));
         Assert.That(settings.WatchReplayKey.Value, Is.EqualTo(Key.V));
-        Assert.That(settings.SupportedShortcutActions, Has.Count.EqualTo(13));
+        Assert.That(settings.SupportedShortcutActions, Has.Count.EqualTo(14));
     }
 
     [Test]
@@ -205,6 +208,14 @@ public sealed class GameplaySettingsTest
             Key.F3);
         Assert.That(settings.SkipIntroKey.Value, Is.EqualTo(Key.F3));
         Assert.That(settings.DecreaseScrollSpeedKey.Value, Is.EqualTo(Key.F3));
+
+        settings.SetShortcutBinding(
+            ManiaShortcutAction.PauseOrBack,
+            Key.BackSlash);
+        Assert.That(settings.PauseOrBackKey.Value, Is.EqualTo(Key.BackSlash));
+        Assert.That(
+            settings.ToggleLayoutEditorUiKey.Value,
+            Is.EqualTo(Key.BackSlash));
     }
 
     [Test]
@@ -459,6 +470,9 @@ public sealed class GameplaySettingsTest
                 firstSettings.SetShortcutBinding(
                     ManiaShortcutAction.QuickRetry,
                     Key.F11);
+                firstSettings.SetShortcutBinding(
+                    ManiaShortcutAction.ToggleLayoutEditorUi,
+                    Key.H);
                 firstSettings.SetScrollTimeMilliseconds(700);
                 firstSettings.ScrollSpeedAdjustmentMode.Value =
                     ScrollSpeedAdjustmentMode.Milliseconds;
@@ -521,6 +535,9 @@ public sealed class GameplaySettingsTest
                 Assert.That(
                     restoredSettings.QuickRetryKey.Value,
                     Is.EqualTo(Key.F11));
+                Assert.That(
+                    restoredSettings.ToggleLayoutEditorUiKey.Value,
+                    Is.EqualTo(Key.H));
                 Assert.That(
                     OsuManiaScrollSpeed.ComputeScrollTime(
                         restoredSettings.ScrollSpeed.Value),
@@ -716,6 +733,26 @@ public sealed class GameplaySettingsTest
                 Is.EqualTo(source.GetShortcutBinding(action)),
                 action.ToString());
         }
+    }
+
+    [Test]
+    public void KeyProfileBeforeLayoutEditorShortcutStillImports()
+    {
+        var source = new YokkoGameplaySettings();
+        source.SetBinding(KeyMode.FourKey, 0, Key.Z);
+        string legacyV3 = GameplayKeyProfileCodec.Encode(source)
+            .Replace(
+                ",ToggleLayoutEditorUi:BackSlash",
+                string.Empty,
+                StringComparison.Ordinal);
+
+        var restored = new YokkoGameplaySettings();
+        GameplayKeyProfileCodec.DecodeAndApply(legacyV3, restored);
+
+        Assert.That(restored.GetKeys(KeyMode.FourKey)[0], Is.EqualTo(Key.Z));
+        Assert.That(
+            restored.ToggleLayoutEditorUiKey.Value,
+            Is.EqualTo(Key.BackSlash));
     }
 
     [Test]

@@ -979,6 +979,78 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("HUD visibility is restored", () =>
                 !layoutEditor.HudHiddenForTest
                 && gameplayHud.Alpha > 0);
+            double originalScrollSpeed = 0;
+            ManiaScrollDirection originalScrollDirection =
+                ManiaScrollDirection.Downscroll;
+            AddStep("change live scroll settings", () =>
+            {
+                originalScrollSpeed = gameplaySettings.ScrollSpeed.Value;
+                originalScrollDirection =
+                    gameplaySettings.ScrollDirection.Value;
+                gameplayScreen.SetLayoutEditorScrollSpeedForTest(12);
+                gameplayScreen.SetLayoutEditorScrollDirectionForTest(
+                    ManiaScrollDirection.Upscroll);
+            });
+            AddUntilStep("scroll settings update inside editor", () =>
+                Math.Abs(
+                    gameplayScreen.AppliedScrollSpeedForTest - 12) < 0.001
+                && gameplayScreen.LayoutEditorScrollDirectionForTest
+                == ManiaScrollDirection.Upscroll);
+            AddStep("restore live scroll settings", () =>
+            {
+                gameplayScreen.SetLayoutEditorScrollSpeedForTest(
+                    originalScrollSpeed);
+                gameplayScreen.SetLayoutEditorScrollDirectionForTest(
+                    originalScrollDirection);
+            });
+            AddUntilStep("live scroll settings restore cleanly", () =>
+                Math.Abs(
+                    gameplayScreen.AppliedScrollSpeedForTest
+                    - originalScrollSpeed) < 0.001
+                && gameplayScreen.LayoutEditorScrollDirectionForTest
+                == originalScrollDirection);
+            AddUntilStep("rebuilt HUD is ready", () =>
+            {
+                GameplayHud[] huds = gameplayScreen
+                    .ChildrenOfType<GameplayHud>()
+                    .ToArray();
+                if (huds.Length != 1)
+                    return false;
+
+                gameplayHud = huds[0];
+                return gameplayHud.IsLoaded;
+            });
+            AddStep("customise editor UI toggle shortcut", () =>
+                gameplaySettings.SetShortcutBinding(
+                    ManiaShortcutAction.ToggleLayoutEditorUi,
+                    Key.H));
+            AddStep("press custom shortcut to hide editor UI", () =>
+                gameplayScreen.HandleKeyDownInput(
+                    Key.H,
+                    false,
+                    false,
+                    false));
+            AddUntilStep("editor UI hides without leaving the session", () =>
+                !layoutEditor.IsChromeVisibleForTest
+                && layoutEditor.ChromeAlphaForTest < 0.01f
+                && layoutEditor.IsEditing
+                && gameplayScreen.IsLayoutEditing
+                && gameplayScreen.IsPaused);
+            AddStep("press custom shortcut again to restore editor UI", () =>
+                gameplayScreen.HandleKeyDownInput(
+                    Key.H,
+                    false,
+                    false,
+                    false));
+            AddUntilStep("editor UI restores in the same session", () =>
+                layoutEditor.IsChromeVisibleForTest
+                && layoutEditor.ChromeAlphaForTest > 0.99f
+                && layoutEditor.IsEditing
+                && gameplayScreen.IsLayoutEditing
+                && gameplayScreen.IsPaused);
+            AddStep("restore editor shortcut default", () =>
+                gameplaySettings.ResetShortcutBinding(
+                    ManiaShortcutAction.ToggleLayoutEditorUi));
             float requestedSnapDelta = 0;
             Vector2 snappedDelta = Vector2.Zero;
             Vector2 bypassedDelta = Vector2.Zero;
@@ -1026,6 +1098,34 @@ namespace Yokko.Game.Tests.Visual
                 && timingBar.Position.Y < -30
                 && timingBar.Scale.X > 1.15f
                 && timingBar.Scale.Y > 1.2f);
+            double testPlayOffset = 0;
+            AddStep("prepare unsaved layout test play", () =>
+            {
+                gameplayScreen.ResumeCountdownMillisecondsOverride = 0;
+                layoutEditor.MoveTimingBarForTest(new Vector2(40, 0));
+                testPlayOffset =
+                    gameplaySettings.LayoutTimingBarOffsetX.Value;
+                gameplayScreen.BeginLayoutTestPlayForTest();
+            });
+            AddUntilStep("test play resumes without editor chrome", () =>
+                gameplayScreen.IsLayoutTestPlaying
+                && !gameplayScreen.IsPaused
+                && !layoutEditor.IsEditing);
+            AddStep("Escape returns to layout editor", () =>
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Escape,
+                    false,
+                    false,
+                    false));
+            AddUntilStep("layout editor returns paused", () =>
+                gameplayScreen.IsPaused
+                && gameplayScreen.IsLayoutEditing
+                && !gameplayScreen.IsLayoutTestPlaying
+                && layoutEditor.IsEditing);
+            AddAssert("test play keeps unsaved layout", () =>
+                Math.Abs(
+                    gameplaySettings.LayoutTimingBarOffsetX.Value
+                    - testPlayOffset) < 0.000001);
             AddStep("restore layout defaults", () =>
                 gameplaySettings.ResetGameplayLayout());
             AddStep("save layout and return", () =>

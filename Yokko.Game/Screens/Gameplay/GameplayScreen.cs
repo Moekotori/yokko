@@ -142,6 +142,7 @@ public partial class GameplayScreen : Screen
     private GameplayReplay completedReplay;
     private float playfieldWidthScale = 1;
     private GameHost host;
+    private IRenderer renderer;
     private bool isPaused;
     private bool pauseTransitionInProgress;
     private bool resumeCountdownInProgress;
@@ -191,7 +192,10 @@ public partial class GameplayScreen : Screen
         completionTransitionElapsedMilliseconds;
     internal bool GameplayFailed => gameplayFailed;
     internal bool IsPaused => isPaused;
-    internal bool IsLayoutEditing => layoutEditor?.IsEditing == true;
+    internal bool IsLayoutEditing =>
+        layoutEditor?.IsSessionActive == true;
+    internal bool IsLayoutTestPlaying =>
+        layoutEditor?.IsTestingLayout == true;
     internal float LayoutOverviewAspectRatio =>
         layoutEditor?.OverviewAspectRatio ?? 0;
     internal bool PauseTransitionInProgress => pauseTransitionInProgress;
@@ -327,6 +331,7 @@ public partial class GameplayScreen : Screen
     [BackgroundDependencyLoader]
     private void load(IRenderer renderer, GameHost host)
     {
+        this.renderer = renderer;
         this.host = host;
         minesEnabled = gameplaySettings.MinesEnabled.Value;
         updateGameplayBounds(minesEnabled);
@@ -425,46 +430,11 @@ public partial class GameplayScreen : Screen
                 Colour = YokkoPalette.Background,
                 RelativeSizeAxes = Axes.Both,
             },
-            playfield = new GameplayPlayfield(
-                beatmap,
-                keyBindings,
-                maniaSkin,
-                computeApproachTime(
-                    gameplaySettings.ScrollSpeed.Value,
-                    currentPlaybackRate(0)),
-                gameplaySettings.ShowLanePressFeedback.Value,
-                mods,
-                minesEnabled,
-                skinSettings?.ShowComboBursts.Value != false,
-                skinSettings?.LongNoteCutEnabled.Value == true
-                    ? Math.Clamp(
-                        skinSettings.LongNoteCutAmount.Value,
-                        YokkoSkinSettings.MinimumLongNoteCutAmount,
-                        YokkoSkinSettings.MaximumLongNoteCutAmount)
-                    : 0,
-                gameplaySettings.ScrollDirection.Value)
-            {
-                Anchor = Anchor.BottomCentre,
-                Origin = Anchor.BottomCentre,
-                // Legacy osu!mania values already use the skin's 480px
-                // coordinate space. Scale the complete stage uniformly to the
-                // available height so it stays grounded without distorting
-                // skin geometry.
-                Scale = Vector2.One,
-            },
+            playfield = createGameplayPlayfield(),
             laneCovers = new GameplayLaneCovers(
                 playfield,
                 gameplaySettings),
-            hud = new GameplayHud(
-                beatmap,
-                mods,
-                judgementConfiguration,
-                playfield.HasSkinHealthBar)
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                Position = new Vector2(-20, 20),
-            },
+            hud = createGameplayHud(playfield),
             judgementReadout = new JudgementReadout(
                 configuration: judgementConfiguration)
             {
@@ -504,6 +474,8 @@ public partial class GameplayScreen : Screen
                 hud,
                 timingBar,
                 gameplaySettings,
+                createLayoutEditorLiveSettings(),
+                beginLayoutTestPlay,
                 saveGameplayLayout,
                 closeGameplayLayoutEditor),
         };
@@ -829,9 +801,26 @@ public partial class GameplayScreen : Screen
         if (retryTransitionInProgress)
             return true;
 
+        if (layoutEditor?.IsTestingLayout == true
+            && !repeat
+            && matchesShortcut(
+                ManiaShortcutAction.PauseOrBack,
+                key))
+        {
+            _ = returnToLayoutEditorFromTestAsync();
+            return true;
+        }
+
         if (layoutEditor?.IsEditing == true)
         {
-            if (!repeat && key == Key.Enter)
+            if (!repeat
+                && matchesShortcut(
+                    ManiaShortcutAction.ToggleLayoutEditorUi,
+                    key))
+            {
+                layoutEditor.ToggleChrome();
+            }
+            else if (!repeat && key == Key.Enter)
                 layoutEditor.SaveAndClose();
             else if (!repeat && key == Key.Escape)
                 layoutEditor.CancelAndClose();
@@ -2152,6 +2141,7 @@ public partial class GameplayScreen : Screen
         finally
         {
             pauseTransitionInProgress = false;
+            restoreLayoutEditorAfterTest();
         }
     }
 
@@ -2733,7 +2723,8 @@ public partial class GameplayScreen : Screen
         osu.Framework.Bindables.ValueChangedEvent<double> change)
     {
         double gameplayTime = currentGameplayTime;
-        if (!IsScrollSpeedAdjustmentAllowed(
+        if (layoutEditor?.IsSessionActive != true
+            && !IsScrollSpeedAdjustmentAllowed(
                 gameplayTime,
                 gameplayStartTimeMilliseconds,
                 isPaused,
@@ -3038,6 +3029,233 @@ public partial class GameplayScreen : Screen
         return true;
     }
 
+    private GameplayPlayfield createGameplayPlayfield() =>
+        new(
+            beatmap,
+            keyBindings,
+            maniaSkin,
+            computeApproachTime(
+                gameplaySettings.ScrollSpeed.Value,
+                currentPlaybackRate(0)),
+            gameplaySettings.ShowLanePressFeedback.Value,
+            mods,
+            minesEnabled,
+            skinSettings?.ShowComboBursts.Value != false,
+            skinSettings?.LongNoteCutEnabled.Value == true
+                ? Math.Clamp(
+                    skinSettings.LongNoteCutAmount.Value,
+                    YokkoSkinSettings.MinimumLongNoteCutAmount,
+                    YokkoSkinSettings.MaximumLongNoteCutAmount)
+                : 0,
+            gameplaySettings.ScrollDirection.Value)
+        {
+            Anchor = Anchor.BottomCentre,
+            Origin = Anchor.BottomCentre,
+            Scale = Vector2.One,
+        };
+
+    private GameplayHud createGameplayHud(
+        GameplayPlayfield targetPlayfield) =>
+        new(
+            beatmap,
+            mods,
+            judgementConfiguration,
+            targetPlayfield.HasSkinHealthBar)
+        {
+            Anchor = Anchor.TopRight,
+            Origin = Anchor.TopRight,
+            Position = new Vector2(-20, 20),
+        };
+
+    private GameplayLayoutEditorLiveSettings
+        createLayoutEditorLiveSettings() =>
+        new(
+            layoutEditorSkinOptions,
+            () => skinSettings?.SelectedSkinId.Value
+                  ?? string.Empty,
+            selectLayoutEditorSkin,
+            () => gameplaySettings.ScrollSpeed.Value,
+            gameplaySettings.SetScrollSpeed,
+            () => gameplaySettings.ScrollDirection.Value,
+            setLayoutEditorScrollDirection);
+
+    private IReadOnlyList<GameplayLayoutEditorSkinOption>
+        layoutEditorSkinOptions()
+    {
+        List<GameplayLayoutEditorSkinOption> options =
+        [
+            new(string.Empty, string.Empty),
+        ];
+        options.AddRange(
+            skinLibrary.GetInstalledSkins()
+                       .Select(entry =>
+                           new GameplayLayoutEditorSkinOption(
+                               entry.Id,
+                               entry.Name)));
+        return options;
+    }
+
+    private void selectLayoutEditorSkin(string id)
+    {
+        id ??= string.Empty;
+        string current = skinSettings?.SelectedSkinId.Value
+                         ?? string.Empty;
+        if (string.Equals(
+                current,
+                id,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (skinSettings == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(id))
+            skinSettings.SelectedSkinId.Value = string.Empty;
+        else if (!skinLibrary.Select(id))
+            return;
+
+        rebuildGameplayPresentation(reloadSkin: true);
+    }
+
+    private void setLayoutEditorScrollDirection(
+        ManiaScrollDirection direction)
+    {
+        if (gameplaySettings.ScrollDirection.Value == direction)
+            return;
+
+        gameplaySettings.ScrollDirection.Value = direction;
+        rebuildGameplayPresentation(reloadSkin: false);
+    }
+
+    private void rebuildGameplayPresentation(bool reloadSkin)
+    {
+        GameplayPlayfield previousPlayfield = playfield;
+        GameplayLaneCovers previousCovers = laneCovers;
+        GameplayHud previousHud = hud;
+        OsuManiaSkin previousSkin = null;
+
+        if (reloadSkin)
+        {
+            previousSkin = maniaSkin;
+            maniaSkin = null;
+            loadSkin(renderer, includeConfiguredFallback: false);
+        }
+
+        GameplayPlayfield nextPlayfield = createGameplayPlayfield();
+        nextPlayfield.SetWidthScale(playfieldWidthScale);
+        for (int lane = 0; lane < pressedLanes.Length; lane++)
+            nextPlayfield.SetLanePressed(lane, pressedLanes[lane]);
+
+        double gameplayTime = isPaused
+            ? pausedGameplayTime
+            : currentGameplayTime;
+        nextPlayfield.SetApproachTime(computeApproachTime(
+            gameplaySettings.ScrollSpeed.Value,
+            currentPlaybackRate(gameplayTime)));
+        nextPlayfield.UpdateGameplayTime(
+            gameplayTime,
+            judgementState,
+            healthState);
+
+        GameplayLaneCovers nextCovers = new(
+            nextPlayfield,
+            gameplaySettings);
+        GameplayHud nextHud = createGameplayHud(nextPlayfield);
+        nextHud.UpdateState(gameplayTime, judgementState, healthState);
+        if (!hasAudioClock)
+            nextHud.ShowFrameClock();
+        if (audioEngine != null)
+        {
+            nextHud.UpdateAudioStatus(
+                audioEngine.Snapshot.Status,
+                activeRequestedBackend);
+        }
+        if (mutedAudio != null)
+            nextHud.UpdateMutedMix(mutedAudio.Current);
+
+        nextPlayfield.Alpha = previousPlayfield?.Alpha ?? 1;
+        nextHud.Alpha = previousHud?.Alpha ?? 1;
+
+        playfield = nextPlayfield;
+        laneCovers = nextCovers;
+        hud = nextHud;
+
+        AddInternal(nextPlayfield);
+        AddInternal(nextCovers);
+        AddInternal(nextHud);
+        layoutEditor?.ReplaceTargets(nextPlayfield, nextHud);
+        updatePlayfieldLayout();
+
+        previousPlayfield?.Expire();
+        previousCovers?.Expire();
+        previousHud?.Expire();
+        if (previousSkin != null)
+        {
+            Scheduler.AddDelayed(
+                previousSkin.Dispose,
+                200);
+        }
+    }
+
+    internal void BeginLayoutTestPlayForTest() =>
+        beginLayoutTestPlay();
+
+    internal void SetLayoutEditorScrollSpeedForTest(double speed) =>
+        gameplaySettings.SetScrollSpeed(speed);
+
+    internal void SetLayoutEditorScrollDirectionForTest(
+        ManiaScrollDirection direction) =>
+        setLayoutEditorScrollDirection(direction);
+
+    internal ManiaScrollDirection LayoutEditorScrollDirectionForTest =>
+        gameplaySettings.ScrollDirection.Value;
+
+    internal double AppliedScrollSpeedForTest => appliedScrollSpeed;
+
+    private void beginLayoutTestPlay()
+    {
+        if (layoutEditor?.IsEditing != true
+            || !isPaused
+            || pauseTransitionInProgress
+            || resumeCountdownInProgress)
+        {
+            return;
+        }
+
+        layoutEditor.BeginTestPlay();
+        beginResumeCountdown();
+    }
+
+    private async Task returnToLayoutEditorFromTestAsync()
+    {
+        if (layoutEditor?.IsTestingLayout != true)
+            return;
+
+        if (resumeCountdownInProgress)
+        {
+            cancelResumeCountdown();
+            restoreLayoutEditorAfterTest();
+            return;
+        }
+
+        if (!isPaused)
+            await pauseGameplayAsync().ConfigureAwait(true);
+        else
+            restoreLayoutEditorAfterTest();
+    }
+
+    private void restoreLayoutEditorAfterTest()
+    {
+        if (layoutEditor?.IsTestingLayout != true || !isPaused)
+            return;
+
+        if (pauseOverlay != null)
+            pauseOverlay.Alpha = 0;
+        layoutEditor.EndTestPlay();
+    }
+
     private void openGameplayLayoutEditorFromPause()
     {
         if (layoutEditor == null
@@ -3116,11 +3334,18 @@ public partial class GameplayScreen : Screen
         }
     }
 
-    private void loadSkin(IRenderer renderer)
+    private void loadSkin(
+        IRenderer renderer,
+        bool includeConfiguredFallback = true)
     {
-        string resolvedPath = !string.IsNullOrWhiteSpace(skinPath)
+        string resolvedPath =
+            includeConfiguredFallback
+            && !string.IsNullOrWhiteSpace(skinPath)
             ? skinPath
-            : skinLibrary.CurrentSkinPath ?? OsuManiaSkinLocator.FindConfiguredPath();
+            : skinLibrary.CurrentSkinPath
+              ?? (includeConfiguredFallback
+                  ? OsuManiaSkinLocator.FindConfiguredPath()
+                  : null);
 
         if (string.IsNullOrWhiteSpace(resolvedPath))
             return;

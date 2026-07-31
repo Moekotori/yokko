@@ -1225,8 +1225,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         };
         var footerDots = new HomeDotField
         {
-            Position = new Vector2(642, 72),
-            Size = new Vector2(34, 30),
+            Position = new Vector2(532, 82),
+            Size = new Vector2(42, 28),
             Colour = new Color4(1, 1, 1, 0.38f),
         };
 
@@ -1260,82 +1260,120 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             },
             new HomeDotField
             {
-                Position = new Vector2(8, 78),
-                Size = new Vector2(72, 34),
+                Position = new Vector2(8, 75),
+                Size = new Vector2(58, 38),
                 Colour = new Color4(1, 1, 1, 0.52f),
             },
             new SpriteText
             {
-                Position = new Vector2(431, 35),
+                Position = new Vector2(522, 47),
                 Text = "+",
                 Font = HomeTypography.Display(24),
                 Colour = Color4.White,
             },
             footerDots,
             scanLine,
-            new SpriteText
+            new Box
             {
-                Position = new Vector2(490, 104),
-                Text = "INPUT READY  //  MOUSE + KEYBOARD",
-                Font = HomeTypography.Display(8),
-                Spacing = new Vector2(0.9f, 0),
-                Colour = new Color4(1, 1, 1, 0.54f),
+                Position = new Vector2(50, 8),
+                Size = new Vector2(460, 1.5f),
+                Colour = new Color4(1, 1, 1, 0.72f),
             },
             new Box
             {
-                Position = new Vector2(704, 109),
-                Size = new Vector2(56, 1),
-                Colour = new Color4(1, 1, 1, 0.36f),
-            },
-            new SpriteText
-            {
-                Position = new Vector2(923, 93),
-                Text = "SESSION // MOD BUS",
-                Font = HomeTypography.Display(8),
-                Spacing = new Vector2(0.9f, 0),
-                Colour = new Color4(1, 1, 1, 0.5f),
-            },
-            new OrbitFooterSignal
-            {
-                Position = new Vector2(1058, 88),
+                Position = new Vector2(50, 8),
+                Size = new Vector2(1.5f, 114),
+                Colour = new Color4(1, 1, 1, 0.72f),
             },
             new Box
             {
-                Position = new Vector2(299, 17),
-                Size = new Vector2(17),
+                Position = new Vector2(50, 120),
+                Size = new Vector2(460, 1.5f),
+                Colour = new Color4(1, 1, 1, 0.72f),
+            },
+            new Box
+            {
+                Position = new Vector2(548, 16),
+                Size = new Vector2(1.5f, 98),
+                Colour = new Color4(1, 1, 1, 0.68f),
+            },
+            new Box
+            {
+                Position = new Vector2(725, 18),
+                Size = new Vector2(1.5f, 94),
+                Colour = new Color4(1, 1, 1, 0.68f),
+            },
+            new Box
+            {
+                Position = new Vector2(874, 18),
+                Size = new Vector2(1.5f, 94),
+                Colour = new Color4(1, 1, 1, 0.68f),
+            },
+            new Box
+            {
+                Position = new Vector2(1000, 8),
+                Size = new Vector2(548, 1.5f),
+                Colour = new Color4(1, 1, 1, 0.72f),
+            },
+            new Box
+            {
+                Position = new Vector2(1000, 120),
+                Size = new Vector2(548, 1.5f),
+                Colour = new Color4(1, 1, 1, 0.72f),
+            },
+            new Box
+            {
+                Position = new Vector2(325, 4),
+                Size = new Vector2(18),
                 Rotation = 45,
                 Colour = HomeControlColours.Yellow,
             },
+            new Box
+            {
+                Position = new Vector2(1190, 4),
+                Size = new Vector2(72, 7),
+                Colour = HomeControlColours.Yellow,
+            },
+            new Box
+            {
+                Position = new Vector2(112, 121),
+                Size = new Vector2(120, 3),
+                Colour = new Color4(1, 1, 1, 0.82f),
+            },
+            new Box
+            {
+                Position = new Vector2(905, 116),
+                Size = new Vector2(62, 3),
+                Colour = new Color4(1, 1, 1, 0.72f),
+            },
             new OrbitFooterButton(
                 YokkoStrings.Get("mods.back"),
-                FontAwesome.Solid.ChevronLeft,
+                FontAwesome.Solid.ChevronRight,
                 back,
-                205,
-                false,
+                OrbitFooterButtonStyle.Back,
                 "ESC")
             {
-                Position = new Vector2(108, 26),
+                Position = new Vector2(64, 13),
             },
             new OrbitFooterButton(
                 YokkoStrings.Get("mods.reset"),
                 FontAwesome.Solid.Undo,
                 reset,
-                175)
+                OrbitFooterButtonStyle.Reset)
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Position = new Vector2(0, 26),
+                Position = new Vector2(0, 14),
             },
             new OrbitFooterButton(
                 YokkoStrings.Get("mods.done"),
                 FontAwesome.Solid.Play,
                 done,
-                440,
-                true)
+                OrbitFooterButtonStyle.Primary)
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-22, 17),
+                Position = new Vector2(-58, 12),
             },
             ],
         };
@@ -3550,116 +3588,221 @@ internal partial class OrbitRateSlider : ClickableContainer
     }
 }
 
+internal enum OrbitFooterButtonStyle
+{
+    Back,
+    Reset,
+    Primary,
+}
+
 internal partial class OrbitFooterButton : ClickableContainer
 {
     private readonly Box background;
     private readonly SpriteIcon chevron;
     private readonly Box underline;
-    private readonly bool primary;
+    private readonly OrbitFooterButtonStyle style;
 
     internal OrbitFooterButton(
         LocalisableString text,
         IconUsage icon,
         Action action,
-        float width,
-        bool primary = false,
+        OrbitFooterButtonStyle style,
         string badgeText = null)
     {
-        this.primary = primary;
+        this.style = style;
         Action = action;
-        Size = new Vector2(width, primary ? 96 : 76);
-        Masking = true;
-        CornerRadius = 7;
-        BorderThickness = primary ? 0 : 1.5f;
-        BorderColour = HomeControlColours.Navy;
-        InternalChildren =
-        [
-            background = new Box
+        Size = style switch
+        {
+            OrbitFooterButtonStyle.Back => new Vector2(430, 104),
+            OrbitFooterButtonStyle.Reset => new Vector2(102),
+            _ => new Vector2(500, 106),
+        };
+
+        var shadow = new Box
+        {
+            RelativeSizeAxes = Axes.Both,
+            Position = new Vector2(0, 4),
+            Colour = style == OrbitFooterButtonStyle.Primary
+                ? new Color4(0.01f, 0.04f, 0.28f, 0.34f)
+                : new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.20f),
+        };
+        var surface = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Masking = true,
+            CornerRadius = 4,
+            BorderThickness = 2,
+            BorderColour = HomeControlColours.Navy,
+            Children =
+            [
+                background = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = style == OrbitFooterButtonStyle.Primary
+                        ? HomeControlColours.Navy
+                        : HomeControlColours.Ivory,
+                },
+                new Box
+                {
+                    Anchor = Anchor.BottomLeft,
+                    Origin = Anchor.BottomLeft,
+                    RelativeSizeAxes = Axes.X,
+                    Height = 18,
+                    Colour = style == OrbitFooterButtonStyle.Primary
+                        ? new Color4(0.01f, 0.03f, 0.30f, 0.26f)
+                        : new Color4(
+                            HomeControlColours.PaleCyan.R,
+                            HomeControlColours.PaleCyan.G,
+                            HomeControlColours.PaleCyan.B,
+                            0.30f),
+                },
+            ],
+        };
+
+        var children = new List<Drawable>
+        {
+            shadow,
+            surface,
+        };
+
+        if (style == OrbitFooterButtonStyle.Reset)
+        {
+            children.Add(new SpriteIcon
             {
-                RelativeSizeAxes = Axes.Both,
-                Colour = primary ? HomeControlColours.Navy : Color4.White,
-            },
-            new Container
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(52),
+                Icon = icon,
+                Colour = HomeControlColours.Navy,
+            });
+            chevron = null;
+            underline = null;
+        }
+        else
+        {
+            bool primary =
+                style == OrbitFooterButtonStyle.Primary;
+            if (badgeText != null)
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = primary ? 18 : 13,
-                Size = new Vector2(primary ? 76 : 48),
-                Masking = true,
-                CornerRadius = 6,
-                BorderThickness = primary ? 0 : 1.2f,
-                BorderColour = HomeControlColours.Navy,
-                Children =
-                [
-                    new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = Color4.White,
-                    },
-                    badgeText == null
-                        ? new SpriteIcon
+                children.Add(new Container
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    X = 18,
+                    Size = new Vector2(76),
+                    Masking = true,
+                    CornerRadius = 7,
+                    BorderThickness = 1.8f,
+                    BorderColour = HomeControlColours.Navy,
+                    Children =
+                    [
+                        new Box
                         {
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
-                            Size = new Vector2(primary ? 30 : 17),
-                            Icon = icon,
-                            Colour = text.ToString() == "RESET"
-                                ? HomeControlColours.Cyan
-                                : HomeControlColours.Navy,
-                        }
-                        : new SpriteText
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = Color4.White,
+                        },
+                        new SpriteText
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
                             Text = badgeText,
-                            Font = HomeTypography.Display(11),
+                            Font = HomeTypography.Display(18),
                             Colour = HomeControlColours.Navy,
                         },
-                ],
-            },
-            new SpriteText
+                    ],
+                });
+            }
+            else
+            {
+                children.Add(new SpriteIcon
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(72, 0),
+                    Size = new Vector2(48),
+                    Icon = icon,
+                    Colour = Color4.White,
+                });
+            }
+
+            children.Add(new SpriteText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = primary ? 126 : 74,
+                X = primary ? 168 : 122,
                 Text = text,
-                Font = HomeTypography.Display(primary ? 29 : 22),
-                Colour = primary ? Color4.White : HomeControlColours.Navy,
-            },
-            chevron = new SpriteIcon
+                Font = new FontUsage(
+                    "Yokko",
+                    primary ? 50 : 46,
+                    "Bold"),
+                Colour = primary
+                    ? Color4.White
+                    : HomeControlColours.Navy,
+            });
+            children.Add(chevron = new SpriteIcon
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
-                X = -24,
-                Size = new Vector2(primary ? 18 : 11),
+                X = -28,
+                Size = new Vector2(primary ? 26 : 22),
                 Icon = FontAwesome.Solid.ChevronRight,
                 Colour = primary
                     ? HomeControlColours.Yellow
                     : HomeControlColours.Pink,
-            },
-            underline = new Box
+            });
+
+            if (primary)
             {
-                Anchor = Anchor.BottomLeft,
-                Origin = Anchor.BottomLeft,
-                Position = new Vector2(primary ? 128 : 0, -1),
-                Size = new Vector2(primary ? 84 : 0, 2),
-                Colour = HomeControlColours.Pink,
-                Alpha = primary ? 1 : 0,
-            },
-        ];
+                children.Add(underline = new Box
+                {
+                    Anchor = Anchor.BottomLeft,
+                    Origin = Anchor.BottomLeft,
+                    Position = new Vector2(164, -1),
+                    Size = new Vector2(132, 4),
+                    Colour = HomeControlColours.Pink,
+                });
+            }
+            else
+            {
+                underline = null;
+            }
+        }
+
+        foreach (Anchor anchor in new[]
+                 {
+                     Anchor.TopLeft,
+                     Anchor.TopRight,
+                     Anchor.BottomLeft,
+                     Anchor.BottomRight,
+                 })
+        {
+            children.Add(new Box
+            {
+                Anchor = anchor,
+                Origin = Anchor.Centre,
+                Size = new Vector2(22),
+                Rotation = 45,
+                Colour = HomeControlColours.Cyan,
+            });
+        }
+
+        InternalChildren = children.ToArray();
     }
 
     protected override bool OnHover(HoverEvent e)
     {
         this.ScaleTo(1.018f, 90, Easing.OutQuint);
         background.FadeColour(
-            primary
+            style == OrbitFooterButtonStyle.Primary
                 ? new Color4(0.02f, 0.06f, 0.43f, 1)
                 : HomeControlColours.PaleCyan,
             90);
-        chevron.MoveToX(-16, 100, Easing.OutQuint);
-        if (primary)
-            underline.ResizeWidthTo(118, 130, Easing.OutQuint);
+        chevron?.MoveToX(-16, 100, Easing.OutQuint);
+        underline?.ResizeWidthTo(168, 130, Easing.OutQuint);
         return true;
     }
 
@@ -3667,11 +3810,12 @@ internal partial class OrbitFooterButton : ClickableContainer
     {
         this.ScaleTo(1, 120, Easing.OutQuint);
         background.FadeColour(
-            primary ? HomeControlColours.Navy : Color4.White,
+            style == OrbitFooterButtonStyle.Primary
+                ? HomeControlColours.Navy
+                : Color4.White,
             120);
-        chevron.MoveToX(-24, 120, Easing.OutQuint);
-        if (primary)
-            underline.ResizeWidthTo(84, 120, Easing.OutQuint);
+        chevron?.MoveToX(-28, 120, Easing.OutQuint);
+        underline?.ResizeWidthTo(132, 120, Easing.OutQuint);
     }
 
     protected override bool OnClick(ClickEvent e)

@@ -41,6 +41,7 @@ internal enum YokkoSetting
     GameplaySevenKeyLane7,
     GameplayKeyProfiles,
     ManiaPauseOrBackKey,
+    ManiaToggleLayoutEditorUiKey,
     ManiaSkipIntroKey,
     ManiaQuickRetryKey,
     ManiaDecreaseScrollSpeedKey,
@@ -141,6 +142,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(YokkoSetting.GameplaySevenKeyLane7, osuTK.Input.Key.L);
         SetDefault(YokkoSetting.GameplayKeyProfiles, string.Empty);
         SetDefault(YokkoSetting.ManiaPauseOrBackKey, osuTK.Input.Key.Escape);
+        SetDefault(
+            YokkoSetting.ManiaToggleLayoutEditorUiKey,
+            osuTK.Input.Key.BackSlash);
         SetDefault(YokkoSetting.ManiaSkipIntroKey, osuTK.Input.Key.Space);
         SetDefault(YokkoSetting.ManiaQuickRetryKey, osuTK.Input.Key.Tilde);
         SetDefault(YokkoSetting.ManiaDecreaseScrollSpeedKey, osuTK.Input.Key.F3);
@@ -397,6 +401,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.ManiaPauseOrBackKey,
             settings.PauseOrBackKey);
+        BindWith(
+            YokkoSetting.ManiaToggleLayoutEditorUiKey,
+            settings.ToggleLayoutEditorUiKey);
         BindWith(YokkoSetting.ManiaSkipIntroKey, settings.SkipIntroKey);
         BindWith(YokkoSetting.ManiaQuickRetryKey, settings.QuickRetryKey);
         BindWith(

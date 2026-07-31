@@ -244,6 +244,10 @@ internal static class YokkoStrings
                 "Tab select · arrows move · Ctrl+arrows resize",
                 "Tab 切换 · 方向键移动 · Ctrl+方向键缩放",
                 "Tab 切替 · 矢印移動 · Ctrl+矢印拡縮"),
+            ["gameplay.layout_editor.hide_hint"] = new(
+                "{0} hide editor UI · press again to restore",
+                "{0} 隐藏编辑界面 · 再按一次恢复",
+                "{0} 編集 UI を隠す · もう一度押して復元"),
             ["gameplay.layout_editor.playfield"] = new(
                 "Playfield · drag / resize",
                 "轨道 · 拖动 / 拉伸边框",
@@ -276,6 +280,10 @@ internal static class YokkoStrings
                 "Save & return",
                 "保存并返回",
                 "保存して戻る"),
+            ["gameplay.layout_editor.test_play"] = new(
+                "Test play",
+                "试玩布局",
+                "テストプレイ"),
             ["gameplay.layout_editor.preview"] = new(
                 "Full-page preview",
                 "完整页面预览",
@@ -332,6 +340,30 @@ internal static class YokkoStrings
                 "Enter a height in px, or drag the edge on the lane.",
                 "输入像素高度，或直接拖动轨道上的挡板边缘。",
                 "px 高さを入力、またはレーン上の端をドラッグ。"),
+            ["gameplay.layout_editor.live_settings"] = new(
+                "LIVE PLAY SETTINGS",
+                "实时游玩设置",
+                "リアルタイム設定"),
+            ["gameplay.layout_editor.skin"] = new(
+                "Skin",
+                "皮肤",
+                "スキン"),
+            ["gameplay.layout_editor.default_skin"] = new(
+                "Yokko default",
+                "Yokko 默认",
+                "Yokko デフォルト"),
+            ["gameplay.layout_editor.scroll_speed"] = new(
+                "Speed",
+                "流速",
+                "速度"),
+            ["gameplay.layout_editor.downscroll"] = new(
+                "Down",
+                "下落式",
+                "下向き"),
+            ["gameplay.layout_editor.upscroll"] = new(
+                "Up",
+                "上升式",
+                "上向き"),
 
             ["gameplay.result.title"] = new("RESULT", "结算", "リザルト"),
             ["gameplay.result.max_combo"] = new("MAX COMBO", "最大连击", "MAX COMBO"),
@@ -940,10 +972,18 @@ internal static class YokkoStrings
                 "Results",
                 "失败与结算",
                 "リザルト"),
+            ["settings.gameplay.shortcuts_editor"] = new(
+                "Editor",
+                "编辑器",
+                "エディター"),
             ["settings.gameplay.shortcut_pause_back"] = new(
                 "Pause / resume / back",
                 "暂停 / 继续 / 返回",
                 "一時停止 / 再開 / 戻る"),
+            ["settings.gameplay.shortcut_toggle_layout_editor_ui"] = new(
+                "Hide / show layout editor UI",
+                "隐藏 / 显示布局编辑界面",
+                "レイアウト編集 UI を隠す / 表示"),
             ["settings.gameplay.shortcut_skip_intro"] = new(
                 "Skip intro",
                 "跳过前奏",
