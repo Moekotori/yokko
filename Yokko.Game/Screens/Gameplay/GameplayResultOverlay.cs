@@ -40,6 +40,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private Container brandHost;
     private Sprite mascot;
     private Sprite scoreRibbon;
+    private ResultScorePanel scorePanel;
     private readonly IReadOnlyList<string> modChipLabels;
     private int renderedModChipCount;
     private float lastResponsiveStageScale;
@@ -49,6 +50,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     internal int RenderedModChipCount => renderedModChipCount;
     internal string DisplayedMods { get; }
     internal bool PracticeSession { get; }
+    internal bool ScorePanelInteractionActive =>
+        scorePanel?.InteractionActive == true;
     internal bool EntranceComplete =>
         backdrop.Alpha >= 0.999f
         && leftStageLayout.Alpha >= 0.999f
@@ -216,6 +219,9 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
     internal void TriggerReplay() => watchReplay();
 
+    internal void SetScorePanelInteraction(bool active) =>
+        scorePanel?.SetInteractionState(active);
+
     internal void CompleteEntrance()
     {
         backdrop.FinishTransforms();
@@ -321,73 +327,83 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         ManiaScoreResult result,
         string rank,
         bool isNewBest)
-        => new Container
+    {
+        return new Container
         {
             Position = new Vector2(486, 258),
             Size = new Vector2(1140, 236),
-            Children = new Drawable[]
+            Child = scorePanel = new ResultScorePanel
             {
-                scoreRibbon = new Sprite
+                Origin = Anchor.CentreLeft,
+                Position = new Vector2(0, 118),
+                Size = new Vector2(1140, 236),
+                Children = new Drawable[]
                 {
-                    Size = new Vector2(1140, 236),
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(132, -5),
-                    Text = rank,
-                    Font = HomeTypography.Hero(240),
-                    Colour = HomeControlColours.Yellow,
-                    Alpha = 0.92f,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(139, -11),
-                    Text = rank,
-                    Font = HomeTypography.Hero(240),
-                    Colour = HomeControlColours.PaleCyan,
-                },
-                new Box
-                {
-                    Position = new Vector2(322, 42),
-                    Size = new Vector2(2, 148),
-                    Colour = new Color4(1f, 1f, 1f, 0.82f),
-                },
-                new SpriteIcon
-                {
-                    Position = new Vector2(362, 35),
-                    Size = new Vector2(20),
-                    Icon = FontAwesome.Solid.Star,
-                    Colour = HomeControlColours.Yellow,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(396, 30),
-                    Text = isNewBest
-                        ? YokkoStrings.Get("gameplay.result.new_best")
-                        : "SCORE",
-                    Font = HomeTypography.Display(20),
-                    Spacing = new Vector2(2.8f, 0),
-                    Colour = isNewBest
-                        ? HomeControlColours.Pink
-                        : HomeControlColours.Cyan,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(374, 46),
-                    Text = $"{result.Score:0000000}",
-                    Font = HomeTypography.Hero(180),
-                    Colour = Color4.White,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(374, 46),
-                    Text = result.Score
-                        .ToString("0000000", CultureInfo.InvariantCulture)[..1],
-                    Font = HomeTypography.Hero(180),
-                    Colour = HomeControlColours.Cyan,
+                    scoreRibbon = new Sprite
+                    {
+                        Size = new Vector2(1140, 236),
+                    },
+                    new SpriteText
+                    {
+                        Position = new Vector2(132, -5),
+                        Text = rank,
+                        Font = HomeTypography.Hero(240),
+                        Colour = HomeControlColours.Yellow,
+                        Alpha = 0.92f,
+                    },
+                    new SpriteText
+                    {
+                        Position = new Vector2(139, -11),
+                        Text = rank,
+                        Font = HomeTypography.Hero(240),
+                        Colour = HomeControlColours.PaleCyan,
+                    },
+                    new Box
+                    {
+                        Position = new Vector2(322, 42),
+                        Size = new Vector2(2, 148),
+                        Colour = new Color4(1f, 1f, 1f, 0.82f),
+                    },
+                    new SpriteIcon
+                    {
+                        Position = new Vector2(362, 35),
+                        Size = new Vector2(20),
+                        Icon = FontAwesome.Solid.Star,
+                        Colour = HomeControlColours.Yellow,
+                    },
+                    new SpriteText
+                    {
+                        Position = new Vector2(396, 30),
+                        Text = isNewBest
+                            ? YokkoStrings.Get("gameplay.result.new_best")
+                            : "SCORE",
+                        Font = HomeTypography.Display(20),
+                        Spacing = new Vector2(2.8f, 0),
+                        Colour = isNewBest
+                            ? HomeControlColours.Pink
+                            : HomeControlColours.Cyan,
+                    },
+                    new SpriteText
+                    {
+                        Position = new Vector2(374, 46),
+                        Text = $"{result.Score:0000000}",
+                        Font = HomeTypography.Hero(180),
+                        Colour = Color4.White,
+                    },
+                    new SpriteText
+                    {
+                        Position = new Vector2(374, 46),
+                        Text = result.Score
+                            .ToString(
+                                "0000000",
+                                CultureInfo.InvariantCulture)[..1],
+                        Font = HomeTypography.Hero(180),
+                        Colour = HomeControlColours.Cyan,
+                    },
                 },
             },
         };
+    }
 
     private Drawable createSummaryRail(ManiaScoreResult result) =>
         new Container
@@ -490,33 +506,9 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         string value,
         float x,
         float width) =>
-        new Container
+        new ResultMetricCell(label, value, width)
         {
             Position = new Vector2(x, 0),
-            Size = new Vector2(width, 126),
-            Children = new Drawable[]
-            {
-                new SpriteText
-                {
-                    Text = label,
-                    Font = HomeTypography.Display(17),
-                    Spacing = new Vector2(1.6f, 0),
-                    Colour = HomeControlColours.Navy,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(0, 24),
-                    Text = value,
-                    Font = HomeTypography.Hero(68),
-                    Colour = HomeControlColours.Navy,
-                },
-                new Box
-                {
-                    Position = new Vector2(0, 95),
-                    Size = new Vector2(width - 18, 6),
-                    Colour = HomeControlColours.Yellow,
-                },
-            },
         };
 
     private Drawable createJudgementStrip(ManiaScoreResult result)
@@ -541,8 +533,20 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             Direction = FillDirection.Horizontal,
         };
 
+        int totalJudgements = 0;
+        foreach ((string _, int value, Color4 _) in judgements)
+            totalJudgements += value;
+
         foreach ((string label, int value, Color4 colour) in judgements)
-            flow.Add(createJudgementCell(label, value, colour));
+        {
+            flow.Add(createJudgementCell(
+                label,
+                value,
+                colour,
+                totalJudgements == 0
+                    ? 0
+                    : value / (float)totalJudgements));
+        }
 
         return new Container
         {
@@ -567,45 +571,12 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private static Drawable createJudgementCell(
         string label,
         int value,
-        Color4 colour) =>
-        new Container
+        Color4 colour,
+        float share) =>
+        new ResultJudgementCell(label, value, colour, share)
         {
             Width = 1010f / 6,
             RelativeSizeAxes = Axes.Y,
-            Children = new Drawable[]
-            {
-                new Box
-                {
-                    Anchor = Anchor.CentreRight,
-                    Origin = Anchor.CentreRight,
-                    Width = 1,
-                    RelativeSizeAxes = Axes.Y,
-                    Height = 0.7f,
-                    Colour = new Color4(
-                        HomeControlColours.Navy.R,
-                        HomeControlColours.Navy.G,
-                        HomeControlColours.Navy.B,
-                        0.28f),
-                },
-                new SpriteText
-                {
-                    Anchor = Anchor.TopCentre,
-                    Origin = Anchor.TopCentre,
-                    Y = 8,
-                    Text = label,
-                    Font = HomeTypography.Display(18),
-                    Colour = colour,
-                },
-                new SpriteText
-                {
-                    Anchor = Anchor.TopCentre,
-                    Origin = Anchor.TopCentre,
-                    Y = 34,
-                    Text = value.ToString(),
-                    Font = HomeTypography.Display(44),
-                    Colour = HomeControlColours.Navy,
-                },
-            },
         };
 
     private Drawable createActionRow() =>
@@ -782,36 +753,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         Math.Clamp(30 + label.Length * 11, 62, 118);
 
     private static Drawable createModChip(string label, float width) =>
-        new Container
-        {
-            Size = new Vector2(width, 58),
-            Masking = true,
-            CornerRadius = 8,
-            BorderThickness = 2,
-            BorderColour = HomeControlColours.Navy,
-            Children = new Drawable[]
-            {
-                new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = HomeControlColours.Navy,
-                },
-                new SpriteText
-                {
-                    Anchor = Anchor.Centre,
-                    Origin = Anchor.Centre,
-                    Text = label,
-                    Font = HomeTypography.Display(20),
-                    Colour = Color4.White,
-                },
-                new Box
-                {
-                    Position = new Vector2(0, 0),
-                    Size = new Vector2(width, 4),
-                    Colour = HomeControlColours.Yellow,
-                },
-            },
-        };
+        new ResultModChip(label, width);
 
     private static Drawable createTickerStrip() =>
         new Container
@@ -1129,9 +1071,279 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             },
         };
 
+    private partial class ResultScorePanel : Container
+    {
+        public bool InteractionActive { get; private set; }
+
+        public override bool HandlePositionalInput => true;
+
+        public void SetInteractionState(bool active)
+        {
+            InteractionActive = active;
+            this.MoveToY(active ? 114 : 118, 180, Easing.OutQuint);
+            this.ScaleTo(active ? 1.008f : 1, 180, Easing.OutQuint);
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            SetInteractionState(true);
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            SetInteractionState(false);
+        }
+    }
+
+    private partial class ResultMetricCell : Container
+    {
+        private readonly Box background;
+        private readonly SpriteText valueText;
+        private readonly Box underline;
+        private readonly float restUnderlineWidth;
+
+        public override bool HandlePositionalInput => true;
+
+        public ResultMetricCell(
+            LocalisableString label,
+            string value,
+            float width)
+        {
+            Size = new Vector2(width, 126);
+            restUnderlineWidth = width - 18;
+
+            InternalChildren = new Drawable[]
+            {
+                new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Masking = true,
+                    CornerRadius = 8,
+                    Child = background = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = HomeControlColours.PaleCyan,
+                        Alpha = 0,
+                    },
+                },
+                new SpriteText
+                {
+                    Text = label,
+                    Font = HomeTypography.Display(17),
+                    Spacing = new Vector2(1.6f, 0),
+                    Colour = HomeControlColours.Navy,
+                },
+                valueText = new SpriteText
+                {
+                    Position = new Vector2(0, 24),
+                    Text = value,
+                    Font = HomeTypography.Hero(68),
+                    Colour = HomeControlColours.Navy,
+                },
+                underline = new Box
+                {
+                    Position = new Vector2(0, 95),
+                    Size = new Vector2(restUnderlineWidth, 6),
+                    Colour = HomeControlColours.Yellow,
+                },
+            };
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            background.FadeTo(0.23f, 140, Easing.OutQuint);
+            valueText.MoveToY(20, 150, Easing.OutQuint);
+            valueText.ScaleTo(1.025f, 150, Easing.OutQuint);
+            underline.ResizeWidthTo(Width, 180, Easing.OutQuint);
+            underline.FadeColour(
+                HomeControlColours.Cyan,
+                150,
+                Easing.OutQuint);
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            background.FadeOut(160, Easing.OutQuint);
+            valueText.MoveToY(24, 170, Easing.OutQuint);
+            valueText.ScaleTo(1, 170, Easing.OutQuint);
+            underline.ResizeWidthTo(
+                restUnderlineWidth,
+                170,
+                Easing.OutQuint);
+            underline.FadeColour(
+                HomeControlColours.Yellow,
+                160,
+                Easing.OutQuint);
+        }
+    }
+
+    private partial class ResultJudgementCell : Container
+    {
+        private const float cellWidth = 1010f / 6;
+
+        private readonly Box background;
+        private readonly Box shareBar;
+        private readonly SpriteText valueText;
+        private readonly float shareWidth;
+
+        public override bool HandlePositionalInput => true;
+
+        public ResultJudgementCell(
+            string label,
+            int value,
+            Color4 colour,
+            float share)
+        {
+            shareWidth = Math.Clamp(
+                (cellWidth - 24) * share,
+                0,
+                cellWidth - 24);
+
+            InternalChildren = new Drawable[]
+            {
+                background = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = colour,
+                    Alpha = 0,
+                },
+                new Box
+                {
+                    Anchor = Anchor.CentreRight,
+                    Origin = Anchor.CentreRight,
+                    Width = 1,
+                    RelativeSizeAxes = Axes.Y,
+                    Height = 0.7f,
+                    Colour = new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.28f),
+                },
+                new SpriteText
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Y = 8,
+                    Text = label,
+                    Font = HomeTypography.Display(18),
+                    Colour = colour,
+                },
+                valueText = new SpriteText
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Y = 34,
+                    Text = value.ToString(),
+                    Font = HomeTypography.Display(44),
+                    Colour = HomeControlColours.Navy,
+                },
+                shareBar = new Box
+                {
+                    Anchor = Anchor.BottomCentre,
+                    Origin = Anchor.BottomCentre,
+                    Y = -1,
+                    Size = new Vector2(0, 3),
+                    Colour = colour,
+                },
+            };
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            background.FadeTo(0.08f, 120, Easing.OutQuint);
+            valueText.MoveToY(30, 140, Easing.OutQuint);
+            valueText.ScaleTo(1.07f, 140, Easing.OutQuint);
+            shareBar.ResizeWidthTo(shareWidth, 190, Easing.OutQuint);
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            background.FadeOut(150, Easing.OutQuint);
+            valueText.MoveToY(34, 160, Easing.OutQuint);
+            valueText.ScaleTo(1, 160, Easing.OutQuint);
+            shareBar.ResizeWidthTo(0, 150, Easing.OutQuint);
+        }
+    }
+
+    private partial class ResultModChip : Container
+    {
+        private readonly Box background;
+        private readonly Box topAccent;
+
+        public override bool HandlePositionalInput => true;
+
+        public ResultModChip(string label, float width)
+        {
+            Size = new Vector2(width, 58);
+            Masking = true;
+            CornerRadius = 8;
+            BorderThickness = 2;
+            BorderColour = HomeControlColours.Navy;
+
+            InternalChildren = new Drawable[]
+            {
+                background = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = HomeControlColours.Navy,
+                },
+                new SpriteText
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Text = label,
+                    Font = HomeTypography.Display(20),
+                    Colour = Color4.White,
+                },
+                topAccent = new Box
+                {
+                    Position = new Vector2(0, 0),
+                    Size = new Vector2(width, 4),
+                    Colour = HomeControlColours.Yellow,
+                },
+            };
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            background.FadeColour(
+                new Color4(0.055f, 0.15f, 0.7f, 1f),
+                120,
+                Easing.OutQuint);
+            topAccent.FadeColour(
+                HomeControlColours.Cyan,
+                120,
+                Easing.OutQuint);
+            this.MoveToY(-4, 140, Easing.OutQuint);
+            this.ScaleTo(1.035f, 140, Easing.OutQuint);
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            background.FadeColour(
+                HomeControlColours.Navy,
+                150,
+                Easing.OutQuint);
+            topAccent.FadeColour(
+                HomeControlColours.Yellow,
+                150,
+                Easing.OutQuint);
+            this.MoveToY(0, 160, Easing.OutQuint);
+            this.ScaleTo(1, 160, Easing.OutQuint);
+        }
+    }
+
     private partial class ResultActionButton : ClickableContainer
     {
         private readonly Box background;
+        private readonly Container iconTile;
+        private readonly Container keyHint;
+        private readonly SpriteIcon chevron;
         private readonly Color4 restColour;
         private readonly Color4 hoverColour;
 
@@ -1144,7 +1356,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             bool primary)
         {
             Action = action;
-            _ = key;
             Size = new Vector2(width, 98);
             restColour = primary
                 ? HomeControlColours.Navy
@@ -1155,7 +1366,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
             InternalChildren = new Drawable[]
             {
-                new Container
+                iconTile = new Container
                 {
                     Position = new Vector2(0, 7),
                     Size = new Vector2(width, 91),
@@ -1236,7 +1447,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                         ? Color4.White
                         : HomeControlColours.Navy,
                 },
-                new SpriteIcon
+                chevron = new SpriteIcon
                 {
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
@@ -1246,6 +1457,33 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Colour = primary
                         ? HomeControlColours.Yellow
                         : HomeControlColours.Pink,
+                },
+                keyHint = new Container
+                {
+                    Position = new Vector2(width - 62, 8),
+                    Size = new Vector2(38, 18),
+                    Masking = true,
+                    CornerRadius = 4,
+                    Alpha = 0,
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = primary
+                                ? HomeControlColours.Yellow
+                                : HomeControlColours.PaleCyan,
+                        },
+                        new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Text = key,
+                            Font = HomeTypography.Display(10),
+                            Spacing = new Vector2(0.8f, 0),
+                            Colour = HomeControlColours.Navy,
+                        },
+                    },
                 },
                 new Box
                 {
@@ -1260,14 +1498,38 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         protected override bool OnHover(HoverEvent e)
         {
             background.FadeColour(hoverColour, 120);
-            this.ScaleTo(1.006f, 120, Easing.OutQuint);
+            iconTile.ScaleTo(1.06f, 140, Easing.OutQuint);
+            chevron.MoveToX(-11, 150, Easing.OutQuint);
+            keyHint.FadeIn(100, Easing.OutQuint);
+            keyHint.MoveToY(5, 140, Easing.OutQuint);
+            this.MoveToY(-3, 140, Easing.OutQuint);
+            this.ScaleTo(1.01f, 140, Easing.OutQuint);
             return true;
         }
 
         protected override void OnHoverLost(HoverLostEvent e)
         {
             background.FadeColour(restColour, 140);
-            this.ScaleTo(1, 140, Easing.OutQuint);
+            iconTile.ScaleTo(1, 150, Easing.OutQuint);
+            chevron.MoveToX(-18, 160, Easing.OutQuint);
+            keyHint.FadeOut(100, Easing.OutQuint);
+            keyHint.MoveToY(8, 140, Easing.OutQuint);
+            this.MoveToY(0, 160, Easing.OutQuint);
+            this.ScaleTo(1, 160, Easing.OutQuint);
+        }
+
+        protected override bool OnMouseDown(MouseDownEvent e)
+        {
+            this.MoveToY(1, 80, Easing.OutQuint);
+            this.ScaleTo(0.975f, 80, Easing.OutQuint);
+            return base.OnMouseDown(e);
+        }
+
+        protected override void OnMouseUp(MouseUpEvent e)
+        {
+            this.MoveToY(IsHovered ? -3 : 0, 220, Easing.OutBack);
+            this.ScaleTo(IsHovered ? 1.01f : 1, 220, Easing.OutBack);
+            base.OnMouseUp(e);
         }
     }
 }

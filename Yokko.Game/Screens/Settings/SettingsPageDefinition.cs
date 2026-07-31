@@ -150,6 +150,7 @@ internal static class SettingsPages
             {
                 YokkoStrings.Get("settings.skins.section_library"),
                 YokkoStrings.Get("settings.skins.section_import"),
+                YokkoStrings.Get("settings.skins.ln_cut_amount"),
                 YokkoStrings.Get("settings.skins.combo_bursts"),
             },
             YokkoStrings.SearchTerms(
@@ -157,6 +158,7 @@ internal static class SettingsPages
                 "settings.skins.subtitle",
                 "settings.skins.section_library",
                 "settings.skins.section_import",
+                "settings.skins.ln_cut_amount",
                 "settings.skins.combo_bursts")),
         SettingsPageKind.Editor => new(
             kind,

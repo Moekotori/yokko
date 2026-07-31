@@ -49,6 +49,27 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestSkinPageShowsAdditionalLongNoteCutWithoutOverflow()
+        {
+            AddStep("open Skins", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Skins));
+            AddAssert("additional LN cut control is visible", () =>
+            {
+                AdditionalLongNoteCutControls control =
+                    settingsScreen.ActivePanel
+                                  .ChildrenOfType<
+                                      AdditionalLongNoteCutControls>()
+                                  .SingleOrDefault();
+
+                return control != null
+                       && control.Y >= 0
+                       && control.Y + control.Height < 651
+                       && control.ChildrenOfType<GameplayValueStepper>()
+                                 .SingleOrDefault() != null;
+            });
+        }
+
+        [Test]
         public void TestSidebarSearchAndKeyboardNavigation()
         {
             SettingsSidebar sidebar = null;

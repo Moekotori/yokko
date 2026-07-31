@@ -114,6 +114,7 @@ public sealed class OsuManiaSkinLibraryTest
             SkinImportResult imported = library.Import(package);
             Assert.That(imported.Success, Is.True, imported.Message);
             selectedId = imported.Skin!.Id;
+            settings.LongNoteCutAmount.Value = 1.3;
         }
 
         using (var config = new YokkoConfigManager(new NativeStorage(testRoot)))
@@ -124,6 +125,7 @@ public sealed class OsuManiaSkinLibraryTest
 
             Assert.That(library.IsSelected(selectedId), Is.True);
             Assert.That(library.CurrentSkinPath, Is.Not.Null);
+            Assert.That(settings.LongNoteCutAmount.Value, Is.EqualTo(1.3));
             Assert.That(library.Delete(selectedId), Is.True);
             Assert.That(settings.SelectedSkinId.Value, Is.Empty);
             Assert.That(library.CurrentSkinPath, Is.Null);

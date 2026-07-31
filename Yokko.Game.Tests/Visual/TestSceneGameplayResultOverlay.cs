@@ -65,6 +65,15 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
             && overlay.DisplayedMods.Contains("DT"));
         AddUntilStep("entrance animation completes", () =>
             overlay?.EntranceComplete == true);
+        AddStep("preview score-panel interaction", () =>
+            overlay.SetScorePanelInteraction(true));
+        AddAssert("score-panel interaction is active", () =>
+            overlay.ScorePanelInteractionActive);
+        AddStep("release score-panel interaction", () =>
+            overlay.SetScorePanelInteraction(false));
+        AddAssert("score-panel interaction is released", () =>
+            !overlay.ScorePanelInteractionActive);
+        AddWaitStep("interaction settles", 10);
         AddStep("capture result screen", () =>
         {
             string outputPath = Environment.GetEnvironmentVariable(

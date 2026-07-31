@@ -46,7 +46,7 @@ internal partial class SkinSettingsPanel : CompositeDrawable
             new BasicScrollContainer
             {
                 Position = new Vector2(378, 310),
-                Size = new Vector2(840, 236),
+                Size = new Vector2(840, 190),
                 ScrollbarVisible = false,
                 Child = skinList = new FillFlowContainer
                 {
@@ -58,21 +58,25 @@ internal partial class SkinSettingsPanel : CompositeDrawable
             },
             new SpriteText
             {
-                Position = new Vector2(378, 558),
+                Position = new Vector2(378, 512),
                 Text = YokkoStrings.Get("settings.skins.section_gameplay"),
                 Font = HomeTypography.Display(24),
                 Colour = HomeControlColours.Navy,
+            },
+            new AdditionalLongNoteCutControls(settings)
+            {
+                Position = new Vector2(380, 548),
             },
             new GameplayInlineToggle(
                 YokkoStrings.Get("settings.skins.combo_bursts"),
                 YokkoStrings.Get("settings.skins.combo_bursts_note"),
                 settings.ShowComboBursts)
             {
-                Position = new Vector2(380, 592),
+                Position = new Vector2(380, 610),
                 Size = new Vector2(826, 26),
             },
             new SettingsPanelFooter(
-                YokkoStrings.Get("settings.skins.drop_hint")),
+                YokkoStrings.Get("settings.skins.apply_next_gameplay")),
         };
 
         library.LibraryChanged += onLibraryChanged;
@@ -182,6 +186,41 @@ internal partial class SkinSettingsPanel : CompositeDrawable
             library.LibraryChanged -= onLibraryChanged;
 
         base.Dispose(isDisposing);
+    }
+}
+
+internal partial class AdditionalLongNoteCutControls : CompositeDrawable
+{
+    public AdditionalLongNoteCutControls(YokkoSkinSettings settings)
+    {
+        Size = new Vector2(826, 54);
+
+        InternalChildren = new Drawable[]
+        {
+            new SpriteText
+            {
+                Y = 4,
+                Text = YokkoStrings.Get("settings.skins.ln_cut_amount"),
+                Font = HomeTypography.Display(15),
+                Colour = HomeControlColours.Navy,
+            },
+            new SpriteText
+            {
+                Y = 29,
+                Text = YokkoStrings.Get("settings.skins.ln_cut_amount_note"),
+                Font = HomeTypography.Body(14),
+                Colour = SettingsTheme.MutedNavy,
+            },
+            new GameplayValueStepper(
+                settings.LongNoteCutAmount,
+                YokkoSkinSettings.LongNoteCutAmountStep,
+                YokkoSkinSettings.MinimumLongNoteCutAmount,
+                YokkoSkinSettings.MaximumLongNoteCutAmount,
+                value => $"{value:0.0} × NOTE")
+            {
+                X = 436,
+            },
+        };
     }
 }
 

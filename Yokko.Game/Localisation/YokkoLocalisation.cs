@@ -236,6 +236,39 @@ internal static class YokkoStrings
             ["gameplay.pause.hint_confirm"] = new("CONFIRM", "确认", "決定"),
             ["gameplay.pause.hint_retry"] = new("RETRY", "重试", "リトライ"),
 
+            ["gameplay.layout_editor.title"] = new(
+                "HUD layout",
+                "HUD 布局",
+                "HUD レイアウト"),
+            ["gameplay.layout_editor.hint"] = new(
+                "Drag elements · resize from edges",
+                "拖动元素 · 拉边缩放",
+                "要素をドラッグ · 端から拡縮"),
+            ["gameplay.layout_editor.playfield"] = new(
+                "Playfield · drag / resize",
+                "轨道 · 拖动 / 拉伸边框",
+                "レーン · ドラッグ / 拡縮"),
+            ["gameplay.layout_editor.hud"] = new(
+                "Info panel · drag / resize",
+                "信息面板 · 拖动 / 拉伸边框",
+                "情報パネル · ドラッグ / 拡縮"),
+            ["gameplay.layout_editor.timing_bar"] = new(
+                "Timing bar · drag / resize",
+                "判定条 · 拖动 / 拉伸边框",
+                "判定バー · ドラッグ / 拡縮"),
+            ["gameplay.layout_editor.reset"] = new(
+                "Reset",
+                "重置",
+                "リセット"),
+            ["gameplay.layout_editor.save"] = new(
+                "Save & return",
+                "保存并返回",
+                "保存して戻る"),
+            ["gameplay.layout_editor.preview"] = new(
+                "Full-page preview",
+                "完整页面预览",
+                "全体プレビュー"),
+
             ["gameplay.result.title"] = new("RESULT", "结算", "リザルト"),
             ["gameplay.result.max_combo"] = new("MAX COMBO", "最大连击", "MAX COMBO"),
             ["gameplay.result.new_best"] = new("NEW BEST", "新纪录", "NEW BEST"),
@@ -661,6 +694,18 @@ internal static class YokkoStrings
                 "Show the skin's character when a combo milestone is reached",
                 "达到连击里程碑时展示皮肤人物",
                 "コンボ達成時にスキンのキャラクターを表示"),
+            ["settings.skins.ln_cut_amount"] = new(
+                "Additional LN cut",
+                "额外投量",
+                "追加 LN カット"),
+            ["settings.skins.ln_cut_amount_note"] = new(
+                "On top of skin · visual only · unit: note width",
+                "叠加皮肤原效果 · 仅显示 · 单位：Note 宽度",
+                "スキン効果に追加 · 表示のみ · 単位：ノート幅"),
+            ["settings.skins.apply_next_gameplay"] = new(
+                "LN skin changes apply on the next gameplay load",
+                "LN 皮肤调整将在下次进入游玩时生效",
+                "LN スキン設定は次回のプレイ開始時に反映"),
             ["settings.gameplay.ready"] = new(
                 "Gameplay controls are live",
                 "游玩控制已实装",

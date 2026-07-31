@@ -249,6 +249,15 @@ namespace Yokko.Game.Tests
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_RESULT_PREVIEW") == "1")
             {
+                frameworkConfig.SetValue(
+                    FrameworkSetting.Locale,
+                    YokkoLocale.English);
+                frameworkConfig.SetValue(
+                    FrameworkSetting.WindowMode,
+                    WindowMode.Windowed);
+                frameworkConfig.SetValue(
+                    FrameworkSetting.WindowedSize,
+                    new System.Drawing.Size(1600, 900));
                 YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
                 {
                     Title = "Afterimage",
@@ -258,7 +267,7 @@ namespace Yokko.Game.Tests
                     .With(ManiaModId.Hidden, true)
                     .WithFixedRate(ManiaModId.DoubleTime, 1.5);
 
-                Add(new GameplayResultOverlay(
+                var resultOverlay = new GameplayResultOverlay(
                     beatmap,
                     new ManiaScoreResult(
                         537_761,
@@ -275,8 +284,18 @@ namespace Yokko.Game.Tests
                     true,
                     () => { },
                     () => { },
-                    () => { }));
+                    () => { });
+                Add(resultOverlay);
                 Add(new CursorContainer());
+                if (Environment.GetEnvironmentVariable(
+                        "YOKKO_RESULT_INTERACTION_PREVIEW") == "1")
+                {
+                    Scheduler.AddDelayed(
+                        () => resultOverlay
+                            .SetScorePanelInteraction(true),
+                        450);
+                }
+
                 schedulePreviewScreenshot();
                 return;
             }

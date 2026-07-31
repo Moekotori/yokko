@@ -433,7 +433,11 @@ public partial class GameplayScreen : Screen
                 gameplaySettings.ShowLanePressFeedback.Value,
                 mods,
                 minesEnabled,
-                skinSettings?.ShowComboBursts.Value != false)
+                skinSettings?.ShowComboBursts.Value != false,
+                Math.Clamp(
+                    skinSettings?.LongNoteCutAmount.Value ?? 0,
+                    YokkoSkinSettings.MinimumLongNoteCutAmount,
+                    YokkoSkinSettings.MaximumLongNoteCutAmount))
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,

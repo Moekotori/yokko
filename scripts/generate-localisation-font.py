@@ -13,15 +13,15 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 
-NOTO_CJK_COMMIT = "f8d157532fbfaeda587e826d4cd5b21a49186f7c"
+CHILL_ROUND_GOTHIC_COMMIT = "53505f0818983d2fcdda00dc66e051ad13e81ffb"
 FONT_URLS = {
     "Yokko": (
-        "https://raw.githubusercontent.com/notofonts/noto-cjk/"
-        f"{NOTO_CJK_COMMIT}/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf"
+        "https://raw.githubusercontent.com/Warren2060/ChillRoundGothic/"
+        f"{CHILL_ROUND_GOTHIC_COMMIT}/ttf/ChillRoundGothic_Regular.ttf"
     ),
     "Yokko-Bold": (
-        "https://raw.githubusercontent.com/notofonts/noto-cjk/"
-        f"{NOTO_CJK_COMMIT}/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Bold.otf"
+        "https://raw.githubusercontent.com/Warren2060/ChillRoundGothic/"
+        f"{CHILL_ROUND_GOTHIC_COMMIT}/ttf/ChillRoundGothic_Bold.ttf"
     ),
 }
 FONT_SIZE = 64
@@ -232,11 +232,16 @@ def main() -> None:
     args = parse_args()
     characters = collect_characters(args.strings)
 
-    cache = Path.home() / ".cache" / "yokko-font-generator" / NOTO_CJK_COMMIT
+    cache = (
+        Path.home()
+        / ".cache"
+        / "yokko-font-generator"
+        / CHILL_ROUND_GOTHIC_COMMIT
+    )
     cache.mkdir(parents=True, exist_ok=True)
 
     for font_name, url in FONT_URLS.items():
-        font_path = cache / f"{font_name}.otf"
+        font_path = cache / f"{font_name}.ttf"
         if not font_path.exists():
             download_font(url, font_path)
         render_font(font_path, font_name, characters, args.output)

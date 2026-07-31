@@ -138,7 +138,8 @@ public partial class GameplayPlayfield : CompositeDrawable
         bool showLanePressFeedback = true,
         ManiaModSet mods = null,
         bool showMines = true,
-        bool showComboBursts = true)
+        bool showComboBursts = true,
+        double longNoteCutAmount = 0)
     {
         this.mods = mods ?? ManiaModSet.Empty;
         this.approachTimeMilliseconds = approachTimeMilliseconds;
@@ -294,7 +295,8 @@ public partial class GameplayPlayfield : CompositeDrawable
                 width,
                 activeSkin,
                 beatmap.LegacyLongNoteRendering,
-                beatmap.ScratchLane == hitObject.Lane)
+                beatmap.ScratchLane == hitObject.Lane,
+                longNoteCutAmount)
             {
                 X = x,
                 Alpha = 0,

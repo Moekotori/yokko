@@ -45,7 +45,9 @@ public partial class DrawableNote : CompositeDrawable
     private readonly bool flipHoldBody;
     private readonly bool flipHoldTail;
     private readonly bool legacyLongNoteRendering;
+    private readonly double longNoteCutAmount;
     private bool reverseHoldTailForScrollVelocity;
+    private float appliedLongNoteCutDistance;
     private float holdBodyY;
     private float holdBodyHeight;
     private float holdHeadY;
@@ -68,12 +70,14 @@ public partial class DrawableNote : CompositeDrawable
         float laneWidth,
         OsuManiaSkin skin = null,
         bool legacyLongNoteRendering = false,
-        bool isScratchNote = false)
+        bool isScratchNote = false,
+        double longNoteCutAmount = 0)
     {
         HitObjectIndex = hitObjectIndex;
         this.hitObject = hitObject;
         IsScratchNote = isScratchNote;
         this.legacyLongNoteRendering = legacyLongNoteRendering;
+        this.longNoteCutAmount = Math.Max(0, longNoteCutAmount);
         baseWidth = laneWidth;
         Width = laneWidth;
 
@@ -317,6 +321,11 @@ public partial class DrawableNote : CompositeDrawable
 
     internal bool IsMine => hitObject.Kind == HitObjectKind.Mine;
 
+    internal float AppliedLongNoteCutDistance =>
+        appliedLongNoteCutDistance;
+
+    internal float VisibleHoldBodyHeight => holdBodyHeight;
+
     public void SetColumnScale(float value)
     {
         value = Math.Max(0.01f, value);
@@ -501,10 +510,22 @@ public partial class DrawableNote : CompositeDrawable
             float tailCentreY = tailY
                                 + (upsideDown ? tailHeight : -tailHeight)
                                 / 2;
+            appliedLongNoteCutDistance = Math.Min(
+                Math.Abs(tailCentreY - headCentreY),
+                (float)(Width * longNoteCutAmount));
+            float visualTailCentreY = tailCentreY;
+
+            if (appliedLongNoteCutDistance > 0)
+            {
+                visualTailCentreY += Math.Sign(
+                    headCentreY - tailCentreY)
+                    * appliedLongNoteCutDistance;
+            }
+
             float endpointMinimumY = Math.Min(headY, tailY);
             float endpointMaximumY = Math.Max(headY, tailY);
-            float bodyMinimumY = Math.Min(headCentreY, tailCentreY);
-            float bodyMaximumY = Math.Max(headCentreY, tailCentreY);
+            float bodyMinimumY = Math.Min(headCentreY, visualTailCentreY);
+            float bodyMaximumY = Math.Max(headCentreY, visualTailCentreY);
 
             // The body must run underneath the translucent edges of the
             // head and tail. Stopping at their rectangular bounds leaves a
@@ -612,6 +633,9 @@ public partial class DrawableNote : CompositeDrawable
             holdTailY,
             tailHeight,
             flipHoldTail ^ reverseHoldTailForScrollVelocity);
+
+        if (holdTail != null)
+            holdTail.Alpha = appliedLongNoteCutDistance > 0 ? 0 : 1;
     }
 
     private void placePart(Sprite sprite, float y, float height, bool flip)

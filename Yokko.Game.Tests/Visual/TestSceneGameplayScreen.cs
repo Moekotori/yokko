@@ -46,6 +46,9 @@ namespace Yokko.Game.Tests.Visual
         private YokkoGameplaySettings gameplaySettings { get; set; }
 
         [Resolved]
+        private YokkoSkinSettings skinSettings { get; set; }
+
+        [Resolved]
         private IRenderer renderer { get; set; }
 
         public TestSceneGameplayScreen()
@@ -871,6 +874,28 @@ namespace Yokko.Game.Tests.Visual
                 Math.Abs(
                     gameplayScreen.LayoutOverviewAspectRatio
                     - 16f / 9f) < 0.001f);
+            double timingBarOffsetX = 0;
+            double timingBarOffsetY = 0;
+            AddStep("nudge timing bar with arrow keys", () =>
+            {
+                timingBarOffsetX =
+                    gameplaySettings.LayoutTimingBarOffsetX.Value;
+                timingBarOffsetY =
+                    gameplaySettings.LayoutTimingBarOffsetY.Value;
+                layoutEditor.NudgeTimingBarForTest(
+                    Key.Right,
+                    false);
+                layoutEditor.NudgeTimingBarForTest(
+                    Key.Up,
+                    true);
+            });
+            AddAssert("arrow key nudges use normal and accelerated steps", () =>
+                gameplaySettings.LayoutTimingBarOffsetX.Value
+                    > timingBarOffsetX
+                && gameplaySettings.LayoutTimingBarOffsetY.Value
+                    < timingBarOffsetY);
+            AddStep("restore layout after keyboard nudge", () =>
+                gameplaySettings.ResetGameplayLayout());
             AddStep("move and resize timing bar", () =>
             {
                 layoutEditor.MoveTimingBarForTest(new Vector2(120, -80));
@@ -2051,6 +2076,52 @@ LightingLWidth: 20,20,20,20
                        && clip.Y + clip.Height
                        >= lowerEndpointCentre - 0.01f;
             });
+        }
+
+        [Test]
+        public void TestAdditionalLongNoteCutPreservesBakedPercyTexture()
+        {
+            string skinPath = null;
+            double originalCutAmount = 0;
+
+            AddStep("create baked Percy skin", () =>
+            {
+                originalCutAmount = skinSettings.LongNoteCutAmount.Value;
+                skinSettings.LongNoteCutAmount.Value = 0.6;
+                skinPath = createTestSkin();
+
+                using var body = new Image<Rgba32>(8, 400);
+                for (int y = 320; y < body.Height; y++)
+                for (int x = 0; x < body.Width; x++)
+                    body[x, y] = new Rgba32(142, 136, 145, 255);
+                body.SaveAsPng(Path.Combine(skinPath, "hold-body.png"));
+
+                using var tail = new Image<Rgba32>(8, 8);
+                tail.SaveAsPng(Path.Combine(skinPath, "hold-tail.png"));
+            });
+            AddStep("open chart with extra LN cut", () =>
+                screenStack.Push(new GameplayScreen(
+                    createHoldDemo(KeyMode.FourKey),
+                    skinPath: skinPath)));
+            AddUntilStep("baked texture and extra cut are both active", () =>
+            {
+                DrawableNote hold = (screenStack.CurrentScreen as Drawable)?
+                                    .ChildrenOfType<GameplayPlayfield>()
+                                    .SingleOrDefault()?
+                                    .GetDrawableNote(0);
+                Texture bodyTexture = hold?
+                                      .ChildrenOfType<Sprite>()
+                                      .Select(sprite => sprite.Texture)
+                                      .FirstOrDefault(texture =>
+                                          texture?.DisplayHeight == 400);
+
+                return bodyTexture?.Available == true
+                       && Math.Abs(
+                           hold.AppliedLongNoteCutDistance - 24) < 0.01;
+            });
+            AddStep("restore extra LN cut", () =>
+                skinSettings.LongNoteCutAmount.Value =
+                    originalCutAmount);
         }
 
         [Test]

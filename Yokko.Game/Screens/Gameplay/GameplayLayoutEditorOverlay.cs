@@ -4,10 +4,12 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
 
@@ -62,6 +64,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             ResizeEdges.Right | ResizeEdges.Bottom,
             delta);
 
+    internal bool NudgeTimingBarForTest(Key key, bool accelerated) =>
+        timingBarTarget.TryNudge(key, accelerated);
+
     public GameplayLayoutEditorOverlay(
         GameplayPlayfield playfield,
         GameplayHud hud,
@@ -95,18 +100,18 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             createTopBar(),
             playfieldTarget = new LayoutTransformTarget(
                 this,
-                "轨道 · 拖动 / 拉伸边框",
+                YokkoStrings.Get("gameplay.layout_editor.playfield"),
                 movePlayfield,
                 resizePlayfield,
                 resizePlayfieldWithWheel),
             hudTarget = new LayoutTransformTarget(
                 this,
-                "信息面板 · 拖动 / 拉伸边框",
+                YokkoStrings.Get("gameplay.layout_editor.hud"),
                 moveHud,
                 resizeHud),
             timingBarTarget = new LayoutTransformTarget(
                 this,
-                "判定条 · 拖动 / 拉伸边框",
+                YokkoStrings.Get("gameplay.layout_editor.timing_bar"),
                 moveTimingBar,
                 resizeTimingBar),
             topCoverHandle = new CoverDragHandle(
@@ -256,14 +261,16 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                             {
                                 new SpriteText
                                 {
-                                    Text = "HUD 布局",
-                                    Font = HomeTypography.Display(14),
+                                    Text = YokkoStrings.Get(
+                                        "gameplay.layout_editor.title"),
+                                    Font = LayoutEditorTypography.Bold(14),
                                     Colour = HomeControlColours.Navy,
                                 },
                                 new SpriteText
                                 {
-                                    Text = "拖动元素 · 拉边缩放",
-                                    Font = HomeTypography.Body(9),
+                                    Text = YokkoStrings.Get(
+                                        "gameplay.layout_editor.hint"),
+                                    Font = LayoutEditorTypography.Regular(9),
                                     Colour = new Color4(
                                         HomeControlColours.Navy.R,
                                         HomeControlColours.Navy.G,
@@ -273,7 +280,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                             },
                         },
                         new LayoutActionButton(
-                            "重置",
+                            YokkoStrings.Get(
+                                "gameplay.layout_editor.reset"),
                             FontAwesome.Solid.Undo,
                             reset)
                         {
@@ -283,7 +291,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                             Width = 96,
                         },
                         new LayoutActionButton(
-                            "保存并返回",
+                            YokkoStrings.Get(
+                                "gameplay.layout_editor.save"),
                             FontAwesome.Solid.Check,
                             SaveAndClose,
                             true)
@@ -360,8 +369,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                         new SpriteText
                         {
                             Position = new Vector2(overviewPadding, 8),
-                            Text = "完整页面预览",
-                            Font = HomeTypography.Display(11),
+                            Text = YokkoStrings.Get(
+                                "gameplay.layout_editor.preview"),
+                            Font = LayoutEditorTypography.Bold(11),
                             Colour = HomeControlColours.Navy,
                         },
                         overviewContent = new Container
@@ -801,7 +811,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         public LayoutTransformTarget(
             Drawable coordinateSpace,
-            string label,
+            LocalisableString label,
             Action<Vector2> drag,
             Action<ResizeEdges, Vector2> resize,
             Action<float> scroll = null)
@@ -858,7 +868,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                     Origin = Anchor.CentreLeft,
                                     X = 10,
                                     Text = label,
-                                    Font = HomeTypography.Display(9),
+                                    Font = LayoutEditorTypography.Bold(9),
                                     Colour = HomeControlColours.Navy,
                                 },
                             },
@@ -928,6 +938,32 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 return false;
 
             scroll(e.ScrollDelta.Y);
+            return true;
+        }
+
+        protected override bool OnKeyDown(KeyDownEvent e)
+        {
+            if (!IsHovered)
+                return false;
+
+            return TryNudge(e.Key, e.ShiftPressed);
+        }
+
+        internal bool TryNudge(Key key, bool accelerated)
+        {
+            Vector2 direction = key switch
+            {
+                Key.Left => -Vector2.UnitX,
+                Key.Right => Vector2.UnitX,
+                Key.Up => -Vector2.UnitY,
+                Key.Down => Vector2.UnitY,
+                _ => Vector2.Zero,
+            };
+
+            if (direction == Vector2.Zero)
+                return false;
+
+            drag(direction * (accelerated ? 10 : 1));
             return true;
         }
     }
@@ -1017,7 +1053,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Text = label,
-                    Font = HomeTypography.Display(8),
+                    Font = LayoutEditorTypography.Bold(8),
                     Colour = HomeControlColours.Navy,
                 },
             };
@@ -1045,7 +1081,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Color4 hoverColour;
 
         public LayoutActionButton(
-            string text,
+            LocalisableString text,
             IconUsage icon,
             Action action,
             bool primary = false)
@@ -1101,7 +1137,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                             Anchor = Anchor.CentreLeft,
                             Origin = Anchor.CentreLeft,
                             Text = text,
-                            Font = HomeTypography.Display(9),
+                            Font = LayoutEditorTypography.Bold(9),
                             Colour = primary
                                 ? Color4.White
                                 : HomeControlColours.Navy,
@@ -1123,5 +1159,17 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             background.FadeColour(idleColour, 120, Easing.OutQuint);
             this.ScaleTo(1f, 120, Easing.OutQuint);
         }
+    }
+
+    private static class LayoutEditorTypography
+    {
+        public static FontUsage Regular(float size) =>
+            new("Yokko", readableSize(size));
+
+        public static FontUsage Bold(float size) =>
+            new("Yokko", readableSize(size), "Bold");
+
+        private static float readableSize(float size) =>
+            MathF.Max(16, size + MathF.Min(8, 6 + size * 0.05f));
     }
 }

@@ -229,6 +229,37 @@ public sealed class GameplayScrollVelocityTest
     }
 
     [Test]
+    public void AdditionalLongNoteCutUsesNoteWidthAndKeepsActualBounds()
+    {
+        var hold = new YokkoHitObject(
+            0,
+            1000,
+            3000,
+            HitObjectKind.Hold);
+        var original = new DrawableNote(0, hold, 80);
+        var cut = new DrawableNote(
+            0,
+            hold,
+            80,
+            longNoteCutAmount: 0.75);
+
+        original.UpdatePosition(0, false, false, 0, 500, 1800);
+        cut.UpdatePosition(0, false, false, 0, 500, 1800);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                cut.AppliedLongNoteCutDistance,
+                Is.EqualTo(60).Within(0.01));
+            Assert.That(
+                original.VisibleHoldBodyHeight
+                - cut.VisibleHoldBodyHeight,
+                Is.EqualTo(60).Within(0.01));
+            Assert.That(cut.Height, Is.EqualTo(original.Height));
+        });
+    }
+
+    [Test]
     public void PlaybackRateUsesSourceSpecificScrollNormalization()
     {
         Assert.Multiple(() =>
