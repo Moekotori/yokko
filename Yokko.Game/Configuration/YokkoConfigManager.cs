@@ -62,6 +62,9 @@ internal enum YokkoSetting
     GameplayEtternaJustice,
     GameplayShowLanePressFeedback,
     GameplayShowTimingBar,
+    GameplayJudgementDisplayDuration,
+    GameplayJudgementOpacity,
+    GameplayShowJudgementHitError,
     GameplayLayoutPlayfieldOffsetX,
     GameplayLayoutPlayfieldOffsetY,
     GameplayLayoutHudOffsetX,
@@ -204,6 +207,23 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             1.0);
         SetDefault(YokkoSetting.GameplayShowLanePressFeedback, true);
         SetDefault(YokkoSetting.GameplayShowTimingBar, true);
+        SetDefault(
+            YokkoSetting.GameplayJudgementDisplayDuration,
+            YokkoGameplaySettings
+                .DefaultJudgementDisplayDurationMilliseconds,
+            YokkoGameplaySettings
+                .MinimumJudgementDisplayDurationMilliseconds,
+            YokkoGameplaySettings
+                .MaximumJudgementDisplayDurationMilliseconds,
+            YokkoGameplaySettings
+                .JudgementDisplayDurationStepMilliseconds);
+        SetDefault(
+            YokkoSetting.GameplayJudgementOpacity,
+            YokkoGameplaySettings.MaximumJudgementOpacity,
+            YokkoGameplaySettings.MinimumJudgementOpacity,
+            YokkoGameplaySettings.MaximumJudgementOpacity,
+            YokkoGameplaySettings.JudgementOpacityStep);
+        SetDefault(YokkoSetting.GameplayShowJudgementHitError, true);
         SetDefault(
             YokkoSetting.GameplayLayoutPlayfieldOffsetX,
             0.0,
@@ -515,6 +535,15 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.GameplayShowTimingBar,
             settings.ShowTimingBar);
+        BindWith(
+            YokkoSetting.GameplayJudgementDisplayDuration,
+            settings.JudgementDisplayDurationMilliseconds);
+        BindWith(
+            YokkoSetting.GameplayJudgementOpacity,
+            settings.JudgementOpacity);
+        BindWith(
+            YokkoSetting.GameplayShowJudgementHitError,
+            settings.ShowJudgementHitError);
         BindWith(
             YokkoSetting.GameplayLayoutPlayfieldOffsetX,
             settings.LayoutPlayfieldOffsetX);

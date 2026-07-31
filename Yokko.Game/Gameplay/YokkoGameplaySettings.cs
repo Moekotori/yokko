@@ -147,6 +147,28 @@ public sealed class YokkoGameplaySettings
 
     public readonly BindableBool ShowTimingBar = new(true);
 
+    public const double MinimumJudgementDisplayDurationMilliseconds = 100;
+
+    public const double MaximumJudgementDisplayDurationMilliseconds = 2000;
+
+    public const double DefaultJudgementDisplayDurationMilliseconds = 420;
+
+    public const double JudgementDisplayDurationStepMilliseconds = 50;
+
+    public const double MinimumJudgementOpacity = 0.2;
+
+    public const double MaximumJudgementOpacity = 1;
+
+    public const double JudgementOpacityStep = 0.1;
+
+    public readonly Bindable<double> JudgementDisplayDurationMilliseconds =
+        new(DefaultJudgementDisplayDurationMilliseconds);
+
+    public readonly Bindable<double> JudgementOpacity =
+        new(MaximumJudgementOpacity);
+
+    public readonly BindableBool ShowJudgementHitError = new(true);
+
     public const double MinimumLayoutOffset = -0.75;
 
     public const double MaximumLayoutOffset = 0.75;
@@ -492,6 +514,22 @@ public sealed class YokkoGameplaySettings
     public void SetScrollTimeMilliseconds(double milliseconds) =>
         ScrollSpeed.Value =
             OsuManiaScrollSpeed.ComputeScrollSpeed(milliseconds);
+
+    public void SetJudgementDisplayDuration(double milliseconds) =>
+        JudgementDisplayDurationMilliseconds.Value = Math.Clamp(
+            Math.Round(
+                milliseconds
+                / JudgementDisplayDurationStepMilliseconds)
+            * JudgementDisplayDurationStepMilliseconds,
+            MinimumJudgementDisplayDurationMilliseconds,
+            MaximumJudgementDisplayDurationMilliseconds);
+
+    public void SetJudgementOpacity(double opacity) =>
+        JudgementOpacity.Value = Math.Clamp(
+            Math.Round(opacity / JudgementOpacityStep)
+            * JudgementOpacityStep,
+            MinimumJudgementOpacity,
+            MaximumJudgementOpacity);
 
     public void ResetGameplayLayout()
     {

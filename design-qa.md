@@ -2406,3 +2406,64 @@ final result: passed
   this fix.
 
 final result: passed
+
+# Gameplay Result Retry Typography QA6
+
+## Evidence
+
+- Source visual truth:
+  `D:\yokko\docs\design\gameplay\yokko-result-broadcast-selected.png`
+  (1672 x 941, normalized to 1600 x 900).
+- Revised implementation capture:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-retry-font-final.png`
+  (1600 x 900, Direct3D 11, English result state).
+- Full-view side-by-side comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-retry-font-comparison.png`.
+- Focused Retry comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-retry-font-focus.png`.
+- Viewport/state: 1600 x 900, density 1, English locale, Afterimage
+  [Insane], score 0537761, B rank, HD + DT 1.50x.
+
+## Comparison history
+
+1. The previous Retry label used Roboto Bold at display size 60 with a
+   non-uniform `1.4 x 1.08` scale. The horizontal stretch distorted the bowls,
+   terminals, and letter spacing, producing the user-reported unnatural type.
+2. The revised label keeps Roboto Bold but uses the shared display size 50 at
+   natural `1 x 1` proportions. Its Y position moves from 12 to 18 so the
+   smaller natural glyph box remains optically centred inside the 95px face.
+3. The focused side-by-side comparison shows the source and implementation now
+   have matching word width, weight, baseline, and surrounding icon/chevron
+   rhythm without altering button dimensions.
+
+## Required fidelity review
+
+- Fonts and typography: Roboto Bold is rendered at its natural aspect ratio;
+  there is no horizontal or vertical glyph deformation, wrapping, or clipping.
+- Spacing and layout: the 405 x 95 primary button, 66px icon tile, chevron,
+  border, and action-row position remain unchanged. Only the label's optical Y
+  placement changed.
+- Colors and tokens: white label, navy surface, yellow chevron, and cyan dot
+  texture retain the selected Yokko result tokens.
+- Image quality and assets: mascot, atmosphere, logo, and ribbon assets remain
+  unchanged and preserve their source-matched crop and sharpness.
+- Copy and content: Retry and all result data/mod/action labels are unchanged.
+- Interaction/state: click action, hover lift, press scale, chevron motion, and
+  key-hint behavior remain active with the same hit target.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after removing non-uniform font scaling.
+- P3: minor raster-antialiasing differences between the selected mock and the
+  Direct3D text renderer are expected and do not alter the letterforms.
+
+## Verification
+
+- Clean `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- Focused result overlay and completion-flow tests: 3 passed, 0 failed.
+- Native Direct3D 11 1600 x 900 capture opened and reviewed together with the
+  normalized source in both full-view and focused comparison images.
+
+final result: passed
