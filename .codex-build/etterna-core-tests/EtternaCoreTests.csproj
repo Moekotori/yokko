@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Yokko.Game.Tests</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Yokko.Game.Tests\Core\JudgementStateTest.cs"
+             Link="JudgementStateTest.cs" />
+    <Compile Include="..\..\Yokko.Game.Tests\Core\ManiaHealthStateTest.cs"
+             Link="ManiaHealthStateTest.cs" />
+    <ProjectReference Include="..\..\Yokko.Core\Yokko.Core.csproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.0.0" />
+    <PackageReference Include="NUnit" Version="3.13.3" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.4.2" />
+  </ItemGroup>
+</Project>

@@ -110,6 +110,60 @@ public sealed class ManiaHealthStateTest
     }
 
     [Test]
+    public void EtternaUsesDefaultLifeTable()
+    {
+        YokkoBeatmap beatmap = createBeatmap();
+        var health = new ManiaHealthState(
+            beatmap,
+            judgementConfiguration:
+                JudgementConfiguration.EtternaDefault);
+
+        health.Apply(judgement(JudgementRating.Meh));
+        health.Apply(judgement(JudgementRating.Good));
+        health.Apply(judgement(JudgementRating.Ok));
+        health.Apply(judgement(JudgementRating.Miss));
+        health.Apply(judgement(
+            JudgementRating.IgnoreMiss,
+            JudgementPhase.Mine));
+
+        Assert.That(
+            health.Health,
+            Is.EqualTo(0.724).Within(1e-12));
+    }
+
+    [Test]
+    public void EtternaSuddenDeathUsesW3ComboThreshold()
+    {
+        YokkoBeatmap beatmap = createBeatmap();
+        var etterna = new ManiaHealthState(
+            beatmap,
+            new ManiaModSet([ManiaModId.SuddenDeath]),
+            JudgementConfiguration.EtternaDefault);
+        var yokko = new ManiaHealthState(
+            beatmap,
+            new ManiaModSet([ManiaModId.SuddenDeath]));
+
+        ManiaHealthUpdate w3 =
+            etterna.Apply(judgement(JudgementRating.Good));
+        ManiaHealthUpdate w4 =
+            etterna.Apply(judgement(JudgementRating.Ok));
+        ManiaHealthUpdate yokkoOkay =
+            yokko.Apply(judgement(JudgementRating.Ok));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(w3.Failed, Is.False);
+            Assert.That(
+                w4.FailReason,
+                Is.EqualTo(ManiaFailReason.SuddenDeath));
+            Assert.That(yokkoOkay.Failed, Is.False);
+            Assert.That(
+                yokkoOkay.FailReason,
+                Is.EqualTo(ManiaFailReason.None));
+        });
+    }
+
+    [Test]
     public void NoFailAllowsHealthToRemainAtZero()
     {
         YokkoBeatmap beatmap = createBeatmap(drainRate: 10);

@@ -825,9 +825,12 @@ namespace Yokko.Game.Tests.Visual
         public void TestGameplayLayoutEditorPausesAndShowsFullPagePreview()
         {
             GameplayScreen gameplayScreen = null;
+            GameplayLayoutEditorOverlay layoutEditor = null;
+            GameplayTimingBar timingBar = null;
 
             AddStep("open gameplay layout fixture", () =>
             {
+                gameplaySettings.ResetGameplayLayout();
                 gameplayScreen = new GameplayScreen(
                     DemoBeatmaps.CreateFourKeyDemo());
                 screenStack.Push(gameplayScreen);
@@ -852,13 +855,34 @@ namespace Yokko.Game.Tests.Visual
                 pauseOverlay.TriggerSelected();
             });
             AddUntilStep("layout editor is active", () =>
-                gameplayScreen.IsLayoutEditing);
+                gameplayScreen.IsLayoutEditing
+                && (layoutEditor = gameplayScreen
+                    .ChildrenOfType<GameplayLayoutEditorOverlay>()
+                    .SingleOrDefault()) != null
+                && (timingBar = gameplayScreen
+                    .ChildrenOfType<GameplayTimingBar>()
+                    .SingleOrDefault()) != null);
             AddAssert("gameplay is paused while arranging", () =>
                 gameplayScreen.IsPaused);
+            AddAssert("three elements expose screenshot handles", () =>
+                layoutEditor.TransformTargetCount == 3
+                && layoutEditor.ResizeHandleCount == 24);
             AddAssert("overview keeps full page aspect ratio", () =>
                 Math.Abs(
                     gameplayScreen.LayoutOverviewAspectRatio
                     - 16f / 9f) < 0.001f);
+            AddStep("move and resize timing bar", () =>
+            {
+                layoutEditor.MoveTimingBarForTest(new Vector2(120, -80));
+                layoutEditor.ResizeTimingBarForTest(new Vector2(72, 30));
+            });
+            AddUntilStep("timing bar transform is applied", () =>
+                timingBar.Position.X > 100
+                && timingBar.Position.Y < -30
+                && timingBar.Scale.X > 1.15f
+                && timingBar.Scale.Y > 1.2f);
+            AddStep("restore layout defaults", () =>
+                gameplaySettings.ResetGameplayLayout());
             AddStep("save layout and return", () =>
                 gameplayScreen.HandleKeyDownInput(
                     Key.Escape,

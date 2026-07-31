@@ -412,6 +412,256 @@ namespace Yokko.Game.Tests.Core
         }
 
         [Test]
+        public void EtternaW4W5AndMissBreakCombo()
+        {
+            BeatmapJudgementState state = createEtternaState(
+                createTapBeatmap(
+                    1000,
+                    1500,
+                    2000,
+                    2500,
+                    3000,
+                    3500));
+
+            state.JudgeLanePress(0, 1000);
+            state.JudgeLanePress(0, 1560);
+            Assert.That(state.Combo, Is.EqualTo(2));
+
+            state.JudgeLanePress(0, 2100);
+            Assert.That(state.Combo, Is.Zero);
+
+            state.JudgeLanePress(0, 2500);
+            Assert.That(state.Combo, Is.EqualTo(1));
+
+            state.JudgeLanePress(0, 3150);
+            Assert.That(state.Combo, Is.Zero);
+
+            state.CollectExpiredMisses(3680.001);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(state.Combo, Is.Zero);
+                Assert.That(state.ComboBreaks, Is.EqualTo(3));
+                Assert.That(state.Counts.Ok, Is.EqualTo(1));
+                Assert.That(state.Counts.Meh, Is.EqualTo(1));
+                Assert.That(state.Counts.Miss, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void EtternaComboBreakRulesDoNotLeakIntoYokkoScoring()
+        {
+            YokkoBeatmap beatmap =
+                createTapBeatmap(1000, 1500, 2000, 2500);
+            var yokko = new ManiaScoreProcessor(beatmap);
+            var etterna = new ManiaScoreProcessor(
+                beatmap,
+                judgementConfiguration:
+                    JudgementConfiguration.EtternaDefault);
+            JudgementRating[] ratings =
+            [
+                JudgementRating.Perfect,
+                JudgementRating.Ok,
+                JudgementRating.Perfect,
+                JudgementRating.Meh,
+            ];
+
+            foreach (JudgementRating rating in ratings)
+            {
+                yokko.Apply(rating);
+                etterna.Apply(rating);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(yokko.Combo, Is.EqualTo(4));
+                Assert.That(yokko.MaxCombo, Is.EqualTo(4));
+                Assert.That(yokko.ComboBreaks, Is.Zero);
+                Assert.That(etterna.Combo, Is.Zero);
+                Assert.That(etterna.MaxCombo, Is.EqualTo(1));
+                Assert.That(etterna.ComboBreaks, Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void EtternaBrokenChordDoesNotRestartComboOnSameRow()
+        {
+            var beatmap = new YokkoBeatmap(
+                "Etterna chord",
+                "Yokko",
+                "Yokko",
+                "4K",
+                KeyMode.FourKey,
+                ChartSourceFormat.Etterna,
+                [YokkoTimingPoint.Default],
+                null,
+                [
+                    new YokkoHitObject(
+                        0,
+                        1000,
+                        null,
+                        HitObjectKind.Tap),
+                    new YokkoHitObject(
+                        1,
+                        1000,
+                        null,
+                        HitObjectKind.Tap),
+                ]);
+            BeatmapJudgementState state =
+                createEtternaState(beatmap);
+
+            state.JudgeLanePress(0, 1100);
+            state.JudgeLanePress(1, 1000);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(state.Combo, Is.Zero);
+                Assert.That(state.MaxCombo, Is.Zero);
+                Assert.That(state.ComboBreaks, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void EtternaAccuracyUsesWife3AndMissWeight()
+        {
+            BeatmapJudgementState state = createEtternaState(
+                createTapBeatmap(1000, 1500));
+
+            state.JudgeLanePress(0, 1000);
+            state.CollectExpiredMisses(1680.001);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    state.Accuracy,
+                    Is.EqualTo(-0.875).Within(1e-12));
+                Assert.That(state.Score, Is.Zero);
+                Assert.That(
+                    state.MaximumAchievableAccuracy,
+                    Is.EqualTo(-0.875).Within(1e-12));
+                Assert.That(
+                    EtternaScoringRules.GradeLabel(state.Accuracy),
+                    Is.EqualTo("D"));
+            });
+        }
+
+        [Test]
+        public void EtternaHoldUsesHeadForComboAndNoTailTimingJudgement()
+        {
+            BeatmapJudgementState state = createEtternaState(
+                createHoldBeatmap());
+
+            JudgementEvent head =
+                state.JudgeLanePress(1, 1000).Single();
+            IReadOnlyList<JudgementEvent> end =
+                state.JudgeLaneRelease(1, 1500);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    head.Phase,
+                    Is.EqualTo(JudgementPhase.HoldHead));
+                Assert.That(
+                    end.Select(static judgement => judgement.Phase),
+                    Is.EqualTo(new[]
+                    {
+                        JudgementPhase.HoldTail,
+                        JudgementPhase.HoldBody,
+                        JudgementPhase.Hold,
+                    }));
+                Assert.That(
+                    end.All(static judgement =>
+                        judgement.Rating == JudgementRating.IgnoreHit),
+                    Is.True);
+                Assert.That(state.Counts.Perfect, Is.EqualTo(1));
+                Assert.That(state.Combo, Is.EqualTo(1));
+                Assert.That(state.Accuracy, Is.EqualTo(1));
+                Assert.That(state.Score, Is.EqualTo(1_000_000));
+                Assert.That(state.IsComplete, Is.True);
+            });
+        }
+
+        [Test]
+        public void EtternaHoldDropPenalisesWifeWithoutBreakingTapCombo()
+        {
+            BeatmapJudgementState state = createEtternaState(
+                createHoldBeatmap());
+
+            state.JudgeLanePress(1, 1000);
+            IReadOnlyList<JudgementEvent> release =
+                state.JudgeLaneRelease(1, 1200);
+            IReadOnlyList<JudgementEvent> drop =
+                state.CollectExpiredMisses(1450);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(release, Is.Empty);
+                Assert.That(
+                    drop.Any(static judgement =>
+                        judgement.Phase == JudgementPhase.HoldBody
+                        && judgement.Rating
+                        == JudgementRating.ComboBreak),
+                    Is.True);
+                Assert.That(state.Combo, Is.EqualTo(1));
+                Assert.That(state.ComboBreaks, Is.Zero);
+                Assert.That(
+                    state.Accuracy,
+                    Is.EqualTo(-1.25).Within(1e-12));
+                Assert.That(state.IsComplete, Is.True);
+            });
+        }
+
+        [Test]
+        public void EtternaHoldCanBeRegrabbedBeforeLifeDrains()
+        {
+            BeatmapJudgementState state = createEtternaState(
+                createHoldBeatmap());
+
+            state.JudgeLanePress(1, 1000);
+            Assert.That(state.JudgeLaneRelease(1, 1200), Is.Empty);
+            Assert.That(state.JudgeLanePress(1, 1300), Is.Empty);
+            IReadOnlyList<JudgementEvent> end =
+                state.CollectExpiredMisses(1500);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    end.All(static judgement =>
+                        judgement.Rating == JudgementRating.IgnoreHit),
+                    Is.True);
+                Assert.That(state.Accuracy, Is.EqualTo(1));
+                Assert.That(state.Combo, Is.EqualTo(1));
+                Assert.That(state.IsComplete, Is.True);
+            });
+        }
+
+        [Test]
+        public void EtternaMissedHoldAddsOneMissAndMissedHoldPenalty()
+        {
+            BeatmapJudgementState state = createEtternaState(
+                createHoldBeatmap());
+
+            state.CollectExpiredMisses(1180.001);
+            IReadOnlyList<JudgementEvent> end =
+                state.CollectExpiredMisses(1500);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(state.Counts.Miss, Is.EqualTo(1));
+                Assert.That(state.ComboBreaks, Is.EqualTo(1));
+                Assert.That(
+                    end.Single(static judgement =>
+                        judgement.Phase == JudgementPhase.HoldBody)
+                       .Rating,
+                    Is.EqualTo(JudgementRating.IgnoreMiss));
+                Assert.That(
+                    state.Accuracy,
+                    Is.EqualTo(-5).Within(1e-12));
+                Assert.That(state.IsComplete, Is.True);
+            });
+        }
+
+        [Test]
         public void PerfectHitResolvesObject()
         {
             YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();

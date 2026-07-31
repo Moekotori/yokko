@@ -436,7 +436,9 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                         0.42f),
                 },
                 createMetricCell(
-                    etterna ? "WIFE3" : "ACCURACY",
+                    judgementConfiguration.Mode == JudgementMode.Etterna
+                        ? "WIFE3"
+                        : "ACCURACY",
                     $"{result.Accuracy * 100:0.00}%",
                     376,
                     286),
@@ -451,10 +453,10 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                         0.42f),
                 },
                 createMetricCell(
-                    etterna
+                    judgementConfiguration.Mode == JudgementMode.Etterna
                         ? "MAX COMBO · CB"
                         : YokkoStrings.Get("gameplay.result.max_combo"),
-                    etterna
+                    judgementConfiguration.Mode == JudgementMode.Etterna
                         ? $"{result.MaxCombo} · {result.Ok + result.Meh + result.Miss}"
                         : result.MaxCombo.ToString(),
                     738,

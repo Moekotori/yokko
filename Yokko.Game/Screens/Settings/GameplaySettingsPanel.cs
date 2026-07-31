@@ -154,7 +154,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             contentHost = new SettingsContentScrollContainer()
             {
                 Position = new Vector2(378, 320),
-                Size = new Vector2(840, 296),
+                Size = new Vector2(840, 328),
             },
             new SettingsPanelFooter(),
             new HomeDotCross
@@ -953,7 +953,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     private Drawable createFeedbackSection()
     {
-        var panel = createPanel(320);
+        var panel = createPanel();
         setPanelChildren(panel, new Drawable[]
         {
             new SpriteText
@@ -1050,7 +1050,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         return panel;
     }
 
-    private static Container createPanel(float height = 296) => new()
+    private static Container createPanel(float height = 328) => new()
     {
         RelativeSizeAxes = Axes.X,
         Height = height,

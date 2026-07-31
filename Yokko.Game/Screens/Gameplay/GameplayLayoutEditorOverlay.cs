@@ -25,16 +25,19 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     private readonly GameplayPlayfield playfield;
     private readonly GameplayHud hud;
+    private readonly GameplayTimingBar timingBar;
     private readonly YokkoGameplaySettings settings;
     private readonly Action save;
     private readonly Action close;
-    private readonly LayoutDragTarget playfieldTarget;
-    private readonly LayoutDragTarget hudTarget;
+    private readonly LayoutTransformTarget playfieldTarget;
+    private readonly LayoutTransformTarget hudTarget;
+    private readonly LayoutTransformTarget timingBarTarget;
     private readonly CoverDragHandle topCoverHandle;
     private readonly CoverDragHandle bottomCoverHandle;
     private readonly Container overviewContent;
     private readonly Container miniPlayfield;
     private readonly Container miniHud;
+    private readonly Container miniTimingBar;
     private readonly Box miniTopCover;
     private readonly Box miniBottomCover;
 
@@ -43,15 +46,32 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     internal float OverviewAspectRatio =>
         overviewContent.Width / overviewContent.Height;
 
+    internal int TransformTargetCount => 3;
+
+    internal int ResizeHandleCount =>
+        playfieldTarget.ResizeHandleCount
+        + hudTarget.ResizeHandleCount
+        + timingBarTarget.ResizeHandleCount;
+
+    internal void MoveTimingBarForTest(Vector2 delta) =>
+        moveTimingBar(delta);
+
+    internal void ResizeTimingBarForTest(Vector2 delta) =>
+        resizeTimingBar(
+            ResizeEdges.Right | ResizeEdges.Bottom,
+            delta);
+
     public GameplayLayoutEditorOverlay(
         GameplayPlayfield playfield,
         GameplayHud hud,
+        GameplayTimingBar timingBar,
         YokkoGameplaySettings settings,
         Action save,
         Action close)
     {
         this.playfield = playfield;
         this.hud = hud;
+        this.timingBar = timingBar;
         this.settings = settings;
         this.save = save;
         this.close = close;
@@ -68,15 +88,22 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 Colour = new Color4(0f, 0f, 0f, 0.08f),
             },
             createTopBar(),
-            playfieldTarget = new LayoutDragTarget(
+            playfieldTarget = new LayoutTransformTarget(
                 this,
-                "PLAYFIELD · DRAG · WHEEL TO RESIZE",
+                "轨道 · 拖动 / 拉伸边框",
                 movePlayfield,
-                resizePlayfield),
-            hudTarget = new LayoutDragTarget(
+                resizePlayfield,
+                resizePlayfieldWithWheel),
+            hudTarget = new LayoutTransformTarget(
                 this,
-                "INFO PANEL · DRAG",
-                moveHud),
+                "信息面板 · 拖动 / 拉伸边框",
+                moveHud,
+                resizeHud),
+            timingBarTarget = new LayoutTransformTarget(
+                this,
+                "判定条 · 拖动 / 拉伸边框",
+                moveTimingBar,
+                resizeTimingBar),
             topCoverHandle = new CoverDragHandle(
                 this,
                 "TOP COVER",
@@ -143,6 +170,21 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                         0.96f),
                                 },
                             },
+                            miniTimingBar = new Container
+                            {
+                                Masking = true,
+                                BorderThickness = 1,
+                                BorderColour = YokkoPalette.Lime,
+                                Child = new Box
+                                {
+                                    RelativeSizeAxes = Axes.Both,
+                                    Colour = new Color4(
+                                        YokkoPalette.Lime.R,
+                                        YokkoPalette.Lime.G,
+                                        YokkoPalette.Lime.B,
+                                        0.55f),
+                                },
+                            },
                             miniTopCover = createMiniCover(),
                             miniBottomCover = createMiniCover(),
                         },
@@ -184,12 +226,18 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             GameplayLayoutGeometry.BoundsIn(this, playfield);
         (Vector2 hudTopLeft, Vector2 hudBottomRight) =
             GameplayLayoutGeometry.BoundsIn(this, hud);
+        (Vector2 timingBarTopLeft, Vector2 timingBarBottomRight) =
+            GameplayLayoutGeometry.BoundsIn(this, timingBar);
 
         setBounds(
             playfieldTarget,
             playfieldTopLeft,
             playfieldBottomRight);
         setBounds(hudTarget, hudTopLeft, hudBottomRight);
+        setBounds(
+            timingBarTarget,
+            timingBarTopLeft,
+            timingBarBottomRight);
 
         float playfieldHeight = Math.Max(
             1,
@@ -220,7 +268,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             playfieldTopLeft,
             playfieldBottomRight,
             hudTopLeft,
-            hudBottomRight);
+            hudBottomRight,
+            timingBarTopLeft,
+            timingBarBottomRight);
     }
 
     private Drawable createTopBar() =>
@@ -242,7 +292,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     Origin = Anchor.CentreLeft,
                     X = 18,
                     Text =
-                        "LAYOUT EDIT  ·  DRAG ELEMENTS  ·  WHEEL RESIZES PLAYFIELD",
+                        "布局编辑  ·  拖动元素  ·  拉动边框或控制点缩放",
                     Font = FontUsage.Default.With(
                         size: 14,
                         weight: "SemiBold"),
@@ -289,7 +339,153 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             + delta.Y / Math.Max(1, DrawHeight));
     }
 
-    private void resizePlayfield(float direction)
+    private void moveTimingBar(Vector2 delta)
+    {
+        settings.LayoutTimingBarOffsetX.Value = clampOffset(
+            settings.LayoutTimingBarOffsetX.Value
+            + delta.X / Math.Max(1, DrawWidth));
+        settings.LayoutTimingBarOffsetY.Value = clampOffset(
+            settings.LayoutTimingBarOffsetY.Value
+            + delta.Y / Math.Max(1, DrawHeight));
+    }
+
+    private void resizePlayfield(
+        ResizeEdges edges,
+        Vector2 delta)
+    {
+        (Vector2 topLeft, Vector2 bottomRight) =
+            GameplayLayoutGeometry.BoundsIn(this, playfield);
+        float width = Math.Max(1, bottomRight.X - topLeft.X);
+        float height = Math.Max(1, bottomRight.Y - topLeft.Y);
+
+        if (hasHorizontalEdge(edges))
+        {
+            bool fromRight = edges.HasFlag(ResizeEdges.Right);
+            float realisedChange = resizeDimension(
+                settings.LayoutPlayfieldWidthScale.Value,
+                width,
+                (fromRight ? 1 : -1) * delta.X,
+                YokkoGameplaySettings.MinimumPlayfieldWidthScale,
+                YokkoGameplaySettings.MaximumPlayfieldWidthScale,
+                value => settings.LayoutPlayfieldWidthScale.Value = value);
+            settings.LayoutPlayfieldOffsetX.Value = clampOffset(
+                settings.LayoutPlayfieldOffsetX.Value
+                + (fromRight ? realisedChange : -realisedChange)
+                / 2
+                / Math.Max(1, DrawWidth));
+        }
+
+        if (hasVerticalEdge(edges))
+        {
+            bool fromBottom = edges.HasFlag(ResizeEdges.Bottom);
+            float realisedChange = resizeDimension(
+                settings.LayoutPlayfieldHeightScale.Value,
+                height,
+                (fromBottom ? 1 : -1) * delta.Y,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale,
+                value => settings.LayoutPlayfieldHeightScale.Value = value);
+            if (fromBottom)
+            {
+                settings.LayoutPlayfieldOffsetY.Value = clampOffset(
+                    settings.LayoutPlayfieldOffsetY.Value
+                    + realisedChange / Math.Max(1, DrawHeight));
+            }
+        }
+    }
+
+    private void resizeHud(
+        ResizeEdges edges,
+        Vector2 delta)
+    {
+        (Vector2 topLeft, Vector2 bottomRight) =
+            GameplayLayoutGeometry.BoundsIn(this, hud);
+        float width = Math.Max(1, bottomRight.X - topLeft.X);
+        float height = Math.Max(1, bottomRight.Y - topLeft.Y);
+
+        if (hasHorizontalEdge(edges))
+        {
+            bool fromRight = edges.HasFlag(ResizeEdges.Right);
+            float realisedChange = resizeDimension(
+                settings.LayoutHudScaleX.Value,
+                width,
+                (fromRight ? 1 : -1) * delta.X,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale,
+                value => settings.LayoutHudScaleX.Value = value);
+            if (fromRight)
+            {
+                settings.LayoutHudOffsetX.Value = clampOffset(
+                    settings.LayoutHudOffsetX.Value
+                    + realisedChange / Math.Max(1, DrawWidth));
+            }
+        }
+
+        if (hasVerticalEdge(edges))
+        {
+            bool fromBottom = edges.HasFlag(ResizeEdges.Bottom);
+            float realisedChange = resizeDimension(
+                settings.LayoutHudScaleY.Value,
+                height,
+                (fromBottom ? 1 : -1) * delta.Y,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale,
+                value => settings.LayoutHudScaleY.Value = value);
+            if (!fromBottom)
+            {
+                settings.LayoutHudOffsetY.Value = clampOffset(
+                    settings.LayoutHudOffsetY.Value
+                    - realisedChange / Math.Max(1, DrawHeight));
+            }
+        }
+    }
+
+    private void resizeTimingBar(
+        ResizeEdges edges,
+        Vector2 delta)
+    {
+        (Vector2 topLeft, Vector2 bottomRight) =
+            GameplayLayoutGeometry.BoundsIn(this, timingBar);
+        float width = Math.Max(1, bottomRight.X - topLeft.X);
+        float height = Math.Max(1, bottomRight.Y - topLeft.Y);
+
+        if (hasHorizontalEdge(edges))
+        {
+            bool fromRight = edges.HasFlag(ResizeEdges.Right);
+            float realisedChange = resizeDimension(
+                settings.LayoutTimingBarScaleX.Value,
+                width,
+                (fromRight ? 1 : -1) * delta.X,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale,
+                value => settings.LayoutTimingBarScaleX.Value = value);
+            settings.LayoutTimingBarOffsetX.Value = clampOffset(
+                settings.LayoutTimingBarOffsetX.Value
+                + (fromRight ? realisedChange : -realisedChange)
+                / 2
+                / Math.Max(1, DrawWidth));
+        }
+
+        if (hasVerticalEdge(edges))
+        {
+            bool fromBottom = edges.HasFlag(ResizeEdges.Bottom);
+            float realisedChange = resizeDimension(
+                settings.LayoutTimingBarScaleY.Value,
+                height,
+                (fromBottom ? 1 : -1) * delta.Y,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale,
+                value => settings.LayoutTimingBarScaleY.Value = value);
+            if (fromBottom)
+            {
+                settings.LayoutTimingBarOffsetY.Value = clampOffset(
+                    settings.LayoutTimingBarOffsetY.Value
+                    + realisedChange / Math.Max(1, DrawHeight));
+            }
+        }
+    }
+
+    private void resizePlayfieldWithWheel(float direction)
     {
         settings.LayoutPlayfieldWidthScale.Value = Math.Clamp(
             settings.LayoutPlayfieldWidthScale.Value
@@ -297,6 +493,33 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             YokkoGameplaySettings.MinimumPlayfieldWidthScale,
             YokkoGameplaySettings.MaximumPlayfieldWidthScale);
     }
+
+    private static float resizeDimension(
+        double currentScale,
+        float currentSize,
+        float requestedSizeChange,
+        double minimumScale,
+        double maximumScale,
+        Action<double> apply)
+    {
+        double nextScale = Math.Clamp(
+            currentScale
+            * Math.Max(8, currentSize + requestedSizeChange)
+            / Math.Max(1, currentSize),
+            minimumScale,
+            maximumScale);
+        apply(nextScale);
+        return currentSize
+               * ((float)(nextScale / Math.Max(0.0001, currentScale)) - 1);
+    }
+
+    private static bool hasHorizontalEdge(ResizeEdges edges) =>
+        edges.HasFlag(ResizeEdges.Left)
+        || edges.HasFlag(ResizeEdges.Right);
+
+    private static bool hasVerticalEdge(ResizeEdges edges) =>
+        edges.HasFlag(ResizeEdges.Top)
+        || edges.HasFlag(ResizeEdges.Bottom);
 
     private void updateTopCover(Vector2 screenSpacePosition)
     {
@@ -332,13 +555,19 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         Vector2 playfieldTopLeft,
         Vector2 playfieldBottomRight,
         Vector2 hudTopLeft,
-        Vector2 hudBottomRight)
+        Vector2 hudBottomRight,
+        Vector2 timingBarTopLeft,
+        Vector2 timingBarBottomRight)
     {
         setOverviewBounds(
             miniPlayfield,
             playfieldTopLeft,
             playfieldBottomRight);
         setOverviewBounds(miniHud, hudTopLeft, hudBottomRight);
+        setOverviewBounds(
+            miniTimingBar,
+            timingBarTopLeft,
+            timingBarBottomRight);
 
         float playfieldMiniHeight = miniPlayfield.Height;
         miniTopCover.Position = miniPlayfield.Position;
@@ -440,48 +669,104 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         Colour = new Color4(0f, 0f, 0f, 0.94f),
     };
 
-    private partial class LayoutDragTarget : CompositeDrawable
+    [Flags]
+    private enum ResizeEdges
+    {
+        None = 0,
+        Left = 1 << 0,
+        Right = 1 << 1,
+        Top = 1 << 2,
+        Bottom = 1 << 3,
+    }
+
+    private partial class LayoutTransformTarget : CompositeDrawable
     {
         private readonly Drawable coordinateSpace;
         private readonly Action<Vector2> drag;
+        private readonly Action<ResizeEdges, Vector2> resize;
         private readonly Action<float> scroll;
         private Vector2 lastPosition;
 
-        public LayoutDragTarget(
+        internal int ResizeHandleCount => 8;
+
+        public LayoutTransformTarget(
             Drawable coordinateSpace,
             string label,
             Action<Vector2> drag,
+            Action<ResizeEdges, Vector2> resize,
             Action<float> scroll = null)
         {
             this.coordinateSpace = coordinateSpace;
             this.drag = drag;
+            this.resize = resize;
             this.scroll = scroll;
-            Masking = true;
-            BorderThickness = 2;
-            BorderColour = YokkoPalette.Cyan;
+            Masking = false;
 
             InternalChildren = new Drawable[]
             {
-                new Box
+                new Container
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(
-                        YokkoPalette.Cyan.R,
-                        YokkoPalette.Cyan.G,
-                        YokkoPalette.Cyan.B,
-                        0.025f),
+                    Masking = true,
+                    BorderThickness = 2,
+                    BorderColour = YokkoPalette.Cyan,
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = new Color4(
+                                YokkoPalette.Cyan.R,
+                                YokkoPalette.Cyan.G,
+                                YokkoPalette.Cyan.B,
+                                0.025f),
+                        },
+                        new SpriteText
+                        {
+                            Position = new Vector2(8, 6),
+                            Text = label,
+                            Font = FontUsage.Default.With(
+                                size: 12,
+                                weight: "SemiBold"),
+                            Colour = YokkoPalette.Cyan,
+                        },
+                    },
                 },
-                new SpriteText
-                {
-                    Position = new Vector2(8, 6),
-                    Text = label,
-                    Font = FontUsage.Default.With(
-                        size: 12,
-                        weight: "SemiBold"),
-                    Colour = YokkoPalette.Cyan,
-                },
+                createHandle(
+                    Anchor.TopLeft,
+                    ResizeEdges.Left | ResizeEdges.Top),
+                createHandle(Anchor.TopCentre, ResizeEdges.Top, true),
+                createHandle(
+                    Anchor.TopRight,
+                    ResizeEdges.Right | ResizeEdges.Top),
+                createHandle(Anchor.CentreLeft, ResizeEdges.Left, true),
+                createHandle(Anchor.CentreRight, ResizeEdges.Right, true),
+                createHandle(
+                    Anchor.BottomLeft,
+                    ResizeEdges.Left | ResizeEdges.Bottom),
+                createHandle(Anchor.BottomCentre, ResizeEdges.Bottom, true),
+                createHandle(
+                    Anchor.BottomRight,
+                    ResizeEdges.Right | ResizeEdges.Bottom),
             };
         }
+
+        private Drawable createHandle(
+            Anchor anchor,
+            ResizeEdges edges,
+            bool edge = false) =>
+            new ResizeHandle(
+                coordinateSpace,
+                delta => resize(edges, delta))
+            {
+                Anchor = anchor,
+                Origin = anchor,
+                Size = edge
+                    ? anchor is Anchor.TopCentre or Anchor.BottomCentre
+                        ? new Vector2(22, 10)
+                        : new Vector2(10, 22)
+                    : new Vector2(13),
+            };
 
         protected override bool OnMouseDown(MouseDownEvent e)
         {
@@ -510,6 +795,51 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
             scroll(e.ScrollDelta.Y);
             return true;
+        }
+    }
+
+    private partial class ResizeHandle : CompositeDrawable
+    {
+        private readonly Drawable coordinateSpace;
+        private readonly Action<Vector2> resize;
+        private Vector2 lastPosition;
+
+        public ResizeHandle(
+            Drawable coordinateSpace,
+            Action<Vector2> resize)
+        {
+            this.coordinateSpace = coordinateSpace;
+            this.resize = resize;
+            Depth = -30;
+            Masking = true;
+            CornerRadius = 2;
+            BorderThickness = 2;
+            BorderColour = new Color4(0.015f, 0.025f, 0.045f, 1f);
+            InternalChild = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = YokkoPalette.Cyan,
+            };
+        }
+
+        protected override bool OnMouseDown(MouseDownEvent e)
+        {
+            if (e.Button != MouseButton.Left)
+                return false;
+
+            lastPosition = coordinateSpace.ToLocalSpace(
+                e.ScreenSpaceMousePosition);
+            return true;
+        }
+
+        protected override bool OnDragStart(DragStartEvent e) => true;
+
+        protected override void OnDrag(DragEvent e)
+        {
+            Vector2 current = coordinateSpace.ToLocalSpace(
+                e.ScreenSpaceMousePosition);
+            resize(current - lastPosition);
+            lastPosition = current;
         }
     }
 

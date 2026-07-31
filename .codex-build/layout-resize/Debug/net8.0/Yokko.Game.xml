@@ -1,0 +1,885 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Yokko.Game</name>
+    </assembly>
+    <members>
+        <member name="T:Yokko.Game.Audio.AudioSettingsTestPlayer">
+            <summary>
+            Exercises the configured output path with generated, licence-free test
+            signals. Music and hit sounds deliberately use their real native mix buses.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Audio.YokkoAudioSettings">
+            <summary>
+            Application-owned audio preferences shared by settings and gameplay.
+            Device playback state remains owned by <see cref="T:Yokko.Audio.IAudioEngine"/>.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Gameplay.GameplayAutoGenerator">
+             <summary>
+             Generates deterministic osu!mania-style automatic input.
+            
+             Adapted from ppy/osu,
+             osu.Game.Rulesets.Mania/Replays/ManiaAutoGenerator.cs,
+             commit 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
+             </summary>
+        </member>
+        <member name="T:Yokko.Game.Gameplay.GameplayDefaultHitSampleStore">
+            <summary>
+            Yokko default-skin fallback samples. osu!lazer's resource pack is
+            CC-BY-NC and is intentionally not redistributed; beatmap-provided samples
+            still take precedence using the exact lazer lookup order.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Gameplay.GameplayHitSampleResolver">
+            <summary>
+            Resolves lazer-style hit sample lookup identities to beatmap assets, then
+            falls back to Yokko's default skin samples. Resource choice is a skin concern;
+            bank, suffix, layering and volume remain beatmap-owned truth.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Gameplay.GameplayInputClock">
+            <summary>
+            Correlates a timestamped input edge with the authoritative gameplay clock.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Gameplay.GameplayKeysoundSelector">
+            <summary>
+            Selects the sample associated with the most appropriate object for a lane
+            press, including early presses and spam presses.
+            Mirrors ppy/osu GameplaySampleTriggerSource at
+            osu.Game/Rulesets/UI/GameplaySampleTriggerSource.cs,
+            commit 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Gameplay.GameplayPresentationClock.EstimateVisualTime(System.Double,System.Double)">
+            <summary>
+            Keeps note presentation on the same authoritative gameplay clock used
+            by judgement. High-frequency draw scheduling reduces frame age without
+            introducing a refresh-rate-dependent timing offset.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Gameplay.GameplayReplayStore">
+            <summary>
+            Owns Yokko's native replay directory and atomically persists completed live
+            sessions so their full Mod configuration survives process restart.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Gameplay.GameplaySlidingSampleIndex">
+            <summary>
+            Pre-indexes the small subset of objects which can own sliding samples so
+            input edges never scan the full beatmap.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Gameplay.OsuManiaKeyLayout">
+            <summary>
+            Default osu!mania keyboard layouts shared by gameplay and configuration.
+            </summary>
+            <remarks>
+            Ported from ppy/osu at commit 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0:
+            osu.Game.Rulesets.Mania/SingleStageVariantGenerator.cs,
+            DualStageVariantGenerator.cs, and VariantMappingGenerator.cs.
+            </remarks>
+        </member>
+        <member name="T:Yokko.Game.Gameplay.OsuManiaScrollSpeed">
+            <summary>
+            osu!mania-compatible scroll-speed semantics shared by settings and gameplay.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Gameplay.OsuManiaScrollSpeed.ComputeScrollTime(System.Double)">
+            <remarks>
+            Matches ppy/osu's ManiaRulesetConfigManager and DrawableManiaRuleset at
+            commit 82056109080329928c572db8851f4bcf8e04362b (MIT).
+            </remarks>
+        </member>
+        <member name="M:Yokko.Game.Gameplay.OsuManiaScrollSpeed.ComputeScrollTime(System.Double,System.Double)">
+            <summary>
+            Computes the effective time range for a legacy osu!mania skin.
+            Scaling with HitPosition keeps the visible scroll velocity stable when
+            a skin moves the receptor away from its default position.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Gameplay.YokkoGameplaySettings">
+            <summary>
+            Application-owned gameplay preferences. Chart rules and scoring windows stay
+            in Yokko.Core; this type only owns player input and presentation choices.
+            </summary>
+        </member>
+        <member name="F:Yokko.Game.Gameplay.YokkoGameplaySettings.QuaverScrollRateNormalization">
+            <summary>
+            Matches Quaver's optional playback-rate scroll normalization.
+            Zero keeps the same real-time approach duration while 100% makes
+            rate mods scale the visual approach together with chart time.
+            </summary>
+        </member>
+        <member name="F:Yokko.Game.Gameplay.YokkoGameplaySettings.LayoutPlayfieldOffsetX">
+            <summary>
+            Normalised presentation offsets. These are relative to the gameplay
+            viewport so a saved layout remains usable across resolutions.
+            </summary>
+        </member>
+        <member name="F:Yokko.Game.Gameplay.YokkoGameplaySettings.MinimumResumeCountdownMilliseconds">
+            <summary>
+            Minimum buffered resume countdown. Anything shorter reads as an
+            instant resume rather than a readable countdown.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Gameplay.YokkoGameplaySettings.SetBinding(Yokko.Core.Gameplay.KeyMode,System.Int32,osuTK.Input.Key)">
+            <summary>
+            Assigns a key without allowing duplicate lanes. When the requested key is
+            already in the active profile, both lanes are swapped so the operation is
+            immediate and never leaves the profile unusable.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Gameplay.YokkoGameplaySettings.SetBindings(Yokko.Core.Gameplay.KeyMode,System.Collections.Generic.IReadOnlyList{osuTK.Input.Key})">
+            <summary>
+            Replaces a complete key profile as one validated operation. This is used
+            by sequential capture so cancelling halfway never leaves a partial map.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Gameplay.YokkoGameplaySettings.SetShortcutBinding(Yokko.Game.Gameplay.ManiaShortcutAction,osuTK.Input.Key)">
+            <summary>
+            Changes a Mania action key. If another action uses the same key in an
+            overlapping gameplay context, both bindings are swapped.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Gameplay.YokkoGameplaySettings.CopyBindingsToOtherMode(Yokko.Core.Gameplay.KeyMode)">
+            <summary>
+            Copies the four central gameplay columns between 4K and 7K. Expanding to
+            7K preserves the current outer and centre keys wherever possible.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Gameplay.YokkoManiaModPreferences">
+            <summary>
+            Global per-Mod configuration memory. Active Mod selection remains
+            session-owned; only each configurable Mod's last valid settings are kept.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Importing.ImportedChartLibrary">
+            <summary>
+            Owns Yokko's persistent beatmap resource directory and notifies views which
+            present the playable chart library.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Importing.YokkoImportSettings">
+            <summary>
+            Shared import preferences. Importers remain stateless and receive the
+            effective values through <see cref="T:Yokko.Import.ChartImportRequest"/>.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Input.IKeyInputFastPathBackend">
+            <summary>
+            Optional platform capability which observes a physical edge before the
+            framework update thread drains it. The authoritative input queue remains
+            unchanged and always receives the edge.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Input.IKeyInputTimestampBackend">
+            <summary>
+            Platform-owned source of keyboard edges captured before framework dispatch.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Input.KeyInputTimestampSource">
+            <summary>
+            Captures keyboard edge timestamps on the SDL window thread, before
+            osu!framework drains its pending input queue on the update thread.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Presentation.AnimatedGifSprite">
+            <summary>
+            Decodes every frame of an embedded GIF and plays it with the source timing.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Presentation.YokkoAdaptiveFrameRateMonitor">
+            <summary>
+            Samples the real host clocks for AUTO without requiring the visual
+            performance readout to be enabled.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Presentation.YokkoDisplaySettings.CalculateContentScale(osuTK.Vector2,Yokko.Game.Presentation.YokkoUiScale)">
+            <summary>
+            Calculates the physical scale applied to Yokko's shared 1600x900 UI.
+            The 100% setting fits Yokko's shared 1600x900 layout space to the
+            full client resolution. Rendering still occurs at the native client
+            resolution; 90% and 80% expose proportionally more layout space.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Presentation.YokkoFrameRateAdaptation">
+            <summary>
+            Holds the runtime-only AUTO frame-rate decision. A downgrade is staged
+            while gameplay is active and applied after the whole gameplay session,
+            including retries, exits.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Presentation.YokkoUiScalingContainer">
+            <summary>
+            Scales Yokko's authored UI from the live client resolution and applies
+            the selected 100%, 90%, or 80% relative size.
+            </summary>
+            <remarks>
+            The dynamic target-size technique follows osu!framework's
+            DrawSizePreservingFillContainer implementation at tag 2026.629.0:
+            osu.Framework/Graphics/Containers/DrawSizePreservingFillContainer.cs.
+            </remarks>
+        </member>
+        <member name="T:Yokko.Game.Presentation.YokkoWindowSizeGuard">
+            <summary>
+            Keeps the persisted windowed size inside the logical bounds of the display.
+            Display modes use physical pixels while window sizes use scaled pixels, so
+            the window DPI scale must be applied before comparing them.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Resources.YokkoResourceDirectories">
+            <summary>
+            Defines the persistent, user-managed resource layout beneath the game
+            storage directory.
+            </summary>
+        </member>
+        <member name="F:Yokko.Game.Resources.YokkoResourceSettings.RootPath">
+            <summary>
+            Empty uses Yokko's default storage location. A custom value is always
+            stored as an absolute path.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Resources.YokkoResourceStorage">
+            <summary>
+            Resolves Yokko's resource root and coordinates moving both beatmaps and
+            skins when the user changes it.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayLaneCovers">
+            <summary>
+            Screen-space covers tied to the rendered playfield. They deliberately live
+            outside GameplayPlayfield so changing their size never changes note timing,
+            judgement coordinates or skin geometry.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayLayoutEditorOverlay">
+            <summary>
+            A deliberately small direct-manipulation layer. Gameplay remains the main
+            canvas; this overlay only adds drag targets, cover handles and a full-page
+            overview while the song is paused.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Gameplay.GameplayPauseOverlay.updateParallax">
+            <summary>
+            背景轨道线与纸面装饰跟随光标做反向/正向的轻微漂移，
+            让暂停单在静态画面里保留一点空间层次。位移很小，
+            不会影响任何阅读或点击目标。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Gameplay.GameplayPauseOverlay.pauseTitleFont(System.Boolean)">
+            <summary>
+            拉丁标题用 ArchivoBlack 海报体；CJK 标题走 ArchivoBlack 的回退链
+            只能拿到 Yokko Regular，改走 Roboto Bold 的 CJK 回退拿到
+            Yokko-Bold，让「暂停」这类标题保持粗体量感。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayPauseOverlay.RankStamp">
+            <summary>
+            评级印章。悬停时整枚印章像被重新按下一样倾斜晃动，
+            评级字母闪过青色高光。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayPauseOverlay.JudgementCell">
+            <summary>
+            判定明细格子。悬停时整格浮起淡色高光、计数数字弹跳放大、
+            底部色条伸长，方便逐项核对成绩构成。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayPauseOverlay.PauseTypography">
+            <summary>
+            暂停界面的字体分工：海报体（ArchivoBlack，128px 基准图集，
+            CJK 自动回退 Yokko 字体）负责大标题与主数字，Roboto 负责正文。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayPauseOverlay.PausedStatusRow">
+            <summary>
+            暂停状态行：闪烁指示灯 + PAUSED 字样 + 本次暂停已持续的实时计时。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayPauseOverlay.PauseBlinkDot">
+            <summary>
+            录像机式的暂停指示灯：光晕长明，核心以 1 秒节奏明暗呼吸。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayPauseOverlay.SuspendedAudioStrip">
+            <summary>
+            判定明细下方的冻结均衡器：音频已暂停，柱条停在随机高度，
+            只有少数几根偶尔抽动一下，暗示声音只是被按住而不是消失。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayPauseOverlay.InteractiveMascot">
+            <summary>
+            可戳的吉祥物：待机时缓慢呼吸浮动，悬停微微倾斜放大，
+            点击先压扁再回弹，并切换气泡台词。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayPauseOverlay.PauseSparkle">
+            <summary>
+            四点星光装饰，周期性弹出收回。Position 视为中心。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Gameplay.GameplayPlayfield.computeNoteDepths(System.Collections.Generic.IReadOnlyList{Yokko.Core.Beatmaps.YokkoHitObject})">
+            <summary>
+            Ranks hit objects by start time so earlier objects receive the lower
+            (front-most) depth. osu!framework draws higher-depth children first
+            (behind), mirroring osu!mania's per-column draw order.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayQuickRetryIndicator">
+            <summary>
+            Small ticket shown while the quick-retry key is held. Quick retry only
+            fires once the fill completes, so a single accidental key press can no
+            longer throw away a run. Follows the hold-to-confirm pattern of
+            osu!stable's quick retry.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayResumeCountdown">
+            <summary>
+            Big centred 3-2-1 shown while a resume from pause is buffered. The
+            gameplay clock stays frozen for the countdown so the player gets a moment
+            to re-orient before notes start moving again.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayRetryTransitionOverlay">
+            <summary>
+            A deliberately quiet retry handoff using the same dark surface as gameplay.
+            It exists only to hide the drawable replacement without adding a separate
+            visual motif to the play experience.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplaySessionScreen">
+            <summary>
+            Keeps gameplay replacement inside one top-level screen so retry loading
+            cannot briefly resume the screen that launched the play session.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.GameplayTimingBar">
+            <summary>
+            Displays recent input timing against the active mania hit windows.
+            Visual structure inspired by ppy/osu's BarHitErrorMeter.cs at
+            commit 1032a7c31581513c8be751e46f0940e1c95ed252 (MIT).
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.LegacyManiaHealthBar">
+            <summary>
+            osu!stable-style mania health display backed by the active skin's
+            scorebar-bg and scorebar-colour assets.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.ManiaFlashlightOverlay">
+            <summary>
+            Rectangular full-width mania flashlight with a soft vertical falloff.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.ManiaNoteVisibilityCover">
+            <summary>
+            Alpha-subtractive note cover matching lazer's
+            PlayfieldCoveringWrapper. The lane and receptor remain visible while only
+            hit objects are hidden.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Gameplay.ScrollRangeIndex">
+            <summary>
+            Finds note paths intersecting a visible scroll-position range without
+            walking every earlier hold note.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Gameplay.ScrollRangeIndex.CollectOverlapping(System.Double,System.Double,System.Collections.Generic.List{System.Int32})">
+            <summary>
+            Adds every indexed range intersecting <paramref name="minimum"/> to
+            <paramref name="maximum"/> and returns the number of tree nodes visited.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeMascotBubble.fitStickerLabel">
+            <summary>
+            文本重排后按贴纸内框收缩标签，超长文案缩到放得下为止。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeMascotBubble.SetText(osu.Framework.Localisation.LocalisableString)">
+            <summary>
+            换一句台词，文字淡入、气泡轻弹。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeKeycap">
+            <summary>
+            键盘键帽样式的小标签，用于页脚键位提示。
+            支持按下态（真实按键联动）与点击触发。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeKeycap.SetLabel(System.String)">
+            <summary>
+            换绑后刷新键帽字符；多字符键名自动缩小字号避免溢出。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeDashedRing">
+            <summary>
+            缓慢旋转的虚线圆环，衬在 mascot 背后。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeTickRuler">
+            <summary>
+            青色舞台顶缘的刻度尺。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeCrosshairMark">
+            <summary>
+            套准十字标记，带缓慢呼吸。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeRing">
+            <summary>
+            描边圆环装饰，带呼吸缩放。Position 视为圆心。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeTwinkle">
+            <summary>
+            四点星光，周期性弹出收回。Position 视为中心。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeBarcode">
+            <summary>
+            印刷标签风格的条形码与编号。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeTapRippleLayer">
+            <summary>
+            铺在舞台最底层的点击涟漪层：点击空白处荡开圆环并溅出碎点。
+            永远返回 false，不拦截按钮与播放器等上方控件的输入。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeMarqueeTicker">
+            <summary>
+            顶缘的滚动字幕带，循环展示工作室微文案；悬停时几乎停住，方便阅读。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeKeyTestPad">
+            <summary>
+            4K 键位试玩盘：点击或按下 D/F/J/K 点亮键帽，上方判定线闪烁并累计敲击数。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeKeyTestPad.refreshBindings">
+            <summary>
+            跟随 4K 游玩键位配置刷新键帽字符与按键映射，换绑立即生效。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeKeyTestPad.TryHandleKey(osuTK.Input.Key,System.Boolean)">
+            <summary>
+            尝试把一次键盘输入映射到某个键道；命中返回 true。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeKeyTestPad.playComboMilestone">
+            <summary>
+            每 10 连击庆祝一次：盘体轻弹、计数器闪粉、向上迸发星星。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeSparkIcon">
+            <summary>
+            悬停时会放大旋转的装饰小图标；环境呼吸动效作用于内部 Icon，互不干扰。
+            Position 视为中心。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeMusicPlayer">
+            <summary>
+            主页角落的紧凑音乐播放器，播放导入谱面所引用的真实歌曲。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeMusicPlayer.AttachWaveform(Yokko.Game.Screens.Main.HomeWaveformVisualiser)">
+            <summary>
+            挂上底部波形带；挂接时立即为当前曲目补齐波形数据。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeMusicPlayer.ensureWaveformForCurrentTrack">
+            <summary>
+            确保波形带展示当前曲目的波形：命中缓存直接给，否则后台分析后回填。
+            分析期间先把波形带收平，避免短暂显示上一首的形状。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeMusicPlayer.seekTo(System.Double)">
+            <summary>
+            点击进度条跳转。暂停中只更新位置，播放中立即 Seek。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeMusicPlayer.SeekBar">
+            <summary>
+            覆盖在进度条上的隐形点击区，把点击位置换算成跳转比例。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeMusicPlayer.PlayerButton">
+            <summary>
+            播放器专用圆形按钮，主按钮为实心藏青底。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeWaveformVisualiser">
+            <summary>
+            主页贴底的实时频谱可视化条：一排藏青墨色的胶囊细柱紧贴舞台底边向上生长，
+            随主页播放器当前歌曲的低/中/高频能量实时跳动，柱顶带白色峰值挂留块，
+            像印刷海报上的录音室 VU 表——与背景装饰里的均衡器纹样同一语言。
+            数据来自 <see cref="T:Yokko.Audio.AudioWaveformAnalyzer"/> 对真实音频的离线分析，按播放进度逐帧取样。
+            立柱经过悬浮卡片下方时自动收低，看起来像从卡片背后穿过。
+            </summary>
+        </member>
+        <member name="F:Yokko.Game.Screens.Main.HomeWaveformVisualiser.AnalysisPointCount">
+            <summary>
+            离线分析的采样点数。点数决定跳动的时间分辨率（约每 90ms 一个采样）。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeWaveformVisualiser.accentInk(System.Int32)">
+            <summary>
+            每 16 柱点缀一根粉/黄柱，与页面纸屑装饰同节奏。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeWaveformVisualiser.SetWaveform(Yokko.Audio.AudioWaveformAnalysis)">
+            <summary>
+            切换波形数据；传 null 回到待机的平线状态。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeWaveformVisualiser.UpdatePlayback(System.Double)">
+            <summary>
+            每帧由主页播放器喂入当前播放进度（毫秒）。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeWaveformVisualiser.SetObstacles(System.ValueTuple{System.Single,System.Single,System.Single}[])">
+            <summary>
+            登记悬浮在波形带上的卡片（舞台绝对坐标）：立柱在这些区间内收低，
+            避免盖到卡片上。maxHeight 已换算为该区间内允许的最大柱高。
+            </summary>
+        </member>
+        <member name="P:Yokko.Game.Screens.Main.HomeWaveformVisualiser.Obstacles">
+            <summary>
+            当前生效的收低区间（测试可读）。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.HomeWaveformVisualiser.SampleChannel(System.Single[],System.Double)">
+            <summary>
+            在采样点数组上取带线性插值的瞬时值；越界（歌曲头尾之外）返回 0。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeBrandLockup">
+            <summary>
+            左上角品牌标志。悬停时黄色十字徽章旋转一周、标志轻轻弹动。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeClock">
+            <summary>
+            右上角的实时时钟小卡片，与工具按钮同一套错位描边风格。
+            分钟变化时才刷新文本，秒点持续闪烁提示时间在走。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeDottedRail">
+            <summary>
+            竖向虚线数据脊，把同列排布的遥测装饰在视觉上串成一条线。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeHazardStripes">
+            <summary>
+            警示带风格的斜纹装饰条，纯色斜杠等距排列，整体缓慢呼吸。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeExitHoldIndicator">
+            <summary>
+            长按 Esc 退出时的进度提示胶囊，仅按住期间显示。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeSignalWave">
+            <summary>
+            主页青色舞台上的轻量节拍波形装饰。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeBeatPips">
+            <summary>
+            以错峰呼吸表现八拍循环的小型节拍指示灯。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeOrbitNodes">
+            <summary>
+            沿角色外围缓慢公转的节拍节点；节点各自呼吸，轨道整体旋转。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomePulseBeacon">
+            <summary>
+            周期性向外扩散的同步信标。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Main.HomeTelemetryRail">
+            <summary>
+            带移动扫描块、刻度与标签的小型遥测轨。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.MainScreen.updateWaveformObstacles(osuTK.Vector2,osuTK.Vector2)">
+            <summary>
+            把悬浮在波形带上的卡片（播放器、键位试玩盘）登记为收低区间，
+            立柱经过它们下方时自动变矮，看起来像从卡片背后穿过。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.MainScreen.advanceBubbleLine">
+            <summary>
+            切到下一句气泡台词；点击 mascot 或待机超时都会走到这里。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.MainScreen.createSlantStripe">
+            <summary>
+            沿象牙面板斜边的描边条：细亮线 + 刻度短杠，强化主对角线。
+            与 ivorySlant 共用同一旋转基准，右缘始终贴合。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Main.MainScreen.createStatusBar(osu.Framework.Localisation.LocalisableString)">
+            <summary>
+            左下角状态栏：细分隔线 + 心跳 + 音频后端状态。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.DisplaySettingsPanel">
+            <summary>
+            Display-specific presentation and state binding. This panel can be replaced by
+            another category without changing the settings shell.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.GameplayCountdownSettingRow">
+            <summary>
+            Feedback-section row combining the resume-countdown toggle with a compact
+            duration stepper. Visually follows <see cref="T:Yokko.Game.Screens.Settings.GameplayInlineToggle"/> and
+            dims the stepper while the countdown is disabled.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.GeneralSettingsPanel">
+            <summary>
+            Owns application-wide preferences that do not belong to a specialised
+            subsystem. Locale remains backed by osu!framework's persistent config.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.ImportSettingsPanel">
+            <summary>
+            Presents importer capabilities from the registry and owns the preferences
+            that affect package selection, keysound preservation and warning display.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.SettingsChrome">
+            <summary>
+            Shared visual building blocks for settings panels. The layered "sticker"
+            treatment (offset cyan underlay, navy outline, inner hairline) mirrors the
+            home screen cards in Yokko.Game/Screens/Main/HomeControls.cs so settings no
+            longer looks like a flat wireframe next to the main menu.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsChrome.CreateHeader(osu.Framework.Localisation.LocalisableString,osu.Framework.Localisation.LocalisableString,osu.Framework.Graphics.Sprites.IconUsage,System.Int32)">
+            <summary>
+            Panel header: eyebrow index, cyan tick, display title, muted subtitle,
+            pink underline with detail dots, and a gently rocking page-icon tile,
+            echoing the home hero typography.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsChrome.CreateSegmentedControl(System.Collections.Generic.IEnumerable{osu.Framework.Graphics.Drawable})">
+            <summary>
+            Grouped choice buttons wrapped in a sticker card so the control reads
+            as one physical object, like the home action tiles.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsChrome.CreateStatusCard(System.Single,osu.Framework.Graphics.Sprites.IconUsage,osu.Framework.Localisation.LocalisableString,osu.Framework.Graphics.Sprites.IconUsage,osu.Framework.Graphics.Sprites.SpriteText@)">
+            <summary>
+            Highlight banner summarising the current state of a settings area
+            (e.g. active display, active language).
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsChrome.CreateStickerFrame(osu.Framework.Graphics.Containers.Container)">
+            <summary>
+            Wraps a flat status/summary card in the sticker frame (offset shadow,
+            cyan underlay, navy outline) so legacy cards match the new chrome
+            without rewriting their contents.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.SettingsChrome.StatusCardPulse">
+            <summary>
+            Keeps the trailing status icon gently breathing so the banner feels alive.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.SettingsChrome.HeaderIconTile">
+            <summary>
+            页头图标砖：贴纸卡片里放页面图标，缓慢摇摆并带黄色角标。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.SettingsStickerCard">
+            <summary>
+            Layered card matching the home screen sticker treatment: an offset navy
+            shadow, a cyan underlay peeking from behind, a navy outline and an inner
+            hairline. Content added as children lands inside the bordered body.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsStickerCard.SetContent(osu.Framework.Graphics.Drawable[])">
+            <summary>
+            Replaces the content inside the bordered body. The sticker layers
+            themselves live in <see cref="P:osu.Framework.Graphics.Containers.CompositeDrawable.InternalChildren"/>.
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsPanelFooter.FlashEsc">
+            <summary>
+            按下 Esc 时键帽下压闪粉，提示这个键真的能用。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.SettingsResolutionDropdown">
+            <summary>
+            Resolution selector with an explicit option list. It deliberately does not
+            cycle values so the interaction remains predictable as the list grows.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.SettingsPlaceholderPanel">
+            <summary>
+            Honest placeholder for settings categories whose behaviour is not implemented
+            yet. The collapsed section layout is also the structure future controls plug into.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.SettingsScreen">
+            <summary>
+            Owns navigation into and out of settings. Individual settings areas own their
+            own layout and interactions so future categories do not inflate this screen.
+            </summary>
+        </member>
+        <member name="F:Yokko.Game.Screens.Settings.SettingsScreen.MascotHomePosition">
+            <summary>
+            吉祥物在 1280x720 设计稿里的位置。窗口更大时保持它与右/下边缘的
+            设计间距，而不是留在原地把右侧让成空地。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsScreen.createDecorationLayer">
+            <summary>
+            散布在内容区四周的装饰层，随鼠标轻微视差，让设置页像主页一样“活着”。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsScreen.createMascotLayer">
+            <summary>
+            右下角的吉祥物立绘：完整露出不遮挡内容，点一下会弹跳，随鼠标轻微视差。
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.SettingsScreen.MascotButton">
+            <summary>
+            吉祥物本体：悬停时微微放大前倾，提示可以点她。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsScreen.spawnMascotSparkles">
+            <summary>
+            点吉祥物时从头顶飘起一小串星星/爱心，上升旋转后消散。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsScreen.applyResponsiveLayout(osuTK.Vector2)">
+            <summary>
+            窗口比设计稿大时舞台会跟着变大。内容在设计稿里是固定坐标，不重排的
+            话会全部堆在左上、右侧空成一片。这里把多出来的空间用起来：内容列
+            居中、装饰按比例铺满舞台、吉祥物保持贴近右下角。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsScreen.CalculateContentOffset(osuTK.Vector2)">
+            <summary>
+            内容列在设计稿里固定在 x=378、宽 840。舞台变宽时把多出来的空间
+            均分到两侧，让内容在侧边栏与右边缘之间保持居中。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsScreen.CalculateMascotPosition(osuTK.Vector2)">
+            <summary>
+            吉祥物始终与舞台右/下边缘保持设计稿里的间距。
+            </summary>
+        </member>
+        <member name="M:Yokko.Game.Screens.Settings.SettingsScreen.CalculateStageScale(osuTK.Vector2,osuTK.Vector2)">
+            <summary>
+            The stage never shrinks below the designed 1280x720 layout, so windows
+            smaller than the 1600x900 reference used to clip the right and bottom
+            edges. Shrink the stage scale instead so the whole layout stays visible.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.Settings.SettingsSidebar">
+            <summary>
+            Self-contained navigation rail. Search and category visibility remain local
+            so adding settings sections only requires adding another group here.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.SongSelect.GameplayModSettingsTheme">
+            <summary>
+            Light workspace palette used by the Gameplay Mods configuration card.
+            Kept separate from the dark Song Select palette so the card belongs to
+            the ivory Gameplay Mods screen without changing the rest of Song Select.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.SongSelect.GameplayModsOrbitWorkspace">
+            <summary>
+            The authored 1600x900 gameplay-mod workspace. It intentionally owns only
+            presentation and interaction; <see cref="T:Yokko.Game.Screens.SongSelect.GameplayModsScreen"/> remains the
+            single source of truth for mod selection and configuration.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.SongSelect.GameplayModsScreen">
+            <summary>
+            Dedicated full-screen workspace for selecting and configuring gameplay
+            modifiers before starting a chart.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.SongSelect.SongSelectFixedRateSettings">
+            <summary>
+            Configures lazer's fixed-rate Mania Mods. HT/DT expose AdjustPitch while
+            DC/NC keep their default frequency and vary tempo independently.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.SongSelect.SongSelectPreviewPlayer">
+            <summary>
+            Owns song-select preview playback independently from gameplay audio.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.SongSelect.SongSelectRandomSettings">
+            <summary>
+            Exposes osu!lazer Random's optional integer seed. Yokko resolves a concrete
+            seed before applying the beatmap transform so retry and replay stay exact.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.SongSelect.SongSelectRankingPanel">
+            <summary>
+            Dense score ribbons inspired by the information hierarchy used by
+            ppy/osu's MIT-licensed Song Select leaderboard. The implementation and
+            Yokko visual treatment are original; no osu! branding or resources are
+            reused.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.SongSelect.SongSelectSurface">
+            <summary>
+            Shared code-drawn surfaces for Song Select.
+            Decorative artwork may sit on top of these surfaces, but never defines
+            their bounds, alignment, or interaction area.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Screens.SongSelect.SongSelectVisibilitySettings">
+            <summary>
+            Configures the settings exposed by osu!lazer's Mania Cover and Flashlight
+            Mods at the pinned parity commit.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Skinning.OsuMania.ConstrainedTextureResourceStore">
+            <summary>
+            Keeps legacy skin images within the active renderer's texture limits.
+            Some osu! skins use extremely tall hold-body images which are valid image
+            files but cannot be uploaded by Direct3D 11 without resizing.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Skinning.OsuMania.LegacyManiaAnimatedSprite">
+            <summary>
+            A sprite-backed legacy animation which keeps the geometry controls needed
+            by repeating osu!mania long-note bodies.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Skinning.OsuMania.OsuManiaSkinLibrary">
+            <summary>
+            Owns Yokko's managed osu!mania skin directory and keeps filesystem paths
+            out of UI and gameplay state.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Skinning.OsuMania.YokkoSkinSettings">
+            <summary>
+            User-facing skin preferences. The selected value is a managed skin id,
+            never an arbitrary filesystem path.
+            </summary>
+        </member>
+        <member name="F:Yokko.Game.Skinning.OsuMania.YokkoSkinSettings.ShowComboBursts">
+            <summary>
+            osu!stable exposes the same choice in its options; when disabled the
+            skin's comboburst-mania character is never shown during gameplay.
+            </summary>
+        </member>
+    </members>
+</doc>

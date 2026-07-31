@@ -491,6 +491,7 @@ public partial class GameplayScreen : Screen
             layoutEditor = new GameplayLayoutEditorOverlay(
                 playfield,
                 hud,
+                timingBar,
                 gameplaySettings,
                 saveGameplayLayout,
                 closeGameplayLayoutEditor),
@@ -722,7 +723,12 @@ public partial class GameplayScreen : Screen
             playfieldLeft =
                 DrawWidth / 2 - playfield.Width * horizontalScale / 2;
         }
-        playfield.Scale = new Vector2(horizontalScale, verticalScale);
+        playfield.Scale = new Vector2(
+            horizontalScale,
+            verticalScale * (float)Math.Clamp(
+                gameplaySettings.LayoutPlayfieldHeightScale.Value,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale));
         playfield.X += (float)gameplaySettings.LayoutPlayfieldOffsetX.Value
                        * DrawWidth;
         playfield.Y = (float)gameplaySettings.LayoutPlayfieldOffsetY.Value
@@ -736,6 +742,30 @@ public partial class GameplayScreen : Screen
             + (float)gameplaySettings.LayoutHudOffsetX.Value * DrawWidth,
             20
             + (float)gameplaySettings.LayoutHudOffsetY.Value * DrawHeight);
+        hud.Scale = new Vector2(
+            (float)Math.Clamp(
+                gameplaySettings.LayoutHudScaleX.Value,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale),
+            (float)Math.Clamp(
+                gameplaySettings.LayoutHudScaleY.Value,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale));
+
+        timingBar.Position = new Vector2(
+            (float)gameplaySettings.LayoutTimingBarOffsetX.Value * DrawWidth,
+            8
+            + (float)gameplaySettings.LayoutTimingBarOffsetY.Value
+            * DrawHeight);
+        timingBar.Scale = new Vector2(
+            (float)Math.Clamp(
+                gameplaySettings.LayoutTimingBarScaleX.Value,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale),
+            (float)Math.Clamp(
+                gameplaySettings.LayoutTimingBarScaleY.Value,
+                YokkoGameplaySettings.MinimumLayoutScale,
+                YokkoGameplaySettings.MaximumLayoutScale));
 
         scrollSpeedOverlay.X = Math.Clamp(
             playfieldLeft

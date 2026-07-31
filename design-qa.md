@@ -1935,3 +1935,37 @@ final result: passed
   unrelated concurrent edits in the shared tree.
 
 final result: passed
+
+---
+
+# Settings gameplay overflow verification (2026-07-31)
+
+## Evidence
+
+- Source: `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-deb18dc4-d327-4c30-911b-afd047b04fca.png`
+- Fixed top state: `C:\Users\mochi\AppData\Local\Temp\yokko-settings-feedback-scroll-final-1600x998.png`
+- Fixed scroll-end state: `C:\Users\mochi\AppData\Local\Temp\yokko-settings-feedback-scroll-end-1600x998.png`
+- Full comparison: `C:\Users\mochi\AppData\Local\Temp\yokko-settings-feedback-comparison-1600x998.png`
+- Focused comparison: `C:\Users\mochi\AppData\Local\Temp\yokko-settings-feedback-focused-comparison.png`
+- Viewport and density: source 3200x1996 at 2x, normalized to the implementation's 1600x998 at 1x without cropping or aspect-ratio changes.
+- State: Settings > Gameplay > Feedback, Chinese locale, large UI scale.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- Fonts, copy, existing imagery, palette, and component spacing are unchanged.
+- Overflow stays inside the feedback panel. The final controls are reachable by mouse-wheel or touchpad scrolling, and section changes reset the scroll position.
+- The first implementation exposed the framework's thick green scrollbar. It was replaced with a 4px Yokko-cyan scrollbar before the final captures.
+- The current playback-rate tab is an intentional existing product change outside this overflow fix.
+
+## Verification
+
+- Focused `TestGameplayOverflowContentCanScroll`: passed.
+- Isolated `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- The shared worktree's current SongSelect compilation errors are unrelated; the final settings files were verified in an isolated worktree.
+
+The focused comparison was required because the final two controls are too small to judge reliably in the full-screen comparison.
+
+final result: passed

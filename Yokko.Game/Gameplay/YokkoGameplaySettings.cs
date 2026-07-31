@@ -133,6 +133,10 @@ public sealed class YokkoGameplaySettings
 
     public const double MaximumPlayfieldWidthScale = 2.5;
 
+    public const double MinimumLayoutScale = 0.25;
+
+    public const double MaximumLayoutScale = 2.5;
+
     public const double MaximumTopCoverRatio = 0.75;
 
     public const double MaximumBottomCoverRatio = 0.5;
@@ -150,6 +154,20 @@ public sealed class YokkoGameplaySettings
     public readonly Bindable<double> LayoutHudOffsetY = new(0);
 
     public readonly Bindable<double> LayoutPlayfieldWidthScale = new(1);
+
+    public readonly Bindable<double> LayoutPlayfieldHeightScale = new(1);
+
+    public readonly Bindable<double> LayoutHudScaleX = new(1);
+
+    public readonly Bindable<double> LayoutHudScaleY = new(1);
+
+    public readonly Bindable<double> LayoutTimingBarOffsetX = new(0);
+
+    public readonly Bindable<double> LayoutTimingBarOffsetY = new(0);
+
+    public readonly Bindable<double> LayoutTimingBarScaleX = new(1);
+
+    public readonly Bindable<double> LayoutTimingBarScaleY = new(1);
 
     public readonly Bindable<double> LayoutTopCoverRatio = new(0);
 
@@ -431,6 +449,13 @@ public sealed class YokkoGameplaySettings
         LayoutHudOffsetX.SetDefault();
         LayoutHudOffsetY.SetDefault();
         LayoutPlayfieldWidthScale.SetDefault();
+        LayoutPlayfieldHeightScale.SetDefault();
+        LayoutHudScaleX.SetDefault();
+        LayoutHudScaleY.SetDefault();
+        LayoutTimingBarOffsetX.SetDefault();
+        LayoutTimingBarOffsetY.SetDefault();
+        LayoutTimingBarScaleX.SetDefault();
+        LayoutTimingBarScaleY.SetDefault();
         LayoutTopCoverRatio.SetDefault();
         LayoutBottomCoverRatio.SetDefault();
     }

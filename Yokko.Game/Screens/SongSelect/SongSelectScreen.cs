@@ -277,7 +277,7 @@ public partial class SongSelectScreen : Screen
         backgroundB.Alpha = 0;
         activeBackground = backgroundA;
         rebuildDetails();
-        rebuildSongList();
+        applyFilters();
         updateFilters();
 
         stage.Alpha = 0;

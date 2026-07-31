@@ -449,6 +449,7 @@ namespace Yokko.Game.Tests.Visual
         public void TestGameplayOverflowContentCanScroll()
         {
             GameplaySettingsPanel gameplay = null;
+            SettingsContentScrollContainer content = null;
 
             AddStep("open Gameplay feedback", () =>
             {
@@ -456,8 +457,15 @@ namespace Yokko.Game.Tests.Visual
                 gameplay =
                     (GameplaySettingsPanel)settingsScreen.ActivePanel;
                 gameplay.SelectSection(GameplaySettingsSection.Feedback);
+                content = gameplay
+                    .ChildrenOfType<SettingsContentScrollContainer>()
+                    .Single();
             });
-            AddAssert("feedback content exceeds viewport", () =>
+            AddAssert("feedback content fits comfortably", () =>
+                gameplay.ContentScrollableExtent == 0);
+            AddStep("simulate future overflow", () =>
+                content.Child.Height = content.Height + 64);
+            AddAssert("larger content becomes scrollable", () =>
                 gameplay.ContentScrollableExtent > 0);
             AddStep("scroll feedback content", () =>
                 gameplay.ScrollContentBy(1000));

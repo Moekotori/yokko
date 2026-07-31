@@ -1,0 +1,41 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "Yokko.Core/1.0.0": {
+        "dependencies": {
+          "StarRatingRebirth": "0.1.1"
+        },
+        "runtime": {
+          "Yokko.Core.dll": {}
+        }
+      },
+      "StarRatingRebirth/0.1.1": {
+        "runtime": {
+          "lib/net8.0/StarRatingRebirth.dll": {
+            "assemblyVersion": "0.1.1.0",
+            "fileVersion": "0.1.1.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Yokko.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "StarRatingRebirth/0.1.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-kMFglG3tv20YdeD6c8Wfg9ExyIjUBwYGvWOXOnW5roeBEndUlGiWyrrYPIUEYzpXA8C0+662PFny8RNBNgkUhA==",
+      "path": "starratingrebirth/0.1.1",
+      "hashPath": "starratingrebirth.0.1.1.nupkg.sha512"
+    }
+  }
+}

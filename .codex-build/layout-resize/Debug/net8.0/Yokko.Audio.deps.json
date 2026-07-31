@@ -1,0 +1,166 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "Yokko.Audio/1.0.0": {
+        "dependencies": {
+          "NAudio.Core": "2.3.0",
+          "NAudio.Vorbis": "1.5.0",
+          "NLayer.NAudioSupport": "2.0.1",
+          "SoundTouch.Net.NAudioSupport.Core": "2.3.2"
+        },
+        "runtime": {
+          "Yokko.Audio.dll": {}
+        }
+      },
+      "NAudio.Core/2.3.0": {
+        "runtime": {
+          "lib/netstandard2.0/NAudio.Core.dll": {
+            "assemblyVersion": "2.3.0.0",
+            "fileVersion": "2.3.0.0"
+          }
+        }
+      },
+      "NAudio.Vorbis/1.5.0": {
+        "dependencies": {
+          "NAudio.Core": "2.3.0",
+          "NVorbis": "0.10.4"
+        },
+        "runtime": {
+          "lib/netstandard2.0/NAudio.Vorbis.dll": {
+            "assemblyVersion": "1.5.0.0",
+            "fileVersion": "1.5.0.0"
+          }
+        }
+      },
+      "NLayer/2.0.1": {
+        "runtime": {
+          "lib/net8.0/NLayer.dll": {
+            "assemblyVersion": "2.0.1.0",
+            "fileVersion": "2.0.1.0"
+          }
+        }
+      },
+      "NLayer.NAudioSupport/2.0.1": {
+        "dependencies": {
+          "NAudio.Core": "2.3.0",
+          "NLayer": "2.0.1"
+        },
+        "runtime": {
+          "lib/net8.0/NLayer.NAudioSupport.dll": {
+            "assemblyVersion": "2.0.1.0",
+            "fileVersion": "2.0.1.0"
+          }
+        }
+      },
+      "NVorbis/0.10.4": {
+        "dependencies": {
+          "System.Memory": "4.5.3",
+          "System.ValueTuple": "4.5.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/NVorbis.dll": {
+            "assemblyVersion": "0.10.4.0",
+            "fileVersion": "0.10.4.0"
+          }
+        }
+      },
+      "SoundTouch.Net/2.3.2": {
+        "runtime": {
+          "lib/netcoreapp2.1/SoundTouch.Net.dll": {
+            "assemblyVersion": "2.3.0.0",
+            "fileVersion": "2.3.2.0"
+          }
+        }
+      },
+      "SoundTouch.Net.NAudioSupport.Core/2.3.2": {
+        "dependencies": {
+          "NAudio.Core": "2.3.0",
+          "SoundTouch.Net": "2.3.2"
+        },
+        "runtime": {
+          "lib/netstandard2.0/SoundTouch.Net.NAudioSupport.dll": {
+            "assemblyVersion": "2.3.0.0",
+            "fileVersion": "2.3.2.0"
+          }
+        }
+      },
+      "System.Memory/4.5.3": {},
+      "System.ValueTuple/4.5.0": {}
+    }
+  },
+  "libraries": {
+    "Yokko.Audio/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "NAudio.Core/2.3.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-jMd7r6dB6tAtXhOYL58ntPqwERNm1/Rhw5MKOIYvsnXzuX+PTGsa2VMam6n0npZYSwlSidKa4GAm4bFcXFUlcg==",
+      "path": "naudio.core/2.3.0",
+      "hashPath": "naudio.core.2.3.0.nupkg.sha512"
+    },
+    "NAudio.Vorbis/1.5.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-llJMmUnFf0FGf4G1FKNftxt+Vc1CvBCSul0Ugbv/RahGbpKF2p+ujSEJHybPjl9b4FjbK8O2vRFIcRGcVfAooA==",
+      "path": "naudio.vorbis/1.5.0",
+      "hashPath": "naudio.vorbis.1.5.0.nupkg.sha512"
+    },
+    "NLayer/2.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-0nhnDRx98u7zXXbPIF11QYYupOOOQ9W22eqoyQyXn/gitRXbf9zAK8YfxyqS1Ix+TSqJv8EPNSk3VkDb7fChKw==",
+      "path": "nlayer/2.0.1",
+      "hashPath": "nlayer.2.0.1.nupkg.sha512"
+    },
+    "NLayer.NAudioSupport/2.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-KA+x8ukKPSq6cyNK4CSKiPw8Wl2RNNbME/t8fohqnldHcaHAmj8+zKMu3L5eAsM+ewhBPFQHC8qVIGXM/C83PQ==",
+      "path": "nlayer.naudiosupport/2.0.1",
+      "hashPath": "nlayer.naudiosupport.2.0.1.nupkg.sha512"
+    },
+    "NVorbis/0.10.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-WYnil3DhQHzjCY0dM9I2B3r1vWip90AOuQd25KE4NrjPQBg0tBJFluRLm5YPnO5ZLDmwrfosY8jCQGQRmWI/Pg==",
+      "path": "nvorbis/0.10.4",
+      "hashPath": "nvorbis.0.10.4.nupkg.sha512"
+    },
+    "SoundTouch.Net/2.3.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-5A29Pll/n4kEEPvCD5DFot3MJG+VgiaRG6LbNQVkF94VerC1b5iZtJKfdLQXZPFrl3LiVbKm3txKBe5/pbv5rw==",
+      "path": "soundtouch.net/2.3.2",
+      "hashPath": "soundtouch.net.2.3.2.nupkg.sha512"
+    },
+    "SoundTouch.Net.NAudioSupport.Core/2.3.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-I5UZ7RQCj/bBfDc2u1NpfedUeO7pGRlONio6upysM3Ks+MQ8IEk2f3eszeilr/XPV40pb9JNLyvi5FNcAfME3w==",
+      "path": "soundtouch.net.naudiosupport.core/2.3.2",
+      "hashPath": "soundtouch.net.naudiosupport.core.2.3.2.nupkg.sha512"
+    },
+    "System.Memory/4.5.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-3oDzvc/zzetpTKWMShs1AADwZjQ/36HnsufHRPcOjyRAAMLDlu2iD33MBI2opxnezcVUtXyqDXXjoFMOU9c7SA==",
+      "path": "system.memory/4.5.3",
+      "hashPath": "system.memory.4.5.3.nupkg.sha512"
+    },
+    "System.ValueTuple/4.5.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-okurQJO6NRE/apDIP23ajJ0hpiNmJ+f0BwOlB/cSqTLQlw5upkf+5+96+iG2Jw40G1fCVCyPz/FhIABUjMR+RQ==",
+      "path": "system.valuetuple/4.5.0",
+      "hashPath": "system.valuetuple.4.5.0.nupkg.sha512"
+    }
+  }
+}

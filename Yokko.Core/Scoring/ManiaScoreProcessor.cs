@@ -285,7 +285,8 @@ public sealed class ManiaScoreProcessor
     {
         if (phase == JudgementPhase.HoldBody)
         {
-            if (rating == JudgementRating.ComboBreak)
+            if (rating is JudgementRating.ComboBreak
+                or JudgementRating.IgnoreMiss)
             {
                 etternaCurrentWifePoints +=
                     EtternaScoringRules.Wife3HoldDropWeight;
