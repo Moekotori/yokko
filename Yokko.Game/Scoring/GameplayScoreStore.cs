@@ -6,6 +6,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
 using Yokko.Core.Beatmaps;
@@ -28,7 +29,35 @@ internal sealed record StoredGameplayScore(
     DateTimeOffset PlayedAt,
     string[] Mods = null,
     int ComboBreaks = 0,
-    int MaxMissCombo = 0);
+    int MaxMissCombo = 0,
+    ManiaModConfigurationEnvelope ModConfiguration = null)
+{
+    [JsonIgnore]
+    public IReadOnlyList<string> ModLabels
+    {
+        get
+        {
+            if (ModConfiguration != null)
+            {
+                try
+                {
+                    return ManiaModConfigurationCodec
+                           .Restore(ModConfiguration)
+                           .DisplayLabels;
+                }
+                catch (Exception exception) when (
+                    exception is InvalidDataException
+                    or NotSupportedException
+                    or ArgumentException)
+                {
+                    // Scores written by a newer build must remain readable.
+                }
+            }
+
+            return Mods ?? [];
+        }
+    }
+}
 
 internal sealed class GameplayScoreStore
 {
@@ -93,6 +122,9 @@ internal sealed class GameplayScoreStore
     {
         ensureInitialised();
         mods ??= ManiaModSet.Empty;
+        if (mods.IsAutomation)
+            return false;
+
         string key = keyFor(
             beatmap,
             mods,
@@ -112,7 +144,8 @@ internal sealed class GameplayScoreStore
             DateTimeOffset.UtcNow,
             mods.Acronyms.ToArray(),
             result.ComboBreaks,
-            result.MaxMissCombo);
+            result.MaxMissCombo,
+            ManiaModConfigurationCodec.Capture(mods));
         string historyKey = historyKeyFor(
             beatmap,
             judgementConfiguration);
@@ -183,7 +216,10 @@ internal sealed class GameplayScoreStore
                 if (loaded != null)
                 {
                     foreach ((string key, StoredGameplayScore score) in loaded)
-                        scores[key] = score;
+                    {
+                        if (!isAutomationScore(score))
+                            scores[key] = score;
+                    }
                 }
             }
             catch (Exception ex)
@@ -204,12 +240,51 @@ internal sealed class GameplayScoreStore
                 return;
 
             foreach ((string key, List<StoredGameplayScore> attempts) in loaded)
-                history[key] = attempts ?? [];
+            {
+                history[key] = attempts?
+                               .Where(static score =>
+                                   !isAutomationScore(score))
+                               .ToList()
+                               ?? [];
+            }
         }
         catch (Exception ex)
         {
             Logger.Error(ex, "Could not load gameplay score history.");
         }
+    }
+
+    private static bool isAutomationScore(StoredGameplayScore score)
+    {
+        if (score is null)
+            return false;
+
+        if (score.ModConfiguration != null)
+        {
+            try
+            {
+                if (ManiaModConfigurationCodec
+                    .Restore(score.ModConfiguration)
+                    .IsAutomation)
+                {
+                    return true;
+                }
+            }
+            catch (Exception exception) when (
+                exception is InvalidDataException
+                or NotSupportedException
+                or ArgumentException)
+            {
+                // Fall back to legacy acronyms below.
+            }
+        }
+
+        return score.Mods?.Any(static acronym =>
+            string.Equals(acronym, "AT", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(
+                acronym,
+                "CN",
+                StringComparison.OrdinalIgnoreCase)) == true;
     }
 
     private bool save()

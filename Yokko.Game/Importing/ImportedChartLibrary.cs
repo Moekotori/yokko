@@ -499,14 +499,14 @@ internal sealed class ImportedChartLibrary : IDisposable
                 }
             }
 
-            var parsed = new ConcurrentBag<(
-                ExternalOsuFileSnapshot Snapshot,
-                ChartImportResult Result)>();
             await Parallel.ForEachAsync(
                 changed,
                 new ParallelOptions
                 {
-                    MaxDegreeOfParallelism = 4,
+                    MaxDegreeOfParallelism = Math.Clamp(
+                        Environment.ProcessorCount / 2,
+                        2,
+                        8),
                     CancellationToken = cancellationToken,
                 },
                 async (snapshot, token) =>
@@ -515,7 +515,14 @@ internal sealed class ImportedChartLibrary : IDisposable
                     {
                         if (!ExternalOsuSongsIndex.IsManiaFile(snapshot.Path))
                         {
-                            parsed.Add((snapshot, null));
+                            loaded.Add(new ExternalOsuIndexEntry(
+                                snapshot.Path,
+                                snapshot.Length,
+                                snapshot.LastWriteTimeUtcTicks,
+                                null,
+                                null,
+                                null,
+                                null));
                             return;
                         }
 
@@ -531,8 +538,44 @@ internal sealed class ImportedChartLibrary : IDisposable
                             && results[0].Beatmap.SourceFormat
                             == ChartSourceFormat.OsuMania)
                         {
-                            parsed.Add((snapshot, results[0]));
+                            ChartImportResult result = results[0];
+                            ManiaMsdResult msd =
+                                msdRatingCache.GetOrCalculate(result.Beatmap);
+                            ManiaStarRatingResult star =
+                                starRatingCache.GetOrCalculate(result.Beatmap);
+                            double lengthMilliseconds =
+                                chartLength(result.Beatmap);
+                            double bpm = primaryBpm(result.Beatmap);
+                            string fingerprint =
+                                YokkoBeatmapFingerprint.Compute(result.Beatmap);
+                            ChartImportResult summaryResult = result with
+                            {
+                                Beatmap = createExternalSummary(
+                                    result.Beatmap,
+                                    bpm),
+                            };
+                            loaded.Add(new ExternalOsuIndexEntry(
+                                snapshot.Path,
+                                snapshot.Length,
+                                snapshot.LastWriteTimeUtcTicks,
+                                summaryResult,
+                                resolveArtworkPath(result, snapshot.Path),
+                                msd,
+                                star,
+                                lengthMilliseconds,
+                                bpm,
+                                fingerprint));
+                            return;
                         }
+
+                        loaded.Add(new ExternalOsuIndexEntry(
+                            snapshot.Path,
+                            snapshot.Length,
+                            snapshot.LastWriteTimeUtcTicks,
+                            null,
+                            null,
+                            null,
+                            null));
                     }
                     catch (Exception exception) when (exception
                                                        is not OperationCanceledException)
@@ -549,47 +592,6 @@ internal sealed class ImportedChartLibrary : IDisposable
                             LogLevel.Error);
                     }
                 }).ConfigureAwait(false);
-
-            foreach ((ExternalOsuFileSnapshot snapshot,
-                      ChartImportResult result) in parsed)
-            {
-                if (result == null)
-                {
-                    loaded.Add(new ExternalOsuIndexEntry(
-                        snapshot.Path,
-                        snapshot.Length,
-                        snapshot.LastWriteTimeUtcTicks,
-                        null,
-                        null,
-                        null,
-                        null));
-                    continue;
-                }
-
-                ManiaMsdResult msd = msdRatingCache.GetOrCalculate(
-                    result.Beatmap);
-                ManiaStarRatingResult star =
-                    starRatingCache.GetOrCalculate(result.Beatmap);
-                double lengthMilliseconds = chartLength(result.Beatmap);
-                double bpm = primaryBpm(result.Beatmap);
-                string fingerprint = YokkoBeatmapFingerprint.Compute(
-                    result.Beatmap);
-                ChartImportResult summaryResult = result with
-                {
-                    Beatmap = createExternalSummary(result.Beatmap, bpm),
-                };
-                loaded.Add(new ExternalOsuIndexEntry(
-                    snapshot.Path,
-                    snapshot.Length,
-                    snapshot.LastWriteTimeUtcTicks,
-                    summaryResult,
-                    resolveArtworkPath(result, snapshot.Path),
-                    msd,
-                    star,
-                    lengthMilliseconds,
-                    bpm,
-                    fingerprint));
-            }
 
             if (!enumerationComplete)
             {

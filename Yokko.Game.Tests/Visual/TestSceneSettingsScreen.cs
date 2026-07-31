@@ -921,6 +921,18 @@ namespace Yokko.Game.Tests.Visual
             AddStep("capture Import", () => import = (ImportSettingsPanel)settingsScreen.ActivePanel);
             AddAssert("all importer families shown", () => import.FormatFamilyCount == 5);
             AddAssert("all supported extensions shown", () => import.FileTypeCount == 13);
+            AddAssert("managed and external library locations fit above footer", () =>
+            {
+                ClickableContainer[] locations = import
+                    .ChildrenOfType<ClickableContainer>()
+                    .Where(container => container.X == 378
+                                        && container.Width == 840
+                                        && container.Height == 54)
+                    .ToArray();
+                return locations.Length == 2
+                       && locations.All(location =>
+                           location.Y + location.Height < 651);
+            });
 
             AddStep("disable keysounds", () => import.SetPreferKeysounds(false));
             AddAssert("keysounds disabled", () => !import.PreferKeysounds);

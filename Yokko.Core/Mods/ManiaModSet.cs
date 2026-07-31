@@ -732,6 +732,15 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
         mods.Select(mod =>
             mod switch
             {
+                ManiaModId.Random => $"RD #{RandomSeed}",
+                ManiaModId.Cover =>
+                    $"CO {CoverCoverage * 100:0}% "
+                    + (CoverDirection == ManiaCoverDirection.AlongScroll
+                        ? "ALONG"
+                        : "AGAINST"),
+                ManiaModId.Flashlight =>
+                    $"FL {FlashlightSizeMultiplier:0.00}×"
+                    + (FlashlightComboBasedSize ? " COMBO" : string.Empty),
                 ManiaModId.AccuracyChallenge =>
                     "AC "
                     + (AccuracyChallengeMinimum * 100).ToString(
@@ -757,12 +766,16 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                 ManiaModId.DifficultyAdjust =>
                     difficultyAdjustDisplayLabel(),
                 ManiaModId.Muted =>
-                    $"MU {(MutedInverse ? "IN" : "OUT")}{MutedComboCount}",
+                    $"MU {(MutedInverse ? "IN" : "OUT")}{MutedComboCount}"
+                    + (MutedMetronome ? " MET" : string.Empty)
+                    + (MutedAffectsHitSounds ? " KEYS" : string.Empty),
                 ManiaModId.WindUp or ManiaModId.WindDown =>
                     $"{OsuManiaModParityCatalog.Get(mod).Acronym} "
-                    + $"{TimeRampInitialRate:0.00}→{TimeRampFinalRate:0.00}",
+                    + $"{TimeRampInitialRate:0.00}→{TimeRampFinalRate:0.00}"
+                    + (TimeRampAdjustPitch ? " PITCH" : " TEMPO"),
                 ManiaModId.AdaptiveSpeed =>
-                    $"AS {AdaptiveInitialRate:0.00}",
+                    $"AS {AdaptiveInitialRate:0.00}"
+                    + (AdaptiveAdjustPitch ? " PITCH" : " TEMPO"),
                 ManiaModId.NoPause =>
                     $"NP {NoPauseAllowedPauses}",
                 _ => OsuManiaModParityCatalog.Get(mod).Acronym,

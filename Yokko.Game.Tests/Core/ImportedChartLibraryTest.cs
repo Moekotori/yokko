@@ -51,6 +51,9 @@ public sealed class ImportedChartLibraryTest
                 await library.RefreshExternalOsuAsync();
             ExternalOsuLibraryResult unchanged =
                 await library.RefreshExternalOsuAsync();
+            ImportedChart indexedChart = library.GetCharts().Single();
+            YokkoBeatmap playableBeatmap =
+                library.GetPlayableBeatmap(indexedChart.Id);
 
             Assert.Multiple(() =>
             {
@@ -64,8 +67,12 @@ public sealed class ImportedChartLibraryTest
                     Is.EqualTo(ImportedChartSourceKind.ExternalOsu));
                 Assert.That(library.GetCharts().Single().IsReadOnly, Is.True);
                 Assert.That(
-                    library.GetCharts().Single().Result.Beatmap.SourceFormat,
+                    indexedChart.Result.Beatmap.SourceFormat,
                     Is.EqualTo(ChartSourceFormat.OsuMania));
+                Assert.That(indexedChart.Result.Beatmap.HitObjects, Is.Empty,
+                    "The persistent index should keep only a lightweight beatmap summary.");
+                Assert.That(playableBeatmap.HitObjects, Is.Not.Empty,
+                    "Selecting an external chart must materialise its full source beatmap.");
                 Assert.That(snapshotFiles(songs), Is.EqualTo(originalFiles));
                 Assert.That(File.ReadAllBytes(maniaPath), Is.EqualTo(originalContent));
                 Assert.That(File.GetLastWriteTimeUtc(maniaPath), Is.EqualTo(originalWriteTime));

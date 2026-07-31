@@ -87,6 +87,52 @@ final result: passed
 
 ---
 
+# Gameplay pause interaction and sharpness QA (2026-07-31)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-4b8b466d-0fd1-40a5-b75a-d919db463417.png` (2559 x 1439).
+- Native Direct3D 11 implementation: `D:\YOKKO\artifacts\pause-interactive-preview\implementation-final.png` (1920 x 1080).
+- Full-view comparison, source left and implementation right: `D:\YOKKO\artifacts\pause-interactive-preview\source-left-implementation-right.png`.
+- Focused performance comparison, source left and implementation right: `D:\YOKKO\artifacts\pause-interactive-preview\metrics-source-left-implementation-right.png`.
+- Viewport/state: 1920 x 1080, Comfortable UI scale, Chinese pause overlay, long-title fixture, 100.00% accuracy, SS rank, score 11,342, combo 41 / 41, pauses 03.
+- Density normalization: the 2559 x 1439 source was resampled to 1920 x 1080 without cropping; the implementation remained at native 1x output.
+
+## Comparison history
+
+1. The prior performance rail was readable but static, and the smallest muted labels were too close to decorative contrast.
+2. Accuracy used a late runtime scale when the horizontal flow exceeded its width, which could soften the largest value even though the selected font was correct.
+3. Accuracy, rank, score, combo, and pause count now expose hover feedback and click-to-pin states. Active values shift to cyan, receive a pale-cyan focus field and stronger underline, and retain a compact `PINNED` state after click.
+4. Accuracy now renders directly at a natural integer display size with no runtime scale. Muted and faint navy text gained contrast, while the crisp `SmoothPath` centre divider and the verified transparent logo remain unchanged.
+5. The first interaction capture placed `CLICK TO PIN` too close to the judgment heading. The final pass moves metric state labels into each cell's top-right corner and places one global discoverability hint above the PAUSES cell.
+
+## Required fidelity review
+
+- Fonts and typography: Roboto Bold display text remains at natural proportions; accuracy no longer receives a fractional scale; small labels have stronger contrast without becoming primary content.
+- Spacing and layout rhythm: the five interactive metric hit targets do not cross the column rules, mascot, judgment heading, or song header. Interaction labels occupy existing negative space.
+- Colors and tokens: hover, pinned, rule, and focus states use the existing Yokko navy, cyan, pale-cyan, pink, and ivory palette.
+- Image quality and assets: the real transparent Yokko logo and mascot remain sharp. No raster asset was replaced by code-native approximation; the centre line remains a vector path.
+- Copy and content: all live score data, judgment values, pause count, song metadata, and pause actions remain present. The new English microcopy matches the screen's existing technical-label language.
+- Interaction and accessibility: five large metric regions provide hover and click feedback; the state does not move data or reduce the existing keyboard navigation target area.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after moving the per-cell interaction labels away from the judgment heading.
+- P3: the overlay retains its documented legacy 1600 x 900 internal artboard and is uniformly fitted to the shared 1920 x 1080 viewport.
+
+## Verification
+
+- `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- Native Direct3D 11 preview: captured successfully at 1920 x 1080.
+- Full-view and focused source/implementation comparisons were opened in combined images.
+- Primary interaction implementation checked: hover highlight, click-to-pin toggle, pinned visual retention, and click-again release for accuracy, rank, score, combo, and pauses.
+
+final result: passed
+
+---
+
 # Gameplay settings typography QA (2026-07-31)
 
 ## Evidence

@@ -2664,7 +2664,7 @@ public partial class SongSelectScreen : Screen
                                    (int)Math.Min(int.MaxValue, saved.Score),
                                    saved.Accuracy,
                                    saved.MaxCombo,
-                                   saved.Mods ?? [],
+                                   saved.ModLabels,
                                    true,
                                    saved.PlayedAt))
                                  .OrderByDescending(score => score.Score);
@@ -2690,7 +2690,7 @@ public partial class SongSelectScreen : Screen
                                                        (int)Math.Min(int.MaxValue, score.Score),
                                                        score.Accuracy,
                                                        score.MaxCombo,
-                                                       score.Mods ?? [],
+                                                       score.ModLabels,
                                                        true,
                                                        score.PlayedAt))
                                                .ToArray();
@@ -2859,7 +2859,9 @@ public partial class SongSelectScreen : Screen
                     selectedMods,
                     judgementConfiguration,
                     minesEnabled,
-                    timelineRate);
+                    timelineRate,
+                    dynamicRatePretransformed:
+                        selectedMods.HasTimeRamp);
             ratings = ManiaDifficultyCalculator.CalculateResult(
                 difficultyBeatmap,
                 context,

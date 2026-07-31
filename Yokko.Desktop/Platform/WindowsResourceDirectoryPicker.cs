@@ -72,7 +72,7 @@ internal sealed class WindowsResourceDirectoryPicker : IResourceDirectoryPicker
         var info = new BrowseInfo
         {
             Owner = owner,
-            Title = "\u9009\u62e9 Yokko \u8d44\u6e90\u6587\u4ef6\u5939",
+            Title = "\u9009\u62e9\u6587\u4ef6\u5939",
             Flags = bif_return_only_fs_dirs | bif_edit_box | bif_new_dialog_style,
             Callback = callback,
         };

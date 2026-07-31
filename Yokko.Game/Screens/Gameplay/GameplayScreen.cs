@@ -2005,6 +2005,7 @@ public partial class GameplayScreen : Screen
                               judgementConfiguration);
         completedResultIsNewBest = BestScoreSaved =
             !ReplayMode
+            && !mods.IsAutomation
             && !manualPlaybackRateUsed
             && scoreStore.SaveBest(
                 originalBeatmap,

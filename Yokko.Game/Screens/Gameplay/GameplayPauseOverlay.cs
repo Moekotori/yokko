@@ -921,8 +921,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopRight,
-                    Position = new Vector2(780, -16),
-                    Text = "HOVER / CLICK METRICS",
+                    Position = new Vector2(-20, 250),
+                    Text = "INTERACTIVE METRICS · HOVER / CLICK",
                     Font = PauseTypography.Display(10),
                     Spacing = new Vector2(1.6f, 0),
                     Colour = mutedNavy,
@@ -1238,9 +1238,9 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 },
                 interactionState = new SpriteText
                 {
-                    Anchor = Anchor.BottomRight,
-                    Origin = Anchor.BottomRight,
-                    Position = new Vector2(0, -2),
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(0, 3),
                     Text = "CLICK TO PIN",
                     Font = PauseTypography.Display(9),
                     Spacing = new Vector2(1.2f, 0),
@@ -1368,9 +1368,9 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 },
                 interactionState = new SpriteText
                 {
-                    Anchor = Anchor.BottomRight,
-                    Origin = Anchor.BottomRight,
-                    Position = new Vector2(0, -2),
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(0, 3),
                     Text = "CLICK TO PIN",
                     Font = PauseTypography.Display(9),
                     Spacing = new Vector2(1.2f, 0),

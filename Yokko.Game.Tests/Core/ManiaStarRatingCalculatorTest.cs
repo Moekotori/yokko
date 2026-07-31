@@ -422,6 +422,37 @@ public sealed class ManiaStarRatingCalculatorTest
     }
 
     [Test]
+    public void PretransformedTimeRampIsNotMarkedApproximate()
+    {
+        YokkoBeatmap chart = createChart();
+        ManiaModSet windUp = ManiaModSet.Empty.WithTimeRamp(
+            ManiaModId.WindUp,
+            1,
+            1.5,
+            false);
+        YokkoBeatmap transformed =
+            ManiaTimeRampTimeline.TransformForDifficulty(chart, windUp);
+        ManiaStarRatingContext context =
+            ManiaStarRatingContext.ForGameplay(
+                transformed,
+                windUp,
+                JudgementConfiguration.YokkoDefault,
+                minesEnabled: true,
+                timelineRate: 1,
+                dynamicRatePretransformed: true);
+
+        ManiaStarRatingResult result =
+            ManiaStarRatingCalculator.CalculateResult(
+                transformed,
+                context);
+
+        Assert.That(
+            result.Limitations.HasFlag(
+                ManiaStarRatingLimitations.DynamicRateApproximation),
+            Is.False);
+    }
+
+    [Test]
     public void QuaverMapsItsFixedGreatWindowToEquivalentOd()
     {
         YokkoBeatmap chart = createChart() with

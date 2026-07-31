@@ -559,13 +559,6 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
         }));
     }
 
-    private static Drawable createDecorationIcon(IconUsage icon, float x, float y, float size, Color4 colour) => new SpriteIcon
-    {
-        Position = new Vector2(x, y),
-        Size = new Vector2(size),
-        Icon = icon,
-        Colour = colour,
-    };
 }
 
 internal partial class ImportFormatCard : CompositeDrawable

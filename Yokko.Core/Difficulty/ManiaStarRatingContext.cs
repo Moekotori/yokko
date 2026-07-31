@@ -76,7 +76,8 @@ public sealed record ManiaStarRatingContext
         ManiaModSet mods,
         JudgementConfiguration judgementConfiguration,
         bool minesEnabled,
-        double timelineRate)
+        double timelineRate,
+        bool dynamicRatePretransformed = false)
     {
         ArgumentNullException.ThrowIfNull(beatmap);
         ArgumentNullException.ThrowIfNull(mods);
@@ -97,7 +98,7 @@ public sealed record ManiaStarRatingContext
             windows.GreatMilliseconds / timelineRate,
             !mods.Contains(ManiaModId.NoRelease),
             minesEnabled,
-            mods.HasDynamicRate
+            mods.HasDynamicRate && !dynamicRatePretransformed
                 ? ManiaStarRatingLimitations.DynamicRateApproximation
                 : ManiaStarRatingLimitations.None,
             mods.Contains(ManiaModId.Invert));

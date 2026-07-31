@@ -147,6 +147,97 @@ public class GameplayScoreStoreTest
     }
 
     [Test]
+    public void ConfigurableModDetailsPersistForHistoryDisplay()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var first = new GameplayScoreStore();
+        first.Initialise(new NativeStorage(testRoot));
+        ManiaModSet configured = ManiaModSet.Empty
+            .WithRandomSeed(123456)
+            .WithFixedRate(ManiaModId.DoubleTime, 1.73, true);
+
+        Assert.That(
+            first.SaveBest(beatmap, configured, result(800_000, 0.90)),
+            Is.True);
+
+        var restored = new GameplayScoreStore();
+        restored.Initialise(new NativeStorage(testRoot));
+        StoredGameplayScore saved = restored.GetBest(beatmap, configured);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.ModConfiguration, Is.Not.Null);
+            Assert.That(
+                ManiaModConfigurationCodec.Restore(saved.ModConfiguration),
+                Is.EqualTo(configured));
+            Assert.That(saved.ModLabels, Does.Contain("RD #123456"));
+            Assert.That(saved.ModLabels, Does.Contain("DT 1.73× PITCH"));
+        });
+    }
+
+    [TestCase(ManiaModId.Autoplay)]
+    [TestCase(ManiaModId.Cinema)]
+    public void AutomationDoesNotPersistScoresOrHistory(ManiaModId mod)
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var store = new GameplayScoreStore();
+        store.Initialise(new NativeStorage(testRoot));
+        ManiaModSet automation = ManiaModSet.Empty.With(mod, true);
+
+        Assert.That(
+            store.SaveBest(beatmap, automation, result(1_000_000, 1)),
+            Is.False);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(store.GetBest(beatmap, automation), Is.Null);
+            Assert.That(
+                store.GetHistory(
+                    beatmap,
+                    JudgementConfiguration.YokkoDefault),
+                Is.Empty);
+        });
+    }
+
+    [Test]
+    public void LegacyAutomationScoresAreIgnoredWhenLoading()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var first = new GameplayScoreStore();
+        first.Initialise(new NativeStorage(testRoot));
+        ManiaModSet doubleTime =
+            ManiaModSet.Empty.With(ManiaModId.DoubleTime, true);
+        Assert.That(
+            first.SaveBest(beatmap, doubleTime, result(1_000_000, 1)),
+            Is.True);
+
+        foreach (string relativePath in new[]
+                 {
+                     "Scores/scores.json",
+                     "Scores/history.json",
+                 })
+        {
+            string path = Path.Combine(testRoot, relativePath);
+            string json = File.ReadAllText(path)
+                              .Replace("\"DT\"", "\"AT\"");
+            File.WriteAllText(path, json);
+        }
+
+        var restored = new GameplayScoreStore();
+        restored.Initialise(new NativeStorage(testRoot));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(restored.GetBest(beatmap, doubleTime), Is.Null);
+            Assert.That(
+                restored.GetHistory(
+                    beatmap,
+                    JudgementConfiguration.YokkoDefault),
+                Is.Empty);
+        });
+    }
+
+    [Test]
     public void PerfectConfigurationKeepsIndependentBestScores()
     {
         YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
