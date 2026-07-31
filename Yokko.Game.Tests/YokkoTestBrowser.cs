@@ -63,12 +63,22 @@ namespace Yokko.Game.Tests
                     RelativeSizeAxes = Axes.Both,
                 });
                 Add(new CursorContainer());
-                Scheduler.AddDelayed(gameplay.TogglePause, 250);
-                Scheduler.AddDelayed(() =>
+
+                Action openEditorWhenReady = null;
+                openEditorWhenReady = () =>
                 {
+                    if (!gameplay.IsPaused)
+                        gameplay.TogglePause();
+
                     GameplayPauseOverlay pauseOverlay = gameplay
                         .ChildrenOfType<GameplayPauseOverlay>()
-                        .Single();
+                        .SingleOrDefault();
+                    if (pauseOverlay == null)
+                    {
+                        Scheduler.AddDelayed(openEditorWhenReady, 200);
+                        return;
+                    }
+
                     pauseOverlay.SelectNext();
                     pauseOverlay.SelectNext();
                     pauseOverlay.TriggerSelected();
@@ -78,8 +88,9 @@ namespace Yokko.Game.Tests
                         .Single();
                     editor.MoveTimingBarForTest(new Vector2(70, -58));
                     editor.ResizeTimingBarForTest(new Vector2(58, 20));
-                }, 650);
-                schedulePreviewScreenshot(1100);
+                    schedulePreviewScreenshot(900);
+                };
+                Scheduler.AddDelayed(openEditorWhenReady, 500);
                 return;
             }
 

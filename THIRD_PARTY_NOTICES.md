@@ -1,19 +1,5 @@
 # Third-party notices
 
-## Star Rating Rebirth
-
-Yokko uses the `StarRatingRebirth` 0.1.1 NuGet package for its experimental
-osu!mania input star rating.
-
-- C# port: <https://github.com/zzzzv/StarRatingRebirth>
-- Original algorithm and paper: <https://github.com/sunnyxxy/Star-Rating-Rebirth>
-- C# package licence declaration: MIT
-- Algorithm revision: `2025/04/15`
-
-The C# port declares MIT, but the original repository does not currently carry
-an explicit licence. Distribution approval for this dependency must therefore
-be confirmed before treating it as release-cleared.
-
 ## osu! and osu!framework
 
 Yokko uses osu!framework and ports selected osu!mania legacy skinning,
@@ -41,17 +27,23 @@ assemblies.
 
 ## Etterna
 
-Yokko's optional Etterna judgement mode ports the timing-window constants,
+Yokko's Etterna compatibility includes the timing-window constants,
 Judge/Justice scales, inclusive boundary checks, closest-note selection,
-Wife3 scoring, combo thresholds, and default life/mine/hold semantics from
-Etterna. StepMania roll heads are preserved as rolls and use Etterna's fixed
-roll-life drain/refill behaviour.
+Wife3 scoring, combo thresholds, default life/mine/hold semantics, and the
+official MinaCalc v515 MSD implementation. StepMania roll heads are preserved
+as rolls and use Etterna's fixed roll-life drain/refill behaviour.
+
+MinaCalc source is vendored under
+`Yokko.MinaCalc.Native/vendor/etterna/src/Etterna/MinaCalc`. Yokko adds a small
+native C ABI adapter and one standalone-build guard around Etterna's runtime XML
+parameter loader; MinaCalc's default parameters and calculation are unchanged.
 
 - Copyright (c) 2016-2023 Etterna <etternadev@gmail.com>
 - Licence: MIT
 - Source: <https://github.com/etternagame/etterna>
 - Reference commits: `939a26ae042d3a689999a0dae630721c7701f187`,
   `b65660062ef2a23121e331c36e23c23a8f6eafaa`
+- MinaCalc version: `515`
 
 ## StepMania
 

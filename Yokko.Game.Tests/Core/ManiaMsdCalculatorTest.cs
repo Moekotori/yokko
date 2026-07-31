@@ -25,18 +25,31 @@ public sealed class ManiaMsdCalculatorTest
                 Enum.GetValues<EtternaMsdSkillset>()
                     .Select(skillset => result.Skillsets![skillset]),
                 Is.All.GreaterThanOrEqualTo(0));
-            Assert.That(result.Value, Is.GreaterThan(0));
+            Assert.That(
+                result.Skillsets!.Overall,
+                Is.EqualTo(8.408500671386719).Within(0.000001));
+            Assert.That(
+                result.Skillsets.Stream,
+                Is.EqualTo(8.408500671386719).Within(0.000001));
+            Assert.That(
+                result.Skillsets.Jumpstream,
+                Is.EqualTo(5.060000419616699).Within(0.000001));
+            Assert.That(
+                result.Skillsets.Handstream,
+                Is.EqualTo(4.580000400543213).Within(0.000001));
+            Assert.That(
+                result.Skillsets.Stamina,
+                Is.EqualTo(6.82586669921875).Within(0.000001));
+            Assert.That(
+                result.Skillsets.JackSpeed,
+                Is.EqualTo(4.820000171661377).Within(0.000001));
+            Assert.That(
+                result.Skillsets.Chordjack,
+                Is.EqualTo(6.019999980926514).Within(0.000001));
+            Assert.That(
+                result.Skillsets.Technical,
+                Is.EqualTo(7.299999713897705).Within(0.000001));
         });
-
-        TestContext.Out.WriteLine(
-            $"Overall={result.Skillsets!.Overall:R};"
-            + $"Stream={result.Skillsets.Stream:R};"
-            + $"Jumpstream={result.Skillsets.Jumpstream:R};"
-            + $"Handstream={result.Skillsets.Handstream:R};"
-            + $"Stamina={result.Skillsets.Stamina:R};"
-            + $"JackSpeed={result.Skillsets.JackSpeed:R};"
-            + $"Chordjack={result.Skillsets.Chordjack:R};"
-            + $"Technical={result.Skillsets.Technical:R}");
     }
 
     [Test]

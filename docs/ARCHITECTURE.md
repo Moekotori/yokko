@@ -58,48 +58,36 @@ clock truth, fallback policy, and backend rollout gates.
 
 `Yokko.Import` converts outside formats into `Yokko.Core` beatmaps. Format-specific quirks stay in this layer.
 
-## Star Rating
+## Difficulty Rating
 
-`Yokko.Core.Difficulty.ManiaStarRatingCalculator` adapts the canonical
-`YokkoBeatmap` model to
-[StarRatingRebirth](https://github.com/zzzzv/StarRatingRebirth) 0.1.1
-(C# port declares MIT, algorithm revision `2025/04/15`) through Yokko
-calibration `Yokko/1`. This keeps difficulty calculation
-independent of the original chart format: osu!mania, Quaver, Malody, Etterna,
-and BMS imports all use the same tap/hold note data after conversion.
+`Yokko.Core.Difficulty.ManiaMsdCalculator` adapts the canonical
+`YokkoBeatmap` model to Etterna MinaCalc v515. Yokko vendors Etterna's official
+`src/Etterna/MinaCalc` source from commit
+`b65660062ef2a23121e331c36e23c23a8f6eafaa` and compiles it behind a small
+native C ABI. The algorithm and its parameters remain Etterna-owned; Yokko only
+converts its format-independent lane chart into Etterna `NoteInfo` rows.
 
-The calculator accepts an explicit playback rate: `1.5` compresses note times
-like DT while `0.75` expands them like HT. Cache keys include the normalized
-tap/hold data, effective judgement context, rate, adapter revision, package
-version, and algorithm revision. `ManiaStarRatingContext` converts Yokko's
-effective real-time Great window into the equivalent OD consumed by Rebirth,
-so Easy, Hard Rock, Quaver and configurable judgement rules no longer reuse an
-unmodified chart OD. Successful results persist beneath
-`Beatmaps/.yokko-cache/star-ratings.json`; missing, stale, or corrupt cache data
-falls back to calculation.
+The adapter mirrors Etterna `NoteData::SerializeNoteData2`: tap and hold heads
+sharing the same timestamp become one row bitmask, the first row is normalized
+to zero seconds, and hold tails, mines and sample-only objects do not enter
+MinaCalc. Imported osu!mania, Quaver, Malody, Etterna and BMS charts therefore
+share one MSD path after conversion.
 
-The song-select screen presents this value as `REBIRTH INPUT SR · BETA`, not a
-general reading or gimmick rating. The numeric value is unbounded; decorative
-stars must not be read as a five-point scale. Charts with fewer than 20 playable
-notes or data the upstream algorithm cannot represent expose no rating (`--`)
-instead of reusing Overall Difficulty as a misleading star value. Structured
-failure status distinguishes unsupported input from an upstream algorithm
-failure. Sample-only objects do not contribute to the rating. Mines are
-playable in Yokko but are outside Rebirth's model; when enabled they leave the
-tap/hold base value intact and mark it `PARTIAL`. No Release charts with holds
-and dynamic-rate estimates are also explicitly partial instead of being
-presented as complete difficulty.
+Each successful result contains Overall plus Stream, Jumpstream, Handstream,
+Stamina, JackSpeed, Chordjack and Technical values. Song select displays
+Overall as `ETTERNA MSD` and names the dominant non-Overall skillset; gameplay
+rate readouts display the recalculated Overall MSD. The calculator accepts an
+explicit playback rate, so `1.5` and `0.75` use MinaCalc's own rate scaling.
+Dynamic-rate gameplay samples the same calculator at the rounded live rate on a
+worker task.
 
-Yokko removes Rebirth's original `notes / (notes + 60)` length factor and
-reapplies a softer square-root action-count curve. A hold counts as a head plus
-one release action instead of receiving extra length credit for its body. This
-keeps short burst charts from losing most of their input difficulty while
-retaining a bounded short-chart penalty. Mostly-LN charts whose tails repeatedly
-connect to the next same-lane head receive a gradual correction of up to 12%;
-the Invert conversion receives a 10% correction. Both corrections are bounded
-so that applying them cannot push pattern intensity below the same chart
-calculated without hold tails. Ordinary mixed rice/LN charts keep their base
-input difficulty.
+Import-time results persist at
+`Beatmaps/.yokko-cache/etterna-msd.json`. Cache keys include the exact float row
+times, row masks, key count, playback rate, adapter revision, MinaCalc version
+and pinned upstream commit. Missing, stale or corrupt entries are recalculated.
+Unsupported input and unavailable/incompatible native libraries return a
+structured failure and display `--`; Yokko never substitutes Overall
+Difficulty or another rating while labelling it MSD.
 
 ## Beat Timing
 

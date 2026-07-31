@@ -381,7 +381,7 @@ public partial class GameplayHud : CompositeDrawable
     public void UpdatePlaybackRate(
         double rate,
         double bpm,
-        ManiaStarRatingResult difficulty,
+        ManiaMsdResult difficulty,
         bool visible,
         bool practice)
     {
@@ -402,7 +402,7 @@ public partial class GameplayHud : CompositeDrawable
             ? $"{bpm:0.##} BPM"
             : "-- BPM";
         string difficultyText =
-            ManiaStarRatingPresentation.FormatStar(difficulty);
+            ManiaMsdPresentation.FormatMsd(difficulty);
         rateText.Text =
             $"{mode} · LIVE RATE {rate:0.00}×"
             + $" · {bpmText} · {difficultyText}"

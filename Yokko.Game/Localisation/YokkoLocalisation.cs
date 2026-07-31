@@ -280,6 +280,34 @@ internal static class YokkoStrings
                 "Full-page preview",
                 "完整页面预览",
                 "全体プレビュー"),
+            ["gameplay.layout_editor.inspector"] = new(
+                "ELEMENTS & GEOMETRY",
+                "元素与精确位置",
+                "要素と正確な位置"),
+            ["gameplay.layout_editor.layer.playfield"] = new(
+                "Playfield",
+                "轨道",
+                "レーン"),
+            ["gameplay.layout_editor.layer.hud"] = new(
+                "Info panel",
+                "信息面板",
+                "情報パネル"),
+            ["gameplay.layout_editor.layer.timing_bar"] = new(
+                "Timing bar",
+                "判定条",
+                "判定バー"),
+            ["gameplay.layout_editor.centre_x"] = new(
+                "Centre X",
+                "水平居中",
+                "水平中央"),
+            ["gameplay.layout_editor.centre_y"] = new(
+                "Centre Y",
+                "垂直居中",
+                "垂直中央"),
+            ["gameplay.layout_editor.snap_hint"] = new(
+                "SNAP 8px · hold Alt for free move",
+                "8px 自动吸附 · 按住 Alt 自由移动",
+                "8px 自動スナップ · Alt で自由移動"),
 
             ["gameplay.result.title"] = new("RESULT", "结算", "リザルト"),
             ["gameplay.result.max_combo"] = new("MAX COMBO", "最大连击", "MAX COMBO"),

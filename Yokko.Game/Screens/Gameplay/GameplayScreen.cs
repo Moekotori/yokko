@@ -176,9 +176,9 @@ public partial class GameplayScreen : Screen
     private double lastApproachPlaybackRate = double.NaN;
     private double manualPlaybackRateAdjustment;
     private bool manualPlaybackRateUsed;
-    private readonly Dictionary<double, ManiaStarRatingResult>
+    private readonly Dictionary<double, ManiaMsdResult>
         difficultyByRate = new();
-    private Task<ManiaStarRatingResult> difficultyCalculationTask;
+    private Task<ManiaMsdResult> difficultyCalculationTask;
     private double difficultyCalculationRate = double.NaN;
 
     internal bool GameplayBlocked => gameplayBlocked;
@@ -2507,7 +2507,7 @@ public partial class GameplayScreen : Screen
             || manualPlaybackRateUsed;
         bool overlayVisible =
             showOverlay || playbackRateOverlay.IsVisible;
-        ManiaStarRatingResult difficulty =
+        ManiaMsdResult difficulty =
             showReadout || overlayVisible
                 ? difficultyAt(rate)
                 : null;
@@ -2554,7 +2554,7 @@ public partial class GameplayScreen : Screen
             firstObjectTimeMilliseconds,
             completionTimeMilliseconds);
 
-    private ManiaStarRatingResult difficultyAt(double rate)
+    private ManiaMsdResult difficultyAt(double rate)
     {
         collectCompletedDifficultyCalculation();
 
@@ -2567,7 +2567,7 @@ public partial class GameplayScreen : Screen
             MidpointRounding.AwayFromZero);
         if (difficultyByRate.TryGetValue(
                 roundedRate,
-                out ManiaStarRatingResult cached))
+                out ManiaMsdResult cached))
         {
             return cached;
         }
@@ -2575,17 +2575,9 @@ public partial class GameplayScreen : Screen
         if (difficultyCalculationTask == null)
         {
             difficultyCalculationRate = roundedRate;
-            ManiaStarRatingContext context =
-                ManiaStarRatingContext.ForGameplay(
-                    beatmap,
-                    mods,
-                    judgementConfiguration,
-                    minesEnabled,
-                    roundedRate);
             difficultyCalculationTask = Task.Run(
-                () => ManiaStarRatingCalculator.CalculateResult(
+                () => ManiaMsdCalculator.CalculateResult(
                     beatmap,
-                    context,
                     roundedRate));
         }
 

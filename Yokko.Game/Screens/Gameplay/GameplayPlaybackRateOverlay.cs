@@ -130,7 +130,7 @@ internal partial class GameplayPlaybackRateOverlay : CompositeDrawable
     internal void Show(
         double rate,
         double bpm,
-        ManiaStarRatingResult difficulty)
+        ManiaMsdResult difficulty)
     {
         UpdateValues(rate, bpm, difficulty);
 
@@ -195,7 +195,7 @@ internal partial class GameplayPlaybackRateOverlay : CompositeDrawable
     internal void UpdateValues(
         double rate,
         double bpm,
-        ManiaStarRatingResult difficulty)
+        ManiaMsdResult difficulty)
     {
         DisplayedRate = rate;
         DisplayedBpm = bpm;
@@ -206,7 +206,7 @@ internal partial class GameplayPlaybackRateOverlay : CompositeDrawable
             ? $"{bpm:0.##} BPM"
             : "-- BPM";
         string difficultyText =
-            ManiaStarRatingPresentation.FormatStar(difficulty);
+            ManiaMsdPresentation.FormatMsd(difficulty);
         detailText.Text = $"{bpmText} / {difficultyText}";
     }
 }

@@ -830,6 +830,7 @@ namespace Yokko.Game.Tests.Visual
             GameplayScreen gameplayScreen = null;
             GameplayLayoutEditorOverlay layoutEditor = null;
             GameplayTimingBar timingBar = null;
+            GameplayHud gameplayHud = null;
 
             AddStep("open gameplay layout fixture", () =>
             {
@@ -864,6 +865,9 @@ namespace Yokko.Game.Tests.Visual
                     .SingleOrDefault()) != null
                 && (timingBar = gameplayScreen
                     .ChildrenOfType<GameplayTimingBar>()
+                    .SingleOrDefault()) != null
+                && (gameplayHud = gameplayScreen
+                    .ChildrenOfType<GameplayHud>()
                     .SingleOrDefault()) != null);
             AddAssert("gameplay is paused while arranging", () =>
                 gameplayScreen.IsPaused);
@@ -895,6 +899,70 @@ namespace Yokko.Game.Tests.Visual
                 && gameplaySettings.LayoutTimingBarOffsetY.Value
                     < timingBarOffsetY);
             AddStep("restore layout after keyboard nudge", () =>
+                gameplaySettings.ResetGameplayLayout());
+            AddStep("lock timing bar", () =>
+                layoutEditor.SetTimingBarLockedForTest(true));
+            AddAssert("locked timing bar rejects keyboard nudge", () =>
+            {
+                double before =
+                    gameplaySettings.LayoutTimingBarOffsetX.Value;
+                bool handled = layoutEditor.NudgeTimingBarForTest(
+                    Key.Right,
+                    false);
+                return layoutEditor.TimingBarLockedForTest
+                       && !handled
+                       && Math.Abs(
+                           gameplaySettings.LayoutTimingBarOffsetX.Value
+                           - before) < 0.000001;
+            });
+            AddStep("unlock timing bar", () =>
+                layoutEditor.SetTimingBarLockedForTest(false));
+            AddStep("hide HUD layer in editor", () =>
+                layoutEditor.SetHudHiddenForTest(true));
+            AddAssert("hidden HUD remains recoverable from layer list", () =>
+                layoutEditor.HudHiddenForTest
+                && gameplayHud.Alpha == 0);
+            AddStep("show HUD layer again", () =>
+                layoutEditor.SetHudHiddenForTest(false));
+            AddAssert("HUD visibility is restored", () =>
+                !layoutEditor.HudHiddenForTest
+                && gameplayHud.Alpha > 0);
+            float requestedSnapDelta = 0;
+            Vector2 snappedDelta = Vector2.Zero;
+            Vector2 bypassedDelta = Vector2.Zero;
+            AddStep("calculate centre snap", () =>
+            {
+                requestedSnapDelta =
+                    layoutEditor.DrawWidth / 2
+                    - layoutEditor.TimingBarEditorCentreXForTest
+                    + 6;
+                snappedDelta = layoutEditor.SnapTimingBarMoveForTest(
+                    new Vector2(requestedSnapDelta, 0),
+                    false);
+                bypassedDelta = layoutEditor.SnapTimingBarMoveForTest(
+                    new Vector2(requestedSnapDelta, 0),
+                    true);
+            });
+            AddAssert("snap aligns centre while Alt bypass keeps free delta", () =>
+                Math.Abs(
+                    layoutEditor.TimingBarEditorCentreXForTest
+                    + snappedDelta.X
+                    - layoutEditor.DrawWidth / 2) < 0.01f
+                && Math.Abs(
+                    bypassedDelta.X
+                    - requestedSnapDelta) < 0.01f);
+            float timingBarEditorWidth = 0;
+            AddStep("set precise timing bar width", () =>
+            {
+                timingBarEditorWidth =
+                    layoutEditor.TimingBarEditorWidthForTest;
+                layoutEditor.SetTimingBarWidthForTest(
+                    timingBarEditorWidth + 48);
+            });
+            AddUntilStep("precise width is applied", () =>
+                layoutEditor.TimingBarEditorWidthForTest
+                    > timingBarEditorWidth + 24);
+            AddStep("restore layout after inspector checks", () =>
                 gameplaySettings.ResetGameplayLayout());
             AddStep("move and resize timing bar", () =>
             {
@@ -3181,16 +3249,9 @@ HitPosition: 400
             GameplayScreen gameplayScreen = null;
             GameplayPlaybackRateOverlay rateOverlay = null;
             GameplayHud hud = null;
-            ManiaStarRatingResult expectedDifficulty =
-                ManiaStarRatingCalculator.CalculateResult(
+            ManiaMsdResult expectedDifficulty =
+                ManiaMsdCalculator.CalculateResult(
                     beatmap,
-                    ManiaStarRatingContext.ForGameplay(
-                        beatmap,
-                        ManiaModSet.Empty,
-                        gameplaySettings
-                            .GetJudgementConfiguration(),
-                        gameplaySettings.MinesEnabled.Value,
-                        1.05),
                     1.05);
 
             AddStep("open rate-adjustable gameplay", () =>
@@ -3233,12 +3294,12 @@ HitPosition: 400
                     - expectedDifficulty.Value.GetValueOrDefault())
                    < 0.000001
                 && rateOverlay.DisplayedDetail.Contains("126 BPM")
-                && rateOverlay.DisplayedDetail.Contains("STAR")
+                && rateOverlay.DisplayedDetail.Contains("MSD")
                 && rateOverlay.Alpha > 0);
             AddUntilStep("hud keeps live rate stats visible", () =>
                 hud.DisplayedDynamicRate.Contains("LIVE RATE 1.05×")
                 && hud.DisplayedDynamicRate.Contains("126 BPM")
-                && hud.DisplayedDynamicRate.Contains("STAR")
+                && hud.DisplayedDynamicRate.Contains("MSD")
                 && hud.DisplayedDynamicRate.Contains("PRACTICE")
                 && gameplayScreen.ManualPlaybackRateUsed);
             AddStep("alt keypad minus restores normal rate", () =>

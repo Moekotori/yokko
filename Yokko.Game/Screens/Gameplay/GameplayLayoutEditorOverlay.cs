@@ -72,7 +72,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             delta);
 
     internal bool NudgeTimingBarForTest(Key key, bool accelerated) =>
-        timingBarTarget.TryNudge(key, accelerated);
+        timingBarTarget.TryNudge(key, accelerated ? 10 : 1);
 
     public GameplayLayoutEditorOverlay(
         GameplayPlayfield playfield,
@@ -104,32 +104,43 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     HomeControlColours.Navy.B,
                     0.055f),
             },
+            verticalSnapGuide = createSnapGuide(true),
+            horizontalSnapGuide = createSnapGuide(false),
             createTopBar(),
             playfieldTarget = new LayoutTransformTarget(
                 this,
+                LayoutElementKind.Playfield,
                 YokkoStrings.Get("gameplay.layout_editor.playfield"),
                 movePlayfield,
                 resizePlayfield,
                 resetPlayfield,
                 beginChange,
                 selectTarget,
+                snapTargetMove,
+                clearSnapGuides,
                 resizePlayfieldWithWheel),
             hudTarget = new LayoutTransformTarget(
                 this,
+                LayoutElementKind.Hud,
                 YokkoStrings.Get("gameplay.layout_editor.hud"),
                 moveHud,
                 resizeHud,
                 resetHud,
                 beginChange,
-                selectTarget),
+                selectTarget,
+                snapTargetMove,
+                clearSnapGuides),
             timingBarTarget = new LayoutTransformTarget(
                 this,
+                LayoutElementKind.TimingBar,
                 YokkoStrings.Get("gameplay.layout_editor.timing_bar"),
                 moveTimingBar,
                 resizeTimingBar,
                 resetTimingBar,
                 beginChange,
-                selectTarget),
+                selectTarget,
+                snapTargetMove,
+                clearSnapGuides),
             topCoverHandle = new CoverDragHandle(
                 this,
                 "TOP COVER",
@@ -141,6 +152,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 updateBottomCover,
                 beginChange),
             createOverviewCard(),
+            createInspectorCard(),
         };
     }
 
@@ -154,12 +166,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             sessionStart = captureLayout();
             undoHistory.Clear();
             redoHistory.Clear();
-            selectTarget(null);
+            beginEditorSession();
+            selectTarget(playfieldTarget);
             updateHistoryButtons();
             this.FadeTo(1, 100, Easing.OutQuint);
         }
         else
         {
+            endEditorSession();
             selectTarget(null);
             this.FadeTo(0, 100, Easing.OutQuint);
         }
@@ -228,6 +242,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             && target != null)
         {
             selectTarget(target);
+            if (!target.CanEdit)
+                return true;
+
             beginChange();
             target.Reset();
             return true;
@@ -244,8 +261,13 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         }
 
         selectTarget(target);
+        if (!target.CanEdit)
+            return true;
+
         beginChange();
-        return target.TryNudge(e.Key, e.ShiftPressed);
+        return target.TryNudge(
+            e.Key,
+            e.ShiftPressed ? 10 : nudgeStep);
     }
 
     protected override bool OnMouseDown(MouseDownEvent e)
@@ -253,7 +275,6 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         if (e.Button != MouseButton.Left)
             return false;
 
-        selectTarget(null);
         return true;
     }
 
@@ -317,6 +338,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             hudBottomRight,
             timingBarTopLeft,
             timingBarBottomRight);
+        refreshInspector();
     }
 
     private Drawable createTopBar() =>
@@ -604,6 +626,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         selectedTarget?.SetSelected(false);
         selectedTarget = target;
         selectedTarget?.SetSelected(true);
+        inspector?.Select(target?.Kind);
     }
 
     private void beginChange()
@@ -1078,30 +1101,59 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Action reset;
         private readonly Action beginChange;
         private readonly Action<LayoutTransformTarget> select;
+        private readonly Func<
+            LayoutTransformTarget,
+            Vector2,
+            bool,
+            Vector2> snapMove;
+        private readonly Action clearGuides;
         private readonly Action<float> scroll;
         private readonly Container frame;
         private readonly Container labelPanel;
         private readonly Box selectionTint;
         private Vector2 lastPosition;
+        private bool selected;
+
+        internal LayoutElementKind Kind { get; }
 
         internal int ResizeHandleCount => 8;
 
+        internal bool IsLocked { get; private set; }
+
+        internal bool EditorHidden { get; private set; }
+
+        internal bool AspectLocked { get; private set; }
+
+        internal float LockedAspectRatio { get; private set; } = 1;
+
+        internal bool CanEdit => !IsLocked && !EditorHidden;
+
         public LayoutTransformTarget(
             Drawable coordinateSpace,
+            LayoutElementKind kind,
             LocalisableString label,
             Action<Vector2> drag,
             Action<ResizeEdges, Vector2> resize,
             Action reset,
             Action beginChange,
             Action<LayoutTransformTarget> select,
+            Func<
+                LayoutTransformTarget,
+                Vector2,
+                bool,
+                Vector2> snapMove,
+            Action clearGuides,
             Action<float> scroll = null)
         {
             this.coordinateSpace = coordinateSpace;
+            Kind = kind;
             this.drag = drag;
             this.resize = resize;
             this.reset = reset;
             this.beginChange = beginChange;
             this.select = select;
+            this.snapMove = snapMove;
+            this.clearGuides = clearGuides;
             this.scroll = scroll;
             Masking = false;
 
@@ -1186,6 +1238,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 delta => resize(edges, delta),
                 beginChange,
                 () => select(this),
+                () => CanEdit,
                 edge)
             {
                 Anchor = anchor,
@@ -1210,6 +1263,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         protected override bool OnDragStart(DragStartEvent e)
         {
+            if (!CanEdit)
+                return false;
+
             beginChange();
             return true;
         }
@@ -1218,8 +1274,18 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         {
             Vector2 current = coordinateSpace.ToLocalSpace(
                 e.ScreenSpaceMousePosition);
-            drag(current - lastPosition);
+            Vector2 delta = snapMove(
+                this,
+                current - lastPosition,
+                e.AltPressed);
+            drag(delta);
             lastPosition = current;
+        }
+
+        protected override void OnDragEnd(DragEndEvent e)
+        {
+            clearGuides();
+            base.OnDragEnd(e);
         }
 
         protected override bool OnScroll(ScrollEvent e)
@@ -1228,6 +1294,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 return false;
 
             select(this);
+            if (!CanEdit)
+                return true;
+
             beginChange();
             scroll(e.ScrollDelta.Y);
             return true;
@@ -1235,9 +1304,18 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         internal void SetSelected(bool selected)
         {
+            this.selected = selected;
             frame.BorderColour = selected
-                ? HomeControlColours.Yellow
-                : HomeControlColours.Cyan;
+                ? IsLocked
+                    ? HomeControlColours.Pink
+                    : HomeControlColours.Yellow
+                : IsLocked
+                    ? new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.62f)
+                    : HomeControlColours.Cyan;
             frame.BorderThickness = selected ? 3 : 2;
             labelPanel.BorderColour = selected
                 ? HomeControlColours.Yellow
@@ -1251,8 +1329,36 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         internal void Reset() => reset();
 
-        internal bool TryNudge(Key key, bool accelerated)
+        internal void MoveBy(Vector2 delta) => drag(delta);
+
+        internal void ResizeBy(ResizeEdges edges, Vector2 delta) =>
+            resize(edges, delta);
+
+        internal void SetLocked(bool value)
         {
+            IsLocked = value;
+            SetSelected(selected);
+        }
+
+        internal void SetEditorHidden(bool value)
+        {
+            EditorHidden = value;
+            Alpha = value ? 0 : 1;
+        }
+
+        internal void SetAspectLocked(bool value)
+        {
+            AspectLocked = value;
+            LockedAspectRatio = Math.Max(
+                0.01f,
+                DrawWidth / Math.Max(1, DrawHeight));
+        }
+
+        internal bool TryNudge(Key key, float distance)
+        {
+            if (!CanEdit)
+                return false;
+
             Vector2 direction = key switch
             {
                 Key.Left => -Vector2.UnitX,
@@ -1265,7 +1371,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             if (direction == Vector2.Zero)
                 return false;
 
-            drag(direction * (accelerated ? 10 : 1));
+            drag(direction * Math.Max(0.1f, distance));
             return true;
         }
     }
@@ -1276,6 +1382,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Action<Vector2> resize;
         private readonly Action beginChange;
         private readonly Action select;
+        private readonly Func<bool> canEdit;
         private Vector2 lastPosition;
 
         public ResizeHandle(
@@ -1283,12 +1390,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             Action<Vector2> resize,
             Action beginChange,
             Action select,
+            Func<bool> canEdit,
             bool edge)
         {
             this.coordinateSpace = coordinateSpace;
             this.resize = resize;
             this.beginChange = beginChange;
             this.select = select;
+            this.canEdit = canEdit;
             Depth = -30;
             Masking = true;
             CornerRadius = edge ? 3 : 2;
@@ -1316,6 +1425,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         protected override bool OnDragStart(DragStartEvent e)
         {
+            if (!canEdit())
+                return false;
+
             beginChange();
             return true;
         }

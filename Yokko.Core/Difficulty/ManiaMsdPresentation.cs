@@ -11,6 +11,11 @@ public static class ManiaMsdPresentation
                 CultureInfo.InvariantCulture)
             : "--";
 
+    public static string FormatMsd(ManiaMsdResult result) =>
+        result?.IsSuccess == true
+            ? $"{FormatValue(result)} MSD"
+            : "-- MSD";
+
     public static string Qualifier(ManiaMsdResult result) =>
         result.IsSuccess
             ? $"ETTERNA MSD · "
@@ -32,4 +37,3 @@ public static class ManiaMsdPresentation
         _ => throw new ArgumentOutOfRangeException(nameof(skillset)),
     };
 }
-

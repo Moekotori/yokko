@@ -83,7 +83,7 @@ modern lazer windows take precedence, matching upstream. SV2 is intentionally
 not exposed in Song Select because upstream marks it as non-user-playable.
 WU and WD linearly ramp between configurable 0.5×–2.0× endpoints and reach
 the final rate at 75% of the playable timeline. Music tempo/pitch, callback-side
-keysounds, frame/audio clocks, BPM/length display, and star-rating input all
+keysounds, frame/audio clocks, BPM/length display, and Etterna MSD input all
 follow the live rate. The canonical fingerprint stores both endpoints and the
 pitch mode.
 AS starts at a configurable 0.5×–2.0× rate, derives its next target from the
@@ -121,7 +121,7 @@ A Mod is complete only when all affected contracts are covered:
 
 1. selection, configuration, incompatibilities, and deterministic defaults;
 2. beatmap, judgement, audio, presentation, or automation behaviour;
-3. adjusted star rating and score multiplier where applicable;
+3. adjusted Etterna MSD and score multiplier where applicable;
 4. replay identity, including random seed and configurable values;
 5. score identity and result-screen display;
 6. retry and replay playback preserving the exact same configuration;
@@ -138,7 +138,7 @@ The current codebase already has strong foundations:
 - default non-classic 1,000,000-point Mania scoring;
 - audio-clock-driven judgement;
 - deterministic tap and hold judgement;
-- playback-rate-aware star-rating calculation;
+- playback-rate-aware Etterna MSD calculation;
 - a canonical, format-independent `YokkoBeatmap`.
 
 The previously explicit persistence blockers are now closed:
@@ -339,7 +339,7 @@ tempo/frequency policy for:
 - AS;
 - MU.
 
-The visual timeline, judgement time, star rating, replay, and audio clock must
+The visual timeline, judgement time, Etterna MSD, replay, and audio clock must
 all agree on the same effective rate. Pitch-changing and pitch-preserving
 variants stay explicit.
 
