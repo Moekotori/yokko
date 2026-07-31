@@ -88,6 +88,7 @@ public partial class MainScreen : Screen
     private SongSelectScreen preloadedSongSelect;
     private bool songSelectPreloadInProgress;
     private bool songSelectOpenRequested;
+    private int songSelectPreloadGeneration;
 
     private static readonly LocalisableString[] bubbleLines =
     {
@@ -104,6 +105,14 @@ public partial class MainScreen : Screen
     internal int BubbleLineIndex => bubbleLineIndex;
 
     internal int BubbleLineCount => bubbleLines.Length;
+
+    internal int PreparedSongSelectEntryCount =>
+        preloadedSongSelect?.VisibleEntryCount ?? -1;
+
+    internal bool IsPreparedSongSelectCurrent =>
+        preloadedSongSelect != null
+        && preloadedSongSelect.LibraryRevision
+        == importedChartLibrary.Revision;
 
     private Vector2 parallaxCurrent;
     private double escapeHoldStartedAt;
@@ -354,6 +363,7 @@ public partial class MainScreen : Screen
 
         // Finish the first page load before exposing Play. Later visits are
         // prepared asynchronously when MainScreen resumes.
+        importedChartLibrary.LibraryChanged += onChartLibraryChanged;
         preloadedSongSelect = new SongSelectScreen(
             requestNextPreload: beginSongSelectPreload);
         LoadComponent(preloadedSongSelect);
@@ -413,6 +423,17 @@ public partial class MainScreen : Screen
         if (songSelectOpenRequested)
             return;
 
+        if (preloadedSongSelect != null
+            && preloadedSongSelect.LibraryRevision
+            != importedChartLibrary.Revision)
+        {
+            Logger.Log(
+                "Discarding a stale song select preload before navigation.",
+                LoggingTarget.Runtime,
+                LogLevel.Important);
+            invalidateSongSelectPreload();
+        }
+
         if (preloadedSongSelect == null)
         {
             Logger.Log(
@@ -441,12 +462,23 @@ public partial class MainScreen : Screen
         }
 
         songSelectPreloadInProgress = true;
+        int generation = songSelectPreloadGeneration;
         _ = LoadComponentAsync(
             new SongSelectScreen(
                 requestNextPreload: beginSongSelectPreload),
             screen =>
             {
                 songSelectPreloadInProgress = false;
+
+                if (generation != songSelectPreloadGeneration
+                    || screen.LibraryRevision
+                    != importedChartLibrary.Revision)
+                {
+                    screen.Dispose();
+                    beginSongSelectPreload();
+                    return;
+                }
+
                 preloadedSongSelect = screen;
                 if (songSelectOpenRequested)
                     pushPreloadedSongSelect();
@@ -465,10 +497,31 @@ public partial class MainScreen : Screen
         this.Push(screen);
     }
 
+    private void onChartLibraryChanged() => Scheduler.Add(() =>
+    {
+        if (songSelectPreloadCancellation.IsCancellationRequested
+            || IsPreparedSongSelectCurrent)
+        {
+            return;
+        }
+
+        invalidateSongSelectPreload();
+    });
+
+    private void invalidateSongSelectPreload()
+    {
+        songSelectPreloadGeneration++;
+        preloadedSongSelect?.Dispose();
+        preloadedSongSelect = null;
+        beginSongSelectPreload();
+    }
+
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
         {
+            if (importedChartLibrary != null)
+                importedChartLibrary.LibraryChanged -= onChartLibraryChanged;
             songSelectPreloadCancellation.Cancel();
             preloadedSongSelect?.Dispose();
             songSelectPreloadCancellation.Dispose();

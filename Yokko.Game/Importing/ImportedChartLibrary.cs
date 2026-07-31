@@ -38,11 +38,21 @@ internal sealed class ImportedChartLibrary
     private readonly StarRatingCache starRatingCache = new();
     private Task<int> startupLoadTask = Task.FromResult(0);
     private bool startupLoadStarted;
+    private long revision;
     private string libraryPath;
 
     public event Action LibraryChanged;
 
     public string LibraryPath => libraryPath;
+
+    internal long Revision
+    {
+        get
+        {
+            lock (syncRoot)
+                return revision;
+        }
+    }
 
     internal Task<int> StartupLoadTask
     {
@@ -92,10 +102,19 @@ internal sealed class ImportedChartLibrary
             return charts.ToArray();
     }
 
+    internal (long Revision, IReadOnlyList<ImportedChart> Charts) GetSnapshot()
+    {
+        lock (syncRoot)
+            return (revision, charts.ToArray());
+    }
+
     internal void Clear()
     {
         lock (syncRoot)
+        {
             charts.Clear();
+            revision++;
+        }
 
         LibraryChanged?.Invoke();
     }
@@ -237,6 +256,7 @@ internal sealed class ImportedChartLibrary
             {
                 charts.Clear();
                 charts.AddRange(loaded);
+                revision++;
             }
 
             msdRatingCache.SaveIfChanged();
@@ -309,6 +329,7 @@ internal sealed class ImportedChartLibrary
             charts.RemoveAll(chart =>
                 chart.SourcePath.Equals(sourcePath, StringComparison.OrdinalIgnoreCase));
             charts.AddRange(imported);
+            revision++;
         }
 
         LibraryChanged?.Invoke();

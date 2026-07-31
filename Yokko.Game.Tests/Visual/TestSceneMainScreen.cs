@@ -12,9 +12,13 @@ using osu.Framework.Testing;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using osuTK.Input;
+using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Timing;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Importing;
 using Yokko.Game.Screens.Main;
+using Yokko.Import;
 
 namespace Yokko.Game.Tests.Visual
 {
@@ -26,6 +30,9 @@ namespace Yokko.Game.Tests.Visual
 
         [Resolved]
         private YokkoGameplaySettings gameplaySettings { get; set; }
+
+        [Resolved]
+        private ImportedChartLibrary importedChartLibrary { get; set; }
 
         private bool screenshotSaved;
 
@@ -46,6 +53,45 @@ namespace Yokko.Game.Tests.Visual
                 () => MainScreen.PlayerCardLayoutsHaveBreathingRoom);
             AddStep("capture main screen", captureScreenshot);
             AddUntilStep("screenshot saved", () => screenshotSaved);
+        }
+
+        [Test]
+        public void TestSongSelectPreloadRefreshesBeforeNavigation()
+        {
+            MainScreen screen = null;
+            AddStep(
+                "find main screen",
+                () => screen = this.ChildrenOfType<MainScreen>().Single());
+            AddStep("clear chart library", () => importedChartLibrary.Clear());
+            AddUntilStep(
+                "empty preload is current",
+                () => screen.PreparedSongSelectEntryCount == 0
+                      && screen.IsPreparedSongSelectCurrent);
+            AddStep("publish chart while preload is inactive", () =>
+            {
+                var beatmap = new YokkoBeatmap(
+                    "Preload regression",
+                    "Yokko",
+                    "Test",
+                    "Normal",
+                    KeyMode.FourKey,
+                    ChartSourceFormat.OsuMania,
+                    [YokkoTimingPoint.Default],
+                    null,
+                    [new YokkoHitObject(
+                        0,
+                        100,
+                        null,
+                        HitObjectKind.Tap)]);
+                importedChartLibrary.AddOrReplace(
+                    new ChartImportResult(beatmap, []),
+                    @"C:\Charts\preload-regression.osu");
+            });
+            AddUntilStep(
+                "preload rebuilt from latest library snapshot",
+                () => screen.PreparedSongSelectEntryCount == 1
+                      && screen.IsPreparedSongSelectCurrent);
+            AddStep("clear test chart", () => importedChartLibrary.Clear());
         }
 
         [Test]

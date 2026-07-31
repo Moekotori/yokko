@@ -140,6 +140,7 @@ public partial class SongSelectScreen : Screen
     private bool previewActive;
     private bool transitionPending;
     private bool nextPreloadScheduled;
+    private long libraryRevision = -1;
     private Stopwatch loadStopwatch;
     private double displayedPlaybackRate = 1;
     private string displayedBpm = "0";
@@ -175,6 +176,7 @@ public partial class SongSelectScreen : Screen
     internal SongSelectEntry SelectedEntry => selectedEntry;
     internal int VisibleEntryCount => visibleEntries?.Count ?? 0;
     internal int VisibleRowCount => navigableEntries.Count;
+    internal long LibraryRevision => libraryRevision;
     internal KeyMode? KeyModeFilter => keyModeFilter;
     internal string SearchQuery => searchQuery;
     internal Vector2 SearchBoxSize => searchBox?.Size ?? Vector2.Zero;
@@ -2779,6 +2781,8 @@ public partial class SongSelectScreen : Screen
 
     private void synchroniseImportedCharts(bool selectNewest = false)
     {
+        (long revision, IReadOnlyList<ImportedChart> charts) =
+            importedChartLibrary.GetSnapshot();
         string selectedImportedId = importedEntries
                                     .Where(pair => ReferenceEquals(
                                         pair.Value.Beatmap,
@@ -2797,12 +2801,14 @@ public partial class SongSelectScreen : Screen
         importedEntries.Clear();
         difficultyRatingsCache.Clear();
 
-        foreach (ImportedChart chart in importedChartLibrary.GetCharts())
+        foreach (ImportedChart chart in charts)
         {
             SongSelectEntry entry = createImportedEntry(chart);
             importedEntries[chart.Id] = entry;
             entries.Add(entry);
         }
+
+        libraryRevision = revision;
 
         if (!selectNewest
             && selectedImportedId != null
