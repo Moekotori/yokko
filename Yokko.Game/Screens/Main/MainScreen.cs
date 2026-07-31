@@ -331,13 +331,18 @@ public partial class MainScreen : Screen
         utilityArea.Y -= 20;
         utilityArea.Alpha = 0;
         ticker.Alpha = 0;
+
+        // MainScreen itself is loaded off the update thread. Finish the first
+        // song-select load here so the Play button is never racing an async
+        // preload: once the home screen is visible, the destination is ready.
+        preloadedSongSelect = new SongSelectScreen();
+        LoadComponent(preloadedSongSelect);
     }
 
     protected override void LoadComplete()
     {
         base.LoadComplete();
         startAmbientMotion();
-        beginSongSelectPreload();
     }
 
     public override void OnEntering(ScreenTransitionEvent e)
