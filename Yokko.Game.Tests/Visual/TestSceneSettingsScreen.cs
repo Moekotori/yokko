@@ -64,7 +64,11 @@ namespace Yokko.Game.Tests.Visual
                 return control != null
                        && control.Y >= 0
                        && control.Y + control.Height < 651
-                       && control.ChildrenOfType<GameplayValueStepper>()
+                       && !control.IsSliderEnabled
+                       && control.ChildrenOfType<GameplayInlineToggle>()
+                                 .SingleOrDefault() != null
+                       && control.ChildrenOfType<
+                                      AdditionalLongNoteCutSlider>()
                                  .SingleOrDefault() != null;
             });
         }
@@ -89,14 +93,20 @@ namespace Yokko.Game.Tests.Visual
                         .Get(SettingsPageKind.Audio)
                         .Title
                         .ToString()));
-            AddAssert("search narrows to audio", () =>
-                sidebar.VisiblePageCount == 1);
-            AddAssert("Enter action opens first result", () =>
+            AddAssert("search finds audio", () =>
+                sidebar.VisiblePageCount >= 1);
+            AddAssert("Enter action opens best result", () =>
                 sidebar.SubmitSearch());
             AddAssert("audio opens and search clears", () =>
                 settingsScreen.CurrentPage == SettingsPageKind.Audio
                 && sidebar.SearchQuery.Length == 0
                 && sidebar.FocusedPage == SettingsPageKind.Audio);
+            AddStep("search concrete setting with Chinese tokens", () =>
+                sidebar.SetSearchQuery("失焦 暂停"));
+            AddAssert("concrete setting resolves to gameplay", () =>
+                sidebar.VisiblePageCount == 1
+                && sidebar.SubmitSearch()
+                && settingsScreen.CurrentPage == SettingsPageKind.Gameplay);
             AddStep("search for no result", () =>
                 sidebar.SetSearchQuery("__missing_setting__"));
             AddAssert("empty result cannot submit", () =>

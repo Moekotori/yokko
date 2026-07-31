@@ -32,6 +32,7 @@ internal sealed record SettingsPageDefinition(
     LocalisableString Description,
     IconUsage Icon,
     IReadOnlyList<LocalisableString> PlannedSections,
+    string TitleSearchTerms,
     string SearchTerms);
 
 internal static class SettingsPages
@@ -50,13 +51,11 @@ internal static class SettingsPages
                 YokkoStrings.Get("settings.general.section_startup"),
                 YokkoStrings.Get("settings.general.section_updates"),
             },
-            YokkoStrings.SearchTerms(
-                "settings.general.title",
-                "settings.general.subtitle",
-                "settings.general.section_language",
-                "settings.general.section_startup",
-                "settings.general.section_updates",
-                "settings.general.mania_scroll_speed")),
+            YokkoStrings.SearchTerms("settings.general.title"),
+            YokkoStrings.SearchTermsForPrefix(
+                "settings.general.",
+                "ui interface locale startup update scroll speed",
+                "界面 语言 启动 更新 滚速")),
         SettingsPageKind.Display => new(
             kind,
             YokkoStrings.Get("settings.display.title"),
@@ -64,12 +63,11 @@ internal static class SettingsPages
             YokkoStrings.Get("settings.display.description"),
             FontAwesome.Solid.Desktop,
             Array.Empty<LocalisableString>(),
-            YokkoStrings.SearchTerms(
-                "settings.display.title",
-                "settings.display.subtitle",
-                "settings.display.window_mode",
-                "settings.display.resolution",
-                "settings.display.performance_readout")),
+            YokkoStrings.SearchTerms("settings.display.title"),
+            YokkoStrings.SearchTermsForPrefix(
+                "settings.display.",
+                "ui scale fps frame rate fullscreen borderless renderer",
+                "界面缩放 帧率 帧数 全屏 无边框 渲染")),
         SettingsPageKind.Audio => new(
             kind,
             YokkoStrings.Get("settings.audio.title"),
@@ -83,15 +81,11 @@ internal static class SettingsPages
                 YokkoStrings.Get("settings.audio.buffer"),
                 YokkoStrings.Get("settings.audio.offset"),
             },
-            YokkoStrings.SearchTerms(
-                "settings.audio.title",
-                "settings.audio.subtitle",
-                "settings.audio.backend",
-                "settings.audio.device",
-                "settings.audio.buffer",
-                "settings.audio.offset",
-                "settings.audio.exclusive",
-                "settings.audio.shared")),
+            YokkoStrings.SearchTerms("settings.audio.title"),
+            YokkoStrings.SearchTermsForPrefix(
+                "settings.audio.",
+                "sound speaker headphones volume latency asio wasapi",
+                "声音 扬声器 耳机 音量 延迟")),
         SettingsPageKind.Gameplay => new(
             kind,
             YokkoStrings.Get("settings.gameplay.title"),
@@ -106,18 +100,11 @@ internal static class SettingsPages
                 YokkoStrings.Get("settings.gameplay.section_judgement"),
                 YokkoStrings.Get("settings.gameplay.section_feedback"),
             },
-            YokkoStrings.SearchTerms(
-                "settings.gameplay.title",
-                "settings.gameplay.subtitle",
-                "settings.gameplay.section_input",
-                "settings.gameplay.section_timing",
-                "settings.gameplay.section_playback_rate",
-                "settings.gameplay.playback_rate_dt",
-                "settings.gameplay.playback_rate_nc",
-                "settings.gameplay.section_judgement",
-                "settings.gameplay.etterna_justice",
-                "settings.gameplay.section_feedback",
-                "settings.gameplay.mines")),
+            YokkoStrings.SearchTerms("settings.gameplay.title"),
+            YokkoStrings.SearchTermsForPrefix(
+                "settings.gameplay.",
+                "keybind timing judgement feedback keysound pause unfocused countdown",
+                "键位 按键 判定 反馈 按键音 暂停 失焦 倒计时")),
         SettingsPageKind.Shortcuts => new(
             kind,
             YokkoStrings.Get("settings.shortcuts.title"),
@@ -130,6 +117,7 @@ internal static class SettingsPages
                 YokkoStrings.Get("settings.gameplay.shortcuts_menu"),
                 YokkoStrings.Get("settings.gameplay.shortcuts_results"),
             },
+            YokkoStrings.SearchTerms("settings.shortcuts.title"),
             YokkoStrings.SearchTerms(
                 "settings.shortcuts.title",
                 "settings.shortcuts.subtitle",
@@ -153,13 +141,11 @@ internal static class SettingsPages
                 YokkoStrings.Get("settings.skins.ln_cut_amount"),
                 YokkoStrings.Get("settings.skins.combo_bursts"),
             },
-            YokkoStrings.SearchTerms(
-                "settings.skins.title",
-                "settings.skins.subtitle",
-                "settings.skins.section_library",
-                "settings.skins.section_import",
-                "settings.skins.ln_cut_amount",
-                "settings.skins.combo_bursts")),
+            YokkoStrings.SearchTerms("settings.skins.title"),
+            YokkoStrings.SearchTermsForPrefix(
+                "settings.skins.",
+                "theme appearance noteskin long note ln combo burst",
+                "主题 外观 长条 长键 爆气")),
         SettingsPageKind.Editor => new(
             kind,
             YokkoStrings.Get("settings.editor.title"),
@@ -172,12 +158,11 @@ internal static class SettingsPages
                 YokkoStrings.Get("settings.editor.section_grid"),
                 YokkoStrings.Get("settings.editor.section_autosave"),
             },
-            YokkoStrings.SearchTerms(
-                "settings.editor.title",
-                "settings.editor.subtitle",
-                "settings.editor.section_workspace",
-                "settings.editor.section_grid",
-                "settings.editor.section_autosave")),
+            YokkoStrings.SearchTerms("settings.editor.title"),
+            YokkoStrings.SearchTermsForPrefix(
+                "settings.editor.",
+                "chart mapping grid autosave",
+                "谱面 制谱 网格 自动保存")),
         SettingsPageKind.Import => new(
             kind,
             YokkoStrings.Get("settings.import.title"),
@@ -190,12 +175,11 @@ internal static class SettingsPages
                 YokkoStrings.Get("settings.import.section_behaviour"),
                 YokkoStrings.Get("settings.import.section_locations"),
             },
-            YokkoStrings.SearchTerms(
-                "settings.import.title",
-                "settings.import.subtitle",
-                "settings.import.section_formats",
-                "settings.import.section_behaviour",
-                "settings.import.section_locations")),
+            YokkoStrings.SearchTerms("settings.import.title"),
+            YokkoStrings.SearchTermsForPrefix(
+                "settings.import.",
+                "osu quaver etterna stepmania bms file folder migrate",
+                "文件 文件夹 迁移 谱面")),
         SettingsPageKind.Accessibility => new(
             kind,
             YokkoStrings.Get("settings.accessibility.title"),
@@ -208,12 +192,11 @@ internal static class SettingsPages
                 YokkoStrings.Get("settings.accessibility.section_input"),
                 YokkoStrings.Get("settings.accessibility.section_motion"),
             },
-            YokkoStrings.SearchTerms(
-                "settings.accessibility.title",
-                "settings.accessibility.subtitle",
-                "settings.accessibility.section_visual",
-                "settings.accessibility.section_input",
-                "settings.accessibility.section_motion")),
+            YokkoStrings.SearchTerms("settings.accessibility.title"),
+            YokkoStrings.SearchTermsForPrefix(
+                "settings.accessibility.",
+                "reduce motion accessibility visual assistance",
+                "减少动画 无障碍 视觉辅助")),
         SettingsPageKind.About => new(
             kind,
             YokkoStrings.Get("settings.about.title"),
@@ -226,12 +209,11 @@ internal static class SettingsPages
                 YokkoStrings.Get("settings.about.section_credits"),
                 YokkoStrings.Get("settings.about.section_licences"),
             },
-            YokkoStrings.SearchTerms(
-                "settings.about.title",
-                "settings.about.subtitle",
-                "settings.about.section_version",
-                "settings.about.section_credits",
-                "settings.about.section_licences")),
+            YokkoStrings.SearchTerms("settings.about.title"),
+            YokkoStrings.SearchTermsForPrefix(
+                "settings.about.",
+                "build copyright open source",
+                "构建 版权 开源")),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
 }

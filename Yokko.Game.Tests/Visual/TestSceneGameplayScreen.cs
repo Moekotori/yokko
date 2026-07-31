@@ -2082,11 +2082,14 @@ LightingLWidth: 20,20,20,20
         public void TestAdditionalLongNoteCutPreservesBakedPercyTexture()
         {
             string skinPath = null;
+            bool originalCutEnabled = false;
             double originalCutAmount = 0;
 
             AddStep("create baked Percy skin", () =>
             {
+                originalCutEnabled = skinSettings.LongNoteCutEnabled.Value;
                 originalCutAmount = skinSettings.LongNoteCutAmount.Value;
+                skinSettings.LongNoteCutEnabled.Value = true;
                 skinSettings.LongNoteCutAmount.Value = 0.6;
                 skinPath = createTestSkin();
 
@@ -2120,8 +2123,12 @@ LightingLWidth: 20,20,20,20
                            hold.AppliedLongNoteCutDistance - 24) < 0.01;
             });
             AddStep("restore extra LN cut", () =>
+            {
+                skinSettings.LongNoteCutEnabled.Value =
+                    originalCutEnabled;
                 skinSettings.LongNoteCutAmount.Value =
-                    originalCutAmount);
+                    originalCutAmount;
+            });
         }
 
         [Test]

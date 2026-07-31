@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -191,36 +192,251 @@ internal partial class SkinSettingsPanel : CompositeDrawable
 
 internal partial class AdditionalLongNoteCutControls : CompositeDrawable
 {
+    private readonly BindableBool enabled;
+    private readonly AdditionalLongNoteCutSlider slider;
+
+    internal bool IsSliderEnabled => slider.IsEnabled;
+
     public AdditionalLongNoteCutControls(YokkoSkinSettings settings)
     {
+        enabled = settings.LongNoteCutEnabled;
         Size = new Vector2(826, 54);
 
         InternalChildren = new Drawable[]
         {
-            new SpriteText
+            new GameplayInlineToggle(
+                YokkoStrings.Get("settings.skins.ln_cut_amount"),
+                YokkoStrings.Get("settings.skins.ln_cut_amount_note"),
+                enabled)
             {
-                Y = 4,
-                Text = YokkoStrings.Get("settings.skins.ln_cut_amount"),
-                Font = HomeTypography.Display(15),
-                Colour = HomeControlColours.Navy,
+                Size = new Vector2(826, 26),
             },
-            new SpriteText
-            {
-                Y = 29,
-                Text = YokkoStrings.Get("settings.skins.ln_cut_amount_note"),
-                Font = HomeTypography.Body(14),
-                Colour = SettingsTheme.MutedNavy,
-            },
-            new GameplayValueStepper(
+            slider = new AdditionalLongNoteCutSlider(
                 settings.LongNoteCutAmount,
                 YokkoSkinSettings.LongNoteCutAmountStep,
                 YokkoSkinSettings.MinimumLongNoteCutAmount,
-                YokkoSkinSettings.MaximumLongNoteCutAmount,
-                value => $"{value:0.0} × NOTE")
+                YokkoSkinSettings.MaximumLongNoteCutAmount)
             {
-                X = 436,
+                Position = new Vector2(436, 28),
             },
         };
+
+        enabled.BindValueChanged(onEnabledChanged, true);
+    }
+
+    private void onEnabledChanged(ValueChangedEvent<bool> change) =>
+        slider.SetEnabled(change.NewValue);
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            enabled.ValueChanged -= onEnabledChanged;
+
+        base.Dispose(isDisposing);
+    }
+}
+
+internal partial class AdditionalLongNoteCutSlider : CompositeDrawable
+{
+    private const float track_x = 7;
+    private const float track_width = 286;
+    private readonly Bindable<double> value;
+    private readonly double step;
+    private readonly double minimum;
+    private readonly double maximum;
+    private readonly Box track;
+    private readonly Box fill;
+    private readonly Circle knob;
+    private readonly SpriteText valueText;
+    private bool isEnabled = true;
+
+    internal bool IsEnabled => isEnabled;
+
+    public override bool AcceptsFocus => isEnabled;
+
+    public AdditionalLongNoteCutSlider(
+        Bindable<double> value,
+        double step,
+        double minimum,
+        double maximum)
+    {
+        this.value = value;
+        this.step = step;
+        this.minimum = minimum;
+        this.maximum = maximum;
+        Size = new Vector2(390, 26);
+
+        InternalChildren = new Drawable[]
+        {
+            track = new Box
+            {
+                Position = new Vector2(track_x, 11),
+                Size = new Vector2(track_width, 5),
+                Colour = SettingsTheme.Divider,
+            },
+            fill = new Box
+            {
+                Position = new Vector2(track_x, 11),
+                Height = 5,
+                Colour = HomeControlColours.Pink,
+            },
+            knob = new Circle
+            {
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.Centre,
+                Position = new Vector2(track_x, 13.5f),
+                Size = new Vector2(14),
+                Colour = Color4.White,
+                BorderThickness = 2.5f,
+                BorderColour = HomeControlColours.Pink,
+            },
+            valueText = new SpriteText
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -2,
+                Font = HomeTypography.Display(14),
+                Colour = HomeControlColours.Navy,
+            },
+        };
+
+        value.BindValueChanged(onValueChanged, true);
+    }
+
+    internal static double ValueFromProgress(
+        double progress,
+        double step,
+        double minimum,
+        double maximum)
+    {
+        double raw = minimum
+                     + Math.Clamp(progress, 0, 1)
+                     * (maximum - minimum);
+        return Math.Clamp(
+            Math.Round(raw / step) * step,
+            minimum,
+            maximum);
+    }
+
+    internal void SetEnabled(bool enabled)
+    {
+        isEnabled = enabled;
+        this.FadeTo(enabled ? 1 : 0.38f, 120, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        if (!isEnabled || e.Button != MouseButton.Left)
+            return false;
+
+        updateFrom(ToLocalSpace(e.ScreenSpaceMousePosition).X);
+        return true;
+    }
+
+    protected override bool OnDragStart(DragStartEvent e) => isEnabled;
+
+    protected override void OnDrag(DragEvent e)
+    {
+        if (isEnabled)
+            updateFrom(ToLocalSpace(e.ScreenSpaceMousePosition).X);
+    }
+
+    protected override bool OnScroll(ScrollEvent e)
+    {
+        if (!isEnabled || e.ScrollDelta.Y == 0)
+            return false;
+
+        value.Value = snap(
+            value.Value + Math.Sign(e.ScrollDelta.Y) * step);
+        return true;
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (!isEnabled)
+            return base.OnKeyDown(e);
+
+        double next = e.Key switch
+        {
+            Key.Left or Key.Down => value.Value - step,
+            Key.Right or Key.Up => value.Value + step,
+            Key.Home => minimum,
+            Key.End => maximum,
+            _ => value.Value,
+        };
+
+        if (next == value.Value
+            && e.Key is not Key.Home and not Key.End
+            and not Key.Left and not Key.Right
+            and not Key.Up and not Key.Down)
+        {
+            return base.OnKeyDown(e);
+        }
+
+        value.Value = snap(next);
+        return true;
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        if (!isEnabled)
+            return false;
+
+        track.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
+        knob.ScaleTo(1.18f, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        track.FadeColour(SettingsTheme.Divider, 120, Easing.OutQuint);
+        knob.ScaleTo(1, 120, Easing.OutQuint);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        valueText.FadeColour(HomeControlColours.Pink, 100, Easing.OutQuint);
+        knob.BorderColour = HomeControlColours.Cyan;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        valueText.FadeColour(HomeControlColours.Navy, 100, Easing.OutQuint);
+        knob.BorderColour = HomeControlColours.Pink;
+    }
+
+    private void updateFrom(float localX) =>
+        value.Value = ValueFromProgress(
+            (localX - track_x) / track_width,
+            step,
+            minimum,
+            maximum);
+
+    private double snap(double next) =>
+        Math.Clamp(
+            Math.Round(next / step) * step,
+            minimum,
+            maximum);
+
+    private void onValueChanged(ValueChangedEvent<double> change)
+    {
+        float progress = (float)Math.Clamp(
+            (change.NewValue - minimum) / (maximum - minimum),
+            0,
+            1);
+        fill.Width = progress * track_width;
+        knob.X = track_x + progress * track_width;
+        valueText.Text = $"{change.NewValue:0.0} × NOTE";
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            value.ValueChanged -= onValueChanged;
+
+        base.Dispose(isDisposing);
     }
 }
 

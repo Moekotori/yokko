@@ -4,12 +4,31 @@ using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
 using Yokko.Game.Screens.Gameplay;
+using Yokko.Game.Screens.Settings;
+using Yokko.Game.Skinning.OsuMania;
 
 namespace Yokko.Game.Tests.Core;
 
 [TestFixture]
 public sealed class GameplayScrollVelocityTest
 {
+    [TestCase(0, 0)]
+    [TestCase(0.25, 0.5)]
+    [TestCase(0.28, 0.6)]
+    [TestCase(1, 2)]
+    public void AdditionalLongNoteCutSliderSnapsToTenths(
+        double progress,
+        double expected)
+    {
+        Assert.That(
+            AdditionalLongNoteCutSlider.ValueFromProgress(
+                progress,
+                YokkoSkinSettings.LongNoteCutAmountStep,
+                YokkoSkinSettings.MinimumLongNoteCutAmount,
+                YokkoSkinSettings.MaximumLongNoteCutAmount),
+            Is.EqualTo(expected).Within(0.001));
+    }
+
     [Test]
     public void BarLinesFollowTimingSectionsAndOmitFirstFlag()
     {
@@ -254,6 +273,9 @@ public sealed class GameplayScrollVelocityTest
             Assert.That(
                 original.VisibleHoldBodyHeight
                 - cut.VisibleHoldBodyHeight,
+                Is.EqualTo(60).Within(0.01));
+            Assert.That(
+                System.Math.Abs(original.VisibleHoldTailY - cut.VisibleHoldTailY),
                 Is.EqualTo(60).Within(0.01));
             Assert.That(cut.Height, Is.EqualTo(original.Height));
         });

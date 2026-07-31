@@ -84,6 +84,7 @@ internal enum YokkoSetting
     DisplayShowPerformanceReadout,
     SkinSelectedId,
     SkinShowComboBursts,
+    SkinLongNoteCutEnabled,
     SkinLongNoteCutAmount,
     SettingsLastPage,
 }
@@ -282,6 +283,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(YokkoSetting.DisplayShowPerformanceReadout, false);
         SetDefault(YokkoSetting.SkinSelectedId, string.Empty);
         SetDefault(YokkoSetting.SkinShowComboBursts, true);
+        SetDefault(
+            YokkoSetting.SkinLongNoteCutEnabled,
+            YokkoSkinSettings.DefaultLongNoteCutEnabled);
         SetDefault(
             YokkoSetting.SkinLongNoteCutAmount,
             YokkoSkinSettings.DefaultLongNoteCutAmount,
@@ -502,6 +506,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
     {
         BindWith(YokkoSetting.SkinSelectedId, settings.SelectedSkinId);
         BindWith(YokkoSetting.SkinShowComboBursts, settings.ShowComboBursts);
+        BindWith(
+            YokkoSetting.SkinLongNoteCutEnabled,
+            settings.LongNoteCutEnabled);
         BindWith(
             YokkoSetting.SkinLongNoteCutAmount,
             settings.LongNoteCutAmount);

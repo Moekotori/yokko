@@ -107,6 +107,20 @@ public class LocalisationTest
             $"`python scripts/generate-localisation-font.py`; missing: {new string(missing)}");
     }
 
+    [Test]
+    public void SearchInputFontContainsRepresentativeChineseGlyphs()
+    {
+        using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
+        using Stream stream = resources.GetStream("Fonts/Yokko/Yokko.bin");
+        HashSet<int> glyphs = readGlyphCodepoints(stream);
+        const string searchInput = "中文输入测试搜索窗口显示音频键盘皮肤导入优化";
+
+        Assert.That(
+            searchInput.Where(character => !glyphs.Contains(character)),
+            Is.Empty,
+            "The settings search box must render common Chinese queries without replacement glyphs.");
+    }
+
     private static HashSet<int> readGlyphCodepoints(Stream stream)
     {
         using var reader = new BinaryReader(stream);

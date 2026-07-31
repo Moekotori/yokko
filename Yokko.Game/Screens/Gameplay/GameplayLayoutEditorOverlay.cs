@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -37,12 +38,18 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private readonly LayoutTransformTarget timingBarTarget;
     private readonly CoverDragHandle topCoverHandle;
     private readonly CoverDragHandle bottomCoverHandle;
+    private readonly Stack<LayoutSnapshot> undoHistory = new();
+    private readonly Stack<LayoutSnapshot> redoHistory = new();
     private Container overviewContent;
     private Container miniPlayfield;
     private Container miniHud;
     private Container miniTimingBar;
     private Box miniTopCover;
     private Box miniBottomCover;
+    private LayoutActionButton undoButton;
+    private LayoutActionButton redoButton;
+    private LayoutTransformTarget selectedTarget;
+    private LayoutSnapshot sessionStart;
 
     internal bool IsEditing { get; private set; }
 
@@ -103,25 +110,36 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 YokkoStrings.Get("gameplay.layout_editor.playfield"),
                 movePlayfield,
                 resizePlayfield,
+                resetPlayfield,
+                beginChange,
+                selectTarget,
                 resizePlayfieldWithWheel),
             hudTarget = new LayoutTransformTarget(
                 this,
                 YokkoStrings.Get("gameplay.layout_editor.hud"),
                 moveHud,
-                resizeHud),
+                resizeHud,
+                resetHud,
+                beginChange,
+                selectTarget),
             timingBarTarget = new LayoutTransformTarget(
                 this,
                 YokkoStrings.Get("gameplay.layout_editor.timing_bar"),
                 moveTimingBar,
-                resizeTimingBar),
+                resizeTimingBar,
+                resetTimingBar,
+                beginChange,
+                selectTarget),
             topCoverHandle = new CoverDragHandle(
                 this,
                 "TOP COVER",
-                updateTopCover),
+                updateTopCover,
+                beginChange),
             bottomCoverHandle = new CoverDragHandle(
                 this,
                 "BOTTOM COVER",
-                updateBottomCover),
+                updateBottomCover,
+                beginChange),
             createOverviewCard(),
         };
     }
@@ -132,15 +150,111 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         ClearTransforms();
 
         if (editing)
+        {
+            sessionStart = captureLayout();
+            undoHistory.Clear();
+            redoHistory.Clear();
+            selectTarget(null);
+            updateHistoryButtons();
             this.FadeTo(1, 100, Easing.OutQuint);
+        }
         else
+        {
+            selectTarget(null);
             this.FadeTo(0, 100, Easing.OutQuint);
+        }
     }
 
     internal void SaveAndClose()
     {
         save();
         close();
+    }
+
+    internal void CancelAndClose()
+    {
+        applyLayout(sessionStart);
+        close();
+    }
+
+    internal void ResetAll()
+    {
+        beginChange();
+        settings.ResetGameplayLayout();
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (!IsEditing)
+            return false;
+
+        if (!e.Repeat
+            && e.ControlPressed
+            && e.Key == Key.Z)
+        {
+            if (e.ShiftPressed)
+                redo();
+            else
+                undo();
+
+            return true;
+        }
+
+        if (!e.Repeat
+            && e.ControlPressed
+            && e.Key == Key.Y)
+        {
+            redo();
+            return true;
+        }
+
+        if (!e.Repeat && e.Key == Key.Escape)
+        {
+            CancelAndClose();
+            return true;
+        }
+
+        if (!e.Repeat
+            && e.Key is Key.Enter or Key.KeypadEnter)
+        {
+            SaveAndClose();
+            return true;
+        }
+
+        LayoutTransformTarget target = hoveredTarget() ?? selectedTarget;
+
+        if (!e.Repeat
+            && e.Key == Key.Delete
+            && target != null)
+        {
+            selectTarget(target);
+            beginChange();
+            target.Reset();
+            return true;
+        }
+
+        if (e.Key is not (
+                Key.Left
+                or Key.Right
+                or Key.Up
+                or Key.Down)
+            || target == null)
+        {
+            return false;
+        }
+
+        selectTarget(target);
+        beginChange();
+        return target.TryNudge(e.Key, e.ShiftPressed);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        if (e.Button != MouseButton.Left)
+            return false;
+
+        selectTarget(null);
+        return true;
     }
 
     protected override void Update()
@@ -209,14 +323,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         new Container
         {
             Position = new Vector2(16, 14),
-            Size = new Vector2(414, 60),
+            Size = new Vector2(764, 68),
             Depth = -100,
             Children = new Drawable[]
             {
                 new Container
                 {
                     Position = new Vector2(4, 4),
-                    Size = new Vector2(410, 56),
+                    Size = new Vector2(760, 64),
                     Masking = true,
                     CornerRadius = 8,
                     Child = new Box
@@ -231,7 +345,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 },
                 new Container
                 {
-                    Size = new Vector2(410, 56),
+                    Size = new Vector2(760, 64),
                     Masking = true,
                     CornerRadius = 8,
                     BorderThickness = 1.5f,
@@ -279,28 +393,58 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                 },
                             },
                         },
-                        new LayoutActionButton(
-                            YokkoStrings.Get(
-                                "gameplay.layout_editor.reset"),
-                            FontAwesome.Solid.Undo,
-                            reset)
-                        {
-                            Anchor = Anchor.CentreRight,
-                            Origin = Anchor.CentreRight,
-                            X = -132,
-                            Width = 96,
-                        },
-                        new LayoutActionButton(
-                            YokkoStrings.Get(
-                                "gameplay.layout_editor.save"),
-                            FontAwesome.Solid.Check,
-                            SaveAndClose,
-                            true)
+                        new FillFlowContainer
                         {
                             Anchor = Anchor.CentreRight,
                             Origin = Anchor.CentreRight,
                             X = -10,
-                            Width = 116,
+                            AutoSizeAxes = Axes.Both,
+                            Direction = FillDirection.Horizontal,
+                            Spacing = new Vector2(6, 0),
+                            Children = new Drawable[]
+                            {
+                                undoButton = new LayoutActionButton(
+                                    YokkoStrings.Get(
+                                        "gameplay.layout_editor.undo"),
+                                    FontAwesome.Solid.Undo,
+                                    undo)
+                                {
+                                    Width = 68,
+                                },
+                                redoButton = new LayoutActionButton(
+                                    YokkoStrings.Get(
+                                        "gameplay.layout_editor.redo"),
+                                    FontAwesome.Solid.Redo,
+                                    redo)
+                                {
+                                    Width = 68,
+                                },
+                                new LayoutActionButton(
+                                    YokkoStrings.Get(
+                                        "gameplay.layout_editor.reset"),
+                                    FontAwesome.Solid.Trash,
+                                    reset)
+                                {
+                                    Width = 84,
+                                },
+                                new LayoutActionButton(
+                                    YokkoStrings.Get(
+                                        "gameplay.layout_editor.cancel"),
+                                    FontAwesome.Solid.Times,
+                                    CancelAndClose)
+                                {
+                                    Width = 84,
+                                },
+                                new LayoutActionButton(
+                                    YokkoStrings.Get(
+                                        "gameplay.layout_editor.save"),
+                                    FontAwesome.Solid.Check,
+                                    SaveAndClose,
+                                    true)
+                                {
+                                    Width = 116,
+                                },
+                            },
                         },
                     },
                 },
@@ -439,6 +583,108 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         };
     }
 
+    private LayoutTransformTarget hoveredTarget()
+    {
+        if (timingBarTarget.IsHovered)
+            return timingBarTarget;
+
+        if (hudTarget.IsHovered)
+            return hudTarget;
+
+        return playfieldTarget.IsHovered
+            ? playfieldTarget
+            : null;
+    }
+
+    private void selectTarget(LayoutTransformTarget target)
+    {
+        if (selectedTarget == target)
+            return;
+
+        selectedTarget?.SetSelected(false);
+        selectedTarget = target;
+        selectedTarget?.SetSelected(true);
+    }
+
+    private void beginChange()
+    {
+        LayoutSnapshot current = captureLayout();
+        if (undoHistory.Count == 0 || undoHistory.Peek() != current)
+            undoHistory.Push(current);
+
+        redoHistory.Clear();
+        updateHistoryButtons();
+    }
+
+    private void undo()
+    {
+        if (undoHistory.Count == 0)
+            return;
+
+        redoHistory.Push(captureLayout());
+        applyLayout(undoHistory.Pop());
+        updateHistoryButtons();
+    }
+
+    private void redo()
+    {
+        if (redoHistory.Count == 0)
+            return;
+
+        undoHistory.Push(captureLayout());
+        applyLayout(redoHistory.Pop());
+        updateHistoryButtons();
+    }
+
+    private void updateHistoryButtons()
+    {
+        undoButton?.SetAvailable(undoHistory.Count > 0);
+        redoButton?.SetAvailable(redoHistory.Count > 0);
+    }
+
+    private LayoutSnapshot captureLayout() => new(
+        settings.LayoutPlayfieldOffsetX.Value,
+        settings.LayoutPlayfieldOffsetY.Value,
+        settings.LayoutHudOffsetX.Value,
+        settings.LayoutHudOffsetY.Value,
+        settings.LayoutPlayfieldWidthScale.Value,
+        settings.LayoutPlayfieldHeightScale.Value,
+        settings.LayoutHudScaleX.Value,
+        settings.LayoutHudScaleY.Value,
+        settings.LayoutTimingBarOffsetX.Value,
+        settings.LayoutTimingBarOffsetY.Value,
+        settings.LayoutTimingBarScaleX.Value,
+        settings.LayoutTimingBarScaleY.Value,
+        settings.LayoutTopCoverRatio.Value,
+        settings.LayoutBottomCoverRatio.Value);
+
+    private void applyLayout(LayoutSnapshot snapshot)
+    {
+        settings.LayoutPlayfieldOffsetX.Value =
+            snapshot.PlayfieldOffsetX;
+        settings.LayoutPlayfieldOffsetY.Value =
+            snapshot.PlayfieldOffsetY;
+        settings.LayoutHudOffsetX.Value = snapshot.HudOffsetX;
+        settings.LayoutHudOffsetY.Value = snapshot.HudOffsetY;
+        settings.LayoutPlayfieldWidthScale.Value =
+            snapshot.PlayfieldWidthScale;
+        settings.LayoutPlayfieldHeightScale.Value =
+            snapshot.PlayfieldHeightScale;
+        settings.LayoutHudScaleX.Value = snapshot.HudScaleX;
+        settings.LayoutHudScaleY.Value = snapshot.HudScaleY;
+        settings.LayoutTimingBarOffsetX.Value =
+            snapshot.TimingBarOffsetX;
+        settings.LayoutTimingBarOffsetY.Value =
+            snapshot.TimingBarOffsetY;
+        settings.LayoutTimingBarScaleX.Value =
+            snapshot.TimingBarScaleX;
+        settings.LayoutTimingBarScaleY.Value =
+            snapshot.TimingBarScaleY;
+        settings.LayoutTopCoverRatio.Value = snapshot.TopCoverRatio;
+        settings.LayoutBottomCoverRatio.Value =
+            snapshot.BottomCoverRatio;
+    }
+
     private void movePlayfield(Vector2 delta)
     {
         settings.LayoutPlayfieldOffsetX.Value = clampOffset(
@@ -467,6 +713,32 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         settings.LayoutTimingBarOffsetY.Value = clampOffset(
             settings.LayoutTimingBarOffsetY.Value
             + delta.Y / Math.Max(1, DrawHeight));
+    }
+
+    private void resetPlayfield()
+    {
+        settings.LayoutPlayfieldOffsetX.SetDefault();
+        settings.LayoutPlayfieldOffsetY.SetDefault();
+        settings.LayoutPlayfieldWidthScale.SetDefault();
+        settings.LayoutPlayfieldHeightScale.SetDefault();
+        settings.LayoutTopCoverRatio.SetDefault();
+        settings.LayoutBottomCoverRatio.SetDefault();
+    }
+
+    private void resetHud()
+    {
+        settings.LayoutHudOffsetX.SetDefault();
+        settings.LayoutHudOffsetY.SetDefault();
+        settings.LayoutHudScaleX.SetDefault();
+        settings.LayoutHudScaleY.SetDefault();
+    }
+
+    private void resetTimingBar()
+    {
+        settings.LayoutTimingBarOffsetX.SetDefault();
+        settings.LayoutTimingBarOffsetY.SetDefault();
+        settings.LayoutTimingBarScaleX.SetDefault();
+        settings.LayoutTimingBarScaleY.SetDefault();
     }
 
     private void resizePlayfield(
@@ -667,8 +939,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     private void reset()
     {
-        settings.ResetGameplayLayout();
-        save();
+        ResetAll();
     }
 
     private void updateOverview(
@@ -804,7 +1075,13 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Drawable coordinateSpace;
         private readonly Action<Vector2> drag;
         private readonly Action<ResizeEdges, Vector2> resize;
+        private readonly Action reset;
+        private readonly Action beginChange;
+        private readonly Action<LayoutTransformTarget> select;
         private readonly Action<float> scroll;
+        private readonly Container frame;
+        private readonly Container labelPanel;
+        private readonly Box selectionTint;
         private Vector2 lastPosition;
 
         internal int ResizeHandleCount => 8;
@@ -814,17 +1091,23 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             LocalisableString label,
             Action<Vector2> drag,
             Action<ResizeEdges, Vector2> resize,
+            Action reset,
+            Action beginChange,
+            Action<LayoutTransformTarget> select,
             Action<float> scroll = null)
         {
             this.coordinateSpace = coordinateSpace;
             this.drag = drag;
             this.resize = resize;
+            this.reset = reset;
+            this.beginChange = beginChange;
+            this.select = select;
             this.scroll = scroll;
             Masking = false;
 
             InternalChildren = new Drawable[]
             {
-                new Container
+                frame = new Container
                 {
                     RelativeSizeAxes = Axes.Both,
                     Masking = true,
@@ -832,7 +1115,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     BorderColour = HomeControlColours.Cyan,
                     Children = new Drawable[]
                     {
-                        new Box
+                        selectionTint = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
                             Colour = new Color4(
@@ -841,7 +1124,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                 HomeControlColours.PaleCyan.B,
                                 0.035f),
                         },
-                        new Container
+                        labelPanel = new Container
                         {
                             Position = new Vector2(8, 6),
                             Size = new Vector2(202, 27),
@@ -901,6 +1184,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             new ResizeHandle(
                 coordinateSpace,
                 delta => resize(edges, delta),
+                beginChange,
+                () => select(this),
                 edge)
             {
                 Anchor = anchor,
@@ -917,12 +1202,17 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             if (e.Button != MouseButton.Left)
                 return false;
 
+            select(this);
             lastPosition = coordinateSpace.ToLocalSpace(
                 e.ScreenSpaceMousePosition);
             return true;
         }
 
-        protected override bool OnDragStart(DragStartEvent e) => true;
+        protected override bool OnDragStart(DragStartEvent e)
+        {
+            beginChange();
+            return true;
+        }
 
         protected override void OnDrag(DragEvent e)
         {
@@ -937,17 +1227,29 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             if (scroll == null || e.ScrollDelta.Y == 0)
                 return false;
 
+            select(this);
+            beginChange();
             scroll(e.ScrollDelta.Y);
             return true;
         }
 
-        protected override bool OnKeyDown(KeyDownEvent e)
+        internal void SetSelected(bool selected)
         {
-            if (!IsHovered)
-                return false;
-
-            return TryNudge(e.Key, e.ShiftPressed);
+            frame.BorderColour = selected
+                ? HomeControlColours.Yellow
+                : HomeControlColours.Cyan;
+            frame.BorderThickness = selected ? 3 : 2;
+            labelPanel.BorderColour = selected
+                ? HomeControlColours.Yellow
+                : HomeControlColours.Navy;
+            selectionTint.Colour = new Color4(
+                HomeControlColours.PaleCyan.R,
+                HomeControlColours.PaleCyan.G,
+                HomeControlColours.PaleCyan.B,
+                selected ? 0.11f : 0.035f);
         }
+
+        internal void Reset() => reset();
 
         internal bool TryNudge(Key key, bool accelerated)
         {
@@ -972,15 +1274,21 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     {
         private readonly Drawable coordinateSpace;
         private readonly Action<Vector2> resize;
+        private readonly Action beginChange;
+        private readonly Action select;
         private Vector2 lastPosition;
 
         public ResizeHandle(
             Drawable coordinateSpace,
             Action<Vector2> resize,
+            Action beginChange,
+            Action select,
             bool edge)
         {
             this.coordinateSpace = coordinateSpace;
             this.resize = resize;
+            this.beginChange = beginChange;
+            this.select = select;
             Depth = -30;
             Masking = true;
             CornerRadius = edge ? 3 : 2;
@@ -1000,12 +1308,17 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             if (e.Button != MouseButton.Left)
                 return false;
 
+            select();
             lastPosition = coordinateSpace.ToLocalSpace(
                 e.ScreenSpaceMousePosition);
             return true;
         }
 
-        protected override bool OnDragStart(DragStartEvent e) => true;
+        protected override bool OnDragStart(DragStartEvent e)
+        {
+            beginChange();
+            return true;
+        }
 
         protected override void OnDrag(DragEvent e)
         {
@@ -1019,14 +1332,17 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private partial class CoverDragHandle : CompositeDrawable
     {
         private readonly Action<Vector2> update;
+        private readonly Action beginChange;
 
         public CoverDragHandle(
             Drawable coordinateSpace,
             string label,
-            Action<Vector2> update)
+            Action<Vector2> update,
+            Action beginChange)
         {
             _ = coordinateSpace;
             this.update = update;
+            this.beginChange = beginChange;
             Depth = -10;
             Masking = true;
             CornerRadius = 5;
@@ -1064,6 +1380,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             if (e.Button != MouseButton.Left)
                 return false;
 
+            beginChange();
             update(e.ScreenSpaceMousePosition);
             return true;
         }
@@ -1079,6 +1396,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Box background;
         private readonly Color4 idleColour;
         private readonly Color4 hoverColour;
+        private bool available = true;
 
         public LayoutActionButton(
             LocalisableString text,
@@ -1086,7 +1404,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             Action action,
             bool primary = false)
         {
-            Action = action;
+            Action = () =>
+            {
+                if (available)
+                    action();
+            };
             Size = new Vector2(112, 34);
             Masking = true;
             CornerRadius = 6;
@@ -1147,8 +1469,17 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             };
         }
 
+        internal void SetAvailable(bool value)
+        {
+            available = value;
+            Alpha = value ? 1 : 0.42f;
+        }
+
         protected override bool OnHover(HoverEvent e)
         {
+            if (!available)
+                return false;
+
             background.FadeColour(hoverColour, 90, Easing.OutQuint);
             this.ScaleTo(1.025f, 100, Easing.OutQuint);
             return true;
@@ -1160,6 +1491,22 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             this.ScaleTo(1f, 120, Easing.OutQuint);
         }
     }
+
+    private readonly record struct LayoutSnapshot(
+        double PlayfieldOffsetX,
+        double PlayfieldOffsetY,
+        double HudOffsetX,
+        double HudOffsetY,
+        double PlayfieldWidthScale,
+        double PlayfieldHeightScale,
+        double HudScaleX,
+        double HudScaleY,
+        double TimingBarOffsetX,
+        double TimingBarOffsetY,
+        double TimingBarScaleX,
+        double TimingBarScaleY,
+        double TopCoverRatio,
+        double BottomCoverRatio);
 
     private static class LayoutEditorTypography
     {

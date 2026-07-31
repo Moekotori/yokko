@@ -241,9 +241,9 @@ internal static class YokkoStrings
                 "HUD 布局",
                 "HUD レイアウト"),
             ["gameplay.layout_editor.hint"] = new(
-                "Drag elements · resize from edges",
-                "拖动元素 · 拉边缩放",
-                "要素をドラッグ · 端から拡縮"),
+                "Click to select · arrows nudge · Shift ×10",
+                "点击选中 · 方向键微调 · Shift ×10",
+                "クリックで選択 · 矢印で微調整 · Shift ×10"),
             ["gameplay.layout_editor.playfield"] = new(
                 "Playfield · drag / resize",
                 "轨道 · 拖动 / 拉伸边框",
@@ -260,6 +260,18 @@ internal static class YokkoStrings
                 "Reset",
                 "重置",
                 "リセット"),
+            ["gameplay.layout_editor.undo"] = new(
+                "Undo",
+                "撤销",
+                "元に戻す"),
+            ["gameplay.layout_editor.redo"] = new(
+                "Redo",
+                "重做",
+                "やり直す"),
+            ["gameplay.layout_editor.cancel"] = new(
+                "Cancel",
+                "取消",
+                "キャンセル"),
             ["gameplay.layout_editor.save"] = new(
                 "Save & return",
                 "保存并返回",
@@ -699,9 +711,9 @@ internal static class YokkoStrings
                 "额外投量",
                 "追加 LN カット"),
             ["settings.skins.ln_cut_amount_note"] = new(
-                "On top of skin · visual only · unit: note width",
-                "叠加皮肤原效果 · 仅显示 · 单位：Note 宽度",
-                "スキン効果に追加 · 表示のみ · 単位：ノート幅"),
+                "Optional extra cut on top of skin · visual only",
+                "可选叠加皮肤原效果 · 仅影响显示",
+                "スキン効果への追加は任意 · 表示のみ"),
             ["settings.skins.apply_next_gameplay"] = new(
                 "LN skin changes apply on the next gameplay load",
                 "LN 皮肤调整将在下次进入游玩时生效",
@@ -1327,6 +1339,19 @@ internal static class YokkoStrings
             Translation translation = translations[key];
             return new[] { translation.English, translation.Chinese, translation.Japanese };
         }));
+
+    public static string SearchTermsForPrefix(string prefix, params string[] aliases) =>
+        string.Join(
+            " ",
+            translations
+                .Where(pair => pair.Key.StartsWith(prefix, StringComparison.Ordinal))
+                .SelectMany(pair => new[]
+                {
+                    pair.Value.English,
+                    pair.Value.Chinese,
+                    pair.Value.Japanese,
+                })
+                .Concat(aliases));
 
     internal static IEnumerable<string> Keys => translations.Keys;
 

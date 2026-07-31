@@ -326,6 +326,8 @@ public partial class DrawableNote : CompositeDrawable
 
     internal float VisibleHoldBodyHeight => holdBodyHeight;
 
+    internal float VisibleHoldTailY => holdTailY;
+
     public void SetColumnScale(float value)
     {
         value = Math.Max(0.01f, value);
@@ -548,7 +550,7 @@ public partial class DrawableNote : CompositeDrawable
             holdBodyY = bodyMinimumY - Y;
             holdBodyHeight = Math.Max(0, bodyMaximumY - bodyMinimumY);
             holdHeadY = (upsideDown ? headY : headY - headHeight) - Y;
-            holdTailY = (upsideDown ? tailY : tailY - tailHeight) - Y;
+            holdTailY = visualTailCentreY - tailHeight / 2 - Y;
             updateHoldBody();
             Alpha = maximumProgress >= MinimumVisibleProgress
                     && minimumProgress <= MaximumVisibleProgress
@@ -633,9 +635,6 @@ public partial class DrawableNote : CompositeDrawable
             holdTailY,
             tailHeight,
             flipHoldTail ^ reverseHoldTailForScrollVelocity);
-
-        if (holdTail != null)
-            holdTail.Alpha = appliedLongNoteCutDistance > 0 ? 0 : 1;
     }
 
     private void placePart(Sprite sprite, float y, float height, bool flip)

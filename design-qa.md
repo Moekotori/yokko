@@ -82,51 +82,6 @@ final result: passed
 
 ---
 
-# Gameplay Result Overlay Interaction Polish QA4
-
-- Source visual truth: `D:\yokko\docs\design\gameplay\yokko-result-broadcast-selected.png`
-- Static native implementation: `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-interactive-static-1600x900.png`
-- Score-ribbon hover implementation: `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-interactive-score-hover-1600x900.png`
-- Full-view source/static comparison: `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-interactive-comparison-static.png`
-- Static/hover state comparison: `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-interactive-comparison-states.png`
-- Source pixels: 1672x941, normalized to the authored 1600x900 result stage.
-- Native render: Direct3D 11, 1600x1000 raw window at 1x, with the centered authored stage cropped from y=50 through y=949 to an exact 1600x900 comparison image.
-- State: completed four-key play with the same score, chart metadata, judgements, and mods. The implementation capture uses the active Chinese locale while the selected visual uses English, so localized copy was excluded from geometry-drift findings.
-
-## Comparison history
-
-1. The selected result composition was already matched in the preceding static implementation pass: the broadcast header, mascot crop, paper score ribbon, asymmetric result grid, mod rail, cyan bottom band, and three action cards preserve the same hierarchy and proportions.
-2. This pass retained that resting composition and introduced interaction at component level instead of changing the selected art direction.
-3. The score ribbon now has a subtle four-pixel lift and 1.008 scale response. The static/hover comparison shows the response remains inside the authored stage without clipping, overlap, or hierarchy change.
-4. Metric cells add a pale-cyan wash, animated underline, and restrained value lift; judgement cells add semantic-colour washes and proportional bottom bars; mod chips lift with a cyan accent; actions reveal shortcut hints and animate icon/chevron position, with a short press response.
-5. Focused region comparison was not separately required because the score ribbon and the complete action/metric regions remain legible at the exact 1600x900 full-view size. The dedicated static/hover full-view comparison provides the relevant interaction-state evidence.
-
-## Required fidelity review
-
-- Fonts and typography: the established Yokko result type hierarchy, weights, alignment, numeric scale, and wrapping remain unchanged at rest. Hover transforms affect only the intended values or cards and do not disturb surrounding copy.
-- Spacing and layout rhythm: the 1600x900 stage, left/right composition split, ribbon angle, grid alignment, mod rail, cyan footer, and action spacing remain visually aligned with the selected source. Interaction motion is bounded and causes no reflow.
-- Colors and visual tokens: all new states reuse the existing navy, cyan, pale-cyan, yellow, pink, ivory, and judgement colours. There is no foreign glow, generic grey overlay, or new gradient language.
-- Image quality and asset fidelity: the real transparent Yokko mascot and result-ribbon resource remain sharp and correctly cropped. No illustration, sticker, decorative mark, or non-standard icon was replaced by code-native approximation.
-- Copy and content: result metadata, score, accuracy, combo, judgements, mods, and action labels remain live code-rendered content. Shortcut hints are hidden at rest and revealed only on pointer focus, preventing extra visual noise.
-
-## Findings
-
-- P0: none.
-- P1: none.
-- P2: none.
-- P3: only the score-ribbon hover state has a dedicated native screenshot in this pass. Metric, judgement, mod, action-hover, and action-press behavior compiled and is exercised through the same pointer-input implementation, but each state was not captured as a separate image.
-
-## Verification
-
-- Isolated artifact build for the interaction snapshot: 0 warnings, 0 errors.
-- Focused tests: 26 passed, 0 failed in 4 seconds. Coverage included `TestSceneGameplayResultOverlay`, completed-play result-overlay behavior, and display settings.
-- Native Direct3D 11 static and hover captures completed successfully at the authored 1600x900 content size.
-- A later broad rebuild of the concurrently edited shared tree was blocked by unrelated in-progress changes in `SkinSettingsPanel.cs` and a `GameplayScrollVelocityTest`/`DrawableNote` API mismatch; those files were not changed for this result-overlay pass.
-
-final result: passed
-
----
-
 # Gameplay layout resize editor verification (2026-07-31)
 
 ## Evidence
@@ -2225,5 +2180,50 @@ final result: passed
 - Focused tests: 41 passed, 0 failed. The set covers both localisation font atlases, the complete layout-editor interaction regression, homepage layout and sticker fitting, immediate language switching, and minimum readable typography across every settings page.
 - Direct3D 11 native preview: exited normally and captured at 1600x1000.
 - Primary interaction paths retained: move, four-edge resize, four-corner resize, cover adjustment, reset, save and return, and live overview synchronization.
+
+final result: passed
+
+---
+
+# Gameplay Result Overlay Interaction Polish QA4
+
+- Source visual truth: `D:\yokko\docs\design\gameplay\yokko-result-broadcast-selected.png`
+- Static native implementation: `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-interactive-static-1600x900.png`
+- Score-ribbon hover implementation: `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-interactive-score-hover-1600x900.png`
+- Full-view source/static comparison: `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-interactive-comparison-static.png`
+- Static/hover state comparison: `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-interactive-comparison-states.png`
+- Source pixels: 1672x941, normalized to the authored 1600x900 result stage.
+- Native render: Direct3D 11, 1600x1000 raw window at 1x, with the centered authored stage cropped from y=50 through y=949 to an exact 1600x900 comparison image.
+- State: completed four-key play with the same score, chart metadata, judgements, and mods. The implementation capture uses the active Chinese locale while the selected visual uses English, so localized copy was excluded from geometry-drift findings.
+
+## Comparison history
+
+1. The selected result composition was already matched in the preceding static implementation pass: the broadcast header, mascot crop, paper score ribbon, asymmetric result grid, mod rail, cyan bottom band, and three action cards preserve the same hierarchy and proportions.
+2. This pass retained that resting composition and introduced interaction at component level instead of changing the selected art direction.
+3. The score ribbon now has a subtle four-pixel lift and 1.008 scale response. The static/hover comparison shows the response remains inside the authored stage without clipping, overlap, or hierarchy change.
+4. Metric cells add a pale-cyan wash, animated underline, and restrained value lift; judgement cells add semantic-colour washes and proportional bottom bars; mod chips lift with a cyan accent; actions reveal shortcut hints and animate icon/chevron position, with a short press response.
+5. Focused region comparison was not separately required because the score ribbon and the complete action/metric regions remain legible at the exact 1600x900 full-view size. The dedicated static/hover full-view comparison provides the relevant interaction-state evidence.
+
+## Required fidelity review
+
+- Fonts and typography: the established Yokko result type hierarchy, weights, alignment, numeric scale, and wrapping remain unchanged at rest. Hover transforms affect only the intended values or cards and do not disturb surrounding copy.
+- Spacing and layout rhythm: the 1600x900 stage, left/right composition split, ribbon angle, grid alignment, mod rail, cyan footer, and action spacing remain visually aligned with the selected source. Interaction motion is bounded and causes no reflow.
+- Colors and visual tokens: all new states reuse the existing navy, cyan, pale-cyan, yellow, pink, ivory, and judgement colours. There is no foreign glow, generic grey overlay, or new gradient language.
+- Image quality and asset fidelity: the real transparent Yokko mascot and result-ribbon resource remain sharp and correctly cropped. No illustration, sticker, decorative mark, or non-standard icon was replaced by code-native approximation.
+- Copy and content: result metadata, score, accuracy, combo, judgements, mods, and action labels remain live code-rendered content. Shortcut hints are hidden at rest and revealed only on pointer focus, preventing extra visual noise.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- P3: only the score-ribbon hover state has a dedicated native screenshot in this pass. Metric, judgement, mod, action-hover, and action-press behavior compiled and is exercised through the same pointer-input implementation, but each state was not captured as a separate image.
+
+## Verification
+
+- Isolated artifact build for the interaction snapshot: 0 warnings, 0 errors.
+- Focused tests: 26 passed, 0 failed in 4 seconds. Coverage included `TestSceneGameplayResultOverlay`, completed-play result-overlay behavior, and display settings.
+- Native Direct3D 11 static and hover captures completed successfully at the authored 1600x900 content size.
+- A later broad rebuild of the concurrently edited shared tree was blocked by unrelated in-progress changes in `SkinSettingsPanel.cs` and a `GameplayScrollVelocityTest`/`DrawableNote` API mismatch; those files were not changed for this result-overlay pass.
 
 final result: passed

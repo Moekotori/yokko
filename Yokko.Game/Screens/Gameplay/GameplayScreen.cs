@@ -434,10 +434,12 @@ public partial class GameplayScreen : Screen
                 mods,
                 minesEnabled,
                 skinSettings?.ShowComboBursts.Value != false,
-                Math.Clamp(
-                    skinSettings?.LongNoteCutAmount.Value ?? 0,
-                    YokkoSkinSettings.MinimumLongNoteCutAmount,
-                    YokkoSkinSettings.MaximumLongNoteCutAmount))
+                skinSettings?.LongNoteCutEnabled.Value == true
+                    ? Math.Clamp(
+                        skinSettings.LongNoteCutAmount.Value,
+                        YokkoSkinSettings.MinimumLongNoteCutAmount,
+                        YokkoSkinSettings.MaximumLongNoteCutAmount)
+                    : 0)
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
@@ -826,13 +828,12 @@ public partial class GameplayScreen : Screen
 
         if (layoutEditor?.IsEditing == true)
         {
-            if (!repeat && key is Key.Enter or Key.Escape)
+            if (!repeat && key == Key.Enter)
                 layoutEditor.SaveAndClose();
+            else if (!repeat && key == Key.Escape)
+                layoutEditor.CancelAndClose();
             else if (!repeat && key == Key.R)
-            {
-                gameplaySettings.ResetGameplayLayout();
-                saveGameplayLayout();
-            }
+                layoutEditor.ResetAll();
 
             return true;
         }

@@ -252,6 +252,11 @@ internal partial class SettingsSidebar : CompositeDrawable
         if (result == null)
             return false;
 
+        result = orderedNavigationItems
+            .Where(item => item.IsFilteredVisible)
+            .OrderByDescending(item => item.SearchScore)
+            .First();
+
         selectPage(result.Page);
         return true;
     }
@@ -295,6 +300,7 @@ internal partial class SettingsSidebar : CompositeDrawable
         var item = new SettingsNavItem(
             page,
             definition.Title,
+            definition.TitleSearchTerms,
             definition.SearchTerms,
             definition.Icon,
             () => selectPage(page),
@@ -322,8 +328,12 @@ internal partial class SettingsSidebar : CompositeDrawable
 
             foreach (SettingsNavItem item in items)
             {
-                bool visible = normalized.Length == 0 ||
-                               item.SearchTerms.Contains(normalized, StringComparison.OrdinalIgnoreCase);
+                int score = SettingsSearchMatcher.Score(
+                    normalized,
+                    item.TitleSearchTerms,
+                    item.SearchTerms);
+                bool visible = score != SettingsSearchMatcher.NoMatch;
+                item.SearchScore = score;
                 item.SetFiltered(visible);
                 anyVisible |= visible;
             }
@@ -606,7 +616,9 @@ internal partial class SettingsNavItem : ClickableContainer
     private bool selected;
 
     public SettingsPageKind Page { get; }
+    public string TitleSearchTerms { get; }
     public string SearchTerms { get; }
+    public int SearchScore { get; set; }
     public bool IsFilteredVisible { get; private set; } = true;
     internal bool IsSelected => selected;
     public override bool AcceptsFocus => true;
@@ -614,12 +626,14 @@ internal partial class SettingsNavItem : ClickableContainer
     public SettingsNavItem(
         SettingsPageKind page,
         LocalisableString label,
+        string titleSearchTerms,
         string searchTerms,
         IconUsage itemIcon,
         Action action,
         Func<int, bool> navigate)
     {
         Page = page;
+        TitleSearchTerms = titleSearchTerms;
         SearchTerms = searchTerms;
         Action = action;
         this.navigate = navigate;

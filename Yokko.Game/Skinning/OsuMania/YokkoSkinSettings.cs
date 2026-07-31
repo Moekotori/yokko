@@ -14,7 +14,9 @@ internal sealed class YokkoSkinSettings
 
     public const double LongNoteCutAmountStep = 0.1;
 
-    public const double DefaultLongNoteCutAmount = 0;
+    public const double DefaultLongNoteCutAmount = 0.5;
+
+    public const bool DefaultLongNoteCutEnabled = false;
 
     public readonly Bindable<string> SelectedSkinId = new(string.Empty);
 
@@ -29,6 +31,9 @@ internal sealed class YokkoSkinSettings
     /// skin's own baked Percy/LN cut, measured in current note widths.
     /// Judgement and hold duration are never changed.
     /// </summary>
+    public readonly BindableBool LongNoteCutEnabled =
+        new(DefaultLongNoteCutEnabled);
+
     public readonly Bindable<double> LongNoteCutAmount =
         new(DefaultLongNoteCutAmount);
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Yokko's small CJK bitmap-font subset for osu!framework."""
+"""Generate Yokko's CJK bitmap-font subset for osu!framework."""
 
 from __future__ import annotations
 
@@ -68,6 +68,18 @@ def collect_characters(strings_path: Path) -> list[str]:
             literal,
         )
         characters.update(character for character in decoded if ord(character) >= 127)
+
+    # Text boxes accept user-provided text, so a localisation-only subset is
+    # insufficient: perfectly valid Chinese IME input would otherwise render
+    # as replacement glyphs. GB2312 level 1 contains the 3,755 most commonly
+    # used Simplified Chinese characters while keeping the bitmap atlas
+    # practical for desktop GPUs.
+    for lead in range(0xB0, 0xD8):
+        for trail in range(0xA1, 0xFF):
+            try:
+                characters.add(bytes((lead, trail)).decode("gb2312"))
+            except UnicodeDecodeError:
+                continue
 
     return sorted(characters, key=ord)
 
