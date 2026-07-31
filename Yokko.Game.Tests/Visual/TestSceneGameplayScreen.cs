@@ -3378,11 +3378,31 @@ HitPosition: 400
             });
             AddUntilStep("audio starts", () =>
                 audioEngine.StartCount == 1);
+            AddStep("press lane before disabled focus loss", () =>
+                gameplayScreen.HandleKeyDownInput(
+                    Key.D,
+                    false,
+                    false,
+                    false));
+            AddAssert("lane starts pressed", () =>
+                gameplayScreen.IsLanePressed(0));
             AddStep("deactivate host while disabled", () =>
                 gameplayScreen.HandleHostDeactivated());
             AddAssert("disabled setting keeps gameplay running", () =>
                 !gameplayScreen.IsPaused
                 && audioEngine.PauseCount == 0);
+            AddAssert("disabled focus loss safely releases lane", () =>
+                !gameplayScreen.IsLanePressed(0));
+            AddStep("first press after focus reset is accepted", () =>
+                gameplayScreen.HandleKeyDownInput(
+                    Key.D,
+                    false,
+                    false,
+                    false));
+            AddAssert("lane presses after focus reset", () =>
+                gameplayScreen.IsLanePressed(0));
+            AddStep("release lane after focus reset", () =>
+                gameplayScreen.HandleKeyUpInput(Key.D));
             AddStep("enable pause when unfocused", () =>
                 gameplaySettings.PauseWhenUnfocused.Value = true);
             AddStep("deactivate host", () =>

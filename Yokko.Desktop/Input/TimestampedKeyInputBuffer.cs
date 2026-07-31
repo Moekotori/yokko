@@ -7,6 +7,7 @@ namespace Yokko.Desktop.Input;
 internal sealed class TimestampedKeyInputBuffer
 {
     private readonly int capacity;
+    private readonly int capacityMask;
     private readonly Cell[] cells;
     private long enqueuePosition;
     private long dequeuePosition;
@@ -19,6 +20,9 @@ internal sealed class TimestampedKeyInputBuffer
             throw new ArgumentOutOfRangeException(nameof(capacity));
 
         this.capacity = capacity;
+        capacityMask = (capacity & (capacity - 1)) == 0
+            ? capacity - 1
+            : -1;
         cells = new Cell[capacity];
         for (int index = 0; index < cells.Length; index++)
             cells[index].Sequence = index;
@@ -73,7 +77,7 @@ internal sealed class TimestampedKeyInputBuffer
         while (true)
         {
             long position = Volatile.Read(ref dequeuePosition);
-            ref Cell cell = ref cells[position % capacity];
+            ref Cell cell = ref cells[cellIndex(position)];
             long sequence = Volatile.Read(ref cell.Sequence);
             long difference = sequence - (position + 1);
 
@@ -120,7 +124,7 @@ internal sealed class TimestampedKeyInputBuffer
     private bool tryEnqueue(TimestampedKeyInput input)
     {
         long position = Volatile.Read(ref enqueuePosition);
-        ref Cell cell = ref cells[position % capacity];
+        ref Cell cell = ref cells[cellIndex(position)];
         long sequence = Volatile.Read(ref cell.Sequence);
         if (sequence - position != 0)
             return false;
@@ -130,6 +134,11 @@ internal sealed class TimestampedKeyInputBuffer
         Volatile.Write(ref enqueuePosition, position + 1);
         return true;
     }
+
+    private int cellIndex(long position) =>
+        capacityMask >= 0
+            ? (int)position & capacityMask
+            : (int)(position % capacity);
 
     private struct Cell
     {

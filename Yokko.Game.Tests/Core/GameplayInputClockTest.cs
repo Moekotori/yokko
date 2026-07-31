@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using NUnit.Framework;
 using osuTK.Input;
 using Yokko.Audio;
@@ -229,6 +230,28 @@ public sealed class GameplayInputClockTest
     }
 
     [Test]
+    public void InputDropTrackerRequestsRecoveryAndSurvivesBackendReset()
+    {
+        var tracker = new InputDropTracker();
+
+        Assert.That(tracker.Observe(0).RequiresRecovery, Is.False);
+        InputDropObservation firstDrop = tracker.Observe(3);
+        tracker.MarkBackendReset();
+        InputDropObservation reset = tracker.Observe(0);
+        InputDropObservation secondDrop = tracker.Observe(2);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(firstDrop.NewlyDropped, Is.EqualTo(3));
+            Assert.That(firstDrop.TotalDropped, Is.EqualTo(3));
+            Assert.That(reset.RequiresRecovery, Is.False);
+            Assert.That(reset.TotalDropped, Is.EqualTo(3));
+            Assert.That(secondDrop.NewlyDropped, Is.EqualTo(2));
+            Assert.That(secondDrop.TotalDropped, Is.EqualTo(5));
+        });
+    }
+
+    [Test]
     public void NativeSampleStatisticsReportQueueAndPresentationLatency()
     {
         var tracker = new AudioSampleTriggerLatencyTracker();
@@ -293,6 +316,68 @@ public sealed class GameplayInputClockTest
         Assert.That(judgement, Is.Not.Null);
         Assert.That(judgement.Rating, Is.EqualTo(JudgementRating.Perfect));
         Assert.That(judgement.HitErrorMilliseconds, Is.EqualTo(0).Within(0.001));
+    }
+
+    [Test]
+    public void SubMillisecondRapidTriggerPreservesJudgementAndReplayOrder()
+    {
+        const long frequency = 1_000_000;
+        const long firstTimestamp = 10_000_000;
+        var beatmap = new YokkoBeatmap(
+            "Rapid trigger test",
+            "Yokko",
+            "Yokko",
+            "4K",
+            KeyMode.FourKey,
+            ChartSourceFormat.Yokko,
+            [YokkoTimingPoint.Default],
+            null,
+            [
+                new YokkoHitObject(0, 1000, null, HitObjectKind.Tap),
+                new YokkoHitObject(0, 1000.25, null, HitObjectKind.Tap),
+            ]);
+        var state = new BeatmapJudgementState(
+            beatmap,
+            JudgementWindows.DefaultMania);
+
+        double firstPress = GameplayInputClock.AtEventTimestamp(
+            1020,
+            firstTimestamp,
+            firstTimestamp + 20_000,
+            frequency);
+        double release = GameplayInputClock.AtEventTimestamp(
+            1020.125,
+            firstTimestamp + 125,
+            firstTimestamp + 20_125,
+            frequency);
+        double secondPress = GameplayInputClock.AtEventTimestamp(
+            1020.25,
+            firstTimestamp + 250,
+            firstTimestamp + 20_250,
+            frequency);
+
+        JudgementEvent first =
+            state.TryJudgeLanePress(0, firstPress);
+        state.TryJudgeLaneRelease(0, release);
+        JudgementEvent second =
+            state.TryJudgeLanePress(0, secondPress);
+        var replay = new GameplayReplay(
+            [
+                new GameplayReplayInput(0, true, firstPress),
+                new GameplayReplayInput(0, false, release),
+                new GameplayReplayInput(0, true, secondPress),
+            ]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(first?.Rating, Is.EqualTo(JudgementRating.Perfect));
+            Assert.That(second?.Rating, Is.EqualTo(JudgementRating.Perfect));
+            Assert.That(first?.HitObjectIndex, Is.EqualTo(0));
+            Assert.That(second?.HitObjectIndex, Is.EqualTo(1));
+            Assert.That(
+                replay.Inputs.Select(static input => input.TimeMilliseconds),
+                Is.EqualTo(new[] { 1000d, 1000.125d, 1000.25d }));
+        });
     }
 
     [Test]

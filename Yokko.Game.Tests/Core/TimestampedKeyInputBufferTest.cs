@@ -112,6 +112,33 @@ public sealed class TimestampedKeyInputBufferTest
     }
 
     [Test]
+    public void PowerOfTwoBufferPreservesEightKilohertzEquivalentStream()
+    {
+        const int edgeCount = 8_000 * 8;
+        var buffer = new TimestampedKeyInputBuffer(1024);
+
+        for (int edge = 1; edge <= edgeCount; edge++)
+        {
+            buffer.Enqueue(new TimestampedKeyInput(
+                Key.D,
+                (edge & 1) != 0,
+                edge));
+            if (!buffer.TryDequeue(out TimestampedKeyInput input)
+                || input.Timestamp != edge)
+            {
+                Assert.Fail($"Input order diverged at edge {edge}.");
+            }
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(buffer.CapturedEdgeCount, Is.EqualTo(edgeCount));
+            Assert.That(buffer.DroppedEdgeCount, Is.Zero);
+            Assert.That(buffer.Count, Is.Zero);
+        });
+    }
+
+    [Test]
     public void RawKeyStateSuppressesDuplicateEdgesWithoutHashing()
     {
         var state = new WindowsRawKeyboardTimestampBackend.RawKeyState();

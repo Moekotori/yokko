@@ -98,6 +98,7 @@ public partial class GameplayScreen : Screen
     private readonly InputAgeTracker inputAgeTracker = new();
     private readonly InputPipelineLatencyTracker inputPipelineLatencyTracker =
         new();
+    private readonly InputDropTracker inputDropTracker = new();
     private readonly AudioSampleTriggerLatencyTracker
         audioSampleTriggerLatencyTracker = new();
     private ulong previousAudioSampleTelemetryDropped;
@@ -186,6 +187,10 @@ public partial class GameplayScreen : Screen
         currentPlaybackRate(currentGameplayTime);
     internal bool ManualPlaybackRateUsed =>
         manualPlaybackRateUsed;
+    internal bool IsLanePressed(int lane) =>
+        pressedLanes != null
+        && (uint)lane < pressedLanes.Length
+        && pressedLanes[lane];
     internal ManiaHealthState HealthState => healthState;
     internal GameplayMutedAudioController MutedAudio => mutedAudio;
     internal JudgementWindows ActiveJudgementWindows =>
@@ -1136,6 +1141,16 @@ public partial class GameplayScreen : Screen
 
     private void drainRawInput(GameplayClockObservation observation)
     {
+        InputDropObservation drops = inputDropTracker.Observe(
+            keyInputTimestamps.Status.DroppedEdgeCount);
+        if (drops.RequiresRecovery)
+        {
+            recoverLiveInputState(
+                observation.GameplayTime,
+                $"raw input queue dropped {drops.NewlyDropped} edge(s)");
+            return;
+        }
+
         while (keyInputTimestamps.TryDequeueRaw(out TimestampedKeyInput input))
         {
             long dequeueTimestamp = Stopwatch.GetTimestamp();
@@ -1755,6 +1770,19 @@ public partial class GameplayScreen : Screen
             && !gameplayFailed)
         {
             TogglePause();
+            return;
+        }
+
+        if (!ReplayMode
+            && !isPaused
+            && !pauseTransitionInProgress
+            && !gameplayBlocked
+            && !gameplayCompleted
+            && !gameplayFailed)
+        {
+            recoverLiveInputState(
+                currentGameplayTime,
+                "host focus was lost while automatic pause was disabled");
         }
     }
 
@@ -1774,7 +1802,7 @@ public partial class GameplayScreen : Screen
                 0,
                 observation.Audio.PlaybackTimeMilliseconds)
             : 0;
-        releasePressedLanesForPause();
+        releasePressedLanesAt(pausedGameplayTime);
         isPaused = true;
 
         if (!ReplayMode)
@@ -1984,7 +2012,31 @@ public partial class GameplayScreen : Screen
             keyInputTimestamps.BeginCapture();
     }
 
-    private void releasePressedLanesForPause()
+    private void recoverLiveInputState(
+        double gameplayTime,
+        string reason)
+    {
+        keyInputTimestamps.EndCapture();
+        releasePressedLanesAt(gameplayTime);
+        inputDropTracker.MarkBackendReset();
+
+        if (!gameplayFailed
+            && !gameplayCompleted
+            && !gameplayBlocked
+            && !retryTransitionInProgress
+            && !isPaused)
+        {
+            rawKeysoundDispatcher?.RefreshAllAndEnable();
+            keyInputTimestamps.BeginCapture();
+        }
+
+        Logger.Log(
+            $"Gameplay input state recovered: {reason}.",
+            LoggingTarget.Runtime,
+            LogLevel.Important);
+    }
+
+    private void releasePressedLanesAt(double gameplayTime)
     {
         if (ReplayMode)
             return;
@@ -1992,7 +2044,7 @@ public partial class GameplayScreen : Screen
         for (int lane = 0; lane < pressedLanes.Length; lane++)
         {
             if (pressedLanes[lane])
-                applyLaneRelease(lane, pausedGameplayTime);
+                applyLaneRelease(lane, gameplayTime);
         }
     }
 
@@ -2270,6 +2322,8 @@ public partial class GameplayScreen : Screen
         drainAudioSampleTriggerTelemetry();
         KeyInputTimestampBackendStatus backend =
             keyInputTimestamps.Status;
+        InputDropObservation drops = inputDropTracker.Observe(
+            backend.DroppedEdgeCount);
         InputAgeStatistics ages = inputAgeTracker.Snapshot();
         InputPipelineLatencyStatistics pipeline =
             inputPipelineLatencyTracker.Snapshot();
@@ -2308,7 +2362,7 @@ public partial class GameplayScreen : Screen
             $"Gameplay input timing: {backend.Name}; "
             + $"captured={backend.CapturedEdgeCount}, "
             + $"pending={backend.PendingEdgeCount}, "
-            + $"dropped={backend.DroppedEdgeCount}; "
+            + $"dropped={drops.TotalDropped}; "
             + ageSummary + "; "
             + pipelineSummary + "; "
             + nativeSampleSummary);

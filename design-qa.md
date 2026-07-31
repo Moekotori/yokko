@@ -89,13 +89,15 @@ final result: passed
 - Source visual truth:
   `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-fd661d85-dd8d-4cba-b5ef-047e5e1a6fc5.png`
 - Native implementation:
-  `D:\yokko\artifacts\mods\orbit-redesign-final.png`
-- Density-normalized implementation:
-  `D:\yokko\artifacts\mods\orbit-redesign-final-1600.png`
+  `D:\yokko\artifacts\mods\orbit-redesign-final-readable.png`
+- Active-state implementation:
+  `D:\yokko\artifacts\mods\orbit-redesign-readable.png`
 - Side-by-side comparison:
   `D:\yokko\artifacts\mods\orbit-redesign-comparison-final.png`
-- Authored viewport: 1600 x 900 at Yokko UI scale `Large`.
-- State: Difficulty Up page, Hard Rock selected, Hard Rock and Half Time active.
+- Authored viewport: 1600 x 900, verified through the native 3168 x 1785
+  renderer capture used by the 3200 x 2000 desktop.
+- States: empty Difficulty Down page and active Difficulty Up page with
+  Hard Rock selected.
 
 ## Review
 
@@ -103,6 +105,11 @@ final result: passed
   global rate controls, active slots, and cyan footer follow the source grid.
 - Typography and colour: the production Yokko logo and existing navy, cyan,
   pink, yellow, ivory, and pale-cyan tokens preserve the source hierarchy.
+  Secondary labels, descriptions, slider ticks, page counters, and active-row
+  copy are sized for comfortable reading on the verified 2K-class viewport.
+- Assets: the workspace uses a transparent production logo, a dedicated paper
+  texture, and the source-matched waveform texture rather than placeholder
+  geometry.
 - Interaction: category rows and rail arrows are clickable; mouse wheel and
   Tab move between pages; orbit nodes support hover, click, and keyboard focus;
   the rate slider supports continuous drag and +/- nudging; active rows remove
@@ -111,27 +118,28 @@ final result: passed
   mutual exclusion, preferences, configuration state, score multiplier, and
   commit-on-handoff behaviour remain owned by `GameplayModsScreen`.
 - Responsive behaviour: the authored workspace remains centred on the shared
-  1600 x 900 layout and is scaled by Yokko's global UI-size container.
+  1600 x 900 layout and is scaled by Yokko's global UI-size container. The
+  enlarged text hierarchy was checked in both empty and active states without
+  clipping or node-label collisions.
 
 ## Findings
 
 - P0: none.
 - P1: none.
 - P2: none.
-- P3: the source uses subtle paper grain and partially broken technical arcs;
-  the implementation uses the existing clean ivory surface and crisp native
-  ring primitives.
-- P3: the reference shows `1.00x` while Half Time is active. The implementation
-  intentionally shows the truthful `0.75x` playback rate.
+- P3: the source's technical arcs contain irregular hand-authored breaks. The
+  native implementation keeps the same placement and visual weight with crisp
+  osu!framework ring primitives.
 
 ## Verification
 
-- `dotnet build Yokko.Game\Yokko.Game.csproj --no-restore`: passed with
-  0 warnings and 0 errors.
+- Isolated `dotnet build Yokko.Game.Tests\Yokko.Game.Tests.csproj
+  --no-restore --artifacts-path D:\yokko\artifacts\mods\orbit-pass2-build`:
+  passed with 0 warnings and 0 errors.
 - Focused `TestSceneGameplayModsScreen` suite: passed, 7/7.
-- Native Direct3D 11 preview and screenshot: exited with code 0.
-- Final source/implementation comparison reviewed at matching 1600 x 900
-  density.
+- Native Direct3D 11 empty-state and active-state previews: exited with code 0.
+- Final source/implementation comparison and 2K readability captures were
+  reviewed at matching authored density.
 
 final result: passed
 

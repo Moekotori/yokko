@@ -263,6 +263,11 @@ public static class QuaverBeatmapIO
             ? null
             : Path.GetFileName(path);
 
-    private static string number(double value) =>
-        value.ToString("R", CultureInfo.InvariantCulture);
+    private static string number(double value) => value switch
+    {
+        double.PositiveInfinity => ".inf",
+        double.NegativeInfinity => "-.inf",
+        _ when double.IsNaN(value) => ".nan",
+        _ => value.ToString("R", CultureInfo.InvariantCulture),
+    };
 }
