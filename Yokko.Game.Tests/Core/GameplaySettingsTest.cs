@@ -51,6 +51,13 @@ public sealed class GameplaySettingsTest
             Is.EqualTo(JudgementConfiguration.DefaultEtternaJustice));
         Assert.That(settings.ShowLanePressFeedback.Value, Is.True);
         Assert.That(settings.ShowTimingBar.Value, Is.True);
+        Assert.That(settings.LayoutPlayfieldOffsetX.Value, Is.Zero);
+        Assert.That(settings.LayoutPlayfieldOffsetY.Value, Is.Zero);
+        Assert.That(settings.LayoutHudOffsetX.Value, Is.Zero);
+        Assert.That(settings.LayoutHudOffsetY.Value, Is.Zero);
+        Assert.That(settings.LayoutPlayfieldWidthScale.Value, Is.EqualTo(1));
+        Assert.That(settings.LayoutTopCoverRatio.Value, Is.Zero);
+        Assert.That(settings.LayoutBottomCoverRatio.Value, Is.Zero);
         Assert.That(settings.KeysoundsEnabled.Value, Is.False);
         Assert.That(settings.MinesEnabled.Value, Is.True);
         Assert.That(settings.PauseWhenUnfocused.Value, Is.True);
@@ -362,6 +369,36 @@ public sealed class GameplaySettingsTest
     }
 
     [Test]
+    public void GameplayLayoutCanResetWithoutChangingGameplayRules()
+    {
+        var settings = new YokkoGameplaySettings();
+        settings.LayoutPlayfieldOffsetX.Value = 0.25;
+        settings.LayoutPlayfieldOffsetY.Value = -0.1;
+        settings.LayoutHudOffsetX.Value = -0.2;
+        settings.LayoutHudOffsetY.Value = 0.3;
+        settings.LayoutPlayfieldWidthScale.Value = 1.45;
+        settings.LayoutTopCoverRatio.Value = 0.32;
+        settings.LayoutBottomCoverRatio.Value = 0.18;
+        settings.ScrollSpeed.Value = 12;
+
+        settings.ResetGameplayLayout();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(settings.LayoutPlayfieldOffsetX.Value, Is.Zero);
+            Assert.That(settings.LayoutPlayfieldOffsetY.Value, Is.Zero);
+            Assert.That(settings.LayoutHudOffsetX.Value, Is.Zero);
+            Assert.That(settings.LayoutHudOffsetY.Value, Is.Zero);
+            Assert.That(
+                settings.LayoutPlayfieldWidthScale.Value,
+                Is.EqualTo(1));
+            Assert.That(settings.LayoutTopCoverRatio.Value, Is.Zero);
+            Assert.That(settings.LayoutBottomCoverRatio.Value, Is.Zero);
+            Assert.That(settings.ScrollSpeed.Value, Is.EqualTo(12));
+        });
+    }
+
+    [Test]
     public void GameplayPreferencesPersistAcrossConfigInstances()
     {
         string directory = Path.Combine(
@@ -400,6 +437,13 @@ public sealed class GameplaySettingsTest
                 firstSettings.SetEtternaJustice(8);
                 firstSettings.ShowLanePressFeedback.Value = false;
                 firstSettings.ShowTimingBar.Value = false;
+                firstSettings.LayoutPlayfieldOffsetX.Value = 0.22;
+                firstSettings.LayoutPlayfieldOffsetY.Value = -0.14;
+                firstSettings.LayoutHudOffsetX.Value = -0.18;
+                firstSettings.LayoutHudOffsetY.Value = 0.2;
+                firstSettings.LayoutPlayfieldWidthScale.Value = 1.35;
+                firstSettings.LayoutTopCoverRatio.Value = 0.28;
+                firstSettings.LayoutBottomCoverRatio.Value = 0.12;
                 firstSettings.KeysoundsEnabled.Value = false;
                 firstSettings.MinesEnabled.Value = false;
                 firstSettings.PauseWhenUnfocused.Value = false;
@@ -455,6 +499,27 @@ public sealed class GameplaySettingsTest
                 Assert.That(
                     restoredSettings.ShowTimingBar.Value,
                     Is.False);
+                Assert.That(
+                    restoredSettings.LayoutPlayfieldOffsetX.Value,
+                    Is.EqualTo(0.22).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutPlayfieldOffsetY.Value,
+                    Is.EqualTo(-0.14).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutHudOffsetX.Value,
+                    Is.EqualTo(-0.18).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutHudOffsetY.Value,
+                    Is.EqualTo(0.2).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutPlayfieldWidthScale.Value,
+                    Is.EqualTo(1.35).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutTopCoverRatio.Value,
+                    Is.EqualTo(0.28).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutBottomCoverRatio.Value,
+                    Is.EqualTo(0.12).Within(0.001));
                 Assert.That(
                     restoredSettings.KeysoundsEnabled.Value,
                     Is.False);

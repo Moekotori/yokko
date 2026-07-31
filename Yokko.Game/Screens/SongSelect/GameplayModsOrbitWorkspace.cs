@@ -188,14 +188,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         focusedMod = nextFocusedMod;
         selectedMods = nextSelectedMods;
 
-        foreach ((ManiaModCategory page, OrbitCategoryButton button)
-                 in categoryButtons)
-        {
-            button.SetSelected(page == category);
-        }
-
-        pageIndicator.Text =
-            $"{Array.IndexOf(pages, category) + 1:00} / {pages.Length:00}";
+        updateCategorySelection(category);
 
         if (rebuildOrbit)
             rebuildOrbitNodes();
@@ -214,15 +207,25 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
         foreach (OrbitConnector connector in connectors)
         {
+            bool startActivated =
+                transitionContains(activated, connector.StartMod);
+            bool endActivated =
+                transitionContains(activated, connector.EndMod);
+            bool startDeactivated =
+                transitionContains(deactivated, connector.StartMod);
+            bool endDeactivated =
+                transitionContains(deactivated, connector.EndMod);
+            bool hasTransition =
+                startActivated || endActivated
+                || startDeactivated || endDeactivated;
             connector.SetState(
                 isNodeActive(connector.StartMod)
                 || isNodeActive(connector.EndMod),
                 nodeRepresents(connector.StartMod, focusedMod)
                 || nodeRepresents(connector.EndMod, focusedMod),
-                transitionContains(activated, connector.StartMod)
-                || transitionContains(activated, connector.EndMod)
-                || transitionContains(deactivated, connector.StartMod)
-                || transitionContains(deactivated, connector.EndMod));
+                hasTransition,
+                startActivated || startDeactivated,
+                startActivated || endActivated);
         }
 
         ManiaModDefinition focusedDefinition =
@@ -247,6 +250,14 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         rateValue.Text = $"{value:0.00}x";
         rateSlider.SetState(true, 0.5, 2, value);
         updateRatePresetState(value);
+    }
+
+    internal void PreviewCategorySelection(ManiaModCategory nextCategory)
+    {
+        if (!built || !pages.Contains(nextCategory))
+            return;
+
+        updateCategorySelection(nextCategory);
     }
 
     internal ManiaModId? GetAdjacentMod(ManiaModId current, int offset)
@@ -300,27 +311,39 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         orbitHost.ClearTransforms();
         orbitHost
             .MoveToX(
-                orbit_host_resting_x - Math.Sign(direction) * 24,
-                115,
-                Easing.InCubic)
-            .FadeOut(90, Easing.OutQuint);
+                orbit_host_resting_x - Math.Sign(direction) * 18,
+                82,
+                Easing.OutQuint)
+            .FadeTo(0.06f, 72, Easing.OutQuint);
     }
 
     internal void TransitionIn(int direction)
     {
         orbitHost.ClearTransforms();
         orbitHost.X =
-            orbit_host_resting_x + Math.Sign(direction) * 34;
+            orbit_host_resting_x + Math.Sign(direction) * 26;
         orbitHost.Alpha = 0;
         orbitHost
-            .FadeIn(135, Easing.OutQuint)
+            .FadeIn(118, Easing.OutQuint)
             .MoveToX(
                 orbit_host_resting_x,
-                210,
+                172,
                 Easing.OutQuint);
     }
 
     internal float OrbitContentX => orbitHost?.X ?? orbit_host_resting_x;
+
+    private void updateCategorySelection(ManiaModCategory selectedCategory)
+    {
+        foreach ((ManiaModCategory page, OrbitCategoryButton button)
+                 in categoryButtons)
+        {
+            button.SetSelected(page == selectedCategory);
+        }
+
+        pageIndicator.Text =
+            $"{Array.IndexOf(pages, selectedCategory) + 1:00} / {pages.Length:00}";
+    }
 
     private Drawable createHeader(Texture logo) => new Container
     {
@@ -1663,7 +1686,15 @@ internal partial class OrbitCategoryButton : ClickableContainer
 
     internal void SetSelected(bool selected)
     {
+        if (this.selected == selected)
+            return;
+
         this.selected = selected;
+        background.ClearTransforms();
+        marker.ClearTransforms();
+        number.ClearTransforms();
+        icon.ClearTransforms();
+        label.ClearTransforms();
         background.FadeColour(
             selected
                 ? new Color4(
@@ -1676,6 +1707,14 @@ internal partial class OrbitCategoryButton : ClickableContainer
         marker.FadeColour(selected ? accent : HomeControlColours.Navy, 110);
         number.FadeColour(selected ? accent : HomeControlColours.Navy, 110);
         icon.ScaleTo(selected ? 1.08f : 1, 110, Easing.OutQuint);
+        label.FadeColour(
+            selected ? accent : HomeControlColours.Navy,
+            120,
+            Easing.OutQuint);
+        label.MoveToX(
+            selected ? 145 : 140,
+            155,
+            Easing.OutQuint);
         selectionDiamond.ClearTransforms();
         if (selected)
         {
@@ -1724,8 +1763,10 @@ internal partial class OrbitCategoryButton : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
-        label.MoveToX(135, 120, Easing.OutQuint);
-        label.FadeColour(HomeControlColours.Navy, 110);
+        label.MoveToX(selected ? 145 : 140, 120, Easing.OutQuint);
+        label.FadeColour(
+            selected ? accent : HomeControlColours.Navy,
+            110);
         icon.ScaleTo(selected ? 1.08f : 1, 110, Easing.OutQuint);
         background.FadeColour(
             selected
@@ -1751,14 +1792,25 @@ internal partial class OrbitConnector : CompositeDrawable
     private readonly SmoothPath main;
     private readonly SmoothPath outerRail;
     private readonly Circle signal;
+    private readonly Circle transitionPulse;
+    private readonly Circle transitionEcho;
     private readonly Circle startJoint;
     private readonly Circle endJoint;
     private readonly List<Box> dataTicks = new();
     private bool active;
     private bool focused;
+    private double? transitionStarted;
+    private bool transitionFromStart;
+    private bool transitionActivating;
 
     internal ManiaModId StartMod { get; }
     internal ManiaModId EndMod { get; }
+    internal bool TransitionRunning => transitionStarted.HasValue;
+    internal ManiaModId? TransitionOriginMod => transitionStarted.HasValue
+        ? transitionFromStart ? StartMod : EndMod
+        : null;
+    internal bool TransitionIsActivation =>
+        transitionStarted.HasValue && transitionActivating;
 
     internal OrbitConnector(
         ManiaModId startMod,
@@ -1804,6 +1856,8 @@ internal partial class OrbitConnector : CompositeDrawable
             BorderThickness = 2,
             BorderColour = HomeControlColours.Cyan,
         };
+        transitionPulse = createTransitionPulse(12);
+        transitionEcho = createTransitionPulse(7);
 
         InternalChildren =
         [
@@ -1813,6 +1867,8 @@ internal partial class OrbitConnector : CompositeDrawable
             startJoint,
             endJoint,
             signal,
+            transitionEcho,
+            transitionPulse,
         ];
 
         for (int i = 1; i <= 5; i++)
@@ -1839,9 +1895,10 @@ internal partial class OrbitConnector : CompositeDrawable
     internal void SetState(
         bool active,
         bool focused,
-        bool animateTransition = false)
+        bool animateTransition = false,
+        bool transitionFromStart = true,
+        bool transitionActivating = true)
     {
-        bool activeChanged = this.active != active;
         this.active = active;
         this.focused = focused;
 
@@ -1882,30 +1939,75 @@ internal partial class OrbitConnector : CompositeDrawable
                 focused ? 0.72f : active ? 0.5f : 0.26f);
         }
 
-        if (animateTransition && activeChanged)
+        if (animateTransition)
         {
+            this.transitionFromStart = transitionFromStart;
+            this.transitionActivating = transitionActivating;
+            transitionStarted = Time.Current;
+            Color4 transitionColour = transitionActivating
+                ? colour
+                : HomeControlColours.Yellow;
+            transitionPulse.BorderColour = transitionColour;
+            transitionEcho.BorderColour = transitionColour;
+            transitionPulse.Colour = Color4.White;
+            transitionEcho.Colour = Color4.White;
+            transitionPulse.Position =
+                transitionFromStart ? start : end;
+            transitionEcho.Position =
+                transitionFromStart ? start : end;
+            transitionPulse.Alpha = 0;
+            transitionEcho.Alpha = 0;
+
             glow.ClearTransforms();
-            glow.Alpha = active ? 0 : 1;
-            glow.FadeTo(1, active ? 260 : 170, Easing.OutQuint);
+            glow.Alpha = transitionActivating ? 0.18f : 1;
+            glow.FadeTo(1, transitionActivating ? 210 : 130, Easing.OutQuint);
             main.ClearTransforms();
-            main.Alpha = active ? 0.38f : 1;
-            main.FadeTo(1, active ? 210 : 150, Easing.OutQuint);
+            main.Alpha = transitionActivating ? 0.48f : 1;
+            main.FadeTo(1, transitionActivating ? 175 : 125, Easing.OutQuint);
             outerRail.ClearTransforms();
-            outerRail.MoveToY(active ? -2 : 2);
-            outerRail.MoveToY(0, 230, Easing.OutBack);
+            outerRail.MoveToY(transitionActivating ? -2 : 2);
+            outerRail.MoveToY(0, 190, Easing.OutBack);
             signal.ClearTransforms();
-            signal.ScaleTo(active ? 0.45f : 1.35f)
-                  .Then().ScaleTo(active ? 1.45f : 0.8f, 150, Easing.OutBack)
+            signal.ScaleTo(transitionActivating ? 0.45f : 1.35f)
+                  .Then().ScaleTo(
+                      transitionActivating ? 1.45f : 0.8f,
+                      135,
+                      Easing.OutBack)
                   .Then().ScaleTo(1, 120, Easing.OutQuint);
-            startJoint.ClearTransforms();
-            endJoint.ClearTransforms();
-            startJoint.ScaleTo(0.6f)
-                      .Then().ScaleTo(1.3f, 150, Easing.OutBack)
-                      .Then().ScaleTo(1, 110, Easing.OutQuint);
-            endJoint.Delay(65)
-                    .ScaleTo(0.6f)
-                    .Then().ScaleTo(1.3f, 150, Easing.OutBack)
-                    .Then().ScaleTo(1, 110, Easing.OutQuint);
+            Circle originJoint =
+                transitionFromStart ? startJoint : endJoint;
+            Circle destinationJoint =
+                transitionFromStart ? endJoint : startJoint;
+            originJoint.ClearTransforms();
+            destinationJoint.ClearTransforms();
+            originJoint.ScaleTo(0.62f)
+                       .Then().ScaleTo(1.38f, 135, Easing.OutBack)
+                       .Then().ScaleTo(1, 105, Easing.OutQuint);
+            destinationJoint.Delay(125)
+                            .ScaleTo(0.7f)
+                            .Then().ScaleTo(
+                                1.32f,
+                                145,
+                                Easing.OutBack)
+                            .Then().ScaleTo(
+                                1,
+                                105,
+                                Easing.OutQuint);
+
+            for (int i = 0; i < dataTicks.Count; i++)
+            {
+                int order = transitionFromStart
+                    ? i
+                    : dataTicks.Count - 1 - i;
+                Box tick = dataTicks[i];
+                tick.ClearTransforms();
+                tick.Alpha = 0.3f;
+                tick.Delay(order * 34)
+                    .FadeIn(60, Easing.OutQuint)
+                    .ScaleTo(new Vector2(1.55f, 1), 85, Easing.OutBack)
+                    .Then()
+                    .ScaleTo(Vector2.One, 110, Easing.OutQuint);
+            }
         }
     }
 
@@ -1922,6 +2024,46 @@ internal partial class OrbitConnector : CompositeDrawable
                       + 0.28f * MathF.Sin((float)(Time.Current / 170));
         signal.Alpha = (focused ? 0.8f : active ? 0.62f : 0.2f)
                        + pulse * (focused ? 0.2f : active ? 0.18f : 0.1f);
+
+        if (transitionStarted is not double started)
+            return;
+
+        const double duration = 520;
+        double elapsed = Time.Current - started;
+        if (elapsed >= duration)
+        {
+            transitionStarted = null;
+            transitionPulse.Alpha = 0;
+            transitionEcho.Alpha = 0;
+            return;
+        }
+
+        float progress = (float)Math.Clamp(elapsed / duration, 0, 1);
+        float directedProgress = transitionFromStart
+            ? progress
+            : 1 - progress;
+        transitionPulse.Position =
+            quadratic(start, control, end, directedProgress);
+        transitionPulse.Alpha =
+            MathF.Sin(progress * MathF.PI)
+            * (transitionActivating ? 1 : 0.82f);
+        transitionPulse.Scale = new Vector2(
+            0.72f + MathF.Sin(progress * MathF.PI) * 0.65f);
+
+        float echoProgress = (float)Math.Clamp(
+            (elapsed - 78) / (duration - 78),
+            0,
+            1);
+        float directedEchoProgress = transitionFromStart
+            ? echoProgress
+            : 1 - echoProgress;
+        transitionEcho.Position =
+            quadratic(start, control, end, directedEchoProgress);
+        transitionEcho.Alpha = elapsed < 78
+            ? 0
+            : MathF.Sin(echoProgress * MathF.PI) * 0.56f;
+        transitionEcho.Scale = new Vector2(
+            0.68f + MathF.Sin(echoProgress * MathF.PI) * 0.38f);
     }
 
     private static SmoothPath createPath(
@@ -1958,6 +2100,17 @@ internal partial class OrbitConnector : CompositeDrawable
             RelativeSizeAxes = Axes.Both,
             Colour = Color4.White,
         },
+    };
+
+    private static Circle createTransitionPulse(float size) => new()
+    {
+        Origin = Anchor.Centre,
+        Size = new Vector2(size),
+        Colour = Color4.White,
+        Alpha = 0,
+        Masking = true,
+        BorderThickness = 2,
+        BorderColour = HomeControlColours.Cyan,
     };
 
     private static Vector2 quadratic(

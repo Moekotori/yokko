@@ -335,6 +335,23 @@ namespace Yokko.Game.Tests
                         400);
                 }
 
+                if (Enum.TryParse(
+                        Environment.GetEnvironmentVariable(
+                            "YOKKO_SETTINGS_GAMEPLAY_SECTION"),
+                        true,
+                        out Screens.Settings.GameplaySettingsSection
+                            gameplaySection))
+                {
+                    Scheduler.AddDelayed(() =>
+                    {
+                        settingsScreen.OpenPage(
+                            Screens.Settings.SettingsPageKind.Gameplay);
+                        ((Screens.Settings.GameplaySettingsPanel)
+                            settingsScreen.ActivePanel)
+                            .SelectSection(gameplaySection);
+                    }, 500);
+                }
+
                 schedulePreviewScreenshot(1200);
                 return;
             }

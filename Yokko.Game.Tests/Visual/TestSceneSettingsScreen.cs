@@ -368,6 +368,10 @@ namespace Yokko.Game.Tests.Visual
             AddStep("open judgement", () =>
                 gameplay.SelectSection(
                     GameplaySettingsSection.Judgement));
+            AddStep("select Yokko judgement", () =>
+                gameplay.SetJudgementMode(JudgementMode.Yokko));
+            AddAssert("Etterna Judge control is disabled", () =>
+                !gameplay.IsEtternaJusticeControlEnabled);
             AddStep("select Etterna J8", () =>
             {
                 gameplay.SetJudgementMode(JudgementMode.Etterna);
@@ -376,7 +380,8 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("Etterna J8 selected", () =>
                 gameplay.CurrentJudgementMode
                     == JudgementMode.Etterna
-                && gameplay.CurrentEtternaJustice == 8);
+                && gameplay.CurrentEtternaJustice == 8
+                && gameplay.IsEtternaJusticeControlEnabled);
             AddStep("open feedback", () =>
                 gameplay.SelectSection(GameplaySettingsSection.Feedback));
             AddStep("disable lane feedback", () =>
@@ -438,6 +443,30 @@ namespace Yokko.Game.Tests.Visual
                     YokkoGameplaySettings
                         .DefaultResumeCountdownMilliseconds);
             });
+        }
+
+        [Test]
+        public void TestGameplayOverflowContentCanScroll()
+        {
+            GameplaySettingsPanel gameplay = null;
+
+            AddStep("open Gameplay feedback", () =>
+            {
+                settingsScreen.OpenPage(SettingsPageKind.Gameplay);
+                gameplay =
+                    (GameplaySettingsPanel)settingsScreen.ActivePanel;
+                gameplay.SelectSection(GameplaySettingsSection.Feedback);
+            });
+            AddAssert("feedback content exceeds viewport", () =>
+                gameplay.ContentScrollableExtent > 0);
+            AddStep("scroll feedback content", () =>
+                gameplay.ScrollContentBy(1000));
+            AddAssert("feedback content scrolls", () =>
+                gameplay.ContentScrollPosition > 0);
+            AddStep("switch to timing", () =>
+                gameplay.SelectSection(GameplaySettingsSection.Timing));
+            AddAssert("new section starts at top", () =>
+                gameplay.ContentScrollPosition == 0);
         }
 
         [Test]

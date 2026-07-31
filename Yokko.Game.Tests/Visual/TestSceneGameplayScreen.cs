@@ -822,6 +822,56 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestGameplayLayoutEditorPausesAndShowsFullPagePreview()
+        {
+            GameplayScreen gameplayScreen = null;
+
+            AddStep("open gameplay layout fixture", () =>
+            {
+                gameplayScreen = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo());
+                screenStack.Push(gameplayScreen);
+            });
+            AddUntilStep("gameplay layout loaded", () =>
+                gameplayScreen?
+                    .ChildrenOfType<GameplayLayoutEditorOverlay>()
+                    .SingleOrDefault() != null);
+            AddStep("pause gameplay", gameplayScreen.TogglePause);
+            AddUntilStep("pause menu is ready", () =>
+                gameplayScreen.IsPaused
+                && gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .SingleOrDefault() != null);
+            AddStep("open layout editor from pause menu", () =>
+            {
+                GameplayPauseOverlay pauseOverlay = gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single();
+                pauseOverlay.SelectNext();
+                pauseOverlay.SelectNext();
+                pauseOverlay.TriggerSelected();
+            });
+            AddUntilStep("layout editor is active", () =>
+                gameplayScreen.IsLayoutEditing);
+            AddAssert("gameplay is paused while arranging", () =>
+                gameplayScreen.IsPaused);
+            AddAssert("overview keeps full page aspect ratio", () =>
+                Math.Abs(
+                    gameplayScreen.LayoutOverviewAspectRatio
+                    - 16f / 9f) < 0.001f);
+            AddStep("save layout and return", () =>
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Escape,
+                    false,
+                    false,
+                    false));
+            AddUntilStep("layout editor closes", () =>
+                !gameplayScreen.IsLayoutEditing);
+            AddAssert("pause menu remains available", () =>
+                gameplayScreen.IsPaused);
+        }
+
+        [Test]
         public void TestControlScrollResizesPlayfieldWidthOnly()
         {
             GameplayScreen gameplayScreen = null;
@@ -3282,7 +3332,7 @@ HitPosition: 400
                 GameplayPauseOverlay overlay = gameplayScreen
                                                .ChildrenOfType<GameplayPauseOverlay>()
                                                .SingleOrDefault();
-                return overlay?.ActionCount == 4
+                return overlay?.ActionCount == 5
                        && overlay.SelectedAction == 0
                        && overlay.DisplayedScore == 0
                        && Math.Abs(overlay.DisplayedAccuracy - 1) < 0.0001

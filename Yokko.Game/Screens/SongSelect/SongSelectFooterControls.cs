@@ -27,16 +27,16 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
         Texture diamondTexture)
     {
         Action = action;
-        Size = new Vector2(174, 74);
+        Size = new Vector2(194, 78);
 
         Container panel = SongSelectSurface.CreateCard(
             out background,
-            SongSelectSurface.Ivory(),
+            SongSelectTheme.Pink,
             new Color4(
                 SongSelectTheme.Cyan.R,
                 SongSelectTheme.Cyan.G,
                 SongSelectTheme.Cyan.B,
-                0.48f),
+                0.72f),
             10,
             1.25f);
 
@@ -80,7 +80,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
                 Y = -2,
                 Text = "BACK",
                 Font = HomeTypography.Display(20),
-                Colour = HomeControlColours.Navy,
+                Colour = Color4.White,
             },
             chevron = new SpriteIcon
             {
@@ -126,7 +126,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
 
     protected override bool OnHover(HoverEvent e)
     {
-        background.FadeColour(HomeControlColours.PaleCyan, 120, Easing.OutQuint);
+        background.FadeColour(SongSelectTheme.Navy, 120, Easing.OutQuint);
         underline.ResizeWidthTo(58, 150, Easing.OutQuint);
         chevron.MoveToX(-9, 150, Easing.OutQuint);
         this.ScaleTo(1.018f, 120, Easing.OutQuint);
@@ -135,9 +135,102 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
-        background.FadeColour(SongSelectSurface.Ivory(), 140, Easing.OutQuint);
+        background.FadeColour(SongSelectTheme.Pink, 140, Easing.OutQuint);
         underline.ResizeWidthTo(0, 130, Easing.OutQuint);
         chevron.MoveToX(-13, 130, Easing.OutQuint);
         this.ScaleTo(1, 140, Easing.OutQuint);
+    }
+}
+
+internal partial class SongSelectFooterToolButton : ClickableContainer
+{
+    private readonly Box background;
+    private readonly Color4 accent;
+
+    public SongSelectFooterToolButton(
+        string label,
+        IconUsage icon,
+        Color4 accent,
+        Action action)
+    {
+        this.accent = accent;
+        Action = action;
+        Size = new Vector2(112, 82);
+        Masking = true;
+        CornerRadius = 10;
+        BorderThickness = 1.25f;
+        BorderColour = new Color4(
+            accent.R,
+            accent.G,
+            accent.B,
+            0.55f);
+
+        InternalChildren =
+        [
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = new Color4(
+                    SongSelectTheme.SurfaceRaised.R,
+                    SongSelectTheme.SurfaceRaised.G,
+                    SongSelectTheme.SurfaceRaised.B,
+                    0.94f),
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 14,
+                Size = new Vector2(27),
+                Icon = icon,
+                Colour = accent,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.BottomCentre,
+                Origin = Anchor.BottomCentre,
+                Y = -11,
+                Text = label,
+                Font = HomeTypography.Display(9),
+                Spacing = new Vector2(1.2f, 0),
+                Colour = Color4.White,
+            },
+            new Box
+            {
+                Anchor = Anchor.BottomCentre,
+                Origin = Anchor.BottomCentre,
+                Y = -4,
+                Width = 36,
+                Height = 3,
+                Colour = accent,
+            },
+        ];
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(
+            new Color4(
+                accent.R,
+                accent.G,
+                accent.B,
+                0.28f),
+            110,
+            Easing.OutQuint);
+        this.ScaleTo(1.025f, 110, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        background.FadeColour(
+            new Color4(
+                SongSelectTheme.SurfaceRaised.R,
+                SongSelectTheme.SurfaceRaised.G,
+                SongSelectTheme.SurfaceRaised.B,
+                0.94f),
+            130,
+            Easing.OutQuint);
+        this.ScaleTo(1, 130, Easing.OutQuint);
     }
 }

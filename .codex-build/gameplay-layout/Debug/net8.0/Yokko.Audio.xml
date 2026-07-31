@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Yokko.Audio</name>
+    </assembly>
+    <members>
+        <member name="T:Yokko.Audio.AudioClockCorrelation">
+            <summary>
+            Correlates an endpoint-presented audio frame with a monotonic timestamp.
+            </summary>
+        </member>
+        <member name="M:Yokko.Audio.AudioClockCorrelation.#ctor(System.UInt64,System.UInt64,System.Int32,System.Int64,System.Int64)">
+            <summary>
+            Correlates an endpoint-presented audio frame with a monotonic timestamp.
+            </summary>
+        </member>
+        <member name="T:Yokko.Audio.AudioEngineSnapshot">
+            <summary>
+            A coherent, allocation-free observation of audio state and playback time.
+            </summary>
+        </member>
+        <member name="M:Yokko.Audio.AudioEngineSnapshot.#ctor(Yokko.Audio.AudioEngineStatus,System.Double,Yokko.Audio.AudioClockCorrelation)">
+            <summary>
+            A coherent, allocation-free observation of audio state and playback time.
+            </summary>
+        </member>
+        <member name="T:Yokko.Audio.ITimestampedPreparedAudioSamplePlayback">
+            <summary>
+            Optional prepared-sample path which correlates an input capture timestamp
+            with native queue consumption and the first output buffer containing it.
+            </summary>
+        </member>
+        <member name="M:Yokko.Audio.IAudioRateControl.SetPlaybackRate(System.Double)">
+            <summary>
+            Changes the streamed song rate. One-shot gameplay samples keep their
+            original playback rate.
+            </summary>
+        </member>
+        <member name="T:Yokko.Audio.IAudioSamplePlayback">
+            <summary>
+            Optional low-latency one-shot sample capability exposed by an audio engine.
+            Samples are prepared off the gameplay input path and triggered without
+            entering the prefetched music queue.
+            </summary>
+        </member>
+        <member name="T:Yokko.Audio.IAudioSamplePlaybackWithGain">
+            <summary>
+            Optional per-trigger gain used by beatmap hit sample volumes. The gain is
+            applied in addition to the global hit-sound bus volume.
+            </summary>
+        </member>
+        <member name="T:Yokko.Audio.IAudioLoopingSamplePlayback">
+            <summary>
+            Optional callback-owned looping sample capability used by lazer-style
+            sliding hold samples. A zero handle means that the loop could not start.
+            </summary>
+        </member>
+        <member name="T:Yokko.Audio.IPreparedAudioSamplePlayback">
+            <summary>
+            Optional prepared-sample fast path. Path lookup happens once while binding
+            the handle rather than for every gameplay input edge.
+            </summary>
+        </member>
+        <member name="T:Yokko.Audio.ITimestampedAudioClock">
+            <summary>
+            Maps monotonic input timestamps onto the authoritative playback timeline.
+            </summary>
+        </member>
+        <member name="T:Yokko.Audio.PreparedAudioSampleHandle">
+            <summary>
+            Identifies a sample prepared by a specific audio engine. Handles remain
+            valid while the same prepared sample set is rebound to a restarted core.
+            </summary>
+        </member>
+    </members>
+</doc>

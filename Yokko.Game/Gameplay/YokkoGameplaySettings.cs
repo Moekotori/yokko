@@ -129,7 +129,7 @@ public sealed class YokkoGameplaySettings
 
     public const double MaximumLayoutOffset = 0.75;
 
-    public const double MinimumPlayfieldWidthScale = 0.35;
+    public const double MinimumPlayfieldWidthScale = 0.2;
 
     public const double MaximumPlayfieldWidthScale = 2.5;
 

@@ -75,9 +75,10 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     private readonly GameplayPauseSnapshot snapshot;
     private readonly Action resume;
     private readonly Action retry;
+    private readonly Action openLayoutEditor;
     private readonly Action openSettings;
     private readonly Action exitGameplay;
-    private readonly PauseActionButton[] actions = new PauseActionButton[4];
+    private readonly PauseActionButton[] actions = new PauseActionButton[5];
 
     private Container stage;
     private Container parallaxBack;
@@ -101,13 +102,15 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         Action resume,
         Action retry,
         Action openSettings,
-        Action exitGameplay)
+        Action exitGameplay,
+        Action openLayoutEditor = null)
     {
         this.beatmap = beatmap;
         this.gameplaySettings = gameplaySettings;
         this.snapshot = snapshot;
         this.resume = resume;
         this.retry = retry;
+        this.openLayoutEditor = openLayoutEditor ?? (() => { });
         this.openSettings = openSettings;
         this.exitGameplay = exitGameplay;
 
@@ -448,36 +451,54 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             HomeControlColours.Pink,
             retry,
             () => selectAction(1),
-            1)
+            1,
+            4)
         {
             Position = new Vector2(leftContentX, 562),
         };
         actions[2] = new PauseActionButton(
+            "HUD 布局",
+            string.Empty,
+            FontAwesome.Solid.ThLarge,
+            false,
+            HomeControlColours.Yellow,
+            openLayoutEditor,
+            () => selectAction(2),
+            2,
+            4)
+        {
+            Position = new Vector2(
+                leftContentX + leftContentWidth / 4,
+                562),
+        };
+        actions[3] = new PauseActionButton(
             YokkoStrings.Get("gameplay.pause.settings"),
             string.Empty,
             FontAwesome.Solid.Cog,
             false,
             HomeControlColours.Cyan,
             openSettings,
-            () => selectAction(2),
-            2)
+            () => selectAction(3),
+            3,
+            4)
         {
             Position = new Vector2(
-                leftContentX + leftContentWidth / 3,
+                leftContentX + leftContentWidth / 2,
                 562),
         };
-        actions[3] = new PauseActionButton(
+        actions[4] = new PauseActionButton(
             YokkoStrings.Get("gameplay.pause.exit"),
             string.Empty,
             FontAwesome.Solid.SignOutAlt,
             false,
             HomeControlColours.Pink,
             exitGameplay,
-            () => selectAction(3),
-            3)
+            () => selectAction(4),
+            4,
+            4)
         {
             Position = new Vector2(
-                leftContentX + leftContentWidth * 2 / 3,
+                leftContentX + leftContentWidth * 3 / 4,
                 562),
         };
 
@@ -513,15 +534,18 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             RelativeSizeAxes = Axes.Both,
                             Colour = HomeControlColours.Ivory,
                         },
-                        createSecondaryDivider(leftContentWidth / 3 + 5),
+                        createSecondaryDivider(leftContentWidth / 4 + 5),
                         createSecondaryDivider(
-                            leftContentWidth * 2 / 3 + 5),
+                            leftContentWidth / 2 + 5),
+                        createSecondaryDivider(
+                            leftContentWidth * 3 / 4 + 5),
                     },
                 },
                 actions[0],
                 actions[1],
                 actions[2],
                 actions[3],
+                actions[4],
             },
         };
     }
@@ -1983,18 +2007,20 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             Color4 accentColour,
             Action action,
             Action hoverAction,
-            int index = 0)
+            int index = 0,
+            int secondaryColumnCount = 3)
         {
             this.primary = primary;
             this.hoverAction = hoverAction;
             Action = action;
+            bool compact = !primary && secondaryColumnCount >= 4;
             Size = primary
                 ? new Vector2(primaryActionWidth, primaryActionHeight)
-                : new Vector2(leftContentWidth / 3, 76);
+                : new Vector2(leftContentWidth / secondaryColumnCount, 76);
 
-            float iconSize = primary ? 82 : 44;
-            float iconInset = primary ? 22 : 10;
-            float textX = primary ? 132 : 60;
+            float iconSize = primary ? 82 : compact ? 34 : 44;
+            float iconInset = primary ? 22 : compact ? 7 : 10;
+            float textX = primary ? 132 : compact ? 47 : 60;
 
             InternalChildren = new Drawable[]
             {
@@ -2107,7 +2133,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                                     Origin = Anchor.Centre,
                                     Size = primary
                                         ? new Vector2(32)
-                                        : new Vector2(21),
+                                        : new Vector2(compact ? 17 : 21),
                                     Icon = icon,
                                     Colour = HomeControlColours.Navy,
                                 },
@@ -2122,7 +2148,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             Text = title,
                             Font = primary
                                 ? PauseTypography.Display(38)
-                                : PauseTypography.Display(16),
+                                : PauseTypography.Display(compact ? 13 : 16),
                             Spacing = primary
                                 ? Vector2.Zero
                                 : new Vector2(0.4f, 0),

@@ -25,6 +25,7 @@ using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
 using Yokko.Audio;
 using Yokko.Game.Audio;
+using Yokko.Game.Configuration;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Input;
 using Yokko.Game.Importing;
@@ -87,11 +88,15 @@ public partial class GameplayScreen : Screen
     private GameplayReplayStore replayStore { get; set; }
     [Resolved]
     private ImportedChartLibrary importedChartLibrary { get; set; }
+    [Resolved]
+    private YokkoConfigManager yokkoConfig { get; set; }
 
     private BeatmapJudgementState judgementState;
     private ManiaHealthState healthState;
     private ManiaAdaptiveSpeedState adaptiveSpeedState;
     private GameplayPlayfield playfield;
+    private GameplayLaneCovers laneCovers;
+    private GameplayLayoutEditorOverlay layoutEditor;
     private KeyModeBindings keyBindings;
     private bool[] pressedLanes;
     private double startTimeMilliseconds;
@@ -184,6 +189,9 @@ public partial class GameplayScreen : Screen
         completionTransitionElapsedMilliseconds;
     internal bool GameplayFailed => gameplayFailed;
     internal bool IsPaused => isPaused;
+    internal bool IsLayoutEditing => layoutEditor?.IsEditing == true;
+    internal float LayoutOverviewAspectRatio =>
+        layoutEditor?.OverviewAspectRatio ?? 0;
     internal bool PauseTransitionInProgress => pauseTransitionInProgress;
     internal bool ResumeCountdownInProgress => resumeCountdownInProgress;
     internal bool QuickRetryHoldActive =>
@@ -430,6 +438,9 @@ public partial class GameplayScreen : Screen
                 // skin geometry.
                 Scale = Vector2.One,
             },
+            laneCovers = new GameplayLaneCovers(
+                playfield,
+                gameplaySettings),
             hud = new GameplayHud(
                 beatmap,
                 mods,
@@ -474,7 +485,19 @@ public partial class GameplayScreen : Screen
                     GameplayPlaybackRateOverlay.TopOffset),
                 Depth = -111,
             },
+            layoutEditor = new GameplayLayoutEditorOverlay(
+                playfield,
+                hud,
+                gameplaySettings,
+                saveGameplayLayout,
+                closeGameplayLayoutEditor),
         };
+
+        playfieldWidthScale = (float)Math.Clamp(
+            gameplaySettings.LayoutPlayfieldWidthScale.Value,
+            YokkoGameplaySettings.MinimumPlayfieldWidthScale,
+            YokkoGameplaySettings.MaximumPlayfieldWidthScale);
+        playfield.SetWidthScale(playfieldWidthScale);
 
         if (mods.IsCinema)
         {
@@ -639,6 +662,16 @@ public partial class GameplayScreen : Screen
         if (DrawHeight <= 0 || playfield.Height <= 0)
             return;
 
+        float requestedWidthScale = (float)Math.Clamp(
+            gameplaySettings.LayoutPlayfieldWidthScale.Value,
+            YokkoGameplaySettings.MinimumPlayfieldWidthScale,
+            YokkoGameplaySettings.MaximumPlayfieldWidthScale);
+        if (Math.Abs(playfieldWidthScale - requestedWidthScale) > 0.0001f)
+        {
+            playfieldWidthScale = requestedWidthScale;
+            playfield.SetWidthScale(playfieldWidthScale);
+        }
+
         float verticalScale = DrawHeight / playfield.Height;
         float horizontalScale = verticalScale;
         float playfieldLeft;
@@ -687,6 +720,19 @@ public partial class GameplayScreen : Screen
                 DrawWidth / 2 - playfield.Width * horizontalScale / 2;
         }
         playfield.Scale = new Vector2(horizontalScale, verticalScale);
+        playfield.X += (float)gameplaySettings.LayoutPlayfieldOffsetX.Value
+                       * DrawWidth;
+        playfield.Y = (float)gameplaySettings.LayoutPlayfieldOffsetY.Value
+                      * DrawHeight;
+        playfieldLeft +=
+            (float)gameplaySettings.LayoutPlayfieldOffsetX.Value
+            * DrawWidth;
+
+        hud.Position = new Vector2(
+            -20
+            + (float)gameplaySettings.LayoutHudOffsetX.Value * DrawWidth,
+            20
+            + (float)gameplaySettings.LayoutHudOffsetY.Value * DrawHeight);
 
         scrollSpeedOverlay.X = Math.Clamp(
             playfieldLeft
@@ -704,6 +750,9 @@ public partial class GameplayScreen : Screen
 
     protected override bool OnScroll(ScrollEvent e)
     {
+        if (layoutEditor?.IsEditing == true)
+            return true;
+
         if (isPaused)
             return true;
 
@@ -735,6 +784,19 @@ public partial class GameplayScreen : Screen
     {
         if (retryTransitionInProgress)
             return true;
+
+        if (layoutEditor?.IsEditing == true)
+        {
+            if (!repeat && key is Key.Enter or Key.Escape)
+                layoutEditor.SaveAndClose();
+            else if (!repeat && key == Key.R)
+            {
+                gameplaySettings.ResetGameplayLayout();
+                saveGameplayLayout();
+            }
+
+            return true;
+        }
 
         if (resumeCountdownInProgress)
         {
@@ -2062,7 +2124,8 @@ public partial class GameplayScreen : Screen
             TogglePause,
             RetryGameplay,
             () => this.Push(new SettingsScreen()),
-            exitPausedGameplay);
+            exitPausedGameplay,
+            openGameplayLayoutEditorFromPause);
 
     private void beginResumeCountdown()
     {
@@ -2898,9 +2961,40 @@ public partial class GameplayScreen : Screen
             playfieldWidthScale + Math.Sign(scrollDelta) * playfieldWidthStep,
             minimumPlayfieldWidthScale,
             maximumPlayfieldWidthScale);
+        gameplaySettings.LayoutPlayfieldWidthScale.Value =
+            playfieldWidthScale;
         playfield.SetWidthScale(playfieldWidthScale);
         return true;
     }
+
+    private void openGameplayLayoutEditorFromPause()
+    {
+        if (layoutEditor == null
+            || layoutEditor.IsEditing
+            || !isPaused
+            || gameplayBlocked
+            || gameplayCompleted
+            || gameplayFailed
+            || retryTransitionInProgress)
+        {
+            return;
+        }
+
+        if (pauseOverlay != null)
+            pauseOverlay.Alpha = 0;
+
+        layoutEditor.SetEditing(true);
+    }
+
+    private void closeGameplayLayoutEditor()
+    {
+        layoutEditor?.SetEditing(false);
+
+        if (pauseOverlay != null)
+            pauseOverlay.Alpha = 1;
+    }
+
+    private void saveGameplayLayout() => yokkoConfig.Save();
 
     internal bool HandleIntroSkip()
     {

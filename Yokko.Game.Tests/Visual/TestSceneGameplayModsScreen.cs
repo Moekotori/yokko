@@ -329,6 +329,8 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         OrbitRatePresetButton fastPreset = null;
         OrbitRateSlider rateSlider = null;
         bool activationObserved = false;
+        bool connectorActivationObserved = false;
+        bool connectorDeactivationObserved = false;
         ManiaModId focused = default;
         AddStep("prepare quick interaction controls", () =>
         {
@@ -348,16 +350,69 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             activationObserved = this.ChildrenOfType<OrbitModNode>()
                 .Single(node => node.ModId == focused)
                 .ActivationTransitionRunning;
+            OrbitConnector[] connected =
+                this.ChildrenOfType<OrbitConnector>()
+                    .Where(connector =>
+                        connector.StartMod == focused
+                        || connector.EndMod == focused)
+                    .ToArray();
+            connectorActivationObserved = connected.Length > 0
+                && connected.All(connector =>
+                        connector.TransitionRunning
+                        && connector.TransitionOriginMod == focused
+                        && connector.TransitionIsActivation);
         });
         AddAssert("empty slot activates focused mod", () =>
             modsScreen.SelectedMods.Contains(focused));
         AddAssert("activation has a visible transition", () =>
             activationObserved);
+        AddAssert("activation travels through connected lines", () =>
+            connectorActivationObserved);
+        AddStep("remove focused mod again", () =>
+        {
+            modsScreen.ToggleMod(focused);
+            OrbitConnector[] connected =
+                this.ChildrenOfType<OrbitConnector>()
+                    .Where(connector =>
+                        connector.StartMod == focused
+                        || connector.EndMod == focused)
+                    .ToArray();
+            connectorDeactivationObserved = connected.Length > 0
+                && connected.All(connector =>
+                        connector.TransitionRunning
+                        && connector.TransitionOriginMod == focused
+                        && !connector.TransitionIsActivation);
+        });
+        AddAssert("deactivation travels back through connected lines", () =>
+            connectorDeactivationObserved);
         AddStep("select 1.50x rate preset", () =>
             fastPreset.ActivateForTest());
         AddAssert("rate preset applies Double Time rate", () =>
             modsScreen.SelectedMods.FixedRateMod == ManiaModId.DoubleTime
             && Math.Abs(modsScreen.SelectedMods.PlaybackRate - 1.5) < 0.005);
+    }
+
+    [Test]
+    public void TestOrbitSidebarSwitchUsesLatestSelection()
+    {
+        AddStep("prepare first category", () =>
+            modsScreen.SetCategory(
+                ManiaModCategory.DifficultyReduction));
+        AddStep("switch twice without waiting", () =>
+        {
+            modsScreen.NavigateToCategoryPage(
+                ManiaModCategory.DifficultyIncrease);
+            modsScreen.NavigateToCategoryPage(
+                ManiaModCategory.Fun);
+        });
+        AddAssert("latest switch remains in motion", () =>
+            modsScreen.IsPageTransitioning);
+        AddWaitStep("wait for interruptible transition", 20);
+        AddAssert("latest sidebar selection wins", () =>
+            !modsScreen.IsPageTransitioning
+            && modsScreen.ActiveCategory == ManiaModCategory.Fun
+            && modsScreen.DetailMod == ManiaModId.WindUp
+            && Math.Abs(modsScreen.OrbitContentX - 335) < 0.01f);
     }
 
     [Test]
@@ -438,6 +493,22 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         });
         AddWaitStep("wait for entrance animation", 30);
         AddStep("capture gameplay mods", captureScreenshot);
+        AddUntilStep("screenshot saved", () => screenshotSaved);
+    }
+
+    [Test]
+    public void TestOrbitActivationMotionFrame()
+    {
+        AddStep("prepare inactive connected mod", () =>
+        {
+            modsScreen.ResetMods();
+            modsScreen.SetCategory(
+                ManiaModCategory.DifficultyReduction);
+        });
+        AddStep("activate connected Half Time", () =>
+            modsScreen.ToggleMod(ManiaModId.HalfTime));
+        AddWaitStep("advance into connector pulse", 6);
+        AddStep("capture connector pulse", captureScreenshot);
         AddUntilStep("screenshot saved", () => screenshotSaved);
     }
 

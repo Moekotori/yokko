@@ -50,8 +50,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private SpriteText statusMetadata;
     private Circle statusIconBackground;
     private GameplayCompactButton calibrationButton;
-    private readonly Container contentHost;
+    private readonly BasicScrollContainer contentHost;
     private GameplayBindingCard capturingCard;
+    private GameplayEtternaJusticeControls etternaJusticeControls;
     private SpriteText keyCaptureHint;
     private CancellationTokenSource calibrationRunCancellation;
     private GameplayCalibrationSession calibrationSession;
@@ -88,6 +89,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal int CurrentEtternaJustice =>
         settings.GetJudgementConfiguration().EtternaJustice;
 
+    internal bool IsEtternaJusticeControlEnabled =>
+        etternaJusticeControls?.IsEnabled
+        ?? settings.JudgementMode.Value == JudgementMode.Etterna;
+
     internal bool ShowLanePressFeedback =>
         settings.ShowLanePressFeedback.Value;
 
@@ -117,6 +122,11 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal int PressedKeyCount => pressedKeys.Count;
 
+    internal double ContentScrollableExtent =>
+        contentHost?.ScrollableExtent ?? 0;
+
+    internal double ContentScrollPosition => contentHost?.Current ?? 0;
+
     public GameplaySettingsPanel(
         YokkoGameplaySettings settings,
         YokkoAudioSettings audioSettings,
@@ -141,10 +151,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 4),
             createStatusCard(),
             createSectionTabs(),
-            contentHost = new Container
+            contentHost = new BasicScrollContainer(Direction.Vertical)
             {
                 Position = new Vector2(378, 320),
                 Size = new Vector2(840, 296),
+                ScrollbarOverlapsContent = true,
+                ScrollbarVisible = false,
             },
             new SettingsPanelFooter(),
             new HomeDotCross
@@ -178,6 +190,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal void SelectSection(GameplaySettingsSection section) =>
         showSection(section, true);
+
+    internal void ScrollContentBy(double offset) =>
+        contentHost.ScrollBy(offset, false);
 
     internal void SelectKeyMode(KeyMode keyMode)
     {
@@ -900,32 +915,15 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Size = new Vector2(800, 1),
                 Colour = SettingsTheme.Divider,
             },
-            createControlLabel(
-                YokkoStrings.Get("settings.gameplay.etterna_justice"),
-                YokkoStrings.Get(
-                    "settings.gameplay.etterna_justice_note"),
-                20,
-                162),
-            new GameplayValueStepper(
+            etternaJusticeControls = new GameplayEtternaJusticeControls(
+                settings.JudgementMode,
                 settings.EtternaJustice,
-                1,
-                JudgementConfiguration.MinimumEtternaJustice,
-                JudgementConfiguration.MaximumEtternaJustice,
-                value =>
-                    Math.Round(value)
-                    == JudgementConfiguration.MaximumEtternaJustice
-                        ? "Justice · J9"
-                        : $"J{Math.Round(value):0}")
+                value => Math.Round(value)
+                         == JudgementConfiguration.MaximumEtternaJustice
+                    ? "Justice · J9"
+                    : $"J{Math.Round(value):0}")
             {
-                Position = new Vector2(430, 157),
-            },
-            new SpriteText
-            {
-                Position = new Vector2(20, 236),
-                Text = YokkoStrings.Get(
-                    "settings.gameplay.etterna_boundaries"),
-                Font = HomeTypography.Body(13),
-                Colour = SettingsTheme.MutedNavy,
+                Position = new Vector2(20, 157),
             },
         });
 
@@ -957,7 +955,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     private Drawable createFeedbackSection()
     {
-        var panel = createPanel();
+        var panel = createPanel(320);
         setPanelChildren(panel, new Drawable[]
         {
             new SpriteText
@@ -1054,9 +1052,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         return panel;
     }
 
-    private static Container createPanel() => new()
+    private static Container createPanel(float height = 296) => new()
     {
-        RelativeSizeAxes = Axes.Both,
+        RelativeSizeAxes = Axes.X,
+        Height = height,
         Masking = true,
         CornerRadius = 8,
         BorderThickness = 1.2f,
@@ -1082,6 +1081,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         content.Alpha = animate ? 0 : 1;
         content.X = animate ? 8 : 0;
         contentHost.Child = content;
+        contentHost.ScrollToStart(false);
 
         if (!animate)
             return;
@@ -2090,7 +2090,12 @@ internal partial class GameplayValueStepper : CompositeDrawable
     private readonly double minimum;
     private readonly double maximum;
     private readonly Func<double, string> formatter;
+    private readonly GameplayStepperButton decreaseButton;
+    private readonly GameplayStepperButton increaseButton;
     private readonly SpriteText valueText;
+    private bool isEnabled = true;
+
+    internal bool IsEnabled => isEnabled;
 
     public GameplayValueStepper(
         Bindable<double> value,
@@ -2149,7 +2154,10 @@ internal partial class GameplayValueStepper : CompositeDrawable
                     Colour = Color4.White,
                 },
             },
-            createButton(FontAwesome.Solid.Minus, Anchor.CentreLeft, -step),
+            decreaseButton = createButton(
+                FontAwesome.Solid.Minus,
+                Anchor.CentreLeft,
+                -step),
             valueText = new SpriteText
             {
                 Anchor = Anchor.Centre,
@@ -2157,13 +2165,26 @@ internal partial class GameplayValueStepper : CompositeDrawable
                 Font = HomeTypography.Display(19),
                 Colour = HomeControlColours.Navy,
             },
-            createButton(FontAwesome.Solid.Plus, Anchor.CentreRight, step),
+            increaseButton = createButton(
+                FontAwesome.Solid.Plus,
+                Anchor.CentreRight,
+                step),
         };
 
         value.BindValueChanged(onValueChanged, true);
     }
 
-    private Drawable createButton(
+    internal void SetEnabled(bool enabled)
+    {
+        if (isEnabled == enabled)
+            return;
+
+        isEnabled = enabled;
+        decreaseButton.SetEnabled(enabled);
+        increaseButton.SetEnabled(enabled);
+    }
+
+    private GameplayStepperButton createButton(
         IconUsage itemIcon,
         Anchor anchor,
         double delta) => new GameplayStepperButton(
@@ -2182,6 +2203,77 @@ internal partial class GameplayValueStepper : CompositeDrawable
     {
         if (isDisposing)
             value.ValueChanged -= onValueChanged;
+
+        base.Dispose(isDisposing);
+    }
+}
+
+internal partial class GameplayEtternaJusticeControls : CompositeDrawable
+{
+    private readonly Bindable<JudgementMode> mode;
+    private readonly GameplayValueStepper stepper;
+
+    internal bool IsEnabled { get; private set; }
+
+    public GameplayEtternaJusticeControls(
+        Bindable<JudgementMode> mode,
+        Bindable<double> value,
+        Func<double, string> formatter)
+    {
+        this.mode = mode;
+        Size = new Vector2(800, 104);
+
+        InternalChildren = new Drawable[]
+        {
+            new SpriteText
+            {
+                Position = new Vector2(0, 5),
+                Text = YokkoStrings.Get(
+                    "settings.gameplay.etterna_justice"),
+                Font = HomeTypography.Display(17),
+                Colour = HomeControlColours.Navy,
+            },
+            new SpriteText
+            {
+                Position = new Vector2(0, 34),
+                Text = YokkoStrings.Get(
+                    "settings.gameplay.etterna_justice_note"),
+                Font = HomeTypography.Body(13),
+                Colour = SettingsTheme.MutedNavy,
+            },
+            stepper = new GameplayValueStepper(
+                value,
+                1,
+                JudgementConfiguration.MinimumEtternaJustice,
+                JudgementConfiguration.MaximumEtternaJustice,
+                formatter)
+            {
+                Position = new Vector2(410, 0),
+            },
+            new SpriteText
+            {
+                Position = new Vector2(0, 79),
+                Text = YokkoStrings.Get(
+                    "settings.gameplay.etterna_boundaries"),
+                Font = HomeTypography.Body(13),
+                Colour = SettingsTheme.MutedNavy,
+            },
+        };
+
+        mode.BindValueChanged(onModeChanged, true);
+    }
+
+    private void onModeChanged(ValueChangedEvent<JudgementMode> change)
+    {
+        IsEnabled = change.NewValue == JudgementMode.Etterna;
+        stepper.SetEnabled(IsEnabled);
+        this.FadeTo(IsEnabled ? 1 : 0.42f, 120, Easing.OutQuint);
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            mode.ValueChanged -= onModeChanged;
 
         base.Dispose(isDisposing);
     }
@@ -2302,8 +2394,10 @@ internal partial class GameplayStepperButton : ClickableContainer
 {
     private readonly Box background;
     private readonly Box focusLine;
+    private readonly SpriteIcon icon;
+    private bool isEnabled = true;
 
-    public override bool AcceptsFocus => true;
+    public override bool AcceptsFocus => isEnabled;
 
     public GameplayStepperButton(
         IconUsage itemIcon,
@@ -2323,7 +2417,7 @@ internal partial class GameplayStepperButton : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.Transparent,
             },
-            new SpriteIcon
+            icon = new SpriteIcon
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
@@ -2343,9 +2437,19 @@ internal partial class GameplayStepperButton : ClickableContainer
         };
     }
 
+    public void SetEnabled(bool enabled)
+    {
+        isEnabled = enabled;
+        icon.FadeTo(enabled ? 1 : 0.7f, 100, Easing.OutQuint);
+        focusLine.FadeOut(80, Easing.OutQuint);
+        background.FadeColour(Color4.Transparent, 80, Easing.OutQuint);
+    }
+
     protected override bool OnHover(HoverEvent e)
     {
-        background.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
+        if (isEnabled)
+            background.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
+
         return true;
     }
 
@@ -2354,13 +2458,21 @@ internal partial class GameplayStepperButton : ClickableContainer
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
-        if (e.Key is Key.Enter or Key.Space)
+        if (isEnabled && e.Key is Key.Enter or Key.Space)
         {
             Action?.Invoke();
             return true;
         }
 
         return base.OnKeyDown(e);
+    }
+
+    protected override bool OnClick(ClickEvent e)
+    {
+        if (!isEnabled)
+            return true;
+
+        return base.OnClick(e);
     }
 
     protected override void OnFocus(FocusEvent e)

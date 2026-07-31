@@ -111,6 +111,9 @@ internal partial class GameplayModsScreen : Screen
     private bool loadComplete;
     private bool selectionDirty;
     private bool pageTransitioning;
+    private ManiaModCategory? transitioningToCategory;
+    private int pageTransitionVersion;
+    private int pageTransitionDirection = 1;
     private double scrollGestureAccumulator;
     private double lastScrollGestureDirection;
     private double lastScrollNavigationTime = double.NegativeInfinity;
@@ -499,12 +502,14 @@ internal partial class GameplayModsScreen : Screen
 
     private void NavigateCategoryPage(int offset, bool wrap)
     {
-        if (pageTransitioning || offset == 0)
+        if (offset == 0)
             return;
 
+        ManiaModCategory navigationCategory =
+            transitioningToCategory ?? activeCategory;
         int currentIndex = Array.IndexOf(
             visible_categories,
-            activeCategory);
+            navigationCategory);
         int nextIndex = currentIndex + Math.Sign(offset);
         if (wrap)
         {
@@ -530,54 +535,67 @@ internal partial class GameplayModsScreen : Screen
             Math.Sign(offset));
     }
 
-    private void NavigateToCategoryPage(ManiaModCategory category)
+    internal void NavigateToCategoryPage(ManiaModCategory category)
     {
+        if (transitioningToCategory == category)
+            return;
+
         int currentIndex = Array.IndexOf(
             visible_categories,
             activeCategory);
         int targetIndex = Array.IndexOf(
             visible_categories,
             category);
-        if (targetIndex < 0 || targetIndex == currentIndex)
+        if (targetIndex < 0
+            || targetIndex == currentIndex && !pageTransitioning)
+        {
             return;
+        }
 
         transitionToCategoryPage(
             category,
-            Math.Sign(targetIndex - currentIndex));
+            targetIndex == currentIndex
+                ? -pageTransitionDirection
+                : Math.Sign(targetIndex - currentIndex));
     }
 
     private void transitionToCategoryPage(
         ManiaModCategory category,
         int direction)
     {
-        if (pageTransitioning)
-            return;
-
+        int transitionVersion = ++pageTransitionVersion;
         pageTransitioning = true;
+        transitioningToCategory = category;
+        pageTransitionDirection = Math.Sign(direction) == 0
+            ? pageTransitionDirection
+            : Math.Sign(direction);
+        orbitWorkspace?.PreviewCategorySelection(category);
         float travel = Math.Clamp(DrawHeight * 0.1f, 58, 92);
-        float outgoingY = -direction * travel;
+        float outgoingY = -pageTransitionDirection * travel * 0.72f;
         orbitWorkspace?.TransitionOut(direction);
 
         modBrowser.ClearTransforms();
         detailPanel.ClearTransforms();
         modBrowser.MoveToY(
                       modBrowserRestingY + outgoingY,
-                      125,
-                      Easing.InCubic)
-                  .FadeOut(95, Easing.OutQuint);
-        detailPanel.Delay(18)
-                   .MoveToY(
+                      82,
+                      Easing.OutQuint)
+                  .FadeOut(72, Easing.OutQuint);
+        detailPanel.MoveToY(
                        detailPanelRestingY + outgoingY,
-                       125,
-                       Easing.InCubic)
-                   .FadeOut(95, Easing.OutQuint);
+                       88,
+                       Easing.OutQuint)
+                   .FadeOut(76, Easing.OutQuint);
 
         Scheduler.AddDelayed(() =>
         {
+            if (transitionVersion != pageTransitionVersion)
+                return;
+
             SetCategory(category);
             orbitWorkspace?.TransitionIn(direction);
 
-            float incomingY = direction * travel;
+            float incomingY = pageTransitionDirection * travel * 0.78f;
             modBrowser.ClearTransforms();
             detailPanel.ClearTransforms();
             modBrowser.Y = modBrowserRestingY + incomingY;
@@ -585,22 +603,29 @@ internal partial class GameplayModsScreen : Screen
             modBrowser.Alpha = 0;
             detailPanel.Alpha = 0;
 
-            modBrowser.FadeIn(145, Easing.OutQuint)
+            modBrowser.FadeIn(115, Easing.OutQuint)
                       .MoveToY(
                           modBrowserRestingY,
-                          220,
+                          175,
                           Easing.OutQuint);
-            detailPanel.Delay(22)
-                       .FadeIn(145, Easing.OutQuint)
+            detailPanel.Delay(12)
+                       .FadeIn(120, Easing.OutQuint)
                        .MoveToY(
                            detailPanelRestingY,
-                           220,
+                           182,
                            Easing.OutQuint);
 
             Scheduler.AddDelayed(
-                () => pageTransitioning = false,
-                225);
-        }, 125);
+                () =>
+                {
+                    if (transitionVersion != pageTransitionVersion)
+                        return;
+
+                    pageTransitioning = false;
+                    transitioningToCategory = null;
+                },
+                185);
+        }, 82);
     }
 
     private void playPageEdgeFeedback(int direction)
