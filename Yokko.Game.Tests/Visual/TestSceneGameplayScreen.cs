@@ -836,7 +836,7 @@ namespace Yokko.Game.Tests.Visual
                 gameplayScreen?
                     .ChildrenOfType<GameplayLayoutEditorOverlay>()
                     .SingleOrDefault() != null);
-            AddStep("pause gameplay", gameplayScreen.TogglePause);
+            AddStep("pause gameplay", () => gameplayScreen.TogglePause());
             AddUntilStep("pause menu is ready", () =>
                 gameplayScreen.IsPaused
                 && gameplayScreen

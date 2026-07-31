@@ -163,12 +163,17 @@ public partial class GameplayHud : CompositeDrawable
         ManiaHealthState healthState = null)
     {
         timeText.Text = $"Time {Math.Max(0, gameplayTimeMilliseconds / 1000):0.00}s";
-        comboText.Text =
-            $"Score {state.Score:0000000}  Combo {state.Combo} / Max {state.MaxCombo}";
-        string rank = mods.AdjustRank(state.Rank)
-                          .ToDisplayLabel();
-        accuracyText.Text =
-            $"Accuracy {state.Accuracy * 100:0.00}%  Rank {rank}";
+        bool etterna =
+            judgementConfiguration.Mode == JudgementMode.Etterna;
+        comboText.Text = etterna
+            ? $"Score {state.Score:0000000}  Combo {state.Combo} / Max {state.MaxCombo}  ·  CB {state.ComboBreaks}"
+            : $"Score {state.Score:0000000}  Combo {state.Combo} / Max {state.MaxCombo}";
+        string rank = etterna
+            ? EtternaScoringRules.GradeLabel(state.Accuracy)
+            : mods.AdjustRank(state.Rank).ToDisplayLabel();
+        accuracyText.Text = etterna
+            ? $"WIFE3 {state.Accuracy * 100:0.00}%  Grade {rank}"
+            : $"Accuracy {state.Accuracy * 100:0.00}%  Rank {rank}";
         updateAccuracyChallenge(state);
         countsText.Text =
             judgementConfiguration.Mode == JudgementMode.Etterna

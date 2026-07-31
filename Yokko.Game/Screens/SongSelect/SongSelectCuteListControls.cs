@@ -75,42 +75,42 @@ internal partial class SongSelectSongRow : ClickableContainer
                     accent.B,
                     0.17f),
             },
-            selectionOutline = new Container
-            {
-                Position = new Vector2(2),
-                Size = new Vector2(row_width - 4, rowHeight - 4),
-                Masking = true,
-                CornerRadius = 8,
-                BorderThickness = 2,
-                BorderColour = SongSelectTheme.Cyan,
-                Alpha = 0,
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Alpha = 0,
-                },
-            },
-            arrow = new SpriteIcon
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreRight,
-                X = -7,
-                Size = new Vector2(15),
-                Icon = FontAwesome.Solid.Play,
-                Colour = SongSelectTheme.Pink,
-                Alpha = 0,
-            },
-            selectedSticker = new Sprite
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.Centre,
-                Position = new Vector2(-8, 2),
-                Size = new Vector2(30),
-                Texture = selectedStickerTexture,
-                FillMode = FillMode.Fit,
-                Alpha = 0,
-            },
         };
+
+        children.Add(selectionOutline = new Container
+        {
+            Position = new Vector2(2),
+            Size = new Vector2(row_width - 4, rowHeight - 4),
+            Masking = true,
+            CornerRadius = 8,
+            BorderThickness = 2,
+            BorderColour = SongSelectTheme.Cyan,
+            Alpha = 0,
+            Child = new Box
+            {
+                Alpha = 0,
+            },
+        });
+        children.Add(arrow = new SpriteIcon
+        {
+            Anchor = Anchor.CentreLeft,
+            Origin = Anchor.CentreRight,
+            X = -7,
+            Size = new Vector2(15),
+            Icon = FontAwesome.Solid.Play,
+            Colour = SongSelectTheme.Pink,
+            Alpha = 0,
+        });
+        children.Add(selectedSticker = new Sprite
+        {
+            Anchor = Anchor.TopRight,
+            Origin = Anchor.Centre,
+            Position = new Vector2(-8, 2),
+            Size = new Vector2(30),
+            Texture = selectedStickerTexture,
+            FillMode = FillMode.Fit,
+            Alpha = 0,
+        });
 
         if (compact)
             addCompactContent(children, entry);

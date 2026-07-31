@@ -16,6 +16,7 @@ public sealed class ManiaScoreProcessor
     private readonly int maximumAccuracyJudgementCount;
     private readonly double maximumComboPortion;
     private readonly double scoreMultiplier;
+    private readonly bool useEtternaScoring;
     private readonly bool useQuaverScoring;
     private readonly int quaverMaximumScoreCount;
 
@@ -26,10 +27,15 @@ public sealed class ManiaScoreProcessor
     private int quaverMultiplierCount;
     private int quaverScoreCount;
     private double quaverAccuracyWeightTotal;
+    private double etternaCurrentWifePoints;
+    private double etternaMaximumAppliedWifePoints;
+    private readonly double etternaMaximumWifePoints;
+    private double? etternaBrokenRowTimeMilliseconds;
 
     public ManiaScoreProcessor(
         YokkoBeatmap beatmap,
-        double scoreMultiplier = 1)
+        double scoreMultiplier = 1,
+        JudgementConfiguration? judgementConfiguration = null)
     {
         if (!double.IsFinite(scoreMultiplier)
             || scoreMultiplier < 0)
@@ -39,13 +45,27 @@ public sealed class ManiaScoreProcessor
         }
 
         this.scoreMultiplier = scoreMultiplier;
-        useQuaverScoring = beatmap.SourceFormat == ChartSourceFormat.Quaver;
+        JudgementConfiguration configuration =
+            judgementConfiguration
+            ?? (beatmap.SourceFormat == ChartSourceFormat.Quaver
+                ? JudgementConfiguration.QuaverDefault
+                : JudgementConfiguration.YokkoDefault);
+        Configuration = configuration;
+        useEtternaScoring =
+            configuration.Mode == JudgementMode.Etterna;
+        useQuaverScoring =
+            configuration.Mode == JudgementMode.Quaver;
         maximumAccuracyJudgementCount = beatmap.HitObjects.Sum(static hitObject => hitObject.Kind switch
         {
             HitObjectKind.Tap => 1,
             HitObjectKind.Hold => 2,
             _ => 0,
         });
+        etternaMaximumWifePoints =
+            beatmap.HitObjects.Count(static hitObject =>
+                hitObject.Kind is HitObjectKind.Tap
+                    or HitObjectKind.Hold)
+            * EtternaScoringRules.Wife3MaximumPoints;
         quaverMaximumScoreCount =
             calculateQuaverMaximumScoreCount(
                 maximumAccuracyJudgementCount);
@@ -56,11 +76,24 @@ public sealed class ManiaScoreProcessor
 
     public JudgementCounter Counts { get; } = new();
 
+    public JudgementConfiguration Configuration { get; }
+
     public int Combo { get; private set; }
 
     public int MaxCombo { get; private set; }
 
-    public double Accuracy => useQuaverScoring
+    public int ComboBreaks => useEtternaScoring
+        ? Counts.Ok + Counts.Meh + Counts.Miss
+        : Counts.ComboBreak;
+
+    public double Accuracy => useEtternaScoring
+        ? etternaMaximumAppliedWifePoints > 0
+            ? etternaCurrentWifePoints
+              / etternaMaximumAppliedWifePoints
+            : etternaCurrentWifePoints < 0
+                ? 0
+                : 1
+        : useQuaverScoring
         ? maximumAccuracyJudgementCount > 0
             ? Math.Max(
                 quaverAccuracyWeightTotal
@@ -76,6 +109,18 @@ public sealed class ManiaScoreProcessor
     {
         get
         {
+            if (useEtternaScoring)
+            {
+                if (etternaMaximumWifePoints <= 0)
+                    return 1;
+
+                double remaining =
+                    etternaMaximumWifePoints
+                    - etternaMaximumAppliedWifePoints;
+                return (etternaCurrentWifePoints + remaining)
+                       / etternaMaximumWifePoints;
+            }
+
             if (maximumAccuracyJudgementCount == 0)
                 return 1;
 
@@ -109,10 +154,27 @@ public sealed class ManiaScoreProcessor
 
     public ScoreRank Rank { get; private set; } = ScoreRank.X;
 
-    public void Apply(JudgementRating rating)
+    public void Apply(JudgementRating rating) =>
+        Apply(rating, 0, JudgementPhase.Tap, double.NaN);
+
+    public void Apply(
+        JudgementRating rating,
+        double realHitErrorMilliseconds,
+        JudgementPhase phase,
+        double objectTimeMilliseconds)
     {
         if (rating == JudgementRating.None)
             throw new ArgumentOutOfRangeException(nameof(rating));
+
+        if (useEtternaScoring)
+        {
+            applyEtterna(
+                rating,
+                realHitErrorMilliseconds,
+                phase,
+                objectTimeMilliseconds);
+            return;
+        }
 
         if (useQuaverScoring)
         {
@@ -146,6 +208,18 @@ public sealed class ManiaScoreProcessor
 
     public void ApplyMine(bool wasHit)
     {
+        if (useEtternaScoring)
+        {
+            if (wasHit)
+            {
+                etternaCurrentWifePoints +=
+                    EtternaScoringRules.Wife3MineHitWeight;
+                updateEtternaScore();
+            }
+
+            return;
+        }
+
         if (!useQuaverScoring || !wasHit)
             return;
 
@@ -201,6 +275,70 @@ public sealed class ManiaScoreProcessor
         TotalScore = (long)Math.Round(
             TotalScoreWithoutMods * scoreMultiplier);
         Rank = RankFromScore(Accuracy, Counts);
+    }
+
+    private void applyEtterna(
+        JudgementRating rating,
+        double realHitErrorMilliseconds,
+        JudgementPhase phase,
+        double objectTimeMilliseconds)
+    {
+        if (phase == JudgementPhase.HoldBody)
+        {
+            if (rating == JudgementRating.ComboBreak)
+            {
+                etternaCurrentWifePoints +=
+                    EtternaScoringRules.Wife3HoldDropWeight;
+                updateEtternaScore();
+            }
+
+            return;
+        }
+
+        if (phase is not (
+            JudgementPhase.Tap
+            or JudgementPhase.HoldHead))
+        {
+            return;
+        }
+
+        if (!rating.AffectsAccuracy())
+            return;
+
+        Counts.Add(rating);
+        if (EtternaScoringRules.BreaksCombo(rating))
+        {
+            Combo = 0;
+            etternaBrokenRowTimeMilliseconds =
+                objectTimeMilliseconds;
+        }
+        else if (EtternaScoringRules.ContinuesCombo(rating)
+                 && (etternaBrokenRowTimeMilliseconds is not double brokenTime
+                     || brokenTime != objectTimeMilliseconds))
+        {
+            Combo++;
+        }
+
+        MaxCombo = Math.Max(MaxCombo, Combo);
+        currentAccuracyJudgementCount++;
+        etternaMaximumAppliedWifePoints +=
+            EtternaScoringRules.Wife3MaximumPoints;
+        etternaCurrentWifePoints += rating == JudgementRating.Miss
+            ? EtternaScoringRules.Wife3MissWeight
+            : EtternaScoringRules.Wife3(
+                realHitErrorMilliseconds,
+                Configuration.EtternaTimingScale);
+        updateEtternaScore();
+    }
+
+    private void updateEtternaScore()
+    {
+        double scoreAccuracy = Math.Clamp(Accuracy, 0, 1);
+        TotalScoreWithoutMods = (long)Math.Round(
+            1_000_000 * scoreAccuracy);
+        TotalScore = (long)Math.Round(
+            TotalScoreWithoutMods * scoreMultiplier);
+        Rank = EtternaScoringRules.ApproximateScoreRank(Accuracy);
     }
 
     private void applyQuaver(

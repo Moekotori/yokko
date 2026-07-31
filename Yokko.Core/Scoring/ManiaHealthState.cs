@@ -22,13 +22,18 @@ public sealed class ManiaHealthState
     // (StepMania permissive licence; see Docs/Licenses.txt).
     private const double mineHitHealthPenalty = 0.16;
     private readonly ManiaModSet mods;
+    private readonly JudgementConfiguration judgementConfiguration;
 
     public ManiaHealthState(
         YokkoBeatmap beatmap,
-        ManiaModSet? mods = null)
+        ManiaModSet? mods = null,
+        JudgementConfiguration? judgementConfiguration = null)
     {
         ArgumentNullException.ThrowIfNull(beatmap);
         this.mods = mods ?? ManiaModSet.Empty;
+        this.judgementConfiguration =
+            judgementConfiguration
+            ?? JudgementConfiguration.YokkoDefault;
 
         EffectiveDrainRate =
             this.mods.EffectiveDrainRate(beatmap.DrainRate);
@@ -126,8 +131,13 @@ public sealed class ManiaHealthState
         }
 
         if (mods.Contains(ManiaModId.SuddenDeath)
-            && judgement.Rating.AffectsCombo()
-            && !judgement.Rating.IsHit())
+            && (this.judgementConfiguration.Mode
+                    == JudgementMode.Etterna
+                ? EtternaScoringRules.BreaksCombo(judgement.Rating)
+                  || judgement.Phase == JudgementPhase.HoldBody
+                  && judgement.Rating == JudgementRating.ComboBreak
+                : judgement.Rating.AffectsCombo()
+                  && !judgement.Rating.IsHit()))
         {
             return ManiaFailReason.SuddenDeath;
         }
@@ -155,6 +165,9 @@ public sealed class ManiaHealthState
 
     private double healthDelta(JudgementEvent judgement)
     {
+        if (judgementConfiguration.Mode == JudgementMode.Etterna)
+            return EtternaScoringRules.LifeDelta(judgement);
+
         if (judgement.Phase == JudgementPhase.Mine)
         {
             return judgement.Rating == JudgementRating.IgnoreMiss

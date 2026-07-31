@@ -350,7 +350,10 @@ public partial class GameplayScreen : Screen
         slidingSampleIndex = new GameplaySlidingSampleIndex(
             beatmap,
             pressedLanes.Length);
-        healthState = new ManiaHealthState(beatmap, mods);
+        healthState = new ManiaHealthState(
+            beatmap,
+            mods,
+            judgementConfiguration);
         if (mods.HasAdaptiveSpeed)
         {
             adaptiveSpeedState = new ManiaAdaptiveSpeedState(

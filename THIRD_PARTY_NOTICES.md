@@ -42,8 +42,9 @@ assemblies.
 ## Etterna
 
 Yokko's optional Etterna judgement mode ports the timing-window constants,
-Judge/Justice scales, inclusive boundary checks, and closest-note selection
-semantics from Etterna.
+Judge/Justice scales, inclusive boundary checks, closest-note selection,
+Wife3 scoring, combo thresholds, and default life/mine/hold semantics from
+Etterna.
 
 - Copyright (c) 2016-2023 Etterna <etternadev@gmail.com>
 - Licence: MIT

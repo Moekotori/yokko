@@ -105,14 +105,14 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
         Texture diamondTexture)
     {
         Action = action;
-        Size = new Vector2(88, 108);
+        Size = new Vector2(88, 96);
 
         InternalChildren = new Drawable[]
         {
             new Container
             {
-                Position = new Vector2(8.5f, 17.5f),
-                Size = new Vector2(75),
+                Position = new Vector2(8.5f, 10.5f),
+                Size = new Vector2(70),
                 Masking = true,
                 CornerRadius = 8,
                 Child = new Box
@@ -127,8 +127,8 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
             },
             card = new Container
             {
-                Position = new Vector2(6.5f, 13.5f),
-                Size = new Vector2(75),
+                Position = new Vector2(6.5f, 7.5f),
+                Size = new Vector2(70),
                 Masking = true,
                 CornerRadius = 8,
                 BorderThickness = 1.5f,
@@ -143,7 +143,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
                     new Container
                     {
                         Position = new Vector2(7),
-                        Size = new Vector2(61),
+                        Size = new Vector2(56),
                         Masking = true,
                         CornerRadius = 5,
                         Child = new Box
@@ -175,8 +175,8 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.Centre,
-                Position = new Vector2(0, 7),
-                Size = new Vector2(28),
+                Position = new Vector2(0, 2),
+                Size = new Vector2(25),
                 Texture = diamondTexture,
                 FillMode = FillMode.Fit,
             },
@@ -184,7 +184,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-9, 13),
+                Position = new Vector2(-11, 8),
                 Size = new Vector2(16),
                 BorderThickness = 1,
                 BorderColour = HomeControlColours.Navy,
@@ -193,14 +193,14 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.Centre,
-                Position = new Vector2(-17, 21),
+                Position = new Vector2(-19, 16),
                 Font = HomeTypography.Display(9),
             },
             new SpriteText
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Y = 92,
+                Y = 80,
                 Text = "MODS",
                 Font = HomeTypography.Display(10),
                 Spacing = new Vector2(1.4f, 0),

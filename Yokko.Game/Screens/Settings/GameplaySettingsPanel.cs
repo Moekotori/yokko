@@ -50,7 +50,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private SpriteText statusMetadata;
     private Circle statusIconBackground;
     private GameplayCompactButton calibrationButton;
-    private readonly BasicScrollContainer contentHost;
+    private readonly SettingsContentScrollContainer contentHost;
     private GameplayBindingCard capturingCard;
     private GameplayEtternaJusticeControls etternaJusticeControls;
     private SpriteText keyCaptureHint;
@@ -151,12 +151,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 4),
             createStatusCard(),
             createSectionTabs(),
-            contentHost = new BasicScrollContainer(Direction.Vertical)
+            contentHost = new SettingsContentScrollContainer()
             {
                 Position = new Vector2(378, 320),
                 Size = new Vector2(840, 296),
-                ScrollbarOverlapsContent = true,
-                ScrollbarVisible = false,
             },
             new SettingsPanelFooter(),
             new HomeDotCross
@@ -1609,6 +1607,66 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         }
 
         base.Dispose(isDisposing);
+    }
+}
+
+internal partial class SettingsContentScrollContainer
+    : ScrollContainer<Drawable>
+{
+    public SettingsContentScrollContainer()
+        : base(Direction.Vertical)
+    {
+        ScrollbarOverlapsContent = true;
+    }
+
+    protected override ScrollbarContainer CreateScrollbar(
+        Direction direction) => new SettingsScrollbar(direction);
+
+    private partial class SettingsScrollbar : ScrollbarContainer
+    {
+        private const float thickness = 4;
+
+        public SettingsScrollbar(Direction direction)
+            : base(direction)
+        {
+            Alpha = 0.55f;
+            Colour = HomeControlColours.Cyan;
+            CornerRadius = thickness / 2;
+            Masking = true;
+            Margin = new MarginPadding
+            {
+                Left = direction == Direction.Vertical ? 3 : 0,
+                Right = direction == Direction.Vertical ? 3 : 0,
+                Top = direction == Direction.Horizontal ? 3 : 0,
+                Bottom = direction == Direction.Horizontal ? 3 : 0,
+            };
+            Child = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+            };
+            ResizeTo(1);
+        }
+
+        public override void ResizeTo(
+            float value,
+            int duration = 0,
+            Easing easing = Easing.None)
+        {
+            var size = new Vector2(thickness)
+            {
+                [(int)ScrollDirection] = value,
+            };
+            this.ResizeTo(size, duration, easing);
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            this.FadeTo(0.95f, 100, Easing.OutQuint);
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e) =>
+            this.FadeTo(0.55f, 120, Easing.OutQuint);
     }
 }
 

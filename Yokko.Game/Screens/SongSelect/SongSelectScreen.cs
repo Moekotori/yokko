@@ -267,8 +267,8 @@ public partial class SongSelectScreen : Screen
                     {
                         Anchor = Anchor.BottomLeft,
                         Origin = Anchor.BottomLeft,
-                        Position = new Vector2(760, -2),
-                        Size = new Vector2(150),
+                        Position = new Vector2(8, -1),
+                        Size = new Vector2(140),
                     },
                 },
             },
@@ -1253,10 +1253,7 @@ public partial class SongSelectScreen : Screen
             ToggleModPanel,
             textures.Get("SongSelect/Cute/sticker-diamond"))
         {
-            Anchor = Anchor.TopCentre,
-            Origin = Anchor.TopCentre,
-            X = 100,
-            Y = 2,
+            Position = new Vector2(748, 0),
         };
         modPanel = createModPanel();
         updateModSelection();
@@ -1276,7 +1273,7 @@ public partial class SongSelectScreen : Screen
                         SongSelectTheme.DeepNavy.R,
                         SongSelectTheme.DeepNavy.G,
                         SongSelectTheme.DeepNavy.B,
-                        0.34f),
+                        0.92f),
                 },
                 new Box
                 {
@@ -1292,18 +1289,26 @@ public partial class SongSelectScreen : Screen
                     () => stopPreviewThen(this.Exit),
                     textures.Get("SongSelect/Cute/sticker-diamond"))
                 {
-                    Position = new Vector2(225, 18),
+                    Position = new Vector2(136, 9),
                 },
                 createAccountCard(),
                 modPanel,
                 mods,
+                new SongSelectFooterToolButton(
+                    "RANDOM",
+                    FontAwesome.Solid.Random,
+                    SongSelectTheme.Cyan,
+                    selectRandomEntry)
+                {
+                    Position = new Vector2(844, 7),
+                },
                 new SongSelectPlayButton(
                     PlaySelected,
                     textures.Get("SongSelect/Cute/tape-long"))
                 {
                     Anchor = Anchor.BottomRight,
                     Origin = Anchor.BottomRight,
-                    Position = new Vector2(-20, -12),
+                    Position = new Vector2(-20, -7),
                 },
             },
         };
@@ -1326,7 +1331,7 @@ public partial class SongSelectScreen : Screen
 
         return new Container
         {
-            Position = new Vector2(418, 15),
+            Position = new Vector2(340, 7),
             Size = new Vector2(390, 82),
             Children =
             [
@@ -2294,6 +2299,21 @@ public partial class SongSelectScreen : Screen
             index = (index + direction + navigableEntries.Count) % navigableEntries.Count;
 
         select(navigableEntries[index]);
+    }
+
+    private void selectRandomEntry()
+    {
+        if (navigableEntries.Count == 0)
+            return;
+
+        int currentIndex = navigableEntries.IndexOf(selectedEntry);
+        int randomIndex = navigableEntries.Count == 1
+            ? 0
+            : Random.Shared.Next(navigableEntries.Count - 1);
+        if (currentIndex >= 0 && randomIndex >= currentIndex)
+            randomIndex++;
+
+        select(navigableEntries[randomIndex]);
     }
 
     private void select(SongSelectEntry entry, bool rebuildList = true)

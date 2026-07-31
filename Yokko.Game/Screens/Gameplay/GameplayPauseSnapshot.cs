@@ -57,7 +57,9 @@ internal sealed record GameplayPauseSnapshot(
             state.Accuracy,
             state.Combo,
             state.MaxCombo,
-            mods.AdjustRank(state.Rank).ToDisplayLabel(),
+            state.Windows.Configuration.Mode == JudgementMode.Etterna
+                ? EtternaScoringRules.GradeLabel(state.Accuracy)
+                : mods.AdjustRank(state.Rank).ToDisplayLabel(),
             state.Counts.Perfect,
             state.Counts.Great,
             state.Counts.Good,

@@ -56,11 +56,11 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("ranking is above footer", () =>
             songSelectScreen.RankingFitsAboveFooter);
         AddAssert("ranking uses the available detail width", () =>
-            songSelectScreen.RankingPanelSize == new Vector2(800, 340));
+            songSelectScreen.RankingPanelSize == new Vector2(760, 468));
         AddAssert("ranking body uses its full height", () =>
-            songSelectScreen.RankingContentSize == new Vector2(764, 252));
-        AddAssert("search box is compact", () =>
-            songSelectScreen.SearchBoxSize == new Vector2(198, 44));
+            songSelectScreen.RankingContentSize == new Vector2(736, 378));
+        AddAssert("search box uses the full browse rail", () =>
+            songSelectScreen.SearchBoxSize == new Vector2(600, 44));
 
         AddStep("select next song", songSelectScreen.SelectNext);
         AddAssert("selection wraps", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");

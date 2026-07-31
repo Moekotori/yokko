@@ -61,7 +61,8 @@ public sealed class BeatmapJudgementState
                         .ToArray();
         scoreProcessor = new ManiaScoreProcessor(
             beatmap,
-            scoreMultiplier);
+            scoreMultiplier,
+            Windows.Configuration);
         totalJudgementObjectCount =
             beatmap.HitObjects.Count(hitObject =>
                 isStandardJudgementObject(hitObject)
@@ -199,6 +200,8 @@ public sealed class BeatmapJudgementState
     public int Combo => scoreProcessor.Combo;
 
     public int MaxCombo => scoreProcessor.MaxCombo;
+
+    public int ComboBreaks => scoreProcessor.ComboBreaks;
 
     public double Accuracy => scoreProcessor.Accuracy;
 
@@ -552,6 +555,16 @@ public sealed class BeatmapJudgementState
                 || hitObject.EndTimeMilliseconds is not double endTime)
                 continue;
 
+            if (Windows.Configuration.Mode == JudgementMode.Etterna)
+            {
+                resolveEtternaHold(
+                    index,
+                    gameplayTimeMilliseconds,
+                    gameplayTimeMilliseconds >= endTime,
+                    events);
+                continue;
+            }
+
             double rawError = gameplayTimeMilliseconds - endTime;
             JudgementRating rating = judgeHoldRelease(rawError);
             bool tailResolvedNow = false;
@@ -632,7 +645,10 @@ public sealed class BeatmapJudgementState
         List<JudgementEvent> events)
     {
         ArgumentNullException.ThrowIfNull(events);
-        resolveHeldNoReleaseTails(gameplayTimeMilliseconds, events);
+        if (Windows.Configuration.Mode == JudgementMode.Etterna)
+            resolveEtternaHeldTails(gameplayTimeMilliseconds, events);
+        else
+            resolveHeldNoReleaseTails(gameplayTimeMilliseconds, events);
 
         while (nextExpiration < expirations.Length
                && gameplayTimeMilliseconds >
@@ -754,6 +770,83 @@ public sealed class BeatmapJudgementState
                 state.Holding = false;
             }
         }
+    }
+
+    private void resolveEtternaHeldTails(
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events)
+    {
+        foreach (HashSet<int> laneHolds in openHoldIndices)
+        {
+            foreach (int index in laneHolds.ToArray())
+            {
+                YokkoHitObject hitObject = beatmap.HitObjects[index];
+                ObjectState state = states[index];
+                if (state.TailResolved
+                    || hitObject.EndTimeMilliseconds is not double endTime
+                    || gameplayTimeMilliseconds < endTime)
+                {
+                    continue;
+                }
+
+                bool wasHeld =
+                    state.Holding
+                    && state.HeadRating.IsHit()
+                    && !state.BodyBroken;
+                resolveEtternaHold(
+                    index,
+                    endTime,
+                    wasHeld,
+                    events);
+            }
+        }
+    }
+
+    private void resolveEtternaHold(
+        int hitObjectIndex,
+        double eventTimeMilliseconds,
+        bool wasHeld,
+        List<JudgementEvent> events)
+    {
+        YokkoHitObject hitObject = beatmap.HitObjects[hitObjectIndex];
+        ObjectState state = states[hitObjectIndex];
+        double endTime =
+            hitObject.EndTimeMilliseconds
+            ?? hitObject.StartTimeMilliseconds;
+        JudgementRating passiveRating = wasHeld
+            ? JudgementRating.IgnoreHit
+            : JudgementRating.IgnoreMiss;
+
+        if (!state.TailResolved)
+        {
+            events.Add(resolveBasic(
+                hitObjectIndex,
+                endTime,
+                eventTimeMilliseconds,
+                eventTimeMilliseconds - endTime,
+                passiveRating,
+                JudgementPhase.HoldTail));
+        }
+
+        if (!state.BodyResolved)
+        {
+            events.Add(resolveBody(
+                hitObjectIndex,
+                eventTimeMilliseconds,
+                wasHeld
+                    ? JudgementRating.IgnoreHit
+                    : JudgementRating.ComboBreak));
+        }
+
+        if (!state.ParentResolved)
+        {
+            events.Add(resolveParent(
+                hitObjectIndex,
+                eventTimeMilliseconds,
+                passiveRating));
+        }
+
+        state.Holding = false;
     }
 
     private bool isHittableByOrderedPolicy(
@@ -1014,7 +1107,11 @@ public sealed class BeatmapJudgementState
         }
 
         trackCompletion(state, wasComplete);
-        scoreProcessor.Apply(rating);
+        scoreProcessor.Apply(
+            rating,
+            hitErrorMilliseconds / Windows.SpeedMultiplier,
+            phase,
+            objectTimeMilliseconds);
         return createEvent(
             hitObjectIndex,
             objectTimeMilliseconds,
@@ -1034,7 +1131,11 @@ public sealed class BeatmapJudgementState
         state.BodyResolved = true;
         state.BodyBroken = rating == JudgementRating.ComboBreak;
         trackCompletion(state, wasComplete);
-        scoreProcessor.Apply(rating);
+        scoreProcessor.Apply(
+            rating,
+            0,
+            JudgementPhase.HoldBody,
+            eventTimeMilliseconds);
 
         return createEvent(
             hitObjectIndex,
@@ -1054,7 +1155,11 @@ public sealed class BeatmapJudgementState
         bool wasComplete = state.IsComplete;
         state.ParentResolved = true;
         trackCompletion(state, wasComplete);
-        scoreProcessor.Apply(rating);
+        scoreProcessor.Apply(
+            rating,
+            0,
+            JudgementPhase.Hold,
+            eventTimeMilliseconds);
 
         return createEvent(
             hitObjectIndex,

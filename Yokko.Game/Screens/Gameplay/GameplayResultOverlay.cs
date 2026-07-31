@@ -113,7 +113,11 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         RelativeSizeAxes = Axes.Both;
         Depth = -10;
 
-        string rank = result.Rank.ToDisplayLabel();
+        bool etterna =
+            this.judgementConfiguration.Mode == JudgementMode.Etterna;
+        string rank = etterna
+            ? EtternaScoringRules.GradeLabel(result.Accuracy)
+            : result.Rank.ToDisplayLabel();
 
         InternalChildren = new Drawable[]
         {
@@ -432,7 +436,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                         0.42f),
                 },
                 createMetricCell(
-                    "ACCURACY",
+                    etterna ? "WIFE3" : "ACCURACY",
                     $"{result.Accuracy * 100:0.00}%",
                     376,
                     286),
@@ -447,8 +451,12 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                         0.42f),
                 },
                 createMetricCell(
-                    YokkoStrings.Get("gameplay.result.max_combo"),
-                    result.MaxCombo.ToString(),
+                    etterna
+                        ? "MAX COMBO · CB"
+                        : YokkoStrings.Get("gameplay.result.max_combo"),
+                    etterna
+                        ? $"{result.MaxCombo} · {result.Ok + result.Meh + result.Miss}"
+                        : result.MaxCombo.ToString(),
                     738,
                     214),
                 new Box
