@@ -1085,6 +1085,59 @@ namespace Yokko.Game.Tests.Visual
                     - originalScrollSpeed) < 0.001
                 && gameplayScreen.LayoutEditorScrollDirectionForTest
                 == originalScrollDirection);
+            double originalJudgementDuration = 0;
+            double originalJudgementOpacity = 0;
+            bool originalShowHitError = false;
+            bool originalShowTimingBar = false;
+            AddStep("change live judgement feedback settings", () =>
+            {
+                originalJudgementDuration = gameplayScreen
+                    .LayoutEditorJudgementDurationForTest;
+                originalJudgementOpacity = gameplayScreen
+                    .LayoutEditorJudgementOpacityForTest;
+                originalShowHitError = gameplayScreen
+                    .LayoutEditorShowsHitErrorForTest;
+                originalShowTimingBar =
+                    gameplaySettings.ShowTimingBar.Value;
+                gameplayScreen.SetLayoutEditorJudgementDurationForTest(
+                    900);
+                gameplayScreen.SetLayoutEditorJudgementOpacityForTest(
+                    0.6);
+                gameplayScreen.SetLayoutEditorShowHitErrorForTest(false);
+                gameplayScreen.SetLayoutEditorShowTimingBarForTest(false);
+            });
+            AddUntilStep("judgement feedback updates inside editor", () =>
+                Math.Abs(
+                    gameplayScreen.LayoutEditorJudgementDurationForTest
+                    - 900) < 0.001
+                && Math.Abs(
+                    gameplayScreen.LayoutEditorJudgementOpacityForTest
+                    - 0.6f) < 0.001f
+                && !gameplayScreen.LayoutEditorShowsHitErrorForTest
+                && timingBar.Alpha < 0.01f);
+            AddStep("restore live judgement feedback settings", () =>
+            {
+                gameplayScreen.SetLayoutEditorJudgementDurationForTest(
+                    originalJudgementDuration);
+                gameplayScreen.SetLayoutEditorJudgementOpacityForTest(
+                    originalJudgementOpacity);
+                gameplayScreen.SetLayoutEditorShowHitErrorForTest(
+                    originalShowHitError);
+                gameplayScreen.SetLayoutEditorShowTimingBarForTest(
+                    originalShowTimingBar);
+            });
+            AddUntilStep("judgement feedback settings restore cleanly", () =>
+                Math.Abs(
+                    gameplayScreen.LayoutEditorJudgementDurationForTest
+                    - originalJudgementDuration) < 0.001
+                && Math.Abs(
+                    gameplayScreen.LayoutEditorJudgementOpacityForTest
+                    - originalJudgementOpacity) < 0.001
+                && gameplayScreen.LayoutEditorShowsHitErrorForTest
+                == originalShowHitError
+                && (originalShowTimingBar
+                    ? timingBar.Alpha > 0.99f
+                    : timingBar.Alpha < 0.01f));
             AddUntilStep("rebuilt HUD is ready", () =>
             {
                 GameplayHud[] huds = gameplayScreen
@@ -1204,9 +1257,15 @@ namespace Yokko.Game.Tests.Visual
                     - testPlayOffset) < 0.000001);
             AddAssert("editor reports unsaved changes", () =>
                 layoutEditor.HasUnsavedChangesForTest);
-            AddStep("change a live setting before cancelling", () =>
+            AddStep("change live settings before cancelling", () =>
+            {
                 gameplayScreen.SetLayoutEditorBackgroundDimForTest(
-                    Math.Min(0.9, originalBackgroundDim + 0.2)));
+                    Math.Min(0.9, originalBackgroundDim + 0.2));
+                gameplayScreen.SetLayoutEditorJudgementDurationForTest(
+                    originalJudgementDuration + 200);
+                gameplayScreen.SetLayoutEditorShowTimingBarForTest(
+                    !originalShowTimingBar);
+            });
             AddStep("press Escape once", () =>
                 gameplayScreen.HandleKeyDownInput(
                     Key.Escape,
@@ -1229,7 +1288,12 @@ namespace Yokko.Game.Tests.Visual
                     gameplaySettings.LayoutTimingBarOffsetX.Value) < 0.000001
                 && Math.Abs(
                     gameplayScreen.LayoutEditorBackgroundDimForTest
-                    - originalBackgroundDim) < 0.001);
+                    - originalBackgroundDim) < 0.001
+                && Math.Abs(
+                    gameplayScreen.LayoutEditorJudgementDurationForTest
+                    - originalJudgementDuration) < 0.001
+                && gameplaySettings.ShowTimingBar.Value
+                    == originalShowTimingBar);
             AddAssert("pause menu remains available", () =>
                 gameplayScreen.IsPaused);
         }

@@ -13,7 +13,7 @@ public partial class JudgementReadout : CompositeDrawable
 {
     private readonly SpriteText ratingText;
     private readonly SpriteText errorText;
-    private readonly Container content;
+    private readonly Drawable content;
     private bool showHitError;
     private readonly JudgementConfiguration configuration;
     private double displayDurationMilliseconds;
@@ -90,12 +90,9 @@ public partial class JudgementReadout : CompositeDrawable
         ratingText.Colour = isMine
             ? YokkoPalette.Rose
             : RatingColours.For(judgement.Rating);
-        if (showHitError)
-        {
-            errorText.Text = judgement.IsMiss && !isMine
-                ? "missed"
-                : $"{judgement.HitErrorMilliseconds:+0.0;-0.0;0.0} ms";
-        }
+        errorText.Text = judgement.IsMiss && !isMine
+            ? "missed"
+            : $"{judgement.HitErrorMilliseconds:+0.0;-0.0;0.0} ms";
         hideAtMilliseconds = Time.Current + displayDurationMilliseconds;
         Alpha = 1;
     }
@@ -120,8 +117,6 @@ public partial class JudgementReadout : CompositeDrawable
     {
         showHitError = show;
         errorText.Alpha = show ? 1 : 0;
-        if (show && editorPreview)
-            errorText.Text = "+12.0 ms";
     }
 
     internal void SetEditorPreview(bool preview)
@@ -132,8 +127,7 @@ public partial class JudgementReadout : CompositeDrawable
             ratingText.Text = "GREAT";
             ratingText.Colour = RatingColours.For(
                 JudgementRating.Great);
-            if (showHitError)
-                errorText.Text = "+12.0 ms";
+            errorText.Text = "+12.0 ms";
             Alpha = 1;
             return;
         }

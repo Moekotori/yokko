@@ -286,8 +286,11 @@ namespace Yokko.Game.Tests
                 Add(new CursorContainer());
                 Scheduler.AddDelayed(() =>
                 {
-                    songSelect.SelectPrevious();
-                    songSelect.SelectPrevious();
+                    for (int i = 0; i < 6; i++)
+                        songSelect.SelectPrevious();
+                    songSelect.SetKeyModeFilter(KeyMode.SevenKey);
+                    songSelect.TogglePackage(
+                        @"C:\Charts\Harmonic Bloom - Symphony of the Dreaming Petals.osz");
                 }, 350);
                 schedulePreviewScreenshot(1200);
                 return;
@@ -544,7 +547,7 @@ namespace Yokko.Game.Tests
                         KeyMode.SevenKey,
                         182),
                 ],
-                @"C:\Charts\Celestial-Reverie.osz");
+                @"C:\Charts\Celestial Reverie - Chronicles of the Infinite Arcadia.osz");
             ImportedCharts.AddOrReplace(
                 [
                     previewChart(
@@ -561,6 +564,10 @@ namespace Yokko.Game.Tests
                         "Marathon x1.2",
                         KeyMode.SevenKey,
                         190),
+                ],
+                @"C:\Charts\Neon Pulse Overdrive - Ultra Resonance Protocol.osz");
+            ImportedCharts.AddOrReplace(
+                [
                     previewChart(
                         "Harmonic Bloom: Symphony of the Dreaming Petals",
                         "Koharu",
@@ -569,7 +576,7 @@ namespace Yokko.Game.Tests
                         KeyMode.SevenKey,
                         162),
                 ],
-                @"C:\Charts\Neon-Pulse-Pack.osz");
+                @"C:\Charts\Harmonic Bloom - Symphony of the Dreaming Petals.osz");
         }
 
         private static ChartImportResult previewChart(
@@ -593,7 +600,15 @@ namespace Yokko.Game.Tests
                 [new YokkoTimingPoint(0, 60000 / bpm)],
                 null,
                 []);
-            return new ChartImportResult(beatmap, []);
+            string artwork = Path.GetFullPath(Path.Combine(
+                "Yokko.Resources",
+                "Textures",
+                "SongSelect",
+                title.StartsWith("Neon", StringComparison.Ordinal)
+                    || title.StartsWith("Harmonic", StringComparison.Ordinal)
+                    ? "waterfall-cute.png"
+                    : "blue-signal.png"));
+            return new ChartImportResult(beatmap, [], artwork);
         }
 
         private static void applyModsPreviewState(

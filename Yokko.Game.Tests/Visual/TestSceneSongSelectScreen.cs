@@ -59,9 +59,9 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("ranking is above footer", () =>
             songSelectScreen.RankingFitsAboveFooter);
         AddAssert("ranking uses the available detail width", () =>
-            songSelectScreen.RankingPanelSize == new Vector2(800, 466));
+            songSelectScreen.RankingPanelSize == new Vector2(793, 466));
         AddAssert("ranking body uses its full height", () =>
-            songSelectScreen.RankingContentSize == new Vector2(800, 400));
+            songSelectScreen.RankingContentSize == new Vector2(793, 400));
         AddAssert("search box leaves room for key filters", () =>
             songSelectScreen.SearchBoxSize == new Vector2(420, 48));
 

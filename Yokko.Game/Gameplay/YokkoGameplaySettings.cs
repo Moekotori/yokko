@@ -151,7 +151,7 @@ public sealed class YokkoGameplaySettings
 
     public const double MaximumJudgementDisplayDurationMilliseconds = 2000;
 
-    public const double DefaultJudgementDisplayDurationMilliseconds = 420;
+    public const double DefaultJudgementDisplayDurationMilliseconds = 400;
 
     public const double JudgementDisplayDurationStepMilliseconds = 50;
 

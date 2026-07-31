@@ -2467,3 +2467,77 @@ final result: passed
   normalized source in both full-view and focused comparison images.
 
 final result: passed
+
+# Gameplay Result Position, Motion, and Accent QA7
+
+## Evidence
+
+- Base visual truth:
+  `D:\yokko\docs\design\gameplay\yokko-result-broadcast-selected.png`
+  (1672 x 941, normalized to 1600 x 900).
+- User-directed delta: move the mascot slightly right and add restrained Yokko
+  motion plus decorative accents without changing the result layout.
+- Revised implementation capture:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-motion-final.png`
+  (1600 x 900, Direct3D 11, English result state).
+- Source/implementation full-view comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-motion-comparison.png`.
+- Two-phase motion evidence:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-motion-frames.png`.
+- Viewport/state: 1600 x 900, density 1, English locale, Afterimage
+  [Insane], score 0537761, B rank, HD + DT 1.50x.
+
+## Comparison history
+
+1. The prior mascot centre was X 272 and used only a vertical float. Decorative
+   marks and the score-ribbon signal line remained static.
+2. The mascot rest centre is now X 290, an 18px rightward adjustment. It keeps
+   the selected scale and crop while adding low-amplitude X/Y drift and a
+   `-0.35` to `0.35` degree breathing rotation.
+3. Four Font Awesome star/plus accents were placed in existing negative space
+   around the mascot, title, and judgment rail. They use staggered fade, float,
+   and rotation loops in Yokko cyan, pink, and yellow.
+4. A 72 x 3 cyan signal runner now travels along the score ribbon's existing
+   top rail. It reinforces the broadcast/signal language without crossing text.
+5. The two-phase capture confirms the mascot, accents, and runner move while
+   labels, result data, controls, and layout anchors remain stable.
+
+## Required fidelity review
+
+- Fonts and typography: RESULT, song title, score, metrics, judgments, and
+  action labels retain their verified families, natural proportions, size,
+  hierarchy, truncation, and line spacing.
+- Spacing and layout: the mascot moves right by 18px only. The logo, IV stand,
+  ribbon, summary rail, judgments, and action row retain their 1600 x 900
+  production positions with no clipping or control overlap.
+- Colors and tokens: new accents reuse the existing result cyan, pink, yellow,
+  soft cyan, and navy tokens; no new visual language was introduced.
+- Image quality and assets: the formal mascot, atmosphere, logo, and ribbon
+  raster assets remain unchanged. Motion transforms the mascot drawable rather
+  than regenerating, stretching, or degrading the image.
+- Copy and content: all result data, mods, judgments, and action labels are
+  unchanged.
+- Interaction/state: Retry, replay, return, score ribbon, metrics, judgments,
+  and mod-chip hover/press behavior remain functional. Ambient motion does not
+  capture input or change hit targets.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after the full-view and two-phase motion reviews.
+- P3: Yokko does not currently expose a global reduced-motion preference; the
+  added loops therefore use deliberately low amplitude and slow timing.
+
+## Verification
+
+- Isolated known-good `Yokko.Game.Tests` build with the exact result overlay:
+  passed with 0 warnings and 0 errors.
+- Focused result overlay and completion-flow tests: 3 passed, 0 failed.
+- Shared-tree broad build is currently blocked by unrelated concurrent edits in
+  `JudgementReadout.cs` and `GameplayScreen.cs`; these files were not changed by
+  this result-screen pass.
+- Native Direct3D 11 1600 x 900 final frame and a second animation phase were
+  opened and compared; no actionable P0/P1/P2 visual issue remains.
+
+final result: passed
