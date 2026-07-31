@@ -28,7 +28,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
         Texture diamondTexture)
     {
         Action = action;
-        Size = new Vector2(194, 78);
+        Size = new Vector2(210, 78);
 
         Container panel = SongSelectSurface.CreateCard(
             out background,
@@ -80,7 +80,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
                 X = 68,
                 Y = -2,
                 Text = "BACK",
-                Font = HomeTypography.Display(20),
+                Font = HomeTypography.Display(22),
                 Colour = SongSelectTheme.Navy,
             },
             chevron = new SpriteIcon
@@ -193,7 +193,7 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
                 Origin = Anchor.BottomCentre,
                 Y = -11,
                 Text = label,
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Display(11),
                 Spacing = new Vector2(1.2f, 0),
                 Colour = SongSelectTheme.Navy,
             },

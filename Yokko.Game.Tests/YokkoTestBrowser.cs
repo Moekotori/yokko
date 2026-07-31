@@ -34,6 +34,7 @@ namespace Yokko.Game.Tests
         [
             "YOKKO_PREVIEW_1080P",
             "YOKKO_LAYOUT_EDITOR_PREVIEW",
+            "YOKKO_LAYOUT_EDITOR_AUTOPLAY_PREVIEW",
             "YOKKO_TIMING_BAR_PREVIEW",
             "YOKKO_SCROLL_SPEED_PREVIEW",
             "YOKKO_OSU_MANIA_SKIN_PREVIEW",
@@ -111,7 +112,21 @@ namespace Yokko.Game.Tests
                         .Single();
                     editor.MoveTimingBarForTest(new Vector2(70, -58));
                     editor.ResizeTimingBarForTest(new Vector2(58, 20));
-                    schedulePreviewScreenshot(900);
+                    if (Environment.GetEnvironmentVariable(
+                            "YOKKO_LAYOUT_EDITOR_COVER_PREVIEW") == "1")
+                    {
+                        editor.SetTopCoverEnabledForTest(true);
+                        editor.SetTopCoverHeightForTest(260);
+                    }
+                    if (Environment.GetEnvironmentVariable(
+                            "YOKKO_LAYOUT_EDITOR_AUTOPLAY_PREVIEW") == "1")
+                    {
+                        gameplay.ResumeCountdownMillisecondsOverride = 0;
+                        gameplay.BeginLayoutAutoplayDemoForTest();
+                        schedulePreviewScreenshot(1400);
+                    }
+                    else
+                        schedulePreviewScreenshot(900);
                 };
                 Scheduler.AddDelayed(openEditorWhenReady, 500);
                 return;
@@ -672,9 +687,17 @@ namespace Yokko.Game.Tests
             KeyMode mode,
             double bpm)
         {
-            // Keep screenshot fixtures intentionally tiny. Full demo beatmaps
-            // invoke the production difficulty calculators and can stall a
-            // visual-preview launch long enough to miss its capture window.
+            int laneCount = (int)mode;
+            YokkoHitObject[] previewObjects = Enumerable.Range(0, 84)
+                .Select(index => new YokkoHitObject(
+                    index % laneCount,
+                    800 + index * (30000 / bpm),
+                    null,
+                    HitObjectKind.Tap))
+                .ToArray();
+
+            // Keep the fixture compact while retaining enough real notes for
+            // the production difficulty calculators to render numeric values.
             var beatmap = new YokkoBeatmap(
                 title,
                 artist,
@@ -684,7 +707,7 @@ namespace Yokko.Game.Tests
                 ChartSourceFormat.Yokko,
                 [new YokkoTimingPoint(0, 60000 / bpm)],
                 null,
-                []);
+                previewObjects);
             string artwork = Path.GetFullPath(Path.Combine(
                 "Yokko.Resources",
                 "Textures",

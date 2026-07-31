@@ -105,14 +105,14 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
         Texture diamondTexture)
     {
         Action = action;
-        Size = new Vector2(88, 96);
+        Size = new Vector2(126, 96);
 
         InternalChildren = new Drawable[]
         {
             new Container
             {
-                Position = new Vector2(8.5f, 10.5f),
-                Size = new Vector2(70),
+                Position = new Vector2(10.5f, 10.5f),
+                Size = new Vector2(106, 72),
                 Masking = true,
                 CornerRadius = 8,
                 Child = new Box
@@ -127,8 +127,8 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
             },
             card = new Container
             {
-                Position = new Vector2(6.5f, 7.5f),
-                Size = new Vector2(70),
+                Position = new Vector2(8.5f, 7.5f),
+                Size = new Vector2(106, 72),
                 Masking = true,
                 CornerRadius = 8,
                 BorderThickness = 1.5f,
@@ -143,7 +143,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
                     new Container
                     {
                         Position = new Vector2(7),
-                        Size = new Vector2(56),
+                        Size = new Vector2(92, 58),
                         Masking = true,
                         CornerRadius = 5,
                         Child = new Box
@@ -165,7 +165,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
                         Anchor = Anchor.BottomLeft,
                         Origin = Anchor.BottomLeft,
                         X = 10,
-                        Width = 27,
+                        Width = 42,
                         Height = 3,
                         Colour = HomeControlColours.Pink,
                     },
@@ -176,7 +176,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.Centre,
                 Position = new Vector2(0, 2),
-                Size = new Vector2(25),
+                Size = new Vector2(27),
                 Texture = diamondTexture,
                 FillMode = FillMode.Fit,
             },
@@ -184,7 +184,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-11, 8),
+                Position = new Vector2(-8, 8),
                 Size = new Vector2(16),
                 BorderThickness = 1,
                 BorderColour = HomeControlColours.Navy,
@@ -193,7 +193,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.Centre,
-                Position = new Vector2(-19, 16),
+                Position = new Vector2(-16, 16),
                 Font = HomeTypography.Display(9),
             },
             new SpriteText
@@ -202,9 +202,9 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
                 Origin = Anchor.TopCentre,
                 Y = 80,
                 Text = "MODS",
-                Font = HomeTypography.Display(10),
+                Font = HomeTypography.Display(11),
                 Spacing = new Vector2(1.4f, 0),
-                Colour = SongSelectTheme.PaleCyan,
+                Colour = SongSelectTheme.Navy,
             },
         };
 

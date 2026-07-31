@@ -1,28 +1,26 @@
 using System;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Shapes;
 using osuTK;
-using osuTK.Graphics;
 using Yokko.Game.Gameplay;
 
 namespace Yokko.Game.Screens.Gameplay;
 
 /// <summary>
-/// Screen-space covers tied to the rendered playfield. They deliberately live
-/// outside GameplayPlayfield so changing their size never changes note timing,
-/// judgement coordinates or skin geometry.
+/// Synchronises configured blocker ratios with the rendered playfield. The
+/// black blocker surfaces live inside GameplayPlayfield above lane content and
+/// below skin combo/judgement feedback, without changing timing or geometry.
 /// </summary>
 internal partial class GameplayLaneCovers : CompositeDrawable
 {
     private readonly GameplayPlayfield playfield;
     private readonly YokkoGameplaySettings settings;
-    private readonly Box topCover;
-    private readonly Box bottomCover;
+    private float displayedTopHeight;
+    private float displayedBottomHeight;
 
-    internal float DisplayedTopHeight => topCover.Height;
+    internal float DisplayedTopHeight => displayedTopHeight;
 
-    internal float DisplayedBottomHeight => bottomCover.Height;
+    internal float DisplayedBottomHeight => displayedBottomHeight;
 
     public GameplayLaneCovers(
         GameplayPlayfield playfield,
@@ -34,11 +32,6 @@ internal partial class GameplayLaneCovers : CompositeDrawable
         RelativeSizeAxes = Axes.Both;
         Depth = -40;
 
-        InternalChildren = new Drawable[]
-        {
-            topCover = createCover(),
-            bottomCover = createCover(),
-        };
     }
 
     protected override void Update()
@@ -55,32 +48,20 @@ internal partial class GameplayLaneCovers : CompositeDrawable
 
         (Vector2 topLeft, Vector2 bottomRight) =
             GameplayLayoutGeometry.BoundsIn(this, playfield);
-        float width = Math.Max(0, bottomRight.X - topLeft.X);
         float height = Math.Max(0, bottomRight.Y - topLeft.Y);
-        float topHeight = height * (float)Math.Clamp(
+        double topRatio = Math.Clamp(
             settings.LayoutTopCoverRatio.Value,
             0,
             YokkoGameplaySettings.MaximumTopCoverRatio);
-        float bottomHeight = height * (float)Math.Clamp(
+        double bottomRatio = Math.Clamp(
             settings.LayoutBottomCoverRatio.Value,
             0,
             YokkoGameplaySettings.MaximumBottomCoverRatio);
 
-        topCover.Position = topLeft;
-        topCover.Size = new Vector2(width, topHeight);
-        topCover.Alpha = topHeight > 0.5f ? 1 : 0;
-
-        bottomCover.Position = new Vector2(
-            topLeft.X,
-            bottomRight.Y - bottomHeight);
-        bottomCover.Size = new Vector2(width, bottomHeight);
-        bottomCover.Alpha = bottomHeight > 0.5f ? 1 : 0;
+        displayedTopHeight = height * (float)topRatio;
+        displayedBottomHeight = height * (float)bottomRatio;
+        playfield.SetLayoutCoverRatios(topRatio, bottomRatio);
     }
-
-    private static Box createCover() => new()
-    {
-        Colour = Color4.Black,
-    };
 }
 
 internal static class GameplayLayoutGeometry

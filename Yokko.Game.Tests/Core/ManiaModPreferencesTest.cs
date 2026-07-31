@@ -112,10 +112,10 @@ public sealed class ManiaModPreferencesTest
                 {
                     Assert.That(
                         doubleTime.FixedRateSpeedChange,
-                        Is.EqualTo(1.67));
+                        Is.EqualTo(1.5));
                     Assert.That(
                         doubleTime.FixedRateAdjustPitch,
-                        Is.True);
+                        Is.False);
                     Assert.That(muted.MutedInverse, Is.True);
                     Assert.That(muted.MutedMetronome, Is.False);
                     Assert.That(muted.MutedComboCount, Is.EqualTo(321));

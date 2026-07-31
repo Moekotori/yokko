@@ -1227,6 +1227,31 @@ namespace Yokko.Game.Tests.Visual
                 && timingBar.Position.Y < -30
                 && timingBar.Scale.X > 1.15f
                 && timingBar.Scale.Y > 1.2f);
+            AddStep("start autoplay layout demo", () =>
+            {
+                gameplayScreen.ResumeCountdownMillisecondsOverride = 0;
+                gameplayScreen.BeginLayoutAutoplayDemoForTest();
+            });
+            AddUntilStep("autoplay demo keeps gameplay UI visible", () =>
+                gameplayScreen.IsLayoutAutoplayPlaying
+                && gameplayScreen.AutoplayMode
+                && !gameplayScreen.IsPaused
+                && gameplayHud.Alpha > 0
+                && layoutEditor.AutoplayControlVisibleForTest
+                && layoutEditor.ChromeAlphaForTest < 0.01f);
+            AddUntilStep("autoplay demo hits notes", () =>
+                comboReadout.DisplayedCombo > 0
+                && judgementReadout.Alpha > 0);
+            AddStep("pause autoplay demo", () =>
+                layoutEditor.PauseAutoplayDemoForTest());
+            AddUntilStep("autoplay demo returns to editor paused", () =>
+                gameplayScreen.IsPaused
+                && gameplayScreen.IsLayoutEditing
+                && !gameplayScreen.IsLayoutAutoplayPlaying
+                && !gameplayScreen.AutoplayMode
+                && layoutEditor.IsEditing
+                && !layoutEditor.AutoplayControlVisibleForTest
+                && layoutEditor.ChromeAlphaForTest > 0.9f);
             double testPlayOffset = 0;
             AddStep("prepare unsaved layout test play", () =>
             {
@@ -1340,10 +1365,17 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("skin judgement asset is previewed", () =>
                 gameplay.IsLayoutEditing
                 && playfield.SkinJudgementEditorPreviewUsesTexture);
+            AddStep("enable a top blocker", () =>
+                gameplaySettings.LayoutTopCoverRatio.Value = 0.4);
+            AddUntilStep("skin feedback stays above the blocker", () =>
+                playfield.LayoutTopCoverHeightForTest > 1
+                && playfield.SkinFeedbackRendersAboveLayoutCovers);
             AddAssert("default judgement text stays hidden", () =>
                 gameplay.ChildrenOfType<JudgementReadout>()
                         .Single()
                         .Alpha == 0);
+            AddStep("restore blocker", () =>
+                gameplaySettings.LayoutTopCoverRatio.Value = 0);
         }
 
         [Test]

@@ -235,6 +235,8 @@ namespace Yokko.Game.Tests.Visual
             HomeKeyTestPad pad = null;
             HomeSignalSnake snake = null;
             int steps = 0;
+            float positionX = 0;
+            float positionY = 0;
 
             AddStep("find home toys", () =>
             {
@@ -242,10 +244,22 @@ namespace Yokko.Game.Tests.Visual
                 snake = this.ChildrenOfType<HomeSignalSnake>().Single();
                 snake.SetAvailable(true);
             });
-            AddStep("record signal steps", () => steps = snake.StepCount);
-            AddStep("press right lane", () => pad.PressLane(3));
+            AddStep("record signal state", () =>
+            {
+                steps = snake.StepCount;
+                positionX = snake.HeadPosition.X;
+                positionY = snake.HeadPosition.Y;
+            });
+            AddStep("press an open lane", () =>
+            {
+                for (int lane = 0; lane < 4 && snake.StepCount == steps; lane++)
+                    pad.PressLane(lane);
+            });
             AddAssert("signal advanced", () => snake.StepCount == steps + 1);
-            AddAssert("signal moved right", () => snake.HeadPosition.X > 132);
+            AddAssert(
+                "signal head moved",
+                () => snake.HeadPosition.X != positionX
+                      || snake.HeadPosition.Y != positionY);
         }
 
         [Test]
@@ -272,6 +286,44 @@ namespace Yokko.Game.Tests.Visual
                 releasedWhenHidden = !snake.TryHandleArrowKey(Key.Left, false);
             });
             AddAssert("hidden snake releases arrows", () => releasedWhenHidden);
+        }
+
+        [Test]
+        public void TestSignalSnakeWrapsAndBlocksTailCollision()
+        {
+            HomeSignalSnake snake = null;
+            int steps = 0;
+            int moves = 0;
+            bool wrapped = false;
+
+            AddStep("find signal snake", () =>
+            {
+                snake = this.ChildrenOfType<HomeSignalSnake>().Single();
+                snake.SetAvailable(true);
+                steps = snake.StepCount;
+            });
+            AddStep("move through right edge", () =>
+            {
+                for (int i = 0; i < 20; i++)
+                {
+                    float before = snake.HeadPosition.X;
+                    snake.HandleLane(3);
+                    moves++;
+                    if (snake.HeadPosition.X < before)
+                    {
+                        wrapped = true;
+                        break;
+                    }
+                }
+            });
+            AddAssert("edge was crossed", () => wrapped);
+            AddAssert("every input advanced", () => snake.StepCount == steps + moves);
+            AddAssert("head wrapped to left edge", () => Math.Abs(snake.HeadPosition.X - 24) < 0.01f);
+            AddStep("try to reverse into tail", () => snake.HandleLane(0));
+            AddAssert("tail collision blocked movement", () => snake.StepCount == steps + moves);
+            AddAssert("head stayed at left edge", () => Math.Abs(snake.HeadPosition.X - 24) < 0.01f);
+            AddStep("steer away from tail", () => snake.HandleLane(1));
+            AddAssert("safe direction advanced", () => snake.StepCount == steps + moves + 1);
         }
 
         private void captureScreenshot()

@@ -42,6 +42,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
     private readonly Action<ManiaModCategory> selectCategory;
     private readonly Action<ManiaModId> toggleMod;
+    private readonly Action<IReadOnlyList<ManiaModId>> cycleModFamily;
     private readonly Action<ManiaModId> focusMod;
     private readonly Action<int> changeNoPauseAllowance;
     private readonly Action<double> previewRate;
@@ -56,6 +57,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private readonly Dictionary<ManiaModCategory, OrbitCategoryButton>
         categoryButtons = new();
     private readonly Dictionary<ManiaModId, OrbitModNode> nodes = new();
+    private readonly Dictionary<ManiaModId, IReadOnlyList<ManiaModId>>
+        nodeFamilies = new();
     private readonly List<OrbitConnector> connectors = new();
     private readonly List<OrbitRatePresetButton> ratePresets = new();
     private readonly List<Circle> capacityDots = new();
@@ -94,7 +97,16 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
     internal IReadOnlyCollection<ManiaModId> VisibleMods => nodes.Keys;
     internal bool RepresentsMod(ManiaModId mod) =>
-        nodes.Keys.Any(node => nodeRepresents(node, mod));
+        nodeFamilies.Values.Any(family => family.Contains(mod));
+    internal void CycleNode(ManiaModId mod)
+    {
+        ManiaModId? node = nodes.Keys
+            .Cast<ManiaModId?>()
+            .FirstOrDefault(candidate =>
+                nodeRepresents(candidate!.Value, mod));
+        if (node.HasValue)
+            cycleModFamily(familyForNode(node.Value));
+    }
     internal string ActiveCountText => activeCount?.Text.ToString() ?? string.Empty;
     internal string CapacityTelemetryText =>
         capacityTelemetry?.Text.ToString() ?? string.Empty;
@@ -104,6 +116,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     internal GameplayModsOrbitWorkspace(
         Action<ManiaModCategory> selectCategory,
         Action<ManiaModId> toggleMod,
+        Action<IReadOnlyList<ManiaModId>> cycleModFamily,
         Action<ManiaModId> focusMod,
         Action<int> changeNoPauseAllowance,
         Action<double> previewRate,
@@ -117,6 +130,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     {
         this.selectCategory = selectCategory;
         this.toggleMod = toggleMod;
+        this.cycleModFamily = cycleModFamily;
         this.focusMod = focusMod;
         this.changeNoPauseAllowance = changeNoPauseAllowance;
         this.previewRate = previewRate;
@@ -237,8 +251,11 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
         foreach ((ManiaModId mod, OrbitModNode node) in nodes)
         {
-            node.SetPresentation(OsuManiaModParityCatalog.Get(
-                presentationModForNode(mod)));
+            ManiaModId presentation = presentationModForNode(mod);
+            IReadOnlyList<ManiaModId> family = familyForNode(mod);
+            node.SetPresentation(
+                OsuManiaModParityCatalog.Get(presentation),
+                family.TakeWhile(member => member != presentation).Count() + 1);
             node.SetState(
                 isNodeActive(mod),
                 nodeRepresents(mod, focusedMod),
@@ -308,11 +325,9 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         if (visible.Length == 0)
             return null;
 
-        if (current == ManiaModId.Nightcore
-            && visible.Contains(ManiaModId.DoubleTime))
-        {
-            current = ManiaModId.DoubleTime;
-        }
+        current = nodes.Keys.FirstOrDefault(
+            node => nodeRepresents(node, current),
+            current);
 
         int currentIndex = Array.IndexOf(visible, current);
         if (currentIndex < 0)
@@ -323,30 +338,33 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             % visible.Length];
     }
 
-    private ManiaModId presentationModForNode(ManiaModId nodeMod) =>
-        nodeMod == ManiaModId.DoubleTime
-        && selectedMods.Contains(ManiaModId.Nightcore)
-            ? ManiaModId.Nightcore
-            : nodeMod;
+    private ManiaModId presentationModForNode(ManiaModId nodeMod)
+    {
+        IReadOnlyList<ManiaModId> family = familyForNode(nodeMod);
+        ManiaModId? active = family
+            .Cast<ManiaModId?>()
+            .FirstOrDefault(mod => selectedMods.Contains(mod!.Value));
+        if (active.HasValue)
+            return active.Value;
+
+        return family.Contains(focusedMod) ? focusedMod : nodeMod;
+    }
 
     private bool isNodeActive(ManiaModId nodeMod) =>
-        selectedMods.Contains(nodeMod)
-        || nodeMod == ManiaModId.DoubleTime
-        && selectedMods.Contains(ManiaModId.Nightcore);
+        familyForNode(nodeMod).Any(selectedMods.Contains);
 
-    private static bool nodeRepresents(
+    private bool nodeRepresents(
         ManiaModId nodeMod,
         ManiaModId representedMod) =>
-        nodeMod == representedMod
-        || nodeMod == ManiaModId.DoubleTime
-        && representedMod == ManiaModId.Nightcore;
+        familyForNode(nodeMod).Contains(representedMod);
 
-    private static bool transitionContains(
+    private bool transitionContains(
         IReadOnlySet<ManiaModId> transitions,
         ManiaModId nodeMod) =>
-        transitions.Contains(nodeMod)
-        || nodeMod == ManiaModId.DoubleTime
-        && transitions.Contains(ManiaModId.Nightcore);
+        familyForNode(nodeMod).Any(transitions.Contains);
+
+    private IReadOnlyList<ManiaModId> familyForNode(ManiaModId nodeMod) =>
+        nodeFamilies.GetValueOrDefault(nodeMod) ?? [nodeMod];
 
     internal void TransitionOut(int direction)
     {
@@ -1429,51 +1447,29 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     {
         nodeHost.Clear();
         nodes.Clear();
+        nodeFamilies.Clear();
         connectors.Clear();
 
-        IReadOnlyList<ManiaModDefinition> definitions =
-            orbitDefinitions(category);
-        bool compact = definitions.Count > 6;
-        IReadOnlyList<Vector2> positions = compact
-            ? compactOrbitPositions(definitions.Count)
-            :
-            [
-                new(365, 10),
-                new(498, 109),
-                new(530, 248),
-                new(505, 386),
-                new(430, 468),
-                new(150, 524),
-            ];
+        IReadOnlyList<IReadOnlyList<ManiaModId>> families =
+            orbitFamilies(category);
+        IReadOnlyList<Vector2> positions = matrixPositions(families.Count);
 
-        Vector2? previousNodeCentre = null;
-        ManiaModId? previousMod = null;
-        for (int i = 0; i < definitions.Count; i++)
+        for (int i = 0; i < families.Count; i++)
         {
-            ManiaModDefinition definition = definitions[i];
+            IReadOnlyList<ManiaModId> family = families[i];
+            ManiaModDefinition definition =
+                OsuManiaModParityCatalog.Get(family[0]);
             Vector2 position = positions[i];
-            Vector2 nodeCentre = position + new Vector2(42);
-            if (previousNodeCentre.HasValue && previousMod.HasValue)
-            {
-                var connector = new OrbitConnector(
-                    previousMod.Value,
-                    definition.Id,
-                    previousNodeCentre.Value,
-                    nodeCentre,
-                    i * 0.13);
-                connectors.Add(connector);
-                nodeHost.Add(connector);
-            }
-            previousNodeCentre = nodeCentre;
-            previousMod = definition.Id;
+            nodeFamilies[definition.Id] = family;
 
             var node = new OrbitModNode(
                 definition,
                 accentFor(definition),
                 i + 1,
-                () => toggleMod(definition.Id),
+                () => cycleModFamily(family),
                 () => focusMod(definition.Id),
-                compact)
+                true,
+                family.Count)
             {
                 Position = position,
             };
@@ -1482,24 +1478,106 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         }
     }
 
-    private IReadOnlyList<ManiaModDefinition> orbitDefinitions(
+    private IReadOnlyList<IReadOnlyList<ManiaModId>> orbitFamilies(
         ManiaModCategory page)
-        => definitionsForCategory(page)
-            .Where(definition =>
-                isSelectable(definition.Id)
-                && definition.Id != ManiaModId.Nightcore)
-            .ToArray();
+    {
+        ManiaModId[][] preferredFamilies = page switch
+        {
+            ManiaModCategory.DifficultyReduction =>
+            [
+                [ManiaModId.Easy],
+                [ManiaModId.HalfTime, ManiaModId.Daycore],
+                [ManiaModId.NoRelease],
+                [ManiaModId.NoFail],
+            ],
+            ManiaModCategory.DifficultyIncrease =>
+            [
+                [ManiaModId.HardRock],
+                [ManiaModId.SuddenDeath, ManiaModId.Perfect],
+                [ManiaModId.DoubleTime, ManiaModId.Nightcore],
+                [
+                    ManiaModId.Hidden,
+                    ManiaModId.Flashlight,
+                    ManiaModId.FadeIn,
+                    ManiaModId.Cover,
+                ],
+                [ManiaModId.AccuracyChallenge],
+                [ManiaModId.NoPause],
+            ],
+            ManiaModCategory.Conversion =>
+            [
+                [ManiaModId.Random],
+                [ManiaModId.DualStages],
+                [ManiaModId.Mirror],
+                [ManiaModId.DifficultyAdjust],
+                [ManiaModId.Classic],
+                [ManiaModId.Invert, ManiaModId.HoldOff],
+                [ManiaModId.ConstantSpeed],
+            ],
+            ManiaModCategory.Automation =>
+            [
+                [ManiaModId.Autoplay, ManiaModId.Cinema],
+            ],
+            ManiaModCategory.Fun =>
+            [
+                [
+                    ManiaModId.WindUp,
+                    ManiaModId.WindDown,
+                    ManiaModId.AdaptiveSpeed,
+                ],
+                [ManiaModId.Muted],
+            ],
+            _ => [],
+        };
 
-    private static IReadOnlyList<Vector2> compactOrbitPositions(int count)
+        ManiaModId[] available = definitionsForCategory(page)
+            .Where(definition =>
+                isSelectable(definition.Id))
+            .Select(definition => definition.Id)
+            .ToArray();
+        var remaining = available.ToHashSet();
+        var result = new List<IReadOnlyList<ManiaModId>>();
+        foreach (ManiaModId[] preferredFamily in preferredFamilies)
+        {
+            ManiaModId[] family = preferredFamily
+                .Where(remaining.Remove)
+                .ToArray();
+            if (family.Length > 0)
+                result.Add(family);
+        }
+
+        result.AddRange(
+            available
+                .Where(remaining.Contains)
+                .Select(mod => (IReadOnlyList<ManiaModId>)[mod]));
+        return result;
+    }
+
+    private static IReadOnlyList<Vector2> matrixPositions(int count)
     {
         var positions = new Vector2[count];
-        Vector2 centre = new(290, 310);
-        Vector2 radius = new(255, 255);
+        int rows = (count + 1) / 2;
+        float top = rows switch
+        {
+            <= 1 => 268,
+            2 => 160,
+            3 => 100,
+            _ => 60,
+        };
+        float spacing = rows switch
+        {
+            <= 1 => 0,
+            2 => 220,
+            3 => 170,
+            _ => 140,
+        };
         for (int i = 0; i < count; i++)
         {
-            float angle = MathF.PI * 2 * i / count;
-            Vector2 direction = new(MathF.Sin(angle), -MathF.Cos(angle));
-            positions[i] = centre + direction * radius - new Vector2(42);
+            int row = i / 2;
+            bool right = i % 2 == 1;
+            positions[i] = new Vector2(
+                right ? 520 : 18,
+                top + row * spacing);
         }
 
         return positions;
@@ -2477,6 +2555,7 @@ internal partial class OrbitSignalScanner : CompositeDrawable
 internal partial class OrbitModNode : ClickableContainer
 {
     private readonly bool compact;
+    private readonly int familySize;
     private readonly Color4 accent;
     private readonly Circle shadow;
     private readonly Circle activationBurst;
@@ -2485,6 +2564,7 @@ internal partial class OrbitModNode : ClickableContainer
     private readonly Circle surface;
     private readonly Circle innerRing;
     private readonly SpriteText acronym;
+    private readonly SpriteText cyclePosition;
     private readonly SpriteText name;
     private readonly TextFlowContainer description;
     private readonly Circle stateBadge;
@@ -2508,13 +2588,15 @@ internal partial class OrbitModNode : ClickableContainer
         int index,
         Action action,
         Action focus,
-        bool compact = false)
+        bool compact = false,
+        int familySize = 1)
     {
         ModId = definition.Id;
         presentationMod = definition.Id;
         this.accent = accent;
         this.focus = focus;
         this.compact = compact;
+        this.familySize = familySize;
         Action = action;
         Size = compact ? new Vector2(88) : new Vector2(284, 86);
         InternalChildren =
@@ -2610,10 +2692,24 @@ internal partial class OrbitModNode : ClickableContainer
             {
                 Anchor = Anchor.TopLeft,
                 Origin = Anchor.Centre,
-                Position = new Vector2(42),
+                Position = new Vector2(42, familySize > 1 ? 36 : 42),
                 Text = definition.Acronym,
                 Font = HomeTypography.Display(35),
                 Colour = accent,
+            },
+            cyclePosition = new SpriteText
+            {
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.Centre,
+                Position = new Vector2(42, 64),
+                Text = familySize > 1 ? $"1/{familySize}" : string.Empty,
+                Font = HomeTypography.Display(9),
+                Spacing = new Vector2(0.8f, 0),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.5f),
             },
             stateBadge = new Circle
             {
@@ -2669,8 +2765,14 @@ internal partial class OrbitModNode : ClickableContainer
         }
     }
 
-    internal void SetPresentation(ManiaModDefinition definition)
+    internal void SetPresentation(
+        ManiaModDefinition definition,
+        int familyPosition = 1)
     {
+        cyclePosition.Text = familySize > 1
+            ? $"{familyPosition}/{familySize}"
+            : string.Empty;
+
         if (presentationMod == definition.Id)
             return;
 

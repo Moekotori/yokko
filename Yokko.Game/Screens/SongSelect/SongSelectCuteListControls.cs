@@ -293,36 +293,40 @@ internal partial class SongSelectSongRow : PoolableDrawable
     {
         var difficultyContainer = new Container
         {
-            Position = new Vector2(18, 10),
-            Size = new Vector2(48, 38),
-            Masking = true,
-            CornerRadius = 9,
-            BorderThickness = 1,
-            BorderColour = accent,
+            Position = new Vector2(14, 8),
+            Size = new Vector2(54, 42),
             Children =
             [
+                addDifficultyUnit(new SpriteText
+                {
+                    Text = ManiaDifficultyPresentation.Unit(
+                        difficultyRatingMode),
+                    Font = HomeTypography.Display(7),
+                    Colour = accent,
+                }),
+                addDifficultyValue(new SpriteText
+                {
+                    Y = 12,
+                    Text = ManiaDifficultyPresentation.FormatValue(
+                        displayedDifficultyRatings,
+                        difficultyRatingMode),
+                    Font = HomeTypography.Display(12),
+                    Colour = SongSelectTheme.Navy,
+                }),
                 addAccent(new Box
                 {
-                    RelativeSizeAxes = Axes.Both,
+                    Anchor = Anchor.BottomLeft,
+                    Origin = Anchor.BottomLeft,
+                    Width = 42,
+                    Height = 2,
                     Colour = new Color4(
                         accent.R,
                         accent.G,
                         accent.B,
-                        0.86f),
-                }, 0.86f),
-                addDifficultyValue(new SpriteText
-                {
-                    Anchor = Anchor.Centre,
-                    Origin = Anchor.Centre,
-                    Text = ManiaDifficultyPresentation.FormatValue(
-                        displayedDifficultyRatings,
-                        difficultyRatingMode),
-                    Font = HomeTypography.Display(10),
-                    Colour = SongSelectTheme.DeepNavy,
-                }),
+                        0.55f),
+                }, 0.55f),
             ],
         };
-        accentBorders.Add((difficultyContainer, 1));
         children.Add(difficultyContainer);
         children.Add(adaptiveLabel(
             entry.Beatmap.Title,
@@ -364,7 +368,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         children.Add(new Container
         {
             Position = new Vector2(8),
-            Size = new Vector2(220, 68),
+            Size = new Vector2(76, 68),
             Masking = true,
             CornerRadius = 7,
             BorderThickness = 1,
@@ -378,18 +382,18 @@ internal partial class SongSelectSongRow : PoolableDrawable
         });
         children.Add(adaptiveLabel(
             entry.Beatmap.Title,
-            244,
+            100,
             10,
-            360,
+            504,
             15,
             SongSelectTheme.Navy,
             SongSelectTheme.Navy,
             true));
         children.Add(adaptiveLabel(
             entry.Beatmap.Artist,
-            244,
+            100,
             36,
-            340,
+            484,
             10,
             new Color4(
                 SongSelectTheme.Navy.R,
@@ -404,9 +408,9 @@ internal partial class SongSelectSongRow : PoolableDrawable
             true));
         children.Add(adaptiveLabel(
             $"mapped by {entry.Beatmap.Creator}",
-            244,
+            100,
             57,
-            340,
+            484,
             8,
             SongSelectTheme.Cyan,
             SongSelectTheme.Cyan,
@@ -568,6 +572,8 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
 {
     private Action toggle;
     private Box stateBackground;
+    private Box selectedRail;
+    private SpriteIcon selectedIndicator;
 
     public SongSelectPackageHeader()
     {
@@ -614,19 +620,24 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
 
         InternalChildren =
         [
-            new Sprite
+            new Container
             {
                 RelativeSizeAxes = Axes.Y,
-                Width = 280,
-                Texture = wallpaper,
-                FillMode = FillMode.Fill,
+                Width = 104,
+                Masking = true,
+                Child = new Sprite
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Texture = wallpaper,
+                    FillMode = FillMode.Fill,
+                },
             },
             new Container
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
                 RelativeSizeAxes = Axes.Y,
-                Width = 570,
+                Width = 746,
                 Child = stateBackground = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
@@ -637,17 +648,25 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             },
             new SpriteIcon
             {
-                Position = new Vector2(292, 18),
+                Position = new Vector2(120, 18),
                 Size = new Vector2(16),
                 Icon = FontAwesome.Solid.Star,
                 Colour = SongSelectTheme.Yellow,
             },
+            selectedIndicator = new SpriteIcon
+            {
+                Position = new Vector2(120, 51),
+                Size = new Vector2(11),
+                Icon = FontAwesome.Solid.Play,
+                Colour = SongSelectTheme.Pink,
+                Alpha = selected ? 1 : 0,
+            },
             packageTitle(packageName),
             label(
                 $"{songCount} SONGS · {chartCount} CHARTS",
-                318,
+                148,
                 53,
-                440,
+                548,
                 9,
                 new Color4(
                     SongSelectTheme.Navy.R,
@@ -662,6 +681,14 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 Size = new Vector2(14),
                 Rotation = collapsed ? -90 : 0,
                 Icon = FontAwesome.Solid.ChevronDown,
+                Colour = SongSelectTheme.Cyan,
+            },
+            selectedRail = new Box
+            {
+                Anchor = Anchor.BottomRight,
+                Origin = Anchor.BottomRight,
+                Width = 746,
+                Height = selected ? 3 : 0,
                 Colour = SongSelectTheme.Cyan,
             },
         ];
@@ -679,6 +706,10 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 ? SongSelectSurface.Ivory(0.995f)
                 : SongSelectSurface.Ivory(0.98f);
         }
+        if (selectedIndicator != null)
+            selectedIndicator.Alpha = selected ? 1 : 0;
+        if (selectedRail != null)
+            selectedRail.Height = selected ? 3 : 0;
     }
 
     protected override bool OnClick(ClickEvent e)
@@ -690,17 +721,19 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
     protected override void FreeAfterUse()
     {
         toggle = null;
+        selectedIndicator = null;
+        selectedRail = null;
         ClearInternal(true);
         base.FreeAfterUse();
     }
 
     private static Drawable packageTitle(string packageName)
     {
-        string[] lines = SongSelectTextLayout.TwoLines(packageName, 27);
+        string[] lines = SongSelectTextLayout.TwoLines(packageName, 34);
         var flow = new FillFlowContainer
         {
-            Position = new Vector2(318, 11),
-            Width = 430,
+            Position = new Vector2(148, 11),
+            Width = 548,
             AutoSizeAxes = Axes.Y,
             Direction = FillDirection.Vertical,
             Spacing = new Vector2(0, -1),
@@ -709,7 +742,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         {
             flow.Add(new SpriteText
             {
-                Width = 430,
+                Width = 548,
                 Truncate = true,
                 Text = line,
                 Font = HomeTypography.Display(lines.Length == 1 ? 18 : 15),

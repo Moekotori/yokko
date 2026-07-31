@@ -35,6 +35,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private readonly YokkoGameplaySettings settings;
     private readonly GameplayLayoutEditorLiveSettings liveSettings;
     private readonly Action beginTestPlay;
+    private readonly Action beginAutoplayDemo;
+    private readonly Action pauseAutoplayDemo;
     private readonly Action save;
     private readonly Action close;
     private readonly LayoutTransformTarget playfieldTarget;
@@ -47,6 +49,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private readonly Stack<LayoutSnapshot> undoHistory = new();
     private readonly Stack<LayoutSnapshot> redoHistory = new();
     private readonly Container editorChrome;
+    private readonly AutoplayDemoControl autoplayDemoControl;
     private Container overviewContent;
     private Container miniPlayfield;
     private Container miniHud;
@@ -72,6 +75,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     internal bool IsTestingLayout { get; private set; }
 
+    internal bool IsAutoplayDemo { get; private set; }
+
     internal bool IsSessionActive => IsEditing || IsTestingLayout;
 
     internal bool IsChromeVisible { get; private set; } = true;
@@ -79,6 +84,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     internal bool IsChromeVisibleForTest => IsChromeVisible;
 
     internal float ChromeAlphaForTest => editorChrome.Alpha;
+
+    internal bool AutoplayControlVisibleForTest =>
+        autoplayDemoControl.Alpha > 0.9f;
+
+    internal void PauseAutoplayDemoForTest() => pauseAutoplayDemo();
 
     internal bool HasUnsavedChangesForTest => hasUnsavedChanges();
 
@@ -128,6 +138,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         YokkoGameplaySettings settings,
         GameplayLayoutEditorLiveSettings liveSettings,
         Action beginTestPlay,
+        Action beginAutoplayDemo,
+        Action pauseAutoplayDemo,
         Action save,
         Action close)
     {
@@ -139,6 +151,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         this.settings = settings;
         this.liveSettings = liveSettings;
         this.beginTestPlay = beginTestPlay;
+        this.beginAutoplayDemo = beginAutoplayDemo;
+        this.pauseAutoplayDemo = pauseAutoplayDemo;
         this.save = save;
         this.close = close;
 
@@ -146,7 +160,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         Depth = -2000;
         Alpha = 0;
 
-        InternalChild = editorChrome = new Container
+        editorChrome = new Container
         {
             RelativeSizeAxes = Axes.Both,
             Children = new Drawable[]
@@ -242,6 +256,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 createFeedbackSettingsCard(),
             },
         };
+        InternalChildren = new Drawable[]
+        {
+            editorChrome,
+            autoplayDemoControl = new AutoplayDemoControl(
+                pauseAutoplayDemo),
+        };
 
         settings.ToggleLayoutEditorUiKey.ValueChanged +=
             _ => updateEditorHint();
@@ -256,7 +276,10 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         bool hadActiveSession = IsSessionActive;
         IsEditing = editing;
         IsTestingLayout = false;
+        IsAutoplayDemo = false;
         ClearTransforms();
+        autoplayDemoControl.ClearTransforms();
+        autoplayDemoControl.Alpha = 0;
 
         if (editing)
         {
@@ -285,18 +308,36 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     internal void BeginTestPlay()
     {
+        beginPreview(false);
+    }
+
+    internal void BeginAutoplayDemo()
+    {
+        beginPreview(true);
+    }
+
+    private void beginPreview(bool autoplay)
+    {
         if (!IsEditing)
             return;
 
         IsEditing = false;
         IsTestingLayout = true;
+        IsAutoplayDemo = autoplay;
         ClearTransforms();
         restoreOriginalAlpha(LayoutElementKind.Playfield);
         restoreOriginalAlpha(LayoutElementKind.Hud);
         restoreOriginalAlpha(LayoutElementKind.TimingBar);
         comboReadout.SetEditorPreview(false);
         setJudgementEditorPreview(false);
-        this.FadeTo(0, 90, Easing.OutQuint);
+        if (autoplay)
+        {
+            setChromeVisible(false, animate: true);
+            this.FadeTo(1, 90, Easing.OutQuint);
+            autoplayDemoControl.FadeTo(1, 120, Easing.OutQuint);
+        }
+        else
+            this.FadeTo(0, 90, Easing.OutQuint);
     }
 
     internal void EndTestPlay()
@@ -305,7 +346,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             return;
 
         IsTestingLayout = false;
+        IsAutoplayDemo = false;
         IsEditing = true;
+        autoplayDemoControl.FadeTo(0, 80, Easing.OutQuint);
         setChromeVisible(true, animate: false);
         comboReadout.SetEditorPreview(true);
         setJudgementEditorPreview(true);
@@ -608,7 +651,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private Drawable createTopBar()
     {
         const float panelWidth = 300;
-        const float panelHeight = 376;
+        const float panelHeight = 420;
         const float buttonWidth = 272;
 
         return new Container
@@ -726,6 +769,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                         "gameplay.layout_editor.test_play"),
                                     FontAwesome.Solid.Play,
                                     beginTestPlay)
+                                {
+                                    Width = buttonWidth,
+                                },
+                                new LayoutActionButton(
+                                    YokkoStrings.Get(
+                                        "gameplay.layout_editor.autoplay_demo"),
+                                    FontAwesome.Solid.PlayCircle,
+                                    beginAutoplayDemo)
                                 {
                                     Width = buttonWidth,
                                 },
@@ -2302,6 +2353,99 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 ? HomeControlColours.Navy
                 : HomeControlColours.Cyan;
             this.FadeTo(active ? 1 : 0, 120, Easing.OutQuint);
+        }
+    }
+
+    private partial class AutoplayDemoControl : CompositeDrawable
+    {
+        public AutoplayDemoControl(Action pause)
+        {
+            Position = new Vector2(18);
+            Size = new Vector2(430, 84);
+            Depth = -110;
+
+            InternalChildren = new Drawable[]
+            {
+                new Container
+                {
+                    Position = new Vector2(5),
+                    Size = new Vector2(430, 84),
+                    Masking = true,
+                    CornerRadius = 8,
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(
+                            HomeControlColours.Cyan.R,
+                            HomeControlColours.Cyan.G,
+                            HomeControlColours.Cyan.B,
+                            0.5f),
+                    },
+                },
+                new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Masking = true,
+                    CornerRadius = 8,
+                    BorderThickness = 1.5f,
+                    BorderColour = HomeControlColours.Navy,
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = HomeControlColours.Ivory,
+                        },
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Y,
+                            Width = 5,
+                            Colour = HomeControlColours.Cyan,
+                        },
+                        new SpriteText
+                        {
+                            Position = new Vector2(16, 13),
+                            Text = YokkoStrings.Get(
+                                "gameplay.layout_editor.autoplay_demo_active"),
+                            Font = LayoutEditorTypography.Bold(13),
+                            Colour = HomeControlColours.Navy,
+                        },
+                        new SpriteText
+                        {
+                            Position = new Vector2(16, 48),
+                            Text = YokkoStrings.Get(
+                                "gameplay.layout_editor.autoplay_demo_pause_hint"),
+                            Font = LayoutEditorTypography.Regular(8.5f),
+                            Colour = new Color4(
+                                HomeControlColours.Navy.R,
+                                HomeControlColours.Navy.G,
+                                HomeControlColours.Navy.B,
+                                0.66f),
+                        },
+                        new LayoutActionButton(
+                            YokkoStrings.Get(
+                                "gameplay.layout_editor.autoplay_demo_pause"),
+                            FontAwesome.Solid.Pause,
+                            pause,
+                            true)
+                        {
+                            Anchor = Anchor.CentreRight,
+                            Origin = Anchor.CentreRight,
+                            Position = new Vector2(-14, 0),
+                            Size = new Vector2(112, 44),
+                        },
+                    },
+                },
+                new Box
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(-7, 4),
+                    Size = new Vector2(11),
+                    Rotation = 45,
+                    Colour = HomeControlColours.Yellow,
+                },
+            };
         }
     }
 

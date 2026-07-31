@@ -102,6 +102,9 @@ public partial class GameplayScreen : Screen
     private GameplayPlayfield playfield;
     private GameplayLaneCovers laneCovers;
     private GameplayLayoutEditorOverlay layoutEditor;
+    private GameplayReplay layoutAutoplayPreviousReplay;
+    private int layoutAutoplayPreviousReplayInputIndex;
+    private bool layoutAutoplayDemoActive;
     private KeyModeBindings keyBindings;
     private bool[] pressedLanes;
     private double startTimeMilliseconds;
@@ -207,6 +210,8 @@ public partial class GameplayScreen : Screen
         layoutEditor?.IsSessionActive == true;
     internal bool IsLayoutTestPlaying =>
         layoutEditor?.IsTestingLayout == true;
+    internal bool IsLayoutAutoplayPlaying =>
+        layoutEditor?.IsAutoplayDemo == true;
     internal float LayoutOverviewAspectRatio =>
         layoutEditor?.OverviewAspectRatio ?? 0;
     internal bool PauseTransitionInProgress => pauseTransitionInProgress;
@@ -230,7 +235,8 @@ public partial class GameplayScreen : Screen
     internal string SavedReplayPath { get; private set; }
     internal bool BestScoreSaved { get; private set; }
     internal bool ReplayMode => replay != null;
-    internal bool AutoplayMode => mods.IsAutomation;
+    internal bool AutoplayMode => mods.IsAutomation
+                                  || layoutAutoplayDemoActive;
     internal ManiaModSet Mods => mods;
     internal double CurrentPlaybackRate =>
         currentPlaybackRate(currentGameplayTime);
@@ -513,6 +519,8 @@ public partial class GameplayScreen : Screen
                 gameplaySettings,
                 createLayoutEditorLiveSettings(),
                 beginLayoutTestPlay,
+                beginLayoutAutoplayDemo,
+                () => _ = returnToLayoutEditorFromTestAsync(),
                 saveGameplayLayout,
                 closeGameplayLayoutEditor),
         };
@@ -697,7 +705,10 @@ public partial class GameplayScreen : Screen
         if (judgementState.IsComplete
             && gameplayTime >= completionTimeMilliseconds)
         {
-            completeGameplay();
+            if (layoutEditor?.IsTestingLayout == true)
+                _ = returnToLayoutEditorFromTestAsync();
+            else
+                completeGameplay();
         }
     }
 
@@ -3515,6 +3526,9 @@ public partial class GameplayScreen : Screen
     internal void BeginLayoutTestPlayForTest() =>
         beginLayoutTestPlay();
 
+    internal void BeginLayoutAutoplayDemoForTest() =>
+        beginLayoutAutoplayDemo();
+
     internal void SetLayoutEditorScrollSpeedForTest(double speed) =>
         gameplaySettings.SetScrollSpeed(speed);
 
@@ -3562,6 +3576,16 @@ public partial class GameplayScreen : Screen
 
     private void beginLayoutTestPlay()
     {
+        beginLayoutPreview(false);
+    }
+
+    private void beginLayoutAutoplayDemo()
+    {
+        beginLayoutPreview(true);
+    }
+
+    private void beginLayoutPreview(bool autoplay)
+    {
         if (layoutEditor?.IsEditing != true
             || !isPaused
             || pauseTransitionInProgress
@@ -3570,8 +3594,52 @@ public partial class GameplayScreen : Screen
             return;
         }
 
-        layoutEditor.BeginTestPlay();
+        if (autoplay)
+        {
+            beginLayoutAutoplayReplay();
+            layoutEditor.BeginAutoplayDemo();
+        }
+        else
+            layoutEditor.BeginTestPlay();
+
         beginResumeCountdown();
+    }
+
+    private void beginLayoutAutoplayReplay()
+    {
+        layoutAutoplayPreviousReplay = replay;
+        layoutAutoplayPreviousReplayInputIndex = replayInputIndex;
+        replay = GameplayAutoGenerator.Generate(
+            beatmap,
+            mods,
+            judgementConfiguration);
+        replayInputIndex = 0;
+        while (replayInputIndex < replay.Inputs.Count
+               && replay.Inputs[replayInputIndex].TimeMilliseconds
+               < pausedGameplayTime)
+        {
+            replayInputIndex++;
+        }
+
+        layoutAutoplayDemoActive = true;
+    }
+
+    private void endLayoutAutoplayReplay()
+    {
+        if (!layoutAutoplayDemoActive)
+            return;
+
+        for (int lane = 0; lane < pressedLanes.Length; lane++)
+        {
+            if (pressedLanes[lane])
+                applyLaneRelease(lane, pausedGameplayTime);
+        }
+
+        replay = layoutAutoplayPreviousReplay;
+        replayInputIndex = layoutAutoplayPreviousReplayInputIndex;
+        layoutAutoplayPreviousReplay = null;
+        layoutAutoplayPreviousReplayInputIndex = 0;
+        layoutAutoplayDemoActive = false;
     }
 
     private async Task returnToLayoutEditorFromTestAsync()
@@ -3599,6 +3667,7 @@ public partial class GameplayScreen : Screen
 
         if (pauseOverlay != null)
             pauseOverlay.Alpha = 0;
+        endLayoutAutoplayReplay();
         layoutEditor.EndTestPlay();
     }
 

@@ -21,7 +21,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
         Texture tapeTexture)
     {
         Action = action;
-        Size = new Vector2(330, 82);
+        Size = new Vector2(400, 82);
 
         Container panel = SongSelectSurface.CreateCard(
             out background,
@@ -39,7 +39,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
             SongSelectSurface.CreateShadow(11, 0.24f, 4),
             new Container
             {
-                Size = new Vector2(327, 77),
+                Size = new Vector2(397, 77),
                 Children =
                 [
                     panel,
@@ -76,9 +76,9 @@ internal partial class SongSelectPlayButton : ClickableContainer
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(99, 28),
+                        Position = new Vector2(99, 23),
                         Text = "PLAY",
-                        Font = HomeTypography.Display(34),
+                        Font = HomeTypography.Display(42),
                         Colour = SongSelectTheme.Navy,
                     },
                     new SpriteIcon

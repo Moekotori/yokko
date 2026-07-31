@@ -53,6 +53,8 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly double warningArrowStartTime =
         double.PositiveInfinity;
     private readonly OsuManiaSkinOverlay[] skinOverlays = [];
+    private readonly Box layoutTopCover;
+    private readonly Box layoutBottomCover;
     private readonly bool separateSkinScore;
     private readonly ManiaModSet mods;
     private readonly bool receptorAtBottom;
@@ -97,6 +99,14 @@ public partial class GameplayPlayfield : CompositeDrawable
     internal bool SkinJudgementEditorPreviewUsesTexture =>
         skinOverlays.Length > 0
         && skinOverlays.All(overlay => overlay.EditorPreviewUsesTexture);
+
+    internal bool SkinFeedbackRendersAboveLayoutCovers =>
+        skinOverlays.Length == 0
+        || skinOverlays.All(overlay =>
+            overlay.Depth < layoutTopCover.Depth
+            && overlay.Depth < layoutBottomCover.Depth);
+
+    internal float LayoutTopCoverHeightForTest => layoutTopCover.Height;
 
     internal bool ShowsSkinJudgementLine => skinJudgementLines.Length > 0;
 
@@ -703,7 +713,13 @@ public partial class GameplayPlayfield : CompositeDrawable
                 Colour = new Color4(1f, 1f, 1f, 0.18f),
             });
         }
-        else
+
+        // Layout blockers cover the lane presentation, but skin combo and
+        // judgement feedback are deliberately added in front of them below.
+        children.Add(layoutTopCover = createLayoutCover(false));
+        children.Add(layoutBottomCover = createLayoutCover(true));
+
+        if (activeSkin != null)
         {
             skinOverlays = stageSegments
                            .Select(segment => new OsuManiaSkinOverlay(
@@ -712,6 +728,7 @@ public partial class GameplayPlayfield : CompositeDrawable
                            {
                                X = segment.X,
                                Width = segment.Width,
+                               Depth = -20,
                            })
                            .ToArray();
             children.AddRange(skinOverlays);
@@ -759,6 +776,32 @@ public partial class GameplayPlayfield : CompositeDrawable
 
         InternalChildren = children.ToArray();
     }
+
+    internal void SetLayoutCoverRatios(double topRatio, double bottomRatio)
+    {
+        float topHeight = Height * (float)Math.Clamp(
+            topRatio,
+            0,
+            YokkoGameplaySettings.MaximumTopCoverRatio);
+        float bottomHeight = Height * (float)Math.Clamp(
+            bottomRatio,
+            0,
+            YokkoGameplaySettings.MaximumBottomCoverRatio);
+
+        layoutTopCover.Height = topHeight;
+        layoutTopCover.Alpha = topHeight > 0.5f ? 1 : 0;
+        layoutBottomCover.Height = bottomHeight;
+        layoutBottomCover.Alpha = bottomHeight > 0.5f ? 1 : 0;
+    }
+
+    private static Box createLayoutCover(bool bottom) => new()
+    {
+        RelativeSizeAxes = Axes.X,
+        Anchor = bottom ? Anchor.BottomLeft : Anchor.TopLeft,
+        Origin = bottom ? Anchor.BottomLeft : Anchor.TopLeft,
+        Colour = Color4.Black,
+        Depth = -10,
+    };
 
     protected override void LoadComplete()
     {

@@ -351,20 +351,15 @@ internal partial class HomeSignalSnake : CompositeDrawable
             return;
 
         Vector2 nextDirection = directions[lane];
-        if (nextDirection == -currentDirection)
-            return;
+        Vector2 target = wrapPosition(
+            currentPosition + nextDirection * stepDistance);
+        int collidedTrailIndex = trailPoints.FindIndex(
+            1,
+            point => Vector2.DistanceSquared(point, target) < 36);
 
-        Vector2 target = currentPosition + nextDirection * stepDistance;
-        bool outside = target.X < 24 || target.X > 242
-                       || target.Y < 22 || target.Y > 158;
-        bool crossedTrail = trailPoints
-                            .Skip(3)
-                            .Any(point => Vector2.DistanceSquared(point, target) < 64);
-
-        if (outside || crossedTrail)
+        if (collidedTrailIndex >= 0)
         {
-            playResetBurst(currentPosition);
-            resetSignal(true);
+            playTailCollision(collidedTrailIndex);
             return;
         }
 
@@ -378,6 +373,32 @@ internal partial class HomeSignalSnake : CompositeDrawable
 
         updateSignalDrawables(true, directionRotations[lane]);
         collectNearbyPip();
+    }
+
+    private static Vector2 wrapPosition(Vector2 position)
+    {
+        if (position.X < 24)
+            position.X = 240;
+        else if (position.X > 242)
+            position.X = 24;
+
+        if (position.Y < 22)
+            position.Y = 158;
+        else if (position.Y > 158)
+            position.Y = 22;
+
+        return position;
+    }
+
+    private void playTailCollision(int trailIndex)
+    {
+        headHalo.FlashColour(HomeControlColours.Pink, 220, Easing.OutQuint);
+        head.ScaleTo(0.82f, 65, Easing.Out)
+            .Then()
+            .ScaleTo(1, 180, Easing.OutBack);
+
+        if (trailIndex < trailDots.Length)
+            trailDots[trailIndex].FlashColour(Color4.White, 240, Easing.OutQuint);
     }
 
     internal bool TryHandleArrowKey(Key key, bool repeat)
@@ -431,7 +452,10 @@ internal partial class HomeSignalSnake : CompositeDrawable
         trailPoints.Clear();
 
         for (int i = 0; i < trailLength; i++)
-            trailPoints.Add(currentPosition - currentDirection * stepDistance * i);
+        {
+            trailPoints.Add(wrapPosition(
+                currentPosition - currentDirection * stepDistance * i));
+        }
 
         for (int i = 0; i < pips.Length; i++)
         {
@@ -450,7 +474,7 @@ internal partial class HomeSignalSnake : CompositeDrawable
             bool visible = i < trailPoints.Count;
             trailDots[i].ClearTransforms();
             trailDots[i].Alpha = visible
-                ? MathF.Max(0.14f, 0.58f - i * 0.035f)
+                ? MathF.Max(0.34f, 0.68f - i * 0.025f)
                 : 0;
 
             if (!visible)
@@ -544,30 +568,6 @@ internal partial class HomeSignalSnake : CompositeDrawable
             .ScaleTo(1, 210, Easing.OutBack);
     }
 
-    private void playResetBurst(Vector2 position)
-    {
-        for (int i = 0; i < 5; i++)
-        {
-            float angle = i * MathF.Tau / 5;
-            var particle = new Circle
-            {
-                Origin = Anchor.Centre,
-                Position = position,
-                Size = new Vector2(4),
-                Colour = i % 2 == 0
-                    ? HomeControlColours.Pink
-                    : Color4.White,
-            };
-            AddInternal(particle);
-            particle.MoveTo(position + new Vector2(
-                    MathF.Cos(angle),
-                    MathF.Sin(angle)) * 24,
-                    280,
-                    Easing.OutQuint)
-                    .FadeOut(280, Easing.InQuart)
-                    .Expire();
-        }
-    }
 }
 
 /// <summary>

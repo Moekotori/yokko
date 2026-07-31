@@ -58,10 +58,6 @@ internal sealed class YokkoManiaModPreferences
 
     private static readonly HashSet<ManiaModId> configurable_mods =
     [
-        ManiaModId.HalfTime,
-        ManiaModId.Daycore,
-        ManiaModId.DoubleTime,
-        ManiaModId.Nightcore,
         ManiaModId.Perfect,
         ManiaModId.Cover,
         ManiaModId.Flashlight,
@@ -73,6 +69,10 @@ internal sealed class YokkoManiaModPreferences
         ManiaModId.AdaptiveSpeed,
         ManiaModId.NoPause,
     ];
+
+    // A fixed-rate Mod name promises its canonical rate when switched on:
+    // HT/DC start at 0.75x and DT/NC at 1.50x. A custom slider value remains
+    // part of the active loadout, but must not leak into a later activation.
 
     private static readonly JsonSerializerOptions json_options = new()
     {
@@ -185,14 +185,6 @@ internal sealed class YokkoManiaModPreferences
 
         return mod switch
         {
-            ManiaModId.HalfTime
-                or ManiaModId.Daycore
-                or ManiaModId.DoubleTime
-                or ManiaModId.Nightcore =>
-                selectedMods.WithFixedRate(
-                    mod,
-                    preferred.FixedRateSpeedChange,
-                    preferred.FixedRateAdjustPitch),
             ManiaModId.Perfect =>
                 selectedMods.WithPerfect(
                     preferred.PerfectRequirePerfectHits),
