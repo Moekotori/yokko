@@ -39,6 +39,12 @@ internal partial class GameplayLayoutEditorOverlay
     internal float TimingBarEditorCentreXForTest =>
         timingBarTarget.X + timingBarTarget.DrawWidth / 2;
 
+    internal float ComboEditorCentreXForTest =>
+        comboTarget.X + comboTarget.DrawWidth / 2;
+
+    internal float JudgementEditorCentreYForTest =>
+        judgementTarget.Y + judgementTarget.DrawHeight / 2;
+
     internal float TopCoverHeightForTest => coverHeight(true);
 
     internal float BottomCoverHeightForTest => coverHeight(false);
@@ -60,6 +66,14 @@ internal partial class GameplayLayoutEditorOverlay
             LayoutElementKind.TimingBar,
             LayoutMetricField.Width,
             width);
+
+    internal void MoveComboForTest(Vector2 delta) =>
+        comboTarget.MoveBy(delta);
+
+    internal void ResizeJudgementForTest(Vector2 delta) =>
+        judgementTarget.ResizeBy(
+            ResizeEdges.Right | ResizeEdges.Bottom,
+            delta);
 
     internal void SetTopCoverEnabledForTest(bool enabled) =>
         setCoverEnabled(true, enabled);
@@ -83,6 +97,8 @@ internal partial class GameplayLayoutEditorOverlay
         Playfield,
         Hud,
         TimingBar,
+        Combo,
+        Judgement,
     }
 
     private enum LayoutMetricField
@@ -131,6 +147,11 @@ internal partial class GameplayLayoutEditorOverlay
         originalElementAlpha[LayoutElementKind.Playfield] = playfield.Alpha;
         originalElementAlpha[LayoutElementKind.Hud] = hud.Alpha;
         originalElementAlpha[LayoutElementKind.TimingBar] = timingBar.Alpha;
+        originalElementAlpha[LayoutElementKind.Combo] = comboReadout.Alpha;
+        originalElementAlpha[LayoutElementKind.Judgement] =
+            judgementReadout.Alpha;
+        comboReadout.SetEditorPreview(true);
+        judgementReadout.SetEditorPreview(true);
 
         foreach (LayoutTransformTarget target in allTargets())
         {
@@ -142,6 +163,8 @@ internal partial class GameplayLayoutEditorOverlay
         applyElementAlpha(LayoutElementKind.Playfield, false);
         applyElementAlpha(LayoutElementKind.Hud, false);
         applyElementAlpha(LayoutElementKind.TimingBar, false);
+        applyElementAlpha(LayoutElementKind.Combo, false);
+        applyElementAlpha(LayoutElementKind.Judgement, false);
         nudgeStep = 1;
         inspector.SetStep(nudgeStep);
         clearSnapGuides();
@@ -156,9 +179,13 @@ internal partial class GameplayLayoutEditorOverlay
             target.SetAspectLocked(false);
         }
 
+        comboReadout.SetEditorPreview(false);
+        judgementReadout.SetEditorPreview(false);
         restoreOriginalAlpha(LayoutElementKind.Playfield);
         restoreOriginalAlpha(LayoutElementKind.Hud);
         restoreOriginalAlpha(LayoutElementKind.TimingBar);
+        restoreOriginalAlpha(LayoutElementKind.Combo);
+        restoreOriginalAlpha(LayoutElementKind.Judgement);
         clearSnapGuides();
     }
 
@@ -167,6 +194,8 @@ internal partial class GameplayLayoutEditorOverlay
         yield return playfieldTarget;
         yield return hudTarget;
         yield return timingBarTarget;
+        yield return comboTarget;
+        yield return judgementTarget;
     }
 
     private LayoutTransformTarget targetFor(LayoutElementKind kind) =>
@@ -175,6 +204,8 @@ internal partial class GameplayLayoutEditorOverlay
             LayoutElementKind.Playfield => playfieldTarget,
             LayoutElementKind.Hud => hudTarget,
             LayoutElementKind.TimingBar => timingBarTarget,
+            LayoutElementKind.Combo => comboTarget,
+            LayoutElementKind.Judgement => judgementTarget,
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
 
@@ -184,6 +215,8 @@ internal partial class GameplayLayoutEditorOverlay
             LayoutElementKind.Playfield => playfield,
             LayoutElementKind.Hud => hud,
             LayoutElementKind.TimingBar => timingBar,
+            LayoutElementKind.Combo => comboReadout,
+            LayoutElementKind.Judgement => judgementReadout,
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
 
@@ -193,6 +226,8 @@ internal partial class GameplayLayoutEditorOverlay
             LayoutElementKind.Playfield => miniPlayfield,
             LayoutElementKind.Hud => miniHud,
             LayoutElementKind.TimingBar => miniTimingBar,
+            LayoutElementKind.Combo => miniCombo,
+            LayoutElementKind.Judgement => miniJudgement,
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
 
@@ -213,7 +248,10 @@ internal partial class GameplayLayoutEditorOverlay
         Drawable drawable = drawableFor(kind);
         drawable.Alpha = hidden
             ? 0
-            : originalElementAlpha.GetValueOrDefault(kind, 1);
+            : kind is LayoutElementKind.Combo
+                or LayoutElementKind.Judgement
+                ? 1
+                : originalElementAlpha.GetValueOrDefault(kind, 1);
 
         Drawable miniDrawable = miniDrawableFor(kind);
         if (miniDrawable != null)
@@ -554,7 +592,7 @@ internal partial class GameplayLayoutEditorOverlay
         {
             Anchor = Anchor.TopRight;
             Origin = Anchor.TopRight;
-            Position = new Vector2(-18, 466);
+            Position = new Vector2(-18, 506);
             Size = new Vector2(320, 178);
             Depth = -100;
             Masking = true;
@@ -789,7 +827,7 @@ internal partial class GameplayLayoutEditorOverlay
             Anchor = Anchor.TopRight;
             Origin = Anchor.TopRight;
             Position = new Vector2(-18, 92);
-            Size = new Vector2(320, 360);
+            Size = new Vector2(320, 400);
             Depth = -100;
             Masking = true;
             CornerRadius = 8;
@@ -799,6 +837,8 @@ internal partial class GameplayLayoutEditorOverlay
             LayerRow playfieldRow;
             LayerRow hudRow;
             LayerRow timingRow;
+            LayerRow comboRow;
+            LayerRow judgementRow;
 
             InternalChildren = new Drawable[]
             {
@@ -830,15 +870,25 @@ internal partial class GameplayLayoutEditorOverlay
                     LayoutElementKind.Hud,
                     YokkoStrings.Get(
                         "gameplay.layout_editor.layer.hud"),
-                    76),
+                    70),
                 timingRow = createLayerRow(
                     LayoutElementKind.TimingBar,
                     YokkoStrings.Get(
                         "gameplay.layout_editor.layer.timing_bar"),
-                    110),
+                    98),
+                comboRow = createLayerRow(
+                    LayoutElementKind.Combo,
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.layer.combo"),
+                    126),
+                judgementRow = createLayerRow(
+                    LayoutElementKind.Judgement,
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.layer.judgement"),
+                    154),
                 new Box
                 {
-                    Position = new Vector2(12, 150),
+                    Position = new Vector2(12, 190),
                     Size = new Vector2(296, 1),
                     Colour = new Color4(
                         HomeControlColours.Navy.R,
@@ -849,29 +899,29 @@ internal partial class GameplayLayoutEditorOverlay
                 xField = createNumericField(
                     "X",
                     LayoutMetricField.X,
-                    new Vector2(12, 164),
+                    new Vector2(12, 204),
                     applyMetric),
                 yField = createNumericField(
                     "Y",
                     LayoutMetricField.Y,
-                    new Vector2(164, 164),
+                    new Vector2(164, 204),
                     applyMetric),
                 widthField = createNumericField(
                     "W",
                     LayoutMetricField.Width,
-                    new Vector2(12, 216),
+                    new Vector2(12, 256),
                     applyMetric),
                 heightField = createNumericField(
                     "H",
                     LayoutMetricField.Height,
-                    new Vector2(164, 216),
+                    new Vector2(164, 256),
                     applyMetric),
                 aspectButton = new ToggleIconButton(
                     FontAwesome.Solid.Link,
                     FontAwesome.Solid.Unlink,
                     value => setAspectLocked(selected, value))
                 {
-                    Position = new Vector2(12, 275),
+                    Position = new Vector2(12, 315),
                     Size = new Vector2(34),
                 },
                 new LayoutActionButton(
@@ -880,7 +930,7 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.ArrowsAltH,
                     () => centre(true))
                 {
-                    Position = new Vector2(52, 274),
+                    Position = new Vector2(52, 314),
                     Size = new Vector2(96, 34),
                 },
                 new LayoutActionButton(
@@ -889,12 +939,12 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.ArrowsAltV,
                     () => centre(false))
                 {
-                    Position = new Vector2(154, 274),
+                    Position = new Vector2(154, 314),
                     Size = new Vector2(96, 34),
                 },
                 new ClickableContainer
                 {
-                    Position = new Vector2(256, 274),
+                    Position = new Vector2(256, 314),
                     Size = new Vector2(52, 34),
                     Action = cycleStep,
                     Masking = true,
@@ -919,7 +969,7 @@ internal partial class GameplayLayoutEditorOverlay
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(12, 324),
+                    Position = new Vector2(12, 364),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.snap_hint"),
                     Font = LayoutEditorTypography.Regular(8),
@@ -934,6 +984,8 @@ internal partial class GameplayLayoutEditorOverlay
             layerRows[LayoutElementKind.Playfield] = playfieldRow;
             layerRows[LayoutElementKind.Hud] = hudRow;
             layerRows[LayoutElementKind.TimingBar] = timingRow;
+            layerRows[LayoutElementKind.Combo] = comboRow;
+            layerRows[LayoutElementKind.Judgement] = judgementRow;
             Select(LayoutElementKind.Playfield);
             SetStep(1);
         }

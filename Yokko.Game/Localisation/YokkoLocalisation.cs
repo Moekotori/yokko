@@ -260,6 +260,14 @@ internal static class YokkoStrings
                 "Timing bar · drag / resize",
                 "判定条 · 拖动 / 拉伸边框",
                 "判定バー · ドラッグ / 拡縮"),
+            ["gameplay.layout_editor.combo"] = new(
+                "Combo · drag / resize",
+                "Combo · 拖动 / 拉伸边框",
+                "コンボ · ドラッグ / 拡縮"),
+            ["gameplay.layout_editor.judgement"] = new(
+                "Judgement · drag / resize",
+                "判定文字 · 拖动 / 拉伸边框",
+                "判定表示 · ドラッグ / 拡縮"),
             ["gameplay.layout_editor.reset"] = new(
                 "Reset",
                 "重置",
@@ -304,6 +312,14 @@ internal static class YokkoStrings
                 "Timing bar",
                 "判定条",
                 "判定バー"),
+            ["gameplay.layout_editor.layer.combo"] = new(
+                "Combo",
+                "Combo",
+                "コンボ"),
+            ["gameplay.layout_editor.layer.judgement"] = new(
+                "Judgement",
+                "判定文字",
+                "判定表示"),
             ["gameplay.layout_editor.centre_x"] = new(
                 "Centre X",
                 "水平居中",
@@ -337,9 +353,9 @@ internal static class YokkoStrings
                 "移除",
                 "削除"),
             ["gameplay.layout_editor.cover_hint"] = new(
-                "Enter a height in px, or drag the edge on the lane.",
-                "输入像素高度，或直接拖动轨道上的挡板边缘。",
-                "px 高さを入力、またはレーン上の端をドラッグ。"),
+                "Enter px height or drag the highlighted resize bar.",
+                "输入像素高度，或拖动轨道上高亮的缩放条。",
+                "px 高さを入力、または強調表示されたバーをドラッグ。"),
             ["gameplay.layout_editor.live_settings"] = new(
                 "LIVE PLAY SETTINGS",
                 "实时游玩设置",
@@ -364,6 +380,10 @@ internal static class YokkoStrings
                 "Up",
                 "上升式",
                 "上向き"),
+            ["gameplay.layout_editor.background_dim"] = new(
+                "Background dim",
+                "背景暗度",
+                "背景の暗さ"),
 
             ["gameplay.result.title"] = new("RESULT", "结算", "リザルト"),
             ["gameplay.result.max_combo"] = new("MAX COMBO", "最大连击", "MAX COMBO"),

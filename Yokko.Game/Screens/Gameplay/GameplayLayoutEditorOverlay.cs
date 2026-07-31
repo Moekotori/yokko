@@ -211,12 +211,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     clearSnapGuides),
                 topCoverHandle = new CoverDragHandle(
                     this,
-                    "TOP COVER",
+                    "TOP COVER · DRAG RESIZE",
                     updateTopCover,
                     beginChange),
                 bottomCoverHandle = new CoverDragHandle(
                     this,
-                    "BOTTOM COVER",
+                    "BOTTOM COVER · DRAG RESIZE",
                     updateBottomCover,
                     beginChange),
                 createOverviewCard(),
@@ -1459,8 +1459,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         float boundaryY,
         float width)
     {
-        handle.Position = new Vector2(x, boundaryY - 13);
-        handle.Size = new Vector2(Math.Max(60, width), 26);
+        handle.Position = new Vector2(x, boundaryY - 18);
+        handle.Size = new Vector2(Math.Max(80, width), 36);
     }
 
     private static double clampOffset(double value) => Math.Clamp(
@@ -1978,19 +1978,40 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 },
                 new Box
                 {
-                    RelativeSizeAxes = Axes.Y,
-                    Width = 5,
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    RelativeSizeAxes = Axes.X,
+                    Height = 4,
                     Colour = label.StartsWith("TOP", StringComparison.Ordinal)
                         ? HomeControlColours.Cyan
                         : HomeControlColours.Pink,
                 },
-                new SpriteText
+                new FillFlowContainer
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Text = label,
-                    Font = LayoutEditorTypography.Bold(8),
-                    Colour = HomeControlColours.Navy,
+                    AutoSizeAxes = Axes.Both,
+                    Direction = FillDirection.Horizontal,
+                    Spacing = new Vector2(7, 0),
+                    Children = new Drawable[]
+                    {
+                        new SpriteIcon
+                        {
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
+                            Size = new Vector2(13),
+                            Icon = FontAwesome.Solid.ArrowsAltV,
+                            Colour = HomeControlColours.Pink,
+                        },
+                        new SpriteText
+                        {
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
+                            Text = label,
+                            Font = LayoutEditorTypography.Bold(8),
+                            Colour = HomeControlColours.Navy,
+                        },
+                    },
                 },
             };
         }
