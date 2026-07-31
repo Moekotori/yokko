@@ -308,6 +308,30 @@ internal static class YokkoStrings
                 "SNAP 8px · hold Alt for free move",
                 "8px 自动吸附 · 按住 Alt 自由移动",
                 "8px 自動スナップ · Alt で自由移動"),
+            ["gameplay.layout_editor.covers"] = new(
+                "LANE BLOCKERS",
+                "轨道挡板",
+                "レーン遮蔽"),
+            ["gameplay.layout_editor.top_cover"] = new(
+                "Top",
+                "上挡板",
+                "上側"),
+            ["gameplay.layout_editor.bottom_cover"] = new(
+                "Bottom",
+                "下挡板",
+                "下側"),
+            ["gameplay.layout_editor.add_cover"] = new(
+                "Add",
+                "添加",
+                "追加"),
+            ["gameplay.layout_editor.remove_cover"] = new(
+                "Remove",
+                "移除",
+                "削除"),
+            ["gameplay.layout_editor.cover_hint"] = new(
+                "Enter a height in px, or drag the edge on the lane.",
+                "输入像素高度，或直接拖动轨道上的挡板边缘。",
+                "px 高さを入力、またはレーン上の端をドラッグ。"),
 
             ["gameplay.result.title"] = new("RESULT", "结算", "リザルト"),
             ["gameplay.result.max_combo"] = new("MAX COMBO", "最大连击", "MAX COMBO"),
@@ -494,6 +518,18 @@ internal static class YokkoStrings
                 "Performance readout",
                 "性能读数",
                 "パフォーマンス表示"),
+            ["settings.display.difficulty_rating"] = new(
+                "Difficulty rating",
+                "难度显示",
+                "難易度表示"),
+            ["settings.display.difficulty_rating.etterna"] = new(
+                "Etterna MSD",
+                "Etterna MSD",
+                "Etterna MSD"),
+            ["settings.display.difficulty_rating.rebirth"] = new(
+                "Rebirth stars",
+                "Rebirth 星级",
+                "Rebirth 星評価"),
             ["settings.display.enabled"] = new("Enabled", "已开启", "オン"),
             ["settings.display.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.display.windowed"] = new("Windowed", "窗口化", "ウィンドウ"),

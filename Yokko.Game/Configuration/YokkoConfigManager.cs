@@ -84,6 +84,7 @@ internal enum YokkoSetting
     DisplayUiScale,
     DisplayFrameLimit,
     DisplayShowPerformanceReadout,
+    DisplayDifficultyRatingMode,
     SkinSelectedId,
     SkinShowComboBursts,
     SkinLongNoteCutEnabled,
@@ -287,6 +288,10 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSetting.DisplayFrameLimit,
             YokkoFrameRateLimits.LowLatencyDefault);
         SetDefault(YokkoSetting.DisplayShowPerformanceReadout, false);
+        SetDefault(
+            YokkoSetting.DisplayDifficultyRatingMode,
+            Yokko.Core.Difficulty.ManiaDifficultyRatingMode
+                .EtternaMsd);
         SetDefault(YokkoSetting.SkinSelectedId, string.Empty);
         SetDefault(YokkoSetting.SkinShowComboBursts, true);
         SetDefault(
@@ -500,6 +505,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.DisplayShowPerformanceReadout,
             settings.ShowPerformanceReadout);
+        BindWith(
+            YokkoSetting.DisplayDifficultyRatingMode,
+            settings.DifficultyRatingMode);
     }
 
     public void BindModPreferences(

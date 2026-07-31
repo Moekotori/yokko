@@ -18,6 +18,7 @@ namespace Yokko.Game.Screens.Gameplay;
 internal partial class GameplayLayoutEditorOverlay
 {
     private const float snapThreshold = 8;
+    private const float defaultCoverHeight = 120;
 
     private readonly Dictionary<LayoutElementKind, float> originalElementAlpha =
         new();
@@ -25,6 +26,7 @@ internal partial class GameplayLayoutEditorOverlay
     private Box verticalSnapGuide;
     private Box horizontalSnapGuide;
     private LayoutInspectorPanel inspector;
+    private CoverPanel coverPanel;
     private float nudgeStep = 1;
 
     internal bool TimingBarLockedForTest => timingBarTarget.IsLocked;
@@ -35,6 +37,16 @@ internal partial class GameplayLayoutEditorOverlay
 
     internal float TimingBarEditorCentreXForTest =>
         timingBarTarget.X + timingBarTarget.DrawWidth / 2;
+
+    internal float TopCoverHeightForTest => coverHeight(true);
+
+    internal float BottomCoverHeightForTest => coverHeight(false);
+
+    internal bool TopCoverEnabledForTest =>
+        settings.LayoutTopCoverRatio.Value > 0.0001;
+
+    internal bool BottomCoverEnabledForTest =>
+        settings.LayoutBottomCoverRatio.Value > 0.0001;
 
     internal void SetTimingBarLockedForTest(bool locked) =>
         setLayerLocked(LayoutElementKind.TimingBar, locked);
@@ -47,6 +59,18 @@ internal partial class GameplayLayoutEditorOverlay
             LayoutElementKind.TimingBar,
             LayoutMetricField.Width,
             width);
+
+    internal void SetTopCoverEnabledForTest(bool enabled) =>
+        setCoverEnabled(true, enabled);
+
+    internal void SetBottomCoverEnabledForTest(bool enabled) =>
+        setCoverEnabled(false, enabled);
+
+    internal void SetTopCoverHeightForTest(double height) =>
+        applyCoverHeight(true, height);
+
+    internal void SetBottomCoverHeightForTest(double height) =>
+        applyCoverHeight(false, height);
 
     internal Vector2 SnapTimingBarMoveForTest(
         Vector2 delta,
@@ -89,6 +113,16 @@ internal partial class GameplayLayoutEditorOverlay
             centreSelected,
             cycleNudgeStep);
         return inspector;
+    }
+
+    private Drawable createCoverPanel()
+    {
+        coverPanel = new CoverPanel(
+            enabled => setCoverEnabled(true, enabled),
+            height => applyCoverHeight(true, height),
+            enabled => setCoverEnabled(false, enabled),
+            height => applyCoverHeight(false, height));
+        return coverPanel;
     }
 
     private void beginEditorSession()
@@ -229,6 +263,12 @@ internal partial class GameplayLayoutEditorOverlay
 
     private void refreshInspector()
     {
+        coverPanel?.SetState(
+            TopCoverEnabledForTest,
+            TopCoverHeightForTest,
+            BottomCoverEnabledForTest,
+            BottomCoverHeightForTest);
+
         if (selectedTarget == null)
             return;
 
@@ -242,6 +282,73 @@ internal partial class GameplayLayoutEditorOverlay
             selectedTarget.Y,
             selectedTarget.DrawWidth,
             selectedTarget.DrawHeight));
+    }
+
+    private void setCoverEnabled(bool top, bool enabled)
+    {
+        double currentRatio = top
+            ? settings.LayoutTopCoverRatio.Value
+            : settings.LayoutBottomCoverRatio.Value;
+        bool currentlyEnabled = currentRatio > 0.0001;
+        if (currentlyEnabled == enabled)
+            return;
+
+        beginChange();
+        if (!enabled)
+        {
+            if (top)
+                settings.LayoutTopCoverRatio.Value = 0;
+            else
+                settings.LayoutBottomCoverRatio.Value = 0;
+
+            return;
+        }
+
+        setCoverHeightRatio(top, defaultCoverHeight);
+    }
+
+    private void applyCoverHeight(bool top, double rawHeight)
+    {
+        if (double.IsNaN(rawHeight))
+            return;
+
+        beginChange();
+        setCoverHeightRatio(top, rawHeight);
+    }
+
+    private void setCoverHeightRatio(bool top, double rawHeight)
+    {
+        double maximumRatio = top
+            ? YokkoGameplaySettings.MaximumTopCoverRatio
+            : YokkoGameplaySettings.MaximumBottomCoverRatio;
+        double nextRatio = Math.Clamp(
+            Math.Max(0, rawHeight) / playfieldHeight(),
+            0,
+            maximumRatio);
+
+        if (top)
+            settings.LayoutTopCoverRatio.Value = nextRatio;
+        else
+            settings.LayoutBottomCoverRatio.Value = nextRatio;
+    }
+
+    private float coverHeight(bool top)
+    {
+        double ratio = top
+            ? settings.LayoutTopCoverRatio.Value
+            : settings.LayoutBottomCoverRatio.Value;
+        double maximumRatio = top
+            ? YokkoGameplaySettings.MaximumTopCoverRatio
+            : YokkoGameplaySettings.MaximumBottomCoverRatio;
+        return playfieldHeight()
+               * (float)Math.Clamp(ratio, 0, maximumRatio);
+    }
+
+    private float playfieldHeight()
+    {
+        (Vector2 topLeft, Vector2 bottomRight) =
+            GameplayLayoutGeometry.BoundsIn(this, playfield);
+        return Math.Max(1, bottomRight.Y - topLeft.Y);
     }
 
     private void applyMetric(
@@ -433,6 +540,202 @@ internal partial class GameplayLayoutEditorOverlay
         float Width,
         float Height);
 
+    private partial class CoverPanel : CompositeDrawable
+    {
+        private readonly CoverRow topRow;
+        private readonly CoverRow bottomRow;
+
+        public CoverPanel(
+            Action<bool> setTopEnabled,
+            Action<double> setTopHeight,
+            Action<bool> setBottomEnabled,
+            Action<double> setBottomHeight)
+        {
+            Anchor = Anchor.TopRight;
+            Origin = Anchor.TopRight;
+            Position = new Vector2(-18, 466);
+            Size = new Vector2(320, 178);
+            Depth = -100;
+            Masking = true;
+            CornerRadius = 8;
+            BorderThickness = 1.5f;
+            BorderColour = HomeControlColours.Navy;
+
+            InternalChildren = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = HomeControlColours.Ivory,
+                },
+                new Box
+                {
+                    RelativeSizeAxes = Axes.X,
+                    Height = 4,
+                    Colour = HomeControlColours.Pink,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(12, 10),
+                    Text = YokkoStrings.Get(
+                        "gameplay.layout_editor.covers"),
+                    Font = LayoutEditorTypography.Bold(11),
+                    Colour = HomeControlColours.Navy,
+                },
+                topRow = new CoverRow(
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.top_cover"),
+                    setTopEnabled,
+                    setTopHeight)
+                {
+                    Position = new Vector2(12, 40),
+                },
+                bottomRow = new CoverRow(
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.bottom_cover"),
+                    setBottomEnabled,
+                    setBottomHeight)
+                {
+                    Position = new Vector2(12, 92),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(12, 148),
+                    Text = YokkoStrings.Get(
+                        "gameplay.layout_editor.cover_hint"),
+                    Font = LayoutEditorTypography.Regular(8),
+                    Colour = new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.64f),
+                },
+            };
+        }
+
+        internal void SetState(
+            bool topEnabled,
+            float topHeight,
+            bool bottomEnabled,
+            float bottomHeight)
+        {
+            topRow.SetState(topEnabled, topHeight);
+            bottomRow.SetState(bottomEnabled, bottomHeight);
+        }
+    }
+
+    private partial class CoverRow : CompositeDrawable
+    {
+        private readonly NumericField heightField;
+        private readonly CoverToggleButton toggleButton;
+
+        public CoverRow(
+            LocalisableString label,
+            Action<bool> setEnabled,
+            Action<double> setHeight)
+        {
+            Size = new Vector2(296, 46);
+            Masking = true;
+            CornerRadius = 5;
+            BorderThickness = 1;
+            BorderColour = new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                0.28f);
+
+            InternalChildren = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Y,
+                    Width = 4,
+                    Colour = HomeControlColours.Pink,
+                },
+                new SpriteText
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    X = 10,
+                    Text = label,
+                    Font = LayoutEditorTypography.Bold(9),
+                    Colour = HomeControlColours.Navy,
+                },
+                heightField = new NumericField(
+                    "H",
+                    setHeight)
+                {
+                    Position = new Vector2(88, 3),
+                },
+                toggleButton = new CoverToggleButton(setEnabled)
+                {
+                    Position = new Vector2(234, 6),
+                    Size = new Vector2(56, 34),
+                },
+            };
+        }
+
+        internal void SetState(bool enabled, float height)
+        {
+            heightField.SetValue(height);
+            heightField.ReadOnly = !enabled;
+            toggleButton.SetValue(enabled);
+        }
+    }
+
+    private partial class CoverToggleButton : ClickableContainer
+    {
+        private readonly Action<bool> changed;
+        private readonly Box background;
+        private readonly SpriteText text;
+        private bool enabled;
+
+        public CoverToggleButton(Action<bool> changed)
+        {
+            this.changed = changed;
+            Masking = true;
+            CornerRadius = 5;
+            BorderThickness = 1.5f;
+            BorderColour = HomeControlColours.Navy;
+            Action = () => this.changed(!enabled);
+
+            InternalChildren = new Drawable[]
+            {
+                background = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                },
+                text = new SpriteText
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Font = LayoutEditorTypography.Bold(8),
+                    Colour = HomeControlColours.Navy,
+                },
+            };
+            SetValue(false);
+        }
+
+        internal void SetValue(bool next)
+        {
+            enabled = next;
+            text.Text = YokkoStrings.Get(enabled
+                ? "gameplay.layout_editor.remove_cover"
+                : "gameplay.layout_editor.add_cover");
+            background.Colour = enabled
+                ? HomeControlColours.Yellow
+                : HomeControlColours.PaleCyan;
+            BorderColour = enabled
+                ? HomeControlColours.Pink
+                : HomeControlColours.Navy;
+        }
+    }
+
     private partial class LayoutInspectorPanel : CompositeDrawable
     {
         private readonly Action<LayoutElementKind> select;
@@ -548,8 +851,8 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.Unlink,
                     value => setAspectLocked(selected, value))
                 {
-                    Position = new Vector2(276, 224),
-                    Size = new Vector2(32),
+                    Position = new Vector2(12, 275),
+                    Size = new Vector2(34),
                 },
                 new LayoutActionButton(
                     YokkoStrings.Get(
@@ -557,8 +860,8 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.ArrowsAltH,
                     () => centre(true))
                 {
-                    Position = new Vector2(12, 274),
-                    Size = new Vector2(104, 34),
+                    Position = new Vector2(52, 274),
+                    Size = new Vector2(96, 34),
                 },
                 new LayoutActionButton(
                     YokkoStrings.Get(
@@ -566,13 +869,13 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.ArrowsAltV,
                     () => centre(false))
                 {
-                    Position = new Vector2(122, 274),
-                    Size = new Vector2(104, 34),
+                    Position = new Vector2(154, 274),
+                    Size = new Vector2(96, 34),
                 },
                 new ClickableContainer
                 {
-                    Position = new Vector2(232, 274),
-                    Size = new Vector2(76, 34),
+                    Position = new Vector2(256, 274),
+                    Size = new Vector2(52, 34),
                     Action = cycleStep,
                     Masking = true,
                     CornerRadius = 6,

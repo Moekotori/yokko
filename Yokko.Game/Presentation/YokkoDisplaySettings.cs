@@ -1,6 +1,7 @@
 using System;
 using osu.Framework.Bindables;
 using osuTK;
+using Yokko.Core.Difficulty;
 
 namespace Yokko.Game.Presentation;
 
@@ -36,6 +37,9 @@ public sealed class YokkoDisplaySettings
     public readonly Bindable<YokkoFrameLimit> FrameLimit =
         new(YokkoFrameRateLimits.LowLatencyDefault);
     public readonly BindableBool ShowPerformanceReadout = new(false);
+    public readonly Bindable<ManiaDifficultyRatingMode>
+        DifficultyRatingMode = new(
+            ManiaDifficultyRatingMode.EtternaMsd);
 
     public Vector2 TargetDrawSize => GetTargetDrawSize(UiScale.Value);
 

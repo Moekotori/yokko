@@ -2896,6 +2896,7 @@ public partial class SongSelectScreen : Screen
             beatmap,
             SongSelectArtworkPolicy.Resolve(imported.ArtworkPath),
             imported.DifficultyRating,
+            imported.StarRating,
             TimeSpan.FromMilliseconds(Math.Max(0, lengthMilliseconds)),
             bpm,
             0,

@@ -153,6 +153,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 beginChange),
             createOverviewCard(),
             createInspectorCard(),
+            createCoverPanel(),
         };
     }
 

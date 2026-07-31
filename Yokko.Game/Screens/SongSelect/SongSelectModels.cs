@@ -28,6 +28,7 @@ internal sealed record SongSelectEntry(
     YokkoBeatmap Beatmap,
     string WallpaperTexture,
     ManiaMsdResult DifficultyRating,
+    ManiaStarRatingResult StarRating,
     TimeSpan Length,
     double Bpm,
     int BestScore,

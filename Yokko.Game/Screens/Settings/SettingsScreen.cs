@@ -466,6 +466,7 @@ public partial class SettingsScreen : Screen
                 displaySettings.UiScale,
                 displaySettings.FrameLimit,
                 displaySettings.ShowPerformanceReadout,
+                displaySettings.DifficultyRatingMode,
                 currentDisplayMode,
                 size => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, size),
                 mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode)),
