@@ -72,10 +72,17 @@ package. The script builds the native audio library, publishes a self-contained
 required files, and writes a SHA-256 checksum under `artifacts\packages`.
 
 The package includes both WASAPI and ASIO and statically links the MSVC runtime.
-The script resolves the ASIO SDK from `YOKKO_ASIO_SDK_DIR` or the existing
+The test launcher resolves a separately licensed SDK from
+`YOKKO_ASIO_SDK_DIR`. If none is configured, it automatically downloads the
+pinned official GPLv3 Steinberg ASIO SDK 2.3.4, verifies its SHA-256 checksum,
+and caches it under ignored `artifacts\dependencies`. Later builds reuse that
+cache automatically. Builds and distributions using this downloaded SDK must
+comply with GPLv3.
+
+Packaging resolves the same cache, `YOKKO_ASIO_SDK_DIR`, or the existing
 native-audio CMake cache. If no valid SDK is available, packaging fails instead
-of silently producing a build with disabled features. The SDK path can also be
-provided explicitly:
+of silently producing a build with disabled features. A separately licensed SDK
+path can also be provided explicitly:
 
 ```powershell
 .\scripts\package-playtest.ps1 `

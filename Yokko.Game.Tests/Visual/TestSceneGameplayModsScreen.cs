@@ -125,8 +125,12 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.SelectedMods.Contains(ManiaModId.NoFail));
         AddStep("show conversion category", () =>
             modsScreen.SetCategory(ManiaModCategory.Conversion));
-        AddAssert("conversion catalogue is complete", () =>
-            modsScreen.VisibleModCount == 18
+        AddAssert("key conversion Mods stay hidden", () =>
+            modsScreen.VisibleModCount == 8
+            && !modsScreen.IsModVisible(ManiaModId.Key1)
+            && !modsScreen.IsModVisible(ManiaModId.Key4)
+            && !modsScreen.IsModVisible(ManiaModId.Key7)
+            && !modsScreen.IsModVisible(ManiaModId.Key10)
             && modsScreen.DetailMod == ManiaModId.Random);
         AddStep("global wheel moves to next category", () =>
             modsScreen.NavigatePageByScroll(-1));
@@ -304,9 +308,9 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddStep("restore reference state", () =>
         {
             modsScreen.ResetMods();
-            modsScreen.SetCategory(ManiaModCategory.DifficultyReduction);
-            modsScreen.ToggleMod(ManiaModId.Hidden);
             modsScreen.ToggleMod(ManiaModId.HalfTime);
+            modsScreen.ToggleMod(ManiaModId.HardRock);
+            modsScreen.SetCategory(ManiaModCategory.DifficultyIncrease);
         });
         AddWaitStep("wait for entrance animation", 30);
         AddStep("capture gameplay mods", captureScreenshot);

@@ -97,6 +97,7 @@ internal partial class GameplayModsScreen : Screen
     private GameplayModsRateSlider fixedRateSlider;
     private GameplayModsPitchButton fixedRatePitch;
     private GameplayModsResetButton resetButton;
+    private GameplayModsOrbitWorkspace orbitWorkspace;
     private SpriteText navigationHint;
     private SpriteText interactionHint;
     private SongSelectModSettingsHost settingsHost;
@@ -160,6 +161,8 @@ internal partial class GameplayModsScreen : Screen
         || fixedRateMaximum?.Alpha > 0;
     internal bool NavigationHintVisible =>
         navigationHint?.Alpha > 0;
+    internal bool IsModVisible(ManiaModId mod) =>
+        visibleItems.ContainsKey(mod);
     internal bool IsPageTransitioning => pageTransitioning;
     internal string SearchQuery => searchQuery;
     internal Color4 ConfigurablePanelColour =>
@@ -192,17 +195,46 @@ internal partial class GameplayModsScreen : Screen
                 RelativeSizeAxes = Axes.Both,
                 Children = new Drawable[]
                 {
-                    createHeader(logo),
-                    loadoutBar = createLoadoutBar(),
-                    categoryRail = createCategoryRail(),
-                    modBrowser = createModBrowser(),
-                    detailPanel = createDetailPanel(),
-                    decorations = createDecorations(),
-                    createFooter(),
+                    new Container
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Alpha = 0,
+                        Children =
+                        [
+                            createHeader(logo),
+                            loadoutBar = createLoadoutBar(),
+                            categoryRail = createCategoryRail(),
+                            modBrowser = createModBrowser(),
+                            detailPanel = createDetailPanel(),
+                            decorations = createDecorations(),
+                            createFooter(),
+                        ],
+                    },
+                    orbitWorkspace =
+                        new GameplayModsOrbitWorkspace(
+                            NavigateToCategoryPage,
+                            ToggleMod,
+                            FocusOrbitMod,
+                            PreviewGlobalRate,
+                            CompleteFixedRateInteraction,
+                            ResetMods,
+                            () => this.Exit(),
+                            () =>
+                            {
+                                CommitSelection();
+                                this.Exit();
+                            },
+                            category => definitionsFor(category),
+                            isSelectable)
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                        },
                 },
             },
         };
 
+        orbitWorkspace.Build(logo);
         rebuildModList();
         updateSelection();
         selectDetail(detailMod);
@@ -291,6 +323,12 @@ internal partial class GameplayModsScreen : Screen
     protected override bool OnKeyDown(KeyDownEvent e) =>
         HandleInteractionKey(e.Key, e.ShiftPressed)
         || base.OnKeyDown(e);
+
+    protected override bool OnScroll(ScrollEvent e)
+    {
+        NavigatePageByScroll(e.ScrollDelta.Y);
+        return true;
+    }
 
     internal bool HandleInteractionKey(
         Key key,
@@ -457,6 +495,7 @@ internal partial class GameplayModsScreen : Screen
         pageTransitioning = true;
         float travel = Math.Clamp(DrawHeight * 0.1f, 58, 92);
         float outgoingY = -direction * travel;
+        orbitWorkspace?.TransitionOut(direction);
 
         modBrowser.ClearTransforms();
         detailPanel.ClearTransforms();
@@ -475,6 +514,7 @@ internal partial class GameplayModsScreen : Screen
         Scheduler.AddDelayed(() =>
         {
             SetCategory(category);
+            orbitWorkspace?.TransitionIn(direction);
 
             float incomingY = direction * travel;
             modBrowser.ClearTransforms();
@@ -2023,6 +2063,10 @@ internal partial class GameplayModsScreen : Screen
 
         settingsHost?.SetState(selectedMods, beatmap);
         rebuildActiveMods();
+        orbitWorkspace?.SetState(
+            activeCategory,
+            detailMod,
+            selectedMods);
         resetButton?.SetEnabled(selectedMods.Mods.Count > 0);
         updateFocusVisual();
         if (loadComplete)
@@ -2072,6 +2116,10 @@ internal partial class GameplayModsScreen : Screen
     private void selectDetail(ManiaModId mod)
     {
         ManiaModDefinition definition = OsuManiaModParityCatalog.Get(mod);
+        orbitWorkspace?.SetState(
+            activeCategory,
+            mod,
+            selectedMods);
         detailAcronym.Text = definition.Acronym;
         detailName.Text = definition.Name.ToUpperInvariant();
         detailDescription.Clear();
@@ -2167,6 +2215,57 @@ internal partial class GameplayModsScreen : Screen
         }
     }
 
+    private void FocusOrbitMod(ManiaModId mod)
+    {
+        if (!isSelectable(mod))
+            return;
+
+        detailMod = mod;
+        updateFocusVisual();
+        selectDetail(mod);
+    }
+
+    private void PreviewGlobalRate(double value)
+    {
+        double nextValue = Math.Round(Math.Clamp(value, 0.5, 2), 2);
+        bool adjustPitch = selectedMods.FixedRateAdjustPitch;
+        ManiaModId? previousRateMod = selectedMods.FixedRateMod;
+
+        if (Math.Abs(nextValue - 1) < 0.005)
+        {
+            if (selectedMods.FixedRateMod is ManiaModId currentRateMod)
+                selectedMods = selectedMods.With(currentRateMod, false);
+        }
+        else
+        {
+            ManiaModId rateMod = nextValue < 1
+                ? ManiaModId.HalfTime
+                : ManiaModId.DoubleTime;
+            double constrained = nextValue < 1
+                ? Math.Min(nextValue, 0.99)
+                : Math.Max(nextValue, 1.01);
+            selectedMods = selectedMods.WithFixedRate(
+                rateMod,
+                constrained,
+                adjustPitch);
+        }
+
+        selectionDirty = loadComplete;
+        if (previousRateMod == selectedMods.FixedRateMod)
+        {
+            orbitWorkspace?.PreviewRate(nextValue);
+        }
+        else
+        {
+            orbitWorkspace?.SetState(
+                activeCategory,
+                detailMod,
+                selectedMods);
+        }
+        settingsHost?.SetState(selectedMods, beatmap);
+        resetButton?.SetEnabled(selectedMods.Mods.Count > 0);
+    }
+
     private void focusPreferredMod(ManiaModCategory category)
     {
         ManiaModId? preferred = visibleItems.Keys
@@ -2206,6 +2305,19 @@ internal partial class GameplayModsScreen : Screen
 
     internal void MoveDetailFocus(Vector2 direction)
     {
+        if (orbitWorkspace?.GetAdjacentMod(
+                detailMod,
+                direction.X < 0 || direction.Y < 0 ? -1 : 1)
+            is ManiaModId orbitNext)
+        {
+            FocusOrbitMod(orbitNext);
+            ManiaModDefinition orbitDefinition =
+                OsuManiaModParityCatalog.Get(orbitNext);
+            showInteractionHint(
+                $"{orbitDefinition.Acronym} · {orbitDefinition.Name.ToUpperInvariant()}   SPACE · TOGGLE");
+            return;
+        }
+
         if (visibleItems.Count == 0)
             return;
 
@@ -2361,7 +2473,7 @@ internal partial class GameplayModsScreen : Screen
 
     private bool isSelectable(ManiaModId mod) =>
         mod != ManiaModId.ScoreV2
-        && (mod is not (>= ManiaModId.Key1 and <= ManiaModId.Key10)
+        && (!isKeyConversionMod(mod)
             && mod != ManiaModId.DualStages
             || beatmap.ConversionSource is not null);
 
@@ -2381,7 +2493,10 @@ internal partial class GameplayModsScreen : Screen
             or ManiaModId.AdaptiveSpeed
             or ManiaModId.Random
             or ManiaModId.DualStages
-        || mod is >= ManiaModId.Key1 and <= ManiaModId.Key10;
+        || isKeyConversionMod(mod);
+
+    private static bool isKeyConversionMod(ManiaModId mod) =>
+        mod is >= ManiaModId.Key1 and <= ManiaModId.Key10;
 
     private static bool isRateMod(ManiaModId mod) =>
         mod is ManiaModId.HalfTime
@@ -2418,7 +2533,8 @@ internal partial class GameplayModsScreen : Screen
         ManiaModDefinition[] definitions = OsuManiaModParityCatalog.All
             .Where(definition =>
                 definition.Category == category
-                && definition.Id != ManiaModId.ScoreV2)
+                && definition.Id != ManiaModId.ScoreV2
+                && !isKeyConversionMod(definition.Id))
             .ToArray();
 
         ManiaModId[] order = category switch

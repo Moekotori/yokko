@@ -1,0 +1,23 @@
+osu file format v14
+
+[General]
+Mode: 3
+
+[Metadata]
+Title:SV Corpus - Abnormal Red Lines
+Artist:Yokko
+Creator:Yokko
+Version:4K
+
+[Difficulty]
+CircleSize:4
+OverallDifficulty:8
+
+[TimingPoints]
+0,500,4,2,0,100,1,0
+1000,0,4,2,0,100,1,0
+2000,-50,4,2,0,100,1,0
+3000,100000,4,2,0,100,1,0
+
+[HitObjects]
+64,192,5000,1,0,0:0:0:0:

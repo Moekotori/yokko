@@ -132,6 +132,11 @@ function resolveAsioSdkDir
         $candidates.Add($RequestedPath)
     }
 
+    $candidates.Add((
+        Join-Path $RepositoryRoot `
+            "artifacts\dependencies\asio-sdk-2.3.4\ASIOSDK"
+    ))
+
     foreach ($cachePath in @(
         (Join-Path $RepositoryRoot "artifacts\native-audio\CMakeCache.txt"),
         (Join-Path $RepositoryRoot ".artifacts\package-build\native-full\CMakeCache.txt")

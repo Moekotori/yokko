@@ -33,6 +33,7 @@ using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Skinning.OsuMania;
+using Yokko.Import.Osu;
 
 namespace Yokko.Game.Tests.Visual
 {
@@ -630,40 +631,48 @@ namespace Yokko.Game.Tests.Visual
         {
             GameplayPlayfield playfield = null;
             BeatmapJudgementState state = null;
+            int coveredTapIndex = -1;
+            int coveringHoldIndex = -1;
+            int laterNoteIndex = -1;
 
             AddStep("create hidden-note fixture", () =>
             {
-                // Deliberately unsorted input: the covered tap (index 0)
-                // starts inside the hold (index 1). osu!mania hides notes
-                // underneath a long note body by drawing the earlier object
-                // on top, regardless of beatmap ordering.
-                // Reference: ppy/osu HitObjectContainer.Compare.
-                var beatmap = new YokkoBeatmap(
-                    "Hidden note draw order fixture",
-                    "Yokko",
-                    "Codex",
-                    "4K",
-                    KeyMode.FourKey,
-                    ChartSourceFormat.Yokko,
-                    [YokkoTimingPoint.Default],
-                    null,
-                    [
-                        new YokkoHitObject(
-                            0,
-                            3000,
-                            null,
-                            HitObjectKind.Tap),
-                        new YokkoHitObject(
-                            0,
-                            1000,
-                            5000,
-                            HitObjectKind.Hold),
-                        new YokkoHitObject(
-                            0,
-                            7000,
-                            null,
-                            HitObjectKind.Tap),
-                    ]);
+                // The corpus keeps the covered tap before the earlier hold in
+                // file order. osu!mania still draws the hold on top, including
+                // while inherited SV changes are active.
+                YokkoBeatmap beatmap =
+                    OsuManiaBeatmapIO.ReadBeatmapFromFile(
+                        Path.Combine(
+                            TestContext.CurrentContext.TestDirectory,
+                            "Resources",
+                            "Testing",
+                            "Beatmaps",
+                            "SvGimmicks",
+                            "hidden-note-long-note-cover.osu"));
+                coveredTapIndex = beatmap.HitObjects
+                                           .Select((hitObject, index) =>
+                                               (hitObject, index))
+                                           .Single(item =>
+                                               item.hitObject
+                                                   .StartTimeMilliseconds
+                                               == 3000)
+                                           .index;
+                coveringHoldIndex = beatmap.HitObjects
+                                             .Select((hitObject, index) =>
+                                                 (hitObject, index))
+                                             .Single(item =>
+                                                 item.hitObject
+                                                     .StartTimeMilliseconds
+                                                 == 1000)
+                                             .index;
+                laterNoteIndex = beatmap.HitObjects
+                                        .Select((hitObject, index) =>
+                                            (hitObject, index))
+                                        .Single(item =>
+                                            item.hitObject
+                                                .StartTimeMilliseconds
+                                            == 7000)
+                                        .index;
                 state = new BeatmapJudgementState(beatmap);
                 playfield = new GameplayPlayfield(
                     beatmap,
@@ -675,11 +684,11 @@ namespace Yokko.Game.Tests.Visual
             AddStep("update to middle of hold", () =>
                 playfield.UpdateGameplayTime(3000, state));
             AddAssert("covered note sits behind the hold", () =>
-                playfield.GetDrawableNote(0).Depth
-                > playfield.GetDrawableNote(1).Depth);
+                playfield.GetDrawableNote(coveredTapIndex).Depth
+                > playfield.GetDrawableNote(coveringHoldIndex).Depth);
             AddAssert("later note sits behind earlier notes", () =>
-                playfield.GetDrawableNote(2).Depth
-                > playfield.GetDrawableNote(0).Depth);
+                playfield.GetDrawableNote(laterNoteIndex).Depth
+                > playfield.GetDrawableNote(coveredTapIndex).Depth);
             AddStep("remove hidden-note playfield", () =>
                 playfield.Expire());
         }

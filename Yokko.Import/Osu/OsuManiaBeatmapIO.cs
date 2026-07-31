@@ -930,7 +930,7 @@ public static class OsuManiaBeatmapIO
         int defaultSampleSet = 1,
         int defaultSampleVolume = 100)
     {
-        var timingPoints = new List<YokkoTimingPoint>();
+        var parsedPoints = new List<ParsedOsuTimingPoint>();
 
         foreach (string line in lines)
         {
@@ -941,12 +941,23 @@ public static class OsuManiaBeatmapIO
             if (parts.Length < 2)
                 continue;
 
-            if (!double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double time)
-                || !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double beatLength)
-                || Math.Abs(beatLength) < double.Epsilon)
+            if (!double.TryParse(
+                    parts[0],
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out double time)
+                || !tryParseOsuDouble(parts[1], out double beatLength))
                 continue;
 
-            timingPoints.Add(new YokkoTimingPoint(
+            bool uninherited =
+                parseInt(parts.ElementAtOrDefault(6), 1) != 0;
+
+            // osu!'s legacy decoder rejects only this line and continues
+            // decoding the rest of the file.
+            if (uninherited && double.IsNaN(beatLength))
+                continue;
+
+            parsedPoints.Add(new ParsedOsuTimingPoint(
                 time,
                 beatLength,
                 Math.Max(1, parseInt(parts.ElementAtOrDefault(2), 4)),
@@ -961,11 +972,127 @@ public static class OsuManiaBeatmapIO
                         defaultSampleVolume),
                     0,
                     100),
-                parseInt(parts.ElementAtOrDefault(6), 1) != 0,
+                uninherited,
                 parseInt(parts.ElementAtOrDefault(7), 0)));
         }
 
+        var timingPoints = new List<YokkoTimingPoint>();
+
+        foreach (IGrouping<double, ParsedOsuTimingPoint> group in
+                 parsedPoints.OrderBy(static point => point.TimeMilliseconds)
+                             .GroupBy(static point => point.TimeMilliseconds))
+        {
+            // Legacy osu! resolves control-point types independently. At one
+            // timestamp the first timing (red) point supplies BPM, while the
+            // last non-timing (green) point overrides effect/sample data.
+            // See ppy/osu LegacyBeatmapDecoder.addControlPoint().
+            ParsedOsuTimingPoint? timingSource =
+                group.FirstOrDefault(static point => point.Uninherited);
+            ParsedOsuTimingPoint? inheritedSource =
+                group.LastOrDefault(static point => !point.Uninherited);
+            ParsedOsuTimingPoint effectSource =
+                inheritedSource ?? timingSource
+                ?? throw new InvalidDataException(
+                    "An osu! timing-point group contained no control point.");
+
+            if (timingSource != null)
+            {
+                timingPoints.Add(timingSource.ToTimingPoint(
+                    Math.Clamp(
+                        timingSource.BeatLengthMilliseconds,
+                        osuMinimumBeatLength,
+                        osuMaximumBeatLength),
+                    uninherited: true));
+            }
+
+            double scrollSpeed = osuScrollSpeed(effectSource.BeatLengthMilliseconds);
+
+            // A positive red point already resets effect speed to 1. Keep an
+            // inherited point when a green point exists (including explicit
+            // 1x resets), or when an abnormal red point also carries a
+            // non-default effect speed.
+            if (inheritedSource != null || scrollSpeed != 1)
+            {
+                timingPoints.Add(effectSource.ToTimingPoint(
+                    -100 / scrollSpeed,
+                    uninherited: false));
+            }
+        }
+
         return timingPoints;
+    }
+
+    private const double osuMinimumBeatLength = 6;
+    private const double osuMaximumBeatLength = 60_000;
+    private const double osuMinimumScrollSpeed = 0.01;
+    private const double osuMaximumScrollSpeed = 10;
+
+    private static double osuScrollSpeed(double rawBeatLength)
+    {
+        double speed = rawBeatLength < 0
+            ? 100 / -rawBeatLength
+            : 1;
+
+        return Math.Clamp(
+            speed,
+            osuMinimumScrollSpeed,
+            osuMaximumScrollSpeed);
+    }
+
+    private static bool tryParseOsuDouble(
+        string value,
+        out double result)
+    {
+        value = value.Trim();
+
+        if (value.Equals("NaN", StringComparison.OrdinalIgnoreCase))
+        {
+            result = double.NaN;
+            return true;
+        }
+
+        if (value.Equals("Infinity", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("+Infinity", StringComparison.OrdinalIgnoreCase))
+        {
+            result = double.PositiveInfinity;
+            return true;
+        }
+
+        if (value.Equals("-Infinity", StringComparison.OrdinalIgnoreCase))
+        {
+            result = double.NegativeInfinity;
+            return true;
+        }
+
+        return double.TryParse(
+            value,
+            NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out result);
+    }
+
+    private sealed record ParsedOsuTimingPoint(
+        double TimeMilliseconds,
+        double BeatLengthMilliseconds,
+        int Meter,
+        int SampleSet,
+        int SampleIndex,
+        int Volume,
+        bool Uninherited,
+        int Effects)
+    {
+        public YokkoTimingPoint ToTimingPoint(
+            double beatLengthMilliseconds,
+            bool uninherited) =>
+            new(
+                TimeMilliseconds,
+                beatLengthMilliseconds,
+                Meter,
+                SampleSet,
+                SampleIndex,
+                Volume,
+                uninherited,
+                Effects);
     }
 
     private static IReadOnlyList<YokkoTimingPoint> createTimingPointsForExport(

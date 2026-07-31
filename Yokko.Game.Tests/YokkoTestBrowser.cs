@@ -403,6 +403,14 @@ namespace Yokko.Game.Tests
                 case "scroll":
                     modsScreen.NavigatePageByScroll(-1);
                     break;
+
+                case "orbit":
+                    modsScreen.ResetMods();
+                    modsScreen.ToggleMod(ManiaModId.HalfTime);
+                    modsScreen.ToggleMod(ManiaModId.HardRock);
+                    modsScreen.SetCategory(
+                        ManiaModCategory.DifficultyIncrease);
+                    break;
             }
         }
     }

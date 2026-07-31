@@ -13,4 +13,8 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.0.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.4.2" />
   </ItemGroup>
+  <ItemGroup Label="Test Resources">
+    <None Include="Resources\Testing\Beatmaps\SvGimmicks\*.osu"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

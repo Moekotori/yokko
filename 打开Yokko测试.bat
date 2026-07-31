@@ -26,7 +26,7 @@ if errorlevel 1 (
 )
 
 echo [Yokko] Building the native audio engine...
-powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\build-native-audio.ps1" -Configuration Debug
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\build-native-audio.ps1" -Configuration Debug -RequireAsio -AcceptAsioGpl3
 if errorlevel 1 goto failed
 
 echo [Yokko] Restoring desktop solution...

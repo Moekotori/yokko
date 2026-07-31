@@ -99,6 +99,12 @@ SDK under GPLv3 or a separately signed proprietary agreement, so choosing and
 complying with that license remains a distribution decision rather than an
 implicit repository dependency.
 
+On a fresh checkout, `打开Yokko测试.bat` first uses a separately licensed SDK
+from `YOKKO_ASIO_SDK_DIR`. If none is configured, it automatically downloads
+the pinned official GPLv3 SDK, verifies its SHA-256 checksum, and caches it
+under ignored `artifacts/dependencies`. Builds and distributions using this
+downloaded SDK must comply with GPLv3.
+
 After obtaining the SDK under terms appropriate for the product, point the
 native build at its root:
 
@@ -112,6 +118,15 @@ The directory must contain `common/asio.h` and `common/iasiodrv.h`. Builds
 without it keep the same ABI and return `BackendUnavailable` for ASIO, while
 WASAPI remains fully functional. The compiled application must still be
 distributed in accordance with the selected Steinberg license.
+
+For an explicit non-interactive GPLv3 bootstrap:
+
+```powershell
+.\scripts\build-native-audio.ps1 `
+    -Configuration Release `
+    -RequireAsio `
+    -AcceptAsioGpl3
+```
 
 Exclusive event-driven output submits one complete endpoint buffer on every
 device event. Shared mode alone uses `GetCurrentPadding` to calculate writable
