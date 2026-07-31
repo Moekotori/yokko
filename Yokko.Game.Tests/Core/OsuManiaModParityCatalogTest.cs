@@ -16,7 +16,7 @@ public class OsuManiaModParityCatalogTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(definitions, Has.Count.EqualTo(40));
+            Assert.That(definitions, Has.Count.EqualTo(41));
             Assert.That(
                 definitions.Count(mod =>
                     mod.Category == ManiaModCategory.DifficultyReduction),
@@ -24,7 +24,7 @@ public class OsuManiaModParityCatalogTest
             Assert.That(
                 definitions.Count(mod =>
                     mod.Category == ManiaModCategory.DifficultyIncrease),
-                Is.EqualTo(10));
+                Is.EqualTo(11));
             Assert.That(
                 definitions.Count(mod =>
                     mod.Category == ManiaModCategory.Conversion),

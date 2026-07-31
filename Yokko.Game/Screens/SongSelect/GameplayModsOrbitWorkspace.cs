@@ -20,9 +20,11 @@ using Yokko.Game.Screens.Main;
 namespace Yokko.Game.Screens.SongSelect;
 
 /// <summary>
-/// The authored 1600x900 gameplay-mod workspace. It intentionally owns only
-/// presentation and interaction; <see cref="GameplayModsScreen"/> remains the
-/// single source of truth for mod selection and configuration.
+/// Legacy authored 1600x900 artwork coordinates hosted inside the responsive
+/// 1920x1080 <see cref="GameplayModsScreen"/>. This is not a full-screen layout
+/// reference. It intentionally owns only presentation and interaction;
+/// <see cref="GameplayModsScreen"/> remains the single source of truth for mod
+/// selection and configuration.
 /// </summary>
 internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 {
@@ -41,6 +43,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private readonly Action<ManiaModCategory> selectCategory;
     private readonly Action<ManiaModId> toggleMod;
     private readonly Action<ManiaModId> focusMod;
+    private readonly Action<int> changeNoPauseAllowance;
     private readonly Action<double> previewRate;
     private readonly Action completeRate;
     private readonly Action reset;
@@ -69,6 +72,10 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private Box heroStateBackground;
     private Sprite heroStateIcon;
     private SpriteText heroState;
+    private Container noPauseAllowanceControl;
+    private SpriteText noPauseAllowanceValue;
+    private OrbitSquareButton noPauseMinus;
+    private OrbitSquareButton noPausePlus;
     private SpriteText pageIndicator;
     private SpriteText rateValue;
     private SpriteText activeCount;
@@ -91,6 +98,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         Action<ManiaModCategory> selectCategory,
         Action<ManiaModId> toggleMod,
         Action<ManiaModId> focusMod,
+        Action<int> changeNoPauseAllowance,
         Action<double> previewRate,
         Action completeRate,
         Action reset,
@@ -103,6 +111,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         this.selectCategory = selectCategory;
         this.toggleMod = toggleMod;
         this.focusMod = focusMod;
+        this.changeNoPauseAllowance = changeNoPauseAllowance;
         this.previewRate = previewRate;
         this.completeRate = completeRate;
         this.reset = reset;
@@ -832,6 +841,41 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 Texture = waveformTexture,
                 Colour = Color4.White,
             },
+            noPauseAllowanceControl = new Container
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Position = new Vector2(0, 220),
+                Size = new Vector2(218, 42),
+                Alpha = 0,
+                Children =
+                [
+                    noPauseMinus = new OrbitSquareButton(
+                        FontAwesome.Solid.Minus,
+                        () => changeNoPauseAllowance(
+                            Math.Max(0, selectedMods.NoPauseAllowedPauses - 1)))
+                    {
+                        Size = new Vector2(42),
+                    },
+                    noPauseAllowanceValue = new SpriteText
+                    {
+                        Anchor = Anchor.TopCentre,
+                        Origin = Anchor.TopCentre,
+                        Y = 10,
+                        Font = HomeTypography.Display(17),
+                        Colour = HomeControlColours.Navy,
+                    },
+                    noPausePlus = new OrbitSquareButton(
+                        FontAwesome.Solid.Plus,
+                        () => changeNoPauseAllowance(
+                            Math.Min(10, selectedMods.NoPauseAllowedPauses + 1)))
+                    {
+                        Anchor = Anchor.TopRight,
+                        Origin = Anchor.TopRight,
+                        Size = new Vector2(42),
+                    },
+                ],
+            },
         ];
         return result;
     }
@@ -1472,12 +1516,12 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             OsuManiaModParityCatalog.Get(
                 presentationModForNode(focusedMod));
         bool active = selectedMods.Contains(definition.Id);
+        bool showNoPauseAllowance =
+            definition.Id == ManiaModId.NoPause && active;
         Color4 accent = accentFor(definition);
         heroAcronym.Text = definition.Acronym;
         heroAcronym.Colour = accent;
-        heroName.Text = YokkoStrings.ModName(definition)
-            .ToString()
-            .ToUpperInvariant();
+        heroName.Text = YokkoStrings.ModName(definition);
         heroDescription.Clear();
         heroDescription.AddText(YokkoStrings.ModDescription(definition));
         heroState.Text = YokkoStrings.Get(
@@ -1486,9 +1530,18 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         heroState.Colour = active ? Color4.White : HomeControlColours.Cyan;
         heroStateBackground.Colour = active ? accent : Color4.Transparent;
         heroStateIcon.Alpha = active ? 1 : 0;
+        heroStateBackground.Alpha = showNoPauseAllowance ? 0 : 1;
+        heroState.Alpha = showNoPauseAllowance ? 0 : 1;
+        heroStateIcon.Alpha = showNoPauseAllowance ? 0 : heroStateIcon.Alpha;
+        noPauseAllowanceControl.Alpha = showNoPauseAllowance ? 1 : 0;
+        noPauseAllowanceValue.Text = YokkoStrings.Get(
+            "mods.no_pause.allowance",
+            selectedMods.NoPauseAllowedPauses);
+        noPauseMinus.SetEnabled(selectedMods.NoPauseAllowedPauses > 0);
+        noPausePlus.SetEnabled(selectedMods.NoPauseAllowedPauses < 10);
         hero.FadeTo(1, 80);
 
-        if (activated)
+        if (activated && !showNoPauseAllowance)
         {
             heroAcronym.ClearTransforms();
             heroAcronym.ScaleTo(0.9f)
@@ -2591,9 +2644,7 @@ internal partial class OrbitModNode : ClickableContainer
             name = new SpriteText
             {
                 Position = new Vector2(106, 12),
-                Text = YokkoStrings.ModName(definition)
-                    .ToString()
-                    .ToUpperInvariant(),
+                Text = YokkoStrings.ModName(definition),
                 Font = HomeTypography.Display(19),
                 Colour = HomeControlColours.Navy,
             },
@@ -2622,9 +2673,7 @@ internal partial class OrbitModNode : ClickableContainer
 
         presentationMod = definition.Id;
         acronym.Text = definition.Acronym;
-        name.Text = YokkoStrings.ModName(definition)
-            .ToString()
-            .ToUpperInvariant();
+        name.Text = YokkoStrings.ModName(definition);
         description.Clear();
         description.AddText(YokkoStrings.ModDescription(definition));
         acronym.ClearTransforms();
@@ -2901,9 +2950,7 @@ internal partial class OrbitActiveModRow : ClickableContainer
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = 102,
-                Text = YokkoStrings.ModName(definition)
-                    .ToString()
-                    .ToUpperInvariant(),
+                Text = YokkoStrings.ModName(definition),
                 Font = HomeTypography.Display(18),
                 Colour = HomeControlColours.Navy,
             },

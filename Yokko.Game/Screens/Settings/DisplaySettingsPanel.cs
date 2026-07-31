@@ -28,6 +28,8 @@ namespace Yokko.Game.Screens.Settings;
 /// </summary>
 internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransientUi
 {
+    // User-selectable physical output resolutions, independent from the
+    // shared logical 1920x1080 layout reference.
     private static readonly Size[] supportedResolutions =
     {
         new(1024, 768),

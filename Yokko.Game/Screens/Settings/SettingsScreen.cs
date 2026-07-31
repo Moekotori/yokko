@@ -34,6 +34,8 @@ namespace Yokko.Game.Screens.Settings;
 /// </summary>
 public partial class SettingsScreen : Screen
 {
+    // Legacy internal content coordinates. The outer stage and scale adapt
+    // them to YokkoDisplaySettings.ReferenceLayoutSize.
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
     internal const float ReferenceLayoutScale = 1.25f;
@@ -429,7 +431,7 @@ public partial class SettingsScreen : Screen
 
     /// <summary>
     /// The stage never shrinks below the designed 1280x720 layout, so windows
-    /// smaller than the 1600x900 reference used to clip the right and bottom
+    /// smaller than the 1920x1080 reference used to clip the right and bottom
     /// edges. Shrink the stage scale instead so the whole layout stays visible.
     /// </summary>
     internal static float CalculateStageScale(Vector2 viewport, Vector2 stageSize)

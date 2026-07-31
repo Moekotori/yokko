@@ -654,4 +654,28 @@ public sealed class ManiaModSetTest
                 Throws.TypeOf<ArgumentOutOfRangeException>());
         });
     }
+
+    [Test]
+    public void NoPauseIsConfigurableAndMutuallyExclusiveWithNoFail()
+    {
+        ManiaModSet noPause = ManiaModSet.Empty.WithNoPause(2);
+        ManiaModSet noFail = noPause.With(ManiaModId.NoFail, true);
+        ManiaModSet restored = noFail.WithNoPause(0);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(noPause.Contains(ManiaModId.NoPause), Is.True);
+            Assert.That(noPause.NoPauseAllowedPauses, Is.EqualTo(2));
+            Assert.That(noPause.Fingerprint, Is.EqualTo("no-pause:2"));
+            Assert.That(noPause.DisplayLabels, Is.EqualTo(new[] { "NP 2" }));
+            Assert.That(noFail.Contains(ManiaModId.NoPause), Is.False);
+            Assert.That(noFail.Contains(ManiaModId.NoFail), Is.True);
+            Assert.That(restored.Contains(ManiaModId.NoFail), Is.False);
+            Assert.That(restored.NoPauseAllowedPauses, Is.Zero);
+            Assert.That(
+                () => new ManiaModSet(
+                    [ManiaModId.NoFail, ManiaModId.NoPause]),
+                Throws.TypeOf<ArgumentException>());
+        });
+    }
 }

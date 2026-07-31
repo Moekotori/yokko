@@ -17,8 +17,10 @@ internal sealed class YokkoWindowSizeGuard : IDisposable
     private const int horizontal_window_chrome_allowance = 32;
     private const int vertical_window_chrome_allowance = 80;
 
+    // Physical window choices only; these are not logical layout references.
     private static readonly Size[] safeFallbackSizes =
     {
+        new(1920, 1080),
         new(1600, 900),
         new(1280, 720),
         new(1024, 576),

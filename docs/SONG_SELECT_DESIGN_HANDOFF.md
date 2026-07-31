@@ -1,3 +1,8 @@
+> Current implementation note (2026-07-31): the shared full-screen layout and
+> visual-QA viewport is 1920 x 1080. The 1280 x 720 coordinates below describe
+> the historical concept only and must not be reused as the application-wide
+> baseline for new work.
+
 # Yokko 选歌页设计与开发交接
 
 日期：2026-07-28  

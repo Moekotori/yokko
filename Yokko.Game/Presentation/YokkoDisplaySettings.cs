@@ -30,7 +30,7 @@ public enum YokkoFrameLimit
 
 public sealed class YokkoDisplaySettings
 {
-    public static readonly Vector2 ReferenceLayoutSize = new(1600, 900);
+    public static readonly Vector2 ReferenceLayoutSize = new(1920, 1080);
 
     public readonly Bindable<YokkoUiScale> UiScale = new(YokkoUiScale.Comfortable);
 
@@ -45,9 +45,9 @@ public sealed class YokkoDisplaySettings
 
     public static Vector2 GetTargetDrawSize(YokkoUiScale scale) => scale switch
     {
-        YokkoUiScale.Large => new Vector2(1600, 900),
-        YokkoUiScale.Compact => new Vector2(2000, 1125),
-        _ => new Vector2(1600f / 0.9f, 1000),
+        YokkoUiScale.Large => ReferenceLayoutSize,
+        YokkoUiScale.Compact => ReferenceLayoutSize / 0.8f,
+        _ => ReferenceLayoutSize / 0.9f,
     };
 
     public static float GetScaleFactor(YokkoUiScale scale) =>
@@ -61,8 +61,8 @@ public sealed class YokkoDisplaySettings
     };
 
     /// <summary>
-    /// Calculates the physical scale applied to Yokko's shared 1600x900 UI.
-    /// The 100% setting fits Yokko's shared 1600x900 layout space to the
+    /// Calculates the physical scale applied to Yokko's shared 1920x1080 UI.
+    /// The 100% setting fits Yokko's shared 1920x1080 layout space to the
     /// full client resolution. Rendering still occurs at the native client
     /// resolution; 90% and 80% expose proportionally more layout space.
     /// </summary>

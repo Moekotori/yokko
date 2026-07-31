@@ -21,6 +21,9 @@ namespace Yokko.Game.Screens.Gameplay;
 
 internal partial class GameplayPauseOverlay : CompositeDrawable
 {
+    // Legacy internal artboard. The stage is fitted to the shared 1920x1080
+    // viewport in Update(); new full-screen layouts must use
+    // YokkoDisplaySettings.ReferenceLayoutSize instead.
     internal static readonly Vector2 ReferenceSize = new(1600, 900);
 
     private const float sheetX = 44;

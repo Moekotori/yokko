@@ -106,4 +106,47 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
         });
         AddUntilStep("screenshot saved", () => screenshotSaved);
     }
+
+    [Test]
+    public void TestEtternaResultScreenLoads()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+        {
+            Title = "Etterna result",
+            DifficultyName = "Justice",
+        };
+        var result = new ManiaScoreResult(
+            999_935,
+            0.999935,
+            1234,
+            ScoreRank.X,
+            1000,
+            20,
+            4,
+            2,
+            1,
+            0,
+            7,
+            3);
+
+        AddStep("show Etterna result screen", () =>
+        {
+            Add(overlay = new GameplayResultOverlay(
+                beatmap,
+                result,
+                ManiaModSet.Empty,
+                true,
+                () => { },
+                () => { },
+                () => { },
+                judgementConfiguration:
+                    JudgementConfiguration.EtternaDefault));
+        });
+        AddUntilStep("Etterna result assets load", () =>
+            overlay?.MascotReady == true);
+        AddAssert("Etterna judgement is shown", () =>
+            overlay?.DisplayedMods.Contains("ETTERNA J4") == true);
+        AddUntilStep("Etterna result entrance completes", () =>
+            overlay?.EntranceComplete == true);
+    }
 }

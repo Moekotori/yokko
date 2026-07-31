@@ -30,6 +30,22 @@ namespace Yokko.Game.Tests
 {
     public partial class YokkoTestBrowser : YokkoGameBase
     {
+        private static readonly string[] previewEnvironmentVariables =
+        [
+            "YOKKO_PREVIEW_1080P",
+            "YOKKO_LAYOUT_EDITOR_PREVIEW",
+            "YOKKO_TIMING_BAR_PREVIEW",
+            "YOKKO_SCROLL_SPEED_PREVIEW",
+            "YOKKO_OSU_MANIA_SKIN_PREVIEW",
+            "YOKKO_MODS_PREVIEW",
+            "YOKKO_MAIN_PREVIEW",
+            "YOKKO_SONGSELECT_PREVIEW",
+            "YOKKO_RESULT_PREVIEW",
+            "YOKKO_PAUSE_PREVIEW",
+            "YOKKO_EDITOR_PREVIEW",
+            "YOKKO_SETTINGS_PREVIEW",
+        ];
+
         [Resolved]
         private IRenderer renderer { get; set; }
 
@@ -48,6 +64,9 @@ namespace Yokko.Game.Tests
         {
             base.LoadComplete();
 
+            if (isPreviewRun())
+                configurePreviewViewport();
+
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_LAYOUT_EDITOR_PREVIEW") == "1")
             {
@@ -56,7 +75,7 @@ namespace Yokko.Game.Tests
                     WindowMode.Windowed);
                 frameworkConfig.SetValue(
                     FrameworkSetting.WindowedSize,
-                    new System.Drawing.Size(1600, 1000));
+                    GetPreviewWindowSize());
                 frameworkConfig.SetValue(
                     FrameworkSetting.Locale,
                     YokkoLocale.Chinese);
@@ -246,6 +265,14 @@ namespace Yokko.Game.Tests
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_MAIN_PREVIEW") == "1")
             {
+                frameworkConfig.SetValue(
+                    FrameworkSetting.WindowMode,
+                    WindowMode.Windowed);
+                frameworkConfig.SetValue(
+                    FrameworkSetting.WindowedSize,
+                    new System.Drawing.Size(1920, 1080));
+                DisplaySettings.UiScale.Value = YokkoUiScale.Large;
+
                 if (Environment.GetEnvironmentVariable(
                         "YOKKO_PREVIEW_LOCALE")
                     is { Length: > 0 } previewLocale)
@@ -274,7 +301,7 @@ namespace Yokko.Game.Tests
                     WindowMode.Windowed);
                 frameworkConfig.SetValue(
                     FrameworkSetting.WindowedSize,
-                    new System.Drawing.Size(1600, 1000));
+                    GetPreviewWindowSize());
                 frameworkConfig.SetValue(
                     FrameworkSetting.Locale,
                     YokkoLocale.English);
@@ -312,7 +339,7 @@ namespace Yokko.Game.Tests
                     WindowMode.Windowed);
                 frameworkConfig.SetValue(
                     FrameworkSetting.WindowedSize,
-                    new System.Drawing.Size(1600, 900));
+                    GetPreviewWindowSize());
                 YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
                 {
                     Title = "Afterimage",
@@ -411,6 +438,18 @@ namespace Yokko.Game.Tests
             }
 
             if (Environment.GetEnvironmentVariable(
+                    "YOKKO_EDITOR_PREVIEW") == "1")
+            {
+                Add(new ScreenStack(new Screens.Editor.EditorScreen())
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                Add(new CursorContainer());
+                schedulePreviewScreenshot(1200);
+                return;
+            }
+
+            if (Environment.GetEnvironmentVariable(
                     "YOKKO_SETTINGS_PREVIEW") == "1")
             {
                 if (Environment.GetEnvironmentVariable(
@@ -475,6 +514,26 @@ namespace Yokko.Game.Tests
                 new TestBrowser("Yokko"),
                 new CursorContainer()
             });
+        }
+
+        internal static System.Drawing.Size GetPreviewWindowSize() =>
+            new(
+                (int)YokkoDisplaySettings.ReferenceLayoutSize.X,
+                (int)YokkoDisplaySettings.ReferenceLayoutSize.Y);
+
+        private static bool isPreviewRun() =>
+            previewEnvironmentVariables.Any(variable =>
+                Environment.GetEnvironmentVariable(variable) == "1");
+
+        private void configurePreviewViewport()
+        {
+            frameworkConfig.SetValue(
+                FrameworkSetting.WindowMode,
+                WindowMode.Windowed);
+            frameworkConfig.SetValue(
+                FrameworkSetting.WindowedSize,
+                GetPreviewWindowSize());
+            DisplaySettings.UiScale.Value = YokkoUiScale.Large;
         }
 
         public override void SetHost(GameHost host)
@@ -634,6 +693,11 @@ namespace Yokko.Game.Tests
                 case "config":
                     modsScreen.ToggleMod(
                         ManiaModId.AccuracyChallenge);
+                    break;
+
+                case "no-pause":
+                    modsScreen.ToggleMod(ManiaModId.NoPause);
+                    modsScreen.SetNoPauseAllowedPauses(1);
                     break;
 
                 case "conversion":

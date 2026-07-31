@@ -170,7 +170,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             {
                 Y = 5,
                 Text = "CFG",
-                Font = HomeTypography.Display(10),
+                Font = HomeTypography.Display(12),
                 Colour = GameplayModSettingsTheme.Muted,
             },
             accuracyTab = new PageTab(
@@ -591,7 +591,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Text = text,
-                    Font = HomeTypography.Display(8),
+                    Font = HomeTypography.Display(10),
                 },
             };
         }

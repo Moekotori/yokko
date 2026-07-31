@@ -23,6 +23,9 @@ namespace Yokko.Game.Screens.Gameplay;
 
 internal partial class GameplayResultOverlay : CompositeDrawable
 {
+    // Legacy internal artboard retained for source-art alignment. The stage is
+    // proportionally fitted to the shared 1920x1080 viewport; these dimensions
+    // are not a reference for new full-screen layouts.
     private const float designedWidth = 1600;
     private const float designedHeight = 900;
     private const float judgementStripWidth = 1110;

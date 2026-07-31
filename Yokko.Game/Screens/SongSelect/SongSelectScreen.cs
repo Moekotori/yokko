@@ -966,6 +966,15 @@ public partial class SongSelectScreen : Screen
         onSelectedModsChanged();
     }
 
+    internal void SetNoPauseAllowedPauses(int value)
+    {
+        if (!selectedMods.Contains(ManiaModId.NoPause))
+            return;
+
+        selectedMods = selectedMods.WithNoPause(value);
+        onSelectedModsChanged();
+    }
+
     internal void SetTimeRampInitialRate(double value)
     {
         if (!selectedMods.HasTimeRamp)
@@ -1642,6 +1651,7 @@ public partial class SongSelectScreen : Screen
                     SetAdaptiveInitialRate,
                     SetAdaptiveAdjustPitch,
                     SetRandomSeed,
+                    SetNoPauseAllowedPauses,
                     ToggleMod)
                 {
                     Position = new Vector2(306, 62),

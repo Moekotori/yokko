@@ -30,8 +30,11 @@ namespace Yokko.Game.Screens.Editor;
 
 public partial class EditorScreen : Screen
 {
+    // Legacy internal editor coordinates. The centred stage is scaled against
+    // the shared 1920x1080 viewport and shrinks further for smaller windows.
     private const float designedWidth = 1122;
     private const float designedHeight = 620;
+    private const float referenceLayoutScale = 1.2f;
     private const int defaultVisibleRows = 24;
     private const int minVisibleRows = 12;
     private const int maxVisibleRows = 64;
@@ -40,6 +43,7 @@ public partial class EditorScreen : Screen
     private const int appendStep = 32;
 
     private FillFlowContainer workspace;
+    private Container editorStage;
     private EditableBeatmap editableBeatmap;
     private TimelineViewport viewport;
     private readonly EditorPreviewClock previewClock = new();
@@ -80,7 +84,7 @@ public partial class EditorScreen : Screen
                 RelativeSizeAxes = Axes.Both,
                 Colour = YokkoPalette.Background,
             },
-            new Container
+            editorStage = new Container
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
@@ -347,11 +351,26 @@ public partial class EditorScreen : Screen
     {
         base.Update();
 
+        float stageScale = CalculateResponsiveStageScale(DrawSize);
+        editorStage.Scale = new Vector2(stageScale);
+
         if (!previewClock.Update(Time.Elapsed, getPreviewDurationMilliseconds()))
             return;
 
         ensurePreviewVisible();
         refreshPreviewVisuals();
+    }
+
+    internal static float CalculateResponsiveStageScale(Vector2 viewportSize)
+    {
+        if (viewportSize.X <= 0 || viewportSize.Y <= 0)
+            return 1;
+
+        return MathF.Min(
+            referenceLayoutScale,
+            MathF.Min(
+                viewportSize.X / designedWidth,
+                viewportSize.Y / designedHeight));
     }
 
     private void togglePreviewPlayback()

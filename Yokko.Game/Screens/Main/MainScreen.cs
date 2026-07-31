@@ -28,6 +28,8 @@ namespace Yokko.Game.Screens.Main;
 
 public partial class MainScreen : Screen
 {
+    // Legacy authored coordinate floor. The responsive stage expands to the
+    // shared 1920x1080 viewport; these values are not a full-screen reference.
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
     private const float compactPlayerCardY = 638;
@@ -87,6 +89,7 @@ public partial class MainScreen : Screen
         new();
     private SongSelectScreen preloadedSongSelect;
     private bool songSelectPreloadInProgress;
+    private bool preloadResourcesDisposed;
     private bool songSelectOpenRequested;
     private int songSelectPreloadGeneration;
 
@@ -499,7 +502,8 @@ public partial class MainScreen : Screen
 
     private void onChartLibraryChanged() => Scheduler.Add(() =>
     {
-        if (songSelectPreloadCancellation.IsCancellationRequested
+        if (preloadResourcesDisposed
+            || songSelectPreloadCancellation.IsCancellationRequested
             || IsPreparedSongSelectCurrent)
         {
             return;
@@ -518,8 +522,9 @@ public partial class MainScreen : Screen
 
     protected override void Dispose(bool isDisposing)
     {
-        if (isDisposing)
+        if (isDisposing && !preloadResourcesDisposed)
         {
+            preloadResourcesDisposed = true;
             if (importedChartLibrary != null)
                 importedChartLibrary.LibraryChanged -= onChartLibraryChanged;
             songSelectPreloadCancellation.Cancel();

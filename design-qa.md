@@ -1,3 +1,8 @@
+> Current layout policy (2026-07-31): all new full-screen UI and visual QA use
+> the shared 1920 x 1080 reference. Earlier 1280 x 720 and 1600 x 900 entries in
+> this file are historical evidence or explicitly retained internal artboards,
+> not the current application-wide baseline.
+
 # Pause overlay dynamic-content verification (2026-07-29, QA5)
 
 ## Evidence

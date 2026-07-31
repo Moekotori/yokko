@@ -6,6 +6,7 @@ using osu.Framework.Platform;
 using Yokko.Core.Difficulty;
 using Yokko.Game.Configuration;
 using Yokko.Game.Presentation;
+using Yokko.Game.Screens.Editor;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Main;
 using Yokko.Game.Screens.Settings;
@@ -143,6 +144,11 @@ public sealed class DisplaySettingsTest
 
         Assert.Multiple(() =>
         {
+            Assert.That(large, Is.EqualTo(new osuTK.Vector2(1920, 1080)));
+            Assert.That(
+                comfortable,
+                Is.EqualTo(new osuTK.Vector2(1920f / 0.9f, 1200)));
+            Assert.That(compact, Is.EqualTo(new osuTK.Vector2(2400, 1350)));
             Assert.That(large.X / large.Y, Is.EqualTo(16f / 9f).Within(0.001f));
             Assert.That(comfortable.X / comfortable.Y, Is.EqualTo(16f / 9f).Within(0.001f));
             Assert.That(compact.X / compact.Y, Is.EqualTo(16f / 9f).Within(0.001f));
@@ -163,7 +169,7 @@ public sealed class DisplaySettingsTest
     {
         Assert.That(
             YokkoDisplaySettings.CalculateContentScale(
-                new osuTK.Vector2(1600, 900),
+                new osuTK.Vector2(1920, 1080),
                 scale),
             Is.EqualTo(expected).Within(0.001f));
     }
@@ -177,7 +183,7 @@ public sealed class DisplaySettingsTest
     {
         Assert.That(
             YokkoDisplaySettings.CalculateContentScale(
-                new osuTK.Vector2(3200, 1955),
+                new osuTK.Vector2(3840, 2346),
                 scale),
             Is.EqualTo(expected).Within(0.001f));
     }
@@ -189,7 +195,31 @@ public sealed class DisplaySettingsTest
             YokkoDisplaySettings.CalculateContentScale(
                 new osuTK.Vector2(3840, 2160),
                 YokkoUiScale.Large),
-            Is.EqualTo(2.4f).Within(0.001f));
+            Is.EqualTo(2f).Within(0.001f));
+    }
+
+    [Test]
+    public void VisualPreviewsDefaultToShared1080PReference()
+    {
+        Assert.That(
+            YokkoTestBrowser.GetPreviewWindowSize(),
+            Is.EqualTo(new System.Drawing.Size(1920, 1080)));
+    }
+
+    [Test]
+    public void EditorPreservesItsLegacyCanvasScaleAt1080P()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                EditorScreen.CalculateResponsiveStageScale(
+                    YokkoDisplaySettings.ReferenceLayoutSize),
+                Is.EqualTo(1.2f).Within(0.001f));
+            Assert.That(
+                EditorScreen.CalculateResponsiveStageScale(
+                    new osuTK.Vector2(960, 540)),
+                Is.EqualTo(960f / 1122f).Within(0.001f));
+        });
     }
 
     [Test]
@@ -226,19 +256,19 @@ public sealed class DisplaySettingsTest
             Assert.That(
                 SettingsScreen.CalculateResponsiveStageSize(
                     YokkoDisplaySettings.ReferenceLayoutSize),
-                Is.EqualTo(new osuTK.Vector2(1280, 720)));
+                Is.EqualTo(new osuTK.Vector2(1536, 864)));
             Assert.That(
                 SettingsScreen.CalculateResponsiveStageSize(
                     YokkoDisplaySettings.GetTargetDrawSize(
                         YokkoUiScale.Comfortable)),
                 Is.EqualTo(new osuTK.Vector2(
-                    1280f / 0.9f,
-                    800)));
+                    1536f / 0.9f,
+                    864f / 0.9f)));
             Assert.That(
                 SettingsScreen.CalculateResponsiveStageSize(
                     YokkoDisplaySettings.GetTargetDrawSize(
                         YokkoUiScale.Compact)),
-                Is.EqualTo(new osuTK.Vector2(1600, 900)));
+                Is.EqualTo(new osuTK.Vector2(1920, 1080)));
         });
     }
 
@@ -267,7 +297,7 @@ public sealed class DisplaySettingsTest
     {
         Assert.Multiple(() =>
         {
-            // 参考布局（1600x900）下保持 1.25 倍放大。
+            // 参考布局（1920x1080）下保持 1.25 倍放大。
             var referenceStage = SettingsScreen.CalculateResponsiveStageSize(
                 YokkoDisplaySettings.ReferenceLayoutSize);
             Assert.That(

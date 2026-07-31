@@ -4138,6 +4138,42 @@ HitPosition: 400
         }
 
         [Test]
+        public void TestNoPauseAllowanceIsConsumed()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                AudioPath = "no-pause-fixture.mp3",
+            };
+            GameplayScreen gameplayScreen = null;
+
+            AddStep("open gameplay with one pause", () =>
+            {
+                gameplaySettings.ResetShortcutBindings();
+                gameplayScreen = new GameplayScreen(
+                    beatmap,
+                    audioEngine,
+                    mods: ManiaModSet.Empty.WithNoPause(1));
+                gameplayScreen.ResumeCountdownMillisecondsOverride = 0;
+                screenStack.Push(gameplayScreen);
+            });
+            AddUntilStep("audio starts", () => audioEngine.StartCount == 1);
+            AddStep("use allowed pause", () => gameplayScreen.TogglePause());
+            AddUntilStep("first pause completes", () =>
+                gameplayScreen.IsPaused
+                && gameplayScreen.PausesUsed == 1
+                && gameplayScreen.PausesRemaining == 0);
+            AddStep("resume", () => gameplayScreen.TogglePause());
+            AddUntilStep("resume completes", () => !gameplayScreen.IsPaused);
+            AddStep("try another pause", () => gameplayScreen.TogglePause());
+            AddWaitStep("allow blocked request to settle", 2);
+            AddAssert("second pause is blocked", () =>
+                !gameplayScreen.IsPaused
+                && gameplayScreen.PausesUsed == 1
+                && audioEngine.PauseCount == 1);
+        }
+
+        [Test]
         public void TestResumeCountdownBuffersAndCancels()
         {
             var audioEngine = new SeekTrackingAudioEngine();

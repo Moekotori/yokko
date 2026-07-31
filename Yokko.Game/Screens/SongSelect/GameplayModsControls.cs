@@ -372,7 +372,7 @@ internal partial class GameplayModListItem : ClickableContainer
             {
                 Position = new Vector2(52, 2),
                 Text = definition.Name,
-                Font = HomeTypography.Display(15),
+                Font = HomeTypography.Display(17),
                 Colour = HomeControlColours.Navy,
             },
             description = new SpriteText
@@ -381,7 +381,7 @@ internal partial class GameplayModListItem : ClickableContainer
                 Text = selectable
                     ? shorten(definition.Description, 34)
                     : "Requires an osu!standard chart.",
-                Font = HomeTypography.Body(11),
+                Font = HomeTypography.Body(13),
                 Colour = new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,
@@ -592,7 +592,7 @@ internal partial class GameplayActiveModChip : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 55,
                 Text = definition.Name.ToUpperInvariant(),
-                Font = HomeTypography.Display(10),
+                Font = HomeTypography.Display(12),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
@@ -601,7 +601,7 @@ internal partial class GameplayActiveModChip : ClickableContainer
                 Origin = Anchor.CentreRight,
                 X = -28,
                 Text = value,
-                Font = HomeTypography.Display(10),
+                Font = HomeTypography.Display(12),
                 Colour = HomeControlColours.Cyan,
             },
             removeIcon = new SpriteIcon
@@ -685,7 +685,7 @@ internal partial class GameplayActiveModRow : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 54,
                 Text = definition.Name,
-                Font = HomeTypography.Display(10),
+                Font = HomeTypography.Display(12),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
@@ -694,7 +694,7 @@ internal partial class GameplayActiveModRow : ClickableContainer
                 Origin = Anchor.CentreRight,
                 X = -31,
                 Text = value,
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Display(11),
                 Colour = HomeControlColours.Navy,
             },
             removeIcon = new SpriteIcon

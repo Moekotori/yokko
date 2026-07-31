@@ -227,6 +227,7 @@ internal partial class GameplayModsScreen : Screen
                             NavigateToCategoryPage,
                             ToggleMod,
                             FocusOrbitMod,
+                            SetNoPauseAllowedPauses,
                             PreviewGlobalRate,
                             CompleteFixedRateInteraction,
                             ResetMods,
@@ -1147,7 +1148,7 @@ internal partial class GameplayModsScreen : Screen
                 Origin = Anchor.CentreLeft,
                 X = 266,
                 Text = "NO MODS ACTIVE",
-                Font = HomeTypography.Display(10),
+                Font = HomeTypography.Display(12),
                 Colour = new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,
@@ -1409,7 +1410,7 @@ internal partial class GameplayModsScreen : Screen
                 },
                 detailDescription = new TextFlowContainer(text =>
                 {
-                    text.Font = HomeTypography.Body(14);
+                    text.Font = HomeTypography.Body(16);
                     text.Colour = new Color4(
                         HomeControlColours.Navy.R,
                         HomeControlColours.Navy.G,
@@ -1425,7 +1426,7 @@ internal partial class GameplayModsScreen : Screen
                 {
                     Position = new Vector2(32, 93),
                     Text = "SPACE TO TOGGLE",
-                    Font = HomeTypography.Display(9),
+                    Font = HomeTypography.Display(11),
                     Spacing = new Vector2(1.1f, 0),
                     Colour = HomeControlColours.Cyan,
                 },
@@ -1439,7 +1440,7 @@ internal partial class GameplayModsScreen : Screen
                 {
                     Position = new Vector2(32, 116),
                     Text = "SETTINGS",
-                    Font = HomeTypography.Display(10),
+                    Font = HomeTypography.Display(12),
                     Spacing = new Vector2(1.8f, 0),
                     Colour = HomeControlColours.Cyan,
                 },
@@ -1507,14 +1508,14 @@ internal partial class GameplayModsScreen : Screen
                         {
                             Position = new Vector2(38, 13),
                             Text = "COMPATIBILITY",
-                            Font = HomeTypography.Display(10.5f),
+                            Font = HomeTypography.Display(12),
                             Colour = new Color4(0.38f, 0.68f, 0.22f, 1f),
                         },
                         new SpriteText
                         {
                             Position = new Vector2(14, 38),
                             Text = "This mod works with your active loadout.",
-                            Font = HomeTypography.Body(10.5f),
+                            Font = HomeTypography.Body(12),
                             Colour = new Color4(
                                 HomeControlColours.Navy.R,
                                 HomeControlColours.Navy.G,
@@ -1525,7 +1526,7 @@ internal partial class GameplayModsScreen : Screen
                         {
                             Position = new Vector2(14, 56),
                             Text = "No conflicts detected.",
-                            Font = HomeTypography.Body(10.5f),
+                            Font = HomeTypography.Body(12),
                             Colour = new Color4(
                                 HomeControlColours.Navy.R,
                                 HomeControlColours.Navy.G,
@@ -1633,7 +1634,7 @@ internal partial class GameplayModsScreen : Screen
             {
                 Position = new Vector2(29, 6),
                 Text = "SPEED MULTIPLIER",
-                Font = HomeTypography.Display(10),
+                Font = HomeTypography.Display(12),
                 Colour = HomeControlColours.Navy,
             },
             fixedRateValue = new SpriteText
@@ -1641,7 +1642,7 @@ internal partial class GameplayModsScreen : Screen
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
                 Position = new Vector2(0, 6),
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Display(15),
                 Colour = HomeControlColours.Cyan,
             },
             fixedRateSlider = new GameplayModsRateSlider(
@@ -1654,7 +1655,7 @@ internal partial class GameplayModsScreen : Screen
             {
                 Position = new Vector2(0, 54),
                 Text = "0.25x",
-                Font = HomeTypography.Body(9),
+                Font = HomeTypography.Body(11),
                 Colour = new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,
@@ -1667,7 +1668,7 @@ internal partial class GameplayModsScreen : Screen
                 Origin = Anchor.TopCentre,
                 Position = new Vector2(0, 54),
                 Text = "1.00x",
-                Font = HomeTypography.Body(9),
+                Font = HomeTypography.Body(11),
                 Colour = new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,
@@ -1680,7 +1681,7 @@ internal partial class GameplayModsScreen : Screen
                 Origin = Anchor.TopRight,
                 Position = new Vector2(0, 54),
                 Text = "2.00x",
-                Font = HomeTypography.Body(9),
+                Font = HomeTypography.Body(11),
                 Colour = new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,

@@ -164,6 +164,7 @@ internal static class YokkoStrings
             ["mods.definition.no-fail.description"] = new("Keep playing even when your health reaches zero.", "血量归零也不会中断游玩。", "ライフがゼロになってもプレイを続けられます。"),
             ["mods.definition.no-pause.name"] = new("No Pause", "限制暂停", "ノーポーズ"),
             ["mods.definition.no-pause.description"] = new("Limit how many times gameplay may be paused.", "限制一局内可暂停的次数；设为 0 时完全禁止暂停。", "プレイ中に一時停止できる回数を制限します。"),
+            ["mods.no_pause.allowance"] = new("PAUSES: {0}", "可暂停：{0} 次", "一時停止：{0} 回"),
             ["mods.definition.half-time.name"] = new("Half Time", "半速", "ハーフタイム"),
             ["mods.definition.half-time.description"] = new("Slow the song down to 75% speed.", "将歌曲速度降低至 75%。", "楽曲速度を 75% に下げます。"),
             ["mods.definition.daycore.name"] = new("Daycore", "降调半速", "デイコア"),

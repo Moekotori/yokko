@@ -9,6 +9,18 @@ namespace Yokko.Game.Tests.Core;
 [TestFixture]
 public sealed class ManiaModConfigurationCodecTest
 {
+    [Test]
+    public void NoPauseAllowanceRoundTrips()
+    {
+        ManiaModSet original = ManiaModSet.Empty.WithNoPause(3);
+
+        ManiaModSet restored = ManiaModConfigurationCodec.Restore(
+            ManiaModConfigurationCodec.Capture(original));
+
+        Assert.That(restored, Is.EqualTo(original));
+        Assert.That(restored.NoPauseAllowedPauses, Is.EqualTo(3));
+    }
+
     public static IEnumerable<ManiaModSet> Configurations
     {
         get
