@@ -303,7 +303,8 @@ namespace Yokko.Game.Tests
                 frameworkConfig.SetValue(
                     FrameworkSetting.Locale,
                     YokkoLocale.English);
-                var songSelect = new SongSelectScreen();
+                var songSelect = new SongSelectScreen(
+                    new Yokko.Audio.NullAudioEngine());
                 Add(new ScreenStack(songSelect)
                 {
                     RelativeSizeAxes = Axes.Both,
@@ -408,7 +409,7 @@ namespace Yokko.Game.Tests
                             : ":Spiral_Eyes:",
                         DifficultyName = "4K Normal",
                     };
-                Add(new GameplayPauseOverlay(
+                var pauseOverlay = new GameplayPauseOverlay(
                     beatmap,
                     new YokkoGameplaySettings(),
                     new GameplayPauseSnapshot(
@@ -430,7 +431,15 @@ namespace Yokko.Game.Tests
                     () => { },
                     () => { },
                     () => { },
-                    () => { }));
+                    () => { });
+                Add(pauseOverlay);
+                if (Environment.GetEnvironmentVariable(
+                        "YOKKO_PAUSE_SETTINGS_PREVIEW") == "1")
+                {
+                    Scheduler.AddDelayed(
+                        pauseOverlay.TogglePauseSettings,
+                        350);
+                }
                 Add(new CursorContainer());
                 schedulePreviewScreenshot();
                 return;

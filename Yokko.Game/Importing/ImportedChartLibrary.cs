@@ -53,12 +53,20 @@ internal sealed record ExternalOsuLibraryResult(
 /// </summary>
 internal sealed class ImportedChartLibrary : IDisposable
 {
+    private const string pending_difficulty_reason =
+        "Pending background difficulty calculation.";
     private readonly List<ImportedChart> charts = [];
     private readonly object syncRoot = new();
     private readonly SemaphoreSlim importLock = new(1, 1);
+    private readonly SemaphoreSlim externalDifficultyLock = new(1, 1);
+    private readonly object externalWorkPauseLock = new();
+    private TaskCompletionSource<bool> externalWorkResume =
+        completedResumeSource();
+    private int externalDifficultyGeneration;
     private readonly MsdRatingCache msdRatingCache = new();
     private readonly StarRatingCache starRatingCache = new();
     private Task<int> startupLoadTask = Task.FromResult(0);
+    private Task externalDifficultyTask = Task.CompletedTask;
     private bool startupLoadStarted;
     private long revision;
     private string libraryPath;
@@ -107,6 +115,28 @@ internal sealed class ImportedChartLibrary : IDisposable
         }
     }
 
+    internal Task ExternalDifficultyTask =>
+        Volatile.Read(ref externalDifficultyTask);
+
+    internal void SetExternalIndexingPaused(bool paused)
+    {
+        lock (externalWorkPauseLock)
+        {
+            if (paused)
+            {
+                if (externalWorkResume.Task.IsCompleted)
+                {
+                    externalWorkResume = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+            }
+            else
+            {
+                externalWorkResume.TrySetResult(true);
+            }
+        }
+    }
+
     internal Task<int> BeginStartupLoad(
         bool preferKeysounds,
         bool preferSscSimfiles,
@@ -126,7 +156,21 @@ internal sealed class ImportedChartLibrary : IDisposable
                     preferSscSimfiles,
                     enableBmsScratch).ConfigureAwait(false);
                 if (externalOsuSettings != null)
-                    await RefreshExternalOsuAsync().ConfigureAwait(false);
+                {
+                    // The private index is already enough to populate song
+                    // select. Validate file metadata in the background so a
+                    // very large Songs folder never blocks startup.
+                    _ = Task.Run(() => RefreshExternalOsuAsync())
+                            .ContinueWith(task =>
+                            {
+                                if (task.Exception != null)
+                                {
+                                    Logger.Error(
+                                        task.Exception.GetBaseException(),
+                                        "Could not refresh the external osu! library in the background.");
+                                }
+                            }, TaskContinuationOptions.OnlyOnFaulted);
+                }
                 return GetCharts().Count;
             });
             return startupLoadTask;
@@ -426,6 +470,7 @@ internal sealed class ImportedChartLibrary : IDisposable
     internal void DisableExternalOsu()
     {
         ensureExternalConfigured();
+        Interlocked.Increment(ref externalDifficultyGeneration);
         externalOsuSettings.SongsPath.Value = string.Empty;
         disposeExternalWatcher();
         replaceExternalCharts([]);
@@ -459,6 +504,8 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         Stopwatch stopwatch = Stopwatch.StartNew();
         await importLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        int difficultyGeneration = Interlocked.Increment(
+            ref externalDifficultyGeneration);
 
         try
         {
@@ -513,6 +560,8 @@ internal sealed class ImportedChartLibrary : IDisposable
                 {
                     try
                     {
+                        await waitForExternalWorkAsync(token)
+                            .ConfigureAwait(false);
                         if (!ExternalOsuSongsIndex.IsManiaFile(snapshot.Path))
                         {
                             loaded.Add(new ExternalOsuIndexEntry(
@@ -539,10 +588,6 @@ internal sealed class ImportedChartLibrary : IDisposable
                             == ChartSourceFormat.OsuMania)
                         {
                             ChartImportResult result = results[0];
-                            ManiaMsdResult msd =
-                                msdRatingCache.GetOrCalculate(result.Beatmap);
-                            ManiaStarRatingResult star =
-                                starRatingCache.GetOrCalculate(result.Beatmap);
                             double lengthMilliseconds =
                                 chartLength(result.Beatmap);
                             double bpm = primaryBpm(result.Beatmap);
@@ -560,8 +605,8 @@ internal sealed class ImportedChartLibrary : IDisposable
                                 snapshot.LastWriteTimeUtcTicks,
                                 summaryResult,
                                 resolveArtworkPath(result, snapshot.Path),
-                                msd,
-                                star,
+                                pendingMsdResult(),
+                                pendingStarResult(),
                                 lengthMilliseconds,
                                 bpm,
                                 fingerprint));
@@ -629,6 +674,10 @@ internal sealed class ImportedChartLibrary : IDisposable
             }
 
             configureExternalWatcher(songsPath);
+            startExternalDifficultyCompletion(
+                songsPath,
+                entries,
+                difficultyGeneration);
             Logger.Log(
                 $"External osu! scan loaded {externalCharts.Length} mania charts "
                 + $"from {snapshots.Count} .osu files; {changed.Count} files "
@@ -731,17 +780,310 @@ internal sealed class ImportedChartLibrary : IDisposable
 
     private void replaceExternalCharts(IReadOnlyList<ImportedChart> external)
     {
+        bool changed;
         lock (syncRoot)
         {
+            ImportedChart[] existing = charts
+                                       .Where(chart => chart.SourceKind
+                                                       == ImportedChartSourceKind.ExternalOsu)
+                                       .ToArray();
+            var existingById = existing.ToDictionary(
+                chart => chart.Id,
+                StringComparer.OrdinalIgnoreCase);
+            var retainedIds = new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
+            var merged = new ImportedChart[external.Count];
+
+            for (int i = 0; i < external.Count; i++)
+            {
+                ImportedChart incoming = external[i];
+                if (existingById.TryGetValue(incoming.Id, out ImportedChart current)
+                    && externalChartEquivalent(current, incoming))
+                {
+                    // Preserve object identity for unchanged rows. This mirrors
+                    // lazer's detached-store collection updates: consumers only
+                    // receive actual additions, removals and replacements.
+                    merged[i] = current;
+                    retainedIds.Add(current.Id);
+                }
+                else
+                {
+                    merged[i] = incoming;
+                }
+            }
+
+            changed = existing.Length != merged.Length
+                      || existing.Where((chart, index) =>
+                              index >= merged.Length
+                              || !ReferenceEquals(chart, merged[index]))
+                                 .Any();
+            if (!changed)
+                return;
+
             charts.RemoveAll(chart =>
                 chart.SourceKind == ImportedChartSourceKind.ExternalOsu);
-            charts.AddRange(external);
-            externalBeatmapCache.Clear();
-            externalBeatmapLru.Clear();
+            charts.AddRange(merged);
+
+            // Full beatmaps are loaded on demand. Keep LRU entries whose
+            // source did not change instead of throwing away all 64 cached
+            // decodes after an unrelated file-system event.
+            LinkedListNode<string> node = externalBeatmapLru.First;
+            while (node != null)
+            {
+                LinkedListNode<string> next = node.Next;
+                if (!retainedIds.Contains(node.Value))
+                {
+                    externalBeatmapCache.Remove(node.Value);
+                    externalBeatmapLru.Remove(node);
+                }
+                node = next;
+            }
             revision++;
         }
 
-        LibraryChanged?.Invoke();
+        if (changed)
+            LibraryChanged?.Invoke();
+    }
+
+    private static bool externalChartEquivalent(
+        ImportedChart current,
+        ImportedChart incoming) =>
+        string.Equals(current.Id, incoming.Id, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(current.SourcePath, incoming.SourcePath,
+            StringComparison.OrdinalIgnoreCase)
+        && string.Equals(current.Result.SourceHash, incoming.Result.SourceHash,
+            StringComparison.OrdinalIgnoreCase)
+        && string.Equals(current.ArtworkPath, incoming.ArtworkPath,
+            StringComparison.OrdinalIgnoreCase)
+        && string.Equals(current.PackageId, incoming.PackageId,
+            StringComparison.OrdinalIgnoreCase)
+        && string.Equals(current.PackageName, incoming.PackageName,
+            StringComparison.Ordinal)
+        && current.IsPackage == incoming.IsPackage
+        && current.IsReadOnly == incoming.IsReadOnly
+        && current.SourceKind == incoming.SourceKind
+        && Equals(current.DifficultyRating, incoming.DifficultyRating)
+        && Equals(current.StarRating, incoming.StarRating);
+
+    private async Task waitForExternalWorkAsync(
+        CancellationToken cancellationToken)
+    {
+        Task resumeTask;
+        lock (externalWorkPauseLock)
+            resumeTask = externalWorkResume.Task;
+        await resumeTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private void startExternalDifficultyCompletion(
+        string songsPath,
+        ExternalOsuIndexEntry[] entries,
+        int generation)
+    {
+        if (disposed || !entries.Any(entry =>
+                entry.Result != null && difficultyIsPending(entry)))
+        {
+            return;
+        }
+
+        Task completionTask = Task.Run(() => completeExternalDifficultiesAsync(
+                songsPath,
+                entries,
+                generation));
+        Volatile.Write(ref externalDifficultyTask, completionTask);
+        _ = completionTask.ContinueWith(task =>
+            {
+                if (task.Exception != null)
+                {
+                    Logger.Error(
+                        task.Exception.GetBaseException(),
+                        "Could not complete external osu! difficulty ratings.");
+                }
+            }, TaskContinuationOptions.OnlyOnFaulted);
+    }
+
+    private async Task completeExternalDifficultiesAsync(
+        string songsPath,
+        ExternalOsuIndexEntry[] entries,
+        int generation)
+    {
+        const int publishBatchSize = 64;
+        int completedSincePublish = 0;
+
+        for (int index = 0; index < entries.Length; index++)
+        {
+            if (disposed
+                || generation != Volatile.Read(
+                    ref externalDifficultyGeneration))
+            {
+                return;
+            }
+
+            ExternalOsuIndexEntry entry = entries[index];
+            if (entry.Result == null || !difficultyIsPending(entry))
+                continue;
+
+            await waitForExternalWorkAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            if (!sourceSnapshotStillMatches(entry))
+                continue;
+
+            try
+            {
+                IReadOnlyList<ChartImportResult> results =
+                    await KnownChartImporters.ImportAllAsync(
+                        new ChartImportRequest(
+                            entry.SourcePath,
+                            true,
+                            true,
+                            false,
+                            CancellationToken.None))
+                        .ConfigureAwait(false);
+                if (results.Count != 1
+                    || results[0].Beatmap.SourceFormat
+                    != ChartSourceFormat.OsuMania)
+                {
+                    continue;
+                }
+
+                // Ported from lazer's BeatmapDifficultyCache scheduling
+                // policy: difficulty work is deliberately single-concurrency
+                // because calculator fan-out causes visible frame stalls.
+                await externalDifficultyLock.WaitAsync().ConfigureAwait(false);
+                ManiaMsdResult msd;
+                ManiaStarRatingResult star;
+                try
+                {
+                    msd = msdRatingCache.GetOrCalculate(results[0].Beatmap);
+                    star = starRatingCache.GetOrCalculate(results[0].Beatmap);
+                }
+                finally
+                {
+                    externalDifficultyLock.Release();
+                }
+
+                entries[index] = entry with
+                {
+                    DifficultyRating = msd,
+                    StarRating = star,
+                };
+                completedSincePublish++;
+                if (completedSincePublish >= publishBatchSize)
+                {
+                    if (!await publishExternalDifficultyBatchAsync(
+                            songsPath,
+                            entries,
+                            generation).ConfigureAwait(false))
+                    {
+                        return;
+                    }
+                    completedSincePublish = 0;
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.Log(
+                    $"Could not calculate external osu! difficulty for '{entry.SourcePath}': {exception.Message}",
+                    LoggingTarget.Runtime,
+                    LogLevel.Error);
+            }
+        }
+
+        if (completedSincePublish > 0)
+        {
+            await publishExternalDifficultyBatchAsync(
+                    songsPath,
+                    entries,
+                    generation)
+                .ConfigureAwait(false);
+        }
+    }
+
+    private async Task<bool> publishExternalDifficultyBatchAsync(
+        string songsPath,
+        ExternalOsuIndexEntry[] entries,
+        int generation)
+    {
+        await importLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (disposed
+                || generation != Volatile.Read(
+                    ref externalDifficultyGeneration)
+                || !string.Equals(
+                    songsPath,
+                    ExternalOsuSongsPath,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            msdRatingCache.SaveIfChanged();
+            starRatingCache.SaveIfChanged();
+            ExternalOsuSongsIndex.Save(
+                externalOsuCachePath,
+                songsPath,
+                entries);
+            replaceExternalCharts(createExternalCharts(entries));
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException
+                                          or UnauthorizedAccessException
+                                          or NotSupportedException)
+        {
+            Logger.Error(
+                exception,
+                "Could not save completed external osu! difficulty ratings.");
+            return false;
+        }
+        finally
+        {
+            importLock.Release();
+        }
+    }
+
+    private static bool sourceSnapshotStillMatches(
+        ExternalOsuIndexEntry entry)
+    {
+        var info = new FileInfo(entry.SourcePath);
+        return info.Exists
+               && info.Length == entry.Length
+               && info.LastWriteTimeUtc.Ticks
+               == entry.LastWriteTimeUtcTicks;
+    }
+
+    private static bool difficultyIsPending(
+        ExternalOsuIndexEntry entry) =>
+        entry.DifficultyRating == null
+        || entry.StarRating == null
+        || string.Equals(
+            entry.DifficultyRating.FailureReason,
+            pending_difficulty_reason,
+            StringComparison.Ordinal)
+        || string.Equals(
+            entry.StarRating.FailureReason,
+            pending_difficulty_reason,
+            StringComparison.Ordinal);
+
+    private static ManiaMsdResult pendingMsdResult() => new(
+        ManiaMsdStatus.AlgorithmFailure,
+        null,
+        1,
+        "Pending",
+        pending_difficulty_reason);
+
+    private static ManiaStarRatingResult pendingStarResult() => new(
+        ManiaStarRatingStatus.AlgorithmFailure,
+        null,
+        1,
+        "Pending",
+        pending_difficulty_reason);
+
+    private static TaskCompletionSource<bool> completedResumeSource()
+    {
+        var source = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        source.SetResult(true);
+        return source;
     }
 
     private void configureExternalWatcher(string songsPath)
@@ -1294,6 +1636,8 @@ internal sealed class ImportedChartLibrary : IDisposable
             return;
 
         disposed = true;
+        Interlocked.Increment(ref externalDifficultyGeneration);
+        SetExternalIndexingPaused(false);
         disposeExternalWatcher();
     }
 }

@@ -5,6 +5,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Screens;
 using osuTK;
 using Yokko.Game.Presentation;
+using Yokko.Game.Importing;
 
 namespace Yokko.Game.Screens.Gameplay;
 
@@ -16,6 +17,8 @@ internal partial class GameplaySessionScreen : Screen
 {
     [Resolved]
     private YokkoFrameRateAdaptation frameRateAdaptation { get; set; }
+    [Resolved]
+    private ImportedChartLibrary importedChartLibrary { get; set; }
 
     private readonly GameplayScreen initialGameplay;
     private ScreenStack gameplayStack;
@@ -48,13 +51,17 @@ internal partial class GameplaySessionScreen : Screen
 
         frameRateSessionActive = true;
         frameRateAdaptation.BeginSession();
+        importedChartLibrary.SetExternalIndexingPaused(true);
     }
 
     public override bool OnExiting(ScreenExitEvent e)
     {
         bool blocked = base.OnExiting(e);
         if (!blocked)
+        {
+            importedChartLibrary.SetExternalIndexingPaused(false);
             endFrameRateSession();
+        }
 
         return blocked;
     }

@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Yokko.Game.Resources;
@@ -9,16 +8,14 @@ using Yokko.Game.Resources;
 namespace Yokko.Desktop.Platform;
 
 /// <summary>
-/// Uses the Windows shell folder browser so the resource location can be
-/// changed without navigating an in-game filesystem control.
+/// Uses Windows' Explorer-style file dialog in folder-picking mode.
+/// The legacy SHBrowseForFolder tree dialog is intentionally avoided because
+/// it is cramped, difficult to navigate and does not provide normal Explorer
+/// affordances such as breadcrumbs, search and large folder views.
 /// </summary>
 internal sealed class WindowsResourceDirectoryPicker : IResourceDirectoryPicker
 {
-    private const uint bif_return_only_fs_dirs = 0x0001;
-    private const uint bif_edit_box = 0x0010;
-    private const uint bif_new_dialog_style = 0x0040;
-    private const int bffm_initialized = 1;
-    private const uint bffm_set_selection_w = 0x400 + 103;
+    private const int cancelled_hresult = unchecked((int)0x800704C7);
 
     public bool IsAvailable => OperatingSystem.IsWindows();
 
@@ -53,90 +50,157 @@ internal sealed class WindowsResourceDirectoryPicker : IResourceDirectoryPicker
 
     private static string showDialog(IntPtr owner, string initialPath)
     {
-        BrowseCallback callback = (window, message, _, _) =>
-        {
-            if (message == bffm_initialized
-                && !string.IsNullOrWhiteSpace(initialPath)
-                && Directory.Exists(initialPath))
-            {
-                SendMessage(
-                    window,
-                    bffm_set_selection_w,
-                    new IntPtr(1),
-                    initialPath);
-            }
-
-            return 0;
-        };
-
-        var info = new BrowseInfo
-        {
-            Owner = owner,
-            Title = "\u9009\u62e9\u6587\u4ef6\u5939",
-            Flags = bif_return_only_fs_dirs | bif_edit_box | bif_new_dialog_style,
-            Callback = callback,
-        };
-
-        IntPtr itemId = SHBrowseForFolder(ref info);
-        if (itemId == IntPtr.Zero)
-            return null;
+        IFileDialog dialog = (IFileDialog)new FileOpenDialog();
+        IShellItem initialFolder = null;
+        IShellItem selectedFolder = null;
 
         try
         {
-            var path = new StringBuilder(32768);
-            return SHGetPathFromIDListEx(
-                itemId,
-                path,
-                (uint)path.Capacity,
-                0)
-                ? path.ToString()
-                : null;
+            dialog.GetOptions(out FileOpenOptions options);
+            dialog.SetOptions(options
+                              | FileOpenOptions.PickFolders
+                              | FileOpenOptions.ForceFileSystem
+                              | FileOpenOptions.PathMustExist
+                              | FileOpenOptions.DontAddToRecent);
+            dialog.SetTitle("选择文件夹");
+            dialog.SetOkButtonLabel("选择此文件夹");
+
+            if (!string.IsNullOrWhiteSpace(initialPath)
+                && Directory.Exists(initialPath))
+            {
+                Guid shellItemId = typeof(IShellItem).GUID;
+                int createResult = SHCreateItemFromParsingName(
+                    Path.GetFullPath(initialPath),
+                    IntPtr.Zero,
+                    ref shellItemId,
+                    out initialFolder);
+                if (createResult >= 0 && initialFolder != null)
+                    dialog.SetFolder(initialFolder);
+            }
+
+            int result = dialog.Show(owner);
+            if (result == cancelled_hresult)
+                return null;
+            Marshal.ThrowExceptionForHR(result);
+
+            dialog.GetResult(out selectedFolder);
+            selectedFolder.GetDisplayName(
+                ShellItemDisplayName.FileSystemPath,
+                out IntPtr pathPointer);
+            try
+            {
+                return Marshal.PtrToStringUni(pathPointer);
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(pathPointer);
+            }
         }
         finally
         {
-            Marshal.FreeCoTaskMem(itemId);
-            GC.KeepAlive(callback);
+            releaseComObject(selectedFolder);
+            releaseComObject(initialFolder);
+            releaseComObject(dialog);
         }
     }
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct BrowseInfo
+    private static void releaseComObject(object value)
     {
-        public IntPtr Owner;
-        public IntPtr Root;
-        public IntPtr DisplayName;
-        [MarshalAs(UnmanagedType.LPWStr)]
-        public string Title;
-        public uint Flags;
-        [MarshalAs(UnmanagedType.FunctionPtr)]
-        public BrowseCallback Callback;
-        public IntPtr CallbackParameter;
-        public int Image;
+        if (OperatingSystem.IsWindows()
+            && value != null
+            && Marshal.IsComObject(value))
+        {
+            Marshal.FinalReleaseComObject(value);
+        }
     }
 
-    private delegate int BrowseCallback(
-        IntPtr window,
-        int message,
-        IntPtr parameter,
-        IntPtr data);
+    [Flags]
+    private enum FileOpenOptions : uint
+    {
+        PickFolders = 0x00000020,
+        ForceFileSystem = 0x00000040,
+        PathMustExist = 0x00000800,
+        DontAddToRecent = 0x02000000,
+    }
 
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr SHBrowseForFolder(ref BrowseInfo info);
+    private enum ShellItemDisplayName : uint
+    {
+        FileSystemPath = 0x80058000,
+    }
 
-    [DllImport("shell32.dll", ExactSpelling = true, CharSet = CharSet.Unicode)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SHGetPathFromIDListEx(
-        IntPtr itemId,
-        StringBuilder path,
-        uint pathLength,
-        uint flags);
+    private enum FileDialogAddPlaceLocation
+    {
+        Bottom = 0,
+        Top = 1,
+    }
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr SendMessage(
-        IntPtr window,
-        uint message,
-        IntPtr wordParameter,
-        string longParameter);
+    [ComImport]
+    [Guid("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7")]
+    [ClassInterface(ClassInterfaceType.None)]
+    private class FileOpenDialog
+    {
+    }
+
+    [ComImport]
+    [Guid("42F85136-DB7E-439C-85F1-E4075D135FC8")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IFileDialog
+    {
+        [PreserveSig]
+        int Show(IntPtr owner);
+
+        void SetFileTypes(uint count, IntPtr filterSpecifications);
+        void SetFileTypeIndex(uint index);
+        void GetFileTypeIndex(out uint index);
+        void Advise(IntPtr events, out uint cookie);
+        void Unadvise(uint cookie);
+        void SetOptions(FileOpenOptions options);
+        void GetOptions(out FileOpenOptions options);
+        void SetDefaultFolder(IShellItem folder);
+        void SetFolder(IShellItem folder);
+        void GetFolder(out IShellItem folder);
+        void GetCurrentSelection(out IShellItem item);
+        void SetFileName([MarshalAs(UnmanagedType.LPWStr)] string name);
+        void GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string name);
+        void SetTitle([MarshalAs(UnmanagedType.LPWStr)] string title);
+        void SetOkButtonLabel([MarshalAs(UnmanagedType.LPWStr)] string text);
+        void SetFileNameLabel([MarshalAs(UnmanagedType.LPWStr)] string label);
+        void GetResult(out IShellItem item);
+        void AddPlace(
+            IShellItem item,
+            FileDialogAddPlaceLocation location);
+        void SetDefaultExtension(
+            [MarshalAs(UnmanagedType.LPWStr)] string extension);
+        void Close(int result);
+        void SetClientGuid(ref Guid guid);
+        void ClearClientData();
+        void SetFilter(IntPtr filter);
+    }
+
+    [ComImport]
+    [Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IShellItem
+    {
+        void BindToHandler(
+            IntPtr bindContext,
+            ref Guid handlerId,
+            ref Guid interfaceId,
+            out IntPtr result);
+        void GetParent(out IShellItem parent);
+        void GetDisplayName(
+            ShellItemDisplayName displayName,
+            out IntPtr name);
+        void GetAttributes(uint mask, out uint attributes);
+        void Compare(IShellItem other, uint hint, out int order);
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
+    private static extern int SHCreateItemFromParsingName(
+        [MarshalAs(UnmanagedType.LPWStr)] string path,
+        IntPtr bindContext,
+        ref Guid interfaceId,
+        [MarshalAs(UnmanagedType.Interface)] out IShellItem shellItem);
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();

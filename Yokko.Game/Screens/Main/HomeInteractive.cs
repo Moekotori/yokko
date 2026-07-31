@@ -222,6 +222,355 @@ public partial class HomeMarqueeTicker : CompositeDrawable
 }
 
 /// <summary>
+/// 藏在首页遥测装饰里的四键信号蛇；不新增面板，也不与角色图层交互。
+/// </summary>
+internal partial class HomeSignalSnake : CompositeDrawable
+{
+    private const float stepDistance = 18;
+    private const int initialTrailLength = 9;
+    private const int maximumTrailLength = 17;
+
+    private static readonly Vector2 startPosition = new(132, 88);
+    private static readonly Vector2[] directions =
+    {
+        new(-1, 0),
+        new(0, -1),
+        new(0, 1),
+        new(1, 0),
+    };
+
+    private static readonly float[] directionRotations = { -90, 0, 180, 90 };
+    private static readonly Vector2[] pipSpawns =
+    {
+        new(150, 88),
+        new(204, 34),
+        new(240, 70),
+        new(222, 142),
+        new(168, 142),
+        new(96, 142),
+        new(42, 106),
+        new(42, 34),
+        new(96, 34),
+        new(186, 106),
+    };
+
+    private readonly List<Vector2> trailPoints = new();
+    private readonly Circle[] trailDots = new Circle[maximumTrailLength];
+    private readonly Container[] pips = new Container[3];
+    private readonly Vector2[] pipPositions = new Vector2[3];
+    private readonly Container head;
+    private readonly Triangle headArrow;
+    private readonly Circle headHalo;
+
+    private Vector2 currentPosition;
+    private Vector2 currentDirection = directions[3];
+    private int trailLength = initialTrailLength;
+    private bool available;
+
+    internal int StepCount { get; private set; }
+
+    internal int CollectedCount { get; private set; }
+
+    internal Vector2 HeadPosition => currentPosition;
+
+    public HomeSignalSnake()
+    {
+        Size = new Vector2(260, 180);
+        Alpha = 0;
+
+        for (int i = trailDots.Length - 1; i >= 0; i--)
+        {
+            trailDots[i] = new Circle
+            {
+                Origin = Anchor.Centre,
+                Size = new Vector2(i == 0 ? 5 : 4),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    i == 0 ? 0.62f : 0.38f),
+            };
+            AddInternal(trailDots[i]);
+        }
+
+        for (int i = 0; i < pips.Length; i++)
+        {
+            pips[i] = createPip(i % 2 == 0
+                ? HomeControlColours.Yellow
+                : HomeControlColours.Pink);
+            AddInternal(pips[i]);
+        }
+
+        head = new Container
+        {
+            Origin = Anchor.Centre,
+            Size = new Vector2(24),
+            Children = new Drawable[]
+            {
+                headHalo = new Circle
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(17),
+                    Colour = new Color4(1f, 1f, 1f, 0.42f),
+                },
+                headArrow = new Triangle
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(13, 12),
+                    Rotation = directionRotations[3],
+                    Colour = HomeControlColours.Pink,
+                },
+                new Circle
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(4),
+                    Colour = HomeControlColours.Yellow,
+                },
+            },
+        };
+        AddInternal(head);
+
+        resetSignal(false);
+    }
+
+    internal void SetAvailable(bool value)
+    {
+        if (available == value)
+            return;
+
+        available = value;
+        this.FadeTo(value ? 0.86f : 0, value ? 320 : 180, Easing.OutQuint);
+    }
+
+    internal void HandleLane(int lane)
+    {
+        if (!available || lane < 0 || lane >= directions.Length)
+            return;
+
+        Vector2 nextDirection = directions[lane];
+        if (nextDirection == -currentDirection)
+            return;
+
+        Vector2 target = currentPosition + nextDirection * stepDistance;
+        bool outside = target.X < 24 || target.X > 242
+                       || target.Y < 22 || target.Y > 158;
+        bool crossedTrail = trailPoints
+                            .Skip(3)
+                            .Any(point => Vector2.DistanceSquared(point, target) < 64);
+
+        if (outside || crossedTrail)
+        {
+            playResetBurst(currentPosition);
+            resetSignal(true);
+            return;
+        }
+
+        currentDirection = nextDirection;
+        currentPosition = target;
+        StepCount++;
+
+        trailPoints.Insert(0, currentPosition);
+        if (trailPoints.Count > trailLength)
+            trailPoints.RemoveAt(trailPoints.Count - 1);
+
+        updateSignalDrawables(true, directionRotations[lane]);
+        collectNearbyPip();
+    }
+
+    internal bool TryHandleArrowKey(Key key, bool repeat)
+    {
+        int lane = key switch
+        {
+            Key.Left => 0,
+            Key.Up => 1,
+            Key.Down => 2,
+            Key.Right => 3,
+            _ => -1,
+        };
+
+        if (!available || lane < 0)
+            return false;
+
+        if (!repeat)
+            HandleLane(lane);
+
+        return true;
+    }
+
+    private static Container createPip(Color4 colour) => new()
+    {
+        Origin = Anchor.Centre,
+        Size = new Vector2(13),
+        Children = new Drawable[]
+        {
+            new Circle
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(12),
+                Colour = new Color4(1f, 1f, 1f, 0.54f),
+            },
+            new Circle
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(6),
+                Colour = colour,
+            },
+        },
+    };
+
+    private void resetSignal(bool animate)
+    {
+        currentPosition = startPosition;
+        currentDirection = directions[3];
+        trailLength = initialTrailLength;
+        trailPoints.Clear();
+
+        for (int i = 0; i < trailLength; i++)
+            trailPoints.Add(currentPosition - currentDirection * stepDistance * i);
+
+        for (int i = 0; i < pips.Length; i++)
+        {
+            pipPositions[i] = pipSpawns[i * 3];
+            pips[i].Position = pipPositions[i];
+            pips[i].Alpha = 1;
+        }
+
+        updateSignalDrawables(animate, directionRotations[3]);
+    }
+
+    private void updateSignalDrawables(bool animate, float rotation)
+    {
+        for (int i = 0; i < trailDots.Length; i++)
+        {
+            bool visible = i < trailPoints.Count;
+            trailDots[i].ClearTransforms();
+            trailDots[i].Alpha = visible
+                ? MathF.Max(0.14f, 0.58f - i * 0.035f)
+                : 0;
+
+            if (!visible)
+                continue;
+
+            if (animate)
+                trailDots[i].MoveTo(trailPoints[i], 95, Easing.OutQuint);
+            else
+                trailDots[i].Position = trailPoints[i];
+        }
+
+        head.ClearTransforms();
+        if (animate)
+            head.MoveTo(currentPosition, 95, Easing.OutQuint);
+        else
+            head.Position = currentPosition;
+
+        headArrow.RotateTo(rotation, 85, Easing.OutQuint);
+    }
+
+    private void collectNearbyPip()
+    {
+        for (int i = 0; i < pips.Length; i++)
+        {
+            if (Vector2.DistanceSquared(currentPosition, pipPositions[i]) > 144)
+                continue;
+
+            CollectedCount++;
+            trailLength = Math.Min(maximumTrailLength, trailLength + 2);
+            playCollectPulse(pipPositions[i]);
+
+            int nextSpawn = (CollectedCount * 2 + i * 3 + StepCount)
+                            % pipSpawns.Length;
+            pipPositions[i] = pipSpawns[nextSpawn];
+            pips[i].ClearTransforms();
+            pips[i].Position = pipPositions[i];
+            pips[i].FadeOutFromOne(70)
+                   .Then()
+                   .FadeIn(160, Easing.OutQuint);
+            return;
+        }
+    }
+
+    private void playCollectPulse(Vector2 position)
+    {
+        var ring = new Container
+        {
+            Origin = Anchor.Centre,
+            Position = position,
+            Size = new Vector2(10),
+            Masking = true,
+            CornerRadius = 5,
+            BorderThickness = 2,
+            BorderColour = new Color4(1f, 1f, 1f, 0.72f),
+            Child = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Alpha = 0.01f,
+            },
+        };
+        AddInternal(ring);
+        ring.ResizeTo(30, 260, Easing.OutQuint)
+            .FadeOut(260, Easing.InQuart)
+            .Expire();
+
+        for (int i = 0; i < 4; i++)
+        {
+            float angle = MathF.PI / 4 + i * MathF.PI / 2;
+            var particle = new Circle
+            {
+                Origin = Anchor.Centre,
+                Position = position,
+                Size = new Vector2(3.5f),
+                Colour = i % 2 == 0
+                    ? HomeControlColours.Pink
+                    : HomeControlColours.Yellow,
+            };
+            AddInternal(particle);
+            particle.MoveTo(position + new Vector2(
+                    MathF.Cos(angle),
+                    MathF.Sin(angle)) * 20,
+                    250,
+                    Easing.OutQuint)
+                    .FadeOut(250, Easing.InQuart)
+                    .Expire();
+        }
+
+        headHalo.FlashColour(HomeControlColours.Yellow, 220, Easing.OutQuint);
+        head.ScaleTo(1.28f, 70, Easing.Out)
+            .Then()
+            .ScaleTo(1, 210, Easing.OutBack);
+    }
+
+    private void playResetBurst(Vector2 position)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            float angle = i * MathF.Tau / 5;
+            var particle = new Circle
+            {
+                Origin = Anchor.Centre,
+                Position = position,
+                Size = new Vector2(4),
+                Colour = i % 2 == 0
+                    ? HomeControlColours.Pink
+                    : Color4.White,
+            };
+            AddInternal(particle);
+            particle.MoveTo(position + new Vector2(
+                    MathF.Cos(angle),
+                    MathF.Sin(angle)) * 24,
+                    280,
+                    Easing.OutQuint)
+                    .FadeOut(280, Easing.InQuart)
+                    .Expire();
+        }
+    }
+}
+
+/// <summary>
 /// 4K 键位试玩盘：点击或按下 D/F/J/K 点亮键帽，上方判定线闪烁并累计敲击数。
 /// </summary>
 public partial class HomeKeyTestPad : CompositeDrawable
@@ -261,6 +610,8 @@ public partial class HomeKeyTestPad : CompositeDrawable
     internal int ComboCount => comboCount;
 
     internal int CurrentKps => recentHitTimes.Count;
+
+    internal event Action<int> LanePressed;
 
     public HomeKeyTestPad()
     {
@@ -438,6 +789,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
     public void PressLane(int lane)
     {
         caps[lane].SetPressed(true);
+        LanePressed?.Invoke(lane);
 
         lineSegments[lane].FadeTo(1f, 30)
                           .Then()

@@ -3918,11 +3918,17 @@ HitPosition: 400
             GameplayScreen gameplayScreen = null;
             Key originalPauseKey = Key.Escape;
             Key originalMenuNextKey = Key.Down;
+            bool originalCountdownEnabled = true;
+            double originalCountdownDuration = 0;
 
             AddStep("open gameplay with audio", () =>
             {
                 originalPauseKey = gameplaySettings.PauseOrBackKey.Value;
                 originalMenuNextKey = gameplaySettings.MenuNextKey.Value;
+                originalCountdownEnabled =
+                    gameplaySettings.ResumeCountdownEnabled.Value;
+                originalCountdownDuration =
+                    gameplaySettings.ResumeCountdownMilliseconds.Value;
                 gameplaySettings.SetShortcutBinding(
                     ManiaShortcutAction.PauseOrBack,
                     Key.F10);
@@ -3959,6 +3965,50 @@ HitPosition: 400
                        && GameplayPauseOverlay.ReferenceSize
                           == new Vector2(1600, 900);
             });
+            AddStep("open pause settings", () =>
+            {
+                gameplaySettings.ResumeCountdownEnabled.Value = true;
+                gameplaySettings.ResumeCountdownMilliseconds.Value = 1000;
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .TogglePauseSettings();
+            });
+            AddAssert("pause countdown setting is expanded", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .PauseSettingsExpanded);
+            AddStep("increase pause countdown", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .AdjustResumeCountdown(1));
+            AddAssert("pause countdown updates live", () =>
+            {
+                GameplayPauseOverlay overlay = gameplayScreen
+                                               .ChildrenOfType<GameplayPauseOverlay>()
+                                               .Single();
+                return overlay.ResumeCountdownEnabled
+                       && Math.Abs(overlay.ResumeCountdownMilliseconds - 2000)
+                          < 0.001;
+            });
+            AddStep("close pause settings and restore value", () =>
+            {
+                GameplayPauseOverlay overlay = gameplayScreen
+                                               .ChildrenOfType<GameplayPauseOverlay>()
+                                               .Single();
+                overlay.TogglePauseSettings();
+                gameplaySettings.ResumeCountdownEnabled.Value =
+                    originalCountdownEnabled;
+                gameplaySettings.ResumeCountdownMilliseconds.Value =
+                    originalCountdownDuration;
+            });
+            AddAssert("pause settings closes", () =>
+                !gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .PauseSettingsExpanded);
             AddStep("capture pause screen when requested", () =>
             {
                 string outputPath = Environment.GetEnvironmentVariable(

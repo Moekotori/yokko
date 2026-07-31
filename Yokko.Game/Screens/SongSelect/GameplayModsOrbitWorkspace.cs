@@ -91,6 +91,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private double displayedRate = 1;
     private bool built;
     private bool stateInitialized;
+
+    internal IReadOnlyCollection<ManiaModId> VisibleMods => nodes.Keys;
     private ManiaModId? pendingTransitionMod;
     private bool pendingTransitionActive;
 
@@ -1478,12 +1480,12 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         {
             ManiaModCategory.DifficultyIncrease =>
             [
-                ManiaModId.Easy,
-                ManiaModId.HalfTime,
                 ManiaModId.HardRock,
-                ManiaModId.Hidden,
+                ManiaModId.SuddenDeath,
                 ManiaModId.DoubleTime,
+                ManiaModId.Hidden,
                 ManiaModId.Flashlight,
+                ManiaModId.NoPause,
             ],
             ManiaModCategory.DifficultyReduction =>
             [
@@ -1492,7 +1494,6 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 ManiaModId.NoFail,
                 ManiaModId.NoRelease,
                 ManiaModId.Daycore,
-                ManiaModId.SuddenDeath,
             ],
             _ => [],
         };

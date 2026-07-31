@@ -161,26 +161,22 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
     {
         this.accent = accent;
         Action = action;
-        Size = new Vector2(104, 82);
+        Size = new Vector2(126, 82);
         Masking = true;
         CornerRadius = 10;
         BorderThickness = 1.25f;
         BorderColour = new Color4(
-            accent.R,
-            accent.G,
-            accent.B,
-            0.55f);
+            SongSelectTheme.Navy.R,
+            SongSelectTheme.Navy.G,
+            SongSelectTheme.Navy.B,
+            0.24f);
 
         InternalChildren =
         [
             background = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(
-                    SongSelectTheme.SurfaceRaised.R,
-                    SongSelectTheme.SurfaceRaised.G,
-                    SongSelectTheme.SurfaceRaised.B,
-                    0.94f),
+                Colour = SongSelectSurface.Ivory(0.99f),
             },
             new SpriteIcon
             {
@@ -199,7 +195,7 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
                 Text = label,
                 Font = HomeTypography.Display(9),
                 Spacing = new Vector2(1.2f, 0),
-                Colour = Color4.White,
+                Colour = SongSelectTheme.Navy,
             },
             new Box
             {
@@ -216,11 +212,7 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
     protected override bool OnHover(HoverEvent e)
     {
         background.FadeColour(
-            new Color4(
-                accent.R,
-                accent.G,
-                accent.B,
-                0.28f),
+            SongSelectTheme.PaleCyan,
             110,
             Easing.OutQuint);
         this.ScaleTo(1.025f, 110, Easing.OutQuint);
@@ -230,11 +222,7 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
     protected override void OnHoverLost(HoverLostEvent e)
     {
         background.FadeColour(
-            new Color4(
-                SongSelectTheme.SurfaceRaised.R,
-                SongSelectTheme.SurfaceRaised.G,
-                SongSelectTheme.SurfaceRaised.B,
-                0.94f),
+            SongSelectSurface.Ivory(0.99f),
             130,
             Easing.OutQuint);
         this.ScaleTo(1, 130, Easing.OutQuint);

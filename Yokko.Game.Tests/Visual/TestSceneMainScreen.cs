@@ -229,6 +229,51 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("kps counted", () => pad.CurrentKps >= 6);
         }
 
+        [Test]
+        public void TestSignalSnakeFollowsKeyTestInput()
+        {
+            HomeKeyTestPad pad = null;
+            HomeSignalSnake snake = null;
+            int steps = 0;
+
+            AddStep("find home toys", () =>
+            {
+                pad = this.ChildrenOfType<HomeKeyTestPad>().Single();
+                snake = this.ChildrenOfType<HomeSignalSnake>().Single();
+                snake.SetAvailable(true);
+            });
+            AddStep("record signal steps", () => steps = snake.StepCount);
+            AddStep("press right lane", () => pad.PressLane(3));
+            AddAssert("signal advanced", () => snake.StepCount == steps + 1);
+            AddAssert("signal moved right", () => snake.HeadPosition.X > 132);
+        }
+
+        [Test]
+        public void TestSignalSnakeSupportsArrowKeys()
+        {
+            HomeSignalSnake snake = null;
+            int steps = 0;
+            bool releasedWhenHidden = false;
+
+            AddStep("find signal snake", () =>
+            {
+                snake = this.ChildrenOfType<HomeSignalSnake>().Single();
+                snake.SetAvailable(true);
+            });
+            AddStep("record signal steps", () => steps = snake.StepCount);
+            AddAssert("up arrow handled", () => snake.TryHandleArrowKey(Key.Up, false));
+            AddAssert("signal advanced once", () => snake.StepCount == steps + 1);
+            AddAssert("repeat consumed", () => snake.TryHandleArrowKey(Key.Up, true));
+            AddAssert("repeat did not advance", () => snake.StepCount == steps + 1);
+            AddAssert("letter ignored", () => !snake.TryHandleArrowKey(Key.Q, false));
+            AddStep("hide signal snake", () =>
+            {
+                snake.SetAvailable(false);
+                releasedWhenHidden = !snake.TryHandleArrowKey(Key.Left, false);
+            });
+            AddAssert("hidden snake releases arrows", () => releasedWhenHidden);
+        }
+
         private void captureScreenshot()
         {
             string outputPath = Environment.GetEnvironmentVariable(

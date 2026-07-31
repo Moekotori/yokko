@@ -66,8 +66,8 @@ internal partial class GameplayLayoutEditorOverlay
 
             Anchor = Anchor.TopRight;
             Origin = Anchor.TopRight;
-            Position = new Vector2(-18, 690);
-            Size = new Vector2(320, 140);
+            Position = new Vector2(-18, 684);
+            Size = new Vector2(360, 140);
             Depth = -100;
             Masking = true;
             CornerRadius = 8;
@@ -115,7 +115,7 @@ internal partial class GameplayLayoutEditorOverlay
                 new Container
                 {
                     Position = new Vector2(104, 32),
-                    Size = new Vector2(170, 28),
+                    Size = new Vector2(210, 28),
                     Masking = true,
                     CornerRadius = 5,
                     BorderThickness = 1,
@@ -135,7 +135,7 @@ internal partial class GameplayLayoutEditorOverlay
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            MaxWidth = 156,
+                            MaxWidth = 196,
                             Truncate = true,
                             Font = LayoutEditorTypography.Bold(8),
                             Colour = HomeControlColours.Navy,
@@ -146,7 +146,7 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.ChevronRight,
                     () => cycleSkin(1))
                 {
-                    Position = new Vector2(280, 32),
+                    Position = new Vector2(320, 32),
                     Size = new Vector2(28),
                 },
                 new SpriteText
@@ -203,7 +203,7 @@ internal partial class GameplayLayoutEditorOverlay
                     () => settings.SetScrollDirection(
                         ManiaScrollDirection.Downscroll))
                 {
-                    Position = new Vector2(180, 68),
+                    Position = new Vector2(220, 68),
                     Size = new Vector2(60, 28),
                 },
                 upscrollButton = new CompactTextButton(
@@ -212,7 +212,7 @@ internal partial class GameplayLayoutEditorOverlay
                     () => settings.SetScrollDirection(
                         ManiaScrollDirection.Upscroll))
                 {
-                    Position = new Vector2(246, 68),
+                    Position = new Vector2(286, 68),
                     Size = new Vector2(62, 28),
                 },
                 new SpriteText
@@ -229,12 +229,12 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.Minus,
                     () => adjustDim(-0.05))
                 {
-                    Position = new Vector2(116, 104),
+                    Position = new Vector2(136, 104),
                     Size = new Vector2(28),
                 },
                 new Container
                 {
-                    Position = new Vector2(150, 104),
+                    Position = new Vector2(170, 104),
                     Size = new Vector2(72, 28),
                     Masking = true,
                     CornerRadius = 5,
@@ -260,7 +260,7 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.Plus,
                     () => adjustDim(0.05))
                 {
-                    Position = new Vector2(228, 104),
+                    Position = new Vector2(248, 104),
                     Size = new Vector2(28),
                 },
             };

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Pooling;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
@@ -15,15 +16,15 @@ using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
 
-internal partial class SongSelectSongRow : ClickableContainer
+internal partial class SongSelectSongRow : PoolableDrawable
 {
-    private const float row_width = 730;
+    private const float row_width = 850;
 
-    private readonly Box surface;
-    private readonly Box selectedSurface;
-    private readonly Container selectionOutline;
-    private readonly SpriteIcon arrow;
-    private readonly Sprite selectedSticker;
+    private Box surface;
+    private Box selectedSurface;
+    private Container selectionOutline;
+    private SpriteIcon arrow;
+    private Sprite selectedSticker;
     private readonly List<(Box Box, float Alpha)> accentBoxes = [];
     private readonly List<(Container Container, float Alpha)> accentBorders = [];
     private readonly List<SpriteText> difficultyValueTexts = [];
@@ -34,10 +35,15 @@ internal partial class SongSelectSongRow : ClickableContainer
     private ManiaDifficultyRatings displayedDifficultyRatings;
     private bool selected;
 
-    public SongSelectEntry Entry { get; }
-    public Action DoubleClickAction { get; }
+    public SongSelectEntry Entry { get; private set; }
+    public Action Action { get; private set; }
+    public Action DoubleClickAction { get; private set; }
     internal ManiaDifficultyRatings DisplayedDifficultyRatings =>
         displayedDifficultyRatings;
+
+    public SongSelectSongRow()
+    {
+    }
 
     public SongSelectSongRow(
         SongSelectEntry entry,
@@ -48,6 +54,32 @@ internal partial class SongSelectSongRow : ClickableContainer
         Action select,
         Action play)
     {
+        Bind(
+            entry,
+            ratings,
+            difficultyRatingMode,
+            wallpaper,
+            selectedStickerTexture,
+            select,
+            play);
+    }
+
+    public void Bind(
+        SongSelectEntry entry,
+        ManiaDifficultyRatings ratings,
+        ManiaDifficultyRatingMode difficultyRatingMode,
+        Texture wallpaper,
+        Texture selectedStickerTexture,
+        Action select,
+        Action play)
+    {
+        ClearTransforms();
+        ClearInternal(true);
+        accentBoxes.Clear();
+        accentBorders.Clear();
+        difficultyValueTexts.Clear();
+        difficultyUnitTexts.Clear();
+        adaptiveTexts.Clear();
         Entry = entry;
         Action = select;
         DoubleClickAction = play;
@@ -62,11 +94,7 @@ internal partial class SongSelectSongRow : ClickableContainer
 
         Container panel = SongSelectSurface.CreateCard(
             out surface,
-            new Color4(
-                SongSelectTheme.Surface.R,
-                SongSelectTheme.Surface.G,
-                SongSelectTheme.Surface.B,
-                0.90f),
+            SongSelectSurface.Ivory(0.98f),
             new Color4(accent.R, accent.G, accent.B, 0.38f),
             9,
             1);
@@ -74,7 +102,9 @@ internal partial class SongSelectSongRow : ClickableContainer
         selectedSurface = new Box
         {
             RelativeSizeAxes = Axes.Both,
-            Colour = SongSelectSurface.Ivory(0.99f),
+            Colour = compact
+                ? new Color4(1f, 0.98f, 0.78f, 1f)
+                : new Color4(1f, 0.98f, 0.78f, 1f),
             Alpha = 0,
         };
 
@@ -95,8 +125,8 @@ internal partial class SongSelectSongRow : ClickableContainer
                     accent.R,
                     accent.G,
                     accent.B,
-                    0.32f),
-            }, 0.32f),
+                    compact ? 0.045f : 0.06f),
+            }, compact ? 0.045f : 0.06f),
             // Keep the selected surface genuinely ivory. Placing it after the
             // accent wash avoids the muddy blue tint seen in the first pass.
             selectedSurface,
@@ -109,7 +139,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             Masking = true,
             CornerRadius = 8,
             BorderThickness = 2,
-            BorderColour = SongSelectTheme.Cyan,
+            BorderColour = compact ? accent : SongSelectTheme.Cyan,
             Alpha = 0,
             Child = new Box
             {
@@ -198,11 +228,10 @@ internal partial class SongSelectSongRow : ClickableContainer
     public void SetSelected(bool value)
     {
         selected = value;
-        surface.FadeColour(new Color4(
-            SongSelectTheme.Surface.R,
-            SongSelectTheme.Surface.G,
-            SongSelectTheme.Surface.B,
-            0.90f), 140, Easing.OutQuint);
+        surface.FadeColour(
+            SongSelectSurface.Ivory(0.98f),
+            140,
+            Easing.OutQuint);
         selectedSurface.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
         foreach ((SpriteText text, Color4 normal, Color4 selectedColour)
                  in adaptiveTexts)
@@ -222,10 +251,10 @@ internal partial class SongSelectSongRow : ClickableContainer
     {
         surface.FadeColour(
             new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.96f),
+                SongSelectTheme.PaleCyan.R,
+                SongSelectTheme.PaleCyan.G,
+                SongSelectTheme.PaleCyan.B,
+                1f),
             100);
         this.MoveToX(-3, 120, Easing.OutQuint);
         return true;
@@ -234,10 +263,25 @@ internal partial class SongSelectSongRow : ClickableContainer
     protected override void OnHoverLost(HoverLostEvent e) =>
         SetSelected(selected);
 
+    protected override bool OnClick(ClickEvent e)
+    {
+        Action?.Invoke();
+        return true;
+    }
+
     protected override bool OnDoubleClick(DoubleClickEvent e)
     {
         DoubleClickAction?.Invoke();
         return true;
+    }
+
+    protected override void FreeAfterUse()
+    {
+        Action = null;
+        DoubleClickAction = null;
+        Entry = null;
+        ClearInternal(true);
+        base.FreeAfterUse();
     }
 
     private void addCompactContent(
@@ -282,9 +326,9 @@ internal partial class SongSelectSongRow : ClickableContainer
             entry.Beatmap.Title,
             82,
             6,
-            422,
+            528,
             15,
-            Color4.White,
+            SongSelectTheme.Navy,
             SongSelectTheme.Navy,
             true));
         children.Add(adaptiveLabel(
@@ -292,9 +336,13 @@ internal partial class SongSelectSongRow : ClickableContainer
             + entry.Beatmap.Creator,
             82,
             32,
-            442,
+            548,
             9,
-            SongSelectTheme.PaleCyan,
+            new Color4(
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.68f),
             new Color4(
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
@@ -302,7 +350,7 @@ internal partial class SongSelectSongRow : ClickableContainer
                 0.70f),
             true,
             false));
-        children.Add(createModePill(entry, 570, 10));
+        children.Add(createModePill(entry, 690, 10));
     }
 
     private void addStandaloneContent(
@@ -314,7 +362,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         children.Add(new Container
         {
             Position = new Vector2(8),
-            Size = new Vector2(140, 68),
+            Size = new Vector2(220, 68),
             Masking = true,
             CornerRadius = 7,
             BorderThickness = 1,
@@ -328,20 +376,24 @@ internal partial class SongSelectSongRow : ClickableContainer
         });
         children.Add(adaptiveLabel(
             entry.Beatmap.Title,
-            164,
+            244,
             10,
             360,
             15,
-            Color4.White,
+            SongSelectTheme.Navy,
             SongSelectTheme.Navy,
             true));
         children.Add(adaptiveLabel(
             entry.Beatmap.Artist,
-            164,
+            244,
             36,
             340,
             10,
-            SongSelectTheme.PaleCyan,
+            new Color4(
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.72f),
             new Color4(
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
@@ -350,7 +402,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             true));
         children.Add(adaptiveLabel(
             $"mapped by {entry.Beatmap.Creator}",
-            164,
+            244,
             57,
             340,
             8,
@@ -358,7 +410,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             SongSelectTheme.Cyan,
             true,
             false));
-        children.Add(createModePill(entry, 570, 22));
+        children.Add(createModePill(entry, 690, 22));
         children.Add(createDifficultyBadge(
             displayedDifficultyRatings,
             difficultyRatingMode,
@@ -510,8 +562,15 @@ internal partial class SongSelectSongRow : ClickableContainer
 
 }
 
-internal partial class SongSelectPackageHeader : ClickableContainer
+internal partial class SongSelectPackageHeader : PoolableDrawable
 {
+    private Action toggle;
+    private Box stateBackground;
+
+    public SongSelectPackageHeader()
+    {
+    }
+
     public SongSelectPackageHeader(
         string packageName,
         int songCount,
@@ -521,8 +580,29 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         bool selected,
         Action toggle)
     {
-        Action = toggle;
-        Size = new Vector2(730, 120);
+        Bind(
+            packageName,
+            songCount,
+            chartCount,
+            collapsed,
+            wallpaper,
+            selected,
+            toggle);
+    }
+
+    public void Bind(
+        string packageName,
+        int songCount,
+        int chartCount,
+        bool collapsed,
+        Texture wallpaper,
+        bool selected,
+        Action toggleAction)
+    {
+        ClearTransforms();
+        ClearInternal(true);
+        toggle = toggleAction;
+        Size = new Vector2(850, 84);
         Masking = true;
         CornerRadius = 10;
         BorderThickness = selected ? 2 : 1;
@@ -535,37 +615,27 @@ internal partial class SongSelectPackageHeader : ClickableContainer
             new Sprite
             {
                 RelativeSizeAxes = Axes.Y,
-                Width = 300,
+                Width = 280,
                 Texture = wallpaper,
                 FillMode = FillMode.Fill,
             },
-            new Box
+            new Container
             {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(
-                    SongSelectTheme.DeepNavy.R,
-                    SongSelectTheme.DeepNavy.G,
-                    SongSelectTheme.DeepNavy.B,
-                    selected ? 0.28f : 0.40f),
-            },
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = ColourInfo.GradientHorizontal(
-                    new Color4(
-                        SongSelectTheme.DeepNavy.R,
-                        SongSelectTheme.DeepNavy.G,
-                        SongSelectTheme.DeepNavy.B,
-                        0.34f),
-                    new Color4(
-                        SongSelectTheme.DeepNavy.R,
-                        SongSelectTheme.DeepNavy.G,
-                        SongSelectTheme.DeepNavy.B,
-                        0.96f)),
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                RelativeSizeAxes = Axes.Y,
+                Width = 570,
+                Child = stateBackground = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = selected
+                        ? SongSelectSurface.Ivory(0.995f)
+                        : SongSelectSurface.Ivory(0.98f),
+                },
             },
             new SpriteIcon
             {
-                Position = new Vector2(278, 25),
+                Position = new Vector2(292, 18),
                 Size = new Vector2(16),
                 Icon = FontAwesome.Solid.Star,
                 Colour = SongSelectTheme.Yellow,
@@ -573,11 +643,15 @@ internal partial class SongSelectPackageHeader : ClickableContainer
             packageTitle(packageName),
             label(
                 $"{songCount} SONGS · {chartCount} CHARTS",
-                310,
-                76,
-                350,
+                318,
+                53,
+                440,
                 9,
-                SongSelectTheme.PaleCyan),
+                new Color4(
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.64f)),
             new SpriteIcon
             {
                 Anchor = Anchor.CentreRight,
@@ -591,13 +665,40 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         ];
     }
 
+    public void SetSelected(bool selected)
+    {
+        BorderThickness = selected ? 2 : 1;
+        BorderColour = selected
+            ? SongSelectTheme.Cyan
+            : new Color4(1f, 1f, 1f, 0.24f);
+        if (stateBackground != null)
+        {
+            stateBackground.Colour = selected
+                ? SongSelectSurface.Ivory(0.995f)
+                : SongSelectSurface.Ivory(0.98f);
+        }
+    }
+
+    protected override bool OnClick(ClickEvent e)
+    {
+        toggle?.Invoke();
+        return true;
+    }
+
+    protected override void FreeAfterUse()
+    {
+        toggle = null;
+        ClearInternal(true);
+        base.FreeAfterUse();
+    }
+
     private static Drawable packageTitle(string packageName)
     {
         string[] lines = SongSelectTextLayout.TwoLines(packageName, 27);
         var flow = new FillFlowContainer
         {
-            Position = new Vector2(310, 17),
-            Width = 355,
+            Position = new Vector2(318, 11),
+            Width = 430,
             AutoSizeAxes = Axes.Y,
             Direction = FillDirection.Vertical,
             Spacing = new Vector2(0, -1),
@@ -606,11 +707,11 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         {
             flow.Add(new SpriteText
             {
-                Width = 355,
+                Width = 430,
                 Truncate = true,
                 Text = line,
                 Font = HomeTypography.Display(lines.Length == 1 ? 18 : 15),
-                Colour = Color4.White,
+                Colour = SongSelectTheme.Navy,
             });
         }
 

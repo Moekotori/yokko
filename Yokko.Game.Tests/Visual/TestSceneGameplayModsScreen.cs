@@ -416,6 +416,31 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     }
 
     [Test]
+    public void TestOrbitDifficultyPagesUseTheirRealCategories()
+    {
+        AddStep("show difficulty reduction", () =>
+            modsScreen.SetCategory(
+                ManiaModCategory.DifficultyReduction));
+        AddAssert("reduction page excludes increase mods", () =>
+            modsScreen.IsOrbitModVisible(ManiaModId.Easy)
+            && modsScreen.IsOrbitModVisible(ManiaModId.HalfTime)
+            && !modsScreen.IsOrbitModVisible(ManiaModId.HardRock)
+            && !modsScreen.IsOrbitModVisible(ManiaModId.SuddenDeath));
+
+        AddStep("show difficulty increase", () =>
+            modsScreen.SetCategory(
+                ManiaModCategory.DifficultyIncrease));
+        AddAssert("increase page exposes No Pause only with increase mods", () =>
+            modsScreen.IsOrbitModVisible(ManiaModId.HardRock)
+            && modsScreen.IsOrbitModVisible(ManiaModId.NoPause)
+            && !modsScreen.IsOrbitModVisible(ManiaModId.Easy)
+            && !modsScreen.IsOrbitModVisible(ManiaModId.HalfTime));
+        AddWaitStep("settle corrected increase page", 20);
+        AddStep("capture corrected increase page", captureScreenshot);
+        AddUntilStep("screenshot saved", () => screenshotSaved);
+    }
+
+    [Test]
     public void TestDoubleTimeCyclesThroughNightcore()
     {
         AddStep("prepare Double Time cycle", () =>

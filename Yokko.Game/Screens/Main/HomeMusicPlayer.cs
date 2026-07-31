@@ -59,6 +59,7 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
     private string loadedAudioPath;
     private double pausedProgress;
     private double currentLength;
+    private Task previewHandoff = Task.CompletedTask;
 
     private HomeWaveformVisualiser waveformVisualiser;
     private readonly Dictionary<string, AudioWaveformAnalysis> waveformCache =
@@ -246,6 +247,9 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
     void ISongSelectPreviewHost.AdoptPreview(YokkoBeatmap beatmap) =>
         adoptPreview(beatmap);
 
+    void ISongSelectPreviewHost.CompletePreviewHandoff(
+        Task playbackSettled) => completePreviewHandoff(playbackSettled);
+
     [BackgroundDependencyLoader]
     private void load()
     {
@@ -327,6 +331,21 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
         playPauseButton.Icon.Icon = FontAwesome.Solid.Pause;
         updateTrackDisplay(tracks[index], changed);
         ensureWaveformForCurrentTrack();
+    }
+
+    private void completePreviewHandoff(Task playbackSettled)
+    {
+        pausedProgress = audioEngine?.PlaybackTimeMilliseconds
+                         ?? pausedProgress;
+        if (audioEngine?.DurationMilliseconds > 0)
+            currentLength = audioEngine.DurationMilliseconds;
+
+        previewHandoff = playbackSettled ?? Task.CompletedTask;
+        Logger.Log(
+            $"Song-select preview handed to home at {pausedProgress:0} ms "
+            + $"(running={audioEngine?.Status.IsRunning == true}).",
+            LoggingTarget.Runtime,
+            LogLevel.Important);
     }
 
     /// <summary>
@@ -495,28 +514,42 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
 
         ImportedHomeTrack track = tracks[trackIndex];
         int generation = playbackGeneration;
-        bool canSeek = pausedProgress > 0
-                       && string.Equals(
-                           loadedAudioPath,
-                           track.AudioPath,
-                           StringComparison.OrdinalIgnoreCase);
-        double resumeAt = canSeek ? pausedProgress : 0;
+        Task handoff = previewHandoff;
+        previewHandoff = Task.CompletedTask;
 
         playPauseButton.Icon.Icon = FontAwesome.Solid.Pause;
         enqueueAudioOperation(async () =>
         {
+            await handoff.ConfigureAwait(false);
             if (generation != playbackGeneration)
                 return;
 
             if (audioEngine is IAudioMixControl mixControl)
                 audioSettings.ApplyMixSettings(mixControl);
 
-            if (canSeek)
+            double resumeAt = Math.Max(
+                pausedProgress,
+                audioEngine.PlaybackTimeMilliseconds);
+            bool canResume = resumeAt > 0
+                             && string.Equals(
+                                 loadedAudioPath,
+                                 track.AudioPath,
+                                 StringComparison.OrdinalIgnoreCase);
+
+            if (!audioEngine.Status.IsRunning && canResume)
                 await audioEngine.SeekAsync(resumeAt).ConfigureAwait(false);
-            else
+
+            if (!audioEngine.Status.IsRunning)
+            {
                 await audioEngine.StartAsync(
                     audioSettings.CreateStartRequest(track.AudioPath))
                                  .ConfigureAwait(false);
+                if (canResume)
+                {
+                    await audioEngine.SeekAsync(resumeAt)
+                                     .ConfigureAwait(false);
+                }
+            }
 
             if (!audioEngine.Status.IsRunning)
                 throw new InvalidOperationException(

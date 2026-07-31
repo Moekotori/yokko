@@ -706,7 +706,7 @@ internal partial class GameplayLayoutEditorOverlay
             Anchor = Anchor.TopRight;
             Origin = Anchor.TopRight;
             Position = new Vector2(-18, 506);
-            Size = new Vector2(320, 178);
+            Size = new Vector2(360, 178);
             Depth = -100;
             Masking = true;
             CornerRadius = 8;
@@ -786,7 +786,7 @@ internal partial class GameplayLayoutEditorOverlay
             Action<bool> setEnabled,
             Action<double> setHeight)
         {
-            Size = new Vector2(296, 46);
+            Size = new Vector2(336, 46);
             Masking = true;
             CornerRadius = 5;
             BorderThickness = 1;
@@ -822,11 +822,11 @@ internal partial class GameplayLayoutEditorOverlay
                     "H",
                     setHeight)
                 {
-                    Position = new Vector2(88, 3),
+                    Position = new Vector2(108, 3),
                 },
                 toggleButton = new CoverToggleButton(setEnabled)
                 {
-                    Position = new Vector2(232, 5),
+                    Position = new Vector2(272, 5),
                     Size = new Vector2(60, 36),
                 },
             };
@@ -940,7 +940,7 @@ internal partial class GameplayLayoutEditorOverlay
             Anchor = Anchor.TopRight;
             Origin = Anchor.TopRight;
             Position = new Vector2(-18, 92);
-            Size = new Vector2(320, 400);
+            Size = new Vector2(360, 400);
             Depth = -100;
             Masking = true;
             CornerRadius = 8;
@@ -1002,7 +1002,7 @@ internal partial class GameplayLayoutEditorOverlay
                 new Box
                 {
                     Position = new Vector2(12, 190),
-                    Size = new Vector2(296, 1),
+                    Size = new Vector2(336, 1),
                     Colour = new Color4(
                         HomeControlColours.Navy.R,
                         HomeControlColours.Navy.G,
@@ -1017,7 +1017,7 @@ internal partial class GameplayLayoutEditorOverlay
                 yField = createNumericField(
                     "Y",
                     LayoutMetricField.Y,
-                    new Vector2(164, 204),
+                    new Vector2(188, 204),
                     applyMetric),
                 widthField = createNumericField(
                     "W",
@@ -1027,7 +1027,7 @@ internal partial class GameplayLayoutEditorOverlay
                 heightField = createNumericField(
                     "H",
                     LayoutMetricField.Height,
-                    new Vector2(164, 256),
+                    new Vector2(188, 256),
                     applyMetric),
                 aspectButton = new ToggleIconButton(
                     FontAwesome.Solid.Link,
@@ -1044,7 +1044,7 @@ internal partial class GameplayLayoutEditorOverlay
                     () => centre(true))
                 {
                     Position = new Vector2(52, 314),
-                    Size = new Vector2(96, 34),
+                    Size = new Vector2(112, 34),
                 },
                 new LayoutActionButton(
                     YokkoStrings.Get(
@@ -1052,13 +1052,13 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.ArrowsAltV,
                     () => centre(false))
                 {
-                    Position = new Vector2(154, 314),
-                    Size = new Vector2(96, 34),
+                    Position = new Vector2(170, 314),
+                    Size = new Vector2(112, 34),
                 },
                 new ClickableContainer
                 {
-                    Position = new Vector2(256, 314),
-                    Size = new Vector2(52, 34),
+                    Position = new Vector2(288, 314),
+                    Size = new Vector2(60, 34),
                     Action = cycleStep,
                     Masking = true,
                     CornerRadius = 6,
@@ -1188,7 +1188,7 @@ internal partial class GameplayLayoutEditorOverlay
             Action<bool> setLocked)
         {
             Action = select;
-            Size = new Vector2(296, 32);
+            Size = new Vector2(336, 32);
             Masking = true;
             CornerRadius = 5;
             BorderThickness = 1;
@@ -1423,7 +1423,7 @@ internal partial class GameplayLayoutEditorOverlay
         public NumericField(string label, Action<double> committed)
         {
             this.committed = committed;
-            Size = new Vector2(140, 40);
+            Size = new Vector2(160, 40);
             InternalChildren = new Drawable[]
             {
                 new SpriteText
@@ -1438,7 +1438,7 @@ internal partial class GameplayLayoutEditorOverlay
                 {
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
-                    Size = new Vector2(108, 36),
+                    Size = new Vector2(128, 36),
                 },
             };
             textBox.OnCommit += (_, _) =>

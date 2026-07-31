@@ -46,16 +46,8 @@ internal partial class SongSelectSearchBox : BasicTextBox
             SongSelectTheme.Cyan.G,
             SongSelectTheme.Cyan.B,
             0.56f);
-        BackgroundUnfocused = new Color4(
-            SongSelectTheme.DeepNavy.R,
-            SongSelectTheme.DeepNavy.G,
-            SongSelectTheme.DeepNavy.B,
-            0.88f);
-        BackgroundFocused = new Color4(
-            SongSelectTheme.SurfaceRaised.R,
-            SongSelectTheme.SurfaceRaised.G,
-            SongSelectTheme.SurfaceRaised.B,
-            0.98f);
+        BackgroundUnfocused = SongSelectSurface.Ivory(0.98f);
+        BackgroundFocused = SongSelectTheme.PaleCyan;
         FontSize = 15;
         PlaceholderText = YokkoStrings.Get("song_select.search");
 
@@ -98,9 +90,9 @@ internal partial class SongSelectSearchBox : BasicTextBox
             Text = "ESC",
             Font = HomeTypography.Display(9),
             Colour = new Color4(
-                SongSelectTheme.PaleCyan.R,
-                SongSelectTheme.PaleCyan.G,
-                SongSelectTheme.PaleCyan.B,
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
                 0.48f),
             Depth = -2,
         });
@@ -135,17 +127,17 @@ internal partial class SongSelectSearchBox : BasicTextBox
     {
         Text = c.ToString(),
         Font = HomeTypography.Body(15),
-        Colour = Color4.White,
+        Colour = SongSelectTheme.Navy,
     };
 
     protected override SpriteText CreatePlaceholder() => new()
     {
         Font = HomeTypography.Body(15),
         Colour = new Color4(
-            SongSelectTheme.PaleCyan.R,
-            SongSelectTheme.PaleCyan.G,
-            SongSelectTheme.PaleCyan.B,
-            0.68f),
+            SongSelectTheme.Navy.R,
+            SongSelectTheme.Navy.G,
+            SongSelectTheme.Navy.B,
+            0.58f),
     };
 
     protected override void OnFocus(FocusEvent e)
@@ -231,19 +223,11 @@ internal partial class SongSelectFilterButton : ClickableContainer
     {
         selected = value;
         background.Colour = selected
-            ? new Color4(
-                SongSelectTheme.DeepNavy.R,
-                SongSelectTheme.DeepNavy.G,
-                SongSelectTheme.DeepNavy.B,
-                0.98f)
-            : new Color4(
-                SongSelectTheme.Surface.R,
-                SongSelectTheme.Surface.G,
-                SongSelectTheme.Surface.B,
-                0.88f);
+            ? SongSelectTheme.Navy
+            : SongSelectSurface.Ivory(0.98f);
         label.Colour = selected
-            ? SongSelectTheme.Cyan
-            : Color4.White;
+            ? Color4.White
+            : SongSelectTheme.Navy;
         BorderColour = selected
             ? new Color4(
                 SongSelectTheme.Cyan.R,
@@ -263,11 +247,7 @@ internal partial class SongSelectFilterButton : ClickableContainer
         background.FadeColour(
             selected
                 ? new Color4(0.055f, 0.14f, 0.52f, 1f)
-                : new Color4(
-                    SongSelectTheme.SurfaceRaised.R,
-                    SongSelectTheme.SurfaceRaised.G,
-                    SongSelectTheme.SurfaceRaised.B,
-                    0.98f),
+                : SongSelectTheme.PaleCyan,
             110,
             Easing.OutQuint);
         return true;
@@ -290,7 +270,8 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
         string value,
         float width,
         IconUsage icon,
-        Action action)
+        Action action,
+        float valueX = 86)
     {
         Action = action;
         Size = new Vector2(width, 34);
@@ -308,11 +289,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
             background = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(
-                    SongSelectTheme.SurfaceRaised.R,
-                    SongSelectTheme.SurfaceRaised.G,
-                    SongSelectTheme.SurfaceRaised.B,
-                    0.94f),
+                Colour = SongSelectSurface.Ivory(0.98f),
             },
             new SpriteIcon
             {
@@ -331,21 +308,21 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                 Text = label,
                 Font = HomeTypography.Display(8),
                 Colour = new Color4(
-                    SongSelectTheme.PaleCyan.R,
-                    SongSelectTheme.PaleCyan.G,
-                    SongSelectTheme.PaleCyan.B,
-                    0.70f),
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.62f),
             },
             valueText = new SpriteText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 86,
-                Width = width - 116,
+                X = valueX,
+                Width = width - valueX - 30,
                 Truncate = true,
                 Text = value,
                 Font = HomeTypography.Display(10),
-                Colour = Color4.White,
+                Colour = SongSelectTheme.Navy,
             },
             new SpriteIcon
             {
@@ -354,7 +331,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                 X = -10,
                 Size = new Vector2(9),
                 Icon = FontAwesome.Solid.ChevronDown,
-                Colour = SongSelectTheme.PaleCyan,
+                Colour = SongSelectTheme.Cyan,
             },
         ];
     }
@@ -364,11 +341,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
     protected override bool OnHover(HoverEvent e)
     {
         background.FadeColour(
-            new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.98f),
+            SongSelectTheme.PaleCyan,
             110,
             Easing.OutQuint);
         return true;
@@ -376,11 +349,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e) =>
         background.FadeColour(
-            new Color4(
-                SongSelectTheme.SurfaceRaised.R,
-                SongSelectTheme.SurfaceRaised.G,
-                SongSelectTheme.SurfaceRaised.B,
-                0.94f),
+            SongSelectSurface.Ivory(0.98f),
             130,
             Easing.OutQuint);
 }

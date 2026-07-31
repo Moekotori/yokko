@@ -172,6 +172,8 @@ internal partial class GameplayModsScreen : Screen
         navigationHint?.Alpha > 0;
     internal bool IsModVisible(ManiaModId mod) =>
         visibleItems.ContainsKey(mod);
+    internal bool IsOrbitModVisible(ManiaModId mod) =>
+        orbitWorkspace?.VisibleMods.Contains(mod) == true;
     internal bool IsPageTransitioning => pageTransitioning;
     internal float OrbitContentX => orbitWorkspace?.OrbitContentX ?? 335;
     internal string SearchQuery => searchQuery;

@@ -77,6 +77,7 @@ public partial class MainScreen : Screen
     private HomeWaveformVisualiser waveform;
     private HomeExitHoldIndicator exitIndicator;
     private HomeKeyTestPad keyTestPad;
+    private HomeSignalSnake signalSnake;
     private HomeMarqueeTicker ticker;
     private Drawable statusBar;
     private HomePlayerProgressCard playerProgressCard;
@@ -180,6 +181,9 @@ public partial class MainScreen : Screen
                     },
                     // 贴底整曲波形带：横贯舞台底边，立柱压在底部框线上生长，
                     // 盖在右舞台之上、左侧卡片之下，与顶部字幕带一起给构图收口。
+                    // Separate from the mascot stage so this background toy
+                    // cannot move or modify the character artwork.
+                    signalSnake = new HomeSignalSnake(),
                     waveform = new HomeWaveformVisualiser
                     {
                         Alpha = 0,
@@ -334,6 +338,7 @@ public partial class MainScreen : Screen
         };
 
         // 入场初始状态，OnEntering 中归位。
+        keyTestPad.LanePressed += signalSnake.HandleLane;
         musicPlayer.AttachWaveform(waveform);
         brandLockup.X -= 26;
         brandLockup.Alpha = 0;
@@ -532,6 +537,8 @@ public partial class MainScreen : Screen
         if (isDisposing && !preloadResourcesDisposed)
         {
             preloadResourcesDisposed = true;
+            if (keyTestPad != null && signalSnake != null)
+                keyTestPad.LanePressed -= signalSnake.HandleLane;
             if (importedChartLibrary != null)
                 importedChartLibrary.LibraryChanged -= onChartLibraryChanged;
             songSelectPreloadCancellation.Cancel();
@@ -546,7 +553,13 @@ public partial class MainScreen : Screen
     {
         if (e.Key != Key.Escape)
         {
-            // 播放器键盘控制：P 播放/暂停，← → 切歌。
+            // Bare arrows steer the visible background toy. When the toy is
+            // hidden at compact sizes, the existing left/right track shortcuts
+            // continue to work.
+            if (signalSnake.TryHandleArrowKey(e.Key, e.Repeat))
+                return true;
+
+            // 播放器键盘控制：P 播放/暂停；小游戏隐藏的紧凑布局下，← → 切歌。
             switch (e.Key)
             {
                 case Key.P:
@@ -649,6 +662,10 @@ public partial class MainScreen : Screen
         waveform.Width = CalculateWaveformWidth(stageSize);
         utilityAreaLayout.X = extra.X;
         exitIndicator.Y = stageSize.Y - 50;
+        signalSnake.Position = new Vector2(
+            620 + MathF.Max(extra.X, 0) * 0.15f,
+            220 + MathF.Max(extra.Y, 0) * 0.12f);
+        signalSnake.SetAvailable(stageSize.X >= 1500 && stageSize.Y >= 820);
 
         updatePlayerCardLayout(stageSize.Y < 900);
         updateWaveformObstacles(stageSize, rightStageOffset);

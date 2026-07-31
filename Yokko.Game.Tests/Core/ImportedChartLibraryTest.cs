@@ -46,9 +46,15 @@ public sealed class ImportedChartLibraryTest
             var storage = new NativeStorage(yokkoRoot);
             library.Initialise(storage);
             library.ConfigureExternalOsu(storage, settings);
+            int refreshCount = 0;
+            library.LibraryChanged += () => refreshCount++;
 
             ExternalOsuLibraryResult result =
                 await library.RefreshExternalOsuAsync();
+            await library.ExternalDifficultyTask;
+            ImportedChart firstIndexedChart = library.GetCharts().Single();
+            long firstRevision = library.Revision;
+            int refreshCountAfterDifficulty = refreshCount;
             ExternalOsuLibraryResult unchanged =
                 await library.RefreshExternalOsuAsync();
             ImportedChart indexedChart = library.GetCharts().Single();
@@ -61,6 +67,13 @@ public sealed class ImportedChartLibraryTest
                 Assert.That(result.ChartCount, Is.EqualTo(1));
                 Assert.That(result.ContentReadCount, Is.EqualTo(2));
                 Assert.That(unchanged.ContentReadCount, Is.Zero);
+                Assert.That(library.Revision, Is.EqualTo(firstRevision),
+                    "An unchanged metadata scan must not publish a new library snapshot.");
+                Assert.That(refreshCount,
+                    Is.EqualTo(refreshCountAfterDifficulty));
+                Assert.That(library.GetCharts().Single(),
+                    Is.SameAs(firstIndexedChart),
+                    "Unchanged charts must retain object identity for song-select caches.");
                 Assert.That(library.GetCharts(), Has.Count.EqualTo(1));
                 Assert.That(
                     library.GetCharts().Single().SourceKind,
@@ -69,6 +82,12 @@ public sealed class ImportedChartLibraryTest
                 Assert.That(
                     indexedChart.Result.Beatmap.SourceFormat,
                     Is.EqualTo(ChartSourceFormat.OsuMania));
+                Assert.That(firstIndexedChart.DifficultyRating.IsSuccess,
+                    Is.True,
+                    "The staged background worker must eventually publish MSD.");
+                Assert.That(firstIndexedChart.StarRating.IsSuccess,
+                    Is.True,
+                    "The staged background worker must eventually publish stars.");
                 Assert.That(indexedChart.Result.Beatmap.HitObjects, Is.Empty,
                     "The persistent index should keep only a lightweight beatmap summary.");
                 Assert.That(playableBeatmap.HitObjects, Is.Not.Empty,
@@ -89,6 +108,43 @@ public sealed class ImportedChartLibraryTest
                         SearchOption.AllDirectories),
                     Is.Not.Empty);
             });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ExternalOsuIndexingPausesAndResumesForGameplay()
+    {
+        string root = createTestRoot("external-osu-pause");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string set = Path.Combine(songs, "100 Pause Test");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        Directory.CreateDirectory(set);
+
+        try
+        {
+            writeOsuChart(set, "Paused", 3);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+            library.SetExternalIndexingPaused(true);
+
+            Task<ExternalOsuLibraryResult> refresh =
+                library.RefreshExternalOsuAsync();
+            await Task.Delay(50);
+            Assert.That(refresh.IsCompleted, Is.False,
+                "Gameplay must keep background parsing and difficulty work paused.");
+
+            library.SetExternalIndexingPaused(false);
+            ExternalOsuLibraryResult result = await refresh;
+            Assert.That(result.ChartCount, Is.EqualTo(1));
         }
         finally
         {
@@ -279,6 +335,81 @@ public sealed class ImportedChartLibraryTest
         {
             if (Directory.Exists(yokkoRoot))
                 Directory.Delete(yokkoRoot, true);
+        }
+    }
+
+    [Test]
+    public async Task ExternalOsuTenThousandFileIncrementalScaleTest()
+    {
+        if (Environment.GetEnvironmentVariable("YOKKO_TEST_EXTERNAL_OSU_10K")
+            != "1")
+        {
+            Assert.Ignore(
+                "Set YOKKO_TEST_EXTERNAL_OSU_10K=1 to run the 10,000-file scale test.");
+        }
+
+        string root = createTestRoot("external-osu-10k");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        const string standardHeader = """
+            osu file format v14
+
+            [General]
+            AudioFilename: audio.mp3
+            Mode: 0
+
+            [Metadata]
+            Title:Scale Probe
+            Artist:Yokko
+            Creator:Test
+            Version:Standard
+            """;
+
+        try
+        {
+            for (int setIndex = 0; setIndex < 100; setIndex++)
+            {
+                string set = Path.Combine(
+                    songs,
+                    $"{setIndex:D5} Scale Set");
+                Directory.CreateDirectory(set);
+                for (int chartIndex = 0; chartIndex < 100; chartIndex++)
+                {
+                    File.WriteAllText(
+                        Path.Combine(set, $"chart-{chartIndex:D3}.osu"),
+                        standardHeader,
+                        Encoding.UTF8);
+                }
+            }
+
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+
+            ExternalOsuLibraryResult first =
+                await library.RefreshExternalOsuAsync();
+            ExternalOsuLibraryResult unchanged =
+                await library.RefreshExternalOsuAsync();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.Success, Is.True);
+                Assert.That(first.ScannedFileCount, Is.EqualTo(10_000));
+                Assert.That(first.ContentReadCount, Is.EqualTo(10_000));
+                Assert.That(first.ChartCount, Is.Zero,
+                    "Non-mania files must stay out of the library.");
+                Assert.That(unchanged.ScannedFileCount, Is.EqualTo(10_000));
+                Assert.That(unchanged.ContentReadCount, Is.Zero,
+                    "An unchanged large library must use only its metadata index.");
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
         }
     }
 

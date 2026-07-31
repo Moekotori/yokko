@@ -31,7 +31,7 @@ internal partial class GameplayLayoutEditorOverlay
             Anchor = Anchor.BottomLeft;
             Origin = Anchor.BottomLeft;
             Position = new Vector2(18, -18);
-            Size = new Vector2(390, 144);
+            Size = new Vector2(420, 144);
             Depth = -100;
             Masking = true;
             CornerRadius = 8;

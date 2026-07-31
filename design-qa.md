@@ -87,6 +87,84 @@ final result: passed
 
 ---
 
+# Song Select 1920 x 1080 layout pass QA (2026-07-31)
+
+## Evidence
+
+- Selected layout reference: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png`.
+- Native Direct3D 11 implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\yokko-song-select-layout-final.png` (1920 x 1080).
+- Same-viewport comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-comparison-final.png`.
+- State: English Song Select, 7K filter active, two expanded packages, one collapsed package, long selected title, global ranking visible.
+
+## Required fidelity review
+
+- Typography and hierarchy: the selected song, ranking scores, package names, difficulty pills, and Play action retain clear priority using Yokko's existing display fonts.
+- Major layout: the screen now follows the reference's navy global navigation, left details and ranking rail, right search/filter/browser rail, and ivory bottom action bar on the shared 1920 x 1080 stage.
+- Spacing: the right-side search, star range, sort/group/collection controls, package headers, and difficulty rows remain separated with no clipping. The footer controls have distinct hit areas and no overlap.
+- Colors and assets: the existing Yokko logo, mascot, avatars, sticker textures, chart artwork, navy, cyan, pink, yellow, and ivory palette are retained. No science-fiction visual treatment was introduced.
+- Interaction: search, key filters, Sort, Group, Random, Mods, Back, and Play retain production actions. Sort and Group now also update their visible values after activation. Show Converts, Collection, and Options are intentionally visual-only in this layout pass.
+
+## Findings
+
+- P0: none.
+- P1: none after separating the star-range and browse-control rows and widening the footer tools.
+- P2: none after correcting the Collection label/value collision.
+- P3: the implementation retains production beatmap art and the current details-card component; the reference's hand-drawn integrated metadata treatment and denser decorative stickers are deferred to a later polish pass.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- Native Direct3D 11 preview captured at 1920 x 1080 with a null Yokko preview-audio engine.
+- Reference and implementation were inspected in one combined comparison image.
+- `git diff --check` passed for the touched Song Select and visual-preview files.
+
+final result: passed
+
+---
+
+# Home signal-snake background toy QA (2026-07-31)
+
+## Evidence
+
+- Selected visual target: `C:\Users\nyafa\.codex\generated_images\019fb866-37b8-77a3-a853-c6c642e2fbf4\exec-438752d2-13d7-4ab0-87b9-bc78ec6b1213.png`.
+- Native Direct3D 11 implementation after arrow-key input: `D:\YOKKO\artifacts\signal-snake-arrow-active-1920x1080.png` (1920 x 1080).
+- Same-viewport comparison, selected target left and implementation right: `D:\YOKKO\artifacts\signal-snake-mock-vs-arrow-active.png`.
+- State: Chinese home screen, wide layout, signal snake available; implementation captured after an Up-arrow input.
+- Density normalization: the 2048 x 1152 target was resampled to 1920 x 1080 without cropping; the implementation remained at native 1x output.
+
+## Comparison history
+
+1. The selected target established a tiny route-and-pip toy embedded in the cyan background, without a card, tutorial copy, or mascot interaction.
+2. The production component is slightly smaller and more transparent than the target so it reads as ambient motion rather than another primary UI region.
+3. The final input path accepts both D/F/J/K and arrow keys. Compact layouts hide the toy and return Left/Right to the existing music shortcuts.
+
+## Required fidelity review
+
+- Fonts and typography: no new copy or typography was introduced; all existing home typography remains unchanged.
+- Spacing and layout: the toy occupies unused centre-left cyan space and does not overlap the main navigation, speech sticker, key-test pad, music player, or mascot.
+- Colors and tokens: cyan-white route points, yellow/pink pips, and the navy/cyan/pink arrow reuse the existing home palette at low opacity.
+- Image quality and assets: the mascot and all existing artwork are unchanged; the tiny signal geometry remains sharp at native 1920 x 1080.
+- Copy and content: no HUD, score card, instructional label, or extra chrome was added.
+- Interaction: collecting pips grows the trail; leaving bounds or crossing the trail resets it with a small burst; key repeats are consumed without unintended rapid movement.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none in the final same-viewport comparison.
+- P3: the production trail is deliberately subtler than the selected target, matching the request to keep the UI change small.
+
+## Verification
+
+- Clean isolated build of the exact three-file feature patch: passed.
+- Focused `TestSceneMainScreen` suite: 11 passed, 0 failed, including D/F/J/K and arrow-key signal movement.
+- Native Direct3D 11 preview captured and compared at 1920 x 1080 after actual arrow-key input.
+- `git diff --check`: passed for all feature files.
+
+final result: passed
+
+---
+
 # Gameplay pause interaction and sharpness QA (2026-07-31)
 
 ## Evidence
@@ -2849,5 +2927,113 @@ final result: passed
 - `TestPauseOverlayStopsAndResumesAudio`: 1 passed, 0 failed, including the new `DisplayedPauseCount == 1` assertion.
 - Native Direct3D 11 preview captured at 1920 x 1080 and opened together with the normalized reported screenshot.
 - The main checkout build is currently blocked by unrelated concurrent `YokkoGame.cs` edits missing `FrameworkConfigManager` and `WindowMode` references; the isolated validation contains only the pause-page delta.
+
+final result: passed
+
+---
+
+# Gameplay pause countdown quick-settings QA (2026-07-31)
+
+## Evidence
+
+- Selected expanded-state visual target: `C:\Users\nyafa\.codex\generated_images\019fb86c-308e-7681-9214-4873d2cbb4f7\exec-a4184355-8ea4-4351-bb6c-1c62f1d33ec5.png`.
+- Native Direct3D 11 implementation: `D:\YOKKO\artifacts\pause-countdown-preview\expanded-final.png` (1920 x 1080).
+- Same-input comparison, selected target left and implementation right: `D:\YOKKO\artifacts\pause-countdown-preview\source-left-implementation-right.png`.
+- State: Chinese pause overlay, Pause Settings expanded, Resume Countdown set to 1 second.
+- Density normalization: the generated target was resampled to 1920 x 1080 without cropping; the implementation remained at native 1x output.
+
+## Comparison history
+
+1. The first native capture rendered the value outside the drawer because its centre anchor also received an absolute X offset.
+2. The value now uses a direct local centre position between the decrement and increment buttons, restoring the selected target's compact selector rhythm.
+3. The generated target included a second volume control. The implementation intentionally omits it after product review established that gameplay audio is already stopped while paused.
+
+## Required fidelity review
+
+- Fonts and typography: localized labels use the existing sharp Yokko/Roboto display chain at natural scale; the numeric value is centred and unwarped.
+- Spacing and layout: the drawer opens upward into negative space, remains inside the left paper panel, and does not cover Resume, the PAUSED timer, the song header, or performance data.
+- Colors and tokens: ivory, navy, cyan, pale cyan, and pink reuse the production pause palette.
+- Image quality and assets: the existing logo and mascot remain unchanged; standard Font Awesome controls are used for sliders, plus, minus, and chevron.
+- Copy and content: only the requested Resume Countdown setting is present. English, Chinese, and Japanese labels are supplied through Yokko localization.
+- Interaction and accessibility: mouse click or Tab toggles the drawer; plus/minus buttons and Left/Right adjust Off, 1, 2, and 3 seconds; the pause key closes an open drawer before resuming.
+
+## Findings
+
+- P0: none.
+- P1: none after correcting the missing duration value.
+- P2: none in the final same-viewport comparison.
+- P3: the production drawer is deliberately one row shorter than the generated target because the rejected volume option was removed.
+
+## Verification
+
+- `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- `TestPauseOverlayStopsAndResumesAudio`: 1 passed, 0 failed; it now verifies open, live duration update, close, and restoration.
+- Native Direct3D 11 expanded-state preview captured and compared at 1920 x 1080.
+
+final result: passed
+
+---
+
+# Gameplay pause secondary-action spacing QA (2026-07-31)
+
+## Evidence
+
+- Reported state: `D:\YOKKO\artifacts\pause-countdown-preview\expanded-final.png` (1920 x 1080, Direct3D 11).
+- Revised native implementation: `D:\YOKKO\artifacts\pause-action-polish\implementation.png` (1920 x 1080, Direct3D 11).
+- State: Chinese pause overlay with Pause Settings expanded and all four secondary actions visible.
+
+## Required fidelity review
+
+- Typography and spacing: the four secondary actions now use a centred vertical icon-and-label stack, giving four-character labels their full cell width instead of sharing it with the icon.
+- Hierarchy: index, icon, label, and accent occupy separate vertical bands; Resume remains the dominant primary action.
+- Consistency: Retry, HUD Layout, Settings, and Exit retain equal hit targets, keyboard order, colours, hover state, and actions.
+- Rendering: labels and icons are rendered at natural scale in the native 1920 x 1080 capture, with no clipping or overlap.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after replacing the cramped horizontal content layout.
+- P3: none.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- Native Direct3D 11 preview captured and inspected at 1920 x 1080.
+- `git diff --check`: passed.
+
+final result: passed
+
+---
+
+# Gameplay pause detail enhancement QA (2026-07-31)
+
+## Evidence
+
+- Current-state capture: `D:\YOKKO\artifacts\pause-detail-audit\01-current.png` (1920 x 1080, Direct3D 11).
+- Revised implementation: `D:\YOKKO\artifacts\pause-detail-audit\02-polished.png` (1920 x 1080, Direct3D 11).
+- Same-state comparison: `D:\YOKKO\artifacts\pause-detail-audit\before-left-after-right.png` (before left, revised right).
+- State: Chinese pause overlay with Pause Settings expanded and the primary Resume action selected.
+
+## Required fidelity review
+
+- Settings hierarchy: the countdown drawer gains a restrained paper shadow and a cyan connector to its trigger, making the expanded relationship explicit.
+- Action grouping: a small `QUICK ACTIONS` label and hairline separate the primary Resume action from the four secondary actions.
+- Focus feedback: secondary keyboard selection gains a dedicated top marker in addition to its existing background and accent-width transition.
+- Typography and density: the new micro-label uses the existing display family and cyan/navy tokens; it fits the existing vertical gap without moving controls.
+- Interaction: drawer open/close transitions now animate the shadow and connector together with the existing card motion.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none in the final 1920 x 1080 comparison.
+- P3: the secondary focus marker is not visible in the primary-selected evidence frame; its state is covered by the existing selection code path and focused interaction test.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- `TestPauseOverlayStopsAndResumesAudio`: 1 passed, 0 failed, including the settings and secondary-selection paths.
+- Native Direct3D 11 preview and same-state comparison were opened and inspected.
 
 final result: passed

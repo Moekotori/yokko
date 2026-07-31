@@ -23,8 +23,8 @@ namespace Yokko.Game.Screens.Gameplay;
 /// </summary>
 internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 {
-    private const float overviewWidth = 300;
-    private const float overviewHeight = 168.75f;
+    private const float overviewWidth = 340;
+    private const float overviewHeight = 191.25f;
     private const float overviewPadding = 10;
 
     private GameplayPlayfield playfield;
@@ -607,9 +607,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     private Drawable createTopBar()
     {
-        const float panelWidth = 264;
+        const float panelWidth = 300;
         const float panelHeight = 376;
-        const float buttonWidth = 236;
+        const float buttonWidth = 272;
 
         return new Container
         {
@@ -2249,7 +2249,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         internal void SetActive(bool value)
         {
             active = value;
-            Alpha = active ? 1 : 0.72f;
+            Alpha = active ? 1 : 0;
             background.Colour = active
                 ? HomeControlColours.Ivory
                 : HomeControlColours.PaleCyan;
@@ -2260,7 +2260,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         protected override bool OnMouseDown(MouseDownEvent e)
         {
-            if (e.Button != MouseButton.Left)
+            if (!active || e.Button != MouseButton.Left)
                 return false;
 
             beginChange();
@@ -2268,13 +2268,19 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             return true;
         }
 
-        protected override bool OnDragStart(DragStartEvent e) => true;
+        protected override bool OnDragStart(DragStartEvent e) => active;
 
-        protected override void OnDrag(DragEvent e) =>
-            update(e.ScreenSpaceMousePosition);
+        protected override void OnDrag(DragEvent e)
+        {
+            if (active)
+                update(e.ScreenSpaceMousePosition);
+        }
 
         protected override bool OnHover(HoverEvent e)
         {
+            if (!active)
+                return false;
+
             this.FadeTo(1, 80, Easing.OutQuint);
             background.FadeColour(
                 HomeControlColours.PaleCyan,
@@ -2295,7 +2301,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             BorderColour = active
                 ? HomeControlColours.Navy
                 : HomeControlColours.Cyan;
-            this.FadeTo(active ? 1 : 0.72f, 120, Easing.OutQuint);
+            this.FadeTo(active ? 1 : 0, 120, Easing.OutQuint);
         }
     }
 
@@ -2447,6 +2453,6 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             new("Yokko", readableSize(size), "Bold");
 
         private static float readableSize(float size) =>
-            MathF.Max(18, size + MathF.Min(10, 8 + size * 0.08f));
+            MathF.Max(20, size + MathF.Min(12, 10 + size * 0.1f));
     }
 }
