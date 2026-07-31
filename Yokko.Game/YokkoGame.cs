@@ -32,6 +32,8 @@ namespace Yokko.Game
             debugConsole?.ContainsRenderedText(text) == true;
         internal void SetDebugConsoleVisible(bool visible) =>
             Diagnostics.ConsoleVisible.Value = visible;
+        internal bool PerformanceTrackingEnabled =>
+            performanceReadout?.TrackingEnabled == true;
 
         public YokkoGame(
             IKeyInputTimestampBackend keyInputTimestampBackend = null,
@@ -61,7 +63,8 @@ namespace Yokko.Game
                     RelativeSizeAxes = Axes.Both,
                 },
                 new YokkoAdaptiveFrameRateMonitor(),
-                performanceReadout = new YokkoPerformanceReadout
+                performanceReadout = new YokkoPerformanceReadout(
+                    diagnostics: Diagnostics)
                 {
                     Anchor = Anchor.TopCentre,
                     Origin = Anchor.TopCentre,
@@ -77,6 +80,9 @@ namespace Yokko.Game
             showPerformanceReadout = DisplaySettings.ShowPerformanceReadout;
             showPerformanceReadout.BindValueChanged(
                 onShowPerformanceReadoutChanged,
+                true);
+            Diagnostics.ConsoleVisible.BindValueChanged(
+                onDebugConsoleVisibleChanged,
                 true);
         }
 
@@ -114,9 +120,18 @@ namespace Yokko.Game
         private void onShowPerformanceReadoutChanged(
             ValueChangedEvent<bool> change)
         {
-            performanceReadout.SetTrackingEnabled(change.NewValue);
             performanceReadout.Alpha = change.NewValue ? 1 : 0;
+            updatePerformanceTracking();
         }
+
+        private void onDebugConsoleVisibleChanged(
+            ValueChangedEvent<bool> change) =>
+            updatePerformanceTracking();
+
+        private void updatePerformanceTracking() =>
+            performanceReadout.SetTrackingEnabled(
+                showPerformanceReadout.Value
+                || Diagnostics.ConsoleVisible.Value);
 
         protected override bool OnKeyDown(KeyDownEvent e)
         {
@@ -149,6 +164,10 @@ namespace Yokko.Game
             if (isDisposing && showPerformanceReadout != null)
                 showPerformanceReadout.ValueChanged -=
                     onShowPerformanceReadoutChanged;
+
+            if (isDisposing)
+                Diagnostics.ConsoleVisible.ValueChanged -=
+                    onDebugConsoleVisibleChanged;
 
             if (isDisposing && screenStack != null)
             {

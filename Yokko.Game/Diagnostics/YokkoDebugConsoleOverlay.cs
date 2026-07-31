@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -33,12 +35,17 @@ internal partial class YokkoDebugConsoleOverlay : CompositeDrawable
     private readonly FillFlowContainer lineFlow;
     private readonly BasicScrollContainer scroll;
     private readonly SpriteText statusText;
+    private readonly SpriteText performanceText;
     private readonly SpriteText pauseButtonText;
     private readonly SpriteIcon pauseButtonIcon;
     private GameHost host;
     private Clipboard clipboard;
     private long lastSequence;
     private bool paused;
+    private bool exportInProgress;
+    private LocalisableString operationStatus;
+    private bool hasOperationStatus;
+    private double operationStatusUntil;
 
     public override bool HandlePositionalInput => true;
     internal bool IsPaused => paused;
@@ -105,49 +112,65 @@ internal partial class YokkoDebugConsoleOverlay : CompositeDrawable
                         Anchor = Anchor.TopLeft,
                         Origin = Anchor.CentreLeft,
                         Position = new Vector2(290, 27),
+                        Width = 176,
+                        Truncate = true,
                         Font = HomeTypography.Body(14),
                         Colour = new Color4(0.65f, 0.84f, 0.92f, 1),
                     },
                     createButton(
-                        516,
-                        112,
+                        470,
+                        94,
                         FontAwesome.Solid.Pause,
                         YokkoStrings.Get("debug_console.pause"),
                         togglePause,
                         out pauseButtonIcon,
                         out pauseButtonText),
                     createButton(
-                        634,
-                        102,
+                        570,
+                        82,
                         FontAwesome.Solid.Trash,
                         YokkoStrings.Get("debug_console.clear"),
                         clear),
                     createButton(
-                        742,
-                        100,
+                        658,
+                        82,
                         FontAwesome.Solid.Copy,
                         YokkoStrings.Get("debug_console.copy"),
                         copy),
                     createButton(
-                        848,
-                        140,
+                        746,
+                        100,
+                        FontAwesome.Solid.FileExport,
+                        YokkoStrings.Get("debug_console.export"),
+                        export),
+                    createButton(
+                        852,
+                        108,
                         FontAwesome.Solid.FolderOpen,
                         YokkoStrings.Get("debug_console.open_logs"),
                         openLogs),
                     createButton(
-                        994,
-                        100,
+                        966,
+                        82,
                         FontAwesome.Solid.Times,
                         YokkoStrings.Get("debug_console.close"),
                         () => diagnostics.ConsoleVisible.Value = false),
-                    new SpriteText
+                    new Box
                     {
-                        Anchor = Anchor.TopRight,
-                        Origin = Anchor.CentreRight,
-                        Position = new Vector2(-18, 27),
-                        Text = "F12",
-                        Font = FontUsage.Default.With(size: 15, fixedWidth: true),
-                        Colour = HomeControlColours.Yellow,
+                        RelativeSizeAxes = Axes.X,
+                        Position = new Vector2(0, 54),
+                        Height = 38,
+                        Colour = new Color4(0.018f, 0.04f, 0.1f, 1),
+                    },
+                    performanceText = new SpriteText
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        Position = new Vector2(18, 65),
+                        Width = -36,
+                        Truncate = true,
+                        Text = "PERFORMANCE · waiting for samples",
+                        Font = FontUsage.Default.With(size: 12, fixedWidth: true),
+                        Colour = new Color4(0.58f, 0.86f, 0.93f, 1),
                     },
                     new Container
                     {
@@ -156,7 +179,7 @@ internal partial class YokkoDebugConsoleOverlay : CompositeDrawable
                         {
                             Left = 14,
                             Right = 14,
-                            Top = 66,
+                            Top = 102,
                             Bottom = 14,
                         },
                         Child = scroll = new BasicScrollContainer
@@ -191,7 +214,15 @@ internal partial class YokkoDebugConsoleOverlay : CompositeDrawable
     {
         base.Update();
 
-        if (!diagnostics.ConsoleVisible.Value || paused)
+        if (!diagnostics.ConsoleVisible.Value)
+        {
+            refreshStatus();
+            return;
+        }
+
+        refreshPerformance();
+
+        if (paused)
         {
             refreshStatus();
             return;
@@ -292,8 +323,86 @@ internal partial class YokkoDebugConsoleOverlay : CompositeDrawable
             diagnostics.LogDirectory);
     }
 
+    private void export()
+    {
+        if (exportInProgress)
+            return;
+
+        exportInProgress = true;
+        operationStatus = YokkoStrings.Get(
+            "debug_console.status_exporting");
+        hasOperationStatus = true;
+        operationStatusUntil = double.PositiveInfinity;
+        refreshStatus();
+
+        _ = Task.Run(diagnostics.ExportBundle).ContinueWith(task =>
+        {
+            Scheduler.Add(() =>
+            {
+                exportInProgress = false;
+                operationStatusUntil = Time.Current + 5000;
+
+                if (task.IsCompletedSuccessfully)
+                {
+                    string path = task.Result;
+                    clipboard?.SetText(path);
+                    operationStatus = YokkoStrings.Get(
+                        "debug_console.status_exported");
+                    string directory = Path.GetDirectoryName(path);
+                    if (host != null && !string.IsNullOrWhiteSpace(directory))
+                        host.OpenFileExternally(directory);
+                    diagnostics.Trace(
+                        "CONSOLE",
+                        "diagnostics-exported",
+                        path,
+                        LogLevel.Important);
+                }
+                else
+                {
+                    string error = task.Exception?
+                                       .GetBaseException().Message
+                                   ?? "unknown error";
+                    operationStatus = YokkoStrings.Get(
+                        "debug_console.status_export_failed");
+                    Logger.Log(
+                        $"[CONSOLE] diagnostics export failed | {error}",
+                        "diagnostics",
+                        LogLevel.Error);
+                }
+
+                refreshStatus();
+            });
+        }, TaskScheduler.Default);
+    }
+
+    private void refreshPerformance()
+    {
+        if (!diagnostics.TryGetLatestPerformance(
+                out YokkoPerformanceSnapshot snapshot))
+            return;
+
+        string value = snapshot.ToDisplayText();
+        if (performanceText.Text.ToString() != value)
+            performanceText.Text = value;
+
+        performanceText.Colour = snapshot.Health switch
+        {
+            YokkoPerformanceHealth.Critical =>
+                new Color4(1f, 0.42f, 0.45f, 1),
+            YokkoPerformanceHealth.Warning => HomeControlColours.Yellow,
+            _ => new Color4(0.58f, 0.86f, 0.93f, 1),
+        };
+    }
+
     private void refreshStatus()
     {
+        if (hasOperationStatus && Time.Current <= operationStatusUntil)
+        {
+            statusText.Text = operationStatus;
+            return;
+        }
+
+        hasOperationStatus = false;
         long pending = Math.Max(0, diagnostics.CurrentSequence - lastSequence);
         statusText.Text = paused
             ? YokkoStrings.Get("debug_console.status_paused", pending)

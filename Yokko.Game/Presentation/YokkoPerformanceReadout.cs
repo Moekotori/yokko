@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -11,6 +12,7 @@ using osu.Framework.Platform;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Game.Screens.Main;
+using Yokko.Game.Diagnostics;
 
 namespace Yokko.Game.Presentation;
 
@@ -73,6 +75,8 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
 
     private readonly FrameTimingTracker drawTracker = new();
     private readonly FrameTimingTracker updateTracker = new();
+    private readonly YokkoDiagnostics diagnostics;
+    private readonly Process process;
     private IFrameTimingSource timingSource;
     private Box statusAccent;
     private Container details;
@@ -92,11 +96,17 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
     private FrameTimingSample latestSample;
     private bool hasSample;
     private bool trackingEnabled = true;
+    private DateTimeOffset previousProcessSampleTime;
+    private TimeSpan previousProcessCpuTime;
 
     internal YokkoPerformanceReadout(
-        IFrameTimingSource timingSource = null)
+        IFrameTimingSource timingSource = null,
+        YokkoDiagnostics diagnostics = null)
     {
         this.timingSource = timingSource;
+        this.diagnostics = diagnostics;
+        if (diagnostics != null)
+            process = Process.GetCurrentProcess();
         Size = new Vector2(CardWidth, CardHeight);
         Masking = true;
         CornerRadius = 5;
@@ -122,6 +132,7 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
         inputRateText?.Text.ToString() ?? string.Empty;
 
     internal FramePacingHealth DisplayedHealth { get; private set; }
+    internal bool TrackingEnabled => trackingEnabled;
 
     [BackgroundDependencyLoader]
     private void load(GameHost host)
@@ -213,8 +224,17 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
         targetUpdateFramesPerSecond = 0;
         lastDrawMarker = 0;
         hasSample = false;
+        previousProcessSampleTime = default;
+        previousProcessCpuTime = default;
         elapsedSinceDisplayRefresh =
             display_refresh_milliseconds;
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            process?.Dispose();
+        base.Dispose(isDisposing);
     }
 
     private Drawable createCard()
@@ -476,6 +496,76 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
             healthColour(DisplayedHealth),
             120,
             Easing.OutQuint);
+        reportPerformance(drawSnapshot, updateSnapshot);
+    }
+
+    private void reportPerformance(
+        FrameTimingSnapshot drawSnapshot,
+        FrameTimingSnapshot updateSnapshot)
+    {
+        if (diagnostics == null)
+            return;
+
+        DateTimeOffset timestamp = DateTimeOffset.UtcNow;
+        TimeSpan cpuTime;
+        long workingSet;
+
+        try
+        {
+            process.Refresh();
+            cpuTime = process.TotalProcessorTime;
+            workingSet = process.WorkingSet64;
+        }
+        catch
+        {
+            cpuTime = previousProcessCpuTime;
+            workingSet = 0;
+        }
+
+        double elapsedMilliseconds =
+            (timestamp - previousProcessSampleTime).TotalMilliseconds;
+        double cpuPercent = previousProcessSampleTime == default
+                            || elapsedMilliseconds <= 0
+            ? 0
+            : (cpuTime - previousProcessCpuTime).TotalMilliseconds
+              / elapsedMilliseconds
+              / Math.Max(1, Environment.ProcessorCount)
+              * 100;
+        cpuPercent = Math.Clamp(cpuPercent, 0, 100);
+        previousProcessSampleTime = timestamp;
+        previousProcessCpuTime = cpuTime;
+
+        diagnostics.ReportPerformance(new YokkoPerformanceSnapshot(
+            timestamp,
+            drawSnapshot.FramesPerSecond,
+            drawSnapshot.FrameTimeMilliseconds,
+            drawSnapshot.P95FrameTimeMilliseconds,
+            drawSnapshot.P99FrameTimeMilliseconds,
+            drawSnapshot.MaximumFrameTimeMilliseconds,
+            drawSnapshot.BudgetMissCount,
+            drawSnapshot.BudgetMissRatio,
+            updateSnapshot.FramesPerSecond,
+            updateSnapshot.FrameTimeMilliseconds,
+            updateSnapshot.P95FrameTimeMilliseconds,
+            updateSnapshot.P99FrameTimeMilliseconds,
+            updateSnapshot.MaximumFrameTimeMilliseconds,
+            updateSnapshot.BudgetMissCount,
+            updateSnapshot.BudgetMissRatio,
+            latestSample.InputFramesPerSecond,
+            cpuPercent,
+            workingSet,
+            GC.GetTotalMemory(false),
+            GC.CollectionCount(0),
+            GC.CollectionCount(1),
+            GC.CollectionCount(2),
+            DisplayedHealth switch
+            {
+                FramePacingHealth.Critical =>
+                    YokkoPerformanceHealth.Critical,
+                FramePacingHealth.Warning =>
+                    YokkoPerformanceHealth.Warning,
+                _ => YokkoPerformanceHealth.Stable,
+            }));
     }
 
     private bool targetsChanged(FrameTimingSample sample) =>

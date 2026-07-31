@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using osu.Framework.Graphics;
 using osu.Framework.Testing;
+using Yokko.Game.Diagnostics;
 using Yokko.Game.Presentation;
 
 namespace Yokko.Game.Tests.Visual;
@@ -9,11 +10,12 @@ namespace Yokko.Game.Tests.Visual;
 public partial class TestScenePerformanceReadout : YokkoTestScene
 {
     private readonly FakeFrameTimingSource source = new();
+    private readonly YokkoDiagnostics diagnostics = new();
     private readonly YokkoPerformanceReadout readout;
 
     public TestScenePerformanceReadout()
     {
-        Add(readout = new YokkoPerformanceReadout(source)
+        Add(readout = new YokkoPerformanceReadout(source, diagnostics)
         {
             Anchor = Anchor.Centre,
             Origin = Anchor.Centre,
@@ -49,6 +51,11 @@ public partial class TestScenePerformanceReadout : YokkoTestScene
             "healthy pacing",
             () => readout.DisplayedHealth
                   == FramePacingHealth.Stable);
+        AddUntilStep(
+            "publishes healthy diagnostics",
+            () => diagnostics.TryGetLatestPerformance(out var snapshot)
+                  && snapshot.Health == YokkoPerformanceHealth.Stable
+                  && snapshot.DrawFramesPerSecond == 480);
 
         AddStep("provide repeated frame spikes", () =>
             source.SetFrame(
@@ -61,6 +68,17 @@ public partial class TestScenePerformanceReadout : YokkoTestScene
             "spikes become critical",
             () => readout.DisplayedHealth
                   == FramePacingHealth.Critical);
+        AddUntilStep(
+            "publishes critical diagnostics",
+            () => diagnostics.TryGetLatestPerformance(out var snapshot)
+                  && snapshot.Health == YokkoPerformanceHealth.Critical);
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            diagnostics.Dispose();
+        base.Dispose(isDisposing);
     }
 
     private sealed class FakeFrameTimingSource : IFrameTimingSource

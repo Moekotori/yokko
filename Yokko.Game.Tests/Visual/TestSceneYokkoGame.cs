@@ -27,6 +27,8 @@ namespace Yokko.Game.Tests.Visual
                 originalVisibility = game.DebugConsoleVisible);
             AddStep("enable console", () =>
                 game.SetDebugConsoleVisible(true));
+            AddAssert("performance monitor starts with console", () =>
+                game.PerformanceTrackingEnabled);
             AddStep("write live marker", () =>
             {
                 marker = $"visual-live-{System.Guid.NewGuid():N}";

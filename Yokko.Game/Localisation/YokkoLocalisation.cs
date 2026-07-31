@@ -648,10 +648,14 @@ internal static class YokkoStrings
             ["debug_console.resume"] = new("Resume", "继续", "再開"),
             ["debug_console.clear"] = new("Clear", "清空", "クリア"),
             ["debug_console.copy"] = new("Copy", "复制", "コピー"),
+            ["debug_console.export"] = new("Export", "导出", "エクスポート"),
             ["debug_console.open_logs"] = new("Open logs", "打开日志", "ログを開く"),
             ["debug_console.close"] = new("Close", "关闭", "閉じる"),
             ["debug_console.status_live"] = new("LIVE · {0} buffered", "实时 · 已缓存 {0} 条", "ライブ · {0} 件"),
             ["debug_console.status_paused"] = new("PAUSED · {0} pending", "已暂停 · {0} 条待显示", "一時停止 · {0} 件保留"),
+            ["debug_console.status_exporting"] = new("EXPORTING…", "正在导出…", "エクスポート中…"),
+            ["debug_console.status_exported"] = new("EXPORTED · path copied", "已导出 · 路径已复制", "エクスポート完了 · パスをコピー"),
+            ["debug_console.status_export_failed"] = new("EXPORT FAILED · see log", "导出失败 · 请查看日志", "エクスポート失敗 · ログを確認"),
 
             ["settings.audio.title"] = new("Audio", "音频", "オーディオ"),
             ["settings.audio.subtitle"] = new(

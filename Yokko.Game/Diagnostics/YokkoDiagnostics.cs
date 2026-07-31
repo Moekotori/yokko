@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.IO;
 using osu.Framework.Bindables;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
@@ -133,6 +134,14 @@ internal sealed class YokkoDiagnostics : IDisposable
     private bool loggerLevelOverridden;
     private bool disposed;
     private string logDirectory = string.Empty;
+    private string exportDirectory = string.Empty;
+    private string sessionLogPrefix = string.Empty;
+    private readonly object performanceSync = new();
+    private YokkoPerformanceSnapshot latestPerformance;
+    private DateTimeOffset lastPerformanceLogTime;
+    private YokkoPerformanceHealth lastPerformanceHealth;
+    private bool hasPerformance;
+    private bool hasLoggedPerformance;
 
     public readonly BindableBool ConsoleVisible = new(false);
 
@@ -140,6 +149,7 @@ internal sealed class YokkoDiagnostics : IDisposable
     public string LogDirectory => logDirectory;
     public int EntryCount => buffer.Count;
     public long CurrentSequence => buffer.CurrentSequence;
+    public string ExportDirectory => exportDirectory;
 
     public YokkoDiagnostics()
     {
@@ -151,6 +161,10 @@ internal sealed class YokkoDiagnostics : IDisposable
     {
         ArgumentNullException.ThrowIfNull(host);
         logDirectory = host.Storage.GetFullPath("logs", true);
+        exportDirectory = host.Storage.GetFullPath(
+            "diagnostic-exports",
+            true);
+        sessionLogPrefix = getSessionLogPrefix();
 
         string version = Assembly.GetEntryAssembly()?
                                  .GetName().Version?.ToString()
@@ -178,6 +192,79 @@ internal sealed class YokkoDiagnostics : IDisposable
         return string.Join(
             Environment.NewLine,
             snapshot.Select(entry => entry.ToExportText()));
+    }
+
+    public string ExportBundle() => YokkoDiagnosticExporter.Export(
+        exportDirectory,
+        logDirectory,
+        sessionLogPrefix,
+        ExportText(),
+        TryGetLatestPerformance(out YokkoPerformanceSnapshot performance)
+            ? performance
+            : null);
+
+    internal void InitialiseForTesting(osu.Framework.Platform.Storage storage)
+    {
+        ArgumentNullException.ThrowIfNull(storage);
+        logDirectory = storage.GetFullPath("logs", true);
+        exportDirectory = storage.GetFullPath("diagnostic-exports", true);
+        sessionLogPrefix = getSessionLogPrefix();
+    }
+
+    public void ReportPerformance(YokkoPerformanceSnapshot snapshot)
+    {
+        bool shouldLog;
+        bool recovered;
+
+        lock (performanceSync)
+        {
+            latestPerformance = snapshot;
+            hasPerformance = true;
+            recovered = hasLoggedPerformance
+                        && lastPerformanceHealth != YokkoPerformanceHealth.Stable
+                        && snapshot.Health == YokkoPerformanceHealth.Stable;
+            bool healthChanged = hasLoggedPerformance
+                                 && lastPerformanceHealth != snapshot.Health;
+            shouldLog = IsEnabled
+                        && (!hasLoggedPerformance
+                            || healthChanged
+                            || snapshot.Timestamp - lastPerformanceLogTime
+                            >= TimeSpan.FromSeconds(1));
+
+            if (shouldLog)
+            {
+                lastPerformanceLogTime = snapshot.Timestamp;
+                lastPerformanceHealth = snapshot.Health;
+                hasLoggedPerformance = true;
+            }
+        }
+
+        if (!shouldLog)
+            return;
+
+        string eventName = recovered
+            ? "frame-pacing-recovered"
+            : snapshot.Health == YokkoPerformanceHealth.Stable
+                ? "sample"
+                : "frame-pacing-alert";
+        LogLevel level = snapshot.Health == YokkoPerformanceHealth.Stable
+                         && !recovered
+            ? LogLevel.Verbose
+            : LogLevel.Important;
+        Logger.Log(
+            $"[PERFORMANCE] {eventName} | {snapshot.ToLogDetails()}",
+            "diagnostics",
+            level);
+    }
+
+    public bool TryGetLatestPerformance(
+        out YokkoPerformanceSnapshot snapshot)
+    {
+        lock (performanceSync)
+        {
+            snapshot = latestPerformance;
+            return hasPerformance;
+        }
     }
 
     public void Clear() => buffer.Clear();
@@ -250,6 +337,15 @@ internal sealed class YokkoDiagnostics : IDisposable
 
         Logger.Level = loggerLevelBeforeEnable;
         loggerLevelOverridden = false;
+    }
+
+    private static string getSessionLogPrefix()
+    {
+        string filename = Logger.GetLogger("diagnostics").Filename;
+        int separator = filename.IndexOf('.');
+        return separator > 0
+            ? filename[..separator]
+            : Path.GetFileNameWithoutExtension(filename);
     }
 
     public void Dispose()
