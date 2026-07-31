@@ -1109,6 +1109,102 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestMutedCompletionRestoresOnlyAfterAudioStops()
+        {
+            var stopCompletion = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var audioEngine = new CompletionTrackingAudioEngine
+            {
+                StopCompletion = stopCompletion,
+            };
+            GameplayScreen gameplay = null;
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Muted Completion Transition Test",
+                AudioPath = "muted-completion-transition-fixture.wav",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        0,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+            ManiaModSet mods = ManiaModSet.Empty.WithMuted(
+                inverse: true,
+                metronome: false,
+                comboCount: 1,
+                affectsHitSounds: false);
+
+            AddStep("open inverse Muted transition", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    audioEngine,
+                    mods: mods)));
+            AddUntilStep("Muted transition audio starts", () =>
+                audioEngine.StartCount == 1);
+            AddAssert("inverse Muted begins silent", () =>
+                audioEngine.MusicVolume <= 0.000001);
+            AddStep("complete inverse Muted gameplay", () =>
+                audioEngine.SetPlaybackTime(1000));
+            AddUntilStep("Muted completion requests stop", () =>
+                gameplay?.CompletionTransitionActive == false
+                && audioEngine.StopCount == 1);
+            AddAssert("Muted mix stays silent while stop is pending", () =>
+                !stopCompletion.Task.IsCompleted
+                && audioEngine.MusicVolume <= 0.000001);
+            AddStep("release Muted audio stop", () =>
+                stopCompletion.SetResult(true));
+            AddUntilStep("Muted mix restores after audio stops", () =>
+                audioEngine.MusicVolume > 0.5);
+        }
+
+        [Test]
+        public void TestCompletionTransitionCanBeSkippedAfterSettle()
+        {
+            var audioEngine = new CompletionTrackingAudioEngine();
+            GameplayScreen gameplay = null;
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Skippable Completion Transition Test",
+                AudioPath = "skippable-completion-transition-fixture.wav",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        0,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+
+            AddStep("open skippable transition", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    audioEngine)));
+            AddUntilStep("skippable transition audio starts", () =>
+                audioEngine.StartCount == 1);
+            AddStep("complete skippable gameplay", () =>
+                audioEngine.SetPlaybackTime(1000));
+            AddUntilStep("completion skip becomes available", () =>
+                gameplay?.CompletionTransitionActive == true
+                && gameplay.CompletionTransitionElapsedMilliseconds >= 320);
+            AddStep("skip completion transition", () =>
+                gameplay.HandleKeyDownInput(
+                    Key.Enter,
+                    false,
+                    false,
+                    false));
+            AddAssert("skip reveals results and stops audio", () =>
+                !gameplay.CompletionTransitionActive
+                && audioEngine.StopCount == 1
+                && gameplay
+                   .ChildrenOfType<GameplayResultOverlay>()
+                   .SingleOrDefault() != null);
+        }
+
+        [Test]
         public void TestCompletedLivePlayPersistsExactNativeReplay()
         {
             YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with

@@ -165,6 +165,7 @@ internal partial class GameplayModsScreen : Screen
     internal bool IsModVisible(ManiaModId mod) =>
         visibleItems.ContainsKey(mod);
     internal bool IsPageTransitioning => pageTransitioning;
+    internal float OrbitContentX => orbitWorkspace?.OrbitContentX ?? 335;
     internal string SearchQuery => searchQuery;
     internal Color4 ConfigurablePanelColour =>
         configurablePanelBackground?.Colour ?? Color4.Transparent;

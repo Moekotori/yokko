@@ -25,6 +25,8 @@ namespace Yokko.Game.Screens.SongSelect;
 /// </summary>
 internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 {
+    private const float orbit_host_resting_x = 335;
+
     private static readonly ManiaModCategory[] pages =
     [
         ManiaModCategory.DifficultyReduction,
@@ -209,19 +211,28 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     {
         orbitHost.ClearTransforms();
         orbitHost
-            .MoveToX(-Math.Sign(direction) * 24, 115, Easing.InCubic)
+            .MoveToX(
+                orbit_host_resting_x - Math.Sign(direction) * 24,
+                115,
+                Easing.InCubic)
             .FadeOut(90, Easing.OutQuint);
     }
 
     internal void TransitionIn(int direction)
     {
         orbitHost.ClearTransforms();
-        orbitHost.X = Math.Sign(direction) * 34;
+        orbitHost.X =
+            orbit_host_resting_x + Math.Sign(direction) * 34;
         orbitHost.Alpha = 0;
         orbitHost
             .FadeIn(135, Easing.OutQuint)
-            .MoveToX(0, 210, Easing.OutQuint);
+            .MoveToX(
+                orbit_host_resting_x,
+                210,
+                Easing.OutQuint);
     }
+
+    internal float OrbitContentX => orbitHost?.X ?? orbit_host_resting_x;
 
     private Drawable createHeader(Texture logo) => new Container
     {
@@ -349,7 +360,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     {
         orbitHost = new Container
         {
-            Position = new Vector2(335, 128),
+            Position = new Vector2(orbit_host_resting_x, 128),
             Size = new Vector2(790, 620),
         };
 

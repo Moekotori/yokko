@@ -142,19 +142,22 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddAssert("wheel enters next page instead of focused Mod", () =>
             !modsScreen.IsPageTransitioning
             && modsScreen.ActiveCategory == ManiaModCategory.Automation
-            && modsScreen.DetailMod == ManiaModId.Autoplay);
+            && modsScreen.DetailMod == ManiaModId.Autoplay
+            && Math.Abs(modsScreen.OrbitContentX - 335) < 0.01f);
         AddStep("Tab category cycle", () =>
             modsScreen.HandleInteractionKey(Key.Tab));
         AddWaitStep("wait for Tab page transition", 25);
         AddAssert("category cycle focuses relevant first Mod", () =>
             modsScreen.ActiveCategory == ManiaModCategory.Fun
-            && modsScreen.DetailMod == ManiaModId.WindUp);
+            && modsScreen.DetailMod == ManiaModId.WindUp
+            && Math.Abs(modsScreen.OrbitContentX - 335) < 0.01f);
         AddStep("Shift Tab category cycle", () =>
             modsScreen.HandleInteractionKey(Key.Tab, true));
         AddWaitStep("wait for reverse page transition", 25);
         AddAssert("reverse category cycle is predictable", () =>
             modsScreen.ActiveCategory == ManiaModCategory.Automation
-            && modsScreen.DetailMod == ManiaModId.Autoplay);
+            && modsScreen.DetailMod == ManiaModId.Autoplay
+            && Math.Abs(modsScreen.OrbitContentX - 335) < 0.01f);
         AddStep("return to conversion category", () =>
             modsScreen.SetCategory(ManiaModCategory.Conversion));
         AddStep("try unavailable native key conversion", () =>
