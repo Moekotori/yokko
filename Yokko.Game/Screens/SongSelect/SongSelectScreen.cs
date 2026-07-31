@@ -44,11 +44,11 @@ public partial class SongSelectScreen : Screen
     private const double maximumPlaybackRate = 2;
     private const double list_refresh_stagger = 28;
     private const int max_staggered_rows = 7;
-    private const float designed_height = 900;
-    private const float footer_height = 112;
-    private const float details_top = 128;
-    private const float ranking_top = 303;
-    private const float ranking_height = 190;
+    private const float designed_height = 720;
+    private const float footer_height = 96;
+    private const float details_top = 112;
+    private const float ranking_top = 210;
+    private const float ranking_height = 286;
 
     private readonly List<SongSelectEntry> entries = createEntries();
     private readonly IAudioEngine suppliedPreviewAudioEngine;
@@ -248,17 +248,8 @@ public partial class SongSelectScreen : Screen
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(0.008f, 0.025f, 0.12f, 0.34f),
+                Colour = new Color4(0.92f, 0.98f, 1f, 0.08f),
             },
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = ColourInfo.GradientVertical(
-                    new Color4(0.01f, 0.025f, 0.11f, 0.08f),
-                    new Color4(0.01f, 0.025f, 0.11f, 0.46f)),
-            },
-            createLibraryShade(),
-            createIvoryStage(),
             stage = new Container
             {
                 RelativeSizeAxes = Axes.Both,
@@ -267,8 +258,8 @@ public partial class SongSelectScreen : Screen
                     createHeader(logo),
                     detailsHost = new Container
                     {
-                        Position = new Vector2(64, details_top),
-                        Size = new Vector2(440, 510),
+                        Position = new Vector2(90, details_top),
+                        Size = new Vector2(636, 496),
                     },
                     createSongBrowser(),
                     createFooter(),
@@ -277,10 +268,9 @@ public partial class SongSelectScreen : Screen
                     {
                         Anchor = Anchor.BottomLeft,
                         Origin = Anchor.BottomLeft,
-                        Position = new Vector2(28, -35),
-                        Size = new Vector2(185),
+                        Position = new Vector2(10, -5),
+                        Size = new Vector2(145),
                     },
-                    createDecorations(),
                 },
             },
         };
@@ -937,79 +927,62 @@ public partial class SongSelectScreen : Screen
     private Drawable createHeader(Texture logo) => new Container
     {
         RelativeSizeAxes = Axes.Both,
-        Children = new Drawable[]
-        {
-            new Sprite
+        Children =
+        [
+            new Container
             {
-                Position = new Vector2(64, 22),
-                Size = new Vector2(278, 85),
-                Texture = logo,
+                Position = new Vector2(24, 18),
+                Size = new Vector2(255, 92),
+                Rotation = -2,
+                Masking = true,
+                CornerRadius = 6,
+                BorderThickness = 1,
+                BorderColour = new Color4(0.12f, 0.35f, 0.55f, 0.22f),
+                Children =
+                [
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(1f, 0.985f, 0.94f, 0.96f),
+                    },
+                    new Sprite
+                    {
+                        Position = new Vector2(22, 13),
+                        Size = new Vector2(211, 64),
+                        Texture = logo,
+                    },
+                ],
             },
             searchBox = new SongSelectSearchBox(SetSearchQuery, HandleEscape)
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-92, 23),
+                Position = new Vector2(-282, 22),
             },
             new FillFlowContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-212, 75),
+                Position = new Vector2(-18, 22),
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(8, 0),
                 Children = new Drawable[]
                 {
-                    allFilter = new SongSelectFilterButton("ALL SONGS", 116, () => SetKeyModeFilter(null), accentDot: true),
-                    fourKeyFilter = new SongSelectFilterButton("4K", 54, () => SetKeyModeFilter(KeyMode.FourKey)),
-                    sevenKeyFilter = new SongSelectFilterButton("7K", 54, () => SetKeyModeFilter(KeyMode.SevenKey)),
+                    allFilter = new SongSelectFilterButton("ALL", 72, () => SetKeyModeFilter(null), accentDot: true),
+                    fourKeyFilter = new SongSelectFilterButton("4K", 58, () => SetKeyModeFilter(KeyMode.FourKey)),
+                    sevenKeyFilter = new SongSelectFilterButton("7K", 58, () => SetKeyModeFilter(KeyMode.SevenKey)),
                 },
             },
-            new Container
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                Position = new Vector2(-44, 23),
-                Size = new Vector2(44),
-                Masking = true,
-                CornerRadius = 7,
-                BorderThickness = 1.4f,
-                BorderColour = new Color4(
-                    SongSelectTheme.Cyan.R,
-                    SongSelectTheme.Cyan.G,
-                    SongSelectTheme.Cyan.B,
-                    0.56f),
-                Children = new Drawable[]
-                {
-                    new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = new Color4(
-                            SongSelectTheme.DeepNavy.R,
-                            SongSelectTheme.DeepNavy.G,
-                            SongSelectTheme.DeepNavy.B,
-                            0.86f),
-                    },
-                    new SpriteIcon
-                    {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        Size = new Vector2(18),
-                        Icon = FontAwesome.Solid.SlidersH,
-                        Colour = SongSelectTheme.Cyan,
-                    },
-                },
-            },
-        },
+        ],
     };
 
     private Drawable createSongBrowser() => songBrowser = new Container
     {
         Anchor = Anchor.TopRight,
         Origin = Anchor.TopRight,
-        Position = new Vector2(0, 116),
-        Size = new Vector2(690, 520),
+        Position = new Vector2(-18, 88),
+        Size = new Vector2(454, 526),
         Children = new Drawable[]
         {
             songScroll = new BasicScrollContainer
@@ -1018,11 +991,10 @@ public partial class SongSelectScreen : Screen
                 ScrollbarVisible = false,
                 Child = songList = new FillFlowContainer
                 {
-                    X = 12,
-                    Width = 678,
+                    Width = 454,
                     AutoSizeAxes = Axes.Y,
                     Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 4),
+                    Spacing = new Vector2(0, 6),
                 },
             },
             noResults = new SpriteText
@@ -1185,8 +1157,8 @@ public partial class SongSelectScreen : Screen
         {
             Anchor = Anchor.TopCentre,
             Origin = Anchor.TopCentre,
-            X = -14,
-            Y = 8,
+            X = 82,
+            Y = -4,
         };
         modPanel = createModPanel();
         updateModSelection();
@@ -1202,31 +1174,21 @@ public partial class SongSelectScreen : Screen
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(
-                        SongSelectTheme.DeepNavy.R,
-                        SongSelectTheme.DeepNavy.G,
-                        SongSelectTheme.DeepNavy.B,
-                        0.98f),
+                    Colour = new Color4(1f, 1f, 1f, 0.06f),
                 },
                 new Box
                 {
                     RelativeSizeAxes = Axes.X,
-                    Height = 4,
-                    Colour = SongSelectTheme.Cyan,
-                },
-                new Box
-                {
-                    Anchor = Anchor.TopRight,
-                    Origin = Anchor.TopRight,
-                    Width = 390,
-                    Height = 4,
-                    Colour = SongSelectTheme.Pink,
+                    Height = 2,
+                    Colour = new Color4(1f, 1f, 1f, 0.42f),
                 },
                 new SongSelectFooterBackButton(
                     () => stopPreviewThen(this.Exit))
                 {
-                    Position = new Vector2(228, 20),
+                    Position = new Vector2(180, 12),
+                    Scale = new Vector2(0.9f),
                 },
+                createAccountCard(),
                 modPanel,
                 mods,
                 new HomePrimaryAction(
@@ -1242,12 +1204,148 @@ public partial class SongSelectScreen : Screen
                 {
                     Anchor = Anchor.BottomRight,
                     Origin = Anchor.BottomRight,
-                    Position = new Vector2(-18, -9),
-                    Scale = new Vector2(0.78f),
+                    Position = new Vector2(-18, -10),
+                    Scale = new Vector2(0.61f),
                 },
             },
         };
     }
+
+    private Drawable createAccountCard()
+    {
+        Texture avatar = textures.Get("yokko")?
+                                 .Crop(new RectangleF(270, 2200, 850, 850));
+        return new Container
+        {
+            Position = new Vector2(338, 10),
+            Size = new Vector2(306, 76),
+            Masking = true,
+            CornerRadius = 9,
+            BorderThickness = 1.5f,
+            BorderColour = SongSelectTheme.Cyan,
+            Children =
+            [
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(1f, 0.985f, 0.94f, 0.96f),
+                },
+                new Container
+                {
+                    Position = new Vector2(9, 8),
+                    Size = new Vector2(58),
+                    Masking = true,
+                    CornerRadius = 29,
+                    BorderThickness = 2,
+                    BorderColour = SongSelectTheme.Cyan,
+                    Child = new Sprite
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Texture = avatar,
+                        FillMode = FillMode.Fill,
+                    },
+                },
+                new Circle
+                {
+                    Position = new Vector2(55, 51),
+                    Size = new Vector2(12),
+                    BorderThickness = 2,
+                    BorderColour = Color4.White,
+                    Colour = new Color4(0.24f, 0.82f, 0.48f, 1f),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(78, 8),
+                    Text = "MOCHI",
+                    Font = HomeTypography.Display(17),
+                    Colour = SongSelectTheme.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(150, 13),
+                    Text = "●  ONLINE",
+                    Font = HomeTypography.Display(8),
+                    Colour = new Color4(0.22f, 0.72f, 0.46f, 1f),
+                },
+                accountMetric("7,272", "PP", 78),
+                accountMetric("98.76%", "ACC", 137),
+                accountMetric("#12,846", "GLOBAL", 202),
+                new Box
+                {
+                    Position = new Vector2(78, 61),
+                    Size = new Vector2(150, 5),
+                    Colour = new Color4(
+                        SongSelectTheme.Cyan.R,
+                        SongSelectTheme.Cyan.G,
+                        SongSelectTheme.Cyan.B,
+                        0.24f),
+                },
+                new Box
+                {
+                    Position = new Vector2(78, 61),
+                    Size = new Vector2(84, 5),
+                    Colour = SongSelectTheme.Cyan,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(234, 53),
+                    Text = "LV.45",
+                    Font = HomeTypography.Display(10),
+                    Colour = SongSelectTheme.Pink,
+                },
+                new Container
+                {
+                    Anchor = Anchor.CentreRight,
+                    Origin = Anchor.CentreRight,
+                    X = -7,
+                    Size = new Vector2(36),
+                    Masking = true,
+                    CornerRadius = 6,
+                    Children =
+                    [
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = SongSelectTheme.Navy,
+                        },
+                        new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Text = "4K",
+                            Font = HomeTypography.Display(12),
+                            Colour = Color4.White,
+                        },
+                    ],
+                },
+            ],
+        };
+    }
+
+    private static Drawable accountMetric(
+        string value,
+        string label,
+        float x) => new Container
+    {
+        Position = new Vector2(x, 31),
+        Size = new Vector2(64, 27),
+        Children =
+        [
+            new SpriteText
+            {
+                Text = value,
+                Font = HomeTypography.Display(11),
+                Colour = SongSelectTheme.Navy,
+            },
+            new SpriteText
+            {
+                Y = 14,
+                Text = label,
+                Font = HomeTypography.Display(7),
+                Colour = SongSelectTheme.Cyan,
+            },
+        ],
+    };
 
     private Container createModPanel() => new Container
     {
@@ -1563,17 +1661,19 @@ public partial class SongSelectScreen : Screen
 
         detailsHost.AddRange(new Drawable[]
         {
+            createSongInfoPaper(),
             new SpriteText
             {
-                Text = "SONG SELECT",
+                Position = new Vector2(20, 14),
+                Text = selectedEntry.IsPackage ? "CHART IN PACK" : "SONG SELECT",
                 Font = HomeTypography.Display(10),
                 Spacing = new Vector2(2.2f, 0),
                 Colour = SongSelectTheme.Cyan,
             },
             new Box
             {
-                Position = new Vector2(92, 8),
-                Size = new Vector2(102, 1),
+                Position = new Vector2(112, 21),
+                Size = new Vector2(82, 1),
                 Colour = new Color4(
                     SongSelectTheme.Cyan.R,
                     SongSelectTheme.Cyan.G,
@@ -1582,42 +1682,35 @@ public partial class SongSelectScreen : Screen
             },
             new SpriteIcon
             {
-                Position = new Vector2(212, 2),
+                Position = new Vector2(205, 15),
                 Size = new Vector2(10),
                 Icon = FontAwesome.Solid.Plus,
                 Colour = SongSelectTheme.Pink,
             },
             createPlaybackRateBadge(rateLabel),
+            createAdaptiveDetailsTitle(selectedEntry.Beatmap.Title),
             new SpriteText
             {
-                Position = new Vector2(0, 28),
-                Width = 360,
-                Truncate = true,
-                Text = selectedEntry.Beatmap.Title,
-                Font = HomeTypography.Display(
-                    detailsTitleFontSize(selectedEntry.Beatmap.Title)),
-                Colour = SongSelectTheme.Navy,
-            },
-            new SpriteText
-            {
-                Position = new Vector2(0, 77),
-                Width = 355,
+                Position = new Vector2(20, 91),
+                Width = 285,
                 Truncate = true,
                 Text = selectedEntry.Beatmap.Artist,
-                Font = HomeTypography.Display(19),
+                Font = HomeTypography.Display(14),
                 Colour = SongSelectTheme.Navy,
             },
             new SpriteText
             {
-                Position = new Vector2(0, 101),
+                Position = new Vector2(20, 110),
+                Width = 285,
+                Truncate = true,
                 Text = $"mapped by {selectedEntry.Beatmap.Creator}",
-                Font = HomeTypography.Body(13),
+                Font = HomeTypography.Body(10),
                 Colour = SongSelectTheme.Cyan,
             },
             new Container
             {
-                Position = new Vector2(0, 128),
-                AutoSizeAxes = Axes.Both,
+                Position = new Vector2(20, 132),
+                Size = new Vector2(150, 22),
                 Masking = true,
                 CornerRadius = 5,
                 Children = new Drawable[]
@@ -1629,63 +1722,94 @@ public partial class SongSelectScreen : Screen
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(10, 4),
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Width = 136,
+                        Truncate = true,
                         Text = appliedBeatmap.StageCount == 2
                             ? $"{appliedBeatmap.KeysPerStage}K + "
                               + $"{appliedBeatmap.KeysPerStage}K · "
                               + selectedEntry.Beatmap.DifficultyName
                             : $"{(int)appliedBeatmap.KeyMode}K · "
                               + selectedEntry.Beatmap.DifficultyName,
-                        Font = HomeTypography.Display(12),
+                        Font = HomeTypography.Display(10),
                         Colour = Color4.White,
                     },
                 },
             },
             createStarRating(starRating),
-            new Box
-            {
-                Position = new Vector2(0, 216),
-                Width = 360,
-                Height = 1,
-                Colour = new Color4(
-                    SongSelectTheme.Cyan.R,
-                    SongSelectTheme.Cyan.G,
-                    SongSelectTheme.Cyan.B,
-                    0.55f),
-            },
             createSongStat(
-                0,
-                232,
+                184,
+                132,
                 FontAwesome.Regular.Clock,
                 "LENGTH",
                 TimeSpan.FromMilliseconds(
                     displayedLengthMilliseconds).ToString(@"mm\:ss")),
             createSongStat(
-                115,
-                232,
+                244,
+                132,
                 FontAwesome.Solid.WaveSquare,
                 "BPM",
                 bpmLabel),
-            createBestScoreStat(225, 232),
-            new Box
-            {
-                Position = new Vector2(0, 290),
-                Width = 360,
-                Height = 1,
-                Colour = new Color4(
-                    SongSelectTheme.Navy.R,
-                    SongSelectTheme.Navy.G,
-                    SongSelectTheme.Navy.B,
-                    0.14f),
-            },
             rankingPanel,
         });
     }
 
-    private static float detailsTitleFontSize(string text)
+    private static Drawable createSongInfoPaper() => new Container
     {
-        int length = Math.Max(1, text?.Length ?? 0);
-        return Math.Clamp(700f / length, 16f, 40f);
+        Size = new Vector2(320, 204),
+        Rotation = -0.6f,
+        Masking = true,
+        CornerRadius = 8,
+        BorderThickness = 1.2f,
+        BorderColour = new Color4(
+            SongSelectTheme.Navy.R,
+            SongSelectTheme.Navy.G,
+            SongSelectTheme.Navy.B,
+            0.18f),
+        Children =
+        [
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = new Color4(1f, 0.985f, 0.94f, 0.97f),
+            },
+            new Box
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.Centre,
+                Position = new Vector2(-17, 4),
+                Size = new Vector2(46, 15),
+                Rotation = 8,
+                Colour = new Color4(1f, 0.33f, 0.67f, 0.8f),
+            },
+        ],
+    };
+
+    private static Drawable createAdaptiveDetailsTitle(string title)
+    {
+        string[] lines = SongSelectTextLayout.TwoLines(title, 22);
+        var flow = new FillFlowContainer
+        {
+            Position = new Vector2(20, 35),
+            Width = 282,
+            AutoSizeAxes = Axes.Y,
+            Direction = FillDirection.Vertical,
+            Spacing = new Vector2(0, -2),
+        };
+        foreach (string line in lines)
+        {
+            flow.Add(new SpriteText
+            {
+                Width = 282,
+                Truncate = true,
+                Text = line,
+                Font = HomeTypography.Display(lines.Length == 1 ? 29 : 23),
+                Colour = SongSelectTheme.Navy,
+            });
+        }
+
+        return flow;
     }
 
     private Drawable createBestScoreStat(float x, float y) => new Container
@@ -1732,21 +1856,21 @@ public partial class SongSelectScreen : Screen
     private static Drawable createSongStat(float x, float y, IconUsage icon, LocalisableString label, string value) => new Container
     {
         Position = new Vector2(x, y),
-        Size = new Vector2(104, 52),
+        Size = new Vector2(58, 52),
         Children = new Drawable[]
         {
             new SpriteIcon
             {
                 Position = new Vector2(0, 4),
-                Size = new Vector2(15),
+                Size = new Vector2(11),
                 Icon = icon,
                 Colour = SongSelectTheme.Cyan,
             },
             new SpriteText
             {
-                Position = new Vector2(20, 0),
+                Position = new Vector2(15, 0),
                 Text = label,
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Display(7),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -1755,9 +1879,9 @@ public partial class SongSelectScreen : Screen
             },
             new SpriteText
             {
-                Position = new Vector2(20, 17),
+                Position = new Vector2(15, 14),
                 Text = value,
-                Font = HomeTypography.Display(20),
+                Font = HomeTypography.Display(14),
                 Colour = SongSelectTheme.Navy,
             },
         },
@@ -1767,8 +1891,8 @@ public partial class SongSelectScreen : Screen
         string rateLabel) =>
         new Container
         {
-            Position = new Vector2(292, -1),
-            Size = new Vector2(128, 24),
+            Position = new Vector2(229, 10),
+            Size = new Vector2(74, 21),
             Masking = true,
             CornerRadius = 4,
             BorderThickness = 1,
@@ -1784,7 +1908,7 @@ public partial class SongSelectScreen : Screen
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Text = $"ALT +/-  {rateLabel}",
+                    Text = rateLabel,
                     Font = HomeTypography.Display(9),
                     Colour = SongSelectTheme.Navy,
                 },
@@ -1799,7 +1923,7 @@ public partial class SongSelectScreen : Screen
 
         var flow = new FillFlowContainer
         {
-            Position = new Vector2(0, 174),
+            Position = new Vector2(20, 166),
             AutoSizeAxes = Axes.Both,
             Direction = FillDirection.Horizontal,
             Spacing = new Vector2(4, 0),
@@ -1811,7 +1935,7 @@ public partial class SongSelectScreen : Screen
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                Size = new Vector2(18),
+                Size = new Vector2(14),
                 Icon = i < filled ? FontAwesome.Solid.Star : FontAwesome.Regular.Star,
                 Colour = rating.IsSuccess ? SongSelectTheme.Yellow : SongSelectTheme.PaleCyan,
             });
@@ -1823,7 +1947,7 @@ public partial class SongSelectScreen : Screen
             Origin = Anchor.CentreLeft,
             X = 6,
             Text = rating.Value?.ToString("0.00") ?? "--",
-            Font = HomeTypography.Display(20),
+            Font = HomeTypography.Display(15),
             Colour = SongSelectTheme.Navy,
         });
 
@@ -2044,13 +2168,15 @@ public partial class SongSelectScreen : Screen
             {
                 ranking = ranking.Append(new SongSelectScore(
                                    0,
-                                   "YOKKO",
+                                   "MOCHI",
                                    "yokko",
                                    saved.Rank,
                                    (int)Math.Min(int.MaxValue, saved.Score),
                                    saved.Accuracy,
+                                   saved.MaxCombo,
                                    saved.Mods ?? [],
-                                   true))
+                                   true,
+                                   saved.PlayedAt))
                                  .OrderByDescending(score => score.Score);
             }
 
@@ -2061,6 +2187,24 @@ public partial class SongSelectScreen : Screen
                                })
                                .ToArray();
 
+            SongSelectScore[] history = scoreStore.GetHistory(
+                                                   entry.Beatmap,
+                                                   gameplaySettings.GetJudgementConfiguration(),
+                                                   30)
+                                               .Select((score, rank) =>
+                                                   new SongSelectScore(
+                                                       rank + 1,
+                                                       "MOCHI",
+                                                       "yokko",
+                                                       score.Rank,
+                                                       (int)Math.Min(int.MaxValue, score.Score),
+                                                       score.Accuracy,
+                                                       score.MaxCombo,
+                                                       score.Mods ?? [],
+                                                       true,
+                                                       score.PlayedAt))
+                                               .ToArray();
+
             entries[i] = entry with
             {
                 BestScore = saved == null
@@ -2068,6 +2212,7 @@ public partial class SongSelectScreen : Screen
                     : (int)Math.Min(int.MaxValue, saved.Score),
                 BestAccuracy = saved?.Accuracy ?? 0,
                 Ranking = ranked,
+                History = history,
             };
         }
     }
@@ -2270,16 +2415,30 @@ public partial class SongSelectScreen : Screen
 
         return new SongSelectEntry(
             beatmap,
-            imported.ArtworkPath ?? "SongSelect/blue-signal",
+            imported.ArtworkPath
+            ?? (beatmap.Title.Equals("Waterfall", StringComparison.OrdinalIgnoreCase)
+                ? "SongSelect/waterfall-cute"
+                : "SongSelect/blue-signal"),
             imported.StarRating,
             TimeSpan.FromMilliseconds(Math.Max(0, lengthMilliseconds)),
             bpm,
             0,
             0,
+            createDemoRanking(),
             [],
             imported.PackageId,
             imported.PackageName,
             imported.IsPackage);
     }
+
+    private static IReadOnlyList<SongSelectScore> createDemoRanking() =>
+    [
+        new(1, "RIN", "SongSelect/Avatars/rin", ScoreRank.S, 2_845_901, 0.9972, 1842, ["HD"]),
+        new(2, "MIKA", "SongSelect/Avatars/mika", ScoreRank.S, 2_731_550, 0.9928, 1756, ["DT"]),
+        new(3, "NANA", "SongSelect/Avatars/nana", ScoreRank.S, 2_698_234, 0.9891, 1689, ["HR"]),
+        new(4, "LUNA", "SongSelect/Avatars/luna", ScoreRank.A, 2_554_700, 0.9764, 1542, []),
+        new(5, "AOI", "SongSelect/Avatars/aoi", ScoreRank.A, 2_432_190, 0.9682, 1430, ["MR"]),
+        new(6, "MOCHI", "yokko", ScoreRank.A, 2_398_420, 0.9621, 1388, ["HD"], true),
+    ];
 
 }

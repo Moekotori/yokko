@@ -89,11 +89,11 @@ final result: passed
 - Source visual truth:
   `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-fd661d85-dd8d-4cba-b5ef-047e5e1a6fc5.png`
 - Native implementation:
-  `D:\yokko\artifacts\mods\orbit-redesign-final-readable.png`
+  `D:\yokko\artifacts\mods\orbit-polish-empty.png`
 - Active-state implementation:
-  `D:\yokko\artifacts\mods\orbit-redesign-readable.png`
+  `D:\yokko\artifacts\mods\orbit-polish-active.png`
 - Side-by-side comparison:
-  `D:\yokko\artifacts\mods\orbit-redesign-comparison-final.png`
+  `D:\yokko\artifacts\mods\orbit-polish-comparison.png`
 - Authored viewport: 1600 x 900, verified through the native 3168 x 1785
   renderer capture used by the 3200 x 2000 desktop.
 - States: empty Difficulty Down page and active Difficulty Up page with
@@ -112,8 +112,14 @@ final result: passed
   geometry.
 - Interaction: category rows and rail arrows are clickable; mouse wheel and
   Tab move between pages; orbit nodes support hover, click, and keyboard focus;
-  the rate slider supports continuous drag and +/- nudging; active rows remove
-  Mods; Back, Reset, and Done are functional.
+  the central hero toggles the focused Mod; the rate slider supports continuous
+  drag and +/- nudging; active rows remove Mods; Back, Reset, and Done are
+  functional. Hover and press states now animate position, scale, track weight,
+  underline, colour, and removal affordances without delaying state changes.
+- Motion and decoration: the selected category diamond and active-node halo
+  breathe gently; source-derived waveform and point fields pulse at independent
+  rhythms; orbit signal markers and a restrained footer scan line add technical
+  motion while preserving copy readability.
 - Behaviour: all 1K-10K conversion Mods remain hidden. Real Mod compatibility,
   mutual exclusion, preferences, configuration state, score multiplier, and
   commit-on-handoff behaviour remain owned by `GameplayModsScreen`.
@@ -134,9 +140,10 @@ final result: passed
 ## Verification
 
 - Isolated `dotnet build Yokko.Game.Tests\Yokko.Game.Tests.csproj
-  --no-restore --artifacts-path D:\yokko\artifacts\mods\orbit-pass2-build`:
+  --no-restore --artifacts-path D:\yokko\artifacts\mods\polish-qa-build`:
   passed with 0 warnings and 0 errors.
-- Focused `TestSceneGameplayModsScreen` suite: passed, 7/7.
+- Focused `TestSceneGameplayModsScreen` suite: passed, 8/8, including the
+  central-hero activation path.
 - Native Direct3D 11 empty-state and active-state previews: exited with code 0.
 - Final source/implementation comparison and 2K readability captures were
   reviewed at matching authored density.

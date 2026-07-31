@@ -19,8 +19,10 @@ internal sealed record SongSelectScore(
     ScoreRank Grade,
     int Score,
     double Accuracy,
+    int MaxCombo,
     IReadOnlyList<string> Mods,
-    bool IsCurrentPlayer = false);
+    bool IsCurrentPlayer = false,
+    DateTimeOffset? PlayedAt = null);
 
 internal sealed record SongSelectEntry(
     YokkoBeatmap Beatmap,
@@ -31,6 +33,7 @@ internal sealed record SongSelectEntry(
     int BestScore,
     double BestAccuracy,
     IReadOnlyList<SongSelectScore> Ranking,
+    IReadOnlyList<SongSelectScore> History,
     string PackageId,
     string PackageName,
     bool IsPackage);

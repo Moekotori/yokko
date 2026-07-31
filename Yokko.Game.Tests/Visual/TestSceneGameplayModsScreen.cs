@@ -1,11 +1,13 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Screens;
+using osu.Framework.Testing;
 using osuTK;
 using osuTK.Input;
 using SixLabors.ImageSharp;
@@ -288,6 +290,24 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddAssert("custom seed reaches replay-owned Mod set", () =>
             modsScreen.SelectedMods.Contains(ManiaModId.Random)
             && modsScreen.SelectedMods.RandomSeed == -123456789);
+    }
+
+    [Test]
+    public void TestOrbitHeroTogglesFocusedMod()
+    {
+        OrbitHeroPanel hero = null;
+        ManiaModId focused = default;
+        AddStep("prepare orbit hero interaction", () =>
+        {
+            modsScreen.ResetMods();
+            modsScreen.SetCategory(ManiaModCategory.DifficultyReduction);
+            focused = modsScreen.DetailMod;
+            hero = this.ChildrenOfType<OrbitHeroPanel>().Single();
+        });
+        AddStep("activate focused mod from hero", () =>
+            hero.ActivateForTest());
+        AddAssert("hero toggles the focused mod", () =>
+            modsScreen.SelectedMods.Contains(focused));
     }
 
     [Test]

@@ -31,15 +31,21 @@ internal sealed record StoredGameplayScore(
 internal sealed class GameplayScoreStore
 {
     private const string scores_filename = "Scores/scores.json";
+    private const string history_filename = "Scores/history.json";
+    private const int maximum_history_entries = 100;
 
     private readonly Dictionary<string, StoredGameplayScore> scores =
         new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<StoredGameplayScore>> history =
+        new(StringComparer.Ordinal);
     private string scoresPath;
+    private string historyPath;
 
     public void Initialise(Storage storage)
     {
         ArgumentNullException.ThrowIfNull(storage);
         scoresPath = storage.GetFullPath(scores_filename, true);
+        historyPath = storage.GetFullPath(history_filename, true);
         load();
     }
 
@@ -90,12 +96,6 @@ internal sealed class GameplayScoreStore
             mods,
             judgementConfiguration);
 
-        if (scores.TryGetValue(key, out StoredGameplayScore existing)
-            && existing.Score >= result.Score)
-        {
-            return false;
-        }
-
         var replacement = new StoredGameplayScore(
             result.Score,
             result.Accuracy,
@@ -109,41 +109,102 @@ internal sealed class GameplayScoreStore
             result.Miss,
             DateTimeOffset.UtcNow,
             mods.Acronyms.ToArray());
-        scores[key] = replacement;
+        string historyKey = historyKeyFor(
+            beatmap,
+            judgementConfiguration);
+        List<StoredGameplayScore> attempts =
+            history.GetValueOrDefault(historyKey) ?? [];
+        history[historyKey] = attempts;
+        attempts.Insert(0, replacement);
+        if (attempts.Count > maximum_history_entries)
+            attempts.RemoveRange(
+                maximum_history_entries,
+                attempts.Count - maximum_history_entries);
+
+        bool isBest = !scores.TryGetValue(
+                          key,
+                          out StoredGameplayScore existing)
+                      || existing.Score < result.Score;
+        if (isBest)
+            scores[key] = replacement;
 
         if (save())
-            return true;
+            return isBest;
 
-        if (existing != null)
-            scores[key] = existing;
-        else
-            scores.Remove(key);
+        attempts.Remove(replacement);
+        if (attempts.Count == 0)
+            history.Remove(historyKey);
+        if (isBest)
+        {
+            if (existing != null)
+                scores[key] = existing;
+            else
+                scores.Remove(key);
+        }
 
         return false;
+    }
+
+    public IReadOnlyList<StoredGameplayScore> GetHistory(
+        YokkoBeatmap beatmap,
+        JudgementConfiguration judgementConfiguration,
+        int limit = 50)
+    {
+        ensureInitialised();
+        if (limit <= 0)
+            return [];
+
+        return history.GetValueOrDefault(
+                   historyKeyFor(beatmap, judgementConfiguration))?
+               .OrderByDescending(score => score.Score)
+               .ThenByDescending(score => score.PlayedAt)
+               .Take(limit)
+               .ToArray()
+               ?? [];
     }
 
     private void load()
     {
         scores.Clear();
+        history.Clear();
 
-        if (!File.Exists(scoresPath))
+        if (File.Exists(scoresPath))
+        {
+            try
+            {
+                Dictionary<string, StoredGameplayScore> loaded =
+                    JsonSerializer.Deserialize<Dictionary<string, StoredGameplayScore>>(
+                        File.ReadAllText(scoresPath));
+
+                if (loaded != null)
+                {
+                    foreach ((string key, StoredGameplayScore score) in loaded)
+                        scores[key] = score;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Could not load saved gameplay scores.");
+            }
+        }
+
+        if (!File.Exists(historyPath))
             return;
 
         try
         {
-            Dictionary<string, StoredGameplayScore> loaded =
-                JsonSerializer.Deserialize<Dictionary<string, StoredGameplayScore>>(
-                    File.ReadAllText(scoresPath));
-
+            Dictionary<string, List<StoredGameplayScore>> loaded =
+                JsonSerializer.Deserialize<Dictionary<string, List<StoredGameplayScore>>>(
+                    File.ReadAllText(historyPath));
             if (loaded == null)
                 return;
 
-            foreach ((string key, StoredGameplayScore score) in loaded)
-                scores[key] = score;
+            foreach ((string key, List<StoredGameplayScore> attempts) in loaded)
+                history[key] = attempts ?? [];
         }
         catch (Exception ex)
         {
-            Logger.Error(ex, "Could not load saved gameplay scores.");
+            Logger.Error(ex, "Could not load gameplay score history.");
         }
     }
 
@@ -162,6 +223,14 @@ internal sealed class GameplayScoreStore
                     scores,
                     new JsonSerializerOptions { WriteIndented = true }));
             File.Move(temporaryPath, scoresPath, true);
+
+            string temporaryHistoryPath = historyPath + ".tmp";
+            File.WriteAllText(
+                temporaryHistoryPath,
+                JsonSerializer.Serialize(
+                    history,
+                    new JsonSerializerOptions { WriteIndented = true }));
+            File.Move(temporaryHistoryPath, historyPath, true);
             return true;
         }
         catch (Exception ex)
@@ -173,8 +242,20 @@ internal sealed class GameplayScoreStore
 
     private void ensureInitialised()
     {
-        if (scoresPath == null)
+        if (scoresPath == null || historyPath == null)
             throw new InvalidOperationException("The score store is not initialised.");
+    }
+
+    private static string historyKeyFor(
+        YokkoBeatmap beatmap,
+        JudgementConfiguration judgementConfiguration)
+    {
+        // History intentionally ignores Mods so the per-chart view behaves
+        // like osu!'s local score list while retaining each attempt's Mods.
+        return keyFor(
+            beatmap,
+            ManiaModSet.Empty,
+            judgementConfiguration);
     }
 
     private static string keyFor(

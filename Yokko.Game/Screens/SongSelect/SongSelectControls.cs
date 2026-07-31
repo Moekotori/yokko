@@ -36,7 +36,7 @@ internal partial class SongSelectSearchBox : BasicTextBox
     {
         this.queryChanged = queryChanged;
         this.escapePressed = escapePressed;
-        Size = new Vector2(360, 44);
+        Size = new Vector2(198, 44);
         Masking = true;
         CornerRadius = 6;
         BorderThickness = 1;
@@ -45,16 +45,8 @@ internal partial class SongSelectSearchBox : BasicTextBox
             SongSelectTheme.Cyan.G,
             SongSelectTheme.Cyan.B,
             0.56f);
-        BackgroundUnfocused = new Color4(
-            SongSelectTheme.DeepNavy.R,
-            SongSelectTheme.DeepNavy.G,
-            SongSelectTheme.DeepNavy.B,
-            0.86f);
-        BackgroundFocused = new Color4(
-            SongSelectTheme.Navy.R,
-            SongSelectTheme.Navy.G,
-            SongSelectTheme.Navy.B,
-            0.96f);
+        BackgroundUnfocused = new Color4(1f, 0.985f, 0.94f, 0.96f);
+        BackgroundFocused = Color4.White;
         FontSize = 15;
         PlaceholderText = YokkoStrings.Get("song_select.search");
 
@@ -126,13 +118,17 @@ internal partial class SongSelectSearchBox : BasicTextBox
     {
         Text = c.ToString(),
         Font = HomeTypography.Body(15),
-        Colour = SongSelectTheme.Ivory,
+        Colour = SongSelectTheme.Navy,
     };
 
     protected override SpriteText CreatePlaceholder() => new()
     {
         Font = HomeTypography.Body(15),
-        Colour = new Color4(1f, 1f, 1f, 0.58f),
+        Colour = new Color4(
+            SongSelectTheme.Navy.R,
+            SongSelectTheme.Navy.G,
+            SongSelectTheme.Navy.B,
+            0.58f),
     };
 
     protected override void OnFocus(FocusEvent e)
@@ -218,15 +214,11 @@ internal partial class SongSelectFilterButton : ClickableContainer
     {
         selected = value;
         background.Colour = selected
-            ? SongSelectTheme.SurfaceRaised
-            : new Color4(
-                SongSelectTheme.DeepNavy.R,
-                SongSelectTheme.DeepNavy.G,
-                SongSelectTheme.DeepNavy.B,
-                0.76f);
+            ? SongSelectTheme.Navy
+            : new Color4(1f, 0.985f, 0.94f, 0.96f);
         label.Colour = selected
-            ? SongSelectTheme.Ivory
-            : SongSelectTheme.PaleCyan;
+            ? Color4.White
+            : SongSelectTheme.Navy;
         accentDot.Colour = selected
             ? SongSelectTheme.Pink
             : SongSelectTheme.Cyan;
@@ -254,7 +246,7 @@ internal partial class SongSelectFilterButton : ClickableContainer
     }
 }
 
-internal partial class SongSelectSongRow : ClickableContainer
+internal partial class LegacySongSelectSongRow : ClickableContainer
 {
     private readonly Box tint;
     private readonly Box selectedTopBorder;
@@ -270,7 +262,7 @@ internal partial class SongSelectSongRow : ClickableContainer
 
     public SongSelectEntry Entry { get; }
 
-    public SongSelectSongRow(SongSelectEntry entry, Texture wallpaper, Action select, Action play)
+    public LegacySongSelectSongRow(SongSelectEntry entry, Texture wallpaper, Action select, Action play)
     {
         Entry = entry;
         Action = select;
@@ -533,11 +525,11 @@ internal partial class SongSelectSongRow : ClickableContainer
     }
 }
 
-internal partial class SongSelectPackageHeader : ClickableContainer
+internal partial class LegacySongSelectPackageHeader : ClickableContainer
 {
     private readonly SpriteIcon chevron;
 
-    public SongSelectPackageHeader(
+    public LegacySongSelectPackageHeader(
         string packageName,
         int songCount,
         int chartCount,
@@ -619,7 +611,7 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         this.FadeColour(Color4.White, 100, Easing.OutQuint);
 }
 
-internal partial class SongSelectRankingPanel : ClickableContainer
+internal partial class LegacySongSelectRankingPanel : ClickableContainer
 {
     private const float panel_width = 440;
     private const float content_height = 152;
@@ -635,7 +627,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
     public SongSelectScoreView View => view;
     internal Vector2 ContentSize => content.Size;
 
-    public SongSelectRankingPanel(SongSelectEntry entry, TextureStore textures, Action<SongSelectScoreView> viewChanged)
+    public LegacySongSelectRankingPanel(SongSelectEntry entry, TextureStore textures, Action<SongSelectScoreView> viewChanged)
     {
         this.entry = entry;
         this.textures = textures;
