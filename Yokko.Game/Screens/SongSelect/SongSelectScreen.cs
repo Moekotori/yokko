@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -137,6 +138,7 @@ public partial class SongSelectScreen : Screen
     private bool packagesCollapsed;
     private bool previewActive;
     private bool transitionPending;
+    private Stopwatch loadStopwatch;
     private double displayedPlaybackRate = 1;
     private string displayedBpm = "0";
     private ManiaMsdResult displayedMsdRating;
@@ -241,6 +243,7 @@ public partial class SongSelectScreen : Screen
     [BackgroundDependencyLoader]
     private void load(TextureStore textureStore)
     {
+        loadStopwatch = Stopwatch.StartNew();
         textures = textureStore;
         selectedMods =
             modPreferences?.RestoreActiveMods() ?? ManiaModSet.Empty;
@@ -260,6 +263,7 @@ public partial class SongSelectScreen : Screen
         // is missed and the first song-select screen stays empty.
         importedChartLibrary.LibraryChanged += onChartLibraryChanged;
         synchroniseImportedCharts();
+        logLoadStage("library snapshot");
         refreshSavedScores();
         selectedEntry = entries.LastOrDefault();
         visibleEntries = entries.ToList();
@@ -298,17 +302,41 @@ public partial class SongSelectScreen : Screen
                 },
             },
         };
+        logLoadStage("static UI");
 
         backgroundB.Alpha = 0;
         activeBackground = backgroundA;
         rebuildDetails();
+        logLoadStage("selected details");
         applyFilters();
+        logLoadStage("song rows");
         updateFilters();
         displaySettings.DifficultyRatingMode.BindValueChanged(
             onDifficultyRatingModeChanged);
 
         stage.Alpha = 0;
         stage.Y = 14;
+
+        Logger.Log(
+            $"Song select construction: {loadStopwatch.Elapsed.TotalMilliseconds:0} ms "
+            + $"({entries.Count} charts, {rows.Count} rows).",
+            LoggingTarget.Runtime,
+            LogLevel.Important);
+    }
+
+    private void logLoadStage(string stage) => Logger.Log(
+        $"Song select stage {stage}: {loadStopwatch.Elapsed.TotalMilliseconds:0} ms.",
+        LoggingTarget.Runtime,
+        LogLevel.Important);
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+        Logger.Log(
+            $"Song select fully loaded: {loadStopwatch?.Elapsed.TotalMilliseconds ?? 0:0} ms "
+            + $"({entries.Count} charts, {rows.Count} rows).",
+            LoggingTarget.Runtime,
+            LogLevel.Important);
     }
 
     public override void OnEntering(ScreenTransitionEvent e)
@@ -2280,7 +2308,7 @@ public partial class SongSelectScreen : Screen
                     entry,
                     difficultyRatingsFor(entry),
                     displaySettings.DifficultyRatingMode.Value,
-                    textureFor(entry),
+                    entry.IsPackage ? null : textureFor(entry),
                     textures.Get("SongSelect/Cute/sticker-star"),
                     () => select(entry),
                     () =>
@@ -2617,10 +2645,11 @@ public partial class SongSelectScreen : Screen
             entry.Beatmap.SourceFormat == ChartSourceFormat.Quaver
                 ? JudgementConfiguration.QuaverDefault
                 : gameplaySettings.GetJudgementConfiguration();
+        bool minesEnabled = gameplaySettings.MinesEnabled.Value;
         var state = new DifficultyCacheState(
             selectedMods.Fingerprint,
             judgementConfiguration,
-            gameplaySettings.MinesEnabled.Value);
+            minesEnabled);
         if (difficultyRatingsCache.TryGetValue(
                 entry,
                 out Dictionary<
@@ -2633,29 +2662,47 @@ public partial class SongSelectScreen : Screen
             return cached;
         }
 
-        YokkoBeatmap appliedBeatmap =
-            ManiaBeatmapModTransformer.Apply(
-                entry.Beatmap,
-                selectedMods);
-        YokkoBeatmap difficultyBeatmap =
-            ManiaTimeRampTimeline.TransformForDifficulty(
-                appliedBeatmap,
-                selectedMods);
-        double timelineRate = selectedMods.HasTimeRamp
-            ? 1
-            : selectedMods.PlaybackRate;
-        ManiaStarRatingContext context =
-            ManiaStarRatingContext.ForGameplay(
-                difficultyBeatmap,
-                selectedMods,
-                judgementConfiguration,
-                gameplaySettings.MinesEnabled.Value,
-                timelineRate);
-        ManiaDifficultyRatings ratings =
-            ManiaDifficultyCalculator.CalculateResult(
+        JudgementConfiguration importedJudgement =
+            entry.Beatmap.SourceFormat == ChartSourceFormat.Quaver
+                ? JudgementConfiguration.QuaverDefault
+                : JudgementConfiguration.YokkoDefault;
+        ManiaDifficultyRatings ratings;
+        if (selectedMods.IsEmpty
+            && minesEnabled
+            && judgementConfiguration == importedJudgement)
+        {
+            // ImportedChartLibrary already calculates and persistently caches
+            // this exact no-mod result. Re-running both native MSD and Rebirth
+            // for every visual row made the redesigned list take seconds.
+            ratings = new ManiaDifficultyRatings(
+                entry.DifficultyRating,
+                entry.StarRating);
+        }
+        else
+        {
+            YokkoBeatmap appliedBeatmap =
+                ManiaBeatmapModTransformer.Apply(
+                    entry.Beatmap,
+                    selectedMods);
+            YokkoBeatmap difficultyBeatmap =
+                ManiaTimeRampTimeline.TransformForDifficulty(
+                    appliedBeatmap,
+                    selectedMods);
+            double timelineRate = selectedMods.HasTimeRamp
+                ? 1
+                : selectedMods.PlaybackRate;
+            ManiaStarRatingContext context =
+                ManiaStarRatingContext.ForGameplay(
+                    difficultyBeatmap,
+                    selectedMods,
+                    judgementConfiguration,
+                    minesEnabled,
+                    timelineRate);
+            ratings = ManiaDifficultyCalculator.CalculateResult(
                 difficultyBeatmap,
                 context,
                 timelineRate);
+        }
 
         if (entryCache == null)
         {

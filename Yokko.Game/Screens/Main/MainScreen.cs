@@ -367,6 +367,7 @@ public partial class MainScreen : Screen
     public override void OnResuming(ScreenTransitionEvent e)
     {
         base.OnResuming(e);
+        beginSongSelectPreload();
         musicPlayer.Activate();
         this.FadeIn(200, Easing.OutQuint);
     }
@@ -432,10 +433,6 @@ public partial class MainScreen : Screen
 
         preloadedSongSelect = null;
         songSelectOpenRequested = false;
-
-        // Start preparing the next visit before this screen suspends. Returning
-        // to the home screen can then reuse another fully-loaded instance.
-        beginSongSelectPreload();
         this.Push(screen);
     }
 
