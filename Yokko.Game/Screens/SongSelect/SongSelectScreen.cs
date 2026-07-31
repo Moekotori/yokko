@@ -1030,7 +1030,7 @@ public partial class SongSelectScreen : Screen
                     Width = browse_width,
                     AutoSizeAxes = Axes.Y,
                     Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 8),
+                    Spacing = new Vector2(0, 5),
                 },
             },
             noResults = new SpriteText
@@ -1867,7 +1867,7 @@ public partial class SongSelectScreen : Screen
 
     private static Drawable createAdaptiveDetailsTitle(string title)
     {
-        string[] lines = SongSelectTextLayout.TwoLines(title, 38);
+        string[] lines = SongSelectTextLayout.TwoLines(title, 30);
         var flow = new FillFlowContainer
         {
             Position = new Vector2(252, 58),
@@ -2795,7 +2795,7 @@ public partial class SongSelectScreen : Screen
         new(4, "LUNA", "SongSelect/Avatars/luna", ScoreRank.A, 2_554_700, 0.9764, 1542, []),
         new(5, "AOI", "SongSelect/Avatars/aoi", ScoreRank.A, 2_432_190, 0.9682, 1430, ["MR"]),
         new(6, "MOCHI", "yokko", ScoreRank.A, 2_398_420, 0.9621, 1388, ["HD"], true),
-        new(7, "YUKI", "Home/home-mascot-bubble-sticker", ScoreRank.A, 2_287_110, 0.9568, 1321, []),
+        new(7, "YUKI", "SongSelect/Avatars/aoi", ScoreRank.A, 2_287_110, 0.9568, 1321, []),
     ];
 
     private static Drawable createBackgroundIsolation() => new Box

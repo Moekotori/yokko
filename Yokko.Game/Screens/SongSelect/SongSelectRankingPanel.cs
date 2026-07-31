@@ -22,10 +22,10 @@ internal partial class SongSelectRankingPanel : ClickableContainer
 {
     private const float panel_width = 793;
     private const float panel_height = 466;
-    private const float rows_top = 58;
+    private const float rows_top = 42;
     private const float row_width = 793;
-    private const float row_height = 52;
-    private const float row_spacing = 6;
+    private const float row_height = 56;
+    private const float row_spacing = 5;
 
     private readonly Container content;
     private readonly Box globalUnderline;
@@ -59,7 +59,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         [
             new Box
             {
-                Position = new Vector2(0, 49),
+                Position = new Vector2(0, 40),
                 Size = new Vector2(panel_width, 1),
                 Colour = new Color4(
                     SongSelectTheme.Cyan.R,
@@ -85,7 +85,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-4, 18),
+                Position = new Vector2(-4, 14),
                 Text = "0 PLAYS",
                 Font = HomeTypography.Display(8),
                 Colour = new Color4(
@@ -260,9 +260,9 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                 new Container
                 {
                     Position = new Vector2(82, 3),
-                    Size = new Vector2(46),
+                    Size = new Vector2(50),
                     Masking = true,
-                    CornerRadius = 23,
+                    CornerRadius = 25,
                     BorderThickness = 1.5f,
                     BorderColour = accent,
                     Child = new Sprite
@@ -370,8 +370,8 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         };
         return new ClickableContainer
         {
-            Position = new Vector2(x, 5),
-            Size = new Vector2(label == "GLOBAL" ? 118 : 136, 42),
+            Position = new Vector2(x, 0),
+            Size = new Vector2(label == "GLOBAL" ? 118 : 136, 40),
             Action = action,
             Children =
             [

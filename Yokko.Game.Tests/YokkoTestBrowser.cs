@@ -286,7 +286,7 @@ namespace Yokko.Game.Tests
                 Add(new CursorContainer());
                 Scheduler.AddDelayed(() =>
                 {
-                    for (int i = 0; i < 6; i++)
+                    for (int i = 0; i < 4; i++)
                         songSelect.SelectPrevious();
                     songSelect.SetKeyModeFilter(KeyMode.SevenKey);
                     songSelect.TogglePackage(
@@ -540,7 +540,7 @@ namespace Yokko.Game.Tests
                         KeyMode.SevenKey,
                         176),
                     previewChart(
-                        "Celestial Reverie",
+                        "Eternal Echoes of the Fractured Sky Beyond the Shattered Horizon",
                         "Voidwalkers",
                         "DJ K1RA",
                         "Marathon x1.3",
@@ -575,6 +575,13 @@ namespace Yokko.Game.Tests
                         "Normal",
                         KeyMode.SevenKey,
                         162),
+                    previewChart(
+                        "Petals at Daybreak",
+                        "Koharu",
+                        "Yokko Team",
+                        "Hard",
+                        KeyMode.SevenKey,
+                        178),
                 ],
                 @"C:\Charts\Harmonic Bloom - Symphony of the Dreaming Petals.osz");
         }

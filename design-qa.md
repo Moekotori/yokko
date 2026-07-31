@@ -82,6 +82,76 @@ final result: passed
 
 ---
 
+# Gameplay Mods overall polish QA (2026-07-31)
+
+## Source visual truth
+
+- Baseline native implementation:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-compact-grouped-final.png`
+- Polished native implementation:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-overall-polish-pass1.png`
+- Full-view comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-overall-polish-comparison-full.png`
+- Focused orbit and control-panel comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-overall-polish-comparison-details.png`
+
+## Viewport and state
+
+- Both captures are native Direct3D 11 frames at 1600 x 1000 and 1x density.
+- State: Chinese locale, Difficulty Reduction page, Half Time focused,
+  Half Time and Hidden active, playback rate 0.75x.
+- No crop or density normalization was required for the full-view comparison.
+- Focused crops use the same pixel bounds in both captures: orbit
+  x=330..1145/y=145..790 and right panel x=1145..1600/y=145..790.
+
+## Findings and comparison history
+
+1. [P2 fixed] The baseline right panel claimed five available Mod slots but
+   rendered only four rows. The polished version renders all five slots in the
+   available height using a 48px row and 53px rhythm.
+2. [P2 fixed] Repeated dashed containers made the empty state visually louder
+   than active Mods. Empty slots now use one quiet guide line, a centred plus,
+   and the same full-row hit target.
+3. [P2 fixed] Tiny headings and telemetry competed with the orbit rather than
+   supporting it. Section labels, rate endpoints, node labels, and meaningful
+   telemetry were increased while nonessential rings, ticks, texture, and
+   ambient decoration were reduced.
+4. [P2 fixed] The header logo and central acronym dominated the page. Both were
+   reduced slightly, while the page title, focused Mod name, and primary rate
+   value gained clearer typographic hierarchy.
+5. [P3 retained] Small technical labels remain intentionally secondary. They
+   are decorative status texture and do not carry required interaction copy.
+
+## Required fidelity surfaces
+
+- Typography: key headings and values are larger and more consistent; body
+  copy remains readable without competing with the selected Mod acronym.
+- Spacing and layout: the three-column structure is unchanged. The right rail
+  now uses a consistent five-row system and the footer retains its compact
+  grouped actions.
+- Colors and tokens: only Yokko's existing ivory, navy, cyan, pink, yellow,
+  and pale-cyan tokens are used.
+- Image quality and assets: the existing logo, paper texture, and waveform
+  assets remain native and unscaled beyond their intended bounds. No generated
+  placeholder or custom SVG asset was introduced.
+- Copy and content: all localized player-facing copy is preserved. Technical
+  English remains decorative and subordinate.
+- Interaction and accessibility: active rows, remove controls, empty slots,
+  rate presets, slider, category rail, reset, back, and done retain their live
+  actions and pointer targets. Focused tests cover their core behaviors.
+
+## Verification
+
+- `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- Focused Gameplay Mods tests: 17 passed, 0 failed.
+- Native Direct3D 11 preview: captured successfully at 1600 x 1000.
+- Full and focused before/after comparisons contain no remaining actionable
+  P0, P1, or P2 issue.
+
+final result: passed
+
+---
+
 # Gameplay layout resize editor verification (2026-07-31)
 
 ## Evidence
