@@ -8,6 +8,7 @@ using osu.Framework.Graphics.Rendering;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Game.Screens.Gameplay;
 
@@ -40,12 +41,16 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
             0,
             0,
             4);
+        ManiaModSet mods = ManiaModSet.Empty
+            .With(ManiaModId.Hidden, true)
+            .WithFixedRate(ManiaModId.DoubleTime, 1.5);
 
         AddStep("show result screen", () =>
         {
             Add(overlay = new GameplayResultOverlay(
                 beatmap,
                 result,
+                mods,
                 true,
                 () => { },
                 () => { },
@@ -54,7 +59,10 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
         AddUntilStep("mascot texture loaded", () =>
             overlay?.MascotReady == true);
         AddAssert("mod chip is visible", () =>
-            overlay?.RenderedModChipCount > 0);
+            overlay?.RenderedModChipCount >= 3);
+        AddAssert("mod labels are preserved", () =>
+            overlay?.DisplayedMods.Contains("HD") == true
+            && overlay.DisplayedMods.Contains("DT"));
         AddUntilStep("entrance animation completes", () =>
             overlay?.EntranceComplete == true);
         AddStep("capture result screen", () =>

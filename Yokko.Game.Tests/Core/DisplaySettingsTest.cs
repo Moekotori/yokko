@@ -242,26 +242,22 @@ public sealed class DisplaySettingsTest
     }
 
     [Test]
-    public void ResultScreenUsesFullScaledViewport()
+    public void ResultScreenScalesReferenceCanvasProportionally()
     {
-        var stage = GameplayResultOverlay.CalculateResponsiveStageSize(
-            new osuTK.Vector2(1777.7778f, 1000));
-        var rightOffset =
-            GameplayResultOverlay.CalculateRightStageOffset(stage);
-
         Assert.Multiple(() =>
         {
             Assert.That(
-                stage,
-                Is.EqualTo(new osuTK.Vector2(1777.7778f, 1000)));
+                GameplayResultOverlay.CalculateResponsiveStageScale(
+                    new osuTK.Vector2(1777.7778f, 1000)),
+                Is.EqualTo(1.3888889f).Within(0.0001f));
             Assert.That(
-                rightOffset.X,
-                Is.EqualTo(497.7778f).Within(0.001f));
-            Assert.That(rightOffset.Y, Is.EqualTo(140));
-            Assert.That(
-                GameplayResultOverlay.CalculateResponsiveStageSize(
+                GameplayResultOverlay.CalculateResponsiveStageScale(
                     new osuTK.Vector2(1024, 576)),
-                Is.EqualTo(new osuTK.Vector2(1280, 720)));
+                Is.EqualTo(0.8f).Within(0.0001f));
+            Assert.That(
+                GameplayResultOverlay.CalculateResponsiveStageScale(
+                    new osuTK.Vector2(1600, 1000)),
+                Is.EqualTo(1.25f).Within(0.0001f));
         });
     }
 

@@ -80,6 +80,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private ManiaModSet selectedMods = ManiaModSet.Empty;
     private double displayedRate = 1;
     private bool built;
+    private bool stateInitialized;
 
     internal GameplayModsOrbitWorkspace(
         Action<ManiaModCategory> selectCategory,
@@ -151,6 +152,20 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         if (!built)
             return;
 
+        HashSet<ManiaModId> previousActive = selectedMods.Mods
+            .Where(mod => !isKeyConversionMod(mod))
+            .ToHashSet();
+        HashSet<ManiaModId> nextActive = nextSelectedMods.Mods
+            .Where(mod => !isKeyConversionMod(mod))
+            .ToHashSet();
+        HashSet<ManiaModId> activated = stateInitialized
+            ? nextActive.Except(previousActive).ToHashSet()
+            : [];
+        HashSet<ManiaModId> deactivated = stateInitialized
+            ? previousActive.Except(nextActive).ToHashSet()
+            : [];
+        bool activeSelectionChanged =
+            !previousActive.SetEquals(nextActive);
         bool rebuildOrbit = category != nextCategory || nodes.Count == 0;
         category = nextCategory;
         focusedMod = nextFocusedMod;
@@ -173,7 +188,9 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             node.SetState(
                 selectedMods.Contains(mod),
                 mod == focusedMod,
-                isSelectable(mod));
+                isSelectable(mod),
+                activated.Contains(mod),
+                deactivated.Contains(mod));
         }
 
         foreach (OrbitConnector connector in connectors)
@@ -182,7 +199,11 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 selectedMods.Contains(connector.StartMod)
                 || selectedMods.Contains(connector.EndMod),
                 connector.StartMod == focusedMod
-                || connector.EndMod == focusedMod);
+                || connector.EndMod == focusedMod,
+                activated.Contains(connector.StartMod)
+                || activated.Contains(connector.EndMod)
+                || deactivated.Contains(connector.StartMod)
+                || deactivated.Contains(connector.EndMod));
         }
 
         ManiaModDefinition focusedDefinition =
@@ -191,9 +212,13 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             $"FOCUS {focusedDefinition.Acronym}  //  ACTIVE {selectedMods.Mods.Count:00}";
         orbitScanner.SetAccent(accentFor(focusedDefinition));
 
-        updateHero();
-        updateActiveRows();
+        updateHero(
+            activated.Contains(focusedMod),
+            deactivated.Contains(focusedMod));
+        if (!stateInitialized || activeSelectionChanged)
+            updateActiveRows(activated);
         updateRate(selectedMods.PlaybackRate, selectedMods.FixedRateMod != null);
+        stateInitialized = true;
     }
 
     internal void PreviewRate(double value)
@@ -1309,7 +1334,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             .ToArray();
     }
 
-    private void updateHero()
+    private void updateHero(bool activated, bool deactivated)
     {
         ManiaModDefinition definition =
             OsuManiaModParityCatalog.Get(focusedMod);
@@ -1329,14 +1354,46 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         heroStateBackground.Colour = active ? accent : Color4.Transparent;
         heroStateIcon.Alpha = active ? 1 : 0;
         hero.FadeTo(1, 80);
+
+        if (activated)
+        {
+            heroAcronym.ClearTransforms();
+            heroAcronym.ScaleTo(0.9f)
+                       .Then().ScaleTo(1.08f, 150, Easing.OutBack)
+                       .Then().ScaleTo(1, 120, Easing.OutQuint);
+            heroStateBackground.ClearTransforms();
+            heroStateBackground.Alpha = 1;
+            heroStateBackground.Scale = new Vector2(0.12f, 1);
+            heroStateBackground.ScaleTo(Vector2.One, 210, Easing.OutQuint);
+            heroState.ClearTransforms();
+            heroState.ScaleTo(0.78f)
+                     .Then().ScaleTo(1.08f, 180, Easing.OutBack)
+                     .Then().ScaleTo(1, 100, Easing.OutQuint);
+            heroStateIcon.ClearTransforms();
+            heroStateIcon.Alpha = 0;
+            heroStateIcon.MoveToX(-54);
+            heroStateIcon.Delay(85)
+                         .FadeIn(110, Easing.OutQuint)
+                         .MoveToX(-40, 150, Easing.OutQuint);
+        }
+        else if (deactivated)
+        {
+            heroAcronym.ClearTransforms();
+            heroAcronym.ScaleTo(1.05f, 70, Easing.OutQuint)
+                       .Then().ScaleTo(0.98f, 100, Easing.InOutSine)
+                       .Then().ScaleTo(1, 100, Easing.OutQuint);
+            heroState.ClearTransforms();
+            heroState.FadeTo(0.38f, 70)
+                     .Then().FadeIn(130, Easing.OutQuint);
+        }
     }
 
-    private void updateActiveRows()
+    private void updateActiveRows(IReadOnlySet<ManiaModId> activated)
     {
         activeRows.Clear();
         ManiaModId[] active = selectedMods.Mods
             .Where(mod => !isKeyConversionMod(mod))
-            .OrderBy(mod => mod == focusedMod ? 0 : 1)
+            .OrderBy(mod => (int)mod)
             .Take(4)
             .ToArray();
         activeCount.Text = $"({active.Length}/5)";
@@ -1360,13 +1417,16 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             {
                 ManiaModDefinition definition =
                     OsuManiaModParityCatalog.Get(active[i]);
-                activeRows.Add(new OrbitActiveModRow(
+                var row = new OrbitActiveModRow(
                     definition,
                     accentFor(definition),
                     () => toggleMod(definition.Id))
                 {
                     Y = i * 66,
-                });
+                };
+                activeRows.Add(row);
+                if (activated.Contains(definition.Id))
+                    row.PlayActivationEntry();
             }
             else
             {
@@ -1716,8 +1776,12 @@ internal partial class OrbitConnector : CompositeDrawable
         SetState(false, false);
     }
 
-    internal void SetState(bool active, bool focused)
+    internal void SetState(
+        bool active,
+        bool focused,
+        bool animateTransition = false)
     {
+        bool activeChanged = this.active != active;
         this.active = active;
         this.focused = focused;
 
@@ -1756,6 +1820,32 @@ internal partial class OrbitConnector : CompositeDrawable
                 colour.G,
                 colour.B,
                 focused ? 0.72f : active ? 0.5f : 0.26f);
+        }
+
+        if (animateTransition && activeChanged)
+        {
+            glow.ClearTransforms();
+            glow.Alpha = active ? 0 : 1;
+            glow.FadeTo(1, active ? 260 : 170, Easing.OutQuint);
+            main.ClearTransforms();
+            main.Alpha = active ? 0.38f : 1;
+            main.FadeTo(1, active ? 210 : 150, Easing.OutQuint);
+            outerRail.ClearTransforms();
+            outerRail.MoveToY(active ? -2 : 2);
+            outerRail.MoveToY(0, 230, Easing.OutBack);
+            signal.ClearTransforms();
+            signal.ScaleTo(active ? 0.45f : 1.35f)
+                  .Then().ScaleTo(active ? 1.45f : 0.8f, 150, Easing.OutBack)
+                  .Then().ScaleTo(1, 120, Easing.OutQuint);
+            startJoint.ClearTransforms();
+            endJoint.ClearTransforms();
+            startJoint.ScaleTo(0.6f)
+                      .Then().ScaleTo(1.3f, 150, Easing.OutBack)
+                      .Then().ScaleTo(1, 110, Easing.OutQuint);
+            endJoint.Delay(65)
+                    .ScaleTo(0.6f)
+                    .Then().ScaleTo(1.3f, 150, Easing.OutBack)
+                    .Then().ScaleTo(1, 110, Easing.OutQuint);
         }
     }
 
@@ -2069,6 +2159,8 @@ internal partial class OrbitModNode : ClickableContainer
 {
     private readonly Color4 accent;
     private readonly Circle shadow;
+    private readonly Circle activationBurst;
+    private readonly Circle activationCore;
     private readonly Circle halo;
     private readonly Circle surface;
     private readonly Circle innerRing;
@@ -2100,6 +2192,27 @@ internal partial class OrbitModNode : ClickableContainer
                 Size = new Vector2(88),
                 Colour = HomeControlColours.Navy,
                 Alpha = 0.055f,
+            },
+            activationBurst = new Circle
+            {
+                Position = new Vector2(-12),
+                Size = new Vector2(108),
+                Masking = true,
+                BorderThickness = 2,
+                BorderColour = accent,
+                Alpha = 0,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.Transparent,
+                },
+            },
+            activationCore = new Circle
+            {
+                Position = new Vector2(5),
+                Size = new Vector2(74),
+                Colour = accent,
+                Alpha = 0,
             },
             halo = new Circle
             {
@@ -2220,7 +2333,12 @@ internal partial class OrbitModNode : ClickableContainer
         description.AddText(YokkoStrings.ModDescription(definition));
     }
 
-    internal void SetState(bool active, bool focused, bool enabled)
+    internal void SetState(
+        bool active,
+        bool focused,
+        bool enabled,
+        bool animateActivation = false,
+        bool animateDeactivation = false)
     {
         bool activeChanged = activeState != active;
         activeState = active;
@@ -2259,14 +2377,20 @@ internal partial class OrbitModNode : ClickableContainer
             halo.ClearTransforms();
             if (active)
             {
-                halo.Alpha = 0.42f;
-                if (IsLoaded)
+                if (IsLoaded && animateActivation)
+                    playActivationTransition();
+                else
+                {
+                    halo.Alpha = 0.42f;
                     startActivePulse();
+                }
             }
             else
             {
                 halo.ScaleTo(1);
-                halo.FadeOut(100);
+                halo.FadeOut(animateDeactivation ? 190 : 100);
+                if (IsLoaded && animateDeactivation)
+                    playDeactivationTransition();
             }
         }
     }
@@ -2287,6 +2411,59 @@ internal partial class OrbitModNode : ClickableContainer
             .Loop(360);
         halo.FadeOut(1050, Easing.OutQuint)
             .Loop(360);
+    }
+
+    private void playActivationTransition()
+    {
+        activationBurst.ClearTransforms();
+        activationBurst.Scale = new Vector2(0.64f);
+        activationBurst.Alpha = 0.88f;
+        activationBurst.ScaleTo(1.42f, 340, Easing.OutQuint)
+                       .FadeOut(320, Easing.OutQuint);
+
+        activationCore.ClearTransforms();
+        activationCore.Scale = new Vector2(0.78f);
+        activationCore.Alpha = 0.16f;
+        activationCore.ScaleTo(1.18f, 240, Easing.OutQuint)
+                      .FadeOut(230, Easing.OutQuint);
+
+        surface.ClearTransforms();
+        surface.ScaleTo(0.88f, 45, Easing.OutQuint)
+               .Then().ScaleTo(1.07f, 135, Easing.OutBack)
+               .Then().ScaleTo(1, 110, Easing.OutQuint);
+        acronym.ClearTransforms();
+        acronym.ScaleTo(0.74f)
+               .Then().ScaleTo(1.14f, 160, Easing.OutBack)
+               .Then().ScaleTo(1, 110, Easing.OutQuint);
+        stateBadge.ClearTransforms();
+        stateBadge.ScaleTo(0.35f)
+                  .Then().ScaleTo(1.2f, 190, Easing.OutBack)
+                  .Then().ScaleTo(1.06f, 90, Easing.OutQuint);
+        stateGlyph.ClearTransforms();
+        stateGlyph.RotateTo(-90);
+        stateGlyph.RotateTo(0, 220, Easing.OutBack);
+
+        Scheduler.AddDelayed(() =>
+        {
+            if (activeState)
+                startActivePulse();
+        }, 340);
+    }
+
+    private void playDeactivationTransition()
+    {
+        activationBurst.ClearTransforms();
+        activationBurst.Scale = new Vector2(1.08f);
+        activationBurst.Alpha = 0.34f;
+        activationBurst.ScaleTo(0.72f, 190, Easing.InQuint)
+                       .FadeOut(180, Easing.OutQuint);
+        surface.ClearTransforms();
+        surface.ScaleTo(1.05f, 60, Easing.OutQuint)
+               .Then().ScaleTo(0.96f, 95, Easing.InOutSine)
+               .Then().ScaleTo(1, 100, Easing.OutQuint);
+        acronym.ClearTransforms();
+        acronym.FadeTo(0.35f, 70)
+               .Then().FadeIn(130, Easing.OutQuint);
     }
 
     protected override bool OnHover(HoverEvent e)
@@ -2407,6 +2584,27 @@ internal partial class OrbitActiveModRow : ClickableContainer
                 Colour = HomeControlColours.Pink,
             },
         ];
+    }
+
+    internal void PlayActivationEntry()
+    {
+        ClearTransforms();
+        Alpha = 0;
+        X = 18;
+        Scale = new Vector2(0.97f);
+        FadeIn(150, Easing.OutQuint)
+            .MoveToX(0, 230, Easing.OutQuint)
+            .ScaleTo(1, 210, Easing.OutBack);
+        background.FlashColour(HomeControlColours.PaleCyan, 280);
+        statusDot.ClearTransforms();
+        statusDot.ScaleTo(0.25f)
+                 .Then().ScaleTo(1.75f, 180, Easing.OutBack)
+                 .Then().ScaleTo(1, 120, Easing.OutQuint);
+        scanLine.ClearTransforms();
+        scanLine.X = 18;
+        scanLine.FadeTo(0.5f, 45)
+                .MoveToX(337, 380, Easing.OutQuint)
+                .Then().FadeOut(80);
     }
 
     protected override bool OnHover(HoverEvent e)

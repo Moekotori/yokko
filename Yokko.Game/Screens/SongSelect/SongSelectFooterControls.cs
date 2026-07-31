@@ -3,6 +3,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
@@ -12,83 +13,26 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectFooterBackButton : ClickableContainer
 {
-    private readonly Box background;
+    private readonly Drawable background;
     private readonly Box underline;
     private readonly SpriteIcon chevron;
 
     public SongSelectFooterBackButton(Action action)
+        : this(action, null, null)
+    {
+    }
+
+    public SongSelectFooterBackButton(
+        Action action,
+        Texture paperTexture,
+        Texture diamondTexture)
     {
         Action = action;
         Size = new Vector2(174, 74);
 
         InternalChildren = new Drawable[]
         {
-            new Container
-            {
-                Position = new Vector2(0, 4),
-                Size = new Vector2(174, 70),
-                Masking = true,
-                CornerRadius = 7,
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(
-                        HomeControlColours.Navy.R,
-                        HomeControlColours.Navy.G,
-                        HomeControlColours.Navy.B,
-                        0.34f),
-                },
-            },
-            new Container
-            {
-                Position = new Vector2(-2, -2),
-                Size = new Vector2(178, 72),
-                Masking = true,
-                CornerRadius = 9,
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(
-                        HomeControlColours.PaleCyan.R,
-                        HomeControlColours.PaleCyan.G,
-                        HomeControlColours.PaleCyan.B,
-                        0.7f),
-                },
-            },
-            new Container
-            {
-                Size = new Vector2(174, 70),
-                Masking = true,
-                CornerRadius = 7,
-                BorderThickness = 1.5f,
-                BorderColour = HomeControlColours.Navy,
-                Children = new Drawable[]
-                {
-                    background = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = Color4.White,
-                    },
-                    new Container
-                    {
-                        Position = new Vector2(4),
-                        Size = new Vector2(166, 62),
-                        Masking = true,
-                        CornerRadius = 4,
-                        BorderThickness = 1,
-                        BorderColour = new Color4(
-                            HomeControlColours.Cyan.R,
-                            HomeControlColours.Cyan.G,
-                            HomeControlColours.Cyan.B,
-                            0.42f),
-                        Child = new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Alpha = 0,
-                        },
-                    },
-                },
-            },
+            background = createPaperBackground(paperTexture),
             new Container
             {
                 Anchor = Anchor.CentreLeft,
@@ -137,14 +81,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
                 Icon = FontAwesome.Solid.ChevronRight,
                 Colour = HomeControlColours.Pink,
             },
-            new Box
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.Centre,
-                Size = new Vector2(17),
-                Rotation = 45,
-                Colour = HomeControlColours.Yellow,
-            },
+            createDiamondDecoration(diamondTexture),
             underline = new Box
             {
                 Anchor = Anchor.BottomLeft,
@@ -157,6 +94,40 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
             },
         };
     }
+
+    private static Drawable createPaperBackground(Texture texture) =>
+        texture == null
+            ? new Box
+            {
+                Size = new Vector2(174, 70),
+                Colour = Color4.White,
+            }
+            : new Sprite
+            {
+                Size = new Vector2(174, 70),
+                Texture = texture,
+                FillMode = FillMode.Fill,
+            };
+
+    private static Drawable createDiamondDecoration(Texture texture) =>
+        texture == null
+            ? new Box
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.Centre,
+                Size = new Vector2(17),
+                Rotation = 45,
+                Colour = HomeControlColours.Yellow,
+            }
+            : new Sprite
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.Centre,
+                Position = new Vector2(0, 2),
+                Size = new Vector2(28),
+                Texture = texture,
+                FillMode = FillMode.Fit,
+            };
 
     protected override bool OnHover(HoverEvent e)
     {

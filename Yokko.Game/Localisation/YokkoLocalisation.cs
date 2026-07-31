@@ -236,7 +236,7 @@ internal static class YokkoStrings
             ["gameplay.pause.hint_confirm"] = new("CONFIRM", "确认", "決定"),
             ["gameplay.pause.hint_retry"] = new("RETRY", "重试", "リトライ"),
 
-            ["gameplay.result.title"] = new("Result", "结算", "リザルト"),
+            ["gameplay.result.title"] = new("RESULT", "结算", "リザルト"),
             ["gameplay.result.max_combo"] = new("MAX COMBO", "最大连击", "MAX COMBO"),
             ["gameplay.result.new_best"] = new("NEW BEST", "新纪录", "NEW BEST"),
             ["gameplay.result.retry"] = new("Retry", "再来一次", "リトライ"),

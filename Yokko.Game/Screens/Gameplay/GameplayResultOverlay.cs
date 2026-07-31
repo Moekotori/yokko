@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -40,7 +41,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private Sprite mascot;
     private readonly IReadOnlyList<string> modChipLabels;
     private int renderedModChipCount;
-    private Vector2 lastResponsiveStageSize;
+    private float lastResponsiveStageScale;
 
     internal bool MascotReady => mascot?.Texture != null;
     internal int ActionCount => 3;
@@ -126,7 +127,12 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                         RelativeSizeAxes = Axes.Both,
                         Colour = HomeControlColours.Cyan,
                     },
-                    createIvoryStage(),
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Width = 0.5f,
+                        Colour = HomeControlColours.Ivory,
+                    },
                 },
             },
             stage = new Container
@@ -137,6 +143,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 Alpha = 0,
                 Children = new Drawable[]
                 {
+                    createIvoryStage(),
                     createTickerStrip(),
                     createDecorations(),
                     leftStageLayout = new Container
@@ -177,7 +184,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             HomeControlColours.Navy,
             HomeControlColours.Yellow)
         {
-            Scale = new Vector2(0.62f),
+            Scale = new Vector2(0.6f),
         };
     }
 
@@ -236,40 +243,19 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         if (stage == null || DrawWidth <= 0 || DrawHeight <= 0)
             return;
 
-        Vector2 stageSize = CalculateResponsiveStageSize(
+        float stageScale = CalculateResponsiveStageScale(
             new Vector2(DrawWidth, DrawHeight));
-        if ((stageSize - lastResponsiveStageSize).LengthSquared < 0.01f)
+        if (Math.Abs(stageScale - lastResponsiveStageScale) < 0.0001f)
             return;
 
-        lastResponsiveStageSize = stageSize;
-        stage.Size = stageSize;
-
-        Vector2 extra = stageSize - new Vector2(
-            designedWidth,
-            designedHeight);
-        Vector2 rightOffset = CalculateRightStageOffset(stageSize);
-        float verticalOffset = MathF.Max(extra.Y, 0) * 0.5f;
-
-        leftStageLayout.Y = verticalOffset;
-        leftDecorationLayout.Y = verticalOffset;
-        rightStageLayout.Position = rightOffset;
-        rightDecorationLayout.Position = rightOffset;
+        lastResponsiveStageScale = stageScale;
+        stage.Scale = new Vector2(stageScale);
     }
 
-    internal static Vector2 CalculateResponsiveStageSize(Vector2 viewport) =>
-        new(
-            MathF.Max(viewport.X, designedWidth),
-            MathF.Max(viewport.Y, designedHeight));
-
-    internal static Vector2 CalculateRightStageOffset(Vector2 stageSize)
-    {
-        Vector2 extra = stageSize - new Vector2(
-            designedWidth,
-            designedHeight);
-        return new Vector2(
-            MathF.Max(extra.X, 0),
-            MathF.Max(extra.Y, 0) * 0.5f);
-    }
+    internal static float CalculateResponsiveStageScale(Vector2 viewport) =>
+        MathF.Min(
+            viewport.X / designedWidth,
+            viewport.Y / designedHeight);
 
     private Drawable createResultContent(
         YokkoBeatmap beatmap,
@@ -283,7 +269,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             {
                 brandHost = new Container
                 {
-                    Position = new Vector2(75, 42),
+                    Position = new Vector2(60, 42),
                     Size = new Vector2(310, 105),
                 },
                 new SpriteText
@@ -688,10 +674,16 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         }
         else
         {
+            var fixedRateLabels = new List<string>();
+            var detailLabels = new List<string>();
+
             for (int i = 0; i < mods.Acronyms.Count; i++)
             {
                 string acronym = mods.Acronyms[i].ToUpperInvariant();
-                labels.Add(acronym);
+                if (isFixedRateAcronym(acronym))
+                    fixedRateLabels.Add(acronym);
+                else
+                    labels.Add(acronym);
 
                 string displayLabel = mods.DisplayLabels[i];
                 string prefix = acronym + " ";
@@ -706,6 +698,23 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     && (detail.Contains('×')
                         || detail.Contains('→')
                         || detail == "MAX"))
+                    detailLabels.Add(detail);
+            }
+
+            labels.AddRange(fixedRateLabels);
+            if (fixedRateLabels.Count > 0
+                && Math.Abs(mods.FixedRateSpeedChange - 1) > 0.001)
+            {
+                labels.Add(
+                    mods.FixedRateSpeedChange.ToString(
+                        "0.00",
+                        CultureInfo.InvariantCulture)
+                    + "×");
+            }
+
+            foreach (string detail in detailLabels)
+            {
+                if (!labels.Contains(detail))
                     labels.Add(detail);
             }
         }
@@ -723,6 +732,9 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
         return labels;
     }
+
+    private static bool isFixedRateAcronym(string acronym) =>
+        acronym is "HT" or "DC" or "DT" or "NC";
 
     private Drawable createModChipRail()
     {
@@ -829,10 +841,11 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Origin = Anchor.CentreLeft,
                     X = 14,
                     Text =
-                        "4K MANIA   ★   CHART LAB // FEEL THE BEAT   ★   "
+                        "4K MANIA   +   CHART LAB // FEEL THE BEAT   +   "
                         + "RHYTHM CHART STUDIO // EST. 2025 // VOL.01   "
-                        + "YOKKO RHYTHM STATION // 4K MANIA   ★   "
-                        + "CHART LAB // FEEL THE BEAT",
+                        + "YOKKO RHYTHM STATION // 4K MANIA   +   "
+                        + "CHART LAB // FEEL THE BEAT   +   "
+                        + "RHYTHM CHART STUDIO // EST. 2025 // VOL.01",
                     Font = HomeTypography.Display(8),
                     Spacing = new Vector2(1.7f, 0),
                     Colour = Color4.White,
@@ -894,7 +907,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 mascot = new Sprite
                 {
                     Origin = Anchor.Centre,
-                    Position = new Vector2(1016, 540),
+                    Position = new Vector2(1000, 527),
                     Size = new Vector2(615, 697),
                 },
                 new SpriteText
@@ -1054,16 +1067,16 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 new Box
                 {
                     RelativeSizeAxes = Axes.Y,
-                    Width = 700,
+                    Width = 650,
                     Colour = HomeControlColours.Ivory,
                 },
                 new Box
                 {
                     RelativeSizeAxes = Axes.Y,
-                    Position = new Vector2(660, -45),
+                    Position = new Vector2(604, -45),
                     Width = 205,
                     Height = 1.18f,
-                    Rotation = 10,
+                    Rotation = 12,
                     Colour = HomeControlColours.Ivory,
                 },
             },

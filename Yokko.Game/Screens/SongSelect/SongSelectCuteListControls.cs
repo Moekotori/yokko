@@ -20,6 +20,7 @@ internal partial class SongSelectSongRow : ClickableContainer
     private readonly Container selectionOutline;
     private readonly Container thumbnail;
     private readonly SpriteIcon arrow;
+    private readonly Sprite selectedSticker;
     private readonly SpriteText title;
     private bool selected;
 
@@ -30,13 +31,14 @@ internal partial class SongSelectSongRow : ClickableContainer
         SongSelectEntry entry,
         Texture wallpaper,
         Texture paperTexture,
+        Texture selectedStickerTexture,
         Action select,
         Action play)
     {
         Entry = entry;
         Action = select;
         DoubleClickAction = play;
-        Size = new Vector2(540, 88);
+        Size = new Vector2(540, 84);
 
         InternalChildren =
         [
@@ -54,7 +56,7 @@ internal partial class SongSelectSongRow : ClickableContainer
                     selectionOutline = new Container
                     {
                         Position = new Vector2(5, 4),
-                        Size = new Vector2(530, 80),
+                        Size = new Vector2(530, 76),
                         Masking = true,
                         CornerRadius = 7,
                         BorderThickness = 2,
@@ -71,7 +73,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             thumbnail = new Container
             {
                 Position = new Vector2(7, 7),
-                Size = new Vector2(145, 74),
+                Size = new Vector2(145, 70),
                 Masking = true,
                 CornerRadius = 5,
                 BorderThickness = 1,
@@ -91,6 +93,16 @@ internal partial class SongSelectSongRow : ClickableContainer
                 Size = new Vector2(17),
                 Icon = FontAwesome.Solid.Play,
                 Colour = SongSelectTheme.Pink,
+                Alpha = 0,
+            },
+            selectedSticker = new Sprite
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.Centre,
+                Position = new Vector2(-15, 3),
+                Size = new Vector2(45),
+                Texture = selectedStickerTexture,
+                FillMode = FillMode.Fit,
                 Alpha = 0,
             },
             title = label(entry.Beatmap.Title, 166, 8, 350, 20,
@@ -124,10 +136,12 @@ internal partial class SongSelectSongRow : ClickableContainer
             140,
             Easing.OutQuint);
         selectionOutline.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
+        selectionOutline.ResizeHeightTo(selected ? 82 : 76, 160, Easing.OutQuint);
         arrow.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
+        selectedSticker.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
         title.Colour = selected ? SongSelectTheme.Navy : SongSelectTheme.Navy;
-        this.ResizeHeightTo(selected ? 96 : 88, 160, Easing.OutQuint);
-        thumbnail.ResizeHeightTo(selected ? 82 : 74, 160, Easing.OutQuint);
+        this.ResizeHeightTo(selected ? 90 : 84, 160, Easing.OutQuint);
+        thumbnail.ResizeHeightTo(selected ? 76 : 70, 160, Easing.OutQuint);
     }
 
     protected override bool OnHover(HoverEvent e)

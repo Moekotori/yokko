@@ -207,6 +207,10 @@ final result: passed
   `D:\yokko\artifacts\mods\micro-polish-active.png`
 - Micro-polish source/implementation comparison:
   `D:\yokko\artifacts\mods\micro-polish-comparison.png`
+- Interaction audit baseline:
+  `D:\yokko\artifacts\mods\interaction-audit-before.png`
+- Interaction-polish implementation:
+  `D:\yokko\artifacts\mods\interaction-polish-after.png`
 - Authored viewport: 1600 x 900, verified through the native 3168 x 1785
   renderer capture used by the 3200 x 2000 desktop.
 - States: empty Difficulty Down page and active Difficulty Up page with
@@ -270,6 +274,15 @@ final result: passed
   the same scan language. Rate presets keep a persistent pink selection rail,
   while the speed panel uses sparse cyan/pink corner brackets to group its
   controls without adding another filled surface.
+- Interaction audit and repair:
+  1. Global wheel input now accumulates precision deltas and uses a 430 ms
+     gesture lock, so one physical wheel/trackpad gesture moves exactly one
+     category page instead of leaking momentum into a second page.
+  2. Boundary wheel input is ignored without showing a false transition hint.
+     Successful page gestures show a concise previous/next-page confirmation.
+  3. The orbit rate slider's pointer target grows from 28 px to 44 px while
+     keeping the same visual track. Hover and drag expose a marker-anchored
+     exact-rate readout, and release still commits only during page handoff.
 
 ## Findings
 
@@ -305,6 +318,13 @@ final result: passed
 - Native Direct3D 11 micro-polish preview exited with code 0. The matching
   authored-density comparison shows the new depth and status accents remain
   subordinate to labels and do not introduce clipping or overlap.
+- Interaction-polish verification was run in an isolated clean worktree because
+  unrelated concurrent result/footer API edits blocked the shared-tree build.
+  The isolated build passed with 0 warnings and 0 errors; the focused
+  Gameplay Mods suite passed 9/9, including the new residual-wheel rejection
+  and 44 px slider-target assertions.
+- The post-change native Direct3D 11 capture exited with code 0. Static layout
+  remains unchanged outside the deliberately more forgiving slider hit area.
 - Full and focused density comparisons show no text collisions, clipped
   controls, or decoration over primary hit targets. No actionable P0, P1, or
   P2 findings remain.
@@ -1574,5 +1594,74 @@ final result: passed
   passed: 1 test, 0 failures.
 - Large, Comfortable, and Compact native screenshot runs all exited with
   code 0.
+
+final result: passed
+
+# Gameplay result overlay redesign (2026-07-31, QA1)
+
+## Evidence
+
+- Selected Product Design source:
+  `D:\yokko\docs\design\gameplay\yokko-result-v2-selected.png`
+- Native osu!framework implementation capture:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-v2-final.png`
+
+## Viewport and state
+
+- Source: 1680 x 945.
+- Implementation: 3168 x 1785.
+- Both captures use the same 16:9 composition and were compared at normalized
+  density.
+- Song: Afterimage [Insane].
+- Result: rank B, score 0537761, 82.51% accuracy, max combo 20.
+- Mods: HD, DT, 1.50x.
+- Judgments: 8 / 12 / 0 / 0 / 0 / 4.
+
+## Comparison history
+
+1. The first native pass kept the old expanding stage model. At 1600 x 900,
+   content stayed at 1280 x 720 density and appeared undersized on the left.
+2. The result overlay now scales a fixed 1280 x 720 authored canvas
+   proportionally to the available viewport. Cards, controls, decorations,
+   and mascot therefore retain the selected composition at every density.
+3. The final pass aligned the diagonal split, moved the production mascot
+   upward, tuned the production logo scale, and added a dedicated fixed-rate
+   chip so DT visibly reports 1.50x.
+
+## Final review
+
+- Typography and hierarchy: logo, RESULT heading, song title, rank, score,
+  metrics, judgments, and actions match the selected order and emphasis.
+- Spacing and layout: the score hero, summary rail, judgment baseline, primary
+  action, and secondary actions align to the same left grid without clipping.
+- Colors and surfaces: Yokko navy, cyan, ivory, pink, and yellow tokens are
+  reused throughout. Borders, shadows, dotted fields, and signal decorations
+  remain subordinate to the result data.
+- Image fidelity: the production `home-logo-light.png` and cropped
+  `yokko.png` mascot are used directly; the generated concept is not shipped
+  as a flattened interface.
+- Dynamic data: score, accuracy, combo, rank, every judgment, localized
+  labels, and MOD chips remain code-driven.
+- Interactions: retry, replay, and song-select callbacks and keyboard labels
+  remain present. The entrance transition and subtle mascot motion are
+  preserved.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- P3: the selected concept uses a clapperboard replay icon while the
+  implementation retains Yokko's existing replay glyph. Meaning, hierarchy,
+  and hit target are unchanged.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build passed with 0 warnings and 0 errors.
+  Isolation was required because unrelated concurrent Song Select constructor
+  work temporarily blocked the shared-tree build.
+- Focused result overlay and responsive-scale tests passed: 3 / 3.
+- Native Direct3D 11 preview exited normally and produced the implementation
+  capture above.
 
 final result: passed

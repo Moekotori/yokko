@@ -214,6 +214,9 @@ namespace Yokko.Game.Tests
                     Title = "Afterimage",
                     DifficultyName = "Insane",
                 };
+                ManiaModSet mods = ManiaModSet.Empty
+                    .With(ManiaModId.Hidden, true)
+                    .WithFixedRate(ManiaModId.DoubleTime, 1.5);
 
                 Add(new GameplayResultOverlay(
                     beatmap,
@@ -228,10 +231,13 @@ namespace Yokko.Game.Tests
                         0,
                         0,
                         4),
+                    mods,
                     true,
                     () => { },
                     () => { },
                     () => { }));
+                Add(new CursorContainer());
+                schedulePreviewScreenshot();
                 return;
             }
 

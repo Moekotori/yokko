@@ -3,6 +3,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
@@ -12,10 +13,13 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectPlayButton : ClickableContainer
 {
-    private readonly Box background;
+    private readonly Sprite background;
     private readonly SpriteIcon chevron;
 
-    public SongSelectPlayButton(Action action)
+    public SongSelectPlayButton(
+        Action action,
+        Texture paperTexture,
+        Texture tapeTexture)
     {
         Action = action;
         Size = new Vector2(390, 82);
@@ -41,15 +45,13 @@ internal partial class SongSelectPlayButton : ClickableContainer
             new Container
             {
                 Size = new Vector2(387, 77),
-                Masking = true,
-                CornerRadius = 10,
-                BorderThickness = 1.5f,
-                BorderColour = SongSelectTheme.Navy,
                 Children =
                 [
-                    background = new Box
+                    background = new Sprite
                     {
                         RelativeSizeAxes = Axes.Both,
+                        Texture = paperTexture,
+                        FillMode = FillMode.Fill,
                         Colour = SongSelectTheme.Yellow,
                     },
                     new Container
@@ -130,18 +132,14 @@ internal partial class SongSelectPlayButton : ClickableContainer
                     },
                 ],
             },
-            new Box
+            new Sprite
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.Centre,
-                Position = new Vector2(-25, 1),
-                Size = new Vector2(42, 13),
-                Rotation = 8,
-                Colour = new Color4(
-                    SongSelectTheme.Pink.R,
-                    SongSelectTheme.Pink.G,
-                    SongSelectTheme.Pink.B,
-                    0.76f),
+                Position = new Vector2(-28, 2),
+                Size = new Vector2(58, 32),
+                Texture = tapeTexture,
+                FillMode = FillMode.Fit,
             },
         ];
     }

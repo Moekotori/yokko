@@ -55,7 +55,9 @@ public sealed record ManiaStarRatingContext
         return ForGameplay(
             beatmap,
             ManiaModSet.Empty,
-            JudgementConfiguration.YokkoDefault,
+            beatmap.SourceFormat == ChartSourceFormat.Quaver
+                ? JudgementConfiguration.QuaverDefault
+                : JudgementConfiguration.YokkoDefault,
             minesEnabled: true,
             timelineRate: 1);
     }
@@ -77,10 +79,6 @@ public sealed record ManiaStarRatingContext
         if (!double.IsFinite(timelineRate) || timelineRate <= 0)
             throw new ArgumentOutOfRangeException(nameof(timelineRate));
 
-        JudgementConfiguration effectiveConfiguration =
-            beatmap.SourceFormat == ChartSourceFormat.Quaver
-                ? JudgementConfiguration.QuaverDefault
-                : judgementConfiguration;
         var windows = new JudgementWindows(
             mods.EffectiveOverallDifficulty(
                 beatmap.OverallDifficulty),
@@ -89,7 +87,7 @@ public sealed record ManiaStarRatingContext
             mods.Contains(ManiaModId.Classic),
             mods.Contains(ManiaModId.ScoreV2),
             beatmap.ConversionSource is not null,
-            effectiveConfiguration);
+            judgementConfiguration);
 
         return new ManiaStarRatingContext(
             windows.GreatMilliseconds / timelineRate,

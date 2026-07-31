@@ -241,31 +241,11 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         };
     }
 
-    private static Drawable paperPanel() => new Container
+    private Drawable paperPanel() => new Sprite
     {
         RelativeSizeAxes = Axes.Both,
-        Masking = true,
-        CornerRadius = 9,
-        BorderThickness = 1.5f,
-        BorderColour = new Color4(
-            SongSelectTheme.Cyan.R,
-            SongSelectTheme.Cyan.G,
-            SongSelectTheme.Cyan.B,
-            0.78f),
-        Children =
-        [
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(1f, 0.985f, 0.94f, 0.96f),
-            },
-            new Box
-            {
-                RelativeSizeAxes = Axes.X,
-                Height = 3,
-                Colour = SongSelectTheme.Cyan,
-            },
-        ],
+        Texture = textures.Get("SongSelect/Cute/paper-ranking"),
+        FillMode = FillMode.Fill,
     };
 
     private static SpriteText text(

@@ -258,6 +258,7 @@ public partial class SongSelectScreen : Screen
                         Size = new Vector2(800, 610),
                     },
                     createSongBrowser(),
+                    createForegroundStickers(),
                     createFooter(),
                     mascotAnimation = new AnimatedGifSprite(
                         "Textures/SongSelect/mascot-box.gif")
@@ -935,8 +936,8 @@ public partial class SongSelectScreen : Screen
                     new Sprite
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Texture = textures.Get("SongSelect/Cute/paper-song-info"),
-                        FillMode = FillMode.Fill,
+                        Texture = textures.Get("SongSelect/Cute/paper-logo"),
+                        FillMode = FillMode.Fit,
                     },
                     new Sprite
                     {
@@ -989,7 +990,7 @@ public partial class SongSelectScreen : Screen
                     Width = 540,
                     AutoSizeAxes = Axes.Y,
                     Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 6),
+                    Spacing = new Vector2(0, 4),
                 },
             },
             noResults = new SpriteText
@@ -1190,8 +1191,7 @@ public partial class SongSelectScreen : Screen
                 new SongSelectPlayButton(
                     PlaySelected,
                     textures.Get("SongSelect/Cute/paper-song-row"),
-                    textures.Get("SongSelect/Cute/tape-long"),
-                    textures.Get("SongSelect/Cute/sticker-heart-medical"))
+                    textures.Get("SongSelect/Cute/tape-long"))
                 {
                     Anchor = Anchor.BottomRight,
                     Origin = Anchor.BottomRight,
@@ -1200,6 +1200,34 @@ public partial class SongSelectScreen : Screen
             },
         };
     }
+
+    private Drawable createForegroundStickers() => new Container
+    {
+        RelativeSizeAxes = Axes.Both,
+        Children =
+        [
+            new Sprite
+            {
+                Anchor = Anchor.BottomRight,
+                Origin = Anchor.BottomRight,
+                Position = new Vector2(-610, -128),
+                Size = new Vector2(58),
+                Rotation = 7,
+                Texture = textures.Get("SongSelect/Cute/sticker-heart-medical"),
+                FillMode = FillMode.Fit,
+            },
+            new Sprite
+            {
+                Anchor = Anchor.BottomRight,
+                Origin = Anchor.BottomRight,
+                Position = new Vector2(-675, -164),
+                Size = new Vector2(44),
+                Texture = textures.Get("SongSelect/Cute/sticker-cyan-sparkle"),
+                FillMode = FillMode.Fit,
+                Alpha = 0.82f,
+            },
+        ],
+    };
 
     private Drawable createAccountCard()
     {
@@ -1638,7 +1666,11 @@ public partial class SongSelectScreen : Screen
             ManiaStarRatingContext.ForGameplay(
                 difficultyBeatmap,
                 selectedMods,
-                gameplaySettings.GetJudgementConfiguration(),
+                difficultyBeatmap.SourceFormat
+                    == ChartSourceFormat.Quaver
+                    ? JudgementConfiguration.QuaverDefault
+                    : gameplaySettings
+                        .GetJudgementConfiguration(),
                 gameplaySettings.MinesEnabled.Value,
                 starRatingTimelineRate);
         ManiaStarRatingResult starRating =
@@ -2005,6 +2037,7 @@ public partial class SongSelectScreen : Screen
                     entry,
                     textureFor(entry),
                     textures.Get("SongSelect/Cute/paper-song-row"),
+                    textures.Get("SongSelect/Cute/sticker-star"),
                     () => select(entry),
                     () =>
                     {
