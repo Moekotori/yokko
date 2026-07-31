@@ -29,7 +29,12 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
     private readonly SpriteText comboBreakFallback;
     private readonly Texture[] digitTextures = new Texture[10];
     private readonly float overlayScale;
+    private double judgementDisplayDuration = JudgementAnimationDuration;
+    private bool editorPreview;
     private int displayedCombo = -1;
+
+    internal bool EditorPreviewUsesTexture =>
+        editorPreview && judgementSprite.Alpha > 0;
 
     public OsuManiaSkinOverlay(
         OsuManiaSkin skin,
@@ -203,8 +208,15 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             judgementSprite.Restart();
         activeJudgement.Rotation = 0;
         activeJudgement.Scale = Vector2.One;
+
+        if (editorPreview)
+        {
+            activeJudgement.Alpha = 1;
+            return;
+        }
+
         activeJudgement.FadeInFromZero(20, Easing.Out);
-        activeJudgement.Delay(JudgementAnimationDuration - 40)
+        activeJudgement.Delay(Math.Max(20, judgementDisplayDuration - 40))
                        .FadeOut(40, Easing.In);
 
         if (judgement.Rating is JudgementRating.Miss or JudgementRating.ComboBreak)
@@ -341,6 +353,34 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         Vector2 scale = new(overlayScale * Math.Max(0.01f, value));
         judgementContainer.Scale = scale;
         comboContainer.Scale = scale;
+    }
+
+    public void ConfigureJudgementFeedback(
+        double displayDuration,
+        double opacity)
+    {
+        judgementDisplayDuration = Math.Max(60, displayDuration);
+        judgementContainer.Alpha = (float)Math.Clamp(opacity, 0, 1);
+    }
+
+    public void SetEditorPreview(bool preview)
+    {
+        editorPreview = preview;
+        judgementSprite.FinishTransforms();
+        judgementFallback.FinishTransforms();
+        judgementSprite.Alpha = 0;
+        judgementFallback.Alpha = 0;
+
+        if (!preview)
+            return;
+
+        ShowJudgement(new JudgementEvent(
+            -1,
+            0,
+            0,
+            0,
+            0,
+            JudgementRating.Great));
     }
 
     public void SetHoldActive(bool active)

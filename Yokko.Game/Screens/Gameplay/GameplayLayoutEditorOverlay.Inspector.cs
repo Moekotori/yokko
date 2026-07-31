@@ -185,7 +185,7 @@ internal partial class GameplayLayoutEditorOverlay
         originalElementAlpha[LayoutElementKind.Judgement] =
             judgementReadout.Alpha;
         comboReadout.SetEditorPreview(true);
-        judgementReadout.SetEditorPreview(true);
+        setJudgementEditorPreview(true);
 
         foreach (LayoutTransformTarget target in allTargets())
         {
@@ -214,7 +214,7 @@ internal partial class GameplayLayoutEditorOverlay
         }
 
         comboReadout.SetEditorPreview(false);
-        judgementReadout.SetEditorPreview(false);
+        setJudgementEditorPreview(false);
         restoreOriginalAlpha(LayoutElementKind.Playfield);
         restoreOriginalAlpha(LayoutElementKind.Hud);
         restoreOriginalAlpha(LayoutElementKind.TimingBar);
@@ -280,14 +280,24 @@ internal partial class GameplayLayoutEditorOverlay
     private void applyElementAlpha(LayoutElementKind kind, bool hidden)
     {
         Drawable drawable = drawableFor(kind);
-        drawable.Alpha = hidden
-            ? 0
-            : kind == LayoutElementKind.TimingBar
-                ? liveSettings.ShowTimingBar() ? 1 : 0
-            : kind is LayoutElementKind.Combo
-                or LayoutElementKind.Judgement
-                ? 1
-                : originalElementAlpha.GetValueOrDefault(kind, 1);
+        if (kind == LayoutElementKind.Judgement
+            && playfield.UsesSkinJudgementOverlay)
+        {
+            drawable.Alpha = 0;
+            playfield.SetSkinJudgementEditorPreview(
+                IsEditing && !hidden);
+        }
+        else
+        {
+            drawable.Alpha = hidden
+                ? 0
+                : kind == LayoutElementKind.TimingBar
+                    ? liveSettings.ShowTimingBar() ? 1 : 0
+                : kind is LayoutElementKind.Combo
+                    or LayoutElementKind.Judgement
+                    ? 1
+                    : originalElementAlpha.GetValueOrDefault(kind, 1);
+        }
 
         Drawable miniDrawable = miniDrawableFor(kind);
         if (miniDrawable != null)
@@ -302,6 +312,14 @@ internal partial class GameplayLayoutEditorOverlay
         Drawable miniDrawable = miniDrawableFor(kind);
         if (miniDrawable != null)
             miniDrawable.Alpha = 1;
+    }
+
+    private void setJudgementEditorPreview(bool preview)
+    {
+        bool useSkinPreview = preview
+                              && playfield.UsesSkinJudgementOverlay;
+        playfield.SetSkinJudgementEditorPreview(useSkinPreview);
+        judgementReadout.SetEditorPreview(preview && !useSkinPreview);
     }
 
     private void setLayerLocked(LayoutElementKind kind, bool locked)

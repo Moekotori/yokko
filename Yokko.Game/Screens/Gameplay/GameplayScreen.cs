@@ -3245,8 +3245,9 @@ public partial class GameplayScreen : Screen
         return true;
     }
 
-    private GameplayPlayfield createGameplayPlayfield() =>
-        new(
+    private GameplayPlayfield createGameplayPlayfield()
+    {
+        var result = new GameplayPlayfield(
             beatmap,
             keyBindings,
             maniaSkin,
@@ -3269,6 +3270,12 @@ public partial class GameplayScreen : Screen
             Origin = Anchor.BottomCentre,
             Scale = Vector2.One,
         };
+
+        result.ConfigureSkinJudgementFeedback(
+            gameplaySettings.JudgementDisplayDurationMilliseconds.Value,
+            gameplaySettings.JudgementOpacity.Value);
+        return result;
+    }
 
     private GameplayHud createGameplayHud(
         GameplayPlayfield targetPlayfield) =>
@@ -3314,12 +3321,18 @@ public partial class GameplayScreen : Screen
         gameplaySettings.SetJudgementDisplayDuration(value);
         judgementReadout.SetDisplayDuration(
             gameplaySettings.JudgementDisplayDurationMilliseconds.Value);
+        playfield.ConfigureSkinJudgementFeedback(
+            gameplaySettings.JudgementDisplayDurationMilliseconds.Value,
+            gameplaySettings.JudgementOpacity.Value);
     }
 
     private void setLayoutEditorJudgementOpacity(double value)
     {
         gameplaySettings.SetJudgementOpacity(value);
         judgementReadout.SetOpacity(
+            gameplaySettings.JudgementOpacity.Value);
+        playfield.ConfigureSkinJudgementFeedback(
+            gameplaySettings.JudgementDisplayDurationMilliseconds.Value,
             gameplaySettings.JudgementOpacity.Value);
     }
 

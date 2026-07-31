@@ -19,6 +19,7 @@ public sealed record ManiaModDefinition(
     {
         ManiaModId.Easy => "Forgiving difficulty and gentler health drain.",
         ManiaModId.NoFail => "Keep playing even when your health reaches zero.",
+        ManiaModId.NoPause => "Limit how many times gameplay may be paused.",
         ManiaModId.HalfTime => "Slow the song down to 75% speed.",
         ManiaModId.Daycore => "Slow down with a lower-pitched soundtrack.",
         ManiaModId.NoRelease => "Ignore judgements when hold notes are released.",

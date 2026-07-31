@@ -295,7 +295,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         restoreOriginalAlpha(LayoutElementKind.Hud);
         restoreOriginalAlpha(LayoutElementKind.TimingBar);
         comboReadout.SetEditorPreview(false);
-        judgementReadout.SetEditorPreview(false);
+        setJudgementEditorPreview(false);
         this.FadeTo(0, 90, Easing.OutQuint);
     }
 
@@ -308,7 +308,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         IsEditing = true;
         setChromeVisible(true, animate: false);
         comboReadout.SetEditorPreview(true);
-        judgementReadout.SetEditorPreview(true);
+        setJudgementEditorPreview(true);
         applyElementAlpha(
             LayoutElementKind.Playfield,
             playfieldTarget.EditorHidden);
@@ -331,6 +331,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         GameplayPlayfield nextPlayfield,
         GameplayHud nextHud)
     {
+        playfield.SetSkinJudgementEditorPreview(false);
         playfield = nextPlayfield
                     ?? throw new ArgumentNullException(
                         nameof(nextPlayfield));
@@ -339,6 +340,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         if (IsEditing)
         {
+            setJudgementEditorPreview(true);
             applyElementAlpha(
                 LayoutElementKind.Playfield,
                 playfieldTarget.EditorHidden);
@@ -426,6 +428,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             && e.Key == Key.Y)
         {
             redo();
+            return true;
+        }
+
+        if (!e.Repeat
+            && e.ControlPressed
+            && e.Key == Key.S)
+        {
+            SaveAndClose();
             return true;
         }
 
@@ -595,18 +605,23 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         refreshSessionHint();
     }
 
-    private Drawable createTopBar() =>
-        new Container
+    private Drawable createTopBar()
+    {
+        const float panelWidth = 264;
+        const float panelHeight = 376;
+        const float buttonWidth = 236;
+
+        return new Container
         {
-            Position = new Vector2(16, 14),
-            Size = new Vector2(864, 68),
+            Position = new Vector2(18),
+            Size = new Vector2(panelWidth + 5, panelHeight + 5),
             Depth = -100,
             Children = new Drawable[]
             {
                 new Container
                 {
-                    Position = new Vector2(4, 4),
-                    Size = new Vector2(860, 64),
+                    Position = new Vector2(5),
+                    Size = new Vector2(panelWidth, panelHeight),
                     Masking = true,
                     CornerRadius = 8,
                     Child = new Box
@@ -621,7 +636,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 },
                 new Container
                 {
-                    Size = new Vector2(860, 64),
+                    Size = new Vector2(panelWidth, panelHeight),
                     Masking = true,
                     CornerRadius = 8,
                     BorderThickness = 1.5f,
@@ -639,49 +654,39 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                             Width = 5,
                             Colour = HomeControlColours.Cyan,
                         },
-                        new FillFlowContainer
+                        new SpriteText
                         {
-                            Anchor = Anchor.CentreLeft,
-                            Origin = Anchor.CentreLeft,
-                            X = 16,
-                            AutoSizeAxes = Axes.Both,
-                            Direction = FillDirection.Vertical,
-                            Spacing = new Vector2(0, -2),
-                            Children = new Drawable[]
-                            {
-                                new SpriteText
-                                {
-                                    Text = YokkoStrings.Get(
-                                        "gameplay.layout_editor.title"),
-                                    Font = LayoutEditorTypography.Bold(14),
-                                    Colour = HomeControlColours.Navy,
-                                },
-                                new SpriteText
-                                {
-                                    Text = YokkoStrings.Get(
-                                        "gameplay.layout_editor.hint"),
-                                    Font = LayoutEditorTypography.Regular(9.5f),
-                                    Colour = new Color4(
-                                        HomeControlColours.Navy.R,
-                                        HomeControlColours.Navy.G,
-                                        HomeControlColours.Navy.B,
-                                        0.64f),
-                                },
-                                editorHint = new SpriteText
-                                {
-                                    Font = LayoutEditorTypography.Bold(9.5f),
-                                    Colour = HomeControlColours.Pink,
-                                },
-                            },
+                            Position = new Vector2(16, 13),
+                            Text = YokkoStrings.Get(
+                                "gameplay.layout_editor.title"),
+                            Font = LayoutEditorTypography.Bold(14),
+                            Colour = HomeControlColours.Navy,
+                        },
+                        new SpriteText
+                        {
+                            Position = new Vector2(16, 42),
+                            Text = YokkoStrings.Get(
+                                "gameplay.layout_editor.hint"),
+                            Font = LayoutEditorTypography.Regular(8.5f),
+                            Colour = new Color4(
+                                HomeControlColours.Navy.R,
+                                HomeControlColours.Navy.G,
+                                HomeControlColours.Navy.B,
+                                0.64f),
+                        },
+                        editorHint = new SpriteText
+                        {
+                            Position = new Vector2(16, 65),
+                            Font = LayoutEditorTypography.Bold(8.5f),
+                            Colour = HomeControlColours.Pink,
                         },
                         new FillFlowContainer
                         {
-                            Anchor = Anchor.CentreRight,
-                            Origin = Anchor.CentreRight,
-                            X = -10,
-                            AutoSizeAxes = Axes.Both,
-                            Direction = FillDirection.Horizontal,
-                            Spacing = new Vector2(6, 0),
+                            Position = new Vector2(14, 98),
+                            AutoSizeAxes = Axes.Y,
+                            Width = buttonWidth,
+                            Direction = FillDirection.Vertical,
+                            Spacing = new Vector2(0, 6),
                             Children = new Drawable[]
                             {
                                 undoButton = new LayoutActionButton(
@@ -690,7 +695,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                     FontAwesome.Solid.Undo,
                                     undo)
                                 {
-                                    Width = 68,
+                                    Width = buttonWidth,
                                 },
                                 redoButton = new LayoutActionButton(
                                     YokkoStrings.Get(
@@ -698,7 +703,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                     FontAwesome.Solid.Redo,
                                     redo)
                                 {
-                                    Width = 68,
+                                    Width = buttonWidth,
                                 },
                                 new LayoutActionButton(
                                     YokkoStrings.Get(
@@ -706,7 +711,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                     FontAwesome.Solid.Trash,
                                     reset)
                                 {
-                                    Width = 84,
+                                    Width = buttonWidth,
                                 },
                                 cancelButton = new LayoutActionButton(
                                     YokkoStrings.Get(
@@ -714,7 +719,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                     FontAwesome.Solid.Times,
                                     CancelAndClose)
                                 {
-                                    Width = 84,
+                                    Width = buttonWidth,
                                 },
                                 new LayoutActionButton(
                                     YokkoStrings.Get(
@@ -722,7 +727,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                     FontAwesome.Solid.Play,
                                     beginTestPlay)
                                 {
-                                    Width = 92,
+                                    Width = buttonWidth,
                                 },
                                 new LayoutActionButton(
                                     YokkoStrings.Get(
@@ -731,7 +736,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                     SaveAndClose,
                                     true)
                                 {
-                                    Width = 116,
+                                    Width = buttonWidth,
                                 },
                             },
                         },
@@ -741,13 +746,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.Centre,
-                    Position = new Vector2(-6, 3),
+                    Position = new Vector2(-7, 4),
                     Size = new Vector2(11),
                     Rotation = 45,
                     Colour = HomeControlColours.Yellow,
                 },
             },
         };
+    }
 
     private void setChromeVisible(bool visible, bool animate)
     {
@@ -1659,7 +1665,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     private static Box createMiniCover() => new()
     {
-        Colour = new Color4(0f, 0f, 0f, 0.94f),
+        Colour = Color4.Black,
     };
 
     private static Container createMiniReadout(Color4 colour) => new()
@@ -1703,14 +1709,15 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Container labelPanel;
         private readonly Container handles;
         private readonly Box selectionTint;
-        private Vector2 lastPosition;
+        private Vector2 dragStartMousePosition;
+        private Vector2 dragStartTargetPosition;
         private Axes? constrainedDragAxis;
         private bool selected;
         private bool hovered;
 
         internal LayoutElementKind Kind { get; }
 
-        internal int ResizeHandleCount => 8;
+        internal int ResizeHandleCount => 4;
 
         internal bool IsLocked { get; private set; }
 
@@ -1813,27 +1820,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                             Anchor.TopLeft,
                             ResizeEdges.Left | ResizeEdges.Top),
                         createHandle(
-                            Anchor.TopCentre,
-                            ResizeEdges.Top,
-                            true),
-                        createHandle(
                             Anchor.TopRight,
                             ResizeEdges.Right | ResizeEdges.Top),
                         createHandle(
-                            Anchor.CentreLeft,
-                            ResizeEdges.Left,
-                            true),
-                        createHandle(
-                            Anchor.CentreRight,
-                            ResizeEdges.Right,
-                            true),
-                        createHandle(
                             Anchor.BottomLeft,
                             ResizeEdges.Left | ResizeEdges.Bottom),
-                        createHandle(
-                            Anchor.BottomCentre,
-                            ResizeEdges.Bottom,
-                            true),
                         createHandle(
                             Anchor.BottomRight,
                             ResizeEdges.Right | ResizeEdges.Bottom),
@@ -1853,7 +1844,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 delta => resize(edges, delta),
                 beginChange,
                 () => select(this),
-                () => CanEdit,
+                () => selected && CanEdit,
                 edge)
             {
                 Anchor = anchor,
@@ -1871,8 +1862,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 return false;
 
             select(this);
-            lastPosition = coordinateSpace.ToLocalSpace(
+            dragStartMousePosition = coordinateSpace.ToLocalSpace(
                 e.ScreenSpaceMousePosition);
+            dragStartTargetPosition = Position;
             constrainedDragAxis = null;
             return true;
         }
@@ -1914,27 +1906,28 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         {
             Vector2 current = coordinateSpace.ToLocalSpace(
                 e.ScreenSpaceMousePosition);
-            Vector2 requestedDelta = current - lastPosition;
+            Vector2 pointerDelta = current - dragStartMousePosition;
             if (e.ShiftPressed)
             {
                 constrainedDragAxis ??=
-                    Math.Abs(requestedDelta.X) >= Math.Abs(requestedDelta.Y)
+                    Math.Abs(pointerDelta.X) >= Math.Abs(pointerDelta.Y)
                         ? Axes.X
                         : Axes.Y;
                 if (constrainedDragAxis == Axes.X)
-                    requestedDelta.Y = 0;
+                    pointerDelta.Y = 0;
                 else
-                    requestedDelta.X = 0;
+                    pointerDelta.X = 0;
             }
             else
                 constrainedDragAxis = null;
 
+            Vector2 desiredPosition = dragStartTargetPosition + pointerDelta;
+            Vector2 requestedDelta = desiredPosition - Position;
             Vector2 delta = snapMove(
                 this,
                 requestedDelta,
                 e.AltPressed);
             drag(delta);
-            lastPosition = current;
         }
 
         protected override void OnDragEnd(DragEndEvent e)
@@ -1946,8 +1939,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         protected override bool OnScroll(ScrollEvent e)
         {
-            if (scroll == null || e.ScrollDelta.Y == 0)
+            if (scroll == null
+                || e.ScrollDelta.Y == 0
+                || !e.ControlPressed)
+            {
                 return false;
+            }
 
             select(this);
             if (!CanEdit)
@@ -1981,24 +1978,24 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                         HomeControlColours.Cyan.R,
                         HomeControlColours.Cyan.G,
                         HomeControlColours.Cyan.B,
-                        emphasised ? 0.92f : 0.42f);
+                        emphasised ? 0.92f : 0.24f);
             frame.BorderThickness = selected ? 3 : 2;
             labelPanel.BorderColour = selected
                 ? HomeControlColours.Yellow
                 : HomeControlColours.Navy;
             labelPanel.FadeTo(
-                emphasised ? 1 : 0.48f,
+                emphasised ? 1 : 0,
                 90,
                 Easing.OutQuint);
             handles.FadeTo(
-                emphasised ? 1 : 0.16f,
+                selected ? 1 : 0,
                 90,
                 Easing.OutQuint);
             selectionTint.Colour = new Color4(
                 HomeControlColours.PaleCyan.R,
                 HomeControlColours.PaleCyan.G,
                 HomeControlColours.PaleCyan.B,
-                selected ? 0.11f : hovered ? 0.055f : 0.015f);
+                selected ? 0.03f : hovered ? 0.018f : 0);
         }
 
         internal void Reset() => reset();

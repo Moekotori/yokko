@@ -73,6 +73,50 @@ public sealed class ManiaMsdCalculatorTest
         });
     }
 
+    [TestCase(KeyMode.FiveKey)]
+    [TestCase(KeyMode.SevenKey)]
+    public void OddKeyChartsWithMiddleColumnProduceResult(KeyMode keyMode)
+    {
+        int keyCount = (int)keyMode;
+        YokkoHitObject[] notes = Enumerable.Range(0, 96)
+            .SelectMany(index =>
+            {
+                double time = index * 125d;
+                int nonMiddleLane = index % (keyCount - 1);
+                if (nonMiddleLane >= keyCount / 2)
+                    nonMiddleLane++;
+
+                return new[]
+                {
+                    new YokkoHitObject(
+                        nonMiddleLane,
+                        time,
+                        null,
+                        HitObjectKind.Tap),
+                    new YokkoHitObject(
+                        keyCount / 2,
+                        time,
+                        null,
+                        HitObjectKind.Tap),
+                };
+            })
+            .ToArray();
+        var chart = new YokkoBeatmap(
+            "Odd-key MinaCalc fixture",
+            "Yokko",
+            "Tests",
+            $"{keyCount}K",
+            keyMode,
+            ChartSourceFormat.Etterna,
+            [],
+            null,
+            notes);
+
+        ManiaMsdResult result = ManiaMsdCalculator.CalculateResult(chart);
+
+        Assert.That(result.Status, Is.EqualTo(ManiaMsdStatus.Success));
+    }
+
     [Test]
     public void HoldTailsMinesAndSamplesDoNotChangeMsdRows()
     {

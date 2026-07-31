@@ -18,6 +18,7 @@ public static class OsuManiaModParityCatalog
     [
         mod(ManiaModId.Easy, "easy", "EZ", "Easy", ManiaModCategory.DifficultyReduction),
         mod(ManiaModId.NoFail, "no-fail", "NF", "No Fail", ManiaModCategory.DifficultyReduction),
+        mod(ManiaModId.NoPause, "no-pause", "NP", "No Pause", ManiaModCategory.DifficultyIncrease),
         mod(ManiaModId.HalfTime, "half-time", "HT", "Half Time", ManiaModCategory.DifficultyReduction),
         mod(ManiaModId.Daycore, "daycore", "DC", "Daycore", ManiaModCategory.DifficultyReduction),
         mod(ManiaModId.NoRelease, "no-release", "NR", "No Release", ManiaModCategory.DifficultyReduction),

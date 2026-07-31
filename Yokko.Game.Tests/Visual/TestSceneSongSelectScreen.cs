@@ -244,6 +244,9 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             songSelectScreen.IsModPanelOpen);
         AddAssert("dedicated mods screen opened", () =>
             screenStack.CurrentScreen is GameplayModsScreen);
+        AddAssert("mods screen keeps preview playing", () =>
+            SongSelectScreen.KeepsPreviewPlaying(
+                screenStack.CurrentScreen));
         AddStep("close mods screen", () =>
             screenStack.CurrentScreen.Exit());
         AddUntilStep("song select resumes", () =>

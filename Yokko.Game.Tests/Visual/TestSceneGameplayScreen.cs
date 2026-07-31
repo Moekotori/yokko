@@ -882,9 +882,9 @@ namespace Yokko.Game.Tests.Visual
                     .SingleOrDefault()) != null);
             AddAssert("gameplay is paused while arranging", () =>
                 gameplayScreen.IsPaused);
-            AddAssert("five elements expose screenshot handles", () =>
+            AddAssert("five elements expose corner resize handles", () =>
                 layoutEditor.TransformTargetCount == 5
-                && layoutEditor.ResizeHandleCount == 40);
+                && layoutEditor.ResizeHandleCount == 20);
             AddAssert("combo and judgement show editor previews", () =>
                 comboReadout.Alpha > 0
                 && judgementReadout.Alpha > 0
@@ -1296,6 +1296,54 @@ namespace Yokko.Game.Tests.Visual
                     == originalShowTimingBar);
             AddAssert("pause menu remains available", () =>
                 gameplayScreen.IsPaused);
+        }
+
+        [Test]
+        public void TestLayoutEditorUsesSkinJudgementPreview()
+        {
+            string skinPath = createTestSkin();
+            using (var image = new Image<Rgba32>(
+                       96,
+                       40,
+                       new Rgba32(255, 90, 150, 255)))
+            {
+                image.SaveAsPng(Path.Combine(
+                    skinPath,
+                    "mania-hit300.png"));
+            }
+
+            GameplayScreen gameplay = null;
+            GameplayPlayfield playfield = null;
+
+            AddStep("open gameplay with judgement skin", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: skinPath)));
+            AddUntilStep("skinned gameplay loaded", () =>
+                (playfield = gameplay?
+                    .ChildrenOfType<GameplayPlayfield>()
+                    .SingleOrDefault())?.UsesSkinJudgementOverlay == true);
+            AddStep("pause skinned gameplay", () =>
+                gameplay.TogglePause());
+            AddUntilStep("pause menu is ready", () =>
+                gameplay.ChildrenOfType<GameplayPauseOverlay>()
+                        .SingleOrDefault() != null);
+            AddStep("open layout editor", () =>
+            {
+                GameplayPauseOverlay pauseOverlay = gameplay
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single();
+                pauseOverlay.SelectNext();
+                pauseOverlay.SelectNext();
+                pauseOverlay.TriggerSelected();
+            });
+            AddUntilStep("skin judgement asset is previewed", () =>
+                gameplay.IsLayoutEditing
+                && playfield.SkinJudgementEditorPreviewUsesTexture);
+            AddAssert("default judgement text stays hidden", () =>
+                gameplay.ChildrenOfType<JudgementReadout>()
+                        .Single()
+                        .Alpha == 0);
         }
 
         [Test]

@@ -94,6 +94,10 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     internal bool UsesSkinJudgementOverlay => skinOverlays.Length > 0;
 
+    internal bool SkinJudgementEditorPreviewUsesTexture =>
+        skinOverlays.Length > 0
+        && skinOverlays.All(overlay => overlay.EditorPreviewUsesTexture);
+
     internal bool ShowsSkinJudgementLine => skinJudgementLines.Length > 0;
 
     internal bool HasSkinStageBottom => stageBottomSprites.Length > 0;
@@ -820,6 +824,20 @@ public partial class GameplayPlayfield : CompositeDrawable
             return;
 
         noteDrawables[judgement.HitObjectIndex].ApplyJudgement(judgement);
+    }
+
+    internal void ConfigureSkinJudgementFeedback(
+        double displayDuration,
+        double opacity)
+    {
+        foreach (OsuManiaSkinOverlay overlay in skinOverlays)
+            overlay.ConfigureJudgementFeedback(displayDuration, opacity);
+    }
+
+    internal void SetSkinJudgementEditorPreview(bool preview)
+    {
+        foreach (OsuManiaSkinOverlay overlay in skinOverlays)
+            overlay.SetEditorPreview(preview);
     }
 
     public void SetApproachTime(double value) =>

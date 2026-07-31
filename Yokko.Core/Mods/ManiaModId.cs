@@ -51,4 +51,6 @@ public enum ManiaModId
     AdaptiveSpeed,
 
     ScoreV2,
+
+    NoPause,
 }

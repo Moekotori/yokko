@@ -79,7 +79,7 @@ internal partial class GameplayLaneCovers : CompositeDrawable
 
     private static Box createCover() => new()
     {
-        Colour = new Color4(0.004f, 0.006f, 0.01f, 0.96f),
+        Colour = Color4.Black,
     };
 }
 

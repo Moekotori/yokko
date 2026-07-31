@@ -45,6 +45,16 @@ bool notes_fit_keycount(std::uint32_t notes, std::uint32_t keycount)
 
     return (notes >> keycount) == 0;
 }
+
+std::uint32_t remove_ignored_middle_column(
+    std::uint32_t notes,
+    std::uint32_t keycount)
+{
+    if (keycount % 2 == 0)
+        return notes;
+
+    return notes & ~(std::uint32_t{1} << (keycount / 2));
+}
 }
 
 extern "C"
@@ -97,9 +107,18 @@ yokko_minacalc_calculate(
             return result_invalid_chart;
         }
 
-        prepared.push_back(note);
+        NoteInfo prepared_note = note;
+        prepared_note.notes = remove_ignored_middle_column(
+            note.notes,
+            keycount);
+        if (prepared_note.notes != 0)
+            prepared.push_back(prepared_note);
+
         previous_time = note.rowTime;
     }
+
+    if (prepared.size() <= 1)
+        return result_invalid_chart;
 
     try
     {

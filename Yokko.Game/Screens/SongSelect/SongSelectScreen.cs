@@ -388,7 +388,8 @@ public partial class SongSelectScreen : Screen
         base.OnSuspending(e);
         previewActive = false;
         diagnostics.Trace("SONG_SELECT", "suspended");
-        previewPlayer?.Stop();
+        if (!KeepsPreviewPlaying(e.Next))
+            previewPlayer?.Stop();
         this.FadeTo(0.35f, 180, Easing.OutQuint);
     }
 
@@ -1078,6 +1079,9 @@ public partial class SongSelectScreen : Screen
             selectedMods,
             applyModsFromPage));
     }
+
+    internal static bool KeepsPreviewPlaying(IScreen next) =>
+        next is GameplayModsScreen;
 
     private void applyModsFromPage(ManiaModSet mods)
     {
