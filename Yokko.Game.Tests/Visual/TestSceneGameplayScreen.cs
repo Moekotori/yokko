@@ -1048,6 +1048,7 @@ namespace Yokko.Game.Tests.Visual
             double startingMusicVolume = 0;
             double startingHitSoundVolume = 0;
             int fadeHistoryStart = 0;
+            int hitSoundHistoryStart = 0;
             YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
             {
                 Title = "Completion Transition Test",
@@ -1073,6 +1074,8 @@ namespace Yokko.Game.Tests.Visual
                 startingMusicVolume = audioEngine.MusicVolume;
                 startingHitSoundVolume = audioEngine.HitSoundVolume;
                 fadeHistoryStart = audioEngine.MusicVolumeHistory.Count;
+                hitSoundHistoryStart =
+                    audioEngine.HitSoundVolumeHistory.Count;
                 audioEngine.SetPlaybackTime(1000);
             });
             AddUntilStep("completion transition starts", () =>
@@ -1100,6 +1103,22 @@ namespace Yokko.Game.Tests.Visual
                                            .ToArray();
                 return fade.Length > 2
                        && fade[^1] <= 0.000001
+                       && fade.Zip(
+                               fade.Skip(1),
+                               (previous, current) =>
+                                   current <= previous + 0.000001)
+                              .All(static monotonic => monotonic);
+            });
+            AddAssert("final hit-sound tail fades smoothly to silence", () =>
+            {
+                double[] fade = audioEngine.HitSoundVolumeHistory
+                                           .Skip(hitSoundHistoryStart)
+                                           .ToArray();
+                return fade.Length > 2
+                       && fade[^1] <= 0.000001
+                       && fade.Any(volume =>
+                           volume < startingHitSoundVolume
+                           && volume > 0.000001)
                        && fade.Zip(
                                fade.Skip(1),
                                (previous, current) =>
@@ -3833,6 +3852,7 @@ StageHint: stage-hint
             : SeekTrackingAudioEngine, IAudioMixControl
         {
             private readonly List<double> musicVolumeHistory = new();
+            private readonly List<double> hitSoundVolumeHistory = new();
 
             public double MusicVolume { get; private set; } = 1;
 
@@ -3843,6 +3863,9 @@ StageHint: stage-hint
             public IReadOnlyList<double> MusicVolumeHistory =>
                 musicVolumeHistory;
 
+            public IReadOnlyList<double> HitSoundVolumeHistory =>
+                hitSoundVolumeHistory;
+
             public void SetMixVolumes(
                 double musicVolume,
                 double hitSoundVolume,
@@ -3852,6 +3875,7 @@ StageHint: stage-hint
                 HitSoundVolume = hitSoundVolume;
                 MetronomeVolume = metronomeVolume;
                 musicVolumeHistory.Add(musicVolume);
+                hitSoundVolumeHistory.Add(hitSoundVolume);
             }
 
             public bool TriggerMetronome() => false;

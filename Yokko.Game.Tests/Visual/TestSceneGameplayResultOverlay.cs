@@ -53,6 +53,8 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
         });
         AddUntilStep("GIF decoded", () =>
             overlay?.MascotFrameCount == 15);
+        AddUntilStep("entrance animation completes", () =>
+            overlay?.EntranceComplete == true);
         AddStep("capture result screen", () =>
         {
             string outputPath = Environment.GetEnvironmentVariable(

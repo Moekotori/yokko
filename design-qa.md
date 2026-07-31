@@ -98,6 +98,8 @@ final result: passed
   `D:\yokko\artifacts\mods\connector-polish-active.png`
 - Refined source/implementation comparison:
   `D:\yokko\artifacts\mods\connector-polish-comparison.png`
+- Post-transition regression capture:
+  `D:\yokko\artifacts\mods\transition-fixed-scroll.png`
 - Authored viewport: 1600 x 900, verified through the native 3168 x 1785
   renderer capture used by the 3200 x 2000 desktop.
 - States: empty Difficulty Down page and active Difficulty Up page with
@@ -137,6 +139,10 @@ final result: passed
   1600 x 900 layout and is scaled by Yokko's global UI-size container. The
   enlarged text hierarchy was checked in both empty and active states without
   clipping or node-label collisions.
+- Page-transition stability: the orbit animation now offsets from its authored
+  X=335 resting position and always returns there. Previously it animated to
+  absolute X=0, permanently moving the central workspace over the category
+  rail after the first page change.
 
 ## Findings
 
@@ -155,6 +161,8 @@ final result: passed
 - Connector refinement isolated build: passed with 0 warnings and 0 errors.
 - Connector refinement focused `TestSceneGameplayModsScreen` suite: passed,
   8/8.
+- Category-transition regression assertions now verify the orbit returns to
+  X=335 after wheel, Tab, and Shift+Tab navigation; focused suite passed 8/8.
 - Native Direct3D 11 empty-state and active-state previews: exited with code 0.
 - Final source/implementation comparison and 2K readability captures were
   reviewed at matching authored density.

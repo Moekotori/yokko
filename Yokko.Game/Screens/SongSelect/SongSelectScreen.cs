@@ -245,11 +245,7 @@ public partial class SongSelectScreen : Screen
         {
             backgroundA = createBackground(firstWallpaper),
             backgroundB = createBackground(firstWallpaper),
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(0.92f, 0.98f, 1f, 0.08f),
-            },
+            createBackgroundIsolation(),
             stage = new Container
             {
                 RelativeSizeAxes = Axes.Both,
@@ -2147,8 +2143,9 @@ public partial class SongSelectScreen : Screen
             }
         }
 
-        return textures.Get(entry?.WallpaperTexture ?? "SongSelect/blue-signal")
-               ?? textures.Get("SongSelect/blue-signal");
+        return textures.Get(
+                   SongSelectArtworkPolicy.Resolve(entry?.WallpaperTexture))
+               ?? textures.Get(SongSelectArtworkPolicy.FallbackTexture);
     }
 
     private void refreshSavedScores()
@@ -2415,10 +2412,7 @@ public partial class SongSelectScreen : Screen
 
         return new SongSelectEntry(
             beatmap,
-            imported.ArtworkPath
-            ?? (beatmap.Title.Equals("Waterfall", StringComparison.OrdinalIgnoreCase)
-                ? "SongSelect/waterfall-cute"
-                : "SongSelect/blue-signal"),
+            SongSelectArtworkPolicy.Resolve(imported.ArtworkPath),
             imported.StarRating,
             TimeSpan.FromMilliseconds(Math.Max(0, lengthMilliseconds)),
             bpm,
@@ -2440,5 +2434,18 @@ public partial class SongSelectScreen : Screen
         new(5, "AOI", "SongSelect/Avatars/aoi", ScoreRank.A, 2_432_190, 0.9682, 1430, ["MR"]),
         new(6, "MOCHI", "yokko", ScoreRank.A, 2_398_420, 0.9621, 1388, ["HD"], true),
     ];
+
+    private static Drawable createBackgroundIsolation() => new Box
+    {
+        RelativeSizeAxes = Axes.Both,
+        // This is deliberately neutral and constant. It protects the paper
+        // UI from both blown-out and very busy chart artwork without sampling
+        // or adapting to any specific beatmap's palette.
+        Colour = new Color4(
+            SongSelectTheme.DeepNavy.R,
+            SongSelectTheme.DeepNavy.G,
+            SongSelectTheme.DeepNavy.B,
+            SongSelectArtworkPolicy.IsolationOpacity),
+    };
 
 }

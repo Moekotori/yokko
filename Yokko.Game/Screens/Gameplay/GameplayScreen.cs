@@ -53,6 +53,7 @@ public partial class GameplayScreen : Screen
     private const double completionSettleMilliseconds = 180;
     private const double completionResultRevealMilliseconds = 260;
     private const double completionSkipDelayMilliseconds = 320;
+    private const double completionTailFadeStartMilliseconds = 520;
     private const double completionTransitionMilliseconds = 740;
 
     private readonly YokkoBeatmap originalBeatmap;
@@ -1792,19 +1793,27 @@ public partial class GameplayScreen : Screen
         if (completionMixControl == null)
             return;
 
+        double remainingMusic = completionFadeRemaining(
+            completionSettleMilliseconds);
+        double remainingTail = completionFadeRemaining(
+            completionTailFadeStartMilliseconds);
+        completionMixControl.SetMixVolumes(
+            completionMusicVolume * remainingMusic,
+            completionHitSoundVolume * remainingTail,
+            completionMetronomeVolume * remainingTail);
+    }
+
+    private double completionFadeRemaining(double fadeStartMilliseconds)
+    {
         double progress = Math.Clamp(
             (completionTransitionElapsedMilliseconds
-             - completionSettleMilliseconds)
+             - fadeStartMilliseconds)
             / (completionTransitionMilliseconds
-               - completionSettleMilliseconds),
+               - fadeStartMilliseconds),
             0,
             1);
         double smoothProgress = progress * progress * (3 - 2 * progress);
-        double remainingMusic = 1 - smoothProgress;
-        completionMixControl.SetMixVolumes(
-            completionMusicVolume * remainingMusic,
-            completionHitSoundVolume,
-            completionMetronomeVolume);
+        return 1 - smoothProgress;
     }
 
     private void ensureGameplayResultOverlay()

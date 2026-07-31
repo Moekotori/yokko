@@ -30,6 +30,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private Container stage;
     private Container leftStageLayout;
     private Container rightStageLayout;
+    private Container rightStageContent;
     private Container leftDecorationLayout;
     private Container rightDecorationLayout;
     private AnimatedGifSprite mascot;
@@ -39,6 +40,12 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     internal int ActionCount => 3;
     internal string DisplayedMods { get; }
     internal bool PracticeSession { get; }
+    internal bool EntranceComplete =>
+        backdrop.Alpha >= 0.999f
+        && leftStageLayout.Alpha >= 0.999f
+        && rightStageContent.Alpha >= 0.999f
+        && Math.Abs(leftStageLayout.X) < 0.01
+        && Math.Abs(rightStageContent.X) < 0.01;
 
     public GameplayResultOverlay(
         YokkoBeatmap beatmap,
@@ -133,7 +140,11 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     rightStageLayout = new Container
                     {
                         Size = new Vector2(designedWidth, designedHeight),
-                        Child = createMascotStage(),
+                        Child = rightStageContent = new Container
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Child = createMascotStage(),
+                        },
                     },
                 },
             },
@@ -144,13 +155,23 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     {
         base.LoadComplete();
 
-        // Cross-fade from the final gameplay frame before bringing the result
-        // content forward. The previous immediate backdrop swap made the
-        // existing stage animation effectively invisible.
-        backdrop.FadeIn(340, Easing.OutQuint);
-        stage.Y = 16;
-        stage.Delay(110).FadeIn(360, Easing.OutQuint);
-        stage.Delay(110).MoveToY(0, 460, Easing.OutQuint);
+        // Preserve the final gameplay frame while the result background,
+        // score data, and mascot arrive as separate visual layers.
+        stage.Alpha = 1;
+        leftStageLayout.Alpha = 0;
+        leftStageLayout.X = -18;
+        rightStageContent.Alpha = 0;
+        rightStageContent.X = 24;
+        leftDecorationLayout.Alpha = 0;
+        rightDecorationLayout.Alpha = 0;
+
+        backdrop.FadeIn(360, Easing.OutQuint);
+        leftDecorationLayout.Delay(70).FadeIn(260, Easing.OutQuint);
+        rightDecorationLayout.Delay(110).FadeIn(260, Easing.OutQuint);
+        leftStageLayout.Delay(70).FadeIn(300, Easing.OutQuint);
+        leftStageLayout.Delay(70).MoveToX(0, 400, Easing.OutQuint);
+        rightStageContent.Delay(130).FadeIn(340, Easing.OutQuint);
+        rightStageContent.Delay(130).MoveToX(0, 350, Easing.OutQuint);
     }
 
     internal void TriggerReplay() => watchReplay();
@@ -162,6 +183,16 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         stage.FinishTransforms();
         stage.Alpha = 1;
         stage.Y = 0;
+        leftStageLayout.FinishTransforms();
+        leftStageLayout.Alpha = 1;
+        leftStageLayout.X = 0;
+        rightStageContent.FinishTransforms();
+        rightStageContent.Alpha = 1;
+        rightStageContent.X = 0;
+        leftDecorationLayout.FinishTransforms();
+        leftDecorationLayout.Alpha = 1;
+        rightDecorationLayout.FinishTransforms();
+        rightDecorationLayout.Alpha = 1;
     }
 
     protected override void Update()
