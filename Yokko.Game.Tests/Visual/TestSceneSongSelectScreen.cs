@@ -99,8 +99,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             {
                 Title = "Song Select Rate Shortcut",
             };
-        ManiaStarRatingResult expectedFastRating =
-            ManiaStarRatingCalculator.CalculateResult(
+        ManiaMsdResult expectedFastRating =
+            ManiaMsdCalculator.CalculateResult(
                 beatmap,
                 1.05);
         SongSelectSongRow originalRow = null;
@@ -136,13 +136,13 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             songSelectScreen.HandlePlaybackRateShortcut(
                 Key.Plus,
                 true));
-        AddAssert("fast rate refreshes bpm and stars", () =>
+        AddAssert("fast rate refreshes bpm and MSD", () =>
             songSelectScreen.SelectedMods.Contains(
                 ManiaModId.DoubleTime)
             && songSelectScreen.SelectedMods.PlaybackRate == 1.05
             && songSelectScreen.DisplayedPlaybackRate == 1.05
             && songSelectScreen.DisplayedBpm == "126"
-            && songSelectScreen.DisplayedStarRating?.Value
+            && songSelectScreen.DisplayedMsdRating?.Value
                == expectedFastRating.Value);
         AddAssert("rate change keeps the existing list row", () =>
             ReferenceEquals(

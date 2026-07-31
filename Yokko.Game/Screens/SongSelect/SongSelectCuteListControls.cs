@@ -40,7 +40,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         DoubleClickAction = play;
         bool compact = entry.IsPackage;
         float rowHeight = compact ? 54 : 76;
-        accent = difficultyColour(entry.StarRating);
+        accent = difficultyColour(entry.DifficultyRating);
         Size = new Vector2(row_width, rowHeight);
 
         Container panel = SongSelectSurface.CreateCard(
@@ -193,8 +193,8 @@ internal partial class SongSelectSongRow : ClickableContainer
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Text = ManiaStarRatingPresentation.FormatValue(
-                        entry.StarRating),
+                    Text = ManiaMsdPresentation.FormatValue(
+                        entry.DifficultyRating),
                     Font = HomeTypography.Display(10),
                     Colour = SongSelectTheme.DeepNavy,
                 },
@@ -219,7 +219,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             true,
             false));
         children.Add(createModePill(entry, 584, 8));
-        children.Add(createStars(entry.StarRating, -18, -10));
+        children.Add(createMsdBadge(entry.DifficultyRating, -18, -10));
     }
 
     private void addStandaloneContent(
@@ -268,7 +268,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             true,
             false));
         children.Add(createModePill(entry, 584, 18));
-        children.Add(createStars(entry.StarRating, -18, -11));
+        children.Add(createMsdBadge(entry.DifficultyRating, -18, -11));
     }
 
     private static Drawable createModePill(
@@ -325,8 +325,8 @@ internal partial class SongSelectSongRow : ClickableContainer
         Colour = colour,
     };
 
-    private static Drawable createStars(
-        ManiaStarRatingResult rating,
+    private static Drawable createMsdBadge(
+        ManiaMsdResult rating,
         float x,
         float y)
     {
@@ -339,36 +339,34 @@ internal partial class SongSelectSongRow : ClickableContainer
             Direction = FillDirection.Horizontal,
             Spacing = new Vector2(2, 0),
         };
-        int filled = rating.IsSuccess
-            ? (int)Math.Min(5, Math.Floor(rating.Value ?? 0))
-            : 0;
-        for (int i = 0; i < 5; i++)
+        flow.Add(new SpriteText
         {
-            flow.Add(new SpriteIcon
-            {
-                Size = new Vector2(8),
-                Icon = i < filled
-                    ? FontAwesome.Solid.Star
-                    : FontAwesome.Regular.Star,
-                Colour = difficultyColour(rating),
-            });
-        }
+            Text = "MSD",
+            Font = HomeTypography.Display(8),
+            Colour = difficultyColour(rating),
+        });
+        flow.Add(new SpriteText
+        {
+            Text = ManiaMsdPresentation.FormatValue(rating),
+            Font = HomeTypography.Display(10),
+            Colour = SongSelectTheme.Ivory,
+        });
         return flow;
     }
 
     private static Color4 difficultyColour(
-        ManiaStarRatingResult rating)
+        ManiaMsdResult rating)
     {
         double value = rating.Value ?? 0;
         if (!rating.IsSuccess)
             return SongSelectTheme.Muted;
-        if (value < 2.2)
+        if (value < 5)
             return SongSelectTheme.Cyan;
-        if (value < 3.7)
+        if (value < 10)
             return new Color4(0.52f, 0.94f, 0.36f, 1f);
-        if (value < 5.2)
+        if (value < 15)
             return SongSelectTheme.Yellow;
-        if (value < 6.6)
+        if (value < 20)
             return SongSelectTheme.Pink;
         return new Color4(0.64f, 0.47f, 1f, 1f);
     }

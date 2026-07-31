@@ -133,7 +133,7 @@ public partial class SongSelectScreen : Screen
     private bool transitionPending;
     private double displayedPlaybackRate = 1;
     private string displayedBpm = "0";
-    private ManiaStarRatingResult displayedStarRating;
+    private ManiaMsdResult displayedMsdRating;
     [Resolved]
     private GameplayScoreStore scoreStore { get; set; }
     [Resolved]
@@ -166,8 +166,8 @@ public partial class SongSelectScreen : Screen
     internal ManiaModSet SelectedMods => selectedMods;
     internal double DisplayedPlaybackRate => displayedPlaybackRate;
     internal string DisplayedBpm => displayedBpm;
-    internal ManiaStarRatingResult DisplayedStarRating =>
-        displayedStarRating;
+    internal ManiaMsdResult DisplayedMsdRating =>
+        displayedMsdRating;
     internal SongSelectAccuracyChallengeSettings
         AccuracyChallengeSettings =>
             modSettingsHost?.AccuracySettings;
@@ -1869,29 +1869,17 @@ public partial class SongSelectScreen : Screen
               + "→"
               + $"{selectedMods.TimeRampFinalRate:0.00}×"
             : $"{selectedMods.PlaybackRate:0.00}×";
-        double starRatingTimelineRate =
+        double difficultyTimelineRate =
             selectedMods.HasTimeRamp
                 ? 1
                 : selectedMods.PlaybackRate;
-        ManiaStarRatingContext starRatingContext =
-            ManiaStarRatingContext.ForGameplay(
+        ManiaMsdResult difficultyRating =
+            ManiaMsdCalculator.CalculateResult(
                 difficultyBeatmap,
-                selectedMods,
-                difficultyBeatmap.SourceFormat
-                    == ChartSourceFormat.Quaver
-                    ? JudgementConfiguration.QuaverDefault
-                    : gameplaySettings
-                        .GetJudgementConfiguration(),
-                gameplaySettings.MinesEnabled.Value,
-                starRatingTimelineRate);
-        ManiaStarRatingResult starRating =
-            ManiaStarRatingCalculator.CalculateResult(
-                difficultyBeatmap,
-                starRatingContext,
-                starRatingTimelineRate);
+                difficultyTimelineRate);
         displayedPlaybackRate = selectedMods.PlaybackRate;
         displayedBpm = bpmLabel;
-        displayedStarRating = starRating;
+        displayedMsdRating = difficultyRating;
 
         rankingPanel = new SongSelectRankingPanel(selectedEntry, textures, newView => scoreView = newView)
         {
@@ -1986,7 +1974,7 @@ public partial class SongSelectScreen : Screen
                     },
                 },
             },
-            createStarRating(starRating),
+            createDifficultyRating(difficultyRating),
             new Box
             {
                 Position = new Vector2(436, 143),
@@ -2326,12 +2314,9 @@ public partial class SongSelectScreen : Screen
             ],
         };
 
-    private static Drawable createStarRating(
-        ManiaStarRatingResult rating)
+    private static Drawable createDifficultyRating(
+        ManiaMsdResult rating)
     {
-        double value = rating.Value ?? 0;
-        int filled = rating.IsSuccess ? (int)Math.Min(5, Math.Floor(value)) : 0;
-
         var flow = new FillFlowContainer
         {
             Position = new Vector2(252, 158),
@@ -2340,24 +2325,21 @@ public partial class SongSelectScreen : Screen
             Spacing = new Vector2(4, 0),
         };
 
-        for (int i = 0; i < 5; i++)
+        flow.Add(new SpriteText
         {
-            flow.Add(new SpriteIcon
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                Size = new Vector2(15),
-                Icon = i < filled ? FontAwesome.Solid.Star : FontAwesome.Regular.Star,
-                Colour = rating.IsSuccess ? SongSelectTheme.Yellow : SongSelectTheme.PaleCyan,
-            });
-        }
+            Anchor = Anchor.CentreLeft,
+            Origin = Anchor.CentreLeft,
+            Text = "MSD",
+            Font = HomeTypography.Display(9),
+            Colour = SongSelectTheme.Cyan,
+        });
 
         flow.Add(new SpriteText
         {
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
             X = 6,
-            Text = ManiaStarRatingPresentation.FormatValue(rating),
+            Text = ManiaMsdPresentation.FormatValue(rating),
             Font = HomeTypography.Display(15),
             Colour = Color4.White,
         });
@@ -2366,11 +2348,9 @@ public partial class SongSelectScreen : Screen
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
             X = 7,
-            Text = ManiaStarRatingPresentation.Qualifier(rating),
+            Text = ManiaMsdPresentation.Qualifier(rating),
             Font = HomeTypography.Display(8),
-            Colour = rating.IsPartial
-                ? SongSelectTheme.Pink
-                : SongSelectTheme.Cyan,
+            Colour = SongSelectTheme.Cyan,
         });
 
         return flow;
@@ -2493,7 +2473,7 @@ public partial class SongSelectScreen : Screen
         {
             visibleEntries = visibleEntries
                              .OrderBy(entry => entry.PackageName, StringComparer.OrdinalIgnoreCase)
-                             .ThenBy(entry => entry.StarRating.Value ?? double.MaxValue)
+                             .ThenBy(entry => entry.DifficultyRating.Value ?? double.MaxValue)
                              .ThenBy(entry => entry.Beatmap.Title, StringComparer.OrdinalIgnoreCase)
                              .ToList();
         }
@@ -2915,7 +2895,7 @@ public partial class SongSelectScreen : Screen
         return new SongSelectEntry(
             beatmap,
             SongSelectArtworkPolicy.Resolve(imported.ArtworkPath),
-            imported.StarRating,
+            imported.DifficultyRating,
             TimeSpan.FromMilliseconds(Math.Max(0, lengthMilliseconds)),
             bpm,
             0,

@@ -61,11 +61,13 @@ public sealed class ImportedChartLibraryTest
             Assert.That(
                 library.GetCharts()[0].Result.Beatmap.Title,
                 Is.EqualTo("Replacement"));
-            Assert.That(library.GetCharts()[0].StarRating.IsSuccess, Is.True);
             Assert.That(
-                library.GetCharts()[0].StarRating.Value,
-                Is.EqualTo(ManiaStarRatingCalculator.Calculate(
-                    replacement.Beatmap)));
+                library.GetCharts()[0].DifficultyRating.IsSuccess,
+                Is.True);
+            Assert.That(
+                library.GetCharts()[0].DifficultyRating.Value,
+                Is.EqualTo(ManiaMsdCalculator.CalculateResult(
+                    replacement.Beatmap).Value));
         });
     }
 

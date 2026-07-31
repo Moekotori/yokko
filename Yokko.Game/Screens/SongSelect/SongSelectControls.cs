@@ -481,7 +481,7 @@ internal partial class LegacySongSelectSongRow : ClickableContainer
                             ? new Color4(0.55f, 0.36f, 1f, 1f)
                             : SongSelectTheme.Pink,
                     },
-                    createRowStarRating(entry.StarRating),
+                    createRowDifficultyRating(entry.DifficultyRating),
                     new SpriteIcon
                     {
                         Anchor = Anchor.CentreRight,
@@ -597,13 +597,9 @@ internal partial class LegacySongSelectSongRow : ClickableContainer
             : normalSize;
     }
 
-    private static Drawable createRowStarRating(
-        ManiaStarRatingResult rating)
+    private static Drawable createRowDifficultyRating(
+        ManiaMsdResult rating)
     {
-        double value = rating.Value ?? 0;
-        int filled = rating.IsSuccess ? (int)Math.Min(5, Math.Floor(value)) : 0;
-        Color4 starColour = rating.IsSuccess ? SongSelectTheme.Yellow : SongSelectTheme.PaleCyan;
-
         var flow = new FillFlowContainer
         {
             Anchor = Anchor.BottomRight,
@@ -618,22 +614,18 @@ internal partial class LegacySongSelectSongRow : ClickableContainer
         {
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
-            Text = ManiaStarRatingPresentation.FormatValue(rating),
+            Text = "MSD",
+            Font = HomeTypography.Display(9),
+            Colour = SongSelectTheme.Cyan,
+        });
+        flow.Add(new SpriteText
+        {
+            Anchor = Anchor.CentreLeft,
+            Origin = Anchor.CentreLeft,
+            Text = ManiaMsdPresentation.FormatValue(rating),
             Font = HomeTypography.Display(15),
             Colour = rating.IsSuccess ? SongSelectTheme.Ivory : SongSelectTheme.PaleCyan,
         });
-
-        for (int i = 0; i < 5; i++)
-        {
-            flow.Add(new SpriteIcon
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                Size = new Vector2(11),
-                Icon = i < filled ? FontAwesome.Solid.Star : FontAwesome.Regular.Star,
-                Colour = starColour,
-            });
-        }
 
         return flow;
     }

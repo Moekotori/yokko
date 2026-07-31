@@ -18,7 +18,7 @@ internal sealed record ImportedChart(
     string SourcePath,
     ChartImportResult Result,
     string ArtworkPath,
-    ManiaStarRatingResult StarRating,
+    ManiaMsdResult DifficultyRating,
     string PackageId,
     string PackageName,
     bool IsPackage);
@@ -32,7 +32,7 @@ internal sealed class ImportedChartLibrary
     private readonly List<ImportedChart> charts = [];
     private readonly object syncRoot = new();
     private readonly SemaphoreSlim importLock = new(1, 1);
-    private readonly StarRatingCache starRatingCache = new();
+    private readonly MsdRatingCache msdRatingCache = new();
     private string libraryPath;
 
     public event Action LibraryChanged;
@@ -50,7 +50,7 @@ internal sealed class ImportedChartLibrary
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         libraryPath = Path.GetFullPath(path);
         Directory.CreateDirectory(libraryPath);
-        initialiseStarRatingCache();
+        initialiseMsdRatingCache();
     }
 
     public IReadOnlyList<ImportedChart> GetCharts()
@@ -205,7 +205,7 @@ internal sealed class ImportedChartLibrary
                 charts.AddRange(loaded);
             }
 
-            starRatingCache.SaveIfChanged();
+            msdRatingCache.SaveIfChanged();
             LibraryChanged?.Invoke();
             return loaded.Count;
         }
@@ -229,7 +229,7 @@ internal sealed class ImportedChartLibrary
         {
             libraryPath = Path.GetFullPath(path);
             Directory.CreateDirectory(libraryPath);
-            initialiseStarRatingCache();
+            initialiseMsdRatingCache();
         }
         finally
         {
@@ -260,7 +260,7 @@ internal sealed class ImportedChartLibrary
             throw new ArgumentException("At least one imported chart is required.", nameof(results));
 
         ImportedChart[] imported = createImportedCharts(results, sourcePath);
-        starRatingCache.SaveIfChanged();
+        msdRatingCache.SaveIfChanged();
 
         lock (syncRoot)
         {
@@ -284,20 +284,20 @@ internal sealed class ImportedChartLibrary
 
         return results.Select((result, index) =>
                       {
-                          ManiaStarRatingResult starRating =
-                              starRatingCache.GetOrCalculate(
+                          ManiaMsdResult msdRating =
+                              msdRatingCache.GetOrCalculate(
                                   result.Beatmap);
 
-                          if (!starRating.IsSuccess
-                              && starRating.Status
-                                  != ManiaStarRatingStatus.TooFewNotes)
+                          if (!msdRating.IsSuccess
+                              && msdRating.Status
+                                  != ManiaMsdStatus.TooFewRows)
                           {
                               Logger.Log(
-                                  $"Could not calculate Rebirth SR for "
+                                  $"Could not calculate Etterna MSD for "
                                   + $"'{result.Beatmap.Title} "
                                   + $"[{result.Beatmap.DifficultyName}]': "
-                                  + $"{starRating.Status} — "
-                                  + $"{starRating.FailureReason}",
+                                  + $"{msdRating.Status} — "
+                                  + $"{msdRating.FailureReason}",
                                   LoggingTarget.Runtime,
                                   LogLevel.Error);
                           }
@@ -307,7 +307,7 @@ internal sealed class ImportedChartLibrary
                               sourcePath,
                               result,
                               resolveArtworkPath(result, sourcePath),
-                              starRating,
+                              msdRating,
                               sourcePath,
                               packageName,
                               isPackage);
@@ -381,11 +381,11 @@ internal sealed class ImportedChartLibrary
                       .ToArray();
     }
 
-    private void initialiseStarRatingCache() =>
-        starRatingCache.Initialise(Path.Combine(
+    private void initialiseMsdRatingCache() =>
+        msdRatingCache.Initialise(Path.Combine(
             libraryPath,
             ".yokko-cache",
-            "star-ratings.json"));
+            "etterna-msd.json"));
 
     private static string resolveArtworkPath(
         ChartImportResult result,
