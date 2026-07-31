@@ -296,6 +296,7 @@ internal partial class GameplayModsScreen : Screen
 
         lastResponsiveLayoutSize = stageSize;
         Vector2 extra = stageSize - designed_size;
+        orbitWorkspace?.SetViewportSize(stageSize);
         float detailLeft = stageSize.X
                            - detail_panel_right_margin
                            - detail_panel_width;

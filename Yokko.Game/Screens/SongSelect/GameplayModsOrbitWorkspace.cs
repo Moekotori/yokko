@@ -26,6 +26,7 @@ namespace Yokko.Game.Screens.SongSelect;
 internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 {
     private const float orbit_host_resting_x = 335;
+    private static readonly Vector2 authored_size = new(1600, 900);
 
     private static readonly ManiaModCategory[] pages =
     [
@@ -57,6 +58,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private readonly List<Action> loadAnimations = new();
 
     private Container orbitHost;
+    private Container authoredContent;
     private Container nodeHost;
     private Container activeRows;
     private Container hero;
@@ -108,7 +110,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         this.definitionsForCategory = definitionsForCategory;
         this.isSelectable = isSelectable;
 
-        Size = new Vector2(1600, 900);
+        Size = authored_size;
     }
 
     internal void Build(
@@ -129,14 +131,37 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 FillMode = FillMode.Fill,
                 Alpha = 0.22f,
             },
-            createHeader(logo),
-            createCategoryRail(),
-            createOrbit(waveformTexture),
-            createRightPanel(),
-            createDecorations(waveformTexture),
+            authoredContent = new Container
+            {
+                Size = authored_size,
+                Children =
+                [
+                    createHeader(logo),
+                    createCategoryRail(),
+                    createOrbit(waveformTexture),
+                    createRightPanel(),
+                    createDecorations(waveformTexture),
+                ],
+            },
             createFooter(),
         ];
     }
+
+    internal void SetViewportSize(Vector2 viewport)
+    {
+        Size = new Vector2(
+            MathF.Max(viewport.X, authored_size.X),
+            MathF.Max(viewport.Y, authored_size.Y));
+
+        if (authoredContent != null)
+            authoredContent.Position = CalculateAuthoredContentOffset(Size);
+    }
+
+    internal static Vector2 CalculateAuthoredContentOffset(
+        Vector2 workspaceSize) =>
+        new(
+            MathF.Max(workspaceSize.X - authored_size.X, 0) / 2,
+            MathF.Max(workspaceSize.Y - authored_size.Y, 0) / 2);
 
     protected override void LoadComplete()
     {

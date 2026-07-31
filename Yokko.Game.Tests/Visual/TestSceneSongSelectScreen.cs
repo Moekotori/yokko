@@ -152,6 +152,10 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             ManiaMsdCalculator.CalculateResult(
                 beatmap,
                 1.05);
+        ManiaMsdResult expectedSlowRating =
+            ManiaMsdCalculator.CalculateResult(
+                beatmap,
+                0.95);
         SongSelectSongRow originalRow = null;
 
         AddStep("start with one rate test chart", () =>
@@ -199,7 +203,9 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                 songSelectScreen
                     .ChildrenOfType<SongSelectSongRow>()
                     .Single(row =>
-                        row.Entry.Beatmap.Title == beatmap.Title)));
+                        row.Entry.Beatmap.Title == beatmap.Title))
+            && originalRow.DisplayedDifficultyRatings.EtternaMsd.Value
+               == expectedFastRating.Value);
         AddStep("alt keypad minus restores 1x", () =>
             songSelectScreen.HandlePlaybackRateShortcut(
                 Key.KeypadMinus,
@@ -217,7 +223,9 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                 ManiaModId.HalfTime)
             && songSelectScreen.SelectedMods.PlaybackRate == 0.95
             && songSelectScreen.DisplayedPlaybackRate == 0.95
-            && songSelectScreen.DisplayedBpm == "114");
+            && songSelectScreen.DisplayedBpm == "114"
+            && originalRow.DisplayedDifficultyRatings.EtternaMsd.Value
+               == expectedSlowRating.Value);
     }
 
     [Test]

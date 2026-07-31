@@ -1241,7 +1241,9 @@ internal partial class GameplayLayoutEditorOverlay
 
     private partial class NumericField : CompositeDrawable
     {
+        private readonly Action<double> committed;
         private readonly NumericTextBox textBox;
+        private float currentValue;
 
         internal bool ReadOnly
         {
@@ -1255,6 +1257,7 @@ internal partial class GameplayLayoutEditorOverlay
 
         public NumericField(string label, Action<double> committed)
         {
+            this.committed = committed;
             Size = new Vector2(140, 40);
             InternalChildren = new Drawable[]
             {
@@ -1281,19 +1284,41 @@ internal partial class GameplayLayoutEditorOverlay
                         CultureInfo.InvariantCulture,
                         out double value))
                 {
-                    committed(value);
+                    currentValue = (float)value;
+                    this.committed(value);
                 }
             };
         }
 
         internal void SetValue(float value)
         {
+            currentValue = value;
             if (textBox.HasFocus)
                 return;
 
             string text = value.ToString("0.0", CultureInfo.InvariantCulture);
             if (textBox.Current.Value != text)
                 textBox.Current.Value = text;
+        }
+
+        protected override bool OnScroll(ScrollEvent e)
+        {
+            if (ReadOnly || e.ScrollDelta.Y == 0)
+                return false;
+
+            double step = e.ControlPressed
+                ? 0.1
+                : e.ShiftPressed
+                    ? 10
+                    : 1;
+            double next = currentValue
+                          + Math.Sign(e.ScrollDelta.Y) * step;
+            currentValue = (float)next;
+            textBox.Current.Value = next.ToString(
+                "0.0",
+                CultureInfo.InvariantCulture);
+            committed(next);
+            return true;
         }
     }
 

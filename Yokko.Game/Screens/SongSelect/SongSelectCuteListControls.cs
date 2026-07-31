@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
@@ -22,14 +23,22 @@ internal partial class SongSelectSongRow : ClickableContainer
     private readonly Container selectionOutline;
     private readonly SpriteIcon arrow;
     private readonly Sprite selectedSticker;
-    private readonly Color4 accent;
+    private readonly List<(Box Box, float Alpha)> accentBoxes = [];
+    private readonly List<(Container Container, float Alpha)> accentBorders = [];
+    private readonly List<SpriteText> difficultyValueTexts = [];
+    private readonly List<SpriteText> difficultyUnitTexts = [];
+    private Color4 accent;
+    private ManiaDifficultyRatings displayedDifficultyRatings;
     private bool selected;
 
     public SongSelectEntry Entry { get; }
     public Action DoubleClickAction { get; }
+    internal ManiaDifficultyRatings DisplayedDifficultyRatings =>
+        displayedDifficultyRatings;
 
     public SongSelectSongRow(
         SongSelectEntry entry,
+        ManiaDifficultyRatings ratings,
         ManiaDifficultyRatingMode difficultyRatingMode,
         Texture wallpaper,
         Texture selectedStickerTexture,
@@ -41,7 +50,8 @@ internal partial class SongSelectSongRow : ClickableContainer
         DoubleClickAction = play;
         bool compact = entry.IsPackage;
         float rowHeight = compact ? 54 : 76;
-        ManiaDifficultyRatings ratings = difficultyRatings(entry);
+        ArgumentNullException.ThrowIfNull(ratings);
+        displayedDifficultyRatings = ratings;
         accent = difficultyColour(
             ratings,
             difficultyRatingMode);
@@ -57,18 +67,19 @@ internal partial class SongSelectSongRow : ClickableContainer
             new Color4(accent.R, accent.G, accent.B, 0.38f),
             9,
             1);
+        accentBorders.Add((panel, 0.38f));
 
         var children = new System.Collections.Generic.List<Drawable>
         {
             SongSelectSurface.CreateShadow(9, 0.22f, 2),
             panel,
-            new Box
+            addAccent(new Box
             {
                 RelativeSizeAxes = Axes.Y,
                 Width = 5,
                 Colour = accent,
-            },
-            new Box
+            }),
+            addAccent(new Box
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
@@ -79,7 +90,7 @@ internal partial class SongSelectSongRow : ClickableContainer
                     accent.G,
                     accent.B,
                     0.17f),
-            },
+            }, 0.17f),
         };
 
         children.Add(selectionOutline = new Container
@@ -136,6 +147,45 @@ internal partial class SongSelectSongRow : ClickableContainer
         InternalChildren = children;
     }
 
+    public void SetDifficulty(
+        ManiaDifficultyRatings ratings,
+        ManiaDifficultyRatingMode mode)
+    {
+        ArgumentNullException.ThrowIfNull(ratings);
+        displayedDifficultyRatings = ratings;
+        accent = difficultyColour(ratings, mode);
+
+        foreach (SpriteText text in difficultyValueTexts)
+        {
+            text.Text = ManiaDifficultyPresentation.FormatValue(
+                ratings,
+                mode);
+        }
+
+        foreach (SpriteText text in difficultyUnitTexts)
+        {
+            text.Text = ManiaDifficultyPresentation.Unit(mode);
+            text.Colour = accent;
+        }
+
+        foreach ((Box box, float alpha) in accentBoxes)
+        {
+            box.Colour = new Color4(
+                accent.R,
+                accent.G,
+                accent.B,
+                alpha);
+        }
+        foreach ((Container border, float alpha) in accentBorders)
+        {
+            border.BorderColour = new Color4(
+                accent.R,
+                accent.G,
+                accent.B,
+                alpha);
+        }
+    }
+
     public void SetSelected(bool value)
     {
         selected = value;
@@ -186,7 +236,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         SongSelectEntry entry,
         ManiaDifficultyRatingMode difficultyRatingMode)
     {
-        children.Add(new Container
+        var difficultyContainer = new Container
         {
             Position = new Vector2(24, 10),
             Size = new Vector2(46, 34),
@@ -196,7 +246,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             BorderColour = accent,
             Children =
             [
-                new Box
+                addAccent(new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = new Color4(
@@ -204,19 +254,21 @@ internal partial class SongSelectSongRow : ClickableContainer
                         accent.G,
                         accent.B,
                         0.86f),
-                },
-                new SpriteText
+                }, 0.86f),
+                addDifficultyValue(new SpriteText
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Text = ManiaDifficultyPresentation.FormatValue(
-                        difficultyRatings(entry),
+                        displayedDifficultyRatings,
                         difficultyRatingMode),
                     Font = HomeTypography.Display(10),
                     Colour = SongSelectTheme.DeepNavy,
-                },
+                }),
             ],
-        });
+        };
+        accentBorders.Add((difficultyContainer, 1));
+        children.Add(difficultyContainer);
         children.Add(label(
             entry.Beatmap.Title,
             84,
@@ -237,7 +289,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             false));
         children.Add(createModePill(entry, 584, 8));
         children.Add(createDifficultyBadge(
-            difficultyRatings(entry),
+            displayedDifficultyRatings,
             difficultyRatingMode,
             -18,
             -10));
@@ -291,7 +343,7 @@ internal partial class SongSelectSongRow : ClickableContainer
             false));
         children.Add(createModePill(entry, 584, 18));
         children.Add(createDifficultyBadge(
-            difficultyRatings(entry),
+            displayedDifficultyRatings,
             difficultyRatingMode,
             -18,
             -11));
@@ -301,12 +353,12 @@ internal partial class SongSelectSongRow : ClickableContainer
         SongSelectEntry entry,
         float x,
         float y) => new Container
-    {
-        Position = new Vector2(x, y),
-        Size = new Vector2(144, 22),
-        Masking = true,
-        CornerRadius = 7,
-        Children =
+        {
+            Position = new Vector2(x, y),
+            Size = new Vector2(144, 22),
+            Masking = true,
+            CornerRadius = 7,
+            Children =
         [
             new Box
             {
@@ -329,7 +381,7 @@ internal partial class SongSelectSongRow : ClickableContainer
                 Colour = Color4.White,
             },
         ],
-    };
+        };
 
     private static SpriteText label(
         string value,
@@ -340,18 +392,18 @@ internal partial class SongSelectSongRow : ClickableContainer
         Color4 colour,
         bool truncate = false,
         bool strong = true) => new()
-    {
-        Position = new Vector2(x, y),
-        Width = width,
-        Truncate = truncate,
-        Text = value,
-        Font = strong
+        {
+            Position = new Vector2(x, y),
+            Width = width,
+            Truncate = truncate,
+            Text = value,
+            Font = strong
             ? HomeTypography.Display(size)
             : HomeTypography.Body(size),
-        Colour = colour,
-    };
+            Colour = colour,
+        };
 
-    private static Drawable createDifficultyBadge(
+    private Drawable createDifficultyBadge(
         ManiaDifficultyRatings ratings,
         ManiaDifficultyRatingMode mode,
         float x,
@@ -366,21 +418,39 @@ internal partial class SongSelectSongRow : ClickableContainer
             Direction = FillDirection.Horizontal,
             Spacing = new Vector2(2, 0),
         };
-        flow.Add(new SpriteText
+        flow.Add(addDifficultyUnit(new SpriteText
         {
             Text = ManiaDifficultyPresentation.Unit(mode),
             Font = HomeTypography.Display(8),
             Colour = difficultyColour(ratings, mode),
-        });
-        flow.Add(new SpriteText
+        }));
+        flow.Add(addDifficultyValue(new SpriteText
         {
             Text = ManiaDifficultyPresentation.FormatValue(
                 ratings,
                 mode),
             Font = HomeTypography.Display(10),
             Colour = SongSelectTheme.Ivory,
-        });
+        }));
         return flow;
+    }
+
+    private Box addAccent(Box box, float alpha = 1)
+    {
+        accentBoxes.Add((box, alpha));
+        return box;
+    }
+
+    private SpriteText addDifficultyValue(SpriteText text)
+    {
+        difficultyValueTexts.Add(text);
+        return text;
+    }
+
+    private SpriteText addDifficultyUnit(SpriteText text)
+    {
+        difficultyUnitTexts.Add(text);
+        return text;
     }
 
     private static Color4 difficultyColour(
@@ -405,9 +475,6 @@ internal partial class SongSelectSongRow : ClickableContainer
         return new Color4(0.64f, 0.47f, 1f, 1f);
     }
 
-    private static ManiaDifficultyRatings difficultyRatings(
-        SongSelectEntry entry) =>
-        new(entry.DifficultyRating, entry.StarRating);
 }
 
 internal partial class SongSelectPackageHeader : ClickableContainer
@@ -521,12 +588,12 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         float width,
         float size,
         Color4 colour) => new()
-    {
-        Position = new Vector2(x, y),
-        Width = width,
-        Truncate = true,
-        Text = value,
-        Font = HomeTypography.Display(size),
-        Colour = colour,
-    };
+        {
+            Position = new Vector2(x, y),
+            Width = width,
+            Truncate = true,
+            Text = value,
+            Font = HomeTypography.Display(size),
+            Colour = colour,
+        };
 }

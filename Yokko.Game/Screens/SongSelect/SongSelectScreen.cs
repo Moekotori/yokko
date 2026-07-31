@@ -61,6 +61,11 @@ public partial class SongSelectScreen : Screen
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, SongSelectPackageHeader> packageHeaders =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<
+        SongSelectEntry,
+        Dictionary<DifficultyCacheState, ManiaDifficultyRatings>>
+        difficultyRatingsCache =
+            new(ReferenceEqualityComparer.Instance);
 
     private TextureStore textures;
     private TextureStore chartArtworkTextures;
@@ -916,7 +921,7 @@ public partial class SongSelectScreen : Screen
             showModPanelSummary();
         refreshSavedScores();
         rebuildDetails();
-        rebuildSongList();
+        refreshSongListDifficulties();
     }
 
     private void onPlaybackRateShortcutChanged()
@@ -934,6 +939,7 @@ public partial class SongSelectScreen : Screen
         if (hoveredMod == null)
             showModPanelSummary();
         rebuildDetails();
+        refreshSongListDifficulties();
     }
 
     internal void ToggleModPanel()
@@ -1567,10 +1573,10 @@ public partial class SongSelectScreen : Screen
         string value,
         string label,
         float x) => new Container
-    {
-        Position = new Vector2(x, 31),
-        Size = new Vector2(64, 27),
-        Children =
+        {
+            Position = new Vector2(x, 31),
+            Size = new Vector2(64, 27),
+            Children =
         [
             new SpriteText
             {
@@ -1586,7 +1592,7 @@ public partial class SongSelectScreen : Screen
                 Colour = SongSelectTheme.Cyan,
             },
         ],
-    };
+        };
 
     private Container createModPanel() => new Container
     {
@@ -1884,25 +1890,8 @@ public partial class SongSelectScreen : Screen
               + "→"
               + $"{selectedMods.TimeRampFinalRate:0.00}×"
             : $"{selectedMods.PlaybackRate:0.00}×";
-        double difficultyTimelineRate =
-            selectedMods.HasTimeRamp
-                ? 1
-                : selectedMods.PlaybackRate;
-        ManiaStarRatingContext starRatingContext =
-            ManiaStarRatingContext.ForGameplay(
-                difficultyBeatmap,
-                selectedMods,
-                difficultyBeatmap.SourceFormat
-                    == ChartSourceFormat.Quaver
-                    ? JudgementConfiguration.QuaverDefault
-                    : gameplaySettings.GetJudgementConfiguration(),
-                gameplaySettings.MinesEnabled.Value,
-                difficultyTimelineRate);
         ManiaDifficultyRatings difficultyRatings =
-            ManiaDifficultyCalculator.CalculateResult(
-                difficultyBeatmap,
-                starRatingContext,
-                difficultyTimelineRate);
+            difficultyRatingsFor(selectedEntry);
         displayedPlaybackRate = selectedMods.PlaybackRate;
         displayedBpm = bpmLabel;
         displayedMsdRating = difficultyRatings.EtternaMsd;
@@ -2119,10 +2108,10 @@ public partial class SongSelectScreen : Screen
         string label,
         string value,
         float x) => new Container
-    {
-        Position = new Vector2(x, 17),
-        Size = new Vector2(126, 54),
-        Children =
+        {
+            Position = new Vector2(x, 17),
+            Size = new Vector2(126, 54),
+            Children =
         [
             new SpriteText
             {
@@ -2144,7 +2133,7 @@ public partial class SongSelectScreen : Screen
                 Colour = Color4.White,
             },
         ],
-    };
+        };
 
     private Drawable createSongInfoPanel()
     {
@@ -2447,6 +2436,7 @@ public partial class SongSelectScreen : Screen
             {
                 SongSelectSongRow row = new(
                     entry,
+                    difficultyRatingsFor(entry),
                     displaySettings.DifficultyRatingMode.Value,
                     textureFor(entry),
                     textures.Get("SongSelect/Cute/sticker-star"),
@@ -2783,16 +2773,80 @@ public partial class SongSelectScreen : Screen
         rebuildDetails();
     }
 
+    private void refreshSongListDifficulties()
+    {
+        if (sortByDifficulty)
+        {
+            applyFilters();
+            return;
+        }
+
+        ManiaDifficultyRatingMode mode =
+            displaySettings.DifficultyRatingMode.Value;
+        foreach (SongSelectSongRow row in rows)
+            row.SetDifficulty(difficultyRatingsFor(row.Entry), mode);
+    }
+
+    private ManiaDifficultyRatings difficultyRatingsFor(
+        SongSelectEntry entry)
+    {
+        JudgementConfiguration judgementConfiguration =
+            entry.Beatmap.SourceFormat == ChartSourceFormat.Quaver
+                ? JudgementConfiguration.QuaverDefault
+                : gameplaySettings.GetJudgementConfiguration();
+        var state = new DifficultyCacheState(
+            selectedMods.Fingerprint,
+            judgementConfiguration,
+            gameplaySettings.MinesEnabled.Value);
+        if (difficultyRatingsCache.TryGetValue(
+                entry,
+                out Dictionary<
+                    DifficultyCacheState,
+                    ManiaDifficultyRatings> entryCache)
+            && entryCache.TryGetValue(
+                state,
+                out ManiaDifficultyRatings cached))
+        {
+            return cached;
+        }
+
+        YokkoBeatmap appliedBeatmap =
+            ManiaBeatmapModTransformer.Apply(
+                entry.Beatmap,
+                selectedMods);
+        YokkoBeatmap difficultyBeatmap =
+            ManiaTimeRampTimeline.TransformForDifficulty(
+                appliedBeatmap,
+                selectedMods);
+        double timelineRate = selectedMods.HasTimeRamp
+            ? 1
+            : selectedMods.PlaybackRate;
+        ManiaStarRatingContext context =
+            ManiaStarRatingContext.ForGameplay(
+                difficultyBeatmap,
+                selectedMods,
+                judgementConfiguration,
+                gameplaySettings.MinesEnabled.Value,
+                timelineRate);
+        ManiaDifficultyRatings ratings =
+            ManiaDifficultyCalculator.CalculateResult(
+                difficultyBeatmap,
+                context,
+                timelineRate);
+
+        if (entryCache == null)
+        {
+            entryCache = [];
+            difficultyRatingsCache[entry] = entryCache;
+        }
+        entryCache[state] = ratings;
+        return ratings;
+    }
+
     private double? selectedDifficultyValue(
         SongSelectEntry entry) =>
-        displaySettings.DifficultyRatingMode.Value switch
-        {
-            ManiaDifficultyRatingMode.EtternaMsd =>
-                entry.DifficultyRating.Value,
-            ManiaDifficultyRatingMode.RebirthStars =>
-                entry.StarRating.Value,
-            _ => null,
-        };
+        difficultyRatingsFor(entry).Value(
+            displaySettings.DifficultyRatingMode.Value);
 
     private void synchroniseImportedCharts(bool selectNewest = false)
     {
@@ -2812,6 +2866,7 @@ public partial class SongSelectScreen : Screen
         }
 
         importedEntries.Clear();
+        difficultyRatingsCache.Clear();
 
         foreach (ImportedChart chart in importedChartLibrary.GetCharts())
         {
@@ -3019,5 +3074,10 @@ public partial class SongSelectScreen : Screen
             },
         ],
     };
+
+    private readonly record struct DifficultyCacheState(
+        string ModFingerprint,
+        JudgementConfiguration JudgementConfiguration,
+        bool MinesEnabled);
 
 }

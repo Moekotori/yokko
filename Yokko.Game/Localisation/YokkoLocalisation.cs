@@ -241,9 +241,9 @@ internal static class YokkoStrings
                 "HUD 布局",
                 "HUD レイアウト"),
             ["gameplay.layout_editor.hint"] = new(
-                "Click to select · arrows nudge · Shift ×10",
-                "点击选中 · 方向键微调 · Shift ×10",
-                "クリックで選択 · 矢印で微調整 · Shift ×10"),
+                "Tab select · arrows move · Ctrl+arrows resize",
+                "Tab 切换 · 方向键移动 · Ctrl+方向键缩放",
+                "Tab 切替 · 矢印移動 · Ctrl+矢印拡縮"),
             ["gameplay.layout_editor.playfield"] = new(
                 "Playfield · drag / resize",
                 "轨道 · 拖动 / 拉伸边框",
@@ -305,9 +305,9 @@ internal static class YokkoStrings
                 "垂直居中",
                 "垂直中央"),
             ["gameplay.layout_editor.snap_hint"] = new(
-                "SNAP 8px · hold Alt for free move",
-                "8px 自动吸附 · 按住 Alt 自由移动",
-                "8px 自動スナップ · Alt で自由移動"),
+                "DRAG: Shift locks axis · Alt bypasses snap",
+                "拖动：Shift 锁定方向 · Alt 关闭吸附",
+                "ドラッグ：Shift で軸固定 · Alt でスナップ解除"),
             ["gameplay.layout_editor.covers"] = new(
                 "LANE BLOCKERS",
                 "轨道挡板",

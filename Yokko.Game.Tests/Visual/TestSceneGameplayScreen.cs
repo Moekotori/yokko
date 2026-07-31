@@ -881,6 +881,16 @@ namespace Yokko.Game.Tests.Visual
                 Math.Abs(
                     gameplayScreen.LayoutOverviewAspectRatio
                     - 16f / 9f) < 0.001f);
+            AddAssert("playfield starts selected", () =>
+                layoutEditor.SelectedElementForTest == "Playfield");
+            AddStep("Tab selects the next editable element", () =>
+                layoutEditor.SelectNextElementForTest(false));
+            AddAssert("Tab moves selection to HUD", () =>
+                layoutEditor.SelectedElementForTest == "Hud");
+            AddStep("Shift Tab selects the previous element", () =>
+                layoutEditor.SelectNextElementForTest(true));
+            AddAssert("reverse selection returns to playfield", () =>
+                layoutEditor.SelectedElementForTest == "Playfield");
             AddStep("add top and bottom blockers", () =>
             {
                 layoutEditor.SetTopCoverEnabledForTest(true);
@@ -928,7 +938,19 @@ namespace Yokko.Game.Tests.Visual
                     > timingBarOffsetX
                 && gameplaySettings.LayoutTimingBarOffsetY.Value
                     < timingBarOffsetY);
-            AddStep("restore layout after keyboard nudge", () =>
+            float keyboardResizeStart = 0;
+            AddStep("Ctrl arrow resizes timing bar", () =>
+            {
+                keyboardResizeStart =
+                    layoutEditor.TimingBarEditorWidthForTest;
+                layoutEditor.ResizeTimingBarWithKeyboardForTest(
+                    Key.Right,
+                    false);
+            });
+            AddUntilStep("keyboard resize is applied", () =>
+                layoutEditor.TimingBarEditorWidthForTest
+                    > keyboardResizeStart);
+            AddStep("restore layout after keyboard transforms", () =>
                 gameplaySettings.ResetGameplayLayout());
             AddStep("lock timing bar", () =>
                 layoutEditor.SetTimingBarLockedForTest(true));
