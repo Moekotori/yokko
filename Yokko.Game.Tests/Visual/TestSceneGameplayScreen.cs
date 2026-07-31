@@ -834,6 +834,8 @@ namespace Yokko.Game.Tests.Visual
             GameplayLayoutEditorOverlay layoutEditor = null;
             GameplayTimingBar timingBar = null;
             GameplayHud gameplayHud = null;
+            GameplayComboReadout comboReadout = null;
+            JudgementReadout judgementReadout = null;
 
             AddStep("open gameplay layout fixture", () =>
             {
@@ -871,18 +873,32 @@ namespace Yokko.Game.Tests.Visual
                     .SingleOrDefault()) != null
                 && (gameplayHud = gameplayScreen
                     .ChildrenOfType<GameplayHud>()
+                    .SingleOrDefault()) != null
+                && (comboReadout = gameplayScreen
+                    .ChildrenOfType<GameplayComboReadout>()
+                    .SingleOrDefault()) != null
+                && (judgementReadout = gameplayScreen
+                    .ChildrenOfType<JudgementReadout>()
                     .SingleOrDefault()) != null);
             AddAssert("gameplay is paused while arranging", () =>
                 gameplayScreen.IsPaused);
-            AddAssert("three elements expose screenshot handles", () =>
-                layoutEditor.TransformTargetCount == 3
-                && layoutEditor.ResizeHandleCount == 24);
+            AddAssert("five elements expose screenshot handles", () =>
+                layoutEditor.TransformTargetCount == 5
+                && layoutEditor.ResizeHandleCount == 40);
+            AddAssert("combo and judgement show editor previews", () =>
+                comboReadout.Alpha > 0
+                && judgementReadout.Alpha > 0
+                && judgementReadout.DisplayedRating == "GREAT");
             AddAssert("overview keeps full page aspect ratio", () =>
                 Math.Abs(
                     gameplayScreen.LayoutOverviewAspectRatio
                     - 16f / 9f) < 0.001f);
             AddAssert("playfield starts selected", () =>
                 layoutEditor.SelectedElementForTest == "Playfield");
+            AddAssert("inactive blocker handles stay inside the canvas", () =>
+                layoutEditor.TopCoverHandleTopForTest >= -0.01f
+                && layoutEditor.BottomCoverHandleBottomForTest
+                    <= layoutEditor.DrawHeight + 0.01f);
             AddStep("Tab selects the next editable element", () =>
                 layoutEditor.SelectNextElementForTest(false));
             AddAssert("Tab moves selection to HUD", () =>
@@ -909,6 +925,10 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("exact blocker heights are applied", () =>
                 Math.Abs(layoutEditor.TopCoverHeightForTest - 210) < 2
                 && Math.Abs(layoutEditor.BottomCoverHeightForTest - 84) < 2);
+            AddStep("drag top blocker resize bar", () =>
+                layoutEditor.DragTopCoverResizeForTest(160));
+            AddUntilStep("drag resize changes blocker height", () =>
+                Math.Abs(layoutEditor.TopCoverHeightForTest - 160) < 2);
             AddStep("remove top blocker", () =>
                 layoutEditor.SetTopCoverEnabledForTest(false));
             AddAssert("blockers can be removed independently", () =>
@@ -979,6 +999,62 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("HUD visibility is restored", () =>
                 !layoutEditor.HudHiddenForTest
                 && gameplayHud.Alpha > 0);
+            float comboCentreX = 0;
+            float judgementWidth = 0;
+            AddStep("move combo and resize judgement display", () =>
+            {
+                comboCentreX = layoutEditor.ComboEditorCentreXForTest;
+                judgementWidth =
+                    layoutEditor.JudgementEditorWidthForTest;
+                layoutEditor.MoveComboForTest(new Vector2(90, 44));
+                layoutEditor.ResizeJudgementForTest(
+                    new Vector2(70, 18));
+            });
+            AddUntilStep("combo and judgement transforms apply", () =>
+                layoutEditor.ComboEditorCentreXForTest
+                    > comboCentreX + 70
+                && layoutEditor.JudgementEditorWidthForTest
+                    > judgementWidth + 30
+                && gameplaySettings.LayoutComboOffsetX.Value > 0
+                && gameplaySettings.LayoutComboOffsetY.Value > 0
+                && gameplaySettings.LayoutJudgementScaleX.Value > 1);
+            AddStep("restore layout after readout transforms", () =>
+                gameplaySettings.ResetGameplayLayout());
+            AddStep("keep combo recoverable when moved off canvas", () =>
+                layoutEditor.MoveComboSafelyForTest(
+                    new Vector2(-10000, 10000)));
+            AddUntilStep("combo stays inside a recoverable area", () =>
+                layoutEditor.ComboEditorLeftForTest >= -0.01f
+                && layoutEditor.ComboEditorRightForTest
+                    <= layoutEditor.DrawWidth + 0.01f);
+            AddStep("centre combo with the Home action", () =>
+            {
+                layoutEditor.SelectComboForTest();
+                layoutEditor.CentreSelectedForTest();
+            });
+            AddUntilStep("Home centres both axes", () =>
+                Math.Abs(
+                    layoutEditor.ComboEditorCentreXForTest
+                    - layoutEditor.DrawWidth / 2) < 1);
+            AddStep("restore layout after safe movement checks", () =>
+                gameplaySettings.ResetGameplayLayout());
+            double originalBackgroundDim = 0;
+            AddStep("adjust live background dim", () =>
+            {
+                originalBackgroundDim =
+                    gameplayScreen.LayoutEditorBackgroundDimForTest;
+                gameplayScreen.SetLayoutEditorBackgroundDimForTest(0.8);
+            });
+            AddUntilStep("background dim updates live", () =>
+                Math.Abs(
+                    gameplayScreen.LayoutEditorBackgroundDimForTest
+                    - 0.8) < 0.001
+                && Math.Abs(
+                    gameplayScreen.DisplayedBackgroundDimForTest
+                    - 0.8f) < 0.001f);
+            AddStep("restore background dim", () =>
+                gameplayScreen.SetLayoutEditorBackgroundDimForTest(
+                    originalBackgroundDim));
             double originalScrollSpeed = 0;
             ManiaScrollDirection originalScrollDirection =
                 ManiaScrollDirection.Downscroll;

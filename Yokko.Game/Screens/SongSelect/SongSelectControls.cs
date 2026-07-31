@@ -184,7 +184,7 @@ internal partial class SongSelectFilterButton : ClickableContainer
     {
         Action = action;
         showAccentDot = accentDot;
-        Size = new Vector2(width, 34);
+        Size = new Vector2(width, 48);
         Masking = true;
         CornerRadius = 9;
         BorderThickness = 1;

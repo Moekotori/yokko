@@ -25,6 +25,25 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 {
     private const float designedWidth = 1600;
     private const float designedHeight = 900;
+    private const float judgementStripWidth = 1110;
+
+    private static class ResultColours
+    {
+        public static readonly Color4 Navy =
+            new(2 / 255f, 23 / 255f, 117 / 255f, 1f);
+        public static readonly Color4 Cyan =
+            new(107 / 255f, 219 / 255f, 253 / 255f, 1f);
+        public static readonly Color4 RankCyan =
+            new(162 / 255f, 231 / 255f, 253 / 255f, 1f);
+        public static readonly Color4 SoftCyan =
+            new(214 / 255f, 245 / 255f, 255 / 255f, 1f);
+        public static readonly Color4 Yellow =
+            new(252 / 255f, 220 / 255f, 92 / 255f, 1f);
+        public static readonly Color4 Pink =
+            new(255 / 255f, 82 / 255f, 197 / 255f, 1f);
+        public static readonly Color4 Ivory =
+            new(253 / 255f, 253 / 255f, 252 / 255f, 1f);
+    }
 
     private readonly Action retry;
     private readonly Action watchReplay;
@@ -38,6 +57,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private Container leftDecorationLayout;
     private Container rightDecorationLayout;
     private Container brandHost;
+    private Sprite stageAtmosphere;
     private Sprite mascot;
     private Sprite scoreRibbon;
     private ResultScorePanel scorePanel;
@@ -181,10 +201,12 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         scoreRibbon.Texture = textures
             .Get("Gameplay/yokko-result-ribbon")
             .Crop(new RectangleF(43, 297, 1598, 301));
+        stageAtmosphere.Texture = textures
+            .Get("Gameplay/yokko-result-stage-atmosphere");
         brandHost.Child = new HomeBrandLockup(
             textures.Get("home-logo-light"),
-            HomeControlColours.Navy,
-            HomeControlColours.Yellow)
+            ResultColours.Navy,
+            ResultColours.Yellow)
         {
             Scale = Vector2.One,
         };
@@ -274,47 +296,52 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             {
                 brandHost = new Container
                 {
-                    Position = new Vector2(70, 67),
+                    Position = new Vector2(57, 83),
                     Size = new Vector2(430, 150),
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(852, 68),
+                    Position = new Vector2(856, 65),
                     Text = YokkoStrings.Get("gameplay.result.title"),
                     Font = HomeTypography.Hero(130),
-                    Colour = HomeControlColours.Navy,
+                    Scale = new Vector2(1.022f, 1),
+                    Colour = ResultColours.Navy,
                 },
                 new Box
                 {
-                    Position = new Vector2(1282, 145),
+                    Position = new Vector2(1265, 162),
                     Size = new Vector2(70, 3),
-                    Colour = HomeControlColours.Navy,
+                    Colour = ResultColours.Navy,
                 },
                 new HomeMicroLine
                 {
-                    Position = new Vector2(1356, 142),
-                    Width = 62,
+                    Position = new Vector2(1337, 159),
+                    Width = 35,
                 },
                 new HomeCrosshairMark
                 {
-                    Position = new Vector2(1495, 86),
-                    Colour = HomeControlColours.Navy,
+                    Position = new Vector2(1495, 126),
+                    Colour = ResultColours.Navy,
                     Scale = new Vector2(0.72f),
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(860, 193),
+                    Position = new Vector2(866, 190),
                     Width = 610,
                     Truncate = true,
                     Text = $"{beatmap.Title} [{beatmap.DifficultyName}]",
-                    Font = HomeTypography.Display(31),
-                    Colour = HomeControlColours.Navy,
+                    Font = new FontUsage(
+                        "Roboto",
+                        48,
+                        "Bold",
+                        true),
+                    Colour = ResultColours.Navy,
                 },
                 new Box
                 {
-                    Position = new Vector2(860, 226),
+                    Position = new Vector2(862, 226),
                     Size = new Vector2(176, 6),
-                    Colour = HomeControlColours.Yellow,
+                    Colour = ResultColours.Yellow,
                 },
                 createScorePanel(result, rank, isNewBest),
                 createSummaryRail(result),
@@ -345,43 +372,45 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(132, -5),
+                        Position = new Vector2(120, -3),
                         Text = rank,
                         Font = HomeTypography.Hero(240),
-                        Colour = HomeControlColours.Yellow,
+                        Scale = new Vector2(1.1f, 1),
+                        Colour = ResultColours.Yellow,
                         Alpha = 0.92f,
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(139, -11),
+                        Position = new Vector2(127, -9),
                         Text = rank,
                         Font = HomeTypography.Hero(240),
-                        Colour = HomeControlColours.PaleCyan,
+                        Scale = new Vector2(1.1f, 1),
+                        Colour = ResultColours.RankCyan,
                     },
                     new Box
                     {
-                        Position = new Vector2(322, 42),
-                        Size = new Vector2(2, 148),
+                        Position = new Vector2(322, 43),
+                        Size = new Vector2(2, 150),
                         Colour = new Color4(1f, 1f, 1f, 0.82f),
                     },
                     new SpriteIcon
                     {
-                        Position = new Vector2(362, 35),
+                        Position = new Vector2(370, 36),
                         Size = new Vector2(20),
                         Icon = FontAwesome.Solid.Star,
-                        Colour = HomeControlColours.Yellow,
+                        Colour = ResultColours.Yellow,
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(396, 30),
+                        Position = new Vector2(405, 34),
                         Text = isNewBest
                             ? YokkoStrings.Get("gameplay.result.new_best")
                             : "SCORE",
-                        Font = HomeTypography.Display(20),
+                        Font = HomeTypography.Display(24),
                         Spacing = new Vector2(2.8f, 0),
                         Colour = isNewBest
-                            ? HomeControlColours.Pink
-                            : HomeControlColours.Cyan,
+                            ? ResultColours.Pink
+                            : ResultColours.Cyan,
                     },
                     new SpriteText
                     {
@@ -398,7 +427,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                                 "0000000",
                                 CultureInfo.InvariantCulture)[..1],
                         Font = HomeTypography.Hero(180),
-                        Colour = HomeControlColours.Cyan,
+                        Colour = ResultColours.Cyan,
                     },
                 },
             },
@@ -408,7 +437,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private Drawable createSummaryRail(ManiaScoreResult result) =>
         new Container
         {
-            Position = new Vector2(590, 516),
+            Position = new Vector2(590, 514),
             Size = new Vector2(960, 138),
             Children = new Drawable[]
             {
@@ -423,32 +452,32 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                             Text = "MODS",
                             Font = HomeTypography.Display(17),
                             Spacing = new Vector2(1.6f, 0),
-                            Colour = HomeControlColours.Navy,
+                            Colour = ResultColours.Navy,
                         },
                         new Box
                         {
                             Position = new Vector2(82, 26),
                             Size = new Vector2(142, 2),
-                            Colour = HomeControlColours.Navy,
+                            Colour = ResultColours.Navy,
                         },
                         new Box
                         {
                             Position = new Vector2(231, 21),
                             Size = new Vector2(10),
                             Rotation = 45,
-                            Colour = HomeControlColours.Yellow,
+                            Colour = ResultColours.Yellow,
                         },
                         createModChipRail(),
                     },
                 },
                 new Box
                 {
-                    Position = new Vector2(326, 10),
+                    Position = new Vector2(292, 10),
                     Size = new Vector2(1, 104),
                     Colour = new Color4(
-                        HomeControlColours.Navy.R,
-                        HomeControlColours.Navy.G,
-                        HomeControlColours.Navy.B,
+                        ResultColours.Navy.R,
+                        ResultColours.Navy.G,
+                        ResultColours.Navy.B,
                         0.42f),
                 },
                 createMetricCell(
@@ -456,16 +485,16 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                         ? "WIFE3"
                         : "ACCURACY",
                     $"{result.Accuracy * 100:0.00}%",
-                    376,
-                    286),
+                    356,
+                    247),
                 new Box
                 {
-                    Position = new Vector2(678, 10),
+                    Position = new Vector2(631, 10),
                     Size = new Vector2(1, 104),
                     Colour = new Color4(
-                        HomeControlColours.Navy.R,
-                        HomeControlColours.Navy.G,
-                        HomeControlColours.Navy.B,
+                        ResultColours.Navy.R,
+                        ResultColours.Navy.G,
+                        ResultColours.Navy.B,
                         0.42f),
                 },
                 createMetricCell(
@@ -476,27 +505,27 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                         ? $"{result.MaxCombo} · {result.ComboBreaks}"
                           + $" · {result.MaxMissCombo}"
                         : result.MaxCombo.ToString(),
-                    738,
-                    214),
+                    694,
+                    124),
                 new Box
                 {
-                    Position = new Vector2(-54, 132),
-                    Size = new Vector2(1010, 2),
-                    Colour = HomeControlColours.Navy,
+                    Position = new Vector2(-74, 132),
+                    Size = new Vector2(1052, 2),
+                    Colour = ResultColours.Navy,
                 },
                 new Box
                 {
-                    Position = new Vector2(-57, 128),
+                    Position = new Vector2(-77, 128),
                     Size = new Vector2(9),
                     Rotation = 45,
-                    Colour = HomeControlColours.Cyan,
+                    Colour = ResultColours.Cyan,
                 },
                 new Box
                 {
-                    Position = new Vector2(951, 128),
+                    Position = new Vector2(973, 128),
                     Size = new Vector2(9),
                     Rotation = 45,
-                    Colour = HomeControlColours.Navy,
+                    Colour = ResultColours.Navy,
                 },
             },
         };
@@ -519,8 +548,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 : ["P", "G", "GOOD", "OK", "MEH", "MISS"];
         (string Label, int Value, Color4 Colour)[] judgements =
         {
-            (labels[0], result.Perfect, HomeControlColours.Pink),
-            (labels[1], result.Great, HomeControlColours.Cyan),
+            (labels[0], result.Perfect, ResultColours.Pink),
+            (labels[1], result.Great, ResultColours.Cyan),
             (labels[2], result.Good, new Color4(0.14f, 0.72f, 0.42f, 1f)),
             (labels[3], result.Ok, new Color4(1f, 0.7f, 0.08f, 1f)),
             (labels[4], result.Meh, new Color4(0.65f, 0.27f, 0.96f, 1f)),
@@ -550,8 +579,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
         return new Container
         {
-            Position = new Vector2(548, 656),
-            Size = new Vector2(1010, 86),
+            Position = new Vector2(470, 656),
+            Size = new Vector2(judgementStripWidth, 86),
             Children = new Drawable[]
             {
                 flow,
@@ -562,7 +591,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     X = 0,
                     Size = new Vector2(13),
                     Icon = FontAwesome.Solid.Plus,
-                    Colour = HomeControlColours.Navy,
+                    Colour = ResultColours.Navy,
                 },
             },
         };
@@ -575,7 +604,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         float share) =>
         new ResultJudgementCell(label, value, colour, share)
         {
-            Width = 1010f / 6,
+            Width = judgementStripWidth / 6,
             RelativeSizeAxes = Axes.Y,
         };
 

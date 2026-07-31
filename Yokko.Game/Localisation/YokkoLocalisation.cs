@@ -241,13 +241,13 @@ internal static class YokkoStrings
                 "HUD 布局",
                 "HUD レイアウト"),
             ["gameplay.layout_editor.hint"] = new(
-                "Tab select · arrows move · Ctrl+arrows resize",
-                "Tab 切换 · 方向键移动 · Ctrl+方向键缩放",
-                "Tab 切替 · 矢印移動 · Ctrl+矢印拡縮"),
+                "Tab select · arrows move · Home centre · double-click reset",
+                "Tab 切换 · 方向键移动 · Home 居中 · 双击重置",
+                "Tab 切替 · 矢印移動 · Home 中央 · ダブルクリックでリセット"),
             ["gameplay.layout_editor.hide_hint"] = new(
-                "{0} hide editor UI · press again to restore",
-                "{0} 隐藏编辑界面 · 再按一次恢复",
-                "{0} 編集 UI を隠す · もう一度押して復元"),
+                "{0} hide UI · Ctrl+arrows resize · Delete/Backspace reset",
+                "{0} 隐藏界面 · Ctrl+方向键缩放 · Delete/退格重置",
+                "{0} UI 非表示 · Ctrl+矢印拡縮 · Delete/Backspace リセット"),
             ["gameplay.layout_editor.playfield"] = new(
                 "Playfield · drag / resize",
                 "轨道 · 拖动 / 拉伸边框",
@@ -268,6 +268,14 @@ internal static class YokkoStrings
                 "Judgement · drag / resize",
                 "判定文字 · 拖动 / 拉伸边框",
                 "判定表示 · ドラッグ / 拡縮"),
+            ["gameplay.layout_editor.cover_top_drag"] = new(
+                "TOP COVER · DRAG TO ADD / RESIZE",
+                "上挡板 · 拖动添加 / 调整",
+                "上カバー · ドラッグで追加 / 調整"),
+            ["gameplay.layout_editor.cover_bottom_drag"] = new(
+                "BOTTOM COVER · DRAG TO ADD / RESIZE",
+                "下挡板 · 拖动添加 / 调整",
+                "下カバー · ドラッグで追加 / 調整"),
             ["gameplay.layout_editor.reset"] = new(
                 "Reset",
                 "重置",

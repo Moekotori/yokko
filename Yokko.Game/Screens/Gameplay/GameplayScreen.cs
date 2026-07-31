@@ -3278,6 +3278,9 @@ public partial class GameplayScreen : Screen
     internal double LayoutEditorBackgroundDimForTest =>
         gameplaySettings.BackgroundDim.Value;
 
+    internal float DisplayedBackgroundDimForTest =>
+        backgroundDim?.Alpha ?? 0;
+
     internal void SetLayoutEditorBackgroundDimForTest(double dim) =>
         gameplaySettings.BackgroundDim.Value = Math.Clamp(
             dim,

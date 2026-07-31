@@ -2237,9 +2237,9 @@ final result: passed
 - Selected source visual:
   `C:\Users\mochi\.codex\generated_images\019fb72c-4c90-73c0-8b44-35807879ec2f\call_IHh6LBcdS7126znzk0JEpQ4H.png`
 - Final native implementation:
-  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-faithful-pass2.png`
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-balanced-pass1.png`
 - Same-input focused comparison:
-  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-faithful-comparison.png`
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-balanced-comparison.png`
 
 ## Viewport, density, and state
 
@@ -2273,6 +2273,17 @@ final result: passed
 5. The final combined comparison shows the same left/centre/right proportions,
    control hierarchy, labels, icon scale, accents, and frame language within
    the real 1600 x 130 production footer.
+6. A subsequent typography pass overcorrected the labels to 62/66 inside
+   430 x 104 and 500 x 106 cards. User review correctly identified the result
+   as P1 scale imbalance: wide, shallow controls with display text that felt
+   forced into the available height.
+7. The final proportion pass treats each control as one system: Back is
+   390 x 100 with 52 type and a 70px keycap, Reset is 96 x 96 with a 48px
+   icon, and Done is 460 x 102 with 56 type and a 44px Play icon.
+8. Labels are optically centred between their icon/keycap and chevron rather
+   than aligned to a fixed left offset. Corner-cut overlays are clipped inside
+   the button bounds and matched to the footer gradient, removing the visible
+   diamond seams found during the zoomed detail review.
 
 ## Required fidelity review
 
@@ -2296,7 +2307,8 @@ final result: passed
 
 - P0: none.
 - P1: none.
-- P2: none after the rejected implementation was replaced.
+- P2: none after the rejected implementation and over-large typography pass
+  were replaced.
 - P3: the source concept has a very subtle cyan lighting gradient; production
   keeps the shared solid Yokko cyan token so the footer remains consistent
   with other screens.

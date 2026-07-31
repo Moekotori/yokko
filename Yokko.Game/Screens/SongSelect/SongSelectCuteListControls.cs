@@ -17,9 +17,10 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectSongRow : ClickableContainer
 {
-    private const float row_width = 760;
+    private const float row_width = 730;
 
     private readonly Box surface;
+    private readonly Box selectedSurface;
     private readonly Container selectionOutline;
     private readonly SpriteIcon arrow;
     private readonly Sprite selectedSticker;
@@ -27,6 +28,8 @@ internal partial class SongSelectSongRow : ClickableContainer
     private readonly List<(Container Container, float Alpha)> accentBorders = [];
     private readonly List<SpriteText> difficultyValueTexts = [];
     private readonly List<SpriteText> difficultyUnitTexts = [];
+    private readonly List<(SpriteText Text, Color4 Normal, Color4 Selected)>
+        adaptiveTexts = [];
     private Color4 accent;
     private ManiaDifficultyRatings displayedDifficultyRatings;
     private bool selected;
@@ -49,7 +52,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         Action = select;
         DoubleClickAction = play;
         bool compact = entry.IsPackage;
-        float rowHeight = compact ? 54 : 76;
+        float rowHeight = compact ? 58 : 84;
         ArgumentNullException.ThrowIfNull(ratings);
         displayedDifficultyRatings = ratings;
         accent = difficultyColour(
@@ -73,24 +76,27 @@ internal partial class SongSelectSongRow : ClickableContainer
         {
             SongSelectSurface.CreateShadow(9, 0.22f, 2),
             panel,
+            selectedSurface = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = SongSelectSurface.Ivory(0.99f),
+                Alpha = 0,
+            },
             addAccent(new Box
             {
                 RelativeSizeAxes = Axes.Y,
-                Width = 5,
+                Width = 7,
                 Colour = accent,
             }),
             addAccent(new Box
             {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                RelativeSizeAxes = Axes.Y,
-                Width = 226,
+                RelativeSizeAxes = Axes.Both,
                 Colour = new Color4(
                     accent.R,
                     accent.G,
                     accent.B,
-                    0.17f),
-            }, 0.17f),
+                    0.24f),
+            }, 0.24f),
         };
 
         children.Add(selectionOutline = new Container
@@ -189,24 +195,24 @@ internal partial class SongSelectSongRow : ClickableContainer
     public void SetSelected(bool value)
     {
         selected = value;
-        surface.FadeColour(
-            selected
-                ? new Color4(
-                    SongSelectTheme.SurfaceRaised.R,
-                    SongSelectTheme.SurfaceRaised.G,
-                    SongSelectTheme.SurfaceRaised.B,
-                    0.98f)
-                : new Color4(
-                    SongSelectTheme.Surface.R,
-                    SongSelectTheme.Surface.G,
-                    SongSelectTheme.Surface.B,
-                    0.90f),
-            140,
-            Easing.OutQuint);
+        surface.FadeColour(new Color4(
+            SongSelectTheme.Surface.R,
+            SongSelectTheme.Surface.G,
+            SongSelectTheme.Surface.B,
+            0.90f), 140, Easing.OutQuint);
+        selectedSurface.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
+        foreach ((SpriteText text, Color4 normal, Color4 selectedColour)
+                 in adaptiveTexts)
+        {
+            text.FadeColour(
+                selected ? selectedColour : normal,
+                140,
+                Easing.OutQuint);
+        }
         selectionOutline.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
-        arrow.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
-        selectedSticker.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
-        this.MoveToX(selected ? -4 : 0, 170, Easing.OutQuint);
+        arrow.FadeTo(0, 120, Easing.OutQuint);
+        selectedSticker.FadeTo(0, 140, Easing.OutQuint);
+        this.MoveToX(0, 170, Easing.OutQuint);
     }
 
     protected override bool OnHover(HoverEvent e)
@@ -218,7 +224,7 @@ internal partial class SongSelectSongRow : ClickableContainer
                 SongSelectTheme.Navy.B,
                 0.96f),
             100);
-        this.MoveToX(-5, 120, Easing.OutQuint);
+        this.MoveToX(-3, 120, Easing.OutQuint);
         return true;
     }
 
@@ -238,8 +244,8 @@ internal partial class SongSelectSongRow : ClickableContainer
     {
         var difficultyContainer = new Container
         {
-            Position = new Vector2(24, 10),
-            Size = new Vector2(46, 34),
+            Position = new Vector2(18, 10),
+            Size = new Vector2(48, 38),
             Masking = true,
             CornerRadius = 9,
             BorderThickness = 1,
@@ -269,30 +275,36 @@ internal partial class SongSelectSongRow : ClickableContainer
         };
         accentBorders.Add((difficultyContainer, 1));
         children.Add(difficultyContainer);
-        children.Add(label(
+        children.Add(adaptiveLabel(
             entry.Beatmap.Title,
-            84,
-            5,
-            458,
+            82,
+            6,
+            422,
             15,
             Color4.White,
+            SongSelectTheme.Navy,
             true));
-        children.Add(label(
+        children.Add(adaptiveLabel(
             $"{entry.Beatmap.DifficultyName} · mapped by "
             + entry.Beatmap.Creator,
-            84,
-            29,
-            478,
+            82,
+            32,
+            442,
             9,
             SongSelectTheme.PaleCyan,
+            new Color4(
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.70f),
             true,
             false));
-        children.Add(createModePill(entry, 584, 8));
+        children.Add(createModePill(entry, 570, 10));
         children.Add(createDifficultyBadge(
             displayedDifficultyRatings,
             difficultyRatingMode,
-            -18,
-            -10));
+            -14,
+            -12));
     }
 
     private void addStandaloneContent(
@@ -304,7 +316,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         children.Add(new Container
         {
             Position = new Vector2(8),
-            Size = new Vector2(128, 60),
+            Size = new Vector2(140, 68),
             Masking = true,
             CornerRadius = 7,
             BorderThickness = 1,
@@ -316,37 +328,44 @@ internal partial class SongSelectSongRow : ClickableContainer
                 FillMode = FillMode.Fill,
             },
         });
-        children.Add(label(
+        children.Add(adaptiveLabel(
             entry.Beatmap.Title,
-            150,
-            8,
-            390,
+            164,
+            10,
+            360,
             15,
             Color4.White,
+            SongSelectTheme.Navy,
             true));
-        children.Add(label(
+        children.Add(adaptiveLabel(
             entry.Beatmap.Artist,
-            150,
-            32,
-            322,
+            164,
+            36,
+            340,
             10,
             SongSelectTheme.PaleCyan,
+            new Color4(
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.72f),
             true));
-        children.Add(label(
+        children.Add(adaptiveLabel(
             $"mapped by {entry.Beatmap.Creator}",
-            150,
-            50,
-            322,
+            164,
+            57,
+            340,
             8,
+            SongSelectTheme.Cyan,
             SongSelectTheme.Cyan,
             true,
             false));
-        children.Add(createModePill(entry, 584, 18));
+        children.Add(createModePill(entry, 570, 22));
         children.Add(createDifficultyBadge(
             displayedDifficultyRatings,
             difficultyRatingMode,
-            -18,
-            -11));
+            -14,
+            -13));
     }
 
     private static Drawable createModePill(
@@ -355,7 +374,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         float y) => new Container
         {
             Position = new Vector2(x, y),
-            Size = new Vector2(144, 22),
+            Size = new Vector2(144, 26),
             Masking = true,
             CornerRadius = 7,
             Children =
@@ -383,15 +402,18 @@ internal partial class SongSelectSongRow : ClickableContainer
         ],
         };
 
-    private static SpriteText label(
+    private SpriteText adaptiveLabel(
         string value,
         float x,
         float y,
         float width,
         float size,
         Color4 colour,
+        Color4 selectedColour,
         bool truncate = false,
-        bool strong = true) => new()
+        bool strong = true)
+    {
+        var text = new SpriteText
         {
             Position = new Vector2(x, y),
             Width = width,
@@ -402,6 +424,9 @@ internal partial class SongSelectSongRow : ClickableContainer
             : HomeTypography.Body(size),
             Colour = colour,
         };
+        adaptiveTexts.Add((text, colour, selectedColour));
+        return text;
+    }
 
     private Drawable createDifficultyBadge(
         ManiaDifficultyRatings ratings,
@@ -489,7 +514,7 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         Action toggle)
     {
         Action = toggle;
-        Size = new Vector2(760, 84);
+        Size = new Vector2(730, 96);
         Masking = true;
         CornerRadius = 10;
         BorderThickness = selected ? 2 : 1;
@@ -501,7 +526,8 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         [
             new Sprite
             {
-                RelativeSizeAxes = Axes.Both,
+                RelativeSizeAxes = Axes.Y,
+                Width = 276,
                 Texture = wallpaper,
                 FillMode = FillMode.Fill,
             },
@@ -512,7 +538,7 @@ internal partial class SongSelectPackageHeader : ClickableContainer
                     SongSelectTheme.DeepNavy.R,
                     SongSelectTheme.DeepNavy.G,
                     SongSelectTheme.DeepNavy.B,
-                    selected ? 0.48f : 0.64f),
+                    selected ? 0.28f : 0.40f),
             },
             new Box
             {
@@ -522,57 +548,33 @@ internal partial class SongSelectPackageHeader : ClickableContainer
                         SongSelectTheme.DeepNavy.R,
                         SongSelectTheme.DeepNavy.G,
                         SongSelectTheme.DeepNavy.B,
-                        0.92f),
+                        0.34f),
                     new Color4(
                         SongSelectTheme.DeepNavy.R,
                         SongSelectTheme.DeepNavy.G,
                         SongSelectTheme.DeepNavy.B,
-                        0.18f)),
+                        0.96f)),
             },
-            new Box
+            new SpriteIcon
             {
-                RelativeSizeAxes = Axes.Y,
-                Width = 6,
-                Colour = selected
-                    ? SongSelectTheme.Cyan
-                    : SongSelectTheme.Yellow,
+                Position = new Vector2(248, 21),
+                Size = new Vector2(16),
+                Icon = FontAwesome.Solid.Star,
+                Colour = SongSelectTheme.Yellow,
             },
-            new Container
-            {
-                Position = new Vector2(18, 14),
-                Size = new Vector2(54, 20),
-                Masking = true,
-                CornerRadius = 7,
-                Children =
-                [
-                    new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = SongSelectTheme.Yellow,
-                    },
-                    new SpriteText
-                    {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        Text = "PACK",
-                        Font = HomeTypography.Display(8),
-                        Colour = SongSelectTheme.DeepNavy,
-                    },
-                ],
-            },
-            label(packageName, 88, 10, 598, 18, Color4.White),
+            label(packageName, 280, 16, 390, 18, Color4.White),
             label(
                 $"{songCount} SONGS · {chartCount} CHARTS",
-                88,
-                43,
-                460,
+                280,
+                58,
+                350,
                 9,
                 SongSelectTheme.PaleCyan),
             new SpriteIcon
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.Centre,
-                X = -23,
+                X = -22,
                 Size = new Vector2(14),
                 Rotation = collapsed ? -90 : 0,
                 Icon = FontAwesome.Solid.ChevronDown,

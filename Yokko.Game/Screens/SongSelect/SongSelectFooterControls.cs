@@ -31,12 +31,12 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
 
         Container panel = SongSelectSurface.CreateCard(
             out background,
-            SongSelectTheme.Pink,
+            SongSelectSurface.Ivory(0.99f),
             new Color4(
-                SongSelectTheme.Cyan.R,
-                SongSelectTheme.Cyan.G,
-                SongSelectTheme.Cyan.B,
-                0.72f),
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.30f),
             10,
             1.25f);
 
@@ -80,7 +80,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
                 Y = -2,
                 Text = "BACK",
                 Font = HomeTypography.Display(20),
-                Colour = Color4.White,
+                Colour = SongSelectTheme.Navy,
             },
             chevron = new SpriteIcon
             {
@@ -135,7 +135,10 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
-        background.FadeColour(SongSelectTheme.Pink, 140, Easing.OutQuint);
+        background.FadeColour(
+            SongSelectSurface.Ivory(0.99f),
+            140,
+            Easing.OutQuint);
         underline.ResizeWidthTo(0, 130, Easing.OutQuint);
         chevron.MoveToX(-13, 130, Easing.OutQuint);
         this.ScaleTo(1, 140, Easing.OutQuint);
@@ -155,7 +158,7 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
     {
         this.accent = accent;
         Action = action;
-        Size = new Vector2(112, 82);
+        Size = new Vector2(104, 82);
         Masking = true;
         CornerRadius = 10;
         BorderThickness = 1.25f;

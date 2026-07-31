@@ -69,8 +69,17 @@ public sealed class GameplaySettingsTest
         Assert.That(settings.LayoutTimingBarOffsetY.Value, Is.Zero);
         Assert.That(settings.LayoutTimingBarScaleX.Value, Is.EqualTo(1));
         Assert.That(settings.LayoutTimingBarScaleY.Value, Is.EqualTo(1));
+        Assert.That(settings.LayoutComboOffsetX.Value, Is.Zero);
+        Assert.That(settings.LayoutComboOffsetY.Value, Is.Zero);
+        Assert.That(settings.LayoutComboScaleX.Value, Is.EqualTo(1));
+        Assert.That(settings.LayoutComboScaleY.Value, Is.EqualTo(1));
+        Assert.That(settings.LayoutJudgementOffsetX.Value, Is.Zero);
+        Assert.That(settings.LayoutJudgementOffsetY.Value, Is.Zero);
+        Assert.That(settings.LayoutJudgementScaleX.Value, Is.EqualTo(1));
+        Assert.That(settings.LayoutJudgementScaleY.Value, Is.EqualTo(1));
         Assert.That(settings.LayoutTopCoverRatio.Value, Is.Zero);
         Assert.That(settings.LayoutBottomCoverRatio.Value, Is.Zero);
+        Assert.That(settings.BackgroundDim.Value, Is.EqualTo(0.35));
         Assert.That(settings.KeysoundsEnabled.Value, Is.False);
         Assert.That(settings.MinesEnabled.Value, Is.True);
         Assert.That(settings.PauseWhenUnfocused.Value, Is.True);
@@ -408,8 +417,17 @@ public sealed class GameplaySettingsTest
         settings.LayoutTimingBarOffsetY.Value = -0.12;
         settings.LayoutTimingBarScaleX.Value = 1.4;
         settings.LayoutTimingBarScaleY.Value = 0.65;
+        settings.LayoutComboOffsetX.Value = 0.21;
+        settings.LayoutComboOffsetY.Value = -0.17;
+        settings.LayoutComboScaleX.Value = 1.25;
+        settings.LayoutComboScaleY.Value = 0.8;
+        settings.LayoutJudgementOffsetX.Value = -0.23;
+        settings.LayoutJudgementOffsetY.Value = 0.14;
+        settings.LayoutJudgementScaleX.Value = 1.3;
+        settings.LayoutJudgementScaleY.Value = 0.7;
         settings.LayoutTopCoverRatio.Value = 0.32;
         settings.LayoutBottomCoverRatio.Value = 0.18;
+        settings.BackgroundDim.Value = 0.75;
         settings.ScrollSpeed.Value = 12;
 
         settings.ResetGameplayLayout();
@@ -432,8 +450,17 @@ public sealed class GameplaySettingsTest
             Assert.That(settings.LayoutTimingBarOffsetY.Value, Is.Zero);
             Assert.That(settings.LayoutTimingBarScaleX.Value, Is.EqualTo(1));
             Assert.That(settings.LayoutTimingBarScaleY.Value, Is.EqualTo(1));
+            Assert.That(settings.LayoutComboOffsetX.Value, Is.Zero);
+            Assert.That(settings.LayoutComboOffsetY.Value, Is.Zero);
+            Assert.That(settings.LayoutComboScaleX.Value, Is.EqualTo(1));
+            Assert.That(settings.LayoutComboScaleY.Value, Is.EqualTo(1));
+            Assert.That(settings.LayoutJudgementOffsetX.Value, Is.Zero);
+            Assert.That(settings.LayoutJudgementOffsetY.Value, Is.Zero);
+            Assert.That(settings.LayoutJudgementScaleX.Value, Is.EqualTo(1));
+            Assert.That(settings.LayoutJudgementScaleY.Value, Is.EqualTo(1));
             Assert.That(settings.LayoutTopCoverRatio.Value, Is.Zero);
             Assert.That(settings.LayoutBottomCoverRatio.Value, Is.Zero);
+            Assert.That(settings.BackgroundDim.Value, Is.EqualTo(0.35));
             Assert.That(settings.ScrollSpeed.Value, Is.EqualTo(12));
         });
     }
@@ -496,8 +523,17 @@ public sealed class GameplaySettingsTest
                 firstSettings.LayoutTimingBarOffsetY.Value = -0.11;
                 firstSettings.LayoutTimingBarScaleX.Value = 1.4;
                 firstSettings.LayoutTimingBarScaleY.Value = 0.7;
+                firstSettings.LayoutComboOffsetX.Value = 0.19;
+                firstSettings.LayoutComboOffsetY.Value = -0.13;
+                firstSettings.LayoutComboScaleX.Value = 1.35;
+                firstSettings.LayoutComboScaleY.Value = 0.8;
+                firstSettings.LayoutJudgementOffsetX.Value = -0.16;
+                firstSettings.LayoutJudgementOffsetY.Value = 0.24;
+                firstSettings.LayoutJudgementScaleX.Value = 1.45;
+                firstSettings.LayoutJudgementScaleY.Value = 0.75;
                 firstSettings.LayoutTopCoverRatio.Value = 0.28;
                 firstSettings.LayoutBottomCoverRatio.Value = 0.12;
+                firstSettings.BackgroundDim.Value = 0.65;
                 firstSettings.KeysoundsEnabled.Value = false;
                 firstSettings.MinesEnabled.Value = false;
                 firstSettings.PauseWhenUnfocused.Value = false;
@@ -600,11 +636,38 @@ public sealed class GameplaySettingsTest
                     restoredSettings.LayoutTimingBarScaleY.Value,
                     Is.EqualTo(0.7).Within(0.001));
                 Assert.That(
+                    restoredSettings.LayoutComboOffsetX.Value,
+                    Is.EqualTo(0.19).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutComboOffsetY.Value,
+                    Is.EqualTo(-0.13).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutComboScaleX.Value,
+                    Is.EqualTo(1.35).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutComboScaleY.Value,
+                    Is.EqualTo(0.8).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutJudgementOffsetX.Value,
+                    Is.EqualTo(-0.16).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutJudgementOffsetY.Value,
+                    Is.EqualTo(0.24).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutJudgementScaleX.Value,
+                    Is.EqualTo(1.45).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutJudgementScaleY.Value,
+                    Is.EqualTo(0.75).Within(0.001));
+                Assert.That(
                     restoredSettings.LayoutTopCoverRatio.Value,
                     Is.EqualTo(0.28).Within(0.001));
                 Assert.That(
                     restoredSettings.LayoutBottomCoverRatio.Value,
                     Is.EqualTo(0.12).Within(0.001));
+                Assert.That(
+                    restoredSettings.BackgroundDim.Value,
+                    Is.EqualTo(0.65).Within(0.001));
                 Assert.That(
                     restoredSettings.KeysoundsEnabled.Value,
                     Is.False);

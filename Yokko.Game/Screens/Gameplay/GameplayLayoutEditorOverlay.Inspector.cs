@@ -19,6 +19,7 @@ namespace Yokko.Game.Screens.Gameplay;
 internal partial class GameplayLayoutEditorOverlay
 {
     private const float snapThreshold = 8;
+    private const float minimumVisibleTargetArea = 24;
     private const float defaultCoverHeight = 120;
 
     private readonly Dictionary<LayoutElementKind, float> originalElementAlpha =
@@ -45,6 +46,19 @@ internal partial class GameplayLayoutEditorOverlay
     internal float JudgementEditorCentreYForTest =>
         judgementTarget.Y + judgementTarget.DrawHeight / 2;
 
+    internal float JudgementEditorWidthForTest =>
+        judgementTarget.DrawWidth;
+
+    internal float ComboEditorLeftForTest => comboTarget.X;
+
+    internal float ComboEditorRightForTest =>
+        comboTarget.X + comboTarget.DrawWidth;
+
+    internal float TopCoverHandleTopForTest => topCoverHandle.Y;
+
+    internal float BottomCoverHandleBottomForTest =>
+        bottomCoverHandle.Y + bottomCoverHandle.DrawHeight;
+
     internal float TopCoverHeightForTest => coverHeight(true);
 
     internal float BottomCoverHeightForTest => coverHeight(false);
@@ -70,6 +84,14 @@ internal partial class GameplayLayoutEditorOverlay
     internal void MoveComboForTest(Vector2 delta) =>
         comboTarget.MoveBy(delta);
 
+    internal void MoveComboSafelyForTest(Vector2 delta) =>
+        comboTarget.MoveBy(
+            snapTargetMove(comboTarget, delta, true));
+
+    internal void SelectComboForTest() => selectTarget(comboTarget);
+
+    internal void CentreSelectedForTest() => centreSelectedBoth();
+
     internal void ResizeJudgementForTest(Vector2 delta) =>
         judgementTarget.ResizeBy(
             ResizeEdges.Right | ResizeEdges.Bottom,
@@ -86,6 +108,18 @@ internal partial class GameplayLayoutEditorOverlay
 
     internal void SetBottomCoverHeightForTest(double height) =>
         applyCoverHeight(false, height);
+
+    internal void DragTopCoverResizeForTest(float height)
+    {
+        (Vector2 topLeft, Vector2 bottomRight) =
+            GameplayLayoutGeometry.BoundsIn(this, playfield);
+        float requestedY = Math.Clamp(
+            topLeft.Y + height,
+            topLeft.Y,
+            bottomRight.Y);
+        updateTopCover(ToScreenSpace(
+            new Vector2(topLeft.X, requestedY)));
+    }
 
     internal Vector2 SnapTimingBarMoveForTest(
         Vector2 delta,
@@ -470,15 +504,36 @@ internal partial class GameplayLayoutEditorOverlay
         target.MoveBy(delta);
     }
 
+    private void centreSelectedBoth()
+    {
+        LayoutTransformTarget target = selectedTarget;
+        if (target == null || !target.CanEdit)
+            return;
+
+        beginChange();
+        Vector2 requestedDelta = new(
+            DrawWidth / 2 - (target.X + target.DrawWidth / 2),
+            DrawHeight / 2 - (target.Y + target.DrawHeight / 2));
+        target.MoveBy(
+            clampMoveToViewport(target, requestedDelta));
+    }
+
     private Vector2 snapTargetMove(
         LayoutTransformTarget moving,
         Vector2 requestedDelta,
         bool bypass)
     {
-        if (bypass || !moving.CanEdit)
+        if (!moving.CanEdit)
         {
             clearSnapGuides();
             return requestedDelta;
+        }
+
+        Vector2 adjustedDelta = requestedDelta;
+        if (bypass)
+        {
+            clearSnapGuides();
+            return clampMoveToViewport(moving, adjustedDelta);
         }
 
         float left = moving.X + requestedDelta.X;
@@ -520,7 +575,44 @@ internal partial class GameplayLayoutEditorOverlay
             yCandidates);
 
         showSnapGuides(xGuide, yGuide);
-        return requestedDelta + new Vector2(xAdjustment, yAdjustment);
+        adjustedDelta += new Vector2(xAdjustment, yAdjustment);
+        return clampMoveToViewport(moving, adjustedDelta);
+    }
+
+    private Vector2 clampMoveToViewport(
+        LayoutTransformTarget moving,
+        Vector2 requestedDelta)
+    {
+        Vector2 requestedPosition = moving.Position + requestedDelta;
+        float width = Math.Max(1, moving.DrawWidth);
+        float height = Math.Max(1, moving.DrawHeight);
+
+        requestedPosition.X = clampTargetAxis(
+            requestedPosition.X,
+            width,
+            DrawWidth);
+        requestedPosition.Y = clampTargetAxis(
+            requestedPosition.Y,
+            height,
+            DrawHeight);
+        return requestedPosition - moving.Position;
+    }
+
+    private static float clampTargetAxis(
+        float position,
+        float targetSize,
+        float viewportSize)
+    {
+        if (targetSize <= viewportSize)
+            return Math.Clamp(position, 0, viewportSize - targetSize);
+
+        float visibleArea = Math.Min(
+            minimumVisibleTargetArea,
+            viewportSize);
+        return Math.Clamp(
+            position,
+            visibleArea - targetSize,
+            viewportSize - visibleArea);
     }
 
     private static (float Adjustment, float? Guide) findBestSnap(

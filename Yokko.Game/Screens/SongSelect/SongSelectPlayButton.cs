@@ -21,7 +21,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
         Texture tapeTexture)
     {
         Action = action;
-        Size = new Vector2(390, 82);
+        Size = new Vector2(330, 82);
 
         Container panel = SongSelectSurface.CreateCard(
             out background,
@@ -39,7 +39,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
             SongSelectSurface.CreateShadow(11, 0.24f, 4),
             new Container
             {
-                Size = new Vector2(387, 77),
+                Size = new Vector2(327, 77),
                 Children =
                 [
                     panel,

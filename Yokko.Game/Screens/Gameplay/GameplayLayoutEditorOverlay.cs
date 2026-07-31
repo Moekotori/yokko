@@ -55,6 +55,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private Container miniJudgement;
     private Box miniTopCover;
     private Box miniBottomCover;
+    private Box miniBackgroundDim;
     private LayoutActionButton undoButton;
     private LayoutActionButton redoButton;
     private SpriteText editorHint;
@@ -211,12 +212,16 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     clearSnapGuides),
                 topCoverHandle = new CoverDragHandle(
                     this,
-                    "TOP COVER · DRAG RESIZE",
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.cover_top_drag"),
+                    HomeControlColours.Cyan,
                     updateTopCover,
                     beginChange),
                 bottomCoverHandle = new CoverDragHandle(
                     this,
-                    "BOTTOM COVER · DRAG RESIZE",
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.cover_bottom_drag"),
+                    HomeControlColours.Pink,
                     updateBottomCover,
                     beginChange),
                 createOverviewCard(),
@@ -410,15 +415,19 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         LayoutTransformTarget target = hoveredTarget() ?? selectedTarget;
 
         if (!e.Repeat
-            && e.Key == Key.Delete
+            && e.Key is (Key.Delete or Key.BackSpace)
+            && target != null)
+        {
+            resetTarget(target);
+            return true;
+        }
+
+        if (!e.Repeat
+            && e.Key == Key.Home
             && target != null)
         {
             selectTarget(target);
-            if (!target.CanEdit)
-                return true;
-
-            beginChange();
-            target.Reset();
+            centreSelectedBoth();
             return true;
         }
 
@@ -502,6 +511,27 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                    settings.LayoutBottomCoverRatio.Value,
                                    0,
                                    YokkoGameplaySettings.MaximumBottomCoverRatio);
+        bool topCoverActive =
+            settings.LayoutTopCoverRatio.Value > 0.0001;
+        bool bottomCoverActive =
+            settings.LayoutBottomCoverRatio.Value > 0.0001;
+
+        topCoverHandle.SetActive(topCoverActive);
+        bottomCoverHandle.SetActive(bottomCoverActive);
+
+        if (!topCoverActive)
+        {
+            topBoundary = Math.Min(
+                playfieldBottomRight.Y - 18,
+                playfieldTopLeft.Y + 18);
+        }
+
+        if (!bottomCoverActive)
+        {
+            bottomBoundary = Math.Max(
+                playfieldTopLeft.Y + 18,
+                playfieldBottomRight.Y - 18);
+        }
 
         setHandleBounds(
             topCoverHandle,
@@ -790,6 +820,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                     RelativeSizeAxes = Axes.Both,
                                     Colour = YokkoPalette.Background,
                                 },
+                                miniBackgroundDim = new Box
+                                {
+                                    RelativeSizeAxes = Axes.Both,
+                                    Colour = Color4.Black,
+                                },
                                 miniPlayfield = createMiniPlayfield(),
                                 miniHud = new Container
                                 {
@@ -896,6 +931,19 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         int next = (current + direction + targets.Length)
                    % targets.Length;
         selectTarget(targets[next]);
+    }
+
+    private void resetTarget(LayoutTransformTarget target)
+    {
+        if (target == null)
+            return;
+
+        selectTarget(target);
+        if (!target.CanEdit)
+            return;
+
+        beginChange();
+        target.Reset();
     }
 
     private void beginChange()
@@ -1397,6 +1445,10 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             miniJudgement,
             judgementTopLeft,
             judgementBottomRight);
+        miniBackgroundDim.Alpha = (float)Math.Clamp(
+            settings.BackgroundDim.Value,
+            YokkoGameplaySettings.MinimumBackgroundDim,
+            YokkoGameplaySettings.MaximumBackgroundDim);
 
         float playfieldMiniHeight = miniPlayfield.Height;
         miniTopCover.Position = miniPlayfield.Position;
@@ -1537,10 +1589,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Action<float> scroll;
         private readonly Container frame;
         private readonly Container labelPanel;
+        private readonly Container handles;
         private readonly Box selectionTint;
         private Vector2 lastPosition;
         private Axes? constrainedDragAxis;
         private bool selected;
+        private bool hovered;
 
         internal LayoutElementKind Kind { get; }
 
@@ -1638,23 +1692,44 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                         },
                     },
                 },
-                createHandle(
-                    Anchor.TopLeft,
-                    ResizeEdges.Left | ResizeEdges.Top),
-                createHandle(Anchor.TopCentre, ResizeEdges.Top, true),
-                createHandle(
-                    Anchor.TopRight,
-                    ResizeEdges.Right | ResizeEdges.Top),
-                createHandle(Anchor.CentreLeft, ResizeEdges.Left, true),
-                createHandle(Anchor.CentreRight, ResizeEdges.Right, true),
-                createHandle(
-                    Anchor.BottomLeft,
-                    ResizeEdges.Left | ResizeEdges.Bottom),
-                createHandle(Anchor.BottomCentre, ResizeEdges.Bottom, true),
-                createHandle(
-                    Anchor.BottomRight,
-                    ResizeEdges.Right | ResizeEdges.Bottom),
+                handles = new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Children = new Drawable[]
+                    {
+                        createHandle(
+                            Anchor.TopLeft,
+                            ResizeEdges.Left | ResizeEdges.Top),
+                        createHandle(
+                            Anchor.TopCentre,
+                            ResizeEdges.Top,
+                            true),
+                        createHandle(
+                            Anchor.TopRight,
+                            ResizeEdges.Right | ResizeEdges.Top),
+                        createHandle(
+                            Anchor.CentreLeft,
+                            ResizeEdges.Left,
+                            true),
+                        createHandle(
+                            Anchor.CentreRight,
+                            ResizeEdges.Right,
+                            true),
+                        createHandle(
+                            Anchor.BottomLeft,
+                            ResizeEdges.Left | ResizeEdges.Bottom),
+                        createHandle(
+                            Anchor.BottomCentre,
+                            ResizeEdges.Bottom,
+                            true),
+                        createHandle(
+                            Anchor.BottomRight,
+                            ResizeEdges.Right | ResizeEdges.Bottom),
+                    },
+                },
             };
+
+            updateEmphasis();
         }
 
         private Drawable createHandle(
@@ -1697,6 +1772,30 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
             beginChange();
             return true;
+        }
+
+        protected override bool OnDoubleClick(DoubleClickEvent e)
+        {
+            if (!CanEdit)
+                return false;
+
+            select(this);
+            beginChange();
+            reset();
+            return true;
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            hovered = true;
+            updateEmphasis();
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            hovered = false;
+            updateEmphasis();
         }
 
         protected override void OnDrag(DragEvent e)
@@ -1750,6 +1849,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         internal void SetSelected(bool selected)
         {
             this.selected = selected;
+            updateEmphasis();
+        }
+
+        private void updateEmphasis()
+        {
+            bool emphasised = selected || hovered;
             frame.BorderColour = selected
                 ? IsLocked
                     ? HomeControlColours.Pink
@@ -1760,16 +1865,28 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                         HomeControlColours.Navy.G,
                         HomeControlColours.Navy.B,
                         0.62f)
-                    : HomeControlColours.Cyan;
+                    : new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        emphasised ? 0.92f : 0.42f);
             frame.BorderThickness = selected ? 3 : 2;
             labelPanel.BorderColour = selected
                 ? HomeControlColours.Yellow
                 : HomeControlColours.Navy;
+            labelPanel.FadeTo(
+                emphasised ? 1 : 0.48f,
+                90,
+                Easing.OutQuint);
+            handles.FadeTo(
+                emphasised ? 1 : 0.16f,
+                90,
+                Easing.OutQuint);
             selectionTint.Colour = new Color4(
                 HomeControlColours.PaleCyan.R,
                 HomeControlColours.PaleCyan.G,
                 HomeControlColours.PaleCyan.B,
-                selected ? 0.11f : 0.035f);
+                selected ? 0.11f : hovered ? 0.055f : 0.015f);
         }
 
         internal void Reset() => reset();
@@ -1816,7 +1933,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             if (direction == Vector2.Zero)
                 return false;
 
-            drag(direction * Math.Max(0.1f, distance));
+            Vector2 requestedDelta =
+                direction * Math.Max(0.1f, distance);
+            drag(snapMove(this, requestedDelta, true));
             return true;
         }
 
@@ -1953,10 +2072,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Action<Vector2> update;
         private readonly Action beginChange;
         private readonly Box background;
+        private bool active;
 
         public CoverDragHandle(
             Drawable coordinateSpace,
-            string label,
+            LocalisableString label,
+            Color4 accentColour,
             Action<Vector2> update,
             Action beginChange)
         {
@@ -1982,9 +2103,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     Origin = Anchor.Centre,
                     RelativeSizeAxes = Axes.X,
                     Height = 4,
-                    Colour = label.StartsWith("TOP", StringComparison.Ordinal)
-                        ? HomeControlColours.Cyan
-                        : HomeControlColours.Pink,
+                    Colour = accentColour,
                 },
                 new FillFlowContainer
                 {
@@ -2001,7 +2120,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                             Origin = Anchor.CentreLeft,
                             Size = new Vector2(13),
                             Icon = FontAwesome.Solid.ArrowsAltV,
-                            Colour = HomeControlColours.Pink,
+                            Colour = accentColour,
                         },
                         new SpriteText
                         {
@@ -2014,6 +2133,20 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     },
                 },
             };
+
+            SetActive(false);
+        }
+
+        internal void SetActive(bool value)
+        {
+            active = value;
+            Alpha = active ? 1 : 0.72f;
+            background.Colour = active
+                ? HomeControlColours.Ivory
+                : HomeControlColours.PaleCyan;
+            BorderColour = active
+                ? HomeControlColours.Navy
+                : HomeControlColours.Cyan;
         }
 
         protected override bool OnMouseDown(MouseDownEvent e)
@@ -2033,6 +2166,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         protected override bool OnHover(HoverEvent e)
         {
+            this.FadeTo(1, 80, Easing.OutQuint);
             background.FadeColour(
                 HomeControlColours.PaleCyan,
                 90,
@@ -2044,10 +2178,15 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         protected override void OnHoverLost(HoverLostEvent e)
         {
             background.FadeColour(
-                HomeControlColours.Ivory,
+                active
+                    ? HomeControlColours.Ivory
+                    : HomeControlColours.PaleCyan,
                 120,
                 Easing.OutQuint);
-            BorderColour = HomeControlColours.Navy;
+            BorderColour = active
+                ? HomeControlColours.Navy
+                : HomeControlColours.Cyan;
+            this.FadeTo(active ? 1 : 0.72f, 120, Easing.OutQuint);
         }
     }
 

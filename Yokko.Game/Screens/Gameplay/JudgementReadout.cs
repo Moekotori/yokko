@@ -104,10 +104,7 @@ public partial class JudgementReadout : CompositeDrawable
         base.Update();
 
         if (editorPreview)
-        {
-            Alpha = 1;
             return;
-        }
 
         if (Time.Current >= hideAtMilliseconds)
         {
