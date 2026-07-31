@@ -9,6 +9,7 @@ using osuTK.Graphics;
 using Yokko.Core.Editing;
 using Yokko.Core.Timing;
 using Yokko.Game.Presentation;
+using Yokko.Game.Localisation;
 
 namespace Yokko.Game.Screens.Editor;
 
@@ -86,24 +87,35 @@ public partial class EditorInspector : CompositeDrawable
             ? 0
             : beatmap.Notes[^1].StartTimeMilliseconds + beatmap.TimingMap.StepAtTime(beatmap.Notes[^1].StartTimeMilliseconds);
 
-        modeText.Text = $"Mode {(int)beatmap.KeyMode}K";
-        noteCountText.Text = $"Notes {beatmap.Notes.Count}";
-        lengthText.Text = $"Length {lengthMilliseconds / 1000:0.00}s";
-        windowText.Text = $"Window {viewport.StartRow + 1}-{viewport.EndRowExclusive}";
+        modeText.Text = YokkoStrings.Get("editor.inspector.mode", (int)beatmap.KeyMode);
+        noteCountText.Text = YokkoStrings.Get("editor.inspector.notes", beatmap.Notes.Count);
+        lengthText.Text = YokkoStrings.Get("editor.inspector.length", $"{lengthMilliseconds / 1000:0.00}");
+        windowText.Text = YokkoStrings.Get(
+            "editor.inspector.window",
+            viewport.StartRow + 1,
+            viewport.EndRowExclusive);
         double bpm = beatmap.TimingMap.TimingPointAt(beatmap.TimeAtRow(viewport.StartRow)).BeatsPerMinute;
         double windowStartTime = beatmap.TimeAtRow(viewport.StartRow);
         var scrollMap = new ScrollVelocityMap(
             beatmap.ScrollVelocities,
             beatmap.InitialScrollVelocity);
-        scrollVelocityText.Text =
-            $"SV {scrollMap.MultiplierAt(windowStartTime):0.###}x · {beatmap.ScrollVelocities.Count} SV / {beatmap.ScrollSpeedFactors.Count} SSF / {beatmap.ScrollProfiles.Count} groups";
-        densityText.Text = $"Grid {beatmap.Rows} rows • 1/{beatmap.BeatDivisor} • {bpm:0.##} BPM";
+        scrollVelocityText.Text = YokkoStrings.Get(
+            "editor.inspector.scroll",
+            $"{scrollMap.MultiplierAt(windowStartTime):0.###}",
+            beatmap.ScrollVelocities.Count,
+            beatmap.ScrollSpeedFactors.Count,
+            beatmap.ScrollProfiles.Count);
+        densityText.Text = YokkoStrings.Get(
+            "editor.inspector.grid",
+            beatmap.Rows,
+            beatmap.BeatDivisor,
+            $"{bpm:0.##}");
         audioText.Text = beatmap.AudioPath == null
-            ? "Audio not linked"
-            : $"Audio {Path.GetFileName(beatmap.AudioPath)}";
+            ? YokkoStrings.Get("editor.inspector.audio_missing")
+            : YokkoStrings.Get("editor.inspector.audio", Path.GetFileName(beatmap.AudioPath));
         sourceText.Text = beatmap.SourcePath == null
-            ? "Source Yokko draft"
-            : $"Source {Path.GetFileName(beatmap.SourcePath)}";
+            ? YokkoStrings.Get("editor.inspector.source_draft")
+            : YokkoStrings.Get("editor.inspector.source", Path.GetFileName(beatmap.SourcePath));
     }
 
     private static SpriteText createMetric() => new()

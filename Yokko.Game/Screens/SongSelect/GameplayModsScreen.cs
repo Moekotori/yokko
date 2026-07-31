@@ -168,6 +168,8 @@ internal partial class GameplayModsScreen : Screen
     internal Color4 ConfigurablePanelColour =>
         configurablePanelBackground?.Colour ?? Color4.Transparent;
     internal bool ResetEnabled => resetButton?.IsEnabled ?? false;
+    internal void SetPreviewRateVisual(double value) =>
+        orbitWorkspace?.PreviewRate(value);
     internal static Vector2 CalculateResponsiveStageSize(Vector2 viewport) =>
         new(
             MathF.Max(viewport.X, designed_size.X),
@@ -182,6 +184,8 @@ internal partial class GameplayModsScreen : Screen
     private void load(TextureStore textures)
     {
         Texture logo = textures.Get("home-logo-hd");
+        Texture paperTexture = textures.Get("Mods/ivory-paper");
+        Texture waveformTexture = textures.Get("Mods/orbit-waveform");
 
         InternalChildren = new Drawable[]
         {
@@ -234,7 +238,7 @@ internal partial class GameplayModsScreen : Screen
             },
         };
 
-        orbitWorkspace.Build(logo);
+        orbitWorkspace.Build(logo, paperTexture, waveformTexture);
         rebuildModList();
         updateSelection();
         selectDetail(detailMod);

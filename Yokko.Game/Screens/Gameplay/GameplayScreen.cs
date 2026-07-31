@@ -292,7 +292,9 @@ public partial class GameplayScreen : Screen
         updateGameplayBounds(minesEnabled);
         judgementConfiguration =
             replay?.JudgementConfiguration
-            ?? gameplaySettings.GetJudgementConfiguration();
+            ?? (beatmap.SourceFormat == ChartSourceFormat.Quaver
+                ? JudgementConfiguration.QuaverDefault
+                : gameplaySettings.GetJudgementConfiguration());
         keyBindings = gameplaySettings.SupportedKeyModes.Contains(
             beatmap.KeyMode)
             ? KeyModeBindings.ForMode(

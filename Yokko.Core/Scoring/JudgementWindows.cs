@@ -57,7 +57,18 @@ public sealed class JudgementWindows
             configuration ?? JudgementConfiguration.YokkoDefault;
 
         double totalMultiplier = speedMultiplier / difficultyMultiplier;
-        if (Configuration.Mode == JudgementMode.Etterna)
+        if (Configuration.Mode == JudgementMode.Quaver)
+        {
+            // Quaver's standard 4K/7K windows. Playback-rate scaling is
+            // applied by Quaver's score processor to every window.
+            PerfectMilliseconds = 18 * totalMultiplier;
+            GreatMilliseconds = 43 * totalMultiplier;
+            GoodMilliseconds = 76 * totalMultiplier;
+            OkMilliseconds = 106 * totalMultiplier;
+            MehMilliseconds = 127 * totalMultiplier;
+            MissMilliseconds = 164 * totalMultiplier;
+        }
+        else if (Configuration.Mode == JudgementMode.Etterna)
         {
             // Etterna scales W1-W4 by the selected judge. W5 input and the
             // automatic miss boundary stay at 180 ms for every judge because

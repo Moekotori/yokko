@@ -98,6 +98,12 @@ public sealed class QuaverChartImporter : IChartImporter
             "KEYS7" => KeyMode.SevenKey,
             _ => throw new InvalidDataException($"Unsupported Quaver mode: {parsed.Mode}."),
         };
+        if (parseBoolean(
+                parsed.Values.GetValueOrDefault("HasScratchKey")))
+        {
+            throw new InvalidDataException(
+                "Quaver scratch-key charts are not supported. Yokko currently supports pure 4K and 7K charts.");
+        }
 
         IReadOnlyList<YokkoTimingPoint> timingPoints = parsed.TimingPoints.Count == 0
             ? [YokkoTimingPoint.Default]
@@ -113,14 +119,23 @@ public sealed class QuaverChartImporter : IChartImporter
             if (lane < 0 || lane >= (int)keyMode)
                 throw new InvalidDataException($"Quaver lane {note.Lane} is outside {(int)keyMode}K.");
 
-            bool isHold = note.EndTime > note.StartTime;
+            bool isMine = note.Type.Equals(
+                "Mine",
+                StringComparison.OrdinalIgnoreCase);
+            bool isHold = !isMine && note.EndTime > note.StartTime;
             return new YokkoHitObject(
                 lane,
                 note.StartTime,
                 isHold ? note.EndTime : null,
-                isHold ? HitObjectKind.Hold : HitObjectKind.Tap,
-                string.IsNullOrWhiteSpace(note.HitSound) ? null : note.HitSound,
-                normalizeScrollProfileId(note.TimingGroup));
+                isMine
+                    ? HitObjectKind.Mine
+                    : isHold
+                        ? HitObjectKind.Hold
+                        : HitObjectKind.Tap,
+                ScrollProfileId:
+                    normalizeScrollProfileId(note.TimingGroup),
+                SamplePayload:
+                    isMine ? null : quaverHitSoundPayload(note.HitSound));
         }).OrderBy(static note => note.StartTimeMilliseconds)
           .ThenBy(static note => note.Lane)
           .ToArray();
@@ -514,8 +529,49 @@ public sealed class QuaverChartImporter : IChartImporter
             note.Lane = ImportParsing.Int(value);
         else if (key.Equals("HitSound", StringComparison.OrdinalIgnoreCase))
             note.HitSound = value;
+        else if (key.Equals("Type", StringComparison.OrdinalIgnoreCase))
+            note.Type = value;
         else if (key.Equals("TimingGroup", StringComparison.OrdinalIgnoreCase))
             note.TimingGroup = value;
+    }
+
+    private static YokkoHitSamplePayload quaverHitSoundPayload(
+        string? value)
+    {
+        int flags = 0;
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            if (!int.TryParse(value, out flags))
+            {
+                foreach (string item in value.Split(
+                             [',', '|'],
+                             StringSplitOptions.TrimEntries
+                             | StringSplitOptions.RemoveEmptyEntries))
+                {
+                    flags |= item.ToUpperInvariant() switch
+                    {
+                        "NORMAL" => 1,
+                        "WHISTLE" => 2,
+                        "FINISH" => 4,
+                        "CLAP" => 8,
+                        _ => 0,
+                    };
+                }
+            }
+        }
+
+        var samples = new List<YokkoHitSample>
+        {
+            new(YokkoHitSample.HitNormal),
+        };
+        if ((flags & 2) != 0)
+            samples.Add(new YokkoHitSample(YokkoHitSample.HitWhistle));
+        if ((flags & 4) != 0)
+            samples.Add(new YokkoHitSample(YokkoHitSample.HitFinish));
+        if ((flags & 8) != 0)
+            samples.Add(new YokkoHitSample(YokkoHitSample.HitClap));
+
+        return new YokkoHitSamplePayload(samples);
     }
 
     private static void assignSliderVelocity(
@@ -782,6 +838,7 @@ public sealed class QuaverChartImporter : IChartImporter
         public double EndTime { get; set; }
         public int Lane { get; set; }
         public string? HitSound { get; set; }
+        public string Type { get; set; } = "Normal";
         public string? TimingGroup { get; set; }
     }
 }

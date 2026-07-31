@@ -15,7 +15,6 @@ internal sealed class WindowsRawKeyboardTimestampBackend :
 {
     private const uint wm_input = 0x00ff;
     private const uint rid_input = 0x10000003;
-    private const uint rid_header = 0x10000005;
     private const uint rim_typekeyboard = 1;
     private const ushort hid_usage_page_generic = 0x01;
     private const ushort hid_usage_generic_keyboard = 0x06;
@@ -26,6 +25,12 @@ internal sealed class WindowsRawKeyboardTimestampBackend :
     private const ulong subclass_id_value = 0x594f4b4b;
 
     private static readonly UIntPtr subclass_id = new(subclass_id_value);
+    private static readonly uint raw_input_header_size =
+        (uint)Marshal.SizeOf<RawInputHeader>();
+    private static readonly uint raw_input_size =
+        (uint)Marshal.SizeOf<RawInput>();
+    private static readonly uint raw_input_device_size =
+        (uint)Marshal.SizeOf<RawInputDevice>();
 
     private readonly object sync = new();
     private const int max_pending_edges = 1024;
@@ -107,7 +112,7 @@ internal sealed class WindowsRawKeyboardTimestampBackend :
             if (!RegisterRawInputDevices(
                     new[] { device },
                     1,
-                    (uint)Marshal.SizeOf<RawInputDevice>()))
+                    raw_input_device_size))
             {
                 RemoveWindowSubclass(
                     windowHandle,
@@ -197,26 +202,15 @@ internal sealed class WindowsRawKeyboardTimestampBackend :
 
         try
         {
-            uint headerSize = (uint)Marshal.SizeOf<RawInputHeader>();
-            uint headerBytes = headerSize;
-            uint headerResult = GetRawInputData(
-                rawInputHandle,
-                rid_header,
-                out RawInputHeader header,
-                ref headerBytes,
-                headerSize);
-            if (headerResult == uint.MaxValue
-                || header.Type != rim_typekeyboard)
-                return;
-
-            uint inputBytes = (uint)Marshal.SizeOf<RawInput>();
+            uint inputBytes = raw_input_size;
             uint inputResult = GetRawInputData(
                 rawInputHandle,
                 rid_input,
                 out RawInput input,
                 ref inputBytes,
-                headerSize);
-            if (inputResult == uint.MaxValue)
+                raw_input_header_size);
+            if (inputResult == uint.MaxValue
+                || input.Header.Type != rim_typekeyboard)
                 return;
 
             RawKeyboard keyboard = input.Data.Keyboard;
@@ -295,7 +289,7 @@ internal sealed class WindowsRawKeyboardTimestampBackend :
         RegisterRawInputDevices(
             new[] { device },
             1,
-            (uint)Marshal.SizeOf<RawInputDevice>());
+            raw_input_device_size);
         windowHandle = IntPtr.Zero;
     }
 
@@ -424,14 +418,6 @@ internal sealed class WindowsRawKeyboardTimestampBackend :
         RawInputDevice[] devices,
         uint numberOfDevices,
         uint size);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern uint GetRawInputData(
-        IntPtr rawInput,
-        uint command,
-        out RawInputHeader data,
-        ref uint size,
-        uint headerSize);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint GetRawInputData(

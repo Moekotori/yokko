@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -14,13 +15,29 @@ namespace Yokko.Game.Tests.Core;
 public class LocalisationTest
 {
     [Test]
-    public void EnglishIsTheDefaultLocale()
+    public void UnsupportedLocalesFallBackToEnglish()
     {
         Assert.That(YokkoLocale.English, Is.EqualTo("en"));
         Assert.That(YokkoLocale.SUPPORTED, Is.EqualTo(new[] { "en", "zh", "ja" }));
         Assert.That(YokkoLocale.Normalize(string.Empty), Is.EqualTo("en"));
         Assert.That(YokkoLocale.Normalize("unsupported"), Is.EqualTo("en"));
         Assert.That(YokkoLocale.Normalize("zh"), Is.EqualTo("zh"));
+        Assert.That(YokkoLocale.Normalize("ZH_cn"), Is.EqualTo("zh"));
+    }
+
+    [TestCase("zh-CN", YokkoLocale.Chinese)]
+    [TestCase("zh-Hant-TW", YokkoLocale.Chinese)]
+    [TestCase("ja-JP", YokkoLocale.Japanese)]
+    [TestCase("en-US", YokkoLocale.English)]
+    [TestCase("fr-FR", YokkoLocale.English)]
+    public void FirstLaunchLocaleFollowsSupportedSystemLanguage(
+        string cultureName,
+        string expected)
+    {
+        Assert.That(
+            YokkoLocale.FromSystemCulture(
+                CultureInfo.GetCultureInfo(cultureName)),
+            Is.EqualTo(expected));
     }
 
     [TestCase(YokkoLocale.English)]

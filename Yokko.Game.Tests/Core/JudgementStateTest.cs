@@ -234,6 +234,29 @@ namespace Yokko.Game.Tests.Core
                   .Within(0.34));
         }
 
+        [Test]
+        public void QuaverWindowsAndLabelsMatchUpstreamDefaults()
+        {
+            var configuration = JudgementConfiguration.QuaverDefault;
+            var windows = new JudgementWindows(configuration: configuration);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(windows.PerfectMilliseconds, Is.EqualTo(18));
+                Assert.That(windows.GreatMilliseconds, Is.EqualTo(43));
+                Assert.That(windows.GoodMilliseconds, Is.EqualTo(76));
+                Assert.That(windows.OkMilliseconds, Is.EqualTo(106));
+                Assert.That(windows.MehMilliseconds, Is.EqualTo(127));
+                Assert.That(windows.MissMilliseconds, Is.EqualTo(164));
+                Assert.That(
+                    configuration.RatingLabel(JudgementRating.Perfect),
+                    Is.EqualTo("MARVELOUS"));
+                Assert.That(
+                    configuration.RatingLabel(JudgementRating.Meh),
+                    Is.EqualTo("OKAY"));
+            });
+        }
+
         [TestCase(4, 22.5, 45, 90, 135)]
         [TestCase(5, 18.9, 37.8, 75.6, 113.4)]
         [TestCase(6, 14.85, 29.7, 59.4, 89.1)]
@@ -793,6 +816,38 @@ namespace Yokko.Game.Tests.Core
             Assert.That(
                 tail.HitErrorMilliseconds,
                 Is.EqualTo(state.Windows.GreatMilliseconds * 1.5));
+        }
+
+        [Test]
+        public void QuaverHoldReleasePromotesOkayAndStopsBeforeMissWindow()
+        {
+            var windows = new JudgementWindows(
+                configuration: JudgementConfiguration.QuaverDefault);
+            var promotedState = new BeatmapJudgementState(
+                createHoldBeatmap(),
+                windows);
+            promotedState.JudgeLanePress(1, 1000);
+
+            JudgementEvent promoted = promotedState.JudgeLaneRelease(
+                1,
+                1500 + windows.MehMilliseconds * 1.5).First();
+
+            var outsideState = new BeatmapJudgementState(
+                createHoldBeatmap(),
+                windows);
+            outsideState.JudgeLanePress(1, 1000);
+            IReadOnlyList<JudgementEvent> outside =
+                outsideState.JudgeLaneRelease(
+                    1,
+                    1500 + windows.MehMilliseconds * 1.5 + 0.01);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    promoted.Rating,
+                    Is.EqualTo(JudgementRating.Ok));
+                Assert.That(outside, Is.Empty);
+            });
         }
 
         [Test]

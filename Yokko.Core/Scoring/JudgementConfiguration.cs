@@ -4,6 +4,7 @@ public enum JudgementMode
 {
     Yokko,
     Etterna,
+    Quaver,
 }
 
 /// <summary>
@@ -21,6 +22,9 @@ public readonly record struct JudgementConfiguration
 
     public static JudgementConfiguration EtternaDefault { get; } =
         new(JudgementMode.Etterna);
+
+    public static JudgementConfiguration QuaverDefault { get; } =
+        new(JudgementMode.Quaver);
 
     public JudgementConfiguration(
         JudgementMode mode,
@@ -67,6 +71,21 @@ public readonly record struct JudgementConfiguration
 
     public string RatingLabel(JudgementRating rating)
     {
+        if (Mode == JudgementMode.Quaver)
+        {
+            return rating switch
+            {
+                JudgementRating.Perfect => "MARVELOUS",
+                JudgementRating.Great => "PERFECT",
+                JudgementRating.Good => "GREAT",
+                JudgementRating.Ok => "GOOD",
+                JudgementRating.Meh => "OKAY",
+                JudgementRating.Miss
+                    or JudgementRating.ComboBreak => "MISS",
+                _ => rating.ToString().ToUpperInvariant(),
+            };
+        }
+
         if (Mode != JudgementMode.Etterna)
             return rating == JudgementRating.ComboBreak
                 ? "MISS"

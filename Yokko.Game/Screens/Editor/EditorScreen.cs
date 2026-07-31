@@ -10,6 +10,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osuTK;
@@ -17,6 +18,7 @@ using osuTK.Input;
 using Yokko.Core.Editing;
 using Yokko.Core.Gameplay;
 using Yokko.Game.Importing;
+using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Import;
@@ -103,7 +105,7 @@ public partial class EditorScreen : Screen
                         },
                         statusText = new SpriteText
                         {
-                            Text = "Ready. New 4K/7K, import a supported chart, click grid cells, then Playtest.",
+                            Text = YokkoStrings.Get("editor.ready"),
                             Font = FontUsage.Default.With(size: 16),
                             Colour = YokkoPalette.TextDim,
                         },
@@ -131,7 +133,7 @@ public partial class EditorScreen : Screen
         previewClock.Stop();
         audioWaveform = EditorAudioWaveform.Missing;
         rebuildWorkspace();
-        setStatus($"New {(int)keyMode}K draft created.");
+        setStatus(YokkoStrings.Get("editor.status.new_draft", (int)keyMode));
     }
 
     private void rebuildWorkspace()
@@ -213,7 +215,10 @@ public partial class EditorScreen : Screen
             return;
 
         refreshEditorState();
-        setStatus($"Timeline {formatSeconds(editableBeatmap.TimeAtRow(viewport.StartRow))}-{formatSeconds(editableBeatmap.TimeAtRow(viewport.EndRowExclusive))}");
+        setStatus(YokkoStrings.Get(
+            "editor.status.timeline",
+            formatSeconds(editableBeatmap.TimeAtRow(viewport.StartRow)),
+            formatSeconds(editableBeatmap.TimeAtRow(viewport.EndRowExclusive))));
     }
 
     private void zoomTimeline(int visibleRowDelta)
@@ -226,7 +231,7 @@ public partial class EditorScreen : Screen
 
         viewport.SetVisibleRows(nextVisibleRows, editableBeatmap.Rows);
         rebuildWorkspace();
-        setStatus($"Timeline zoom {viewport.VisibleRows} rows.");
+        setStatus(YokkoStrings.Get("editor.status.zoom", viewport.VisibleRows));
     }
 
     private void appendRows()
@@ -234,7 +239,7 @@ public partial class EditorScreen : Screen
         editableBeatmap.AppendRows(appendStep);
         viewport.MoveByRows(appendStep, editableBeatmap.Rows);
         refreshEditorState();
-        setStatus($"Extended chart to {editableBeatmap.Rows} rows.");
+        setStatus(YokkoStrings.Get("editor.status.extended", editableBeatmap.Rows));
     }
 
     private void playtest()
@@ -269,15 +274,25 @@ public partial class EditorScreen : Screen
             audioWaveform = EditorAudioWaveform.Missing;
             rebuildWorkspace();
             beginWaveformLoad();
-            string warning = importSettings.ShowCompatibilityWarnings.Value
+            LocalisableString warning = importSettings.ShowCompatibilityWarnings.Value
                              && result.Warnings.Count > 0
-                ? $" Warning: {result.Warnings[0]}{(result.Warnings.Count > 1 ? $" (+{result.Warnings.Count - 1} more)" : string.Empty)}"
+                ? YokkoStrings.Get(
+                    "editor.status.warning",
+                    result.Warnings[0],
+                    result.Warnings.Count > 1
+                        ? YokkoStrings.Get(
+                            "editor.status.more_warnings",
+                            result.Warnings.Count - 1)
+                        : string.Empty)
                 : string.Empty;
-            setStatus($"Imported {Path.GetFileName(path)}.{warning}");
+            setStatus(YokkoStrings.Get(
+                "editor.status.imported",
+                Path.GetFileName(path),
+                warning));
         }
         catch (Exception ex)
         {
-            setStatus($"Import failed: {ex.Message}");
+            setStatus(YokkoStrings.Get("editor.status.import_failed", ex.Message));
         }
     }
 
@@ -289,11 +304,11 @@ public partial class EditorScreen : Screen
             OsuManiaBeatmapIO.WriteEditableToFile(editableBeatmap, outputPath);
             editableBeatmap.SourcePath = outputPath;
             inspector.Refresh();
-            setStatus($"Exported {outputPath}");
+            setStatus(YokkoStrings.Get("editor.status.exported", outputPath));
         }
         catch (Exception ex)
         {
-            setStatus($"Export failed: {ex.Message}");
+            setStatus(YokkoStrings.Get("editor.status.export_failed", ex.Message));
         }
     }
 
@@ -309,7 +324,7 @@ public partial class EditorScreen : Screen
         return Path.Combine(exportDirectory, $"{fileName}-{(int)editableBeatmap.KeyMode}K.osu");
     }
 
-    private void setStatus(string message)
+    private void setStatus(LocalisableString message)
     {
         statusText.Text = message;
     }
@@ -331,14 +346,17 @@ public partial class EditorScreen : Screen
     {
         previewClock.Toggle(getPreviewDurationMilliseconds());
         refreshPreviewVisuals();
-        setStatus(previewClock.IsPlaying ? "Preview playing." : "Preview paused.");
+        setStatus(YokkoStrings.Get(
+            previewClock.IsPlaying
+                ? "editor.status.preview_playing"
+                : "editor.status.preview_paused"));
     }
 
     private void stopPreviewPlayback()
     {
         previewClock.Stop();
         refreshPreviewVisuals();
-        setStatus("Preview stopped.");
+        setStatus(YokkoStrings.Get("editor.status.preview_stopped"));
     }
 
     private void seekPreview(double timeMilliseconds)
@@ -346,7 +364,9 @@ public partial class EditorScreen : Screen
         previewClock.Seek(timeMilliseconds, getPreviewDurationMilliseconds());
         ensurePreviewVisible();
         refreshPreviewVisuals();
-        setStatus($"Preview {formatSeconds(previewClock.CurrentTimeMilliseconds)}.");
+        setStatus(YokkoStrings.Get(
+            "editor.status.preview_at",
+            formatSeconds(previewClock.CurrentTimeMilliseconds)));
     }
 
     private void ensurePreviewVisible()
@@ -394,7 +414,9 @@ public partial class EditorScreen : Screen
         {
             audioWaveform = cachedWaveform;
             refreshEditorState();
-            setStatus($"Waveform ready: {Path.GetFileName(audioPath)}.");
+            setStatus(YokkoStrings.Get(
+                "editor.status.waveform_ready",
+                Path.GetFileName(audioPath)));
             return;
         }
 
@@ -418,8 +440,12 @@ public partial class EditorScreen : Screen
                     audioWaveform = loadedWaveform;
                     refreshEditorState();
                     setStatus(loadedWaveform.HasAudio
-                        ? $"Waveform ready: {Path.GetFileName(audioPath)}."
-                        : $"Waveform unavailable: {loadedWaveform.Label}");
+                        ? YokkoStrings.Get(
+                            "editor.status.waveform_ready",
+                            Path.GetFileName(audioPath))
+                        : YokkoStrings.Get(
+                            "editor.status.waveform_unavailable",
+                            loadedWaveform.Label));
                 });
             }
             catch (OperationCanceledException)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
@@ -90,7 +91,11 @@ namespace Yokko.Game
         protected override IDictionary<FrameworkSetting, object> GetFrameworkConfigDefaults() =>
             new Dictionary<FrameworkSetting, object>
             {
-                [FrameworkSetting.Locale] = YokkoLocale.English,
+                // FrameworkConfigManager applies this only when no persisted
+                // locale exists, so first launch follows the operating system
+                // while every later launch respects the user's saved choice.
+                [FrameworkSetting.Locale] =
+                    YokkoLocale.FromSystemCulture(CultureInfo.CurrentUICulture),
                 [FrameworkSetting.ExecutionMode] =
                     ExecutionMode.MultiThreaded,
                 [FrameworkSetting.WindowMode] = WindowMode.Fullscreen,

@@ -410,6 +410,7 @@ namespace Yokko.Game.Tests
                     modsScreen.ToggleMod(ManiaModId.HardRock);
                     modsScreen.SetCategory(
                         ManiaModCategory.DifficultyIncrease);
+                    modsScreen.SetPreviewRateVisual(1.0);
                     break;
             }
         }

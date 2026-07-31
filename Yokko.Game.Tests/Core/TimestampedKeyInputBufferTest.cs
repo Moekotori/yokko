@@ -132,4 +132,24 @@ public sealed class TimestampedKeyInputBufferTest
         state.Clear();
         Assert.That(state.Set(extended, true), Is.True);
     }
+
+    [Test]
+    public void RawKeyStatePreservesRapidTriggerEdges()
+    {
+        const int cycles = 80_000;
+        var state = new WindowsRawKeyboardTimestampBackend.RawKeyState();
+        int identity = WindowsRawKeyboardTimestampBackend.RawKeyState
+            .IdentityIndex(32, 0, 0x44);
+        int acceptedEdges = 0;
+
+        for (int cycle = 0; cycle < cycles; cycle++)
+        {
+            if (state.Set(identity, true))
+                acceptedEdges++;
+            if (state.Set(identity, false))
+                acceptedEdges++;
+        }
+
+        Assert.That(acceptedEdges, Is.EqualTo(cycles * 2));
+    }
 }

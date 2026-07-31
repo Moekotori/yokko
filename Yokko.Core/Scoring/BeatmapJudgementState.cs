@@ -551,8 +551,7 @@ public sealed class BeatmapJudgementState
                 continue;
 
             double rawError = gameplayTimeMilliseconds - endTime;
-            JudgementRating rating = Windows.Judge(
-                rawError / HoldReleaseWindowLenience);
+            JudgementRating rating = judgeHoldRelease(rawError);
             bool tailResolvedNow = false;
 
             if (rating != JudgementRating.None)
@@ -595,6 +594,27 @@ public sealed class BeatmapJudgementState
 
             state.Holding = false;
         }
+    }
+
+    private JudgementRating judgeHoldRelease(double rawError)
+    {
+        JudgementRating rating = Windows.Judge(
+            rawError / HoldReleaseWindowLenience);
+
+        if (Windows.Configuration.Mode != JudgementMode.Quaver)
+            return rating;
+
+        // Quaver's default key rules use 1.5x release windows, promote the
+        // otherwise possible Okay release to Good, and leave releases beyond
+        // the 127ms * 1.5 boundary unresolved instead of awarding a Miss.
+        // Source: Quaver.API Maps/Processors/Scoring/ScoreProcessorKeys.cs
+        // commit 1e4dc1d64a968cfeaee3e267603cd78a48979772 (MPL-2.0).
+        return rating switch
+        {
+            JudgementRating.Meh => JudgementRating.Ok,
+            JudgementRating.Miss => JudgementRating.None,
+            _ => rating,
+        };
     }
 
     public IReadOnlyList<JudgementEvent> CollectExpiredMisses(

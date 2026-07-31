@@ -3,9 +3,11 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Game.Presentation;
+using Yokko.Game.Localisation;
 
 namespace Yokko.Game.Screens.Editor;
 
@@ -27,13 +29,13 @@ public partial class EditorHeader : CompositeDrawable
                 {
                     new SpriteText
                     {
-                        Text = "Yokko Editor",
+                        Text = YokkoStrings.Get("editor.title"),
                         Font = FontUsage.Default.With(size: 34),
                         Colour = YokkoPalette.Text,
                     },
                     new SpriteText
                     {
-                        Text = "4K / 7K charting workstation",
+                        Text = YokkoStrings.Get("editor.subtitle"),
                         Font = FontUsage.Default.With(size: 16),
                         Colour = YokkoPalette.TextMuted,
                     },
@@ -48,11 +50,11 @@ public partial class EditorHeader : CompositeDrawable
                 Spacing = new Vector2(8, 0),
                 Children = new Drawable[]
                 {
-                    new EditorToolButton("New 4K", newFourKey),
-                    new EditorToolButton("New 7K", newSevenKey),
-                    new EditorToolButton("Import", importChart),
-                    new EditorToolButton("Export", exportOsu),
-                    new EditorToolButton("Playtest", playtest, YokkoPalette.Lime),
+                    new EditorToolButton(YokkoStrings.Get("editor.new_4k"), newFourKey),
+                    new EditorToolButton(YokkoStrings.Get("editor.new_7k"), newSevenKey),
+                    new EditorToolButton(YokkoStrings.Get("editor.import"), importChart),
+                    new EditorToolButton(YokkoStrings.Get("editor.export"), exportOsu),
+                    new EditorToolButton(YokkoStrings.Get("editor.playtest"), playtest, YokkoPalette.Lime),
                 },
             },
         };
@@ -61,7 +63,7 @@ public partial class EditorHeader : CompositeDrawable
 
 public partial class EditorToolButton : ClickableContainer
 {
-    public EditorToolButton(string text, Action action, Color4? accent = null)
+    public EditorToolButton(LocalisableString text, Action action, Color4? accent = null)
     {
         Action = action;
         Size = new Vector2(104, 42);

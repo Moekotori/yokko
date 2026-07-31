@@ -204,6 +204,67 @@ HitObjects:
         }
 
         [Test]
+        public void ImportsQuaverMinesAndHitSoundLayers()
+        {
+            string path = writeChart("quaver-mines-hitsounds", ".qua", """
+Mode: Keys4
+Title: Mines and hitsounds
+TimingPoints:
+- StartTime: 0
+  Bpm: 120
+HitObjects:
+- StartTime: 500
+  Lane: 2
+  Type: Mine
+- StartTime: 1000
+  Lane: 4
+  HitSound: Normal, Clap
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.Beatmap.HitObjects[0].Kind,
+                    Is.EqualTo(HitObjectKind.Mine));
+                Assert.That(
+                    result.Beatmap.HitObjects[0].SamplePayload,
+                    Is.Null);
+                Assert.That(result.Beatmap.NoteCount, Is.EqualTo(1));
+                Assert.That(
+                    result.Beatmap.HitObjects[1].Samples
+                          .Select(static sample => sample.Name),
+                    Is.EqualTo(new[]
+                    {
+                        YokkoHitSample.HitNormal,
+                        YokkoHitSample.HitClap,
+                    }));
+            });
+        }
+
+        [Test]
+        public void RejectsQuaverScratchKeyCharts()
+        {
+            string path = writeChart("quaver-scratch", ".qua", """
+Mode: Keys7
+HasScratchKey: true
+Title: Scratch
+TimingPoints:
+- StartTime: 0
+  Bpm: 120
+HitObjects:
+- StartTime: 500
+  Lane: 1
+""");
+
+            InvalidDataException exception = Assert.Throws<InvalidDataException>(
+                () => import(path))!;
+
+            Assert.That(exception.Message, Does.Contain("pure 4K and 7K"));
+        }
+
+        [Test]
         public void ImportsNormalizedQuaverZeroAndNegativeSliderVelocities()
         {
             string path = writeChart("quaver-normalized-sv", ".qua", """

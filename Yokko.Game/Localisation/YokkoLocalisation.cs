@@ -24,8 +24,20 @@ internal static class YokkoLocale
         Japanese,
     };
 
-    public static string Normalize(string locale) =>
-        SUPPORTED.Contains(locale) ? locale : English;
+    public static string Normalize(string locale)
+    {
+        if (string.IsNullOrWhiteSpace(locale))
+            return English;
+
+        string language = locale.Trim()
+                                .Replace('_', '-')
+                                .Split('-', 2)[0]
+                                .ToLowerInvariant();
+        return SUPPORTED.Contains(language) ? language : English;
+    }
+
+    public static string FromSystemCulture(CultureInfo culture) =>
+        Normalize(culture?.Name);
 }
 
 internal static class YokkoLocalisation
@@ -124,6 +136,23 @@ internal static class YokkoStrings
             ["song_select.my_record"] = new("MY RECORD", "个人分数", "MY RECORD"),
             ["song_select.you"] = new("YOU", "你", "自分"),
             ["song_select.length"] = new("LENGTH", "时长", "長さ"),
+            ["mods.title"] = new("GAMEPLAY MODS", "游玩模组", "ゲームプレイ MOD"),
+            ["mods.subtitle"] = new(
+                "Customize your play experience.",
+                "自定义你的游玩体验。",
+                "プレイ体験をカスタマイズ。"),
+            ["mods.category.difficulty_down"] = new("DIFFICULTY DOWN", "降低难度", "難易度を下げる"),
+            ["mods.category.difficulty_up"] = new("DIFFICULTY UP", "提高难度", "難易度を上げる"),
+            ["mods.category.conversion"] = new("CONVERSION", "谱面转换", "変換"),
+            ["mods.category.automation"] = new("AUTOMATION", "自动游玩", "自動プレイ"),
+            ["mods.category.fun"] = new("FUN", "趣味玩法", "お楽しみ"),
+            ["mods.speed_multiplier"] = new("SPEED MULTIPLIER", "速度倍率", "スピード倍率"),
+            ["mods.active_mods"] = new("ACTIVE MODS", "已启用模组", "有効な MOD"),
+            ["mods.active"] = new("ACTIVE", "已启用", "有効"),
+            ["mods.activate_hint"] = new("SPACE · ACTIVATE", "空格 · 启用", "SPACE · 有効化"),
+            ["mods.back"] = new("BACK", "返回", "戻る"),
+            ["mods.reset"] = new("RESET", "重置", "リセット"),
+            ["mods.done"] = new("DONE", "完成", "完了"),
 
             ["gameplay.pause.title"] = new("Paused", "暂停", "一時停止"),
             ["gameplay.pause.subtitle"] = new("Catch your breath.", "先喘口气。", "ひと休み。"),
@@ -159,6 +188,101 @@ internal static class YokkoStrings
                 "Press Esc to return",
                 "按 Esc 返回",
                 "Esc で戻る"),
+
+            ["editor.title"] = new("Yokko Editor", "Yokko 编辑器", "Yokko エディター"),
+            ["editor.subtitle"] = new(
+                "4K / 7K charting workstation",
+                "4K / 7K 谱面工作台",
+                "4K / 7K 譜面ワークスペース"),
+            ["editor.new_4k"] = new("New 4K", "新建 4K", "新規 4K"),
+            ["editor.new_7k"] = new("New 7K", "新建 7K", "新規 7K"),
+            ["editor.import"] = new("Import", "导入", "インポート"),
+            ["editor.export"] = new("Export", "导出", "エクスポート"),
+            ["editor.playtest"] = new("Playtest", "试玩", "テストプレイ"),
+            ["editor.ready"] = new(
+                "Ready. Create a 4K/7K chart, import a supported chart, click grid cells, then Playtest.",
+                "准备就绪。新建 4K/7K 谱面或导入支持的谱面，点击网格放置音符，然后试玩。",
+                "準備完了。4K/7K 譜面を作成または対応譜面を読み込み、グリッドにノーツを置いてテストプレイできます。"),
+            ["editor.status.new_draft"] = new(
+                "New {0}K draft created.",
+                "已新建 {0}K 草稿。",
+                "新しい {0}K 下書きを作成しました。"),
+            ["editor.status.timeline"] = new(
+                "Timeline {0}-{1}",
+                "时间轴 {0}-{1}",
+                "タイムライン {0}-{1}"),
+            ["editor.status.zoom"] = new(
+                "Timeline zoom: {0} rows.",
+                "时间轴缩放：{0} 行。",
+                "タイムライン表示：{0} 行。"),
+            ["editor.status.extended"] = new(
+                "Extended chart to {0} rows.",
+                "谱面已扩展至 {0} 行。",
+                "譜面を {0} 行まで拡張しました。"),
+            ["editor.status.imported"] = new(
+                "Imported {0}.{1}",
+                "已导入 {0}。{1}",
+                "{0} をインポートしました。{1}"),
+            ["editor.status.warning"] = new(
+                " Warning: {0}{1}",
+                " 警告：{0}{1}",
+                " 警告：{0}{1}"),
+            ["editor.status.more_warnings"] = new(
+                " (+{0} more)",
+                "（另有 {0} 条）",
+                "（ほか {0} 件）"),
+            ["editor.status.import_failed"] = new(
+                "Import failed: {0}",
+                "导入失败：{0}",
+                "インポートに失敗しました：{0}"),
+            ["editor.status.exported"] = new(
+                "Exported {0}",
+                "已导出至 {0}",
+                "{0} にエクスポートしました"),
+            ["editor.status.export_failed"] = new(
+                "Export failed: {0}",
+                "导出失败：{0}",
+                "エクスポートに失敗しました：{0}"),
+            ["editor.status.preview_playing"] = new(
+                "Preview playing.",
+                "正在播放预览。",
+                "プレビュー再生中。"),
+            ["editor.status.preview_paused"] = new(
+                "Preview paused.",
+                "预览已暂停。",
+                "プレビューを一時停止しました。"),
+            ["editor.status.preview_stopped"] = new(
+                "Preview stopped.",
+                "预览已停止。",
+                "プレビューを停止しました。"),
+            ["editor.status.preview_at"] = new(
+                "Preview {0}.",
+                "预览位置 {0}。",
+                "プレビュー位置 {0}。"),
+            ["editor.status.waveform_ready"] = new(
+                "Waveform ready: {0}.",
+                "波形已就绪：{0}。",
+                "波形の準備完了：{0}。"),
+            ["editor.status.waveform_unavailable"] = new(
+                "Waveform unavailable: {0}",
+                "波形不可用：{0}",
+                "波形を利用できません：{0}"),
+            ["editor.inspector.mode"] = new("Mode {0}K", "模式 {0}K", "モード {0}K"),
+            ["editor.inspector.notes"] = new("Notes {0}", "音符 {0}", "ノーツ {0}"),
+            ["editor.inspector.length"] = new("Length {0}s", "时长 {0} 秒", "長さ {0} 秒"),
+            ["editor.inspector.window"] = new("Window {0}-{1}", "窗口 {0}-{1}", "範囲 {0}-{1}"),
+            ["editor.inspector.scroll"] = new(
+                "SV {0}x · {1} SV / {2} SSF / {3} groups",
+                "SV {0}x · {1} 个 SV / {2} 个 SSF / {3} 组",
+                "SV {0}x · SV {1} / SSF {2} / {3} グループ"),
+            ["editor.inspector.grid"] = new(
+                "Grid {0} rows • 1/{1} • {2} BPM",
+                "网格 {0} 行 • 1/{1} • {2} BPM",
+                "グリッド {0} 行 • 1/{1} • {2} BPM"),
+            ["editor.inspector.audio_missing"] = new("Audio not linked", "未关联音频", "オーディオ未設定"),
+            ["editor.inspector.audio"] = new("Audio {0}", "音频 {0}", "オーディオ {0}"),
+            ["editor.inspector.source_draft"] = new("Source Yokko draft", "来源 Yokko 草稿", "ソース Yokko 下書き"),
+            ["editor.inspector.source"] = new("Source {0}", "来源 {0}", "ソース {0}"),
 
             ["settings.title"] = new("Settings", "设置", "設定"),
             ["settings.back"] = new("Back", "返回", "戻る"),
