@@ -81,6 +81,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private double displayedRate = 1;
     private bool built;
     private bool stateInitialized;
+    private ManiaModId? pendingTransitionMod;
+    private bool pendingTransitionActive;
 
     internal GameplayModsOrbitWorkspace(
         Action<ManiaModCategory> selectCategory,
@@ -144,6 +146,12 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         loadAnimations.Clear();
     }
 
+    internal void QueueModTransition(ManiaModId mod, bool active)
+    {
+        pendingTransitionMod = mod;
+        pendingTransitionActive = active;
+    }
+
     internal void SetState(
         ManiaModCategory nextCategory,
         ManiaModId nextFocusedMod,
@@ -164,6 +172,15 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         HashSet<ManiaModId> deactivated = stateInitialized
             ? previousActive.Except(nextActive).ToHashSet()
             : [];
+        if (stateInitialized
+            && pendingTransitionMod is ManiaModId pendingMod)
+        {
+            if (pendingTransitionActive)
+                activated.Add(pendingMod);
+            else
+                deactivated.Add(pendingMod);
+        }
+        pendingTransitionMod = null;
         bool activeSelectionChanged =
             !previousActive.SetEquals(nextActive);
         bool rebuildOrbit = category != nextCategory || nodes.Count == 0;
@@ -2172,6 +2189,13 @@ internal partial class OrbitModNode : ClickableContainer
     private readonly Action focus;
     private bool activeState;
     private bool focusedState;
+    private bool activationTransitionRunning;
+    private bool activationTransitionPending;
+    private int activationTransitionVersion;
+
+    internal ManiaModId ModId { get; }
+    internal bool ActivationTransitionRunning =>
+        activationTransitionRunning || activationTransitionPending;
 
     internal OrbitModNode(
         ManiaModDefinition definition,
@@ -2180,6 +2204,7 @@ internal partial class OrbitModNode : ClickableContainer
         Action action,
         Action focus)
     {
+        ModId = definition.Id;
         this.accent = accent;
         this.focus = focus;
         Action = action;
@@ -2372,25 +2397,37 @@ internal partial class OrbitModNode : ClickableContainer
         stateGlyph.FadeTo(active || focused ? 1 : 0, 90);
         stateBadge.ScaleTo(active ? 1.06f : 1, 110, Easing.OutQuint);
 
-        if (activeChanged)
+        if (active && animateActivation)
+        {
+            halo.ClearTransforms();
+            if (IsLoaded)
+                playActivationTransition();
+            else
+                activationTransitionPending = true;
+        }
+        else if (!active && animateDeactivation)
+        {
+            activationTransitionVersion++;
+            activationTransitionRunning = false;
+            activationTransitionPending = false;
+            halo.ClearTransforms();
+            halo.ScaleTo(1);
+            halo.FadeOut(190);
+            if (IsLoaded)
+                playDeactivationTransition();
+        }
+        else if (activeChanged)
         {
             halo.ClearTransforms();
             if (active)
             {
-                if (IsLoaded && animateActivation)
-                    playActivationTransition();
-                else
-                {
-                    halo.Alpha = 0.42f;
-                    startActivePulse();
-                }
+                halo.Alpha = 0.42f;
+                startActivePulse();
             }
             else
             {
                 halo.ScaleTo(1);
-                halo.FadeOut(animateDeactivation ? 190 : 100);
-                if (IsLoaded && animateDeactivation)
-                    playDeactivationTransition();
+                halo.FadeOut(100);
             }
         }
     }
@@ -2398,7 +2435,12 @@ internal partial class OrbitModNode : ClickableContainer
     protected override void LoadComplete()
     {
         base.LoadComplete();
-        if (activeState)
+        if (activationTransitionPending)
+        {
+            activationTransitionPending = false;
+            playActivationTransition();
+        }
+        else if (activeState)
             startActivePulse();
     }
 
@@ -2415,6 +2457,8 @@ internal partial class OrbitModNode : ClickableContainer
 
     private void playActivationTransition()
     {
+        int transitionVersion = ++activationTransitionVersion;
+        activationTransitionRunning = true;
         activationBurst.ClearTransforms();
         activationBurst.Scale = new Vector2(0.64f);
         activationBurst.Alpha = 0.88f;
@@ -2445,6 +2489,10 @@ internal partial class OrbitModNode : ClickableContainer
 
         Scheduler.AddDelayed(() =>
         {
+            if (transitionVersion != activationTransitionVersion)
+                return;
+
+            activationTransitionRunning = false;
             if (activeState)
                 startActivePulse();
         }, 340);
@@ -2592,7 +2640,7 @@ internal partial class OrbitActiveModRow : ClickableContainer
         Alpha = 0;
         X = 18;
         Scale = new Vector2(0.97f);
-        FadeIn(150, Easing.OutQuint)
+        this.FadeIn(150, Easing.OutQuint)
             .MoveToX(0, 230, Easing.OutQuint)
             .ScaleTo(1, 210, Easing.OutBack);
         background.FlashColour(HomeControlColours.PaleCyan, 280);

@@ -246,6 +246,7 @@ public partial class SongSelectScreen : Screen
             backgroundA = createBackground(firstWallpaper),
             backgroundB = createBackground(firstWallpaper),
             createBackgroundIsolation(),
+            createBackgroundMoodWash(),
             stage = new Container
             {
                 RelativeSizeAxes = Axes.Both,
@@ -258,7 +259,6 @@ public partial class SongSelectScreen : Screen
                         Size = new Vector2(800, 610),
                     },
                     createSongBrowser(),
-                    createForegroundStickers(),
                     createFooter(),
                     mascotAnimation = new AnimatedGifSprite(
                         "Textures/SongSelect/mascot-box.gif")
@@ -921,33 +921,50 @@ public partial class SongSelectScreen : Screen
         onSelectedModsChanged();
     }
 
-    private Drawable createHeader(Texture logo) => new Container
+    private Drawable createHeader(Texture logo)
     {
-        RelativeSizeAxes = Axes.Both,
-        Children =
-        [
-            new Container
-            {
-                Position = new Vector2(30, 20),
-                Size = new Vector2(300, 105),
-                Rotation = -2,
-                Children =
-                [
-                    new Sprite
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Texture = textures.Get("SongSelect/Cute/paper-logo"),
-                        FillMode = FillMode.Fit,
-                    },
-                    new Sprite
-                    {
-                        Position = new Vector2(24, 17),
-                        Size = new Vector2(252, 70),
-                        Texture = logo,
-                        FillMode = FillMode.Fit,
-                    },
-                ],
-            },
+        Container logoPanel = SongSelectSurface.CreateCard(
+            out _,
+            SongSelectSurface.Ivory(0.98f),
+            new Color4(
+                SongSelectTheme.Cyan.R,
+                SongSelectTheme.Cyan.G,
+                SongSelectTheme.Cyan.B,
+                0.42f),
+            10,
+            1.25f);
+
+        return new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Children =
+            [
+                new Container
+                {
+                    Position = new Vector2(30, 20),
+                    Size = new Vector2(300, 100),
+                    Children =
+                    [
+                        SongSelectSurface.CreateShadow(10, 0.32f, 5),
+                        logoPanel,
+                        new Sprite
+                        {
+                            Position = new Vector2(24, 15),
+                            Size = new Vector2(252, 70),
+                            Texture = logo,
+                            FillMode = FillMode.Fit,
+                        },
+                        new Sprite
+                        {
+                            Anchor = Anchor.TopRight,
+                            Origin = Anchor.Centre,
+                            Position = new Vector2(-42, 0),
+                            Size = new Vector2(52, 28),
+                            Texture = textures.Get("SongSelect/Cute/tape-short"),
+                            FillMode = FillMode.Fit,
+                        },
+                    ],
+                },
             searchBox = new SongSelectSearchBox(SetSearchQuery, HandleEscape)
             {
                 Anchor = Anchor.TopRight,
@@ -969,8 +986,9 @@ public partial class SongSelectScreen : Screen
                     sevenKeyFilter = new SongSelectFilterButton("7K", 58, () => SetKeyModeFilter(KeyMode.SevenKey)),
                 },
             },
-        ],
-    };
+            ],
+        };
+    }
 
     private Drawable createSongBrowser() => songBrowser = new Container
     {
@@ -1170,17 +1188,24 @@ public partial class SongSelectScreen : Screen
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(1f, 1f, 1f, 0.06f),
+                    Colour = new Color4(
+                        SongSelectTheme.DeepNavy.R,
+                        SongSelectTheme.DeepNavy.G,
+                        SongSelectTheme.DeepNavy.B,
+                        0.34f),
                 },
                 new Box
                 {
                     RelativeSizeAxes = Axes.X,
                     Height = 2,
-                    Colour = new Color4(1f, 1f, 1f, 0.42f),
+                    Colour = new Color4(
+                        SongSelectTheme.Cyan.R,
+                        SongSelectTheme.Cyan.G,
+                        SongSelectTheme.Cyan.B,
+                        0.62f),
                 },
                 new SongSelectFooterBackButton(
                     () => stopPreviewThen(this.Exit),
-                    textures.Get("SongSelect/Cute/paper-song-row"),
                     textures.Get("SongSelect/Cute/sticker-diamond"))
                 {
                     Position = new Vector2(225, 18),
@@ -1190,7 +1215,6 @@ public partial class SongSelectScreen : Screen
                 mods,
                 new SongSelectPlayButton(
                     PlaySelected,
-                    textures.Get("SongSelect/Cute/paper-song-row"),
                     textures.Get("SongSelect/Cute/tape-long"))
                 {
                     Anchor = Anchor.BottomRight,
@@ -1201,50 +1225,29 @@ public partial class SongSelectScreen : Screen
         };
     }
 
-    private Drawable createForegroundStickers() => new Container
-    {
-        RelativeSizeAxes = Axes.Both,
-        Children =
-        [
-            new Sprite
-            {
-                Anchor = Anchor.BottomRight,
-                Origin = Anchor.BottomRight,
-                Position = new Vector2(-610, -128),
-                Size = new Vector2(58),
-                Rotation = 7,
-                Texture = textures.Get("SongSelect/Cute/sticker-heart-medical"),
-                FillMode = FillMode.Fit,
-            },
-            new Sprite
-            {
-                Anchor = Anchor.BottomRight,
-                Origin = Anchor.BottomRight,
-                Position = new Vector2(-675, -164),
-                Size = new Vector2(44),
-                Texture = textures.Get("SongSelect/Cute/sticker-cyan-sparkle"),
-                FillMode = FillMode.Fit,
-                Alpha = 0.82f,
-            },
-        ],
-    };
-
     private Drawable createAccountCard()
     {
         Texture avatar = textures.Get("yokko")?
                                  .Crop(new RectangleF(270, 2200, 850, 850));
+        Container panel = SongSelectSurface.CreateCard(
+            out _,
+            SongSelectSurface.Ivory(0.98f),
+            new Color4(
+                SongSelectTheme.Cyan.R,
+                SongSelectTheme.Cyan.G,
+                SongSelectTheme.Cyan.B,
+                0.48f),
+            10,
+            1.25f);
+
         return new Container
         {
             Position = new Vector2(430, 15),
             Size = new Vector2(390, 82),
             Children =
             [
-                new Sprite
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Texture = textures.Get("SongSelect/Cute/paper-song-row"),
-                    FillMode = FillMode.Fill,
-                },
+                SongSelectSurface.CreateShadow(10, 0.30f, 4),
+                panel,
                 new Container
                 {
                     Position = new Vector2(10, 8),
@@ -1690,7 +1693,7 @@ public partial class SongSelectScreen : Screen
 
         detailsHost.AddRange(new Drawable[]
         {
-            createSongInfoPaper(),
+            createSongInfoPanel(),
             new Sprite
             {
                 Position = new Vector2(350, -20),
@@ -1792,13 +1795,35 @@ public partial class SongSelectScreen : Screen
         });
     }
 
-    private Drawable createSongInfoPaper() => new Sprite
+    private Drawable createSongInfoPanel()
     {
-        Size = new Vector2(390, 255),
-        Rotation = -0.6f,
-        Texture = textures.Get("SongSelect/Cute/paper-song-info"),
-        FillMode = FillMode.Fill,
-    };
+        Container panel = SongSelectSurface.CreateCard(
+            out _,
+            SongSelectSurface.Ivory(0.98f),
+            new Color4(
+                SongSelectTheme.Cyan.R,
+                SongSelectTheme.Cyan.G,
+                SongSelectTheme.Cyan.B,
+                0.52f),
+            12,
+            1.25f);
+
+        return new Container
+        {
+            Size = new Vector2(390, 255),
+            Children =
+            [
+                SongSelectSurface.CreateShadow(12, 0.34f, 5),
+                panel,
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Y,
+                    Width = 4,
+                    Colour = SongSelectTheme.Cyan,
+                },
+            ],
+        };
+    }
 
     private static Drawable createAdaptiveDetailsTitle(string title)
     {
@@ -2012,7 +2037,6 @@ public partial class SongSelectScreen : Screen
                     songCount,
                     groupEntries.Length,
                     collapsed,
-                    textures.Get("SongSelect/Cute/paper-song-row"),
                     () => TogglePackage(first.PackageId));
                 packageHeaders[first.PackageId] = header;
 
@@ -2036,7 +2060,6 @@ public partial class SongSelectScreen : Screen
                 SongSelectSongRow row = new(
                     entry,
                     textureFor(entry),
-                    textures.Get("SongSelect/Cute/paper-song-row"),
                     textures.Get("SongSelect/Cute/sticker-star"),
                     () => select(entry),
                     () =>
@@ -2479,6 +2502,40 @@ public partial class SongSelectScreen : Screen
             SongSelectTheme.DeepNavy.G,
             SongSelectTheme.DeepNavy.B,
             SongSelectArtworkPolicy.IsolationOpacity),
+    };
+
+    private static Drawable createBackgroundMoodWash() => new Container
+    {
+        RelativeSizeAxes = Axes.Both,
+        Children =
+        [
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = ColourInfo.GradientHorizontal(
+                    new Color4(
+                        SongSelectTheme.Cyan.R,
+                        SongSelectTheme.Cyan.G,
+                        SongSelectTheme.Cyan.B,
+                        0.10f),
+                    new Color4(
+                        SongSelectTheme.Pink.R,
+                        SongSelectTheme.Pink.G,
+                        SongSelectTheme.Pink.B,
+                        0.045f)),
+            },
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = ColourInfo.GradientVertical(
+                    new Color4(0f, 0f, 0f, 0f),
+                    new Color4(
+                        SongSelectTheme.DeepNavy.R,
+                        SongSelectTheme.DeepNavy.G,
+                        SongSelectTheme.DeepNavy.B,
+                        0.22f)),
+            },
+        ],
     };
 
 }

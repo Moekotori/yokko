@@ -106,6 +106,13 @@ public static class YokkoBeatmapFingerprint
 
             writeConversionSource(writer, beatmap.ConversionSource);
 
+            // Ordinary chart fingerprints remain byte-for-byte compatible.
+            if (beatmap.ScratchLane is int scratchLane)
+            {
+                writer.Write("bms-scratch-v1");
+                writer.Write(scratchLane);
+            }
+
             // Keep fingerprints for charts without timeline samples stable.
             // The marker makes the appended optional block unambiguous.
             if (beatmap.ScheduledSamples.Count > 0)

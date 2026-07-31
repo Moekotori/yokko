@@ -435,6 +435,7 @@ internal partial class GameplayModListItem : ClickableContainer
 
     public void SetSelected(bool value)
     {
+        bool selectionChanged = selected != (value && selectable);
         selected = value && selectable;
         acronymBackground.Colour = selected
             ? accentColour
@@ -452,6 +453,25 @@ internal partial class GameplayModListItem : ClickableContainer
             !string.IsNullOrEmpty(selectedValue.Text.ToString());
         selectedValue.Alpha = selected && hasValue ? 1 : 0;
         selectedIndicator.Alpha = selected && !hasValue ? 1 : 0;
+
+        if (selectionChanged && IsLoaded)
+        {
+            acronymBadge.ClearTransforms();
+            acronymBadge.ScaleTo(selected ? 0.84f : 1.06f, 45, Easing.OutQuint)
+                        .Then().ScaleTo(
+                            selected ? 1.08f : 0.97f,
+                            115,
+                            Easing.OutBack)
+                        .Then().ScaleTo(1, 90, Easing.OutQuint);
+            focusBackground.FlashColour(
+                selected ? accentColour : Color4.White,
+                selected ? 240 : 150);
+            selectedIndicator.ClearTransforms();
+            selectedIndicator.RotateTo(selected ? -70 : 45);
+            selectedIndicator.RotateTo(0, 190, Easing.OutBack);
+            selectedIndicator.ScaleTo(selected ? 1.25f : 0.7f)
+                             .Then().ScaleTo(1, 150, Easing.OutBack);
+        }
     }
 
     public void SetFocused(bool value)

@@ -267,7 +267,8 @@ public partial class EditorScreen : Screen
                                                                 new ChartImportRequest(
                                                                     path,
                                                                     importSettings.PreferKeysounds.Value,
-                                                                    importSettings.PreferSscSimfiles.Value))
+                                                                    importSettings.PreferSscSimfiles.Value,
+                                                                    importSettings.EnableBmsScratch.Value))
                                                             .GetAwaiter()
                                                             .GetResult()[0];
             editableBeatmap = EditableBeatmap.FromBeatmap(result.Beatmap, path);

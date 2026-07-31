@@ -122,21 +122,36 @@ public static class ManiaBeatmapModTransformer
         }
 
         int laneCount = (int)keyMode;
+        int? scratchLane = original.ScratchLane;
+        int[] movableLanes = Enumerable.Range(0, laneCount)
+                                       .Where(lane => lane != scratchLane)
+                                       .ToArray();
         int[]? laneMap = null;
 
         if (mods.Contains(ManiaModId.Random))
         {
             var random = new Random(mods.RandomSeed ?? 0);
-            laneMap = Enumerable.Range(0, laneCount)
-                                .OrderBy(_ => random.Next())
-                                .ToArray();
+            int[] shuffled = movableLanes
+                             .OrderBy(_ => random.Next())
+                             .ToArray();
+            laneMap = Enumerable.Range(0, laneCount).ToArray();
+            for (int index = 0; index < movableLanes.Length; index++)
+                laneMap[movableLanes[index]] = shuffled[index];
         }
 
         if (mods.Contains(ManiaModId.Mirror))
         {
             laneMap ??= Enumerable.Range(0, laneCount).ToArray();
-            for (int lane = 0; lane < laneMap.Length; lane++)
-                laneMap[lane] = laneCount - 1 - laneMap[lane];
+            var mirroredTargets = movableLanes
+                                  .Select((lane, index) => (
+                                      lane,
+                                      target: movableLanes[
+                                          movableLanes.Length - 1 - index]))
+                                  .ToDictionary(
+                                      static pair => pair.lane,
+                                      static pair => pair.target);
+            foreach (int lane in movableLanes)
+                laneMap[lane] = mirroredTargets[laneMap[lane]];
         }
 
         if (laneMap != null)
@@ -195,6 +210,7 @@ public static class ManiaBeatmapModTransformer
             structurallyApplied.PreviewTimeMilliseconds,
             structurallyApplied.BreakPeriods,
             structurallyApplied.LegacyLongNoteRendering,
-            structurallyApplied.ScheduledSamples);
+            structurallyApplied.ScheduledSamples,
+            structurallyApplied.ScratchLane);
     }
 }

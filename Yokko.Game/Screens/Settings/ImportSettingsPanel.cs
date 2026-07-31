@@ -37,6 +37,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
     internal int FileTypeCount => KnownChartImporters.FileExtensions.Length;
     internal bool PreferKeysounds => settings.PreferKeysounds.Value;
     internal bool PreferSscSimfiles => settings.PreferSscSimfiles.Value;
+    internal bool EnableBmsScratch => settings.EnableBmsScratch.Value;
     internal bool ShowCompatibilityWarnings => settings.ShowCompatibilityWarnings.Value;
 
     public ImportSettingsPanel(
@@ -95,6 +96,8 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
     internal void SetPreferKeysounds(bool value) => settings.PreferKeysounds.Value = value;
 
     internal void SetPreferSscSimfiles(bool value) => settings.PreferSscSimfiles.Value = value;
+
+    internal void SetEnableBmsScratch(bool value) => settings.EnableBmsScratch.Value = value;
 
     internal void SetShowCompatibilityWarnings(bool value) => settings.ShowCompatibilityWarnings.Value = value;
 
@@ -225,17 +228,26 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                 YokkoStrings.Get("settings.import.prefer_keysounds"),
                 YokkoStrings.Get("settings.import.prefer_keysounds_note"),
                 FontAwesome.Solid.Keyboard,
-                settings.PreferKeysounds),
+                settings.PreferKeysounds,
+                198.75f),
             new ImportPreferenceCard(
                 YokkoStrings.Get("settings.import.prefer_ssc"),
                 YokkoStrings.Get("settings.import.prefer_ssc_note"),
                 FontAwesome.Solid.Bars,
-                settings.PreferSscSimfiles),
+                settings.PreferSscSimfiles,
+                198.75f),
+            new ImportPreferenceCard(
+                YokkoStrings.Get("settings.import.bms_scratch"),
+                YokkoStrings.Get("settings.import.bms_scratch_note"),
+                FontAwesome.Solid.CompactDisc,
+                settings.EnableBmsScratch,
+                198.75f),
             new ImportPreferenceCard(
                 YokkoStrings.Get("settings.import.show_warnings"),
                 YokkoStrings.Get("settings.import.show_warnings_note"),
                 FontAwesome.Solid.InfoCircle,
-                settings.ShowCompatibilityWarnings),
+                settings.ShowCompatibilityWarnings,
+                198.75f),
         },
     };
 
@@ -426,11 +438,12 @@ internal partial class ImportPreferenceCard : ClickableContainer
         LocalisableString title,
         LocalisableString note,
         IconUsage icon,
-        BindableBool value)
+        BindableBool value,
+        float width = 270)
     {
         this.value = value;
         Action = () => value.Value = !value.Value;
-        Size = new Vector2(270, 106);
+        Size = new Vector2(width, 106);
         Masking = true;
         CornerRadius = 8;
         BorderThickness = 1.2f;
@@ -453,6 +466,8 @@ internal partial class ImportPreferenceCard : ClickableContainer
             new SpriteText
             {
                 Position = new Vector2(43, 12),
+                Width = width - 58,
+                Truncate = true,
                 Text = title,
                 Font = HomeTypography.Display(17),
                 Colour = HomeControlColours.Navy,
@@ -460,6 +475,8 @@ internal partial class ImportPreferenceCard : ClickableContainer
             new SpriteText
             {
                 Position = new Vector2(15, 43),
+                Width = width - 30,
+                Truncate = true,
                 Text = note,
                 Font = HomeTypography.Body(14),
                 Colour = SettingsTheme.MutedNavy,
@@ -490,6 +507,8 @@ internal partial class ImportPreferenceCard : ClickableContainer
             state = new SpriteText
             {
                 Position = new Vector2(74, 76),
+                Width = width - 89,
+                Truncate = true,
                 Font = HomeTypography.Display(14),
                 Colour = HomeControlColours.Navy,
             },

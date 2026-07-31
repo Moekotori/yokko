@@ -47,9 +47,21 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                 ? SongSelectScoreView.Personal
                 : SongSelectScoreView.GlobalRanking);
 
+        Container panel = SongSelectSurface.CreateCard(
+            out _,
+            SongSelectSurface.Ivory(0.975f),
+            new Color4(
+                SongSelectTheme.Cyan.R,
+                SongSelectTheme.Cyan.G,
+                SongSelectTheme.Cyan.B,
+                0.54f),
+            12,
+            1.25f);
+
         InternalChildren =
         [
-            paperPanel(),
+            SongSelectSurface.CreateShadow(12, 0.32f, 5),
+            panel,
             new SpriteText
             {
                 Position = new Vector2(28, 16),
@@ -79,10 +91,19 @@ internal partial class SongSelectRankingPanel : ClickableContainer
             {
                 Anchor = Anchor.BottomRight,
                 Origin = Anchor.BottomRight,
-                Position = new Vector2(-17, -12),
+                Position = new Vector2(-22, -15),
                 Size = new Vector2(12),
                 Icon = FontAwesome.Solid.Plus,
                 Colour = SongSelectTheme.Pink,
+            },
+            new Sprite
+            {
+                Anchor = Anchor.BottomRight,
+                Origin = Anchor.Centre,
+                Position = new Vector2(-10, 1),
+                Size = new Vector2(52, 30),
+                Texture = textures.Get("SongSelect/Cute/tape-long"),
+                FillMode = FillMode.Fit,
             },
         ];
 
@@ -165,7 +186,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                     RelativeSizeAxes = Axes.Both,
                     Colour = score.IsCurrentPlayer
                         ? new Color4(1f, 0.82f, 0.91f, 0.78f)
-                        : new Color4(1f, 1f, 1f, 0.62f),
+                        : new Color4(1f, 1f, 1f, 0.70f),
                 },
                 text($"{score.Rank}", 12, 12, 32, 16, accent),
                 new Container
@@ -240,13 +261,6 @@ internal partial class SongSelectRankingPanel : ClickableContainer
             Children = [tabBackground, tabLabel],
         };
     }
-
-    private Drawable paperPanel() => new Sprite
-    {
-        RelativeSizeAxes = Axes.Both,
-        Texture = textures.Get("SongSelect/Cute/paper-ranking"),
-        FillMode = FillMode.Fill,
-    };
 
     private static SpriteText text(
         string value,

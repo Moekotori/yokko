@@ -9,6 +9,7 @@ using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
 using Yokko.Game.Configuration;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Importing;
 using Yokko.Game.Screens.Gameplay;
 
 namespace Yokko.Game.Tests.Core;
@@ -469,6 +470,43 @@ public sealed class GameplaySettingsTest
                 Assert.That(
                     restoredSettings.ResumeCountdownMilliseconds.Value,
                     Is.EqualTo(1500).Within(0.001));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
+    public void BmsScratchPreferencePersistsAcrossConfigInstances()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "bms-scratch-config",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            var firstSettings = new YokkoImportSettings();
+            using (var firstConfig =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                firstConfig.BindImportSettings(firstSettings);
+                firstSettings.EnableBmsScratch.Value = true;
+                Assert.That(firstConfig.Save(), Is.True);
+            }
+
+            var restoredSettings = new YokkoImportSettings();
+            using (var restoredConfig =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                restoredConfig.BindImportSettings(restoredSettings);
+                Assert.That(
+                    restoredSettings.EnableBmsScratch.Value,
+                    Is.True);
             }
         }
         finally

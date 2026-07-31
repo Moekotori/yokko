@@ -13,26 +13,37 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectFooterBackButton : ClickableContainer
 {
-    private readonly Drawable background;
+    private readonly Box background;
     private readonly Box underline;
     private readonly SpriteIcon chevron;
 
     public SongSelectFooterBackButton(Action action)
-        : this(action, null, null)
+        : this(action, null)
     {
     }
 
     public SongSelectFooterBackButton(
         Action action,
-        Texture paperTexture,
         Texture diamondTexture)
     {
         Action = action;
         Size = new Vector2(174, 74);
 
+        Container panel = SongSelectSurface.CreateCard(
+            out background,
+            SongSelectSurface.Ivory(),
+            new Color4(
+                SongSelectTheme.Cyan.R,
+                SongSelectTheme.Cyan.G,
+                SongSelectTheme.Cyan.B,
+                0.48f),
+            10,
+            1.25f);
+
         InternalChildren = new Drawable[]
         {
-            background = createPaperBackground(paperTexture),
+            SongSelectSurface.CreateShadow(10, 0.30f, 4),
+            panel,
             new Container
             {
                 Anchor = Anchor.CentreLeft,
@@ -95,29 +106,13 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
         };
     }
 
-    private static Drawable createPaperBackground(Texture texture) =>
-        texture == null
-            ? new Box
-            {
-                Size = new Vector2(174, 70),
-                Colour = Color4.White,
-            }
-            : new Sprite
-            {
-                Size = new Vector2(174, 70),
-                Texture = texture,
-                FillMode = FillMode.Fill,
-            };
-
     private static Drawable createDiamondDecoration(Texture texture) =>
         texture == null
-            ? new Box
+            ? new Container
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.Centre,
-                Size = new Vector2(17),
-                Rotation = 45,
-                Colour = HomeControlColours.Yellow,
+                Alpha = 0,
             }
             : new Sprite
             {
@@ -140,7 +135,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
-        background.FadeColour(Color4.White, 140, Easing.OutQuint);
+        background.FadeColour(SongSelectSurface.Ivory(), 140, Easing.OutQuint);
         underline.ResizeWidthTo(0, 130, Easing.OutQuint);
         chevron.MoveToX(-13, 130, Easing.OutQuint);
         this.ScaleTo(1, 140, Easing.OutQuint);

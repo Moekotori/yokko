@@ -14,7 +14,12 @@ internal sealed record StoredStarRating(
     string AlgorithmIdentifier,
     ManiaStarRatingLimitations Limitations =
         ManiaStarRatingLimitations.None,
-    double? EffectiveOverallDifficulty = null);
+    double? EffectiveOverallDifficulty = null,
+    ManiaStarRatingAdjustments Adjustments =
+        ManiaStarRatingAdjustments.None,
+    double? UpstreamValue = null,
+    double LongNoteCalibrationFactor = 1,
+    double? EffectiveActionCount = null);
 
 internal sealed class StarRatingCache
 {
@@ -87,7 +92,13 @@ internal sealed class StarRatingCache
                     cached.AlgorithmIdentifier,
                     Limitations: cached.Limitations,
                     EffectiveOverallDifficulty:
-                        cached.EffectiveOverallDifficulty);
+                        cached.EffectiveOverallDifficulty,
+                    Adjustments: cached.Adjustments,
+                    UpstreamValue: cached.UpstreamValue,
+                    LongNoteCalibrationFactor:
+                        cached.LongNoteCalibrationFactor,
+                    EffectiveActionCount:
+                        cached.EffectiveActionCount);
             }
         }
 
@@ -106,7 +117,11 @@ internal sealed class StarRatingCache
                 playbackRate,
                 calculated.AlgorithmIdentifier,
                 calculated.Limitations,
-                calculated.EffectiveOverallDifficulty);
+                calculated.EffectiveOverallDifficulty,
+                calculated.Adjustments,
+                calculated.UpstreamValue,
+                calculated.LongNoteCalibrationFactor,
+                calculated.EffectiveActionCount);
             changed = true;
             changeVersion++;
         }

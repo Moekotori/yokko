@@ -702,6 +702,8 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("keysounds disabled", () => !import.PreferKeysounds);
             AddStep("disable SSC preference", () => import.SetPreferSscSimfiles(false));
             AddAssert("SSC preference disabled", () => !import.PreferSscSimfiles);
+            AddStep("enable BMS scratch", () => import.SetEnableBmsScratch(true));
+            AddAssert("BMS scratch enabled", () => import.EnableBmsScratch);
             AddStep("disable warnings", () => import.SetShowCompatibilityWarnings(false));
             AddAssert("warnings disabled", () => !import.ShowCompatibilityWarnings);
 
@@ -709,11 +711,13 @@ namespace Yokko.Game.Tests.Visual
             {
                 import.SetPreferKeysounds(true);
                 import.SetPreferSscSimfiles(true);
+                import.SetEnableBmsScratch(false);
                 import.SetShowCompatibilityWarnings(true);
             });
             AddAssert("import defaults restored", () =>
                 import.PreferKeysounds &&
                 import.PreferSscSimfiles &&
+                !import.EnableBmsScratch &&
                 import.ShowCompatibilityWarnings);
         }
 

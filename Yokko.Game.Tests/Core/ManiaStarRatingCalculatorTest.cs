@@ -16,9 +16,144 @@ public sealed class ManiaStarRatingCalculatorTest
     [Test]
     public void KnownChartProducesStableRating()
     {
-        double rating = ManiaStarRatingCalculator.Calculate(createChart());
+        ManiaStarRatingResult result =
+            ManiaStarRatingCalculator.CalculateResult(createChart());
 
-        Assert.That(rating, Is.EqualTo(0.84308937416632168).Within(0.000001));
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                result.Value,
+                Is.EqualTo(1.3766484797801661).Within(0.000001));
+            Assert.That(
+                result.UpstreamValue,
+                Is.EqualTo(0.84308937416632168).Within(0.000001));
+            Assert.That(
+                result.Adjustments,
+                Is.EqualTo(
+                    ManiaStarRatingAdjustments.LengthCalibration));
+            Assert.That(result.LongNoteCalibrationFactor, Is.EqualTo(1));
+            Assert.That(result.EffectiveActionCount, Is.EqualTo(37));
+        });
+    }
+
+    [TestCase(20, 2)]
+    [TestCase(60, 1.4142135623730951)]
+    public void ShortChartsUseSofterActionCountCurve(
+        int noteCount,
+        double expectedGain)
+    {
+        ManiaStarRatingResult result =
+            ManiaStarRatingCalculator.CalculateResult(
+                createTapChart(noteCount));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsSuccess, Is.True);
+            Assert.That(
+                result.Value!.Value
+                / result.UpstreamValue!.Value,
+                Is.EqualTo(expectedGain).Within(0.000001));
+            Assert.That(
+                result.Adjustments.HasFlag(
+                    ManiaStarRatingAdjustments.LengthCalibration),
+                Is.True);
+            Assert.That(
+                result.EffectiveActionCount,
+                Is.EqualTo(noteCount));
+        });
+    }
+
+    [Test]
+    public void LongChartsRemainCloseToUpstreamLengthScale()
+    {
+        ManiaStarRatingResult result =
+            ManiaStarRatingCalculator.CalculateResult(
+                createTapChart(600));
+
+        Assert.That(
+            result.Value!.Value / result.UpstreamValue!.Value,
+            Is.InRange(1, 1.06));
+    }
+
+    [Test]
+    public void MixedRiceAndLongNotesAreNotLnCalibrated()
+    {
+        ManiaStarRatingResult result =
+            ManiaStarRatingCalculator.CalculateResult(createChart());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                result.Adjustments.HasFlag(
+                    ManiaStarRatingAdjustments
+                        .LinkedLongNotesCalibrated),
+                Is.False);
+            Assert.That(
+                result.Adjustments.HasFlag(
+                    ManiaStarRatingAdjustments
+                        .InvertLongNotesCalibrated),
+                Is.False);
+            Assert.That(result.LongNoteCalibrationFactor, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void MostlyConnectedLongNotesReceiveSelectiveCalibration()
+    {
+        ManiaStarRatingResult result =
+            ManiaStarRatingCalculator.CalculateResult(
+                createConnectedLongNoteChart());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsSuccess, Is.True);
+            Assert.That(
+                result.Adjustments.HasFlag(
+                    ManiaStarRatingAdjustments
+                        .LinkedLongNotesCalibrated),
+                Is.True);
+            Assert.That(
+                result.LongNoteCalibrationFactor,
+                Is.EqualTo(0.88).Within(0.000001));
+            Assert.That(result.EffectiveActionCount, Is.EqualTo(80));
+        });
+    }
+
+    [Test]
+    public void InvertUsesItsOwnLongNoteCalibration()
+    {
+        YokkoBeatmap chart = createTapChart(32);
+        var mods = new ManiaModSet([ManiaModId.Invert]);
+        YokkoBeatmap inverted =
+            ManiaBeatmapModTransformer.Apply(chart, mods);
+        ManiaStarRatingContext context =
+            ManiaStarRatingContext.ForGameplay(
+                inverted,
+                mods,
+                JudgementConfiguration.YokkoDefault,
+                minesEnabled: true,
+                timelineRate: 1);
+
+        ManiaStarRatingResult result =
+            ManiaStarRatingCalculator.CalculateResult(
+                inverted,
+                context);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsSuccess, Is.True);
+            Assert.That(
+                result.Adjustments.HasFlag(
+                    ManiaStarRatingAdjustments
+                        .InvertLongNotesCalibrated),
+                Is.True);
+            Assert.That(
+                result.LongNoteCalibrationFactor,
+                Is.EqualTo(0.90).Within(0.000001));
+            Assert.That(
+                result.EffectiveActionCount,
+                Is.EqualTo(inverted.HitObjects.Count * 2));
+        });
     }
 
     [Test]
@@ -277,7 +412,7 @@ public sealed class ManiaStarRatingCalculatorTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(noRelease.Value, Is.EqualTo(normal.Value));
+            Assert.That(noRelease.Value, Is.LessThan(normal.Value));
             Assert.That(noRelease.IsPartial, Is.True);
             Assert.That(
                 noRelease.Limitations.HasFlag(
@@ -330,13 +465,36 @@ public sealed class ManiaStarRatingCalculatorTest
                 JudgementConfiguration.YokkoDefault,
                 minesEnabled: true,
                 timelineRate: 1);
+        ManiaStarRatingContext normal =
+            ManiaStarRatingContext.ForGameplay(
+                chart,
+                ManiaModSet.Empty,
+                JudgementConfiguration.YokkoDefault,
+                minesEnabled: true,
+                timelineRate: 1);
+        ManiaStarRatingContext invert =
+            ManiaStarRatingContext.ForGameplay(
+                chart,
+                new ManiaModSet([ManiaModId.Invert]),
+                JudgementConfiguration.YokkoDefault,
+                minesEnabled: true,
+                timelineRate: 1);
 
-        Assert.That(
-            ManiaStarRatingCalculator.CreateCacheKey(chart, easy),
-            Is.Not.EqualTo(
-                ManiaStarRatingCalculator.CreateCacheKey(
-                    chart,
-                    noRelease)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                ManiaStarRatingCalculator.CreateCacheKey(chart, easy),
+                Is.Not.EqualTo(
+                    ManiaStarRatingCalculator.CreateCacheKey(
+                        chart,
+                        noRelease)));
+            Assert.That(
+                ManiaStarRatingCalculator.CreateCacheKey(chart, normal),
+                Is.Not.EqualTo(
+                    ManiaStarRatingCalculator.CreateCacheKey(
+                        chart,
+                        invert)));
+        });
     }
 
     private static ManiaStarRatingResult calculateWithMods(
@@ -373,6 +531,54 @@ public sealed class ManiaStarRatingCalculatorTest
 
         return new YokkoBeatmap(
             "Rating fixture",
+            "Yokko",
+            "Tests",
+            "4K",
+            KeyMode.FourKey,
+            ChartSourceFormat.Yokko,
+            [YokkoTimingPoint.Default],
+            null,
+            notes,
+            OverallDifficulty: 7);
+    }
+
+    private static YokkoBeatmap createTapChart(int noteCount)
+    {
+        YokkoHitObject[] notes = Enumerable.Range(0, noteCount)
+            .Select(index => new YokkoHitObject(
+                index % 4,
+                1000 + index * 180,
+                null,
+                HitObjectKind.Tap))
+            .ToArray();
+        return new YokkoBeatmap(
+            "Tap fixture",
+            "Yokko",
+            "Tests",
+            "4K",
+            KeyMode.FourKey,
+            ChartSourceFormat.Yokko,
+            [YokkoTimingPoint.Default],
+            null,
+            notes,
+            OverallDifficulty: 7);
+    }
+
+    private static YokkoBeatmap createConnectedLongNoteChart()
+    {
+        YokkoHitObject[] notes = Enumerable.Range(0, 40)
+            .Select(index =>
+            {
+                double startTime = 1000 + index * 200;
+                return new YokkoHitObject(
+                    index % 4,
+                    startTime,
+                    startTime + 700,
+                    HitObjectKind.Hold);
+            })
+            .ToArray();
+        return new YokkoBeatmap(
+            "Connected LN fixture",
             "Yokko",
             "Tests",
             "4K",

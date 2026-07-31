@@ -158,6 +158,7 @@ internal sealed class YokkoResourceStorage
                     BeatmapsPath,
                     importSettings.PreferKeysounds.Value,
                     importSettings.PreferSscSimfiles.Value,
+                    importSettings.EnableBmsScratch.Value,
                     cancellationToken).ConfigureAwait(false);
 
                 bool previousDataRetained = !tryDeleteOldResources(previousRoot);

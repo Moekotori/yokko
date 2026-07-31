@@ -1050,13 +1050,13 @@ internal static class YokkoStrings
                 "命中时播放谱面采样",
                 "ヒット時に譜面サンプルを再生"),
             ["settings.gameplay.mines"] = new(
-                "Mines",
-                "炸弹",
-                "地雷"),
+                "Chart mines",
+                "谱面炸弹",
+                "譜面の地雷"),
             ["settings.gameplay.mines_note"] = new(
-                "Hit one to lose health",
-                "踩中会爆炸并扣除生命",
-                "踏むと爆発してゲージが減少"),
+                "Etterna, Quaver and other charts",
+                "适用于 Etterna、Quaver 等含炸弹的谱面",
+                "Etterna・Quaver などの対応譜面に適用"),
             ["settings.gameplay.pause_when_unfocused"] = new(
                 "Pause when unfocused",
                 "离开窗口时暂停",
@@ -1112,29 +1112,37 @@ internal static class YokkoStrings
             ["settings.import.ready"] = new("Ready", "可用", "対応"),
             ["settings.import.partial"] = new("Partial", "部分", "一部"),
             ["settings.import.prefer_keysounds"] = new(
-                "Preserve keysounds",
-                "保留按键音",
-                "キー音を保持"),
+                "BMS samples",
+                "BMS 采样",
+                "BMS サンプル"),
             ["settings.import.prefer_keysounds_note"] = new(
-                "Keep BMS sample paths",
-                "保留 BMS 采样路径",
-                "BMS サンプルを保持"),
+                "Keep sample paths",
+                "保留采样路径",
+                "サンプルを保持"),
             ["settings.import.prefer_ssc"] = new(
                 "Prefer SSC",
                 "优先 SSC",
                 "SSC を優先"),
             ["settings.import.prefer_ssc_note"] = new(
-                "Use richer pack simfiles",
+                "Use richer simfiles",
                 "优先更完整的包内谱面",
-                "より詳細な譜面を使用"),
+                "詳細な譜面を優先"),
+            ["settings.import.bms_scratch"] = new(
+                "BMS scratch",
+                "BMS 皿键",
+                "BMS スクラッチ"),
+            ["settings.import.bms_scratch_note"] = new(
+                "Extra playable lane",
+                "作为额外可玩轨道导入",
+                "追加レーンとして読込"),
             ["settings.import.show_warnings"] = new(
                 "Show warnings",
                 "显示兼容提示",
                 "警告を表示"),
             ["settings.import.show_warnings_note"] = new(
-                "Report downgraded effects",
+                "Report limitations",
                 "报告降级处理的效果",
-                "未対応効果を通知"),
+                "制限事項を通知"),
             ["settings.import.enabled"] = new("Enabled", "已启用", "オン"),
             ["settings.import.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.import.location_note"] = new(

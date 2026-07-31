@@ -55,6 +55,19 @@ public sealed class StarRatingCacheTest
                     actual.EffectiveOverallDifficulty,
                     Is.EqualTo(
                         expected.EffectiveOverallDifficulty));
+                Assert.That(
+                    actual.Adjustments,
+                    Is.EqualTo(expected.Adjustments));
+                Assert.That(
+                    actual.UpstreamValue,
+                    Is.EqualTo(expected.UpstreamValue));
+                Assert.That(
+                    actual.LongNoteCalibrationFactor,
+                    Is.EqualTo(
+                        expected.LongNoteCalibrationFactor));
+                Assert.That(
+                    actual.EffectiveActionCount,
+                    Is.EqualTo(expected.EffectiveActionCount));
             });
         }
         finally

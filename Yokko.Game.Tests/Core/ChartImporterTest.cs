@@ -1301,6 +1301,68 @@ M000
                 Is.False);
         }
 
+        [Test]
+        public void BmsScratchIsControlledByImportPreference()
+        {
+            string path = writeChart("bms-scratch", ".bms", """
+#TITLE Scratch Test
+#BPM 120
+#00111:01
+#00112:01
+#00113:01
+#00114:01
+#00115:01
+#00118:01
+#00119:01
+#00116:01
+#00256:0101
+""", Encoding.ASCII);
+
+            ChartImportResult disabled = import(path);
+            ChartImportResult enabled = KnownChartImporters.ImportAsync(
+                                                                new ChartImportRequest(
+                                                                    path,
+                                                                    PreferKeysounds: true,
+                                                                    EnableBmsScratch: true))
+                                                            .AsTask()
+                                                            .GetAwaiter()
+                                                            .GetResult();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(disabled.Beatmap.KeyMode, Is.EqualTo(KeyMode.SevenKey));
+                Assert.That(disabled.Beatmap.HitObjects, Has.Count.EqualTo(7));
+                Assert.That(
+                    disabled.Warnings.Any(warning =>
+                        warning.Contains(
+                            "disabled",
+                            StringComparison.OrdinalIgnoreCase)),
+                    Is.True);
+
+                Assert.That(enabled.Beatmap.KeyMode, Is.EqualTo(KeyMode.EightKey));
+                Assert.That(enabled.Beatmap.HitObjects, Has.Count.EqualTo(9));
+                Assert.That(
+                    enabled.Beatmap.HitObjects.Count(note => note.Lane == 0),
+                    Is.EqualTo(2));
+                Assert.That(
+                    enabled.Beatmap.HitObjects.Any(note =>
+                        note.Lane == 0 && note.Kind == HitObjectKind.Hold),
+                    Is.True);
+                Assert.That(
+                    enabled.Beatmap.HitObjects
+                           .Where(note => note.Lane > 0)
+                           .Select(note => note.Lane)
+                           .Distinct(),
+                    Is.EquivalentTo(Enumerable.Range(1, 7)));
+                Assert.That(
+                    enabled.Warnings.Any(warning =>
+                        warning.Contains(
+                            "scratch",
+                            StringComparison.OrdinalIgnoreCase)),
+                    Is.False);
+            });
+        }
+
         private static ChartImportResult import(string path)
             => KnownChartImporters.ImportAsync(new ChartImportRequest(path, true))
                                   .AsTask()

@@ -24,13 +24,21 @@ public sealed record ManiaStarRatingResult(
     string? FailureReason = null,
     ManiaStarRatingLimitations Limitations =
         ManiaStarRatingLimitations.None,
-    double? EffectiveOverallDifficulty = null)
+    double? EffectiveOverallDifficulty = null,
+    ManiaStarRatingAdjustments Adjustments =
+        ManiaStarRatingAdjustments.None,
+    double? UpstreamValue = null,
+    double LongNoteCalibrationFactor = 1,
+    double? EffectiveActionCount = null)
 {
     public bool IsSuccess =>
         Status == ManiaStarRatingStatus.Success && Value.HasValue;
 
     public bool IsPartial =>
         IsSuccess && Limitations != ManiaStarRatingLimitations.None;
+
+    public bool IsCalibrated =>
+        IsSuccess && Adjustments != ManiaStarRatingAdjustments.None;
 }
 
 /// <summary>
@@ -40,11 +48,12 @@ public static class ManiaStarRatingCalculator
 {
     public const string PackageVersion = "0.1.1";
     public const string AlgorithmVersion = "2025/04/15";
+    public const string CalibrationVersion = "Yokko/1";
     public const string AlgorithmIdentifier =
-        "StarRatingRebirth 0.1.1 (2025/04/15)";
+        "StarRatingRebirth 0.1.1 (2025/04/15) + Yokko/1";
     public const int MinimumNoteCount = 20;
 
-    private const string adapter_cache_version = "YokkoAdapter/3";
+    private const string adapter_cache_version = "YokkoAdapter/4";
 
     /// <summary>
     /// Calculates an input-difficulty rating at the requested playback rate.
@@ -114,9 +123,9 @@ public static class ManiaStarRatingCalculator
                 beatmap,
                 context,
                 playbackRate);
-            double rating = SRCalculator.Calculate(input.Data);
+            double upstreamRating = SRCalculator.Calculate(input.Data);
 
-            if (!double.IsFinite(rating) || rating < 0)
+            if (!double.IsFinite(upstreamRating) || upstreamRating < 0)
             {
                 return failure(
                     ManiaStarRatingStatus.AlgorithmFailure,
@@ -124,13 +133,34 @@ public static class ManiaStarRatingCalculator
                     "Star Rating Rebirth returned an invalid rating.");
             }
 
+            ManiaStarRatingCalibrationResult calibrated =
+                ManiaStarRatingCalibration.Apply(
+                    upstreamRating,
+                    input.Data,
+                    input.ReleaseJudgementsRequired,
+                    input.InvertApplied);
+            if (!double.IsFinite(calibrated.Value)
+                || calibrated.Value < 0)
+            {
+                return failure(
+                    ManiaStarRatingStatus.AlgorithmFailure,
+                    playbackRate,
+                    "Yokko's star rating calibration returned an invalid rating.");
+            }
+
             return new ManiaStarRatingResult(
                 ManiaStarRatingStatus.Success,
-                rating,
+                calibrated.Value,
                 playbackRate,
                 AlgorithmIdentifier,
                 Limitations: input.Limitations,
-                EffectiveOverallDifficulty: input.Data.OD);
+                EffectiveOverallDifficulty: input.Data.OD,
+                Adjustments: calibrated.Adjustments,
+                UpstreamValue: upstreamRating,
+                LongNoteCalibrationFactor:
+                    calibrated.LongNoteCalibrationFactor,
+                EffectiveActionCount:
+                    calibrated.EffectiveActionCount);
         }
         catch (StarRatingInputException exception)
         {
@@ -196,7 +226,10 @@ public static class ManiaStarRatingCalculator
                      .Append(data.OD.ToString(
                          "R",
                          CultureInfo.InvariantCulture)).Append('\u001f')
-                     .Append((int)input.Limitations);
+                     .Append((int)input.Limitations).Append('\u001f')
+                     .Append(input.ReleaseJudgementsRequired ? 1 : 0)
+                     .Append('\u001f')
+                     .Append(input.InvertApplied ? 1 : 0);
 
         foreach (Note note in data.Notes)
         {
@@ -268,7 +301,11 @@ public static class ManiaStarRatingCalculator
                 ManiaStarRatingLimitations.NoReleaseNotModelled;
         }
 
-        return new PreparedStarRatingInput(data, limitations);
+        return new PreparedStarRatingInput(
+            data,
+            limitations,
+            context.ReleaseJudgementsRequired,
+            context.InvertApplied);
     }
 
     private static double equivalentOverallDifficulty(
@@ -335,5 +372,7 @@ public static class ManiaStarRatingCalculator
 
     private sealed record PreparedStarRatingInput(
         ManiaData Data,
-        ManiaStarRatingLimitations Limitations);
+        ManiaStarRatingLimitations Limitations,
+        bool ReleaseJudgementsRequired,
+        bool InvertApplied);
 }

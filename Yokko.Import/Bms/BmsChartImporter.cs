@@ -73,8 +73,12 @@ public sealed partial class BmsChartImporter : IChartImporter
         if (pauses.Count > 0)
             warnings.Add("BMS STOP events were baked into absolute note times; editor beat rows cannot display the stopped span exactly yet.");
 
-        Dictionary<string, int> laneMap = createLaneMap(events, warnings);
-        KeyMode keyMode = laneMap.Count > 4 ? KeyMode.SevenKey : KeyMode.FourKey;
+        LaneMapping laneMapping = createLaneMap(
+            events,
+            warnings,
+            request.EnableBmsScratch);
+        IReadOnlyDictionary<string, int> laneMap = laneMapping.Channels;
+        KeyMode keyMode = laneMapping.KeyMode;
         var beatNotes = new List<MutableBeatNote>();
 
         foreach (RawEvent rawEvent in events.Where(value => laneMap.ContainsKey(value.Channel))
@@ -119,8 +123,11 @@ public sealed partial class BmsChartImporter : IChartImporter
                 warnings.Add($"Ignored an unterminated BMS long note in lane {lane + 1}.");
         }
 
-        if (events.Any(static value => value.Channel is "16" or "56"))
-            warnings.Add("BMS scratch objects are not supported by Yokko's 4K/7K layout and were ignored.");
+        if (laneMapping.ScratchIgnored)
+        {
+            warnings.Add(
+                "BMS scratch objects are disabled in Import settings and were ignored.");
+        }
         if (events.Any(static value => value.Channel is "04" or "06" or "07"))
             warnings.Add("BMS BGA events are not represented by Yokko yet and were ignored.");
         if (parsed.Headers.GetValueOrDefault("LNTYPE") == "2")
@@ -160,7 +167,8 @@ public sealed partial class BmsChartImporter : IChartImporter
             ChartSourceFormat.Bms,
             converter.ToTimingPoints(),
             audioPath,
-            hitObjects);
+            hitObjects,
+            ScratchLane: laneMapping.ScratchLane);
 
         return ValueTask.FromResult(new ChartImportResult(beatmap, warnings.Distinct().ToArray()));
     }
@@ -293,24 +301,72 @@ public sealed partial class BmsChartImporter : IChartImporter
         return events;
     }
 
-    private static Dictionary<string, int> createLaneMap(IReadOnlyList<RawEvent> events, ICollection<string> warnings)
+    private static LaneMapping createLaneMap(
+        IReadOnlyList<RawEvent> events,
+        ICollection<string> warnings,
+        bool enableScratch)
     {
         string[] used = fourKeyCandidates.Where(channel =>
                                            events.Any(value => value.Channel == channel
                                                                || value.Channel == toLongNoteChannel(channel)))
                                          .ToArray();
 
+        Dictionary<string, int> keyChannels;
+        KeyMode keyMode;
+
         if (used.Contains("18") || used.Contains("19"))
-            return sevenKeyChannels.Select((channel, lane) => (channel, lane))
-                                   .ToDictionary(static pair => pair.channel, static pair => pair.lane);
+        {
+            keyChannels = sevenKeyChannels
+                          .Select((channel, lane) => (channel, lane))
+                          .ToDictionary(
+                              static pair => pair.channel,
+                              static pair => pair.lane);
+            keyMode = KeyMode.SevenKey;
+        }
+        else if (used.Length <= 4)
+        {
+            keyChannels = used
+                          .Select((channel, lane) => (channel, lane))
+                          .ToDictionary(
+                              static pair => pair.channel,
+                              static pair => pair.lane);
+            keyMode = KeyMode.FourKey;
+        }
+        else
+        {
+            warnings.Add(
+                $"BMS uses {used.Length} key lanes; mapped them into Yokko 7K.");
+            keyChannels = sevenKeyChannels
+                          .Select((channel, lane) => (channel, lane))
+                          .ToDictionary(
+                              static pair => pair.channel,
+                              static pair => pair.lane);
+            keyMode = KeyMode.SevenKey;
+        }
 
-        if (used.Length <= 4)
-            return used.Select((channel, lane) => (channel, lane))
-                       .ToDictionary(static pair => pair.channel, static pair => pair.lane);
+        bool hasScratch = events.Any(
+            static value => value.Channel is "16" or "56");
+        if (!hasScratch || !enableScratch)
+        {
+            return new LaneMapping(
+                keyChannels,
+                keyMode,
+                hasScratch,
+                ScratchLane: null);
+        }
 
-        warnings.Add($"BMS uses {used.Length} key lanes; mapped them into Yokko 7K.");
-        return sevenKeyChannels.Select((channel, lane) => (channel, lane))
-                               .ToDictionary(static pair => pair.channel, static pair => pair.lane);
+        var channelsWithScratch = new Dictionary<string, int>
+        {
+            ["16"] = 0,
+        };
+        foreach ((string channel, int lane) in keyChannels)
+            channelsWithScratch[channel] = lane + 1;
+
+        return new LaneMapping(
+            channelsWithScratch,
+            (KeyMode)((int)keyMode + 1),
+            ScratchIgnored: false,
+            ScratchLane: 0);
     }
 
     private static string? resolveBackgroundAudio(
@@ -394,6 +450,12 @@ public sealed partial class BmsChartImporter : IChartImporter
     private sealed record ChannelLine(int Measure, string Channel, string Data, int Order);
 
     private sealed record RawEvent(string Channel, double Beat, string Value, int Order);
+
+    private sealed record LaneMapping(
+        IReadOnlyDictionary<string, int> Channels,
+        KeyMode KeyMode,
+        bool ScratchIgnored,
+        int? ScratchLane);
 
     private sealed class MutableBeatNote(int lane, double startBeat, double? endBeat, string sampleId)
     {

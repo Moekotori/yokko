@@ -328,6 +328,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         OrbitEmptySlot emptySlot = null;
         OrbitRatePresetButton fastPreset = null;
         OrbitRateSlider rateSlider = null;
+        bool activationObserved = false;
         ManiaModId focused = default;
         AddStep("prepare quick interaction controls", () =>
         {
@@ -342,9 +343,16 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddAssert("rate slider has a forgiving pointer target", () =>
             rateSlider.Height == 44);
         AddStep("add focused mod from empty slot", () =>
-            emptySlot.ActivateForTest());
+        {
+            emptySlot.ActivateForTest();
+            activationObserved = this.ChildrenOfType<OrbitModNode>()
+                .Single(node => node.ModId == focused)
+                .ActivationTransitionRunning;
+        });
         AddAssert("empty slot activates focused mod", () =>
             modsScreen.SelectedMods.Contains(focused));
+        AddAssert("activation has a visible transition", () =>
+            activationObserved);
         AddStep("select 1.50x rate preset", () =>
             fastPreset.ActivateForTest());
         AddAssert("rate preset applies Double Time rate", () =>

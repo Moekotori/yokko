@@ -197,7 +197,8 @@ namespace Yokko.Game
             AddFont(Resources, @"Fonts/ArchivoBlack/ArchivoBlack");
             _ = Task.Run(() => importedChartLibrary.LoadFromDiskAsync(
                 importSettings.PreferKeysounds.Value,
-                importSettings.PreferSscSimfiles.Value))
+                importSettings.PreferSscSimfiles.Value,
+                importSettings.EnableBmsScratch.Value))
                     .ContinueWith(
                         task =>
                         {
@@ -388,7 +389,8 @@ namespace Yokko.Game
             var request = new ChartImportRequest(
                 path,
                 importSettings.PreferKeysounds.Value,
-                importSettings.PreferSscSimfiles.Value);
+                importSettings.PreferSscSimfiles.Value,
+                importSettings.EnableBmsScratch.Value);
 
             Scheduler.Add(() => importOverlay.ShowImporting(
                 YokkoStrings.Get("import.chart.importing"),

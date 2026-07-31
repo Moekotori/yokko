@@ -15,7 +15,7 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectSongRow : ClickableContainer
 {
-    private readonly Sprite paper;
+    private readonly Box surface;
     private readonly Container card;
     private readonly Container selectionOutline;
     private readonly Container thumbnail;
@@ -30,7 +30,6 @@ internal partial class SongSelectSongRow : ClickableContainer
     public SongSelectSongRow(
         SongSelectEntry entry,
         Texture wallpaper,
-        Texture paperTexture,
         Texture selectedStickerTexture,
         Action select,
         Action play)
@@ -40,25 +39,27 @@ internal partial class SongSelectSongRow : ClickableContainer
         DoubleClickAction = play;
         Size = new Vector2(540, 84);
 
+        Container panel = SongSelectSurface.CreateCard(
+            out surface,
+            SongSelectSurface.Ivory(),
+            SongSelectSurface.Border(),
+            9);
+
         InternalChildren =
         [
+            SongSelectSurface.CreateShadow(9, 0.25f, 3),
             card = new Container
             {
                 RelativeSizeAxes = Axes.Both,
                 Children =
                 [
-                    paper = new Sprite
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Texture = paperTexture,
-                        FillMode = FillMode.Fill,
-                    },
+                    panel,
                     selectionOutline = new Container
                     {
-                        Position = new Vector2(5, 4),
-                        Size = new Vector2(530, 76),
+                        Position = new Vector2(2),
+                        Size = new Vector2(536, 80),
                         Masking = true,
-                        CornerRadius = 7,
+                        CornerRadius = 8,
                         BorderThickness = 2,
                         BorderColour = SongSelectTheme.Cyan,
                         Alpha = 0,
@@ -72,10 +73,10 @@ internal partial class SongSelectSongRow : ClickableContainer
             },
             thumbnail = new Container
             {
-                Position = new Vector2(7, 7),
-                Size = new Vector2(145, 70),
+                Position = new Vector2(8),
+                Size = new Vector2(142, 68),
                 Masking = true,
-                CornerRadius = 5,
+                CornerRadius = 7,
                 BorderThickness = 1,
                 BorderColour = new Color4(1f, 1f, 1f, 0.8f),
                 Child = new Sprite
@@ -99,17 +100,17 @@ internal partial class SongSelectSongRow : ClickableContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.Centre,
-                Position = new Vector2(-15, 3),
-                Size = new Vector2(45),
+                Position = new Vector2(-12, 4),
+                Size = new Vector2(38),
                 Texture = selectedStickerTexture,
                 FillMode = FillMode.Fit,
                 Alpha = 0,
             },
-            title = label(entry.Beatmap.Title, 166, 8, 350, 20,
+            title = label(entry.Beatmap.Title, 164, 8, 354, 19,
                 SongSelectTheme.Navy, true),
-            label(entry.Beatmap.Artist, 166, 37, 202, 13,
+            label(entry.Beatmap.Artist, 164, 37, 202, 13,
                 SongSelectTheme.Navy, true),
-            label($"mapped by {entry.Beatmap.Creator}", 166, 58, 202, 10,
+            label($"mapped by {entry.Beatmap.Creator}", 164, 58, 202, 10,
                 SongSelectTheme.Cyan, true),
             label($"{(int)entry.Beatmap.KeyMode}K · {entry.Beatmap.DifficultyName}",
                 388, 37, 130, 11, SongSelectTheme.Pink, true),
@@ -129,24 +130,23 @@ internal partial class SongSelectSongRow : ClickableContainer
     public void SetSelected(bool value)
     {
         selected = value;
-        paper.FadeColour(
+        surface.FadeColour(
             selected
-                ? new Color4(1f, 0.94f, 0.78f, 1f)
-                : Color4.White,
+                ? new Color4(1f, 0.94f, 0.72f, 0.99f)
+                : SongSelectSurface.Ivory(),
             140,
             Easing.OutQuint);
         selectionOutline.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
-        selectionOutline.ResizeHeightTo(selected ? 82 : 76, 160, Easing.OutQuint);
+        selectionOutline.ResizeHeightTo(selected ? 86 : 80, 160, Easing.OutQuint);
         arrow.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
         selectedSticker.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
-        title.Colour = selected ? SongSelectTheme.Navy : SongSelectTheme.Navy;
         this.ResizeHeightTo(selected ? 90 : 84, 160, Easing.OutQuint);
-        thumbnail.ResizeHeightTo(selected ? 76 : 70, 160, Easing.OutQuint);
+        thumbnail.ResizeHeightTo(selected ? 74 : 68, 160, Easing.OutQuint);
     }
 
     protected override bool OnHover(HoverEvent e)
     {
-        paper.FadeColour(new Color4(0.9f, 0.98f, 1f, 1f), 100);
+        surface.FadeColour(new Color4(0.90f, 0.98f, 1f, 0.99f), 100);
         this.MoveToX(-3, 120, Easing.OutQuint);
         return true;
     }
@@ -219,18 +219,31 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         int songCount,
         int chartCount,
         bool collapsed,
-        Texture paperTexture,
         Action toggle)
     {
         Action = toggle;
         Size = new Vector2(540, 38);
+
+        Container panel = SongSelectSurface.CreateCard(
+            out _,
+            SongSelectSurface.Ivory(0.98f),
+            new Color4(
+                SongSelectTheme.Cyan.R,
+                SongSelectTheme.Cyan.G,
+                SongSelectTheme.Cyan.B,
+                0.48f),
+            8,
+            1);
+
         InternalChildren =
         [
-            new Sprite
+            SongSelectSurface.CreateShadow(8, 0.22f, 2),
+            panel,
+            new Box
             {
-                RelativeSizeAxes = Axes.Both,
-                Texture = paperTexture,
-                FillMode = FillMode.Fill,
+                RelativeSizeAxes = Axes.Y,
+                Width = 4,
+                Colour = SongSelectTheme.Yellow,
             },
             new Container
             {

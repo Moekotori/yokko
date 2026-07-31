@@ -25,7 +25,8 @@ public sealed record ManiaStarRatingContext
         bool releaseJudgementsRequired = true,
         bool minesEnabled = true,
         ManiaStarRatingLimitations additionalLimitations =
-            ManiaStarRatingLimitations.None)
+            ManiaStarRatingLimitations.None,
+        bool invertApplied = false)
     {
         if (!double.IsFinite(greatWindowMilliseconds)
             || greatWindowMilliseconds <= 0)
@@ -38,6 +39,7 @@ public sealed record ManiaStarRatingContext
         ReleaseJudgementsRequired = releaseJudgementsRequired;
         MinesEnabled = minesEnabled;
         AdditionalLimitations = additionalLimitations;
+        InvertApplied = invertApplied;
     }
 
     public double GreatWindowMilliseconds { get; }
@@ -47,6 +49,8 @@ public sealed record ManiaStarRatingContext
     public bool MinesEnabled { get; }
 
     public ManiaStarRatingLimitations AdditionalLimitations { get; }
+
+    public bool InvertApplied { get; }
 
     public static ManiaStarRatingContext ForBeatmap(
         YokkoBeatmap beatmap)
@@ -95,6 +99,7 @@ public sealed record ManiaStarRatingContext
             minesEnabled,
             mods.HasDynamicRate
                 ? ManiaStarRatingLimitations.DynamicRateApproximation
-                : ManiaStarRatingLimitations.None);
+                : ManiaStarRatingLimitations.None,
+            mods.Contains(ManiaModId.Invert));
     }
 }

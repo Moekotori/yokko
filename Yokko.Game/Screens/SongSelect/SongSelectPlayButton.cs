@@ -13,47 +13,36 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectPlayButton : ClickableContainer
 {
-    private readonly Sprite background;
+    private readonly Box background;
     private readonly SpriteIcon chevron;
 
     public SongSelectPlayButton(
         Action action,
-        Texture paperTexture,
         Texture tapeTexture)
     {
         Action = action;
         Size = new Vector2(390, 82);
 
+        Container panel = SongSelectSurface.CreateCard(
+            out background,
+            SongSelectTheme.Yellow,
+            new Color4(
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.52f),
+            11,
+            1.5f);
+
         InternalChildren =
         [
-            new Container
-            {
-                Position = new Vector2(3, 5),
-                Size = new Vector2(387, 77),
-                Masking = true,
-                CornerRadius = 10,
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(
-                        SongSelectTheme.DeepNavy.R,
-                        SongSelectTheme.DeepNavy.G,
-                        SongSelectTheme.DeepNavy.B,
-                        0.34f),
-                },
-            },
+            SongSelectSurface.CreateShadow(11, 0.38f, 5),
             new Container
             {
                 Size = new Vector2(387, 77),
                 Children =
                 [
-                    background = new Sprite
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Texture = paperTexture,
-                        FillMode = FillMode.Fill,
-                        Colour = SongSelectTheme.Yellow,
-                    },
+                    panel,
                     new Container
                     {
                         Position = new Vector2(13, 7),

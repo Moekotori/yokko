@@ -720,6 +720,7 @@ internal partial class GameplayModsScreen : Screen
         if (enabled && isConfigurable(mod))
             settingsHost.Show(mod);
 
+        orbitWorkspace?.QueueModTransition(mod, enabled);
         updateSelection();
         selectDetail(mod);
     }

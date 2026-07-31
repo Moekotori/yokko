@@ -63,7 +63,8 @@ clock truth, fallback policy, and backend rollout gates.
 `Yokko.Core.Difficulty.ManiaStarRatingCalculator` adapts the canonical
 `YokkoBeatmap` model to
 [StarRatingRebirth](https://github.com/zzzzv/StarRatingRebirth) 0.1.1
-(C# port declares MIT, algorithm revision `2025/04/15`). This keeps difficulty calculation
+(C# port declares MIT, algorithm revision `2025/04/15`) through Yokko
+calibration `Yokko/1`. This keeps difficulty calculation
 independent of the original chart format: osu!mania, Quaver, Malody, Etterna,
 and BMS imports all use the same tap/hold note data after conversion.
 
@@ -88,6 +89,17 @@ playable in Yokko but are outside Rebirth's model; when enabled they leave the
 tap/hold base value intact and mark it `PARTIAL`. No Release charts with holds
 and dynamic-rate estimates are also explicitly partial instead of being
 presented as complete difficulty.
+
+Yokko removes Rebirth's original `notes / (notes + 60)` length factor and
+reapplies a softer square-root action-count curve. A hold counts as a head plus
+one release action instead of receiving extra length credit for its body. This
+keeps short burst charts from losing most of their input difficulty while
+retaining a bounded short-chart penalty. Mostly-LN charts whose tails repeatedly
+connect to the next same-lane head receive a gradual correction of up to 12%;
+the Invert conversion receives a 10% correction. Both corrections are bounded
+so that applying them cannot push pattern intensity below the same chart
+calculated without hold tails. Ordinary mixed rice/LN charts keep their base
+input difficulty.
 
 ## Beat Timing
 

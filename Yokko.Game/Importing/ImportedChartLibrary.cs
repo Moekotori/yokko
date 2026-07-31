@@ -156,6 +156,7 @@ internal sealed class ImportedChartLibrary
     public async Task<int> LoadFromDiskAsync(
         bool preferKeysounds,
         bool preferSscSimfiles,
+        bool enableBmsScratch = false,
         CancellationToken cancellationToken = default)
     {
         ensureInitialised();
@@ -185,6 +186,7 @@ internal sealed class ImportedChartLibrary
                                 source,
                                 preferKeysounds,
                                 preferSscSimfiles,
+                                enableBmsScratch,
                                 cancellationToken));
                     loaded.AddRange(createImportedCharts(results, source));
                 }
@@ -217,6 +219,7 @@ internal sealed class ImportedChartLibrary
         string path,
         bool preferKeysounds,
         bool preferSscSimfiles,
+        bool enableBmsScratch = false,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -236,6 +239,7 @@ internal sealed class ImportedChartLibrary
         return await LoadFromDiskAsync(
             preferKeysounds,
             preferSscSimfiles,
+            enableBmsScratch,
             cancellationToken).ConfigureAwait(false);
     }
 

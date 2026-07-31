@@ -26,7 +26,8 @@ public sealed record YokkoBeatmap
         double PreviewTimeMilliseconds = -1,
         IReadOnlyList<YokkoBreakPeriod>? BreakPeriods = null,
         bool LegacyLongNoteRendering = false,
-        IReadOnlyList<YokkoScheduledSample>? ScheduledSamples = null)
+        IReadOnlyList<YokkoScheduledSample>? ScheduledSamples = null,
+        int? ScratchLane = null)
     {
         if (!double.IsFinite(OverallDifficulty)
             || OverallDifficulty is < -15 or > 15)
@@ -72,11 +73,23 @@ public sealed record YokkoBeatmap
         {
             throw new ArgumentOutOfRangeException(nameof(StageCount));
         }
+        if (ScratchLane is int scratchLane
+            && (SourceFormat is not (
+                    ChartSourceFormat.Bms
+                    or ChartSourceFormat.Lr2Bms)
+                || scratchLane < 0
+                || scratchLane >= (int)KeyMode))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(ScratchLane),
+                "Only BMS charts may identify a scratch lane inside the playfield.");
+        }
         this.StageCount = StageCount;
         this.PreviewTimeMilliseconds = PreviewTimeMilliseconds;
         this.BreakPeriods = BreakPeriods ?? [];
         this.LegacyLongNoteRendering = LegacyLongNoteRendering;
         this.ScheduledSamples = ScheduledSamples ?? [];
+        this.ScratchLane = ScratchLane;
     }
 
     public string Title { get; init; }
@@ -119,7 +132,14 @@ public sealed record YokkoBeatmap
 
     public IReadOnlyList<YokkoScheduledSample> ScheduledSamples { get; init; }
 
+    /// <summary>
+    /// The playable BMS turntable lane, or null for ordinary key charts.
+    /// </summary>
+    public int? ScratchLane { get; init; }
+
     public int KeysPerStage => (int)KeyMode / StageCount;
+
+    public int RegularLaneCount => (int)KeyMode - (ScratchLane.HasValue ? 1 : 0);
 
     public int NoteCount => HitObjects.Count(static hitObject => hitObject.Kind is HitObjectKind.Tap or HitObjectKind.Hold);
 }

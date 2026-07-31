@@ -10,5 +10,6 @@ public sealed class YokkoImportSettings
 {
     public readonly BindableBool PreferKeysounds = new(true);
     public readonly BindableBool PreferSscSimfiles = new(true);
+    public readonly BindableBool EnableBmsScratch = new(false);
     public readonly BindableBool ShowCompatibilityWarnings = new(true);
 }

@@ -39,10 +39,11 @@ Things are expected to change quickly while the core loop is still being shaped.
 
 Exports currently write to `Documents\Yokko Exports`.
 
-Import currently targets playable 4K/7K tap, hold, offset, and BPM semantics.
-Unsupported source features such as scratch lanes, BGA, warps, scroll effects
-outside the supported Quaver SV model, or runtime keysound mixing are reported
-as import warnings instead of being silently discarded.
+Import targets playable 4K/7K tap, hold, offset, and BPM semantics. BMS scratch
+can optionally be preserved as an extra playable lane from `Settings > Import`.
+Unsupported source features such as BGA, warps, scroll effects outside the
+supported Quaver SV model, or runtime keysound mixing are reported as import
+warnings instead of being silently discarded.
 
 ## Project Layout
 

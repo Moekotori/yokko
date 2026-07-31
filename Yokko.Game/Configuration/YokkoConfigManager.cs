@@ -24,6 +24,7 @@ internal enum YokkoSetting
     AudioOffsetMilliseconds,
     ImportPreferKeysounds,
     ImportPreferSscSimfiles,
+    ImportEnableBmsScratch,
     ImportShowCompatibilityWarnings,
     ResourceRootPath,
     GameplayFourKeyLane1,
@@ -100,6 +101,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             1.0);
         SetDefault(YokkoSetting.ImportPreferKeysounds, true);
         SetDefault(YokkoSetting.ImportPreferSscSimfiles, true);
+        SetDefault(YokkoSetting.ImportEnableBmsScratch, false);
         SetDefault(YokkoSetting.ImportShowCompatibilityWarnings, true);
         SetDefault(YokkoSetting.ResourceRootPath, string.Empty);
         SetDefault(YokkoSetting.GameplayFourKeyLane1, osuTK.Input.Key.D);
@@ -207,6 +209,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
     {
         BindWith(YokkoSetting.ImportPreferKeysounds, settings.PreferKeysounds);
         BindWith(YokkoSetting.ImportPreferSscSimfiles, settings.PreferSscSimfiles);
+        BindWith(
+            YokkoSetting.ImportEnableBmsScratch,
+            settings.EnableBmsScratch);
         BindWith(
             YokkoSetting.ImportShowCompatibilityWarnings,
             settings.ShowCompatibilityWarnings);
