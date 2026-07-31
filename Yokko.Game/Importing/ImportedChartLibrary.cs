@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -35,11 +36,41 @@ internal sealed class ImportedChartLibrary
     private readonly SemaphoreSlim importLock = new(1, 1);
     private readonly MsdRatingCache msdRatingCache = new();
     private readonly StarRatingCache starRatingCache = new();
+    private Task<int> startupLoadTask = Task.FromResult(0);
+    private bool startupLoadStarted;
     private string libraryPath;
 
     public event Action LibraryChanged;
 
     public string LibraryPath => libraryPath;
+
+    internal Task<int> StartupLoadTask
+    {
+        get
+        {
+            lock (syncRoot)
+                return startupLoadTask;
+        }
+    }
+
+    internal Task<int> BeginStartupLoad(
+        bool preferKeysounds,
+        bool preferSscSimfiles,
+        bool enableBmsScratch = false)
+    {
+        lock (syncRoot)
+        {
+            if (startupLoadStarted)
+                return startupLoadTask;
+
+            startupLoadStarted = true;
+            startupLoadTask = Task.Run(() => LoadFromDiskAsync(
+                preferKeysounds,
+                preferSscSimfiles,
+                enableBmsScratch));
+            return startupLoadTask;
+        }
+    }
 
     public void Initialise(Storage storage)
     {
@@ -162,6 +193,7 @@ internal sealed class ImportedChartLibrary
         CancellationToken cancellationToken = default)
     {
         ensureInitialised();
+        Stopwatch loadStopwatch = Stopwatch.StartNew();
         await importLock.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         try
@@ -210,6 +242,12 @@ internal sealed class ImportedChartLibrary
             msdRatingCache.SaveIfChanged();
             starRatingCache.SaveIfChanged();
             LibraryChanged?.Invoke();
+            Logger.Log(
+                $"Persistent beatmap scan loaded {loaded.Count} charts "
+                + $"from {sources.Length} sources in "
+                + $"{loadStopwatch.Elapsed.TotalMilliseconds:0} ms.",
+                LoggingTarget.Runtime,
+                LogLevel.Important);
             return loaded.Count;
         }
         finally

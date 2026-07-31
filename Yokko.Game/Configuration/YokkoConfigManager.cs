@@ -3,6 +3,7 @@ using osu.Framework.Configuration;
 using osu.Framework.Platform;
 using Yokko.Audio;
 using Yokko.Game.Audio;
+using Yokko.Game.Diagnostics;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Presentation;
@@ -99,6 +100,7 @@ internal enum YokkoSetting
     DisplayFrameLimit,
     DisplayShowPerformanceReadout,
     DisplayDifficultyRatingMode,
+    DebugConsoleVisible,
     SkinSelectedId,
     SkinShowComboBursts,
     SkinLongNoteCutEnabled,
@@ -383,6 +385,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSetting.DisplayDifficultyRatingMode,
             Yokko.Core.Difficulty.ManiaDifficultyRatingMode
                 .EtternaMsd);
+        SetDefault(YokkoSetting.DebugConsoleVisible, false);
         SetDefault(YokkoSetting.SkinSelectedId, string.Empty);
         SetDefault(YokkoSetting.SkinShowComboBursts, true);
         SetDefault(
@@ -641,6 +644,14 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.DisplayDifficultyRatingMode,
             settings.DifficultyRatingMode);
+    }
+
+    public void BindDiagnosticSettings(YokkoDiagnostics diagnostics)
+    {
+        ArgumentNullException.ThrowIfNull(diagnostics);
+        BindWith(
+            YokkoSetting.DebugConsoleVisible,
+            diagnostics.ConsoleVisible);
     }
 
     public void BindModPreferences(

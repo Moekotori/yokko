@@ -36,7 +36,8 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
 
     public GeneralSettingsPanel(
         Bindable<string> locale,
-        YokkoGameplaySettings gameplaySettings)
+        YokkoGameplaySettings gameplaySettings,
+        BindableBool showDebugConsole)
     {
         this.locale = locale;
         this.gameplaySettings = gameplaySettings;
@@ -92,6 +93,11 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                 Font = HomeTypography.Body(15),
                 Colour = SettingsTheme.MutedNavy,
             },
+            SettingsChrome.CreateDivider(552),
+            SettingsChrome.CreateSettingRow(
+                562,
+                YokkoStrings.Get("settings.general.debug_console"),
+                new SettingsBooleanToggle(showDebugConsole)),
             new SettingsPanelFooter(),
             new HomeDotCross
             {

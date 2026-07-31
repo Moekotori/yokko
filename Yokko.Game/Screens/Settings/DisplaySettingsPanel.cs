@@ -122,7 +122,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             SettingsChrome.CreateSettingRow(
                 556,
                 YokkoStrings.Get("settings.display.performance_readout"),
-                new DisplayPerformanceReadoutToggle(showPerformanceReadout)),
+                new SettingsBooleanToggle(showPerformanceReadout)),
             SettingsChrome.CreateDivider(614),
             SettingsChrome.CreateSettingRow(
                 620,
@@ -360,7 +360,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     }
 }
 
-internal partial class DisplayPerformanceReadoutToggle : ClickableContainer
+internal partial class SettingsBooleanToggle : ClickableContainer
 {
     private readonly BindableBool value;
     private readonly Container cardBody;
@@ -371,7 +371,7 @@ internal partial class DisplayPerformanceReadoutToggle : ClickableContainer
 
     public override bool AcceptsFocus => true;
 
-    public DisplayPerformanceReadoutToggle(BindableBool value)
+    public SettingsBooleanToggle(BindableBool value)
     {
         this.value = value;
         Action = () => value.Value = !value.Value;

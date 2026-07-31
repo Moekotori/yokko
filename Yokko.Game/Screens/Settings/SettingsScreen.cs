@@ -18,6 +18,7 @@ using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Game.Audio;
 using Yokko.Game.Configuration;
+using Yokko.Game.Diagnostics;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Presentation;
@@ -59,6 +60,8 @@ public partial class SettingsScreen : Screen
     private YokkoSkinSettings skinSettings { get; set; }
     [Resolved]
     private YokkoResourceStorage resourceStorage { get; set; }
+    [Resolved]
+    private YokkoDiagnostics diagnostics { get; set; }
 
     private Bindable<Size> windowedSize;
     private Bindable<WindowMode> windowMode;
@@ -459,7 +462,8 @@ public partial class SettingsScreen : Screen
         {
             SettingsPageKind.General => new GeneralSettingsPanel(
                 locale,
-                gameplaySettings),
+                gameplaySettings,
+                diagnostics.ConsoleVisible),
             SettingsPageKind.Display => new DisplaySettingsPanel(
                 windowedSize,
                 windowMode,
@@ -496,6 +500,7 @@ public partial class SettingsScreen : Screen
         contentHost.Child = activePanel;
         activePanel.FadeIn(180, Easing.OutQuint);
         activePanel.MoveToX(0, 180, Easing.OutQuint);
+        diagnostics.Trace("SETTINGS", "page-opened", $"page={page}");
     }
 
     internal bool DismissTransientUi()

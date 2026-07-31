@@ -11,12 +11,14 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
+using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Audio;
+using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Editor;
 using Yokko.Game.Screens.Settings;
@@ -109,6 +111,8 @@ public partial class MainScreen : Screen
 
     [Resolved]
     private GameHost host { get; set; }
+    [Resolved]
+    private ImportedChartLibrary importedChartLibrary { get; set; }
 
     public MainScreen(Action requestGameExit = null)
     {
@@ -332,10 +336,26 @@ public partial class MainScreen : Screen
         utilityArea.Alpha = 0;
         ticker.Alpha = 0;
 
-        // MainScreen itself is loaded off the update thread. Finish the first
-        // song-select load here so the Play button is never racing an async
-        // preload: once the home screen is visible, the destination is ready.
-        preloadedSongSelect = new SongSelectScreen();
+        // MainScreen itself is loaded off the update thread. Wait for the one
+        // startup library scan before constructing SongSelect, otherwise an
+        // empty preloaded screen queues its full row rebuild until the click
+        // that first puts it in the drawable tree.
+        try
+        {
+            importedChartLibrary.StartupLoadTask.GetAwaiter().GetResult();
+        }
+        catch (Exception exception)
+        {
+            Logger.Error(
+                exception,
+                "Could not finish the startup beatmap scan before preloading song select.",
+                LoggingTarget.Runtime);
+        }
+
+        // Finish the first page load before exposing Play. Later visits are
+        // prepared asynchronously when MainScreen resumes.
+        preloadedSongSelect = new SongSelectScreen(
+            requestNextPreload: beginSongSelectPreload);
         LoadComponent(preloadedSongSelect);
     }
 
@@ -395,11 +415,19 @@ public partial class MainScreen : Screen
 
         if (preloadedSongSelect == null)
         {
+            Logger.Log(
+                "Song select navigation is waiting for its background preload.",
+                LoggingTarget.Runtime,
+                LogLevel.Important);
             songSelectOpenRequested = true;
             beginSongSelectPreload();
             return;
         }
 
+        Logger.Log(
+            "Song select navigation used a prepared screen.",
+            LoggingTarget.Runtime,
+            LogLevel.Important);
         pushPreloadedSongSelect();
     }
 
@@ -414,7 +442,8 @@ public partial class MainScreen : Screen
 
         songSelectPreloadInProgress = true;
         _ = LoadComponentAsync(
-            new SongSelectScreen(),
+            new SongSelectScreen(
+                requestNextPreload: beginSongSelectPreload),
             screen =>
             {
                 songSelectPreloadInProgress = false;

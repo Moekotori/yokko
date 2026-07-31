@@ -25,6 +25,7 @@ using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
 using Yokko.Audio;
 using Yokko.Game.Audio;
+using Yokko.Game.Diagnostics;
 using Yokko.Game.Configuration;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Input;
@@ -92,6 +93,8 @@ public partial class GameplayScreen : Screen
     private ImportedChartLibrary importedChartLibrary { get; set; }
     [Resolved]
     private YokkoConfigManager yokkoConfig { get; set; }
+    [Resolved]
+    private YokkoDiagnostics diagnostics { get; set; }
 
     private BeatmapJudgementState judgementState;
     private ManiaHealthState healthState;
@@ -124,6 +127,7 @@ public partial class GameplayScreen : Screen
     private bool gameplayCompleted;
     private bool gameplayCompletionTransitionActive;
     private bool gameplayFailed;
+    private double diagnosticSnapshotElapsed;
     private bool retryTransitionInProgress;
     private GameplayHud hud;
     private ManiaScoreResult completedResult;
@@ -552,6 +556,14 @@ public partial class GameplayScreen : Screen
         gameplaySettings.ScrollSpeed.BindValueChanged(
             onScrollSpeedChanged);
         host.Deactivated += onHostDeactivated;
+        diagnostics.Trace(
+            "GAMEPLAY",
+            "constructed",
+            $"title={beatmap.Title} | format={beatmap.SourceFormat}"
+            + $" | keys={(int)beatmap.KeyMode} | objects={beatmap.HitObjects.Count}"
+            + $" | scheduled-samples={beatmap.ScheduledSamples.Count}"
+            + $" | replay={ReplayMode} | mods={string.Join(',', mods.DisplayLabels)}"
+            + $" | audio-clock={hasAudioClock} | engine={audioEngine.GetType().Name}");
     }
 
     protected override void LoadComplete()
@@ -573,6 +585,14 @@ public partial class GameplayScreen : Screen
                 () => _ = startAudioAsync(),
                 leadInMilliseconds);
         }
+
+        diagnostics.Trace(
+            "GAMEPLAY",
+            "loaded",
+            $"lead-in={leadInMilliseconds:0.###}ms"
+            + $" | first-object={firstObjectTimeMilliseconds:0.###}ms"
+            + $" | completion={completionTimeMilliseconds:0.###}ms"
+            + $" | raw-input={keyInputTimestamps.IsRawInputAvailable}");
     }
 
     protected override void Update()
@@ -581,6 +601,7 @@ public partial class GameplayScreen : Screen
         updatePlayfieldLayout();
         drainAudioSampleTriggerTelemetry();
         updateQuickRetryHold();
+        updateDiagnosticSnapshot();
 
         if (gameplayCompletionTransitionActive)
         {
@@ -1150,6 +1171,17 @@ public partial class GameplayScreen : Screen
                 DynamicPlaybackRate = true,
             };
             activeRequestedBackend = startRequest.PreferredBackend;
+            diagnostics.Trace(
+                "AUDIO",
+                "start-requested",
+                $"backend={startRequest.PreferredBackend}"
+                + $" | device={startRequest.DeviceId}"
+                + $" | sample-rate={startRequest.PreferredSampleRate}"
+                + $" | buffer={startRequest.PreferredBufferSize}"
+                + $" | rate={startRequest.PlaybackRate:0.###}"
+                + $" | pitch={startRequest.PitchMode}"
+                + $" | offset={activeUserOffsetMilliseconds:0.###}ms"
+                + $" | path={startRequest.AudioPath}");
 
             await audioEngine.StartAsync(startRequest)
                              .ConfigureAwait(true);
@@ -1169,6 +1201,12 @@ public partial class GameplayScreen : Screen
             hud.UpdateAudioStatus(
                 audioSnapshot.Status,
                 activeRequestedBackend);
+            diagnostics.Trace(
+                "AUDIO",
+                "started",
+                formatAudioStatus(audioSnapshot.Status)
+                + $" | playback={audioSnapshot.PlaybackTimeMilliseconds:0.###}ms",
+                LogLevel.Important);
 
             if (isPaused)
             {
@@ -1456,6 +1494,17 @@ public partial class GameplayScreen : Screen
         }
         if (!gameplayFailed)
             syncSlidingSamplesForLane(lane);
+        if (diagnostics.IsEnabled)
+        {
+            diagnostics.Trace(
+                "INPUT",
+                "lane-pressed",
+                $"lane={lane} | time={inputTime:0.###}ms"
+                + $" | source={(captureTimestamp != 0 ? "raw" : ReplayMode ? "replay" : "framework")}"
+                + $" | judgements={inputJudgements.Count}"
+                + $" | fast-hit={fastPathHitObjectIndex}"
+                + $" | audio-enqueue-ticks={audioEnqueueTimestamp}");
+        }
         return audioEnqueueTimestamp;
     }
 
@@ -1711,6 +1760,15 @@ public partial class GameplayScreen : Screen
         }
         if (!gameplayFailed)
             syncSlidingSamplesForLane(lane);
+        if (diagnostics.IsEnabled)
+        {
+            diagnostics.Trace(
+                "INPUT",
+                "lane-released",
+                $"lane={lane} | time={inputTime:0.###}ms"
+                + $" | source={(ReplayMode ? "replay" : keyInputTimestamps.IsRawInputAvailable ? "raw" : "framework")}"
+                + $" | judgements={inputJudgements.Count}");
+        }
     }
 
     private void syncSlidingSamplesForLane(int lane)
@@ -1796,6 +1854,17 @@ public partial class GameplayScreen : Screen
 
     private void applyJudgement(JudgementEvent judgement)
     {
+        if (diagnostics.IsEnabled)
+        {
+            diagnostics.Trace(
+                "JUDGEMENT",
+                "applied",
+                $"object={judgement.HitObjectIndex} | lane={judgement.Lane}"
+                + $" | phase={judgement.Phase} | rating={judgement.Rating}"
+                + $" | object-time={judgement.ObjectTimeMilliseconds:0.###}ms"
+                + $" | hit-time={judgement.HitTimeMilliseconds:0.###}ms"
+                + $" | error={judgement.HitErrorMilliseconds:+0.###;-0.###;0}ms");
+        }
         if (judgement.Phase == JudgementPhase.HoldTail
             && !judgement.IsMiss
             && gameplaySettings.KeysoundsEnabled.Value
@@ -1838,6 +1907,12 @@ public partial class GameplayScreen : Screen
             return;
 
         gameplayFailed = true;
+        diagnostics.Trace(
+            "GAMEPLAY",
+            "failed",
+            $"time={currentGameplayTime:0.###}ms"
+            + $" | health={healthState.Health:0.###}",
+            LogLevel.Important);
         disableRawKeysoundFastPath();
         mutedAudio?.Restore();
         stopAllSlidingSamples();
@@ -1881,6 +1956,15 @@ public partial class GameplayScreen : Screen
         {
             Rank = mods.AdjustRank(rawResult.Rank),
         };
+        diagnostics.Trace(
+            "GAMEPLAY",
+            "completed",
+            $"score={completedResult.Score}"
+            + $" | accuracy={completedResult.Accuracy:P4}"
+            + $" | combo={completedResult.MaxCombo}"
+            + $" | miss={completedResult.Miss}"
+            + $" | rank={completedResult.Rank}",
+            LogLevel.Important);
         completedReplay = replay
                           ?? new GameplayReplay(
                               recordedReplayInputs,
@@ -2180,6 +2264,13 @@ public partial class GameplayScreen : Screen
                 0,
                 observation.Audio.PlaybackTimeMilliseconds)
             : 0;
+        diagnostics.Trace(
+            "GAMEPLAY",
+            "pause-requested",
+            $"gameplay={pausedGameplayTime:0.###}ms"
+            + $" | playback={pausedAudioPosition:0.###}ms"
+            + $" | audio-clock={hasAudioClock}",
+            LogLevel.Important);
         releasePressedLanesAt(pausedGameplayTime);
         isPaused = true;
 
@@ -2193,6 +2284,7 @@ public partial class GameplayScreen : Screen
         {
             if (hasAudioClock)
                 await audioEngine.PauseAsync().ConfigureAwait(true);
+            diagnostics.Trace("GAMEPLAY", "paused", $"time={pausedGameplayTime:0.###}ms");
         }
         catch (Exception ex)
         {
@@ -2241,6 +2333,10 @@ public partial class GameplayScreen : Screen
         resumeCountdownInProgress = true;
 
         double duration = resumeCountdownDuration;
+        diagnostics.Trace(
+            "GAMEPLAY",
+            "resume-countdown-started",
+            $"duration={duration:0.###}ms | position={pausedGameplayTime:0.###}ms");
         if (duration <= 0)
         {
             // Countdown disabled in settings: resume immediately at the
@@ -2281,6 +2377,7 @@ public partial class GameplayScreen : Screen
             return;
 
         resumeCountdownInProgress = false;
+        diagnostics.Trace("GAMEPLAY", "resume-countdown-cancelled");
         resumeCountdown?.FadeOut(120, Easing.OutQuint)
                         .Expire();
         resumeCountdown = null;
@@ -2316,6 +2413,12 @@ public partial class GameplayScreen : Screen
             }
 
             isPaused = false;
+            diagnostics.Trace(
+                "GAMEPLAY",
+                "resumed",
+                $"gameplay={pausedGameplayTime:0.###}ms"
+                + $" | playback={pausedAudioPosition:0.###}ms",
+                LogLevel.Important);
 
             if (!ReplayMode)
                 keyInputTimestamps.BeginCapture();
@@ -2445,6 +2548,11 @@ public partial class GameplayScreen : Screen
         resumeCountdown = null;
         cancelQuickRetryHold();
         retryTransitionInProgress = true;
+        diagnostics.Trace(
+            "GAMEPLAY",
+            "retry-requested",
+            $"time={currentGameplayTime:0.###}ms | paused={isPaused} | failed={gameplayFailed}",
+            LogLevel.Important);
         if (!ReplayMode)
             keyInputTimestamps.EndCapture();
 
@@ -2773,6 +2881,50 @@ public partial class GameplayScreen : Screen
             + pipelineSummary + "; "
             + nativeSampleSummary);
     }
+
+    private void updateDiagnosticSnapshot()
+    {
+        if (!diagnostics.IsEnabled)
+        {
+            diagnosticSnapshotElapsed = 0;
+            return;
+        }
+
+        diagnosticSnapshotElapsed += Math.Max(0, Time.Elapsed);
+        if (diagnosticSnapshotElapsed < 1000)
+            return;
+
+        diagnosticSnapshotElapsed %= 1000;
+        AudioEngineSnapshot audio = audioEngine.Snapshot;
+        KeyInputTimestampBackendStatus input = keyInputTimestamps.Status;
+        double gameplayTime = currentGameplayTime;
+        diagnostics.Trace(
+            "RUNTIME",
+            "gameplay-snapshot",
+            $"gameplay={gameplayTime:0.###}ms"
+            + $" | playback={audio.PlaybackTimeMilliseconds:0.###}ms"
+            + $" | rate={currentPlaybackRate(gameplayTime):0.###}"
+            + $" | paused={isPaused} | blocked={gameplayBlocked}"
+            + $" | completed={gameplayCompleted} | failed={gameplayFailed}"
+            + $" | health={healthState.Health:0.###}"
+            + $" | accuracy={judgementState.Accuracy:P4}"
+            + $" | input={input.Name}/{input.CapturedEdgeCount}/{input.PendingEdgeCount}/{input.DroppedEdgeCount}"
+            + $" | {formatAudioStatus(audio.Status)}");
+    }
+
+    private static string formatAudioStatus(AudioEngineStatus status) =>
+        $"audio={status.ActiveBackend}/{status.DeviceName}"
+        + $"/{status.SampleRate}Hz/{status.BufferSize}f"
+        + $"/{status.EstimatedOutputLatencyMilliseconds:0.###}ms"
+        + $" | running={status.IsRunning} | faulted={status.IsFaulted}"
+        + $" | callbacks={status.CallbackCount}"
+        + $" | deadline-miss={status.CallbackDeadlineMissCount}"
+        + $" | cadence-miss={status.CallbackCadenceMissCount}"
+        + $" | overload={status.BackendOverloadCount}"
+        + $" | underrun={status.HasUnderrun}"
+        + $" | max-callback={status.MaxCallbackDurationMilliseconds:0.###}ms"
+        + $" | max-interval={status.MaxCallbackIntervalMilliseconds:0.###}ms"
+        + $" | error=0x{unchecked((uint)status.BackendError):X8}/{status.BackendErrorStage}";
 
     private static string formatAudioEnqueue(
         PipelineStageLatencyStatistics audioEnqueue) =>

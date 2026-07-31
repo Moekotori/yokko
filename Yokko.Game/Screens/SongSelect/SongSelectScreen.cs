@@ -29,6 +29,7 @@ using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Game.Audio;
+using Yokko.Game.Diagnostics;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
@@ -59,6 +60,7 @@ public partial class SongSelectScreen : Screen
 
     private readonly List<SongSelectEntry> entries = createEntries();
     private readonly IAudioEngine suppliedPreviewAudioEngine;
+    private readonly Action requestNextPreload;
     private readonly Dictionary<string, SongSelectEntry> importedEntries =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<SongSelectSongRow> rows = new();
@@ -73,7 +75,6 @@ public partial class SongSelectScreen : Screen
             new(ReferenceEqualityComparer.Instance);
 
     private TextureStore textures;
-    private TextureStore chartArtworkTextures;
     private Container stage;
     private Sprite backgroundA;
     private Sprite backgroundB;
@@ -138,6 +139,7 @@ public partial class SongSelectScreen : Screen
     private bool packagesCollapsed;
     private bool previewActive;
     private bool transitionPending;
+    private bool nextPreloadScheduled;
     private Stopwatch loadStopwatch;
     private double displayedPlaybackRate = 1;
     private string displayedBpm = "0";
@@ -157,10 +159,17 @@ public partial class SongSelectScreen : Screen
     private YokkoManiaModPreferences modPreferences { get; set; }
     [Resolved]
     private YokkoDisplaySettings displaySettings { get; set; }
+    [Resolved]
+    private YokkoDiagnostics diagnostics { get; set; }
+    [Resolved]
+    private SongSelectArtworkTextureCache artworkTextureCache { get; set; }
 
-    public SongSelectScreen(IAudioEngine previewAudioEngine = null)
+    public SongSelectScreen(
+        IAudioEngine previewAudioEngine = null,
+        Action requestNextPreload = null)
     {
         suppliedPreviewAudioEngine = previewAudioEngine;
+        this.requestNextPreload = requestNextPreload;
     }
 
     internal SongSelectEntry SelectedEntry => selectedEntry;
@@ -250,13 +259,6 @@ public partial class SongSelectScreen : Screen
         previewPlayer = new SongSelectPreviewPlayer(
             suppliedPreviewAudioEngine ?? AudioEngineFactory.CreateDefault(),
             audioSettings);
-        chartArtworkTextures = new TextureStore(
-            renderer,
-            new TextureLoaderStore(
-                new ConstrainedTextureResourceStore(
-                    new ChartArtworkResourceStore(),
-                    renderer.MaxTextureSize)),
-            scaleAdjust: 1);
         // Subscribe before taking the initial snapshot. The startup disk scan
         // runs in the background and can finish while this screen is loading;
         // reading first would leave a small window where its completion event
@@ -322,6 +324,12 @@ public partial class SongSelectScreen : Screen
             + $"({entries.Count} charts, {rows.Count} rows).",
             LoggingTarget.Runtime,
             LogLevel.Important);
+        diagnostics.Trace(
+            "SONG_SELECT",
+            "constructed",
+            $"entries={entries.Count} | rows={rows.Count}"
+            + $" | selected={selectedEntry?.Beatmap.Title ?? "none"}"
+            + $" | mods={string.Join(',', selectedMods.DisplayLabels)}");
     }
 
     private void logLoadStage(string stage) => Logger.Log(
@@ -329,22 +337,25 @@ public partial class SongSelectScreen : Screen
         LoggingTarget.Runtime,
         LogLevel.Important);
 
-    protected override void LoadComplete()
-    {
-        base.LoadComplete();
-        Logger.Log(
-            $"Song select fully loaded: {loadStopwatch?.Elapsed.TotalMilliseconds ?? 0:0} ms "
-            + $"({entries.Count} charts, {rows.Count} rows).",
-            LoggingTarget.Runtime,
-            LogLevel.Important);
-    }
-
     public override void OnEntering(ScreenTransitionEvent e)
     {
         base.OnEntering(e);
         previewActive = true;
+        diagnostics.Trace(
+            "SONG_SELECT",
+            "entered",
+            $"selected={selectedEntry?.Beatmap.Title ?? "none"}");
         playSelectedPreview();
         stage.FadeIn(260, Easing.OutQuint).MoveToY(0, 420, Easing.OutQuint);
+
+        // Build the next short-lived screen once the first visible frame is
+        // established. This keeps future Home -> Play transitions instant
+        // without making the current click compete with UI construction.
+        if (!nextPreloadScheduled && requestNextPreload != null)
+        {
+            nextPreloadScheduled = true;
+            Scheduler.AddDelayed(requestNextPreload, 250);
+        }
     }
 
     public override void OnResuming(ScreenTransitionEvent e)
@@ -361,6 +372,11 @@ public partial class SongSelectScreen : Screen
         applyFilters();
         rebuildDetails();
         previewActive = true;
+        diagnostics.Trace(
+            "SONG_SELECT",
+            "resumed",
+            $"entries={entries.Count} | visible={visibleEntries.Count}"
+            + $" | selected={selectedEntry?.Beatmap.Title ?? "none"}");
         playSelectedPreview();
         this.FadeIn(180, Easing.OutQuint);
     }
@@ -369,6 +385,7 @@ public partial class SongSelectScreen : Screen
     {
         base.OnSuspending(e);
         previewActive = false;
+        diagnostics.Trace("SONG_SELECT", "suspended");
         previewPlayer?.Stop();
         this.FadeTo(0.35f, 180, Easing.OutQuint);
     }
@@ -376,6 +393,7 @@ public partial class SongSelectScreen : Screen
     public override bool OnExiting(ScreenExitEvent e)
     {
         previewActive = false;
+        diagnostics.Trace("SONG_SELECT", "exiting");
         previewPlayer?.Stop();
         this.FadeOut(180, Easing.OutQuint);
         return base.OnExiting(e);
@@ -393,7 +411,6 @@ public partial class SongSelectScreen : Screen
                     onDifficultyRatingModeChanged;
             }
 
-            chartArtworkTextures?.Dispose();
             if (previewPlayer != null)
                 _ = previewPlayer.DisposeAsync();
         }
@@ -440,6 +457,10 @@ public partial class SongSelectScreen : Screen
     internal void SetKeyModeFilter(KeyMode? mode)
     {
         keyModeFilter = mode;
+        diagnostics.Trace(
+            "SONG_SELECT",
+            "key-filter-changed",
+            $"mode={mode?.ToString() ?? "all"}");
         updateFilters();
         applyFilters();
     }
@@ -447,6 +468,10 @@ public partial class SongSelectScreen : Screen
     internal void SetSearchQuery(string query)
     {
         searchQuery = query ?? string.Empty;
+        diagnostics.Trace(
+            "SONG_SELECT",
+            "search-changed",
+            $"query={searchQuery}");
         applyFilters();
     }
 
@@ -497,6 +522,13 @@ public partial class SongSelectScreen : Screen
             showModPanelSummary();
 
         transitionPending = true;
+        diagnostics.Trace(
+            "SONG_SELECT",
+            "play-requested",
+            $"title={gameplayBeatmap.Title} | difficulty={gameplayBeatmap.DifficultyName}"
+            + $" | keys={(int)gameplayBeatmap.KeyMode}"
+            + $" | mods={string.Join(',', gameplayMods.DisplayLabels)}",
+            LogLevel.Important);
         previewActive = false;
         previewPlayer?.Stop();
         stage.FadeTo(0.84f, 90, Easing.OutQuint)
@@ -527,6 +559,7 @@ public partial class SongSelectScreen : Screen
             Scheduler.Add(() =>
             {
                 transitionPending = false;
+                diagnostics.Trace("SONG_SELECT", "gameplay-ready");
                 this.Push(gameplayTask.Result);
             });
         }
@@ -536,6 +569,11 @@ public partial class SongSelectScreen : Screen
                 exception,
                 "Could not prepare gameplay from song select.",
                 LoggingTarget.Runtime);
+            diagnostics.Trace(
+                "SONG_SELECT",
+                "gameplay-prepare-failed",
+                exception.ToString(),
+                LogLevel.Error);
             Scheduler.Add(() =>
             {
                 transitionPending = false;
@@ -992,6 +1030,11 @@ public partial class SongSelectScreen : Screen
 
     private void onSelectedModsChanged()
     {
+        diagnostics.Trace(
+            "SONG_SELECT",
+            "mods-changed",
+            $"mods={string.Join(',', selectedMods.DisplayLabels)}"
+            + $" | rate={selectedMods.PlaybackRate:0.###}x");
         modPreferences?.Remember(selectedMods);
         modPreferences?.RememberActiveMods(selectedMods);
         updateModSelection();
@@ -2363,6 +2406,13 @@ public partial class SongSelectScreen : Screen
              entry.Beatmap.Creator.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
              entry.Beatmap.DifficultyName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)))
                                 .ToList();
+        diagnostics.Trace(
+            "SONG_SELECT",
+            "filter-applied",
+            $"query={searchQuery} | mode={keyModeFilter?.ToString() ?? "all"}"
+            + $" | visible={visibleEntries.Count}/{entries.Count}"
+            + $" | difficulty-sort={sortByDifficulty}"
+            + $" | packages-collapsed={packagesCollapsed}");
 
         if (sortByDifficulty)
         {
@@ -2421,6 +2471,13 @@ public partial class SongSelectScreen : Screen
 
         if (changed)
         {
+            diagnostics.Trace(
+                "SONG_SELECT",
+                "selection-changed",
+                $"title={entry.Beatmap.Title} | artist={entry.Beatmap.Artist}"
+                + $" | difficulty={entry.Beatmap.DifficultyName}"
+                + $" | keys={(int)entry.Beatmap.KeyMode}"
+                + $" | format={entry.Beatmap.SourceFormat}");
             crossFadeBackground(textureFor(entry));
             rebuildDetails();
             modSettingsHost?.SetState(selectedMods, entry.Beatmap);
@@ -2464,7 +2521,9 @@ public partial class SongSelectScreen : Screen
         {
             try
             {
-                Texture artwork = chartArtworkTextures.Get(entry.WallpaperTexture);
+                Texture artwork = artworkTextureCache.Get(
+                    entry.WallpaperTexture,
+                    renderer);
                 if (artwork != null)
                     return artwork;
             }

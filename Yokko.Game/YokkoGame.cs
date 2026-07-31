@@ -4,8 +4,11 @@ using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Framework.Input.Events;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
+using osuTK.Input;
+using Yokko.Game.Diagnostics;
 using Yokko.Game.Input;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
@@ -19,9 +22,16 @@ namespace Yokko.Game
     {
         private ScreenStack screenStack;
         private YokkoPerformanceReadout performanceReadout;
+        private YokkoDebugConsoleOverlay debugConsole;
         private BindableBool showPerformanceReadout;
         private readonly Action<Storage> storageReady;
         private readonly string[] startupFiles;
+
+        internal bool DebugConsoleVisible => Diagnostics.ConsoleVisible.Value;
+        internal bool DebugConsoleContains(string text) =>
+            debugConsole?.ContainsRenderedText(text) == true;
+        internal void SetDebugConsoleVisible(bool visible) =>
+            Diagnostics.ConsoleVisible.Value = visible;
 
         public YokkoGame(
             IKeyInputTimestampBackend keyInputTimestampBackend = null,
@@ -58,7 +68,11 @@ namespace Yokko.Game
                     Position = new osuTK.Vector2(0, 12),
                     Depth = float.MinValue,
                 },
+                debugConsole = new YokkoDebugConsoleOverlay(Diagnostics),
             };
+
+            screenStack.ScreenPushed += onScreenPushed;
+            screenStack.ScreenExited += onScreenExited;
 
             showPerformanceReadout = DisplaySettings.ShowPerformanceReadout;
             showPerformanceReadout.BindValueChanged(
@@ -72,8 +86,16 @@ namespace Yokko.Game
 
             screenStack.Push(new MainScreen(RequestExit));
 
+            Diagnostics.Trace(
+                "STARTUP",
+                "main-screen-ready",
+                $"startup-files={startupFiles.Length}");
+
             foreach (string path in startupFiles)
+            {
+                Diagnostics.Trace("STARTUP", "opening-argument", path);
                 OpenExternalPath(path);
+            }
         }
 
         private protected override void OpenImportedReplay(
@@ -96,11 +118,43 @@ namespace Yokko.Game
             performanceReadout.Alpha = change.NewValue ? 1 : 0;
         }
 
+        protected override bool OnKeyDown(KeyDownEvent e)
+        {
+            if (e.Key == Key.F12 && !e.Repeat)
+            {
+                Diagnostics.Toggle();
+                return true;
+            }
+
+            return base.OnKeyDown(e);
+        }
+
+        private void onScreenPushed(IScreen previous, IScreen current) =>
+            Diagnostics.Trace(
+                "NAVIGATION",
+                "screen-pushed",
+                $"from={screenName(previous)} | to={screenName(current)}");
+
+        private void onScreenExited(IScreen previous, IScreen current) =>
+            Diagnostics.Trace(
+                "NAVIGATION",
+                "screen-exited",
+                $"from={screenName(previous)} | to={screenName(current)}");
+
+        private static string screenName(IScreen screen) =>
+            screen?.GetType().Name ?? "none";
+
         protected override void Dispose(bool isDisposing)
         {
             if (isDisposing && showPerformanceReadout != null)
                 showPerformanceReadout.ValueChanged -=
                     onShowPerformanceReadoutChanged;
+
+            if (isDisposing && screenStack != null)
+            {
+                screenStack.ScreenPushed -= onScreenPushed;
+                screenStack.ScreenExited -= onScreenExited;
+            }
 
             base.Dispose(isDisposing);
         }

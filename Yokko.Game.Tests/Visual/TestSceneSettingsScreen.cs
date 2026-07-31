@@ -14,6 +14,7 @@ using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Diagnostics;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Settings;
 
@@ -26,6 +27,8 @@ namespace Yokko.Game.Tests.Visual
         private readonly SettingsScreen settingsScreen;
         [Resolved]
         private YokkoDisplaySettings displaySettings { get; set; }
+        [Resolved]
+        private YokkoDiagnostics diagnostics { get; set; }
 
         public TestSceneSettingsScreen()
         {
@@ -36,6 +39,32 @@ namespace Yokko.Game.Tests.Visual
         public void TestSettingsScreen()
         {
             AddAssert("settings screen is current", () => screenStack.CurrentScreen is SettingsScreen);
+        }
+
+        [Test]
+        public void TestGeneralPageCanToggleLiveDebugConsole()
+        {
+            bool original = false;
+            SettingsBooleanToggle toggle = null;
+
+            AddStep("remember console setting", () =>
+                original = diagnostics.ConsoleVisible.Value);
+            AddStep("open General", () =>
+            {
+                settingsScreen.OpenPage(SettingsPageKind.General);
+                toggle = settingsScreen.ActivePanel
+                    .ChildrenOfType<SettingsBooleanToggle>()
+                    .Single();
+            });
+            AddAssert("console toggle fits above footer", () =>
+                toggle.AcceptsFocus
+                && settingsScreen.ActivePanel.ToLocalSpace(
+                       toggle.ScreenSpaceDrawQuad.BottomRight).Y < 651);
+            AddStep("toggle console", () => toggle.TriggerClick());
+            AddAssert("console state changes immediately", () =>
+                diagnostics.ConsoleVisible.Value != original);
+            AddStep("restore console setting", () =>
+                diagnostics.ConsoleVisible.Value = original);
         }
 
         [Test]
@@ -147,7 +176,7 @@ namespace Yokko.Game.Tests.Visual
                     .ChildrenOfType<SettingsFrameLimitChoiceButton>()
                     .All(control => control.AcceptsFocus)
                 && settingsScreen.ActivePanel
-                    .ChildrenOfType<DisplayPerformanceReadoutToggle>()
+                    .ChildrenOfType<SettingsBooleanToggle>()
                     .All(control => control.AcceptsFocus)
                 && settingsScreen.ActivePanel
                     .ChildrenOfType<SettingsDropdownHeader>()

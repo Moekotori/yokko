@@ -19,6 +19,35 @@ namespace Yokko.Game.Tests.Core;
 public sealed class ImportedChartLibraryTest
 {
     [Test]
+    public async Task StartupLoadIsSharedAndCompletesBeforeConsumersProceed()
+    {
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            $"yokko-startup-library-{Guid.NewGuid():N}");
+
+        try
+        {
+            var library = new ImportedChartLibrary();
+            library.Initialise(new NativeStorage(root));
+
+            Task<int> first = library.BeginStartupLoad(true, true);
+            Task<int> second = library.BeginStartupLoad(false, false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(second, Is.SameAs(first));
+                Assert.That(library.StartupLoadTask, Is.SameAs(first));
+            });
+            Assert.That(await first, Is.Zero);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public void NativeReplayFindsExactImportedGameplayModel()
     {
         var library = new ImportedChartLibrary();

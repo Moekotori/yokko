@@ -592,6 +592,10 @@ internal static class YokkoStrings
                 "Switch between the original 1–40 scale and advanced 1 ms tuning · Ctrl + / Ctrl − or F3 / F4 in gameplay.",
                 "可切换原版 1–40 档位与进阶 1 ms 精调 · 游玩时按 Ctrl + / Ctrl − 或 F3 / F4。",
                 "従来の 1–40 段階と上級 1 ms 微調整を切替 · プレイ中は Ctrl + / Ctrl − または F3 / F4。"),
+            ["settings.general.debug_console"] = new(
+                "Live debug console · F12",
+                "实时调试控制台 · F12",
+                "リアルタイムデバッグコンソール · F12"),
             ["settings.language.english"] = new("English", "English", "English"),
             ["settings.language.chinese"] = new("简体中文", "简体中文", "简体中文"),
             ["settings.language.japanese"] = new("日本語", "日本語", "日本語"),
@@ -638,6 +642,16 @@ internal static class YokkoStrings
             ["settings.display.compact"] = new("80%", "80%", "80%"),
             ["settings.display.comfortable"] = new("90%", "90%", "90%"),
             ["settings.display.spacious"] = new("100%", "100%", "100%"),
+
+            ["debug_console.title"] = new("YOKKO LIVE DEBUG", "YOKKO 实时调试", "YOKKO ライブデバッグ"),
+            ["debug_console.pause"] = new("Pause", "暂停", "一時停止"),
+            ["debug_console.resume"] = new("Resume", "继续", "再開"),
+            ["debug_console.clear"] = new("Clear", "清空", "クリア"),
+            ["debug_console.copy"] = new("Copy", "复制", "コピー"),
+            ["debug_console.open_logs"] = new("Open logs", "打开日志", "ログを開く"),
+            ["debug_console.close"] = new("Close", "关闭", "閉じる"),
+            ["debug_console.status_live"] = new("LIVE · {0} buffered", "实时 · 已缓存 {0} 条", "ライブ · {0} 件"),
+            ["debug_console.status_paused"] = new("PAUSED · {0} pending", "已暂停 · {0} 条待显示", "一時停止 · {0} 件保留"),
 
             ["settings.audio.title"] = new("Audio", "音频", "オーディオ"),
             ["settings.audio.subtitle"] = new(

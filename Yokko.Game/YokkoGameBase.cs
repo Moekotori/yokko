@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -15,12 +16,14 @@ using osu.Framework.Platform;
 using osuTK;
 using Yokko.Game.Audio;
 using Yokko.Game.Configuration;
+using Yokko.Game.Diagnostics;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Input;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Resources;
+using Yokko.Game.Screens.SongSelect;
 using Yokko.Game.Skinning.OsuMania;
 using Yokko.Game.Scoring;
 using Yokko.Import;
@@ -60,6 +63,8 @@ namespace Yokko.Game
         [Cached]
         private readonly OsuManiaSkinCache gameplaySkinCache = new();
         [Cached]
+        private readonly SongSelectArtworkTextureCache songSelectArtworkTextureCache = new();
+        [Cached]
         private readonly KeyInputTimestampSource keyInputTimestamps;
         [Cached]
         private readonly GameplayScoreStore scoreStore = new();
@@ -69,6 +74,8 @@ namespace Yokko.Game
         private readonly YokkoManiaModPreferences modPreferences = new();
         [Cached]
         private readonly YokkoFrameRateAdaptation frameRateAdaptation = new();
+        [Cached]
+        private readonly YokkoDiagnostics diagnostics = new();
         private ImportNotificationOverlay importOverlay;
         [Cached]
         private YokkoConfigManager yokkoConfig;
@@ -77,6 +84,7 @@ namespace Yokko.Game
         private IWindow window;
 
         protected YokkoDisplaySettings DisplaySettings => displaySettings;
+        internal YokkoDiagnostics Diagnostics => diagnostics;
         internal ImportedChartLibrary ImportedCharts =>
             importedChartLibrary;
 
@@ -120,6 +128,7 @@ namespace Yokko.Game
             yokkoConfig ??= new YokkoConfigManager(host.Storage);
             yokkoConfig.BindAudioSettings(audioSettings);
             yokkoConfig.BindDisplaySettings(displaySettings);
+            yokkoConfig.BindDiagnosticSettings(diagnostics);
             yokkoConfig.BindImportSettings(importSettings);
             yokkoConfig.BindResourceSettings(resourceSettings);
             yokkoConfig.BindGameplaySettings(gameplaySettings);
@@ -134,6 +143,7 @@ namespace Yokko.Game
                 skinSettings);
             scoreStore.Initialise(host.Storage);
             replayStore.Initialise(host.Storage);
+            diagnostics.Initialise(host);
 
             window = host.Window;
             keyInputTimestamps.Attach(window);
@@ -142,6 +152,12 @@ namespace Yokko.Game
                 + (keyInputTimestamps.IsRawInputAvailable
                     ? "Windows Raw Input"
                     : "SDL window fallback"));
+            diagnostics.Trace(
+                "HOST",
+                "attached",
+                $"host={host.GetType().Name} | window={window?.GetType().Name ?? "none"}"
+                + $" | scale={window?.Scale ?? 1:0.###}"
+                + $" | raw-input={keyInputTimestamps.IsRawInputAvailable}");
 
             if (window != null)
             {
@@ -200,10 +216,10 @@ namespace Yokko.Game
             AddFont(Resources, @"Fonts/Yokko/Yokko-Bold");
             AddFont(Resources, @"Fonts/YokkoInput/YokkoInput");
             AddFont(Resources, @"Fonts/ArchivoBlack/ArchivoBlack");
-            _ = Task.Run(() => importedChartLibrary.LoadFromDiskAsync(
+            _ = importedChartLibrary.BeginStartupLoad(
                 importSettings.PreferKeysounds.Value,
                 importSettings.PreferSscSimfiles.Value,
-                importSettings.EnableBmsScratch.Value))
+                importSettings.EnableBmsScratch.Value)
                     .ContinueWith(
                         task =>
                         {
@@ -216,6 +232,17 @@ namespace Yokko.Game
                             }
                         },
                         TaskScheduler.Default);
+
+            diagnostics.Trace(
+                "CONFIG",
+                "loaded",
+                $"locale={normalizedLocale}"
+                + $" | frame-limit={displaySettings.FrameLimit.Value}"
+                + $" | ui-scale={displaySettings.UiScale.Value}"
+                + $" | audio-backend={audioSettings.PreferredBackend.Value}"
+                + $" | audio-buffer={audioSettings.PreferredBufferSize.Value}"
+                + $" | keysounds={gameplaySettings.KeysoundsEnabled.Value}"
+                + $" | skin={skinSettings.SelectedSkinId.Value}");
         }
 
         protected override void Dispose(bool isDisposing)
@@ -232,18 +259,31 @@ namespace Yokko.Game
                 frameRateController?.Dispose();
                 windowSizeGuard?.Dispose();
                 keyInputTimestamps.Dispose();
+                diagnostics.Dispose();
             }
 
             base.Dispose(isDisposing);
 
             if (isDisposing)
+            {
                 gameplaySkinCache.Dispose();
+                songSelectArtworkTextureCache.Dispose();
+            }
         }
 
-        private void onFileDropped(string path) => OpenExternalPath(path);
+        private void onFileDropped(string path)
+        {
+            diagnostics.Trace("FILES", "dropped", path);
+            OpenExternalPath(path);
+        }
 
         protected void OpenExternalPath(string path)
         {
+            diagnostics.Trace(
+                "FILES",
+                "open-requested",
+                $"path={path} | extension={Path.GetExtension(path)}");
+
             if (Path.GetExtension(path).Equals(
                     YokkoReplayIO.FileExtension,
                     StringComparison.OrdinalIgnoreCase))
@@ -267,13 +307,23 @@ namespace Yokko.Game
             }
 
             if (OsuManiaSkinLibrary.IsSupportedDrop(path))
+            {
                 importSkin(path);
+                return;
+            }
+
+            diagnostics.Trace("FILES", "unsupported", path, LogLevel.Important);
         }
 
-        private void onWindowResized() => windowSizeGuard?.Repair();
+        private void onWindowResized()
+        {
+            diagnostics.Trace("WINDOW", "resized", $"scale={window?.Scale ?? 1:0.###}");
+            windowSizeGuard?.Repair();
+        }
 
         private void importOsuReplay(string path)
         {
+            diagnostics.Trace("IMPORT", "osu-replay-started", path);
             Scheduler.Add(() => importOverlay.ShowImporting(
                 YokkoStrings.Get("import.replay.importing"),
                 path));
@@ -300,6 +350,11 @@ namespace Yokko.Game
                     {
                         if (!task.IsCompletedSuccessfully)
                         {
+                            diagnostics.Trace(
+                                "IMPORT",
+                                "osu-replay-failed",
+                                task.Exception?.GetBaseException().ToString(),
+                                LogLevel.Error);
                             importOverlay.ShowFailure(
                                 YokkoStrings.Get("import.replay.failed"),
                                 task.Exception?.GetBaseException().Message
@@ -312,6 +367,10 @@ namespace Yokko.Game
                             string.IsNullOrWhiteSpace(task.Result.PlayerName)
                                 ? task.Result.Beatmap.Title
                                 : $"{task.Result.Beatmap.Title} · {task.Result.PlayerName}");
+                        diagnostics.Trace(
+                            "IMPORT",
+                            "osu-replay-completed",
+                            $"title={task.Result.Beatmap.Title} | player={task.Result.PlayerName}");
                         OpenImportedReplay(
                             task.Result.Beatmap,
                             task.Result.Replay);
@@ -321,6 +380,7 @@ namespace Yokko.Game
 
         private void importYokkoReplay(string path)
         {
+            diagnostics.Trace("IMPORT", "yokko-replay-started", path);
             Scheduler.Add(() => importOverlay.ShowImporting(
                 YokkoStrings.Get("import.replay.importing"),
                 path));
@@ -371,6 +431,11 @@ namespace Yokko.Game
                     {
                         if (!task.IsCompletedSuccessfully)
                         {
+                            diagnostics.Trace(
+                                "IMPORT",
+                                "yokko-replay-failed",
+                                task.Exception?.GetBaseException().ToString(),
+                                LogLevel.Error);
                             importOverlay.ShowFailure(
                                 YokkoStrings.Get("import.replay.failed"),
                                 task.Exception?.GetBaseException().Message
@@ -381,6 +446,10 @@ namespace Yokko.Game
                         importOverlay.ShowSuccess(
                             YokkoStrings.Get("import.replay.success"),
                             task.Result.Beatmap.Title);
+                        diagnostics.Trace(
+                            "IMPORT",
+                            "yokko-replay-completed",
+                            $"title={task.Result.Beatmap.Title} | inputs={task.Result.Replay.Inputs.Count}");
                         OpenImportedReplay(
                             task.Result.Beatmap,
                             task.Result.Replay);
@@ -401,6 +470,12 @@ namespace Yokko.Game
                 importSettings.PreferKeysounds.Value,
                 importSettings.PreferSscSimfiles.Value,
                 importSettings.EnableBmsScratch.Value);
+            diagnostics.Trace(
+                "IMPORT",
+                "chart-started",
+                $"path={path} | keysounds={request.PreferKeysounds}"
+                + $" | prefer-ssc={request.PreferSscSimfiles}"
+                + $" | bms-scratch={request.EnableBmsScratch}");
 
             Scheduler.Add(() => importOverlay.ShowImporting(
                 YokkoStrings.Get("import.chart.importing"),
@@ -412,6 +487,11 @@ namespace Yokko.Game
                         {
                             if (!task.IsCompletedSuccessfully)
                             {
+                                diagnostics.Trace(
+                                    "IMPORT",
+                                    "chart-failed",
+                                    task.Exception?.GetBaseException().ToString(),
+                                    LogLevel.Error);
                                 importOverlay.ShowFailure(
                                     YokkoStrings.Get("import.chart.failed"),
                                     task.Exception?.GetBaseException().Message ?? "Unknown import error.");
@@ -439,12 +519,18 @@ namespace Yokko.Game
                             importOverlay.ShowSuccess(
                                 YokkoStrings.Get("import.chart.success"),
                                 detail);
+                            diagnostics.Trace(
+                                "IMPORT",
+                                "chart-completed",
+                                $"charts={results.Count}"
+                                + $" | warnings={results.Sum(result => result.Warnings.Count)}");
                         }),
                         TaskScheduler.Default);
         }
 
         private void importSkin(string path)
         {
+            diagnostics.Trace("IMPORT", "skin-started", path);
             Scheduler.Add(() => importOverlay.ShowImporting(
                 YokkoStrings.Get("settings.skins.importing"),
                 path));
@@ -464,12 +550,21 @@ namespace Yokko.Game
                                 importOverlay.ShowSuccess(
                                     YokkoStrings.Get("settings.skins.import_success"),
                                     result.Skin?.Name ?? result.Message);
+                                diagnostics.Trace(
+                                    "IMPORT",
+                                    "skin-completed",
+                                    $"name={result.Skin?.Name ?? "unknown"}");
                             }
                             else
                             {
                                 importOverlay.ShowFailure(
                                     YokkoStrings.Get("settings.skins.import_failed"),
                                     result.Message);
+                                diagnostics.Trace(
+                                    "IMPORT",
+                                    "skin-failed",
+                                    result.Message,
+                                    LogLevel.Error);
                             }
                         }),
                         TaskScheduler.Default);
