@@ -12,9 +12,9 @@ internal sealed class GameplayMutedAudioController
     private readonly ManiaModSet mods;
     private readonly IAudioMixControl audio;
     private readonly BeatTimingMap timing;
-    private readonly double musicVolume;
-    private readonly double hitSoundVolume;
-    private readonly double metronomeVolume;
+    private double musicVolume;
+    private double hitSoundVolume;
+    private double metronomeVolume;
     private ManiaMutedMix current;
     private ManiaMutedMix transitionStart;
     private ManiaMutedMix target;
@@ -50,6 +50,17 @@ internal sealed class GameplayMutedAudioController
     }
 
     internal ManiaMutedMix Current => current;
+
+    internal void SetOutputVolumes(
+        double music,
+        double hitSounds,
+        double metronome)
+    {
+        musicVolume = validateVolume(music, nameof(music));
+        hitSoundVolume = validateVolume(hitSounds, nameof(hitSounds));
+        metronomeVolume = validateVolume(metronome, nameof(metronome));
+        apply(current);
+    }
 
     internal void Update(
         double elapsedMilliseconds,

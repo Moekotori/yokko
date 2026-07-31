@@ -49,6 +49,7 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
     private readonly object operationLock = new();
     private readonly IAudioEngine audioEngine;
     private readonly YokkoAudioSettings audioSettings;
+    private readonly bool ownsAudioEngine;
     private Task operationQueue = Task.CompletedTask;
     private CancellationTokenSource operationCancellation = new();
     private PreviewRequest currentRequest;
@@ -58,7 +59,8 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
 
     public SongSelectPreviewPlayer(
         IAudioEngine audioEngine,
-        YokkoAudioSettings audioSettings)
+        YokkoAudioSettings audioSettings,
+        bool ownsAudioEngine = true)
     {
         this.audioEngine = audioEngine
                            ?? throw new ArgumentNullException(
@@ -66,6 +68,8 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
         this.audioSettings = audioSettings
                              ?? throw new ArgumentNullException(
                                  nameof(audioSettings));
+        this.ownsAudioEngine = ownsAudioEngine;
+        this.audioSettings.MixChanged += onMixChanged;
     }
 
     internal string CurrentAudioPath => currentRequest?.AudioPath;
@@ -163,6 +167,18 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
         }
     }
 
+    internal void Detach()
+    {
+        lock (operationLock)
+        {
+            if (disposed)
+                return;
+
+            currentRequest = null;
+            hasStartedCurrentRequest = false;
+        }
+    }
+
     internal Task WaitForIdleAsync()
     {
         lock (operationLock)
@@ -202,11 +218,13 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
                 return;
 
             disposed = true;
+            audioSettings.MixChanged -= onMixChanged;
             currentRequest = null;
             hasStartedCurrentRequest = false;
             generation++;
             cancellation = operationCancellation;
-            cancellation.Cancel();
+            if (ownsAudioEngine)
+                cancellation.Cancel();
             pending = operationQueue;
         }
 
@@ -220,7 +238,17 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
         finally
         {
             cancellation.Dispose();
-            await audioEngine.DisposeAsync().ConfigureAwait(false);
+            if (ownsAudioEngine)
+                await audioEngine.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    private void onMixChanged()
+    {
+        lock (operationLock)
+        {
+            if (!disposed && audioEngine is IAudioMixControl mixControl)
+                audioSettings.ApplyMixSettings(mixControl);
         }
     }
 

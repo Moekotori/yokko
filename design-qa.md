@@ -87,6 +87,47 @@ final result: passed
 
 ---
 
+# Gameplay settings typography QA (2026-07-31)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-16d82cfe-9a81-46f1-9824-673301517d57.png` (2559 x 1439).
+- Revised native implementation: `C:\Users\nyafa\AppData\Local\Temp\yokko-gameplay-typography-after.png` (1920 x 1080, Comfortable UI scale).
+- Additional timing-section capture: `C:\Users\nyafa\AppData\Local\Temp\yokko-gameplay-typography-timing.png` (1920 x 1080).
+- State: Chinese Gameplay settings, Input section, 4K profile. Key values differ because the captures used different persisted bindings; this is not a typography finding.
+
+## Comparison history
+
+1. The reported screen mixed 9, 13, 14, 15, and 16-unit text across controls with equivalent importance. Tool actions and lane-card descriptions were visually subordinate to the large empty surfaces that contained them.
+2. The hierarchy was consolidated to 20-24 for section/status titles, 16-18 for actions, and 15-17 for supporting copy. Four-key lane labels and actions now use 16, while key values use 30.
+3. The first timing capture showed the scroll-mode chip still lagging behind the revised hierarchy. Its text was raised from 11 to 13 and its container from 20 to 22 logical pixels.
+
+## Fidelity review
+
+- Fonts and typography: existing Yokko display/body families and weights remain; sizes now form a consistent three-level hierarchy with no visible truncation.
+- Spacing and layout: card, tab, and button bounds are unchanged; enlarged text remains centred and does not collide with icons or borders.
+- Colors and tokens: unchanged.
+- Image quality and assets: logo, icons, sticker frame, and decorations are unchanged and remain sharp.
+- Copy and content: unchanged apart from persisted key bindings in the verification fixture.
+
+## Findings
+
+- P0: none.
+- P1: none after removing the inconsistent small-type tiers.
+- P2: none in the Input and Timing native captures.
+- P3: dense multi-row key modes retain smaller 10-11-unit support labels so 12+ lanes continue to fit; their primary key values remain 19.
+
+## Verification
+
+- Current-tree `Yokko.Game` isolated build: 0 warnings, 0 errors.
+- Clean isolated `Yokko.Game.Tests` build: 0 warnings, 0 errors.
+- Focused settings typography and gameplay interaction tests: 2 passed, 0 failed.
+- Before/after Input captures were opened in one comparison input; the Timing capture was inspected separately for overflow.
+
+final result: passed
+
+---
+
 # Song Select redesign verification (2026-07-31)
 
 ## Evidence
@@ -2674,5 +2715,48 @@ final result: passed
   this result-screen pass.
 - Native Direct3D 11 1600 x 900 final frame and a second animation phase were
   opened and compared; no actionable P0/P1/P2 visual issue remains.
+
+final result: passed
+
+---
+
+# Home mascot bubble text safe-area QA (2026-07-31)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-67a38c81-05fe-41bb-aa4a-e69c74723681.png` (1063 x 572, 1x screenshot).
+- Native implementation: `D:\YOKKO\artifacts\bubble-safe-area-preview\implementation-dfjk-final.png` (1920 x 1080, 1x Direct3D 11 capture).
+- Full-view comparison: `D:\YOKKO\artifacts\bubble-safe-area-preview\comparison-full-final.png`.
+- Focused normalized comparison: `D:\YOKKO\artifacts\bubble-safe-area-preview\comparison-dfjk-final.png`; each component crop was aspect-fitted into a 560 x 360 panel so the bubble boundaries could be judged at a common display size.
+- State: Chinese locale, idle line `D F J K，出发！`.
+- CSS size and browser density: not applicable to this native osu!framework screen.
+
+## Comparison history
+
+1. The reported capture showed the first `D` extending into the lower-left star because the 148-unit label was centred too far left.
+2. The first correction moved the label right, but the native comparison showed the final punctuation touching the lightning-side border.
+3. The final correction centres the label in the irregular cyan safe area and caps it at 134 units. The second native capture shows clear spacing at both ends.
+
+## Fidelity review
+
+- Fonts and typography: the existing sticker font, weight, baseline, letter spacing, and CJK fallback are unchanged; only fit scale and centring changed.
+- Spacing and layout: the label now stays between the star cluster and right lightning border. Bubble placement, size, mascot overlap, and animation are unchanged.
+- Colors and tokens: unchanged.
+- Image quality and assets: the project-owned transparent sticker texture is unchanged and remains sharp in the native capture.
+- Copy and content: the exact reported localized line was rendered and compared.
+- Interaction and responsiveness: click/pop/idle transforms are unchanged; the safe-area limits are asserted after text reflow.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after the second safe-area pass.
+- P3: the source and final full views use different viewport sizes; fidelity judgement therefore relies on the normalized focused component comparison rather than pixel-position comparison of the full page.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build passed with 0 warnings and 0 errors.
+- `TestBubbleStickerLabelFitsInsideSticker` passed: 1 test, 0 failures.
+- Final native Direct3D 11 capture and both comparison images were opened and inspected.
 
 final result: passed

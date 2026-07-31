@@ -76,10 +76,15 @@ namespace Yokko.Game
         private readonly YokkoFrameRateAdaptation frameRateAdaptation = new();
         [Cached]
         private readonly YokkoDiagnostics diagnostics = new();
+        [Cached]
+        private readonly IResourceDirectoryPicker resourceDirectoryPicker;
+        [Cached]
+        private readonly IDesktopDisplayModeController displayModeController;
         private ImportNotificationOverlay importOverlay;
         [Cached]
         private YokkoConfigManager yokkoConfig;
         private YokkoFrameRateController frameRateController;
+        private YokkoDesktopBehaviourController desktopBehaviourController;
         private YokkoWindowSizeGuard windowSizeGuard;
         private IWindow window;
 
@@ -88,9 +93,16 @@ namespace Yokko.Game
         internal ImportedChartLibrary ImportedCharts =>
             importedChartLibrary;
 
-        protected YokkoGameBase(IKeyInputTimestampBackend keyInputTimestampBackend = null)
+        protected YokkoGameBase(
+            IKeyInputTimestampBackend keyInputTimestampBackend = null,
+            IResourceDirectoryPicker resourceDirectoryPicker = null,
+            IDesktopDisplayModeController displayModeController = null)
         {
             keyInputTimestamps = new KeyInputTimestampSource(keyInputTimestampBackend);
+            this.resourceDirectoryPicker = resourceDirectoryPicker
+                                           ?? new UnavailableResourceDirectoryPicker();
+            this.displayModeController = displayModeController
+                                         ?? new UnavailableDesktopDisplayModeController();
 
             // Ensure game and tests scale with window size and screen DPI.
             base.Content.Add(Content = new YokkoUiScalingContainer(
@@ -111,6 +123,9 @@ namespace Yokko.Game
                 [FrameworkSetting.ExecutionMode] =
                     ExecutionMode.MultiThreaded,
                 [FrameworkSetting.WindowMode] = WindowMode.Fullscreen,
+                // Keep exclusive fullscreen active while Windows switches
+                // focus so Alt+Tab does not wait for an extra minimise/restore.
+                [FrameworkSetting.MinimiseOnFocusLossInFullscreen] = false,
                 [FrameworkSetting.FrameSync] =
                     YokkoFrameRateLimits.ToFrameworkFrameSync(
                         YokkoFrameRateLimits.LowLatencyDefault),
@@ -204,6 +219,12 @@ namespace Yokko.Game
                 displaySettings.FrameLimit,
                 currentDisplayMode,
                 frameRateAdaptation);
+            desktopBehaviourController = new YokkoDesktopBehaviourController(
+                host,
+                frameworkConfig,
+                displaySettings,
+                audioSettings,
+                displayModeController);
 
             string configuredLocale = frameworkConfig.Get<string>(FrameworkSetting.Locale);
             string normalizedLocale = YokkoLocale.Normalize(configuredLocale);
@@ -257,6 +278,7 @@ namespace Yokko.Game
 
                 yokkoConfig?.Dispose();
                 frameRateController?.Dispose();
+                desktopBehaviourController?.Dispose();
                 windowSizeGuard?.Dispose();
                 keyInputTimestamps.Dispose();
                 diagnostics.Dispose();

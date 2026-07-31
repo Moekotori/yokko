@@ -18,16 +18,18 @@ public sealed class MainScreenPlaybackLifecycleTest
     }
 
     [Test]
-    public void PlaybackScreensStillSuspendHomeMusic()
+    public void EditorStillSuspendsHomeMusic()
     {
-        Assert.Multiple(() =>
-        {
-            Assert.That(
-                MainScreen.KeepsMusicPlaying(new EditorScreen()),
-                Is.False);
-            Assert.That(
-                MainScreen.KeepsMusicPlaying(new SongSelectScreen()),
-                Is.False);
-        });
+        Assert.That(
+            MainScreen.KeepsMusicPlaying(new EditorScreen()),
+            Is.False);
+    }
+
+    [Test]
+    public void SongSelectKeepsSharedHomeMusicEngineActive()
+    {
+        Assert.That(
+            MainScreen.KeepsMusicPlaying(new SongSelectScreen()),
+            Is.True);
     }
 }

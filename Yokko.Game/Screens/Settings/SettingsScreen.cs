@@ -63,6 +63,8 @@ public partial class SettingsScreen : Screen
     [Resolved]
     private YokkoResourceStorage resourceStorage { get; set; }
     [Resolved]
+    private IResourceDirectoryPicker resourceDirectoryPicker { get; set; }
+    [Resolved]
     private YokkoDiagnostics diagnostics { get; set; }
 
     private Bindable<Size> windowedSize;
@@ -476,6 +478,10 @@ public partial class SettingsScreen : Screen
                 currentDisplayMode,
                 size => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, size),
                 mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode)),
+            SettingsPageKind.Desktop => new DesktopSettingsPanel(
+                displaySettings,
+                audioSettings,
+                host),
             SettingsPageKind.Audio => new AudioSettingsPanel(
                 audioSettings,
                 gameplaySettings,
@@ -493,7 +499,8 @@ public partial class SettingsScreen : Screen
             SettingsPageKind.Import => new ImportSettingsPanel(
                 importSettings,
                 resourceStorage,
-                yokkoConfig),
+                yokkoConfig,
+                resourceDirectoryPicker),
             _ => new SettingsPlaceholderPanel(SettingsPages.Get(page)),
         };
 

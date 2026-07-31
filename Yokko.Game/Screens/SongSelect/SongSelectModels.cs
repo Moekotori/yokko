@@ -6,6 +6,11 @@ using Yokko.Core.Scoring;
 
 namespace Yokko.Game.Screens.SongSelect;
 
+internal sealed class SongSelectSelectionMemory
+{
+    internal string ChartId { get; set; }
+}
+
 internal enum SongSelectScoreView
 {
     Personal,

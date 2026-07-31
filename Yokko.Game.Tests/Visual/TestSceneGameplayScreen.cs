@@ -3953,10 +3953,11 @@ HitPosition: 400
                        && Math.Abs(overlay.DisplayedAccuracy - 1) < 0.0001
                        && overlay.DisplayedCombo == 0
                        && overlay.DisplayedMaxCombo == 0
+                       && overlay.DisplayedPauseCount == 1
                        && !string.IsNullOrWhiteSpace(
                            overlay.DisplayedRank)
                        && GameplayPauseOverlay.ReferenceSize
-                          == YokkoDisplaySettings.ReferenceLayoutSize;
+                          == new Vector2(1600, 900);
             });
             AddStep("capture pause screen when requested", () =>
             {

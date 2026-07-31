@@ -434,6 +434,7 @@ public partial class GameplayScreen : Screen
                     gameplaySettings.KeysoundsEnabled.Value);
             }
         }
+        audioSettings.MixChanged += onAudioMixChanged;
         hasAudioClock = !string.IsNullOrWhiteSpace(beatmap.AudioPath)
                         || hasKeysounds && audioEngine is NativeAudioEngine;
         keysoundPreparationTask = prepareKeysoundsAsync();
@@ -1140,6 +1141,7 @@ public partial class GameplayScreen : Screen
             }
 
             host.Deactivated -= onHostDeactivated;
+            audioSettings.MixChanged -= onAudioMixChanged;
             gameplaySettings.ScrollSpeed.ValueChanged -=
                 onScrollSpeedChanged;
             if (!completionAudioStopRequested)
@@ -1151,6 +1153,32 @@ public partial class GameplayScreen : Screen
         }
 
         base.Dispose(isDisposing);
+    }
+
+    private void onAudioMixChanged()
+    {
+        if (gameplayCompletionTransitionActive
+            || gameplayCompleted
+            || audioEngine is not IAudioMixControl mixControl)
+        {
+            return;
+        }
+
+        if (mutedAudio != null)
+        {
+            mutedAudio.SetOutputVolumes(
+                audioSettings.EffectiveMusicVolume,
+                gameplaySettings.KeysoundsEnabled.Value
+                    ? audioSettings.EffectiveHitSoundVolume
+                    : 0,
+                audioSettings.EffectiveMasterVolume);
+        }
+        else
+        {
+            audioSettings.ApplyMixSettings(
+                mixControl,
+                gameplaySettings.KeysoundsEnabled.Value);
+        }
     }
 
     private async Task startAudioAsync()
@@ -2322,7 +2350,8 @@ public partial class GameplayScreen : Screen
                 judgementState,
                 mods,
                 pausedGameplayTime,
-                completionTimeMilliseconds),
+                completionTimeMilliseconds,
+                pausesUsed + 1),
             TogglePause,
             RetryGameplay,
             () => this.Push(new SettingsScreen()),

@@ -4,12 +4,21 @@ using Yokko.Audio;
 
 namespace Yokko.Game.Audio;
 
+public enum BackgroundAudioMode
+{
+    KeepPlaying,
+    Dim,
+    Mute,
+}
+
 /// <summary>
 /// Application-owned audio preferences shared by settings and gameplay.
 /// Device playback state remains owned by <see cref="IAudioEngine"/>.
 /// </summary>
 public sealed class YokkoAudioSettings
 {
+    public event Action MixChanged;
+
     public readonly Bindable<bool> HomeMusicEnabled = new(true);
 
     public readonly Bindable<double> MasterVolume = new(1);
@@ -17,6 +26,9 @@ public sealed class YokkoAudioSettings
     public readonly Bindable<double> MusicVolume = new(1);
 
     public readonly Bindable<double> HitSoundVolume = new(1);
+
+    public readonly Bindable<BackgroundAudioMode> BackgroundAudio =
+        new(BackgroundAudioMode.KeepPlaying);
 
     public readonly Bindable<AudioBackendKind> PreferredBackend =
         new(AudioBackendKind.WasapiExclusive);
@@ -32,11 +44,39 @@ public sealed class YokkoAudioSettings
     public readonly Bindable<AudioPitchMode> ManualPlaybackRatePitchMode =
         new(AudioPitchMode.Preserve);
 
+    private bool applicationActive = true;
+
+    public YokkoAudioSettings()
+    {
+        MasterVolume.BindValueChanged(_ => MixChanged?.Invoke());
+        MusicVolume.BindValueChanged(_ => MixChanged?.Invoke());
+        HitSoundVolume.BindValueChanged(_ => MixChanged?.Invoke());
+        BackgroundAudio.BindValueChanged(_ => MixChanged?.Invoke());
+    }
+
     public double EffectiveMusicVolume =>
-        clampVolume(MasterVolume.Value) * clampVolume(MusicVolume.Value);
+        clampVolume(MasterVolume.Value)
+        * clampVolume(MusicVolume.Value)
+        * backgroundVolumeScale;
 
     public double EffectiveHitSoundVolume =>
-        clampVolume(MasterVolume.Value) * clampVolume(HitSoundVolume.Value);
+        clampVolume(MasterVolume.Value)
+        * clampVolume(HitSoundVolume.Value)
+        * backgroundVolumeScale;
+
+    public double EffectiveMasterVolume =>
+        clampVolume(MasterVolume.Value) * backgroundVolumeScale;
+
+    public bool IsApplicationActive => applicationActive;
+
+    public void SetApplicationActive(bool active)
+    {
+        if (applicationActive == active)
+            return;
+
+        applicationActive = active;
+        MixChanged?.Invoke();
+    }
 
     public void ApplyMixSettings(
         IAudioMixControl audio,
@@ -50,6 +90,15 @@ public sealed class YokkoAudioSettings
 
     private static double clampVolume(double volume) =>
         Math.Clamp(volume, 0, 1);
+
+    private double backgroundVolumeScale => applicationActive
+        ? 1
+        : BackgroundAudio.Value switch
+        {
+            BackgroundAudioMode.Dim => 0.2,
+            BackgroundAudioMode.Mute => 0,
+            _ => 1,
+        };
 
     public AudioEngineStartRequest CreateStartRequest(
         string audioPath,

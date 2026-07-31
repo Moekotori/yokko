@@ -14,16 +14,18 @@ using osu.Framework.Logging;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Audio;
+using Yokko.Core.Beatmaps;
 using Yokko.Game.Audio;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
+using Yokko.Game.Screens.SongSelect;
 
 namespace Yokko.Game.Screens.Main;
 
 /// <summary>
 /// 主页角落的紧凑音乐播放器，播放导入谱面所引用的真实歌曲。
 /// </summary>
-public partial class HomeMusicPlayer : CompositeDrawable
+public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
 {
     private sealed record ImportedHomeTrack(
         string AudioPath,
@@ -238,16 +240,29 @@ public partial class HomeMusicPlayer : CompositeDrawable
         };
     }
 
+    IAudioEngine ISongSelectPreviewHost.AudioEngine =>
+        audioEngine ??= AudioEngineFactory.CreateDefault();
+
+    void ISongSelectPreviewHost.AdoptPreview(YokkoBeatmap beatmap) =>
+        adoptPreview(beatmap);
+
     [BackgroundDependencyLoader]
     private void load()
     {
-        audioEngine = AudioEngineFactory.CreateDefault();
+        audioEngine ??= AudioEngineFactory.CreateDefault();
+        audioSettings.MixChanged += onMixChanged;
         desiredPlaying = audioSettings.HomeMusicEnabled.Value;
         playPauseButton.Icon.Icon = desiredPlaying
             ? FontAwesome.Solid.Pause
             : FontAwesome.Solid.Play;
         importedChartLibrary.LibraryChanged += onChartLibraryChanged;
         refreshPlaylist();
+    }
+
+    private void onMixChanged()
+    {
+        if (audioEngine is IAudioMixControl mixControl)
+            audioSettings.ApplyMixSettings(mixControl);
     }
 
     protected override void LoadComplete()
@@ -280,6 +295,39 @@ public partial class HomeMusicPlayer : CompositeDrawable
     internal void NextTrack() => nextTrack();
 
     internal void PreviousTrack() => previousTrack();
+
+    private void adoptPreview(YokkoBeatmap beatmap)
+    {
+        if (!isPlayableAudioPath(beatmap?.AudioPath))
+            return;
+
+        string audioPath = Path.GetFullPath(beatmap.AudioPath);
+        int index = tracks
+                    .Select((track, trackIndex) => (track, trackIndex))
+                    .Where(pair => string.Equals(
+                        pair.track.AudioPath,
+                        audioPath,
+                        StringComparison.OrdinalIgnoreCase))
+                    .Select(pair => pair.trackIndex)
+                    .DefaultIfEmpty(-1)
+                    .First();
+        if (index < 0)
+            return;
+
+        bool changed = trackIndex != index;
+        trackIndex = index;
+        loadedAudioPath = audioPath;
+        pausedProgress = audioEngine?.PlaybackTimeMilliseconds ?? 0;
+        currentLength = audioEngine?.DurationMilliseconds > 0
+            ? audioEngine.DurationMilliseconds
+            : tracks[index].FallbackLength;
+        playbackGeneration++;
+        desiredPlaying = true;
+        audioSettings.HomeMusicEnabled.Value = true;
+        playPauseButton.Icon.Icon = FontAwesome.Solid.Pause;
+        updateTrackDisplay(tracks[index], changed);
+        ensureWaveformForCurrentTrack();
+    }
 
     /// <summary>
     /// 挂上底部波形带；挂接时立即为当前曲目补齐波形数据。
@@ -699,6 +747,9 @@ public partial class HomeMusicPlayer : CompositeDrawable
     {
         base.Update();
 
+        if (screenActive && audioEngine?.DurationMilliseconds > 0)
+            currentLength = audioEngine.DurationMilliseconds;
+
         if (screenActive
             && desiredPlaying
             && currentLength > 0
@@ -733,6 +784,8 @@ public partial class HomeMusicPlayer : CompositeDrawable
         if (isDisposing)
         {
             disposed = true;
+            if (audioSettings != null)
+                audioSettings.MixChanged -= onMixChanged;
             waveformCancellation?.Cancel();
             if (importedChartLibrary != null)
                 importedChartLibrary.LibraryChanged -= onChartLibraryChanged;

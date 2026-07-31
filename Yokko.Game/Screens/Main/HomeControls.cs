@@ -1013,11 +1013,12 @@ internal enum HomeMascotBubbleStyle
 
 public partial class HomeMascotBubble : ClickableContainer
 {
-    private const float sticker_label_max_width = 148;
+    private const float sticker_label_max_width = 134;
     private const float sticker_label_max_height = 62;
 
     private readonly Drawable underline;
     private readonly SpriteText label;
+    private readonly Container stickerLabelArea;
     private readonly HomeMascotBubbleStyle style;
     private readonly Container idleContent;
     private readonly Container hoverContent;
@@ -1097,10 +1098,10 @@ public partial class HomeMascotBubble : ClickableContainer
                                 RelativeSizeAxes = Axes.Both,
                                 Texture = stickerTexture,
                             },
-                            new Container
+                            stickerLabelArea = new Container
                             {
-                                Position = new Vector2(60, 24),
-                                Size = new Vector2(158, 68),
+                                Position = new Vector2(78, 24),
+                                Size = new Vector2(164, 68),
                                 Child = label = new SpriteText
                                 {
                                     Anchor = Anchor.Centre,
@@ -1212,6 +1213,13 @@ public partial class HomeMascotBubble : ClickableContainer
 
     internal float StickerLabelDrawWidth =>
         label.DrawWidth * label.Scale.X;
+
+    internal float StickerLabelDrawLeft =>
+        stickerLabelArea.X
+        + (stickerLabelArea.DrawWidth - StickerLabelDrawWidth) / 2;
+
+    internal float StickerLabelDrawRight =>
+        StickerLabelDrawLeft + StickerLabelDrawWidth;
 
     /// <summary>
     /// 换一句台词，文字淡入、气泡轻弹。

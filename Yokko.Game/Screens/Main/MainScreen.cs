@@ -87,6 +87,7 @@ public partial class MainScreen : Screen
     private readonly Action requestGameExit;
     private readonly CancellationTokenSource songSelectPreloadCancellation =
         new();
+    private readonly SongSelectSelectionMemory songSelectSelectionMemory = new();
     private SongSelectScreen preloadedSongSelect;
     private bool songSelectPreloadInProgress;
     private bool preloadResourcesDisposed;
@@ -368,7 +369,10 @@ public partial class MainScreen : Screen
         // prepared asynchronously when MainScreen resumes.
         importedChartLibrary.LibraryChanged += onChartLibraryChanged;
         preloadedSongSelect = new SongSelectScreen(
-            requestNextPreload: beginSongSelectPreload);
+            previewAudioEngine: null,
+            requestNextPreload: beginSongSelectPreload,
+            selectionMemory: songSelectSelectionMemory,
+            previewHost: musicPlayer);
         LoadComponent(preloadedSongSelect);
     }
 
@@ -468,7 +472,10 @@ public partial class MainScreen : Screen
         int generation = songSelectPreloadGeneration;
         _ = LoadComponentAsync(
             new SongSelectScreen(
-                requestNextPreload: beginSongSelectPreload),
+                previewAudioEngine: null,
+                requestNextPreload: beginSongSelectPreload,
+                selectionMemory: songSelectSelectionMemory,
+                previewHost: musicPlayer),
             screen =>
             {
                 songSelectPreloadInProgress = false;
@@ -742,7 +749,7 @@ public partial class MainScreen : Screen
     }
 
     internal static bool KeepsMusicPlaying(IScreen next) =>
-        next is SettingsScreen;
+        next is SettingsScreen or SongSelectScreen;
 
     private void startAmbientMotion()
     {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
+using osu.Framework.Configuration;
 using osu.Framework.Graphics;
 using osu.Framework.Input.Events;
 using osu.Framework.Platform;
@@ -12,6 +13,7 @@ using Yokko.Game.Diagnostics;
 using Yokko.Game.Input;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
+using Yokko.Game.Resources;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Main;
 using Yokko.Core.Beatmaps;
@@ -24,6 +26,9 @@ namespace Yokko.Game
         private YokkoPerformanceReadout performanceReadout;
         private YokkoDebugConsoleOverlay debugConsole;
         private BindableBool showPerformanceReadout;
+        private Bindable<WindowMode> windowMode;
+        private IBindable<DisplayMode> currentDisplayMode;
+        private WindowModeNotificationOverlay windowModeNotification;
         private readonly Action<Storage> storageReady;
         private readonly string[] startupFiles;
 
@@ -38,8 +43,13 @@ namespace Yokko.Game
         public YokkoGame(
             IKeyInputTimestampBackend keyInputTimestampBackend = null,
             Action<Storage> storageReady = null,
-            IEnumerable<string> startupFiles = null)
-            : base(keyInputTimestampBackend)
+            IEnumerable<string> startupFiles = null,
+            IResourceDirectoryPicker resourceDirectoryPicker = null,
+            IDesktopDisplayModeController displayModeController = null)
+            : base(
+                keyInputTimestampBackend,
+                resourceDirectoryPicker,
+                displayModeController)
         {
             this.storageReady = storageReady;
             this.startupFiles = startupFiles?.ToArray() ?? [];
@@ -54,8 +64,13 @@ namespace Yokko.Game
         }
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(
+            FrameworkConfigManager frameworkConfig,
+            GameHost host)
         {
+            windowMode = frameworkConfig.GetBindable<WindowMode>(
+                FrameworkSetting.WindowMode);
+            currentDisplayMode = host.Window?.CurrentDisplayMode;
             Content.Children = new Drawable[]
             {
                 screenStack = new ScreenStack
@@ -72,6 +87,7 @@ namespace Yokko.Game
                     Depth = float.MinValue,
                 },
                 debugConsole = new YokkoDebugConsoleOverlay(Diagnostics),
+                windowModeNotification = new WindowModeNotificationOverlay(),
             };
 
             screenStack.ScreenPushed += onScreenPushed;
@@ -84,6 +100,7 @@ namespace Yokko.Game
             Diagnostics.ConsoleVisible.BindValueChanged(
                 onDebugConsoleVisibleChanged,
                 true);
+            windowMode.BindValueChanged(onWindowModeChanged);
         }
 
         protected override void LoadComplete()
@@ -135,6 +152,9 @@ namespace Yokko.Game
 
         protected override bool OnKeyDown(KeyDownEvent e)
         {
+            if (HandleDesktopShortcut(e.Key, e.Repeat))
+                return true;
+
             if (e.Key == Key.F12 && !e.Repeat)
             {
                 Diagnostics.Toggle();
@@ -143,6 +163,20 @@ namespace Yokko.Game
 
             return base.OnKeyDown(e);
         }
+
+        internal bool HandleDesktopShortcut(Key key, bool repeat)
+        {
+            if (key != Key.F10 || repeat || Host.Window == null)
+                return false;
+
+            Host.Window.WindowState = WindowState.Minimised;
+            return true;
+        }
+
+        private void onWindowModeChanged(ValueChangedEvent<WindowMode> change) =>
+            windowModeNotification?.Show(
+                change.NewValue,
+                currentDisplayMode?.Value ?? default);
 
         private void onScreenPushed(IScreen previous, IScreen current) =>
             Diagnostics.Trace(
@@ -168,6 +202,9 @@ namespace Yokko.Game
             if (isDisposing)
                 Diagnostics.ConsoleVisible.ValueChanged -=
                     onDebugConsoleVisibleChanged;
+
+            if (isDisposing && windowMode != null)
+                windowMode.ValueChanged -= onWindowModeChanged;
 
             if (isDisposing && screenStack != null)
             {

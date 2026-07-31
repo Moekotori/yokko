@@ -28,6 +28,13 @@ public enum YokkoFrameLimit
     Auto,
 }
 
+public enum YokkoBackgroundFrameRate
+{
+    Fps30 = 30,
+    Fps60 = 60,
+    Unlimited = 0,
+}
+
 public sealed class YokkoDisplaySettings
 {
     public static readonly Vector2 ReferenceLayoutSize = new(1920, 1080);
@@ -37,6 +44,10 @@ public sealed class YokkoDisplaySettings
     public readonly Bindable<YokkoFrameLimit> FrameLimit =
         new(YokkoFrameRateLimits.LowLatencyDefault);
     public readonly BindableBool ShowPerformanceReadout = new(false);
+    public readonly BindableBool FastAltTab = new(true);
+    public readonly Bindable<YokkoBackgroundFrameRate> BackgroundFrameRate =
+        new(YokkoBackgroundFrameRate.Fps30);
+    public readonly Bindable<int> FullscreenRefreshRate = new(0);
     public readonly Bindable<ManiaDifficultyRatingMode>
         DifficultyRatingMode = new(
             ManiaDifficultyRatingMode.EtternaMsd);

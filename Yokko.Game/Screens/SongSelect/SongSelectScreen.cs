@@ -61,6 +61,8 @@ public partial class SongSelectScreen : Screen
     private readonly List<SongSelectEntry> entries = createEntries();
     private readonly IAudioEngine suppliedPreviewAudioEngine;
     private readonly Action requestNextPreload;
+    private readonly SongSelectSelectionMemory selectionMemory;
+    private readonly ISongSelectPreviewHost previewHost;
     private readonly Dictionary<string, SongSelectEntry> importedEntries =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<SongSelectSongRow> rows = new();
@@ -168,9 +170,20 @@ public partial class SongSelectScreen : Screen
     public SongSelectScreen(
         IAudioEngine previewAudioEngine = null,
         Action requestNextPreload = null)
+        : this(previewAudioEngine, requestNextPreload, null)
+    {
+    }
+
+    internal SongSelectScreen(
+        IAudioEngine previewAudioEngine,
+        Action requestNextPreload,
+        SongSelectSelectionMemory selectionMemory,
+        ISongSelectPreviewHost previewHost = null)
     {
         suppliedPreviewAudioEngine = previewAudioEngine;
         this.requestNextPreload = requestNextPreload;
+        this.selectionMemory = selectionMemory;
+        this.previewHost = previewHost;
     }
 
     internal SongSelectEntry SelectedEntry => selectedEntry;
@@ -259,8 +272,11 @@ public partial class SongSelectScreen : Screen
         selectedMods =
             modPreferences?.RestoreActiveMods() ?? ManiaModSet.Empty;
         previewPlayer = new SongSelectPreviewPlayer(
-            suppliedPreviewAudioEngine ?? AudioEngineFactory.CreateDefault(),
-            audioSettings);
+            previewHost?.AudioEngine
+            ?? suppliedPreviewAudioEngine
+            ?? AudioEngineFactory.CreateDefault(),
+            audioSettings,
+            ownsAudioEngine: previewHost == null);
         // Subscribe before taking the initial snapshot. The startup disk scan
         // runs in the background and can finish while this screen is loading;
         // reading first would leave a small window where its completion event
@@ -269,7 +285,8 @@ public partial class SongSelectScreen : Screen
         synchroniseImportedCharts();
         logLoadStage("library snapshot");
         refreshSavedScores();
-        selectedEntry = entries.LastOrDefault();
+        selectedEntry = rememberedEntryOrDefault();
+        rememberSelectedEntry();
         visibleEntries = entries.ToList();
 
         Texture firstWallpaper = textureFor(selectedEntry);
@@ -342,6 +359,7 @@ public partial class SongSelectScreen : Screen
     public override void OnEntering(ScreenTransitionEvent e)
     {
         base.OnEntering(e);
+        restoreRememberedSelection();
         previewActive = true;
         diagnostics.Trace(
             "SONG_SELECT",
@@ -397,7 +415,10 @@ public partial class SongSelectScreen : Screen
     {
         previewActive = false;
         diagnostics.Trace("SONG_SELECT", "exiting");
-        previewPlayer?.Stop();
+        if (previewHost == null)
+            previewPlayer?.Stop();
+        else
+            previewPlayer?.Detach();
         this.FadeOut(180, Easing.OutQuint);
         return base.OnExiting(e);
     }
@@ -2484,6 +2505,7 @@ public partial class SongSelectScreen : Screen
 
         bool changed = selectedEntry != entry;
         selectedEntry = entry;
+        rememberSelectedEntry();
 
         if (changed)
         {
@@ -2526,7 +2548,41 @@ public partial class SongSelectScreen : Screen
         if (!previewActive)
             return;
 
+        previewHost?.AdoptPreview(selectedEntry?.Beatmap);
         previewPlayer?.Play(selectedEntry?.Beatmap, selectedMods);
+    }
+
+    private SongSelectEntry rememberedEntryOrDefault()
+    {
+        if (selectionMemory?.ChartId != null
+            && importedEntries.TryGetValue(
+                selectionMemory.ChartId,
+                out SongSelectEntry remembered))
+        {
+            return remembered;
+        }
+
+        return entries.LastOrDefault();
+    }
+
+    private void restoreRememberedSelection()
+    {
+        SongSelectEntry remembered = rememberedEntryOrDefault();
+        if (remembered != null && remembered != selectedEntry)
+            select(remembered);
+    }
+
+    private void rememberSelectedEntry()
+    {
+        if (selectionMemory == null || selectedEntry == null)
+            return;
+
+        selectionMemory.ChartId = importedEntries
+                                  .Where(pair => ReferenceEquals(
+                                      pair.Value,
+                                      selectedEntry))
+                                  .Select(pair => pair.Key)
+                                  .FirstOrDefault();
     }
 
     private Texture textureFor(SongSelectEntry entry)

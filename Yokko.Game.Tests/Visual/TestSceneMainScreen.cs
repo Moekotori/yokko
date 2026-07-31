@@ -174,11 +174,13 @@ namespace Yokko.Game.Tests.Visual
                 () => bubble = this
                     .ChildrenOfType<HomeMascotBubble>()
                     .Single());
-            AddStep("set long text", () => bubble.SetText("Again! Again!"));
+            AddStep("set reported text", () => bubble.SetText("D F J K，出发！"));
             AddWaitStep("wait for fit", 5);
             AddAssert(
                 "label fits sticker",
-                () => bubble.StickerLabelDrawWidth <= 150);
+                () => bubble.StickerLabelDrawWidth <= 136
+                      && bubble.StickerLabelDrawLeft >= 92
+                      && bubble.StickerLabelDrawRight <= 232);
         }
 
         [Test]

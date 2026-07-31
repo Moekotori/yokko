@@ -18,6 +18,7 @@ internal enum YokkoSetting
     AudioMasterVolume,
     AudioMusicVolume,
     AudioHitSoundVolume,
+    AudioBackgroundMode,
     AudioBackend,
     AudioDeviceId,
     AudioAsioDeviceId,
@@ -99,6 +100,9 @@ internal enum YokkoSetting
     DisplayUiScale,
     DisplayFrameLimit,
     DisplayShowPerformanceReadout,
+    DisplayFastAltTab,
+    DisplayBackgroundFrameRate,
+    DisplayFullscreenRefreshRate,
     DisplayDifficultyRatingMode,
     DebugConsoleVisible,
     SkinSelectedId,
@@ -123,6 +127,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(YokkoSetting.AudioMasterVolume, 1.0, 0.0, 1.0, 0.01);
         SetDefault(YokkoSetting.AudioMusicVolume, 1.0, 0.0, 1.0, 0.01);
         SetDefault(YokkoSetting.AudioHitSoundVolume, 1.0, 0.0, 1.0, 0.01);
+        SetDefault(
+            YokkoSetting.AudioBackgroundMode,
+            BackgroundAudioMode.KeepPlaying);
         SetDefault(
             YokkoSetting.AudioBackend,
             AudioBackendKind.WasapiExclusive);
@@ -381,6 +388,15 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSetting.DisplayFrameLimit,
             YokkoFrameRateLimits.LowLatencyDefault);
         SetDefault(YokkoSetting.DisplayShowPerformanceReadout, false);
+        SetDefault(YokkoSetting.DisplayFastAltTab, true);
+        SetDefault(
+            YokkoSetting.DisplayBackgroundFrameRate,
+            YokkoBackgroundFrameRate.Fps30);
+        SetDefault(
+            YokkoSetting.DisplayFullscreenRefreshRate,
+            0,
+            0,
+            1000);
         SetDefault(
             YokkoSetting.DisplayDifficultyRatingMode,
             Yokko.Core.Difficulty.ManiaDifficultyRatingMode
@@ -410,6 +426,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.AudioHitSoundVolume,
             settings.HitSoundVolume);
+        BindWith(
+            YokkoSetting.AudioBackgroundMode,
+            settings.BackgroundAudio);
         BindWith(YokkoSetting.AudioBackend, settings.PreferredBackend);
         BindWith(YokkoSetting.AudioDeviceId, settings.DeviceId);
         BindWith(
@@ -641,6 +660,15 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.DisplayShowPerformanceReadout,
             settings.ShowPerformanceReadout);
+        BindWith(
+            YokkoSetting.DisplayFastAltTab,
+            settings.FastAltTab);
+        BindWith(
+            YokkoSetting.DisplayBackgroundFrameRate,
+            settings.BackgroundFrameRate);
+        BindWith(
+            YokkoSetting.DisplayFullscreenRefreshRate,
+            settings.FullscreenRefreshRate);
         BindWith(
             YokkoSetting.DisplayDifficultyRatingMode,
             settings.DifficultyRatingMode);

@@ -97,6 +97,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     internal int DisplayedCombo => snapshot.Combo;
     internal int DisplayedMaxCombo => snapshot.MaxCombo;
     internal string DisplayedRank => snapshot.Rank;
+    internal int DisplayedPauseCount => snapshot.PauseCount;
 
     public GameplayPauseOverlay(
         YokkoBeatmap beatmap,
@@ -331,7 +332,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     Colour = HomeControlColours.Ivory,
                 },
                 createAngledDivider(),
-                createLeftHeader(textures.Get("home-logo-hd")),
+                createLeftHeader(
+                    textures.Get("Mods/home-logo-transparent")),
                 createPauseCopy(titlePrefersCjkFallback),
                 createActionColumn(),
                 createKeyHintStrip(),
@@ -368,8 +370,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 },
                 new Sprite
                 {
-                    Position = new Vector2(-8, 33),
-                    Size = new Vector2(282, 92),
+                    Position = new Vector2(-8, 28),
+                    Size = new Vector2(292, 100),
                     FillMode = FillMode.Fit,
                     Anchor = Anchor.TopLeft,
                     Origin = Anchor.TopLeft,
@@ -895,10 +897,10 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             Children = new Drawable[]
             {
                 createVerticalRule(new Vector2(12, 6), 205),
-                createVerticalRule(new Vector2(447, 6), 205),
+                createVerticalRule(new Vector2(470, 6), 205),
                 new Container
                 {
-                    Position = new Vector2(126, 24),
+                    Position = new Vector2(52, 24),
                     Size = new Vector2(168, 34),
                     Children = new Drawable[]
                     {
@@ -949,21 +951,27 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 new AccuracyReadout(
                     $"{snapshot.Accuracy * 100:0.00}")
                 {
-                    Position = new Vector2(12, 50),
+                    Position = new Vector2(34, 66),
                 },
                 new RankStamp(snapshot.Rank)
                 {
                     Origin = Anchor.Centre,
-                    Position = new Vector2(500 + 245 / 2f, 20 + 235 / 2f),
+                    Position = new Vector2(624, 127),
                 },
                 createVerticalRule(new Vector2(12, 248), 112),
                 createSummaryMetric(
-                    new Vector2(60, 268),
+                    new Vector2(52, 268),
                     "SCORE",
                     $"{snapshot.Score:N0}",
-                    270),
-                createVerticalRule(new Vector2(348, 248), 112),
-                createComboMetric(new Vector2(403, 268), 150),
+                    205),
+                createVerticalRule(new Vector2(242, 248), 112),
+                createComboMetric(new Vector2(284, 268), 184),
+                createVerticalRule(new Vector2(474, 248), 112),
+                createSummaryMetric(
+                    new Vector2(520, 268),
+                    "PAUSES",
+                    snapshot.PauseCount.ToString("00"),
+                    128),
             },
         };
 
@@ -1009,7 +1017,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
         public RankStamp(string rank)
         {
-            Size = new Vector2(245, 235);
+            Size = new Vector2(226, 214);
 
             InternalChildren = new Drawable[]
             {
@@ -1022,7 +1030,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     Spacing = new Vector2(5, 0),
                     Colour = HomeControlColours.Cyan,
                 },
-                new HomeDashedRing(90, 26)
+                new HomeDashedRing(82, 25)
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
@@ -1035,9 +1043,9 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Y = -4,
-                    Size = new Vector2(144),
+                    Size = new Vector2(136),
                     Masking = true,
-                    CornerRadius = 72,
+                    CornerRadius = 68,
                     BorderThickness = 2,
                     BorderColour = HomeControlColours.Navy,
                     Children = new Drawable[]
@@ -1065,19 +1073,19 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             Origin = Anchor.Centre,
                             Y = -5,
                             Text = rank,
-                            Font = PauseTypography.Poster(
+                            Font = PauseTypography.Display(
                                 rank.Length switch
                                 {
-                                    <= 1 => 108,
-                                    2 => 72,
-                                    _ => 52,
+                                    <= 1 => 92,
+                                    2 => 64,
+                                    _ => 46,
                                 }),
                             Colour = HomeControlColours.Navy,
                         },
                     },
                 },
-                createRankStar(16, 108),
-                createRankStar(234, 108),
+                createRankStar(9, 104),
+                createRankStar(217, 104),
                 new PauseSparkle(HomeControlColours.Cyan, 12, 2100)
                 {
                     Position = new Vector2(6, 50),
@@ -1617,17 +1625,17 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
     private partial class AccuracyReadout : CompositeDrawable
     {
-        private const float maximumFlowWidth = 425;
+        private const float maximumFlowWidth = 408;
 
         private readonly FillFlowContainer flow;
 
         public AccuracyReadout(string value)
         {
-            Size = new Vector2(440, 160);
+            Size = new Vector2(412, 138);
             InternalChild = flow = new FillFlowContainer
             {
-                Anchor = Anchor.TopCentre,
-                Origin = Anchor.TopCentre,
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.TopLeft,
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
                 Children = new Drawable[]
@@ -1635,18 +1643,18 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     new SpriteText
                     {
                         Text = value,
-                        Font = PauseTypography.Poster(118),
+                        Font = PauseTypography.Display(102),
                         Colour = HomeControlColours.Navy,
                     },
                     new SpriteText
                     {
                         Margin = new MarginPadding
                         {
-                            Left = 8,
-                            Top = 56,
+                            Left = 7,
+                            Top = 46,
                         },
                         Text = "%",
-                        Font = PauseTypography.Poster(42),
+                        Font = PauseTypography.Display(34),
                         Colour = HomeControlColours.Cyan,
                     },
                 },

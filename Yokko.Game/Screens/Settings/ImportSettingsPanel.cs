@@ -28,10 +28,12 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
     private readonly YokkoImportSettings settings;
     private readonly YokkoResourceStorage resourceStorage;
     private readonly YokkoConfigManager yokkoConfig;
+    private readonly IResourceDirectoryPicker resourceDirectoryPicker;
     private SpriteText locationPathText;
     private SpriteText migrationStatusText;
     private readonly ResourceDirectorySelectorOverlay directorySelector;
     private bool migrationInProgress;
+    private bool directoryPickerOpen;
 
     internal int FormatFamilyCount => KnownChartImporters.Capabilities.Count;
     internal int FileTypeCount => KnownChartImporters.FileExtensions.Length;
@@ -43,11 +45,13 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
     public ImportSettingsPanel(
         YokkoImportSettings settings,
         YokkoResourceStorage resourceStorage,
-        YokkoConfigManager yokkoConfig)
+        YokkoConfigManager yokkoConfig,
+        IResourceDirectoryPicker resourceDirectoryPicker)
     {
         this.settings = settings;
         this.resourceStorage = resourceStorage;
         this.yokkoConfig = yokkoConfig;
+        this.resourceDirectoryPicker = resourceDirectoryPicker;
         RelativeSizeAxes = Axes.Both;
 
         InternalChildren = new Drawable[]
@@ -316,10 +320,38 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
         },
     };
 
-    private void openDirectorySelector()
+    private async void openDirectorySelector()
     {
-        if (!migrationInProgress)
+        if (migrationInProgress || directoryPickerOpen)
+            return;
+
+        if (!resourceDirectoryPicker.IsAvailable)
+        {
             directorySelector.Open(resourceStorage.RootPath);
+            return;
+        }
+
+        directoryPickerOpen = true;
+        string selectedPath;
+
+        try
+        {
+            selectedPath = await resourceDirectoryPicker.PickAsync(
+                resourceStorage.RootPath);
+        }
+        catch
+        {
+            migrationStatusText.Text = YokkoStrings.Get(
+                "settings.import.resource_failed");
+            return;
+        }
+        finally
+        {
+            directoryPickerOpen = false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedPath))
+            migrateTo(selectedPath);
     }
 
     private void migrateTo(string path) => beginMigration(

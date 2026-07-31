@@ -571,7 +571,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             Position = new Vector2(20, 258),
             Text = YokkoStrings.Get(
                 "settings.gameplay.key_swap_hint"),
-            Font = HomeTypography.Body(14),
+            Font = HomeTypography.Body(16),
             Colour = SettingsTheme.MutedNavy,
         };
         var children = new List<Drawable>();
@@ -581,7 +581,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             {
                 Position = new Vector2(20, 18),
                 Text = YokkoStrings.Get("settings.gameplay.key_profile"),
-                Font = HomeTypography.Display(18),
+                Font = HomeTypography.Display(20),
                 Colour = HomeControlColours.Navy,
             },
             new GameplayCompactButton(
@@ -653,7 +653,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(20, 70),
                 Text = YokkoStrings.Get(
                     "settings.gameplay.all_modes_hint"),
-                Font = HomeTypography.Body(14),
+                Font = HomeTypography.Body(16),
                 Colour = SettingsTheme.MutedNavy,
             });
         }
@@ -671,7 +671,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         {
             Position = new Vector2(20, 70),
             Text = YokkoStrings.Get("settings.gameplay.presets"),
-            Font = HomeTypography.Display(15),
+            Font = HomeTypography.Display(17),
             Colour = HomeControlColours.Navy,
         };
         yield return new GameplayCompactButton(
@@ -802,7 +802,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(20, 91),
                 Text = YokkoStrings.Get(
                     "settings.gameplay.speed_presets"),
-                Font = HomeTypography.Display(16),
+                Font = HomeTypography.Display(18),
                 Colour = HomeControlColours.Navy,
             },
             createSpeedPresets(),
@@ -864,7 +864,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(20, 18),
                 Text = YokkoStrings.Get(
                     "settings.gameplay.playback_rate_heading"),
-                Font = HomeTypography.Display(19),
+                Font = HomeTypography.Display(21),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
@@ -872,7 +872,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(20, 47),
                 Text = YokkoStrings.Get(
                     "settings.gameplay.playback_rate_note"),
-                Font = HomeTypography.Body(15),
+                Font = HomeTypography.Body(16),
                 Colour = SettingsTheme.MutedNavy,
             },
             new GameplayRatePitchModeSelector(
@@ -915,7 +915,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(20, 18),
                 Text = YokkoStrings.Get(
                     "settings.gameplay.judgement_heading"),
-                Font = HomeTypography.Display(19),
+                Font = HomeTypography.Display(21),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
@@ -923,7 +923,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(20, 47),
                 Text = YokkoStrings.Get(
                     "settings.gameplay.judgement_note"),
-                Font = HomeTypography.Body(14),
+                Font = HomeTypography.Body(16),
                 Colour = SettingsTheme.MutedNavy,
             },
             new GameplayJudgementModeSelector(settings.JudgementMode)
@@ -984,7 +984,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(20, 18),
                 Text = YokkoStrings.Get(
                     "settings.gameplay.feedback_heading"),
-                Font = HomeTypography.Display(19),
+                Font = HomeTypography.Display(21),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
@@ -992,7 +992,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(20, 47),
                 Text = YokkoStrings.Get(
                     "settings.gameplay.feedback_note"),
-                Font = HomeTypography.Body(15),
+                Font = HomeTypography.Body(16),
                 Colour = SettingsTheme.MutedNavy,
             },
             new FillFlowContainer
@@ -1127,13 +1127,13 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             new SpriteText
             {
                 Text = title,
-                Font = HomeTypography.Display(18),
+                Font = HomeTypography.Display(20),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
             {
                 Text = note,
-                Font = HomeTypography.Body(14),
+                Font = HomeTypography.Body(16),
                 Colour = SettingsTheme.MutedNavy,
             },
         },
@@ -1182,12 +1182,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 {
                     statusTitle = new SpriteText
                     {
-                        Font = HomeTypography.Display(22),
+                        Font = HomeTypography.Display(24),
                         Colour = HomeControlColours.Navy,
                     },
                     statusMetadata = new SpriteText
                     {
-                        Font = HomeTypography.Body(15),
+                        Font = HomeTypography.Body(17),
                         Colour = HomeControlColours.Navy,
                     },
                 },
@@ -1757,7 +1757,7 @@ internal partial class GameplaySectionTab : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 46,
                 Text = label,
-                Font = HomeTypography.Display(16),
+                Font = HomeTypography.Display(18),
                 Colour = HomeControlColours.Navy,
             },
         };
@@ -1838,7 +1838,7 @@ internal partial class GameplayBindingCard : ClickableContainer
                 Text = YokkoStrings.Get(
                     "settings.gameplay.lane",
                     lane + 1),
-                Font = HomeTypography.Body(compact ? 10 : 14),
+                Font = HomeTypography.Body(compact ? 11 : 16),
                 Colour = SettingsTheme.MutedNavy,
             },
             keyText = new SpriteText
@@ -1846,7 +1846,7 @@ internal partial class GameplayBindingCard : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Y = compact ? 5 : -3,
-                Font = HomeTypography.Display(compact ? 18 : 28),
+                Font = HomeTypography.Display(compact ? 19 : 30),
                 Colour = HomeControlColours.Navy,
             },
             actionText = new SpriteText
@@ -1856,7 +1856,7 @@ internal partial class GameplayBindingCard : ClickableContainer
                 Y = compact ? -3 : -14,
                 Text = YokkoStrings.Get(
                     "settings.gameplay.click_to_change"),
-                Font = HomeTypography.Body(compact ? 9 : 14),
+                Font = HomeTypography.Body(compact ? 10 : 16),
                 Colour = SettingsTheme.MutedNavy,
             },
         };
@@ -1882,8 +1882,8 @@ internal partial class GameplayBindingCard : ClickableContainer
             : displayKey(binding.Value);
         keyText.Font = HomeTypography.Display(
             capturing
-                ? compact ? 9 : 15
-                : compact ? 18 : 28);
+                ? compact ? 10 : 17
+                : compact ? 19 : 30);
         keyText.FadeColour(
             capturing || pressed ? Color4.White : HomeControlColours.Navy,
             120,
@@ -1942,7 +1942,7 @@ internal partial class GameplayBindingCard : ClickableContainer
             120,
             Easing.OutQuint);
         keyText.Text = displayKey(key);
-        keyText.Font = HomeTypography.Display(compact ? 18 : 28);
+        keyText.Font = HomeTypography.Display(compact ? 19 : 30);
         keyText.FadeColour(
             HomeControlColours.Navy,
             120,
@@ -2089,7 +2089,7 @@ internal partial class GameplayCompactButton : ClickableContainer
             Origin = Anchor.Centre,
             X = itemIcon.HasValue ? 8 : 0,
             Text = label,
-            Font = HomeTypography.Display(14),
+            Font = HomeTypography.Display(16),
             Colour = HomeControlColours.Navy,
         });
 
@@ -2262,7 +2262,7 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
             valueText = new SpriteText
             {
                 Position = new Vector2(track_x, 8),
-                Font = HomeTypography.Display(16),
+                Font = HomeTypography.Display(18),
                 Colour = HomeControlColours.Navy,
             },
             track = new Box
@@ -2480,7 +2480,7 @@ internal partial class GameplayValueStepper : CompositeDrawable
             Anchor = Anchor.Centre,
             Origin = Anchor.Centre,
             Y = adjustmentMode == null ? 0 : -7,
-            Font = HomeTypography.Display(19),
+                Font = HomeTypography.Display(20),
             Colour = HomeControlColours.Navy,
         };
         increaseButton = createButton(
@@ -2634,8 +2634,8 @@ internal partial class GameplayStepperModeButton : ClickableContainer
         this.mode = mode;
         Anchor = Anchor.BottomCentre;
         Origin = Anchor.BottomCentre;
-        Y = -4;
-        Size = new Vector2(124, 17);
+        Y = -2;
+        Size = new Vector2(124, 22);
         Masking = true;
         CornerRadius = 5;
         BorderThickness = 1;
@@ -2653,7 +2653,7 @@ internal partial class GameplayStepperModeButton : ClickableContainer
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Display(13),
                 Colour = HomeControlColours.Navy,
             },
         };
@@ -2753,7 +2753,7 @@ internal partial class GameplayEtternaJusticeControls : CompositeDrawable
                 Position = new Vector2(0, 5),
                 Text = YokkoStrings.Get(
                     "settings.gameplay.etterna_justice"),
-                Font = HomeTypography.Display(17),
+                Font = HomeTypography.Display(19),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
@@ -2761,7 +2761,7 @@ internal partial class GameplayEtternaJusticeControls : CompositeDrawable
                 Position = new Vector2(0, 34),
                 Text = YokkoStrings.Get(
                     "settings.gameplay.etterna_justice_note"),
-                Font = HomeTypography.Body(13),
+                Font = HomeTypography.Body(15),
                 Colour = SettingsTheme.MutedNavy,
             },
             stepper = new GameplayValueStepper(
@@ -2778,7 +2778,7 @@ internal partial class GameplayEtternaJusticeControls : CompositeDrawable
                 Position = new Vector2(0, 79),
                 Text = YokkoStrings.Get(
                     "settings.gameplay.etterna_boundaries"),
-                Font = HomeTypography.Body(13),
+                Font = HomeTypography.Body(15),
                 Colour = SettingsTheme.MutedNavy,
             },
         };
@@ -3094,7 +3094,7 @@ internal partial class GameplayInlineToggle : ClickableContainer
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 Text = title,
-                Font = HomeTypography.Display(15),
+                Font = HomeTypography.Display(17),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
@@ -3103,7 +3103,7 @@ internal partial class GameplayInlineToggle : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 142,
                 Text = note,
-                Font = HomeTypography.Body(13),
+                Font = HomeTypography.Body(15),
                 Colour = SettingsTheme.MutedNavy,
             },
             new Container
@@ -3135,7 +3135,7 @@ internal partial class GameplayInlineToggle : ClickableContainer
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
-                Font = HomeTypography.Display(13),
+                Font = HomeTypography.Display(15),
                 Colour = HomeControlColours.Navy,
             },
         };
@@ -3239,14 +3239,14 @@ internal partial class GameplayToggleCard : ClickableContainer
             {
                 Position = new Vector2(60, 13),
                 Text = title,
-                Font = HomeTypography.Display(16),
+                Font = HomeTypography.Display(18),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
             {
                 Position = new Vector2(60, 42),
                 Text = note,
-                Font = HomeTypography.Body(13),
+                Font = HomeTypography.Body(15),
                 Colour = SettingsTheme.MutedNavy,
             },
             new Container
@@ -3281,7 +3281,7 @@ internal partial class GameplayToggleCard : ClickableContainer
                 Origin = Anchor.CentreRight,
                 X = -18,
                 Y = 20,
-                Font = HomeTypography.Display(13),
+                Font = HomeTypography.Display(15),
                 Colour = HomeControlColours.Navy,
             },
         };
@@ -3382,7 +3382,7 @@ internal partial class GameplayCountdownSettingRow : ClickableContainer
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 Text = title,
-                Font = HomeTypography.Display(15),
+                Font = HomeTypography.Display(17),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
@@ -3391,7 +3391,7 @@ internal partial class GameplayCountdownSettingRow : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 142,
                 Text = note,
-                Font = HomeTypography.Body(13),
+                Font = HomeTypography.Body(15),
                 Colour = SettingsTheme.MutedNavy,
             },
             stepperHost = new Container
@@ -3412,7 +3412,7 @@ internal partial class GameplayCountdownSettingRow : ClickableContainer
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Font = HomeTypography.Display(13),
+                        Font = HomeTypography.Display(15),
                         Colour = HomeControlColours.Navy,
                     },
                     new GameplayCountdownStepButton(
@@ -3452,7 +3452,7 @@ internal partial class GameplayCountdownSettingRow : ClickableContainer
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
-                Font = HomeTypography.Display(13),
+                Font = HomeTypography.Display(15),
                 Colour = HomeControlColours.Navy,
             },
         };

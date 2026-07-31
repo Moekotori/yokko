@@ -21,7 +21,8 @@ internal sealed record GameplayPauseSnapshot(
     string DisplayedMods,
     int MissCombo = 0,
     int ComboBreaks = 0,
-    int MaxMissCombo = 0)
+    int MaxMissCombo = 0,
+    int PauseCount = 0)
 {
     public JudgementConfiguration JudgementConfiguration { get; init; } =
         JudgementConfiguration.YokkoDefault;
@@ -30,7 +31,8 @@ internal sealed record GameplayPauseSnapshot(
         BeatmapJudgementState state,
         ManiaModSet mods,
         double gameplayTimeMilliseconds,
-        double totalTimeMilliseconds)
+        double totalTimeMilliseconds,
+        int pauseCount = 0)
     {
         ArgumentNullException.ThrowIfNull(state);
         mods ??= ManiaModSet.Empty;
@@ -72,7 +74,8 @@ internal sealed record GameplayPauseSnapshot(
             displayedMods,
             state.MissCombo,
             state.ComboBreaks,
-            state.MaxMissCombo)
+            state.MaxMissCombo,
+            Math.Max(0, pauseCount))
         {
             JudgementConfiguration = state.Windows.Configuration,
         };

@@ -207,18 +207,19 @@ internal partial class SettingsSidebar : CompositeDrawable
         SettingsNavItem import = createNavItem(SettingsPageKind.Import);
 
         var systemHeader = new SettingsNavHeader(YokkoStrings.Get("settings.group_system"));
+        SettingsNavItem desktop = createNavItem(SettingsPageKind.Desktop);
         SettingsNavItem accessibility = createNavItem(SettingsPageKind.Accessibility);
         SettingsNavItem about = createNavItem(SettingsPageKind.About);
 
         navigationGroups.Add((coreHeader, new[] { general, display, audio }));
         navigationGroups.Add((creationHeader, new[] { gameplay, shortcuts, skins, editor, import }));
-        navigationGroups.Add((systemHeader, new[] { accessibility, about }));
+        navigationGroups.Add((systemHeader, new[] { desktop, accessibility, about }));
 
         return new Drawable[]
         {
             coreHeader, general, display, audio,
             creationHeader, gameplay, shortcuts, skins, editor, import,
-            systemHeader, accessibility, about,
+            systemHeader, desktop, accessibility, about,
         };
     }
 

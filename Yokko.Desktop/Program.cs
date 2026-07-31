@@ -5,6 +5,7 @@ using osu.Framework;
 using Yokko.Desktop.Diagnostics;
 using Yokko.Desktop.Input;
 using Yokko.Game;
+using Yokko.Desktop.Platform;
 
 namespace Yokko.Desktop
 {
@@ -30,7 +31,9 @@ namespace Yokko.Desktop
                         gameStorage => crashReports.SetStoragePaths(
                             gameStorage.GetFullPath("crashes", true),
                             gameStorage.GetFullPath("logs", true)),
-                        StartupFileArguments.Resolve(args)));
+                        StartupFileArguments.Resolve(args),
+                        new WindowsResourceDirectoryPicker(),
+                        new FrameworkDesktopDisplayModeController()));
                 }
             }
             catch (Exception exception)

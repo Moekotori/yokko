@@ -376,7 +376,7 @@ namespace Yokko.Game.Tests.Visual
                                         .Where(container =>
                                             container.Position.X == 378
                                             && container.Size.X == 840
-                                            && container.Size.Y == 54)
+                                            && container.Size.Y == 50)
                                         .ToArray();
                 return rows.Length == 7
                        && rows.All(row => row.Y + row.Height < 651);

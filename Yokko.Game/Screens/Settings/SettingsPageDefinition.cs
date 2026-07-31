@@ -10,6 +10,7 @@ internal enum SettingsPageKind
 {
     General,
     Display,
+    Desktop,
     Audio,
     Gameplay,
     Shortcuts,
@@ -68,6 +69,18 @@ internal static class SettingsPages
                 "settings.display.",
                 "ui scale fps frame rate fullscreen borderless renderer",
                 "界面缩放 帧率 帧数 全屏 无边框 渲染")),
+        SettingsPageKind.Desktop => new(
+            kind,
+            YokkoStrings.Get("settings.desktop.title"),
+            YokkoStrings.Get("settings.desktop.subtitle"),
+            YokkoStrings.Get("settings.desktop.description"),
+            FontAwesome.Solid.Laptop,
+            Array.Empty<LocalisableString>(),
+            YokkoStrings.SearchTerms("settings.desktop.title"),
+            YokkoStrings.SearchTermsForPrefix(
+                "settings.desktop.",
+                "alt tab background fps audio monitor refresh rate boss key minimise",
+                "desktop window monitor refresh background shortcut")),
         SettingsPageKind.Audio => new(
             kind,
             YokkoStrings.Get("settings.audio.title"),

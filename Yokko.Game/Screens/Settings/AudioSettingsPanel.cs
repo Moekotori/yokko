@@ -25,6 +25,7 @@ namespace Yokko.Game.Screens.Settings;
 internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransientUi
 {
     private static readonly int[] bufferSizes = { 64, 128, 256, 512 };
+    private const float controlHeight = 50;
 
     private readonly YokkoAudioSettings settings;
     private readonly YokkoGameplaySettings gameplaySettings;
@@ -86,24 +87,24 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 FontAwesome.Solid.VolumeUp,
                 3),
             createStatusCard(out statusTitle, out statusMetadata),
-            createDivider(232),
+            createDivider(230),
                 createSettingRow(
                 236,
                 YokkoStrings.Get("settings.audio.backend"),
                 createBackendControl()),
-            createDivider(292),
+            createDivider(290),
             createSettingRow(
                 294,
                 YokkoStrings.Get("settings.audio.device"),
                 deviceSelector = new SettingsAudioDeviceSelector(
                     selectedDeviceId),
                 -10),
-            createDivider(350),
+            createDivider(348),
             createSettingRow(
                 352,
                 YokkoStrings.Get("settings.audio.buffer"),
                 createBufferControl()),
-            createDivider(408),
+            createDivider(406),
             createSettingRow(
                 410,
                 YokkoStrings.Get("settings.audio.master_volume"),
@@ -111,20 +112,20 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                     settings.MasterVolume,
                     settings.MusicVolume,
                     settings.HitSoundVolume)),
-            createDivider(466),
+            createDivider(464),
             createSettingRow(
                 468,
                 YokkoStrings.Get("settings.audio.hitsounds"),
                 new SettingsAudioToggle(
                     gameplaySettings.KeysoundsEnabled)),
-            createDivider(524),
+            createDivider(522),
             createSettingRow(
                 526,
                 YokkoStrings.Get("settings.audio.test"),
                 testControl = new SettingsAudioTestControl(
                     () => StartAudioTest(AudioSettingsTestKind.Music),
                     () => StartAudioTest(AudioSettingsTestKind.HitSound))),
-            createDivider(582),
+            createDivider(580),
             createSettingRow(
                 584,
                 YokkoStrings.Get("settings.audio.offset"),
@@ -397,7 +398,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
         new Container
         {
             Position = new Vector2(378, y),
-            Size = new Vector2(840, 54),
+            Size = new Vector2(840, controlHeight),
             Depth = depth,
             Children = new Drawable[]
             {
@@ -413,7 +414,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 {
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
-                    Size = new Vector2(598, 54),
+                    Size = new Vector2(598, controlHeight),
                     Child = control,
                 },
             },
@@ -667,7 +668,7 @@ internal partial class SettingsAudioDeviceSelector : CompositeDrawable
     public SettingsAudioDeviceSelector(Bindable<string> deviceId)
     {
         this.deviceId = deviceId;
-        Size = new Vector2(598, 54);
+        Size = new Vector2(598, 50);
 
         var header = new SettingsDropdownHeader(
             () => open,
@@ -716,7 +717,7 @@ internal partial class SettingsAudioDeviceSelector : CompositeDrawable
         };
         menu = new Container
         {
-            Y = 59,
+            Y = 55,
             Width = 598,
             Masking = true,
             CornerRadius = 7,
@@ -954,7 +955,7 @@ internal partial class SettingsVolumeMixer : CompositeDrawable
         Bindable<double> music,
         Bindable<double> hitSound)
     {
-        Size = new Vector2(598, 54);
+        Size = new Vector2(598, 50);
         Masking = true;
         CornerRadius = 7;
         BorderThickness = 1.4f;
@@ -1012,7 +1013,7 @@ internal partial class SettingsVolumeSlider : CompositeDrawable
         bool showDivider)
     {
         this.volume = volume;
-        Size = new Vector2(598f / 3, 54);
+        Size = new Vector2(598f / 3, 50);
 
         InternalChildren = new Drawable[]
         {
@@ -1087,7 +1088,7 @@ internal partial class SettingsVolumeSlider : CompositeDrawable
             1);
 
     internal static bool AcceptsWheelAt(float localY) =>
-        localY is >= 24 and <= 54;
+        localY is >= 24 and <= 50;
 
     internal static double AdjustForKey(
         double value,
@@ -1212,7 +1213,7 @@ internal partial class SettingsAudioTestControl : CompositeDrawable
         Action playMusic,
         Action playHitSound)
     {
-        Size = new Vector2(598, 54);
+        Size = new Vector2(598, 50);
         Masking = true;
         CornerRadius = 7;
         BorderThickness = 1.4f;
@@ -1268,7 +1269,7 @@ internal partial class SettingsAudioTestButton : ClickableContainer
         Action action)
     {
         Action = action;
-        Size = new Vector2(299, 54);
+        Size = new Vector2(299, 50);
 
         InternalChildren = new Drawable[]
         {
@@ -1390,7 +1391,7 @@ internal partial class SettingsAudioToggle : ClickableContainer
     {
         this.value = value;
         Action = () => value.Value = !value.Value;
-        Size = new Vector2(598, 54);
+        Size = new Vector2(598, 50);
         Masking = true;
         CornerRadius = 7;
         BorderThickness = 1.4f;
@@ -1515,7 +1516,7 @@ internal partial class SettingsOffsetStepper : CompositeDrawable
     public SettingsOffsetStepper(Bindable<double> offset)
     {
         this.offset = offset;
-        Size = new Vector2(598, 54);
+        Size = new Vector2(598, 50);
         Masking = true;
         CornerRadius = 7;
         BorderThickness = 1.4f;
