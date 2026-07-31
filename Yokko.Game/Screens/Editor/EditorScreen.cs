@@ -34,7 +34,7 @@ public partial class EditorScreen : Screen
     // the shared 1920x1080 viewport and shrinks further for smaller windows.
     private const float designedWidth = 1122;
     private const float designedHeight = 620;
-    private const float referenceLayoutScale = 1.2f;
+    private const float referenceLayoutScale = 1.45f;
     private const int defaultVisibleRows = 24;
     private const int minVisibleRows = 12;
     private const int maxVisibleRows = 64;

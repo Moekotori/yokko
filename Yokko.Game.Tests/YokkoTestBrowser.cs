@@ -271,8 +271,6 @@ namespace Yokko.Game.Tests
                 frameworkConfig.SetValue(
                     FrameworkSetting.WindowedSize,
                     new System.Drawing.Size(1920, 1080));
-                DisplaySettings.UiScale.Value = YokkoUiScale.Large;
-
                 if (Environment.GetEnvironmentVariable(
                         "YOKKO_PREVIEW_LOCALE")
                     is { Length: > 0 } previewLocale)
@@ -392,7 +390,7 @@ namespace Yokko.Game.Tests
                         true,
                         out YokkoUiScale previewScale)
                         ? previewScale
-                        : YokkoUiScale.Large;
+                        : YokkoUiScale.Comfortable;
                 frameworkConfig.SetValue(
                     FrameworkSetting.Locale,
                     YokkoLocale.Chinese);
@@ -533,7 +531,13 @@ namespace Yokko.Game.Tests
             frameworkConfig.SetValue(
                 FrameworkSetting.WindowedSize,
                 GetPreviewWindowSize());
-            DisplaySettings.UiScale.Value = YokkoUiScale.Large;
+            DisplaySettings.UiScale.Value = Enum.TryParse(
+                    Environment.GetEnvironmentVariable(
+                        "YOKKO_PREVIEW_UI_SCALE"),
+                    true,
+                    out YokkoUiScale previewScale)
+                ? previewScale
+                : YokkoUiScale.Comfortable;
         }
 
         public override void SetHost(GameHost host)

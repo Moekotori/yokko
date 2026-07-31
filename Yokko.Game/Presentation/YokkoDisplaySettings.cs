@@ -45,9 +45,9 @@ public sealed class YokkoDisplaySettings
 
     public static Vector2 GetTargetDrawSize(YokkoUiScale scale) => scale switch
     {
-        YokkoUiScale.Large => ReferenceLayoutSize,
-        YokkoUiScale.Compact => ReferenceLayoutSize / 0.8f,
-        _ => ReferenceLayoutSize / 0.9f,
+        YokkoUiScale.Large => ReferenceLayoutSize / 1.1f,
+        YokkoUiScale.Compact => ReferenceLayoutSize / 0.9f,
+        _ => ReferenceLayoutSize,
     };
 
     public static float GetScaleFactor(YokkoUiScale scale) =>
@@ -55,16 +55,16 @@ public sealed class YokkoDisplaySettings
 
     public static int GetScalePercentage(YokkoUiScale scale) => scale switch
     {
-        YokkoUiScale.Large => 100,
-        YokkoUiScale.Compact => 80,
-        _ => 90,
+        YokkoUiScale.Large => 110,
+        YokkoUiScale.Compact => 90,
+        _ => 100,
     };
 
     /// <summary>
     /// Calculates the physical scale applied to Yokko's shared 1920x1080 UI.
-    /// The 100% setting fits Yokko's shared 1920x1080 layout space to the
-    /// full client resolution. Rendering still occurs at the native client
-    /// resolution; 90% and 80% expose proportionally more layout space.
+    /// The default 100% setting fits Yokko's shared 1920x1080 layout space to
+    /// the full client resolution. Rendering still occurs at the native client
+    /// resolution; 110% increases content density and 90% exposes more space.
     /// </summary>
     public static float CalculateContentScale(
         Vector2 availableDrawSize,

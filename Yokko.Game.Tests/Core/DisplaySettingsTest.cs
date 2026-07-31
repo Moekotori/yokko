@@ -144,25 +144,31 @@ public sealed class DisplaySettingsTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(large, Is.EqualTo(new osuTK.Vector2(1920, 1080)));
+            Assert.That(
+                large,
+                Is.EqualTo(
+                    YokkoDisplaySettings.ReferenceLayoutSize / 1.1f));
             Assert.That(
                 comfortable,
-                Is.EqualTo(new osuTK.Vector2(1920f / 0.9f, 1200)));
-            Assert.That(compact, Is.EqualTo(new osuTK.Vector2(2400, 1350)));
+                Is.EqualTo(YokkoDisplaySettings.ReferenceLayoutSize));
+            Assert.That(
+                compact,
+                Is.EqualTo(
+                    YokkoDisplaySettings.ReferenceLayoutSize / 0.9f));
             Assert.That(large.X / large.Y, Is.EqualTo(16f / 9f).Within(0.001f));
             Assert.That(comfortable.X / comfortable.Y, Is.EqualTo(16f / 9f).Within(0.001f));
             Assert.That(compact.X / compact.Y, Is.EqualTo(16f / 9f).Within(0.001f));
             Assert.That(large.X, Is.LessThan(comfortable.X));
             Assert.That(comfortable.X, Is.LessThan(compact.X));
-            Assert.That(YokkoDisplaySettings.GetScalePercentage(YokkoUiScale.Large), Is.EqualTo(100));
-            Assert.That(YokkoDisplaySettings.GetScalePercentage(YokkoUiScale.Comfortable), Is.EqualTo(90));
-            Assert.That(YokkoDisplaySettings.GetScalePercentage(YokkoUiScale.Compact), Is.EqualTo(80));
+            Assert.That(YokkoDisplaySettings.GetScalePercentage(YokkoUiScale.Large), Is.EqualTo(110));
+            Assert.That(YokkoDisplaySettings.GetScalePercentage(YokkoUiScale.Comfortable), Is.EqualTo(100));
+            Assert.That(YokkoDisplaySettings.GetScalePercentage(YokkoUiScale.Compact), Is.EqualTo(90));
         });
     }
 
-    [TestCase(YokkoUiScale.Large, 1f)]
-    [TestCase(YokkoUiScale.Comfortable, 0.9f)]
-    [TestCase(YokkoUiScale.Compact, 0.8f)]
+    [TestCase(YokkoUiScale.Large, 1.1f)]
+    [TestCase(YokkoUiScale.Comfortable, 1f)]
+    [TestCase(YokkoUiScale.Compact, 0.9f)]
     public void InterfaceScaleChangesAtAuthoredResolution(
         YokkoUiScale scale,
         float expected)
@@ -174,9 +180,9 @@ public sealed class DisplaySettingsTest
             Is.EqualTo(expected).Within(0.001f));
     }
 
-    [TestCase(YokkoUiScale.Large, 2f)]
-    [TestCase(YokkoUiScale.Comfortable, 1.8f)]
-    [TestCase(YokkoUiScale.Compact, 1.6f)]
+    [TestCase(YokkoUiScale.Large, 2.2f)]
+    [TestCase(YokkoUiScale.Comfortable, 2f)]
+    [TestCase(YokkoUiScale.Compact, 1.8f)]
     public void InterfaceScaleFollowsDesktopResolution(
         YokkoUiScale scale,
         float expected)
@@ -195,7 +201,7 @@ public sealed class DisplaySettingsTest
             YokkoDisplaySettings.CalculateContentScale(
                 new osuTK.Vector2(3840, 2160),
                 YokkoUiScale.Large),
-            Is.EqualTo(2f).Within(0.001f));
+            Is.EqualTo(2.2f).Within(0.001f));
     }
 
     [Test]
@@ -214,7 +220,7 @@ public sealed class DisplaySettingsTest
             Assert.That(
                 EditorScreen.CalculateResponsiveStageScale(
                     YokkoDisplaySettings.ReferenceLayoutSize),
-                Is.EqualTo(1.2f).Within(0.001f));
+                Is.EqualTo(1.45f).Within(0.001f));
             Assert.That(
                 EditorScreen.CalculateResponsiveStageScale(
                     new osuTK.Vector2(960, 540)),
@@ -256,19 +262,24 @@ public sealed class DisplaySettingsTest
             Assert.That(
                 SettingsScreen.CalculateResponsiveStageSize(
                     YokkoDisplaySettings.ReferenceLayoutSize),
-                Is.EqualTo(new osuTK.Vector2(1536, 864)));
+                Is.EqualTo(
+                    YokkoDisplaySettings.ReferenceLayoutSize
+                    / SettingsScreen.ReferenceLayoutScale));
             Assert.That(
                 SettingsScreen.CalculateResponsiveStageSize(
                     YokkoDisplaySettings.GetTargetDrawSize(
                         YokkoUiScale.Comfortable)),
-                Is.EqualTo(new osuTK.Vector2(
-                    1536f / 0.9f,
-                    864f / 0.9f)));
+                Is.EqualTo(
+                    YokkoDisplaySettings.ReferenceLayoutSize
+                    / SettingsScreen.ReferenceLayoutScale));
             Assert.That(
                 SettingsScreen.CalculateResponsiveStageSize(
                     YokkoDisplaySettings.GetTargetDrawSize(
                         YokkoUiScale.Compact)),
-                Is.EqualTo(new osuTK.Vector2(1920, 1080)));
+                Is.EqualTo(
+                    YokkoDisplaySettings.ReferenceLayoutSize
+                    / 0.9f
+                    / SettingsScreen.ReferenceLayoutScale));
         });
     }
 

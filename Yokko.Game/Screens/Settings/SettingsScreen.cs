@@ -38,7 +38,7 @@ public partial class SettingsScreen : Screen
     // them to YokkoDisplaySettings.ReferenceLayoutSize.
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
-    internal const float ReferenceLayoutScale = 1.25f;
+    internal const float ReferenceLayoutScale = 1.4f;
 
     private static readonly Vector2 watermarkHomePosition = new(614, 548);
 

@@ -8,8 +8,7 @@ namespace Yokko.Game.Tests
         public static void Main()
         {
             using (GameHost host = Host.GetSuitableDesktopHost("visual-tests"))
-            using (var game = new YokkoTestBrowser())
-                host.Run(game);
+                host.Run(new YokkoTestBrowser());
         }
     }
 }
