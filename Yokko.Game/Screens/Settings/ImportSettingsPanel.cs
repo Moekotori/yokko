@@ -29,10 +29,16 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
     private readonly YokkoResourceStorage resourceStorage;
     private readonly YokkoConfigManager yokkoConfig;
     private readonly IResourceDirectoryPicker resourceDirectoryPicker;
+    private readonly YokkoExternalOsuSettings externalOsuSettings;
+    private readonly ImportedChartLibrary importedChartLibrary;
     private SpriteText locationPathText;
     private SpriteText migrationStatusText;
+    private SpriteText externalOsuPathText;
+    private SpriteText externalOsuStatusText;
     private readonly ResourceDirectorySelectorOverlay directorySelector;
+    private readonly ResourceDirectorySelectorOverlay externalDirectorySelector;
     private bool migrationInProgress;
+    private bool externalScanInProgress;
     private bool directoryPickerOpen;
 
     internal int FormatFamilyCount => KnownChartImporters.Capabilities.Count;
@@ -46,12 +52,16 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
         YokkoImportSettings settings,
         YokkoResourceStorage resourceStorage,
         YokkoConfigManager yokkoConfig,
-        IResourceDirectoryPicker resourceDirectoryPicker)
+        IResourceDirectoryPicker resourceDirectoryPicker,
+        YokkoExternalOsuSettings externalOsuSettings,
+        ImportedChartLibrary importedChartLibrary)
     {
         this.settings = settings;
         this.resourceStorage = resourceStorage;
         this.yokkoConfig = yokkoConfig;
         this.resourceDirectoryPicker = resourceDirectoryPicker;
+        this.externalOsuSettings = externalOsuSettings;
+        this.importedChartLibrary = importedChartLibrary;
         RelativeSizeAxes = Axes.Both;
 
         InternalChildren = new Drawable[]
@@ -79,22 +89,20 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
             },
             createBehaviourCards(),
             createLocationCard(),
+            createExternalOsuCard(),
             new SettingsPanelFooter(),
-            new HomeDotCross
-            {
-                Position = new Vector2(1088, 594),
-                Scale = new Vector2(1.1f),
-            },
-            createDecorationIcon(FontAwesome.Solid.Plus, 1172, 601, 16, HomeControlColours.Pink),
-            createDecorationIcon(FontAwesome.Solid.Plus, 1200, 637, 12, HomeControlColours.Yellow),
             directorySelector = new ResourceDirectorySelectorOverlay(
                 migrateTo,
                 migrateToDefault),
+            externalDirectorySelector = new ResourceDirectorySelectorOverlay(
+                setExternalOsuPath,
+                disableExternalOsu),
         };
 
         locationPathText.Text = resourceStorage.RootPath;
         migrationStatusText.Text = YokkoStrings.Get(
             "settings.import.resource_change");
+        refreshExternalOsuStatus();
     }
 
     internal void SetPreferKeysounds(bool value) => settings.PreferKeysounds.Value = value;
@@ -255,12 +263,13 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
         },
     };
 
-    public bool DismissTransientUi() => directorySelector.Dismiss();
+    public bool DismissTransientUi() =>
+        externalDirectorySelector.Dismiss() || directorySelector.Dismiss();
 
     private Drawable createLocationCard() => new ClickableContainer
     {
-        Position = new Vector2(378, 543),
-        Size = new Vector2(840, 62),
+        Position = new Vector2(378, 530),
+        Size = new Vector2(840, 54),
         Action = openDirectorySelector,
         Masking = true,
         CornerRadius = 7,
@@ -287,7 +296,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = 58,
-                Size = new Vector2(635, 48),
+                Size = new Vector2(635, 44),
                 Children = new Drawable[]
                 {
                     new SpriteText
@@ -298,7 +307,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                     },
                     locationPathText = new SpriteText
                     {
-                        Y = 24,
+                        Y = 22,
                         Width = 635,
                         Truncate = true,
                         Font = HomeTypography.Body(14),
@@ -315,6 +324,69 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                 Truncate = true,
                 Text = YokkoStrings.Get("settings.import.resource_change"),
                 Font = HomeTypography.Display(14),
+                Colour = HomeControlColours.Pink,
+            },
+        },
+    };
+
+    private Drawable createExternalOsuCard() => new ClickableContainer
+    {
+        Position = new Vector2(378, 592),
+        Size = new Vector2(840, 54),
+        Action = openExternalOsuSelector,
+        Masking = true,
+        CornerRadius = 7,
+        BorderThickness = 1,
+        BorderColour = SettingsTheme.Divider,
+        Children = new Drawable[]
+        {
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = new Color4(0.93f, 0.97f, 1f, 1f),
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.Centre,
+                X = 28,
+                Size = new Vector2(20),
+                Icon = FontAwesome.Solid.BookOpen,
+                Colour = HomeControlColours.Cyan,
+            },
+            new Container
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 58,
+                Size = new Vector2(610, 44),
+                Children = new Drawable[]
+                {
+                    new SpriteText
+                    {
+                        Text = YokkoStrings.Get(
+                            "settings.import.external_osu_title"),
+                        Font = HomeTypography.Display(17),
+                        Colour = HomeControlColours.Navy,
+                    },
+                    externalOsuPathText = new SpriteText
+                    {
+                        Y = 22,
+                        Width = 610,
+                        Truncate = true,
+                        Font = HomeTypography.Body(14),
+                        Colour = SettingsTheme.MutedNavy,
+                    },
+                },
+            },
+            externalOsuStatusText = new SpriteText
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -24,
+                Width = 160,
+                Truncate = true,
+                Font = HomeTypography.Display(13),
                 Colour = HomeControlColours.Pink,
             },
         },
@@ -352,6 +424,98 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
 
         if (!string.IsNullOrWhiteSpace(selectedPath))
             migrateTo(selectedPath);
+    }
+
+    private async void openExternalOsuSelector()
+    {
+        if (externalScanInProgress || directoryPickerOpen)
+            return;
+
+        string initialPath = externalOsuSettings.SongsPath.Value;
+        if (string.IsNullOrWhiteSpace(initialPath))
+        {
+            string detected = System.IO.Path.Combine(
+                Environment.GetFolderPath(
+                    Environment.SpecialFolder.LocalApplicationData),
+                "osu!",
+                "Songs");
+            initialPath = System.IO.Directory.Exists(detected)
+                ? detected
+                : resourceStorage.RootPath;
+        }
+
+        if (!resourceDirectoryPicker.IsAvailable)
+        {
+            externalDirectorySelector.Open(initialPath);
+            return;
+        }
+
+        directoryPickerOpen = true;
+        string selectedPath;
+        try
+        {
+            selectedPath = await resourceDirectoryPicker.PickAsync(initialPath);
+        }
+        catch
+        {
+            externalOsuStatusText.Text = YokkoStrings.Get(
+                "settings.import.external_osu_failed");
+            return;
+        }
+        finally
+        {
+            directoryPickerOpen = false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedPath))
+            setExternalOsuPath(selectedPath);
+    }
+
+    private void setExternalOsuPath(string path) => beginExternalScan(
+        importedChartLibrary.SetExternalOsuSongsPathAsync(path));
+
+    private void disableExternalOsu()
+    {
+        importedChartLibrary.DisableExternalOsu();
+        yokkoConfig.Save();
+        refreshExternalOsuStatus();
+    }
+
+    private void beginExternalScan(
+        System.Threading.Tasks.Task<ExternalOsuLibraryResult> scan)
+    {
+        if (externalScanInProgress)
+            return;
+
+        externalScanInProgress = true;
+        externalOsuStatusText.Text = YokkoStrings.Get(
+            "settings.import.external_osu_scanning");
+        _ = scan.ContinueWith(task => Schedule(() =>
+        {
+            externalScanInProgress = false;
+            if (!task.IsCompletedSuccessfully || !task.Result.Success)
+            {
+                externalOsuStatusText.Text = YokkoStrings.Get(
+                    "settings.import.external_osu_failed");
+                return;
+            }
+
+            yokkoConfig.Save();
+            refreshExternalOsuStatus();
+        }));
+    }
+
+    private void refreshExternalOsuStatus()
+    {
+        string path = externalOsuSettings.SongsPath.Value;
+        externalOsuPathText.Text = string.IsNullOrWhiteSpace(path)
+            ? YokkoStrings.Get("settings.import.external_osu_unconfigured")
+            : path;
+        externalOsuStatusText.Text = string.IsNullOrWhiteSpace(path)
+            ? YokkoStrings.Get("settings.import.resource_change")
+            : YokkoStrings.Get(
+                "settings.import.external_osu_count",
+                importedChartLibrary.ExternalOsuChartCount);
     }
 
     private void migrateTo(string path) => beginMigration(

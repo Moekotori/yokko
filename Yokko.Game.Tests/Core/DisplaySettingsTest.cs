@@ -4,6 +4,7 @@ using NUnit.Framework;
 using osu.Framework.Configuration;
 using osu.Framework.Platform;
 using Yokko.Core.Difficulty;
+using Yokko.Game.Audio;
 using Yokko.Game.Configuration;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Editor;
@@ -16,6 +17,86 @@ namespace Yokko.Game.Tests.Core;
 [TestFixture]
 public sealed class DisplaySettingsTest
 {
+    [TestCase(YokkoBackgroundFrameRate.Fps30, 30)]
+    [TestCase(YokkoBackgroundFrameRate.Fps60, 60)]
+    [TestCase(YokkoBackgroundFrameRate.Unlimited, 0)]
+    public void BackgroundFrameRateMapsToInactiveHostLimit(
+        YokkoBackgroundFrameRate frameRate,
+        double expected)
+    {
+        Assert.That(
+            YokkoDesktopBehaviourController.GetMaximumInactiveHz(frameRate),
+            Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void BackgroundAudioPolicyChangesEffectiveMix()
+    {
+        var settings = new YokkoAudioSettings();
+        settings.MasterVolume.Value = 0.5;
+        settings.MusicVolume.Value = 0.8;
+
+        settings.SetApplicationActive(false);
+        settings.BackgroundAudio.Value = BackgroundAudioMode.Dim;
+        Assert.That(settings.EffectiveMusicVolume, Is.EqualTo(0.08).Within(0.0001));
+
+        settings.BackgroundAudio.Value = BackgroundAudioMode.Mute;
+        Assert.That(settings.EffectiveMusicVolume, Is.Zero);
+
+        settings.BackgroundAudio.Value = BackgroundAudioMode.KeepPlaying;
+        Assert.That(settings.EffectiveMusicVolume, Is.EqualTo(0.4).Within(0.0001));
+
+        settings.SetApplicationActive(true);
+        settings.BackgroundAudio.Value = BackgroundAudioMode.Mute;
+        Assert.That(settings.EffectiveMusicVolume, Is.EqualTo(0.4).Within(0.0001));
+    }
+
+    [Test]
+    public void DesktopPreferencesPersistAcrossConfigInstances()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "desktop-settings-config",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            var firstDisplay = new YokkoDisplaySettings();
+            var firstAudio = new YokkoAudioSettings();
+            using (var config = new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                config.BindDisplaySettings(firstDisplay);
+                config.BindAudioSettings(firstAudio);
+                firstDisplay.FastAltTab.Value = false;
+                firstDisplay.BackgroundFrameRate.Value = YokkoBackgroundFrameRate.Fps60;
+                firstDisplay.FullscreenRefreshRate.Value = 165;
+                firstAudio.BackgroundAudio.Value = BackgroundAudioMode.Dim;
+                Assert.That(config.Save(), Is.True);
+            }
+
+            var restoredDisplay = new YokkoDisplaySettings();
+            var restoredAudio = new YokkoAudioSettings();
+            using (var config = new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                config.BindDisplaySettings(restoredDisplay);
+                config.BindAudioSettings(restoredAudio);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(restoredDisplay.FastAltTab.Value, Is.False);
+                    Assert.That(restoredDisplay.BackgroundFrameRate.Value, Is.EqualTo(YokkoBackgroundFrameRate.Fps60));
+                    Assert.That(restoredDisplay.FullscreenRefreshRate.Value, Is.EqualTo(165));
+                    Assert.That(restoredAudio.BackgroundAudio.Value, Is.EqualTo(BackgroundAudioMode.Dim));
+                });
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
     [Test]
     public void CorruptedWindowSizeUsesSafeHighDpiFallback()
     {

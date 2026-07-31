@@ -219,7 +219,7 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
         {
             int captured = rate;
             refreshButtons.Add(new SettingsSegmentedChoiceButton(
-                $"{rate} Hz",
+                rate.ToString(),
                 FontAwesome.Solid.SyncAlt,
                 () => displaySettings.FullscreenRefreshRate.Value = captured,
                 width)

@@ -4,12 +4,14 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Platform;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Difficulty;
 using Yokko.Game.Importing;
+using Yokko.Game.Configuration;
 using Yokko.Import;
 using Yokko.Import.Osu;
 
@@ -18,6 +20,261 @@ namespace Yokko.Game.Tests.Core;
 [TestFixture]
 public sealed class ImportedChartLibraryTest
 {
+    [Test]
+    public async Task ExternalOsuSongsLoadsOnlyManiaWithoutWritingSource()
+    {
+        string root = createTestRoot("external-osu-readonly");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string maniaSet = Path.Combine(songs, "100 Artist - Mania Song");
+        string standardSet = Path.Combine(songs, "200 Artist - Standard Song");
+        Directory.CreateDirectory(maniaSet);
+        Directory.CreateDirectory(standardSet);
+
+        try
+        {
+            string maniaPath = writeOsuChart(maniaSet, "Mania", 3);
+            writeOsuChart(standardSet, "Standard", 0);
+            File.WriteAllBytes(Path.Combine(maniaSet, "audio.mp3"), [1, 2, 3]);
+            string[] originalFiles = snapshotFiles(songs);
+            DateTime originalWriteTime = File.GetLastWriteTimeUtc(maniaPath);
+            byte[] originalContent = File.ReadAllBytes(maniaPath);
+
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+
+            ExternalOsuLibraryResult result =
+                await library.RefreshExternalOsuAsync();
+            ExternalOsuLibraryResult unchanged =
+                await library.RefreshExternalOsuAsync();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.True);
+                Assert.That(result.ChartCount, Is.EqualTo(1));
+                Assert.That(result.ContentReadCount, Is.EqualTo(2));
+                Assert.That(unchanged.ContentReadCount, Is.Zero);
+                Assert.That(library.GetCharts(), Has.Count.EqualTo(1));
+                Assert.That(
+                    library.GetCharts().Single().SourceKind,
+                    Is.EqualTo(ImportedChartSourceKind.ExternalOsu));
+                Assert.That(library.GetCharts().Single().IsReadOnly, Is.True);
+                Assert.That(
+                    library.GetCharts().Single().Result.Beatmap.SourceFormat,
+                    Is.EqualTo(ChartSourceFormat.OsuMania));
+                Assert.That(snapshotFiles(songs), Is.EqualTo(originalFiles));
+                Assert.That(File.ReadAllBytes(maniaPath), Is.EqualTo(originalContent));
+                Assert.That(File.GetLastWriteTimeUtc(maniaPath), Is.EqualTo(originalWriteTime));
+                Assert.That(
+                    Directory.EnumerateFiles(
+                        songs,
+                        "*yokko*",
+                        SearchOption.AllDirectories),
+                    Is.Empty);
+                Assert.That(
+                    Directory.EnumerateFiles(
+                        yokkoRoot,
+                        "library-index.json",
+                        SearchOption.AllDirectories),
+                    Is.Not.Empty);
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ExternalOsuIndexRestoresChartsWhenSongsIsTemporarilyUnavailable()
+    {
+        string root = createTestRoot("external-osu-restore");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string set = Path.Combine(songs, "300 Artist - Persistent Song");
+        Directory.CreateDirectory(set);
+
+        try
+        {
+            writeOsuChart(set, "Persistent", 3);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            var storage = new NativeStorage(yokkoRoot);
+
+            using (var first = new ImportedChartLibrary())
+            {
+                first.Initialise(storage);
+                first.ConfigureExternalOsu(storage, settings);
+                Assert.That(
+                    (await first.RefreshExternalOsuAsync()).ChartCount,
+                    Is.EqualTo(1));
+            }
+
+            string disconnected = Path.Combine(root, "disconnected-Songs");
+            Directory.Move(songs, disconnected);
+
+            using var restored = new ImportedChartLibrary();
+            restored.Initialise(storage);
+            restored.ConfigureExternalOsu(storage, settings);
+            int count = await restored.BeginStartupLoad(true, true);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(count, Is.EqualTo(1));
+                Assert.That(restored.ExternalOsuChartCount, Is.EqualTo(1));
+                Assert.That(
+                    restored.GetCharts().Single().Result.Beatmap.Title,
+                    Is.EqualTo("Persistent"));
+                Assert.That(settings.SongsPath.Value, Is.EqualTo(songs));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ExternalOsuRefreshProcessesOnlyChangedFiles()
+    {
+        string root = createTestRoot("external-osu-incremental");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string set = Path.Combine(songs, "400 Artist - Incremental Song");
+        Directory.CreateDirectory(set);
+
+        try
+        {
+            string firstPath = writeOsuChart(set, "First", 3);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+
+            Assert.That(
+                (await library.RefreshExternalOsuAsync()).ChartCount,
+                Is.EqualTo(1));
+
+            writeOsuChart(set, "Second", 3);
+            writeOsuChart(set, "Ignored", 2);
+            Assert.That(
+                (await library.RefreshExternalOsuAsync()).ChartCount,
+                Is.EqualTo(2));
+
+            string firstText = File.ReadAllText(firstPath)
+                                   .Replace("Mode: 3", "Mode: 0");
+            File.WriteAllText(firstPath, firstText);
+            File.SetLastWriteTimeUtc(
+                firstPath,
+                DateTime.UtcNow.AddSeconds(2));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    library.RefreshExternalOsuAsync().GetAwaiter().GetResult()
+                           .ChartCount,
+                    Is.EqualTo(1));
+                Assert.That(
+                    library.GetCharts().Single().Result.Beatmap.Title,
+                    Is.EqualTo("Second"));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public void ExternalOsuSongsPathPersistsInYokkoConfig()
+    {
+        string root = createTestRoot("external-osu-config");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        Directory.CreateDirectory(songs);
+
+        try
+        {
+            using (var firstConfig = new YokkoConfigManager(
+                       new NativeStorage(root)))
+            {
+                var firstSettings = new YokkoExternalOsuSettings();
+                firstConfig.BindExternalOsuSettings(firstSettings);
+                firstSettings.SongsPath.Value = songs;
+                firstConfig.Save();
+            }
+
+            using var restoredConfig = new YokkoConfigManager(
+                new NativeStorage(root));
+            var restoredSettings = new YokkoExternalOsuSettings();
+            restoredConfig.BindExternalOsuSettings(restoredSettings);
+
+            Assert.That(restoredSettings.SongsPath.Value, Is.EqualTo(songs));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ExternalOsuRealCorpusReadOnlySmokeTest()
+    {
+        string songs = Environment.GetEnvironmentVariable(
+            "YOKKO_TEST_EXTERNAL_OSU_SONGS");
+        if (string.IsNullOrWhiteSpace(songs))
+            Assert.Ignore("Set YOKKO_TEST_EXTERNAL_OSU_SONGS to run this read-only corpus test.");
+
+        string yokkoRoot = createTestRoot("external-osu-real-corpus-cache");
+        try
+        {
+            Dictionary<string, string> before = snapshotOsuHashes(songs);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+
+            ExternalOsuLibraryResult first =
+                await library.RefreshExternalOsuAsync();
+            ExternalOsuLibraryResult unchanged =
+                await library.RefreshExternalOsuAsync();
+            Dictionary<string, string> after = snapshotOsuHashes(songs);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.Success, Is.True);
+                Assert.That(first.ChartCount, Is.GreaterThan(0));
+                Assert.That(
+                    library.GetCharts().Where(chart => chart.IsReadOnly)
+                           .Select(chart => chart.Result.Beatmap.SourceFormat),
+                    Is.All.EqualTo(ChartSourceFormat.OsuMania));
+                Assert.That(unchanged.ContentReadCount, Is.Zero);
+                Assert.That(after, Is.EqualTo(before));
+                Assert.That(
+                    Path.GetFullPath(yokkoRoot).StartsWith(
+                        Path.GetFullPath(songs),
+                        StringComparison.OrdinalIgnoreCase),
+                    Is.False);
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(yokkoRoot))
+                Directory.Delete(yokkoRoot, true);
+        }
+    }
+
     [Test]
     public async Task StartupLoadIsSharedAndCompletesBeforeConsumersProceed()
     {
@@ -364,6 +621,42 @@ HitObjects:
   Lane: 1
 """);
     }
+
+    private static string createTestRoot(string name) => Path.Combine(
+        Path.GetTempPath(),
+        $"yokko-{name}-{Guid.NewGuid():N}");
+
+    private static string writeOsuChart(
+        string directory,
+        string title,
+        int mode)
+    {
+        string path = Path.Combine(directory, $"{title}.osu");
+        string text = OsuManiaBeatmapIO.WriteBeatmap(
+            DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = title,
+                AudioPath = Path.Combine(directory, "audio.mp3"),
+            });
+        if (mode != 3)
+            text = text.Replace("Mode: 3", $"Mode: {mode}");
+        File.WriteAllText(path, text, new UTF8Encoding(false));
+        return path;
+    }
+
+    private static string[] snapshotFiles(string root) =>
+        Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+                 .Select(path => Path.GetRelativePath(root, path))
+                 .Order(StringComparer.OrdinalIgnoreCase)
+                 .ToArray();
+
+    private static Dictionary<string, string> snapshotOsuHashes(string root) =>
+        Directory.EnumerateFiles(root, "*.osu", SearchOption.AllDirectories)
+                 .ToDictionary(
+                     path => Path.GetRelativePath(root, path),
+                     path => Convert.ToHexString(
+                         SHA256.HashData(File.ReadAllBytes(path))),
+                     StringComparer.OrdinalIgnoreCase);
 
     private static void writeEntry(
         ZipArchive archive,

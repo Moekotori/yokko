@@ -2760,3 +2760,48 @@ final result: passed
 - Final native Direct3D 11 capture and both comparison images were opened and inspected.
 
 final result: passed
+
+---
+
+# Gameplay pause performance typography and pause-count QA (2026-07-31)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-4b8b466d-0fd1-40a5-b75a-d919db463417.png` (2048 x 1152).
+- Revised native implementation: `D:\YOKKO\artifacts\pause-polish-preview\implementation.png` (1920 x 1080, Direct3D 11).
+- Full comparison, reported state left and revised state right: `D:\YOKKO\artifacts\pause-polish-preview\before-left-after-right.png`.
+- Focused logo and metrics comparison: `D:\YOKKO\artifacts\pause-polish-preview\focused-before-left-after-right.png`.
+- State: Chinese pause overlay at Comfortable scale. The implementation fixture uses a long title, 100.00% accuracy, SS rank, and pause count 03 to exercise the widest common values.
+
+## Comparison history
+
+1. The reported state used an opaque logo texture at a smaller effective height, making the brand lockup look soft and vertically weak.
+2. Accuracy and rank both used Archivo Black poster typography. The oversized accuracy value crowded its percent sign and the rank letter looked heavier than the surrounding home-page typography.
+3. The revised state uses the existing high-resolution transparent logo asset at a larger slot, and both accuracy and rank now use the shared Roboto Bold display family at natural proportions.
+4. Accuracy and rank have separate aligned columns with a protected divider. SCORE, COMBO, and PAUSES form a balanced three-column rail, with the live gameplay pause count rendered as a two-digit value.
+5. The final native capture shows no overlap for `100.00%`, `SS`, `41 / 41`, or `03`; the mascot, controls, judgment ledger, and song header remain unobstructed.
+
+## Required fidelity review
+
+- Fonts and typography: the logo remains a real brand raster; performance values now use the same Roboto Bold family as the home UI, with natural glyph proportions and a smaller optical percent sign.
+- Spacing and layout rhythm: the top metrics are split by a stable vertical rule, while the lower rail uses three evenly separated cells without crossing the mascot boundary.
+- Colors and tokens: existing navy, cyan, ivory, yellow, and pink tokens are unchanged.
+- Image quality and assets: the opaque `home-logo-hd` texture was replaced by the existing 2149 x 731 transparent brand asset; no logo was redrawn or approximated.
+- Copy and content: SCORE and COMBO are retained; PAUSES is added as a concise peer metric backed by the existing gameplay pause counter.
+- Interaction and state: the pause/resume flow, keyboard selection, and audio pause/seek behavior passed the focused native test. Failed audio pauses do not commit the displayed count to gameplay state.
+
+## Findings
+
+- P0: none.
+- P1: none after the typography and metric-column changes.
+- P2: none in the 1920 x 1080 native capture and focused comparison.
+- P3: the pause overlay intentionally retains its documented 1600 x 900 internal artboard and fits it uniformly inside the shared 1920 x 1080 viewport.
+
+## Verification
+
+- Clean isolated `Yokko.Game.Tests` build: 0 warnings, 0 errors.
+- `TestPauseOverlayStopsAndResumesAudio`: 1 passed, 0 failed, including the new `DisplayedPauseCount == 1` assertion.
+- Native Direct3D 11 preview captured at 1920 x 1080 and opened together with the normalized reported screenshot.
+- The main checkout build is currently blocked by unrelated concurrent `YokkoGame.cs` edits missing `FrameworkConfigManager` and `WindowMode` references; the isolated validation contains only the pause-page delta.
+
+final result: passed

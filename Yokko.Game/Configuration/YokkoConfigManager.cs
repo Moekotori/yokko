@@ -29,6 +29,7 @@ internal enum YokkoSetting
     ImportPreferSscSimfiles,
     ImportEnableBmsScratch,
     ImportShowCompatibilityWarnings,
+    ExternalOsuSongsPath,
     ResourceRootPath,
     GameplayFourKeyLane1,
     GameplayFourKeyLane2,
@@ -149,6 +150,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(YokkoSetting.ImportPreferSscSimfiles, true);
         SetDefault(YokkoSetting.ImportEnableBmsScratch, false);
         SetDefault(YokkoSetting.ImportShowCompatibilityWarnings, true);
+        SetDefault(YokkoSetting.ExternalOsuSongsPath, string.Empty);
         SetDefault(YokkoSetting.ResourceRootPath, string.Empty);
         SetDefault(YokkoSetting.GameplayFourKeyLane1, osuTK.Input.Key.D);
         SetDefault(YokkoSetting.GameplayFourKeyLane2, osuTK.Input.Key.F);
@@ -455,6 +457,11 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.ImportShowCompatibilityWarnings,
             settings.ShowCompatibilityWarnings);
+    }
+
+    public void BindExternalOsuSettings(YokkoExternalOsuSettings settings)
+    {
+        BindWith(YokkoSetting.ExternalOsuSongsPath, settings.SongsPath);
     }
 
     public void BindResourceSettings(YokkoResourceSettings settings)

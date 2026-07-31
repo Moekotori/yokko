@@ -646,6 +646,26 @@ internal static class YokkoStrings
             ["settings.display.comfortable"] = new("90%", "90%", "90%"),
             ["settings.display.spacious"] = new("100%", "100%", "100%"),
 
+            ["settings.desktop.title"] = new("Desktop", "\u684c\u9762", "\u30c7\u30b9\u30af\u30c8\u30c3\u30d7"),
+            ["settings.desktop.subtitle"] = new(
+                "Window switching and background behaviour",
+                "\u7a97\u53e3\u5207\u6362\u4e0e\u540e\u53f0\u884c\u4e3a",
+                "\u30a6\u30a3\u30f3\u30c9\u30a6\u5207\u66ff\u3068\u30d0\u30c3\u30af\u30b0\u30e9\u30a6\u30f3\u30c9\u52d5\u4f5c"),
+            ["settings.desktop.description"] = new(
+                "Tune Alt+Tab, inactive performance, audio and fullscreen output.",
+                "\u8c03\u6574 Alt+Tab\u3001\u540e\u53f0\u6027\u80fd\u3001\u97f3\u9891\u4e0e\u5168\u5c4f\u8f93\u51fa\u3002",
+                "Alt+Tab\u3001\u975e\u30a2\u30af\u30c6\u30a3\u30d6\u6642\u306e\u6027\u80fd\u3001\u97f3\u58f0\u3001\u30d5\u30eb\u30b9\u30af\u30ea\u30fc\u30f3\u51fa\u529b\u3092\u8abf\u6574\u3057\u307e\u3059\u3002"),
+            ["settings.desktop.current_output"] = new("Current output", "\u5f53\u524d\u8f93\u51fa", "\u73fe\u5728\u306e\u51fa\u529b"),
+            ["settings.desktop.fast_alt_tab"] = new("Fast Alt+Tab", "\u5feb\u901f Alt+Tab", "\u9ad8\u901f Alt+Tab"),
+            ["settings.desktop.background_fps"] = new("Background frame rate", "\u540e\u53f0\u5e27\u7387", "\u30d0\u30c3\u30af\u30b0\u30e9\u30a6\u30f3\u30c9 FPS"),
+            ["settings.desktop.background_audio"] = new("Background audio", "\u540e\u53f0\u97f3\u9891", "\u30d0\u30c3\u30af\u30b0\u30e9\u30a6\u30f3\u30c9\u97f3\u58f0"),
+            ["settings.desktop.fullscreen_display"] = new("Fullscreen display", "\u5168\u5c4f\u663e\u793a\u5668", "\u30d5\u30eb\u30b9\u30af\u30ea\u30fc\u30f3\u8868\u793a\u5148"),
+            ["settings.desktop.refresh_rate"] = new("Fullscreen refresh rate", "\u5168\u5c4f\u5237\u65b0\u7387", "\u30d5\u30eb\u30b9\u30af\u30ea\u30fc\u30f3\u30ea\u30d5\u30ec\u30c3\u30b7\u30e5\u30ec\u30fc\u30c8"),
+            ["settings.desktop.boss_key"] = new("Minimise shortcut", "\u4e00\u952e\u6700\u5c0f\u5316", "\u6700\u5c0f\u5316\u30b7\u30e7\u30fc\u30c8\u30ab\u30c3\u30c8"),
+            ["settings.desktop.audio_keep"] = new("Keep", "\u4fdd\u6301", "\u7dad\u6301"),
+            ["settings.desktop.audio_dim"] = new("20%", "20%", "20%"),
+            ["settings.desktop.audio_mute"] = new("Mute", "\u9759\u97f3", "\u30df\u30e5\u30fc\u30c8"),
+
             ["debug_console.title"] = new("YOKKO LIVE DEBUG", "YOKKO 实时调试", "YOKKO ライブデバッグ"),
             ["debug_console.pause"] = new("Pause", "暂停", "一時停止"),
             ["debug_console.resume"] = new("Resume", "继续", "再開"),
@@ -1498,6 +1518,26 @@ internal static class YokkoStrings
                 "Migration failed",
                 "迁移失败",
                 "移行失敗"),
+            ["settings.import.external_osu_title"] = new(
+                "External osu! Songs (read only)",
+                "外部 osu! 谱面库（只读）",
+                "外部 osu! Songs（読み取り専用）"),
+            ["settings.import.external_osu_unconfigured"] = new(
+                "Select osu!stable Songs once; Yokko will remember it",
+                "选择一次 osu!stable Songs，Yokko 会自动记住",
+                "osu!stable Songs を一度選べば Yokko が記憶します"),
+            ["settings.import.external_osu_count"] = new(
+                "{0} mania charts · read only",
+                "{0} 张 mania 谱面 · 只读",
+                "mania {0} 譜面 · 読み取り専用"),
+            ["settings.import.external_osu_scanning"] = new(
+                "Indexing...",
+                "正在建立索引…",
+                "インデックス作成中…"),
+            ["settings.import.external_osu_failed"] = new(
+                "Songs unavailable",
+                "Songs 目录不可用",
+                "Songs フォルダーを使用できません"),
 
             ["settings.accessibility.title"] = new("Accessibility", "辅助功能", "アクセシビリティ"),
             ["settings.accessibility.subtitle"] = new(

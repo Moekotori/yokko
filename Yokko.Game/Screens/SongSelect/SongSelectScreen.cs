@@ -286,6 +286,7 @@ public partial class SongSelectScreen : Screen
         logLoadStage("library snapshot");
         refreshSavedScores();
         selectedEntry = rememberedEntryOrDefault();
+        ensurePlayableBeatmap(selectedEntry);
         rememberSelectedEntry();
         visibleEntries = entries.ToList();
 
@@ -533,6 +534,8 @@ public partial class SongSelectScreen : Screen
     internal void PlaySelected()
     {
         if (selectedEntry == null || transitionPending)
+            return;
+        if (!ensurePlayableBeatmap(selectedEntry))
             return;
 
         ManiaModSet gameplayMods = selectedMods;
@@ -1100,6 +1103,8 @@ public partial class SongSelectScreen : Screen
     internal void ToggleModPanel()
     {
         if (modPanelOpen || selectedEntry == null)
+            return;
+        if (!ensurePlayableBeatmap(selectedEntry))
             return;
 
         modPanelOpen = true;
@@ -2505,6 +2510,7 @@ public partial class SongSelectScreen : Screen
 
         bool changed = selectedEntry != entry;
         selectedEntry = entry;
+        ensurePlayableBeatmap(selectedEntry);
         rememberSelectedEntry();
 
         if (changed)
@@ -2550,6 +2556,31 @@ public partial class SongSelectScreen : Screen
 
         previewHost?.AdoptPreview(selectedEntry?.Beatmap);
         previewPlayer?.Play(selectedEntry?.Beatmap, selectedMods);
+    }
+
+    private bool ensurePlayableBeatmap(SongSelectEntry entry)
+    {
+        if (entry == null || !entry.IsReadOnly)
+            return entry != null;
+
+        try
+        {
+            YokkoBeatmap playable = importedChartLibrary.GetPlayableBeatmap(
+                entry.ChartId);
+            if (playable == null)
+                return false;
+
+            entry.Beatmap = playable;
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Logger.Error(
+                exception,
+                $"Could not materialise external chart '{entry.ChartId}'.",
+                LoggingTarget.Runtime);
+            return false;
+        }
     }
 
     private SongSelectEntry rememberedEntryOrDefault()
@@ -2996,11 +3027,13 @@ public partial class SongSelectScreen : Screen
     private static SongSelectEntry createImportedEntry(ImportedChart imported)
     {
         YokkoBeatmap beatmap = imported.Result.Beatmap;
-        double lengthMilliseconds = beatmap.HitObjects.Count == 0
+        double lengthMilliseconds = imported.LengthMilliseconds
+            ?? (beatmap.HitObjects.Count == 0
             ? 0
             : beatmap.HitObjects.Max(hitObject =>
-                hitObject.EndTimeMilliseconds ?? hitObject.StartTimeMilliseconds);
-        double bpm = beatmap.TimingPoints
+                hitObject.EndTimeMilliseconds ?? hitObject.StartTimeMilliseconds));
+        double bpm = imported.Bpm
+            ?? beatmap.TimingPoints
                             .Where(point => point.Uninherited && point.BeatsPerMinute > 0)
                             .Select(point => point.BeatsPerMinute)
                             .FirstOrDefault();
@@ -3018,7 +3051,9 @@ public partial class SongSelectScreen : Screen
             [],
             imported.PackageId,
             imported.PackageName,
-            imported.IsPackage);
+            imported.IsPackage,
+            imported.Id,
+            imported.IsReadOnly);
     }
 
     private static IReadOnlyList<SongSelectScore> createDemoRanking() =>

@@ -557,27 +557,31 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
             : null;
         ImportedHomeTrack[] refreshed = importedChartLibrary
                                        .GetCharts()
-                                       .Select(chart => chart.Result.Beatmap)
-                                       .Where(beatmap =>
-                                           isPlayableAudioPath(beatmap.AudioPath))
+                                       .Where(chart =>
+                                           isPlayableAudioPath(
+                                               chart.Result.Beatmap.AudioPath))
                                        .GroupBy(
-                                           beatmap => Path.GetFullPath(beatmap.AudioPath),
+                                           chart => Path.GetFullPath(
+                                               chart.Result.Beatmap.AudioPath),
                                            StringComparer.OrdinalIgnoreCase)
                                        .Select(group =>
                                        {
-                                           var beatmap = group.First();
-                                           double bpm = beatmap.TimingPoints
-                                                               .Where(point =>
-                                                                   point.Uninherited
-                                                                   && point.BeatsPerMinute > 0)
-                                                               .Select(point =>
-                                                                   point.BeatsPerMinute)
-                                                               .FirstOrDefault();
-                                           double length = beatmap.HitObjects.Count == 0
-                                               ? 0
-                                               : beatmap.HitObjects.Max(hitObject =>
-                                                   hitObject.EndTimeMilliseconds
-                                                   ?? hitObject.StartTimeMilliseconds);
+                                           ImportedChart chart = group.First();
+                                           var beatmap = chart.Result.Beatmap;
+                                           double bpm = chart.Bpm
+                                               ?? beatmap.TimingPoints
+                                                         .Where(point =>
+                                                             point.Uninherited
+                                                             && point.BeatsPerMinute > 0)
+                                                         .Select(point =>
+                                                             point.BeatsPerMinute)
+                                                         .FirstOrDefault();
+                                           double length = chart.LengthMilliseconds
+                                               ?? (beatmap.HitObjects.Count == 0
+                                                   ? 0
+                                                   : beatmap.HitObjects.Max(hitObject =>
+                                                       hitObject.EndTimeMilliseconds
+                                                       ?? hitObject.StartTimeMilliseconds));
 
                                            return new ImportedHomeTrack(
                                                group.Key,

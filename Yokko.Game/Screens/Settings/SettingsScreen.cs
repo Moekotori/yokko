@@ -63,6 +63,10 @@ public partial class SettingsScreen : Screen
     [Resolved]
     private YokkoResourceStorage resourceStorage { get; set; }
     [Resolved]
+    private YokkoExternalOsuSettings externalOsuSettings { get; set; }
+    [Resolved]
+    private ImportedChartLibrary importedChartLibrary { get; set; }
+    [Resolved]
     private IResourceDirectoryPicker resourceDirectoryPicker { get; set; }
     [Resolved]
     private YokkoDiagnostics diagnostics { get; set; }
@@ -500,7 +504,9 @@ public partial class SettingsScreen : Screen
                 importSettings,
                 resourceStorage,
                 yokkoConfig,
-                resourceDirectoryPicker),
+                resourceDirectoryPicker,
+                externalOsuSettings,
+                importedChartLibrary),
             _ => new SettingsPlaceholderPanel(SettingsPages.Get(page)),
         };
 

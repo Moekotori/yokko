@@ -51,6 +51,8 @@ namespace Yokko.Game
         [Cached]
         private readonly ImportedChartLibrary importedChartLibrary = new();
         [Cached]
+        private readonly YokkoExternalOsuSettings externalOsuSettings = new();
+        [Cached]
         private readonly YokkoResourceSettings resourceSettings = new();
         [Cached]
         private readonly YokkoResourceStorage resourceStorage = new();
@@ -76,9 +78,9 @@ namespace Yokko.Game
         private readonly YokkoFrameRateAdaptation frameRateAdaptation = new();
         [Cached]
         private readonly YokkoDiagnostics diagnostics = new();
-        [Cached]
+        [Cached(typeof(IResourceDirectoryPicker))]
         private readonly IResourceDirectoryPicker resourceDirectoryPicker;
-        [Cached]
+        [Cached(typeof(IDesktopDisplayModeController))]
         private readonly IDesktopDisplayModeController displayModeController;
         private ImportNotificationOverlay importOverlay;
         [Cached]
@@ -145,6 +147,7 @@ namespace Yokko.Game
             yokkoConfig.BindDisplaySettings(displaySettings);
             yokkoConfig.BindDiagnosticSettings(diagnostics);
             yokkoConfig.BindImportSettings(importSettings);
+            yokkoConfig.BindExternalOsuSettings(externalOsuSettings);
             yokkoConfig.BindResourceSettings(resourceSettings);
             yokkoConfig.BindGameplaySettings(gameplaySettings);
             yokkoConfig.BindModPreferences(modPreferences);
@@ -156,6 +159,9 @@ namespace Yokko.Game
                 importedChartLibrary,
                 skinLibrary,
                 skinSettings);
+            importedChartLibrary.ConfigureExternalOsu(
+                host.Storage,
+                externalOsuSettings);
             scoreStore.Initialise(host.Storage);
             replayStore.Initialise(host.Storage);
             diagnostics.Initialise(host);
@@ -290,6 +296,7 @@ namespace Yokko.Game
             {
                 gameplaySkinCache.Dispose();
                 songSelectArtworkTextureCache.Dispose();
+                importedChartLibrary.Dispose();
             }
         }
 
