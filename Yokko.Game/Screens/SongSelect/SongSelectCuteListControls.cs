@@ -303,11 +303,6 @@ internal partial class SongSelectSongRow : ClickableContainer
             true,
             false));
         children.Add(createModePill(entry, 570, 10));
-        children.Add(createDifficultyBadge(
-            displayedDifficultyRatings,
-            difficultyRatingMode,
-            -14,
-            -12));
     }
 
     private void addStandaloneContent(
@@ -446,20 +441,30 @@ internal partial class SongSelectSongRow : ClickableContainer
             Direction = FillDirection.Horizontal,
             Spacing = new Vector2(2, 0),
         };
-        flow.Add(addDifficultyUnit(new SpriteText
+        SpriteText unitText = addDifficultyUnit(new SpriteText
         {
             Text = ManiaDifficultyPresentation.Unit(mode),
             Font = HomeTypography.Display(8),
             Colour = difficultyColour(ratings, mode),
-        }));
-        flow.Add(addDifficultyValue(new SpriteText
+        });
+        SpriteText valueText = addDifficultyValue(new SpriteText
         {
             Text = ManiaDifficultyPresentation.FormatValue(
                 ratings,
                 mode),
             Font = HomeTypography.Display(10),
             Colour = SongSelectTheme.Ivory,
-        }));
+        });
+        adaptiveTexts.Add((
+            unitText,
+            difficultyColour(ratings, mode),
+            difficultyColour(ratings, mode)));
+        adaptiveTexts.Add((
+            valueText,
+            SongSelectTheme.Ivory,
+            SongSelectTheme.Navy));
+        flow.Add(unitText);
+        flow.Add(valueText);
         return flow;
     }
 

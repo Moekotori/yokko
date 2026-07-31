@@ -16,6 +16,7 @@ using osu.Framework.Graphics.Textures;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
+using osu.Framework.Logging;
 using osu.Framework.Screens;
 using osuTK;
 using osuTK.Graphics;
@@ -450,21 +451,68 @@ public partial class SongSelectScreen : Screen
 
     internal void PlaySelected()
     {
-        if (selectedEntry == null)
+        if (selectedEntry == null || transitionPending)
             return;
 
         ManiaModSet gameplayMods = selectedMods;
-        var gameplay = new GameplaySessionScreen(new GameplayScreen(
-            selectedEntry.Beatmap,
-            mods: gameplayMods,
-            cinemaArtworkPath: selectedEntry.WallpaperTexture));
+        YokkoBeatmap gameplayBeatmap = selectedEntry.Beatmap;
+        string gameplayArtwork = selectedEntry.WallpaperTexture;
         selectedMods =
             YokkoManiaModPreferences.SelectPersistentActiveMods(
                 gameplayMods);
         updateModSelection();
         if (hoveredMod == null)
             showModPanelSummary();
-        stopPreviewThen(() => this.Push(gameplay));
+
+        transitionPending = true;
+        previewActive = false;
+        previewPlayer?.Stop();
+        stage.FadeTo(0.84f, 90, Easing.OutQuint)
+             .ScaleTo(0.997f, 90, Easing.OutQuint);
+
+        // Large charts can spend a noticeable frame applying mods and
+        // preparing gameplay bounds. Construct the still-unloaded screen off
+        // the update thread while the preview engine shuts down, then hand it
+        // back to the ScreenStack on the scheduler.
+        Task<GameplaySessionScreen> gameplayTask = Task.Run(() =>
+            new GameplaySessionScreen(new GameplayScreen(
+                gameplayBeatmap,
+                mods: gameplayMods,
+                cinemaArtworkPath: gameplayArtwork)));
+        _ = finishGameplayTransitionAsync(
+            previewPlayer?.WaitForIdleAsync() ?? Task.CompletedTask,
+            gameplayTask);
+    }
+
+    private async Task finishGameplayTransitionAsync(
+        Task previewStopped,
+        Task<GameplaySessionScreen> gameplayTask)
+    {
+        try
+        {
+            await Task.WhenAll(previewStopped, gameplayTask)
+                      .ConfigureAwait(false);
+            Scheduler.Add(() =>
+            {
+                transitionPending = false;
+                this.Push(gameplayTask.Result);
+            });
+        }
+        catch (Exception exception)
+        {
+            Logger.Error(
+                exception,
+                "Could not prepare gameplay from song select.",
+                LoggingTarget.Runtime);
+            Scheduler.Add(() =>
+            {
+                transitionPending = false;
+                previewActive = true;
+                stage.FadeTo(1, 120, Easing.OutQuint)
+                     .ScaleTo(1, 120, Easing.OutQuint);
+                playSelectedPreview();
+            });
+        }
     }
 
     private void stopPreviewThen(Action transition)

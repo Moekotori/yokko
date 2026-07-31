@@ -292,6 +292,11 @@ namespace Yokko.Game.Tests
                     songSelect.TogglePackage(
                         @"C:\Charts\Harmonic Bloom - Symphony of the Dreaming Petals.osz");
                 }, 350);
+                if (Environment.GetEnvironmentVariable(
+                        "YOKKO_SONGSELECT_AUTO_PLAY") == "1")
+                {
+                    Scheduler.AddDelayed(songSelect.PlaySelected, 700);
+                }
                 schedulePreviewScreenshot(1200);
                 return;
             }
@@ -597,13 +602,12 @@ namespace Yokko.Game.Tests
             // Keep screenshot fixtures intentionally tiny. Full demo beatmaps
             // invoke the production difficulty calculators and can stall a
             // visual-preview launch long enough to miss its capture window.
-            YokkoHitObject[] notes = Enumerable.Range(0, 160)
+            double noteSpacing = Math.Max(55, 230 - bpm);
+            YokkoHitObject[] notes = Enumerable.Range(0, 24)
                                                 .Select(index =>
                                                     new YokkoHitObject(
                                                         index % (int)mode,
-                                                        index * Math.Max(
-                                                            70,
-                                                            250 - bpm),
+                                                        index * noteSpacing,
                                                         null,
                                                         HitObjectKind.Tap))
                                                 .Append(new YokkoHitObject(
