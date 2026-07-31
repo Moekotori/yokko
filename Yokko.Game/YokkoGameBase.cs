@@ -75,6 +75,8 @@ namespace Yokko.Game
         private IWindow window;
 
         protected YokkoDisplaySettings DisplaySettings => displaySettings;
+        internal ImportedChartLibrary ImportedCharts =>
+            importedChartLibrary;
 
         protected YokkoGameBase(IKeyInputTimestampBackend keyInputTimestampBackend = null)
         {

@@ -14,13 +14,17 @@ using osuTK;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
+using Yokko.Core.Timing;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.SongSelect;
+using Yokko.Import;
 
 namespace Yokko.Game.Tests
 {
@@ -264,6 +268,7 @@ namespace Yokko.Game.Tests
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_SONGSELECT_PREVIEW") == "1")
             {
+                seedSongSelectPreview();
                 frameworkConfig.SetValue(
                     FrameworkSetting.WindowMode,
                     WindowMode.Windowed);
@@ -503,6 +508,92 @@ namespace Yokko.Game.Tests
                 screenshot.SaveAsPng(outputPath);
                 host.Exit();
             }, delay);
+        }
+
+        private void seedSongSelectPreview()
+        {
+            ImportedCharts.Clear();
+            ImportedCharts.AddOrReplace(
+                [
+                    previewChart(
+                        "Eternal Echoes of the Fractured Sky Beyond the Shattered Horizon",
+                        "Voidwalkers",
+                        "DJ K1RA",
+                        "Normal",
+                        KeyMode.SevenKey,
+                        156),
+                    previewChart(
+                        "Celestial Reverie",
+                        "Voidwalkers",
+                        "DJ K1RA",
+                        "Hard",
+                        KeyMode.SevenKey,
+                        168),
+                    previewChart(
+                        "Celestial Reverie",
+                        "Voidwalkers",
+                        "DJ K1RA",
+                        "Marathon x1.2",
+                        KeyMode.SevenKey,
+                        176),
+                    previewChart(
+                        "Celestial Reverie",
+                        "Voidwalkers",
+                        "DJ K1RA",
+                        "Marathon x1.3",
+                        KeyMode.SevenKey,
+                        182),
+                ],
+                @"C:\Charts\Celestial-Reverie.osz");
+            ImportedCharts.AddOrReplace(
+                [
+                    previewChart(
+                        "Neon Pulse Overdrive",
+                        "Synthion",
+                        "Echo",
+                        "Hard",
+                        KeyMode.SevenKey,
+                        174),
+                    previewChart(
+                        "Neon Pulse Overdrive",
+                        "Synthion",
+                        "Echo",
+                        "Marathon x1.2",
+                        KeyMode.SevenKey,
+                        190),
+                    previewChart(
+                        "Harmonic Bloom: Symphony of the Dreaming Petals",
+                        "Koharu",
+                        "Yokko Team",
+                        "Normal",
+                        KeyMode.SevenKey,
+                        162),
+                ],
+                @"C:\Charts\Neon-Pulse-Pack.osz");
+        }
+
+        private static ChartImportResult previewChart(
+            string title,
+            string artist,
+            string creator,
+            string difficulty,
+            KeyMode mode,
+            double bpm)
+        {
+            // Keep screenshot fixtures intentionally tiny. Full demo beatmaps
+            // invoke the production difficulty calculators and can stall a
+            // visual-preview launch long enough to miss its capture window.
+            var beatmap = new YokkoBeatmap(
+                title,
+                artist,
+                creator,
+                difficulty,
+                mode,
+                ChartSourceFormat.Yokko,
+                [new YokkoTimingPoint(0, 60000 / bpm)],
+                null,
+                []);
+            return new ChartImportResult(beatmap, []);
         }
 
         private static void applyModsPreviewState(

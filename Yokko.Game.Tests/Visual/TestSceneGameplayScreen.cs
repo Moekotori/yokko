@@ -1202,9 +1202,21 @@ namespace Yokko.Game.Tests.Visual
                 Math.Abs(
                     gameplaySettings.LayoutTimingBarOffsetX.Value
                     - testPlayOffset) < 0.000001);
-            AddStep("restore layout defaults", () =>
-                gameplaySettings.ResetGameplayLayout());
-            AddStep("save layout and return", () =>
+            AddAssert("editor reports unsaved changes", () =>
+                layoutEditor.HasUnsavedChangesForTest);
+            AddStep("change a live setting before cancelling", () =>
+                gameplayScreen.SetLayoutEditorBackgroundDimForTest(
+                    Math.Min(0.9, originalBackgroundDim + 0.2)));
+            AddStep("press Escape once", () =>
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Escape,
+                    false,
+                    false,
+                    false));
+            AddAssert("first Escape asks before discarding", () =>
+                gameplayScreen.IsLayoutEditing
+                && layoutEditor.IsCancelConfirmationPendingForTest);
+            AddStep("confirm discard with Escape", () =>
                 gameplayScreen.HandleKeyDownInput(
                     Key.Escape,
                     false,
@@ -1212,6 +1224,12 @@ namespace Yokko.Game.Tests.Visual
                     false));
             AddUntilStep("layout editor closes", () =>
                 !gameplayScreen.IsLayoutEditing);
+            AddAssert("discard restores layout and live settings", () =>
+                Math.Abs(
+                    gameplaySettings.LayoutTimingBarOffsetX.Value) < 0.000001
+                && Math.Abs(
+                    gameplayScreen.LayoutEditorBackgroundDimForTest
+                    - originalBackgroundDim) < 0.001);
             AddAssert("pause menu remains available", () =>
                 gameplayScreen.IsPaused);
         }

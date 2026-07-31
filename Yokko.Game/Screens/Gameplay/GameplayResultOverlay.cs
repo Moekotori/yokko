@@ -61,6 +61,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private Sprite mascot;
     private Sprite scoreRibbon;
     private ResultScorePanel scorePanel;
+    private ResultSongHeading songHeading;
     private readonly IReadOnlyList<string> modChipLabels;
     private int renderedModChipCount;
     private float lastResponsiveStageScale;
@@ -68,6 +69,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     internal bool MascotReady => mascot?.Texture != null;
     internal int ActionCount => 3;
     internal int RenderedModChipCount => renderedModChipCount;
+    internal float SongTitleUnderlineClearance =>
+        songHeading?.UnderlineClearance ?? float.NegativeInfinity;
     internal string DisplayedMods { get; }
     internal bool PracticeSession { get; }
     internal bool ScorePanelInteractionActive =>
@@ -324,24 +327,10 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Colour = ResultColours.Navy,
                     Scale = new Vector2(0.72f),
                 },
-                new SpriteText
+                songHeading = new ResultSongHeading(
+                    $"{beatmap.Title} [{beatmap.DifficultyName}]")
                 {
                     Position = new Vector2(866, 190),
-                    Width = 610,
-                    Truncate = true,
-                    Text = $"{beatmap.Title} [{beatmap.DifficultyName}]",
-                    Font = new FontUsage(
-                        "Roboto",
-                        48,
-                        "Bold",
-                        true),
-                    Colour = ResultColours.Navy,
-                },
-                new Box
-                {
-                    Position = new Vector2(862, 226),
-                    Size = new Vector2(176, 6),
-                    Colour = ResultColours.Yellow,
                 },
                 createScorePanel(result, rank, isNewBest),
                 createSummaryRail(result),
@@ -372,19 +361,19 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(118, 0),
+                        Position = new Vector2(119, -3),
                         Text = rank,
                         Font = HomeTypography.Hero(240),
-                        Scale = new Vector2(1.08f, 1),
+                        Scale = new Vector2(1.105f, 1),
                         Colour = ResultColours.Yellow,
                         Alpha = 0.92f,
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(125, -6),
+                        Position = new Vector2(126, -9),
                         Text = rank,
                         Font = HomeTypography.Hero(240),
-                        Scale = new Vector2(1.08f, 1),
+                        Scale = new Vector2(1.105f, 1),
                         Colour = ResultColours.RankCyan,
                     },
                     new Box
@@ -402,7 +391,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(401, 38),
+                        Position = new Vector2(404, 33),
                         Text = isNewBest
                             ? YokkoStrings.Get("gameplay.result.new_best")
                             : "SCORE",
@@ -414,19 +403,19 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(370, 48),
+                        Position = new Vector2(373, 44),
                         Text = $"{result.Score:0000000}",
-                        Font = HomeTypography.Hero(180),
+                        Font = HomeTypography.Hero(182),
                         Colour = Color4.White,
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(370, 48),
+                        Position = new Vector2(373, 44),
                         Text = result.Score
                             .ToString(
                                 "0000000",
                                 CultureInfo.InvariantCulture)[..1],
-                        Font = HomeTypography.Hero(180),
+                        Font = HomeTypography.Hero(182),
                         Colour = ResultColours.Cyan,
                     },
                 },
@@ -1220,6 +1209,50 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         }
     }
 
+    private partial class ResultSongHeading : CompositeDrawable
+    {
+        private const float underlineGap = 6;
+
+        private readonly SpriteText title;
+        private readonly Box underline;
+
+        public float UnderlineClearance =>
+            underline.Y - title.DrawHeight;
+
+        public ResultSongHeading(string text)
+        {
+            Size = new Vector2(610, 80);
+            InternalChildren = new Drawable[]
+            {
+                title = new SpriteText
+                {
+                    Width = 610,
+                    Truncate = true,
+                    Text = text,
+                    Font = new FontUsage(
+                        "Roboto",
+                        48,
+                        "Bold",
+                        true),
+                    Colour = ResultColours.Navy,
+                },
+                underline = new Box
+                {
+                    X = -4,
+                    Size = new Vector2(176, 6),
+                    Colour = ResultColours.Yellow,
+                },
+            };
+        }
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+            underline.Y =
+                MathF.Ceiling(title.DrawHeight) + underlineGap;
+        }
+    }
+
     private partial class ResultMetricCell : Container
     {
         private readonly Box background;
@@ -1253,6 +1286,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 },
                 new SpriteText
                 {
+                    X = 6,
                     Text = label,
                     Font = HomeTypography.Display(19),
                     Spacing = new Vector2(3, 0),
@@ -1260,9 +1294,10 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 },
                 valueText = new SpriteText
                 {
-                    Position = new Vector2(0, 22),
+                    Position = new Vector2(6, 20),
                     Text = value,
-                    Font = HomeTypography.Hero(82),
+                    Font = HomeTypography.Hero(75),
+                    Scale = new Vector2(1, 1.14f),
                     Colour = ResultColours.Navy,
                 },
                 underline = new Box
@@ -1504,7 +1539,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 },
                 new Container
                 {
-                    Size = new Vector2(width, 94),
+                    Size = new Vector2(width, 95),
                     Masking = true,
                     CornerRadius = 8,
                     BorderThickness = 2,
@@ -1562,14 +1597,12 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 {
                     Position = new Vector2(
                         primary ? 98 : 78,
-                        primary ? 15 : 33),
+                        primary ? 18 : 33),
                     Width = width - 126,
                     Truncate = true,
                     Text = label,
-                    Font = HomeTypography.Display(primary ? 60 : 18),
-                    Scale = primary
-                        ? new Vector2(1.28f, 1)
-                        : Vector2.One,
+                    Font = HomeTypography.Display(primary ? 50 : 18),
+                    Scale = Vector2.One,
                     Colour = primary
                         ? Color4.White
                         : ResultColours.Navy,

@@ -58,6 +58,8 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
         });
         AddUntilStep("mascot texture loaded", () =>
             overlay?.MascotReady == true);
+        AddUntilStep("song underline clears title", () =>
+            overlay?.SongTitleUnderlineClearance >= 6);
         AddAssert("mod chip is visible", () =>
             overlay?.RenderedModChipCount >= 3);
         AddAssert("mod labels are preserved", () =>

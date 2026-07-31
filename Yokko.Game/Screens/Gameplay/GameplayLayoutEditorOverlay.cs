@@ -58,9 +58,15 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private Box miniBackgroundDim;
     private LayoutActionButton undoButton;
     private LayoutActionButton redoButton;
+    private LayoutActionButton cancelButton;
     private SpriteText editorHint;
     private LayoutTransformTarget selectedTarget;
     private LayoutSnapshot sessionStart;
+    private LiveSettingsSnapshot liveSettingsSessionStart;
+    private bool cancelConfirmationPending;
+    private double cancelConfirmationExpiresAt;
+    private bool? displayedDirtyState;
+    private bool displayedCancelConfirmation;
 
     internal bool IsEditing { get; private set; }
 
@@ -73,6 +79,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     internal bool IsChromeVisibleForTest => IsChromeVisible;
 
     internal float ChromeAlphaForTest => editorChrome.Alpha;
+
+    internal bool HasUnsavedChangesForTest => hasUnsavedChanges();
+
+    internal bool IsCancelConfirmationPendingForTest =>
+        cancelConfirmationPending;
 
     internal float OverviewAspectRatio =>
         overviewContent.Width / overviewContent.Height;
@@ -250,11 +261,16 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         {
             setChromeVisible(true, animate: false);
             sessionStart = captureLayout();
+            liveSettingsSessionStart = captureLiveSettings();
+            cancelConfirmationPending = false;
+            displayedDirtyState = null;
+            displayedCancelConfirmation = false;
             undoHistory.Clear();
             redoHistory.Clear();
             beginEditorSession();
             selectTarget(playfieldTarget);
             updateHistoryButtons();
+            refreshSessionHint(force: true);
             this.FadeTo(1, 100, Easing.OutQuint);
         }
         else if (hadActiveSession)
@@ -333,12 +349,31 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     internal void SaveAndClose()
     {
+        cancelConfirmationPending = false;
         save();
         close();
     }
 
     internal void CancelAndClose()
     {
+        if (!hasUnsavedChanges())
+        {
+            cancelConfirmationPending = false;
+            close();
+            return;
+        }
+
+        if (!cancelConfirmationPending
+            || Time.Current > cancelConfirmationExpiresAt)
+        {
+            cancelConfirmationPending = true;
+            cancelConfirmationExpiresAt = Time.Current + 3000;
+            refreshSessionHint(force: true);
+            return;
+        }
+
+        cancelConfirmationPending = false;
+        applyLiveSettings(liveSettingsSessionStart);
         applyLayout(sessionStart);
         close();
     }
@@ -556,6 +591,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             judgementTopLeft,
             judgementBottomRight);
         refreshInspector();
+        refreshSessionHint();
     }
 
     private Drawable createTopBar() =>
@@ -671,7 +707,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                 {
                                     Width = 84,
                                 },
-                                new LayoutActionButton(
+                                cancelButton = new LayoutActionButton(
                                     YokkoStrings.Get(
                                         "gameplay.layout_editor.cancel"),
                                     FontAwesome.Solid.Times,
@@ -735,8 +771,54 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     private void updateEditorHint()
     {
-        if (editorHint == null)
+        refreshSessionHint(force: true);
+    }
+
+    private void refreshSessionHint(bool force = false)
+    {
+        if (editorHint == null || !IsEditing)
             return;
+
+        if (cancelConfirmationPending
+            && Time.Current > cancelConfirmationExpiresAt)
+        {
+            cancelConfirmationPending = false;
+        }
+
+        bool dirty = hasUnsavedChanges();
+        if (!dirty)
+            cancelConfirmationPending = false;
+
+        if (!force
+            && displayedDirtyState == dirty
+            && displayedCancelConfirmation
+               == cancelConfirmationPending)
+        {
+            return;
+        }
+
+        displayedDirtyState = dirty;
+        displayedCancelConfirmation = cancelConfirmationPending;
+
+        if (cancelConfirmationPending)
+        {
+            editorHint.Text = YokkoStrings.Get(
+                "gameplay.layout_editor.discard_confirm_hint");
+            editorHint.Colour = HomeControlColours.Pink;
+            cancelButton?.SetText(YokkoStrings.Get(
+                "gameplay.layout_editor.discard_confirm"));
+            return;
+        }
+
+        cancelButton?.SetText(YokkoStrings.Get(
+            "gameplay.layout_editor.cancel"));
+        if (dirty)
+        {
+            editorHint.Text = YokkoStrings.Get(
+                "gameplay.layout_editor.unsaved_hint");
+            editorHint.Colour = HomeControlColours.Pink;
+            return;
+        }
 
         string key = KeyModeBindings.FormatKey(
                 settings.GetShortcutBinding(
@@ -745,6 +827,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         editorHint.Text = YokkoStrings.Get(
             "gameplay.layout_editor.hide_hint",
             key);
+        editorHint.Colour = HomeControlColours.Cyan;
     }
 
     private Drawable createOverviewCard()
@@ -1005,6 +1088,24 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         settings.LayoutJudgementScaleY.Value,
         settings.LayoutTopCoverRatio.Value,
         settings.LayoutBottomCoverRatio.Value);
+
+    private LiveSettingsSnapshot captureLiveSettings() => new(
+        liveSettings.SelectedSkinId() ?? string.Empty,
+        liveSettings.ScrollSpeed(),
+        liveSettings.ScrollDirection(),
+        liveSettings.BackgroundDim());
+
+    private bool hasUnsavedChanges() =>
+        captureLayout() != sessionStart
+        || captureLiveSettings() != liveSettingsSessionStart;
+
+    private void applyLiveSettings(LiveSettingsSnapshot snapshot)
+    {
+        liveSettings.SelectSkin(snapshot.SkinId);
+        liveSettings.SetScrollDirection(snapshot.ScrollDirection);
+        liveSettings.SetScrollSpeed(snapshot.ScrollSpeed);
+        liveSettings.SetBackgroundDim(snapshot.BackgroundDim);
+    }
 
     private void applyLayout(LayoutSnapshot snapshot)
     {
@@ -2193,6 +2294,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private partial class LayoutActionButton : ClickableContainer
     {
         private readonly Box background;
+        private readonly SpriteText label;
         private readonly Color4 idleColour;
         private readonly Color4 hoverColour;
         private bool available = true;
@@ -2253,7 +2355,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                 ? HomeControlColours.Yellow
                                 : HomeControlColours.Navy,
                         },
-                        new SpriteText
+                        label = new SpriteText
                         {
                             Anchor = Anchor.CentreLeft,
                             Origin = Anchor.CentreLeft,
@@ -2273,6 +2375,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             available = value;
             Alpha = value ? 1 : 0.42f;
         }
+
+        internal void SetText(LocalisableString text) =>
+            label.Text = text;
 
         protected override bool OnHover(HoverEvent e)
         {
@@ -2314,6 +2419,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         double JudgementScaleY,
         double TopCoverRatio,
         double BottomCoverRatio);
+
+    private readonly record struct LiveSettingsSnapshot(
+        string SkinId,
+        double ScrollSpeed,
+        ManiaScrollDirection ScrollDirection,
+        double BackgroundDim);
 
     private static class LayoutEditorTypography
     {

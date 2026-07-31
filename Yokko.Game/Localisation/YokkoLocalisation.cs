@@ -245,9 +245,17 @@ internal static class YokkoStrings
                 "Tab 切换 · 方向键移动 · Home 居中 · 双击重置",
                 "Tab 切替 · 矢印移動 · Home 中央 · ダブルクリックでリセット"),
             ["gameplay.layout_editor.hide_hint"] = new(
-                "{0} hide UI · Ctrl+arrows resize · Delete/Backspace reset",
-                "{0} 隐藏界面 · Ctrl+方向键缩放 · Delete/退格重置",
-                "{0} UI 非表示 · Ctrl+矢印拡縮 · Delete/Backspace リセット"),
+                "Saved · {0} hide UI · Ctrl+arrows resize",
+                "已保存 · {0} 隐藏界面 · Ctrl+方向键缩放",
+                "保存済み · {0} UI 非表示 · Ctrl+矢印拡縮"),
+            ["gameplay.layout_editor.unsaved_hint"] = new(
+                "Unsaved changes · Esc asks before discarding",
+                "未保存更改 · Esc 会先确认",
+                "未保存の変更 · Esc で破棄確認"),
+            ["gameplay.layout_editor.discard_confirm_hint"] = new(
+                "Press Esc again or click Discard",
+                "再次按 Esc 或点击“放弃”",
+                "もう一度 Esc または「破棄」を押す"),
             ["gameplay.layout_editor.playfield"] = new(
                 "Playfield · drag / resize",
                 "轨道 · 拖动 / 拉伸边框",
@@ -292,6 +300,10 @@ internal static class YokkoStrings
                 "Cancel",
                 "取消",
                 "キャンセル"),
+            ["gameplay.layout_editor.discard_confirm"] = new(
+                "Discard",
+                "放弃",
+                "破棄"),
             ["gameplay.layout_editor.save"] = new(
                 "Save & return",
                 "保存并返回",

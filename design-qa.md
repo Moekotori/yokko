@@ -2234,19 +2234,20 @@ final result: passed
 
 ## Evidence
 
+- User-supplied production reference:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-801629d3-256a-4ba5-8334-4447d9bd8b38.png`
 - Selected source visual:
   `C:\Users\mochi\.codex\generated_images\019fb72c-4c90-73c0-8b44-35807879ec2f\call_IHh6LBcdS7126znzk0JEpQ4H.png`
 - Final native implementation:
-  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-final-small-button-large-type.png`
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-compact-grouped-final.png`
 - Same-input focused comparison:
-  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-final-comparison.png`
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb72c-4c90-73c0-8b44-35807879ec2f\mods-footer-option1-compact-grouped-comparison.png`
 
 ## Viewport, density, and state
 
-- Source image: 1391 x 1131. Its authored footer occupies y=387..709,
-  producing a 1391 x 323 focused crop.
-- The source crop was normalized proportionally to 1600 x 372 for comparison;
-  no horizontal crop or stretch was applied.
+- The final density check uses the user's 2048 x 202 production footer
+  reference, normalized proportionally to 1600px wide without horizontal
+  cropping or stretching.
 - Native implementation: 1600 x 1000 at 1x. The real footer occupies the
   exact 1600 x 130 bottom region.
 - The source is an intentionally tall concept study. Production preserves its
@@ -2291,21 +2292,29 @@ final result: passed
     260 x 78 with 52 type, Reset is 72 x 72 with a 42px icon, and Done is
     350 x 82 with 58 type. The controls now leave the footer breathing room
     while the two action labels remain the first readable elements.
+11. User review still found that pass too wide and empty. The accepted compact
+    pass reduces Back to 220 x 70 and Done to 280 x 72 while retaining 50/56
+    type. Reset becomes a 60 x 60 icon button and moves beside Done with a
+    14px gap. Both labels move down 4px for optical centring.
+12. The final cleanup removes the redundant white guide frames surrounding
+    Back and the Reset/Done group. Each control keeps only its own functional
+    border, so the footer no longer reads as a button nested inside a second
+    container.
 
 ## Required fidelity review
 
 - Typography: Back and Done now use large bold Chinese labels. Reset contains
   no redundant text, matching the selected source and user request.
-- Spacing and layout: Back anchors the left, Reset is isolated at the centre,
-  and Done remains the dominant right-side action. All controls are vertically
-  centred within the real footer.
+- Spacing and layout: Back anchors the left. Reset and Done form one compact
+  right-side action group, with Done remaining visually dominant. All controls
+  are vertically centred within the real footer.
 - Colors and tokens: the implementation uses Yokko's production cyan, ivory,
   navy, pink, and yellow palette.
 - Icons and assets: Play, Undo, and Chevron use the project's standard Font
   Awesome icon source. Their sizes and semantic colors match the selected
   visual hierarchy.
-- Shape language: ivory/navy surfaces use clipped corner cuts, thin technical
-  separators, a pink primary underline, and restrained yellow/pink markers.
+- Shape language: ivory/navy surfaces use clipped corner cuts, a pink primary
+  underline, and restrained yellow/pink markers without an extra outer frame.
 - Copy and interaction: Back and Done retain live localized labels; Reset is
   icon-only with its existing action behavior. Hover and press feedback remain
   component-native and do not reflow the footer.
@@ -2327,5 +2336,73 @@ final result: passed
 - Native Direct3D 11 capture: 1600 x 1000, Chinese locale.
 - The selected source and production footer were reviewed together in the
   comparison image above.
+
+final result: passed
+
+# Gameplay Result Title Clearance QA5
+
+## Evidence
+
+- Source visual truth:
+  `D:\yokko\docs\design\gameplay\yokko-result-broadcast-selected.png`
+  (1672 x 941, normalized to 1600 x 900).
+- Reported implementation defect:
+  `C:\Users\mochi\AppData\Local\Temp\codex-clipboard-c198cddf-58ae-4ef4-b452-53408e2f856b.png`
+  (426 x 83 focused crop; the yellow underline crosses the italic title).
+- Revised implementation capture:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-title-clearance-final.png`
+  (1600 x 900, Direct3D 11, English result state).
+- Full-view side-by-side comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-fidelity-comparison-final.png`.
+- Focused title comparison:
+  `C:\Users\mochi\.codex\visualizations\2026\07\31\019fb613-75f6-7de3-9f31-84e1dd164324\yokko-result-title-comparison-final.png`.
+- Viewport/state: 1600 x 900, density 1, English locale, Afterimage
+  [Insane], score 0537761, B rank, HD + DT 1.50x.
+
+## Comparison history
+
+1. The earlier title used a hard-coded underline Y of 226. Roboto Bold Italic's
+   rendered glyph box extends below that estimate, so the 6px yellow rule
+   visibly cut through the title descenders.
+2. The title and underline are now owned by one `ResultSongHeading`. After the
+   font is loaded, the underline is placed from the measured `DrawHeight` plus
+   a 6px optical clearance instead of a guessed baseline.
+3. The revised 1600 x 900 Direct3D capture and focused side-by-side image show
+   a clean gap below `Afterimage [Insane]`, with the title's X position, scale,
+   weight, italic treatment, underline width, and surrounding composition
+   preserved.
+
+## Required fidelity review
+
+- Fonts and typography: Roboto Bold Italic, 48px, truncation width, weight,
+  slant, and hierarchy remain unchanged; only unsafe baseline placement was
+  removed.
+- Spacing and layout: the underline now follows measured glyph height and
+  keeps 6px clearance. The RESULT header, ribbon, and summary rail do not move.
+- Colors and tokens: navy title and Yokko yellow underline remain identical to
+  the selected result palette.
+- Image quality and assets: the full-screen atmosphere and mascot assets retain
+  their existing crop, scale, sharpness, and transparency treatment.
+- Copy and content: `Afterimage [Insane]`, result values, mods, judgments, and
+  actions are unchanged.
+- Interaction/state: score-ribbon, metric, judgment, mod-chip, and action hover
+  states remain functional; the title fix does not alter hit targets.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after replacing the fixed underline coordinate.
+- P3: the implementation intentionally leaves a clearer optical gap than the
+  raster reference because the user explicitly rejected glyph obstruction.
+
+## Verification
+
+- Clean `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- Focused result/display tests: 27 passed, 0 failed.
+- Regression assertion: `SongTitleUnderlineClearance >= 6` passed.
+- Native Direct3D 11 render opened and compared in one combined image with the
+  normalized selected source; no actionable P0/P1/P2 difference remains for
+  this fix.
 
 final result: passed
