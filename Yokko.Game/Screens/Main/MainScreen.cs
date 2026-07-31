@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -80,6 +81,11 @@ public partial class MainScreen : Screen
     private readonly List<SpriteIcon> decorationIcons = new();
     private readonly List<Drawable> floaters = new();
     private readonly Action requestGameExit;
+    private readonly CancellationTokenSource songSelectPreloadCancellation =
+        new();
+    private SongSelectScreen preloadedSongSelect;
+    private bool songSelectPreloadInProgress;
+    private bool songSelectOpenRequested;
 
     private static readonly LocalisableString[] bubbleLines =
     {
@@ -331,6 +337,7 @@ public partial class MainScreen : Screen
     {
         base.LoadComplete();
         startAmbientMotion();
+        beginSongSelectPreload();
     }
 
     public override void OnEntering(ScreenTransitionEvent e)
@@ -373,6 +380,70 @@ public partial class MainScreen : Screen
         musicPlayer.Deactivate();
         this.FadeOut(200, Easing.OutQuint);
         return base.OnExiting(e);
+    }
+
+    private void openSongSelect()
+    {
+        if (songSelectOpenRequested)
+            return;
+
+        if (preloadedSongSelect == null)
+        {
+            songSelectOpenRequested = true;
+            beginSongSelectPreload();
+            return;
+        }
+
+        pushPreloadedSongSelect();
+    }
+
+    private void beginSongSelectPreload()
+    {
+        if (preloadedSongSelect != null
+            || songSelectPreloadInProgress
+            || songSelectPreloadCancellation.IsCancellationRequested)
+        {
+            return;
+        }
+
+        songSelectPreloadInProgress = true;
+        _ = LoadComponentAsync(
+            new SongSelectScreen(),
+            screen =>
+            {
+                songSelectPreloadInProgress = false;
+                preloadedSongSelect = screen;
+                if (songSelectOpenRequested)
+                    pushPreloadedSongSelect();
+            },
+            songSelectPreloadCancellation.Token);
+    }
+
+    private void pushPreloadedSongSelect()
+    {
+        SongSelectScreen screen = preloadedSongSelect;
+        if (screen == null)
+            return;
+
+        preloadedSongSelect = null;
+        songSelectOpenRequested = false;
+
+        // Start preparing the next visit before this screen suspends. Returning
+        // to the home screen can then reuse another fully-loaded instance.
+        beginSongSelectPreload();
+        this.Push(screen);
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+        {
+            songSelectPreloadCancellation.Cancel();
+            preloadedSongSelect?.Dispose();
+            songSelectPreloadCancellation.Dispose();
+        }
+
+        base.Dispose(isDisposing);
     }
 
     protected override bool OnKeyDown(KeyDownEvent e)
@@ -1273,7 +1344,7 @@ public partial class MainScreen : Screen
                 YokkoStrings.Get("main.play"),
                 YokkoStrings.Get("main.song_select"),
                 FontAwesome.Solid.Play,
-                () => this.Push(new SongSelectScreen()))
+                openSongSelect)
             {
                 Y = 164,
             },
