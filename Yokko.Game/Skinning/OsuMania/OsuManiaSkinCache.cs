@@ -164,8 +164,9 @@ internal sealed class OsuManiaSkinCache : IDisposable
         string fullPath = Path.GetFullPath(path)
                               .TrimEnd(
                                   Path.DirectorySeparatorChar,
-                                  Path.AltDirectorySeparatorChar)
-                              .ToUpperInvariant();
+                                  Path.AltDirectorySeparatorChar);
+        if (OperatingSystem.IsWindows())
+            fullPath = fullPath.ToUpperInvariant();
         FileSystemInfo source = File.Exists(fullPath)
             ? new FileInfo(fullPath)
             : new DirectoryInfo(fullPath);

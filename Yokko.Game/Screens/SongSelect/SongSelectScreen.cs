@@ -254,8 +254,12 @@ public partial class SongSelectScreen : Screen
                     new ChartArtworkResourceStore(),
                     renderer.MaxTextureSize)),
             scaleAdjust: 1);
-        synchroniseImportedCharts();
+        // Subscribe before taking the initial snapshot. The startup disk scan
+        // runs in the background and can finish while this screen is loading;
+        // reading first would leave a small window where its completion event
+        // is missed and the first song-select screen stays empty.
         importedChartLibrary.LibraryChanged += onChartLibraryChanged;
+        synchroniseImportedCharts();
         refreshSavedScores();
         selectedEntry = entries.LastOrDefault();
         visibleEntries = entries.ToList();
