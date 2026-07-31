@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Platform;
 using Yokko.Core.Beatmaps;
@@ -51,6 +52,33 @@ public class GameplayScoreStoreTest
             Assert.That(saved.Score, Is.EqualTo(900_000));
             Assert.That(saved.Accuracy, Is.EqualTo(0.95));
             Assert.That(saved.Rank, Is.EqualTo(ScoreRank.S));
+        });
+    }
+
+    [Test]
+    public void EveryPlayPersistsToHistoryAcrossModSets()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var first = new GameplayScoreStore();
+        first.Initialise(new NativeStorage(testRoot));
+        var doubleTime = new ManiaModSet([ManiaModId.DoubleTime]);
+
+        Assert.That(first.SaveBest(beatmap, result(900_000, 0.95)), Is.True);
+        Assert.That(first.SaveBest(beatmap, result(700_000, 0.91)), Is.False);
+        Assert.That(first.SaveBest(beatmap, doubleTime, result(800_000, 0.93)), Is.True);
+
+        var restored = new GameplayScoreStore();
+        restored.Initialise(new NativeStorage(testRoot));
+        var history = restored.GetHistory(
+            beatmap,
+            JudgementConfiguration.YokkoDefault);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(history, Has.Count.EqualTo(3));
+            Assert.That(history.Select(score => score.Score),
+                Is.EqualTo(new long[] { 900_000, 800_000, 700_000 }));
+            Assert.That(history[1].Mods, Is.EqualTo(new[] { "DT" }));
         });
     }
 

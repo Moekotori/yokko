@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Lines;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
@@ -48,6 +49,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private readonly Dictionary<ManiaModCategory, OrbitCategoryButton>
         categoryButtons = new();
     private readonly Dictionary<ManiaModId, OrbitModNode> nodes = new();
+    private readonly List<OrbitConnector> connectors = new();
     private readonly List<Action> loadAnimations = new();
 
     private Container orbitHost;
@@ -165,6 +167,15 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 selectedMods.Contains(mod),
                 mod == focusedMod,
                 isSelectable(mod));
+        }
+
+        foreach (OrbitConnector connector in connectors)
+        {
+            connector.SetState(
+                selectedMods.Contains(connector.StartMod)
+                || selectedMods.Contains(connector.EndMod),
+                connector.StartMod == focusedMod
+                || connector.EndMod == focusedMod);
         }
 
         updateHero();
@@ -392,6 +403,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                        .Then().ScaleTo(0.9f, 520, Easing.InOutSine)
                        .Loop(760));
         orbitHost.Add(healthPulse);
+        orbitHost.Add(createOrbitTelemetry());
         orbitHost.Add(hero = createHero(waveformTexture));
         orbitHost.Add(nodeHost = new Container
         {
@@ -399,6 +411,58 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         });
         return orbitHost;
     }
+
+    private Drawable createOrbitTelemetry() => new Container
+    {
+        RelativeSizeAxes = Axes.Both,
+        Children =
+        [
+            new SpriteText
+            {
+                Position = new Vector2(74, 106),
+                Text = "SYNC // MOD MATRIX",
+                Font = HomeTypography.Display(9),
+                Spacing = new Vector2(1.1f, 0),
+                Colour = new Color4(
+                    HomeControlColours.Cyan.R,
+                    HomeControlColours.Cyan.G,
+                    HomeControlColours.Cyan.B,
+                    0.66f),
+            },
+            new SpriteText
+            {
+                Position = new Vector2(360, 520),
+                Text = "SIGNAL  06",
+                Font = HomeTypography.Display(9),
+                Spacing = new Vector2(1.1f, 0),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.48f),
+            },
+            new Box
+            {
+                Position = new Vector2(72, 120),
+                Size = new Vector2(54, 1),
+                Colour = new Color4(
+                    HomeControlColours.Cyan.R,
+                    HomeControlColours.Cyan.G,
+                    HomeControlColours.Cyan.B,
+                    0.38f),
+            },
+            new Box
+            {
+                Position = new Vector2(422, 519),
+                Size = new Vector2(28, 1),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.24f),
+            },
+        ],
+    };
 
     private Drawable createRing(
         Vector2 position,
@@ -911,6 +975,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     {
         nodeHost.Clear();
         nodes.Clear();
+        connectors.Clear();
 
         IReadOnlyList<ManiaModDefinition> definitions =
             orbitDefinitions(category);
@@ -925,18 +990,25 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         ];
 
         Vector2? previousNodeCentre = null;
+        ManiaModId? previousMod = null;
         for (int i = 0; i < definitions.Count && i < positions.Length; i++)
         {
             ManiaModDefinition definition = definitions[i];
             Vector2 position = positions[i];
             Vector2 nodeCentre = position + new Vector2(42);
-            if (previousNodeCentre.HasValue)
+            if (previousNodeCentre.HasValue && previousMod.HasValue)
             {
-                nodeHost.Add(createConnector(
+                var connector = new OrbitConnector(
+                    previousMod.Value,
+                    definition.Id,
                     previousNodeCentre.Value,
-                    nodeCentre));
+                    nodeCentre,
+                    i * 0.13);
+                connectors.Add(connector);
+                nodeHost.Add(connector);
             }
             previousNodeCentre = nodeCentre;
+            previousMod = definition.Id;
 
             var node = new OrbitModNode(
                 definition,
@@ -988,23 +1060,6 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             .Where(definition => isSelectable(definition.Id))
             .Take(6)
             .ToArray();
-    }
-
-    private Drawable createConnector(Vector2 start, Vector2 end)
-    {
-        Vector2 delta = end - start;
-        return new Box
-        {
-            Position = start,
-            Origin = Anchor.CentreLeft,
-            Size = new Vector2(delta.Length, 1.2f),
-            Rotation = MathF.Atan2(delta.Y, delta.X) * 180 / MathF.PI,
-            Colour = new Color4(
-                HomeControlColours.Cyan.R,
-                HomeControlColours.Cyan.G,
-                HomeControlColours.Cyan.B,
-                0.58f),
-        };
     }
 
     private void updateHero()
@@ -1288,6 +1343,222 @@ internal partial class OrbitCategoryButton : ClickableContainer
                 : Color4.Transparent,
             110);
     }
+}
+
+internal partial class OrbitConnector : CompositeDrawable
+{
+    private static readonly Vector2 orbitCentre = new(249, 317);
+
+    private readonly Vector2 start;
+    private readonly Vector2 control;
+    private readonly Vector2 end;
+    private readonly double phase;
+    private readonly SmoothPath glow;
+    private readonly SmoothPath main;
+    private readonly SmoothPath outerRail;
+    private readonly Circle signal;
+    private readonly Circle startJoint;
+    private readonly Circle endJoint;
+    private readonly List<Box> dataTicks = new();
+    private bool active;
+    private bool focused;
+
+    internal ManiaModId StartMod { get; }
+    internal ManiaModId EndMod { get; }
+
+    internal OrbitConnector(
+        ManiaModId startMod,
+        ManiaModId endMod,
+        Vector2 startCentre,
+        Vector2 endCentre,
+        double phase)
+    {
+        StartMod = startMod;
+        EndMod = endMod;
+        this.phase = phase;
+        RelativeSizeAxes = Axes.Both;
+        Depth = 2;
+
+        Vector2 midpoint = (startCentre + endCentre) / 2;
+        Vector2 outward = normalisedOrFallback(
+            midpoint - orbitCentre,
+            new Vector2(1, 0));
+        Vector2 rawControl = midpoint + outward * 24;
+        start = quadratic(startCentre, rawControl, endCentre, 0.17f);
+        end = quadratic(startCentre, rawControl, endCentre, 0.83f);
+        control = rawControl;
+
+        Vector2 railOffset = outward * 5;
+        glow = createPath(start, control, end, Vector2.Zero, 2.8f);
+        main = createPath(start, control, end, Vector2.Zero, 0.85f);
+        outerRail = createPath(
+            start,
+            control,
+            end,
+            railOffset,
+            0.45f);
+
+        startJoint = createJoint(start);
+        endJoint = createJoint(end);
+        signal = new Circle
+        {
+            Origin = Anchor.Centre,
+            Position = start,
+            Size = new Vector2(7),
+            Colour = Color4.White,
+            Masking = true,
+            BorderThickness = 2,
+            BorderColour = HomeControlColours.Cyan,
+        };
+
+        InternalChildren =
+        [
+            glow,
+            outerRail,
+            main,
+            startJoint,
+            endJoint,
+            signal,
+        ];
+
+        for (int i = 1; i <= 5; i++)
+        {
+            float t = i / 6f;
+            Vector2 point = quadratic(start, control, end, t)
+                            + railOffset;
+            Vector2 tangent = quadraticTangent(start, control, end, t);
+            var tick = new Box
+            {
+                Origin = Anchor.Centre,
+                Position = point,
+                Size = new Vector2(i == 3 ? 8 : 4, 1.2f),
+                Rotation = MathF.Atan2(tangent.Y, tangent.X)
+                           * 180 / MathF.PI,
+            };
+            dataTicks.Add(tick);
+            AddInternal(tick);
+        }
+
+        SetState(false, false);
+    }
+
+    internal void SetState(bool active, bool focused)
+    {
+        this.active = active;
+        this.focused = focused;
+
+        Color4 colour = focused
+            ? HomeControlColours.Pink
+            : HomeControlColours.Cyan;
+        float mainAlpha = focused ? 0.96f : active ? 0.8f : 0.52f;
+
+        main.Colour = new Color4(
+            colour.R,
+            colour.G,
+            colour.B,
+            mainAlpha);
+        glow.Colour = new Color4(
+            colour.R,
+            colour.G,
+            colour.B,
+            focused ? 0.18f : active ? 0.12f : 0.055f);
+        outerRail.Colour = new Color4(
+            HomeControlColours.Navy.R,
+            HomeControlColours.Navy.G,
+            HomeControlColours.Navy.B,
+            focused ? 0.34f : 0.2f);
+        startJoint.BorderColour = colour;
+        endJoint.BorderColour = colour;
+        startJoint.Alpha = focused ? 1 : active ? 0.86f : 0.62f;
+        endJoint.Alpha = startJoint.Alpha;
+        signal.BorderColour = colour;
+        signal.Alpha = focused ? 1 : active ? 0.82f : 0.32f;
+        signal.Size = new Vector2(focused ? 9 : 7);
+
+        foreach (Box tick in dataTicks)
+        {
+            tick.Colour = new Color4(
+                colour.R,
+                colour.G,
+                colour.B,
+                focused ? 0.72f : active ? 0.5f : 0.26f);
+        }
+    }
+
+    protected override void Update()
+    {
+        base.Update();
+
+        double speed = focused ? 1180 : active ? 1650 : 2500;
+        float t = (float)((Time.Current / speed + phase) % 1);
+        float eased = t * t * (3 - 2 * t);
+        signal.Position = quadratic(start, control, end, eased);
+
+        float pulse = 0.72f
+                      + 0.28f * MathF.Sin((float)(Time.Current / 170));
+        signal.Alpha = (focused ? 0.8f : active ? 0.62f : 0.2f)
+                       + pulse * (focused ? 0.2f : active ? 0.18f : 0.1f);
+    }
+
+    private static SmoothPath createPath(
+        Vector2 start,
+        Vector2 control,
+        Vector2 end,
+        Vector2 offset,
+        float radius)
+    {
+        var path = new SmoothPath
+        {
+            PathRadius = radius,
+        };
+        const int segmentCount = 18;
+        for (int i = 0; i <= segmentCount; i++)
+        {
+            path.AddVertex(
+                quadratic(start, control, end, i / (float)segmentCount)
+                + offset);
+        }
+        return path;
+    }
+
+    private static Circle createJoint(Vector2 position) => new()
+    {
+        Origin = Anchor.Centre,
+        Position = position,
+        Size = new Vector2(9),
+        Masking = true,
+        BorderThickness = 1.5f,
+        BorderColour = HomeControlColours.Cyan,
+        Child = new Box
+        {
+            RelativeSizeAxes = Axes.Both,
+            Colour = Color4.White,
+        },
+    };
+
+    private static Vector2 quadratic(
+        Vector2 a,
+        Vector2 b,
+        Vector2 c,
+        float t)
+    {
+        float inverse = 1 - t;
+        return inverse * inverse * a
+               + 2 * inverse * t * b
+               + t * t * c;
+    }
+
+    private static Vector2 quadraticTangent(
+        Vector2 a,
+        Vector2 b,
+        Vector2 c,
+        float t) =>
+        2 * (1 - t) * (b - a) + 2 * t * (c - b);
+
+    private static Vector2 normalisedOrFallback(
+        Vector2 value,
+        Vector2 fallback) =>
+        value.LengthSquared > 0.001f ? value.Normalized() : fallback;
 }
 
 internal partial class OrbitModNode : ClickableContainer

@@ -15,10 +15,10 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectRankingPanel : ClickableContainer
 {
-    private const float panel_width = 636;
-    private const float panel_height = 286;
-    private const float rows_top = 68;
-    private const float row_height = 34;
+    private const float panel_width = 800;
+    private const float panel_height = 340;
+    private const float rows_top = 78;
+    private const float row_height = 42;
 
     private readonly Container content;
     private readonly Box globalTab;
@@ -42,33 +42,37 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         this.textures = textures;
         this.viewChanged = viewChanged;
         Size = new Vector2(panel_width, panel_height);
+        Action = () => setAndNotify(
+            view == SongSelectScoreView.GlobalRanking
+                ? SongSelectScoreView.Personal
+                : SongSelectScoreView.GlobalRanking);
 
         InternalChildren =
         [
             paperPanel(),
             new SpriteText
             {
-                Position = new Vector2(22, 13),
+                Position = new Vector2(28, 16),
                 Text = "RANKING",
-                Font = HomeTypography.Display(16),
+                Font = HomeTypography.Display(20),
                 Colour = SongSelectTheme.Navy,
             },
             new SpriteIcon
             {
-                Position = new Vector2(112, 14),
-                Size = new Vector2(14),
+                Position = new Vector2(132, 18),
+                Size = new Vector2(16),
                 Icon = FontAwesome.Solid.Trophy,
                 Colour = SongSelectTheme.Yellow,
             },
-            createTab("GLOBAL", 226, out globalTab, out globalLabel,
+            createTab("GLOBAL", 208, out globalTab, out globalLabel,
                 () => setAndNotify(SongSelectScoreView.GlobalRanking)),
-            createTab("MY HISTORY", 322, out historyTab, out historyLabel,
+            createTab("MY HISTORY", 318, out historyTab, out historyLabel,
                 () => setAndNotify(SongSelectScoreView.Personal)),
             createColumnHeader(),
             content = new Container
             {
-                Position = new Vector2(14, rows_top),
-                Size = new Vector2(panel_width - 28, row_height * 6),
+                Position = new Vector2(18, rows_top),
+                Size = new Vector2(panel_width - 36, row_height * 6),
                 Masking = true,
             },
             new SpriteIcon
@@ -149,7 +153,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
 
         return new Container
         {
-            Size = new Vector2(panel_width - 28, row_height),
+            Size = new Vector2(panel_width - 36, row_height),
             Masking = true,
             CornerRadius = 4,
             BorderThickness = score.IsCurrentPlayer ? 1.5f : 0,
@@ -163,13 +167,13 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                         ? new Color4(1f, 0.82f, 0.91f, 0.78f)
                         : new Color4(1f, 1f, 1f, 0.62f),
                 },
-                text($"{score.Rank}", 10, 9, 28, 14, accent),
+                text($"{score.Rank}", 12, 12, 32, 16, accent),
                 new Container
                 {
-                    Position = new Vector2(38, 3),
-                    Size = new Vector2(28),
+                    Position = new Vector2(44, 4),
+                    Size = new Vector2(34),
                     Masking = true,
-                    CornerRadius = 14,
+                    CornerRadius = 17,
                     BorderThickness = 1,
                     BorderColour = accent,
                     Child = new Sprite
@@ -179,32 +183,32 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                         FillMode = FillMode.Fill,
                     },
                 },
-                text(score.PlayerName, 76, 9, 88, 13,
+                text(score.PlayerName, 90, 12, 112, 15,
                     score.IsCurrentPlayer ? SongSelectTheme.Pink : SongSelectTheme.Navy),
-                text(score.Grade.ToDisplayLabel(), 176, 7, 38, 17,
+                text(score.Grade.ToDisplayLabel(), 218, 9, 42, 20,
                     gradeColour(score.Grade)),
-                text($"{score.Score:N0}", 226, 9, 108, 12, SongSelectTheme.Navy),
-                text($"{score.Accuracy:P2}", 348, 9, 74, 12, SongSelectTheme.Navy),
-                text($"{score.MaxCombo:N0}×", 438, 9, 70, 12, SongSelectTheme.Navy),
+                text($"{score.Score:N0}", 278, 12, 132, 14, SongSelectTheme.Navy),
+                text($"{score.Accuracy:P2}", 430, 12, 90, 14, SongSelectTheme.Navy),
+                text($"{score.MaxCombo:N0}×", 540, 12, 88, 14, SongSelectTheme.Navy),
                 text(score.Mods.Count == 0 ? "NM" : string.Join(" ", score.Mods),
-                    530, 9, 70, 11, SongSelectTheme.Pink),
+                    650, 12, 92, 13, SongSelectTheme.Pink),
             ],
         };
     }
 
     private static Drawable createColumnHeader() => new Container
     {
-        Position = new Vector2(14, 48),
-        Size = new Vector2(panel_width - 28, 18),
+        Position = new Vector2(18, 54),
+        Size = new Vector2(panel_width - 36, 22),
         Children =
         [
-            text("#", 10, 0, 28, 9, SongSelectTheme.Cyan),
-            text("PLAYER", 76, 0, 88, 9, SongSelectTheme.Cyan),
-            text("GRADE", 176, 0, 48, 9, SongSelectTheme.Cyan),
-            text("SCORE", 226, 0, 108, 9, SongSelectTheme.Cyan),
-            text("ACC", 348, 0, 74, 9, SongSelectTheme.Cyan),
-            text("COMBO", 438, 0, 70, 9, SongSelectTheme.Cyan),
-            text("MODS", 530, 0, 70, 9, SongSelectTheme.Cyan),
+            text("#", 12, 0, 32, 10, SongSelectTheme.Cyan),
+            text("PLAYER", 90, 0, 112, 10, SongSelectTheme.Cyan),
+            text("GRADE", 218, 0, 48, 10, SongSelectTheme.Cyan),
+            text("SCORE", 278, 0, 132, 10, SongSelectTheme.Cyan),
+            text("ACCURACY", 430, 0, 90, 10, SongSelectTheme.Cyan),
+            text("MAX COMBO", 540, 0, 88, 10, SongSelectTheme.Cyan),
+            text("MODS", 650, 0, 92, 10, SongSelectTheme.Cyan),
         ],
     };
 
@@ -229,9 +233,9 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         return new ClickableContainer
         {
             Position = new Vector2(x, 8),
-            Size = new Vector2(label == "GLOBAL" ? 88 : 112, 30),
+            Size = new Vector2(label == "GLOBAL" ? 96 : 126, 34),
             Masking = true,
-            CornerRadius = 15,
+            CornerRadius = 17,
             Action = action,
             Children = [tabBackground, tabLabel],
         };

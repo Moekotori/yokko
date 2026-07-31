@@ -50,6 +50,10 @@ public partial class GameplayScreen : Screen
     private const double playbackRateStep = 0.05;
     private const double minimumPlaybackRate = 0.25;
     private const double maximumPlaybackRate = 4;
+    private const double completionSettleMilliseconds = 180;
+    private const double completionResultRevealMilliseconds = 260;
+    private const double completionSkipDelayMilliseconds = 320;
+    private const double completionTransitionMilliseconds = 740;
 
     private readonly YokkoBeatmap originalBeatmap;
     private readonly YokkoBeatmap beatmap;
@@ -105,10 +109,20 @@ public partial class GameplayScreen : Screen
     private ulong accumulatedAudioSampleTelemetryDropped;
     private bool gameplayBlocked;
     private bool gameplayCompleted;
+    private bool gameplayCompletionTransitionActive;
     private bool gameplayFailed;
     private bool retryTransitionInProgress;
     private GameplayHud hud;
     private ManiaScoreResult completedResult;
+    private GameplayResultOverlay resultOverlay;
+    private bool completedResultIsNewBest;
+    private double completionTransitionElapsedMilliseconds;
+    private IAudioMixControl completionMixControl;
+    private double completionMusicVolume;
+    private double completionHitSoundVolume;
+    private double completionMetronomeVolume;
+    private bool completionAudioStopRequested;
+    private Task completionAudioStopTask = Task.CompletedTask;
     private double completionTimeMilliseconds;
     private double firstObjectTimeMilliseconds;
     private double gameplayStartTimeMilliseconds;
@@ -162,6 +176,10 @@ public partial class GameplayScreen : Screen
 
     internal bool GameplayBlocked => gameplayBlocked;
     internal bool GameplayCompleted => gameplayCompleted;
+    internal bool CompletionTransitionActive =>
+        gameplayCompletionTransitionActive;
+    internal double CompletionTransitionElapsedMilliseconds =>
+        completionTransitionElapsedMilliseconds;
     internal bool GameplayFailed => gameplayFailed;
     internal bool IsPaused => isPaused;
     internal bool PauseTransitionInProgress => pauseTransitionInProgress;
@@ -524,6 +542,12 @@ public partial class GameplayScreen : Screen
         drainAudioSampleTriggerTelemetry();
         updateQuickRetryHold();
 
+        if (gameplayCompletionTransitionActive)
+        {
+            updateGameplayCompletionTransition();
+            return;
+        }
+
         if (gameplayBlocked
             || gameplayCompleted
             || gameplayFailed
@@ -743,6 +767,26 @@ public partial class GameplayScreen : Screen
             return true;
         }
 
+        if (gameplayCompleted && gameplayCompletionTransitionActive)
+        {
+            if (completionTransitionElapsedMilliseconds
+                    >= completionSkipDelayMilliseconds
+                && (matchesShortcut(
+                        ManiaShortcutAction.Confirm,
+                        key)
+                    || matchesShortcut(
+                        ManiaShortcutAction.ConfirmAlternate,
+                        key)
+                    || matchesShortcut(
+                        ManiaShortcutAction.PauseOrBack,
+                        key)))
+            {
+                finishGameplayCompletionTransition(skipAnimations: true);
+            }
+
+            return true;
+        }
+
         if (gameplayBlocked)
         {
             if (matchesShortcut(
@@ -890,9 +934,12 @@ public partial class GameplayScreen : Screen
         }
         logInputTimingSummary();
 
-        mutedAudio?.Restore();
         stopAllSlidingSamples();
-        _ = audioEngine.StopAsync();
+        if (!completionAudioStopRequested)
+        {
+            mutedAudio?.Restore();
+            _ = audioEngine.StopAsync();
+        }
         return base.OnExiting(e);
     }
 
@@ -909,7 +956,8 @@ public partial class GameplayScreen : Screen
             host.Deactivated -= onHostDeactivated;
             gameplaySettings.ScrollSpeed.ValueChanged -=
                 onScrollSpeedChanged;
-            mutedAudio?.Restore();
+            if (!completionAudioStopRequested)
+                mutedAudio?.Restore();
             stopAllSlidingSamples();
             _ = audioEngine.DisposeAsync();
             maniaSkin?.Dispose();
@@ -1656,9 +1704,17 @@ public partial class GameplayScreen : Screen
             return;
 
         gameplayCompleted = true;
+        gameplayCompletionTransitionActive = true;
+        completionTransitionElapsedMilliseconds = 0;
         disableRawKeysoundFastPath();
-        mutedAudio?.Restore();
+        cancelQuickRetryHold();
         stopAllSlidingSamples();
+        for (int lane = 0; lane < pressedLanes.Length; lane++)
+        {
+            pressedLanes[lane] = false;
+            playfield.SetLanePressed(lane, false);
+        }
+
         ManiaScoreResult rawResult =
             judgementState.CreateResult();
         completedResult = rawResult with
@@ -1670,7 +1726,7 @@ public partial class GameplayScreen : Screen
                               recordedReplayInputs,
                               mods,
                               judgementConfiguration);
-        bool isNewBest = BestScoreSaved =
+        completedResultIsNewBest = BestScoreSaved =
             !ReplayMode
             && !manualPlaybackRateUsed
             && scoreStore.SaveBest(
@@ -1680,28 +1736,174 @@ public partial class GameplayScreen : Screen
                 completedResult);
         if (!ReplayMode)
             saveCompletedReplay();
-        _ = audioEngine.StopAsync();
 
-        // Let the final gameplay frame recede while the result backdrop
-        // cross-fades in, instead of replacing the playfield in one frame.
-        playfield.FadeOut(280, Easing.OutQuint);
-        hud.FadeOut(220, Easing.OutQuint);
-        judgementReadout.FadeOut(180, Easing.OutQuint);
-        timingBar.FadeOut(180, Easing.OutQuint);
-        scrollSpeedOverlay.FadeOut(180, Easing.OutQuint);
-        playbackRateOverlay.FadeOut(180, Easing.OutQuint);
-        cinemaIndicator?.FadeOut(180, Easing.OutQuint);
+        if (audioEngine is IAudioMixControl mixControl)
+        {
+            completionMixControl = mixControl;
+            completionMusicVolume = mixControl.MusicVolume;
+            completionHitSoundVolume = mixControl.HitSoundVolume;
+            completionMetronomeVolume = mixControl.MetronomeVolume;
+        }
 
-        AddInternal(new GameplayResultOverlay(
+        // Hold the final judgement briefly, then let the playfield recede
+        // under the result screen while the song tail fades independently.
+        playfield.Delay(completionSettleMilliseconds)
+                 .FadeOut(
+                     completionTransitionMilliseconds
+                     - completionSettleMilliseconds,
+                     Easing.OutQuint);
+        hud.Delay(completionSettleMilliseconds + 60)
+           .FadeOut(420, Easing.OutQuint);
+        judgementReadout.Delay(completionSettleMilliseconds)
+                        .FadeOut(420, Easing.OutQuint);
+        timingBar.Delay(completionSettleMilliseconds + 40)
+                 .FadeOut(360, Easing.OutQuint);
+        scrollSpeedOverlay.Delay(completionSettleMilliseconds)
+                          .FadeOut(340, Easing.OutQuint);
+        playbackRateOverlay.Delay(completionSettleMilliseconds)
+                           .FadeOut(340, Easing.OutQuint);
+        cinemaIndicator?.Delay(completionSettleMilliseconds)
+                        .FadeOut(420, Easing.OutQuint);
+    }
+
+    private void updateGameplayCompletionTransition()
+    {
+        completionTransitionElapsedMilliseconds = Math.Min(
+            completionTransitionMilliseconds,
+            completionTransitionElapsedMilliseconds
+            + Math.Max(0, Time.Elapsed));
+
+        updateCompletionAudioFade();
+        if (completionTransitionElapsedMilliseconds
+                >= completionResultRevealMilliseconds)
+        {
+            ensureGameplayResultOverlay();
+        }
+
+        if (completionTransitionElapsedMilliseconds
+                >= completionTransitionMilliseconds)
+        {
+            finishGameplayCompletionTransition(skipAnimations: false);
+        }
+    }
+
+    private void updateCompletionAudioFade()
+    {
+        if (completionMixControl == null)
+            return;
+
+        double progress = Math.Clamp(
+            (completionTransitionElapsedMilliseconds
+             - completionSettleMilliseconds)
+            / (completionTransitionMilliseconds
+               - completionSettleMilliseconds),
+            0,
+            1);
+        double smoothProgress = progress * progress * (3 - 2 * progress);
+        double remainingMusic = 1 - smoothProgress;
+        completionMixControl.SetMixVolumes(
+            completionMusicVolume * remainingMusic,
+            completionHitSoundVolume,
+            completionMetronomeVolume);
+    }
+
+    private void ensureGameplayResultOverlay()
+    {
+        if (resultOverlay != null)
+            return;
+
+        resultOverlay = new GameplayResultOverlay(
             beatmap,
             completedResult,
             mods,
-            isNewBest,
-            RetryGameplay,
-            watchCompletedReplay,
-            () => this.Exit(),
+            completedResultIsNewBest,
+            () => runAfterGameplayCompletionTransition(RetryGameplay),
+            () => runAfterGameplayCompletionTransition(
+                watchCompletedReplay),
+            () => runAfterGameplayCompletionTransition(
+                () => this.Exit()),
             manualPlaybackRateUsed,
-            judgementConfiguration));
+            judgementConfiguration);
+        AddInternal(resultOverlay);
+    }
+
+    private void runAfterGameplayCompletionTransition(Action action)
+    {
+        if (!gameplayCompletionTransitionActive)
+            action();
+    }
+
+    private void finishGameplayCompletionTransition(bool skipAnimations)
+    {
+        if (!gameplayCompletionTransitionActive)
+            return;
+
+        completionTransitionElapsedMilliseconds =
+            completionTransitionMilliseconds;
+        updateCompletionAudioFade();
+        ensureGameplayResultOverlay();
+        if (skipAnimations)
+        {
+            finishGameplayExitVisuals();
+            resultOverlay.CompleteEntrance();
+        }
+
+        gameplayCompletionTransitionActive = false;
+        requestCompletionAudioStop();
+    }
+
+    private void finishGameplayExitVisuals()
+    {
+        Drawable[] exitDrawables =
+        [
+            playfield,
+            hud,
+            judgementReadout,
+            timingBar,
+            scrollSpeedOverlay,
+            playbackRateOverlay,
+        ];
+        foreach (Drawable drawable in exitDrawables)
+        {
+            drawable.ClearTransforms();
+            drawable.Alpha = 0;
+        }
+
+        if (cinemaIndicator != null)
+        {
+            cinemaIndicator.ClearTransforms();
+            cinemaIndicator.Alpha = 0;
+        }
+    }
+
+    private void requestCompletionAudioStop()
+    {
+        if (completionAudioStopRequested)
+            return;
+
+        completionAudioStopRequested = true;
+        completionAudioStopTask = stopCompletionAudioAsync();
+    }
+
+    private async Task stopCompletionAudioAsync()
+    {
+        try
+        {
+            await audioEngine.StopAsync().ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            Logger.Error(
+                exception,
+                "Gameplay completion audio could not stop cleanly.",
+                LoggingTarget.Runtime);
+        }
+        finally
+        {
+            // Muted owns a temporary mix. Restore it only after playback has
+            // stopped so completion cannot briefly unmute the song.
+            mutedAudio?.Restore();
+        }
     }
 
     private void saveCompletedReplay()
@@ -2086,7 +2288,10 @@ public partial class GameplayScreen : Screen
         {
             // A retry creates a fresh audio engine. Wait until this engine has
             // released its WASAPI endpoint before loading the replacement.
-            await audioEngine.StopAsync().ConfigureAwait(true);
+            if (completionAudioStopRequested)
+                await completionAudioStopTask.ConfigureAwait(true);
+            else
+                await audioEngine.StopAsync().ConfigureAwait(true);
 
             if (!this.IsCurrentScreen())
                 return;

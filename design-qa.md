@@ -94,6 +94,10 @@ final result: passed
   `D:\yokko\artifacts\mods\orbit-polish-active.png`
 - Side-by-side comparison:
   `D:\yokko\artifacts\mods\orbit-polish-comparison.png`
+- Refined connector-state implementation:
+  `D:\yokko\artifacts\mods\connector-polish-active.png`
+- Refined source/implementation comparison:
+  `D:\yokko\artifacts\mods\connector-polish-comparison.png`
 - Authored viewport: 1600 x 900, verified through the native 3168 x 1785
   renderer capture used by the 3200 x 2000 desktop.
 - States: empty Difficulty Down page and active Difficulty Up page with
@@ -120,6 +124,12 @@ final result: passed
   breathe gently; source-derived waveform and point fields pulse at independent
   rhythms; orbit signal markers and a restrained footer scan line add technical
   motion while preserving copy readability.
+- Connector system: straight centre-to-centre strokes were replaced by trimmed
+  anti-aliased curves with a soft signal glow, a parallel telemetry rail,
+  rotated data ticks, outlined joints, and a travelling signal pulse. Focused
+  paths turn pink, active paths gain cyan energy, and idle paths remain quiet.
+  The orbit also includes compact `SYNC // MOD MATRIX` and `SIGNAL 06`
+  telemetry labels to strengthen the authored technical-instrument feel.
 - Behaviour: all 1K-10K conversion Mods remain hidden. Real Mod compatibility,
   mutual exclusion, preferences, configuration state, score multiplier, and
   commit-on-handoff behaviour remain owned by `GameplayModsScreen`.
@@ -133,9 +143,7 @@ final result: passed
 - P0: none.
 - P1: none.
 - P2: none.
-- P3: the source's technical arcs contain irregular hand-authored breaks. The
-  native implementation keeps the same placement and visual weight with crisp
-  osu!framework ring primitives.
+- P3: none.
 
 ## Verification
 
@@ -144,6 +152,9 @@ final result: passed
   passed with 0 warnings and 0 errors.
 - Focused `TestSceneGameplayModsScreen` suite: passed, 8/8, including the
   central-hero activation path.
+- Connector refinement isolated build: passed with 0 warnings and 0 errors.
+- Connector refinement focused `TestSceneGameplayModsScreen` suite: passed,
+  8/8.
 - Native Direct3D 11 empty-state and active-state previews: exited with code 0.
 - Final source/implementation comparison and 2K readability captures were
   reviewed at matching authored density.

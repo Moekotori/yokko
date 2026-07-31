@@ -1013,7 +1013,7 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("gameplay completes", () =>
                 (screenStack.CurrentScreen as GameplayScreen)?
                 .GameplayCompleted == true);
-            AddAssert("result overlay is visible", () =>
+            AddUntilStep("result overlay is visible", () =>
                 (screenStack.CurrentScreen as Drawable)?
                 .ChildrenOfType<GameplayResultOverlay>()
                 .SingleOrDefault() != null);
@@ -1038,6 +1038,74 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("recorded run is replaying", () =>
                 (screenStack.CurrentScreen as GameplayScreen)?
                 .ReplayMode == true);
+        }
+
+        [Test]
+        public void TestCompletionFadesMusicBeforeStoppingAudio()
+        {
+            var audioEngine = new CompletionTrackingAudioEngine();
+            GameplayScreen gameplay = null;
+            double startingMusicVolume = 0;
+            double startingHitSoundVolume = 0;
+            int fadeHistoryStart = 0;
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Completion Transition Test",
+                AudioPath = "completion-transition-fixture.wav",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        0,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+
+            AddStep("open transition gameplay", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    audioEngine)));
+            AddUntilStep("transition audio starts", () =>
+                audioEngine.StartCount == 1);
+            AddStep("pass final judgement window", () =>
+            {
+                startingMusicVolume = audioEngine.MusicVolume;
+                startingHitSoundVolume = audioEngine.HitSoundVolume;
+                fadeHistoryStart = audioEngine.MusicVolumeHistory.Count;
+                audioEngine.SetPlaybackTime(1000);
+            });
+            AddUntilStep("completion transition starts", () =>
+                gameplay?.GameplayCompleted == true
+                && gameplay.CompletionTransitionActive);
+            AddAssert("audio is not stopped on completion frame", () =>
+                audioEngine.StopCount == 0);
+            AddUntilStep("music begins fading before stop", () =>
+                audioEngine.MusicVolume < startingMusicVolume
+                && audioEngine.StopCount == 0);
+            AddAssert("final hit-sound mix remains intact", () =>
+                Math.Abs(
+                    audioEngine.HitSoundVolume
+                    - startingHitSoundVolume) < 0.000001);
+            AddUntilStep("completion transition finishes", () =>
+                gameplay?.CompletionTransitionActive == false
+                && audioEngine.StopCount == 1
+                && gameplay
+                   .ChildrenOfType<GameplayResultOverlay>()
+                   .SingleOrDefault() != null);
+            AddAssert("music fade is monotonic and reaches silence", () =>
+            {
+                double[] fade = audioEngine.MusicVolumeHistory
+                                           .Skip(fadeHistoryStart)
+                                           .ToArray();
+                return fade.Length > 2
+                       && fade[^1] <= 0.000001
+                       && fade.Zip(
+                               fade.Skip(1),
+                               (previous, current) =>
+                                   current <= previous + 0.000001)
+                              .All(static monotonic => monotonic);
+            });
         }
 
         [Test]
@@ -2862,6 +2930,10 @@ HitPosition: 400
                 () => gameplay?.GameplayCompleted == true);
             AddAssert("practice does not replace best score", () =>
                 !gameplay.BestScoreSaved);
+            AddUntilStep("practice result appears", () =>
+                gameplay
+                    ?.ChildrenOfType<GameplayResultOverlay>()
+                     .SingleOrDefault() != null);
             AddAssert("result identifies practice session", () =>
             {
                 GameplayResultOverlay result = gameplay
@@ -3659,6 +3731,34 @@ StageHint: stage-hint
                     running,
                     144,
                     3);
+        }
+
+        private sealed class CompletionTrackingAudioEngine
+            : SeekTrackingAudioEngine, IAudioMixControl
+        {
+            private readonly List<double> musicVolumeHistory = new();
+
+            public double MusicVolume { get; private set; } = 1;
+
+            public double HitSoundVolume { get; private set; } = 1;
+
+            public double MetronomeVolume { get; private set; }
+
+            public IReadOnlyList<double> MusicVolumeHistory =>
+                musicVolumeHistory;
+
+            public void SetMixVolumes(
+                double musicVolume,
+                double hitSoundVolume,
+                double metronomeVolume)
+            {
+                MusicVolume = musicVolume;
+                HitSoundVolume = hitSoundVolume;
+                MetronomeVolume = metronomeVolume;
+                musicVolumeHistory.Add(musicVolume);
+            }
+
+            public bool TriggerMetronome() => false;
         }
 
         private sealed class RateTrackingAudioEngine

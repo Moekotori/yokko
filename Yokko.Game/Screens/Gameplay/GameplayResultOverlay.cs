@@ -155,6 +155,15 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
     internal void TriggerReplay() => watchReplay();
 
+    internal void CompleteEntrance()
+    {
+        backdrop.FinishTransforms();
+        backdrop.Alpha = 1;
+        stage.FinishTransforms();
+        stage.Alpha = 1;
+        stage.Y = 0;
+    }
+
     protected override void Update()
     {
         base.Update();

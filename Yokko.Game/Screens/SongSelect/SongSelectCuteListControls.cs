@@ -32,7 +32,7 @@ internal partial class SongSelectSongRow : ClickableContainer
         Entry = entry;
         Action = select;
         DoubleClickAction = play;
-        Size = new Vector2(454, 76);
+        Size = new Vector2(540, 88);
 
         InternalChildren =
         [
@@ -58,8 +58,8 @@ internal partial class SongSelectSongRow : ClickableContainer
             },
             thumbnail = new Container
             {
-                Position = new Vector2(7, 6),
-                Size = new Vector2(126, 64),
+                Position = new Vector2(7, 7),
+                Size = new Vector2(145, 74),
                 Masking = true,
                 CornerRadius = 5,
                 BorderThickness = 1,
@@ -81,14 +81,14 @@ internal partial class SongSelectSongRow : ClickableContainer
                 Colour = SongSelectTheme.Pink,
                 Alpha = 0,
             },
-            title = label(entry.Beatmap.Title, 145, 7, 287, 18,
+            title = label(entry.Beatmap.Title, 166, 8, 350, 20,
                 SongSelectTheme.Navy, true),
-            label(entry.Beatmap.Artist, 145, 31, 164, 11,
+            label(entry.Beatmap.Artist, 166, 37, 202, 13,
                 SongSelectTheme.Navy, true),
-            label($"mapped by {entry.Beatmap.Creator}", 145, 48, 164, 9,
+            label($"mapped by {entry.Beatmap.Creator}", 166, 58, 202, 10,
                 SongSelectTheme.Cyan, true),
             label($"{(int)entry.Beatmap.KeyMode}K · {entry.Beatmap.DifficultyName}",
-                320, 31, 112, 10, SongSelectTheme.Pink, true),
+                388, 37, 130, 11, SongSelectTheme.Pink, true),
             createStars(entry.StarRating),
             new SpriteIcon
             {
@@ -115,8 +115,8 @@ internal partial class SongSelectSongRow : ClickableContainer
         BorderColour = SongSelectTheme.Cyan;
         arrow.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
         title.Colour = selected ? SongSelectTheme.Navy : SongSelectTheme.Navy;
-        this.ResizeHeightTo(selected ? 82 : 76, 160, Easing.OutQuint);
-        thumbnail.ResizeHeightTo(selected ? 70 : 64, 160, Easing.OutQuint);
+        this.ResizeHeightTo(selected ? 96 : 88, 160, Easing.OutQuint);
+        thumbnail.ResizeHeightTo(selected ? 82 : 74, 160, Easing.OutQuint);
     }
 
     protected override bool OnHover(HoverEvent e)
@@ -197,7 +197,7 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         Action toggle)
     {
         Action = toggle;
-        Size = new Vector2(454, 34);
+        Size = new Vector2(540, 38);
         Masking = true;
         CornerRadius = 7;
         BorderThickness = 1;
@@ -218,8 +218,8 @@ internal partial class SongSelectPackageHeader : ClickableContainer
                 Icon = FontAwesome.Solid.LayerGroup,
                 Colour = SongSelectTheme.Yellow,
             },
-            label(packageName, 35, 10, 235, 12),
-            label($"{songCount} SONGS · {chartCount} CHARTS", 282, 11, 135, 9),
+            label(packageName, 35, 11, 290, 13),
+            label($"{songCount} SONGS · {chartCount} CHARTS", 348, 12, 152, 9),
             new SpriteIcon
             {
                 Anchor = Anchor.CentreRight,
