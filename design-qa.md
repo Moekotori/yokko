@@ -82,6 +82,66 @@ final result: passed
 
 ---
 
+# Song Select redesign verification (2026-07-31)
+
+## Evidence
+
+- Source visual truth: `C:\Users\mochi\.codex\generated_images\019fb5dd-52c5-7062-91bc-86e305437bdc\call_bVGxWmV4UrXTKxwGw3LXOidW.png`
+- Native implementation: `D:\yokko\artifacts\song-select-redesign\implementation-06.png`
+- Full comparison, source left and implementation right: `D:\yokko\artifacts\song-select-redesign\comparison-final.png`
+- Focused song-browser comparison: `D:\yokko\artifacts\song-select-redesign\comparison-right-final.png`
+- Play transition smoke: `D:\yokko\artifacts\song-select-redesign\play-transition-smoke.png`
+
+## Viewport and state
+
+- Source and implementation pixels: 1600 x 1000.
+- CSS/stage size: 1600 x 1000; density normalization was not required.
+- State: English Song Select, 7K filter active, first and second packs expanded, third pack collapsed, long title selected, global ranking visible.
+- The screenshot fixture intentionally has no playable notes, so difficulty values render as `--`; production imported charts continue to display their computed numeric difficulty in the retained left-side rating block.
+
+## Comparison history
+
+1. First native pass
+   - P1: chart artwork overpowered the controls on bright backgrounds.
+   - P1: the blue logo disappeared into the background and the search/filter palette was inverted from the selected target.
+   - P2: the song card, ranking rows, footer and pack headers were too compressed.
+   - P2: long package titles truncated to one line.
+2. Second pass
+   - Increased the constant navy isolation layer, switched to the real white logo asset, darkened the search/filter surfaces, and matched the target's major-region proportions.
+   - Expanded the selected chart card, added reliable two-line title layout, seven relaxed score ribbons with avatars, 120px art-backed pack headers, and a taller footer.
+3. User-reported row-layout pass
+   - P1: compact difficulty rows duplicated the rating at left and lower-right, causing `STAR 7.05` to collide with the mode pill and disappear on an ivory selected row.
+   - Removed the duplicate compact-row rating. The left numeric rating block remains the single difficulty source; standalone rows retain one adaptive rating label.
+4. Post-fix evidence
+   - The implementation has no clipped controls, duplicate difficulty labels, or long-title collisions.
+   - The automated Play smoke crossed Song Select, Gameplay and the empty-fixture result path without a deadlock; gameplay construction now runs off the UI update thread while preview audio stops.
+
+## Required fidelity surfaces
+
+- Fonts and typography: Yokko display/body fonts preserve the selected target's hierarchy; selected-song and package titles use controlled two-line layout, while difficulty rows truncate safely.
+- Spacing and layout rhythm: 32px left frame, 15px right frame, 793px detail/ranking rail, 730px browser rail, seven 56px score rows, and the 146px footer match the relaxed composition without clipping.
+- Colors and tokens: navy isolation, cyan outlines, pink difficulty pills, yellow primary action, and ivory selected surfaces remain stable across arbitrary beatmap backgrounds.
+- Image quality and assets: the real Yokko logo, mascot, avatars, tape decorations, and actual beatmap artwork are loaded as raster assets; dynamic text and interaction state remain code-owned.
+- Copy and content: long song and package names remain readable; numeric difficulty is retained once per row; account, ranking, mode, mapper, score and chart metadata remain present.
+
+## Findings
+
+- P0: none.
+- P1: none after the duplicate-rating and Play-transition fixes.
+- P2: none after the same-viewport comparison.
+- P3: generated reference art is richer than the deterministic preview fixtures; production intentionally uses each beatmap's own artwork instead of shipping reference-specific illustrations.
+
+## Verification
+
+- `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- Native Direct3D 11 Song Select capture: passed at 1600 x 1000.
+- Automated Play transition smoke: passed; Song Select entered Gameplay in the same logged second.
+- The broad visual-test filter was stopped after exceeding the focused time budget; it was not used as pass evidence.
+
+final result: passed
+
+---
+
 # Gameplay Mods overall polish QA (2026-07-31)
 
 ## Source visual truth

@@ -105,6 +105,10 @@ public partial class GameplayScreen : Screen
     private bool hasAudioClock;
     private bool audioStarted;
     private OsuManiaSkin maniaSkin;
+    private OsuManiaSkinLease maniaSkinLease;
+
+    [Resolved]
+    private OsuManiaSkinCache gameplaySkinCache { get; set; }
     private double activeUserOffsetMilliseconds;
     private AudioBackendKind activeRequestedBackend;
     private double lastStableAudioGameplayTime;
@@ -1116,7 +1120,7 @@ public partial class GameplayScreen : Screen
                 mutedAudio?.Restore();
             stopAllSlidingSamples();
             _ = audioEngine.DisposeAsync();
-            maniaSkin?.Dispose();
+            maniaSkinLease?.Dispose();
             cinemaArtworkTextures?.Dispose();
         }
 
@@ -3234,12 +3238,13 @@ public partial class GameplayScreen : Screen
         GameplayPlayfield previousPlayfield = playfield;
         GameplayLaneCovers previousCovers = laneCovers;
         GameplayHud previousHud = hud;
-        OsuManiaSkin previousSkin = null;
+        OsuManiaSkinLease previousSkinLease = null;
 
         if (reloadSkin)
         {
-            previousSkin = maniaSkin;
+            previousSkinLease = maniaSkinLease;
             maniaSkin = null;
+            maniaSkinLease = null;
             loadSkin(renderer, includeConfiguredFallback: false);
         }
 
@@ -3291,10 +3296,10 @@ public partial class GameplayScreen : Screen
         previousPlayfield?.Expire();
         previousCovers?.Expire();
         previousHud?.Expire();
-        if (previousSkin != null)
+        if (previousSkinLease != null)
         {
             Scheduler.AddDelayed(
-                previousSkin.Dispose,
+                previousSkinLease.Dispose,
                 200);
         }
     }
@@ -3485,11 +3490,12 @@ public partial class GameplayScreen : Screen
 
         try
         {
-            maniaSkin = OsuManiaSkin.Load(
+            maniaSkinLease = gameplaySkinCache.Acquire(
                 resolvedPath,
                 keyBindings.KeyCount,
                 renderer,
                 beatmap.StageCount);
+            maniaSkin = maniaSkinLease.Skin;
         }
         catch (Exception ex)
         {

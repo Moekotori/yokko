@@ -1,0 +1,145 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Yokko.Import</name>
+    </assembly>
+    <members>
+        <member name="M:Yokko.Import.Bms.BmsChartImporter.channelRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>^#(?&lt;measure&gt;\\d{3})(?&lt;channel&gt;[0-9A-Za-z]{2}):(?&lt;data&gt;.+)$</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match if at the beginning of the string.<br/>
+            ○ Match '#'.<br/>
+            ○ "measure" capture group.<br/>
+                ○ Match a Unicode digit exactly 3 times.<br/>
+            ○ "channel" capture group.<br/>
+                ○ Match a character in the set [0-9A-Za-z] exactly 2 times.<br/>
+            ○ Match ':'.<br/>
+            ○ "data" capture group.<br/>
+                ○ Match a character other than '\n' greedily at least once.<br/>
+            ○ Match if at the end of the string or if before an ending newline.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="M:Yokko.Import.Etterna.EtternaChartImporter.tagRegex">
+            <remarks>
+            Pattern:<br/>
+            <code>#(?&lt;key&gt;[^:;\\r\\n]+):(?&lt;value&gt;.*?);</code><br/>
+            Options:<br/>
+            <code>RegexOptions.Singleline</code><br/>
+            Explanation:<br/>
+            <code>
+            ○ Match '#'.<br/>
+            ○ "key" capture group.<br/>
+                ○ Match a character in the set [^\n\r:;] atomically at least once.<br/>
+            ○ Match ':'.<br/>
+            ○ "value" capture group.<br/>
+                ○ Match any character lazily any number of times.<br/>
+            ○ Match ';'.<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:Yokko.Import.Osu.OsuLegacyMods">
+            <summary>
+            Legacy replay Mod flags used by the osu! binary score/replay format.
+            Numeric values are part of that external format.
+            </summary>
+        </member>
+        <member name="T:Yokko.Import.Osu.OsuLegacyManiaModConverter">
+             <summary>
+             Converts legacy osu!mania replay flags using osu!lazer's precedence and
+             mapping rules.
+            
+             Source: ppy/osu,
+             osu.Game.Rulesets.Mania/ManiaRuleset.cs and
+             osu.Game.Rulesets.Mania.Tests/ManiaLegacyModConversionTest.cs,
+             commit 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
+             </summary>
+        </member>
+        <member name="T:Yokko.Import.Osu.OsuReplayIO">
+            <summary>
+            Reads legacy osu! replay files. Only osu!mania frame data is accepted.
+            The binary layout and frame correction rules follow ppy/osu's
+            LegacyScoreDecoder at commit 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0.
+            </summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.channelRegex_0">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the channelRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.channelRegex_0.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.channelRegex_0.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.channelRegex_0.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.channelRegex_0.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.channelRegex_0.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.channelRegex_0.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.channelRegex_0.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.channelRegex_0.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.tagRegex_1">
+            <summary>Custom <see cref="T:System.Text.RegularExpressions.Regex"/>-derived type for the tagRegex method.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.tagRegex_1.Instance">
+            <summary>Cached, thread-safe singleton instance.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.tagRegex_1.#ctor">
+            <summary>Initializes the instance.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.tagRegex_1.RunnerFactory">
+            <summary>Provides a factory for creating <see cref="T:System.Text.RegularExpressions.RegexRunner"/> instances to be used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.tagRegex_1.RunnerFactory.CreateInstance">
+            <summary>Creates an instance of a <see cref="T:System.Text.RegularExpressions.RegexRunner"/> used by methods on <see cref="T:System.Text.RegularExpressions.Regex"/>.</summary>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.tagRegex_1.RunnerFactory.Runner">
+            <summary>Provides the runner that contains the custom logic implementing the specified regular expression.</summary>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.tagRegex_1.RunnerFactory.Runner.Scan(System.ReadOnlySpan{System.Char})">
+            <summary>Scan the <paramref name="inputSpan"/> starting from base.runtextstart for the next match.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.tagRegex_1.RunnerFactory.Runner.TryFindNextPossibleStartingPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Search <paramref name="inputSpan"/> starting from base.runtextpos for the next location a match could possibly start.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if a possible match was found; false if no more matches are possible.</returns>
+        </member>
+        <member name="M:System.Text.RegularExpressions.Generated.tagRegex_1.RunnerFactory.Runner.TryMatchAtCurrentPosition(System.ReadOnlySpan{System.Char})">
+            <summary>Determine whether <paramref name="inputSpan"/> at base.runtextpos is a match for the regular expression.</summary>
+            <param name="inputSpan">The text being scanned by the regular expression.</param>
+            <returns>true if the regular expression matches at the current position; otherwise, false.</returns>
+        </member>
+        <member name="T:System.Text.RegularExpressions.Generated.Utilities">
+            <summary>Helper methods used by generated <see cref="T:System.Text.RegularExpressions.Regex"/>-derived implementations.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_defaultTimeout">
+            <summary>Default timeout value set in <see cref="T:System.AppContext"/>, or <see cref="F:System.Text.RegularExpressions.Regex.InfiniteMatchTimeout"/> if none was set.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_hasTimeout">
+            <summary>Whether <see cref="F:System.Text.RegularExpressions.Generated.Utilities.s_defaultTimeout"/> is non-infinite.</summary>
+        </member>
+        <member name="F:System.Text.RegularExpressions.Generated.Utilities.s_ascii_2400000000000C0000000000000000">
+            <summary>Supports searching for characters in or not in "\n\r:;".</summary>
+        </member>
+    </members>
+</doc>

@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Yokko.Game.Tests</name>
+    </assembly>
+    <members>
+        <member name="T:Yokko.Game.Tests.Core.LazerManiaJudgementParityTest">
+            <summary>
+            Behavioural golden cases mirrored from ppy/osu's
+            osu.Game.Rulesets.Mania.Tests/TestSceneHoldNoteInput.cs at
+            9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Tests.Core.LazerStandardConversionGoldenTest">
+            <summary>
+            Object-shape golden cases from osu!lazer's
+            ManiaBeatmapSampleConversionTest resources at
+            9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
+            lazer's original sample test permits two milliseconds of legacy conversion
+            lenience; these assertions use the same tolerance.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Tests.Core.ManiaScoreMultiplierParityTest">
+            <summary>
+            Mirrors the current-score cases in osu!lazer's
+            ManiaScoreMultiplierTest at
+            9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
+            Historical score-version compatibility cases do not apply to new Yokko
+            scores.
+            </summary>
+        </member>
+        <member name="T:Yokko.Game.Tests.Core.OsuLegacyManiaModConverterTest">
+            <summary>
+            Mirrors osu!lazer's ManiaLegacyModConversionTest at
+            9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
+            </summary>
+        </member>
+    </members>
+</doc>

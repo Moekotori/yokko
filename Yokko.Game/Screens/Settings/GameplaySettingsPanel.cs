@@ -786,17 +786,13 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                     "settings.gameplay.scroll_speed_note"),
                 20,
                 18),
-            new GameplayValueStepper(
+            new GameplayScrollSpeedSlider(
                 settings.ScrollSpeed,
-                OsuManiaScrollSpeed.ShortcutStep,
-                OsuManiaScrollSpeed.Minimum,
-                OsuManiaScrollSpeed.Maximum,
                 value =>
                     $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(value)):0} ms  ·  {value:0.0}",
-                adjustmentMode: settings.ScrollSpeedAdjustmentMode,
-                alternateAdjustValue:
-                    settings.AdjustScrollTimeMilliseconds,
-                alternateFormatter: value =>
+                settings.ScrollSpeedAdjustmentMode,
+                settings.AdjustScrollTimeMilliseconds,
+                value =>
                     $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(value)):0} ms")
             {
                 Position = new Vector2(430, 14),
@@ -2177,6 +2173,260 @@ internal partial class GameplayCompactButton : ClickableContainer
         base.OnFocusLost(e);
         hasFocus = false;
         refresh();
+    }
+}
+
+internal partial class GameplayScrollSpeedSlider : CompositeDrawable
+{
+    private const float track_x = 18;
+    private const float track_width = 354;
+    private const float track_y = 40;
+
+    private readonly Bindable<double> value;
+    private readonly Func<double, string> formatter;
+    private readonly Bindable<ScrollSpeedAdjustmentMode> adjustmentMode;
+    private readonly Action<double> adjustScrollTime;
+    private readonly Func<double, string> scrollTimeFormatter;
+    private readonly Box track;
+    private readonly Box fill;
+    private readonly Circle knob;
+    private readonly SpriteText valueText;
+
+    public override bool AcceptsFocus => true;
+
+    internal GameplayScrollSpeedSlider(
+        Bindable<double> value,
+        Func<double, string> formatter,
+        Bindable<ScrollSpeedAdjustmentMode> adjustmentMode,
+        Action<double> adjustScrollTime,
+        Func<double, string> scrollTimeFormatter)
+    {
+        this.value = value;
+        this.formatter = formatter;
+        this.adjustmentMode = adjustmentMode;
+        this.adjustScrollTime = adjustScrollTime;
+        this.scrollTimeFormatter = scrollTimeFormatter;
+        Size = new Vector2(390, 54);
+
+        var modeButton = new GameplayStepperModeButton(adjustmentMode)
+        {
+            Anchor = Anchor.TopRight,
+            Origin = Anchor.TopRight,
+            Position = new Vector2(-12, 7),
+            Size = new Vector2(112, 18),
+        };
+
+        InternalChildren = new Drawable[]
+        {
+            new Container
+            {
+                Position = new Vector2(0, 4),
+                Size = new Vector2(390, 50),
+                Masking = true,
+                CornerRadius = 8,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.2f),
+                },
+            },
+            new Container
+            {
+                Position = new Vector2(-1.5f, -1.5f),
+                Size = new Vector2(393, 57),
+                Masking = true,
+                CornerRadius = 8,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.4f),
+                },
+            },
+            new Container
+            {
+                RelativeSizeAxes = Axes.Both,
+                Masking = true,
+                CornerRadius = 7,
+                BorderThickness = 1.6f,
+                BorderColour = HomeControlColours.Navy,
+                Child = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
+            },
+            valueText = new SpriteText
+            {
+                Position = new Vector2(track_x, 8),
+                Font = HomeTypography.Display(16),
+                Colour = HomeControlColours.Navy,
+            },
+            track = new Box
+            {
+                Position = new Vector2(track_x, track_y),
+                Size = new Vector2(track_width, 5),
+                Colour = SettingsTheme.Divider,
+            },
+            fill = new Box
+            {
+                Position = new Vector2(track_x, track_y),
+                Height = 5,
+                Colour = HomeControlColours.Pink,
+            },
+            knob = new Circle
+            {
+                Origin = Anchor.Centre,
+                Position = new Vector2(track_x, track_y + 2.5f),
+                Size = new Vector2(15),
+                Colour = Color4.White,
+                BorderThickness = 2.5f,
+                BorderColour = HomeControlColours.Pink,
+            },
+            modeButton,
+        };
+
+        value.BindValueChanged(onValueChanged, true);
+        adjustmentMode.BindValueChanged(onAdjustmentModeChanged);
+    }
+
+    internal static double ValueFromProgress(double progress)
+    {
+        double raw = OsuManiaScrollSpeed.Minimum
+                     + Math.Clamp(progress, 0, 1)
+                     * (OsuManiaScrollSpeed.Maximum
+                        - OsuManiaScrollSpeed.Minimum);
+        return OsuManiaScrollSpeed.Clamp(raw);
+    }
+
+    internal static double AdjustForScroll(
+        double currentValue,
+        float scrollDelta) =>
+        OsuManiaScrollSpeed.Adjust(
+            currentValue,
+            Math.Sign(scrollDelta) * OsuManiaScrollSpeed.ShortcutStep);
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        if (e.Button != MouseButton.Left)
+            return false;
+
+        Vector2 local = ToLocalSpace(e.ScreenSpaceMousePosition);
+        if (local.Y < 28)
+            return false;
+
+        updateFrom(local.X);
+        return true;
+    }
+
+    protected override bool OnDragStart(DragStartEvent e) => true;
+
+    protected override void OnDrag(DragEvent e) =>
+        updateFrom(ToLocalSpace(e.ScreenSpaceMousePosition).X);
+
+    protected override bool OnScroll(ScrollEvent e)
+    {
+        if (e.ScrollDelta.Y == 0)
+            return false;
+
+        if (adjustmentMode.Value == ScrollSpeedAdjustmentMode.Milliseconds)
+            adjustScrollTime(Math.Sign(e.ScrollDelta.Y));
+        else
+            value.Value = AdjustForScroll(value.Value, e.ScrollDelta.Y);
+
+        return true;
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        int direction = e.Key switch
+        {
+            Key.Left or Key.Down => -1,
+            Key.Right or Key.Up => 1,
+            _ => 0,
+        };
+
+        if (e.Key == Key.Home)
+            value.Value = OsuManiaScrollSpeed.Minimum;
+        else if (e.Key == Key.End)
+            value.Value = OsuManiaScrollSpeed.Maximum;
+        else if (direction != 0)
+        {
+            if (adjustmentMode.Value == ScrollSpeedAdjustmentMode.Milliseconds)
+                adjustScrollTime(direction);
+            else
+                value.Value = OsuManiaScrollSpeed.Adjust(
+                    value.Value,
+                    direction * OsuManiaScrollSpeed.ShortcutStep);
+        }
+        else
+            return base.OnKeyDown(e);
+
+        return true;
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        track.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
+        knob.ScaleTo(1.18f, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        track.FadeColour(SettingsTheme.Divider, 120, Easing.OutQuint);
+        knob.ScaleTo(1, 120, Easing.OutQuint);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        valueText.FadeColour(HomeControlColours.Pink, 100, Easing.OutQuint);
+        knob.BorderColour = HomeControlColours.Cyan;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        valueText.FadeColour(HomeControlColours.Navy, 100, Easing.OutQuint);
+        knob.BorderColour = HomeControlColours.Pink;
+    }
+
+    private void updateFrom(float localX) =>
+        value.Value = ValueFromProgress(
+            (localX - track_x) / track_width);
+
+    private void onValueChanged(ValueChangedEvent<double> change)
+    {
+        float progress = (float)(
+            (change.NewValue - OsuManiaScrollSpeed.Minimum)
+            / (OsuManiaScrollSpeed.Maximum - OsuManiaScrollSpeed.Minimum));
+        fill.Width = progress * track_width;
+        knob.X = track_x + progress * track_width;
+        valueText.Text = activeFormatter(change.NewValue);
+    }
+
+    private void onAdjustmentModeChanged(
+        ValueChangedEvent<ScrollSpeedAdjustmentMode> _) =>
+        valueText.Text = activeFormatter(value.Value);
+
+    private string activeFormatter(double currentValue) =>
+        adjustmentMode.Value == ScrollSpeedAdjustmentMode.Milliseconds
+            ? scrollTimeFormatter(currentValue)
+            : formatter(currentValue);
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+        {
+            value.ValueChanged -= onValueChanged;
+            adjustmentMode.ValueChanged -= onAdjustmentModeChanged;
+        }
+
+        base.Dispose(isDisposing);
     }
 }
 

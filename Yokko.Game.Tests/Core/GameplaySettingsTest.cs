@@ -11,6 +11,7 @@ using Yokko.Game.Configuration;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Screens.Gameplay;
+using Yokko.Game.Screens.Settings;
 
 namespace Yokko.Game.Tests.Core;
 
@@ -951,6 +952,29 @@ public sealed class GameplaySettingsTest
         Assert.That(
             settings.ScrollSpeed.Value,
             Is.EqualTo(OsuManiaScrollSpeed.Minimum));
+    }
+
+    [Test]
+    public void ScrollSpeedSliderUsesTenthsForDragAndWholeStepsForWheel()
+    {
+        Assert.That(
+            GameplayScrollSpeedSlider.ValueFromProgress(0),
+            Is.EqualTo(OsuManiaScrollSpeed.Minimum));
+        Assert.That(
+            GameplayScrollSpeedSlider.ValueFromProgress(1),
+            Is.EqualTo(OsuManiaScrollSpeed.Maximum));
+        Assert.That(
+            GameplayScrollSpeedSlider.ValueFromProgress(0.5),
+            Is.EqualTo(20.5));
+        Assert.That(
+            GameplayScrollSpeedSlider.AdjustForScroll(34, 1),
+            Is.EqualTo(35));
+        Assert.That(
+            GameplayScrollSpeedSlider.AdjustForScroll(34, -1),
+            Is.EqualTo(33));
+        Assert.That(
+            GameplayScrollSpeedSlider.AdjustForScroll(40, 1),
+            Is.EqualTo(40));
     }
 
     [Test]

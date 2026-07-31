@@ -65,17 +65,12 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                 424,
                 YokkoStrings.Get(
                     "settings.general.mania_scroll_speed"),
-                new GameplayValueStepper(
+                new GameplayScrollSpeedSlider(
                     gameplaySettings.ScrollSpeed,
-                    OsuManiaScrollSpeed.ShortcutStep,
-                    OsuManiaScrollSpeed.Minimum,
-                    OsuManiaScrollSpeed.Maximum,
                     formatScrollSpeed,
-                    adjustmentMode:
-                        gameplaySettings.ScrollSpeedAdjustmentMode,
-                    alternateAdjustValue:
-                        gameplaySettings.AdjustScrollTimeMilliseconds,
-                    alternateFormatter: formatScrollTime)
+                    gameplaySettings.ScrollSpeedAdjustmentMode,
+                    gameplaySettings.AdjustScrollTimeMilliseconds,
+                    formatScrollTime)
                 {
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,

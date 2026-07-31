@@ -58,6 +58,8 @@ namespace Yokko.Game
         [Cached]
         private readonly OsuManiaSkinLibrary skinLibrary = new();
         [Cached]
+        private readonly OsuManiaSkinCache gameplaySkinCache = new();
+        [Cached]
         private readonly KeyInputTimestampSource keyInputTimestamps;
         [Cached]
         private readonly GameplayScoreStore scoreStore = new();
@@ -233,6 +235,9 @@ namespace Yokko.Game
             }
 
             base.Dispose(isDisposing);
+
+            if (isDisposing)
+                gameplaySkinCache.Dispose();
         }
 
         private void onFileDropped(string path) => OpenExternalPath(path);
