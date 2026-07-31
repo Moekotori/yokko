@@ -262,6 +262,33 @@ namespace Yokko.Game.Tests
             }
 
             if (Environment.GetEnvironmentVariable(
+                    "YOKKO_SONGSELECT_PREVIEW") == "1")
+            {
+                frameworkConfig.SetValue(
+                    FrameworkSetting.WindowMode,
+                    WindowMode.Windowed);
+                frameworkConfig.SetValue(
+                    FrameworkSetting.WindowedSize,
+                    new System.Drawing.Size(1600, 1000));
+                frameworkConfig.SetValue(
+                    FrameworkSetting.Locale,
+                    YokkoLocale.English);
+                var songSelect = new SongSelectScreen();
+                Add(new ScreenStack(songSelect)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                Add(new CursorContainer());
+                Scheduler.AddDelayed(() =>
+                {
+                    songSelect.SelectPrevious();
+                    songSelect.SelectPrevious();
+                }, 350);
+                schedulePreviewScreenshot(1200);
+                return;
+            }
+
+            if (Environment.GetEnvironmentVariable(
                     "YOKKO_RESULT_PREVIEW") == "1")
             {
                 frameworkConfig.SetValue(

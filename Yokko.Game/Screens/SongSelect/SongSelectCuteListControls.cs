@@ -71,17 +71,18 @@ internal partial class SongSelectSongRow : ClickableContainer
             9,
             1);
         accentBorders.Add((panel, 0.38f));
+        selectedSurface = new Box
+        {
+            RelativeSizeAxes = Axes.Both,
+            Colour = SongSelectSurface.Ivory(0.99f),
+            Alpha = 0,
+        };
 
         var children = new System.Collections.Generic.List<Drawable>
         {
             SongSelectSurface.CreateShadow(9, 0.22f, 2),
             panel,
-            selectedSurface = new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = SongSelectSurface.Ivory(0.99f),
-                Alpha = 0,
-            },
+            selectedSurface,
             addAccent(new Box
             {
                 RelativeSizeAxes = Axes.Y,

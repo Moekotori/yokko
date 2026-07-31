@@ -87,10 +87,6 @@ public partial class SongSelectScreen : Screen
     private SongSelectFilterButton fourKeyFilter;
     private SongSelectFilterButton sevenKeyFilter;
     private SongSelectSearchBox searchBox;
-    private SpriteText browserCountLabel;
-    private SongSelectBrowseToolButton sortTool;
-    private SongSelectBrowseToolButton groupTool;
-    private SongSelectBrowseToolButton collectionTool;
     private SongSelectModButton doubleTimeMod;
     private SongSelectModButton nightcoreMod;
     private SongSelectModButton halfTimeMod;
@@ -2299,25 +2295,6 @@ public partial class SongSelectScreen : Screen
                              .ToList();
         }
 
-        if (browserCountLabel != null)
-        {
-            int packageCount = visibleEntries
-                               .Where(entry => entry.IsPackage)
-                               .Select(entry => entry.PackageId)
-                               .Distinct(StringComparer.OrdinalIgnoreCase)
-                               .Count();
-            browserCountLabel.Text =
-                $"{visibleEntries.Count} CHARTS · "
-                + (packageCount > 0
-                    ? $"{packageCount} PACKS"
-                    : "UNGROUPED");
-            collectionTool?.SetValue(
-                $"{visibleEntries.Count} CHARTS · "
-                + (packageCount > 0
-                    ? $"{packageCount} PACKS"
-                    : "ALL BEATMAPS"));
-        }
-
         rebuildSongList();
 
         if (navigableEntries.Count > 0
@@ -2706,7 +2683,6 @@ public partial class SongSelectScreen : Screen
     private void toggleSortMode()
     {
         sortByDifficulty = !sortByDifficulty;
-        sortTool?.SetValue(sortByDifficulty ? "DIFFICULTY" : "IMPORTED");
         applyFilters();
     }
 
@@ -2728,7 +2704,6 @@ public partial class SongSelectScreen : Screen
             collapsedPackages.Clear();
         }
 
-        groupTool?.SetValue(packagesCollapsed ? "PACKS CLOSED" : "PACKS OPEN");
         rebuildSongList(animate: false);
     }
 
