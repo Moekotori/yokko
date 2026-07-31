@@ -565,7 +565,7 @@ internal partial class SongSelectPackageHeader : ClickableContainer
                 Icon = FontAwesome.Solid.Star,
                 Colour = SongSelectTheme.Yellow,
             },
-            label(packageName, 310, 21, 355, 18, Color4.White),
+            packageTitle(packageName),
             label(
                 $"{songCount} SONGS · {chartCount} CHARTS",
                 310,
@@ -584,6 +584,32 @@ internal partial class SongSelectPackageHeader : ClickableContainer
                 Colour = SongSelectTheme.Cyan,
             },
         ];
+    }
+
+    private static Drawable packageTitle(string packageName)
+    {
+        string[] lines = SongSelectTextLayout.TwoLines(packageName, 27);
+        var flow = new FillFlowContainer
+        {
+            Position = new Vector2(310, 17),
+            Width = 355,
+            AutoSizeAxes = Axes.Y,
+            Direction = FillDirection.Vertical,
+            Spacing = new Vector2(0, -1),
+        };
+        foreach (string line in lines)
+        {
+            flow.Add(new SpriteText
+            {
+                Width = 355,
+                Truncate = true,
+                Text = line,
+                Font = HomeTypography.Display(lines.Length == 1 ? 18 : 15),
+                Colour = Color4.White,
+            });
+        }
+
+        return flow;
     }
 
     private static SpriteText label(

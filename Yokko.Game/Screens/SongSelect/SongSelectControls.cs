@@ -231,14 +231,27 @@ internal partial class SongSelectFilterButton : ClickableContainer
     {
         selected = value;
         background.Colour = selected
-            ? SongSelectTheme.Navy
-            : SongSelectSurface.Ivory(0.98f);
+            ? new Color4(
+                SongSelectTheme.DeepNavy.R,
+                SongSelectTheme.DeepNavy.G,
+                SongSelectTheme.DeepNavy.B,
+                0.98f)
+            : new Color4(
+                SongSelectTheme.Surface.R,
+                SongSelectTheme.Surface.G,
+                SongSelectTheme.Surface.B,
+                0.88f);
         label.Colour = selected
-            ? Color4.White
-            : SongSelectTheme.Navy;
-        accentDot.Colour = selected
-            ? SongSelectTheme.Pink
-            : SongSelectTheme.Cyan;
+            ? SongSelectTheme.Cyan
+            : Color4.White;
+        BorderColour = selected
+            ? new Color4(
+                SongSelectTheme.Cyan.R,
+                SongSelectTheme.Cyan.G,
+                SongSelectTheme.Cyan.B,
+                0.94f)
+            : new Color4(1f, 1f, 1f, 0.26f);
+        accentDot.Colour = SongSelectTheme.Pink;
         accentDot.Alpha = showAccentDot
             ? selected ? 1 : 0.42f
             : 0;
@@ -250,7 +263,11 @@ internal partial class SongSelectFilterButton : ClickableContainer
         background.FadeColour(
             selected
                 ? new Color4(0.055f, 0.14f, 0.52f, 1f)
-                : SongSelectTheme.PaleCyan,
+                : new Color4(
+                    SongSelectTheme.SurfaceRaised.R,
+                    SongSelectTheme.SurfaceRaised.G,
+                    SongSelectTheme.SurfaceRaised.B,
+                    0.98f),
             110,
             Easing.OutQuint);
         return true;

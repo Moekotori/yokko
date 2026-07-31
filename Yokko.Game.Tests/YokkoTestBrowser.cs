@@ -597,6 +597,21 @@ namespace Yokko.Game.Tests
             // Keep screenshot fixtures intentionally tiny. Full demo beatmaps
             // invoke the production difficulty calculators and can stall a
             // visual-preview launch long enough to miss its capture window.
+            YokkoHitObject[] notes = Enumerable.Range(0, 160)
+                                                .Select(index =>
+                                                    new YokkoHitObject(
+                                                        index % (int)mode,
+                                                        index * Math.Max(
+                                                            70,
+                                                            250 - bpm),
+                                                        null,
+                                                        HitObjectKind.Tap))
+                                                .Append(new YokkoHitObject(
+                                                    0,
+                                                    396_000,
+                                                    null,
+                                                    HitObjectKind.Tap))
+                                                .ToArray();
             var beatmap = new YokkoBeatmap(
                 title,
                 artist,
@@ -606,7 +621,7 @@ namespace Yokko.Game.Tests
                 ChartSourceFormat.Yokko,
                 [new YokkoTimingPoint(0, 60000 / bpm)],
                 null,
-                []);
+                notes);
             string artwork = Path.GetFullPath(Path.Combine(
                 "Yokko.Resources",
                 "Textures",

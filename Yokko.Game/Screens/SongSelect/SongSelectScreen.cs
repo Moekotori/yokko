@@ -1884,7 +1884,7 @@ public partial class SongSelectScreen : Screen
                 Truncate = true,
                 Text = line,
                 Font = HomeTypography.Display(
-                    lines.Length == 1 ? 25 : 20),
+                    lines.Length == 1 ? 28 : 24),
                 Colour = SongSelectTheme.Navy,
             });
         }
