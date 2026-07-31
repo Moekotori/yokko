@@ -93,6 +93,9 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private bool stateInitialized;
 
     internal IReadOnlyCollection<ManiaModId> VisibleMods => nodes.Keys;
+    internal string ActiveCountText => activeCount?.Text.ToString() ?? string.Empty;
+    internal string CapacityTelemetryText =>
+        capacityTelemetry?.Text.ToString() ?? string.Empty;
     private ManiaModId? pendingTransitionMod;
     private bool pendingTransitionActive;
 
@@ -1062,7 +1065,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         };
         rail.Add(capacityTelemetry = new SpriteText
         {
-            Text = "MOD BUS // 00 OF 05",
+            Text = "MOD BUS // 00 ACTIVE",
             Font = HomeTypography.Display(12),
             Spacing = new Vector2(0.8f, 0),
             Colour = new Color4(
@@ -1428,19 +1431,22 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
         IReadOnlyList<ManiaModDefinition> definitions =
             orbitDefinitions(category);
-        Vector2[] positions =
-        [
-            new(365, 10),
-            new(498, 109),
-            new(530, 248),
-            new(505, 386),
-            new(430, 468),
-            new(150, 524),
-        ];
+        bool compact = definitions.Count > 6;
+        IReadOnlyList<Vector2> positions = compact
+            ? compactOrbitPositions(definitions.Count)
+            :
+            [
+                new(365, 10),
+                new(498, 109),
+                new(530, 248),
+                new(505, 386),
+                new(430, 468),
+                new(150, 524),
+            ];
 
         Vector2? previousNodeCentre = null;
         ManiaModId? previousMod = null;
-        for (int i = 0; i < definitions.Count && i < positions.Length; i++)
+        for (int i = 0; i < definitions.Count; i++)
         {
             ManiaModDefinition definition = definitions[i];
             Vector2 position = positions[i];
@@ -1464,7 +1470,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 accentFor(definition),
                 i + 1,
                 () => toggleMod(definition.Id),
-                () => focusMod(definition.Id))
+                () => focusMod(definition.Id),
+                compact)
             {
                 Position = position,
             };
@@ -1475,40 +1482,23 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
     private IReadOnlyList<ManiaModDefinition> orbitDefinitions(
         ManiaModCategory page)
-    {
-        ManiaModId[] showcase = page switch
-        {
-            ManiaModCategory.DifficultyIncrease =>
-            [
-                ManiaModId.HardRock,
-                ManiaModId.SuddenDeath,
-                ManiaModId.DoubleTime,
-                ManiaModId.Hidden,
-                ManiaModId.Flashlight,
-                ManiaModId.NoPause,
-            ],
-            ManiaModCategory.DifficultyReduction =>
-            [
-                ManiaModId.Easy,
-                ManiaModId.HalfTime,
-                ManiaModId.NoFail,
-                ManiaModId.NoRelease,
-                ManiaModId.Daycore,
-            ],
-            _ => [],
-        };
+        => definitionsForCategory(page)
+            .Where(definition => isSelectable(definition.Id))
+            .ToArray();
 
-        if (showcase.Length > 0)
+    private static IReadOnlyList<Vector2> compactOrbitPositions(int count)
+    {
+        var positions = new Vector2[count];
+        Vector2 centre = new(290, 310);
+        Vector2 radius = new(255, 255);
+        for (int i = 0; i < count; i++)
         {
-            return showcase
-                .Select(OsuManiaModParityCatalog.Get)
-                .ToArray();
+            float angle = MathF.PI * 2 * i / count;
+            Vector2 direction = new(MathF.Sin(angle), -MathF.Cos(angle));
+            positions[i] = centre + direction * radius - new Vector2(42);
         }
 
-        return definitionsForCategory(page)
-            .Where(definition => isSelectable(definition.Id))
-            .Take(6)
-            .ToArray();
+        return positions;
     }
 
     private void updateHero(bool activated, bool deactivated)
@@ -1578,17 +1568,17 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private void updateActiveRows(IReadOnlySet<ManiaModId> activated)
     {
         activeRows.Clear();
-        ManiaModId[] active = selectedMods.Mods
+        ManiaModId[] allActive = selectedMods.Mods
             .Where(mod => !isKeyConversionMod(mod))
             .OrderBy(mod => (int)mod)
-            .Take(5)
             .ToArray();
-        activeCount.Text = $"({active.Length}/5)";
-        capacityTelemetry.Text = $"MOD BUS // {active.Length:00} OF 05";
+        ManiaModId[] visibleActive = allActive.Take(5).ToArray();
+        activeCount.Text = $"({allActive.Length} ACTIVE)";
+        capacityTelemetry.Text = $"MOD BUS // {allActive.Length:00} ACTIVE";
         for (int i = 0; i < capacityDots.Count; i++)
         {
             capacityDots[i].FadeColour(
-                i < active.Length
+                i < Math.Min(allActive.Length, capacityDots.Count)
                     ? HomeControlColours.Cyan
                     : new Color4(
                         HomeControlColours.Navy.R,
@@ -1600,10 +1590,10 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
         for (int i = 0; i < 5; i++)
         {
-            if (i < active.Length)
+            if (i < visibleActive.Length)
             {
                 ManiaModDefinition definition =
-                    OsuManiaModParityCatalog.Get(active[i]);
+                    OsuManiaModParityCatalog.Get(visibleActive[i]);
                 var row = new OrbitActiveModRow(
                     definition,
                     accentFor(definition),
@@ -2482,6 +2472,7 @@ internal partial class OrbitSignalScanner : CompositeDrawable
 
 internal partial class OrbitModNode : ClickableContainer
 {
+    private readonly bool compact;
     private readonly Color4 accent;
     private readonly Circle shadow;
     private readonly Circle activationBurst;
@@ -2512,14 +2503,16 @@ internal partial class OrbitModNode : ClickableContainer
         Color4 accent,
         int index,
         Action action,
-        Action focus)
+        Action focus,
+        bool compact = false)
     {
         ModId = definition.Id;
         presentationMod = definition.Id;
         this.accent = accent;
         this.focus = focus;
+        this.compact = compact;
         Action = action;
-        Size = new Vector2(284, 86);
+        Size = compact ? new Vector2(88) : new Vector2(284, 86);
         InternalChildren =
         [
             shadow = new Circle
@@ -2665,6 +2658,11 @@ internal partial class OrbitModNode : ClickableContainer
             },
         ];
         description.AddText(YokkoStrings.ModDescription(definition));
+        if (compact)
+        {
+            name.Alpha = 0;
+            description.Alpha = 0;
+        }
     }
 
     internal void SetPresentation(ManiaModDefinition definition)
@@ -2681,7 +2679,8 @@ internal partial class OrbitModNode : ClickableContainer
         acronym.ScaleTo(0.82f)
                .Then().ScaleTo(1.08f, 150, Easing.OutBack)
                .Then().ScaleTo(1, 90, Easing.OutQuint);
-        name.FlashColour(accent, 220);
+        if (!compact)
+            name.FlashColour(accent, 220);
     }
 
     internal void SetState(
@@ -2844,7 +2843,8 @@ internal partial class OrbitModNode : ClickableContainer
     {
         focus();
         this.ScaleTo(1.05f, 100, Easing.OutQuint);
-        description.FadeTo(1, 80);
+        if (!compact)
+            description.FadeTo(1, 80);
         shadow.FadeTo(0.17f, 90);
         shadow.MoveTo(new Vector2(5, 9), 100, Easing.OutQuint);
         surface.BorderColour = accent;

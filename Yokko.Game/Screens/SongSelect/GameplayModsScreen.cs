@@ -174,6 +174,12 @@ internal partial class GameplayModsScreen : Screen
         visibleItems.ContainsKey(mod);
     internal bool IsOrbitModVisible(ManiaModId mod) =>
         orbitWorkspace?.VisibleMods.Contains(mod) == true;
+    internal int VisibleOrbitModCount =>
+        orbitWorkspace?.VisibleMods.Count ?? 0;
+    internal string OrbitActiveCountText =>
+        orbitWorkspace?.ActiveCountText ?? string.Empty;
+    internal string OrbitCapacityTelemetryText =>
+        orbitWorkspace?.CapacityTelemetryText ?? string.Empty;
     internal bool IsPageTransitioning => pageTransitioning;
     internal float OrbitContentX => orbitWorkspace?.OrbitContentX ?? 335;
     internal string SearchQuery => searchQuery;

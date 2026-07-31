@@ -435,6 +435,38 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             && modsScreen.IsOrbitModVisible(ManiaModId.NoPause)
             && !modsScreen.IsOrbitModVisible(ManiaModId.Easy)
             && !modsScreen.IsOrbitModVisible(ManiaModId.HalfTime));
+        AddAssert("all increase mods remain reachable", () =>
+            modsScreen.VisibleOrbitModCount == 11
+            && modsScreen.IsOrbitModVisible(ManiaModId.Perfect)
+            && modsScreen.IsOrbitModVisible(ManiaModId.Nightcore)
+            && modsScreen.IsOrbitModVisible(ManiaModId.FadeIn)
+            && modsScreen.IsOrbitModVisible(ManiaModId.Cover)
+            && modsScreen.IsOrbitModVisible(ManiaModId.AccuracyChallenge));
+
+        AddStep("show conversion", () =>
+            modsScreen.SetCategory(ManiaModCategory.Conversion));
+        AddAssert("conversion does not truncate late mods", () =>
+            modsScreen.IsOrbitModVisible(ManiaModId.ConstantSpeed)
+            && modsScreen.IsOrbitModVisible(ManiaModId.HoldOff));
+
+        AddStep("select more than five compatible mods", () =>
+        {
+            modsScreen.ResetMods();
+            modsScreen.ToggleMod(ManiaModId.HardRock);
+            modsScreen.ToggleMod(ManiaModId.DoubleTime);
+            modsScreen.ToggleMod(ManiaModId.Hidden);
+            modsScreen.ToggleMod(ManiaModId.Mirror);
+            modsScreen.ToggleMod(ManiaModId.ConstantSpeed);
+            modsScreen.ToggleMod(ManiaModId.NoPause);
+        });
+        AddAssert("active rail reports the real count", () =>
+            modsScreen.OrbitActiveCountText == "(6 ACTIVE)"
+            && modsScreen.OrbitCapacityTelemetryText
+                == "MOD BUS // 06 ACTIVE");
+
+        AddStep("restore corrected increase page", () =>
+            modsScreen.SetCategory(
+                ManiaModCategory.DifficultyIncrease));
         AddWaitStep("settle corrected increase page", 20);
         AddStep("capture corrected increase page", captureScreenshot);
         AddUntilStep("screenshot saved", () => screenshotSaved);

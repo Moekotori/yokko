@@ -139,7 +139,9 @@ internal partial class SongSelectSongRow : PoolableDrawable
             Masking = true,
             CornerRadius = 8,
             BorderThickness = 2,
-            BorderColour = compact ? accent : SongSelectTheme.Cyan,
+            BorderColour = compact
+                ? SongSelectTheme.Yellow
+                : SongSelectTheme.Cyan,
             Alpha = 0,
             Child = new Box
             {

@@ -2242,7 +2242,7 @@ public partial class SongSelectScreen : Screen
                 Truncate = true,
                 Text = line,
                 Font = HomeTypography.Display(
-                    lines.Length == 1 ? 28 : 24),
+                    lines.Length == 1 ? 28 : 21),
                 Colour = SongSelectTheme.Navy,
             });
         }
