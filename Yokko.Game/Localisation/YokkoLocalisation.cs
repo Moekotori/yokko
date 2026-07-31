@@ -437,9 +437,9 @@ internal static class YokkoStrings
                 "osu!mania 流速",
                 "osu!mania スクロール速度"),
             ["settings.general.mania_scroll_speed_note"] = new(
-                "Uses osu!mania's 1–40 scale · Ctrl + / Ctrl − or F3 / F4 during gameplay.",
-                "使用 osu!mania 的 1–40 档位 · 游玩时按 Ctrl + / Ctrl − 或 F3 / F4 调节。",
-                "osu!mania と同じ 1–40 段階 · プレイ中は Ctrl + / Ctrl − または F3 / F4。"),
+                "Switch between the original 1–40 scale and advanced 1 ms tuning · Ctrl + / Ctrl − or F3 / F4 in gameplay.",
+                "可切换原版 1–40 档位与进阶 1 ms 精调 · 游玩时按 Ctrl + / Ctrl − 或 F3 / F4。",
+                "従来の 1–40 段階と上級 1 ms 微調整を切替 · プレイ中は Ctrl + / Ctrl − または F3 / F4。"),
             ["settings.language.english"] = new("English", "English", "English"),
             ["settings.language.chinese"] = new("简体中文", "简体中文", "简体中文"),
             ["settings.language.japanese"] = new("日本語", "日本語", "日本語"),
@@ -986,11 +986,22 @@ internal static class YokkoStrings
                 "{0}/{1} keys currently detected · hold combinations to check rollover",
                 "当前检测到 {0}/{1} 键 · 可按住组合键检查多键识别",
                 "現在 {0}/{1} キーを検出 · 同時押しでロールオーバーを確認"),
-            ["settings.gameplay.scroll_speed"] = new("Note speed", "音符速度", "ノーツ速度"),
+            ["settings.gameplay.scroll_speed"] = new(
+                "Note speed",
+                "音符速度",
+                "ノーツ速度"),
             ["settings.gameplay.scroll_speed_note"] = new(
-                "osu!mania 1–40 scale · Ctrl + / Ctrl − or F3 / F4.",
-                "osu!mania 1–40 档位 · Ctrl + / Ctrl − 或 F3 / F4。",
-                "osu!mania の 1–40 段階 · Ctrl + / Ctrl − または F3 / F4。"),
+                "Original 1–40 scale or advanced 1 ms tuning · lower ms is faster.",
+                "原版 1–40 档位或进阶 1 ms 精调 · ms 越小速度越快。",
+                "従来の 1–40 段階または上級 1 ms 微調整 · ms が小さいほど高速。"),
+            ["settings.gameplay.scroll_speed_mode_scale"] = new(
+                "1–40 SCALE",
+                "1–40 档位",
+                "1–40 段階"),
+            ["settings.gameplay.scroll_speed_mode_milliseconds"] = new(
+                "ADVANCED · 1 MS",
+                "进阶 · 1 MS",
+                "上級 · 1 MS"),
             ["settings.gameplay.playback_rate_heading"] = new(
                 "Shortcut rate mode",
                 "快捷键倍速模式",

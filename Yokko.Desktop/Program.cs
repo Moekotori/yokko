@@ -10,19 +10,26 @@ namespace Yokko.Desktop
 {
     public static class Program
     {
-        public static void Main()
+        public static void Main(string[] args)
         {
             using var crashReports = new CrashReportHandler(
                 Assembly.GetExecutingAssembly());
 
             try
             {
+                if (OperatingSystem.IsWindows())
+                {
+                    WindowsFileAssociationRegistrar.TryRegister(
+                        Environment.ProcessPath);
+                }
+
                 using (GameHost host = Host.GetSuitableDesktopHost(@"Yokko"))
                 using (osu.Framework.Game game = new YokkoGame(
                            new WindowsRawKeyboardTimestampBackend(),
                            gameStorage => crashReports.SetStoragePaths(
                                gameStorage.GetFullPath("crashes", true),
-                               gameStorage.GetFullPath("logs", true))))
+                               gameStorage.GetFullPath("logs", true)),
+                           StartupFileArguments.Resolve(args)))
                     host.Run(game);
             }
             catch (Exception exception)

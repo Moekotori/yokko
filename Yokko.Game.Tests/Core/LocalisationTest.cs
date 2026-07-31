@@ -73,6 +73,7 @@ public class LocalisationTest
     {
         Assert.That(HomeTypography.Body(16).Family, Is.EqualTo("Roboto"));
         Assert.That(HomeTypography.Display(16).Family, Is.EqualTo("Roboto"));
+        Assert.That(HomeTypography.SearchInput(16).Family, Is.EqualTo("YokkoInput"));
         Assert.That(HomeTypography.Display(6).Size, Is.EqualTo(14));
         Assert.That(HomeTypography.Body(16).Size, Is.EqualTo(20.8f)
             .Within(0.001f));
@@ -111,7 +112,7 @@ public class LocalisationTest
     public void SearchInputFontContainsRepresentativeChineseGlyphs()
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
-        using Stream stream = resources.GetStream("Fonts/Yokko/Yokko.bin");
+        using Stream stream = resources.GetStream("Fonts/YokkoInput/YokkoInput.bin");
         HashSet<int> glyphs = readGlyphCodepoints(stream);
         const string searchInput = "中文输入测试搜索窗口显示音频键盘皮肤导入优化";
 

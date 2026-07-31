@@ -31,6 +31,9 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
     internal double CurrentScrollSpeed =>
         gameplaySettings.ScrollSpeed.Value;
 
+    internal ScrollSpeedAdjustmentMode CurrentScrollSpeedAdjustmentMode =>
+        gameplaySettings.ScrollSpeedAdjustmentMode.Value;
+
     public GeneralSettingsPanel(
         Bindable<string> locale,
         YokkoGameplaySettings gameplaySettings)
@@ -67,7 +70,12 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                     OsuManiaScrollSpeed.ShortcutStep,
                     OsuManiaScrollSpeed.Minimum,
                     OsuManiaScrollSpeed.Maximum,
-                    formatScrollSpeed)
+                    formatScrollSpeed,
+                    adjustmentMode:
+                        gameplaySettings.ScrollSpeedAdjustmentMode,
+                    alternateAdjustValue:
+                        gameplaySettings.AdjustScrollTimeMilliseconds,
+                    alternateFormatter: formatScrollTime)
                 {
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
@@ -113,8 +121,18 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
     internal void SetScrollSpeed(double speed) =>
         gameplaySettings.SetScrollSpeed(speed);
 
+    internal void SetScrollTimeMilliseconds(double milliseconds) =>
+        gameplaySettings.SetScrollTimeMilliseconds(milliseconds);
+
+    internal void SetScrollSpeedAdjustmentMode(
+        ScrollSpeedAdjustmentMode mode) =>
+        gameplaySettings.ScrollSpeedAdjustmentMode.Value = mode;
+
     private static string formatScrollSpeed(double speed) =>
-        $"{(int)OsuManiaScrollSpeed.ComputeScrollTime(speed)} ms  ·  {speed:0.0}";
+        $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(speed)):0} ms  ·  {speed:0.0}";
+
+    private static string formatScrollTime(double speed) =>
+        $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(speed)):0} ms";
 
     private Drawable createLanguageControl()
     {

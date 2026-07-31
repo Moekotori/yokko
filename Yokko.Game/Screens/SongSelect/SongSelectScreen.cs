@@ -229,6 +229,8 @@ public partial class SongSelectScreen : Screen
     private void load(TextureStore textureStore)
     {
         textures = textureStore;
+        selectedMods =
+            modPreferences?.RestoreActiveMods() ?? ManiaModSet.Empty;
         previewPlayer = new SongSelectPreviewPlayer(
             suppliedPreviewAudioEngine ?? AudioEngineFactory.CreateDefault(),
             audioSettings);
@@ -432,10 +434,17 @@ public partial class SongSelectScreen : Screen
         if (selectedEntry == null)
             return;
 
+        ManiaModSet gameplayMods = selectedMods;
         var gameplay = new GameplaySessionScreen(new GameplayScreen(
             selectedEntry.Beatmap,
-            mods: selectedMods,
+            mods: gameplayMods,
             cinemaArtworkPath: selectedEntry.WallpaperTexture));
+        selectedMods =
+            YokkoManiaModPreferences.SelectPersistentActiveMods(
+                gameplayMods);
+        updateModSelection();
+        if (hoveredMod == null)
+            showModPanelSummary();
         stopPreviewThen(() => this.Push(gameplay));
     }
 
@@ -885,6 +894,7 @@ public partial class SongSelectScreen : Screen
     private void onSelectedModsChanged()
     {
         modPreferences?.Remember(selectedMods);
+        modPreferences?.RememberActiveMods(selectedMods);
         updateModSelection();
         playSelectedPreview();
         if (hoveredMod == null)
@@ -897,6 +907,7 @@ public partial class SongSelectScreen : Screen
     private void onPlaybackRateShortcutChanged()
     {
         modPreferences?.Remember(selectedMods);
+        modPreferences?.RememberActiveMods(selectedMods);
         updateModSelection();
         if (previewActive
             && previewPlayer?.TryUpdatePlaybackRate(

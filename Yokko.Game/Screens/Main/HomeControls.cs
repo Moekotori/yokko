@@ -30,6 +30,8 @@ internal static class HomeTypography
 
     public static FontUsage Body(float size) => new("Roboto", readableSize(size));
 
+    public static FontUsage SearchInput(float size) => new("YokkoInput", readableSize(size));
+
     public static FontUsage Brand(float size) => new("Roboto", readableSize(size), "Bold");
 
     // 贴纸气泡用的粗海报体（Archivo Black 位图图集，CJK 自动回退 Yokko 字体）。

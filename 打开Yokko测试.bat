@@ -29,6 +29,10 @@ echo [Yokko] Building the native audio engine...
 powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\build-native-audio.ps1" -Configuration Debug -RequireAsio -AcceptAsioGpl3
 if errorlevel 1 goto failed
 
+echo [Yokko] Building the Etterna MinaCalc difficulty engine...
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\build-native-minacalc.ps1" -Configuration Debug
+if errorlevel 1 goto failed
+
 echo [Yokko] Restoring desktop solution...
 dotnet restore ".\Yokko.Desktop.slnf"
 if errorlevel 1 goto failed

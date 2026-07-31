@@ -348,7 +348,10 @@ namespace Yokko.Game.Tests.Visual
         public void TestGameplayPreferencesAreInteractive()
         {
             GameplaySettingsPanel gameplay = null;
+            GameplayStepperModeButton scrollSpeedModeButton = null;
             double originalSpeed = OsuManiaScrollSpeed.Default;
+            ScrollSpeedAdjustmentMode originalAdjustmentMode =
+                ScrollSpeedAdjustmentMode.OsuManiaScale;
             bool originalLaneFeedback = true;
             bool originalTimingBar = true;
             bool originalKeysoundsEnabled = true;
@@ -366,6 +369,8 @@ namespace Yokko.Game.Tests.Visual
             {
                 gameplay = (GameplaySettingsPanel)settingsScreen.ActivePanel;
                 originalSpeed = gameplay.CurrentScrollSpeed;
+                originalAdjustmentMode =
+                    gameplay.CurrentScrollSpeedAdjustmentMode;
                 originalLaneFeedback = gameplay.ShowLanePressFeedback;
                 originalTimingBar = gameplay.ShowTimingBar;
                 originalKeysoundsEnabled = gameplay.KeysoundsEnabled;
@@ -383,10 +388,27 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SelectSection(GameplaySettingsSection.Timing));
             AddAssert("timing selected", () =>
                 gameplay.CurrentSection == GameplaySettingsSection.Timing);
-            AddStep("set osu mania speed 26", () =>
-                gameplay.SetScrollSpeed(26));
-            AddAssert("speed changed", () =>
-                gameplay.CurrentScrollSpeed == 26);
+            AddStep("start from original scroll scale", () =>
+                gameplay.SetScrollSpeedAdjustmentMode(
+                    ScrollSpeedAdjustmentMode.OsuManiaScale));
+            AddStep("capture scroll mode switch", () =>
+                scrollSpeedModeButton = gameplay
+                    .ChildrenOfType<GameplayStepperModeButton>()
+                    .Single());
+            AddAssert("advanced mode starts off", () =>
+                scrollSpeedModeButton.DisplayedMode
+                    == ScrollSpeedAdjustmentMode.OsuManiaScale);
+            AddStep("click advanced ms tuning", () =>
+                scrollSpeedModeButton.TriggerClick());
+            AddStep("set approach time to 442 ms", () =>
+                gameplay.SetScrollTimeMilliseconds(442));
+            AddAssert("advanced millisecond mode changed time", () =>
+                gameplay.CurrentScrollSpeedAdjustmentMode
+                    == ScrollSpeedAdjustmentMode.Milliseconds
+                &&
+                System.Math.Abs(
+                    OsuManiaScrollSpeed.ComputeScrollTime(
+                        gameplay.CurrentScrollSpeed) - 442) < 0.02);
             AddStep("open playback rate", () =>
                 gameplay.SelectSection(
                     GameplaySettingsSection.PlaybackRate));
@@ -459,6 +481,8 @@ namespace Yokko.Game.Tests.Visual
             {
                 gameplay.ResetSelectedBindings();
                 gameplay.SetScrollSpeed(originalSpeed);
+                gameplay.SetScrollSpeedAdjustmentMode(
+                    originalAdjustmentMode);
                 gameplay.SetJudgementMode(originalJudgementMode);
                 gameplay.SetEtternaJustice(originalEtternaJustice);
                 gameplay.SetManualPlaybackRatePitchMode(
@@ -759,6 +783,8 @@ namespace Yokko.Game.Tests.Visual
         {
             GeneralSettingsPanel general = null;
             double originalSpeed = OsuManiaScrollSpeed.Default;
+            ScrollSpeedAdjustmentMode originalAdjustmentMode =
+                ScrollSpeedAdjustmentMode.OsuManiaScale;
 
             AddStep("open General", () =>
                 settingsScreen.OpenPage(SettingsPageKind.General));
@@ -766,13 +792,27 @@ namespace Yokko.Game.Tests.Visual
             {
                 general = (GeneralSettingsPanel)settingsScreen.ActivePanel;
                 originalSpeed = general.CurrentScrollSpeed;
+                originalAdjustmentMode =
+                    general.CurrentScrollSpeedAdjustmentMode;
             });
-            AddStep("set osu mania speed 24", () =>
-                general.SetScrollSpeed(24));
-            AddAssert("general speed changed", () =>
-                general.CurrentScrollSpeed == 24);
+            AddStep("enable advanced ms tuning", () =>
+                general.SetScrollSpeedAdjustmentMode(
+                    ScrollSpeedAdjustmentMode.Milliseconds));
+            AddStep("set approach time to 479 ms", () =>
+                general.SetScrollTimeMilliseconds(479));
+            AddAssert("general advanced mode changed time", () =>
+                general.CurrentScrollSpeedAdjustmentMode
+                    == ScrollSpeedAdjustmentMode.Milliseconds
+                &&
+                System.Math.Abs(
+                    OsuManiaScrollSpeed.ComputeScrollTime(
+                        general.CurrentScrollSpeed) - 479) < 0.02);
             AddStep("restore speed", () =>
-                general.SetScrollSpeed(originalSpeed));
+            {
+                general.SetScrollSpeed(originalSpeed);
+                general.SetScrollSpeedAdjustmentMode(
+                    originalAdjustmentMode);
+            });
         }
 
         [Test]

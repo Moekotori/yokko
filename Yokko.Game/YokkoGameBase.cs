@@ -194,6 +194,7 @@ namespace Yokko.Game
             Resources.AddStore(resources);
             AddFont(Resources, @"Fonts/Yokko/Yokko");
             AddFont(Resources, @"Fonts/Yokko/Yokko-Bold");
+            AddFont(Resources, @"Fonts/YokkoInput/YokkoInput");
             AddFont(Resources, @"Fonts/ArchivoBlack/ArchivoBlack");
             _ = Task.Run(() => importedChartLibrary.LoadFromDiskAsync(
                 importSettings.PreferKeysounds.Value,
@@ -232,7 +233,9 @@ namespace Yokko.Game
             base.Dispose(isDisposing);
         }
 
-        private void onFileDropped(string path)
+        private void onFileDropped(string path) => OpenExternalPath(path);
+
+        protected void OpenExternalPath(string path)
         {
             if (Path.GetExtension(path).Equals(
                     YokkoReplayIO.FileExtension,

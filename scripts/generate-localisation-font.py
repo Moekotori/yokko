@@ -24,7 +24,8 @@ FONT_URLS = {
         f"{CHILL_ROUND_GOTHIC_COMMIT}/ttf/ChillRoundGothic_Bold.ttf"
     ),
 }
-FONT_SIZE = 64
+LOCALISATION_FONT_SIZE = 64
+SEARCH_FONT_SIZE = 40
 ATLAS_WIDTH = 2048
 PADDING = 4
 
@@ -56,7 +57,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def collect_characters(strings_path: Path) -> list[str]:
+def collect_localisation_characters(strings_path: Path) -> list[str]:
     source = strings_path.read_text(encoding="utf-8")
     characters = set(chr(codepoint) for codepoint in range(32, 127))
 
@@ -69,11 +70,16 @@ def collect_characters(strings_path: Path) -> list[str]:
         )
         characters.update(character for character in decoded if ord(character) >= 127)
 
+    return sorted(characters, key=ord)
+
+
+def collect_search_characters(strings_path: Path) -> list[str]:
+    characters = set(collect_localisation_characters(strings_path))
+
     # Text boxes accept user-provided text, so a localisation-only subset is
-    # insufficient: perfectly valid Chinese IME input would otherwise render
-    # as replacement glyphs. GB2312 level 1 contains the 3,755 most commonly
-    # used Simplified Chinese characters while keeping the bitmap atlas
-    # practical for desktop GPUs.
+    # insufficient. GB2312 level 1 contains the 3,755 most commonly used
+    # Simplified Chinese characters. It is emitted as a separate, smaller
+    # regular-weight atlas so normal UI text does not pay this memory cost.
     for lead in range(0xB0, 0xD8):
         for trail in range(0xA1, 0xFF):
             try:
@@ -94,8 +100,14 @@ def next_power_of_two(value: int) -> int:
     return 1 << max(0, value - 1).bit_length()
 
 
-def render_font(font_path: Path, font_name: str, characters: list[str], output: Path) -> None:
-    font = ImageFont.truetype(str(font_path), FONT_SIZE)
+def render_font(
+    font_path: Path,
+    font_name: str,
+    characters: list[str],
+    output: Path,
+    font_size: int,
+) -> None:
+    font = ImageFont.truetype(str(font_path), font_size)
     ascent, descent = font.getmetrics()
     line_height = ascent + descent
     baseline = ascent
@@ -166,6 +178,7 @@ def render_font(font_path: Path, font_name: str, characters: list[str], output: 
         baseline,
         ATLAS_WIDTH,
         atlas_height,
+        font_size,
         glyphs,
     )
 
@@ -182,13 +195,14 @@ def write_binary_font(
     baseline: int,
     atlas_width: int,
     atlas_height: int,
+    font_size: int,
     glyphs: list[Glyph],
 ) -> None:
     bold = font_name.endswith("-Bold")
     info_flags = 0b00000011 | (0b00001000 if bold else 0)
     info = struct.pack(
         "<hBBHBBBBBBBB",
-        FONT_SIZE,
+        font_size,
         info_flags,
         0,
         100,
@@ -242,7 +256,8 @@ def write_binary_font(
 
 def main() -> None:
     args = parse_args()
-    characters = collect_characters(args.strings)
+    localisation_characters = collect_localisation_characters(args.strings)
+    search_characters = collect_search_characters(args.strings)
 
     cache = (
         Path.home()
@@ -256,9 +271,26 @@ def main() -> None:
         font_path = cache / f"{font_name}.ttf"
         if not font_path.exists():
             download_font(url, font_path)
-        render_font(font_path, font_name, characters, args.output)
+        render_font(
+            font_path,
+            font_name,
+            localisation_characters,
+            args.output,
+            LOCALISATION_FONT_SIZE,
+        )
 
-    print(f"Generated {len(characters)} glyphs per font in {args.output}")
+    render_font(
+        cache / "Yokko.ttf",
+        "YokkoInput",
+        search_characters,
+        args.output.parent / "YokkoInput",
+        SEARCH_FONT_SIZE,
+    )
+
+    print(
+        f"Generated {len(localisation_characters)} localisation glyphs per font "
+        f"and {len(search_characters)} search glyphs"
+    )
 
 
 if __name__ == "__main__":

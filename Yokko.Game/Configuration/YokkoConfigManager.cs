@@ -54,6 +54,7 @@ internal enum YokkoSetting
     ManiaRetryKey,
     ManiaWatchReplayKey,
     ManiaScrollSpeed,
+    ManiaScrollSpeedAdjustmentMode,
     QuaverScrollRateNormalization,
     GameplayJudgementMode,
     GameplayEtternaJustice,
@@ -79,6 +80,7 @@ internal enum YokkoSetting
     GameplayResumeCountdownEnabled,
     GameplayResumeCountdownMilliseconds,
     ManiaModConfiguration,
+    ManiaActiveMods,
     DisplayUiScale,
     DisplayFrameLimit,
     DisplayShowPerformanceReadout,
@@ -161,6 +163,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             OsuManiaScrollSpeed.Minimum,
             OsuManiaScrollSpeed.Maximum,
             OsuManiaScrollSpeed.SettingsPrecision);
+        SetDefault(
+            YokkoSetting.ManiaScrollSpeedAdjustmentMode,
+            ScrollSpeedAdjustmentMode.OsuManiaScale);
         SetDefault(
             YokkoSetting.QuaverScrollRateNormalization,
             0.0,
@@ -276,6 +281,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoGameplaySettings.MaximumResumeCountdownMilliseconds,
             YokkoGameplaySettings.ResumeCountdownStepMilliseconds);
         SetDefault(YokkoSetting.ManiaModConfiguration, string.Empty);
+        SetDefault(YokkoSetting.ManiaActiveMods, string.Empty);
         SetDefault(YokkoSetting.DisplayUiScale, YokkoUiScale.Comfortable);
         SetDefault(
             YokkoSetting.DisplayFrameLimit,
@@ -410,6 +416,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             settings.WatchReplayKey);
         BindWith(YokkoSetting.ManiaScrollSpeed, settings.ScrollSpeed);
         BindWith(
+            YokkoSetting.ManiaScrollSpeedAdjustmentMode,
+            settings.ScrollSpeedAdjustmentMode);
+        BindWith(
             YokkoSetting.QuaverScrollRateNormalization,
             settings.QuaverScrollRateNormalization);
         BindWith(
@@ -500,6 +509,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.ManiaModConfiguration,
             preferences.SerializedConfiguration);
+        BindWith(
+            YokkoSetting.ManiaActiveMods,
+            preferences.SerializedActiveMods);
     }
 
     public void BindSkinSettings(YokkoSkinSettings settings)

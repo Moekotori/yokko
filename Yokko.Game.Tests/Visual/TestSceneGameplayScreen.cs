@@ -2132,6 +2132,41 @@ LightingLWidth: 20,20,20,20
         }
 
         [Test]
+        public void TestDisabledAdditionalLongNoteCutDoesNotAffectGameplay()
+        {
+            bool originalCutEnabled = false;
+            double originalCutAmount = 0;
+
+            AddStep("store disabled extra LN cut", () =>
+            {
+                originalCutEnabled = skinSettings.LongNoteCutEnabled.Value;
+                originalCutAmount = skinSettings.LongNoteCutAmount.Value;
+                skinSettings.LongNoteCutEnabled.Value = false;
+                skinSettings.LongNoteCutAmount.Value = 1.4;
+            });
+            AddStep("open hold chart", () =>
+                screenStack.Push(new GameplayScreen(
+                    createHoldDemo(KeyMode.FourKey))));
+            AddUntilStep("disabled cut keeps original geometry", () =>
+            {
+                DrawableNote hold = (screenStack.CurrentScreen as Drawable)?
+                                    .ChildrenOfType<GameplayPlayfield>()
+                                    .SingleOrDefault()?
+                                    .GetDrawableNote(0);
+
+                return hold != null
+                       && Math.Abs(hold.AppliedLongNoteCutDistance) < 0.01;
+            });
+            AddStep("restore extra LN cut", () =>
+            {
+                skinSettings.LongNoteCutEnabled.Value =
+                    originalCutEnabled;
+                skinSettings.LongNoteCutAmount.Value =
+                    originalCutAmount;
+            });
+        }
+
+        [Test]
         public void TestLegacyRepeatBottomPreservesBodyStart()
         {
             string skinPath = null;
@@ -2953,6 +2988,8 @@ HitPosition: 400
         public void TestOsuManiaScrollSpeedShortcuts()
         {
             double originalSpeed = OsuManiaScrollSpeed.Default;
+            ScrollSpeedAdjustmentMode originalAdjustmentMode =
+                ScrollSpeedAdjustmentMode.OsuManiaScale;
             Key originalDecreaseKey = Key.F3;
             Key originalIncreaseKey = Key.F4;
             GameplayScreen gameplayScreen = null;
@@ -2961,12 +2998,16 @@ HitPosition: 400
             AddStep("save and open fresh gameplay", () =>
             {
                 originalSpeed = gameplaySettings.ScrollSpeed.Value;
+                originalAdjustmentMode =
+                    gameplaySettings.ScrollSpeedAdjustmentMode.Value;
                 originalDecreaseKey =
                     gameplaySettings.DecreaseScrollSpeedKey.Value;
                 originalIncreaseKey =
                     gameplaySettings.IncreaseScrollSpeedKey.Value;
                 gameplaySettings.ResetShortcutBindings();
                 gameplaySettings.SetScrollSpeed(8);
+                gameplaySettings.ScrollSpeedAdjustmentMode.Value =
+                    ScrollSpeedAdjustmentMode.OsuManiaScale;
                 gameplayScreen = new GameplayScreen(
                     DemoBeatmaps.CreateFourKeyDemo());
                 screenStack.Push(gameplayScreen);
@@ -2993,20 +3034,21 @@ HitPosition: 400
                     false));
             AddAssert("plain plus keeps speed 8", () =>
                 gameplaySettings.ScrollSpeed.Value == 8);
-            AddStep("ctrl plus increases speed", () =>
+            AddStep("ctrl plus uses original scale", () =>
                 gameplayScreen.HandleScrollSpeedShortcut(
                     Key.Plus,
                     true));
-            AddAssert("speed is 9", () =>
+            AddAssert("original scale reaches speed 9", () =>
                 gameplaySettings.ScrollSpeed.Value == 9);
-            AddAssert("speed overlay shows value and time range", () =>
+            AddAssert("speed overlay keeps original scale display", () =>
                 speedOverlay.DisplayedSpeed == 9
                 && speedOverlay.DisplayedTimeRangeMilliseconds
-                   == (int)OsuManiaScrollSpeed.ComputeScrollTime(9)
+                   == (int)Math.Round(
+                       OsuManiaScrollSpeed.ComputeScrollTime(9))
                 && !speedOverlay.IsLocked
                 && speedOverlay.DisplayedLabel == "SCROLL SPEED"
                 && speedOverlay.DisplayedDetail
-                   == $"{(int)OsuManiaScrollSpeed.ComputeScrollTime(9)} ms"
+                   == $"{(int)Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(9))} ms"
                 && speedOverlay.Alpha > 0);
             AddWaitStep("let speed ticket settle", 8);
             AddStep("capture speed ticket when requested", () =>
@@ -3038,25 +3080,36 @@ HitPosition: 400
                                .ChildrenOfType<GameplayPlayfield>()
                                .Single()
                                .ApproachTimeMilliseconds -
-                    OsuManiaScrollSpeed.ComputeScrollTime(9)) < 0.001);
-            AddStep("ctrl minus decreases speed", () =>
+                    OsuManiaScrollSpeed.ComputeScrollTime(
+                        gameplaySettings.ScrollSpeed.Value)) < 0.001);
+            AddStep("ctrl minus restores original scale", () =>
                 gameplayScreen.HandleScrollSpeedShortcut(
                     Key.Minus,
                     true));
-            AddAssert("speed is 8 again", () =>
+            AddAssert("original scale returns to 8", () =>
                 gameplaySettings.ScrollSpeed.Value == 8);
-            AddStep("F4 matches osu gameplay shortcut", () =>
+            AddStep("switch to advanced millisecond mode", () =>
+                gameplaySettings.ScrollSpeedAdjustmentMode.Value =
+                    ScrollSpeedAdjustmentMode.Milliseconds);
+            AddStep("F4 shortens by one millisecond", () =>
                 gameplayScreen.HandleScrollSpeedShortcut(
                     Key.F4,
                     false));
-            AddAssert("F4 speed is 9", () =>
-                gameplaySettings.ScrollSpeed.Value == 9);
-            AddStep("F3 restores speed 8", () =>
+            AddAssert("F4 shortens to 1435 ms", () =>
+                Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(
+                    gameplaySettings.ScrollSpeed.Value)) == 1435);
+            AddAssert("advanced overlay leads with milliseconds", () =>
+                speedOverlay.DisplayedTimeRangeMilliseconds == 1435
+                && speedOverlay.DisplayedLabel == "SCROLL TIME"
+                && speedOverlay.DisplayedDetail
+                   == $"ms · {gameplaySettings.ScrollSpeed.Value:0.000}");
+            AddStep("F3 restores 1436 ms", () =>
                 gameplayScreen.HandleScrollSpeedShortcut(
                     Key.F3,
                     false));
-            AddAssert("F3 speed is 8", () =>
-                gameplaySettings.ScrollSpeed.Value == 8);
+            AddAssert("F3 time is 1436 ms", () =>
+                Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(
+                    gameplaySettings.ScrollSpeed.Value)) == 1436);
             AddStep("customise Mania speed shortcuts", () =>
             {
                 gameplaySettings.SetShortcutBinding(
@@ -3070,29 +3123,34 @@ HitPosition: 400
                 gameplayScreen.HandleScrollSpeedShortcut(
                     Key.F4,
                     false));
-            AddAssert("old key keeps speed 8", () =>
-                gameplaySettings.ScrollSpeed.Value == 8);
+            AddAssert("old key keeps 1436 ms", () =>
+                Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(
+                    gameplaySettings.ScrollSpeed.Value)) == 1436);
             AddStep("custom F8 increases speed", () =>
                 gameplayScreen.HandleScrollSpeedShortcut(
                     Key.F8,
                     false));
-            AddAssert("custom increase reaches 9", () =>
-                gameplaySettings.ScrollSpeed.Value == 9);
+            AddAssert("custom increase reaches 1435 ms", () =>
+                Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(
+                    gameplaySettings.ScrollSpeed.Value)) == 1435);
             AddStep("custom F7 decreases speed", () =>
                 gameplayScreen.HandleScrollSpeedShortcut(
                     Key.F7,
                     false));
-            AddAssert("custom decrease restores 8", () =>
-                gameplaySettings.ScrollSpeed.Value == 8);
+            AddAssert("custom decrease restores 1436 ms", () =>
+                Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(
+                    gameplaySettings.ScrollSpeed.Value)) == 1436);
             AddStep("attempt late gameplay adjustment", () =>
                 gameplayScreen.HandleScrollSpeedShortcut(
                     Key.F8,
                     false,
                     11000));
             AddAssert("late adjustment is locked", () =>
-                gameplaySettings.ScrollSpeed.Value == 8
+                Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(
+                    gameplaySettings.ScrollSpeed.Value)) == 1436
                 && speedOverlay.IsLocked
-                && speedOverlay.DisplayedSpeed == 8
+                && speedOverlay.DisplayedSpeed
+                   == gameplaySettings.ScrollSpeed.Value
                 && speedOverlay.DisplayedLabel == "SPEED LOCKED"
                 && speedOverlay.DisplayedDetail == "INTRO / BREAK");
             AddUntilStep("speed overlay exits smoothly", () =>
@@ -3100,6 +3158,8 @@ HitPosition: 400
             AddStep("restore scroll speed and shortcuts", () =>
             {
                 gameplaySettings.SetScrollSpeed(originalSpeed);
+                gameplaySettings.ScrollSpeedAdjustmentMode.Value =
+                    originalAdjustmentMode;
                 gameplaySettings.SetShortcutBinding(
                     ManiaShortcutAction.DecreaseScrollSpeed,
                     originalDecreaseKey);
@@ -3531,12 +3591,18 @@ HitPosition: 400
             };
             GameplayScreen gameplayScreen = null;
             double originalSpeed = 0;
+            ScrollSpeedAdjustmentMode originalAdjustmentMode =
+                ScrollSpeedAdjustmentMode.OsuManiaScale;
 
             AddStep("open gameplay with audio", () =>
             {
                 originalSpeed = gameplaySettings.ScrollSpeed.Value;
+                originalAdjustmentMode =
+                    gameplaySettings.ScrollSpeedAdjustmentMode.Value;
                 gameplaySettings.ResetShortcutBindings();
                 gameplaySettings.SetScrollSpeed(8);
+                gameplaySettings.ScrollSpeedAdjustmentMode.Value =
+                    ScrollSpeedAdjustmentMode.OsuManiaScale;
                 gameplayScreen = new GameplayScreen(beatmap, audioEngine);
                 screenStack.Push(gameplayScreen);
             });
@@ -3608,10 +3674,14 @@ HitPosition: 400
                     false,
                     true);
             });
-            AddAssert("scroll speed adjustment repeats", () =>
+            AddAssert("original scroll scale adjustment repeats", () =>
                 gameplaySettings.ScrollSpeed.Value == 10);
             AddStep("restore scroll speed", () =>
-                gameplaySettings.SetScrollSpeed(originalSpeed));
+            {
+                gameplaySettings.SetScrollSpeed(originalSpeed);
+                gameplaySettings.ScrollSpeedAdjustmentMode.Value =
+                    originalAdjustmentMode;
+            });
         }
 
         [Test]

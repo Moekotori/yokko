@@ -10,4 +10,11 @@
     <PackageReference Include="StarRatingRebirth" Version="0.1.1" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <None Include="..\artifacts\native-minacalc\$(Configuration)\yokko_minacalc_native.dll"
+          Link="yokko_minacalc_native.dll"
+          CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('..\artifacts\native-minacalc\$(Configuration)\yokko_minacalc_native.dll')" />
+  </ItemGroup>
+
 </Project>

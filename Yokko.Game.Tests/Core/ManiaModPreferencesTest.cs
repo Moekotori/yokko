@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text.Json;
 using NUnit.Framework;
 using osu.Framework.Platform;
 using Yokko.Core.Mods;
@@ -129,6 +130,155 @@ public sealed class ManiaModPreferencesTest
             if (Directory.Exists(directory))
                 Directory.Delete(directory, recursive: true);
         }
+    }
+
+    [Test]
+    public void ActiveModsPersistUntilUserDisablesThem()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "mania-active-mods",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            using (var config =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                var first = new YokkoManiaModPreferences();
+                config.BindModPreferences(first);
+                first.RememberActiveMods(
+                    ManiaModSet.Empty
+                        .WithFixedRate(
+                            ManiaModId.HalfTime,
+                            0.82,
+                            true)
+                        .With(ManiaModId.Hidden, true));
+                Assert.That(config.Save(), Is.True);
+            }
+
+            using (var config =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                var restored = new YokkoManiaModPreferences();
+                config.BindModPreferences(restored);
+                ManiaModSet active = restored.RestoreActiveMods();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        active.Contains(ManiaModId.HalfTime),
+                        Is.True);
+                    Assert.That(
+                        active.Contains(ManiaModId.Hidden),
+                        Is.True);
+                    Assert.That(
+                        active.FixedRateSpeedChange,
+                        Is.EqualTo(0.82));
+                    Assert.That(active.FixedRateAdjustPitch, Is.True);
+                });
+
+                restored.RememberActiveMods(
+                    active.With(ManiaModId.HalfTime, false));
+                Assert.That(config.Save(), Is.True);
+            }
+
+            using (var config =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                var restored = new YokkoManiaModPreferences();
+                config.BindModPreferences(restored);
+                ManiaModSet active = restored.RestoreActiveMods();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        active.Contains(ManiaModId.HalfTime),
+                        Is.False);
+                    Assert.That(
+                        active.Contains(ManiaModId.Hidden),
+                        Is.True);
+                });
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [TestCase(ManiaModId.Autoplay)]
+    [TestCase(ManiaModId.Cinema)]
+    [TestCase(ManiaModId.SuddenDeath)]
+    [TestCase(ManiaModId.Perfect)]
+    [TestCase(ManiaModId.AccuracyChallenge)]
+    [TestCase(ManiaModId.ScoreV2)]
+    public void UnsafeActiveModIsNotPersisted(ManiaModId mod)
+    {
+        var preferences = new YokkoManiaModPreferences();
+
+        preferences.RememberActiveMods(
+            ManiaModSet.Empty.With(mod, true));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                preferences.RestoreActiveMods(),
+                Is.EqualTo(ManiaModSet.Empty));
+            Assert.That(preferences.SerializedActiveMods.Value, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void ExistingUnsafeSelectionIsSanitisedOnRestore()
+    {
+        var preferences = new YokkoManiaModPreferences();
+        ManiaModSet stored = ManiaModSet.Empty
+            .WithFixedRate(ManiaModId.HalfTime, 0.82, true)
+            .With(ManiaModId.Autoplay, true);
+        preferences.SerializedActiveMods.Value = JsonSerializer.Serialize(
+            ManiaModConfigurationCodec.Capture(stored),
+            new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            });
+
+        ManiaModSet restored = preferences.RestoreActiveMods();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                restored.Contains(ManiaModId.HalfTime),
+                Is.True);
+            Assert.That(
+                restored.Contains(ManiaModId.Autoplay),
+                Is.False);
+            Assert.That(
+                restored.FixedRateSpeedChange,
+                Is.EqualTo(0.82));
+            Assert.That(restored.FixedRateAdjustPitch, Is.True);
+            Assert.That(
+                preferences.SerializedActiveMods.Value,
+                Does.Not.Contain("autoplay"));
+        });
+    }
+
+    [Test]
+    public void CorruptActiveModsFallBackToEmpty()
+    {
+        var preferences = new YokkoManiaModPreferences();
+        preferences.SerializedActiveMods.Value =
+            """{"schemaVersion":1,"mods":[{"key":"future-mod"}]}""";
+
+        ManiaModSet active = preferences.RestoreActiveMods();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(active, Is.EqualTo(ManiaModSet.Empty));
+            Assert.That(preferences.SerializedActiveMods.Value, Is.Empty);
+        });
     }
 
     [Test]

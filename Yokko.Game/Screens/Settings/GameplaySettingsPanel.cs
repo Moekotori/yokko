@@ -80,6 +80,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal double CurrentScrollSpeed => settings.ScrollSpeed.Value;
 
+    internal ScrollSpeedAdjustmentMode CurrentScrollSpeedAdjustmentMode =>
+        settings.ScrollSpeedAdjustmentMode.Value;
+
     internal double QuaverScrollRateNormalization =>
         settings.QuaverScrollRateNormalization.Value;
 
@@ -343,6 +346,13 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal void SetScrollSpeed(double speed) =>
         settings.SetScrollSpeed(speed);
+
+    internal void SetScrollTimeMilliseconds(double milliseconds) =>
+        settings.SetScrollTimeMilliseconds(milliseconds);
+
+    internal void SetScrollSpeedAdjustmentMode(
+        ScrollSpeedAdjustmentMode mode) =>
+        settings.ScrollSpeedAdjustmentMode.Value = mode;
 
     internal void SetJudgementMode(JudgementMode mode) =>
         settings.JudgementMode.Value = mode;
@@ -776,7 +786,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 OsuManiaScrollSpeed.Minimum,
                 OsuManiaScrollSpeed.Maximum,
                 value =>
-                    $"{(int)OsuManiaScrollSpeed.ComputeScrollTime(value)} ms  ·  {value:0.0}")
+                    $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(value)):0} ms  ·  {value:0.0}",
+                adjustmentMode: settings.ScrollSpeedAdjustmentMode,
+                alternateAdjustValue:
+                    settings.AdjustScrollTimeMilliseconds,
+                alternateFormatter: value =>
+                    $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(value)):0} ms")
             {
                 Position = new Vector2(430, 14),
             },
@@ -2160,8 +2175,13 @@ internal partial class GameplayValueStepper : CompositeDrawable
     private readonly double minimum;
     private readonly double maximum;
     private readonly Func<double, string> formatter;
+    private readonly Action<double> adjustValue;
+    private readonly Bindable<ScrollSpeedAdjustmentMode> adjustmentMode;
+    private readonly Action<double> alternateAdjustValue;
+    private readonly Func<double, string> alternateFormatter;
     private readonly GameplayStepperButton decreaseButton;
     private readonly GameplayStepperButton increaseButton;
+    private readonly GameplayStepperModeButton modeButton;
     private readonly SpriteText valueText;
     private bool isEnabled = true;
 
@@ -2172,16 +2192,41 @@ internal partial class GameplayValueStepper : CompositeDrawable
         double step,
         double minimum,
         double maximum,
-        Func<double, string> formatter)
+        Func<double, string> formatter,
+        Action<double> adjustValue = null,
+        Bindable<ScrollSpeedAdjustmentMode> adjustmentMode = null,
+        Action<double> alternateAdjustValue = null,
+        Func<double, string> alternateFormatter = null)
     {
         this.value = value;
         this.step = step;
         this.minimum = minimum;
         this.maximum = maximum;
         this.formatter = formatter;
+        this.adjustValue = adjustValue;
+        this.adjustmentMode = adjustmentMode;
+        this.alternateAdjustValue = alternateAdjustValue;
+        this.alternateFormatter = alternateFormatter;
         Size = new Vector2(390, 54);
 
-        InternalChildren = new Drawable[]
+        decreaseButton = createButton(
+            FontAwesome.Solid.Minus,
+            Anchor.CentreLeft,
+            -step);
+        valueText = new SpriteText
+        {
+            Anchor = Anchor.Centre,
+            Origin = Anchor.Centre,
+            Y = adjustmentMode == null ? 0 : -7,
+            Font = HomeTypography.Display(19),
+            Colour = HomeControlColours.Navy,
+        };
+        increaseButton = createButton(
+            FontAwesome.Solid.Plus,
+            Anchor.CentreRight,
+            step);
+
+        var children = new List<Drawable>
         {
             new Container
             {
@@ -2224,23 +2269,25 @@ internal partial class GameplayValueStepper : CompositeDrawable
                     Colour = Color4.White,
                 },
             },
-            decreaseButton = createButton(
-                FontAwesome.Solid.Minus,
-                Anchor.CentreLeft,
-                -step),
-            valueText = new SpriteText
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Font = HomeTypography.Display(19),
-                Colour = HomeControlColours.Navy,
-            },
-            increaseButton = createButton(
-                FontAwesome.Solid.Plus,
-                Anchor.CentreRight,
-                step),
+            decreaseButton,
+            valueText,
+            increaseButton,
         };
 
+        if (adjustmentMode != null)
+        {
+            if (alternateAdjustValue == null || alternateFormatter == null)
+            {
+                throw new ArgumentException(
+                    "An alternate scroll-speed mode requires an adjuster and formatter.");
+            }
+
+            children.Add(modeButton = new GameplayStepperModeButton(
+                adjustmentMode));
+            adjustmentMode.BindValueChanged(onAdjustmentModeChanged);
+        }
+
+        InternalChildren = children.ToArray();
         value.BindValueChanged(onValueChanged, true);
     }
 
@@ -2252,6 +2299,7 @@ internal partial class GameplayValueStepper : CompositeDrawable
         isEnabled = enabled;
         decreaseButton.SetEnabled(enabled);
         increaseButton.SetEnabled(enabled);
+        modeButton?.SetEnabled(enabled);
     }
 
     private GameplayStepperButton createButton(
@@ -2262,17 +2310,160 @@ internal partial class GameplayValueStepper : CompositeDrawable
         anchor,
         () =>
         {
+            if (adjustmentMode?.Value
+                == ScrollSpeedAdjustmentMode.Milliseconds)
+            {
+                alternateAdjustValue(delta);
+                return;
+            }
+
+            if (adjustValue != null)
+            {
+                adjustValue(delta);
+                return;
+            }
+
             double next = Math.Clamp(value.Value + delta, minimum, maximum);
             value.Value = Math.Round(next / step) * step;
         });
 
     private void onValueChanged(ValueChangedEvent<double> change) =>
-        valueText.Text = formatter(change.NewValue);
+        valueText.Text = activeFormatter(change.NewValue);
+
+    private void onAdjustmentModeChanged(
+        ValueChangedEvent<ScrollSpeedAdjustmentMode> _) =>
+        valueText.Text = activeFormatter(value.Value);
+
+    private string activeFormatter(double currentValue) =>
+        adjustmentMode?.Value == ScrollSpeedAdjustmentMode.Milliseconds
+            ? alternateFormatter(currentValue)
+            : formatter(currentValue);
 
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
+        {
             value.ValueChanged -= onValueChanged;
+            if (adjustmentMode != null)
+            {
+                adjustmentMode.ValueChanged -=
+                    onAdjustmentModeChanged;
+            }
+        }
+
+        base.Dispose(isDisposing);
+    }
+}
+
+internal partial class GameplayStepperModeButton : ClickableContainer
+{
+    private readonly Bindable<ScrollSpeedAdjustmentMode> mode;
+    private readonly Box background;
+    private readonly SpriteText text;
+    private bool isEnabled = true;
+
+    public override bool AcceptsFocus => isEnabled;
+
+    internal ScrollSpeedAdjustmentMode DisplayedMode => mode.Value;
+
+    public GameplayStepperModeButton(
+        Bindable<ScrollSpeedAdjustmentMode> mode)
+    {
+        this.mode = mode;
+        Anchor = Anchor.BottomCentre;
+        Origin = Anchor.BottomCentre;
+        Y = -4;
+        Size = new Vector2(124, 17);
+        Masking = true;
+        CornerRadius = 5;
+        BorderThickness = 1;
+        BorderColour = SettingsTheme.Divider;
+        Action = toggleMode;
+
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = SettingsTheme.PaleCyan,
+            },
+            text = new SpriteText
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Font = HomeTypography.Display(9),
+                Colour = HomeControlColours.Navy,
+            },
+        };
+
+        mode.BindValueChanged(onModeChanged, true);
+    }
+
+    internal void SetEnabled(bool enabled)
+    {
+        isEnabled = enabled;
+        Alpha = enabled ? 1 : 0.55f;
+    }
+
+    private void toggleMode()
+    {
+        if (!isEnabled)
+            return;
+
+        mode.Value = mode.Value == ScrollSpeedAdjustmentMode.OsuManiaScale
+            ? ScrollSpeedAdjustmentMode.Milliseconds
+            : ScrollSpeedAdjustmentMode.OsuManiaScale;
+    }
+
+    private void onModeChanged(
+        ValueChangedEvent<ScrollSpeedAdjustmentMode> change)
+    {
+        bool milliseconds =
+            change.NewValue == ScrollSpeedAdjustmentMode.Milliseconds;
+        text.Text = YokkoStrings.Get(
+            milliseconds
+                ? "settings.gameplay.scroll_speed_mode_milliseconds"
+                : "settings.gameplay.scroll_speed_mode_scale");
+        background.Colour = milliseconds
+            ? SettingsTheme.StatusCyan
+            : SettingsTheme.PaleCyan;
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        if (isEnabled)
+            background.FadeColour(Color4.White, 100, Easing.OutQuint);
+
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        bool milliseconds =
+            mode.Value == ScrollSpeedAdjustmentMode.Milliseconds;
+        background.FadeColour(
+            milliseconds
+                ? SettingsTheme.StatusCyan
+                : SettingsTheme.PaleCyan,
+            120,
+            Easing.OutQuint);
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (isEnabled && e.Key is Key.Enter or Key.Space)
+        {
+            toggleMode();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            mode.ValueChanged -= onModeChanged;
 
         base.Dispose(isDisposing);
     }

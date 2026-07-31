@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -19,13 +21,16 @@ namespace Yokko.Game
         private YokkoPerformanceReadout performanceReadout;
         private BindableBool showPerformanceReadout;
         private readonly Action<Storage> storageReady;
+        private readonly string[] startupFiles;
 
         public YokkoGame(
             IKeyInputTimestampBackend keyInputTimestampBackend = null,
-            Action<Storage> storageReady = null)
+            Action<Storage> storageReady = null,
+            IEnumerable<string> startupFiles = null)
             : base(keyInputTimestampBackend)
         {
             this.storageReady = storageReady;
+            this.startupFiles = startupFiles?.ToArray() ?? [];
         }
 
         public override void SetupLogging(
@@ -66,6 +71,9 @@ namespace Yokko.Game
             base.LoadComplete();
 
             screenStack.Push(new MainScreen(RequestExit));
+
+            foreach (string path in startupFiles)
+                OpenExternalPath(path);
         }
 
         private protected override void OpenImportedReplay(

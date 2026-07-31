@@ -2910,20 +2910,20 @@ public partial class GameplayScreen : Screen
         bool controlPressed,
         double? gameplayTimeOverride = null)
     {
-        double amount = key switch
+        double direction = key switch
         {
             _ when key == gameplaySettings.IncreaseScrollSpeedKey.Value =>
-                OsuManiaScrollSpeed.ShortcutStep,
+                1,
             _ when key == gameplaySettings.DecreaseScrollSpeedKey.Value =>
-                -OsuManiaScrollSpeed.ShortcutStep,
+                -1,
             Key.Plus or Key.KeypadPlus when controlPressed =>
-                OsuManiaScrollSpeed.ShortcutStep,
+                1,
             Key.Minus or Key.KeypadMinus when controlPressed =>
-                -OsuManiaScrollSpeed.ShortcutStep,
+                -1,
             _ => 0,
         };
 
-        if (amount == 0)
+        if (direction == 0)
             return false;
 
         double gameplayTime =
@@ -2939,7 +2939,18 @@ public partial class GameplayScreen : Screen
         }
 
         double previousSpeed = gameplaySettings.ScrollSpeed.Value;
-        gameplaySettings.AdjustScrollSpeed(amount);
+        if (gameplaySettings.ScrollSpeedAdjustmentMode.Value
+            == ScrollSpeedAdjustmentMode.Milliseconds)
+        {
+            gameplaySettings.AdjustScrollTimeMilliseconds(
+                -direction
+                * OsuManiaScrollSpeed.ScrollTimeStepMilliseconds);
+        }
+        else
+        {
+            gameplaySettings.AdjustScrollSpeed(
+                direction * OsuManiaScrollSpeed.ShortcutStep);
+        }
         if (gameplaySettings.ScrollSpeed.Value == previousSpeed)
             showScrollSpeedOverlay(appliedScrollSpeed, false);
 
@@ -2978,7 +2989,9 @@ public partial class GameplayScreen : Screen
     {
         scrollSpeedOverlay.Show(
             speed,
-            (int)OsuManiaScrollSpeed.ComputeScrollTime(speed),
+            (int)Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(speed)),
+            gameplaySettings.ScrollSpeedAdjustmentMode.Value
+                == ScrollSpeedAdjustmentMode.Milliseconds,
             locked);
     }
 

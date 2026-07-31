@@ -41,6 +41,9 @@ public sealed class GameplaySettingsTest
             settings.ScrollSpeed.Value,
             Is.EqualTo(OsuManiaScrollSpeed.Default));
         Assert.That(
+            settings.ScrollSpeedAdjustmentMode.Value,
+            Is.EqualTo(ScrollSpeedAdjustmentMode.OsuManiaScale));
+        Assert.That(
             settings.QuaverScrollRateNormalization.Value,
             Is.Zero);
         Assert.That(
@@ -453,7 +456,9 @@ public sealed class GameplaySettingsTest
                 firstSettings.SetShortcutBinding(
                     ManiaShortcutAction.QuickRetry,
                     Key.F11);
-                firstSettings.SetScrollSpeed(26.4);
+                firstSettings.SetScrollTimeMilliseconds(700);
+                firstSettings.ScrollSpeedAdjustmentMode.Value =
+                    ScrollSpeedAdjustmentMode.Milliseconds;
                 firstSettings.QuaverScrollRateNormalization.Value = 60;
                 firstSettings.JudgementMode.Value =
                     JudgementMode.Etterna;
@@ -512,8 +517,12 @@ public sealed class GameplaySettingsTest
                     restoredSettings.QuickRetryKey.Value,
                     Is.EqualTo(Key.F11));
                 Assert.That(
-                    restoredSettings.ScrollSpeed.Value,
-                    Is.EqualTo(26.4).Within(0.001));
+                    OsuManiaScrollSpeed.ComputeScrollTime(
+                        restoredSettings.ScrollSpeed.Value),
+                    Is.EqualTo(700).Within(0.02));
+                Assert.That(
+                    restoredSettings.ScrollSpeedAdjustmentMode.Value,
+                    Is.EqualTo(ScrollSpeedAdjustmentMode.Milliseconds));
                 Assert.That(
                     restoredSettings.QuaverScrollRateNormalization.Value,
                     Is.EqualTo(60));
@@ -750,6 +759,24 @@ public sealed class GameplaySettingsTest
 
         settings.AdjustScrollSpeed(1);
         Assert.That(settings.ScrollSpeed.Value, Is.EqualTo(21));
+
+        settings.SetScrollTimeMilliseconds(700);
+        Assert.That(
+            OsuManiaScrollSpeed.ComputeScrollTime(
+                settings.ScrollSpeed.Value),
+            Is.EqualTo(700).Within(0.02));
+
+        settings.AdjustScrollTimeMilliseconds(-1);
+        Assert.That(
+            OsuManiaScrollSpeed.ComputeScrollTime(
+                settings.ScrollSpeed.Value),
+            Is.EqualTo(699).Within(0.02));
+
+        settings.AdjustScrollTimeMilliseconds(1);
+        Assert.That(
+            OsuManiaScrollSpeed.ComputeScrollTime(
+                settings.ScrollSpeed.Value),
+            Is.EqualTo(700).Within(0.02));
 
         settings.SetScrollSpeed(100);
         Assert.That(

@@ -461,6 +461,19 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             ((GameplaySessionScreen)screenStack.CurrentScreen)
             .CurrentGameplay.Exit());
         AddUntilStep("song select resumes", () => screenStack.CurrentScreen is SongSelectScreen);
+        AddAssert("one-shot mods do not carry to the next song", () =>
+            !songSelectScreen.SelectedMods.Contains(
+                ManiaModId.Autoplay)
+            && !songSelectScreen.SelectedMods.Contains(
+                ManiaModId.AccuracyChallenge)
+            && !songSelectScreen.SelectedMods.Contains(
+                ManiaModId.SuddenDeath)
+            && songSelectScreen.SelectedMods.Contains(
+                ManiaModId.Nightcore)
+            && songSelectScreen.SelectedMods.Contains(
+                ManiaModId.Mirror)
+            && songSelectScreen.SelectedMods.Contains(
+                ManiaModId.Random));
     }
 
     [Test]

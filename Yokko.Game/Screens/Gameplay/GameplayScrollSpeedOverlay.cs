@@ -130,6 +130,7 @@ internal partial class GameplayScrollSpeedOverlay : CompositeDrawable
     internal void Show(
         double speed,
         int timeRangeMilliseconds,
+        bool showMilliseconds = false,
         bool locked = false)
     {
         DisplayedSpeed = speed;
@@ -141,14 +142,20 @@ internal partial class GameplayScrollSpeedOverlay : CompositeDrawable
             : HomeControlColours.Cyan;
         label.Text = locked
             ? "SPEED LOCKED"
-            : "SCROLL SPEED";
+            : showMilliseconds
+                ? "SCROLL TIME"
+                : "SCROLL SPEED";
         label.Colour = locked
             ? HomeControlColours.Pink
             : HomeControlColours.Navy;
-        speedText.Text = speed.ToString("0.0");
+        speedText.Text = showMilliseconds
+            ? timeRangeMilliseconds.ToString()
+            : speed.ToString("0.0");
         detailText.Text = locked
             ? "INTRO / BREAK"
-            : $"{timeRangeMilliseconds} ms";
+            : showMilliseconds
+                ? $"ms · {speed:0.000}"
+                : $"{timeRangeMilliseconds} ms";
         underline.Colour = accent;
 
         bool wasVisible = Alpha > 0.01f;

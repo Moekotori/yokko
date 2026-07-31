@@ -15,6 +15,12 @@ public enum GameplayKeyPreset
     Split,
 }
 
+public enum ScrollSpeedAdjustmentMode
+{
+    OsuManiaScale,
+    Milliseconds,
+}
+
 public enum ManiaShortcutAction
 {
     PauseOrBack,
@@ -106,6 +112,11 @@ public sealed class YokkoGameplaySettings
 
     public readonly Bindable<double> ScrollSpeed =
         new(OsuManiaScrollSpeed.Default);
+
+    public readonly Bindable<ScrollSpeedAdjustmentMode>
+        ScrollSpeedAdjustmentMode =
+            new(global::Yokko.Game.Gameplay
+                .ScrollSpeedAdjustmentMode.OsuManiaScale);
 
     /// <summary>
     /// Matches Quaver's optional playback-rate scroll normalization.
@@ -442,6 +453,10 @@ public sealed class YokkoGameplaySettings
     public void SetScrollSpeed(double speed) =>
         ScrollSpeed.Value = OsuManiaScrollSpeed.Clamp(speed);
 
+    public void SetScrollTimeMilliseconds(double milliseconds) =>
+        ScrollSpeed.Value =
+            OsuManiaScrollSpeed.ComputeScrollSpeed(milliseconds);
+
     public void ResetGameplayLayout()
     {
         LayoutPlayfieldOffsetX.SetDefault();
@@ -464,6 +479,11 @@ public sealed class YokkoGameplaySettings
         ScrollSpeed.Value = OsuManiaScrollSpeed.Adjust(
             ScrollSpeed.Value,
             amount);
+
+    public void AdjustScrollTimeMilliseconds(double deltaMilliseconds) =>
+        ScrollSpeed.Value = OsuManiaScrollSpeed.AdjustScrollTime(
+            ScrollSpeed.Value,
+            deltaMilliseconds);
 
     public void SetEtternaJustice(double justice) =>
         EtternaJustice.Value = Math.Clamp(

@@ -398,13 +398,13 @@ internal partial class SettingsSearchTextBox : BasicTextBox
     protected override Drawable GetDrawableCharacter(char c) => new SpriteText
     {
         Text = c.ToString(),
-        Font = HomeTypography.Body(18),
+        Font = HomeTypography.SearchInput(18),
         Colour = HomeControlColours.Navy,
     };
 
     protected override SpriteText CreatePlaceholder() => new SpriteText
     {
-        Font = HomeTypography.Body(18),
+        Font = HomeTypography.SearchInput(18),
         Colour = SettingsTheme.MutedNavy,
     };
 

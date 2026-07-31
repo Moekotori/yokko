@@ -10,11 +10,51 @@ using Yokko.Core.Mods;
 namespace Yokko.Game.Gameplay;
 
 /// <summary>
-/// Global per-Mod configuration memory. Active Mod selection remains
-/// session-owned; only each configurable Mod's last valid settings are kept.
+/// Global Mania Mod memory. Keeps the active selection across song changes and
+/// restarts, as well as each configurable Mod's last valid settings.
 /// </summary>
 internal sealed class YokkoManiaModPreferences
 {
+    // Deliberately allowlisted: newly added Mods must be reviewed before they
+    // can unexpectedly carry into another chart or game restart.
+    private static readonly HashSet<ManiaModId> persistent_active_mods =
+    [
+        ManiaModId.Easy,
+        ManiaModId.NoFail,
+        ManiaModId.HalfTime,
+        ManiaModId.Daycore,
+        ManiaModId.NoRelease,
+        ManiaModId.HardRock,
+        ManiaModId.DoubleTime,
+        ManiaModId.Nightcore,
+        ManiaModId.FadeIn,
+        ManiaModId.Hidden,
+        ManiaModId.Cover,
+        ManiaModId.Flashlight,
+        ManiaModId.Random,
+        ManiaModId.DualStages,
+        ManiaModId.Mirror,
+        ManiaModId.DifficultyAdjust,
+        ManiaModId.Classic,
+        ManiaModId.Invert,
+        ManiaModId.ConstantSpeed,
+        ManiaModId.HoldOff,
+        ManiaModId.Key1,
+        ManiaModId.Key2,
+        ManiaModId.Key3,
+        ManiaModId.Key4,
+        ManiaModId.Key5,
+        ManiaModId.Key6,
+        ManiaModId.Key7,
+        ManiaModId.Key8,
+        ManiaModId.Key9,
+        ManiaModId.Key10,
+        ManiaModId.WindUp,
+        ManiaModId.WindDown,
+        ManiaModId.Muted,
+        ManiaModId.AdaptiveSpeed,
+    ];
+
     private static readonly HashSet<ManiaModId> configurable_mods =
     [
         ManiaModId.HalfTime,
@@ -43,9 +83,42 @@ internal sealed class YokkoManiaModPreferences
         ManiaModId,
         ManiaModConfigurationEntry> entries = [];
     private string loadedValue;
+    private string loadedActiveModsValue;
+    private ManiaModSet activeMods = ManiaModSet.Empty;
 
     public Bindable<string> SerializedConfiguration { get; } =
         new(string.Empty);
+    public Bindable<string> SerializedActiveMods { get; } =
+        new(string.Empty);
+
+    public ManiaModSet RestoreActiveMods()
+    {
+        ensureActiveModsLoaded();
+        return activeMods;
+    }
+
+    public void RememberActiveMods(ManiaModSet mods)
+    {
+        ensureActiveModsLoaded();
+        mods ??= ManiaModSet.Empty;
+        ManiaModSet persistentMods = SelectPersistentActiveMods(mods);
+        if (activeMods.Equals(persistentMods))
+            return;
+
+        activeMods = persistentMods;
+        persistActiveMods();
+    }
+
+    private void persistActiveMods()
+    {
+        string serialized = activeMods.IsEmpty
+            ? string.Empty
+            : JsonSerializer.Serialize(
+                ManiaModConfigurationCodec.Capture(activeMods),
+                json_options);
+        loadedActiveModsValue = serialized;
+        SerializedActiveMods.Value = serialized;
+    }
 
     public void Remember(ManiaModSet mods)
     {
@@ -218,6 +291,62 @@ internal sealed class YokkoManiaModPreferences
             SerializedConfiguration.Value = string.Empty;
             loadedValue = string.Empty;
         }
+    }
+
+    private void ensureActiveModsLoaded()
+    {
+        string current = SerializedActiveMods.Value
+                         ?? string.Empty;
+        if (string.Equals(
+                current,
+                loadedActiveModsValue,
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        loadedActiveModsValue = current;
+        activeMods = ManiaModSet.Empty;
+        if (string.IsNullOrWhiteSpace(current))
+            return;
+
+        try
+        {
+            ManiaModConfigurationEnvelope envelope =
+                JsonSerializer.Deserialize<
+                    ManiaModConfigurationEnvelope>(
+                    current,
+                    json_options)
+                ?? throw new JsonException();
+            ManiaModSet restored =
+                ManiaModConfigurationCodec.Restore(envelope);
+            activeMods = SelectPersistentActiveMods(restored);
+            if (!activeMods.Equals(restored))
+                persistActiveMods();
+        }
+        catch
+        {
+            SerializedActiveMods.Value = string.Empty;
+            loadedActiveModsValue = string.Empty;
+        }
+    }
+
+    internal static ManiaModSet SelectPersistentActiveMods(ManiaModSet mods)
+    {
+        ManiaModConfigurationEnvelope captured =
+            ManiaModConfigurationCodec.Capture(mods);
+        ManiaModConfigurationEntry[] persistentEntries = captured.Mods
+            .Where(static entry =>
+                OsuManiaModParityCatalog.TryGet(
+                    entry.Key,
+                    out ManiaModDefinition definition)
+                && definition is not null
+                && persistent_active_mods.Contains(definition.Id))
+            .ToArray();
+        return ManiaModConfigurationCodec.Restore(
+            new ManiaModConfigurationEnvelope(
+                captured.SchemaVersion,
+                persistentEntries));
     }
 
     private void persist()
