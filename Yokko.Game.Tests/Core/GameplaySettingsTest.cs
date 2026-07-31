@@ -57,6 +57,15 @@ public sealed class GameplaySettingsTest
             Is.EqualTo(JudgementConfiguration.DefaultEtternaJustice));
         Assert.That(settings.ShowLanePressFeedback.Value, Is.True);
         Assert.That(settings.ShowTimingBar.Value, Is.True);
+        Assert.That(
+            settings.JudgementDisplayDurationMilliseconds.Value,
+            Is.EqualTo(
+                YokkoGameplaySettings
+                    .DefaultJudgementDisplayDurationMilliseconds));
+        Assert.That(
+            settings.JudgementOpacity.Value,
+            Is.EqualTo(YokkoGameplaySettings.MaximumJudgementOpacity));
+        Assert.That(settings.ShowJudgementHitError.Value, Is.True);
         Assert.That(settings.LayoutPlayfieldOffsetX.Value, Is.Zero);
         Assert.That(settings.LayoutPlayfieldOffsetY.Value, Is.Zero);
         Assert.That(settings.LayoutHudOffsetX.Value, Is.Zero);
@@ -107,6 +116,40 @@ public sealed class GameplaySettingsTest
         Assert.That(settings.RetryKey.Value, Is.EqualTo(Key.R));
         Assert.That(settings.WatchReplayKey.Value, Is.EqualTo(Key.V));
         Assert.That(settings.SupportedShortcutActions, Has.Count.EqualTo(14));
+    }
+
+    [Test]
+    public void JudgementFeedbackSettingsClampAndSnap()
+    {
+        var settings = new YokkoGameplaySettings();
+
+        settings.SetJudgementDisplayDuration(874);
+        settings.SetJudgementOpacity(0.64);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                settings.JudgementDisplayDurationMilliseconds.Value,
+                Is.EqualTo(850));
+            Assert.That(
+                settings.JudgementOpacity.Value,
+                Is.EqualTo(0.6).Within(0.001));
+        });
+
+        settings.SetJudgementDisplayDuration(double.MaxValue);
+        settings.SetJudgementOpacity(double.MinValue);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                settings.JudgementDisplayDurationMilliseconds.Value,
+                Is.EqualTo(
+                    YokkoGameplaySettings
+                        .MaximumJudgementDisplayDurationMilliseconds));
+            Assert.That(
+                settings.JudgementOpacity.Value,
+                Is.EqualTo(YokkoGameplaySettings.MinimumJudgementOpacity));
+        });
     }
 
     [Test]
@@ -511,6 +554,9 @@ public sealed class GameplaySettingsTest
                 firstSettings.SetEtternaJustice(8);
                 firstSettings.ShowLanePressFeedback.Value = false;
                 firstSettings.ShowTimingBar.Value = false;
+                firstSettings.SetJudgementDisplayDuration(850);
+                firstSettings.SetJudgementOpacity(0.6);
+                firstSettings.ShowJudgementHitError.Value = false;
                 firstSettings.LayoutPlayfieldOffsetX.Value = 0.22;
                 firstSettings.LayoutPlayfieldOffsetY.Value = -0.14;
                 firstSettings.LayoutHudOffsetX.Value = -0.18;
@@ -598,6 +644,16 @@ public sealed class GameplaySettingsTest
                     Is.False);
                 Assert.That(
                     restoredSettings.ShowTimingBar.Value,
+                    Is.False);
+                Assert.That(
+                    restoredSettings
+                        .JudgementDisplayDurationMilliseconds.Value,
+                    Is.EqualTo(850));
+                Assert.That(
+                    restoredSettings.JudgementOpacity.Value,
+                    Is.EqualTo(0.6).Within(0.001));
+                Assert.That(
+                    restoredSettings.ShowJudgementHitError.Value,
                     Is.False);
                 Assert.That(
                     restoredSettings.LayoutPlayfieldOffsetX.Value,

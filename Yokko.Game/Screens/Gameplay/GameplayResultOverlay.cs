@@ -60,8 +60,10 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private Sprite stageAtmosphere;
     private Sprite mascot;
     private Sprite scoreRibbon;
+    private Box scoreSignalRunner;
     private ResultScorePanel scorePanel;
     private ResultSongHeading songHeading;
+    private readonly List<SpriteIcon> ambientAccents = new();
     private readonly IReadOnlyList<string> modChipLabels;
     private int renderedModChipCount;
     private float lastResponsiveStageScale;
@@ -240,6 +242,51 @@ internal partial class GameplayResultOverlay : CompositeDrawable
               .Then()
               .MoveToY(mascot.Y - 4, 2100, Easing.InOutSine)
               .Loop();
+        mascot.MoveToX(mascot.X + 3, 2600, Easing.InOutSine)
+              .Then()
+              .MoveToX(mascot.X - 3, 2600, Easing.InOutSine)
+              .Loop();
+        mascot.RotateTo(-0.35f, 2300, Easing.InOutSine)
+              .Then()
+              .RotateTo(0.35f, 2300, Easing.InOutSine)
+              .Loop();
+
+        scoreSignalRunner
+            .MoveToX(975, 2600, Easing.InOutSine)
+            .Then()
+            .MoveToX(108, 0)
+            .Delay(650)
+            .Loop();
+        scoreSignalRunner
+            .FadeTo(0.95f, 500, Easing.OutQuint)
+            .Then()
+            .FadeTo(0.28f, 1500, Easing.InOutSine)
+            .Then()
+            .FadeTo(0.78f, 700, Easing.InOutSine)
+            .Loop();
+
+        for (int i = 0; i < ambientAccents.Count; i++)
+        {
+            SpriteIcon accent = ambientAccents[i];
+            float restY = accent.Y;
+            double delay = 180 + i * 170;
+
+            accent.Delay(delay)
+                  .MoveToY(restY - 5, 1250, Easing.InOutSine)
+                  .Then()
+                  .MoveToY(restY + 3, 1250, Easing.InOutSine)
+                  .Loop();
+            accent.Delay(delay)
+                  .FadeTo(0.38f, 900, Easing.InOutSine)
+                  .Then()
+                  .FadeTo(1, 900, Easing.InOutSine)
+                  .Loop();
+            accent.Delay(delay)
+                  .RotateTo(-9, 1500, Easing.InOutSine)
+                  .Then()
+                  .RotateTo(9, 1500, Easing.InOutSine)
+                  .Loop();
+        }
     }
 
     internal void TriggerReplay() => watchReplay();
@@ -358,6 +405,13 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     scoreRibbon = new Sprite
                     {
                         Size = new Vector2(1140, 236),
+                    },
+                    scoreSignalRunner = new Box
+                    {
+                        Position = new Vector2(108, 11),
+                        Size = new Vector2(72, 3),
+                        Colour = ResultColours.SoftCyan,
+                        Alpha = 0.78f,
                     },
                     new SpriteText
                     {
@@ -876,9 +930,19 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 mascot = new Sprite
                 {
                     Origin = Anchor.Centre,
-                    Position = new Vector2(272, 536),
+                    Position = new Vector2(290, 536),
                     Size = new Vector2(470, 654),
                 },
+                createAmbientAccent(
+                    new Vector2(506, 278),
+                    17,
+                    FontAwesome.Solid.Star,
+                    ResultColours.Yellow),
+                createAmbientAccent(
+                    new Vector2(474, 672),
+                    12,
+                    FontAwesome.Solid.Plus,
+                    ResultColours.Pink),
                 new SpriteText
                 {
                     Position = new Vector2(34, 400),
@@ -1024,6 +1088,16 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                             Icon = FontAwesome.Solid.Plus,
                             Colour = ResultColours.Yellow,
                         },
+                        createAmbientAccent(
+                            new Vector2(1394, 212),
+                            10,
+                            FontAwesome.Solid.Plus,
+                            ResultColours.Yellow),
+                        createAmbientAccent(
+                            new Vector2(1508, 692),
+                            14,
+                            FontAwesome.Solid.Star,
+                            ResultColours.Cyan),
                         new HomeDotField
                         {
                             Position = new Vector2(1412, 80),
@@ -1049,6 +1123,23 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 },
             },
         };
+
+    private SpriteIcon createAmbientAccent(
+        Vector2 position,
+        float size,
+        IconUsage icon,
+        Color4 colour)
+    {
+        var accent = new SpriteIcon
+        {
+            Position = position,
+            Size = new Vector2(size),
+            Icon = icon,
+            Colour = colour,
+        };
+        ambientAccents.Add(accent);
+        return accent;
+    }
 
     private static Drawable createLeftPulseLine() =>
         new Container

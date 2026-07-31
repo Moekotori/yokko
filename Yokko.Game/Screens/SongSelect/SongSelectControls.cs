@@ -46,8 +46,16 @@ internal partial class SongSelectSearchBox : BasicTextBox
             SongSelectTheme.Cyan.G,
             SongSelectTheme.Cyan.B,
             0.56f);
-        BackgroundUnfocused = SongSelectSurface.Ivory(0.98f);
-        BackgroundFocused = Color4.White;
+        BackgroundUnfocused = new Color4(
+            SongSelectTheme.DeepNavy.R,
+            SongSelectTheme.DeepNavy.G,
+            SongSelectTheme.DeepNavy.B,
+            0.88f);
+        BackgroundFocused = new Color4(
+            SongSelectTheme.SurfaceRaised.R,
+            SongSelectTheme.SurfaceRaised.G,
+            SongSelectTheme.SurfaceRaised.B,
+            0.98f);
         FontSize = 15;
         PlaceholderText = YokkoStrings.Get("song_select.search");
 
@@ -90,10 +98,10 @@ internal partial class SongSelectSearchBox : BasicTextBox
             Text = "ESC",
             Font = HomeTypography.Display(9),
             Colour = new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.34f),
+                SongSelectTheme.PaleCyan.R,
+                SongSelectTheme.PaleCyan.G,
+                SongSelectTheme.PaleCyan.B,
+                0.48f),
             Depth = -2,
         });
 
@@ -116,10 +124,10 @@ internal partial class SongSelectSearchBox : BasicTextBox
         escapeHint.Colour = change.NewValue.Length > 0
             ? SongSelectTheme.Pink
             : new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.34f);
+                SongSelectTheme.PaleCyan.R,
+                SongSelectTheme.PaleCyan.G,
+                SongSelectTheme.PaleCyan.B,
+                0.48f);
         queryChanged(change.NewValue);
     }
 
@@ -127,17 +135,17 @@ internal partial class SongSelectSearchBox : BasicTextBox
     {
         Text = c.ToString(),
         Font = HomeTypography.Body(15),
-        Colour = SongSelectTheme.Navy,
+        Colour = Color4.White,
     };
 
     protected override SpriteText CreatePlaceholder() => new()
     {
         Font = HomeTypography.Body(15),
         Colour = new Color4(
-            SongSelectTheme.Navy.R,
-            SongSelectTheme.Navy.G,
-            SongSelectTheme.Navy.B,
-            0.58f),
+            SongSelectTheme.PaleCyan.R,
+            SongSelectTheme.PaleCyan.G,
+            SongSelectTheme.PaleCyan.B,
+            0.68f),
     };
 
     protected override void OnFocus(FocusEvent e)

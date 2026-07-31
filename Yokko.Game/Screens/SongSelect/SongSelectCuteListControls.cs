@@ -82,7 +82,6 @@ internal partial class SongSelectSongRow : ClickableContainer
         {
             SongSelectSurface.CreateShadow(9, 0.22f, 2),
             panel,
-            selectedSurface,
             addAccent(new Box
             {
                 RelativeSizeAxes = Axes.Y,
@@ -96,8 +95,11 @@ internal partial class SongSelectSongRow : ClickableContainer
                     accent.R,
                     accent.G,
                     accent.B,
-                    0.24f),
-            }, 0.24f),
+                    0.32f),
+            }, 0.32f),
+            // Keep the selected surface genuinely ivory. Placing it after the
+            // accent wash avoids the muddy blue tint seen in the first pass.
+            selectedSurface,
         };
 
         children.Add(selectionOutline = new Container
@@ -515,7 +517,7 @@ internal partial class SongSelectPackageHeader : ClickableContainer
         Action toggle)
     {
         Action = toggle;
-        Size = new Vector2(730, 96);
+        Size = new Vector2(730, 120);
         Masking = true;
         CornerRadius = 10;
         BorderThickness = selected ? 2 : 1;
@@ -528,7 +530,7 @@ internal partial class SongSelectPackageHeader : ClickableContainer
             new Sprite
             {
                 RelativeSizeAxes = Axes.Y,
-                Width = 276,
+                Width = 300,
                 Texture = wallpaper,
                 FillMode = FillMode.Fill,
             },
@@ -558,16 +560,16 @@ internal partial class SongSelectPackageHeader : ClickableContainer
             },
             new SpriteIcon
             {
-                Position = new Vector2(248, 21),
+                Position = new Vector2(278, 25),
                 Size = new Vector2(16),
                 Icon = FontAwesome.Solid.Star,
                 Colour = SongSelectTheme.Yellow,
             },
-            label(packageName, 280, 16, 390, 18, Color4.White),
+            label(packageName, 310, 21, 355, 18, Color4.White),
             label(
                 $"{songCount} SONGS · {chartCount} CHARTS",
-                280,
-                58,
+                310,
+                76,
                 350,
                 9,
                 SongSelectTheme.PaleCyan),

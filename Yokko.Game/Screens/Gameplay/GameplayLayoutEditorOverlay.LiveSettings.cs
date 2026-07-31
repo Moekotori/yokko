@@ -28,7 +28,15 @@ internal sealed record GameplayLayoutEditorLiveSettings(
     Func<ManiaScrollDirection> ScrollDirection,
     Action<ManiaScrollDirection> SetScrollDirection,
     Func<double> BackgroundDim,
-    Action<double> SetBackgroundDim);
+    Action<double> SetBackgroundDim,
+    Func<double> JudgementDisplayDuration,
+    Action<double> SetJudgementDisplayDuration,
+    Func<double> JudgementOpacity,
+    Action<double> SetJudgementOpacity,
+    Func<bool> ShowJudgementHitError,
+    Action<bool> SetShowJudgementHitError,
+    Func<bool> ShowTimingBar,
+    Action<bool> SetShowTimingBar);
 
 internal partial class GameplayLayoutEditorOverlay
 {
@@ -391,6 +399,7 @@ internal partial class GameplayLayoutEditorOverlay
     private partial class CompactTextButton : ClickableContainer
     {
         private readonly Box background;
+        private readonly SpriteText label;
         private bool selected;
 
         public CompactTextButton(LocalisableString text, Action action)
@@ -407,7 +416,7 @@ internal partial class GameplayLayoutEditorOverlay
                     RelativeSizeAxes = Axes.Both,
                     Colour = Color4.White,
                 },
-                new SpriteText
+                label = new SpriteText
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
@@ -428,6 +437,9 @@ internal partial class GameplayLayoutEditorOverlay
                 ? HomeControlColours.Pink
                 : HomeControlColours.Navy;
         }
+
+        internal void SetText(LocalisableString text) =>
+            label.Text = text;
 
         protected override bool OnHover(HoverEvent e)
         {

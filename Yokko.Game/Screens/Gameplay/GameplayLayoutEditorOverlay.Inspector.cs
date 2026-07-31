@@ -282,6 +282,8 @@ internal partial class GameplayLayoutEditorOverlay
         Drawable drawable = drawableFor(kind);
         drawable.Alpha = hidden
             ? 0
+            : kind == LayoutElementKind.TimingBar
+                ? liveSettings.ShowTimingBar() ? 1 : 0
             : kind is LayoutElementKind.Combo
                 or LayoutElementKind.Judgement
                 ? 1
@@ -294,8 +296,9 @@ internal partial class GameplayLayoutEditorOverlay
 
     private void restoreOriginalAlpha(LayoutElementKind kind)
     {
-        drawableFor(kind).Alpha =
-            originalElementAlpha.GetValueOrDefault(kind, 1);
+        drawableFor(kind).Alpha = kind == LayoutElementKind.TimingBar
+            ? liveSettings.ShowTimingBar() ? 1 : 0
+            : originalElementAlpha.GetValueOrDefault(kind, 1);
         Drawable miniDrawable = miniDrawableFor(kind);
         if (miniDrawable != null)
             miniDrawable.Alpha = 1;

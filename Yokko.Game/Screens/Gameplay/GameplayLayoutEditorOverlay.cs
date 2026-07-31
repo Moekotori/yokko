@@ -239,6 +239,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 createInspectorCard(),
                 createCoverPanel(),
                 createLiveSettingsCard(),
+                createFeedbackSettingsCard(),
             },
         };
 
@@ -1093,7 +1094,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         liveSettings.SelectedSkinId() ?? string.Empty,
         liveSettings.ScrollSpeed(),
         liveSettings.ScrollDirection(),
-        liveSettings.BackgroundDim());
+        liveSettings.BackgroundDim(),
+        liveSettings.JudgementDisplayDuration(),
+        liveSettings.JudgementOpacity(),
+        liveSettings.ShowJudgementHitError(),
+        liveSettings.ShowTimingBar());
 
     private bool hasUnsavedChanges() =>
         captureLayout() != sessionStart
@@ -1105,6 +1110,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         liveSettings.SetScrollDirection(snapshot.ScrollDirection);
         liveSettings.SetScrollSpeed(snapshot.ScrollSpeed);
         liveSettings.SetBackgroundDim(snapshot.BackgroundDim);
+        liveSettings.SetJudgementDisplayDuration(
+            snapshot.JudgementDisplayDuration);
+        liveSettings.SetJudgementOpacity(snapshot.JudgementOpacity);
+        liveSettings.SetShowJudgementHitError(
+            snapshot.ShowJudgementHitError);
+        liveSettings.SetShowTimingBar(snapshot.ShowTimingBar);
     }
 
     private void applyLayout(LayoutSnapshot snapshot)
@@ -2424,7 +2435,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         string SkinId,
         double ScrollSpeed,
         ManiaScrollDirection ScrollDirection,
-        double BackgroundDim);
+        double BackgroundDim,
+        double JudgementDisplayDuration,
+        double JudgementOpacity,
+        bool ShowJudgementHitError,
+        bool ShowTimingBar);
 
     private static class LayoutEditorTypography
     {

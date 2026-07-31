@@ -380,6 +380,34 @@ internal static class YokkoStrings
                 "LIVE PLAY SETTINGS",
                 "实时游玩设置",
                 "リアルタイム設定"),
+            ["gameplay.layout_editor.feedback_settings"] = new(
+                "JUDGEMENT FEEDBACK",
+                "判定反馈",
+                "判定フィードバック"),
+            ["gameplay.layout_editor.judgement_duration"] = new(
+                "Display time",
+                "判定停留",
+                "表示時間"),
+            ["gameplay.layout_editor.judgement_opacity"] = new(
+                "Opacity",
+                "判定透明度",
+                "不透明度"),
+            ["gameplay.layout_editor.hit_error"] = new(
+                "Hit error",
+                "误差数值",
+                "判定誤差"),
+            ["gameplay.layout_editor.timing_bar_visibility"] = new(
+                "Timing bar",
+                "判定条",
+                "判定バー"),
+            ["gameplay.layout_editor.show"] = new(
+                "Show",
+                "显示",
+                "表示"),
+            ["gameplay.layout_editor.hide"] = new(
+                "Hide",
+                "隐藏",
+                "非表示"),
             ["gameplay.layout_editor.skin"] = new(
                 "Skin",
                 "皮肤",

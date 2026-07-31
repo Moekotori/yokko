@@ -453,7 +453,11 @@ public partial class GameplayScreen : Screen
                 Depth = -99,
             },
             judgementReadout = new JudgementReadout(
-                configuration: judgementConfiguration)
+                gameplaySettings.ShowJudgementHitError.Value,
+                judgementConfiguration,
+                gameplaySettings
+                    .JudgementDisplayDurationMilliseconds.Value,
+                gameplaySettings.JudgementOpacity.Value)
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
@@ -3138,7 +3142,42 @@ public partial class GameplayScreen : Screen
             value => gameplaySettings.BackgroundDim.Value = Math.Clamp(
                 value,
                 YokkoGameplaySettings.MinimumBackgroundDim,
-                YokkoGameplaySettings.MaximumBackgroundDim));
+                YokkoGameplaySettings.MaximumBackgroundDim),
+            () => gameplaySettings
+                .JudgementDisplayDurationMilliseconds.Value,
+            setLayoutEditorJudgementDisplayDuration,
+            () => gameplaySettings.JudgementOpacity.Value,
+            setLayoutEditorJudgementOpacity,
+            () => gameplaySettings.ShowJudgementHitError.Value,
+            setLayoutEditorShowJudgementHitError,
+            () => gameplaySettings.ShowTimingBar.Value,
+            setLayoutEditorShowTimingBar);
+
+    private void setLayoutEditorJudgementDisplayDuration(double value)
+    {
+        gameplaySettings.SetJudgementDisplayDuration(value);
+        judgementReadout.SetDisplayDuration(
+            gameplaySettings.JudgementDisplayDurationMilliseconds.Value);
+    }
+
+    private void setLayoutEditorJudgementOpacity(double value)
+    {
+        gameplaySettings.SetJudgementOpacity(value);
+        judgementReadout.SetOpacity(
+            gameplaySettings.JudgementOpacity.Value);
+    }
+
+    private void setLayoutEditorShowJudgementHitError(bool value)
+    {
+        gameplaySettings.ShowJudgementHitError.Value = value;
+        judgementReadout.SetShowHitError(value);
+    }
+
+    private void setLayoutEditorShowTimingBar(bool value)
+    {
+        gameplaySettings.ShowTimingBar.Value = value;
+        timingBar.Alpha = value ? 1 : 0;
+    }
 
     private IReadOnlyList<GameplayLayoutEditorSkinOption>
         layoutEditorSkinOptions()
@@ -3286,6 +3325,27 @@ public partial class GameplayScreen : Screen
             dim,
             YokkoGameplaySettings.MinimumBackgroundDim,
             YokkoGameplaySettings.MaximumBackgroundDim);
+
+    internal void SetLayoutEditorJudgementDurationForTest(double value) =>
+        setLayoutEditorJudgementDisplayDuration(value);
+
+    internal void SetLayoutEditorJudgementOpacityForTest(double value) =>
+        setLayoutEditorJudgementOpacity(value);
+
+    internal void SetLayoutEditorShowHitErrorForTest(bool value) =>
+        setLayoutEditorShowJudgementHitError(value);
+
+    internal void SetLayoutEditorShowTimingBarForTest(bool value) =>
+        setLayoutEditorShowTimingBar(value);
+
+    internal double LayoutEditorJudgementDurationForTest =>
+        judgementReadout.DisplayDurationForTest;
+
+    internal float LayoutEditorJudgementOpacityForTest =>
+        judgementReadout.ContentOpacityForTest;
+
+    internal bool LayoutEditorShowsHitErrorForTest =>
+        judgementReadout.ShowsHitErrorForTest;
 
     private void beginLayoutTestPlay()
     {
