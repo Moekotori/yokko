@@ -128,6 +128,75 @@ public sealed class AudioSettingsTestPlayerTest
         }
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task ActiveTestFollowsVolumeChangesImmediately(
+        bool testHitSound)
+    {
+        AudioSettingsTestKind kind = testHitSound
+            ? AudioSettingsTestKind.HitSound
+            : AudioSettingsTestKind.Music;
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "live-audio-test-signals",
+            Guid.NewGuid().ToString("N"));
+        var delayStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseDelay = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var engines = new List<RecordingAudioEngine>();
+        var settings = new YokkoAudioSettings();
+
+        try
+        {
+            await using var player = new AudioSettingsTestPlayer(
+                settings,
+                () =>
+                {
+                    var engine = new RecordingAudioEngine();
+                    engines.Add(engine);
+                    return engine;
+                },
+                directory,
+                async (_, cancellationToken) =>
+                {
+                    delayStarted.TrySetResult();
+                    await releaseDelay.Task.WaitAsync(cancellationToken);
+                });
+
+            Task<AudioEngineStatus> playback = player.PlayAsync(
+                kind,
+                true);
+            await delayStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            settings.MasterVolume.Value = 0.5;
+            settings.MusicVolume.Value = 0.4;
+            settings.HitSoundVolume.Value = 0.6;
+
+            Assert.That(engines, Has.Count.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    engines[0].MusicVolume,
+                    Is.EqualTo(kind == AudioSettingsTestKind.Music ? 0.2 : 0)
+                      .Within(0.0001));
+                Assert.That(
+                    engines[0].HitSoundVolume,
+                    Is.EqualTo(kind == AudioSettingsTestKind.HitSound ? 0.3 : 0)
+                      .Within(0.0001));
+            });
+
+            releaseDelay.TrySetResult();
+            await playback;
+        }
+        finally
+        {
+            releaseDelay.TrySetResult();
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
     [Test]
     public async Task InactiveFallbackCannotCountAsSuccessfulPlayback()
     {

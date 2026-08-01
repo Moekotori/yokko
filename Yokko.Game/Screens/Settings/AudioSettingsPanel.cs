@@ -145,9 +145,6 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             onBackendPreferenceChanged,
             true);
         settings.PreferredBufferSize.BindValueChanged(onPreferenceChanged);
-        settings.MasterVolume.BindValueChanged(onPreferenceChanged);
-        settings.MusicVolume.BindValueChanged(onPreferenceChanged);
-        settings.HitSoundVolume.BindValueChanged(onPreferenceChanged);
         settings.UserOffsetMilliseconds.BindValueChanged(onPreferenceChanged);
         _ = loadDevicesAsync(deviceLoadCancellation.Token);
     }
@@ -648,9 +645,6 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             settings.AsioDeviceId.ValueChanged -=
                 onAsioDevicePreferenceChanged;
             settings.PreferredBufferSize.ValueChanged -= onPreferenceChanged;
-            settings.MasterVolume.ValueChanged -= onPreferenceChanged;
-            settings.MusicVolume.ValueChanged -= onPreferenceChanged;
-            settings.HitSoundVolume.ValueChanged -= onPreferenceChanged;
             settings.UserOffsetMilliseconds.ValueChanged -= onPreferenceChanged;
             _ = testPlayer.DisposeAsync();
             if (deviceEnumerator != null)

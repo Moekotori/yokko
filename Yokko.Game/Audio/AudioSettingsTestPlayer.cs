@@ -19,6 +19,13 @@ internal enum AudioSettingsTestKind
 /// </summary>
 internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
 {
+    private enum TestMixBus
+    {
+        Music,
+        HitSound,
+        Calibration,
+    }
+
     private const int sample_rate = 48000;
     private const double calibration_duration_seconds = 30;
     private const double calibration_lead_in_seconds = 1;
@@ -29,6 +36,9 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
     private readonly string testDirectory;
     private readonly SemaphoreSlim playbackGate = new(1, 1);
     private readonly CancellationTokenSource disposalCancellation = new();
+    private readonly object mixLock = new();
+    private IAudioMixControl activeMix;
+    private TestMixBus activeMixBus;
     private bool filesReady;
 
     internal AudioSettingsTestPlayer(
@@ -48,6 +58,7 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
                 nameof(testDirectory))
             : Path.GetFullPath(testDirectory);
         this.delay = delay ?? Task.Delay;
+        this.settings.MixChanged += onMixChanged;
     }
 
     internal async Task<AudioEngineStatus> PlayAsync(
@@ -72,23 +83,40 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
                     "The active audio backend does not expose mix controls.");
             }
 
-            return kind switch
+            TestMixBus bus = kind switch
             {
-                AudioSettingsTestKind.Music =>
-                    await playMusicAsync(engine, mix, token)
-                        .ConfigureAwait(false),
-                AudioSettingsTestKind.HitSound =>
-                    await playHitSoundAsync(
-                            engine,
-                            mix,
-                            hitSoundsEnabled,
-                            token)
-                        .ConfigureAwait(false),
+                AudioSettingsTestKind.Music => TestMixBus.Music,
+                AudioSettingsTestKind.HitSound => TestMixBus.HitSound,
                 _ => throw new ArgumentOutOfRangeException(
                     nameof(kind),
                     kind,
                     null),
             };
+
+            activateMix(mix, bus);
+            try
+            {
+                return kind switch
+                {
+                    AudioSettingsTestKind.Music =>
+                        await playMusicAsync(engine, token)
+                            .ConfigureAwait(false),
+                    AudioSettingsTestKind.HitSound =>
+                        await playHitSoundAsync(
+                                engine,
+                                hitSoundsEnabled,
+                                token)
+                            .ConfigureAwait(false),
+                    _ => throw new ArgumentOutOfRangeException(
+                        nameof(kind),
+                        kind,
+                        null),
+                };
+            }
+            finally
+            {
+                deactivateMix(mix);
+            }
         }
         finally
         {
@@ -117,20 +145,24 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
                     "The active audio backend does not expose mix controls.");
             }
 
-            mix.SetMixVolumes(
-                settings.EffectiveHitSoundVolume,
-                0,
-                0);
-            await engine.StartAsync(
-                            settings.CreateStartRequest(calibrationPath),
-                            token)
-                        .ConfigureAwait(false);
-            playbackStarted?.Invoke();
-            await delay(
-                      TimeSpan.FromSeconds(calibration_duration_seconds),
-                      token)
-                  .ConfigureAwait(false);
-            await engine.StopAsync(token).ConfigureAwait(false);
+            activateMix(mix, TestMixBus.Calibration);
+            try
+            {
+                await engine.StartAsync(
+                                settings.CreateStartRequest(calibrationPath),
+                                token)
+                            .ConfigureAwait(false);
+                playbackStarted?.Invoke();
+                await delay(
+                          TimeSpan.FromSeconds(calibration_duration_seconds),
+                          token)
+                      .ConfigureAwait(false);
+                await engine.StopAsync(token).ConfigureAwait(false);
+            }
+            finally
+            {
+                deactivateMix(mix);
+            }
         }
         finally
         {
@@ -140,13 +172,8 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
 
     private async Task<AudioEngineStatus> playMusicAsync(
         IAudioEngine engine,
-        IAudioMixControl mix,
         CancellationToken cancellationToken)
     {
-        mix.SetMixVolumes(
-            settings.EffectiveMusicVolume,
-            0,
-            0);
         await engine.StartAsync(
                         settings.CreateStartRequest(musicPath),
                         cancellationToken)
@@ -162,7 +189,6 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
 
     private async Task<AudioEngineStatus> playHitSoundAsync(
         IAudioEngine engine,
-        IAudioMixControl mix,
         bool hitSoundsEnabled,
         CancellationToken cancellationToken)
     {
@@ -178,10 +204,6 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
                 "The active audio backend cannot test hitsounds.");
         }
 
-        mix.SetMixVolumes(
-            0,
-            settings.EffectiveHitSoundVolume,
-            0);
         await samples.PrepareSamplesAsync(
                          new[] { hitSoundPath },
                          cancellationToken)
@@ -217,6 +239,52 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
         }
 
         return opened;
+    }
+
+    private void activateMix(IAudioMixControl mix, TestMixBus bus)
+    {
+        lock (mixLock)
+        {
+            activeMix = mix;
+            activeMixBus = bus;
+            applyCurrentMix(mix, bus);
+        }
+    }
+
+    private void deactivateMix(IAudioMixControl mix)
+    {
+        lock (mixLock)
+        {
+            if (ReferenceEquals(activeMix, mix))
+                activeMix = null;
+        }
+    }
+
+    private void onMixChanged()
+    {
+        lock (mixLock)
+        {
+            if (activeMix != null)
+                applyCurrentMix(activeMix, activeMixBus);
+        }
+    }
+
+    private void applyCurrentMix(IAudioMixControl mix, TestMixBus bus)
+    {
+        switch (bus)
+        {
+            case TestMixBus.Music:
+                mix.SetMixVolumes(settings.EffectiveMusicVolume, 0, 0);
+                break;
+
+            case TestMixBus.HitSound:
+                mix.SetMixVolumes(0, settings.EffectiveHitSoundVolume, 0);
+                break;
+
+            case TestMixBus.Calibration:
+                mix.SetMixVolumes(settings.EffectiveHitSoundVolume, 0, 0);
+                break;
+        }
     }
 
     private string musicPath => Path.Combine(testDirectory, "music-test.wav");
@@ -352,6 +420,7 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        settings.MixChanged -= onMixChanged;
         disposalCancellation.Cancel();
         await playbackGate.WaitAsync().ConfigureAwait(false);
         playbackGate.Release();
