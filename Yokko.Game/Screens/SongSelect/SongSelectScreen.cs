@@ -86,6 +86,7 @@ public partial class SongSelectScreen : Screen
 
     private TextureStore textures;
     private Container stage;
+    private Container header;
     private Sprite backgroundA;
     private Sprite backgroundB;
     private Sprite activeBackground;
@@ -95,8 +96,11 @@ public partial class SongSelectScreen : Screen
     private Container selectedPerformanceRow;
     private Container songBrowser;
     private Container footer;
+    private SongSelectFooterBackButton footerBackButton;
+    private Container accountCard;
     private Container footerToolDock;
     private Container[] footerToolShadows;
+    private Box[] footerToolDividers;
     private SongSelectFooterToolButton randomFooterButton;
     private SongSelectFooterToolButton optionsFooterButton;
     private SongSelectVirtualisedList songList;
@@ -235,6 +239,12 @@ public partial class SongSelectScreen : Screen
     internal float BackgroundCoverageAlpha => Math.Max(
         backgroundA?.Alpha ?? 0,
         backgroundB?.Alpha ?? 0);
+    internal float StageAlpha => stage?.Alpha ?? 0;
+    internal float EntryTransitionOffset =>
+        Math.Abs(header?.DrawPosition.Y ?? 0)
+        + Math.Abs((detailsHost?.DrawPosition.X ?? details_left) - details_left)
+        + Math.Abs((songBrowser?.DrawPosition.X ?? -browse_right) + browse_right)
+        + Math.Abs(footer?.DrawPosition.Y ?? 0);
     internal Vector2 SelectedChartFactsPosition =>
         selectedChartFactsRow?.Position ?? Vector2.Zero;
     internal Vector2 SelectedChartFactsSize =>
@@ -285,13 +295,21 @@ public partial class SongSelectScreen : Screen
         difficultyFilterBar?.DisplayedUnit ?? string.Empty;
     internal Vector2 FooterToolDockSize =>
         footerToolDock?.Size ?? Vector2.Zero;
+    internal Vector2 FooterToolDockPosition =>
+        footerToolDock?.Position ?? Vector2.Zero;
+    internal Vector2 FooterBackPosition =>
+        footerBackButton?.Position ?? Vector2.Zero;
+    internal Vector2 AccountCardPosition =>
+        accountCard?.Position ?? Vector2.Zero;
+    internal Vector2 AccountCardSize =>
+        accountCard?.Size ?? Vector2.Zero;
     internal int FooterToolShadowCount => footerToolShadows?.Length ?? 0;
     internal static Vector2 FooterToolDockSizeFor(YokkoUiScale scale) =>
-        new(scale == YokkoUiScale.Large ? 410 : 560, 94);
+        new(scale == YokkoUiScale.Large ? 378 : 462, 82);
     internal static float FooterToolButtonWidthFor(YokkoUiScale scale) =>
-        scale == YokkoUiScale.Large ? 126 : 176;
+        scale == YokkoUiScale.Large ? 126 : 154;
     internal static float FooterToolButtonStepFor(YokkoUiScale scale) =>
-        scale == YokkoUiScale.Large ? 134 : 184;
+        FooterToolButtonWidthFor(scale);
     internal Vector2 RankingPanelSize =>
         rankingPanel?.Size ?? Vector2.Zero;
     internal Vector2 RankingContentSize =>
@@ -483,8 +501,8 @@ public partial class SongSelectScreen : Screen
             onUiScaleChanged,
             true);
 
-        stage.Alpha = 0;
-        stage.Y = 14;
+        stage.Alpha = 1;
+        stage.Y = 0;
 
         Logger.Log(
             $"Song select construction: {loadStopwatch.Elapsed.TotalMilliseconds:0} ms "
@@ -516,7 +534,7 @@ public partial class SongSelectScreen : Screen
             "entered",
             $"selected={selectedEntry?.Beatmap.Title ?? "none"}");
         playSelectedPreview();
-        stage.FadeIn(260, Easing.OutQuint).MoveToY(0, 420, Easing.OutQuint);
+        playEntryTransition();
 
         if (!nextPreloadScheduled && requestNextPreload != null)
         {
@@ -577,8 +595,63 @@ public partial class SongSelectScreen : Screen
                 previewPlayer?.WaitForIdleAsync() ?? Task.CompletedTask);
             previewPlayer?.Detach();
         }
-        this.FadeOut(180, Easing.OutQuint);
+        playExitTransition();
         return base.OnExiting(e);
+    }
+
+    private void playEntryTransition()
+    {
+        // Keep the prepared background fully opaque from the navigation frame.
+        // Only the independent UI planes move, so the transition can never
+        // expose an empty ScreenStack frame.
+        stage.ClearTransforms();
+        stage.Alpha = 1;
+        stage.Position = Vector2.Zero;
+
+        header.ClearTransforms();
+        header.Y = -10;
+        header.Alpha = 0.88f;
+        header.Delay(10)
+              .MoveToY(0, 180, Easing.OutQuint)
+              .FadeTo(1, 120, Easing.OutQuint);
+
+        detailsHost.ClearTransforms();
+        detailsHost.X = details_left - 18;
+        detailsHost.Alpha = 0.9f;
+        detailsHost.Delay(24)
+                   .MoveToX(details_left, 210, Easing.OutQuint)
+                   .FadeTo(1, 130, Easing.OutQuint);
+
+        songBrowser.ClearTransforms();
+        songBrowser.X = -browse_right + 24;
+        songBrowser.Alpha = 0.86f;
+        songBrowser.Delay(42)
+                   .MoveToX(-browse_right, 230, Easing.OutQuint)
+                   .FadeTo(1, 150, Easing.OutQuint);
+
+        footer.ClearTransforms();
+        footer.Y = 12;
+        footer.Alpha = 0.9f;
+        footer.Delay(58)
+              .MoveToY(0, 180, Easing.OutQuint)
+              .FadeTo(1, 130, Easing.OutQuint);
+
+        mascotMoment.ClearTransforms();
+        mascotMoment.X = -6;
+        mascotMoment.Alpha = 0.9f;
+        mascotMoment.Delay(72)
+                    .MoveToX(8, 190, Easing.OutQuint)
+                    .FadeTo(1, 130, Easing.OutQuint);
+    }
+
+    private void playExitTransition()
+    {
+        header.MoveToY(-7, 140, Easing.OutQuint);
+        detailsHost.MoveToX(details_left - 12, 160, Easing.OutQuint);
+        songBrowser.MoveToX(-browse_right + 18, 160, Easing.OutQuint);
+        footer.MoveToY(10, 140, Easing.OutQuint);
+        mascotMoment.MoveToX(-2, 140, Easing.OutQuint);
+        this.FadeOut(170, Easing.OutQuint);
     }
 
     protected override void Dispose(bool isDisposing)
@@ -1340,7 +1413,7 @@ public partial class SongSelectScreen : Screen
         onSelectedModsChanged();
     }
 
-    private Drawable createHeader(Texture logo) => new Container
+    private Drawable createHeader(Texture logo) => header = new Container
     {
         RelativeSizeAxes = Axes.Both,
         Children =
@@ -1829,11 +1902,11 @@ public partial class SongSelectScreen : Screen
                         SongSelectTheme.Cyan.B,
                         0.62f),
                 },
-                new SongSelectFooterBackButton(
+                footerBackButton = new SongSelectFooterBackButton(
                     () => stopPreviewThen(this.Exit),
                     textures.Get("SongSelect/Cute/sticker-diamond"))
                 {
-                    Position = new Vector2(168, 25),
+                    Position = new Vector2(24, 24),
                 },
                 createAccountCard(),
                 modPanel,
@@ -1886,37 +1959,60 @@ public partial class SongSelectScreen : Screen
     private Drawable createFooterToolDock(
         SongSelectModsToggleButton mods)
     {
-        Container modsShadow = createFooterToolShadow(new Vector2(8, 6));
-        Container randomShadow = createFooterToolShadow(new Vector2(192, 6));
-        Container optionsShadow = createFooterToolShadow(new Vector2(376, 6));
-        footerToolShadows = [modsShadow, randomShadow, optionsShadow];
-        mods.Position = new Vector2(8, 6);
+        Container railShadow = createFooterToolShadow(Vector2.Zero);
+        footerToolShadows = [railShadow];
+        mods.Position = Vector2.Zero;
+        Box firstDivider = createFooterToolDivider(154);
+        Box secondDivider = createFooterToolDivider(308);
+        footerToolDividers = [firstDivider, secondDivider];
 
         return footerToolDock = new Container
         {
-            Position = new Vector2(870, 18),
-            Size = new Vector2(560, 94),
+            Anchor = Anchor.BottomRight,
+            Origin = Anchor.BottomRight,
+            Position = new Vector2(-436, -24),
+            Size = FooterToolDockSizeFor(YokkoUiScale.Comfortable),
             Children =
             [
-                modsShadow,
-                randomShadow,
-                optionsShadow,
-                mods,
-                randomFooterButton = new SongSelectFooterToolButton(
-                    "RANDOM",
-                    FontAwesome.Solid.Random,
-                    SongSelectTheme.Cyan,
-                    selectRandomEntry)
+                railShadow,
+                new Container
                 {
-                    Position = new Vector2(192, 6),
-                },
-                optionsFooterButton = new SongSelectFooterToolButton(
-                    "OPTIONS",
-                    FontAwesome.Solid.Cog,
-                    SongSelectTheme.Pink,
-                    OpenOptions)
-                {
-                    Position = new Vector2(376, 6),
+                    RelativeSizeAxes = Axes.Both,
+                    Masking = true,
+                    CornerRadius = 11,
+                    BorderThickness = 1.25f,
+                    BorderColour = new Color4(
+                        SongSelectTheme.Navy.R,
+                        SongSelectTheme.Navy.G,
+                        SongSelectTheme.Navy.B,
+                        0.24f),
+                    Children =
+                    [
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = SongSelectSurface.Ivory(0.99f),
+                        },
+                        mods,
+                        randomFooterButton = new SongSelectFooterToolButton(
+                            "RANDOM",
+                            FontAwesome.Solid.Random,
+                            SongSelectTheme.Cyan,
+                            selectRandomEntry)
+                        {
+                            Position = new Vector2(154, 0),
+                        },
+                        optionsFooterButton = new SongSelectFooterToolButton(
+                            "OPTIONS",
+                            FontAwesome.Solid.Cog,
+                            SongSelectTheme.Pink,
+                            OpenOptions)
+                        {
+                            Position = new Vector2(308, 0),
+                        },
+                        firstDivider,
+                        secondDivider,
+                    ],
                 },
             ],
         };
@@ -1926,9 +2022,22 @@ public partial class SongSelectScreen : Screen
         new()
         {
             Position = position,
-            Size = new Vector2(176, 82),
-            Child = SongSelectSurface.CreateShadow(10, 0.14f, 3),
+            RelativeSizeAxes = Axes.Both,
+            Child = SongSelectSurface.CreateShadow(11, 0.16f, 3),
         };
+
+    private static Box createFooterToolDivider(float x) => new()
+    {
+        X = x,
+        Y = 12,
+        Width = 1,
+        Height = 58,
+        Colour = new Color4(
+            SongSelectTheme.Navy.R,
+            SongSelectTheme.Navy.G,
+            SongSelectTheme.Navy.B,
+            0.13f),
+    };
 
     private void onUiScaleChanged(ValueChangedEvent<YokkoUiScale> change) =>
         applyFooterScaleLayout(change.NewValue);
@@ -1937,6 +2046,7 @@ public partial class SongSelectScreen : Screen
     {
         if (footerToolDock == null
             || footerToolShadows == null
+            || footerToolDividers == null
             || modsToggleButton == null
             || randomFooterButton == null
             || optionsFooterButton == null)
@@ -1946,17 +2056,16 @@ public partial class SongSelectScreen : Screen
         float buttonStep = FooterToolButtonStepFor(scale);
 
         footerToolDock.Size = FooterToolDockSizeFor(scale);
-        for (int i = 0; i < footerToolShadows.Length; i++)
-        {
-            footerToolShadows[i].Position = new Vector2(8 + i * buttonStep, 6);
-            footerToolShadows[i].Size = new Vector2(buttonWidth, 82);
-        }
+        footerToolShadows[0].Position = Vector2.Zero;
+        footerToolShadows[0].RelativeSizeAxes = Axes.Both;
+        footerToolDividers[0].X = buttonStep;
+        footerToolDividers[1].X = 2 * buttonStep;
         modsToggleButton.Size = new Vector2(buttonWidth, 82);
         randomFooterButton.Size = new Vector2(buttonWidth, 82);
         optionsFooterButton.Size = new Vector2(buttonWidth, 82);
-        modsToggleButton.Position = new Vector2(8, 6);
-        randomFooterButton.Position = new Vector2(8 + buttonStep, 6);
-        optionsFooterButton.Position = new Vector2(8 + 2 * buttonStep, 6);
+        modsToggleButton.Position = Vector2.Zero;
+        randomFooterButton.Position = new Vector2(buttonStep, 0);
+        optionsFooterButton.Position = new Vector2(2 * buttonStep, 0);
     }
 
     internal void OpenOptions() => this.Push(new SettingsScreen());
@@ -1976,18 +2085,18 @@ public partial class SongSelectScreen : Screen
             10,
             1.25f);
 
-        return new Container
+        return accountCard = new Container
         {
-            Position = new Vector2(390, 23),
-            Size = new Vector2(470, 82),
+            Position = new Vector2(246, 24),
+            Size = new Vector2(520, 82),
             Children =
             [
                 SongSelectSurface.CreateShadow(10, 0.18f, 3),
                 panel,
                 new Container
                 {
-                    Position = new Vector2(10, 8),
-                    Size = new Vector2(64),
+                    Position = new Vector2(9, 7),
+                    Size = new Vector2(68),
                     Masking = true,
                     CornerRadius = 32,
                     BorderThickness = 2,
@@ -2001,40 +2110,40 @@ public partial class SongSelectScreen : Screen
                 },
                 new Circle
                 {
-                    Position = new Vector2(60, 56),
-                    Size = new Vector2(12),
+                    Position = new Vector2(63, 58),
+                    Size = new Vector2(13),
                     BorderThickness = 2,
                     BorderColour = Color4.White,
                     Colour = new Color4(0.24f, 0.82f, 0.48f, 1f),
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(88, 8),
+                    Position = new Vector2(92, 7),
                     Text = "MOCHI",
-                    Font = HomeTypography.Display(17),
+                    Font = HomeTypography.Display(18),
                     Colour = SongSelectTheme.Navy,
                 },
                 new SpriteIcon
                 {
-                    Position = new Vector2(170, 17),
+                    Position = new Vector2(181, 17),
                     Size = new Vector2(7),
                     Icon = FontAwesome.Solid.Circle,
                     Colour = new Color4(0.22f, 0.72f, 0.46f, 1f),
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(182, 13),
+                    Position = new Vector2(193, 12),
                     Text = "ONLINE",
-                    Font = HomeTypography.Display(8),
+                    Font = HomeTypography.Display(9),
                     Colour = new Color4(0.22f, 0.72f, 0.46f, 1f),
                 },
-                accountMetric("7,272", "PP", 88),
-                accountMetric("98.76%", "ACC", 164),
-                accountMetric("#12,846", "GLOBAL", 254),
+                accountMetric("7,272", "PP", 92),
+                accountMetric("98.76%", "ACC", 190),
+                accountMetric("#12,846", "GLOBAL", 292),
                 new Box
                 {
-                    Position = new Vector2(88, 67),
-                    Size = new Vector2(252, 5),
+                    Position = new Vector2(92, 67),
+                    Size = new Vector2(286, 5),
                     Colour = new Color4(
                         SongSelectTheme.Cyan.R,
                         SongSelectTheme.Cyan.G,
@@ -2043,15 +2152,15 @@ public partial class SongSelectScreen : Screen
                 },
                 new Box
                 {
-                    Position = new Vector2(88, 67),
-                    Size = new Vector2(142, 5),
+                    Position = new Vector2(92, 67),
+                    Size = new Vector2(162, 5),
                     Colour = SongSelectTheme.Cyan,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(350, 58),
+                    Position = new Vector2(405, 57),
                     Text = "LV.45",
-                    Font = HomeTypography.Display(10),
+                    Font = HomeTypography.Display(11),
                     Colour = SongSelectTheme.Pink,
                 },
             ],
@@ -2064,20 +2173,20 @@ public partial class SongSelectScreen : Screen
         float x) => new Container
         {
             Position = new Vector2(x, 31),
-            Size = new Vector2(64, 27),
+            Size = new Vector2(86, 27),
             Children =
         [
             new SpriteText
             {
                 Text = value,
-                Font = HomeTypography.Display(11),
+                Font = HomeTypography.Display(12),
                 Colour = SongSelectTheme.Navy,
             },
             new SpriteText
             {
                 Y = 14,
                 Text = label,
-                Font = HomeTypography.Display(7),
+                Font = HomeTypography.Display(8),
                 Colour = SongSelectTheme.Cyan,
             },
         ],

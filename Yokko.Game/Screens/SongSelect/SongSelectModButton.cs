@@ -105,10 +105,8 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
         Texture diamondTexture)
     {
         Action = action;
-        Size = new Vector2(176, 82);
-        Masking = true;
-        CornerRadius = 10;
-        BorderThickness = 1.25f;
+        Size = new Vector2(154, 82);
+        BorderThickness = 0;
 
         InternalChildren = new Drawable[]
         {
@@ -193,17 +191,13 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
         open = value;
         background.Colour = open
             ? HomeControlColours.PaleCyan
-            : SongSelectSurface.Ivory();
+            : Color4.Transparent;
         icon.Colour = open
             ? HomeControlColours.Pink
             : HomeControlColours.Navy;
         BorderColour = open
             ? HomeControlColours.Yellow
-            : new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.24f);
+            : Color4.Transparent;
         bottomAccent.Colour = open
             ? HomeControlColours.Yellow
             : HomeControlColours.Pink;

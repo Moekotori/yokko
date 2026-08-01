@@ -85,6 +85,51 @@
 
 final result: passed
 
+# Song Select footer hierarchy QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\visualizations\2026\08\01\019fbb21-b35d-7561-8525-b0bb34b8f427\songselect-footer-before.png`
+- Implementation screenshot: `C:\Users\nyafa\.codex\visualizations\2026\08\01\019fbb21-b35d-7561-8525-b0bb34b8f427\songselect-footer-account-final.png`
+- Focused side-by-side comparison: `C:\Users\nyafa\.codex\visualizations\2026\08\01\019fbb21-b35d-7561-8525-b0bb34b8f427\songselect-footer-comparison.png`
+- Viewport and state: native 1920 x 1080 song-select preview, selected 4K chart, comfortable UI scale.
+- Pixel normalization: source and implementation are both 1920 x 1080 at the same native capture density. The focused comparison uses matching y=930..1080 crops, each proportionally downsampled to 960 x 75 without stretching.
+
+## Findings and resolution
+
+- P1 resolved: five independent cards created fragmented hierarchy and irregular horizontal rhythm. The footer now uses an aligned left navigation/context cluster and a right action cluster.
+- P2 resolved: MODS, RANDOM, and OPTIONS each carried duplicate borders and shadows. They now share one 462 x 82 segmented rail, one outline, one shadow, and two quiet dividers.
+- P2 resolved: BACK began at x=168 and looked detached from the left edge. It now begins at x=24, followed by the account card at x=246 on the same 82 px baseline.
+- P2 resolved: PLAY contained competing heart and plus decorations. The primary action now keeps the supplied tape artwork while using a simpler icon, title, subtitle, and chevron hierarchy.
+- P3 resolved during final pass: the BACK diamond was moved inward so it no longer reaches into the account-card boundary, and the PLAY subtitle uses a higher-contrast navy treatment.
+- User follow-up resolved: the player card grows from 470 x 82 to 520 x 82, with a 68 px avatar, larger identity typography, larger metric values, and wider progress treatment while preserving the established baseline.
+- No actionable P0/P1/P2 issue remains in the footer region.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing Yokko display typography is preserved; BACK, utility labels, player metrics, and PLAY retain clear optical hierarchy without truncation.
+- Spacing and layout rhythm: all primary footer cards share y=24 and 82 px height; the right rail and PLAY use a fixed 12 px gap; 24 px outer margins are preserved.
+- Colors and visual tokens: ivory, navy, cyan, pink, and yellow continue to use the existing SongSelect theme; redundant borders were removed rather than introducing new colors.
+- Image quality and assets: the original avatar, diamond, and tape textures remain native assets with unchanged aspect ratios and no raster substitution.
+- Copy and content: BACK, player metrics, MODS, RANDOM, OPTIONS, and PLAY remain present; PLAY helper copy is clarified to `START SELECTED CHART`.
+
+## Interaction and verification
+
+- Existing click actions for BACK, MODS, RANDOM, OPTIONS, and PLAY remain wired to their original callbacks.
+- Isolated focused `TestSceneSongSelectScreen` run: 11 passed, 0 failed, 0 skipped.
+- Isolated publish and native Direct3D 11 screenshot completed successfully at 1920 x 1080.
+- `git diff --check` passed.
+- The user's running Debug process was preserved; validation used isolated artifacts instead of terminating it.
+
+## Comparison history
+
+1. Before capture identified P1 fragmentation plus P2 spacing, duplicate chrome, and CTA clutter.
+2. V1 implemented the two-cluster footer and unified utility rail; visual review found only a small decoration-boundary and subtitle-contrast polish issue.
+3. V2 moved the diamond inward and improved subtitle contrast.
+4. The user requested a larger player-information area. The final capture widens the card and increases its avatar and typography without colliding with the right action cluster; the updated focused comparison shows the final state.
+
+final result: passed
+
 # Song Select standalone footer tools QA (2026-08-01)
 
 ## Evidence

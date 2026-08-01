@@ -28,7 +28,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
         Texture diamondTexture)
     {
         Action = action;
-        Size = new Vector2(210, 78);
+        Size = new Vector2(210, 82);
 
         Container panel = SongSelectSurface.CreateCard(
             out background,
@@ -119,7 +119,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.Centre,
-                Position = new Vector2(0, 2),
+                Position = new Vector2(-8, 2),
                 Size = new Vector2(28),
                 Texture = texture,
                 FillMode = FillMode.Fit,
@@ -161,22 +161,14 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
     {
         this.accent = accent;
         Action = action;
-        Size = new Vector2(176, 82);
-        Masking = true;
-        CornerRadius = 10;
-        BorderThickness = 1.25f;
-        BorderColour = new Color4(
-            SongSelectTheme.Navy.R,
-            SongSelectTheme.Navy.G,
-            SongSelectTheme.Navy.B,
-            0.24f);
+        Size = new Vector2(154, 82);
 
         InternalChildren =
         [
             background = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = SongSelectSurface.Ivory(0.99f),
+                Colour = Color4.Transparent,
             },
             new SpriteIcon
             {
@@ -222,7 +214,7 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
     protected override void OnHoverLost(HoverLostEvent e)
     {
         background.FadeColour(
-            SongSelectSurface.Ivory(0.99f),
+            Color4.Transparent,
             130,
             Easing.OutQuint);
         this.ScaleTo(1, 130, Easing.OutQuint);

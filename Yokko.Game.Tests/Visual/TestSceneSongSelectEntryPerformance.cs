@@ -29,6 +29,7 @@ public partial class TestSceneSongSelectEntryPerformance : YokkoTestScene
     private string temporaryDirectory;
     private int cachedArtworkBeforeNavigation;
     private Stopwatch navigationStopwatch;
+    private float stageAlphaAtNavigation;
 
     [Resolved]
     private ImportedChartLibrary importedChartLibrary { get; set; }
@@ -62,10 +63,21 @@ public partial class TestSceneSongSelectEntryPerformance : YokkoTestScene
             mainScreen.ChildrenOfType<HomePrimaryAction>()
                       .Single()
                       .Action?.Invoke();
+            stageAlphaAtNavigation =
+                (screenStack.CurrentScreen as SongSelectScreen)?.StageAlpha
+                ?? -1;
         });
+        AddAssert("prepared screen is visible on navigation frame", () =>
+            stageAlphaAtNavigation >= 0.99f);
+        AddUntilStep("entry motion starts", () =>
+            screenStack.CurrentScreen is SongSelectScreen songSelect
+            && songSelect.EntryTransitionOffset > 5);
         AddUntilStep("song rows materialise", () =>
             screenStack.CurrentScreen is SongSelectScreen songSelect
             && songSelect.MaterialisedSongListDrawableCount > 0);
+        AddUntilStep("entry motion settles", () =>
+            screenStack.CurrentScreen is SongSelectScreen songSelect
+            && songSelect.EntryTransitionOffset < 0.1f);
         AddAssert("prepared navigation stays below hitch threshold", () =>
             navigationStopwatch.ElapsedMilliseconds < 250);
         AddAssert("first frame has no artwork cache miss", () =>
@@ -73,6 +85,28 @@ public partial class TestSceneSongSelectEntryPerformance : YokkoTestScene
             == cachedArtworkBeforeNavigation);
         AddStep("return to main", () => screenStack.CurrentScreen.Exit());
         AddUntilStep("main screen resumes", () =>
+            ReferenceEquals(screenStack.CurrentScreen, mainScreen));
+        AddUntilStep("next song select preload is ready", () =>
+            mainScreen.PreparedSongSelectEntryCount == artworkPaths.Count
+            && mainScreen.IsPreparedSongSelectCurrent);
+        AddStep("open prepared song select again", () =>
+        {
+            stageAlphaAtNavigation = -1;
+            mainScreen.ChildrenOfType<HomePrimaryAction>()
+                      .Single()
+                      .Action?.Invoke();
+            stageAlphaAtNavigation =
+                (screenStack.CurrentScreen as SongSelectScreen)?.StageAlpha
+                ?? -1;
+        });
+        AddAssert("repeated entry is visible on navigation frame", () =>
+            stageAlphaAtNavigation >= 0.99f);
+        AddUntilStep("repeated entry starts motion", () =>
+            screenStack.CurrentScreen is SongSelectScreen songSelect
+            && songSelect.EntryTransitionOffset > 5);
+        AddStep("return to main again", () =>
+            screenStack.CurrentScreen.Exit());
+        AddUntilStep("main screen resumes again", () =>
             ReferenceEquals(screenStack.CurrentScreen, mainScreen));
         AddStep("clear test library", () => importedChartLibrary.Clear());
     }

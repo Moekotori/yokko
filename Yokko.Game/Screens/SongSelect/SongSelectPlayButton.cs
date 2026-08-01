@@ -68,31 +68,22 @@ internal partial class SongSelectPlayButton : ClickableContainer
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(100, 14),
-                        Text = "SONG SELECT",
+                        Position = new Vector2(96, 13),
+                        Text = "START SELECTED CHART",
                         Font = HomeTypography.Display(10),
-                        Spacing = new Vector2(1.8f, 0),
-                        Colour = SongSelectTheme.Cyan,
-                    },
-                    new SpriteText
-                    {
-                        Position = new Vector2(99, 23),
-                        Text = "PLAY",
-                        Font = HomeTypography.Display(42),
-                        Colour = SongSelectTheme.Navy,
-                    },
-                    new SpriteIcon
-                    {
-                        Anchor = Anchor.BottomRight,
-                        Origin = Anchor.BottomRight,
-                        Position = new Vector2(-44, -8),
-                        Size = new Vector2(22),
-                        Icon = FontAwesome.Regular.Heart,
+                        Spacing = new Vector2(1.1f, 0),
                         Colour = new Color4(
                             SongSelectTheme.Navy.R,
                             SongSelectTheme.Navy.G,
                             SongSelectTheme.Navy.B,
-                            0.52f),
+                            0.64f),
+                    },
+                    new SpriteText
+                    {
+                        Position = new Vector2(95, 25),
+                        Text = "PLAY",
+                        Font = HomeTypography.Display(39),
+                        Colour = SongSelectTheme.Navy,
                     },
                     chevron = new SpriteIcon
                     {
@@ -102,22 +93,6 @@ internal partial class SongSelectPlayButton : ClickableContainer
                         Size = new Vector2(14),
                         Icon = FontAwesome.Solid.ChevronRight,
                         Colour = SongSelectTheme.Navy,
-                    },
-                    new SpriteIcon
-                    {
-                        Position = new Vector2(89, 16),
-                        Size = new Vector2(10),
-                        Icon = FontAwesome.Solid.Plus,
-                        Colour = SongSelectTheme.Pink,
-                    },
-                    new SpriteIcon
-                    {
-                        Anchor = Anchor.TopRight,
-                        Origin = Anchor.TopRight,
-                        Position = new Vector2(-42, 12),
-                        Size = new Vector2(10),
-                        Icon = FontAwesome.Solid.Plus,
-                        Colour = SongSelectTheme.Cyan,
                     },
                 ],
             },

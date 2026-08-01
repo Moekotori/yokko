@@ -148,26 +148,31 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                 == new Vector2(154, 40));
         AddAssert("retired inline mod panel is not built on entry", () =>
             !songSelectScreen.LegacyInlineModPanelMaterialised);
-        AddAssert("footer tools use three aligned standalone cards", () =>
-            songSelectScreen.FooterToolDockSize == new Vector2(560, 94)
-            && songSelectScreen.FooterToolShadowCount == 3
+        AddAssert("footer uses aligned left and right action clusters", () =>
+            songSelectScreen.FooterBackPosition == new Vector2(24, 24)
+            && songSelectScreen.AccountCardPosition == new Vector2(246, 24)
+            && songSelectScreen.AccountCardSize == new Vector2(520, 82)
+            && songSelectScreen.FooterToolDockPosition
+                == new Vector2(-436, -24)
+            && songSelectScreen.FooterToolDockSize == new Vector2(462, 82)
+            && songSelectScreen.FooterToolShadowCount == 1
             && songSelectScreen
                .ChildrenOfType<SongSelectFooterToolButton>()
-               .All(button => button.Size == new Vector2(176, 82))
+               .All(button => button.Size == new Vector2(154, 82))
             && songSelectScreen
                .ChildrenOfType<SongSelectModsToggleButton>()
-               .Single().Size == new Vector2(176, 82));
+               .Single().Size == new Vector2(154, 82));
         AddAssert("large ui scale has collision-safe footer geometry", () =>
             SongSelectScreen.FooterToolDockSizeFor(YokkoUiScale.Large)
-                == new Vector2(410, 94)
+                == new Vector2(378, 82)
             && SongSelectScreen.FooterToolButtonWidthFor(
                 YokkoUiScale.Large) == 126
             && SongSelectScreen.FooterToolButtonStepFor(
-                YokkoUiScale.Large) == 134
+                YokkoUiScale.Large) == 126
             && SongSelectScreen.FooterToolDockSizeFor(
-                YokkoUiScale.Comfortable) == new Vector2(560, 94)
+                YokkoUiScale.Comfortable) == new Vector2(462, 82)
             && SongSelectScreen.FooterToolButtonWidthFor(
-                YokkoUiScale.Comfortable) == 176);
+                YokkoUiScale.Comfortable) == 154);
 
         AddStep("select next song", songSelectScreen.SelectNext);
         AddAssert("selection wraps", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");
