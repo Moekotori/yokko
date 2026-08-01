@@ -6,9 +6,11 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Input.Events;
 using osu.Framework.Platform;
 using osuTK;
 using osuTK.Graphics;
+using osuTK.Input;
 using Yokko.Game.Audio;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
@@ -21,8 +23,6 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
     private readonly YokkoDisplaySettings displaySettings;
     private readonly YokkoAudioSettings audioSettings;
     private readonly IWindow window;
-    private readonly List<SettingsSegmentedChoiceButton> frameRateButtons = new();
-    private readonly List<SettingsSegmentedChoiceButton> audioButtons = new();
     private readonly List<SettingsSegmentedChoiceButton> displayButtons = new();
     private readonly List<SettingsSegmentedChoiceButton> refreshButtons = new();
     private readonly Container displayControlHost;
@@ -30,10 +30,10 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
     private readonly SpriteText statusMetadata;
 
     internal bool FastAltTabEnabled => displaySettings.FastAltTab.Value;
-    internal YokkoBackgroundFrameRate BackgroundFrameRate =>
+    internal double BackgroundFrameRate =>
         displaySettings.BackgroundFrameRate.Value;
-    internal BackgroundAudioMode BackgroundAudio =>
-        audioSettings.BackgroundAudio.Value;
+    internal double BackgroundAudioVolume =>
+        audioSettings.BackgroundVolume.Value;
 
     internal DesktopSettingsPanel(
         YokkoDisplaySettings displaySettings,
@@ -76,12 +76,16 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
             SettingsChrome.CreateSettingRow(
                 338,
                 YokkoStrings.Get("settings.desktop.background_fps"),
-                createBackgroundFrameRateControl()),
+                new DesktopSettingsSlider(
+                    displaySettings.BackgroundFrameRate,
+                    DesktopSettingsSliderKind.FrameRate)),
             SettingsChrome.CreateDivider(398),
             SettingsChrome.CreateSettingRow(
                 402,
                 YokkoStrings.Get("settings.desktop.background_audio"),
-                createBackgroundAudioControl()),
+                new DesktopSettingsSlider(
+                    audioSettings.BackgroundVolume,
+                    DesktopSettingsSliderKind.Percentage)),
             SettingsChrome.CreateDivider(462),
             SettingsChrome.CreateSettingRow(
                 466,
@@ -106,63 +110,11 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
         displaySettings.FastAltTab.BindValueChanged(onPreferenceChanged);
         displaySettings.BackgroundFrameRate.BindValueChanged(onPreferenceChanged);
         displaySettings.FullscreenRefreshRate.BindValueChanged(onPreferenceChanged);
-        audioSettings.BackgroundAudio.BindValueChanged(onPreferenceChanged);
+        audioSettings.BackgroundVolume.BindValueChanged(onPreferenceChanged);
         window?.CurrentDisplayBindable.BindValueChanged(onDisplayChanged);
         window?.CurrentDisplayMode.BindValueChanged(onDisplayModeChanged);
         if (window != null)
             window.DisplaysChanged += onDisplaysChanged;
-    }
-
-    private Drawable createBackgroundFrameRateControl()
-    {
-        var options = new[]
-        {
-            (YokkoBackgroundFrameRate.Fps30, "30 FPS"),
-            (YokkoBackgroundFrameRate.Fps60, "60 FPS"),
-            (YokkoBackgroundFrameRate.Unlimited, "MAX"),
-        };
-
-        foreach ((YokkoBackgroundFrameRate value, string label) in options)
-        {
-            YokkoBackgroundFrameRate captured = value;
-            frameRateButtons.Add(new SettingsSegmentedChoiceButton(
-                label,
-                value == YokkoBackgroundFrameRate.Unlimited
-                    ? FontAwesome.Solid.Infinity
-                    : FontAwesome.Solid.TachometerAlt,
-                () => displaySettings.BackgroundFrameRate.Value = captured,
-                SettingsChrome.ControlWidth / options.Length)
-            {
-                Value = value,
-            });
-        }
-
-        return SettingsChrome.CreateSegmentedControl(frameRateButtons);
-    }
-
-    private Drawable createBackgroundAudioControl()
-    {
-        var options = new[]
-        {
-            (BackgroundAudioMode.KeepPlaying, "settings.desktop.audio_keep", FontAwesome.Solid.VolumeUp),
-            (BackgroundAudioMode.Dim, "settings.desktop.audio_dim", FontAwesome.Solid.VolumeDown),
-            (BackgroundAudioMode.Mute, "settings.desktop.audio_mute", FontAwesome.Solid.VolumeMute),
-        };
-
-        foreach ((BackgroundAudioMode value, string key, IconUsage icon) in options)
-        {
-            BackgroundAudioMode captured = value;
-            audioButtons.Add(new SettingsSegmentedChoiceButton(
-                YokkoStrings.Get(key),
-                icon,
-                () => audioSettings.BackgroundAudio.Value = captured,
-                SettingsChrome.ControlWidth / options.Length)
-            {
-                Value = value,
-            });
-        }
-
-        return SettingsChrome.CreateSegmentedControl(audioButtons);
     }
 
     private void rebuildDisplayControls()
@@ -284,14 +236,6 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
             ? "—"
             : $"Display {display.Index + 1}  ·  {mode.Size.Width} × {mode.Size.Height}  ·  {mode.RefreshRate:0} Hz";
 
-        foreach (SettingsSegmentedChoiceButton button in frameRateButtons)
-            button.SetSelected(button.Value is YokkoBackgroundFrameRate value
-                               && value == displaySettings.BackgroundFrameRate.Value);
-
-        foreach (SettingsSegmentedChoiceButton button in audioButtons)
-            button.SetSelected(button.Value is BackgroundAudioMode value
-                               && value == audioSettings.BackgroundAudio.Value);
-
         foreach (SettingsSegmentedChoiceButton button in displayButtons)
             button.SetSelected(button.Value is int index
                                && index == display?.Index);
@@ -310,7 +254,7 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
             displaySettings.FastAltTab.ValueChanged -= onPreferenceChanged;
             displaySettings.BackgroundFrameRate.ValueChanged -= onPreferenceChanged;
             displaySettings.FullscreenRefreshRate.ValueChanged -= onPreferenceChanged;
-            audioSettings.BackgroundAudio.ValueChanged -= onPreferenceChanged;
+            audioSettings.BackgroundVolume.ValueChanged -= onPreferenceChanged;
             if (window != null)
             {
                 window.CurrentDisplayBindable.ValueChanged -= onDisplayChanged;
@@ -318,6 +262,253 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
                 window.DisplaysChanged -= onDisplaysChanged;
             }
         }
+
+        base.Dispose(isDisposing);
+    }
+}
+
+internal enum DesktopSettingsSliderKind
+{
+    FrameRate,
+    Percentage,
+}
+
+internal partial class DesktopSettingsSlider : CompositeDrawable
+{
+    private const float track_x = 18;
+    private const float track_y = 38;
+    private const float track_width = SettingsChrome.ControlWidth - track_x * 2;
+    private const int frame_rate_regular_step_count =
+        (int)((YokkoDisplaySettings.MaximumBackgroundFrameRate
+               - YokkoDisplaySettings.MinimumBackgroundFrameRate)
+              / YokkoDisplaySettings.BackgroundFrameRateStep);
+    private const int frame_rate_unlimited_index =
+        frame_rate_regular_step_count + 1;
+
+    private readonly Bindable<double> value;
+    private readonly DesktopSettingsSliderKind kind;
+    private readonly Box track;
+    private readonly Box fill;
+    private readonly Circle knob;
+    private readonly SpriteText valueText;
+
+    public override bool AcceptsFocus => true;
+
+    internal DesktopSettingsSlider(
+        Bindable<double> value,
+        DesktopSettingsSliderKind kind)
+    {
+        this.value = value;
+        this.kind = kind;
+        Size = new Vector2(SettingsChrome.ControlWidth, 54);
+
+        InternalChildren = new Drawable[]
+        {
+            valueText = new SpriteText
+            {
+                Position = new Vector2(track_x, 5),
+                Font = HomeTypography.Display(18),
+                Colour = HomeControlColours.Navy,
+            },
+            track = new Box
+            {
+                Position = new Vector2(track_x, track_y),
+                Size = new Vector2(track_width, 5),
+                Colour = SettingsTheme.Divider,
+            },
+            fill = new Box
+            {
+                Position = new Vector2(track_x, track_y),
+                Height = 5,
+                Colour = HomeControlColours.Pink,
+            },
+            knob = new Circle
+            {
+                Origin = Anchor.Centre,
+                Position = new Vector2(track_x, track_y + 2.5f),
+                Size = new Vector2(15),
+                Colour = Color4.White,
+                BorderThickness = 2.5f,
+                BorderColour = HomeControlColours.Pink,
+            },
+        };
+
+        value.BindValueChanged(onValueChanged, true);
+    }
+
+    internal static double FrameRateFromProgress(double progress)
+    {
+        int index = (int)Math.Round(
+            Math.Clamp(progress, 0, 1) * frame_rate_unlimited_index);
+        return index >= frame_rate_unlimited_index
+            ? YokkoDisplaySettings.UnlimitedBackgroundFrameRate
+            : YokkoDisplaySettings.MinimumBackgroundFrameRate
+              + index * YokkoDisplaySettings.BackgroundFrameRateStep;
+    }
+
+    internal static double FrameRateProgress(double frameRate)
+    {
+        if (frameRate <= YokkoDisplaySettings.UnlimitedBackgroundFrameRate)
+            return 1;
+
+        double snapped = snapFrameRate(frameRate);
+        double index = (snapped
+                        - YokkoDisplaySettings.MinimumBackgroundFrameRate)
+                       / YokkoDisplaySettings.BackgroundFrameRateStep;
+        return index / frame_rate_unlimited_index;
+    }
+
+    internal static double PercentageFromProgress(double progress) =>
+        Math.Round(Math.Clamp(progress, 0, 1) * 100) / 100;
+
+    internal static double AdjustFrameRate(double frameRate, int direction)
+    {
+        int index = frameRate <= YokkoDisplaySettings.UnlimitedBackgroundFrameRate
+            ? frame_rate_unlimited_index
+            : (int)Math.Round(
+                (snapFrameRate(frameRate)
+                 - YokkoDisplaySettings.MinimumBackgroundFrameRate)
+                / YokkoDisplaySettings.BackgroundFrameRateStep);
+        index = Math.Clamp(index + Math.Sign(direction), 0, frame_rate_unlimited_index);
+        return index == frame_rate_unlimited_index
+            ? YokkoDisplaySettings.UnlimitedBackgroundFrameRate
+            : YokkoDisplaySettings.MinimumBackgroundFrameRate
+              + index * YokkoDisplaySettings.BackgroundFrameRateStep;
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        if (e.Button != MouseButton.Left)
+            return false;
+
+        updateFrom(ToLocalSpace(e.ScreenSpaceMousePosition).X);
+        return true;
+    }
+
+    protected override bool OnDragStart(DragStartEvent e) => true;
+
+    protected override void OnDrag(DragEvent e) =>
+        updateFrom(ToLocalSpace(e.ScreenSpaceMousePosition).X);
+
+    protected override bool OnScroll(ScrollEvent e)
+    {
+        if (e.ScrollDelta.Y == 0)
+            return false;
+
+        value.Value = kind == DesktopSettingsSliderKind.FrameRate
+            ? AdjustFrameRate(value.Value, Math.Sign(e.ScrollDelta.Y))
+            : PercentageFromProgress(
+                value.Value + Math.Sign(e.ScrollDelta.Y) * 0.05);
+        return true;
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        int direction = e.Key switch
+        {
+            Key.Left or Key.Down => -1,
+            Key.Right or Key.Up => 1,
+            _ => 0,
+        };
+
+        if (direction != 0)
+        {
+            value.Value = kind == DesktopSettingsSliderKind.FrameRate
+                ? AdjustFrameRate(value.Value, direction)
+                : PercentageFromProgress(
+                    value.Value + direction * (e.ShiftPressed ? 0.05 : 0.01));
+            return true;
+        }
+
+        if (e.Key is not Key.Home and not Key.End)
+            return base.OnKeyDown(e);
+
+        value.Value = e.Key == Key.Home
+            ? kind == DesktopSettingsSliderKind.FrameRate
+                ? YokkoDisplaySettings.MinimumBackgroundFrameRate
+                : 0
+            : kind == DesktopSettingsSliderKind.FrameRate
+                ? YokkoDisplaySettings.UnlimitedBackgroundFrameRate
+                : 1;
+        return true;
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        track.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
+        knob.ScaleTo(1.18f, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        track.FadeColour(SettingsTheme.Divider, 120, Easing.OutQuint);
+        knob.ScaleTo(1, 120, Easing.OutQuint);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        valueText.FadeColour(HomeControlColours.Pink, 100, Easing.OutQuint);
+        knob.BorderColour = HomeControlColours.Cyan;
+        knob.ScaleTo(1.18f, 100, Easing.OutQuint);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        valueText.FadeColour(HomeControlColours.Navy, 100, Easing.OutQuint);
+        knob.BorderColour = HomeControlColours.Pink;
+        knob.ScaleTo(1, 100, Easing.OutQuint);
+    }
+
+    private void updateFrom(float localX)
+    {
+        double progress = (localX - track_x) / track_width;
+        value.Value = kind == DesktopSettingsSliderKind.FrameRate
+            ? FrameRateFromProgress(progress)
+            : PercentageFromProgress(progress);
+    }
+
+    private void onValueChanged(ValueChangedEvent<double> change)
+    {
+        double snapped = kind == DesktopSettingsSliderKind.FrameRate
+            ? change.NewValue <= YokkoDisplaySettings.UnlimitedBackgroundFrameRate
+                ? YokkoDisplaySettings.UnlimitedBackgroundFrameRate
+                : snapFrameRate(change.NewValue)
+            : PercentageFromProgress(change.NewValue);
+        if (snapped != change.NewValue)
+        {
+            value.Value = snapped;
+            return;
+        }
+
+        float progress = (float)(kind == DesktopSettingsSliderKind.FrameRate
+            ? FrameRateProgress(snapped)
+            : snapped);
+        fill.Width = progress * track_width;
+        knob.X = track_x + progress * track_width;
+        valueText.Text = kind == DesktopSettingsSliderKind.FrameRate
+            ? snapped <= YokkoDisplaySettings.UnlimitedBackgroundFrameRate
+                ? "MAX"
+                : $"{snapped:0} FPS"
+            : $"{snapped * 100:0}%";
+    }
+
+    private static double snapFrameRate(double frameRate) =>
+        Math.Clamp(
+            Math.Round(
+                (frameRate - YokkoDisplaySettings.MinimumBackgroundFrameRate)
+                / YokkoDisplaySettings.BackgroundFrameRateStep)
+            * YokkoDisplaySettings.BackgroundFrameRateStep
+            + YokkoDisplaySettings.MinimumBackgroundFrameRate,
+            YokkoDisplaySettings.MinimumBackgroundFrameRate,
+            YokkoDisplaySettings.MaximumBackgroundFrameRate);
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+            value.ValueChanged -= onValueChanged;
 
         base.Dispose(isDisposing);
     }

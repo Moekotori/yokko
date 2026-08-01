@@ -348,6 +348,11 @@ public partial class SongSelectScreen : Screen
     internal bool SortPopoverOpen => sortPopover?.IsOpen == true;
     internal string SortButtonValue => sortButton?.DisplayedValue ?? string.Empty;
     internal IReadOnlyList<SongSelectEntry> VisibleEntries => visibleEntries;
+    internal SongSelectEntry ImportedEntryForTest(string chartId) =>
+        chartId != null
+        && importedEntries.TryGetValue(chartId, out SongSelectEntry entry)
+            ? entry
+            : null;
     internal double MinimumDifficultyFilter =>
         displaySettings.DifficultyRatingMode.Value
             == ManiaDifficultyRatingMode.EtternaMsd
@@ -650,11 +655,9 @@ public partial class SongSelectScreen : Screen
         if (!keepExistingSongSelectState)
         {
             synchroniseImportedCharts(refreshSongList: false);
-            int selectedIndex = Math.Max(0, entries.IndexOf(selectedEntry));
+            if (selectedEntry == null || !entries.Contains(selectedEntry))
+                selectedEntry = entries.FirstOrDefault();
             refreshSavedScores(selectedEntry);
-            selectedEntry = entries.Count == 0
-                ? null
-                : entries[Math.Min(selectedIndex, entries.Count - 1)];
             requestPlayableBeatmap(selectedEntry);
             applyFilters();
             rebuildDetails();
@@ -674,16 +677,25 @@ public partial class SongSelectScreen : Screen
         this.FadeIn(180, Easing.OutQuint);
     }
 
-    internal void RefreshImportedReplayScores()
+    internal void RefreshImportedReplayScores(string chartId)
     {
-        int selectedIndex = Math.Max(0, entries.IndexOf(selectedEntry));
-        refreshSavedScores(selectedEntry);
-        selectedEntry = entries.Count == 0
-            ? null
-            : entries[Math.Min(selectedIndex, entries.Count - 1)];
-        requestPlayableBeatmap(selectedEntry);
+        if (string.IsNullOrWhiteSpace(chartId))
+            return;
+
+        if (!importedEntries.TryGetValue(chartId, out SongSelectEntry target))
+        {
+            synchroniseImportedCharts(refreshSongList: false);
+            if (!importedEntries.TryGetValue(chartId, out target))
+                return;
+        }
+
+        refreshSavedScores(target);
+        if (ReferenceEquals(target, selectedEntry))
+        {
+            requestPlayableBeatmap(selectedEntry);
+            rebuildDetails();
+        }
         applyFilters();
-        rebuildDetails();
     }
 
     public override void OnSuspending(ScreenTransitionEvent e)
@@ -4512,15 +4524,17 @@ public partial class SongSelectScreen : Screen
     private void refreshSavedScores(
         SongSelectEntry entryToRefresh = null)
     {
-        for (int i = 0; i < entries.Count; i++)
+        if (entryToRefresh != null)
         {
-            SongSelectEntry entry = entries[i];
-            if (entryToRefresh != null
-                && !ReferenceEquals(entry, entryToRefresh))
-            {
-                continue;
-            }
+            refreshEntry(entryToRefresh);
+            return;
+        }
 
+        foreach (SongSelectEntry entry in entries)
+            refreshEntry(entry);
+
+        void refreshEntry(SongSelectEntry entry)
+        {
             StoredGameplayScore saved = scoreStore.GetBest(
                 entry.Beatmap,
                 selectedMods,

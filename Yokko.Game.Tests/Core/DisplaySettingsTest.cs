@@ -34,11 +34,13 @@ public sealed class DisplaySettingsTest
         Assert.That(Path.IsPathFullyQualified(expected), Is.True);
     }
 
-    [TestCase(YokkoBackgroundFrameRate.Fps30, 30)]
-    [TestCase(YokkoBackgroundFrameRate.Fps60, 60)]
-    [TestCase(YokkoBackgroundFrameRate.Unlimited, 0)]
+    [TestCase(15, 15)]
+    [TestCase(85, 85)]
+    [TestCase(240, 240)]
+    [TestCase(0, 0)]
+    [TestCase(500, 240)]
     public void BackgroundFrameRateMapsToInactiveHostLimit(
-        YokkoBackgroundFrameRate frameRate,
+        double frameRate,
         double expected)
     {
         Assert.That(
@@ -54,17 +56,20 @@ public sealed class DisplaySettingsTest
         settings.MusicVolume.Value = 0.8;
 
         settings.SetApplicationActive(false);
-        settings.BackgroundAudio.Value = BackgroundAudioMode.Dim;
+        settings.BackgroundVolume.Value = 0.2;
         Assert.That(settings.EffectiveMusicVolume, Is.EqualTo(0.08).Within(0.0001));
 
-        settings.BackgroundAudio.Value = BackgroundAudioMode.Mute;
+        settings.BackgroundVolume.Value = 0;
         Assert.That(settings.EffectiveMusicVolume, Is.Zero);
 
-        settings.BackgroundAudio.Value = BackgroundAudioMode.KeepPlaying;
+        settings.BackgroundVolume.Value = 0.37;
+        Assert.That(settings.EffectiveMusicVolume, Is.EqualTo(0.148).Within(0.0001));
+
+        settings.BackgroundVolume.Value = 1;
         Assert.That(settings.EffectiveMusicVolume, Is.EqualTo(0.4).Within(0.0001));
 
         settings.SetApplicationActive(true);
-        settings.BackgroundAudio.Value = BackgroundAudioMode.Mute;
+        settings.BackgroundVolume.Value = 0;
         Assert.That(settings.EffectiveMusicVolume, Is.EqualTo(0.4).Within(0.0001));
     }
 
@@ -86,9 +91,9 @@ public sealed class DisplaySettingsTest
                 config.BindDisplaySettings(firstDisplay);
                 config.BindAudioSettings(firstAudio);
                 firstDisplay.FastAltTab.Value = false;
-                firstDisplay.BackgroundFrameRate.Value = YokkoBackgroundFrameRate.Fps60;
+                firstDisplay.BackgroundFrameRate.Value = 85;
                 firstDisplay.FullscreenRefreshRate.Value = 165;
-                firstAudio.BackgroundAudio.Value = BackgroundAudioMode.Dim;
+                firstAudio.BackgroundVolume.Value = 0.37;
                 config.SetWindowMaximised(true);
                 Assert.That(config.Save(), Is.True);
             }
@@ -102,9 +107,9 @@ public sealed class DisplaySettingsTest
                 Assert.Multiple(() =>
                 {
                     Assert.That(restoredDisplay.FastAltTab.Value, Is.False);
-                    Assert.That(restoredDisplay.BackgroundFrameRate.Value, Is.EqualTo(YokkoBackgroundFrameRate.Fps60));
+                    Assert.That(restoredDisplay.BackgroundFrameRate.Value, Is.EqualTo(85));
                     Assert.That(restoredDisplay.FullscreenRefreshRate.Value, Is.EqualTo(165));
-                    Assert.That(restoredAudio.BackgroundAudio.Value, Is.EqualTo(BackgroundAudioMode.Dim));
+                    Assert.That(restoredAudio.BackgroundVolume.Value, Is.EqualTo(0.37));
                     Assert.That(config.GetWindowMaximised(), Is.True);
                 });
             }
@@ -114,6 +119,29 @@ public sealed class DisplaySettingsTest
             if (Directory.Exists(directory))
                 Directory.Delete(directory, true);
         }
+    }
+
+    [Test]
+    public void DesktopSlidersExposeContinuousValuesAndUnlimitedEndpoint()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                DesktopSettingsSlider.FrameRateFromProgress(0),
+                Is.EqualTo(YokkoDisplaySettings.MinimumBackgroundFrameRate));
+            Assert.That(
+                DesktopSettingsSlider.FrameRateFromProgress(1),
+                Is.EqualTo(YokkoDisplaySettings.UnlimitedBackgroundFrameRate));
+            Assert.That(
+                DesktopSettingsSlider.FrameRateProgress(0),
+                Is.EqualTo(1));
+            Assert.That(
+                DesktopSettingsSlider.AdjustFrameRate(60, 1),
+                Is.EqualTo(65));
+            Assert.That(
+                DesktopSettingsSlider.PercentageFromProgress(0.374),
+                Is.EqualTo(0.37));
+        });
     }
 
     [Test]
@@ -491,6 +519,74 @@ public sealed class DisplaySettingsTest
                 Assert.That(DisplaySettingsPanel.CanChooseResolution(mode), Is.False);
             }
         });
+    }
+
+    [Test]
+    public void WindowAspectRatioDefaultsToNormalSixteenByNine()
+    {
+        Assert.That(
+            DisplaySettingsPanel.DefaultAspectRatio,
+            Is.EqualTo(DisplaySettingsPanel.WindowAspectRatio.Normal16By9));
+        Assert.That(
+            DisplaySettingsPanel.GetAspectRatio(
+                new System.Drawing.Size(1280, 720)),
+            Is.EqualTo(DisplaySettingsPanel.WindowAspectRatio.Normal16By9));
+    }
+
+    [Test]
+    public void WindowAspectRatioRecognisesCommonSizes()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                DisplaySettingsPanel.GetAspectRatio(
+                    new System.Drawing.Size(1920, 1200)),
+                Is.EqualTo(
+                    DisplaySettingsPanel.WindowAspectRatio.Ratio16By10));
+            Assert.That(
+                DisplaySettingsPanel.GetAspectRatio(
+                    new System.Drawing.Size(1440, 1080)),
+                Is.EqualTo(
+                    DisplaySettingsPanel.WindowAspectRatio.Ratio4By3));
+            Assert.That(
+                DisplaySettingsPanel.GetAspectRatio(
+                    new System.Drawing.Size(3440, 1440)),
+                Is.EqualTo(
+                    DisplaySettingsPanel.WindowAspectRatio
+                        .Ultrawide21By9));
+        });
+    }
+
+    [Test]
+    public void SwitchingAspectRatioKeepsNearestResolutionHeight()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                DisplaySettingsPanel.ChooseResolutionForAspect(
+                    DisplaySettingsPanel.WindowAspectRatio.Ratio16By10,
+                    new System.Drawing.Size(1920, 1080)),
+                Is.EqualTo(new System.Drawing.Size(1680, 1050)));
+            Assert.That(
+                DisplaySettingsPanel.ChooseResolutionForAspect(
+                    DisplaySettingsPanel.WindowAspectRatio.Ultrawide21By9,
+                    new System.Drawing.Size(1920, 1080)),
+                Is.EqualTo(new System.Drawing.Size(2560, 1080)));
+        });
+    }
+
+    [Test]
+    public void UltrawideWindowSizeIsPreservedWhenFittedToDisplay()
+    {
+        System.Drawing.Size fitted =
+            YokkoWindowSizeGuard.CalculateSafeWindowedSize(
+                new System.Drawing.Size(3440, 1440),
+                new System.Drawing.Size(2560, 1440),
+                1);
+
+        Assert.That(
+            fitted.Width / (double)fitted.Height,
+            Is.EqualTo(3440d / 1440d).Within(0.002));
     }
 
     [Test]

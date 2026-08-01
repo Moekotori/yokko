@@ -58,14 +58,13 @@ internal sealed class YokkoDesktopBehaviourController : IDisposable
         applyPreferredFullscreenMode();
     }
 
-    internal static double GetMaximumInactiveHz(
-        YokkoBackgroundFrameRate rate) => rate switch
-        {
-            YokkoBackgroundFrameRate.Fps30 => 30,
-            YokkoBackgroundFrameRate.Fps60 => 60,
-            YokkoBackgroundFrameRate.Unlimited => 0,
-            _ => 30,
-        };
+    internal static double GetMaximumInactiveHz(double rate) =>
+        rate <= YokkoDisplaySettings.UnlimitedBackgroundFrameRate
+            ? 0
+            : Math.Clamp(
+                rate,
+                YokkoDisplaySettings.MinimumBackgroundFrameRate,
+                YokkoDisplaySettings.MaximumBackgroundFrameRate);
 
     private void onFastAltTabChanged(ValueChangedEvent<bool> change) =>
         frameworkConfig.SetValue(
@@ -73,7 +72,7 @@ internal sealed class YokkoDesktopBehaviourController : IDisposable
             !change.NewValue);
 
     private void onBackgroundFrameRateChanged(
-        ValueChangedEvent<YokkoBackgroundFrameRate> change) =>
+        ValueChangedEvent<double> change) =>
         host.MaximumInactiveHz = GetMaximumInactiveHz(change.NewValue);
 
     private void onWindowActiveChanged(ValueChangedEvent<bool> change) =>

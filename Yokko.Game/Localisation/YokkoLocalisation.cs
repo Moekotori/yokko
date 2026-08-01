@@ -1066,6 +1066,10 @@ internal static class YokkoStrings
                 "ディスプレイ {0}  ·  {1} × {2}  ·  {3} Hz"),
             ["settings.display.window_mode"] = new("Window mode", "窗口模式", "ウィンドウモード"),
             ["settings.display.resolution"] = new("Resolution", "分辨率", "解像度"),
+            ["settings.display.ratio_resolution"] = new(
+                "Ratio / resolution",
+                "比例 / 分辨率",
+                "比率 / 解像度"),
             ["settings.display.frame_limit"] = new("Frame limit", "帧率上限", "フレーム上限"),
             ["settings.display.interface_scale"] = new("Interface size", "界面大小", "UI サイズ"),
             ["settings.display.performance_readout"] = new(

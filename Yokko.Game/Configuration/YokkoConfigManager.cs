@@ -20,6 +20,7 @@ internal enum YokkoSetting
     AudioMusicVolume,
     AudioHitSoundVolume,
     AudioBackgroundMode,
+    AudioBackgroundVolume,
     AudioBackend,
     AudioDeviceId,
     AudioAsioDeviceId,
@@ -116,6 +117,7 @@ internal enum YokkoSetting
     DisplayShowPerformanceReadout,
     DisplayFastAltTab,
     DisplayBackgroundFrameRate,
+    DisplayBackgroundFrameRateLimit,
     DisplayFullscreenRefreshRate,
     DisplayDifficultyRatingMode,
     WindowMaximised,
@@ -151,6 +153,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(
             YokkoSetting.AudioBackgroundMode,
             BackgroundAudioMode.KeepPlaying);
+        SetDefault(
+            YokkoSetting.AudioBackgroundVolume,
+            1.0,
+            0.0,
+            1.0,
+            0.01);
         SetDefault(
             YokkoSetting.AudioBackend,
             AudioBackendKind.WasapiExclusive);
@@ -487,6 +495,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSetting.DisplayBackgroundFrameRate,
             YokkoBackgroundFrameRate.Fps30);
         SetDefault(
+            YokkoSetting.DisplayBackgroundFrameRateLimit,
+            30.0,
+            YokkoDisplaySettings.UnlimitedBackgroundFrameRate,
+            YokkoDisplaySettings.MaximumBackgroundFrameRate,
+            YokkoDisplaySettings.BackgroundFrameRateStep);
+        SetDefault(
             YokkoSetting.DisplayFullscreenRefreshRate,
             0,
             0,
@@ -521,9 +535,25 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.AudioHitSoundVolume,
             settings.HitSoundVolume);
+        double backgroundVolume = Get<double>(
+            YokkoSetting.AudioBackgroundVolume);
+        BackgroundAudioMode legacyBackgroundMode = Get<BackgroundAudioMode>(
+            YokkoSetting.AudioBackgroundMode);
+        if (backgroundVolume == 1
+            && legacyBackgroundMode != BackgroundAudioMode.KeepPlaying)
+        {
+            backgroundVolume = legacyBackgroundMode == BackgroundAudioMode.Dim
+                ? 0.2
+                : 0;
+            SetValue(YokkoSetting.AudioBackgroundVolume, backgroundVolume);
+            SetValue(
+                YokkoSetting.AudioBackgroundMode,
+                BackgroundAudioMode.KeepPlaying);
+        }
+
         BindWith(
-            YokkoSetting.AudioBackgroundMode,
-            settings.BackgroundAudio);
+            YokkoSetting.AudioBackgroundVolume,
+            settings.BackgroundVolume);
         BindWith(YokkoSetting.AudioBackend, settings.PreferredBackend);
         BindWith(YokkoSetting.AudioDeviceId, settings.DeviceId);
         BindWith(
@@ -799,8 +829,25 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.DisplayFastAltTab,
             settings.FastAltTab);
+        double backgroundFrameRate = Get<double>(
+            YokkoSetting.DisplayBackgroundFrameRateLimit);
+        YokkoBackgroundFrameRate legacyBackgroundFrameRate =
+            Get<YokkoBackgroundFrameRate>(
+                YokkoSetting.DisplayBackgroundFrameRate);
+        if (backgroundFrameRate == 30
+            && legacyBackgroundFrameRate != YokkoBackgroundFrameRate.Fps30)
+        {
+            backgroundFrameRate = (double)legacyBackgroundFrameRate;
+            SetValue(
+                YokkoSetting.DisplayBackgroundFrameRateLimit,
+                backgroundFrameRate);
+            SetValue(
+                YokkoSetting.DisplayBackgroundFrameRate,
+                YokkoBackgroundFrameRate.Fps30);
+        }
+
         BindWith(
-            YokkoSetting.DisplayBackgroundFrameRate,
+            YokkoSetting.DisplayBackgroundFrameRateLimit,
             settings.BackgroundFrameRate);
         BindWith(
             YokkoSetting.DisplayFullscreenRefreshRate,

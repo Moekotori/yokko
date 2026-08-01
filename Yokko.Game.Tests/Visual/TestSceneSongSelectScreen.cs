@@ -17,6 +17,7 @@ using Yokko.Core.Scoring;
 using Yokko.Game.Importing;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
+using Yokko.Game.Scoring;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Settings;
 using Yokko.Game.Screens.SongSelect;
@@ -36,6 +37,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     private YokkoDisplaySettings displaySettings { get; set; }
     [Resolved]
     private YokkoGameplaySettings gameplaySettings { get; set; }
+    [Resolved]
+    private GameplayScoreStore scoreStore { get; set; }
 
     public TestSceneSongSelectScreen()
     {
@@ -1099,13 +1102,140 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddStep("remember selected entry", () =>
             selectedBeforeRefresh = songSelectScreen.SelectedEntry);
         AddStep("refresh imported replay scores", () =>
-            songSelectScreen.RefreshImportedReplayScores());
+            songSelectScreen.RefreshImportedReplayScores(
+                songSelectScreen.SelectedEntry.ChartId));
         AddUntilStep("score refresh settles", () =>
             !songSelectScreen.FilterPending);
         AddAssert("score refresh keeps entry identity", () =>
             ReferenceEquals(
                 selectedBeforeRefresh,
                 songSelectScreen.SelectedEntry));
+    }
+
+    [Test]
+    public void TestReplayImportRefreshesItsChartWithoutChangingSelection()
+    {
+        SongSelectEntry replayTarget = null;
+        SongSelectEntry selectedBeforeRefresh = null;
+        string replayTargetChartId = null;
+        string externalScoreId = "test:" + Guid.NewGuid().ToString("N");
+
+        AddStep("seed replay target and selected chart", () =>
+        {
+            importedChartLibrary.AddOrReplace(
+                result(
+                    "Background Replay Target",
+                    DemoBeatmaps.CreateFourKeyDemo()),
+                @"C:\Charts\background-replay-target.osu");
+            importedChartLibrary.AddOrReplace(
+                result(
+                    "Foreground Selection",
+                    DemoBeatmaps.CreateSevenKeyDemo()),
+                @"C:\Charts\foreground-selection.osu");
+            replayTargetChartId = importedChartLibrary.GetSnapshot()
+                .Charts.Single(chart =>
+                    chart.Result.Beatmap.Title
+                        == "Background Replay Target")
+                .Id;
+        });
+        AddUntilStep("foreground chart remains selected", () =>
+            songSelectScreen.SelectedEntry?.Beatmap.Title
+                == "Foreground Selection");
+        AddStep("remember replay target and selection", () =>
+        {
+            replayTarget = songSelectScreen.ImportedEntryForTest(
+                replayTargetChartId);
+            selectedBeforeRefresh = songSelectScreen.SelectedEntry;
+        });
+        AddAssert("background replay target was found", () =>
+            replayTarget?.Beatmap.Title == "Background Replay Target");
+        AddStep("import score for background chart", () =>
+            scoreStore.ImportExternalScore(
+                replayTarget.Beatmap,
+                ManiaModSet.Empty,
+                JudgementConfiguration.YokkoDefault,
+                new ManiaScoreResult(
+                    900_000,
+                    0.95,
+                    120,
+                    ScoreRank.S,
+                    100,
+                    10,
+                    2,
+                    1,
+                    0,
+                    0),
+                "REMOTE PLAYER",
+                null,
+                "test",
+                externalScoreId,
+                null));
+        AddStep("refresh exact replay target", () =>
+            songSelectScreen.RefreshImportedReplayScores(
+                replayTarget.ChartId));
+        AddUntilStep("targeted score refresh settles", () =>
+            !songSelectScreen.FilterPending);
+        AddAssert("background chart receives replay score", () =>
+            replayTarget.Ranking.Any(score =>
+                score.Score == 900_000));
+        AddAssert("targeted refresh preserves current selection", () =>
+            ReferenceEquals(
+                selectedBeforeRefresh,
+                songSelectScreen.SelectedEntry));
+    }
+
+    [Test]
+    public void TestResumeRefreshesFallbackAfterSelectedChartRemoval()
+    {
+        YokkoBeatmap replacement = DemoBeatmaps.CreateFourKeyDemo() with
+        {
+            Title = "Resume Fallback",
+        };
+
+        AddStep("seed chart that will be removed", () =>
+            importedChartLibrary.AddOrReplace(
+                result(
+                    "Removed While Suspended",
+                    DemoBeatmaps.CreateSevenKeyDemo()),
+                @"C:\Charts\removed-while-suspended.osu"));
+        AddUntilStep("removable chart is selected", () =>
+            songSelectScreen.SelectedEntry?.Beatmap.Title
+                == "Removed While Suspended");
+        AddStep("open settings above song select", () =>
+            songSelectScreen.OpenOptions());
+        AddUntilStep("song select is suspended", () =>
+            screenStack.CurrentScreen is SettingsScreen);
+        AddStep("replace library and seed fallback score", () =>
+        {
+            importedChartLibrary.Clear();
+            scoreStore.SaveBest(
+                replacement,
+                ManiaModSet.Empty,
+                JudgementConfiguration.YokkoDefault,
+                new ManiaScoreResult(
+                    850_000,
+                    0.9,
+                    100,
+                    ScoreRank.A,
+                    80,
+                    15,
+                    3,
+                    1,
+                    1,
+                    0));
+            importedChartLibrary.AddOrReplace(
+                result("Resume Fallback", replacement),
+                @"C:\Charts\resume-fallback.osu");
+        });
+        AddStep("return to song select", () =>
+            screenStack.CurrentScreen.Exit());
+        AddUntilStep("fallback chart is selected", () =>
+            screenStack.CurrentScreen == songSelectScreen
+            && songSelectScreen.SelectedEntry?.Beatmap.Title
+                == "Resume Fallback");
+        AddAssert("fallback score refreshes on resume", () =>
+            songSelectScreen.SelectedEntry.History.Any(score =>
+                score.Score == 850_000));
     }
 
     [Test]

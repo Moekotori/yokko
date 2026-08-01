@@ -29,7 +29,23 @@ internal static class SongSelectSorting
     internal sealed record EntrySnapshot(
         SongSelectEntry Entry,
         YokkoBeatmap Beatmap,
-        double? DifficultyValue);
+        double? DifficultyValue,
+        int BestScore,
+        long? LastPlayedTicks)
+    {
+        internal EntrySnapshot(
+            SongSelectEntry entry,
+            YokkoBeatmap beatmap,
+            double? difficultyValue)
+            : this(
+                entry,
+                beatmap,
+                difficultyValue,
+                entry.BestScore,
+                lastPlayedTicks(entry.History))
+        {
+        }
+    }
 
     internal static SongSelectSortDirection DefaultDirection(
         SongSelectSortMode mode) =>
@@ -160,11 +176,11 @@ internal static class SongSelectSorting
                     positiveOrNull(left.Entry.Length.TotalMilliseconds),
                     positiveOrNull(right.Entry.Length.TotalMilliseconds)),
                 SongSelectSortMode.LastPlayed => compareOptional(
-                    lastPlayedTicks(left),
-                    lastPlayedTicks(right)),
+                    left.LastPlayedTicks,
+                    right.LastPlayedTicks),
                 SongSelectSortMode.BestScore => compareOptional(
-                    positiveOrNull(left.Entry.BestScore),
-                    positiveOrNull(right.Entry.BestScore)),
+                    positiveOrNull(left.BestScore),
+                    positiveOrNull(right.BestScore)),
                 _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
             };
             if (primary != 0)
@@ -212,14 +228,16 @@ internal static class SongSelectSorting
 
         private static double? positiveOrNull(double value) => value > 0 ? value : null;
 
-        private static double? lastPlayedTicks(EntrySnapshot snapshot)
-        {
-            DateTimeOffset? lastPlayed = snapshot.Entry.History
-                                                .Where(score => score.PlayedAt.HasValue)
-                                                .Select(score => score.PlayedAt)
-                                                .Max();
-            return lastPlayed?.UtcTicks;
-        }
+    }
+
+    private static long? lastPlayedTicks(
+        IReadOnlyList<SongSelectScore> history)
+    {
+        DateTimeOffset? lastPlayed = history
+                                        .Where(score => score.PlayedAt.HasValue)
+                                        .Select(score => score.PlayedAt)
+                                        .Max();
+        return lastPlayed?.UtcTicks;
     }
 
     private sealed record IndexedEntry(EntrySnapshot Entry, int Index);

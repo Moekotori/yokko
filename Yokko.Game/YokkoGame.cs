@@ -178,10 +178,10 @@ namespace Yokko.Game
         }
 
         private protected override void OnReplayImported(
-            YokkoBeatmap beatmap)
+            string chartId)
         {
             if (screenStack.CurrentScreen is SongSelectScreen songSelect)
-                songSelect.RefreshImportedReplayScores();
+                songSelect.RefreshImportedReplayScores(chartId);
         }
 
         private void onShowPerformanceReadoutChanged(

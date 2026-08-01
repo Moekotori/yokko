@@ -29,8 +29,7 @@ public sealed class YokkoAudioSettings
 
     public readonly Bindable<double> HitSoundVolume = new(1);
 
-    public readonly Bindable<BackgroundAudioMode> BackgroundAudio =
-        new(BackgroundAudioMode.KeepPlaying);
+    public readonly Bindable<double> BackgroundVolume = new(1);
 
     public readonly Bindable<AudioBackendKind> PreferredBackend =
         new(AudioBackendKind.WasapiExclusive);
@@ -53,7 +52,7 @@ public sealed class YokkoAudioSettings
         MasterVolume.BindValueChanged(_ => MixChanged?.Invoke());
         MusicVolume.BindValueChanged(_ => MixChanged?.Invoke());
         HitSoundVolume.BindValueChanged(_ => MixChanged?.Invoke());
-        BackgroundAudio.BindValueChanged(_ => MixChanged?.Invoke());
+        BackgroundVolume.BindValueChanged(_ => MixChanged?.Invoke());
     }
 
     public double EffectiveMusicVolume =>
@@ -110,12 +109,7 @@ public sealed class YokkoAudioSettings
 
     private double backgroundVolumeScale => applicationActive
         ? 1
-        : BackgroundAudio.Value switch
-        {
-            BackgroundAudioMode.Dim => 0.2,
-            BackgroundAudioMode.Mute => 0,
-            _ => 1,
-        };
+        : clampVolume(BackgroundVolume.Value);
 
     public AudioEngineStartRequest CreateStartRequest(
         string audioPath,

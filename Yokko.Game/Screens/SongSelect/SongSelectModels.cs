@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Difficulty;
 using Yokko.Core.Mods;
@@ -100,4 +101,10 @@ internal sealed record SongSelectEntry
     public bool IsPackage { get; init; }
     public string ChartId { get; init; }
     public bool IsReadOnly { get; init; }
+
+    public bool Equals(SongSelectEntry other) =>
+        ReferenceEquals(this, other);
+
+    public override int GetHashCode() =>
+        RuntimeHelpers.GetHashCode(this);
 }

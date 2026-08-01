@@ -3078,6 +3078,54 @@ LightingLWidth: 20,20,20,20
         }
 
         [Test]
+        public void TestAudioStartWaitsForLatestKeysoundPreparation()
+        {
+            string skinPath = createTestSkin();
+            File.WriteAllBytes(
+                Path.Combine(skinPath, "normal-hitnormal.wav"),
+                [1, 2, 3]);
+            var audioEngine = new ControlledSamplePreparationAudioEngine();
+            GameplayScreen gameplay = null;
+            bool originalKeysoundsEnabled = false;
+
+            AddStep("enable controlled skin hit sounds", () =>
+            {
+                originalKeysoundsEnabled =
+                    gameplaySettings.KeysoundsEnabled.Value;
+                gameplaySettings.KeysoundsEnabled.Value = true;
+            });
+            AddStep("open gameplay with blocked sample preparation", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo() with
+                    {
+                        AudioPath = "controlled-preparation.mp3",
+                    },
+                    audioEngine,
+                    skinPath)));
+            AddUntilStep("initial sample preparation is blocked", () =>
+                audioEngine.PreparationCount == 1);
+            AddStep("restart sample preparation", () =>
+                gameplay.RestartKeysoundPreparationForTest());
+            AddUntilStep("replacement preparation starts", () =>
+                audioEngine.PreparationCount == 2);
+            AddWaitStep("pass audio lead in", 70);
+            AddAssert("audio waits for latest preparation", () =>
+                audioEngine.StartCount == 0);
+            AddStep("complete latest preparation", () =>
+                audioEngine.CompleteLatestPreparation());
+            AddUntilStep("audio starts after latest preparation", () =>
+                audioEngine.StartCount == 1);
+            AddStep("leave controlled gameplay", () => gameplay.Exit());
+            AddUntilStep("controlled audio engine is disposed", () =>
+                audioEngine.DisposeCount == 1);
+            AddAssert("preparation exits before engine disposal", () =>
+                !audioEngine.DisposedDuringPreparation);
+            AddStep("restore controlled keysound setting", () =>
+                gameplaySettings.KeysoundsEnabled.Value =
+                    originalKeysoundsEnabled);
+        }
+
+        [Test]
         public void TestOversizedHoldBodyIsConstrainedBeforeUpload()
         {
             string skinPath = null;
@@ -5476,7 +5524,7 @@ StageHint: stage-hint
                     : new ValueTask(StopCompletion.Task);
             }
 
-            public ValueTask DisposeAsync() =>
+            public virtual ValueTask DisposeAsync() =>
                 ValueTask.CompletedTask;
 
             public void SetPlaybackTime(double milliseconds) =>
@@ -5581,6 +5629,67 @@ StageHint: stage-hint
 
             public bool StopLoopingSample(uint loopId) =>
                 activeLoops.Remove(loopId);
+        }
+
+        private sealed class ControlledSamplePreparationAudioEngine
+            : SeekTrackingAudioEngine, IAudioSamplePlayback
+        {
+            private readonly object preparationLock = new();
+            private readonly List<TaskCompletionSource<bool>> preparations = [];
+            private int activePreparations;
+
+            public int PreparationCount
+            {
+                get
+                {
+                    lock (preparationLock)
+                        return preparations.Count;
+                }
+            }
+
+            public int DisposeCount { get; private set; }
+
+            public bool DisposedDuringPreparation { get; private set; }
+
+            public async ValueTask PrepareSamplesAsync(
+                IReadOnlyCollection<string> samplePaths,
+                CancellationToken cancellationToken = default)
+            {
+                var completion = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                lock (preparationLock)
+                    preparations.Add(completion);
+                Interlocked.Increment(ref activePreparations);
+                try
+                {
+                    using CancellationTokenRegistration registration =
+                        cancellationToken.Register(() =>
+                            completion.TrySetCanceled(cancellationToken));
+                    await completion.Task.ConfigureAwait(false);
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref activePreparations);
+                }
+            }
+
+            public bool TriggerSample(string samplePath) => true;
+
+            public void CompleteLatestPreparation()
+            {
+                TaskCompletionSource<bool> completion;
+                lock (preparationLock)
+                    completion = preparations[^1];
+                completion.TrySetResult(true);
+            }
+
+            public override ValueTask DisposeAsync()
+            {
+                DisposeCount++;
+                DisposedDuringPreparation =
+                    Volatile.Read(ref activePreparations) > 0;
+                return ValueTask.CompletedTask;
+            }
         }
 
         private static AudioEngineStatus createAudioStatus(

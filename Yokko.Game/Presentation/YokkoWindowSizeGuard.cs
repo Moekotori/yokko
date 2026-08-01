@@ -117,7 +117,8 @@ internal sealed class YokkoWindowSizeGuard : IDisposable
         // predictable fallback instead of producing another unusable window.
         if (hasUsableDimensions(requested)
             && requestedAspect >= 4f / 3f
-            && requestedAspect <= 21f / 9f)
+            // Common displays sold as 21:9 range up to 3440x1440 (43:18).
+            && requestedAspect <= 43f / 18f)
         {
             float fit = MathF.Min(
                 maximumWidth / (float)requested.Width,

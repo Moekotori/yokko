@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -449,18 +450,122 @@ internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
     }
 }
 
+internal partial class SettingsAspectRatioChoiceButton : ClickableContainer
+{
+    private readonly Box background;
+    private readonly SpriteText label;
+    private readonly Box focusLine;
+    private bool enabled = true;
+
+    public DisplaySettingsPanel.WindowAspectRatio Value { get; init; }
+    public override bool AcceptsFocus => enabled;
+
+    public SettingsAspectRatioChoiceButton(
+        string text,
+        Action action,
+        float width)
+    {
+        Action = action;
+        Size = new Vector2(width, SettingsChrome.ControlHeight);
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.White,
+            },
+            new Box
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                Width = 1,
+                RelativeSizeAxes = Axes.Y,
+                Colour = SettingsTheme.Divider,
+            },
+            label = new SpriteText
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Text = text,
+                Font = HomeTypography.Body(16),
+                Colour = HomeControlColours.Navy,
+            },
+            focusLine = new Box
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                RelativeSizeAxes = Axes.X,
+                Height = 3,
+                Colour = HomeControlColours.Pink,
+                Alpha = 0,
+            },
+        };
+    }
+
+    public void SetSelected(bool selected)
+    {
+        background.FadeColour(
+            selected ? HomeControlColours.Navy : Color4.White,
+            120,
+            Easing.OutQuint);
+        label.FadeColour(
+            selected ? Color4.White : HomeControlColours.Navy,
+            120,
+            Easing.OutQuint);
+    }
+
+    public void SetEnabled(bool value)
+    {
+        enabled = value;
+        this.FadeTo(enabled ? 1 : 0.58f, 100, Easing.OutQuint);
+    }
+
+    protected override bool OnClick(ClickEvent e)
+    {
+        if (!enabled)
+            return false;
+
+        return base.OnClick(e);
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (enabled && e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        focusLine.FadeIn(100, Easing.OutQuint);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        focusLine.FadeOut(100, Easing.OutQuint);
+    }
+}
+
 /// <summary>
 /// Resolution selector with an explicit option list. It deliberately does not
 /// cycle values so the interaction remains predictable as the list grows.
 /// </summary>
 internal partial class SettingsResolutionDropdown : CompositeDrawable
 {
-    private readonly IReadOnlyList<Size> options;
     private readonly Action<Size> onSelected;
+    private readonly float width;
     private readonly Box headerBackground;
     private readonly SpriteText valueText;
     private readonly SpriteIcon chevron;
     private readonly Container menu;
+    private readonly FillFlowContainer flow;
+    private readonly SettingsStickerCard menuCard;
     private readonly List<SettingsResolutionOption> optionRows = new();
     private bool open;
     private bool enabled = true;
@@ -469,11 +574,14 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
     internal bool IsEnabled => enabled;
     internal Size SelectedSize { get; private set; }
 
-    public SettingsResolutionDropdown(IReadOnlyList<Size> options, Action<Size> onSelected)
+    public SettingsResolutionDropdown(
+        IReadOnlyList<Size> options,
+        Action<Size> onSelected,
+        float width = 598)
     {
-        this.options = options;
         this.onSelected = onSelected;
-        Size = new Vector2(598, 54);
+        this.width = width;
+        Size = new Vector2(width, 54);
 
         Box focusLine;
         var header = new SettingsDropdownHeader(
@@ -522,26 +630,18 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
         header.FocusLine = focusLine;
         header.ValueText = valueText;
 
-        var headerCard = new SettingsStickerCard(new Vector2(598, 54), 8);
+        var headerCard = new SettingsStickerCard(new Vector2(width, 54), 8);
         headerCard.SetContent(header);
 
-        var flow = new FillFlowContainer
+        flow = new FillFlowContainer
         {
             RelativeSizeAxes = Axes.X,
             AutoSizeAxes = Axes.Y,
             Direction = FillDirection.Vertical,
         };
 
-        foreach (Size option in options)
-        {
-            Size captured = option;
-            var row = new SettingsResolutionOption(option, () => select(captured));
-            optionRows.Add(row);
-            flow.Add(row);
-        }
-
-        var menuCard = new SettingsStickerCard(
-            new Vector2(598, options.Count * SettingsResolutionOption.RowHeight),
+        menuCard = new SettingsStickerCard(
+            new Vector2(width, options.Count * SettingsResolutionOption.RowHeight),
             8);
         menuCard.SetContent(flow);
 
@@ -556,6 +656,34 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
         };
 
         InternalChildren = new Drawable[] { headerCard, menu };
+        SetOptions(options);
+    }
+
+    public void SetOptions(IReadOnlyList<Size> options)
+    {
+        if (optionRows.Count == options.Count
+            && optionRows.Select(row => row.Value).SequenceEqual(options))
+        {
+            return;
+        }
+
+        setOpen(false);
+        flow.Clear();
+        optionRows.Clear();
+
+        foreach (Size option in options)
+        {
+            Size captured = option;
+            var row = new SettingsResolutionOption(
+                option,
+                () => select(captured));
+            optionRows.Add(row);
+            flow.Add(row);
+        }
+
+        menuCard.Size = new Vector2(
+            width,
+            options.Count * SettingsResolutionOption.RowHeight);
     }
 
     public void SetSelected(Size size)

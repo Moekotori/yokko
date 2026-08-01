@@ -138,6 +138,10 @@ namespace Yokko.Game
                     YokkoLocale.FromSystemCulture(CultureInfo.CurrentUICulture),
                 [FrameworkSetting.ExecutionMode] =
                     ExecutionMode.MultiThreaded,
+                // Windowed mode starts at Yokko's normal 16:9 aspect ratio.
+                // Existing installations continue to use their persisted size.
+                [FrameworkSetting.WindowedSize] =
+                    new System.Drawing.Size(1280, 720),
                 [FrameworkSetting.WindowMode] = WindowMode.Fullscreen,
                 // Keep exclusive fullscreen active while Windows switches
                 // focus so Alt+Tab does not wait for an extra minimise/restore.
@@ -422,6 +426,7 @@ namespace Yokko.Game
                         playedAt);
 
                     return (
+                        ChartId: chart.Id,
                         Beatmap: chart.Result.Beatmap,
                         Replay: replay,
                         PlayerName: osuReplay.PlayerName,
@@ -468,7 +473,7 @@ namespace Yokko.Game
                             "osu-replay-completed",
                             $"title={task.Result.Beatmap.Title} | player={task.Result.PlayerName}"
                             + $" | score={task.Result.Score.Score} | added={imported}");
-                        OnReplayImported(task.Result.Beatmap);
+                        OnReplayImported(task.Result.ChartId);
                         if (playImportedReplay)
                         {
                             OpenImportedReplay(
@@ -512,6 +517,7 @@ namespace Yokko.Game
                         playedAt);
 
                     return (
+                        ChartId: chart.Id,
                         Beatmap: chart.Result.Beatmap,
                         Replay: replay,
                         Score: ExternalReplayScoreConverter.FromMalody(malodyReplay),
@@ -556,7 +562,7 @@ namespace Yokko.Game
                             "malody-replay-completed",
                             $"title={task.Result.Beatmap.Title}"
                             + $" | score={task.Result.Score.Score} | added={imported}");
-                        OnReplayImported(task.Result.Beatmap);
+                        OnReplayImported(task.Result.ChartId);
                         if (playImportedReplay)
                         {
                             OpenImportedReplay(
@@ -629,6 +635,7 @@ namespace Yokko.Game
                             loaded);
 
                     return (
+                        ChartId: chart.Id,
                         Beatmap: chart.Result.Beatmap,
                         loaded.Replay,
                         ReplayPath: replayPath);
@@ -658,7 +665,7 @@ namespace Yokko.Game
                             "yokko-replay-completed",
                             $"title={task.Result.Beatmap.Title} | inputs={task.Result.Replay.Inputs.Count}"
                             + $" | stored={task.Result.ReplayPath}");
-                        OnReplayImported(task.Result.Beatmap);
+                        OnReplayImported(task.Result.ChartId);
                         if (playImportedReplay)
                         {
                             OpenImportedReplay(
@@ -701,7 +708,7 @@ namespace Yokko.Game
         }
 
         private protected virtual void OnReplayImported(
-            YokkoBeatmap beatmap)
+            string chartId)
         {
         }
 
