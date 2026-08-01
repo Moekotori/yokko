@@ -7,6 +7,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
@@ -270,7 +271,10 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             OsuManiaModParityCatalog.Get(
                 presentationModForNode(focusedMod));
         orbitTelemetryState.Text =
-            $"FOCUS {focusedDefinition.Acronym}  //  ACTIVE {selectedMods.Mods.Count:00}";
+            YokkoStrings.Get(
+                "mods.focus_summary",
+                focusedDefinition.Acronym,
+                selectedMods.Mods.Count);
 
         updateHero(
             transitionContains(activated, focusedMod),
@@ -534,7 +538,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         orbitHost.Add(new SpriteText
         {
             Position = new Vector2(24, 25),
-            Text = "MOD CATALOGUE",
+            Text = YokkoStrings.Get("mods.catalogue"),
             Font = HomeTypography.Display(15),
             Spacing = new Vector2(1.1f, 0),
             Colour = HomeControlColours.Cyan,
@@ -582,7 +586,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private Container createHero(Texture waveformTexture)
     {
         var result = new OrbitHeroPanel(
-            () => toggleMod(focusedMod))
+            () => CycleNode(focusedMod))
         {
             Position = new Vector2(468, 160),
             Size = new Vector2(300, 266),
@@ -848,10 +852,15 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 Font = HomeTypography.Display(19),
                 Colour = HomeControlColours.Cyan,
             },
-            activeRows = new Container
+            new BasicScrollContainer
             {
                 Position = new Vector2(31, 300),
-                Size = new Vector2(365, 264),
+                Size = new Vector2(375, 264),
+                ScrollbarVisible = true,
+                Child = activeRows = new Container
+                {
+                    Size = new Vector2(365, 264),
+                },
             },
             createRightCapacityRail(),
             new OrbitMicroBarGraph
@@ -871,7 +880,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         };
         rail.Add(capacityTelemetry = new SpriteText
         {
-            Text = "MOD BUS // 00 ACTIVE",
+            Text = YokkoStrings.Get("mods.bus_summary", 0),
             Font = HomeTypography.Display(12),
             Spacing = new Vector2(0.8f, 0),
             Colour = new Color4(
@@ -1250,7 +1259,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 accentFor(definition),
                 i + 1,
                 () => cycleModFamily(family),
-                () => focusMod(definition.Id))
+                () => focusMod(presentationModForNode(definition.Id)))
             {
                 Position = position,
             };
@@ -1388,9 +1397,12 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             .Where(mod => !isKeyConversionMod(mod))
             .OrderBy(mod => (int)mod)
             .ToArray();
-        ManiaModId[] visibleActive = allActive.Take(5).ToArray();
-        activeCount.Text = $"({allActive.Length} ACTIVE)";
-        capacityTelemetry.Text = $"MOD BUS // {allActive.Length:00} ACTIVE";
+        activeCount.Text = YokkoStrings.Get(
+            "mods.active_count",
+            allActive.Length);
+        capacityTelemetry.Text = YokkoStrings.Get(
+            "mods.bus_summary",
+            allActive.Length);
         for (int i = 0; i < capacityDots.Count; i++)
         {
             capacityDots[i].FadeColour(
@@ -1404,12 +1416,14 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 110);
         }
 
-        for (int i = 0; i < 5; i++)
+        int slotCount = Math.Max(5, allActive.Length);
+        activeRows.Height = Math.Max(264, slotCount * 53 - 5);
+        for (int i = 0; i < slotCount; i++)
         {
-            if (i < visibleActive.Length)
+            if (i < allActive.Length)
             {
                 ManiaModDefinition definition =
-                    OsuManiaModParityCatalog.Get(visibleActive[i]);
+                    OsuManiaModParityCatalog.Get(allActive[i]);
                 var row = new OrbitActiveModRow(
                     definition,
                     accentFor(definition),
@@ -2041,6 +2055,8 @@ internal partial class OrbitModNode : ClickableContainer
                 Position = new Vector2(96, 8),
                 Text = YokkoStrings.ModName(definition),
                 Font = HomeTypography.Display(18),
+                MaxWidth = 245,
+                Truncate = true,
                 Colour = HomeControlColours.Navy,
             },
             description = new SpriteText
@@ -2598,7 +2614,7 @@ internal partial class OrbitEmptySlot : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Position = new Vector2(18, 0),
-                Text = "ADD FOCUSED MOD",
+                Text = YokkoStrings.Get("mods.add_focused"),
                 Font = HomeTypography.Display(11),
                 Spacing = new Vector2(0.7f, 0),
                 Colour = HomeControlColours.Cyan,

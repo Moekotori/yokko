@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Threading;
 using NUnit.Framework;
@@ -10,6 +11,71 @@ namespace Yokko.Game.Tests.Core;
 [TestFixture]
 public class YokkoThemeFileHotReloadTest
 {
+    [Test]
+    public void QueuedReloadsIgnoreStaleAndDisposedCallbacks()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"theme-queue-{Guid.NewGuid():N}");
+        string path = Path.Combine(directory, "theme.json");
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            File.WriteAllText(path, theme("First", "#224466"));
+            var store = new YokkoUiThemeStore();
+            var scheduled = new ConcurrentQueue<Action>();
+            var watcher = new YokkoThemeFileHotReload(
+                path,
+                store,
+                scheduled.Enqueue);
+            Action firstApply = null;
+
+            Assert.That(
+                SpinWait.SpinUntil(
+                    () => scheduled.TryDequeue(out firstApply),
+                    TimeSpan.FromSeconds(5)),
+                Is.True,
+                "Initial reload was not scheduled.");
+
+            File.WriteAllText(path, theme("Second", "#884466"));
+            watcher.ReloadNow();
+            firstApply();
+            Assert.That(store.ActiveName.Value, Is.EqualTo("Default"));
+            Assert.That(
+                SpinWait.SpinUntil(
+                    () =>
+                    {
+                        while (scheduled.TryDequeue(out Action apply))
+                            apply();
+
+                        return store.ActiveName.Value == "Second";
+                    },
+                    TimeSpan.FromSeconds(5)),
+                Is.True,
+                "Replacement reload was not scheduled.");
+            Assert.That(store.ActiveName.Value, Is.EqualTo("Second"));
+
+            File.WriteAllText(path, theme("Third", "#3388AA"));
+            watcher.ReloadNow();
+            Assert.That(
+                SpinWait.SpinUntil(
+                    () => !scheduled.IsEmpty,
+                    TimeSpan.FromSeconds(5)),
+                Is.True,
+                "Final reload was not scheduled.");
+            watcher.Dispose();
+            while (scheduled.TryDequeue(out Action apply))
+                apply();
+
+            Assert.That(store.ActiveName.Value, Is.EqualTo("Second"));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
     [Test]
     public void ReloadsValidFileAndKeepsLastThemeOnError()
     {

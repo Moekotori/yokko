@@ -456,7 +456,10 @@ internal partial class GameplayModsScreen : Screen
             case Key.Enter:
             case Key.KeypadEnter:
             case Key.Space:
-                ToggleMod(detailMod);
+                if (orbitWorkspace?.RepresentsMod(detailMod) == true)
+                    orbitWorkspace.CycleNode(detailMod);
+                else
+                    ToggleMod(detailMod);
                 showInteractionHint(
                     selectedMods.Contains(detailMod)
                         ? $"{OsuManiaModParityCatalog.Get(detailMod).Acronym} · ACTIVE"

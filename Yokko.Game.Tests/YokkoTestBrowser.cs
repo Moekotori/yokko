@@ -25,6 +25,7 @@ using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.SongSelect;
 using Yokko.Game.Tests.Development;
+using Yokko.Game.Tests.Visual;
 using Yokko.Import;
 
 namespace Yokko.Game.Tests
@@ -46,6 +47,7 @@ namespace Yokko.Game.Tests
             "YOKKO_PAUSE_PREVIEW",
             "YOKKO_EDITOR_PREVIEW",
             "YOKKO_SETTINGS_PREVIEW",
+            "YOKKO_UI_LAB_PREVIEW",
         ];
 
         [Resolved]
@@ -53,9 +55,6 @@ namespace Yokko.Game.Tests
 
         [Resolved]
         private GameHost host { get; set; }
-
-        [Resolved]
-        private YokkoUiThemeStore uiThemeStore { get; set; }
 
         private FrameworkConfigManager frameworkConfig;
         private YokkoThemeFileHotReload themeHotReload;
@@ -74,6 +73,25 @@ namespace Yokko.Game.Tests
                 configurePreviewViewport();
 
             configureThemeHotReload();
+
+            if (Environment.GetEnvironmentVariable(
+                    "YOKKO_UI_LAB_PREVIEW") == "1")
+            {
+                frameworkConfig.SetValue(
+                    FrameworkSetting.Locale,
+                    Environment.GetEnvironmentVariable(
+                        "YOKKO_PREVIEW_LOCALE")
+                    is { Length: > 0 } labLocale
+                        ? labLocale
+                        : YokkoLocale.English);
+                Add(new TestSceneYokkoUiLab
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                Add(new CursorContainer());
+                schedulePreviewScreenshot();
+                return;
+            }
 
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_LAYOUT_EDITOR_PREVIEW") == "1")
@@ -685,7 +703,7 @@ namespace Yokko.Game.Tests
             {
                 themeHotReload = new YokkoThemeFileHotReload(
                     path,
-                    uiThemeStore,
+                    UiThemeStore,
                     action => Scheduler.Add(action));
             }
             catch (Exception exception) when (
@@ -694,7 +712,7 @@ namespace Yokko.Game.Tests
                     or InvalidOperationException
                     or ArgumentException)
             {
-                uiThemeStore.ReportLoadError(path, exception.Message);
+                UiThemeStore.ReportLoadError(path, exception.Message);
             }
         }
 
@@ -747,6 +765,7 @@ namespace Yokko.Game.Tests
                 using var screenshot = (Image<Rgba32>)takeScreenshot.Invoke(
                     renderer,
                     null);
+                ensureUsableScreenshot(screenshot);
                 Directory.CreateDirectory(
                     Path.GetDirectoryName(outputPath)
                     ?? throw new InvalidOperationException(
@@ -754,6 +773,16 @@ namespace Yokko.Game.Tests
                 screenshot.SaveAsPng(outputPath);
                 host.Exit();
             }, delay);
+        }
+
+        private static void ensureUsableScreenshot(Image<Rgba32> screenshot)
+        {
+            ArgumentNullException.ThrowIfNull(screenshot);
+            if (screenshot.Width <= 1 || screenshot.Height <= 1)
+            {
+                throw new InvalidOperationException(
+                    $"Renderer returned an unusable {screenshot.Width}x{screenshot.Height} screenshot.");
+            }
         }
 
         private void seedSongSelectPreview()
@@ -986,6 +1015,16 @@ namespace Yokko.Game.Tests
 
                 case "empty":
                     modsScreen.ResetMods();
+                    break;
+
+                case "dense-active":
+                    modsScreen.ResetMods();
+                    modsScreen.ToggleMod(ManiaModId.HardRock);
+                    modsScreen.ToggleMod(ManiaModId.DoubleTime);
+                    modsScreen.ToggleMod(ManiaModId.Hidden);
+                    modsScreen.ToggleMod(ManiaModId.Mirror);
+                    modsScreen.ToggleMod(ManiaModId.ConstantSpeed);
+                    modsScreen.ToggleMod(ManiaModId.NoPause);
                     break;
 
                 case "scroll":

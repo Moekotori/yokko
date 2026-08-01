@@ -93,6 +93,7 @@ namespace Yokko.Game
         private IWindow window;
 
         protected YokkoDisplaySettings DisplaySettings => displaySettings;
+        protected YokkoUiThemeStore UiThemeStore => uiTheme;
         internal YokkoDiagnostics Diagnostics => diagnostics;
         internal ImportedChartLibrary ImportedCharts =>
             importedChartLibrary;

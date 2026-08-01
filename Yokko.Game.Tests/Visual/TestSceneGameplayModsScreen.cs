@@ -454,9 +454,14 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddAssert("visibility switch replaces Hidden with Flashlight", () =>
             !modsScreen.SelectedMods.Contains(ManiaModId.Hidden)
             && modsScreen.SelectedMods.Contains(ManiaModId.Flashlight));
+        AddStep("keyboard advances the focused visibility family", () =>
+            modsScreen.HandleInteractionKey(Key.Space));
+        AddAssert("keyboard reaches Fade In instead of removing the family", () =>
+            !modsScreen.SelectedMods.Contains(ManiaModId.Flashlight)
+            && modsScreen.SelectedMods.Contains(ManiaModId.FadeIn)
+            && modsScreen.DetailMod == ManiaModId.FadeIn);
         AddStep("cycle visibility switch through remaining choices", () =>
         {
-            modsScreen.CycleOrbitMod(ManiaModId.Hidden);
             modsScreen.CycleOrbitMod(ManiaModId.Hidden);
             modsScreen.CycleOrbitMod(ManiaModId.Hidden);
         });
@@ -515,6 +520,8 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.OrbitActiveCountText == "(6 ACTIVE)"
             && modsScreen.OrbitCapacityTelemetryText
                 == "MOD BUS // 06 ACTIVE");
+        AddAssert("active rail keeps every selected Mod discoverable", () =>
+            this.ChildrenOfType<OrbitActiveModRow>().Count() == 6);
 
         AddStep("restore corrected increase page", () =>
             modsScreen.SetCategory(
@@ -669,6 +676,11 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         using var screenshot = (Image<Rgba32>)takeScreenshot.Invoke(
             renderer,
             null);
+        if (screenshot.Width <= 1 || screenshot.Height <= 1)
+        {
+            throw new InvalidOperationException(
+                $"Renderer returned an unusable {screenshot.Width}x{screenshot.Height} screenshot.");
+        }
         Directory.CreateDirectory(
             Path.GetDirectoryName(outputPath)
             ?? throw new InvalidOperationException(

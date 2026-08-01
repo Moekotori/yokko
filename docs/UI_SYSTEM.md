@@ -37,6 +37,31 @@ validated theme store live in `Yokko.Game` for later skin-package integration.
 An editable starting point is available at
 `docs/samples/yokko-ui-theme.json`.
 
+## Preview workflow
+
+Use `scripts/ui-preview.ps1` instead of assembling preview environment
+variables by hand. It opens a real `1920x1080` Test Browser window for a
+selected surface, applies locale/UI-scale/theme overrides only to that child
+run, and restores the caller's environment afterwards.
+
+```powershell
+# Open the component gallery and keep it interactive.
+.\scripts\ui-preview.ps1 -Target Lab
+
+# Exercise the six-active-Mod scrolling state in Chinese with a live theme file.
+.\scripts\ui-preview.ps1 -Target Mods -ModsState DenseActive `
+  -Locale zh -ThemeFile .\docs\samples\yokko-ui-theme.json
+
+# Capture a real renderer frame and exit automatically.
+.\scripts\ui-preview.ps1 -Target Settings -SettingsPage Display `
+  -Screenshot .\artifacts\ui\settings-display.png
+```
+
+Supported targets currently include the UI Lab, Mods, main menu, Song Select,
+Settings, results, pause, editor, and layout editor. A requested screenshot is
+rejected when the renderer returns the `1x1` placeholder used by some headless
+test environments, so a green command always corresponds to a usable PNG.
+
 ## Boundaries
 
 Theme data may control colours, typography, surface metrics, motion timing, and

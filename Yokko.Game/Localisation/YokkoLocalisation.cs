@@ -143,6 +143,15 @@ internal static class YokkoStrings
                 "自定义你的游玩体验。",
                 "プレイ体験をカスタマイズ。"),
             ["mods.categories"] = new("CATEGORIES", "分类", "カテゴリー"),
+            ["mods.catalogue"] = new("MOD CATALOGUE", "MOD 目录", "MOD カタログ"),
+            ["mods.focus_summary"] = new(
+                "FOCUS {0}  //  ACTIVE {1:00}",
+                "焦点 {0}  //  已启用 {1:00}",
+                "フォーカス {0}  //  有効 {1:00}"),
+            ["mods.bus_summary"] = new(
+                "MOD BUS // {0:00} ACTIVE",
+                "MOD 总览 // 已启用 {0:00}",
+                "MOD 一覧 // {0:00} 有効"),
             ["mods.choose"] = new("CHOOSE A MOD", "选择 MOD", "MOD を選択"),
             ["mods.choose_hint"] = new(
                 "Browse this category · click a card to enable or cycle",

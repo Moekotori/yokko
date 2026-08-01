@@ -238,7 +238,6 @@ public partial class TestSceneYokkoUiLab : YokkoTestScene
             activeName?.UnbindAll();
             sourcePath?.UnbindAll();
             lastError?.UnbindAll();
-            themeStore?.Reset();
         }
 
         base.Dispose(isDisposing);
