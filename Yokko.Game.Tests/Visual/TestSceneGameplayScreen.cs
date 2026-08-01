@@ -171,7 +171,10 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.ChildrenOfType<GameplayPlayfield>().Single().Alpha == 0
                 && gameplay.ChildrenOfType<GameplayHud>().Single().Alpha == 0
                 && gameplay.ChildrenOfType<JudgementReadout>().Single().Alpha == 0
-                && gameplay.ChildrenOfType<GameplayTimingBar>().Single().Alpha == 0);
+                && gameplay.ChildrenOfType<GameplayTimingBar>().Single().Alpha == 0
+                && gameplay
+                   .ChildrenOfType<GameplayReplayControlsOverlay>()
+                   .SingleOrDefault() == null);
         }
 
         [Test]
@@ -1953,6 +1956,65 @@ namespace Yokko.Game.Tests.Visual
             });
             AddStep("remove native replay fixture", () =>
                 File.Delete(gameplay.SavedReplayPath));
+        }
+
+        [Test]
+        public void TestReplayPlaybackControlsPauseAndAdjustRate()
+        {
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Replay Controls Test",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        5000,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+            var replay = new GameplayReplay(
+            [
+                new GameplayReplayInput(0, true, 5000),
+                new GameplayReplayInput(0, false, 5050),
+            ]);
+            GameplayScreen gameplay = null;
+            GameplayReplayControlsOverlay controls = null;
+
+            AddStep("open replay player", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    null,
+                    null,
+                    null,
+                    replay)));
+            AddUntilStep("replay controls are visible", () =>
+                (controls = gameplay?
+                    .ChildrenOfType<GameplayReplayControlsOverlay>()
+                    .SingleOrDefault()) != null);
+            AddStep("pause from replay rail", () =>
+                controls.ActivateTogglePause());
+            AddUntilStep("replay pauses without pause menu", () =>
+                gameplay.IsPaused
+                && controls.ShowsPausedState
+                && gameplay
+                   .ChildrenOfType<GameplayPauseOverlay>()
+                   .SingleOrDefault() == null);
+            AddStep("increase replay speed", () =>
+                controls.ActivateIncreaseRate());
+            AddAssert("replay rail shows adjusted rate", () =>
+                Math.Abs(gameplay.CurrentPlaybackRate - 1.05) < 0.001
+                && controls.RateText == "1.05x");
+            AddStep("resume replay with Space", () =>
+                gameplay.HandleKeyDownInput(
+                    Key.Space,
+                    false,
+                    false,
+                    false));
+            AddUntilStep("replay resumes directly", () =>
+                !gameplay.IsPaused
+                && !controls.ShowsPausedState);
+            AddStep("leave replay controls test", () => gameplay.Exit());
         }
 
         [Test]

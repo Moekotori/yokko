@@ -103,7 +103,7 @@ public partial class GameplayScreen : Screen
     private GameplayLaneCovers laneCovers;
     private GameplayLayoutEditorOverlay layoutEditor;
     private GameplayReplay layoutAutoplayPreviousReplay;
-    private int layoutAutoplayPreviousReplayInputIndex;
+    private GameplayReplayTimeline layoutAutoplayPreviousReplayTimeline;
     private bool layoutAutoplayDemoActive;
     private KeyModeBindings keyBindings;
     private bool[] pressedLanes;
@@ -149,7 +149,7 @@ public partial class GameplayScreen : Screen
     private bool introSkipInProgress;
     private bool introSkipUsed;
     private double pendingIntroSkipMilliseconds = double.NaN;
-    private int replayInputIndex;
+    private GameplayReplayTimeline replayTimeline;
     private GameplayReplay completedReplay;
     private float playfieldWidthScale = 1;
     private GameHost host;
@@ -171,6 +171,7 @@ public partial class GameplayScreen : Screen
     private GameplayTimingBar timingBar;
     private GameplayScrollSpeedOverlay scrollSpeedOverlay;
     private GameplayPlaybackRateOverlay playbackRateOverlay;
+    private GameplayReplayControlsOverlay replayControls;
     private double appliedScrollSpeed;
     private Task keysoundPreparationTask = Task.CompletedTask;
     private GameplayHitSamplePlaybackBinding[][] headSamplesByHitObject = [];
@@ -291,7 +292,13 @@ public partial class GameplayScreen : Screen
         string skinPath,
         ManiaModSet mods,
         GameplayReplay replay)
-        : this(beatmap, audioEngine, skinPath, mods, replay, null)
+        : this(
+            beatmap,
+            audioEngine,
+            skinPath,
+            mods,
+            replay,
+            null)
     {
     }
 
@@ -368,6 +375,8 @@ public partial class GameplayScreen : Screen
                 mods,
                 judgementConfiguration);
         }
+        if (replay != null)
+            replayTimeline = new GameplayReplayTimeline(replay.Frames);
         keyBindings = gameplaySettings.SupportedKeyModes.Contains(
             beatmap.KeyMode)
             ? KeyModeBindings.ForMode(
@@ -525,6 +534,14 @@ public partial class GameplayScreen : Screen
                 closeGameplayLayoutEditor),
         };
 
+        if (ReplayMode && !mods.IsCinema)
+        {
+            AddInternal(replayControls = new GameplayReplayControlsOverlay(
+                () => _ = toggleReplayPlaybackAsync(),
+                () => adjustReplayPlaybackRate(-playbackRateStep),
+                () => adjustReplayPlaybackRate(playbackRateStep)));
+        }
+
         playfieldWidthScale = (float)Math.Clamp(
             gameplaySettings.LayoutPlayfieldWidthScale.Value,
             YokkoGameplaySettings.MinimumPlayfieldWidthScale,
@@ -616,6 +633,11 @@ public partial class GameplayScreen : Screen
         drainAudioSampleTriggerTelemetry();
         updateQuickRetryHold();
         updateDiagnosticSnapshot();
+        replayControls?.UpdateState(
+            currentGameplayTime,
+            completionTimeMilliseconds,
+            currentPlaybackRate(currentGameplayTime),
+            isPaused);
 
         if (gameplayCompletionTransitionActive)
         {
@@ -1032,6 +1054,12 @@ public partial class GameplayScreen : Screen
 
         if (gameplayFailed)
             return failOverlay?.HandleKey(key) ?? true;
+
+        if (ReplayMode && key == Key.Space)
+        {
+            _ = toggleReplayPlaybackAsync();
+            return true;
+        }
 
         if (isPaused)
             return pauseOverlay?.HandleKey(key) ?? true;
@@ -1517,18 +1545,28 @@ public partial class GameplayScreen : Screen
 
     private void drainReplayInput(double gameplayTime)
     {
-        IReadOnlyList<GameplayReplayInput> inputs = replay.Inputs;
-
-        while (replayInputIndex < inputs.Count
-               && !gameplayFailed
-               && inputs[replayInputIndex].TimeMilliseconds <= gameplayTime)
+        while (!gameplayFailed)
         {
-            GameplayReplayInput input = inputs[replayInputIndex++];
+            ulong previousLanes = replayTimeline.PressedLanes;
+            if (!replayTimeline.MoveNext(
+                    gameplayTime,
+                    out GameplayReplayFrame frame))
+            {
+                break;
+            }
 
-            if (input.IsPressed)
-                applyLanePress(input.Lane, input.TimeMilliseconds);
-            else
-                applyLaneRelease(input.Lane, input.TimeMilliseconds);
+            ulong changedLanes = previousLanes ^ frame.PressedLanes;
+            for (int lane = 0; lane < pressedLanes.Length; lane++)
+            {
+                ulong laneMask = 1UL << lane;
+                if ((changedLanes & laneMask) == 0)
+                    continue;
+
+                if ((frame.PressedLanes & laneMask) != 0)
+                    applyLanePress(lane, frame.TimeMilliseconds);
+                else
+                    applyLaneRelease(lane, frame.TimeMilliseconds);
+            }
         }
     }
 
@@ -3206,6 +3244,109 @@ public partial class GameplayScreen : Screen
             maximumPlaybackRate);
     }
 
+    private void adjustReplayPlaybackRate(double amount)
+    {
+        if (!ReplayMode
+            || gameplayBlocked
+            || gameplayCompleted
+            || gameplayFailed)
+        {
+            return;
+        }
+
+        double gameplayTime = currentGameplayTime;
+        double currentRate = currentPlaybackRate(gameplayTime);
+        double adjustedRate = AdjustPlaybackRate(currentRate, amount);
+        manualPlaybackRateAdjustment += adjustedRate - currentRate;
+        if (Math.Abs(adjustedRate - currentRate) > 0.000001)
+            manualPlaybackRateUsed = true;
+        updatePlaybackRate(gameplayTime, true);
+        updatePlaybackRateAdjustedApproachTime(gameplayTime, true);
+        replayControls?.UpdateState(
+            gameplayTime,
+            completionTimeMilliseconds,
+            adjustedRate,
+            isPaused);
+    }
+
+    private async Task toggleReplayPlaybackAsync()
+    {
+        if (!ReplayMode
+            || pauseTransitionInProgress
+            || gameplayBlocked
+            || gameplayCompleted
+            || gameplayFailed
+            || retryTransitionInProgress)
+        {
+            return;
+        }
+
+        pauseTransitionInProgress = true;
+        bool wasPaused = isPaused;
+        try
+        {
+            if (!isPaused)
+            {
+                GameplayClockObservation observation =
+                    observeGameplayClock();
+                pausedGameplayTime = observation.GameplayTime;
+                pausedAudioPosition = hasAudioClock
+                    ? Math.Max(
+                        0,
+                        observation.Audio.PlaybackTimeMilliseconds)
+                    : 0;
+                isPaused = true;
+                if (hasAudioClock && audioStarted)
+                    await audioEngine.PauseAsync().ConfigureAwait(true);
+                diagnostics.Trace(
+                    "REPLAY",
+                    "paused",
+                    $"gameplay={pausedGameplayTime:0.###}ms");
+            }
+            else
+            {
+                if (hasAudioClock && audioStarted)
+                {
+                    await audioEngine.SeekAsync(pausedAudioPosition)
+                                     .ConfigureAwait(true);
+                    lastAppliedPlaybackRate = double.NaN;
+                }
+                else
+                {
+                    startTimeMilliseconds =
+                        Time.Current
+                        - pausedGameplayTime
+                          / currentPlaybackRate(pausedGameplayTime);
+                    frameClockGameplayTime = pausedGameplayTime;
+                    frameClockLastFrameworkTime = Time.Current;
+                }
+
+                isPaused = false;
+                diagnostics.Trace(
+                    "REPLAY",
+                    "resumed",
+                    $"gameplay={pausedGameplayTime:0.###}ms");
+            }
+        }
+        catch (Exception exception)
+        {
+            isPaused = wasPaused;
+            Logger.Error(
+                exception,
+                "Replay playback could not change pause state.",
+                LoggingTarget.Runtime);
+        }
+        finally
+        {
+            pauseTransitionInProgress = false;
+            replayControls?.UpdateState(
+                currentGameplayTime,
+                completionTimeMilliseconds,
+                currentPlaybackRate(currentGameplayTime),
+                isPaused);
+        }
+    }
+
     internal static AudioPitchMode ResolvePlaybackRatePitchMode(
         ManiaModSet mods,
         AudioPitchMode manualPlaybackRatePitchMode)
@@ -3700,18 +3841,13 @@ public partial class GameplayScreen : Screen
     private void beginLayoutAutoplayReplay()
     {
         layoutAutoplayPreviousReplay = replay;
-        layoutAutoplayPreviousReplayInputIndex = replayInputIndex;
+        layoutAutoplayPreviousReplayTimeline = replayTimeline;
         replay = GameplayAutoGenerator.Generate(
             beatmap,
             mods,
             judgementConfiguration);
-        replayInputIndex = 0;
-        while (replayInputIndex < replay.Inputs.Count
-               && replay.Inputs[replayInputIndex].TimeMilliseconds
-               < pausedGameplayTime)
-        {
-            replayInputIndex++;
-        }
+        replayTimeline = new GameplayReplayTimeline(replay.Frames);
+        replayTimeline.Seek(Math.BitDecrement(pausedGameplayTime));
 
         layoutAutoplayDemoActive = true;
     }
@@ -3728,9 +3864,9 @@ public partial class GameplayScreen : Screen
         }
 
         replay = layoutAutoplayPreviousReplay;
-        replayInputIndex = layoutAutoplayPreviousReplayInputIndex;
+        replayTimeline = layoutAutoplayPreviousReplayTimeline;
         layoutAutoplayPreviousReplay = null;
-        layoutAutoplayPreviousReplayInputIndex = 0;
+        layoutAutoplayPreviousReplayTimeline = null;
         layoutAutoplayDemoActive = false;
     }
 

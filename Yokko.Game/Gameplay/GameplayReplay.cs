@@ -13,11 +13,24 @@ internal readonly record struct GameplayReplayInput(
     bool IsPressed,
     double TimeMilliseconds);
 
+/// <summary>
+/// Full mania key state after a replay transition at a specific gameplay
+/// time. This mirrors ppy/osu's ManiaReplayFrame at commit
+/// 83b8a64bec19e1463353645c2d6d10c75e275b43 (MIT): playback owns the
+/// complete pressed-action state rather than depending on loose input edges.
+/// </summary>
+internal readonly record struct GameplayReplayFrame(
+    double TimeMilliseconds,
+    ulong PressedLanes);
+
 internal sealed class GameplayReplay
 {
     private readonly GameplayReplayInput[] inputs;
+    private readonly GameplayReplayFrame[] frames;
 
     public IReadOnlyList<GameplayReplayInput> Inputs => inputs;
+
+    public IReadOnlyList<GameplayReplayFrame> Frames => frames;
 
     public ManiaModSet Mods { get; }
 
@@ -31,6 +44,10 @@ internal sealed class GameplayReplay
         this.inputs = inputs.ToArray();
         Mods = mods ?? ManiaModSet.Empty;
         JudgementConfiguration = judgementConfiguration;
+
+        ulong pressedLanes = 0;
+        var replayFrames = new List<GameplayReplayFrame>(
+            this.inputs.Length);
 
         for (int i = 0; i < this.inputs.Length; i++)
         {
@@ -50,7 +67,24 @@ internal sealed class GameplayReplay
                     "Replay inputs must be ordered by gameplay time.",
                     nameof(inputs));
             }
+
+            if (input.Lane >= 64)
+                throw new ArgumentOutOfRangeException(nameof(inputs));
+
+            ulong laneMask = 1UL << input.Lane;
+            ulong nextPressedLanes = input.IsPressed
+                ? pressedLanes | laneMask
+                : pressedLanes & ~laneMask;
+            if (nextPressedLanes == pressedLanes)
+                continue;
+
+            pressedLanes = nextPressedLanes;
+            replayFrames.Add(new GameplayReplayFrame(
+                input.TimeMilliseconds,
+                pressedLanes));
         }
+
+        frames = replayFrames.ToArray();
     }
 
     public static GameplayReplay FromOsuReplay(

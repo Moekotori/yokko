@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Yokko.Core.Beatmaps;
@@ -20,7 +22,7 @@ internal sealed record YokkoReplayLoadResult(
 internal static class YokkoReplayIO
 {
     public const string FileExtension = ".ykr";
-    private const int schema_version = 2;
+    private const int schema_version = 3;
     private const long maximum_file_bytes = 128L * 1024 * 1024;
 
     private static readonly JsonSerializerOptions json_options = new()
@@ -47,28 +49,46 @@ internal static class YokkoReplayIO
 
         int keyCount = (int)appliedBeatmap.KeyMode;
         validateInputs(replay.Inputs, keyCount);
+        validateFrames(replay.Frames, keyCount);
+        string beatmapFingerprint =
+            YokkoBeatmapFingerprint.Compute(originalBeatmap);
+        string normalizedSourceHash = string.IsNullOrWhiteSpace(sourceHash)
+            ? null
+            : sourceHash.Trim();
+        DateTimeOffset timestamp = recordedAt ?? DateTimeOffset.UtcNow;
+        JudgementConfiguration activeJudgement =
+            replay.JudgementConfiguration
+            ?? JudgementConfiguration.YokkoDefault;
+        ManiaModConfigurationEnvelope modConfiguration =
+            ManiaModConfigurationCodec.Capture(replay.Mods);
+        YokkoReplayFrameDocument[] frames = replay.Frames
+            .Select(static frame => new YokkoReplayFrameDocument(
+                frame.TimeMilliseconds,
+                frame.PressedLanes))
+            .ToArray();
         var document = new YokkoReplayDocument(
             schema_version,
             "mania",
-            YokkoBeatmapFingerprint.Compute(originalBeatmap),
-            string.IsNullOrWhiteSpace(sourceHash)
-                ? null
-                : sourceHash.Trim(),
+            beatmapFingerprint,
+            normalizedSourceHash,
             keyCount,
-            recordedAt ?? DateTimeOffset.UtcNow,
-            (replay.JudgementConfiguration
-             ?? JudgementConfiguration.YokkoDefault).Mode
-                .ToString(),
-            (replay.JudgementConfiguration
-             ?? JudgementConfiguration.YokkoDefault)
-                .EtternaJustice,
-            ManiaModConfigurationCodec.Capture(replay.Mods),
-            replay.Inputs
-                  .Select(static input => new YokkoReplayInputDocument(
-                      input.Lane,
-                      input.IsPressed,
-                      input.TimeMilliseconds))
-                  .ToArray());
+            timestamp,
+            activeJudgement.Mode.ToString(),
+            activeJudgement.EtternaJustice,
+            modConfiguration,
+            Inputs: null,
+            Frames: frames,
+            ClientVersion:
+                typeof(YokkoReplayIO).Assembly.GetName().Version?.ToString(),
+            ReplayChecksum: computeReplayChecksum(
+                beatmapFingerprint,
+                normalizedSourceHash,
+                keyCount,
+                timestamp,
+                activeJudgement.Mode.ToString(),
+                activeJudgement.EtternaJustice,
+                modConfiguration,
+                frames));
 
         JsonSerializer.Serialize(stream, document, json_options);
     }
@@ -137,7 +157,7 @@ internal static class YokkoReplayIO
                 exception);
         }
 
-        if (document.SchemaVersion is not 1 and not schema_version)
+        if (document.SchemaVersion is not 1 and not 2 and not schema_version)
         {
             throw new NotSupportedException(
                 $"Unsupported Yokko replay schema "
@@ -161,17 +181,49 @@ internal static class YokkoReplayIO
 
         if (document.KeyCount is < 1 or > 20)
             throw new InvalidDataException("The replay key count is invalid.");
-        if (document.Inputs is null)
-            throw new InvalidDataException("The replay input list is missing.");
         if (document.ModConfiguration is null)
             throw new InvalidDataException("The replay Mod configuration is missing.");
 
-        GameplayReplayInput[] inputs = document.Inputs
-            .Select(static input => new GameplayReplayInput(
-                input.Lane,
-                input.IsPressed,
-                input.TimeMilliseconds))
-            .ToArray();
+        GameplayReplayInput[] inputs;
+        if (document.SchemaVersion >= 3)
+        {
+            if (document.Frames is null)
+                throw new InvalidDataException("The replay frame list is missing.");
+            validateFrameDocuments(document.Frames, document.KeyCount);
+            if (!isSha256(document.ReplayChecksum))
+                throw new InvalidDataException("The replay checksum is invalid.");
+            string expectedChecksum = computeReplayChecksum(
+                document.BeatmapFingerprint,
+                document.SourceHash,
+                document.KeyCount,
+                document.RecordedAt,
+                document.JudgementMode,
+                document.EtternaJustice,
+                document.ModConfiguration,
+                document.Frames);
+            if (!CryptographicOperations.FixedTimeEquals(
+                    Convert.FromHexString(expectedChecksum),
+                    Convert.FromHexString(document.ReplayChecksum)))
+            {
+                throw new InvalidDataException(
+                    "The replay checksum does not match its contents.");
+            }
+
+            inputs = inputsFromFrames(
+                document.Frames,
+                document.KeyCount);
+        }
+        else
+        {
+            if (document.Inputs is null)
+                throw new InvalidDataException("The replay input list is missing.");
+            inputs = document.Inputs
+                .Select(static input => new GameplayReplayInput(
+                    input.Lane,
+                    input.IsPressed,
+                    input.TimeMilliseconds))
+                .ToArray();
+        }
         validateInputs(inputs, document.KeyCount);
 
         ManiaModSet mods;
@@ -273,6 +325,109 @@ internal static class YokkoReplayIO
         }
     }
 
+    private static void validateFrames(
+        IReadOnlyList<GameplayReplayFrame> frames,
+        int keyCount) => validateFrameDocuments(
+        frames.Select(static frame => new YokkoReplayFrameDocument(
+            frame.TimeMilliseconds,
+            frame.PressedLanes)).ToArray(),
+        keyCount);
+
+    private static void validateFrameDocuments(
+        IReadOnlyList<YokkoReplayFrameDocument> frames,
+        int keyCount)
+    {
+        ulong supportedLanes = (1UL << keyCount) - 1;
+        for (int index = 0; index < frames.Count; index++)
+        {
+            YokkoReplayFrameDocument frame = frames[index];
+            if (!double.IsFinite(frame.TimeMilliseconds))
+            {
+                throw new InvalidDataException(
+                    $"Replay frame {index} has an invalid timestamp.");
+            }
+            if ((frame.PressedLanes & ~supportedLanes) != 0)
+            {
+                throw new InvalidDataException(
+                    $"Replay frame {index} uses keys outside the "
+                    + $"{keyCount}K session.");
+            }
+            if (index > 0
+                && frame.TimeMilliseconds
+                < frames[index - 1].TimeMilliseconds)
+            {
+                throw new InvalidDataException(
+                    "Replay frames are not ordered by gameplay time.");
+            }
+        }
+    }
+
+    private static GameplayReplayInput[] inputsFromFrames(
+        IReadOnlyList<YokkoReplayFrameDocument> frames,
+        int keyCount)
+    {
+        var inputs = new List<GameplayReplayInput>();
+        ulong previousLanes = 0;
+        foreach (YokkoReplayFrameDocument frame in frames)
+        {
+            ulong changedLanes = previousLanes ^ frame.PressedLanes;
+            for (int lane = 0; lane < keyCount; lane++)
+            {
+                ulong laneMask = 1UL << lane;
+                if ((changedLanes & laneMask) == 0)
+                    continue;
+
+                inputs.Add(new GameplayReplayInput(
+                    lane,
+                    (frame.PressedLanes & laneMask) != 0,
+                    frame.TimeMilliseconds));
+            }
+
+            previousLanes = frame.PressedLanes;
+        }
+
+        return inputs.ToArray();
+    }
+
+    private static string computeReplayChecksum(
+        string beatmapFingerprint,
+        string sourceHash,
+        int keyCount,
+        DateTimeOffset recordedAt,
+        string judgementMode,
+        int? etternaJustice,
+        ManiaModConfigurationEnvelope modConfiguration,
+        IReadOnlyList<YokkoReplayFrameDocument> frames)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(
+                   stream,
+                   Encoding.UTF8,
+                   leaveOpen: true))
+        {
+            writer.Write("yokko-replay-v3");
+            writer.Write(beatmapFingerprint ?? string.Empty);
+            writer.Write(sourceHash ?? string.Empty);
+            writer.Write(keyCount);
+            writer.Write(recordedAt.UtcTicks);
+            writer.Write(judgementMode ?? string.Empty);
+            writer.Write(etternaJustice ?? int.MinValue);
+            writer.Write(JsonSerializer.Serialize(
+                modConfiguration,
+                json_options));
+            writer.Write(frames.Count);
+            foreach (YokkoReplayFrameDocument frame in frames)
+            {
+                writer.Write(BitConverter.DoubleToInt64Bits(
+                    frame.TimeMilliseconds));
+                writer.Write(frame.PressedLanes);
+            }
+        }
+
+        return Convert.ToHexString(SHA256.HashData(stream.ToArray()))
+                      .ToLowerInvariant();
+    }
+
     private static bool isSha256(string value) =>
         value is { Length: 64 }
         && value.All(static character =>
@@ -290,10 +445,17 @@ internal static class YokkoReplayIO
         string JudgementMode,
         int? EtternaJustice,
         ManiaModConfigurationEnvelope ModConfiguration,
-        IReadOnlyList<YokkoReplayInputDocument> Inputs);
+        IReadOnlyList<YokkoReplayInputDocument> Inputs,
+        IReadOnlyList<YokkoReplayFrameDocument> Frames,
+        string ClientVersion,
+        string ReplayChecksum);
 
     private sealed record YokkoReplayInputDocument(
         int Lane,
         bool IsPressed,
         double TimeMilliseconds);
+
+    private sealed record YokkoReplayFrameDocument(
+        double TimeMilliseconds,
+        ulong PressedLanes);
 }

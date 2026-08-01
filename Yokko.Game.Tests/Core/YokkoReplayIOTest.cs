@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
@@ -88,6 +89,10 @@ public sealed class YokkoReplayIOTest
                 Is.EqualTo(YokkoBeatmapFingerprint.Compute(beatmap)));
             Assert.That(restored.Replay.Mods, Is.EqualTo(mods));
             Assert.That(restored.Replay.Inputs, Is.EqualTo(replay.Inputs));
+            Assert.That(json, Does.Contain("\"schemaVersion\":3"));
+            Assert.That(json, Does.Contain("\"frames\":"));
+            Assert.That(json, Does.Contain("\"replayChecksum\":"));
+            Assert.That(json, Does.Not.Contain("\"inputs\":"));
             Assert.That(json, Does.Contain("\"key\":\"random\""));
             Assert.That(json, Does.Contain("\"seed\":123456"));
             Assert.That(json, Does.Not.Contain("\"Random\""));
@@ -144,11 +149,14 @@ public sealed class YokkoReplayIOTest
                 9));
         using var source = new MemoryStream();
         YokkoReplayIO.Write(source, beatmap, beatmap, replay);
-        string versionOneJson =
-            Encoding.UTF8.GetString(source.ToArray())
-                .Replace(
-                    "\"schemaVersion\":2",
-                    "\"schemaVersion\":1");
+        JsonObject versionOneDocument = JsonNode.Parse(
+            Encoding.UTF8.GetString(source.ToArray()))!.AsObject();
+        versionOneDocument["schemaVersion"] = 1;
+        versionOneDocument["inputs"] = new JsonArray();
+        versionOneDocument.Remove("frames");
+        versionOneDocument.Remove("clientVersion");
+        versionOneDocument.Remove("replayChecksum");
+        string versionOneJson = versionOneDocument.ToJsonString();
         using var versionOne = new MemoryStream(
             Encoding.UTF8.GetBytes(versionOneJson));
 
@@ -158,6 +166,65 @@ public sealed class YokkoReplayIOTest
         Assert.That(
             restored.Replay.JudgementConfiguration,
             Is.EqualTo(JudgementConfiguration.YokkoDefault));
+    }
+
+    [Test]
+    public void VersionTwoReplayRestoresLegacyInputEdges()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var replay = new GameplayReplay(
+        [
+            new GameplayReplayInput(0, true, 100),
+            new GameplayReplayInput(0, false, 150),
+        ]);
+        using var source = new MemoryStream();
+        YokkoReplayIO.Write(source, beatmap, beatmap, replay);
+        JsonObject document = JsonNode.Parse(
+            Encoding.UTF8.GetString(source.ToArray()))!.AsObject();
+        document["schemaVersion"] = 2;
+        document["inputs"] = new JsonArray(
+            new JsonObject
+            {
+                ["lane"] = 0,
+                ["isPressed"] = true,
+                ["timeMilliseconds"] = 100,
+            },
+            new JsonObject
+            {
+                ["lane"] = 0,
+                ["isPressed"] = false,
+                ["timeMilliseconds"] = 150,
+            });
+        document.Remove("frames");
+        document.Remove("clientVersion");
+        document.Remove("replayChecksum");
+        using var legacy = new MemoryStream(
+            Encoding.UTF8.GetBytes(document.ToJsonString()));
+
+        YokkoReplayLoadResult restored = YokkoReplayIO.Read(legacy);
+
+        Assert.That(restored.Replay.Inputs, Is.EqualTo(replay.Inputs));
+    }
+
+    [Test]
+    public void VersionThreeReplayRejectsChangedFrameState()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var replay = new GameplayReplay(
+            [new GameplayReplayInput(0, true, 100)]);
+        using var source = new MemoryStream();
+        YokkoReplayIO.Write(source, beatmap, beatmap, replay);
+        string changed = Encoding.UTF8.GetString(source.ToArray())
+            .Replace(
+                "\"pressedLanes\":1",
+                "\"pressedLanes\":2",
+                StringComparison.Ordinal);
+        using var tampered = new MemoryStream(
+            Encoding.UTF8.GetBytes(changed));
+
+        Assert.That(
+            () => YokkoReplayIO.Read(tampered),
+            Throws.TypeOf<InvalidDataException>());
     }
 
     [Test]
