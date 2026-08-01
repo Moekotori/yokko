@@ -183,9 +183,14 @@ public static class OsuManiaBeatmapIO
         if (previewTime >= 0)
             previewTime += legacyTimingOffset;
 
+        string romanisedTitle = metadataValue(metadata, "Title", "Untitled");
+        string romanisedArtist = metadataValue(
+            metadata,
+            "Artist",
+            "Unknown Artist");
         return new YokkoBeatmap(
-            preferredMetadataValue(metadata, "TitleUnicode", "Title", "Untitled"),
-            preferredMetadataValue(metadata, "ArtistUnicode", "Artist", "Unknown Artist"),
+            preferredMetadataValue(metadata, "TitleUnicode", romanisedTitle),
+            preferredMetadataValue(metadata, "ArtistUnicode", romanisedArtist),
             metadata.GetValueOrDefault("Creator", "Unknown Creator"),
             metadata.GetValueOrDefault("Version", $"{keyCount}K"),
             keyMode,
@@ -200,7 +205,17 @@ public static class OsuManiaBeatmapIO
             ConversionSource: conversionSource,
             StageCount: stageCount,
             PreviewTimeMilliseconds: previewTime,
-            BreakPeriods: breakPeriods);
+            BreakPeriods: breakPeriods,
+            RomanisedTitle: romanisedTitle,
+            RomanisedArtist: romanisedArtist,
+            Source: metadata.GetValueOrDefault("Source", string.Empty),
+            Tags: metadata.GetValueOrDefault("Tags", string.Empty),
+            OnlineBeatmapId: parseInt(
+                metadata.GetValueOrDefault("BeatmapID"),
+                -1),
+            OnlineBeatmapSetId: parseInt(
+                metadata.GetValueOrDefault("BeatmapSetID"),
+                -1));
     }
 
     private static int parseFormatVersion(string text)
@@ -230,16 +245,26 @@ public static class OsuManiaBeatmapIO
     private static string preferredMetadataValue(
         IReadOnlyDictionary<string, string> metadata,
         string preferredKey,
-        string fallbackKey,
         string fallback)
     {
         string? preferred = metadata.GetValueOrDefault(preferredKey);
         if (!string.IsNullOrWhiteSpace(preferred))
             return preferred;
 
-        string? value = metadata.GetValueOrDefault(fallbackKey);
-        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+        return fallback;
     }
+
+    private static string metadataValue(
+        IReadOnlyDictionary<string, string> metadata,
+        string key,
+        string fallback)
+    {
+        string? value = metadata.GetValueOrDefault(key);
+        return metadataValue(value, fallback);
+    }
+
+    private static string metadataValue(string? value, string fallback) =>
+        string.IsNullOrWhiteSpace(value) ? fallback : value;
 
     public static void WriteEditableToFile(EditableBeatmap beatmap, string path)
     {
@@ -277,14 +302,16 @@ public static class OsuManiaBeatmapIO
         builder.AppendLine("TimelineZoom: 1");
         builder.AppendLine();
         builder.AppendLine("[Metadata]");
-        builder.AppendLine($"Title:{escapeValue(beatmap.Title)}");
-        builder.AppendLine($"Artist:{escapeValue(beatmap.Artist)}");
+        builder.AppendLine($"Title:{escapeValue(metadataValue(beatmap.RomanisedTitle, beatmap.Title))}");
+        builder.AppendLine($"TitleUnicode:{escapeValue(beatmap.Title)}");
+        builder.AppendLine($"Artist:{escapeValue(metadataValue(beatmap.RomanisedArtist, beatmap.Artist))}");
+        builder.AppendLine($"ArtistUnicode:{escapeValue(beatmap.Artist)}");
         builder.AppendLine($"Creator:{escapeValue(beatmap.Creator)}");
         builder.AppendLine($"Version:{escapeValue(beatmap.DifficultyName)}");
-        builder.AppendLine("Source:Yokko");
-        builder.AppendLine("Tags:yokko");
-        builder.AppendLine("BeatmapID:0");
-        builder.AppendLine("BeatmapSetID:-1");
+        builder.AppendLine($"Source:{escapeValue(metadataValue(beatmap.Source, "Yokko"))}");
+        builder.AppendLine($"Tags:{escapeValue(metadataValue(beatmap.Tags, "yokko"))}");
+        builder.AppendLine($"BeatmapID:{beatmap.OnlineBeatmapId}");
+        builder.AppendLine($"BeatmapSetID:{beatmap.OnlineBeatmapSetId}");
         builder.AppendLine();
         builder.AppendLine("[Difficulty]");
         builder.AppendLine($"HPDrainRate:{formatDouble(beatmap.DrainRate)}");

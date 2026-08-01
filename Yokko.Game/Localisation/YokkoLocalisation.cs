@@ -1618,6 +1618,11 @@ internal static class YokkoStrings
                 "重複した入力は自動で入れ替わります · Esc でキャンセル"),
             ["settings.gameplay.lane"] = new("LANE {0}", "轨道 {0}", "レーン {0}"),
             ["settings.gameplay.bms_scratch"] = new("SCRATCH", "皿键", "スクラッチ"),
+            ["settings.gameplay.bms_key"] = new("KEY {0}", "键 {0}", "キー {0}"),
+            ["settings.gameplay.bms_profile_hint"] = new(
+                "BMS uses an independent scratch + 7-key layout.",
+                "BMS 使用独立的皿键 + 7 键布局。",
+                "BMS は独立したスクラッチ + 7キー配列を使用します。"),
             ["settings.gameplay.click_to_change"] = new("Change input", "修改输入", "入力を変更"),
             ["settings.gameplay.press_key"] = new("PRESS INPUT", "请按下输入", "入力を押す"),
             ["settings.gameplay.esc_cancel"] = new("Esc to cancel", "Esc 取消", "Esc でキャンセル"),

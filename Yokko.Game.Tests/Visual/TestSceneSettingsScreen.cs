@@ -722,10 +722,16 @@ namespace Yokko.Game.Tests.Visual
             });
             AddAssert("20K custom key saved", () =>
                 gameplay.GetBinding(KeyMode.TwentyKey, 19) == Key.Slash);
+            AddStep("next selects BMS", () =>
+                gameplay.SelectAdjacentKeyMode(1));
+            AddAssert("BMS scratch and seven keys are visible", () =>
+                gameplay.IsBmsProfileSelected
+                && gameplay.VisibleBindingCardCount == 8);
             AddStep("next wraps to 1K", () =>
                 gameplay.SelectAdjacentKeyMode(1));
             AddAssert("mode picker wrapped", () =>
-                gameplay.SelectedKeyMode == KeyMode.OneKey
+                !gameplay.IsBmsProfileSelected
+                && gameplay.SelectedKeyMode == KeyMode.OneKey
                 && gameplay.VisibleBindingCardCount == 1);
             AddStep("restore 10K + 10K defaults", () =>
             {

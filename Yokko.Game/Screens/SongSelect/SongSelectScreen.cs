@@ -3830,9 +3830,13 @@ public partial class SongSelectScreen : Screen
             passesDifficultyFilter(entry) &&
             (string.IsNullOrWhiteSpace(searchQuery) ||
              entry.Beatmap.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+             entry.Beatmap.RomanisedTitle.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
              entry.Beatmap.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+             entry.Beatmap.RomanisedArtist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
              entry.Beatmap.Creator.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-             entry.Beatmap.DifficultyName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)))
+             entry.Beatmap.DifficultyName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+             entry.Beatmap.Source.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+             entry.Beatmap.Tags.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)))
                                 .ToList();
         diagnostics.Trace(
             "SONG_SELECT",

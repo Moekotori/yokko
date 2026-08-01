@@ -162,6 +162,50 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
+    public async Task ExternalOsuSetUsesMetadataNameInsteadOfFolderName()
+    {
+        string root = createTestRoot("external-osu-metadata-name");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string set = Path.Combine(songs, "999 Renamed Folder");
+        Directory.CreateDirectory(set);
+
+        try
+        {
+            writeOsuChart(set, "Metadata Song", 3, "Easy", "easy");
+            writeOsuChart(set, "Metadata Song", 3, "Hard", "hard");
+
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+
+            await library.RefreshExternalOsuAsync();
+            ImportedChart[] charts = library.GetCharts().ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(charts, Has.Length.EqualTo(2));
+                Assert.That(
+                    charts.Select(chart => chart.PackageId).Distinct().Count(),
+                    Is.EqualTo(1));
+                Assert.That(charts.Select(chart => chart.PackageName),
+                    Is.All.EqualTo("Yokko - Metadata Song"));
+                Assert.That(charts.Select(chart => chart.IsPackage), Is.All.True);
+                Assert.That(charts.Select(chart => chart.Result.Beatmap.DifficultyName),
+                    Is.EqualTo(new[] { "Easy", "Hard" }));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task ExternalOsuIndexingPausesAndResumesForGameplay()
     {
         string root = createTestRoot("external-osu-pause");
@@ -724,6 +768,8 @@ public sealed class ImportedChartLibraryTest
         YokkoBeatmap source = DemoBeatmaps.CreateFourKeyDemo() with
         {
             Title = "GD PACK (clear 2 out of 7 maps)",
+            Artist = "Various Artists",
+            SourceFormat = ChartSourceFormat.OsuMania,
         };
 
         library.AddOrReplace(
@@ -750,7 +796,8 @@ public sealed class ImportedChartLibraryTest
             Assert.That(
                 charts.Select(chart => chart.Result.Beatmap.DifficultyName),
                 Is.EqualTo(new[] { "Cold Sweat", "Dear Nostalgists" }));
-            Assert.That(charts.Select(chart => chart.PackageName), Is.All.EqualTo("VA - GD PACK"));
+            Assert.That(charts.Select(chart => chart.PackageName),
+                Is.All.EqualTo("Various Artists - GD PACK (clear 2 out of 7 maps)"));
         });
     }
 
@@ -1136,13 +1183,17 @@ HitObjects:
     private static string writeOsuChart(
         string directory,
         string title,
-        int mode)
+        int mode,
+        string difficultyName = null,
+        string fileName = null)
     {
-        string path = Path.Combine(directory, $"{title}.osu");
+        string path = Path.Combine(directory, $"{fileName ?? title}.osu");
         string text = OsuManiaBeatmapIO.WriteBeatmap(
             DemoBeatmaps.CreateFourKeyDemo() with
             {
                 Title = title,
+                DifficultyName = difficultyName
+                                 ?? DemoBeatmaps.CreateFourKeyDemo().DifficultyName,
                 AudioPath = Path.Combine(directory, "audio.mp3"),
             });
         if (mode != 3)

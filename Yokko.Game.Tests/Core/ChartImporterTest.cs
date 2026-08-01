@@ -97,6 +97,10 @@ Artist:Romanised Artist
 ArtistUnicode:真正的歌手
 Creator:Mapper
 Version:4K
+Source:Game Soundtrack
+Tags:featured artist
+BeatmapID:1234
+BeatmapSetID:5678
 
 [Difficulty]
 CircleSize:4
@@ -115,6 +119,12 @@ CircleSize:4
             {
                 Assert.That(result.Beatmap.Title, Is.EqualTo("真正的歌曲名"));
                 Assert.That(result.Beatmap.Artist, Is.EqualTo("真正的歌手"));
+                Assert.That(result.Beatmap.RomanisedTitle, Is.EqualTo("Romanised Song"));
+                Assert.That(result.Beatmap.RomanisedArtist, Is.EqualTo("Romanised Artist"));
+                Assert.That(result.Beatmap.Source, Is.EqualTo("Game Soundtrack"));
+                Assert.That(result.Beatmap.Tags, Is.EqualTo("featured artist"));
+                Assert.That(result.Beatmap.OnlineBeatmapId, Is.EqualTo(1234));
+                Assert.That(result.Beatmap.OnlineBeatmapSetId, Is.EqualTo(5678));
                 Assert.That(result.Beatmap.Title, Is.Not.EqualTo(Path.GetFileNameWithoutExtension(archivePath)));
             });
         }

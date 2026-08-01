@@ -33,7 +33,7 @@ internal sealed record ExternalOsuFileSnapshot(
 
 internal static class ExternalOsuSongsIndex
 {
-    internal const int CurrentVersion = 2;
+    internal const int CurrentVersion = 3;
 
     private static readonly JsonSerializerOptions jsonOptions = new()
     {

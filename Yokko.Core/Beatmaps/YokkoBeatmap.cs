@@ -27,7 +27,13 @@ public sealed record YokkoBeatmap
         IReadOnlyList<YokkoBreakPeriod>? BreakPeriods = null,
         bool LegacyLongNoteRendering = false,
         IReadOnlyList<YokkoScheduledSample>? ScheduledSamples = null,
-        int? ScratchLane = null)
+        int? ScratchLane = null,
+        string? RomanisedTitle = null,
+        string? RomanisedArtist = null,
+        string Source = "",
+        string Tags = "",
+        int OnlineBeatmapId = -1,
+        int OnlineBeatmapSetId = -1)
     {
         if (!double.IsFinite(OverallDifficulty)
             || OverallDifficulty is < -15 or > 15)
@@ -90,6 +96,16 @@ public sealed record YokkoBeatmap
         this.LegacyLongNoteRendering = LegacyLongNoteRendering;
         this.ScheduledSamples = ScheduledSamples ?? [];
         this.ScratchLane = ScratchLane;
+        this.RomanisedTitle = string.IsNullOrWhiteSpace(RomanisedTitle)
+            ? Title
+            : RomanisedTitle;
+        this.RomanisedArtist = string.IsNullOrWhiteSpace(RomanisedArtist)
+            ? Artist
+            : RomanisedArtist;
+        this.Source = Source ?? string.Empty;
+        this.Tags = Tags ?? string.Empty;
+        this.OnlineBeatmapId = OnlineBeatmapId;
+        this.OnlineBeatmapSetId = OnlineBeatmapSetId;
     }
 
     public string Title { get; init; }
@@ -136,6 +152,18 @@ public sealed record YokkoBeatmap
     /// The playable BMS turntable lane, or null for ordinary key charts.
     /// </summary>
     public int? ScratchLane { get; init; }
+
+    public string RomanisedTitle { get; init; }
+
+    public string RomanisedArtist { get; init; }
+
+    public string Source { get; init; }
+
+    public string Tags { get; init; }
+
+    public int OnlineBeatmapId { get; init; }
+
+    public int OnlineBeatmapSetId { get; init; }
 
     public int KeysPerStage => (int)KeyMode / StageCount;
 

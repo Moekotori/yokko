@@ -968,24 +968,31 @@ internal sealed class ImportedChartLibrary : IDisposable
     private static ImportedChart[] createExternalCharts(
         IReadOnlyList<ExternalOsuIndexEntry> entries)
     {
-        var setCounts = entries.GroupBy(
-                                   entry => entry.Result == null
-                                       ? null
-                                       : Path.GetDirectoryName(
-                                           entry.SourcePath) ?? string.Empty,
-                                   StringComparer.OrdinalIgnoreCase)
-                               .Where(group => group.Key != null)
-                               .ToDictionary(
-                                   group => group.Key,
-                                   group => group.Count(),
-                                   StringComparer.OrdinalIgnoreCase);
+        var setSummaries = entries.GroupBy(
+                                       entry => entry.Result == null
+                                           ? null
+                                           : Path.GetDirectoryName(
+                                               entry.SourcePath) ?? string.Empty,
+                                       StringComparer.OrdinalIgnoreCase)
+                                  .Where(group => group.Key != null)
+                                  .ToDictionary(
+                                      group => group.Key,
+                                      group => new
+                                      {
+                                          Count = group.Count(),
+                                          Name = resolvePackageName(
+                                              group.Select(entry => entry.Result)
+                                                   .ToArray(),
+                                              group.Key),
+                                      },
+                                      StringComparer.OrdinalIgnoreCase);
 
         return entries.Where(entry => entry.Result != null)
                       .Select(entry =>
                       {
                           string setPath = Path.GetDirectoryName(
                               entry.SourcePath) ?? entry.SourcePath;
-                          string setName = Path.GetFileName(setPath);
+                          var set = setSummaries[setPath];
                           return new ImportedChart(
                               $"external-osu\u001f{entry.SourcePath}",
                               entry.SourcePath,
@@ -994,8 +1001,8 @@ internal sealed class ImportedChartLibrary : IDisposable
                               entry.DifficultyRating,
                               entry.StarRating,
                               $"external-osu-set\u001f{setPath}",
-                              setName,
-                              setCounts[setPath] > 1,
+                              set.Name,
+                              set.Count > 1,
                               ImportedChartSourceKind.ExternalOsu,
                               true,
                               entry.LengthMilliseconds,
@@ -1607,8 +1614,16 @@ internal sealed class ImportedChartLibrary : IDisposable
         string sourcePath)
     {
         string sourceName = Path.GetFileNameWithoutExtension(sourcePath);
-        if (!sourceName.StartsWith("beatmapset_", StringComparison.OrdinalIgnoreCase))
+        bool isOsuSet = results.All(result =>
+            result.Beatmap.SourceFormat is ChartSourceFormat.OsuMania
+                or ChartSourceFormat.OsuStandard);
+        if (!isOsuSet
+            && !sourceName.StartsWith(
+                "beatmapset_",
+                StringComparison.OrdinalIgnoreCase))
+        {
             return sourceName;
+        }
 
         string title = mostFrequentValue(results.Select(result =>
             result.Beatmap.Title));

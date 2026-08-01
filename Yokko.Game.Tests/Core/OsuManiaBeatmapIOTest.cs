@@ -247,6 +247,34 @@ namespace Yokko.Game.Tests.Core
         }
 
         [Test]
+        public void EditableRoundTripPreservesOsuNamingMetadata()
+        {
+            string source = sampleOsu
+                .Replace("Title:Test Song", "Title:Romanised Title\nTitleUnicode:Original Title")
+                .Replace("Artist:Test Artist", "Artist:Romanised Artist\nArtistUnicode:Original Artist")
+                .Replace(
+                    "Version:4K",
+                    "Version:4K\nSource:Soundtrack\nTags:tag one\nBeatmapID:123\nBeatmapSetID:456");
+            EditableBeatmap editable = EditableBeatmap.FromBeatmap(
+                OsuManiaBeatmapIO.ReadBeatmap(source));
+
+            YokkoBeatmap reparsed = OsuManiaBeatmapIO.ReadBeatmap(
+                OsuManiaBeatmapIO.WriteEditableToString(editable));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reparsed.Title, Is.EqualTo("Original Title"));
+                Assert.That(reparsed.RomanisedTitle, Is.EqualTo("Romanised Title"));
+                Assert.That(reparsed.Artist, Is.EqualTo("Original Artist"));
+                Assert.That(reparsed.RomanisedArtist, Is.EqualTo("Romanised Artist"));
+                Assert.That(reparsed.Source, Is.EqualTo("Soundtrack"));
+                Assert.That(reparsed.Tags, Is.EqualTo("tag one"));
+                Assert.That(reparsed.OnlineBeatmapId, Is.EqualTo(123));
+                Assert.That(reparsed.OnlineBeatmapSetId, Is.EqualTo(456));
+            });
+        }
+
+        [Test]
         public void ExportsPositiveNormalizedScrollVelocitiesAsInheritedPoints()
         {
             var source = new YokkoBeatmap(

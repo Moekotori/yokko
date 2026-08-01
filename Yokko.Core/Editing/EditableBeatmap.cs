@@ -36,9 +36,21 @@ public sealed class EditableBeatmap
 
     public string Artist { get; set; } = "Unknown Artist";
 
+    public string RomanisedTitle { get; set; } = string.Empty;
+
+    public string RomanisedArtist { get; set; } = string.Empty;
+
     public string Creator { get; set; } = "Yokko";
 
     public string DifficultyName { get; set; } = "Draft";
+
+    public string MetadataSource { get; set; } = "Yokko";
+
+    public string Tags { get; set; } = "yokko";
+
+    public int OnlineBeatmapId { get; set; }
+
+    public int OnlineBeatmapSetId { get; set; } = -1;
 
     public double OverallDifficulty
     {
@@ -137,8 +149,14 @@ public sealed class EditableBeatmap
         {
             Title = beatmap.Title,
             Artist = beatmap.Artist,
+            RomanisedTitle = beatmap.RomanisedTitle,
+            RomanisedArtist = beatmap.RomanisedArtist,
             Creator = beatmap.Creator,
             DifficultyName = beatmap.DifficultyName,
+            MetadataSource = beatmap.Source,
+            Tags = beatmap.Tags,
+            OnlineBeatmapId = beatmap.OnlineBeatmapId,
+            OnlineBeatmapSetId = beatmap.OnlineBeatmapSetId,
             OverallDifficulty = beatmap.OverallDifficulty,
             DrainRate = beatmap.DrainRate,
             AudioPath = beatmap.AudioPath,
@@ -253,7 +271,13 @@ public sealed class EditableBeatmap
             BreakPeriods: BreakPeriods,
             LegacyLongNoteRendering: LegacyLongNoteRendering,
             ScheduledSamples: ScheduledSamples,
-            ScratchLane: ScratchLane);
+            ScratchLane: ScratchLane,
+            RomanisedTitle: RomanisedTitle,
+            RomanisedArtist: RomanisedArtist,
+            Source: MetadataSource,
+            Tags: Tags,
+            OnlineBeatmapId: OnlineBeatmapId,
+            OnlineBeatmapSetId: OnlineBeatmapSetId);
 
     private void sortNotes()
     {

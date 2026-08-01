@@ -745,8 +745,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             children.Add(new SpriteText
             {
                 Position = new Vector2(20, 70),
-                Text = YokkoStrings.Get(
-                    "settings.gameplay.all_modes_hint"),
+                Text = bmsProfileSelected
+                    ? YokkoStrings.Get("settings.gameplay.bms_profile_hint")
+                    : YokkoStrings.Get("settings.gameplay.all_modes_hint"),
                 Font = HomeTypography.Body(16),
                 Colour = SettingsTheme.MutedNavy,
             });
@@ -861,8 +862,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                     () => BeginKeyCapture(capturedLane),
                     width,
                     rowCount > 1,
-                    bmsProfileSelected && lane == 0
-                        ? YokkoStrings.Get("settings.gameplay.bms_scratch")
+                    bmsProfileSelected
+                        ? lane == 0
+                            ? YokkoStrings.Get("settings.gameplay.bms_scratch")
+                            : YokkoStrings.Get("settings.gameplay.bms_key", lane)
                         : default);
                 card.Height = rowCount == 1 ? 132 : 62;
                 if (pressedKeys.Contains(getSelectedInputKeys()[lane]))

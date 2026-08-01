@@ -1440,7 +1440,7 @@ namespace Yokko.Game.Tests.Core
             {
                 ConversionSource = new ManiaConversionSource(
                     CircleSize: 4,
-                    OverallDifficulty: 5,
+                    OverallDifficulty: 3,
                     ApproachRate: 5,
                     DrainRate: 5,
                     HitObjects: []),
