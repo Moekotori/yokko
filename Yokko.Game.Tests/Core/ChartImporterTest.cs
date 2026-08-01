@@ -992,6 +992,107 @@ HitObjects:
             Assert.That(result.Beatmap.HitObjects[1].EndTimeMilliseconds, Is.EqualTo(2150).Within(0.001));
         }
 
+        [TestCase(4)]
+        [TestCase(5)]
+        [TestCase(6)]
+        [TestCase(7)]
+        [TestCase(8)]
+        [TestCase(9)]
+        public void ImportsSupportedMalodyKeyCounts(int keys)
+        {
+            string path = writeChart($"malody-{keys}k", ".mc", $$"""
+{
+  "meta": {
+    "mode": 0,
+    "version": "{{keys}}K",
+    "mode_ext": { "column": {{keys}} }
+  },
+  "time": [{ "beat": [0, 0, 1], "bpm": 120 }],
+  "note": [{ "beat": [1, 0, 1], "column": {{keys - 1}} }]
+}
+""");
+
+            ChartImportResult result = import(path);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That((int)result.Beatmap.KeyMode, Is.EqualTo(keys));
+                Assert.That(result.Beatmap.HitObjects.Single().Lane,
+                    Is.EqualTo(keys - 1));
+            });
+        }
+
+        [Test]
+        public void ImportsMalodyMetadataKeysoundsAutoplayAndScrollEffects()
+        {
+            string path = writeChart("malody-complete", ".mc", """
+{
+  "meta": {
+    "mode": 0,
+    "creator": "Mapper",
+    "version": "5K Expert",
+    "background": "cover.jpg",
+    "preview": 4321,
+    "song": { "title": "Complete MC", "artist": "Artist" },
+    "mode_ext": { "column": 5 }
+  },
+  "time": [
+    { "beat": [0, 0, 1], "bpm": 120 },
+    { "beat": [4, 0, 1], "bpm": 240 }
+  ],
+  "effect": [
+    { "beat": [2, 0, 1], "scroll": 0.5 },
+    { "beat": [3, 0, 1], "jump": 250 },
+    { "beat": [5, 0, 1], "sv": 2.0 }
+  ],
+  "note": [
+    { "beat": [1, 0, 1], "column": 4, "sound": "tap.wav", "vol": 40 },
+    { "beat": [2, 0, 1], "column": 0, "sound": "auto.wav", "vol": 30, "offset": 25, "type": 1 },
+    { "beat": [6, 0, 1], "column": 0 },
+    { "beat": [0, 0, 1], "sound": "song.ogg", "vol": 100, "type": 1 }
+  ]
+}
+""");
+            string directory = Path.GetDirectoryName(path)!;
+            File.WriteAllBytes(Path.Combine(directory, "song.ogg"), []);
+            File.WriteAllBytes(Path.Combine(directory, "tap.wav"), []);
+            File.WriteAllBytes(Path.Combine(directory, "auto.wav"), []);
+            File.WriteAllBytes(Path.Combine(directory, "cover.jpg"), []);
+
+            ChartImportResult result = import(path);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Beatmap.KeyMode, Is.EqualTo(KeyMode.FiveKey));
+                Assert.That(result.Beatmap.AudioPath, Does.EndWith("song.ogg"));
+                Assert.That(result.ArtworkPath, Does.EndWith("cover.jpg"));
+                Assert.That(result.Beatmap.PreviewTimeMilliseconds, Is.EqualTo(4321));
+                Assert.That(result.Beatmap.HitObjects, Has.Count.EqualTo(2));
+                Assert.That(result.Beatmap.HitObjects[0].Samples.Single().Volume,
+                    Is.EqualTo(40));
+                Assert.That(result.Beatmap.ScheduledSamples, Has.Count.EqualTo(1));
+                Assert.That(result.Beatmap.ScheduledSamples[0].Path,
+                    Does.EndWith("auto.wav"));
+                Assert.That(result.Beatmap.ScheduledSamples[0].TimeMilliseconds,
+                    Is.EqualTo(1025).Within(0.001));
+                Assert.That(result.Beatmap.ScheduledSamples[0].Volume,
+                    Is.EqualTo(30));
+                Assert.That(result.Beatmap.InitialScrollVelocity,
+                    Is.EqualTo(1).Within(0.001));
+                Assert.That(result.Beatmap.ScrollVelocities.Select(velocity =>
+                        (velocity.TimeMilliseconds, velocity.Multiplier)),
+                    Is.EqualTo(new[]
+                    {
+                        (1000d, 0.5d),
+                        (2000d, 1d),
+                        (2250d, 4d),
+                    }));
+                Assert.That(result.Warnings.Any(warning =>
+                    warning.Contains("jump", StringComparison.OrdinalIgnoreCase)),
+                    Is.True);
+            });
+        }
+
         [Test]
         public void ImportsStepManiaChartAndBakesStops()
         {
@@ -1338,6 +1439,136 @@ M000
             Assert.That(
                 withoutKeysounds.Warnings.Any(warning => warning.Contains("preserved", StringComparison.OrdinalIgnoreCase)),
                 Is.False);
+        }
+
+        [Test]
+        public void ImportsBmsFiveKeyWithoutPromotingItToSevenKey()
+        {
+            string path = writeChart("bms-five-key", ".bms", """
+#TITLE Five Key
+#BPM 120
+#00111:01
+#00112:01
+#00113:01
+#00114:01
+#00115:01
+""", Encoding.ASCII);
+
+            ChartImportResult result = import(path);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Beatmap.KeyMode, Is.EqualTo(KeyMode.FiveKey));
+                Assert.That(
+                    result.Beatmap.HitObjects.Select(note => note.Lane).Distinct(),
+                    Is.EquivalentTo(Enumerable.Range(0, 5)));
+            });
+        }
+
+        [Test]
+        public void ImportsBmsBackgroundSamplesStopsAndMines()
+        {
+            string path = writeChart("bms-timeline", ".bms", """
+#TITLE Timeline
+#BPM 120
+#WAV00 mine.wav
+#WAV01 bg-1.wav
+#WAV02 bg-2.wav
+#STOP01 48
+#00001:0102
+#00109:01
+#00111:01
+#001D1:01
+#00212:01
+""", Encoding.ASCII);
+            string directory = Path.GetDirectoryName(path)!;
+            File.WriteAllBytes(Path.Combine(directory, "mine.wav"), []);
+            File.WriteAllBytes(Path.Combine(directory, "bg-1.wav"), []);
+            File.WriteAllBytes(Path.Combine(directory, "bg-2.wav"), []);
+
+            ChartImportResult result = import(path);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Beatmap.AudioPath, Is.Null);
+                Assert.That(result.Beatmap.ScheduledSamples, Has.Count.EqualTo(2));
+                Assert.That(result.Beatmap.ScheduledSamples[0].TimeMilliseconds, Is.EqualTo(0).Within(0.001));
+                Assert.That(result.Beatmap.ScheduledSamples[1].TimeMilliseconds, Is.EqualTo(1000).Within(0.001));
+                Assert.That(
+                    result.Beatmap.ScheduledSamples.Select(sample => sample.Path),
+                    Is.All.Matches<string>(File.Exists));
+                Assert.That(
+                    result.Beatmap.HitObjects.Count(note => note.Kind == HitObjectKind.Mine),
+                    Is.EqualTo(1));
+                Assert.That(result.Beatmap.ScrollVelocities, Has.Count.EqualTo(2));
+                Assert.That(result.Beatmap.ScrollVelocities[0].TimeMilliseconds, Is.EqualTo(2000).Within(0.001));
+                Assert.That(result.Beatmap.ScrollVelocities[0].Multiplier, Is.Zero);
+                Assert.That(result.Beatmap.ScrollVelocities[1].TimeMilliseconds, Is.EqualTo(2500).Within(0.001));
+                Assert.That(result.Beatmap.ScrollVelocities[1].Multiplier, Is.EqualTo(1));
+                Assert.That(
+                    result.Beatmap.HitObjects.Single(note => note.Lane == 1).StartTimeMilliseconds,
+                    Is.EqualTo(4500).Within(0.001));
+            });
+        }
+
+        [Test]
+        public void ImportsBmsDoublePlayIntoTwoStages()
+        {
+            string path = writeChart("bms-double", ".bms", """
+#TITLE Double Play
+#PLAYER 3
+#BPM 120
+#00111:01
+#00115:01
+#00121:01
+#00125:01
+#00251:0101
+#00261:0101
+#003D5:01
+#003E5:01
+""", Encoding.ASCII);
+
+            ChartImportResult result = import(path);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Beatmap.KeyMode, Is.EqualTo(KeyMode.TenKey));
+                Assert.That(result.Beatmap.StageCount, Is.EqualTo(2));
+                Assert.That(
+                    result.Beatmap.HitObjects.Where(note => note.Kind == HitObjectKind.Tap).Select(note => note.Lane),
+                    Is.EquivalentTo(new[] { 0, 4, 5, 9 }));
+                Assert.That(
+                    result.Beatmap.HitObjects.Where(note => note.Kind == HitObjectKind.Hold).Select(note => note.Lane),
+                    Is.EquivalentTo(new[] { 0, 5 }));
+                Assert.That(
+                    result.Beatmap.HitObjects.Where(note => note.Kind == HitObjectKind.Mine).Select(note => note.Lane),
+                    Is.EquivalentTo(new[] { 4, 9 }));
+            });
+        }
+
+        [Test]
+        public void ResolvesEachIfChainInsideOneBmsRandomBlock()
+        {
+            string path = writeChart("bms-random", ".bms", """
+#TITLE Random
+#BPM 120
+#RANDOM 2
+#IF 1
+#00111:01
+#ENDIF
+#IF 2
+#00112:01
+#ELSE
+#00113:01
+#ENDIF
+#ENDRANDOM
+""", Encoding.ASCII);
+
+            ChartImportResult result = import(path);
+
+            Assert.That(
+                result.Beatmap.HitObjects.Select(note => note.Lane),
+                Is.EquivalentTo(new[] { 0, 1 }));
         }
 
         [Test]

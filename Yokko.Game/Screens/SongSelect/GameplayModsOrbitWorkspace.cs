@@ -51,9 +51,11 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private readonly Action reset;
     private readonly Action back;
     private readonly Action done;
+    private readonly SongSelectModSettingsHost settingsHost;
     private readonly Func<ManiaModCategory, IReadOnlyList<ManiaModDefinition>>
         definitionsForCategory;
     private readonly Func<ManiaModId, bool> isSelectable;
+    private readonly Func<ManiaModId, bool> hasSettings;
 
     private readonly Dictionary<ManiaModCategory, OrbitCategoryButton>
         categoryButtons = new();
@@ -69,6 +71,9 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private Container authoredContent;
     private Container nodeHost;
     private Container activeRows;
+    private Container settingsPanel;
+    private SpriteText settingsPanelTitle;
+    private SpriteText settingsPanelHint;
     private Container hero;
     private SpriteText heroAcronym;
     private SpriteText heroName;
@@ -116,11 +121,15 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             .FirstOrDefault(candidate =>
                 nodeRepresents(candidate!.Value, mod));
         if (node.HasValue)
+        {
+            focusMod(presentationModForNode(node.Value));
             cycleModFamily(familyForNode(node.Value));
+        }
     }
     internal string ActiveCountText => activeCount?.Text.ToString() ?? string.Empty;
     internal string CapacityTelemetryText =>
         capacityTelemetry?.Text.ToString() ?? string.Empty;
+    internal bool SettingsPanelVisible => settingsPanel?.Alpha > 0;
     private ManiaModId? pendingTransitionMod;
     private bool pendingTransitionActive;
 
@@ -135,9 +144,11 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         Action reset,
         Action back,
         Action done,
+        SongSelectModSettingsHost settingsHost,
         Func<ManiaModCategory, IReadOnlyList<ManiaModDefinition>>
             definitionsForCategory,
-        Func<ManiaModId, bool> isSelectable)
+        Func<ManiaModId, bool> isSelectable,
+        Func<ManiaModId, bool> hasSettings)
     {
         this.selectCategory = selectCategory;
         this.toggleMod = toggleMod;
@@ -149,8 +160,10 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         this.reset = reset;
         this.back = back;
         this.done = done;
+        this.settingsHost = settingsHost;
         this.definitionsForCategory = definitionsForCategory;
         this.isSelectable = isSelectable;
+        this.hasSettings = hasSettings;
 
         Size = authored_size;
     }
@@ -262,8 +275,11 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
         foreach ((ManiaModId mod, OrbitModNode node) in nodes)
         {
-            node.SetPresentation(OsuManiaModParityCatalog.Get(
-                presentationModForNode(mod)));
+            ManiaModId presentation = presentationModForNode(mod);
+            IReadOnlyList<ManiaModId> family = familyForNode(mod);
+            node.SetPresentation(
+                OsuManiaModParityCatalog.Get(presentation),
+                family.TakeWhile(member => member != presentation).Count() + 1);
             node.SetState(
                 isNodeActive(mod),
                 nodeRepresents(mod, focusedMod),
@@ -310,6 +326,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             transitionContains(deactivated, focusedMod));
         if (!stateInitialized || activeSelectionChanged)
             updateActiveRows(activated);
+        updateSettingsPanel(focusedDefinition);
         updateRate(selectedMods.PlaybackRate, selectedMods.FixedRateMod != null);
         stateInitialized = true;
     }
@@ -639,7 +656,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
         (string Text, Vector2 Position)[] labels =
         [
-            ("N 00", new Vector2(228, 92)),
+            ("N 00", new Vector2(270, 74)),
             ("E 09", new Vector2(463, 306)),
             ("S 18", new Vector2(229, 526)),
             ("W 27", new Vector2(18, 306)),
@@ -843,8 +860,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
                 Position = new Vector2(0, 166),
-                Width = 218,
-                AutoSizeAxes = Axes.Y,
+                Size = new Vector2(238, 48),
+                Masking = true,
                 TextAnchor = Anchor.TopCentre,
             },
             heroStateBackground = new Box
@@ -1083,6 +1100,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                     Size = new Vector2(365, 264),
                 },
             },
+            createSettingsPanel(),
             createRightCapacityRail(),
             new OrbitMicroBarGraph
             {
@@ -1090,6 +1108,62 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             },
         ];
         return panel;
+    }
+
+    private Drawable createSettingsPanel()
+    {
+        settingsHost.Position = new Vector2(87, 52);
+        settingsHost.Scale = Vector2.One;
+
+        return settingsPanel = new Container
+        {
+            Position = new Vector2(30, 238),
+            Size = new Vector2(377, 328),
+            Masking = true,
+            CornerRadius = 5,
+            BorderThickness = 1.4f,
+            BorderColour = new Color4(
+                HomeControlColours.Cyan.R,
+                HomeControlColours.Cyan.G,
+                HomeControlColours.Cyan.B,
+                0.72f),
+            Alpha = 0,
+            Children =
+            [
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
+                new Box
+                {
+                    Position = new Vector2(18, 42),
+                    Size = new Vector2(341, 1),
+                    Colour = new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.42f),
+                },
+                settingsPanelTitle = new SpriteText
+                {
+                    Position = new Vector2(18, 10),
+                    Font = HomeTypography.Display(17),
+                    Colour = HomeControlColours.Navy,
+                    MaxWidth = 210,
+                    Truncate = true,
+                },
+                settingsPanelHint = new SpriteText
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(-18, 14),
+                    Font = HomeTypography.Body(12),
+                    Colour = HomeControlColours.Cyan,
+                },
+                settingsHost,
+            ],
+        };
     }
 
     private Drawable createRightCapacityRail()
@@ -1496,9 +1570,14 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 definition,
                 accentFor(definition),
                 i + 1,
-                () => cycleModFamily(family),
+                () =>
+                {
+                    focusMod(presentationModForNode(definition.Id));
+                    cycleModFamily(family);
+                },
                 () => focusMod(presentationModForNode(definition.Id)),
-                false)
+                false,
+                family.Count)
             {
                 Position = position,
             };
@@ -1629,6 +1708,27 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         }
     }
 
+    private void updateSettingsPanel(ManiaModDefinition definition)
+    {
+        bool visible = hasSettings(definition.Id);
+        if (!visible)
+        {
+            settingsPanel.ClearTransforms();
+            settingsPanel.FadeOut(90, Easing.OutQuint);
+            return;
+        }
+
+        bool active = selectedMods.Contains(definition.Id);
+        settingsHost.Show(definition.Id);
+        settingsPanelTitle.Text = $"{definition.Acronym} · {YokkoStrings.Get("settings.title")}";
+        settingsPanelHint.Text = YokkoStrings.Get(
+            active
+                ? "mods.settings.active_hint"
+                : "mods.settings.preview_hint");
+        settingsPanel.ClearTransforms();
+        settingsPanel.FadeIn(120, Easing.OutQuint);
+    }
+
     private void updateActiveRows(IReadOnlySet<ManiaModId> activated)
     {
         activeRows.Clear();
@@ -1694,6 +1794,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 })
                 {
                     Y = i * 53,
+                    Alpha = i == allActive.Length ? 1 : 0.48f,
                 });
             }
         }
@@ -2076,7 +2177,7 @@ internal partial class OrbitConnector : CompositeDrawable
         Color4 colour = focused
             ? HomeControlColours.Pink
             : HomeControlColours.Cyan;
-        float mainAlpha = focused ? 0.96f : active ? 0.8f : 0.52f;
+        float mainAlpha = focused ? 0.96f : active ? 0.8f : 0.38f;
 
         main.Colour = new Color4(
             colour.R,
@@ -2087,7 +2188,7 @@ internal partial class OrbitConnector : CompositeDrawable
             colour.R,
             colour.G,
             colour.B,
-            focused ? 0.18f : active ? 0.12f : 0.055f);
+            focused ? 0.18f : active ? 0.12f : 0.04f);
         outerRail.Colour = new Color4(
             HomeControlColours.Navy.R,
             HomeControlColours.Navy.G,
@@ -2098,7 +2199,7 @@ internal partial class OrbitConnector : CompositeDrawable
         startJoint.Alpha = focused ? 1 : active ? 0.86f : 0.62f;
         endJoint.Alpha = startJoint.Alpha;
         signal.BorderColour = colour;
-        signal.Alpha = focused ? 1 : active ? 0.82f : 0.32f;
+        signal.Alpha = focused ? 1 : active ? 0.82f : 0.22f;
         signal.Size = new Vector2(focused ? 9 : 7);
 
         foreach (Box tick in dataTicks)
@@ -2107,7 +2208,7 @@ internal partial class OrbitConnector : CompositeDrawable
                 colour.R,
                 colour.G,
                 colour.B,
-                focused ? 0.72f : active ? 0.5f : 0.26f);
+                focused ? 0.72f : active ? 0.5f : 0.18f);
         }
 
         if (animateTransition)
@@ -2542,14 +2643,17 @@ internal partial class OrbitSignalScanner : CompositeDrawable
 internal partial class OrbitModNode : ClickableContainer
 {
     private readonly bool compact;
+    private readonly int familySize;
     private readonly Color4 accent;
     private readonly Circle shadow;
     private readonly Circle activationBurst;
     private readonly Circle activationCore;
     private readonly Circle halo;
     private readonly Circle surface;
+    private readonly Box surfaceFill;
     private readonly Circle innerRing;
     private readonly SpriteText acronym;
+    private readonly SpriteText cyclePosition;
     private readonly SpriteText name;
     private readonly TextFlowContainer description;
     private readonly Circle stateBadge;
@@ -2564,6 +2668,8 @@ internal partial class OrbitModNode : ClickableContainer
 
     internal ManiaModId ModId { get; }
     internal ManiaModId PresentationMod => presentationMod;
+    internal string FamilyIndicatorText =>
+        cyclePosition.Text.ToString();
     internal bool ActivationTransitionRunning =>
         activationTransitionRunning || activationTransitionPending;
 
@@ -2573,13 +2679,15 @@ internal partial class OrbitModNode : ClickableContainer
         int index,
         Action action,
         Action focus,
-        bool compact = false)
+        bool compact = false,
+        int familySize = 1)
     {
         ModId = definition.Id;
         presentationMod = definition.Id;
         this.accent = accent;
         this.focus = focus;
         this.compact = compact;
+        this.familySize = familySize;
         Action = action;
         Size = compact ? new Vector2(88) : new Vector2(284, 86);
         InternalChildren =
@@ -2648,7 +2756,7 @@ internal partial class OrbitModNode : ClickableContainer
                     HomeControlColours.Navy.G,
                     HomeControlColours.Navy.B,
                     0.24f),
-                Child = new Box
+                Child = surfaceFill = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = Color4.White,
@@ -2680,6 +2788,20 @@ internal partial class OrbitModNode : ClickableContainer
                 Font = HomeTypography.Display(35),
                 Colour = accent,
             },
+            cyclePosition = new SpriteText
+            {
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.Centre,
+                Position = new Vector2(42, 64),
+                Text = familySize > 1 ? $"1/{familySize}" : string.Empty,
+                Font = HomeTypography.Display(9),
+                Spacing = new Vector2(0.8f, 0),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.5f),
+            },
             stateBadge = new Circle
             {
                 Position = new Vector2(64, 62),
@@ -2708,12 +2830,14 @@ internal partial class OrbitModNode : ClickableContainer
             {
                 Position = new Vector2(106, 12),
                 Text = YokkoStrings.ModName(definition),
-                Font = HomeTypography.Display(19),
+                Font = HomeTypography.Display(18),
+                MaxWidth = 178,
+                Truncate = true,
                 Colour = HomeControlColours.Navy,
             },
             description = new TextFlowContainer(text =>
             {
-                text.Font = HomeTypography.Body(16);
+                text.Font = HomeTypography.Body(15);
                 text.Colour = new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,
@@ -2722,8 +2846,8 @@ internal partial class OrbitModNode : ClickableContainer
             })
             {
                 Position = new Vector2(106, 39),
-                Width = 178,
-                AutoSizeAxes = Axes.Y,
+                Size = new Vector2(178, 42),
+                Masking = true,
             },
         ];
         description.AddText(YokkoStrings.ModDescription(definition));
@@ -2734,8 +2858,14 @@ internal partial class OrbitModNode : ClickableContainer
         }
     }
 
-    internal void SetPresentation(ManiaModDefinition definition)
+    internal void SetPresentation(
+        ManiaModDefinition definition,
+        int familyPosition = 1)
     {
+        cyclePosition.Text = familySize > 1
+            ? $"{familyPosition}/{familySize}"
+            : string.Empty;
+
         if (presentationMod == definition.Id)
             return;
 
@@ -2778,7 +2908,23 @@ internal partial class OrbitModNode : ClickableContainer
                 HomeControlColours.Navy.G,
                 HomeControlColours.Navy.B,
                 0.19f);
+        surfaceFill.FadeColour(
+            active
+                ? tintWhite(accent, 0.085f)
+                : focused
+                    ? tintWhite(accent, 0.045f)
+                    : Color4.White,
+            120);
         acronym.Colour = active || focused ? accent : HomeControlColours.Navy;
+        cyclePosition.FadeColour(
+            active || focused
+                ? accent
+                : new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.5f),
+            110);
         this.ScaleTo(focused ? 1.05f : 1, 125, Easing.OutQuint);
         shadow.FadeTo(active ? 0.16f : focused ? 0.11f : 0.055f, 120);
         shadow.MoveTo(new Vector2(
@@ -2918,6 +3064,7 @@ internal partial class OrbitModNode : ClickableContainer
         shadow.MoveTo(new Vector2(5, 9), 100, Easing.OutQuint);
         surface.BorderColour = accent;
         surface.BorderThickness = 2.3f;
+        surfaceFill.FadeColour(tintWhite(accent, 0.075f), 90);
         if (!activeState)
         {
             halo.ClearTransforms();
@@ -2938,6 +3085,13 @@ internal partial class OrbitModNode : ClickableContainer
                 HomeControlColours.Navy.B,
                 0.24f);
         surface.BorderThickness = activeState ? 2.3f : focusedState ? 1.8f : 1.5f;
+        surfaceFill.FadeColour(
+            activeState
+                ? tintWhite(accent, 0.085f)
+                : focusedState
+                    ? tintWhite(accent, 0.045f)
+                    : Color4.White,
+            110);
         shadow.FadeTo(activeState ? 0.16f : focusedState ? 0.11f : 0.055f, 110);
         shadow.MoveTo(
             focusedState ? new Vector2(4, 8) : new Vector2(2, 6),
@@ -2955,6 +3109,13 @@ internal partial class OrbitModNode : ClickableContainer
             .Then().ScaleTo(1.05f, 150, Easing.OutBack);
         return base.OnClick(e);
     }
+
+    private static Color4 tintWhite(Color4 colour, float strength) =>
+        new(
+            1 - (1 - colour.R) * strength,
+            1 - (1 - colour.G) * strength,
+            1 - (1 - colour.B) * strength,
+            1);
 
     private static string shorten(string value, int maximum) =>
         value.Length <= maximum ? value : value[..maximum] + "…";

@@ -110,15 +110,18 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             && modsScreen.SelectedMods.FixedRateAdjustPitch);
         AddStep("preview configurable mod", () =>
             modsScreen.ToggleMod(ManiaModId.AccuracyChallenge));
+        AddWaitStep("wait for visible configuration panel", 10);
         AddAssert("config panel owns the settings row", () =>
             modsScreen.SettingsHost.ActivePage
             == ManiaModId.AccuracyChallenge
-            && !modsScreen.DetailHintVisible);
+            && !modsScreen.DetailHintVisible
+            && modsScreen.OrbitSettingsPanelVisible);
         AddStep("preview plain mod", () =>
             modsScreen.ToggleMod(ManiaModId.Easy));
         AddWaitStep("wait for hidden slider state", 10);
         AddAssert("plain detail keeps shortcut and clear spacing", () =>
             modsScreen.DetailHintVisible
+            && !modsScreen.OrbitSettingsPanelVisible
             && modsScreen.SettingsHeaderY == 116
             && modsScreen.FixedRatePanelY == 138
             && !modsScreen.FixedRateSliderVisible
@@ -450,12 +453,18 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.CycleOrbitMod(ManiaModId.Hidden);
         });
         AddAssert("visibility switch starts with Hidden", () =>
-            modsScreen.SelectedMods.Contains(ManiaModId.Hidden));
+            modsScreen.SelectedMods.Contains(ManiaModId.Hidden)
+            && this.ChildrenOfType<OrbitModNode>()
+                .Single(node => node.ModId == ManiaModId.Hidden)
+                .FamilyIndicatorText == "1/4");
         AddStep("cycle visibility switch to Flashlight", () =>
             modsScreen.CycleOrbitMod(ManiaModId.Hidden));
         AddAssert("visibility switch replaces Hidden with Flashlight", () =>
             !modsScreen.SelectedMods.Contains(ManiaModId.Hidden)
-            && modsScreen.SelectedMods.Contains(ManiaModId.Flashlight));
+            && modsScreen.SelectedMods.Contains(ManiaModId.Flashlight)
+            && this.ChildrenOfType<OrbitModNode>()
+                .Single(node => node.ModId == ManiaModId.Hidden)
+                .FamilyIndicatorText == "2/4");
         AddStep("keyboard advances the focused visibility family", () =>
             modsScreen.HandleInteractionKey(Key.Space));
         AddAssert("keyboard reaches Fade In instead of removing the family", () =>

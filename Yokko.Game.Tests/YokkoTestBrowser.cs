@@ -999,7 +999,10 @@ namespace Yokko.Game.Tests
                     .ToLowerInvariant())
             {
                 case "config":
-                    modsScreen.ToggleMod(
+                    modsScreen.ResetMods();
+                    modsScreen.SetCategory(
+                        ManiaModCategory.DifficultyIncrease);
+                    modsScreen.CycleOrbitMod(
                         ManiaModId.AccuracyChallenge);
                     break;
 

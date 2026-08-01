@@ -171,6 +171,14 @@ internal static class YokkoStrings
             ["mods.active_mods"] = new("ACTIVE MODS", "已启用的 MOD", "有効な MOD"),
             ["mods.active_count"] = new("({0} ACTIVE)", "（已启用 {0}）", "（{0} 有効）"),
             ["mods.active"] = new("ACTIVE", "已启用", "有効"),
+            ["mods.settings.active_hint"] = new(
+                "Enabled · adjust below",
+                "已启用 · 下面可以直接调整",
+                "有効 · 下で直接調整できます"),
+            ["mods.settings.preview_hint"] = new(
+                "Turn it on, then adjust",
+                "先启用，再调整参数",
+                "有効にしてから調整してください"),
             ["mods.activate_hint"] = new("SPACE · ACTIVATE", "空格 · 启用", "SPACE · 有効化"),
             ["mods.back"] = new("BACK", "返回", "戻る"),
             ["mods.reset"] = new("RESET", "重置", "リセット"),

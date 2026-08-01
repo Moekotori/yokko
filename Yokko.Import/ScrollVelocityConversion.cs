@@ -220,6 +220,80 @@ internal static class ScrollVelocityConversion
         }
     }
 
+    public static ScrollVelocityProfile FromMalody(
+        IReadOnlyList<YokkoTimingPoint> timingPoints,
+        IReadOnlyList<YokkoHitObject> hitObjects,
+        IReadOnlyList<YokkoScrollVelocity> scrollEffects)
+    {
+        YokkoTimingPoint[] tempoPoints = relevantTimingPoints(
+                                                  timingPoints,
+                                                  hitObjects)
+                                              .Where(static point =>
+                                                  point.Uninherited
+                                                  && double.IsFinite(
+                                                      point.BeatLengthMilliseconds)
+                                                  && point.BeatLengthMilliseconds
+                                                  > 0)
+                                              .OrderBy(static point =>
+                                                  point.TimeMilliseconds)
+                                              .ToArray();
+        if (tempoPoints.Length == 0)
+            return ScrollVelocityProfile.Default;
+
+        double baseBeatLength = MostCommonBeatLength(
+            tempoPoints,
+            hitObjects);
+        if (!double.IsFinite(baseBeatLength) || baseBeatLength <= 0)
+            baseBeatLength = tempoPoints[0].BeatLengthMilliseconds;
+
+        var events = tempoPoints.Select(point => new MalodyScrollEvent(
+                                   point.TimeMilliseconds,
+                                   point.BeatLengthMilliseconds,
+                                   null))
+                               .Concat(scrollEffects.Select(effect =>
+                                   new MalodyScrollEvent(
+                                       effect.TimeMilliseconds,
+                                       null,
+                                       effect.Multiplier)))
+                               .OrderBy(static value => value.TimeMilliseconds)
+                               .GroupBy(static value => value.TimeMilliseconds);
+        double currentBeatLength = tempoPoints[0].BeatLengthMilliseconds;
+        double currentScrollEffect = 1;
+        double? initialMultiplier = null;
+        double? previousMultiplier = null;
+        var changes = new List<YokkoScrollVelocity>();
+
+        foreach (IGrouping<double, MalodyScrollEvent> group in events)
+        {
+            foreach (MalodyScrollEvent value in group)
+            {
+                if (value.BeatLength is double beatLength)
+                    currentBeatLength = beatLength;
+                if (value.ScrollMultiplier is double scrollMultiplier)
+                    currentScrollEffect = scrollMultiplier;
+            }
+
+            double multiplier =
+                currentScrollEffect * baseBeatLength / currentBeatLength;
+            if (initialMultiplier == null)
+            {
+                initialMultiplier = multiplier;
+                previousMultiplier = multiplier;
+                continue;
+            }
+
+            if (multiplier.Equals(previousMultiplier))
+                continue;
+
+            changes.Add(new YokkoScrollVelocity(group.Key, multiplier));
+            previousMultiplier = multiplier;
+        }
+
+        return new ScrollVelocityProfile(
+            initialMultiplier ?? 1,
+            changes);
+    }
+
     private static YokkoTimingPoint[] relevantTimingPoints(
         IReadOnlyList<YokkoTimingPoint> timingPoints,
         IReadOnlyList<YokkoHitObject> hitObjects)
@@ -381,6 +455,11 @@ internal static class ScrollVelocityConversion
 
         return multiplier;
     }
+
+    private readonly record struct MalodyScrollEvent(
+        double TimeMilliseconds,
+        double? BeatLength,
+        double? ScrollMultiplier);
 }
 
 internal sealed record ScrollVelocityProfile(

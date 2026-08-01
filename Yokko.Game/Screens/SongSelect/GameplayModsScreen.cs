@@ -184,6 +184,8 @@ internal partial class GameplayModsScreen : Screen
         orbitWorkspace?.ActiveCountText ?? string.Empty;
     internal string OrbitCapacityTelemetryText =>
         orbitWorkspace?.CapacityTelemetryText ?? string.Empty;
+    internal bool OrbitSettingsPanelVisible =>
+        orbitWorkspace?.SettingsPanelVisible == true;
     internal bool IsPageTransitioning => pageTransitioning;
     internal float OrbitContentX => orbitWorkspace?.OrbitContentX ?? 335;
     internal string SearchQuery => searchQuery;
@@ -208,6 +210,7 @@ internal partial class GameplayModsScreen : Screen
         Texture logo = textures.Get("Mods/home-logo-transparent");
         Texture paperTexture = textures.Get("Mods/ivory-paper");
         Texture waveformTexture = textures.Get("Mods/orbit-waveform");
+        settingsHost = createSettingsHost();
 
         InternalChildren = new Drawable[]
         {
@@ -245,15 +248,17 @@ internal partial class GameplayModsScreen : Screen
                             SetNoPauseAllowedPauses,
                             PreviewGlobalRate,
                             CompleteFixedRateInteraction,
-                            ResetMods,
-                            () => this.Exit(),
+                             ResetMods,
+                             () => this.Exit(),
                             () =>
                             {
                                 CommitSelection();
                                 this.Exit();
-                            },
-                            category => definitionsFor(category),
-                            isSelectable)
+                             },
+                             settingsHost,
+                             category => definitionsFor(category),
+                             isSelectable,
+                             isConfigurable)
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
@@ -1365,9 +1370,8 @@ internal partial class GameplayModsScreen : Screen
         },
     };
 
-    private Container createDetailPanel()
-    {
-        settingsHost = new SongSelectModSettingsHost(
+    private SongSelectModSettingsHost createSettingsHost() =>
+        new(
             SetAccuracyChallengeMinimum,
             SetAccuracyChallengeMode,
             SetPerfectRequirePerfectHits,
@@ -1392,12 +1396,10 @@ internal partial class GameplayModsScreen : Screen
             SetAdaptiveAdjustPitch,
             SetRandomSeed,
             SetNoPauseAllowedPauses,
-            ToggleMod)
-        {
-            Position = new Vector2(16, 12),
-            Scale = new Vector2(1.04f),
-        };
+            ToggleMod);
 
+    private Container createDetailPanel()
+    {
         return new Container
         {
             Anchor = Anchor.TopRight,
@@ -1539,7 +1541,6 @@ internal partial class GameplayModsScreen : Screen
                             RelativeSizeAxes = Axes.Both,
                             Colour = GameplayModSettingsTheme.Surface,
                         },
-                        settingsHost,
                     },
                 },
                 new Container

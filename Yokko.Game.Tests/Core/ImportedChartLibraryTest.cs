@@ -676,6 +676,63 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
+    public async Task BmsScheduledSamplesReloadFromResourceDirectory()
+    {
+        string root = createTestRoot("bms-scheduled-library");
+        string source = Path.Combine(root, "source");
+        Directory.CreateDirectory(source);
+
+        try
+        {
+            string chartPath = Path.Combine(source, "scheduled.bms");
+            File.WriteAllText(chartPath, """
+#TITLE Scheduled BMS
+#BPM 120
+#WAV01 bg-1.wav
+#WAV02 bg-2.wav
+#00001:0102
+#00111:01
+""", Encoding.ASCII);
+            File.WriteAllBytes(Path.Combine(source, "bg-1.wav"), []);
+            File.WriteAllBytes(Path.Combine(source, "bg-2.wav"), []);
+
+            using var first = new ImportedChartLibrary();
+            first.Initialise(new NativeStorage(root));
+            IReadOnlyList<ChartImportResult> results =
+                await first.ImportAsync(new ChartImportRequest(chartPath, true));
+
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(results[0].Beatmap.ScheduledSamples, Has.Count.EqualTo(2));
+            Assert.That(
+                results[0].Beatmap.ScheduledSamples.Select(sample => sample.Path),
+                Is.All.Matches<string>(path =>
+                    path.StartsWith(first.LibraryPath, StringComparison.OrdinalIgnoreCase)
+                    && File.Exists(path)));
+
+            Directory.Delete(source, true);
+
+            using var reloaded = new ImportedChartLibrary();
+            reloaded.Initialise(new NativeStorage(root));
+            int count = await reloaded.LoadFromDiskAsync(true, true);
+            YokkoBeatmap beatmap = reloaded.GetCharts().Single().Result.Beatmap;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(count, Is.EqualTo(1));
+                Assert.That(beatmap.ScheduledSamples, Has.Count.EqualTo(2));
+                Assert.That(
+                    beatmap.ScheduledSamples.Select(sample => sample.Path),
+                    Is.All.Matches<string>(File.Exists));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task QuaverPackageDragImportPersistsEveryDifficulty()
     {
         string root = Path.Combine(

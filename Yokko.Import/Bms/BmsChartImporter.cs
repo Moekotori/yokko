@@ -2,13 +2,16 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Timing;
 
 namespace Yokko.Import.Bms;
 
 public sealed partial class BmsChartImporter : IChartImporter
 {
-    private static readonly string[] fourKeyCandidates = ["11", "12", "13", "14", "15", "18", "19"];
-    private static readonly string[] sevenKeyChannels = ["11", "12", "13", "14", "15", "18", "19"];
+    private static readonly string[] fiveKeyChannels1P = ["11", "12", "13", "14", "15"];
+    private static readonly string[] sevenKeyChannels1P = [.. fiveKeyChannels1P, "18", "19"];
+    private static readonly string[] fiveKeyChannels2P = ["21", "22", "23", "24", "25"];
+    private static readonly string[] sevenKeyChannels2P = [.. fiveKeyChannels2P, "28", "29"];
 
     public ChartImportCapability Capability { get; } =
         new(ChartSourceFormat.Bms, "BMS / BME / BML", [".bms", ".bme", ".bml"], true, false);
@@ -71,12 +74,17 @@ public sealed partial class BmsChartImporter : IChartImporter
         }
 
         if (pauses.Count > 0)
-            warnings.Add("BMS STOP events were baked into absolute note times; editor beat rows cannot display the stopped span exactly yet.");
+        {
+            warnings.Add(
+                "BMS STOP events were baked into absolute note times and visual scroll pauses; constant-scroll gameplay and editor beat rows cannot display the stopped span exactly.");
+        }
 
         LaneMapping laneMapping = createLaneMap(
             events,
             warnings,
-            request.EnableBmsScratch);
+            request.EnableBmsScratch,
+            Path.GetExtension(request.Path),
+            parsed.Headers.GetValueOrDefault("PLAYER"));
         IReadOnlyDictionary<string, int> laneMap = laneMapping.Channels;
         KeyMode keyMode = laneMapping.KeyMode;
         var beatNotes = new List<MutableBeatNote>();
@@ -99,7 +107,12 @@ public sealed partial class BmsChartImporter : IChartImporter
                 continue;
             }
 
-            beatNotes.Add(new MutableBeatNote(lane, rawEvent.Beat, null, rawEvent.Value));
+            beatNotes.Add(new MutableBeatNote(
+                lane,
+                rawEvent.Beat,
+                null,
+                rawEvent.Value,
+                HitObjectKind.Tap));
         }
 
         foreach ((string visibleChannel, int lane) in laneMap)
@@ -116,11 +129,34 @@ public sealed partial class BmsChartImporter : IChartImporter
                     lane,
                     longEvents[index].Beat,
                     longEvents[index + 1].Beat,
-                    longEvents[index].Value));
+                    longEvents[index].Value,
+                    HitObjectKind.Hold));
             }
 
             if (longEvents.Length % 2 != 0)
                 warnings.Add($"Ignored an unterminated BMS long note in lane {lane + 1}.");
+        }
+
+        bool hasMines = false;
+        foreach ((string visibleChannel, int lane) in laneMap)
+        {
+            string mineChannel = toMineChannel(visibleChannel);
+            foreach (RawEvent mineEvent in events.Where(value => value.Channel == mineChannel))
+            {
+                hasMines = true;
+                beatNotes.Add(new MutableBeatNote(
+                    lane,
+                    mineEvent.Beat,
+                    null,
+                    "00",
+                    HitObjectKind.Mine));
+            }
+        }
+
+        if (hasMines)
+        {
+            warnings.Add(
+                "BMS landmine damage values were mapped to Yokko's standard mine behaviour.");
         }
 
         if (laneMapping.ScratchIgnored)
@@ -128,8 +164,22 @@ public sealed partial class BmsChartImporter : IChartImporter
             warnings.Add(
                 "BMS scratch objects are disabled in Import settings and were ignored.");
         }
-        if (events.Any(static value => value.Channel is "04" or "06" or "07"))
+        if (laneMapping.DualScratchApproximation)
+        {
+            warnings.Add(
+                "BMS double-play scratches were preserved as ordinary playable lanes because Yokko cannot mark two scratch lanes yet.");
+        }
+        if (events.Any(static value => value.Channel is "04" or "06" or "07" or "0A"))
             warnings.Add("BMS BGA events are not represented by Yokko yet and were ignored.");
+        if (events.Any(static value => value.Channel.Length == 2
+                                      && value.Channel[0] is '3' or '4'))
+        {
+            warnings.Add("BMS invisible key objects are not represented by Yokko yet and were ignored.");
+        }
+        if (events.Any(static value => value.Channel is "17" or "27" or "57" or "67" or "D7" or "E7"))
+        {
+            warnings.Add("BMS free-zone or pedal objects are not represented by Yokko yet and were ignored.");
+        }
         if (parsed.Headers.GetValueOrDefault("LNTYPE") == "2")
             warnings.Add("BMS LNTYPE 2 continuation semantics are not fully supported; long notes may differ from the source.");
 
@@ -137,6 +187,12 @@ public sealed partial class BmsChartImporter : IChartImporter
         string? audioPath = resolveBackgroundAudio(request.Path, parsed, events, warnings, out double audioStartBeat);
         double audioOffset = audioPath == null ? 0 : -unshiftedConverter.ToMilliseconds(audioStartBeat);
         var converter = new BeatTimeConverter(tempoChanges, pauses, audioOffset);
+        YokkoScheduledSample[] scheduledSamples = audioPath == null
+            ? resolveBackgroundSamples(request.Path, parsed, events, converter, warnings)
+            : [];
+        YokkoScrollVelocity[] stopScrollVelocities = createStopScrollVelocities(
+            pauses,
+            converter);
         YokkoHitObject[] hitObjects = beatNotes.Select(note =>
         {
             string? samplePath = request.PreferKeysounds
@@ -147,7 +203,7 @@ public sealed partial class BmsChartImporter : IChartImporter
                 note.Lane,
                 converter.ToMilliseconds(note.StartBeat),
                 note.EndBeat.HasValue ? converter.ToMilliseconds(note.EndBeat.Value) : null,
-                note.EndBeat.HasValue ? HitObjectKind.Hold : HitObjectKind.Tap,
+                note.EndBeat.HasValue ? HitObjectKind.Hold : note.Kind,
                 samplePath);
         }).OrderBy(static note => note.StartTimeMilliseconds)
           .ThenBy(static note => note.Lane)
@@ -168,6 +224,9 @@ public sealed partial class BmsChartImporter : IChartImporter
             converter.ToTimingPoints(),
             audioPath,
             hitObjects,
+            ScrollVelocities: stopScrollVelocities,
+            StageCount: laneMapping.StageCount,
+            ScheduledSamples: scheduledSamples,
             ScratchLane: laneMapping.ScratchLane);
 
         return ValueTask.FromResult(new ChartImportResult(beatmap, warnings.Distinct().ToArray()));
@@ -193,8 +252,7 @@ public sealed partial class BmsChartImporter : IChartImporter
 
             if (upper.StartsWith("#RANDOM ", StringComparison.Ordinal))
             {
-                int range = Math.Max(1, ImportParsing.Int(line[8..], 1));
-                randomContexts.Push(new RandomContext(active, 1 % range == 0 ? range : 1));
+                randomContexts.Push(new RandomContext(active, 1));
                 parsed.Warnings.Add("BMS RANDOM branches were resolved deterministically with choice 1.");
                 continue;
             }
@@ -202,7 +260,7 @@ public sealed partial class BmsChartImporter : IChartImporter
             if (upper.StartsWith("#IF ", StringComparison.Ordinal) && randomContexts.TryPeek(out RandomContext? context))
             {
                 int branch = ImportParsing.Int(line[4..], 0);
-                context.BranchMatched |= branch == context.Selection;
+                context.BranchMatched = branch == context.Selection;
                 active = context.ParentActive && branch == context.Selection;
                 continue;
             }
@@ -226,6 +284,7 @@ public sealed partial class BmsChartImporter : IChartImporter
             if (upper == "#ENDIF" && randomContexts.TryPeek(out context))
             {
                 active = context.ParentActive;
+                context.BranchMatched = false;
                 continue;
             }
 
@@ -304,70 +363,97 @@ public sealed partial class BmsChartImporter : IChartImporter
     private static LaneMapping createLaneMap(
         IReadOnlyList<RawEvent> events,
         ICollection<string> warnings,
-        bool enableScratch)
+        bool enableScratch,
+        string extension,
+        string? playerHeader)
     {
-        string[] used = fourKeyCandidates.Where(channel =>
-                                           events.Any(value => value.Channel == channel
-                                                               || value.Channel == toLongNoteChannel(channel)))
-                                         .ToArray();
+        string[] used1P = sevenKeyChannels1P.Where(channel => laneHasObjects(events, channel)).ToArray();
+        string[] used2P = sevenKeyChannels2P.Where(channel => laneHasObjects(events, channel)).ToArray();
+        int player = ImportParsing.Int(playerHeader, 1);
+        bool doublePlay = used2P.Length > 0
+                          || laneHasObjects(events, "26")
+                          || player == 3;
+        bool sevenKey = extension.Equals(".bme", StringComparison.OrdinalIgnoreCase)
+                        || used1P.Any(static channel => channel is "18" or "19")
+                        || used2P.Any(static channel => channel is "28" or "29");
 
-        Dictionary<string, int> keyChannels;
-        KeyMode keyMode;
-
-        if (used.Contains("18") || used.Contains("19"))
+        if (player is 2 or 4)
         {
-            keyChannels = sevenKeyChannels
-                          .Select((channel, lane) => (channel, lane))
-                          .ToDictionary(
-                              static pair => pair.channel,
-                              static pair => pair.lane);
-            keyMode = KeyMode.SevenKey;
+            warnings.Add(
+                $"BMS PLAYER {player} multi-gauge semantics are not supported; playable channels were imported into one score state.");
         }
-        else if (used.Length <= 4)
+
+        string[] keyChannels1P;
+        string[] keyChannels2P;
+        if (doublePlay)
         {
-            keyChannels = used
-                          .Select((channel, lane) => (channel, lane))
-                          .ToDictionary(
-                              static pair => pair.channel,
-                              static pair => pair.lane);
-            keyMode = KeyMode.FourKey;
+            keyChannels1P = sevenKey ? sevenKeyChannels1P : fiveKeyChannels1P;
+            keyChannels2P = sevenKey ? sevenKeyChannels2P : fiveKeyChannels2P;
+        }
+        else if (sevenKey)
+        {
+            keyChannels1P = sevenKeyChannels1P;
+            keyChannels2P = [];
+        }
+        else if (used1P.Contains("15"))
+        {
+            keyChannels1P = fiveKeyChannels1P;
+            keyChannels2P = [];
         }
         else
         {
-            warnings.Add(
-                $"BMS uses {used.Length} key lanes; mapped them into Yokko 7K.");
-            keyChannels = sevenKeyChannels
-                          .Select((channel, lane) => (channel, lane))
-                          .ToDictionary(
-                              static pair => pair.channel,
-                              static pair => pair.lane);
-            keyMode = KeyMode.SevenKey;
+            keyChannels1P = used1P.Length == 0 ? ["11", "12", "13", "14"] : used1P;
+            keyChannels2P = [];
         }
 
-        bool hasScratch = events.Any(
-            static value => value.Channel is "16" or "56");
-        if (!hasScratch || !enableScratch)
+        bool hasScratch = laneHasObjects(events, "16")
+                          || doublePlay && laneHasObjects(events, "26");
+        bool includeScratch = hasScratch && enableScratch;
+        var channels = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        if (!doublePlay)
         {
+            int offset = includeScratch ? 1 : 0;
+            if (includeScratch)
+                channels["16"] = 0;
+            for (int lane = 0; lane < keyChannels1P.Length; lane++)
+                channels[keyChannels1P[lane]] = lane + offset;
+
             return new LaneMapping(
-                keyChannels,
-                keyMode,
-                hasScratch,
-                ScratchLane: null);
+                channels,
+                (KeyMode)(keyChannels1P.Length + offset),
+                StageCount: 1,
+                ScratchIgnored: hasScratch && !enableScratch,
+                ScratchLane: includeScratch ? 0 : null,
+                DualScratchApproximation: false);
         }
 
-        var channelsWithScratch = new Dictionary<string, int>
-        {
-            ["16"] = 0,
-        };
-        foreach ((string channel, int lane) in keyChannels)
-            channelsWithScratch[channel] = lane + 1;
+        int stageWidth = keyChannels1P.Length + (includeScratch ? 1 : 0);
+        int laneCursor = 0;
+        if (includeScratch)
+            channels["16"] = laneCursor++;
+        foreach (string channel in keyChannels1P)
+            channels[channel] = laneCursor++;
+        if (includeScratch)
+            channels["26"] = laneCursor++;
+        foreach (string channel in keyChannels2P)
+            channels[channel] = laneCursor++;
 
         return new LaneMapping(
-            channelsWithScratch,
-            (KeyMode)((int)keyMode + 1),
-            ScratchIgnored: false,
-            ScratchLane: 0);
+            channels,
+            (KeyMode)(stageWidth * 2),
+            StageCount: 2,
+            ScratchIgnored: hasScratch && !enableScratch,
+            ScratchLane: null,
+            DualScratchApproximation: includeScratch);
     }
+
+    private static bool laneHasObjects(
+        IEnumerable<RawEvent> events,
+        string visibleChannel) =>
+        events.Any(value => value.Channel == visibleChannel
+                            || value.Channel == toLongNoteChannel(visibleChannel)
+                            || value.Channel == toMineChannel(visibleChannel));
 
     private static string? resolveBackgroundAudio(
         string chartPath,
@@ -393,17 +479,68 @@ public sealed partial class BmsChartImporter : IChartImporter
             }
         }
 
-        if (backgroundEvents.Length > 1)
-            warnings.Add($"BMS uses {backgroundEvents.Length} background audio events; runtime BMS sample mixing is not available yet.");
-        else
+        if (backgroundEvents.Length <= 1)
             warnings.Add("No directly playable background audio file was found for this BMS chart.");
 
         startBeat = 0;
         return null;
     }
 
+    private static YokkoScheduledSample[] resolveBackgroundSamples(
+        string chartPath,
+        ParsedBms parsed,
+        IEnumerable<RawEvent> events,
+        BeatTimeConverter converter,
+        ICollection<string> warnings)
+    {
+        var samples = new List<(YokkoScheduledSample Sample, int Order)>();
+
+        foreach (RawEvent rawEvent in events.Where(static value => value.Channel == "01"))
+        {
+            string? path = parsed.WavFiles.TryGetValue(rawEvent.Value, out string? file)
+                ? ImportParsing.ResolveAdjacentAsset(chartPath, file)
+                : null;
+            if (path == null)
+            {
+                warnings.Add($"BMS background sample {rawEvent.Value} could not be resolved.");
+                continue;
+            }
+
+            samples.Add((
+                new YokkoScheduledSample(
+                    converter.ToMilliseconds(rawEvent.Beat),
+                    path),
+                rawEvent.Order));
+        }
+
+        return samples.OrderBy(static item => item.Sample.TimeMilliseconds)
+                      .ThenBy(static item => item.Order)
+                      .Select(static item => item.Sample)
+                      .ToArray();
+    }
+
+    private static YokkoScrollVelocity[] createStopScrollVelocities(
+        IEnumerable<PauseEvent> pauses,
+        BeatTimeConverter converter) =>
+        pauses.GroupBy(static pause => pause.Beat)
+              .OrderBy(static group => group.Key)
+              .SelectMany(group =>
+              {
+                  double start = converter.ToMilliseconds(group.Key);
+                  double duration = group.Sum(static pause => pause.DurationMilliseconds);
+                  return new[]
+                  {
+                      new YokkoScrollVelocity(start, 0),
+                      new YokkoScrollVelocity(start + duration, 1),
+                  };
+              })
+              .ToArray();
+
     private static string toLongNoteChannel(string channel)
         => $"{(char)(channel[0] + 4)}{channel[1]}";
+
+    private static string toMineChannel(string channel)
+        => $"{(channel[0] == '1' ? 'D' : 'E')}{channel[1]}";
 
     private static int parseHex(string value)
         => int.TryParse(value, System.Globalization.NumberStyles.HexNumber, null, out int parsed) ? parsed : 0;
@@ -454,14 +591,22 @@ public sealed partial class BmsChartImporter : IChartImporter
     private sealed record LaneMapping(
         IReadOnlyDictionary<string, int> Channels,
         KeyMode KeyMode,
+        int StageCount,
         bool ScratchIgnored,
-        int? ScratchLane);
+        int? ScratchLane,
+        bool DualScratchApproximation);
 
-    private sealed class MutableBeatNote(int lane, double startBeat, double? endBeat, string sampleId)
+    private sealed class MutableBeatNote(
+        int lane,
+        double startBeat,
+        double? endBeat,
+        string sampleId,
+        HitObjectKind kind)
     {
         public int Lane { get; } = lane;
         public double StartBeat { get; } = startBeat;
         public double? EndBeat { get; set; } = endBeat;
         public string SampleId { get; } = sampleId;
+        public HitObjectKind Kind { get; } = kind;
     }
 }

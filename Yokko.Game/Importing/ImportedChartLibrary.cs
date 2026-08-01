@@ -1544,12 +1544,17 @@ internal sealed class ImportedChartLibrary : IDisposable
                                                 .Concat(results.Select(
                                                     result =>
                                                         result.ArtworkPath))
-                                                .Concat(results.SelectMany(
-                                                    result =>
-                                                        result.Beatmap.HitObjects
-                                                              .Select(note =>
-                                                                  note.SampleKey)))
-                                                .Concat(results.SelectMany(
+                                                 .Concat(results.SelectMany(
+                                                     result =>
+                                                         result.Beatmap.HitObjects
+                                                               .Select(note =>
+                                                                   note.SampleKey)))
+                                                 .Concat(results.SelectMany(
+                                                     result =>
+                                                         result.Beatmap.ScheduledSamples
+                                                               .Select(sample =>
+                                                                   sample.Path)))
+                                                 .Concat(results.SelectMany(
                                                     result =>
                                                         result.Beatmap.HitObjects
                                                               .SelectMany(note =>

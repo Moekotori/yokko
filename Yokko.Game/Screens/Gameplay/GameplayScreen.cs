@@ -418,14 +418,15 @@ public partial class GameplayScreen : Screen
             judgementState);
         loadSkin(renderer);
         prepareHitSamples();
-        bool hasKeysounds = headSamplesByHitObject.Any(
-                                static samples => samples.Length > 0)
-                            || tailSamplesByHitObject.Any(
-                                static samples => samples.Length > 0)
-                            || slidingSamplesByHitObject.Any(
-                                static samples => samples.Length > 0);
+        bool hasSamplePlayback = headSamplesByHitObject.Any(
+                                     static samples => samples.Length > 0)
+                                 || tailSamplesByHitObject.Any(
+                                     static samples => samples.Length > 0)
+                                 || slidingSamplesByHitObject.Any(
+                                     static samples => samples.Length > 0)
+                                 || scheduledSamples.Length > 0;
         audioEngine ??= string.IsNullOrWhiteSpace(beatmap.AudioPath)
-                         && !hasKeysounds
+                         && !hasSamplePlayback
             ? new NullAudioEngine()
             : AudioEngineFactory.CreateDefault();
         if (audioEngine is IAudioMixControl mixControl)
@@ -451,7 +452,7 @@ public partial class GameplayScreen : Screen
         }
         audioSettings.MixChanged += onAudioMixChanged;
         hasAudioClock = !string.IsNullOrWhiteSpace(beatmap.AudioPath)
-                        || hasKeysounds && audioEngine is NativeAudioEngine;
+                        || hasSamplePlayback && audioEngine is NativeAudioEngine;
         keysoundPreparationTask = prepareKeysoundsAsync();
 
         InternalChildren = new Drawable[]
