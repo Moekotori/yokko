@@ -13,6 +13,7 @@ using osuTK.Input;
 using Yokko.Game.Configuration;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
+using Yokko.Game.Presentation;
 using Yokko.Game.Resources;
 using Yokko.Game.Screens.Main;
 using Yokko.Import;
@@ -644,8 +645,6 @@ internal partial class ImportPreferenceCard : ClickableContainer
 {
     private readonly BindableBool value;
     private readonly Box background;
-    private readonly Box switchTrack;
-    private readonly Circle switchThumb;
     private readonly SpriteText state;
 
     public override bool AcceptsFocus => true;
@@ -697,28 +696,9 @@ internal partial class ImportPreferenceCard : ClickableContainer
                 Font = HomeTypography.Body(14),
                 Colour = SettingsTheme.MutedNavy,
             },
-            new Container
+            new YokkoToggleSwitch(value)
             {
                 Position = new Vector2(15, 74),
-                Size = new Vector2(48, 24),
-                Masking = true,
-                CornerRadius = 12,
-                Children = new Drawable[]
-                {
-                    switchTrack = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = SettingsTheme.Divider,
-                    },
-                    switchThumb = new Circle
-                    {
-                        Anchor = Anchor.CentreLeft,
-                        Origin = Anchor.Centre,
-                        X = 12,
-                        Size = new Vector2(18),
-                        Colour = Color4.White,
-                    },
-                },
             },
             state = new SpriteText
             {
@@ -735,8 +715,6 @@ internal partial class ImportPreferenceCard : ClickableContainer
 
     private void onValueChanged(ValueChangedEvent<bool> change)
     {
-        switchTrack.FadeColour(change.NewValue ? HomeControlColours.Navy : SettingsTheme.Divider, 120, Easing.OutQuint);
-        switchThumb.MoveToX(change.NewValue ? 36 : 12, 120, Easing.OutQuint);
         state.Text = YokkoStrings.Get(change.NewValue
             ? "settings.import.enabled"
             : "settings.import.disabled");

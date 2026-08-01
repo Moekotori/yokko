@@ -515,6 +515,9 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
         testPlaying = true;
         refreshSelection();
         testControl.SetPlaying(kind);
+        AudioBackendKind requestedBackend =
+            settings.PreferredBackend.Value;
+        int requestedBufferSize = settings.PreferredBufferSize.Value;
         bool failed = false;
         AudioEngineStatus? testedStatus = null;
 
@@ -544,23 +547,44 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             testPlaying = false;
             testControl.SetIdle();
             if (!failed && testedStatus.HasValue)
-                showTestedStatus(testedStatus.Value);
+            {
+                showTestedStatus(
+                    testedStatus.Value,
+                    requestedBackend,
+                    requestedBufferSize);
+            }
             else if (!failed)
                 refreshSelection();
         }
     }
 
-    private void showTestedStatus(AudioEngineStatus tested)
+    private void showTestedStatus(
+        AudioEngineStatus tested,
+        AudioBackendKind requestedBackend,
+        int requestedBufferSize)
     {
         int actualPeriod = tested.DevicePeriodFrames > 0
             ? tested.DevicePeriodFrames
             : tested.BufferSize;
+        AudioOutputAssessmentKind assessment =
+            AudioOutputAssessment.Assess(
+                requestedBackend,
+                tested);
         statusTitle.Text = YokkoStrings.Get(
-            "settings.audio.test_verified");
+            assessment switch
+            {
+                AudioOutputAssessmentKind.ExclusiveFallback =>
+                    "settings.audio.test_exclusive_fallback",
+                AudioOutputAssessmentKind.HighSharedLatency =>
+                    "settings.audio.test_high_shared_latency",
+                AudioOutputAssessmentKind.HighLatency =>
+                    "settings.audio.test_high_latency",
+                _ => "settings.audio.test_verified",
+            });
         statusMetadata.Text = YokkoStrings.Get(
             "settings.audio.test_result",
             backendName(tested.ActiveBackend),
-            settings.PreferredBufferSize.Value,
+            requestedBufferSize,
             tested.BufferSize,
             actualPeriod,
             tested.EstimatedOutputLatencyMilliseconds);

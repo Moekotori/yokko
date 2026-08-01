@@ -317,7 +317,7 @@ namespace Yokko.Game.Tests.Visual
             });
             AddStep("select large interface", () => display.SelectUiScale(YokkoUiScale.Large));
             AddAssert("large interface selected", () => display.CurrentUiScale == YokkoUiScale.Large);
-            AddAssert("five display rows fit above footer", () =>
+            AddAssert("six display rows fit above footer", () =>
             {
                 Container[] rows = display.ChildrenOfType<Container>()
                                           .Where(container =>
@@ -325,7 +325,7 @@ namespace Yokko.Game.Tests.Visual
                                               && container.Size.X == 840
                                               && container.Size.Y == 60)
                                           .ToArray();
-                return rows.Length == 5
+                return rows.Length == 6
                        && rows.All(row => row.Y + row.Height < 651);
             });
             AddStep("select compact interface", () => display.SelectUiScale(YokkoUiScale.Compact));

@@ -37,42 +37,39 @@ public partial class EditorInspector : CompositeDrawable
 
         InternalChildren = new Drawable[]
         {
-            new Box
+            new YokkoCard(YokkoCardStyle.Panel)
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(0.04f, 0.052f, 0.073f, 0.96f),
-            },
-            new FillFlowContainer
-            {
-                RelativeSizeAxes = Axes.Both,
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 18),
-                Padding = new MarginPadding(22),
-                Children = new Drawable[]
+                CardContent = new FillFlowContainer
                 {
-                    new SpriteText
+                    RelativeSizeAxes = Axes.Both,
+                    Direction = FillDirection.Vertical,
+                    Spacing = new Vector2(0, 18),
+                    Padding = new MarginPadding(22),
+                    Children = new Drawable[]
                     {
-                        Text = beatmap.Title,
-                        Font = FontUsage.Default.With(size: 26),
-                        Colour = YokkoPalette.Text,
-                    },
-                    modeText = createMetric(),
-                    noteCountText = createMetric(),
-                    lengthText = createMetric(),
-                    windowText = createMetric(),
-                    densityText = createMetric(),
-                    scrollVelocityText = createMetric(),
-                    audioText = createMetric(),
-                    new Box
-                    {
-                        RelativeSizeAxes = Axes.X,
-                        Height = 1,
-                        Colour = new Color4(1f, 1f, 1f, 0.1f),
-                    },
-                    sourceText = new SpriteText
-                    {
-                        Font = FontUsage.Default.With(size: 16),
-                        Colour = YokkoPalette.TextDim,
+                        new YokkoText(
+                            beatmap.Title,
+                            21,
+                            YokkoTextStyle.Heading)
+                        {
+                        },
+                        modeText = createMetric(),
+                        noteCountText = createMetric(),
+                        lengthText = createMetric(),
+                        windowText = createMetric(),
+                        densityText = createMetric(),
+                        scrollVelocityText = createMetric(),
+                        audioText = createMetric(),
+                        new YokkoDivider
+                        {
+                        },
+                        sourceText = new YokkoText(
+                            size: 12,
+                            style: YokkoTextStyle.Caption,
+                            colour: YokkoTextColourRole.Dim)
+                        {
+                        },
                     },
                 },
             },
@@ -118,9 +115,8 @@ public partial class EditorInspector : CompositeDrawable
             : YokkoStrings.Get("editor.inspector.source", Path.GetFileName(beatmap.SourcePath));
     }
 
-    private static SpriteText createMetric() => new()
-    {
-        Font = FontUsage.Default.With(size: 20),
-        Colour = YokkoPalette.TextMuted,
-    };
+    private static SpriteText createMetric() => new YokkoText(
+        size: 15,
+        style: YokkoTextStyle.Body,
+        colour: YokkoTextColourRole.Muted);
 }

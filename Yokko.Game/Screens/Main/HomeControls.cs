@@ -9,39 +9,41 @@ using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Game.Presentation;
 
 namespace Yokko.Game.Screens.Main;
 
 internal static class HomeControlColours
 {
-    public static readonly Color4 Navy = new(0.035f, 0.085f, 0.54f, 1f);
-    public static readonly Color4 Cyan = new(0.18f, 0.78f, 0.94f, 1f);
-    public static readonly Color4 PaleCyan = new(0.78f, 0.96f, 1f, 1f);
-    public static readonly Color4 Yellow = new(1f, 0.91f, 0.42f, 1f);
-    public static readonly Color4 Pink = new(1f, 0.22f, 0.65f, 1f);
-    public static readonly Color4 Ivory = new(0.992f, 0.992f, 0.988f, 1f);
+    private static YokkoBrandColourTokens colours =>
+        YokkoUiTheme.Default.Colours.Brand;
+
+    public static Color4 Navy => colours.Ink;
+    public static Color4 Cyan => colours.Cyan;
+    public static Color4 PaleCyan => colours.PaleCyan;
+    public static Color4 Yellow => colours.Yellow;
+    public static Color4 Pink => colours.Pink;
+    public static Color4 Ivory => colours.Ivory;
 }
 
 internal static class HomeTypography
 {
-    public static FontUsage Display(float size) => new("Roboto", readableSize(size), "Bold");
+    private static YokkoUiTypographyTokens typography =>
+        YokkoUiTheme.Default.Typography;
 
-    public static FontUsage Hero(float size) => new("Roboto", readableSize(size), "Bold");
+    public static FontUsage Display(float size) => typography.Display(size);
 
-    public static FontUsage Body(float size) => new("Roboto", readableSize(size));
+    public static FontUsage Hero(float size) => typography.Display(size);
 
-    public static FontUsage SearchInput(float size) => new("YokkoInput", readableSize(size));
+    public static FontUsage Body(float size) => typography.Body(size);
 
-    public static FontUsage Brand(float size) => new("Roboto", readableSize(size), "Bold");
+    public static FontUsage SearchInput(float size) =>
+        typography.SearchInput(size);
+
+    public static FontUsage Brand(float size) => typography.Brand(size);
 
     // 贴纸气泡用的粗海报体（Archivo Black 位图图集，CJK 自动回退 Yokko 字体）。
-    public static FontUsage Sticker(float size) => new("ArchivoBlack", readableSize(size));
-
-    // Keep every shared UI label readable after the 80–100% interface scale is
-    // applied. The bounded continuous gain preserves authored hierarchy while
-    // preventing micro labels from collapsing into single-digit pixel sizes.
-    private static float readableSize(float size) =>
-        MathF.Max(14, size + MathF.Min(6, 4 + size * 0.05f));
+    public static FontUsage Sticker(float size) => typography.Sticker(size);
 }
 
 public partial class HomePrimaryAction : ClickableContainer

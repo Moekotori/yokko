@@ -747,6 +747,18 @@ internal static class YokkoStrings
                 "Actual output verified",
                 "\u5df2\u9a8c\u8bc1\u5b9e\u9645\u8f93\u51fa",
                 "\u5b9f\u969b\u306e\u51fa\u529b\u3092\u78ba\u8a8d\u6e08\u307f"),
+            ["settings.audio.test_exclusive_fallback"] = new(
+                "Exclusive unavailable \u00b7 Shared fallback measured",
+                "\u72ec\u5360\u4e0d\u53ef\u7528 \u00b7 \u5df2\u6d4b\u91cf\u5171\u4eab\u56de\u9000",
+                "\u6392\u4ed6\u30e2\u30fc\u30c9\u4e0d\u53ef \u00b7 \u5171\u6709\u30d5\u30a9\u30fc\u30eb\u30d0\u30c3\u30af\u3092\u8a08\u6e2c"),
+            ["settings.audio.test_high_shared_latency"] = new(
+                "High output latency \u00b7 try WASAPI Exclusive",
+                "\u8f93\u51fa\u5ef6\u8fdf\u8f83\u9ad8 \u00b7 \u5efa\u8bae\u5c1d\u8bd5 WASAPI \u72ec\u5360",
+                "\u51fa\u529b\u9045\u5ef6\u304c\u5927\u304d\u3044 \u00b7 WASAPI \u6392\u4ed6\u3092\u63a8\u5968"),
+            ["settings.audio.test_high_latency"] = new(
+                "High output latency \u00b7 try another device or buffer",
+                "\u8f93\u51fa\u5ef6\u8fdf\u8f83\u9ad8 \u00b7 \u8bf7\u5c1d\u8bd5\u5176\u4ed6\u8bbe\u5907\u6216\u7f13\u51b2",
+                "\u51fa\u529b\u9045\u5ef6\u304c\u5927\u304d\u3044 \u00b7 \u4ed6\u306e\u30c7\u30d0\u30a4\u30b9\u307e\u305f\u306f\u30d0\u30c3\u30d5\u30a1\u3092\u8a66\u884c"),
             ["settings.audio.test_result"] = new(
                 "{0} \u00b7 req {1}f \u2192 buffer {2}f / period {3}f \u00b7 \u2264 {4:0.00} ms",
                 "{0} \u00b7 \u8bf7\u6c42 {1}f \u2192 \u7f13\u51b2 {2}f / \u5468\u671f {3}f \u00b7 \u2264 {4:0.00} ms",

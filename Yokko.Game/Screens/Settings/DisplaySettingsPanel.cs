@@ -42,6 +42,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
     private static readonly YokkoFrameLimit[] supportedFrameLimits =
     {
+        YokkoFrameLimit.Auto,
         YokkoFrameLimit.VSync,
         YokkoFrameLimit.Limit2x,
         YokkoFrameLimit.Limit4x,
@@ -73,6 +74,9 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     internal YokkoUiScale CurrentUiScale => uiScale.Value;
     internal ManiaDifficultyRatingMode CurrentDifficultyRatingMode =>
         difficultyRatingMode.Value;
+
+    internal static bool IsFrameLimitSelectable(YokkoFrameLimit limit) =>
+        supportedFrameLimits.Contains(limit);
 
     public DisplaySettingsPanel(
         Bindable<Size> windowedSize,
@@ -110,24 +114,24 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
                 out currentDisplayMetadata),
             SettingsChrome.CreateDivider(270),
             SettingsChrome.CreateSettingRow(276, YokkoStrings.Get("settings.display.window_mode"), createModeControl()),
-            SettingsChrome.CreateDivider(340),
+            SettingsChrome.CreateDivider(337),
             SettingsChrome.CreateSettingRow(
-                346,
+                338,
                 YokkoStrings.Get("settings.display.resolution"),
                 resolutionDropdown = new SettingsResolutionDropdown(supportedResolutions, setWindowedSize),
                 -10),
-            SettingsChrome.CreateDivider(410),
-            SettingsChrome.CreateSettingRow(416, YokkoStrings.Get("settings.display.frame_limit"), createFrameLimitControl()),
-            SettingsChrome.CreateDivider(480),
-            SettingsChrome.CreateSettingRow(486, YokkoStrings.Get("settings.display.interface_scale"), createScaleControl()),
-            SettingsChrome.CreateDivider(550),
+            SettingsChrome.CreateDivider(399),
+            SettingsChrome.CreateSettingRow(400, YokkoStrings.Get("settings.display.frame_limit"), createFrameLimitControl()),
+            SettingsChrome.CreateDivider(461),
+            SettingsChrome.CreateSettingRow(462, YokkoStrings.Get("settings.display.interface_scale"), createScaleControl()),
+            SettingsChrome.CreateDivider(523),
             SettingsChrome.CreateSettingRow(
-                556,
+                524,
                 YokkoStrings.Get("settings.display.performance_readout"),
                 new SettingsBooleanToggle(showPerformanceReadout)),
-            SettingsChrome.CreateDivider(614),
+            SettingsChrome.CreateDivider(585),
             SettingsChrome.CreateSettingRow(
-                620,
+                586,
                 YokkoStrings.Get(
                     "settings.display.difficulty_rating"),
                 createDifficultyRatingControl()),
@@ -167,7 +171,8 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
     private Drawable createFrameLimitControl()
     {
-        const float buttonWidth = 598f / 5;
+        float buttonWidth = SettingsChrome.ControlWidth
+                            / supportedFrameLimits.Length;
 
         foreach (YokkoFrameLimit limit in supportedFrameLimits)
         {

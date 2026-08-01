@@ -437,7 +437,6 @@ public partial class GameplayPlayfield : CompositeDrawable
                                return new NoteUpdateGroup(
                                    pair.Key.Velocity,
                                    pair.Key.Factor,
-                                   activeIndices,
                                    activeIndices
                                        .Where(index =>
                                            beatmap.HitObjects[index].Kind
@@ -451,7 +450,19 @@ public partial class GameplayPlayfield : CompositeDrawable
                                        holdIndices.Select(index => (
                                            index,
                                            noteUpdateStates[index]
-                                               .VisibilityRange))));
+                                               .VisibilityRange))),
+                                   new ZeroScrollVisibilityIndex(
+                                       activeIndices.Select(index =>
+                                       {
+                                           YokkoHitObject hitObject =
+                                               beatmap.HitObjects[index];
+                                           return new ZeroScrollVisibilityIndex.Entry(
+                                               index,
+                                               hitObject.Lane,
+                                               hitObject.StartTimeMilliseconds,
+                                               hitObject.EndTimeMilliseconds);
+                                       }),
+                                       keyCount));
                            })
                            .ToArray();
 
@@ -1046,9 +1057,16 @@ public partial class GameplayPlayfield : CompositeDrawable
             double currentPosition =
                 group.Velocity.PositionAt(gameplayTimeMilliseconds);
 
-            if (Math.Abs(scrollSpeedFactor) < double.Epsilon)
+            if (Math.Abs(scrollSpeedFactor)
+                <= ZeroScrollVisibilityIndex.FactorThreshold)
             {
-                foreach (int index in group.AllIndices)
+                group.ZeroFactorCandidates.Clear();
+                group.ZeroFactorIndex.Collect(
+                    gameplayTimeMilliseconds,
+                    approachTimeMilliseconds,
+                    state,
+                    group.ZeroFactorCandidates);
+                foreach (int index in group.ZeroFactorCandidates)
                 {
                     updateVisibleNote(
                         index,
@@ -1528,21 +1546,24 @@ public partial class GameplayPlayfield : CompositeDrawable
     private sealed class NoteUpdateGroup(
         ScrollVelocityMap velocity,
         ScrollSpeedFactorMap factor,
-        int[] allIndices,
         int[] tapIndices,
-        ScrollRangeIndex holdRangeIndex)
+        ScrollRangeIndex holdRangeIndex,
+        ZeroScrollVisibilityIndex zeroFactorIndex)
     {
         internal ScrollVelocityMap Velocity { get; } = velocity;
 
         internal ScrollSpeedFactorMap Factor { get; } = factor;
-
-        internal int[] AllIndices { get; } = allIndices;
 
         internal int[] TapIndices { get; } = tapIndices;
 
         internal ScrollRangeIndex HoldRangeIndex { get; } =
             holdRangeIndex;
 
+        internal ZeroScrollVisibilityIndex ZeroFactorIndex { get; } =
+            zeroFactorIndex;
+
         internal List<int> HoldCandidates { get; } = new();
+
+        internal List<int> ZeroFactorCandidates { get; } = new();
     }
 }

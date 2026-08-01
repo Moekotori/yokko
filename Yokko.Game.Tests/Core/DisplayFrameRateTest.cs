@@ -51,6 +51,15 @@ public sealed class DisplayFrameRateTest
             Is.EqualTo(ThreadPriority.Normal));
     }
 
+    [Test]
+    public void AutoCanBeRestoredFromDisplaySettings()
+    {
+        Assert.That(
+            DisplaySettingsPanel.IsFrameLimitSelectable(
+                YokkoFrameLimit.Auto),
+            Is.True);
+    }
+
     [TestCase(YokkoFrameLimit.Auto, 60, "480 FPS")]
     [TestCase(YokkoFrameLimit.Auto, 165, "660 FPS")]
     [TestCase(YokkoFrameLimit.VSync, 144, "144 Hz")]

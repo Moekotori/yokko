@@ -1,17 +1,21 @@
 using osuTK.Graphics;
+using Yokko.Game.Presentation;
 
 namespace Yokko.Game.Screens.SongSelect;
 
 internal static class SongSelectTheme
 {
-    public static readonly Color4 Ivory = new(0.992f, 0.992f, 0.988f, 1f);
-    public static readonly Color4 Navy = new(0.035f, 0.085f, 0.37f, 1f);
-    public static readonly Color4 DeepNavy = new(0.012f, 0.035f, 0.18f, 1f);
-    public static readonly Color4 Surface = new(0.02f, 0.055f, 0.23f, 1f);
-    public static readonly Color4 SurfaceRaised = new(0.035f, 0.085f, 0.31f, 1f);
-    public static readonly Color4 Cyan = new(0.29f, 0.81f, 0.94f, 1f);
-    public static readonly Color4 PaleCyan = new(0.78f, 0.96f, 1f, 1f);
-    public static readonly Color4 Yellow = new(1f, 0.91f, 0.42f, 1f);
-    public static readonly Color4 Pink = new(1f, 0.22f, 0.65f, 1f);
-    public static readonly Color4 Muted = new(0.58f, 0.68f, 0.86f, 1f);
+    private static YokkoSongSelectColourTokens colours =>
+        YokkoUiTheme.Default.Colours.SongSelect;
+
+    public static Color4 Ivory => colours.Ivory;
+    public static Color4 Navy => colours.Navy;
+    public static Color4 DeepNavy => colours.DeepNavy;
+    public static Color4 Surface => colours.Surface;
+    public static Color4 SurfaceRaised => colours.SurfaceRaised;
+    public static Color4 Cyan => colours.Cyan;
+    public static Color4 PaleCyan => colours.PaleCyan;
+    public static Color4 Yellow => colours.Yellow;
+    public static Color4 Pink => colours.Pink;
+    public static Color4 Muted => colours.Muted;
 }

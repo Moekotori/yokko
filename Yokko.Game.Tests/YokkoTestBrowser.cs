@@ -24,6 +24,7 @@ using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.SongSelect;
+using Yokko.Game.Tests.Development;
 using Yokko.Import;
 
 namespace Yokko.Game.Tests
@@ -53,7 +54,11 @@ namespace Yokko.Game.Tests
         [Resolved]
         private GameHost host { get; set; }
 
+        [Resolved]
+        private YokkoUiThemeStore uiThemeStore { get; set; }
+
         private FrameworkConfigManager frameworkConfig;
+        private YokkoThemeFileHotReload themeHotReload;
 
         [BackgroundDependencyLoader]
         private void load(FrameworkConfigManager frameworkConfig)
@@ -67,6 +72,8 @@ namespace Yokko.Game.Tests
 
             if (isPreviewRun())
                 configurePreviewViewport();
+
+            configureThemeHotReload();
 
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_LAYOUT_EDITOR_PREVIEW") == "1")
@@ -658,6 +665,38 @@ namespace Yokko.Game.Tests
         private static bool isPreviewRun() =>
             previewEnvironmentVariables.Any(variable =>
                 Environment.GetEnvironmentVariable(variable) == "1");
+
+        protected override void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+                themeHotReload?.Dispose();
+
+            base.Dispose(isDisposing);
+        }
+
+        private void configureThemeHotReload()
+        {
+            string path = Environment.GetEnvironmentVariable(
+                "YOKKO_UI_THEME_FILE");
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+
+            try
+            {
+                themeHotReload = new YokkoThemeFileHotReload(
+                    path,
+                    uiThemeStore,
+                    action => Scheduler.Add(action));
+            }
+            catch (Exception exception) when (
+                exception is IOException
+                    or UnauthorizedAccessException
+                    or InvalidOperationException
+                    or ArgumentException)
+            {
+                uiThemeStore.ReportLoadError(path, exception.Message);
+            }
+        }
 
         private void configurePreviewViewport()
         {

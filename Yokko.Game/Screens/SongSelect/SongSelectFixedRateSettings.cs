@@ -1,10 +1,8 @@
 using System;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osuTK;
-using osuTK.Graphics;
 using Yokko.Core.Mods;
 using Yokko.Game.Screens.Main;
 
@@ -19,7 +17,9 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
     private readonly SpriteText title;
     private readonly SpriteText speedValue;
     private readonly SpriteText pitchNote;
-    private readonly ToggleButton pitchButton;
+    private readonly GameplayModSettingsStepButton decreaseButton;
+    private readonly GameplayModSettingsStepButton increaseButton;
+    private readonly GameplayModSettingsStateButton pitchButton;
     private readonly Action<double> speedChanged;
     private readonly Action<bool> pitchChanged;
     private bool enabled;
@@ -60,15 +60,19 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
                 Font = HomeTypography.Display(18),
                 Colour = GameplayModSettingsTheme.Selection,
             },
-            new StepButton("−", () => changeSpeed(-0.01))
+            decreaseButton = new GameplayModSettingsStepButton(
+                "−",
+                () => changeSpeed(-0.01))
             {
                 Position = new Vector2(0, 58),
             },
-            new StepButton("+", () => changeSpeed(0.01))
+            increaseButton = new GameplayModSettingsStepButton(
+                "+",
+                () => changeSpeed(0.01))
             {
                 Position = new Vector2(51, 58),
             },
-            pitchButton = new ToggleButton(
+            pitchButton = new GameplayModSettingsStateButton(
                 "ADJUST MUSIC PITCH",
                 () =>
                 {
@@ -114,6 +118,8 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
         speedValue.Text = $"{speedChange:0.00}×";
 
         bool toggleSupported = supportsPitchToggle();
+        decreaseButton.SetEnabled(isEnabled);
+        increaseButton.SetEnabled(isEnabled);
         pitchButton.SetState(
             isEnabled && toggleSupported,
             AdjustPitch);
@@ -145,83 +151,4 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
     private bool supportsPitchToggle() =>
         ActiveMod is ManiaModId.HalfTime
             or ManiaModId.DoubleTime;
-
-    private partial class StepButton : ClickableContainer
-    {
-        internal StepButton(string text, Action action)
-        {
-            Action = action;
-            Size = new Vector2(46, 29);
-            Masking = true;
-            CornerRadius = 4;
-            BorderThickness = 1;
-            BorderColour = GameplayModSettingsTheme.Accent;
-            InternalChildren =
-            [
-                new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(
-                        GameplayModSettingsTheme.Control.R,
-                        GameplayModSettingsTheme.Control.G,
-                        GameplayModSettingsTheme.Control.B,
-                        0.8f),
-                },
-                new SpriteText
-                {
-                    Anchor = Anchor.Centre,
-                    Origin = Anchor.Centre,
-                    Text = text,
-                    Font = HomeTypography.Display(14),
-                    Colour = GameplayModSettingsTheme.Text,
-                },
-            ];
-        }
-    }
-
-    private partial class ToggleButton : ClickableContainer
-    {
-        private readonly Box background;
-        private readonly SpriteText state;
-
-        internal ToggleButton(string text, Action action)
-        {
-            Action = action;
-            Size = new Vector2(202, 29);
-            Masking = true;
-            CornerRadius = 4;
-            InternalChildren =
-            [
-                background = new Box { RelativeSizeAxes = Axes.Both },
-                new SpriteText
-                {
-                    Anchor = Anchor.CentreLeft,
-                    Origin = Anchor.CentreLeft,
-                    X = 9,
-                    Text = text,
-                    Font = HomeTypography.Body(10),
-                    Colour = GameplayModSettingsTheme.Text,
-                },
-                state = new SpriteText
-                {
-                    Anchor = Anchor.CentreRight,
-                    Origin = Anchor.CentreRight,
-                    X = -9,
-                    Font = HomeTypography.Display(9),
-                },
-            ];
-        }
-
-        internal void SetState(bool isEnabled, bool selected)
-        {
-            background.Colour = selected
-                ? GameplayModSettingsTheme.Selection
-                : GameplayModSettingsTheme.Control;
-            state.Text = selected ? "ON" : "OFF";
-            state.Colour = selected
-                ? GameplayModSettingsTheme.AccentOn
-                : GameplayModSettingsTheme.Muted;
-            Alpha = isEnabled ? 1 : 0.55f;
-        }
-    }
 }

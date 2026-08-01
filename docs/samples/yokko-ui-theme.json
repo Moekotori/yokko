@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "name": "Magenta development preview",
+  "colours": {
+    "dark": {
+      "background": "#120A1F",
+      "surface": "#24102FCC",
+      "surfaceElevated": "#351747",
+      "surfaceHover": "#48205D",
+      "panelAlt": "#190C27FA",
+      "border": "#D882E05C",
+      "text": "#FFE6F8",
+      "textMuted": "#E8B9DB",
+      "textDim": "#AF82A5",
+      "cyan": "#FF75C7",
+      "accentControl": "#32103DFA"
+    },
+    "brand": {
+      "ink": "#7A1F68",
+      "cyan": "#FF75C7"
+    }
+  },
+  "metrics": {
+    "controlCornerRadius": 10,
+    "cardCornerRadius": 16,
+    "inlineSpacing": 9,
+    "hoverScale": 1.02,
+    "pressedScale": 0.98,
+    "disabledAlpha": 0.45,
+    "focusLineHeight": 3
+  },
+  "motion": {
+    "hoverInDuration": 100,
+    "hoverOutDuration": 130,
+    "stateChangeDuration": 120,
+    "focusDuration": 90,
+    "hoverEasing": "OutQuint"
+  }
+}

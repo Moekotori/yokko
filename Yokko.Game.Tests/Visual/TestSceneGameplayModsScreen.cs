@@ -363,8 +363,6 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         });
         AddAssert("rate slider has a forgiving pointer target", () =>
             rateSlider.Height == 44);
-        AddAssert("card browser does not use orbit connectors", () =>
-            !this.ChildrenOfType<OrbitConnector>().Any());
         AddStep("add focused mod from empty slot", () =>
         {
             emptySlot.ActivateForTest();
@@ -617,18 +615,18 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     }
 
     [Test]
-    public void TestOrbitActivationMotionFrame()
+    public void TestModCardActivationMotionFrame()
     {
-        AddStep("prepare inactive connected mod", () =>
+        AddStep("prepare inactive mod card", () =>
         {
             modsScreen.ResetMods();
             modsScreen.SetCategory(
                 ManiaModCategory.DifficultyReduction);
         });
-        AddStep("activate connected Half Time", () =>
+        AddStep("activate Half Time card", () =>
             modsScreen.ToggleMod(ManiaModId.HalfTime));
-        AddWaitStep("advance into connector pulse", 6);
-        AddStep("capture connector pulse", captureScreenshot);
+        AddWaitStep("advance into card activation", 6);
+        AddStep("capture active card", captureScreenshot);
         AddUntilStep("screenshot saved", () => screenshotSaved);
     }
 

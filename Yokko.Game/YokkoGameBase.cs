@@ -45,6 +45,8 @@ namespace Yokko.Game
         [Cached]
         private readonly YokkoDisplaySettings displaySettings = new();
         [Cached]
+        private readonly YokkoUiThemeStore uiTheme = new();
+        [Cached]
         private readonly YokkoAudioSettings audioSettings = new();
         [Cached]
         private readonly YokkoImportSettings importSettings = new();

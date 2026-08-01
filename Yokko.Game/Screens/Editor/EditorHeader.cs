@@ -5,7 +5,6 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Localisation;
 using osuTK;
-using osuTK.Graphics;
 using Yokko.Game.Presentation;
 using Yokko.Game.Localisation;
 
@@ -27,17 +26,18 @@ public partial class EditorHeader : CompositeDrawable
                 Spacing = new Vector2(0, 4),
                 Children = new Drawable[]
                 {
-                    new SpriteText
+                    new YokkoText(
+                        YokkoStrings.Get("editor.title"),
+                        29,
+                        YokkoTextStyle.Heading)
                     {
-                        Text = YokkoStrings.Get("editor.title"),
-                        Font = FontUsage.Default.With(size: 34),
-                        Colour = YokkoPalette.Text,
                     },
-                    new SpriteText
+                    new YokkoText(
+                        YokkoStrings.Get("editor.subtitle"),
+                        12,
+                        YokkoTextStyle.Body,
+                        YokkoTextColourRole.Muted)
                     {
-                        Text = YokkoStrings.Get("editor.subtitle"),
-                        Font = FontUsage.Default.With(size: 16),
-                        Colour = YokkoPalette.TextMuted,
                     },
                 },
             },
@@ -54,42 +54,32 @@ public partial class EditorHeader : CompositeDrawable
                     new EditorToolButton(YokkoStrings.Get("editor.new_7k"), newSevenKey),
                     new EditorToolButton(YokkoStrings.Get("editor.import"), importChart),
                     new EditorToolButton(YokkoStrings.Get("editor.export"), exportOsu),
-                    new EditorToolButton(YokkoStrings.Get("editor.playtest"), playtest, YokkoPalette.Lime),
+                    new EditorToolButton(
+                        YokkoStrings.Get("editor.playtest"),
+                        playtest,
+                        YokkoAccentRole.Positive),
                 },
             },
         };
     }
 }
 
-public partial class EditorToolButton : ClickableContainer
+public partial class EditorToolButton : YokkoButton
 {
-    public EditorToolButton(LocalisableString text, Action action, Color4? accent = null)
+    public EditorToolButton(
+        LocalisableString text,
+        Action action,
+        YokkoAccentRole accentRole = YokkoAccentRole.Accent)
+        : base(
+            text,
+            action,
+            104,
+            42,
+            YokkoButtonStyle.Accent,
+            null,
+            13,
+            null,
+            accentRole)
     {
-        Action = action;
-        Size = new Vector2(104, 42);
-        Masking = true;
-
-        InternalChildren = new Drawable[]
-        {
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(0.09f, 0.11f, 0.145f, 0.98f),
-            },
-            new Box
-            {
-                RelativeSizeAxes = Axes.Y,
-                Width = 4,
-                Colour = accent ?? YokkoPalette.Cyan,
-            },
-            new SpriteText
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Text = text,
-                Font = FontUsage.Default.With(size: 17),
-                Colour = YokkoPalette.Text,
-            },
-        };
     }
 }

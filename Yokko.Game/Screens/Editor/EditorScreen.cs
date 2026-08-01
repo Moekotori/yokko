@@ -79,10 +79,9 @@ public partial class EditorScreen : Screen
 
         InternalChildren = new Drawable[]
         {
-            new Box
+            new YokkoThemeBox(YokkoThemeBoxRole.Background)
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = YokkoPalette.Background,
             },
             editorStage = new Container
             {
@@ -109,11 +108,12 @@ public partial class EditorScreen : Screen
                             Direction = FillDirection.Horizontal,
                             Spacing = new Vector2(32, 0),
                         },
-                        statusText = new SpriteText
+                        statusText = new YokkoText(
+                            size: 12,
+                            style: YokkoTextStyle.Caption,
+                            colour: YokkoTextColourRole.Dim)
                         {
                             Text = YokkoStrings.Get("editor.ready"),
-                            Font = FontUsage.Default.With(size: 16),
-                            Colour = YokkoPalette.TextDim,
                         },
                     }
                 }
