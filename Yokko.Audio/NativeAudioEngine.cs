@@ -778,7 +778,18 @@ public sealed class NativeAudioEngine :
                 return;
 
             disposed = true;
-            await stopCurrentAsync().ConfigureAwait(false);
+            try
+            {
+                await stopCurrentAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                Volatile.Write(ref activeSampleSet, null);
+                Volatile.Write(
+                    ref preparedSampleSet,
+                    PreparedSampleSet.EmptyFor(
+                        nextPreparedSampleGeneration()));
+            }
         }
         finally
         {

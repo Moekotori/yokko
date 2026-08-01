@@ -67,6 +67,30 @@ namespace Yokko.Game.Tests.Core
         }
 
         [Test]
+        public async Task DisposeReleasesPreparedSamples()
+        {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "prepared-sample-disposal",
+                TestContext.CurrentContext.Test.ID);
+            Directory.CreateDirectory(directory);
+            string audioPath = Path.Combine(directory, "sample.wav");
+            createSilentWave(audioPath, 48000, 2, 50);
+
+            var engine = new NativeAudioEngine();
+            await engine.PrepareSamplesAsync([audioPath]);
+            Assert.That(
+                engine.TryGetPreparedSampleHandle(audioPath, out _),
+                Is.True);
+
+            await engine.DisposeAsync();
+
+            Assert.That(
+                engine.TryGetPreparedSampleHandle(audioPath, out _),
+                Is.False);
+        }
+
+        [Test]
         [Platform(Include = "Win")]
         [NonParallelizable]
         public async Task NativeEngineOpensARealAsioStream()

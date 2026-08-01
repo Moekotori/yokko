@@ -91,10 +91,10 @@ internal sealed record SongSelectEntry
     public ManiaStarRatingResult StarRating { get; set; }
     public TimeSpan Length { get; init; }
     public double Bpm { get; init; }
-    public int BestScore { get; init; }
-    public double BestAccuracy { get; init; }
-    public IReadOnlyList<SongSelectScore> Ranking { get; init; }
-    public IReadOnlyList<SongSelectScore> History { get; init; }
+    public int BestScore { get; set; }
+    public double BestAccuracy { get; set; }
+    public IReadOnlyList<SongSelectScore> Ranking { get; set; }
+    public IReadOnlyList<SongSelectScore> History { get; set; }
     public string PackageId { get; init; }
     public string PackageName { get; init; }
     public bool IsPackage { get; init; }

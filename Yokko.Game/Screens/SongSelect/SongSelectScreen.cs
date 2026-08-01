@@ -651,7 +651,7 @@ public partial class SongSelectScreen : Screen
         {
             synchroniseImportedCharts(refreshSongList: false);
             int selectedIndex = Math.Max(0, entries.IndexOf(selectedEntry));
-            refreshSavedScores();
+            refreshSavedScores(selectedEntry);
             selectedEntry = entries.Count == 0
                 ? null
                 : entries[Math.Min(selectedIndex, entries.Count - 1)];
@@ -677,7 +677,7 @@ public partial class SongSelectScreen : Screen
     internal void RefreshImportedReplayScores()
     {
         int selectedIndex = Math.Max(0, entries.IndexOf(selectedEntry));
-        refreshSavedScores();
+        refreshSavedScores(selectedEntry);
         selectedEntry = entries.Count == 0
             ? null
             : entries[Math.Min(selectedIndex, entries.Count - 1)];
@@ -4509,11 +4509,18 @@ public partial class SongSelectScreen : Screen
         }
     }
 
-    private void refreshSavedScores()
+    private void refreshSavedScores(
+        SongSelectEntry entryToRefresh = null)
     {
         for (int i = 0; i < entries.Count; i++)
         {
             SongSelectEntry entry = entries[i];
+            if (entryToRefresh != null
+                && !ReferenceEquals(entry, entryToRefresh))
+            {
+                continue;
+            }
+
             StoredGameplayScore saved = scoreStore.GetBest(
                 entry.Beatmap,
                 selectedMods,
@@ -4533,24 +4540,12 @@ public partial class SongSelectScreen : Screen
                                                .Select(toSongSelectScore)
                                                .ToArray();
 
-            SongSelectEntry refreshed = entry with
-            {
-                BestScore = saved == null
-                    ? 0
-                    : (int)Math.Min(int.MaxValue, saved.Score),
-                BestAccuracy = saved?.Accuracy ?? 0,
-                Ranking = ranking,
-                History = history,
-            };
-            entries[i] = refreshed;
-            if (entry.ChartId != null
-                && importedEntries.TryGetValue(
-                    entry.ChartId,
-                    out SongSelectEntry tracked)
-                && ReferenceEquals(tracked, entry))
-            {
-                importedEntries[entry.ChartId] = refreshed;
-            }
+            entry.BestScore = saved == null
+                ? 0
+                : (int)Math.Min(int.MaxValue, saved.Score);
+            entry.BestAccuracy = saved?.Accuracy ?? 0;
+            entry.Ranking = ranking;
+            entry.History = history;
 
             SongSelectScore toSongSelectScore(
                 StoredGameplayScore score,

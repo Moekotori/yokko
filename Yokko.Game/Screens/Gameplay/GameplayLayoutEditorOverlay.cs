@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -318,8 +319,23 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         };
 
         settings.ToggleLayoutEditorUiKey.ValueChanged +=
-            _ => updateEditorHint();
+            onToggleLayoutEditorUiKeyChanged;
         updateEditorHint();
+    }
+
+    private void onToggleLayoutEditorUiKeyChanged(
+        ValueChangedEvent<Key> _) =>
+        updateEditorHint();
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (isDisposing)
+        {
+            settings.ToggleLayoutEditorUiKey.ValueChanged -=
+                onToggleLayoutEditorUiKeyChanged;
+        }
+
+        base.Dispose(isDisposing);
     }
 
     internal void SetEditing(bool editing)

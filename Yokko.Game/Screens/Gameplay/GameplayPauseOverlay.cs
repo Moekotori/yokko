@@ -2743,11 +2743,44 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 },
             };
 
-            countdownEnabled.BindValueChanged(_ => updateValueText(), true);
-            countdownDuration.BindValueChanged(_ => updateValueText(), true);
-            masterVolume.BindValueChanged(_ => updateValueText(), true);
-            backgroundDim.BindValueChanged(_ => updateValueText(), true);
+            countdownEnabled.BindValueChanged(
+                onCountdownEnabledChanged,
+                true);
+            countdownDuration.BindValueChanged(
+                onNumericSettingChanged,
+                true);
+            masterVolume.BindValueChanged(
+                onNumericSettingChanged,
+                true);
+            backgroundDim.BindValueChanged(
+                onNumericSettingChanged,
+                true);
             updateSelectedSetting();
+        }
+
+        private void onCountdownEnabledChanged(
+            ValueChangedEvent<bool> _) =>
+            updateValueText();
+
+        private void onNumericSettingChanged(
+            ValueChangedEvent<double> _) =>
+            updateValueText();
+
+        protected override void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+            {
+                countdownEnabled.ValueChanged -=
+                    onCountdownEnabledChanged;
+                countdownDuration.ValueChanged -=
+                    onNumericSettingChanged;
+                masterVolume.ValueChanged -=
+                    onNumericSettingChanged;
+                backgroundDim.ValueChanged -=
+                    onNumericSettingChanged;
+            }
+
+            base.Dispose(isDisposing);
         }
 
         private Container createSettingRow(

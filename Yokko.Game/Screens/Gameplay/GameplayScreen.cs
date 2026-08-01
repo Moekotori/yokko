@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
@@ -188,7 +189,11 @@ public partial class GameplayScreen : Screen
     private bool replaySeekPauseRequested;
     private double pendingReplaySeekTarget = double.NaN;
     private double appliedScrollSpeed;
+    private readonly CancellationTokenSource gameplayLifetimeCancellation =
+        new();
+    private CancellationTokenSource keysoundPreparationCancellation;
     private Task keysoundPreparationTask = Task.CompletedTask;
+    private int disposalStarted;
     private GameplayHitSamplePlaybackBinding[][] headSamplesByHitObject = [];
     private GameplayHitSamplePlaybackBinding[][] tailSamplesByHitObject = [];
     private GameplayHitSamplePlaybackBinding[][] slidingSamplesByHitObject = [];
@@ -520,7 +525,7 @@ public partial class GameplayScreen : Screen
         audioSettings.MixChanged += onAudioMixChanged;
         hasAudioClock = !string.IsNullOrWhiteSpace(beatmap.AudioPath)
                         || hasSamplePlayback && audioEngine is NativeAudioEngine;
-        keysoundPreparationTask = prepareKeysoundsAsync();
+        restartKeysoundPreparation();
 
         InternalChildren = new Drawable[]
         {
@@ -1459,8 +1464,15 @@ public partial class GameplayScreen : Screen
 
     protected override void Dispose(bool isDisposing)
     {
-        if (isDisposing)
+        if (isDisposing
+            && Interlocked.Exchange(ref disposalStarted, 1) == 0)
         {
+            gameplayLifetimeCancellation.Cancel();
+            keysoundPreparationCancellation?.Cancel();
+            CancellationTokenSource preparationCancellation =
+                keysoundPreparationCancellation;
+            keysoundPreparationCancellation = null;
+
             if (!ReplayMode)
             {
                 disableRawKeysoundFastPath();
@@ -1474,7 +1486,11 @@ public partial class GameplayScreen : Screen
             if (!completionAudioStopRequested)
                 mutedAudio?.Restore();
             stopAllSlidingSamples();
-            _ = audioEngine.DisposeAsync();
+            _ = disposeAudioResourcesAsync(
+                audioEngine,
+                keysoundPreparationTask,
+                preparationCancellation,
+                gameplayLifetimeCancellation);
             maniaSkinLease?.Dispose();
             artworkTextures?.Dispose();
         }
@@ -1510,9 +1526,12 @@ public partial class GameplayScreen : Screen
 
     private async Task startAudioAsync()
     {
+        CancellationToken lifetimeToken = gameplayLifetimeCancellation.Token;
+
         try
         {
             await keysoundPreparationTask.ConfigureAwait(true);
+            lifetimeToken.ThrowIfCancellationRequested();
             activeUserOffsetMilliseconds =
                 audioSettings.UserOffsetMilliseconds.Value;
             rawKeysoundDispatcher?.SetUserOffset(
@@ -1543,7 +1562,9 @@ public partial class GameplayScreen : Screen
                 + $" | offset={activeUserOffsetMilliseconds:0.###}ms"
                 + $" | path={startRequest.AudioPath}");
 
-            await audioEngine.StartAsync(startRequest)
+            await audioEngine.StartAsync(
+                                 startRequest,
+                                 lifetimeToken)
                              .ConfigureAwait(true);
 
             AudioEngineSnapshot audioSnapshot = audioEngine.Snapshot;
@@ -1591,6 +1612,10 @@ public partial class GameplayScreen : Screen
                 pendingIntroSkipMilliseconds = double.NaN;
                 await seekToIntroAsync(target).ConfigureAwait(true);
             }
+        }
+        catch (OperationCanceledException)
+            when (lifetimeToken.IsCancellationRequested)
+        {
         }
         catch (Exception ex)
         {
@@ -1972,10 +1997,82 @@ public partial class GameplayScreen : Screen
             .ToArray();
     }
 
-    private async Task prepareKeysoundsAsync()
+    private void restartKeysoundPreparation()
+    {
+        CancellationTokenSource previousCancellation =
+            keysoundPreparationCancellation;
+        Task previousTask = keysoundPreparationTask;
+        previousCancellation?.Cancel();
+        if (previousCancellation != null)
+        {
+            _ = disposeCancellationAfterTaskAsync(
+                previousCancellation,
+                previousTask);
+        }
+
+        keysoundPreparationCancellation =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                gameplayLifetimeCancellation.Token);
+        keysoundPreparationTask = prepareKeysoundsAsync(
+            keysoundPreparationCancellation.Token);
+    }
+
+    private static async Task disposeCancellationAfterTaskAsync(
+        CancellationTokenSource cancellation,
+        Task task)
+    {
+        try
+        {
+            await task.ConfigureAwait(false);
+        }
+        catch
+        {
+        }
+        finally
+        {
+            cancellation.Dispose();
+        }
+    }
+
+    private static async Task disposeAudioResourcesAsync(
+        IAudioEngine engine,
+        Task preparationTask,
+        CancellationTokenSource preparationCancellation,
+        CancellationTokenSource lifetimeCancellation)
+    {
+        try
+        {
+            await engine.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.Error(
+                exception,
+                "The gameplay audio engine could not be disposed.",
+                LoggingTarget.Runtime);
+        }
+        finally
+        {
+            try
+            {
+                await preparationTask.ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
+            preparationCancellation?.Dispose();
+            lifetimeCancellation.Dispose();
+        }
+    }
+
+    private async Task prepareKeysoundsAsync(
+        CancellationToken cancellationToken)
     {
         if (audioEngine is not IAudioSamplePlayback samplePlayback)
             return;
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         IEnumerable<GameplayHitSamplePlaybackBinding> samplesToPrepare =
             scheduledSamples.Where(static sample =>
@@ -2002,11 +2099,18 @@ public partial class GameplayScreen : Screen
 
         try
         {
-            await samplePlayback.PrepareSamplesAsync(paths)
+            await samplePlayback.PrepareSamplesAsync(
+                                    paths,
+                                    cancellationToken)
                                 .ConfigureAwait(true);
+            cancellationToken.ThrowIfCancellationRequested();
             if (samplePlayback is IPreparedAudioSamplePlayback preparedPlayback)
                 bindPreparedSampleHandles(preparedPlayback, paths);
             enableRawKeysoundFastPath();
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
         }
         catch (Exception ex)
         {
@@ -4418,7 +4522,7 @@ public partial class GameplayScreen : Screen
         rawKeysoundDispatcher?.Disable();
         rawKeysoundDispatcher = null;
         prepareHitSamples();
-        keysoundPreparationTask = prepareKeysoundsAsync();
+        restartKeysoundPreparation();
     }
 
     private void setLayoutEditorScrollDirection(

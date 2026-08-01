@@ -3054,6 +3054,7 @@ LightingLWidth: 20,20,20,20
             File.WriteAllBytes(hitSoundPath, [1, 2, 3]);
             var audioEngine = new SampleTrackingAudioEngine();
             bool originalKeysoundsEnabled = false;
+            GameplayScreen gameplay = null;
 
             AddStep("enable skin hit sounds", () =>
             {
@@ -3062,12 +3063,15 @@ LightingLWidth: 20,20,20,20
                 gameplaySettings.KeysoundsEnabled.Value = true;
             });
             AddStep("open gameplay with skin hit sounds", () =>
-                screenStack.Push(new GameplayScreen(
+                screenStack.Push(gameplay = new GameplayScreen(
                     DemoBeatmaps.CreateFourKeyDemo(),
                     audioEngine,
                     skinPath)));
             AddUntilStep("skin hit sound is prepared", () =>
                 audioEngine.PreparedSamples.Contains(hitSoundPath));
+            AddStep("leave prepared gameplay", () => gameplay.Exit());
+            AddUntilStep("keysound preparation lifetime is cancelled", () =>
+                audioEngine.PreparationCancellationRequested);
             AddStep("restore skin hit sound setting", () =>
                 gameplaySettings.KeysoundsEnabled.Value =
                     originalKeysoundsEnabled);
@@ -5550,10 +5554,16 @@ StageHint: stage-hint
 
             public int ActiveLoopCount => activeLoops.Count;
 
+            public CancellationToken LastPreparationToken { get; private set; }
+
+            public bool PreparationCancellationRequested =>
+                LastPreparationToken.IsCancellationRequested;
+
             public ValueTask PrepareSamplesAsync(
                 IReadOnlyCollection<string> samplePaths,
                 CancellationToken cancellationToken = default)
             {
+                LastPreparationToken = cancellationToken;
                 PreparedSamples.UnionWith(samplePaths);
                 return ValueTask.CompletedTask;
             }

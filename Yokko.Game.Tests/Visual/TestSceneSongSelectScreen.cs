@@ -1083,6 +1083,32 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     }
 
     [Test]
+    public void TestScoreRefreshPreservesEntryIdentity()
+    {
+        SongSelectEntry selectedBeforeRefresh = null;
+
+        AddStep("seed score refresh chart", () =>
+            importedChartLibrary.AddOrReplace(
+                result(
+                    "Score Refresh Identity",
+                    DemoBeatmaps.CreateFourKeyDemo()),
+                @"C:\Charts\score-refresh.osu"));
+        AddUntilStep("selected entry is ready", () =>
+            songSelectScreen.SelectedEntry?.Beatmap.Title
+                == "Score Refresh Identity");
+        AddStep("remember selected entry", () =>
+            selectedBeforeRefresh = songSelectScreen.SelectedEntry);
+        AddStep("refresh imported replay scores", () =>
+            songSelectScreen.RefreshImportedReplayScores());
+        AddUntilStep("score refresh settles", () =>
+            !songSelectScreen.FilterPending);
+        AddAssert("score refresh keeps entry identity", () =>
+            ReferenceEquals(
+                selectedBeforeRefresh,
+                songSelectScreen.SelectedEntry));
+    }
+
+    [Test]
     public void TestEscapeClearsSearchBeforeReturning()
     {
         SongSelectScreen escapeScreen = null;
