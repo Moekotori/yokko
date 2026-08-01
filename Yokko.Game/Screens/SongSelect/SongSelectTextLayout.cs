@@ -6,12 +6,48 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal static class SongSelectTextLayout
 {
+    internal static string[] BalancedTwoLines(
+        string value,
+        double unitsPerLine)
+    {
+        value = normalise(value);
+        if (value.Length == 0 || measure(value) <= unitsPerLine)
+            return [value];
+
+        int bestBreak = -1;
+        double bestDifference = double.MaxValue;
+        for (int index = 1; index < value.Length - 1; index++)
+        {
+            if (!char.IsWhiteSpace(value[index]))
+                continue;
+
+            string left = value[..index].TrimEnd();
+            string right = value[(index + 1)..].TrimStart();
+            double leftWidth = measure(left);
+            double rightWidth = measure(right);
+            if (leftWidth > unitsPerLine || rightWidth > unitsPerLine)
+                continue;
+
+            double difference = Math.Abs(leftWidth - rightWidth);
+            if (difference < bestDifference)
+            {
+                bestBreak = index;
+                bestDifference = difference;
+            }
+        }
+
+        return bestBreak >= 0
+            ?
+            [
+                value[..bestBreak].TrimEnd(),
+                value[(bestBreak + 1)..].TrimStart(),
+            ]
+            : TwoLines(value, unitsPerLine);
+    }
+
     internal static string[] TwoLines(string value, double unitsPerLine)
     {
-        value = string.Join(
-            " ",
-            (value ?? string.Empty)
-            .Split((char[])null, StringSplitOptions.RemoveEmptyEntries));
+        value = normalise(value);
         if (value.Length == 0)
             return [string.Empty];
         if (measure(value) <= unitsPerLine)
@@ -61,6 +97,11 @@ internal static class SongSelectTextLayout
 
         return lines.ToArray();
     }
+
+    private static string normalise(string value) => string.Join(
+        " ",
+        (value ?? string.Empty)
+        .Split((char[])null, StringSplitOptions.RemoveEmptyEntries));
 
     private static double measure(string value) =>
         value.Sum(widthOf);

@@ -8,12 +8,15 @@ using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Rendering;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
+using osuTK;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
 using Yokko.Game.Importing;
 using Yokko.Game.Screens.SongSelect;
@@ -50,6 +53,86 @@ namespace Yokko.Game.Tests.Visual
             });
             AddStep("capture screenshot", () => captureScreenshot());
         }
+
+        [Test]
+        public void TestSelectionTransitionDoesNotRebuildSongList()
+        {
+            int rebuildVersion = -1;
+            int detailsTransitionVersion = -1;
+            SongSelectEntry previousSelection = null;
+            AddUntilStep("song rows loaded", () =>
+                (screenStack.CurrentScreen as Drawable)?
+                .ChildrenOfType<SongSelectSongRow>()
+                .Any() == true);
+            AddStep("remember list rebuild version", () =>
+            {
+                rebuildVersion = currentScreen.SongListRebuildVersion;
+                detailsTransitionVersion =
+                    currentScreen.DetailsTransitionVersion;
+                previousSelection = currentScreen.SelectedEntry;
+            });
+            AddStep("select adjacent row", () =>
+                currentScreen.SelectPrevious());
+            AddAssert("selection changes", () =>
+                !ReferenceEquals(
+                    previousSelection,
+                    currentScreen.SelectedEntry));
+            AddAssert("details transition starts once", () =>
+                currentScreen.DetailsTransitionVersion
+                == detailsTransitionVersion + 1);
+            AddAssert("selection keeps song list generation", () =>
+                currentScreen.SongListRebuildVersion == rebuildVersion);
+            AddStep("change selection rapidly", () =>
+            {
+                currentScreen.SelectPrevious();
+                currentScreen.SelectPrevious();
+            });
+            AddAssert("rapid selection keeps one details paper", () =>
+                currentScreen.DetailsLayerCount == 1);
+            AddAssert("rapid selection keeps background covered", () =>
+                currentScreen.BackgroundCoverageAlpha >= 0.99f);
+            AddUntilStep("retire superseded detail layers", () =>
+                currentScreen.DetailsLayerCount == 1);
+            AddAssert("rapid selection still keeps list generation", () =>
+                currentScreen.SongListRebuildVersion == rebuildVersion);
+        }
+
+        [Test]
+        public void TestRankingUsesCompactGradeBadges()
+        {
+            AddAssert("ranking metrics use distinct horizontal columns", () =>
+                SongSelectRankingPanel.MetricColumnRightEdges
+                    == new Vector3(476, 586, 696));
+            AddUntilStep("ranking badges loaded", () =>
+                currentScreen.ChildrenOfType<SongSelectGradeBadge>()
+                             .Count() == 7);
+            AddAssert("badges stay inside row height", () =>
+                currentScreen.ChildrenOfType<SongSelectGradeBadge>()
+                             .All(badge =>
+                                 Math.Abs(badge.Width - 36) < 0.01f
+                                 && Math.Abs(badge.Height - 32) < 0.01f
+                                 && Math.Abs(badge.X + 70) < 0.01f
+                                 && Math.Abs(badge.BorderThickness) < 0.01f));
+            AddAssert("grade labels do not use detached card surfaces", () =>
+                currentScreen.ChildrenOfType<SongSelectGradeBadge>()
+                             .All(badge =>
+                                 !badge.ChildrenOfType<Box>().Any()));
+            AddAssert("ranking keeps multiple grade states", () =>
+            {
+                ScoreRank[] grades = currentScreen
+                                     .ChildrenOfType<SongSelectGradeBadge>()
+                                     .Select(badge => badge.Grade)
+                                     .ToArray();
+                return grades.Contains(ScoreRank.S)
+                       && grades.Contains(ScoreRank.A);
+            });
+            AddAssert("only current player badge is highlighted", () =>
+                currentScreen.ChildrenOfType<SongSelectGradeBadge>()
+                             .Count(badge => badge.Highlighted) == 1);
+        }
+
+        private SongSelectScreen currentScreen =>
+            (SongSelectScreen)screenStack.CurrentScreen;
 
         private void captureScreenshot()
         {

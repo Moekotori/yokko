@@ -29,12 +29,28 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
     private readonly SpriteText comboBreakFallback;
     private readonly Texture[] digitTextures = new Texture[10];
     private readonly float overlayScale;
+    private readonly float baseJudgementY;
+    private readonly float baseComboY;
+    private float playfieldScale = 1;
+    private Vector2 comboLayoutOffset;
+    private Vector2 judgementLayoutOffset;
+    private Vector2 comboLayoutScale = Vector2.One;
+    private Vector2 judgementLayoutScale = Vector2.One;
     private double judgementDisplayDuration = JudgementAnimationDuration;
     private bool editorPreview;
     private int displayedCombo = -1;
 
     internal bool EditorPreviewUsesTexture =>
         editorPreview && judgementSprite.Alpha > 0;
+
+    internal bool EditorComboPreviewVisible =>
+        comboDigits.Alpha > 0 || comboFallback.Alpha > 0;
+
+    internal Drawable ComboLayoutDrawable =>
+        comboDigits.Alpha > 0 ? comboDigits : comboFallback;
+
+    internal Drawable JudgementLayoutDrawable =>
+        judgementSprite.Alpha > 0 ? judgementSprite : judgementFallback;
 
     public OsuManiaSkinOverlay(
         OsuManiaSkin skin,
@@ -53,6 +69,8 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         float comboY = upscroll
             ? -configuration.ComboPosition
             : configuration.ComboPosition;
+        baseJudgementY = judgementY;
+        baseComboY = comboY;
 
         RelativeSizeAxes = Axes.Y;
 
@@ -350,9 +368,32 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
 
     public void SetPlayfieldScale(float value)
     {
-        Vector2 scale = new(overlayScale * Math.Max(0.01f, value));
-        judgementContainer.Scale = scale;
-        comboContainer.Scale = scale;
+        playfieldScale = Math.Max(0.01f, value);
+        applyFeedbackLayout();
+    }
+
+    internal void SetFeedbackLayout(
+        Vector2 comboOffset,
+        Vector2 comboScale,
+        Vector2 judgementOffset,
+        Vector2 judgementScale)
+    {
+        comboLayoutOffset = comboOffset;
+        comboLayoutScale = comboScale;
+        judgementLayoutOffset = judgementOffset;
+        judgementLayoutScale = judgementScale;
+        applyFeedbackLayout();
+    }
+
+    private void applyFeedbackLayout()
+    {
+        float baseScale = overlayScale * playfieldScale;
+        comboContainer.Position =
+            new Vector2(0, baseComboY) + comboLayoutOffset;
+        comboContainer.Scale = comboLayoutScale * baseScale;
+        judgementContainer.Position =
+            new Vector2(0, baseJudgementY) + judgementLayoutOffset;
+        judgementContainer.Scale = judgementLayoutScale * baseScale;
     }
 
     public void ConfigureJudgementFeedback(
@@ -381,6 +422,22 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             0,
             0,
             JudgementRating.Great));
+    }
+
+    internal void SetComboEditorPreview(bool preview)
+    {
+        comboDigits.FinishTransforms();
+        comboFallback.FinishTransforms();
+        comboBreakDigits.FinishTransforms();
+        comboBreakFallback.FinishTransforms();
+        comboDigits.Alpha = 0;
+        comboFallback.Alpha = 0;
+        comboBreakDigits.Alpha = 0;
+        comboBreakFallback.Alpha = 0;
+        displayedCombo = -1;
+
+        if (preview)
+            SetCombo(128);
     }
 
     public void SetHoldActive(bool active)

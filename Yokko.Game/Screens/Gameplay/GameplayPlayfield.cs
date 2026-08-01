@@ -100,6 +100,16 @@ public partial class GameplayPlayfield : CompositeDrawable
         skinOverlays.Length > 0
         && skinOverlays.All(overlay => overlay.EditorPreviewUsesTexture);
 
+    internal bool SkinComboEditorPreviewVisible =>
+        skinOverlays.Length > 0
+        && skinOverlays.All(overlay => overlay.EditorComboPreviewVisible);
+
+    internal Drawable SkinComboLayoutDrawable =>
+        skinOverlays.FirstOrDefault()?.ComboLayoutDrawable;
+
+    internal Drawable SkinJudgementLayoutDrawable =>
+        skinOverlays.FirstOrDefault()?.JudgementLayoutDrawable;
+
     internal bool SkinFeedbackRendersAboveLayoutCovers =>
         skinOverlays.Length == 0
         || skinOverlays.All(overlay =>
@@ -881,6 +891,28 @@ public partial class GameplayPlayfield : CompositeDrawable
     {
         foreach (OsuManiaSkinOverlay overlay in skinOverlays)
             overlay.SetEditorPreview(preview);
+    }
+
+    internal void SetSkinComboEditorPreview(bool preview)
+    {
+        foreach (OsuManiaSkinOverlay overlay in skinOverlays)
+            overlay.SetComboEditorPreview(preview);
+    }
+
+    internal void SetSkinFeedbackLayout(
+        Vector2 comboOffset,
+        Vector2 comboScale,
+        Vector2 judgementOffset,
+        Vector2 judgementScale)
+    {
+        foreach (OsuManiaSkinOverlay overlay in skinOverlays)
+        {
+            overlay.SetFeedbackLayout(
+                comboOffset,
+                comboScale,
+                judgementOffset,
+                judgementScale);
+        }
     }
 
     public void SetApproachTime(double value) =>

@@ -161,7 +161,7 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
     {
         this.accent = accent;
         Action = action;
-        Size = new Vector2(126, 82);
+        Size = new Vector2(176, 82);
         Masking = true;
         CornerRadius = 10;
         BorderThickness = 1.25f;

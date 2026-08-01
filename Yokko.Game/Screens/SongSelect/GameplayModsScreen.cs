@@ -36,10 +36,10 @@ internal partial class GameplayModsScreen : Screen
     private const float browser_controls_top = 224;
     private const float mod_browser_top = 332;
     private const float footer_height = 107;
-    // Minimum responsive stage at the largest supported UI density. The
-    // authored orbit artwork remains 1600x900 inside this 1080p workspace.
+    // The shared full-screen layout is authored against Yokko's 1080p
+    // reference. The legacy inner workspace is centred inside this stage.
     private static readonly Vector2 designed_size =
-        YokkoDisplaySettings.GetTargetDrawSize(YokkoUiScale.Large);
+        YokkoDisplaySettings.ReferenceLayoutSize;
 
     private enum ModsBrowseMode
     {

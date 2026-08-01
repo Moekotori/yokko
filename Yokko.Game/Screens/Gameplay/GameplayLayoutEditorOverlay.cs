@@ -328,7 +328,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         restoreOriginalAlpha(LayoutElementKind.Playfield);
         restoreOriginalAlpha(LayoutElementKind.Hud);
         restoreOriginalAlpha(LayoutElementKind.TimingBar);
-        comboReadout.SetEditorPreview(false);
+        setComboEditorPreview(false);
         setJudgementEditorPreview(false);
         if (autoplay)
         {
@@ -350,7 +350,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         IsEditing = true;
         autoplayDemoControl.FadeTo(0, 80, Easing.OutQuint);
         setChromeVisible(true, animate: false);
-        comboReadout.SetEditorPreview(true);
+        setComboEditorPreview(true);
         setJudgementEditorPreview(true);
         applyElementAlpha(
             LayoutElementKind.Playfield,
@@ -374,6 +374,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         GameplayPlayfield nextPlayfield,
         GameplayHud nextHud)
     {
+        playfield.SetSkinComboEditorPreview(false);
         playfield.SetSkinJudgementEditorPreview(false);
         playfield = nextPlayfield
                     ?? throw new ArgumentNullException(
@@ -383,6 +384,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         if (IsEditing)
         {
+            setComboEditorPreview(true);
             setJudgementEditorPreview(true);
             applyElementAlpha(
                 LayoutElementKind.Playfield,
@@ -568,9 +570,13 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         (Vector2 timingBarTopLeft, Vector2 timingBarBottomRight) =
             GameplayLayoutGeometry.BoundsIn(this, timingBar);
         (Vector2 comboTopLeft, Vector2 comboBottomRight) =
-            GameplayLayoutGeometry.BoundsIn(this, comboReadout);
+            GameplayLayoutGeometry.BoundsIn(
+                this,
+                drawableFor(LayoutElementKind.Combo));
         (Vector2 judgementTopLeft, Vector2 judgementBottomRight) =
-            GameplayLayoutGeometry.BoundsIn(this, judgementReadout);
+            GameplayLayoutGeometry.BoundsIn(
+                this,
+                drawableFor(LayoutElementKind.Judgement));
 
         setBounds(
             playfieldTarget,
@@ -1444,7 +1450,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     private void resizeCombo(ResizeEdges edges, Vector2 delta) =>
         resizeReadout(
-            comboReadout,
+            drawableFor(LayoutElementKind.Combo),
             edges,
             delta,
             () => settings.LayoutComboScaleX.Value,
@@ -1458,7 +1464,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     private void resizeJudgement(ResizeEdges edges, Vector2 delta) =>
         resizeReadout(
-            judgementReadout,
+            drawableFor(LayoutElementKind.Judgement),
             edges,
             delta,
             () => settings.LayoutJudgementScaleX.Value,

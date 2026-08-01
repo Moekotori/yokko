@@ -21,4 +21,23 @@ public class SongSelectTextLayoutTest
                 Assert.That(lines[^1], Does.EndWith("…"));
         });
     }
+
+    [Test]
+    public void SelectedDetailsUsesSecondLineBeforeTruncatingModerateTitle()
+    {
+        const string title =
+            "Harmonic Bloom: Symphony of the Dreaming Petals";
+
+        string[] lines = SongSelectScreen.LayoutDetailsTitle(title);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(lines, Has.Length.EqualTo(2));
+            Assert.That(string.Join(" ", lines), Is.EqualTo(title));
+            Assert.That(lines[0], Is.EqualTo(
+                "Harmonic Bloom: Symphony"));
+            Assert.That(lines[1], Is.EqualTo(
+                "of the Dreaming Petals"));
+        });
+    }
 }

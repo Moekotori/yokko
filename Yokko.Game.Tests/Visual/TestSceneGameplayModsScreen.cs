@@ -71,7 +71,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.ActiveCategory
             == ManiaModCategory.DifficultyReduction);
         AddAssert("both difficulty groups are visible", () =>
-            modsScreen.VisibleModCount == 15);
+            modsScreen.VisibleModCount == 16);
         AddStep("search by name", () =>
             modsScreen.SetSearchQuery("half time"));
         AddAssert("search narrows the catalogue", () =>
@@ -82,7 +82,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.HandleInteractionKey(Key.Escape));
         AddAssert("cleared search restores active category", () =>
             modsScreen.SearchQuery.Length == 0
-            && modsScreen.VisibleModCount == 15);
+            && modsScreen.VisibleModCount == 16);
         AddAssert("initial mods are preserved", () =>
             modsScreen.SelectedMods.Contains(ManiaModId.HalfTime)
             && modsScreen.SelectedMods.Contains(ManiaModId.Hidden));
@@ -323,14 +323,33 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     }
 
     [Test]
+    public void TestModBrowserUsesReadableCards()
+    {
+        OrbitModNode[] cards = null;
+        AddStep("show dense Mod category", () =>
+        {
+            modsScreen.ResetMods();
+            modsScreen.SetCategory(ManiaModCategory.DifficultyIncrease);
+            cards = this.ChildrenOfType<OrbitModNode>().ToArray();
+        });
+        AddAssert("every visible Mod uses card geometry", () =>
+            cards.Length == 6
+            && cards.All(card =>
+                card.Width == 390
+                && card.Height == 60));
+        AddAssert("cards form one predictable scan column", () =>
+            cards.All(card => card.X == 24)
+            && cards.Select(card => card.Y).Distinct().Count()
+               == cards.Length);
+    }
+
+    [Test]
     public void TestOrbitQuickInteractions()
     {
         OrbitEmptySlot emptySlot = null;
         OrbitRatePresetButton fastPreset = null;
         OrbitRateSlider rateSlider = null;
         bool activationObserved = false;
-        bool connectorActivationObserved = false;
-        bool connectorDeactivationObserved = false;
         ManiaModId focused = default;
         AddStep("prepare quick interaction controls", () =>
         {
@@ -344,47 +363,23 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         });
         AddAssert("rate slider has a forgiving pointer target", () =>
             rateSlider.Height == 44);
+        AddAssert("card browser does not use orbit connectors", () =>
+            !this.ChildrenOfType<OrbitConnector>().Any());
         AddStep("add focused mod from empty slot", () =>
         {
             emptySlot.ActivateForTest();
             activationObserved = this.ChildrenOfType<OrbitModNode>()
                 .Single(node => node.ModId == focused)
                 .ActivationTransitionRunning;
-            OrbitConnector[] connected =
-                this.ChildrenOfType<OrbitConnector>()
-                    .Where(connector =>
-                        connector.StartMod == focused
-                        || connector.EndMod == focused)
-                    .ToArray();
-            connectorActivationObserved = connected.Length > 0
-                && connected.All(connector =>
-                        connector.TransitionRunning
-                        && connector.TransitionOriginMod == focused
-                        && connector.TransitionIsActivation);
         });
         AddAssert("empty slot activates focused mod", () =>
             modsScreen.SelectedMods.Contains(focused));
         AddAssert("activation has a visible transition", () =>
             activationObserved);
-        AddAssert("activation travels through connected lines", () =>
-            connectorActivationObserved);
         AddStep("remove focused mod again", () =>
-        {
-            modsScreen.ToggleMod(focused);
-            OrbitConnector[] connected =
-                this.ChildrenOfType<OrbitConnector>()
-                    .Where(connector =>
-                        connector.StartMod == focused
-                        || connector.EndMod == focused)
-                    .ToArray();
-            connectorDeactivationObserved = connected.Length > 0
-                && connected.All(connector =>
-                        connector.TransitionRunning
-                        && connector.TransitionOriginMod == focused
-                        && !connector.TransitionIsActivation);
-        });
-        AddAssert("deactivation travels back through connected lines", () =>
-            connectorDeactivationObserved);
+            modsScreen.ToggleMod(focused));
+        AddAssert("card interaction removes focused mod", () =>
+            !modsScreen.SelectedMods.Contains(focused));
         AddStep("select 1.50x rate preset", () =>
             fastPreset.ActivateForTest());
         AddAssert("rate preset applies Double Time rate", () =>

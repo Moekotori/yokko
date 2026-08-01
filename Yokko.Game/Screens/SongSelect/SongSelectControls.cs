@@ -15,6 +15,7 @@ using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Core.Difficulty;
+using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
@@ -263,7 +264,13 @@ internal partial class SongSelectFilterButton : ClickableContainer
 internal partial class SongSelectBrowseToolButton : ClickableContainer
 {
     private readonly Box background;
+    private readonly Box activeRail;
     private readonly SpriteText valueText;
+    private readonly bool interactive;
+    private bool active;
+
+    internal bool Active => active;
+    internal bool Interactive => interactive;
 
     public SongSelectBrowseToolButton(
         string label,
@@ -271,25 +278,24 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
         float width,
         IconUsage icon,
         Action action,
-        float valueX = 86)
+        float valueX = 86,
+        bool interactive = true,
+        bool showChevron = true)
     {
-        Action = action;
+        this.interactive = interactive;
+        Action = interactive ? action : null;
         Size = new Vector2(width, 34);
         Masking = true;
         CornerRadius = 7;
         BorderThickness = 1;
-        BorderColour = new Color4(
-            SongSelectTheme.Cyan.R,
-            SongSelectTheme.Cyan.G,
-            SongSelectTheme.Cyan.B,
-            0.24f);
+        BorderColour = SongSelectSurface.Border(0.16f);
 
         InternalChildren =
         [
             background = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = SongSelectSurface.Ivory(0.98f),
+                Colour = SongSelectSurface.Ivory(0.96f),
             },
             new SpriteIcon
             {
@@ -332,26 +338,237 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                 Size = new Vector2(9),
                 Icon = FontAwesome.Solid.ChevronDown,
                 Colour = SongSelectTheme.Cyan,
+                Alpha = showChevron ? 1 : 0,
+            },
+            activeRail = new Box
+            {
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                X = 30,
+                Width = 42,
+                Height = 2,
+                Colour = SongSelectTheme.Pink,
+                Alpha = 0,
             },
         ];
     }
 
     public void SetValue(string value) => valueText.Text = value;
 
+    public void SetActive(bool value)
+    {
+        active = value;
+        background.Colour = active
+            ? new Color4(
+                SongSelectTheme.PaleCyan.R,
+                SongSelectTheme.PaleCyan.G,
+                SongSelectTheme.PaleCyan.B,
+                0.78f)
+            : SongSelectSurface.Ivory(0.96f);
+        activeRail.Alpha = active ? 1 : 0;
+    }
+
     protected override bool OnHover(HoverEvent e)
     {
+        if (!interactive)
+            return false;
+
         background.FadeColour(
-            SongSelectTheme.PaleCyan,
+            new Color4(
+                SongSelectTheme.PaleCyan.R,
+                SongSelectTheme.PaleCyan.G,
+                SongSelectTheme.PaleCyan.B,
+                0.72f),
             110,
             Easing.OutQuint);
         return true;
     }
 
-    protected override void OnHoverLost(HoverLostEvent e) =>
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        if (!interactive)
+            return;
+
         background.FadeColour(
-            SongSelectSurface.Ivory(0.98f),
+            active
+                ? new Color4(
+                    SongSelectTheme.PaleCyan.R,
+                    SongSelectTheme.PaleCyan.G,
+                    SongSelectTheme.PaleCyan.B,
+                    0.78f)
+                : SongSelectSurface.Ivory(0.96f),
             130,
             Easing.OutQuint);
+    }
+}
+
+internal partial class SongSelectNoResultsPanel : CompositeDrawable
+{
+    private readonly SpriteText title;
+    private readonly SpriteText summary;
+    private readonly ClickableContainer clearButton;
+
+    internal string Title => title.Text.ToString();
+    internal string Summary => summary.Text.ToString();
+    internal bool ClearButtonVisible => clearButton.Alpha > 0.5f;
+
+    public SongSelectNoResultsPanel(Action clearFilters)
+    {
+        Size = new Vector2(560, 206);
+        Alpha = 0;
+
+        InternalChildren =
+        [
+            new Box
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(460, 1),
+                Y = -73,
+                Colour = new Color4(
+                    SongSelectTheme.Cyan.R,
+                    SongSelectTheme.Cyan.G,
+                    SongSelectTheme.Cyan.B,
+                    0.32f),
+            },
+            new Container
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 8,
+                Size = new Vector2(46),
+                Masking = true,
+                CornerRadius = 12,
+                Children =
+                [
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(
+                            SongSelectTheme.Cyan.R,
+                            SongSelectTheme.Cyan.G,
+                            SongSelectTheme.Cyan.B,
+                            0.13f),
+                    },
+                    new SpriteIcon
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(18),
+                        Icon = FontAwesome.Solid.Search,
+                        Colour = SongSelectTheme.Cyan,
+                    },
+                ],
+            },
+            title = new SpriteText
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 67,
+                Font = HomeTypography.Display(18),
+                Colour = SongSelectTheme.Navy,
+            },
+            summary = new SpriteText
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 96,
+                Width = 510,
+                Truncate = true,
+                Font = HomeTypography.Body(11),
+                Colour = new Color4(
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.64f),
+            },
+            clearButton = new ClickableContainer
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 130,
+                Size = new Vector2(168, 40),
+                Masking = true,
+                CornerRadius = 9,
+                BorderThickness = 1.25f,
+                BorderColour = new Color4(
+                    SongSelectTheme.Cyan.R,
+                    SongSelectTheme.Cyan.G,
+                    SongSelectTheme.Cyan.B,
+                    0.58f),
+                Action = clearFilters,
+                Children =
+                [
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = SongSelectSurface.Ivory(0.94f),
+                    },
+                    new SpriteIcon
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        X = 17,
+                        Size = new Vector2(13),
+                        Icon = FontAwesome.Solid.UndoAlt,
+                        Colour = SongSelectTheme.Pink,
+                    },
+                    new SpriteText
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        X = 10,
+                        Text = "CLEAR FILTERS",
+                        Font = HomeTypography.Display(10),
+                        Colour = SongSelectTheme.Navy,
+                    },
+                ],
+            },
+        ];
+    }
+
+    internal void SetState(
+        bool empty,
+        bool hasLibraryEntries,
+        string query,
+        KeyMode? keyMode,
+        double minimumDifficulty,
+        string difficultyUnit,
+        bool showConverts)
+    {
+        if (!empty)
+        {
+            this.FadeOut(100, Easing.OutQuint);
+            return;
+        }
+
+        var filters = new List<string>();
+        string trimmedQuery = query?.Trim() ?? string.Empty;
+        if (trimmedQuery.Length > 0)
+        {
+            if (trimmedQuery.Length > 24)
+                trimmedQuery = $"{trimmedQuery[..23]}…";
+            filters.Add($"SEARCH “{trimmedQuery}”");
+        }
+        if (keyMode.HasValue)
+            filters.Add($"{(int)keyMode.Value}K");
+        if (minimumDifficulty > 0)
+            filters.Add($"{difficultyUnit} {minimumDifficulty:0.00}+");
+        if (!showConverts)
+            filters.Add("CONVERTS HIDDEN");
+
+        bool hasFilters = filters.Count > 0;
+        title.Text = hasLibraryEntries && hasFilters
+            ? "NO SONGS MATCH"
+            : "NO SONGS IN YOUR LIBRARY";
+        summary.Text = hasLibraryEntries && hasFilters
+            ? string.Join("  ·  ", filters)
+            : "IMPORT A BEATMAP TO START PLAYING";
+        clearButton.Alpha = hasLibraryEntries && hasFilters ? 1 : 0;
+
+        this.ClearTransforms();
+        this.FadeIn(140, Easing.OutQuint);
+    }
 }
 
 internal partial class LegacySongSelectSongRow : ClickableContainer

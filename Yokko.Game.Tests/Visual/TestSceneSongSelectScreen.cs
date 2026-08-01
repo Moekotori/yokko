@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
@@ -13,6 +14,7 @@ using Yokko.Core.Mods;
 using Yokko.Game.Importing;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
+using Yokko.Game.Screens.Settings;
 using Yokko.Game.Screens.SongSelect;
 using Yokko.Import;
 
@@ -44,6 +46,13 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddStep("start with empty library", () => importedChartLibrary.Clear());
         AddUntilStep("library is empty", () => songSelectScreen.VisibleEntryCount == 0);
         AddAssert("no built-in demo songs", () => songSelectScreen.VisibleEntryCount == 0);
+        AddAssert("empty library state does not offer a filter reset", () =>
+            songSelectScreen.NoResultsVisible
+            && songSelectScreen.NoResultsTitle
+                == "NO SONGS IN YOUR LIBRARY"
+            && songSelectScreen.NoResultsSummary
+                == "IMPORT A BEATMAP TO START PLAYING"
+            && !songSelectScreen.NoResultsResetVisible);
         AddStep("import test charts", () => importedChartLibrary.AddOrReplace(
             [
                 result("Imported Four", DemoBeatmaps.CreateFourKeyDemo()),
@@ -59,11 +68,86 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("ranking is above footer", () =>
             songSelectScreen.RankingFitsAboveFooter);
         AddAssert("ranking uses the available detail width", () =>
-            songSelectScreen.RankingPanelSize == new Vector2(850, 510));
+            songSelectScreen.RankingPanelSize == new Vector2(850, 448));
         AddAssert("ranking body uses its full height", () =>
-            songSelectScreen.RankingContentSize == new Vector2(850, 422));
+            songSelectScreen.RankingContentSize == new Vector2(850, 390));
+        AddAssert("ranking paper includes the header rail", () =>
+            songSelectScreen.RankingPaperPosition == Vector2.Zero
+            && songSelectScreen.RankingPaperSize == new Vector2(850, 434));
         AddAssert("search box leaves room for key filters", () =>
             songSelectScreen.SearchBoxSize == new Vector2(564, 48));
+        AddAssert("top navigation keeps the brand lockup proportional", () =>
+            Math.Abs(songSelectScreen.TopNavigationHeight - 72) < 0.01f
+            && songSelectScreen.TopNavigationLogoPosition
+               == new Vector2(24, 7)
+            && songSelectScreen.TopNavigationLogoSize
+               == new Vector2(168, 57)
+            && songSelectScreen.TopNavigationProfileSize
+               == new Vector2(172, 46));
+        AddAssert("browser starts below search, rating and browse controls", () =>
+            Math.Abs(songSelectScreen.SongBrowserTop - 220) < 0.01f);
+        AddAssert("difficulty filter defaults to all MSD charts", () =>
+            songSelectScreen.MinimumDifficultyFilter == 0
+            && songSelectScreen.DifficultyFilterUnit == "MSD RANGE");
+        AddAssert("browse controls use one compact row", () =>
+        {
+            SongSelectBrowseToolButton[] controls = songSelectScreen
+                                                    .ChildrenOfType<SongSelectBrowseToolButton>()
+                                                    .OrderBy(control => control.X)
+                                                    .ToArray();
+            return controls.Length == 4
+                   && controls.All(control =>
+                       Math.Abs(control.Height - 34) < 0.01f)
+                   && controls.All(control =>
+                       Math.Abs(control.BorderThickness - 1) < 0.01f
+                       && Math.Abs(control.CornerRadius - 7) < 0.01f)
+                   && controls.Select(control => control.X)
+                              .SequenceEqual([0, 184, 388, 614])
+                   && controls.Select(control => control.Width)
+                              .SequenceEqual([176, 196, 218, 236])
+                   && controls.Count(control => control.Interactive) == 3;
+        });
+        AddAssert("browse controls span one aligned rounded row", () =>
+            songSelectScreen.BrowseToolbarSize == new Vector2(850, 34));
+        AddAssert("selected details separate chart facts from performance", () =>
+            songSelectScreen.SelectedChartFactsPosition
+                == new Vector2(260, 169)
+            && songSelectScreen.SelectedChartFactsSize
+                == new Vector2(572, 34)
+            && songSelectScreen.SelectedPerformancePosition
+                == new Vector2(260, 213)
+            && songSelectScreen.SelectedPerformanceSize
+                == new Vector2(572, 35)
+            && SongSelectScreen.SelectedDetailsPanelSize
+                == new Vector2(850, 256)
+            && SongSelectScreen.SelectedArtworkSize
+                == new Vector2(220)
+            && Math.Abs(SongSelectScreen.RankingTop - 294) < 0.01f);
+        AddAssert("selected mods aligns with the ranking header", () =>
+            songSelectScreen.SelectedModsButtonPosition
+                == new Vector2(696, 294)
+            && songSelectScreen.SelectedModsButtonSize
+                == new Vector2(154, 40));
+        AddAssert("footer tools use three aligned standalone cards", () =>
+            songSelectScreen.FooterToolDockSize == new Vector2(560, 94)
+            && songSelectScreen.FooterToolShadowCount == 3
+            && songSelectScreen
+               .ChildrenOfType<SongSelectFooterToolButton>()
+               .All(button => button.Size == new Vector2(176, 82))
+            && songSelectScreen
+               .ChildrenOfType<SongSelectModsToggleButton>()
+               .Single().Size == new Vector2(176, 82));
+        AddAssert("large ui scale has collision-safe footer geometry", () =>
+            SongSelectScreen.FooterToolDockSizeFor(YokkoUiScale.Large)
+                == new Vector2(410, 94)
+            && SongSelectScreen.FooterToolButtonWidthFor(
+                YokkoUiScale.Large) == 126
+            && SongSelectScreen.FooterToolButtonStepFor(
+                YokkoUiScale.Large) == 134
+            && SongSelectScreen.FooterToolDockSizeFor(
+                YokkoUiScale.Comfortable) == new Vector2(560, 94)
+            && SongSelectScreen.FooterToolButtonWidthFor(
+                YokkoUiScale.Comfortable) == 176);
 
         AddStep("select next song", songSelectScreen.SelectNext);
         AddAssert("selection wraps", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");
@@ -77,21 +161,106 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
 
         AddStep("search no results", () => songSelectScreen.SetSearchQuery("not-a-real-song"));
         AddAssert("empty result is stable", () => songSelectScreen.VisibleEntryCount == 0);
-        AddAssert("first escape dismisses search", songSelectScreen.DismissSearch);
-        AddAssert("search query cleared", () => songSelectScreen.SearchQuery.Length == 0);
+        AddAssert("empty state explains active filters", () =>
+            songSelectScreen.NoResultsVisible
+            && songSelectScreen.NoResultsTitle == "NO SONGS MATCH"
+            && songSelectScreen.NoResultsSummary.Contains("not-a-real-song")
+            && songSelectScreen.NoResultsSummary.Contains("7K")
+            && songSelectScreen.NoResultsResetVisible);
+        AddStep("clear browse filters", songSelectScreen.ClearBrowseFilters);
+        AddAssert("clear restores the complete library", () =>
+            songSelectScreen.VisibleEntryCount == 2
+            && songSelectScreen.SearchQuery.Length == 0
+            && songSelectScreen.KeyModeFilter == null
+            && songSelectScreen.MinimumDifficultyFilter == 0
+            && songSelectScreen.ShowConverts
+            && !songSelectScreen.NoResultsVisible);
         AddAssert("empty search is not dismissed", () => !songSelectScreen.DismissSearch());
 
-        AddStep("restore all songs", () =>
-        {
-            songSelectScreen.SetKeyModeFilter(null);
-        });
-        AddAssert("all imports restored", () => songSelectScreen.VisibleEntryCount == 2);
-
         AddAssert("ranking shown by default", () => songSelectScreen.ScoreView == SongSelectScoreView.GlobalRanking);
+        int rankingTransitionVersion = 0;
+        AddStep("remember ranking transition", () =>
+            rankingTransitionVersion = songSelectScreen
+                .RankingContentTransitionVersion);
         AddStep("click ranking body", songSelectScreen.ActivateRankingPanel);
         AddAssert("personal record selected", () => songSelectScreen.ScoreView == SongSelectScoreView.Personal);
+        AddUntilStep("personal transition settles", () =>
+            songSelectScreen.RankingContentLayerCount == 1);
+        AddAssert("empty personal history stays on the paper", () =>
+            songSelectScreen.RankingEmptyStateVisible
+            && songSelectScreen.RankingContentTransitionVersion
+                == rankingTransitionVersion + 1);
         AddStep("click personal record body", songSelectScreen.ActivateRankingPanel);
         AddAssert("ranking restored", () => songSelectScreen.ScoreView == SongSelectScoreView.GlobalRanking);
+        AddUntilStep("global transition settles", () =>
+            songSelectScreen.RankingContentLayerCount == 1);
+        AddAssert("global ranking replaces the empty state", () =>
+            !songSelectScreen.RankingEmptyStateVisible
+            && songSelectScreen.RankingContentTransitionVersion
+                == rankingTransitionVersion + 2);
+    }
+
+    [Test]
+    public void TestFooterOptionsOpensSettings()
+    {
+        int listVersionBeforeSettings = 0;
+        AddStep("remember list before settings", () =>
+            listVersionBeforeSettings = songSelectScreen
+                .SongListRebuildVersion);
+        AddStep("open options from song select", () =>
+            songSelectScreen.OpenOptions());
+        AddUntilStep("settings is current", () =>
+            screenStack.CurrentScreen is SettingsScreen);
+        AddStep("return from settings", () =>
+            screenStack.CurrentScreen.Exit());
+        AddUntilStep("song select resumes", () =>
+            screenStack.CurrentScreen == songSelectScreen);
+        AddAssert("settings return refreshes list once", () =>
+            songSelectScreen.SongListRebuildVersion
+                == listVersionBeforeSettings + 1);
+    }
+
+    [Test]
+    public void TestConvertedBeatmapFilterIsFunctional()
+    {
+        YokkoBeatmap converted = DemoBeatmaps.CreateFourKeyDemo() with
+        {
+            SourceFormat = ChartSourceFormat.OsuStandard,
+            ConversionSource = new ManiaConversionSource(
+                4,
+                8,
+                9,
+                6,
+                []),
+        };
+
+        AddStep("import native and converted charts", () =>
+        {
+            importedChartLibrary.Clear();
+            importedChartLibrary.AddOrReplace(
+                [
+                    result(
+                        "Native Mania",
+                        DemoBeatmaps.CreateFourKeyDemo()),
+                    result("Converted Standard", converted),
+                ],
+                @"C:\Charts\mixed-pack.osz");
+        });
+        AddUntilStep("both chart types shown by default", () =>
+            songSelectScreen.VisibleEntryCount == 2
+            && songSelectScreen.ShowConverts);
+        AddStep("hide converted charts", () =>
+            songSelectScreen.ToggleConvertedBeatmaps());
+        AddUntilStep("only native chart remains", () =>
+            songSelectScreen.VisibleEntryCount == 1);
+        AddAssert("converted filter state is visible", () =>
+            !songSelectScreen.ShowConverts
+            && songSelectScreen.SelectedEntry.Beatmap.ConversionSource == null);
+        AddStep("show converted charts again", () =>
+            songSelectScreen.ToggleConvertedBeatmaps());
+        AddUntilStep("converted chart returns", () =>
+            songSelectScreen.VisibleEntryCount == 2
+            && songSelectScreen.ShowConverts);
     }
 
     [Test]
@@ -138,6 +307,63 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddStep("restore difficulty display mode", () =>
             displaySettings.DifficultyRatingMode.Value =
                 originalMode);
+    }
+
+    [Test]
+    public void TestDifficultyMinimumFilterIsFunctionalAndModeSpecific()
+    {
+        ManiaDifficultyRatingMode originalMode =
+            ManiaDifficultyRatingMode.EtternaMsd;
+
+        AddStep("load charts for difficulty filtering", () =>
+        {
+            originalMode = displaySettings.DifficultyRatingMode.Value;
+            displaySettings.DifficultyRatingMode.Value =
+                ManiaDifficultyRatingMode.EtternaMsd;
+            songSelectScreen.SetMinimumDifficultyFilter(0);
+            importedChartLibrary.Clear();
+            importedChartLibrary.AddOrReplace(
+                [
+                    result("Filter Four", DemoBeatmaps.CreateFourKeyDemo()),
+                    result("Filter Seven", DemoBeatmaps.CreateSevenKeyDemo()),
+                ],
+                @"C:\Charts\difficulty-filter.osz");
+        });
+        AddUntilStep("all charts start visible", () =>
+            songSelectScreen.VisibleEntryCount == 2);
+        AddStep("raise MSD minimum", () =>
+            songSelectScreen.SetMinimumDifficultyFilter(30));
+        AddUntilStep("easy charts are filtered", () =>
+            songSelectScreen.VisibleEntryCount == 0
+            && songSelectScreen.MinimumDifficultyFilter == 30);
+        AddStep("switch to star rating", () =>
+            displaySettings.DifficultyRatingMode.Value =
+                ManiaDifficultyRatingMode.RebirthStars);
+        AddUntilStep("star rating keeps its own all value", () =>
+            songSelectScreen.VisibleEntryCount == 2
+            && songSelectScreen.MinimumDifficultyFilter == 0
+            && songSelectScreen.DifficultyFilterUnit == "STAR RANGE");
+        AddStep("raise star minimum", () =>
+            songSelectScreen.SetMinimumDifficultyFilter(10));
+        AddUntilStep("star threshold filters charts", () =>
+            songSelectScreen.VisibleEntryCount == 0
+            && songSelectScreen.MinimumDifficultyFilter == 10);
+        AddStep("switch back to MSD", () =>
+            displaySettings.DifficultyRatingMode.Value =
+                ManiaDifficultyRatingMode.EtternaMsd);
+        AddUntilStep("MSD threshold is remembered", () =>
+            songSelectScreen.VisibleEntryCount == 0
+            && songSelectScreen.MinimumDifficultyFilter == 30);
+        AddStep("reset both thresholds and mode", () =>
+        {
+            songSelectScreen.SetMinimumDifficultyFilter(0);
+            displaySettings.DifficultyRatingMode.Value =
+                ManiaDifficultyRatingMode.RebirthStars;
+            songSelectScreen.SetMinimumDifficultyFilter(0);
+            displaySettings.DifficultyRatingMode.Value = originalMode;
+        });
+        AddUntilStep("filter reset restores charts", () =>
+            songSelectScreen.VisibleEntryCount == 2);
     }
 
     [Test]
@@ -229,6 +455,89 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     }
 
     [Test]
+    public void TestFocusedPackageExpansionFollowsKeyboardSelection()
+    {
+        const string firstPackage = @"C:\Charts\focus-one.osz";
+        const string secondPackage = @"C:\Charts\focus-two.osz";
+
+        AddStep("import two multi-chart packages", () =>
+        {
+            importedChartLibrary.Clear();
+            importedChartLibrary.AddOrReplace(
+            [
+                result(
+                    "Focus One Easy",
+                    DemoBeatmaps.CreateSevenKeyDemo() with
+                    {
+                        DifficultyName = "Easy",
+                    }),
+                result(
+                    "Focus One Hard",
+                    DemoBeatmaps.CreateSevenKeyDemo() with
+                    {
+                        DifficultyName = "Hard",
+                    }),
+            ], firstPackage);
+            importedChartLibrary.AddOrReplace(
+            [
+                result(
+                    "Focus Two Easy",
+                    DemoBeatmaps.CreateSevenKeyDemo() with
+                    {
+                        DifficultyName = "Easy",
+                    }),
+                result(
+                    "Focus Two Hard",
+                    DemoBeatmaps.CreateSevenKeyDemo() with
+                    {
+                        DifficultyName = "Hard",
+                    }),
+            ], secondPackage);
+        });
+        AddUntilStep("newest package is focused", () =>
+            songSelectScreen.VisibleEntryCount == 4
+            && songSelectScreen.SelectedEntry?.PackageId == secondPackage
+            && songSelectScreen.UsesFocusedPackageExpansion);
+        AddAssert("only focused package charts are materialised", () =>
+            songSelectScreen.IsPackageCollapsed(firstPackage)
+            && !songSelectScreen.IsPackageCollapsed(secondPackage)
+            && songSelectScreen.IndexedSongListItemCount == 4
+            && songSelectScreen.NavigableEntryCount == 4);
+        AddUntilStep("collapsed neighbour uses compact package chrome", () =>
+        {
+            SongSelectPackageHeader[] headers = songSelectScreen
+                .ChildrenOfType<SongSelectPackageHeader>()
+                .ToArray();
+            return headers.Count(header => header.IsExpanded) == 1
+                   && headers.Count(header => !header.IsExpanded) == 1
+                   && Math.Abs(headers.Single(header => header.IsExpanded).Height
+                               - SongSelectPackageHeader.ExpandedHeight) < 0.05f
+                   && Math.Abs(headers.Single(header => !header.IsExpanded).Height
+                               - SongSelectPackageHeader.CollapsedHeight) < 0.05f;
+        });
+        AddStep("wrap selection into first package", () =>
+            songSelectScreen.SelectNext());
+        AddUntilStep("focus follows keyboard selection", () =>
+            songSelectScreen.SelectedEntry?.PackageId == firstPackage
+            && !songSelectScreen.IsPackageCollapsed(firstPackage)
+            && songSelectScreen.IsPackageCollapsed(secondPackage)
+            && songSelectScreen.IndexedSongListItemCount == 4
+            && songSelectScreen.NavigableEntryCount == 4);
+        AddUntilStep("compact and expanded heights transfer with focus", () =>
+        {
+            SongSelectPackageHeader[] headers = songSelectScreen
+                .ChildrenOfType<SongSelectPackageHeader>()
+                .ToArray();
+            return headers.Count(header => header.IsExpanded) == 1
+                   && headers.Count(header => !header.IsExpanded) == 1
+                   && Math.Abs(headers.Single(header => header.IsExpanded).Height
+                               - SongSelectPackageHeader.ExpandedHeight) < 0.05f
+                   && Math.Abs(headers.Single(header => !header.IsExpanded).Height
+                               - SongSelectPackageHeader.CollapsedHeight) < 0.05f;
+        });
+    }
+
+    [Test]
     public void TestPlayPushesGameplay()
     {
         AddStep("start with empty library", () => importedChartLibrary.Clear());
@@ -237,9 +546,26 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             result("Playable Import", DemoBeatmaps.CreateFourKeyDemo()),
             @"C:\Charts\playable.osu"));
         AddUntilStep("playable import selected", () => songSelectScreen.SelectedEntry?.Beatmap.Title == "Playable Import");
+        AddAssert("selected mods button reflects restored state", () =>
+            songSelectScreen.SelectedModsButtonCount
+                == songSelectScreen.SelectedMods.Mods.Count
+            && (songSelectScreen.SelectedMods.Mods.Count > 0
+                || songSelectScreen.SelectedModsButtonSummary == "NONE"));
         AddAssert("mod panel starts closed", () =>
             !songSelectScreen.IsModPanelOpen);
-        AddStep("open mod panel", songSelectScreen.ToggleModPanel);
+        int listVersionBeforeMods = 0;
+        int detailsVersionBeforeMods = 0;
+        SongSelectEntry selectionBeforeMods = null;
+        AddStep("remember song select state before mods", () =>
+        {
+            listVersionBeforeMods = songSelectScreen
+                .SongListRebuildVersion;
+            detailsVersionBeforeMods = songSelectScreen
+                .DetailsTransitionVersion;
+            selectionBeforeMods = songSelectScreen.SelectedEntry;
+        });
+        AddStep("open mod panel from selected mods", () =>
+            songSelectScreen.ActivateSelectedModsButton());
         AddAssert("mod panel opened", () =>
             songSelectScreen.IsModPanelOpen);
         AddAssert("dedicated mods screen opened", () =>
@@ -253,6 +579,14 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             screenStack.CurrentScreen == songSelectScreen);
         AddAssert("mod panel closed", () =>
             !songSelectScreen.IsModPanelOpen);
+        AddAssert("unchanged mods return preserves song select", () =>
+            songSelectScreen.SongListRebuildVersion
+                == listVersionBeforeMods
+            && songSelectScreen.DetailsTransitionVersion
+                == detailsVersionBeforeMods
+            && ReferenceEquals(
+                selectionBeforeMods,
+                songSelectScreen.SelectedEntry));
         AddStep("enable Muted", () =>
             songSelectScreen.ToggleMod(ManiaModId.Muted));
         AddStep("configure inverse Muted", () =>
@@ -268,6 +602,10 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && !songSelectScreen.SelectedMods.MutedMetronome
             && !songSelectScreen.SelectedMods.MutedAffectsHitSounds
             && songSelectScreen.MutedSettings.ComboCount == 125);
+        AddAssert("selected mods button reflects active mod", () =>
+            songSelectScreen.SelectedModsButtonCount
+                == songSelectScreen.SelectedMods.Mods.Count
+            && songSelectScreen.SelectedModsButtonSummary.Contains("MU"));
         AddStep("enable Invert", () =>
             songSelectScreen.ToggleMod(ManiaModId.Invert));
         AddAssert("Invert selected", () =>

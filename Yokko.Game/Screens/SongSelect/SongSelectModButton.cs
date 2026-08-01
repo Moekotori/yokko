@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -92,9 +93,8 @@ internal partial class SongSelectModButton : ClickableContainer
 
 internal partial class SongSelectModsToggleButton : ClickableContainer
 {
-    private readonly Container card;
     private readonly Box background;
-    private readonly Box topAccent;
+    private readonly Box bottomAccent;
     private readonly SpriteIcon icon;
     private readonly Circle badge;
     private readonly SpriteText countLabel;
@@ -105,78 +105,31 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
         Texture diamondTexture)
     {
         Action = action;
-        Size = new Vector2(126, 96);
+        Size = new Vector2(176, 82);
+        Masking = true;
+        CornerRadius = 10;
+        BorderThickness = 1.25f;
 
         InternalChildren = new Drawable[]
         {
-            new Container
+            background = new Box
             {
-                Position = new Vector2(10.5f, 10.5f),
-                Size = new Vector2(106, 72),
-                Masking = true,
-                CornerRadius = 8,
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(
-                        HomeControlColours.Navy.R,
-                        HomeControlColours.Navy.G,
-                        HomeControlColours.Navy.B,
-                        0.18f),
-                },
+                RelativeSizeAxes = Axes.Both,
+                Colour = SongSelectSurface.Ivory(0.99f),
             },
-            card = new Container
+            icon = new SpriteIcon
             {
-                Position = new Vector2(8.5f, 7.5f),
-                Size = new Vector2(106, 72),
-                Masking = true,
-                CornerRadius = 8,
-                BorderThickness = 1.5f,
-                BorderColour = HomeControlColours.Navy,
-                Children = new Drawable[]
-                {
-                    background = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = Color4.White,
-                    },
-                    new Container
-                    {
-                        Position = new Vector2(7),
-                        Size = new Vector2(92, 58),
-                        Masking = true,
-                        CornerRadius = 5,
-                        Child = new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Colour = HomeControlColours.PaleCyan,
-                        },
-                    },
-                    icon = new SpriteIcon
-                    {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        Size = new Vector2(30),
-                        Icon = FontAwesome.Solid.SlidersH,
-                        Colour = HomeControlColours.Navy,
-                    },
-                    topAccent = new Box
-                    {
-                        Anchor = Anchor.BottomLeft,
-                        Origin = Anchor.BottomLeft,
-                        X = 10,
-                        Width = 42,
-                        Height = 3,
-                        Colour = HomeControlColours.Pink,
-                    },
-                },
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 14,
+                Size = new Vector2(27),
+                Icon = FontAwesome.Solid.SlidersH,
+                Colour = HomeControlColours.Navy,
             },
             new Sprite
             {
-                Anchor = Anchor.TopCentre,
-                Origin = Anchor.Centre,
-                Position = new Vector2(0, 2),
-                Size = new Vector2(27),
+                Position = new Vector2(8, 5),
+                Size = new Vector2(22),
                 Texture = diamondTexture,
                 FillMode = FillMode.Fit,
             },
@@ -198,13 +151,22 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
             },
             new SpriteText
             {
-                Anchor = Anchor.TopCentre,
-                Origin = Anchor.TopCentre,
-                Y = 80,
+                Anchor = Anchor.BottomCentre,
+                Origin = Anchor.BottomCentre,
+                Y = -11,
                 Text = "MODS",
                 Font = HomeTypography.Display(11),
-                Spacing = new Vector2(1.4f, 0),
+                Spacing = new Vector2(1.2f, 0),
                 Colour = SongSelectTheme.Navy,
+            },
+            bottomAccent = new Box
+            {
+                Anchor = Anchor.BottomCentre,
+                Origin = Anchor.BottomCentre,
+                Y = -4,
+                Width = 36,
+                Height = 3,
+                Colour = HomeControlColours.Pink,
             },
         };
 
@@ -235,18 +197,26 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
         icon.Colour = open
             ? HomeControlColours.Pink
             : HomeControlColours.Navy;
-        card.BorderColour = open
+        BorderColour = open
             ? HomeControlColours.Yellow
-            : HomeControlColours.Navy;
-        topAccent.Colour = open
+            : new Color4(
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.24f);
+        bottomAccent.Colour = open
             ? HomeControlColours.Yellow
             : HomeControlColours.Pink;
     }
 
     protected override bool OnHover(HoverEvent e)
     {
-        this.ScaleTo(1.045f, 110, Easing.OutQuint);
-        card.BorderColour = HomeControlColours.Yellow;
+        background.FadeColour(
+            HomeControlColours.PaleCyan,
+            110,
+            Easing.OutQuint);
+        this.ScaleTo(1.025f, 110, Easing.OutQuint);
+        BorderColour = HomeControlColours.Yellow;
         return true;
     }
 
@@ -254,5 +224,137 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
     {
         this.ScaleTo(1, 130, Easing.OutQuint);
         SetOpen(open);
+    }
+}
+
+internal partial class SongSelectSelectedModsButton : ClickableContainer
+{
+    private readonly Box background;
+    private readonly Box accentRail;
+    private readonly Circle countBadge;
+    private readonly SpriteText countText;
+    private readonly SpriteText summaryText;
+    private int count;
+
+    internal int ActiveModCount => count;
+    internal string Summary => summaryText.Text.ToString();
+
+    internal SongSelectSelectedModsButton(
+        Action action,
+        ManiaModSet mods)
+    {
+        Action = action;
+        Size = new Vector2(154, 40);
+        Masking = true;
+        CornerRadius = 7;
+        BorderThickness = 1;
+
+        InternalChildren =
+        [
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = SongSelectSurface.Ivory(0.98f),
+            },
+            accentRail = new Box
+            {
+                Anchor = Anchor.BottomCentre,
+                Origin = Anchor.BottomCentre,
+                RelativeSizeAxes = Axes.X,
+                Height = 3,
+                Colour = SongSelectTheme.Cyan,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 11,
+                Size = new Vector2(12),
+                Icon = FontAwesome.Solid.SlidersH,
+                Colour = SongSelectTheme.Cyan,
+            },
+            new SpriteText
+            {
+                Position = new Vector2(29, 6),
+                Text = "SELECTED MODS",
+                Font = HomeTypography.Display(8),
+                Colour = new Color4(
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.62f),
+            },
+            summaryText = new SpriteText
+            {
+                Position = new Vector2(29, 21),
+                Width = 91,
+                Truncate = true,
+                Font = HomeTypography.Display(9),
+                Colour = SongSelectTheme.Navy,
+            },
+            countBadge = new Circle
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -9,
+                Size = new Vector2(18),
+                BorderThickness = 1,
+                BorderColour = SongSelectTheme.Navy,
+            },
+            countText = new SpriteText
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.Centre,
+                Position = new Vector2(-18, 0),
+                Font = HomeTypography.Display(8),
+            },
+        ];
+
+        SetState(mods);
+    }
+
+    internal void SetState(ManiaModSet mods)
+    {
+        count = mods?.Mods.Count ?? 0;
+        summaryText.Text = count == 0
+            ? "NONE"
+            : string.Join(" · ", mods.DisplayLabels.Take(3));
+        summaryText.Colour = count == 0
+            ? SongSelectTheme.Navy
+            : SongSelectTheme.Pink;
+        countText.Text = count.ToString();
+        countBadge.Colour = count == 0
+            ? SongSelectTheme.PaleCyan
+            : SongSelectTheme.Pink;
+        countText.Colour = count == 0
+            ? SongSelectTheme.Navy
+            : SongSelectTheme.Ivory;
+        accentRail.Colour = count == 0
+            ? SongSelectTheme.Cyan
+            : SongSelectTheme.Pink;
+        BorderColour = new Color4(
+            SongSelectTheme.Navy.R,
+            SongSelectTheme.Navy.G,
+            SongSelectTheme.Navy.B,
+            0.24f);
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(
+            SongSelectTheme.PaleCyan,
+            100,
+            Easing.OutQuint);
+        this.ScaleTo(1.02f, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        background.FadeColour(
+            SongSelectSurface.Ivory(0.98f),
+            120,
+            Easing.OutQuint);
+        this.ScaleTo(1, 120, Easing.OutQuint);
     }
 }

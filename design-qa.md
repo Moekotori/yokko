@@ -85,6 +85,100 @@
 
 final result: passed
 
+# Song Select standalone footer tools QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1672 x 941, normalized to 1920 x 1080 for comparison).
+- Same-state baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-large-covers-v1.png` (1920 x 1080, native Direct3D 11).
+- Revised implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-footer-standalone-v1.png` (1920 x 1080, native Direct3D 11).
+- Full before/after comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-footer-standalone-before-after-v1.png`.
+- Full source/implementation comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-footer-standalone-reference-v1.png`.
+- Focused source/before/after footer comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-footer-standalone-focused-v1.png`.
+- Viewport and density: implementation and baseline are native 1920 x 1080 captures of the shared 1920 x 1080 stage at 1x. The selected 16:9 source was resized once to the same pixel dimensions before the full and focused comparisons.
+- State: English UI, Comfortable scale, 7K filter, one selected expanded package, three resting footer tools.
+
+## Comparison history
+
+1. Baseline P2: `MODS`, `RANDOM`, and `OPTIONS` were individually rounded but also sat inside a 560 x 94 pale-cyan rounded panel with its own border and shadow. This duplicated the surface hierarchy and repeated the same extra-wrapper problem already removed from the right browser.
+2. Implemented: the shared visible panel and shadow were removed. The three controls retain their responsive group container only for layout and now each receives a quiet 14% navy shadow matching the standalone Back, account, and Play cards.
+3. The profile status no longer relies on a bullet text glyph. It uses the existing Font Awesome circle icon plus separate `ONLINE` copy, avoiding replacement-glyph risk without adding an asset or decorative cutout.
+4. Post-fix evidence: the focused three-row board shows three discrete controls with clean gaps and consistent baselines. The full source/implementation board confirms that the footer now follows the reference's sequence of independently framed Back, profile, tools, and Play surfaces.
+
+## Required fidelity review
+
+- Fonts and typography: existing Yokko display typography, button labels, account metrics, and Play hierarchy are unchanged. Separating the status icon from `ONLINE` preserves its size and baseline while removing glyph dependency.
+- Spacing and layout rhythm: all three tool targets remain 176 x 82 at Comfortable scale and 126 x 82 at Large scale. Existing 8 px gaps and the 560 x 94 responsive layout allocation remain stable; only the visible enclosing card was removed.
+- Colours and visual tokens: the redundant pale-cyan group fill and cyan border are gone. Ivory controls, navy borders, cyan/pink accents, and yellow Play remain aligned with the selected reference and Yokko's existing home palette.
+- Image quality and asset fidelity: no bitmap, screenshot slice, generated decoration, resource-library cutout, or new asset was introduced. The existing small diamond and tape decorations remain untouched.
+- Copy and content: `MODS`, `RANDOM`, `OPTIONS`, `BACK`, `PLAY`, account values, and action behavior are unchanged. `ONLINE` remains the same semantic copy.
+- Icons and affordances: each action keeps its existing Font Awesome icon and text label. The online indicator now also uses Font Awesome rather than a text symbol.
+- Interaction and responsiveness: Mods still opens the gameplay-Mod flow, Random still changes selection, Options still opens Settings, and each remains independently hoverable. The Large/Comfortable width switch is covered by the existing geometry regression.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after removing the shared visible wrapper and restoring per-button elevation.
+- P3: the implementation account card is wider than the selected concept because it exposes three live account metrics and level progress. This is an intentional content-preserving deviation and does not reintroduce a nested surface.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build in `artifacts/song-select-footer-standalone`: 0 warnings and 0 errors.
+- Focused `TestSceneSongSelectScreen`: 11 passed, 0 failed, 0 skipped, including the real Options destination and the three-standalone-card geometry assertion.
+- Native Direct3D 11 capture exited normally at 1920 x 1080.
+- The selected reference and implementation were opened together in the full comparison; the source/before/after footer crop was also opened at original detail.
+- `git diff --check` passed after implementation.
+
+final result: passed
+
+## Song Select browse tools and top navigation QA (2026-08-01)
+
+### Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` at 1672 x 941.
+- Same-state baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-row-hierarchy-v2.png` at 1920 x 1080.
+- Browse-tool implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-toolbar-cards-v1.png` at 1920 x 1080.
+- Revised top-navigation implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-top-nav-v1.png` at 1920 x 1080.
+- Focused toolbar source comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-toolbar-cards-reference-focused-v1.png`.
+- Focused toolbar before/after: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-toolbar-cards-focused-before-after-v1.png`.
+- Focused top-navigation source comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-top-nav-reference-focused-v1.png`.
+- Focused top-navigation before/after: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-top-nav-focused-before-after-v1.png`.
+
+### Comparison history
+
+1. Toolbar baseline: Sort, Group, Library, and Converts were drawn as one uninterrupted segmented strip. The Converts state became a large cyan block, separators competed with labels, and `CONVERTS`/`SHOWN` visually collided.
+2. Toolbar revision: four independent 34 px cards use 7 px radii, one-pixel neutral borders, 8 px gaps, consistent icon/label/value alignment, and a restrained active wash. The range marker and rainbow rail were reduced so the filter hierarchy starts at search rather than at the colour bar.
+3. Top-navigation baseline: the 2149 x 731 brand texture was placed in a 152 x 39 slot, visibly flattening the lockup and making its subtitle unreadable. Icons had no group rhythm, and the username/avatar/bell floated as unrelated elements.
+4. Top-navigation revision: the brand uses a proportional 168 x 57 slot; the bar is 72 px high; primary and system icons use consistent 48 px slots with quiet separators; the selected music item receives one yellow disc and a small pink indicator; and account state is consolidated into a rounded 172 x 46 profile capsule with a separate notification button.
+
+### Required fidelity review
+
+- Fonts and typography: the existing Yokko logo texture is shown at its native aspect ratio rather than recreated or distorted. Dynamic toolbar values keep their existing type family and weights.
+- Spacing and layout rhythm: header, search, difficulty range, browse controls, and song browser now step through 10, 10, 8, and 6 px vertical gaps. Navigation icons retain even slots and explicit group separators.
+- Colours and visual tokens: navy, ivory, cyan, yellow, and pink remain the only emphasis colours. No sci-fi glow, oversized glass panel, or dark HUD treatment was introduced.
+- Image quality and asset fidelity: no new cutout or large bitmap panel was added. The existing logo and avatar source remain the only image assets in the top bar.
+- Copy and content: Sort, Group, Library, Converts, filter values, username, and all dynamic states remain unchanged.
+- Icons and affordances: existing Font Awesome icons remain recognizable; selection is redundant through both disc and underline; the notification dot is kept small.
+- States and interactions: Sort, Group, and Converts remain interactive; search, key filters, difficulty filtering, and keyboard navigation are unchanged and covered by the focused screen suite.
+- Accessibility and viewport resilience: the 72 px header and 46 px account target improve legibility at the 1920 x 1080 baseline without reducing browser space or colliding with the search row.
+
+### Findings
+
+- P0: none.
+- P1: none.
+- P2: none after restoring the logo aspect ratio, grouping navigation, separating toolbar cards, and correcting Converts value spacing.
+- P3: several top-navigation icons remain visual-only because their destinations are outside this Song Select implementation pass; this matches the existing behaviour and does not block the song-selection journey.
+
+### Verification
+
+- Isolated `Yokko.Game.Tests` build in `artifacts/song-select-top-nav`: 0 warnings and 0 errors.
+- Focused Song Select screen run: 11 passed, 0 failed, 0 skipped.
+- Native Direct3D 11 captures completed at 1920 x 1080. Full and focused source comparisons plus same-state before/after boards were opened and inspected at original detail.
+- `git diff --check` passed.
+
+final result: passed
+
 # Gameplay layout editor blocker visibility and 1080p readability QA (2026-07-31)
 
 ## Evidence
@@ -126,6 +220,86 @@ final result: passed
 - Focused `TestGameplayLayoutEditorPausesAndShowsFullPagePreview`: 1 passed, 0 failed, including blocker add, resize, independent removal, and editor interaction paths.
 - Native Direct3D 11 preview captured at 1920 x 1080 and inspected in full-view and focused same-input comparisons.
 - `git diff --check` passed for the four edited gameplay layout editor files.
+
+final result: passed
+
+# Song Select left information hierarchy QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` at 1672 x 941.
+- Previous implementation baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-action-rail-final-v1.png` at 1920 x 1080.
+- Revised Direct3D 11 implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-left-rounded-v2.png` at 1920 x 1080.
+- Source and implementation comparison board: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-left-reference-comparison-v2.png`.
+- Viewport/state: 1920 x 1080, Comfortable density, 7K filter, one focused package, and one selected chart.
+
+## Comparison history
+
+1. Baseline P2: the left column used two unrelated irregular paper textures, an oversized rotated cover, two tape motifs, and low-density micro-stat rows. These layers competed with the ranking data and made the left column look less resolved than the browser.
+2. Implemented: the song summary and ranking now use the same 14 px code-drawn rounded surface, restrained 1 px borders, and 2 px low-opacity shadows. The cover is square and unrotated; chart mode and difficulty value share the top metadata axis; facts and personal performance are separated into one compact information rail.
+3. Post-fix evidence: the revised capture shows aligned 850 px surfaces, stable 18/22 px internal spacing, no large decorative cutout, and a ranking table that ends immediately after the seventh row. The existing verified mascot is repositioned into the intentional lower-left breathing room as the only large character element.
+
+## Required fidelity review
+
+- Fonts and typography: existing Yokko display/body families remain. The title keeps balanced two-line layout; artist, mapper, chart facts, and performance now form one clear descending hierarchy.
+- Spacing and layout rhythm: the selected card is reduced from 255 px to 240 px; ranking begins 20 px earlier and reduces from 510 px to 448 px. Both panels share the same width, radius, border, and shadow geometry.
+- Colours and visual tokens: only existing navy, ivory, cyan, yellow, and pink tokens are used. Large paper textures were removed; surface opacity keeps the wallpaper present without reducing text contrast.
+- Image quality and asset fidelity: album art keeps the existing aspect-fill crop and is rendered at 204 x 204 without rotation or stretching. No new generated asset, large resource-library cutout, screenshot slice, or approximate code art was introduced.
+- Copy and content: title, artist, mapper, chart mode, rating, length, BPM, notes, score, accuracy, rate, ranking, mods, and play count remain dynamic.
+- Icons: existing FontAwesome icons remain small semantic markers; none are used as decorative illustrations.
+- States and interactions: selection transitions, ranking/history toggle, selected-mods entry point, filtering, focused-package expansion, keyboard navigation, and preview continuity are unchanged.
+- Accessibility and viewport resilience: text maintains the existing navy-on-ivory contrast; long titles still balance to two lines and all ranking rows retain their pointer height.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after removing the large paper assets and unifying the left-side surface system.
+- P3: the selected reference uses a more open canvas behind the song summary. Yokko intentionally retains a restrained rounded container here because the active wallpaper can be much brighter than the reference and the user explicitly requested refined rounded surfaces.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build in `artifacts/song-select-left-layout`: 0 warnings and 0 errors.
+- Focused Song Select run: 30 passed, 0 failed, 0 skipped, covering the screen layout, ranking toggle, title layout, square artwork cropping, focused package behaviour, virtualisation, and selection state.
+- The 1920 x 1080 Direct3D 11 capture and the combined source/implementation board were both opened and inspected at original detail.
+
+final result: passed
+
+---
+
+# Song Select difficulty-range filter QA (2026-08-01)
+
+## Evidence
+
+- Selected Product Design reference: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png`.
+- Default native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-difficulty-filter-first-pass.png` (1920 x 1080, Direct3D 11).
+- Active 5.00+ filter state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-difficulty-filter-active.png` (1920 x 1080, Direct3D 11).
+- Full reference/implementation comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-difficulty-filter-reference-comparison.png` (reference left, implementation right).
+- Focused controls comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-difficulty-filter-focused-comparison.png` (reference top, implementation bottom).
+
+## Required fidelity review
+
+- Structure and hierarchy: the implementation now has the reference's missing search -> difficulty range -> browse controls sequence. The key-mode buttons remain alongside search and Converts remains in the browse row because both are real Yokko filters, but the information order matches the selected target.
+- Typography and spacing: the new 32 px range row uses the existing 8/10 px compact browse-control typography, 7 px radius, and 8 px vertical rhythm. Search, range, toolbar, and browser do not overlap at the 1920 x 1080 shared baseline.
+- Colours and surfaces: the row reuses Yokko ivory, navy, cyan, yellow, and pink tokens. The multicolour scale is a quiet four-pixel guide rather than a luminous or sci-fi treatment.
+- Interaction: clicking or dragging changes a real minimum threshold. Zero shows `ALL`; an active threshold shows a `+` suffix. Entries below the threshold disappear, package chart counts update, and an excluded selection falls back through the existing selection path.
+- Rating semantics: MSD uses a 0-30 range in 0.25 increments; Rebirth Stars uses a 0-10 range in 0.1 increments. Each rating mode retains its own threshold so values never cross incompatible units.
+- Assets: no new bitmap, generated image, cutout, sprite crop, or resource dependency was introduced. The control uses only existing font icons and simple UI geometry.
+- Responsive behaviour: the song browser begins at y=220 and still terminates above the 130 px footer. The right column remains 850 px wide and aligned with the search and toolbar.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after the first native comparison. The active-state capture confirms the threshold marker, value chip, list filtering, package count updates, and selected-row retention are visually coherent.
+- Remaining scope outside this pass: the selected reference places Converts beside the range and exposes Collection rather than Yokko's current Library display. These are broader browse-model choices, not visual defects in the implemented range filter.
+
+## Verification
+
+- Isolated `Yokko.Game` build: passed with 0 warnings and 0 errors.
+- `TestSceneSongSelectScreen`: 10 passed, 0 failed, including the new MSD/STAR mode-specific threshold regression.
+- Native Direct3D 11 captures verified default and active filter states at 1920 x 1080.
+- Full and focused reference/implementation comparisons were opened and inspected together.
 
 final result: passed
 
@@ -3048,8 +3222,6 @@ final result: passed
 
 final result: passed
 
----
-
 # Gameplay pause detail enhancement QA (2026-07-31)
 
 ## Evidence
@@ -3150,5 +3322,1946 @@ final result: passed
 - Native Direct3D 11 preview captured and inspected at 1920 x 1080.
 - Focused user-report/implementation and full reference/implementation comparisons were opened and inspected.
 - `git diff --check`: passed.
+
+final result: passed
+
+---
+
+# Song Select package hierarchy polish QA (2026-07-31)
+
+## Evidence
+
+- Previous native state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\yokko-song-select-cover-polish-final.png` (1920 x 1080).
+- Revised native Direct3D 11 state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\yokko-song-select-grouping-pass.png` (1920 x 1080).
+- Full before/after comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-grouping-before-after.png`.
+- Focused list comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-grouping-focused-before-after.png`.
+- State: English UI, 7K filter, two expanded packages, one collapsed package, and `Marathon x1.3` selected.
+
+## Required fidelity review
+
+- Group hierarchy: packaged chart rows are inset 14 px from their package header while retaining a common right edge, making parent and child scopes readable without narrowing titles excessively.
+- Continuity: a two-pixel difficulty-coloured guide rail and short branch connect each expanded child row to the package above.
+- Selection feedback: the selected chart places a pink play pointer on the guide rail, separate from the low-emphasis MSD metadata and the yellow selected surface.
+- Density: compact-row shadow opacity and offset are reduced, preventing expanded groups from reading as a stack of heavy floating cards.
+- Pooling behavior: every bind restores the row's resting X position, and hover/selection transforms return to that position so pooled compact and standalone rows cannot inherit stale indentation.
+- Assets: no new raster assets were added or extracted for this pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after the hierarchy pass; long titles and right-side mode pills remain fully inside the 850 px list width.
+- P3: the hierarchy is intentionally subtle at full-screen scale; the focused comparison confirms the nesting and selected pointer remain visible without competing with song titles.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- `TestSceneSongSelectVirtualisedList`: 2 passed, 0 failed, including the 10,000-row bounded-materialisation path.
+- Native Direct3D 11 preview captured and inspected at 1920 x 1080 from the repository working directory so both preview artwork variants resolved correctly.
+- Full and focused before/after comparisons were opened and inspected.
+- `git diff --check`: passed.
+
+final result: passed
+
+---
+
+# Song Select package motion QA (2026-07-31)
+
+## Evidence
+
+- Final native state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\yokko-song-select-motion-final.png` (1920 x 1080, Direct3D 11).
+- Collapse sequence: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-motion-strip.png` (expanded, moving, collapsed).
+- Expansion sequence: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-expansion-strip.png` (collapsed, entering, expanded).
+- State: English UI, 7K filter, selected `Marathon x1.3`; the middle package is used for motion evidence so both following headers and newly inserted rows are visible.
+
+## Required fidelity review
+
+- Direction: stable rows reuse their previous logical top and move to the new top over 230 ms with `OutQuint`, capped to a 64 px travel distance so large libraries never produce long screen-spanning flights.
+- Expansion: newly inserted rows in the affected package start 14 px above their destination and fade in over 170 ms while moving into place.
+- Collapse: rows following the removed package children visibly move upward instead of teleporting; removed rows do not remain as detached ghosts.
+- Virtualisation: the transition is applied only to the first actualised visible/preloaded range after a rebuild. Rows materialised later by scrolling do not replay it.
+- Scroll containment: package anchoring clamps to the real `itemLayer.Height - viewportHeight` range, preventing the previous overscroll-and-rebound when the collapsed list fits inside the viewport.
+- Pool reset: row and header alpha are explicitly restored on every bind so partially faded pooled drawables cannot leak state.
+- Assets: no raster or decorative assets were added for motion.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after clamping package scroll; the three-frame collapse sequence no longer shows a viewport rebound.
+- P3: evidence is sampled at three native frames rather than distributed as a video, but includes both in-progress states and both transition directions.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- `TestSceneSongSelectVirtualisedList`: 4 passed, 0 failed, covering 10,000-row bounded materialisation, animated rebuild bounds, and short-content scroll clamping.
+- Native Direct3D 11 captures were taken at 1920 x 1080 before, during, and after both collapse and expansion.
+- The collapse strip, expansion strip, and final stable frame were opened and inspected.
+- `git diff --check`: passed.
+
+final result: passed
+
+---
+
+# Song Select selection transition QA (2026-08-01)
+
+## Evidence
+
+- Previous selection: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selection-01-before.png` (1920 x 1080, Direct3D 11).
+- In-progress selection: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selection-02-mid.png` (1920 x 1080, Direct3D 11).
+- Settled selection: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selection-03-after.png` (1920 x 1080, Direct3D 11).
+- Focused three-frame comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selection-transition-strip.png`.
+- State: English UI, 7K filter, transition from selected `Marathon x1.3` to `Neon Pulse Overdrive - Hard` across different artwork and package groups.
+
+## Required fidelity review
+
+- Direction: adjacent selection computes its direction from the current navigable list order. The incoming detail layer begins 10 px along that axis and settles over 210 ms with `OutQuint`; the outgoing layer moves 8 px in the opposite direction.
+- Legibility: the incoming paper, cover, title, metadata, and ranking table remain fully opaque. Only the outgoing layer fades over 90 ms, preventing the double-title and double-score ghosting found in the first captured mid-frame.
+- Background: the existing 220 ms wallpaper crossfade remains independent of the opaque detail layer, so artwork still blends without reducing text contrast.
+- Lifecycle: superseded detail layers are removed after 240 ms; rapid repeated selection retires all stale layers and returns the host to one active layer.
+- List continuity: selection updates the materialised row states and scroll target without calling `rebuildSongList`; an internal generation counter proves the list generation stays unchanged.
+- Audio continuity: the transition adds no scheduler delay or extra preview call. The existing single `playSelectedPreview()` call remains on the changed-selection path.
+- Assets: no new raster or decorative assets were introduced.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after replacing the full-layer crossfade with an opaque incoming layer and fast outgoing retirement.
+- P3: the 10 px movement is intentionally restrained; the focused strip confirms the wallpaper blend and crisp content handoff without turning selection into a large page transition.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- Focused Song Select suite: 14 passed, 0 failed.
+- `TestSelectionTransitionDoesNotRebuildSongList` covers changed selection, one transition generation, unchanged list generation, rapid repeated selection, and stale-layer retirement.
+- Native Direct3D 11 captures were taken at 1920 x 1080 before, during, and after selection; the three-frame strip was opened and inspected.
+- `git diff --check`: passed.
+
+final result: passed
+
+---
+
+# Song Select scroll affordance QA (2026-08-01)
+
+## Evidence
+
+- Top-of-list native state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-scroll-01-top.png` (1920 x 1080, Direct3D 11).
+- Lower-list native state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-scroll-02-lower.png` (1920 x 1080, Direct3D 11).
+- Focused comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-scroll-affordance-comparison.png` (previous stable state, top, lower).
+- State: English UI, 7K filter, all three packages expanded; the lower capture selects `Petals at Daybreak` so the list reaches its real end.
+
+## Required fidelity review
+
+- Edge continuation: a 28 px ivory-to-transparent fade appears only at an edge which has more content beyond it. The first frame has no top haze; the final frame has no bottom haze.
+- Position feedback: the 4 px cyan thumb is proportional to viewport/content height and moves along a low-contrast navy track. It remains inset inside the browser rather than consuming card width.
+- Short collections: when content height fits the viewport, both fades and the indicator are fully hidden.
+- Virtualisation: affordance updates reuse the existing scroll position and content-height values. They do not add list entries, rebuild rows, or change pool limits.
+- Input: overlays are passive drawables above the masked scroll content and do not introduce click or hover targets.
+- Assets: no raster or decorative assets were added for this pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after comparing the previous, top, and lower browser crops; the fade is visible without washing out a full row, and the indicator does not read as a heavy webpage scrollbar.
+- P3: the preview corpus contains only eleven logical browser rows, so the thumb is relatively tall. Its minimum 32 px height and proportional formula are covered against the 10,000-row fixture but were not separately screenshotted with a production-scale library.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- `TestSceneSongSelectVirtualisedList`: 5 passed, 0 failed, including long-list edge state, short-list chrome suppression, animated rebuild bounds, and 10,000-row bounded materialisation.
+- Native Direct3D 11 captures were taken at 1920 x 1080 from both the top and lower scroll positions and inspected together in one focused comparison.
+- `git diff --check`: passed after the final source and QA edits.
+
+final result: passed
+
+---
+
+# Song Select ranking grade badge QA (2026-08-01)
+
+## Evidence
+
+- Previous full-height grade column: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-scroll-01-top.png` (1920 x 1080, Direct3D 11).
+- Final compact grade badge state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-grade-badge-final.png` (1920 x 1080, Direct3D 11).
+- Focused same-state comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-grade-badge-before-after.png` (old left, final right).
+- State: English UI, 7K filter, seven global-ranking rows with S and A grades; MOCHI is the current-player row.
+
+## Required fidelity review
+
+- Hierarchy: the old 54 px wide, full-row-height cyan/lime column is replaced by a 44 x 32 badge. Player, score, combo and accuracy now remain the primary scan path.
+- Colour: grade colour is limited to a 4 px leading edge and a restrained border. The badge letter uses the shared deep-navy text colour instead of reversing on a saturated block.
+- Surface: an almost opaque ivory fill prevents the ranking paper's lower-right pink tape from muddying the bottom badge.
+- Selection: current-player emphasis remains on the pink row border, leading rail, player name and pale-yellow row fill. The grade badge does not add a competing selected state.
+- Spacing: the score and badge keep a visible gap and all seven badges stay vertically centred inside the existing 52 px rows.
+- Assets: no raster asset was added, re-cut, or replaced; the existing paper and tape remain untouched.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after replacing the translucent badge fill found in the first implementation capture; the final bottom badge no longer picks up a dirty pink tint from the paper decoration.
+- P3: X/XH and B/C/D grades are covered by the shared badge component and colour mapping but are not present in this seven-row visual fixture.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- Focused Song Select filter: 16 passed, 0 failed.
+- `TestRankingUsesCompactGradeBadges` verifies seven visible badges, 44 x 32 bounds, S/A grade diversity, and exactly one current-player variant.
+- Native Direct3D 11 output was captured at 1920 x 1080 and inspected against the previous same-state screenshot in one focused comparison.
+- `git diff --check`: passed after final source and QA edits.
+
+final result: passed
+
+---
+
+# Song Select selected-row focus depth QA (2026-08-01)
+
+## Evidence
+
+- Previous same-state focus treatment: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-grade-badge-final.png` (1920 x 1080, Direct3D 11).
+- Final selected-row depth state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-row-focus-final.png` (1920 x 1080, Direct3D 11).
+- Focused same-state comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-row-focus-final-before-after.png` (old left, final right).
+- State: English UI, 7K filter, expanded package with `Marathon x1.3` selected.
+
+## Required fidelity review
+
+- Density: the selected child row keeps the existing 58 px logical height and does not reduce the number of visible rows.
+- Focus depth: a second restrained paper shadow fades in over 170 ms with `OutQuint`; it complements the pale-yellow fill and pink play pointer without adding glow or a saturated outline.
+- Pull-forward motion: compact package children move only 3 px left when selected. Standalone songs stay at their resting X position so the browser mask cannot crop their cover or border.
+- Hover: unselected hover exposes 42% of the focus shadow over 120 ms, then selection promotes the same layer instead of introducing a separate visual language.
+- Hierarchy: the 3 px pull creates a small notch in the package guide rail but does not visually disconnect it; the selected node reads as a paper slip pulled out from its stack.
+- Virtualisation: selection changes the materialised row state in place. The test fixture retains two items and proves the focus shadow and X offset transfer without rebuilding the list.
+- Pooling: newly bound rows start with zero focus-shadow alpha, and `SetSelected` restores both the shadow and resting position after reuse.
+- Assets: no raster or decorative asset was added, re-cut, or replaced.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after adding the 3 px compact-row pull; the first shadow-only capture was too subtle to establish a useful focus improvement.
+- P3: the shadow and movement are intentionally restrained so the selected state still belongs to Yokko's paper-card language rather than reading as a floating sci-fi panel.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- `TestSceneSongSelectVirtualisedList`: 6 passed, 0 failed.
+- `TestSelectionTransfersFocusShadowWithoutRebuild` verifies selected/unselected shadow alpha, 11/14 px selected/resting X positions, in-place transfer, and unchanged item count.
+- Native Direct3D 11 output was captured at 1920 x 1080 and inspected both full-screen and against the previous same-state screenshot.
+- `git diff --check`: passed after final source and QA edits.
+
+final result: passed
+
+---
+
+# Song Select compact browse controls QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth / previous native state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-toolbar-before.png` (1920 x 1080, Direct3D 11).
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-toolbar-first-pass.png` (1920 x 1080, Direct3D 11).
+- Focused same-state comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-toolbar-before-after.png` (previous left, revised right; equal 900 x 886 crops separated by 12 px).
+- Viewport and density: both source and implementation are native 1920 x 1080 captures of the shared 1920 x 1080 stage at 1x logical density. No resizing or density normalization was needed before cropping.
+- State: English UI, 7K filter, the same three packages and `Marathon x1.3` selection, Converts shown.
+
+## Comparison history
+
+1. The source state stacked search/key mode, an inert 670 px star-range summary plus an inert Converts button, and sort/group/collection into three equal-weight rows.
+2. The star range always read `0.0` to infinity and the Converts action was empty, so the tallest filter region did not contribute to the browse task.
+3. The revised state removes the inert star range, consolidates all secondary browsing controls into one 34 px row, and moves the song browser from Y=222 to Y=184.
+4. Converts now defaults to the existing inclusive behavior, visibly reports `SHOWN/HIDDEN`, and filters charts by `ConversionSource` when toggled.
+5. The post-fix focused comparison was opened and inspected. No remaining P0, P1, or P2 issue was found.
+
+## Required fidelity review
+
+- Fonts and typography: the existing Yokko display/body families, weights, and navy/cyan hierarchy are retained. Secondary labels remain optically smaller than values, and all four controls fit without clipping or truncation in the 850 px browser width.
+- Spacing and layout rhythm: the browse header is reduced from three rows to two. Four 34 px controls occupy the full width with consistent 8 px gaps; the browser gains 38 px without changing package or beatmap row height.
+- Colors and visual tokens: controls continue using ivory surfaces, cyan icons/borders, deep-navy copy, and a pink active rail. The active Converts surface uses the existing pale-cyan token instead of introducing a glow or new colour family.
+- Image quality and asset fidelity: package artwork, background, logo, mascot, tape, and sticker assets are unchanged. No raster asset was added, cropped, stretched, or substituted.
+- Copy and content: `SORT / TITLE`, `GROUP / BEATMAPS`, `LIBRARY / ALL SONGS`, and `CONVERTS / SHOWN` describe the actual current state. The non-interactive library scope omits a chevron and hover treatment so it does not falsely promise an unavailable menu.
+- Interaction: search, key-mode filtering, and ranking switching remain covered by the existing interaction scene. The new focused test proves Converts hides and restores converted charts and transfers selection to a native chart when necessary.
+- Accessibility risk visible from screenshots: text contrast remains strong on ivory/pale-cyan surfaces, and active state is expressed through fill, border, copy, and a pink rail rather than colour alone. Keyboard focus traversal was not manually exercised in this visual pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after replacing the inert three-row stack with the compact functional control row.
+- P3: the four compact controls intentionally use dense 8-10 px secondary type to preserve list height; a later localisation pass should recheck German or other long labels.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- Focused tests: 2 passed, 0 failed (`TestSongSelectInteractions` and `TestConvertedBeatmapFilterIsFunctional`).
+- Native Direct3D 11 implementation capture completed at 1920 x 1080; the full screen and focused before/after comparison were both opened and inspected.
+- `git diff --check`: passed after the final source and QA edits.
+
+final result: passed
+
+---
+
+# Song Select footer tool dock QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth / previous footer: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-footer-before.png` (1920 x 1080, Direct3D 11).
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-footer-dock-final.png` (1920 x 1080, Direct3D 11).
+- Focused same-state comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-footer-before-after.png` (previous top, revised bottom; equal 1920 x 140 crops separated by 12 px).
+- Mods destination state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-footer-dock-mods-open.png` (1920 x 1080, Direct3D 11).
+- Viewport and density: source and implementation are native 1920 x 1080 captures of the shared 1920 x 1080 stage at 1x logical density. The footer comparison uses unscaled crops.
+- State: English UI, 7K filter, the same selected song, no active Mods, footer at rest.
+
+## Comparison history
+
+1. The source footer presented Mods as a 126 x 96 remote-like control while Random and Options were separate 126 x 82 cards with wider gaps and no common container.
+2. The differing heights and internal baselines made the three preparation actions read as unrelated floating widgets between the account card and Play action.
+3. Options also carried an empty action despite looking fully interactive.
+4. The revised implementation gives all three controls the same 126 x 82 geometry and places them at 8 px intervals inside a 410 x 94 pale-cyan paper dock with one shadow and outline.
+5. Options now pushes the real `SettingsScreen`; the focused test covers entry and return. The Mods control still reaches the existing full Gameplay Mods screen, which was captured separately.
+6. The post-fix full and focused captures were opened and inspected. No remaining P0, P1, or P2 issue was found.
+
+## Required fidelity review
+
+- Fonts and typography: all three actions use the same Yokko display face, 11 px label size, tracking, and baseline. No label is clipped or visually lower than its neighbours.
+- Spacing and layout rhythm: Mods, Random, and Options share an 82 px height, 126 px width, 8 px internal gaps, and 8 px outer dock margins. The dock aligns vertically with Back, account, and Play without changing the 130 px footer.
+- Colors and visual tokens: the dock uses the existing ivory, pale-cyan, navy, cyan, and pink tokens. Accent rails preserve each action's existing colour and the shared outline prevents the controls from looking like an unrelated web toolbar.
+- Image quality and asset fidelity: the existing diamond sticker is retained at a smaller 22 px size inside Mods. Mascot, avatar, tape, logo, and all other raster assets are untouched; no new asset was generated or extracted.
+- Copy and content: the visible labels remain `MODS`, `RANDOM`, and `OPTIONS`. Options now matches its affordance by opening Settings instead of doing nothing.
+- Interaction and state: Mods retains count and open-state colour handling, Random retains `selectRandomEntry`, and Options pushes and returns from `SettingsScreen`. Hover and active changes continue using the shared `OutQuint` motion language.
+- Accessibility risk visible from screenshots: all three hit targets remain at least 126 x 82, icons are paired with text labels, and pink/cyan semantic differences are not the only identifiers. Keyboard traversal and screen-reader naming were not manually exercised in this pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after aligning the controls and wiring Options to the real Settings screen.
+- P3: the dock deliberately leaves a large breathing gap before Play so the yellow primary action stays isolated; this can be revisited only if additional footer actions are added.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- Focused tests: 2 passed, 0 failed (`TestSongSelectInteractions` and `TestFooterOptionsOpensSettings`).
+- Native Direct3D 11 captures covered both the resting footer and the real Mods destination screen at 1920 x 1080.
+- Full-screen and focused before/after evidence were opened and inspected together.
+- `git diff --check`: passed after the final source and QA edits.
+
+final result: passed
+
+---
+
+# Song Select integrated grade mark QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth / outlined-badge state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-carousel-first-pass.png` (1920 x 1080, Direct3D 11).
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-grade-mark-first-pass.png` (1920 x 1080, Direct3D 11).
+- Full-view comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-grade-mark-full-before-after.png` (source top, revised bottom; two native 1920 x 1080 frames separated by 12 px).
+- Focused ranking comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-grade-mark-before-after.png` (source left, revised right; equal unscaled 860 x 470 crops separated by 12 px).
+- Viewport and density: source and implementation are native 1920 x 1080 captures of the shared 1920 x 1080 stage at 1x logical density. No scaling or density normalization was required.
+- State: English UI, 7K filter, seven global-ranking rows, `Marathon x1.3` selected, and MOCHI highlighted as the current player.
+
+## Comparison history
+
+1. The source state used seven repeated 44 x 32 ivory rectangles with coloured borders and 4 px leading rails. Although smaller than the former full-height grade column, they still read as a detached control stack at the edge of the continuous paper table.
+2. The revised state reduces each mark to a 36 x 32 footprint with a neutral 30 px paper disc, unframed grade letter, and an 18 px grade-colour underline. The current-player underline grows to 24 px without introducing another selected fill or outline.
+3. Score anchors move 10 px toward the mark, reducing the dead gap while retaining a 12 px optical separation. All seven scores and marks keep a common right edge.
+4. The focused comparison confirms that the repeated framed-card rhythm is removed. The bottom YUKI mark remains readable over the pink tape because the neutral paper disc prevents colour contamination.
+5. The full and focused comparisons were opened and inspected together. No actionable P0, P1, or P2 difference remains.
+
+## Required fidelity review
+
+- Fonts and typography: score size, player hierarchy, combo, accuracy, rank numbers, and grade lettering retain the existing Yokko display/body faces and weights. The grade remains legible at 17 px without competing with the 20 px score.
+- Spacing and layout rhythm: ranking row height stays 52 px and the table retains all seven rows. The grade footprint narrows from 44 to 36 px; score-to-grade spacing tightens from 16 to 12 px while preserving alignment and avoiding overlap.
+- Colors and visual tokens: the grade letter stays deep navy. Grade colour is restricted to a short cyan/lime underline with 64% opacity, or 88% on the current-player mark; no new palette or glow was introduced.
+- Image quality and asset fidelity: paper, tape, avatars, selected artwork, covers, mascot, and all decorative assets are unchanged. No raster asset was generated, extracted, stretched, or substituted.
+- Copy and content: player names, ranks, mods, combo, accuracy, scores, and S/A labels are unchanged. The change does not alter ranking data or sorting.
+- Interaction and state: GLOBAL/MY HISTORY switching and current-player row emphasis remain unchanged. Highlighting only lengthens the underline, while the row's pink outline, rail, name, and yellow wash remain the primary current-player cues.
+- Accessibility risk visible from screenshots: the grade is still conveyed by its S/A text, not colour alone. Screenshot evidence does not establish keyboard navigation or screen-reader naming, which were outside this visual-only refinement.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none; the grade now reads as metadata printed on the score sheet instead of a separate card column.
+- P3: the neutral paper disc is intentionally almost invisible on ordinary ivory rows; it becomes perceptible on the selected yellow row and over the lower pink tape where separation is needed.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- `TestRankingUsesCompactGradeBadges`: 1 passed, 0 failed; verifies seven 36 x 32 marks, zero component border, S/A diversity, and exactly one highlighted current-player state.
+- Native Direct3D 11 capture completed at 1920 x 1080 using the production preview entry point.
+- Full-screen and focused before/after comparisons were opened and inspected.
+- `git diff --check`: passed after the source, test, and QA edits.
+
+final result: passed
+
+# Song Select package proximity curve QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth / flat-row state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-carousel-before.png` (1920 x 1080, Direct3D 11).
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-carousel-first-pass.png` (1920 x 1080, Direct3D 11).
+- Focused same-state comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-carousel-before-after.png` (flat left, revised right; equal 900 x 660 crops separated by 12 px).
+- Cross-package transfer state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-carousel-transferred.png` (1920 x 1080, Direct3D 11).
+- Viewport and density: all evidence is native 1920 x 1080 output of the shared 1920 x 1080 stage at 1x logical density. The focused comparison uses unscaled crops.
+- State: English UI, 7K filter. The same first-package `Marathon x1.3` selection is used for the before/after comparison; the transfer capture selects the first row of the second package.
+
+## Comparison history
+
+1. The source state already differentiated the selected child row with yellow fill, pink pointer, and a 3 px pull, but all non-selected siblings shared the same X position and still formed a rigid table.
+2. The revised state applies a distance-based curve only inside the selected package: selected X=11, adjacent X=14, then X=18, X=22, up to a bounded X=26.
+3. Row width changes with X so every child keeps the same 850 px right boundary. Titles, metadata, and mode pills therefore remain aligned and unclipped.
+4. A cross-package selection capture confirms the previous package returns to its resting X=14 while the new package receives the curve; unrelated package headers and standalone rows do not move.
+5. The same-state focused comparison and transfer capture were opened and inspected. No remaining P0, P1, or P2 issue was found.
+
+## Required fidelity review
+
+- Fonts and typography: no typeface, size, weight, wrapping, or truncation rule changed. The modest X offsets preserve the existing title and metadata hierarchy.
+- Spacing and layout rhythm: the curve uses 4 px steps with a 12 px maximum neighbour indent. Vertical spacing, 58 px child-row height, 84 px header height, and list density remain unchanged.
+- Colors and visual tokens: existing ivory, pale-yellow, cyan, lime, navy, and pink states are untouched. The interaction is communicated through position and motion in addition to colour.
+- Image quality and asset fidelity: package covers, wallpaper, stickers, mascot, tape, and avatar assets are unchanged. No asset was generated, re-cut, stretched, or used to fake the interaction.
+- Copy and content: song titles, difficulty names, mapper credits, ratings, and mode pills remain identical and keep a common right edge.
+- Interaction and motion: selection updates materialised rows in place over 170 ms with `OutQuint`; hover subtracts 3 px from the row's current curved target and restores that target on exit. Newly materialised pooled rows receive their final curve immediately, avoiding a replayed entrance animation while scrolling.
+- Virtualisation: the curve is computed from lightweight item indices and touches only active pooled rows. The 10,000-row materialisation limit and package rebuild paths remain bounded.
+- Accessibility risk visible from screenshots: the selected row still has fill, outline, pointer, shadow, and position cues. The curve is supplementary and does not become the only selection indicator. Reduced-motion behaviour was not separately exercised.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none; the right boundary remains stable and the stepped guide reads as a deliberate selection curve rather than disconnected cards.
+- P3: packages with only one or two charts naturally show little or no neighbour curve; selection fill and pointer remain the primary cues in those cases.
+
+## Verification
+
+- `Yokko.Game.Tests` isolated build: passed with 0 warnings and 0 errors.
+- `TestSceneSongSelectVirtualisedList`: 7 passed, 0 failed.
+- `TestSelectionBuildsBoundedPackageProximityCurve` verifies symmetric and edge-position curves, the 12 px cap, the shared 850 px right edge, transfer without list rebuild, and unchanged item count.
+- Native Direct3D 11 captures covered both the four-row curve and a cross-package transfer at 1920 x 1080.
+- Full-screen and focused before/after evidence were opened and inspected together.
+- `git diff --check`: passed after the final source and QA edits.
+
+final result: passed
+
+---
+
+# Song Select inline rating hierarchy QA (2026-08-01)
+
+## Evidence
+
+- Selected concept: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png`; its left rating pills are superseded by the user's explicit correction that this placement felt abrupt.
+- Source visual truth / first corrective state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-grade-mark-first-pass.png` (1920 x 1080, Direct3D 11).
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-inline-rating-first-pass.png` (1920 x 1080, Direct3D 11).
+- Full-view comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-inline-rating-full-before-after.png` (source top, revised bottom; two native frames separated by 12 px).
+- Focused list comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-inline-rating-before-after.png` (source left, revised right; equal unscaled 865 x 670 crops separated by 12 px).
+- Viewport and density: source and implementation are native 1920 x 1080 output of the shared 1920 x 1080 stage at 1x logical density. No scaling or density normalization was required.
+- State: English UI, 7K filter, the same first two expanded packages, `Marathon x1.3` selected, and Etterna MSD display mode.
+
+## Comparison history
+
+1. The generated concept placed difficulty ratings in high-chroma pills at the far left of every child row. The first corrective implementation removed those pills but retained a 54 x 42 two-line `MSD / value` column and underline at the start of the title scan path.
+2. The repeated left column still made the browser read like a technical table and forced every title to begin at X=82 despite the package guide already communicating difficulty colour.
+3. The revised implementation starts titles at X=20 and expands their measure from 528 to 580 px. Rating moves to a transparent 64 x 20 trailing readout at X=610, aligned with the mapper metadata and before the unchanged mode pill at X=690.
+4. The accent underline and rating surface are removed. Difficulty colour remains on the package guide and the small `MSD` unit; the numeric value stays navy, so rating remains readable without becoming the first object in every row.
+5. The focused comparison confirms that long titles gain useful room, the selected proximity curve becomes visually cleaner, and `MSD 5.14` keeps at least a 16 px gap from the mode pill. No text or label overlaps.
+6. The full and focused comparisons were opened and inspected together. No actionable P0, P1, or P2 difference remains.
+
+## Required fidelity review
+
+- Fonts and typography: title, metadata, rating unit/value, and mode-pill families and weights remain unchanged. Rating value is reduced from 12 to 10 px because it is now supporting metadata; the 15 px title remains the dominant row label.
+- Spacing and layout rhythm: title X moves from 82 to 20 and gains 52 px of line measure. Metadata follows the same X=20 alignment. The rating occupies X=610-674 and the mode pill remains X=690-834, preserving a clear gap and the shared right edge.
+- Colors and visual tokens: navy, cyan/lime difficulty accents, pink mode pills, ivory surfaces, and pale-yellow selection remain unchanged. No new token, glow, or saturation was introduced.
+- Image quality and asset fidelity: package covers, selected artwork, wallpaper, paper textures, stickers, mascot, tape, and avatars are unchanged. No raster asset was generated, extracted, stretched, or substituted.
+- Copy and content: song title, difficulty name, mapper, key mode, difficulty label, rating unit, and rating value are all retained. The rating display still switches between MSD and SR using the existing presentation formatter.
+- Interaction and virtualisation: active rows update the unit, value, and difficulty colour in place. The new focused test switches from MSD to SR without changing item count; pooled-row materialisation and the 10,000-item bound remain intact.
+- Accessibility risk visible from screenshots: rating remains explicit text and is not communicated by colour alone. The wider title measure reduces truncation risk. Keyboard navigation and screen-reader naming were not separately exercised in this visual layout pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none; the user's abrupt left-rating complaint is addressed without hiding comparative difficulty information.
+- P3: standalone non-package songs retain their existing cover-led, bottom-right rating readout because their 84 px card layout does not create the repeated left-column problem shown in the reported package rows.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- `TestSceneSongSelectVirtualisedList`: 8 passed, 0 failed.
+- `TestCompactRatingLivesInTrailingMetadata` verifies the transparent 64 x 20 trailing position, MSD-to-SR live update, and unchanged item count.
+- Native Direct3D 11 capture completed at 1920 x 1080 using the production preview entry point.
+- Full-screen and focused before/after comparisons were opened and inspected.
+- `git diff --check`: passed after the source, test, and QA edits.
+
+final result: passed
+
+---
+
+# Song Select package guide continuity QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-inline-rating-first-pass.png` (1920 x 1080, Direct3D 11).
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-guide-final.png` (1920 x 1080, Direct3D 11).
+- Focused list comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-guide-before-after.png` (source left, revised right; equal unscaled 865 x 670 crops separated by 12 px).
+- Full-view comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-guide-full-before-after.png` (source top, revised bottom; native frames separated by 12 px).
+- Selection-transfer capture: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-guide-transition.png` (1920 x 1080, Direct3D 11; first child of the second package selected).
+- Viewport and density: all evidence is native 1920 x 1080 output of the shared 1920 x 1080 stage at 1x logical density.
+- State: English UI, 7K filter, first two packages expanded, third package collapsed. The same first-package `Marathon x1.3` selection is used for the before/after comparison.
+
+## Comparison history
+
+1. Child-row guide rails previously began only after each package header, leaving the header and its children visually adjacent but not structurally connected.
+2. The revised expanded header adds a 2 x 22 px feeder at local X=5, Y=62. Its world X aligns exactly with the child-row guide at the resting row position, creating one continuous grouping axis.
+3. The selected package feeder uses 0.92 alpha; other expanded packages use 0.34; collapsed packages use 0. This keeps hierarchy visible without adding another high-chroma badge or panel.
+4. Header background, play indicator, bottom rail, and feeder transition over 120-170 ms with `OutQuint`, so transferring selection between packages no longer produces an abrupt binary change.
+5. The transfer capture confirms the first package returns to the lower-alpha expanded state while the second package receives the selected feeder and header treatment.
+6. Pooled headers reset feeder, rail, and indicator state when rebound as collapsed. The focused and full comparisons were opened and inspected together; no P0, P1, or P2 issue remains.
+
+## Required fidelity review
+
+- Fonts and typography: no typeface, size, weight, wrapping, truncation, or copy changed.
+- Spacing and layout rhythm: header height, child-row height, package cover proportions, row indents, and shared right edge remain unchanged. The feeder occupies only the existing gap below an expanded header.
+- Colors and visual tokens: the feeder reuses Yokko cyan with two opacity levels. Existing ivory, pale-yellow, lime, navy, pink, and paper tokens are unchanged.
+- Image quality and asset fidelity: package covers, selected artwork, wallpaper, paper textures, stickers, mascot, tape, and avatars are unchanged. No raster asset was generated, re-cut, stretched, or added to the resource library.
+- Copy and content: song titles, package counts, mapper credits, ratings, difficulty labels, and mode pills remain identical.
+- Interaction and motion: selection transfer updates materialised headers in place. The header feeder, selected play indicator, bottom rail, and background animate without rebuilding the list or disturbing scroll state.
+- Virtualisation: the header test exercises active pooled headers, selected-state transition, collapse rebound, and state reset. The bounded virtual-list mechanism is unchanged.
+- Accessibility risk visible from screenshots: the connector is a supplementary grouping cue. Expanded/collapsed arrows, package counts, selected row fill, outline, pointer, and text remain explicit. Reduced-motion behaviour was not separately exercised.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none; the connector reads as hierarchy rather than a decorative cyan slash, and the lower-alpha unselected state does not compete with song titles or cover art.
+- P3: a child row can resume the guide in a difficulty colour different from the cyan package feeder. This is intentional: cyan communicates package grouping, while the child segment communicates chart difficulty.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- `TestSceneSongSelectVirtualisedList`: 9 passed, 0 failed.
+- `TestExpandedHeaderFeedsAndAnimatesPackageGuide` verifies expanded idle alpha, selected alpha, rail and indicator animation, collapsed rebound, and pooled-state reset.
+- Native Direct3D 11 captures covered the stable first-package state and a cross-package selection transfer at 1920 x 1080.
+- Full-screen and focused before/after evidence were opened and inspected together.
+- `git diff --check`: passed after the final source and QA edits.
+
+final result: passed
+
+---
+
+# Song Select progressive mode disclosure QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-guide-final.png` (1920 x 1080, Direct3D 11).
+- First implementation capture: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-progressive-mode-pill-first-pass.png` (1920 x 1080, Direct3D 11).
+- Revised implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-progressive-mode-pill-final.png` (1920 x 1080, Direct3D 11).
+- Focused comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-progressive-mode-pill-before-after.png` (source left, final right; equal unscaled 865 x 500 crops separated by 12 px).
+- Full-view comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-progressive-mode-pill-full-before-after.png` (source top, final bottom; native frames separated by 12 px).
+- Mid-transition capture: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-progressive-mode-pill-transition-final.png` (1920 x 1080, Direct3D 11; selection transferring to the first child of the second package).
+- Viewport and density: all source and implementation frames are native 1920 x 1080 output of the shared 1920 x 1080 stage at 1x logical density.
+- State: English UI, 7K filter, first two packages expanded, third package collapsed. The stable comparison uses first-package `Marathon x1.3` selected.
+
+## Comparison history
+
+1. Every compact child row previously ended with the same 144 x 26 high-chroma pink pill containing key mode and difficulty name, even though difficulty already appeared in the metadata line. The repeated column competed with titles and made the browser read like a dense management table.
+2. The first revision changed resting rows to a quiet 54 x 26 key-mode chip at X=780 while the selected row expands leftward to the original 144 x 26 footprint at X=690. Both states keep the same right edge at X=834.
+3. Selection now cross-fades compact and expanded labels while position, width, and surface colour animate over 90-170 ms with `OutQuint`. No row, package, or scroll position is rebuilt.
+4. The first combined comparison found a P2 copy defect introduced in the new expanded label: the intended middle dot had been written as the Chinese character `路`. The source was corrected to the actual `·`, rebuilt, and recaptured.
+5. The final focused comparison confirms resting siblings are visually quiet, the selected difficulty remains explicit, the rating column keeps its alignment, and the corrected separator matches the existing UI copy.
+6. The final transition capture shows the previous chip contracting while the new selected chip expands without clipping, overlapping the rating, or shifting the shared right edge.
+
+## Required fidelity review
+
+- Fonts and typography: existing Yokko display weights are retained. Resting key mode uses a 9 px label for legibility; expanded content preserves the prior 8 px label and truncation width. The corrected `·` separator matches existing metadata typography.
+- Spacing and layout rhythm: the 26 px pill height, 7 px radius, and X=834 right edge are unchanged. Only the resting width contracts from 144 to 54, reducing repetition without disturbing title, metadata, or rating alignment.
+- Colors and visual tokens: expanded state retains the existing 86% pink surface with white text. Resting state uses the same pink at 16% with pink text, so no new colour token or foreign visual language was introduced.
+- Image quality and asset fidelity: package covers, selected artwork, wallpaper, paper textures, mascot, tape, stickers, and avatars are unchanged. No image was generated, re-cut, stretched, or added to `Yokko.Resources`.
+- Copy and content: selected rows still expose key mode and full difficulty name; resting rows retain explicit key mode while the difficulty remains visible in the metadata line. Standalone cover-led rows keep the full static pill because they do not form the repeated package table pattern.
+- Interaction and motion: disclosure follows the actual selected row and transfers in place over 90-170 ms. Hover, click, double-click, package grouping, difficulty-mode updates, preview continuity, and list scrolling remain unchanged.
+- Virtualisation: the progressive pill is owned by the pooled row and is rebound with a deterministic compact state. The selected state is then applied without animation on materialisation, preventing replayed entrance motion while scrolling.
+- Accessibility risk visible from screenshots: key mode and difficulty remain available as text, not colour alone. Selection also retains fill, outline, pointer, position, and shadow cues. Reduced-motion behaviour was not separately exercised.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after correcting the first-pass `路` separator defect and recapturing the final implementation.
+- P3: the quiet 16% pink chips intentionally carry less contrast than selected pills; their key-mode text remains visibly pink and the active 7K filter is also present in the toolbar.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors after the separator correction.
+- `TestSceneSongSelectVirtualisedList`: 10 passed, 0 failed.
+- `TestCompactModePillProgressivelyDisclosesSelection` verifies 54-to-144 px disclosure, fixed X=834 right edge, text cross-fade, selection transfer, and unchanged item count.
+- Native Direct3D 11 captures covered the stable state and a mid-transition cross-package transfer at 1920 x 1080.
+- Final full-screen and focused source/implementation comparisons were opened and inspected together.
+- `git diff --check`: passed after the final source, test, and QA edits.
+
+final result: passed
+
+---
+
+# Song Select aspect-preserving artwork crop QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-progressive-mode-pill-final.png` (1920 x 1080, Direct3D 11).
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-aspect-cover-final.png` (1920 x 1080, Direct3D 11).
+- Selected-artwork comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-aspect-cover-selected-before-after.png` (stretched source left, aspect-preserving crop right; equal unscaled 255 x 265 crops separated by 12 px).
+- List-cover comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-aspect-cover-list-before-after.png` (stretched source left, aspect-preserving crop right; equal unscaled 142 x 654 strips separated by 12 px).
+- Full-view comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-aspect-cover-full-before-after.png` (source top, revised bottom; native frames separated by 12 px).
+- Alternate selected package: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-aspect-cover-second-package.png` (1920 x 1080, Direct3D 11; waterfall artwork selected).
+- Viewport and density: all source and implementation frames are native 1920 x 1080 output of the shared 1920 x 1080 stage at 1x logical density.
+- State: English UI, 7K filter, first two packages expanded, third package collapsed. The stable comparison uses first-package `Marathon x1.3` selected.
+
+## Comparison history
+
+1. The source implementation used `FillMode.Fill` for all three song-artwork slots. The fixture textures are 1672 x 941 and 1280 x 720, both approximately 16:9, but were stretched into 210 x 210 selected artwork, 104 x 84 package headers, and 76 x 68 standalone cards.
+2. The visible result retained each frame boundary but changed the artwork geometry: circular sky rings became oval, clouds widened or narrowed, and waterfall proportions varied between the detail card and list headers.
+3. The revised implementation computes a cover scale from the source texture dimensions, centres the correctly proportioned sprite, and lets the existing masked frame crop only the overflowing axis. Frame sizes, radii, borders, and the `YOKKO` artwork label remain unchanged.
+4. The selected-artwork comparison shows the sky rings becoming circular and the horizon retaining its natural proportions. The list-strip comparison confirms the same treatment on both the sky and waterfall package covers.
+5. The alternate selected-package capture confirms the 16:9 waterfall artwork also fills the 210 x 210 detail frame without stretching, exposed edges, or empty bars.
+6. The focused and full comparisons were opened and inspected together. No P0, P1, or P2 issue was found in the first revised capture, so no second visual-fix iteration was required.
+
+## Required fidelity review
+
+- Fonts and typography: no typeface, weight, size, wrapping, truncation, antialiasing, or label placement changed.
+- Spacing and layout rhythm: selected artwork remains 210 x 210; package covers remain 104 x 84; standalone covers remain 76 x 68. Card dimensions, list indents, right edges, row heights, and surrounding gaps are unchanged.
+- Colors and visual tokens: no palette, opacity, border, shadow, selection, difficulty, or surface token changed.
+- Image quality and asset fidelity: original source textures are used directly at their native aspect ratio. No image was regenerated, re-cut offline, resampled into a replacement asset, or added to `Yokko.Resources`. Cropping is centred and performed by the existing masked UI frames.
+- Copy and content: song, artist, mapper, difficulty, key mode, rating, score, package count, and `YOKKO` artwork labels remain identical.
+- Interaction and motion: changing selection still swaps artwork through the existing selection/background flow. Package expansion, row selection, preview continuity, scroll position, filters, and progressive mode disclosure are unaffected.
+- Responsive behaviour: crop size is derived from the actual frame and texture sizes rather than a fixture-specific pixel crop. The shared 1920 x 1080 geometry remains authoritative.
+- Accessibility risk visible from screenshots: artwork is identification support rather than the only song label; title, artist, mapper, and difficulty remain explicit text.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none; the user-reported flattened artwork now preserves source geometry in all three cover slots.
+- P3: centred cover cropping can remove an intentionally off-centre subject on unusual artwork. Yokko currently has no beatmap focal-point metadata; adding per-artwork focal coordinates should wait for a real failing cover rather than introducing speculative controls.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- `TestSceneSongSelectVirtualisedList`: 11 passed, 0 failed.
+- `TestArtworkCoverSizePreservesSourceAspectRatio` covers 16:9-to-square, 16:9-to-header, portrait-to-header, and invalid-dimension fallback geometry.
+- Native Direct3D 11 captures covered both fixture artworks, three visible package headers, the selected 210 x 210 artwork, and the full 1920 x 1080 composition.
+- Full-screen and both focused source/implementation comparisons were opened and inspected together.
+- `git diff --check`: passed after the final source, test, and QA edits.
+
+final result: passed
+
+---
+
+# Song Select selected-mods status QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1672 x 941, normalized to 1920 x 1080 without cropping).
+- Default native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selected-mods-first-pass.png` (1920 x 1080, Direct3D 11).
+- Active state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selected-mods-active.png` (1920 x 1080, Direct3D 11; DT and HD active).
+- Destination interaction: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selected-mods-open-page.png` (1920 x 1080, Direct3D 11).
+- Full reference/implementation comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selected-mods-reference-comparison.png` (normalized reference left, implementation right).
+- Focused left-column comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selected-mods-focused-comparison.png` (reference top, implementation bottom).
+- Viewport/state: shared 1920 x 1080 stage at 1x logical density, English locale, 7K filter, first two packages expanded, first-package Marathon x1.3 selected.
+
+## Comparison history
+
+1. The source mock places a Selected Mods action at the right edge of the score-navigation strip. The prior implementation left that area as an unstructured gap and exposed Mods only in the footer.
+2. The implementation adds a 198 x 40 status/action aligned to the existing 40 px score tabs. Player-count text shifts left to retain an independent readable slot.
+3. The first native comparison found no overlap, clipping, or visual-density issue. The active-state capture then verified real DT/HD summary, count badge, accent change, 1.50x detail refresh, BPM refresh, and difficulty refresh.
+4. The destination capture and focused regression verify that clicking the new action opens the existing Gameplay Mods screen while preserving song-select preview continuity.
+
+## Required fidelity review
+
+- Fonts and typography: the action uses Yokko display typography at 8/9 px, matching the compact ranking tabs and footer controls. `SELECTED MODS`, `NONE`, and `DT · HD` remain legible without wrapping or truncation in the captured states.
+- Spacing and layout rhythm: the control occupies the reference's right-side action slot and closes the previous empty gap without moving the 850 x 510 ranking body. The 7-plays counter remains separated from both tabs and action.
+- Colors and visual tokens: idle uses ivory, navy, and cyan; active state changes summary, count badge, border, and rail to the existing Yokko pink. No glow, gradient, dark panel, or science-fiction styling was added to song select.
+- Image quality and asset fidelity: no new bitmap, generated image, sprite-sheet crop, or extracted decoration was introduced. The existing Font Awesome sliders icon is reused at the same optical weight as nearby controls.
+- Copy and content: the source's generic action is upgraded to live information. `NONE / 0` communicates the empty state; up to three active acronyms and the full count communicate gameplay state without replacing the dedicated Mods screen.
+- Interaction and state: the action uses the same `ToggleModPanel` path as the footer button. Tests cover restored state, empty state, active state, navigation, screen return, and preview-preserving screen classification.
+- Responsive/accessibility risk: the shared 1920 x 1080 stage has no overlap or clipping. Mod state is expressed by text and number as well as colour. Keyboard/screen-reader semantics were not established by this visual-focused pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after the first reference/implementation comparison.
+- Follow-up scope: the existing Gameplay Mods destination has its own visual language and was not represented in the selected song-select mock. Its styling should be reviewed as a separate full-screen redesign rather than hidden inside this small song-select change.
+
+## Verification
+
+- Isolated `Yokko.Game` build: passed with 0 errors; the initial member-name warning was corrected and the final build has 0 warnings.
+- `TestPlayPushesGameplay`: 1 passed, 0 failed after adjusting the regression to respect restored user Mod state.
+- Full `TestSceneSongSelectScreen`: 10 passed, 0 failed.
+- Native Direct3D 11 captures cover idle, DT/HD active, and destination-open states at 1920 x 1080.
+- Full and focused normalized comparisons were opened and inspected together.
+- `git diff --check`: passed before the QA report update.
+
+final result: passed
+
+---
+
+# Gameplay Mods paper-layout QA (2026-08-01)
+
+## Evidence
+
+- Prior native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selected-mods-open-page.png` (1920 x 1080, Direct3D 11).
+- Yokko visual-language reference: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (normalized to 1920 x 1080 for comparison).
+- Final native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\gameplay-mods-paper-layout-final.png` (1920 x 1080, Direct3D 11; HR focused, HT and HR active).
+- Alternate state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\gameplay-mods-paper-layout-config.png` (1920 x 1080, Direct3D 11; Accuracy Challenge focused, three active Mods, 0.75x).
+- Before/after comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\gameplay-mods-before-after-first-pass.png`.
+- Source/implementation comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\gameplay-mods-style-reference-comparison-1920.png` (normalized reference left, implementation right).
+
+## Comparison history
+
+1. The prior page used orbit rings, node labels, compass ticks, telemetry copy, signal scanners, waveforms, hazard stripes, and a full cyan footer. These layers overpowered the actual tasks of choosing Mods, adjusting rate, reviewing active Mods, and confirming.
+2. The first implementation replaced those layers with three paper cards: category navigation, Mod browsing/focus, and rate plus active selection. It retained the existing Mod state and interaction owners.
+3. The first native comparison found the remaining empty-slot signal rails visually inconsistent. They were replaced with quiet pale-cyan cards and the page was captured again.
+4. The final source/implementation comparison confirms the same ivory paper, navy typography, white card, cyan/pink state, and yellow primary-action language as the selected Song Select direction.
+
+## Required fidelity review
+
+- Layout and hierarchy: categories are isolated on the left, the primary Mod task owns the widest centre column, and rate/active selection occupy the right summary card. Back, reset, and Done remain fixed in a quiet footer.
+- Typography and copy: hierarchy uses the existing `HomeTypography` family. Technical phrases such as `NODE`, `SYNC`, `INPUT ROUTE`, `MOD BUS`, and `LIVE 120HZ` are no longer visible.
+- Colors and surfaces: the page uses the existing ivory, navy, cyan, pale cyan, yellow, and pink tokens. Gradients, dark panels, scanner effects, and the cyan footer were removed.
+- Assets: no new bitmap, generated component, screenshot crop, or extracted decoration was added. Existing paper and logo textures plus Font Awesome icons are reused.
+- Interaction: category selection, Mod focus/cycle/toggle, rate slider and presets, active-row focus/removal, reset, back, and Done continue through the existing callbacks. Mod state remains owned by `GameplayModsScreen`.
+- Responsive/accessibility risk: both captures use the shared 1920 x 1080 reference stage. Active state is communicated by acronym, row membership, count, border, and colour rather than colour alone.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after replacing the old empty-slot signal rails.
+- P3: the dedicated Mods workspace still uses its legacy authored 1600 x 900 inner coordinate system inside the shared 1920 x 1080 stage. It is visually centred and correct at the reference viewport, but a later structural pass can migrate the inner canvas without changing this design.
+
+## Verification
+
+- Isolated `Yokko.Game` build: passed with 0 warnings and 0 errors.
+- Isolated `Yokko.Game.Tests` build after the final visual edit: passed with 0 warnings and 0 errors.
+- `TestSceneGameplayModsScreen`: 11 passed, 3 failed. The failures are pre-existing expectation gaps outside this visual shell: a stale 15-item browser count, a 1920 x 1080 minimum-stage assertion against the existing Large-scale target, and connector-transition coverage although the HEAD implementation does not construct connectors.
+- Native Direct3D 11 captures covered two categories, two playback rates, two and three active-Mod states, focus state, empty active slots, and the final footer.
+- Before/after and normalized source/implementation comparisons were opened and inspected together.
+- `git diff --check`: passed after the final source and QA edits.
+
+final result: passed with pre-existing focused-test gaps documented
+
+---
+
+# Gameplay Mods card-browser QA (2026-08-01)
+
+## Evidence
+
+- osu!lazer information-architecture reference: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\osu-lazer-mod-select-reference-2024.jpg` (normalized to 1920 x 1080 for comparison; used for stacked Mod-card hierarchy, not surface styling).
+- Yokko visual-language reference: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (normalized to 1920 x 1080; used for paper, typography, colour, and spacing language).
+- First native card pass: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\gameplay-mods-card-browser-first-pass.png` (1920 x 1080, Direct3D 11).
+- Final English implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\gameplay-mods-card-browser-final-en.png` (1920 x 1080, Direct3D 11; Difficulty Up, HR focused, HT and HR active).
+- Final Chinese implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\gameplay-mods-card-browser-final-zh.png` (1920 x 1080, Direct3D 11; localized visible copy and active count).
+- osu!lazer/full-screen comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\gameplay-mods-card-browser-osu-reference-comparison.png`.
+- Yokko-style/full-screen comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\gameplay-mods-card-browser-yokko-style-comparison.png`.
+- Focused browser comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\gameplay-mods-card-browser-focused-comparison.png` (osu!lazer Mod columns left, Yokko card browser right).
+
+## Comparison history
+
+1. The prior paper pass removed the science-fiction shell but kept circular Mod nodes around a large focus card. That arrangement consumed space and made consecutive Mod names, descriptions, and family states harder to scan than osu!lazer's stacked panels.
+2. The central region now uses one ordered 390 x 60 card column. Every card presents acronym, name, one-line description, family position when relevant, and enabled state in a consistent reading path; focus and activation callbacks remain unchanged.
+3. The first native capture exposed two visible issues: long descriptions could occupy a clipped second line, and the right focus panel lacked a semantic heading. The final pass constrains descriptions to one line and adds the localized Mod-details heading.
+4. Final English and Chinese native captures plus the three combined comparisons confirm that the hierarchy follows osu!lazer's browsing model while the surface remains Yokko's ivory-paper visual language.
+
+## Required fidelity review
+
+- Fonts and typography: existing `HomeTypography` remains the only display family. Names, acronyms, descriptions, category labels, rate, active count, and CJK strings form a readable hierarchy without clipping in the final captures.
+- Spacing and layout rhythm: the 390 x 60 cards share one x origin and a 66 px vertical cadence, allowing the six-item dense category to be compared without orbiting labels or pointer travel. The detail panel remains visually secondary to the browser.
+- Colours and surfaces: existing ivory, white, navy, cyan, pink, pale cyan, and yellow tokens are retained. Selection uses outline and check state; enabled state remains visible through colour, text, and the active-summary row.
+- Image and asset quality: no bitmap, generated UI component, screenshot crop, or extracted decoration was introduced. The pass therefore adds no new cut-out edge or scaling risk.
+- Copy and localization: technical/sci-fi copy remains absent. Browser title, hint, detail heading, active count, and category label use localization keys; both English and Chinese screenshots were verified.
+- Interaction and state: category navigation, card focus, family cycling, enable/disable, speed presets and slider, active-row focus/removal, reset, back, and Done still route through the existing screen state and callbacks.
+- Responsive/accessibility risk: the screen minimum now uses the shared 1920 x 1080 reference stage. State is not communicated by colour alone. Keyboard and screen-reader semantics remain outside this visual-focused pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after correcting description clipping and adding the detail heading.
+- P3: internal class names still retain the legacy `Orbit` terminology even though no orbit connectors or circular-node layout remain. This is invisible and can be handled later as a non-visual cleanup without risking the current interaction path.
+- P3: the osu!lazer screenshot is a 2024 reference and is used only to validate stable information architecture; current upstream source still describes horizontally scrollable Mod columns and `ModPanel`-based items.
+
+## Verification
+
+- Isolated `Yokko.Game` build: passed with 0 warnings and 0 errors.
+- Full `TestSceneGameplayModsScreen`: 15 passed, 0 failed.
+- Added geometry coverage verifies six dense-category browser cards at 390 x 60 on one scan column.
+- Updated transition coverage verifies that the card browser does not recreate orbit connectors while retaining activation feedback and Mod add/remove behaviour.
+- Native Direct3D 11 captures cover English and Chinese at 1920 x 1080, focus state, two active Mods, rate controls, empty slots, and footer actions.
+- Both normalized full-screen comparisons and the focused source/implementation comparison were opened and inspected together.
+- `git diff --check`: passed for all touched Gameplay Mods source, localization, test, and QA files.
+
+final result: passed
+
+---
+
+# Song Select square-cover and grade-hierarchy QA (2026-08-01)
+
+## Evidence
+
+- User-reported problem capture: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-0afa7bc3-e844-4221-9973-ef4b8065fe16.png` (918 x 1079 crop; package artwork reads as a shallow banner and ranking grades appear as a solid colour column).
+- Yokko visual-language reference: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1672 x 941, normalized to 1920 x 1080 for the full-style comparison).
+- Current-code baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-cover-grade-current-baseline.png` (1920 x 1080, Direct3D 11).
+- First implementation pass: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-square-covers-grade-badges-first-pass.png` (1920 x 1080, Direct3D 11).
+- Final implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-square-covers-grade-badges-final.png` (1920 x 1080, Direct3D 11; English locale, 7K filter, two expanded packages, Marathon x1.3 selected, DT and HD active).
+- Full before/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-cover-grade-final-before-after.png` (equal 1920 x 1080 states side by side).
+- Yokko-style/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-cover-grade-final-style-comparison.png` (normalized visual reference left, implementation right).
+- Focused cover comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-square-covers-final-focused-comparison.png` (baseline left, final right).
+- Focused ranking comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-grade-badges-final-focused-comparison.png` (baseline left, final right).
+
+## Comparison history
+
+1. The user capture exposed two hierarchy problems: wide package-image slots made artwork read as flattened banners, while full-height grade fills competed with player name and score.
+2. Current code had already removed actual texture stretching through aspect-preserving centre crop and had reduced the old grade column to compact marks. The fresh native baseline nevertheless showed that package frames remained 104 x 84 and that the final grade sat inside the decorative paper tape's unsafe corner.
+3. The first implementation changed each package frame to an exact 84 x 84 crop, moved package metadata 20 px left into the recovered width, and converted grades to 30 x 26 low-opacity semantic badges inside the existing 36 x 32 table slot.
+4. The first focused comparison confirmed the cover and badge hierarchy, but the ranking paper's baked lower-right tape still visually touched the seventh grade. The final pass moved the score and grade columns 54/60 px left, creating a consistent safe inset without changing row height or table interaction.
+5. The final full, cover-focused, ranking-focused, and Yokko-style comparisons were opened and inspected together. No new P0/P1/P2 issue remained.
+
+## Required fidelity review
+
+- Fonts and typography: existing `HomeTypography` remains unchanged. Package titles retain their 18/15 px adaptive hierarchy; score remains the dominant 20 px value; grade letters drop to 15 px and use semantic grade colour rather than a heavy dark block.
+- Spacing and layout rhythm: package art is exactly 84 x 84 inside the existing 84 px header, so every package begins with a stable square anchor. Metadata starts at x=128, star/play indicators shift with it, and the recovered 20 px expands title width instead of introducing dead space. Ranking row height stays 52 px and badge occupancy stays 36 x 32.
+- Colours and tokens: grades use the existing cyan/green/yellow/pink semantic palette at 8-14% fill and 28-48% border opacity. The selected-player row remains identified by the established pink outline and ivory-yellow surface; grade colour does not replace selection state.
+- Image quality and asset fidelity: all covers use their real loaded textures, preserve source aspect ratio, and centre-crop through a masked square rather than stretching. No new generated image, crop file, placeholder, or resource-library cut-out was introduced.
+- Copy and content: no static or dynamic song metadata changed. Long package titles, song/chart counts, mapped-by copy, difficulty rating, key mode, score, and grade remain visible in the final capture.
+- Interaction and state: package expand/collapse, selected package guide, selected chart, difficulty filter, active Mods summary, ranking tab switch, and player row state remain on their existing code paths. The visual changes do not rebuild the virtual list or change score data.
+- Responsive/accessibility risk: final evidence uses the shared 1920 x 1080 reference stage. Artwork identity and grades are conveyed through image/content and letter labels, not colour alone. Alternate UI scales were not part of this narrowly scoped desktop pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after adding the ranking safe inset in the final pass.
+- P3: centre-cropping a highly panoramic source into a square may trim edge subjects. This is preferable to distortion for the current library and can later be augmented with per-cover focal metadata if real charts demonstrate a systematic problem.
+- P3: the ranking paper's lower-right tape remains a baked visual asset. Dynamic content now avoids its unsafe area, so replacing or re-editing that resource is not required for this pass.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build: passed with 0 warnings and 0 errors.
+- Focused Song Select filter: 25 passed, 0 failed across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Geometry coverage verifies package headers expose an 84 x 84 artwork frame and landscape/portrait textures retain their source aspect ratio while filling it.
+- Ranking coverage verifies seven 36 x 32 grade components, the -70 px safe inset, multiple grade states, and one highlighted current player.
+- Native preview confirms Direct3D 11 and a 1920 x 1080 window; the final screenshot covers square package art, expanded/collapsed package state, selected chart, seven ranking rows, grades S/A, and the decorative safe area.
+- Full-view and both focused equal-state comparisons were opened and inspected together; the normalized Yokko-style comparison was also reviewed for palette and typography continuity.
+- `git diff --check`: passed for the touched Song Select source, focused tests, and QA report.
+
+final result: passed
+
+---
+
+# Song Select difficulty-stack hierarchy QA (2026-08-01)
+
+## Evidence
+
+- Equal-state source baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-square-covers-grade-badges-final.png` (1920 x 1080, Direct3D 11; expanded package rows still repeat song titles and carry a broad difficulty tint).
+- Final implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-difficulty-stack-v1.png` (1920 x 1080, Direct3D 11; English locale, 7K filter, two expanded packages, Marathon x1.3 selected).
+- Focused before/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-difficulty-stack-comparison.png` (same viewport and state, vertically aligned around the complete right browser).
+- Information-hierarchy reference: osu!lazer Song Select V2, used for compact difficulty comparison and trailing metadata rather than colour or surface cloning.
+
+## Comparison history
+
+1. The baseline made every child row repeat its package song title as the largest label. Difficulty name was demoted into a small metadata sentence, so adjacent Normal, Hard, and Marathon variants could not be compared on the primary reading line.
+2. The final pass promotes difficulty name to the 15 px display line, leaves only `mapped by` as the quiet secondary line, and keeps rating plus key mode on a stable trailing axis. The expanded package header remains the single source of song identity.
+3. Compact-row border opacity drops from 38% to 16%, the broad accent wash from 4.5% to 1.8%, and the resting shadow from 12% to 8%. Difficulty colour now behaves as a narrow rail and rating cue instead of tinting the entire repeated list.
+4. The selected row retains the established yellow paper surface, pink pointer, outline, focus depth, and animated key-mode disclosure. Row height, virtualisation, proximity curve, expand/collapse, and selection callbacks are unchanged.
+
+## Required fidelity review
+
+- Fonts and typography: existing `HomeTypography` is retained. Difficulty names now form the strongest child-row hierarchy; mapper text remains readable but deliberately secondary. Long difficulty names truncate inside a 560 px safe width before the rating column.
+- Spacing and layout rhythm: all children remain 58 px high. Primary labels share x=24, rating readouts share x=628, resting mode pills share x=780, and the selected 116 px pill begins at x=718, leaving a 26 px gap after rating metadata.
+- Colours and surfaces: existing ivory, navy, pink, yellow, cyan, and semantic difficulty accents are unchanged. The reduced wash and border remove the pale-green table appearance while preserving package grouping.
+- Image and asset quality: no bitmap, generated decoration, extraction, screenshot crop, or resource-library component was added. Existing square package covers keep their aspect-preserving centre crop.
+- Copy and content: dynamic difficulty name, creator, rating unit/value, and key mode remain present. Repeated song titles are intentionally removed from package children because the parent header already identifies the song.
+- Interaction and state: package expansion, selected-row curve, hover depth, rating-mode updates, key-mode disclosure, list pooling, and chart selection remain on their existing in-place code paths.
+- Responsive/accessibility risk: evidence uses the shared 1920 x 1080 desktop reference stage. Selection is conveyed by surface, outline, pointer, and pill treatment rather than colour alone. Alternate UI scales remain outside this focused desktop pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after removing repeated primary song titles and reducing full-row difficulty tint.
+- P3: the selected key-mode pill uses concise English status copy in the English preview. A future localisation pass can expose the status token if Song Select receives complete locale-specific copy coverage.
+
+## Verification
+
+- Focused Song Select filter: 26 passed, 0 failed across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Added semantic coverage verifies compact package rows lead with `DifficultyName`, do not repeat `Title`, and retain mapper metadata.
+- Existing in-place rating-mode and progressive key-mode tests pass with the new trailing geometry; list objects and logical item count remain stable.
+- Native preview confirms Direct3D 11 and 1920 x 1080; the screenshot covers multiple difficulty names, ratings, key modes, selection, package guides, square covers, and the ranking panel in the same frame.
+- The equal-state focused comparison was opened and inspected together. No text overlap, clipping, cover distortion, new asset artifact, or broken row cadence is visible.
+- `git diff --check`: passed before appending this QA section.
+
+final result: passed
+
+---
+
+# Song Select browser-shell continuity QA (2026-08-01)
+
+## Evidence
+
+- Equal-state source baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-difficulty-stack-v1.png` (1920 x 1080, Direct3D 11; four independently rounded browse cards and unframed package chevrons).
+- Final implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-browser-shell-v1.png` (1920 x 1080, Direct3D 11; continuous browse rail, explicit package controls, expanded guide state, and the previously approved difficulty stack).
+- Focused before/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-browser-shell-comparison.png` (same 900 x 770 right-browser crop from equal 1920 x 1080 states, stacked at native density).
+- Visual language reference: the current approved Yokko paper screen and osu!lazer Song Select browsing hierarchy; no upstream surface colours or branded assets were copied.
+
+## Comparison history
+
+1. The baseline browse toolbar represented Sort, Group, Library, and Converts as four separate rounded cards with 8 px gaps. Together with the independent difficulty bar and package cards, the top of the browser read as a dashboard of unrelated widgets.
+2. The final toolbar uses one 850 x 34 masked ivory surface with a single cyan border. Four existing controls remain interactive inside it at x=0, 188, 376, and 610, separated by quiet 20 px vertical rules instead of repeated borders and corners.
+3. Package chevrons previously floated at the far right with no visible target. Each header now provides a 34 x 34 pale-cyan icon surface, a subtle expanded bottom rail, and hover feedback across the title surface. The square artwork, title, chart count, selected rail, and child guide retain their established positions.
+4. The focused comparison confirms a continuous path from browse controls to package header to difficulty rows without changing browser height, row density, selected-chart content, or cover crop.
+
+## Required fidelity review
+
+- Fonts and typography: all labels continue to use `HomeTypography`; toolbar label/value weights and package-title hierarchy are unchanged. Removing card gaps gives the values more stable alignment without shrinking or truncating text.
+- Spacing and layout rhythm: search, difficulty filter, toolbar, and browser remain at y=78, 136, 176, and 220. The toolbar occupies the same 850 x 34 envelope, so no vertical content is lost. Package headers remain 850 x 84 and children remain 58 px high.
+- Colours and surfaces: existing ivory, navy, cyan, pale-cyan, pink, and yellow tokens are retained. Active Converts still uses pale cyan plus its pink rail; resting segments now inherit the shared ivory surface instead of repainting four copies.
+- Image and asset quality: no bitmap, extracted decoration, generated image, screenshot crop, placeholder, or new resource was introduced. Package covers continue to use real textures with aspect-preserving square centre crops.
+- Copy and content: Sort, Group, Library, Converts, package names, song/chart counts, difficulty names, mappers, ratings, and key modes remain intact. This pass changes grouping and affordance, not product copy.
+- Icons: existing FontAwesome sort, group, archive, exchange, star, play, and chevron icons are retained. Chevron size remains 13 px but gains a visible 34 px surface; the full 850 x 84 package header remains clickable.
+- Interaction and state: sort/group/converts callbacks, non-interactive Library state, difficulty filtering, package expand/collapse, selected package guide, chart selection, pooling, and virtualisation continue on the existing code paths. Hover feedback uses short existing easing and does not alter state.
+- Responsive/accessibility risk: evidence uses the shared 1920 x 1080 desktop stage. Active state remains identifiable through fill and a pink rail; expanded state is shown through arrow direction, bottom rail, and visible children. Keyboard-specific traversal was not expanded in this visual pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after replacing the four isolated toolbar cards and giving package expansion an explicit target and connector.
+- P3: the difficulty filter remains its own full-width row above the toolbar. It is intentionally retained because combining a draggable range track with four click targets would reduce precision at the current 850 px width.
+
+## Verification
+
+- Focused Song Select filter: 26 passed, 0 failed across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Toolbar coverage verifies four 34 px controls share an 850 x 34 parent surface, keep three interactive actions, and no longer draw individual borders.
+- Package-header coverage verifies square artwork, expanded bottom rail, guide stem, selected rail, explicit chevron surface, and pooled collapsed-state reset.
+- Native preview confirms Direct3D 11 and 1920 x 1080; the final capture covers active Converts, expanded and collapsed packages, selected chart, ratings, key modes, square covers, and footer controls.
+- The focused equal-state comparison was opened and inspected together. No text collision, cover deformation, icon clipping, row-density drift, or new asset artifact is visible.
+- `git diff --check`: passed before appending this QA section.
+
+final result: passed
+
+# Song Select selected-details hierarchy QA (2026-08-01)
+
+## Evidence
+
+- Equal-state baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-browser-shell-v1.png` (1920 x 1080, Direct3D 11; selected chart metadata and personal performance compressed into one bottom row).
+- Final implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-details-hierarchy-v1.png` (1920 x 1080, Direct3D 11; English locale, 7K, Marathon x1.3, 1.50x, DT + HD).
+- Focused before/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-details-hierarchy-comparison.png` (same 880 x 275 selected-details crop from equal states, stacked at native density).
+- Visual language reference: the approved Yokko ivory-paper Song Select screen and osu!lazer's separation of current chart facts from player performance; no osu! brand asset or surface styling was copied.
+
+## Comparison history
+
+1. The baseline placed artist and mapper low in the identity block, then compressed length, BPM, notes, best score, and best accuracy into one undifferentiated row. The last two values looked like chart metadata rather than player state.
+2. The final layout moves artist and mapper to y=112 and y=139, then groups length, BPM, and notes in a dedicated 360 x 34 chart-facts row at y=164.
+3. A quiet 575 px divider separates immutable chart facts from a 360 x 42 personal-performance row at y=207. Best score and best accuracy now use two 164 px fields with an internal divider, preserving room for real formatted values.
+4. The long two-line title, square artwork, selected difficulty pill, playback-rate badge, and MSD badge retain their previous anchors. The focused comparison confirms that the new hierarchy did not introduce overlap or reduce artwork prominence.
+
+## Required fidelity review
+
+- Fonts and typography: all dynamic text continues to use `HomeTypography`. Title, artist, mapper, labels, and values keep their established weights and colours; the split rows improve scan order without introducing a new type style.
+- Spacing and layout rhythm: the 850 x 255 paper card and 210 x 210 cover are unchanged. Title-to-artist spacing remains comfortable for the two-line stress case. Both metadata rows fit above the paper's lower contour without clipping.
+- Colours and surfaces: existing ivory, navy, cyan, yellow, and pink tokens are retained. New separators use the existing navy at 13-14 percent opacity, avoiding another card or bordered badge.
+- Image and asset quality: no bitmap, cutout, generated decoration, screenshot crop, placeholder, or new resource was introduced. The selected artwork remains a real source texture in the approved aspect-preserving square crop.
+- Copy and content: song title, artist, mapper, length, BPM, note count, best score, best accuracy, difficulty, playback rate, and rating remain dynamic. No product copy was replaced or baked into an image.
+- Icons: existing FontAwesome clock, waveform, music, trophy, and target icons are retained at 11-12 px and aligned with their labels. No text symbol or handcrafted vector substitute was added.
+- Interaction and state: selection changes still rebuild only the active details layer, and playback-rate changes continue to update rate, BPM, difficulty, and duration through the existing in-place path. Search, filters, package expansion, difficulty selection, mods, and Play remain functional in the captured state.
+- Responsive/accessibility risk: the validated surface is Yokko's shared 1920 x 1080 desktop stage. Long-title wrapping and empty performance values were stress-tested visually. Keyboard traversal and non-desktop breakpoints were not expanded by this layout-only pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after separating chart facts from personal performance and giving formatted score/accuracy values adequate width.
+- P3: the right side below the MSD badge remains intentionally quiet. Filling it with another decorative card or inferred metric would weaken the title/rating hierarchy and reintroduce dashboard density.
+
+## Verification
+
+- Focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Geometry coverage verifies the chart-facts row at (252, 164) / 360 x 34 and performance row at (252, 207) / 360 x 42.
+- Native preview confirms Direct3D 11 at 1920 x 1080 with the long two-line title, selected 7K chart, 1.50x rate, DT + HD, and empty personal-result state.
+- The focused equal-state comparison was opened and inspected together. No title collision, value clipping, cover deformation, border residue, icon drift, or new asset artifact is visible.
+- `git diff --check`: passed before appending this QA section.
+
+final result: passed
+
+# Song Select ranking-header integration QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1792 x 1000 generated Song Select mock selected by the user; compact ranking tabs and Selected Mods share the leaderboard surface).
+- Equal-state implementation baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-details-hierarchy-v1.png` (1920 x 1080; paper begins below the header while tabs and a 198 px Mods card float over the wallpaper).
+- Final implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-header-final.png` (1920 x 1080 native Direct3D 11 capture; English locale, 7K, Marathon x1.3, 1.50x, DT + HD).
+- Full-view visual-target comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-header-style-reference-full.png` (source normalized from 1792 x 1000 to 960 x 536; implementation normalized from 1920 x 1080 to 960 x 540; device scale 1).
+- Focused visual-target comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-header-reference-comparison.png` (selected mock and final ranking-header crops normalized to the same 850 px width).
+- Equal-state before/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-header-comparison.png` (identical 870 x 485 left-ranking crop, stacked at native density).
+
+## Comparison history
+
+1. Baseline P2: the ranking paper started 42 px below the panel origin, leaving GLOBAL, MY HISTORY, play count, and Selected Mods floating on the wallpaper. The 198 x 40 two-line Mods card also read as an unrelated overlay instead of the right-hand action in the ranking rail.
+2. First implementation: the existing `paper-ranking` texture moved to the panel root and now spans 850 x 464, while row content remains at y=42. This places the tabs, play count, divider, and rows on one continuous real paper asset without stretching a screenshot or generating another decoration.
+3. First implementation: Selected Mods became 154 x 40 at x=696, preserving its live summary and count while matching the selected mock's compact right-aligned control. The former left status bar became a 3 px bottom rail aligned with the ranking tab underlines.
+4. First visual pass P2: active DT + HD still produced a hot-pink full outline that competed with the selected ranking row. The final pass keeps the button outline quiet navy at 24 percent opacity and carries active state through the pink summary, count badge, and bottom rail.
+5. Post-fix evidence: the focused visual-target comparison and equal-state comparison were opened together. The header now reads as one paper-backed rail; the selected player's pink row remains the primary ranking emphasis.
+
+## Required fidelity review
+
+- Fonts and typography: existing `HomeTypography` display/body faces remain unchanged. The selected mock uses Details/Ranking, while the implementation intentionally keeps the functional GLOBAL/MY HISTORY views. Labels, 7 PLAYS, dynamic mod summary, and count remain legible with no truncation in the active two-mod state.
+- Spacing and layout rhythm: the ranking panel remains 850 x 510 and the row viewport remains 850 x 422. Paper now begins at (0, 0) and ends at y=464; content still begins at y=42. The 154 px Mods control ends exactly at x=850 and shares the 40 px header height with both tabs.
+- Colours and visual tokens: ivory paper, navy text, cyan icon, yellow active-ranking underline, and pink mod state all reuse existing Yokko tokens. The final quiet navy button outline prevents the action from competing with the selected score row.
+- Image quality and asset fidelity: the existing lossless `SongSelect/Cute/paper-ranking` resource is reused at the full header-plus-row slot. No resource cutout, generated bitmap, screenshot slice, placeholder, custom SVG, text glyph icon, or approximate decorative asset was introduced.
+- Copy and content: GLOBAL, MY HISTORY, play count, player names, mods, combo, accuracy, score, grades, SELECTED MODS, active summary, and count remain live product data. The generated mock's Details/Ranking wording was not copied because it would misrepresent the two implemented data views.
+- Icons: existing FontAwesome users, archive, sliders, and ranking-row grade components remain. The Mods sliders icon is reduced from 13 px to 12 px to match its tighter control while retaining the same icon family and optical alignment.
+- States and interactions: both ranking tabs remain clickable, the ranking body keeps its existing view toggle, and Selected Mods still opens the dedicated mods screen without stopping the preview. Active and empty mod states continue to update through `SetState`; hover feedback remains the existing pale-cyan surface change.
+- Accessibility and viewport resilience: the implemented target is Yokko's shared 1920 x 1080 desktop stage. Tab and Mods targets retain a 40 px height, colour is not the only mod-state cue because summary/count also change, and no footer overlap or header clipping is visible. Non-desktop breakpoints and explicit keyboard focus traversal were not expanded in this layout pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after integrating the paper surface and reducing the active Mods outline.
+- P3: the implementation keeps seven 52 px ranking rows, slightly roomier than the selected mock. This is accepted because the runtime includes two-line per-player metadata and the full 1920 x 1080 stage has the vertical room without hiding the footer.
+
+## Verification
+
+- Focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList` after the final colour pass.
+- Geometry coverage verifies paper at (0, 0) / 850 x 464 and Selected Mods at (696, 286) / 154 x 40 in the full screen.
+- Existing interaction coverage verifies ranking view switching, Mods screen opening/return, preview continuity, active-mod reflection, rate updates, filters, package interaction, and bounded virtualisation.
+- Native final preview confirms Direct3D 11 at 1920 x 1080. No paper seam, header collision, control clipping, selected-row competition, footer overlap, or new asset artifact is visible.
+- Full-view, focused target, and equal-state before/final comparisons were each opened and inspected as combined images.
+- `git diff --check`: passed before appending this QA section.
+
+final result: passed
+
+# Song Select ranking-metric grid QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1792 x 1000 selected Song Select mock; ranking rows read player, score, accuracy, combo, and grade from left to right).
+- Equal-state baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-header-final.png` (1920 x 1080; combo and accuracy share a stacked middle column while the 20 px score is pushed beside the grade).
+- First implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-grid-v1.png` (1920 x 1080; separate score, accuracy, and combo columns, with an initially heavy 18 px score).
+- Final implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-grid-final.png` (1920 x 1080 native Direct3D 11 capture; English locale, 7K, Marathon x1.3, 1.50x, DT + HD).
+- Full-view target/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-grid-style-reference-full.png` (source normalized from 1792 x 1000 to 960 x 536; implementation normalized from 1920 x 1080 to 960 x 540; device scale 1).
+- Focused target/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-grid-reference-comparison.png` (ranking-row crops normalized to 870 px width and inspected together).
+- Equal-state before/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-grid-comparison.png` (identical 870 x 410 ranking crop, stacked at native density).
+
+## Comparison history
+
+1. Baseline P2: combo and accuracy occupied the same x=402 column on separate lines, while score used a large right-anchored 20 px treatment beside the grade. This made each row read player, combo, accuracy, score, grade rather than the selected mock's stable numeric sequence.
+2. First implementation: score, accuracy, and combo received independent right edges at x=476, x=586, and x=696. Numeric origins are top-right, so varying digit counts align by their least-significant edge instead of shifting the whole column.
+3. First visual pass P2: the 18 px score still carried more weight than the selected mock and visually pulled attention away from player identity. The final pass reduces it to 16 px and moves its baseline to y=16, while accuracy and combo remain 12 px at y=18.
+4. Post-fix evidence: full-view, focused visual-target, and equal-state comparisons were opened. Seven real rows, four score grades, long formatted scores, percentages, four-digit combos, the current-player selection, and the paper trim all remain clear and collision-free.
+
+## Required fidelity review
+
+- Fonts and typography: player name remains the 15 px identity anchor and Mod labels remain an 8 px secondary line. Score now uses the same `HomeTypography.Display` family at 16 px; accuracy and combo use 12 px display numerals at a shared optical baseline. No fallback, wrap, truncation, or cramped-number issue is visible.
+- Spacing and layout rhythm: rank, 42 px avatar, 218 px identity slot, and 52 px row height are unchanged. The three metric right edges create 110 px and 110 px intervals, followed by a 52 px breathing gap before the compact grade badge.
+- Colours and visual tokens: score retains primary navy; accuracy and combo use the existing 68 percent navy secondary token. Grade colours and pink current-player emphasis are unchanged, preventing the numeric grid from introducing another semantic colour system.
+- Image quality and asset fidelity: existing avatar textures and the real ranking-paper asset remain untouched. No country flag was invented because `SongSelectScore` has no country field and no verified per-player flag resource; no cutout, generated bitmap, screenshot crop, placeholder, custom SVG, or text-glyph asset was added.
+- Copy and content: player name, Mod summary, score, accuracy, combo, and grade remain dynamic. The only content-order change is visual positioning; numeric formatting (`N0`, `P2`, and the multiplication sign) is preserved.
+- Icons: avatar frames and compact grade badges remain unchanged. The selected mock's flags were intentionally omitted instead of faking unsupported profile data or adding unverified assets.
+- States and interactions: global/history switching, current-player row emphasis, ranking-body toggle, Selected Mods, selection transitions, filters, and gameplay launch continue through existing paths. This pass introduces no static replacement for live ranking data.
+- Accessibility and viewport resilience: right alignment makes scores with different digit counts easier to compare. Primary and secondary numeric contrast remains readable on ivory; the 1920 x 1080 target has no overlap with paper trim or footer. Explicit keyboard focus and non-desktop stages were not expanded in this layout-only pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after separating the numeric columns and reducing score emphasis.
+- P3: the selected mock includes country flags between avatar and player name. Yokko's current score model contains no country value, so omitting this unsupported decoration is preferable to a fake or unreliable asset until profile data provides a real source.
+
+## Verification
+
+- Focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList` after the final typography pass.
+- Focused geometry coverage verifies three distinct metric right edges at x=476, x=586, and x=696; existing grade tests verify all badges stay inside the 52 px row and only the current player receives highlighted treatment.
+- Native final preview confirms Direct3D 11 at 1920 x 1080. No score/name overlap, metric collision, grade clipping, row-height drift, paper artifact, or footer overlap is visible.
+- Full-view, focused target, and equal-state before/final comparisons were opened and inspected as combined images after the final capture.
+- `git diff --check`: passed before appending this QA section.
+
+final result: passed
+
+# Song Select ranking-view states QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1792 x 1000 selected Song Select mock; ranking controls and content share one paper surface).
+- Global implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-state-global.png` (1920 x 1080 native Direct3D 11 capture with seven live rows).
+- Personal empty implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-state-personal.png` (1920 x 1080 native capture after switching to MY HISTORY).
+- Settled switch capture: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-state-transition-850.png` (state captured 150 ms after the scheduled view change).
+- Focused state board: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-state-board.png` (selected direction, global state, empty personal state, and settled post-switch state at matched density).
+
+## Comparison history
+
+1. Baseline P2: GLOBAL and MY HISTORY changed data immediately with no contained content transition, and an empty history left the entire ranking paper unexplained.
+2. Implementation: each ranking view now owns one content layer. On view change, the outgoing layer fades/slides by 6 px while the incoming layer fades/slides by 8 px, then the stale layer is removed after 180 ms.
+3. Implementation: the active tab label and underline transition over 130 ms, while play count remains live for the selected view. Re-selecting the current tab is a no-op and does not restart the transition.
+4. Implementation: zero-result views use a compact archive/users icon, one display headline, and one explanatory body line directly on the existing paper. No nested empty-state card, border, illustration, or decorative resource was introduced.
+5. Visual inspection: global rows retain the previously approved horizontal score/accuracy/combo grid. Personal history settles to one centred, low-density empty state with MY HISTORY in pink, GLOBAL inactive, and `0 PLAYS` aligned to the existing rail.
+
+## Required fidelity review
+
+- Fonts and typography: empty-state headline uses the existing 16 px Yokko display face; its 11 px body line uses the existing body face and muted navy token. Neither line wraps or competes with the header.
+- Spacing and layout rhythm: the empty state is centred in the existing 850 x 422 row viewport, leaving intentional paper breathing room. The 40 px header and Selected Mods alignment remain unchanged.
+- Colours and visual tokens: active personal state reuses Yokko pink, global state reuses yellow/cyan ranking accents, and empty copy stays navy on ivory paper. No sci-fi glow or dark overlay was added.
+- Image quality and asset fidelity: the existing ranking-paper texture remains the only art surface. FontAwesome archive/users icons are standard project icons; no new cutout, generated bitmap, screenshot slice, placeholder, or approximate decorative asset was added.
+- Copy and content: `NO LOCAL PLAYS YET` and `PLAY THIS CHART TO START YOUR HISTORY` describe the actionable empty condition without pretending missing history is an error. Ranking rows and play counts remain dynamic.
+- States and interactions: both tabs remain clickable. The switch keeps one final content layer, increments a transition version for verification, and restores global rows without rebuilding or restarting song preview state.
+- Accessibility and viewport resilience: the implemented target is Yokko's 1920 x 1080 shared stage. Empty-state meaning is carried by copy as well as icon/colour, tab targets retain their previous hit areas, and no footer or Selected Mods overlap is visible.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after adding the contained state transition and explaining the zero-result view.
+- P3: a 760 ms diagnostic screenshot landed on the same scheduler frame that activated MY HISTORY, before the outgoing transform advanced. The 850 ms capture and focused layer assertions confirm the transition settles to one clean personal layer without persistent overlap.
+
+## Verification
+
+- Focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Interaction coverage switches global -> personal -> global, waits for one content layer after each transition, verifies the personal empty state, and verifies both transition-version increments.
+- Native Direct3D 11 captures at 1920 x 1080 confirm the global and personal end states, selected Mods alignment, paper trim, footer separation, and unchanged right-side list hierarchy.
+- The focused state board and all three full captures were opened and inspected. No persistent double image, clipped content, nested-card artifact, or new resource edge is visible.
+- `git diff --check`: passed before appending this QA section.
+
+final result: passed
+
+# Song Select browser-focus hierarchy QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1792 x 1000 selected Song Select mock; selected set header carries chart context and expanded difficulties form a compact child stack).
+- Equal-state baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-state-global.png` (1920 x 1080; selected package header still shows a generic package title/count and child rows are 58 px high).
+- Final first-package state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-browser-focus-v1.png` (1920 x 1080 native Direct3D 11 capture; selected Marathon x1.3 in the first package).
+- Final transferred state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-browser-focus-transfer.png` (1920 x 1080 native capture after moving selection to Hard in the next package).
+- Full-view target/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-browser-focus-full-reference.png` (source and implementation normalized to 930 px width at device scale 1).
+- Focused target/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-browser-focus-reference-comparison.png` (matched browser-region comparison).
+- Equal-state before/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-browser-focus-before-after.png` (identical 865 x 655 browser crop).
+- Interaction-state comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-browser-focus-state-transfer.png` (first selected package beside the next selected package).
+
+## Comparison history
+
+1. Baseline P2: the selected package retained its generic package name and song/chart count, so the cyan parent focus did not explain which yellow child difficulty would launch. The only detailed current-song context lived in the separate left panel.
+2. First implementation: a selected package header now transitions from its package summary to the actual selected song title, artist/mapper byline, key-mode/difficulty pill, and the current live rating. The cyan parent outline therefore names the selection while the yellow child row remains the actionable chart.
+3. First implementation: package child rows reduce from 58 px to 52 px and vertically re-centre their primary label, mapper, rating readout, and progressive key-mode pill. This exposes more packages without shrinking the 84 px square package artwork.
+4. Interaction pass: moving from Marathon x1.3 to the next package's Hard chart restores the first header's package summary and transfers the contextual header, cyan rail, play indicator, and yellow child selection to the next package without rebuilding the list.
+5. Post-fix evidence: full-view, focused target/final, equal-state before/final, and selection-transfer comparisons were opened together. No title/rating collision, stale package context, selected-row ambiguity, artwork deformation, or footer overlap remains.
+
+## Required fidelity review
+
+- Fonts and typography: selected title uses the existing 17 px Yokko display face; artist/mapper and mode/rating metadata use the existing 7-9 px display treatment. Long fixture titles truncate within the header before the chevron and rating column rather than wrapping into the child stack.
+- Spacing and layout rhythm: package headers remain 850 x 84 with 84 x 84 square artwork. Child rows are now 850 x 52 with a 5 px inter-item gap; primary text, secondary mapper text, rating, and mode pill retain clear baselines at the tighter density.
+- Colours and visual tokens: cyan continues to represent the selected/expanded parent, pale yellow represents the exact child chart, pink carries the current mode pill and play marker, and live rating colour follows the existing difficulty palette. No new glow, gradient, or sci-fi surface was introduced.
+- Image quality and asset fidelity: existing song/package wallpaper textures continue through `SongSelectArtworkCrop` with square cover-crop semantics. This intentionally differs from the selected mock's flat banners because the user explicitly rejected flattened covers. No new resource, cutout, generated image, screenshot slice, custom SVG, or approximate decorative art was added.
+- Copy and content: selected header title, artist, mapper, key mode, difficulty name, and rating are all live values from `SongSelectEntry`; unselected headers return to package name and song/chart count. No unsupported star count or fake favourite/profile data was invented.
+- Icons: the existing FontAwesome star, play marker, and chevron remain in one icon family. Their positions and sizes are unchanged; context is added through live text rather than another decorative symbol.
+- States and interactions: package expand/collapse remains clickable, row click/double-click behavior is unchanged, selection transfers contextual header data in place, and difficulty-display mode updates both materialised rows and the active package header.
+- Accessibility and viewport resilience: title truncation prevents collision with rating/chevron controls, copy carries selection meaning in addition to colour, and the 1920 x 1080 shared stage keeps all persistent footer controls visible. Non-desktop breakpoints and explicit keyboard focus traversal were not expanded in this desktop layout pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after replacing the selected package's generic summary with live chart context and tightening child-row density.
+- P3: the selected mock shows five decorative stars in the active header. Yokko keeps one actual rating value instead because a verified five-star semantic is not available for every rating mode; adding five decorative stars would imply unsupported data.
+
+## Verification
+
+- Focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList` from isolated artifacts.
+- Focused coverage verifies 52 px compact row height, re-centred inline rating, contextual package-summary crossfade, live title/byline/mode/rating copy, selected guide rail, pooled-header reset, and bounded virtualisation.
+- Native Direct3D 11 captures at 1920 x 1080 verify both package-selection end states. The second capture confirms the parent context and exact selected difficulty transfer together.
+- Full-view, focused target/final, equal-state before/final, and state-transfer comparisons were opened and inspected as combined images.
+- `git diff --check`: passed before appending this QA section.
+
+final result: passed
+
+# Song Select filter and empty-state QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1792 x 1000; osu!lazer-like browser hierarchy expressed in Yokko's ivory-paper language).
+- Final populated state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-filter-populated-state-v1.png` (1920 x 1080 native Direct3D 11 capture).
+- Final filtered-empty state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-filter-empty-state-v1.png` (1920 x 1080 native capture with query, 7K, MSD minimum, and converted charts hidden).
+- Source/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-filter-reference-comparison.png` (selected mock and current populated implementation normalized side by side).
+- Interaction-state comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-filter-state-comparison.png` (identical browser crop for populated and filtered-empty states).
+
+## Comparison history
+
+1. Baseline P2: filtering to zero results left a single generic `NO SONGS FOUND` label. It did not identify the active conditions or provide an in-context recovery action.
+2. Implemented: the browser now distinguishes a genuinely empty library from a filtered-empty library. Filtered-empty copy names the active query, key mode, rating threshold, and converted-chart visibility.
+3. Implemented: `CLEAR FILTERS` restores query, key mode, both rating-mode thresholds, and converted charts with one list update while leaving sorting and grouping untouched.
+4. Post-fix comparison: the empty state remains inside the established browser region, preserves the toolbar and footer hierarchy, and returns to the populated browser without introducing a modal or a second card surface.
+
+## Required fidelity review
+
+- Fonts and typography: the 18 px Yokko display headline and 11 px body summary reuse the existing Song Select typography. Search terms and filter values remain compact enough for a single line and long queries truncate at 24 characters.
+- Spacing and layout rhythm: the 560 x 206 state cluster is centred within the 850 px browser, with a 46 px icon badge, 29 px headline gap, one-line summary, and a 168 x 40 recovery target. It does not shift persistent controls.
+- Colours and visual tokens: navy carries primary copy, cyan carries search/range context, pink marks the recovery icon, and the ivory button matches existing Song Select controls. No glow, dark-tech panel, gradient, or sci-fi treatment was added.
+- Image quality and asset fidelity: no bitmap, cutout, generated decoration, screenshot slice, custom SVG, or resource-library component was added. The state uses only existing surfaces, typography, and FontAwesome icons.
+- Copy and content: the summary is built from real active state rather than fake sample labels. An unfiltered empty library instead reads `NO SONGS IN YOUR LIBRARY` / `IMPORT A BEATMAP TO START PLAYING` and does not offer an irrelevant reset.
+- Icons: search and undo use the same FontAwesome family as the surrounding toolbar. No Unicode glyph or approximate decorative drawing is used.
+- States and interactions: query changes are reflected in the visible search box; Escape still clears search first; the recovery action clears all browsing constraints in one operation; sort, grouping, selection memory, and preview playback are not reset.
+- Accessibility and viewport resilience: the empty reason is explicit text rather than colour alone, the recovery control is 168 x 40, and the full 1920 x 1080 capture retains all footer actions. Keyboard focus traversal and screen-reader naming were not manually exercised in this pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after replacing the generic dead-end label with an explanatory, recoverable state.
+- P3: the selected mock does not define a no-results state, so this state extends its information hierarchy using Yokko's existing visual tokens rather than inventing new artwork.
+
+## Verification
+
+- Isolated build completed with 0 warnings and 0 errors.
+- Focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Focused coverage verifies the true empty-library copy, absence of an irrelevant reset, filtered-empty summary, combined reset behaviour, restored result count, existing Escape behaviour, and the previous browser/virtualisation regressions.
+- Native Direct3D 11 captures at 1920 x 1080 verify populated and filtered-empty states. Both the source/final board and the identical-crop interaction board were opened and inspected.
+- `git diff --check`: passed before appending this QA section.
+
+final result: passed
+
+# Song Select selected-song information hierarchy QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1792 x 1000; selected-song summary leads with artwork/title, then chart facts and personal performance).
+- Equal-state baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-filter-populated-state-v1.png` (1920 x 1080; playback rate and difficulty rating float in separate top-right pills while the lower grid stops early).
+- Final long-title state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-left-card-v2.png` (1920 x 1080 native Direct3D 11 capture).
+- Final short-title state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-left-card-short-title-v2.png` (1920 x 1080 native capture after selecting Neon Pulse Overdrive).
+- Equal-state focused comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-left-card-before-after-v2.png` (identical 850 x 255 selected-song crop).
+- Source/final full-view comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-left-card-reference-comparison.png` (source and implementation normalized to 960 px widths at device scale 1).
+
+## Comparison history
+
+1. Baseline P2: the difficulty rating and playback rate appeared as two detached cyan pills in the card's top-right corner. The title was constrained to 420 px while both lower information rows occupied only 360 of the available 575 px.
+2. First implementation: the title gains the full 575 px content measure. Length, BPM, notes, and the live rating now form one chart-facts row; best score, best accuracy, and playback rate form one performance row.
+3. First visual pass P2: a single-line title retained the two-line title's fixed byline positions, leaving an oversized blank gap between `Neon Pulse Overdrive` and its artist/mapper.
+4. Final implementation: artist and mapper positions adapt to one- or two-line titles while the facts and performance baseline remains fixed, preserving row alignment between selections.
+5. Post-fix evidence: long-title, short-title, equal-state before/after, and source/final comparisons were opened together. No title collision, byline gap, metric clipping, detached rating, artwork deformation, or ranking overlap remains.
+
+## Required fidelity review
+
+- Fonts and typography: the existing Yokko display/body families remain unchanged. Two-line titles use 21 px display text; one-line titles retain 28 px and now pull artist/mapper upward. Labels use 7-8 px display text and values use 12-13 px, matching the selected mock's headline-to-metadata hierarchy.
+- Spacing and layout rhythm: the 210 px square artwork and 850 x 255 paper remain unchanged. The content column expands from 420 to 575 px; four chart facts and three performance facts use consistent dividers across the full measure.
+- Colours and visual tokens: navy text, cyan chart metadata, yellow score icon, cyan accuracy icon, and pink playback icon reuse existing semantic tokens. The removed cyan pills reduce surface clutter without introducing a new colour or card style.
+- Image quality and asset fidelity: the same source artwork continues through `SongSelectArtworkCrop` at 210 x 210 with no stretch. No new resource, cutout, generated bitmap, screenshot slice, custom SVG, or approximate decorative element was added.
+- Copy and content: all values remain live: title, artist, mapper, length, BPM, note count, selected rating unit/value, best score, best accuracy, and effective playback rate. No decorative stars or unsupported status text was invented.
+- Icons: clock, waveform, music, signal, trophy, bullseye, and tachometer come from the existing FontAwesome family and align to one 11-13 px rhythm.
+- States and interactions: changing selection still uses the existing contained detail transition; rating-mode and playback-rate changes rebuild the displayed facts from current values; selection and lightweight rate changes retain their previous preview/list semantics.
+- Accessibility and viewport resilience: rating and playback states remain explicit text rather than colour alone, long titles wrap to at most two lines, and short titles no longer create misleading whitespace. The 1920 x 1080 stage retains all ranking and footer controls; keyboard and screen-reader behaviour were not expanded in this visual pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after consolidating the status pills into the information grid and adapting byline spacing to title length.
+- P3: the selected mock places the rating beside a short title. Yokko intentionally keeps the rating in the chart-facts row so long titles retain the full content width and the rating does not return to a detached badge.
+
+## Verification
+
+- Isolated build completed with 0 warnings and 0 errors.
+- Focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Focused coverage verifies the expanded 575 px chart/performance rows, live playback-rate/BPM/difficulty updates, selection transitions without list reconstruction, rating-mode switching, and all previous browser/empty-state regressions.
+- Native Direct3D 11 captures at 1920 x 1080 verify both long- and short-title states. The equal-state crop and normalized source/final board were opened and inspected.
+- `git diff --check`: passed before appending this QA section.
+
+final result: passed
+
+# Song Select top navigation and browse-control QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1672 x 941, device scale 1; osu!lazer-like navigation and browser-control hierarchy in the selected Yokko direction).
+- Rendered implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-header-controls-v1.png` (1920 x 1080, device scale 1, native Direct3D 11 capture).
+- Focused comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-header-controls-comparison-v1.png` (source top 192 px normalized to 1920 x 220 above the implementation's native 1920 x 220 crop).
+- Viewport/state: both captures are 16:9 desktop song-select states with the music destination active, selected-song information visible, browser controls at rest, and no modal open.
+
+## Comparison history
+
+1. Baseline P2: the active music destination used the same naked white-icon silhouette as every other destination, relying on a yellow icon colour and a thin cyan underline. At full-screen scale the current page was much less explicit than the selected mock's yellow circular badge.
+2. Implemented: the active destination now uses a 42 px yellow circle, a 20 px navy FontAwesome music icon, and a short white baseline. Inactive destinations retain the existing white icon treatment.
+3. Post-fix evidence: the normalized header comparison was opened and inspected. The active page now has the same immediate visual anchor as the source while the search, key-mode, difficulty, sort/group/library/converts controls retain their existing aligned three-row structure and working states.
+
+## Required fidelity review
+
+- Fonts and typography: the existing Yokko display/body fonts and all search/filter text sizes remain unchanged. The implementation intentionally keeps smaller utility copy than the generated mock because its browser adds 4K/7K mode controls in the same 850 px column; there is no clipping or accidental wrap.
+- Spacing and layout rhythm: the 64 px top navigation, 48 px search row, 32 px difficulty row, and 34 px browse toolbar remain on the established 1920 x 1080 grid. The 42 px active badge is optically centred inside its existing 48 x 64 destination slot and does not shift neighbouring icons.
+- Colours and visual tokens: the active badge reuses Yokko yellow and navy; the baseline uses white. Search and filter surfaces retain ivory, cyan, pink, and navy semantic states. No glow, dark-tech panel, gradient, or sci-fi styling was introduced.
+- Image quality and asset fidelity: the logo, avatar, wallpaper, artwork, tape, and paper resources are unchanged. No new resource, generated image, cutout, screenshot slice, custom SVG, code-drawn illustration, or approximate decorative asset was added.
+- Copy and content: search, key-mode, difficulty, sorting, grouping, library, and converted-chart labels remain real current state. The source's clock/debug readout is intentionally not copied because it is not part of Yokko's navigation model.
+- Icons: the active and inactive navigation destinations continue to use one FontAwesome family. The yellow circle is a regular interactive surface, not an asset substitute; icon weights and alignment remain consistent.
+- States and interactions: only the already-selected music destination receives the badge. Search focus/Escape, key-mode selection, difficulty dragging, sort/group toggles, and converted-chart visibility are unchanged and remain covered by the Song Select focused suite.
+- Accessibility and viewport resilience: selection is communicated by shape, foreground/background reversal, and baseline in addition to colour. The active target remains 48 x 64. The full 1920 x 1080 capture retains all persistent controls; keyboard focus and screen-reader naming were not manually expanded in this visual-only pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after strengthening the active navigation destination.
+- P3: the generated source includes settings/home/debug destinations and one longer search field, while Yokko preserves its actual navigation destinations and dedicated 4K/7K filters. This is an intentional product-content difference, not a remaining hierarchy defect.
+
+## Verification
+
+- Isolated build completed with 0 warnings and 0 errors.
+- Focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Native Direct3D 11 capture at 1920 x 1080 completed successfully. The full implementation capture and normalized source/implementation header comparison were both opened and inspected.
+
+final result: passed
+
+# Song Select ranking-row hierarchy QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1672 x 941, device scale 1; ranking uses plain grade letters, a crown for first place, and a bordered current-player row).
+- Equal-state baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-header-controls-v1.png` (1920 x 1080; every grade has a detached rounded surface and the current player is a saturated yellow strip).
+- Rendered implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-hierarchy-v1.png` (1920 x 1080, device scale 1, native Direct3D 11 capture).
+- Equal-state before/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-before-after-v1.png` (identical 850 x 470 ranking crop at native density).
+- Source/final focused comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-reference-final-v1.png` (source normalized to 1920 x 1080 above the final native 850 x 470 crop).
+- Viewport/state: 16:9 desktop Song Select, global ranking visible, seven scores, MOCHI as the current player at rank 6, no transition or modal active.
+
+## Comparison history
+
+1. Baseline P2: seven S/A grade letters each sat inside an independent rounded rectangle, making the score column read like a stack of unrelated buttons. The current player used an opaque yellow fill that outweighed the selected song and the global-rank hierarchy.
+2. Implemented: grade surfaces were removed and the grade letters increased from 15 px to 17 px. Score, accuracy, combo, and grade columns retain their original right edges.
+3. Implemented: the current player now uses a 92% ivory paper fill, 1.5 px pink outline, 4 px pink rail, small play icon, `#rank` label, and a 46 px pink-bordered avatar. First place gains the existing FontAwesome crown while ranks 2-3 retain their cyan/pink numerals.
+4. Post-fix evidence: the full capture, equal-state before/final crop, and normalized source/final crop were opened together. No grade-card residue, metric collision, avatar clipping, row-height change, paper overflow, or ranking/footer overlap remains.
+
+## Required fidelity review
+
+- Fonts and typography: player names, mods, score, accuracy, combo, and tab typography remain on the existing Yokko display/body families. Grade letters now match the source's plain trailing readout and remain legible without a backing chip; all values stay on one line.
+- Spacing and layout rhythm: rows remain 818 x 52 with zero added vertical spacing, the flow still begins at x=16/y=18, and all four metric columns are unchanged. The current avatar grows from 42 to 46 px but stays inside the 52 px row with 3 px vertical insets.
+- Colours and visual tokens: first place reuses yellow, ranks 2-3 reuse cyan/pink, grades retain their semantic cyan/green/yellow/pink colours, and current-player emphasis uses ivory/pink instead of a saturated yellow block. No new palette or sci-fi treatment was introduced.
+- Image quality and asset fidelity: all existing real avatars and the Yokko current-player crop are unchanged and remain circular with clean masks. No flag, cutout, generated bitmap, screenshot slice, custom SVG, or new resource was added; the target's flags were not fabricated because `SongSelectScore` carries no country metadata.
+- Copy and content: ranks, player names, mods, scores, accuracy, combos, grades, and play count remain driven by real score state. The current label now renders as `#6` in this fixture, matching the selected mock's current-player convention without changing ordering.
+- Icons: crown and play indicators use the same existing FontAwesome family as Song Select. They are limited to first place and the current player respectively; no glyph or emoji substitute is used.
+- States and interactions: global/personal ranking switching, empty personal history, score ordering, content transitions, selected mods, and parent click behaviour remain on their existing paths. Only presentation inside populated rows changed.
+- Accessibility and viewport resilience: grades remain explicit text rather than colour alone, current-player state is expressed through icon, `#rank`, border, rail, avatar scale, and name colour, and the 1920 x 1080 capture retains every persistent control. Keyboard and screen-reader behaviour were not expanded in this visual pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after removing detached grade surfaces and reducing the current-player fill weight.
+- P3: the source shows country flags and a larger mascot overlap on the current row. Yokko intentionally omits fabricated flags because the score model has no country field, and keeps the existing current-player avatar rather than introducing a new or poorly extracted decoration.
+
+## Verification
+
+- Isolated build completed with 0 warnings and 0 errors.
+- Focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Focused coverage now asserts that all seven grade labels contain no detached `Box` surfaces, while retaining grade variety, one highlighted current player, metric-column alignment, ranking transitions, and previous browser/preview regressions.
+- Native Direct3D 11 capture at 1920 x 1080 completed successfully. The full implementation, before/final crop, and source/final focused comparison were opened and inspected.
+- `git diff --check`: passed before appending this QA section.
+
+final result: passed
+
+# Song Select full-screen rhythm completion QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1672 x 941, device scale 1; osu!lazer-like compact browser rhythm and a continuous footer action band).
+- Equal-state baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-ranking-hierarchy-v1.png` (1920 x 1080; package children are 52 px high and the 410 px tool dock leaves a large inactive gap before PLAY).
+- Rendered implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-fullscreen-audit-v1.png` (1920 x 1080, device scale 1, native Direct3D 11 capture).
+- Source/final full-screen comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-reference-final-fullscreen-v1.png` (selected source normalized to 1920 x 1080 above the native implementation).
+- Equal-state before/final comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-fullscreen-before-after-v1.png` (native 1920 x 1080 captures stacked without resampling).
+- Viewport/state: 16:9 desktop Song Select, selected expanded package, global ranking visible, no transition or modal active.
+
+## Comparison history
+
+1. Baseline P2: 52 px child rows plus 5 px inter-item spacing made two short packages occupy most of the visible browser and weakened the compact osu!lazer-like scan rhythm.
+2. Implemented: package child rows are now 44 px. The title, mapper, trailing difficulty readout, and progressive 4K/7K chip were vertically recentered without changing their horizontal columns, semantic states, or selection curve.
+3. Baseline P2: the account card ended at x=860, the footer tool dock ended at x=1280, and PLAY began near x=1496, leaving an approximately 216 px inactive break in the primary action band.
+4. Implemented: the dock now spans 560 px from x=870 to x=1430, with three equal 176 x 82 controls. The remaining approximately 66 px breathing space before PLAY reads as group separation rather than an abandoned slot.
+5. Post-fix evidence: the source/final and equal-state before/final full-screen boards were opened together. The browser gains one compact scan rhythm, footer controls form one continuous centre group, and no label clipping, mode-chip collision, cover distortion, ranking overlap, or PLAY overlap remains.
+
+## Required fidelity review
+
+- Fonts and typography: existing Yokko display/body typography is unchanged. Child titles and mapper copy keep their established weights and one-line truncation; only y positions were tightened to fit the measured row height.
+- Spacing and layout rhythm: 44 px child rows now sit closer to the selected source's approximately 42 px normalized rhythm. The 560 px footer dock fills the measurable dead zone while preserving 10 px internal gaps, account-card spacing, and clear separation from PLAY.
+- Colours and visual tokens: no colour, gradient, glow, radius, shadow, or border token was added. The implementation continues to use ivory, navy, cyan, pink, yellow, and the existing green difficulty accent.
+- Image quality and asset fidelity: cover artwork continues to use square masked cover crops without stretching. No resource-library image, generated asset, screenshot slice, custom SVG, new cutout, or code-drawn decorative illustration was introduced.
+- Copy and content: difficulty names, mapper names, rating mode/value, key mode, selected state, account data, and footer labels remain driven by current product state. No placeholder or target-only metadata was fabricated.
+- Icons: existing FontAwesome controls and current Yokko mascot/tape resources are unchanged; widening the tool controls does not enlarge or redraw their icons.
+- States and interactions: compact-row selection, progressive selected chip, package expansion, search/filter/sort/group/converts controls, MODS, RANDOM, OPTIONS, and PLAY remain on their previous event paths. No list rebuild was added to selection or preview-rate changes.
+- Accessibility and viewport resilience: selected rows retain shape, rail, fill, arrow, and explicit `SELECTED` text in addition to colour. All persistent controls fit the shared 1920 x 1080 baseline; narrower viewport behaviour and screen-reader naming were not expanded in this geometry-only pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after correcting browser density and footer continuity.
+- P3: the selected source contains a more decorative overlapping mascot and slightly different package-header proportions. Yokko intentionally keeps its clean square covers and existing mascot resource rather than forcing uncertain cutouts or returning to flattened artwork.
+
+## Verification
+
+- Isolated build completed with 0 warnings and 0 errors.
+- Focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Focused coverage asserts the 560 x 94 dock, equal 176 x 82 footer controls, the compact row height, transparent inline rating position, progressive key-mode chip, package selection curve, and previous browser/preview regressions.
+- Native Direct3D 11 capture at 1920 x 1080 completed successfully. The final capture and both comparison boards were opened and inspected.
+- `git diff --check`: passed before appending this QA section.
+
+final result: passed
+
+# Song Select responsive footer QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1672 x 941, device scale 1; compact osu!lazer-like browser rhythm with a clearly separated primary PLAY action).
+- Comfortable implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-responsive-footer-default-v1.png` (1920 x 1080, device scale 1, Comfortable UI scale at 100%).
+- Large baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-large-scale-audit-v1.png` (1920 x 1080, device scale 1, Large UI scale at 110%; OPTIONS is partially hidden by PLAY).
+- Large implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-responsive-footer-large-v1.png` (1920 x 1080, device scale 1, Large UI scale at 110%).
+- Source/default comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-responsive-footer-reference-final-v1.png`.
+- Large full-screen before/after: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-responsive-footer-large-before-after-v1.png`.
+- Large footer focused before/after: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-responsive-footer-large-crop-v1.png`.
+- Additional states inspected: `song-select-no-results-audit-v1.png` and `song-select-personal-empty-audit-v1.png`; neither exposed a P0, P1, or P2 layout defect.
+
+## Comparison history
+
+1. Baseline P2: Large mode reduces the effective logical width to approximately 1745 px while the footer retained its 560 px dock and three 176 px controls. The right-anchored 400 px PLAY surface consequently covered part of OPTIONS.
+2. Implemented: footer geometry now responds to the current UI scale without rebuilding Song Select. Large uses a 410 x 94 dock, 126 px controls, and a 134 px horizontal step; Comfortable and Compact retain the selected 560 x 94 dock, 176 px controls, and 184 px step.
+3. Post-fix evidence: the full-screen and focused before/after boards show MODS, RANDOM, and OPTIONS entirely visible in Large mode with a clean gap before PLAY. The source/default board confirms the fuller Comfortable geometry is unchanged.
+
+## Required fidelity review
+
+- Fonts and typography: labels, sizes, weights, and existing Yokko type families are unchanged. Compacting Large mode only changes control width and x position; no label wraps or clips.
+- Spacing and layout rhythm: Comfortable retains the 560 px continuous centre group selected in the previous pass. Large deliberately returns to a 410 px group so all three controls fit its reduced logical canvas with consistent 8 px gaps.
+- Colours and visual tokens: no colour, radius, shadow, border, glow, or material token changed. The ivory-paper Yokko language and yellow PLAY hierarchy remain intact.
+- Image quality and asset fidelity: no resource-library image, generated asset, screenshot slice, cutout, custom SVG, or decorative bitmap was added. Existing covers and mascot resources remain untouched.
+- Copy and content: MODS, RANDOM, OPTIONS, PLAY, account state, song data, ranking data, and empty-state copy remain driven by the existing product state.
+- Icons: the existing FontAwesome icons retain their source, size, alignment, and interaction paths at both scale modes.
+- States and interactions: the layout reacts in place to `UiScale.ValueChanged`; it does not rebuild the screen, reset selection, restart preview playback, or change button actions. Search no-results and personal-history empty states remain recoverable and visually stable.
+- Accessibility and viewport resilience: every persistent footer action remains visible and separated at both tested scales. Controls retain text labels in addition to icons; keyboard and screen-reader behaviour were not expanded in this geometry-only pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after adding scale-specific footer geometry.
+- P3: Large mode necessarily has narrower centre controls than Comfortable, but all labels remain readable and the reduced spacing is preferable to overlap or hiding an action.
+
+## Verification
+
+- Isolated build completed with 0 warnings and 0 errors.
+- Focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Focused coverage asserts both the existing Comfortable geometry and the Large collision-safe helper values.
+- Native Direct3D 11 captures at 1920 x 1080 completed successfully for Comfortable, Large, no-results, and personal-empty states. The selected source, final default capture, Large before/after capture, and focused footer crop were opened together and inspected.
+- `git diff --check`: passed after appending this QA section.
+
+final result: passed
+
+# Song Select transient-screen return continuity QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1672 x 941, device scale 1; osu!lazer-like Song Select with stable persistent browser and footer regions).
+- Rendered Song Select implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-mod-return-final-v1.png` (1920 x 1080, device scale 1, Comfortable UI scale, active DT and HD state).
+- Equal-density source/implementation board: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-mod-return-reference-final-v1.png` (source normalized to 1920 x 1080 above the native implementation).
+- Rendered MODS destination: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-mods-entry-final-v1.png` (1920 x 1080, device scale 1, active DT and HD state).
+- Interaction state: select a chart, open MODS from the persistent footer, leave the selection unchanged, return to Song Select, then open and return from OPTIONS.
+
+## Comparison history
+
+1. Baseline P2: suspending Song Select for MODS preserved preview audio, but returning unconditionally synchronized the unchanged library, rebuilt the song browser twice, recreated the selected-details layer, and reselected a replacement entry object. This made an unchanged back-navigation path vulnerable to visible list/detail flicker and scroll disturbance.
+2. Implemented: Song Select records when its next screen is `GameplayModsScreen`. That return path now keeps the existing list generation, details layer, selected entry, filters, collapsed packages, and scroll state in place; it only closes the MODS affordance, restores parent opacity, and applies preview playback if the committed mods changed.
+3. Implemented: non-MODS returns still refresh scores and imported data, but defer list materialisation until after that refresh, reducing the previous two browser rebuilds to one coherent rebuild.
+4. Post-fix evidence: the combined source/final board retains the accepted square-cover, trailing-rating, paper-ranking, and continuous-footer composition. The MODS capture uses the same ivory, navy, cyan, pink, and yellow hierarchy. Focused visual crops were not needed because no visible geometry or asset changed in this lifecycle-only pass; the exact list/detail-generation invariants are covered by the interaction test.
+
+## Required fidelity review
+
+- Fonts and typography: no font family, weight, size, line height, wrapping, or truncation changed. Song Select and MODS remain on the existing Yokko display/body families.
+- Spacing and layout rhythm: persistent Song Select geometry remains identical before and after MODS. No reconstructed list means scroll position and the established browser row rhythm remain stable on return.
+- Colours and visual tokens: no palette, opacity, gradient, border, radius, shadow, or semantic state token changed. MODS visibly continues the same ivory-paper and navy/cyan/pink/yellow system.
+- Image quality and asset fidelity: square cover crops, background artwork, logo, and mascot remain unchanged and sharp. No resource-library image, cutout, generated bitmap, screenshot slice, custom SVG, or decorative asset was added.
+- Copy and content: song metadata, active-mod summary, filters, ranking values, and MODS labels remain driven by existing state. Returning from MODS does not regenerate or substitute content.
+- Icons: existing FontAwesome icons remain unchanged across Song Select and MODS, including footer actions, category markers, reset, back, and done controls.
+- States and interactions: MODS opens, retains preview audio, commits selection on exit, and returns to the same selected chart without rebuilding the browser. OPTIONS still refreshes potentially changed settings and score presentation, but performs one list rebuild instead of two.
+- Accessibility and viewport resilience: all persistent controls remain visible at 1920 x 1080 and active states continue to use text plus shape/colour. Keyboard and screen-reader behaviour were not changed in this lifecycle pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after preserving the MODS return state and consolidating general return refreshes.
+- P3: a dedicated motion capture could quantify the 180 ms parent fade, but current lifecycle counters and stable final frames cover the regression this pass changes.
+
+## Verification
+
+- Isolated build completed with 0 warnings and 0 errors.
+- Focused return tests passed for unchanged MODS exit and OPTIONS exit. The MODS path preserves `SongListRebuildVersion`, `DetailsTransitionVersion`, and selected-entry identity; OPTIONS increments the song-list generation exactly once.
+- Full focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Native Direct3D 11 captures at 1920 x 1080 completed successfully for Song Select and MODS. The source/final board and MODS destination were opened and inspected.
+- `git diff --check`: passed after appending this QA section.
+
+final result: passed
+
+# Song Select interrupted selection transition QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1672 x 941, device scale 1; one coherent selected-song card, one ranking paper, and continuously covered artwork).
+- Baseline interrupted frame: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-rapid-jump-transition-v1.png` (1920 x 1080, captured 80 ms after seven consecutive selection changes).
+- Revised interrupted frame: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-rapid-jump-transition-final-v1.png` (1920 x 1080, same state and timing).
+- Revised settled frame: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-rapid-jump-settled-final-v1.png` (1920 x 1080, captured 800 ms after the same selection burst).
+- Equal-state before/after board: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-rapid-jump-before-after-v1.png` (baseline above, revised interrupted frame below).
+- Source/final full-screen board: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-rapid-jump-reference-final-v1.png` (source normalized to 1920 x 1080 above the revised settled frame).
+- Viewport/state: 1920 x 1080, device scale 1, Comfortable UI scale, 7K filter, DT and HD active, seven synchronous selection changes beginning at 700 ms.
+
+## Comparison history
+
+1. Baseline P1: every selection retained its outgoing complete details container for 240 ms. Seven changes in one update therefore exposed duplicated difficulty pills, titles, ranking tabs, selected-mod summaries, rows, and paper silhouettes in the 80 ms frame.
+2. Baseline P1: the two alternating background sprites inherited unfinished fades. Rapidly selecting through several charts left both near zero alpha and exposed the neutral grey stage instead of continuously displaying chart artwork.
+3. Implemented: an interrupted details transition immediately retires every superseded paper and animates only the latest incoming layer. Normal single-step navigation retains the existing directional outgoing/incoming transition.
+4. Implemented: each background blend clears stale transforms, keeps the outgoing artwork fully covering the stage, and then fades the latest incoming artwork over it. Repeated changes can restart the blend without producing an uncovered frame.
+5. Post-fix evidence: the equal-state board shows one clean song card and ranking paper in the revised 80 ms frame, with no duplicated typography or outlines and no grey background exposure. The interrupted and settled revised captures remain visually coherent, and the source/final board retains the accepted overall composition.
+
+## Required fidelity review
+
+- Fonts and typography: the fix does not change font family, fallback, weight, size, line height, wrapping, or truncation. It prevents several complete typography layers from becoming simultaneously visible during key repeat or RANDOM-like jumps.
+- Spacing and layout rhythm: selected-card, ranking, browser, and footer geometry are unchanged. Removing superseded papers preserves the intended single 850 px detail column rather than showing displaced copies at 8-10 px intervals.
+- Colours and visual tokens: ivory, navy, cyan, pink, yellow, and semantic difficulty colours are unchanged. Continuous artwork coverage prevents the unintended neutral-grey flash from replacing the designed background palette.
+- Image quality and asset fidelity: existing chart wallpapers remain sharp and keep their current fill crop. No resource-library image, cutout, generated bitmap, screenshot slice, custom SVG, or decorative asset was added.
+- Copy and content: only the final selected chart's metadata, ranking values, and active-mod summary remain visible during an interrupted transition. No copy was changed or fabricated.
+- Icons: navigation, ranking, footer, mode, and selected-state icons retain their existing FontAwesome sources and alignment; duplicate icon layers are removed with their superseded containers.
+- States and interactions: adjacent navigation still uses the 210 ms directional movement. Rapid keyboard or RANDOM selection collapses obsolete work immediately, keeps the song-list generation stable, and leaves one details layer. The 10,000-row virtual-list path remains bounded.
+- Accessibility and viewport resilience: the 1920 x 1080 transition frame retains every persistent control and readable label. Eliminating transient double text improves legibility; reduced-motion behaviour and screen-reader semantics were not expanded in this pass.
+
+## Findings
+
+- P0: none.
+- P1: none after eliminating stacked details layers and uncovered background frames.
+- P2: none in the revised interrupted or settled captures.
+- P3: a frame-by-frame video capture could further quantify easing continuity, but the 80 ms interrupted frame targets the previously visible failure point directly.
+
+## Verification
+
+- Isolated build completed with 0 warnings and 0 errors.
+- Focused regression now asserts that rapid selection immediately retains exactly one details paper, keeps at least one background sprite at full coverage, and does not rebuild the song list.
+- Full focused Song Select filter: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList`.
+- Existing long-list coverage confirms 10,000 logical rows retain bounded materialised drawables and far jumps expose the correct scroll affordances.
+- Native Direct3D 11 captures at 1920 x 1080 completed successfully for baseline interrupted, revised interrupted, and revised settled states. Both comparison boards were opened and inspected.
+- `git diff --check`: passed after appending this QA section.
+
+final result: passed
+
+# Song Select package, filter, and scroll-state QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1672 x 941, normalized to 1920 x 1080 at device scale 1; osu!lazer-like square package artwork, trailing difficulty metadata, persistent ranking paper, and footer dock).
+- Expanded package implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-before-v1.png` (1920 x 1080, device scale 1, Comfortable UI scale, 7K filter, DT and HD active).
+- Collapsed package implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-collapsed-v1.png` (1920 x 1080, same state after collapsing the Harmonic Bloom package).
+- Selected-package collapse implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selected-package-collapsed-v1.png` (1920 x 1080, selected chart retained while its package is collapsed).
+- Search result implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-search-settled-v1.png` (1920 x 1080, query `petals`, one matching package and two charts).
+- Equal-density source/implementation board: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-reference-final-v1.png` (source normalized to 1920 x 1080 above the native collapsed-package implementation).
+- Viewport and density: source 1672 x 941, implementation 1920 x 1080, both 16:9; source was Lanczos-scaled to 1920 x 1080 before stacking, with no browser or device chrome.
+
+## Comparison history
+
+1. The source/final full-view board was opened as one comparison input. No actionable P0/P1/P2 mismatch was found in the requested cover and rating surfaces: package covers are square and aspect-fill without stretching, while chart difficulty is a transparent trailing readout instead of a detached leading badge.
+2. Expanded, collapsed, selected-package-collapsed, and filtered captures were opened separately at the same native viewport. Package headers remain anchored, child rows move as one group, the selected details and ranking paper do not jump to another chart, and the footer remains continuously visible.
+3. No visual fix was required in this pass. The existing 230 ms bounded layout transition, 80 ms package-head anchoring, virtualised range, and filtered selection update produced stable rendered states.
+
+## Required fidelity review
+
+- Fonts and typography: the right browser keeps one primary title/difficulty line and one quieter mapper line; difficulty values use the same compact optical weight as the target's trailing metadata. Long chart titles truncate or wrap within their own hierarchy rather than colliding with ratings or key-mode chips.
+- Spacing and layout rhythm: square 84 px package covers establish a consistent left edge, compact child rows align beneath them, and collapsing a package removes its children without changing the browser controls or footer geometry. The left ranking remains a single paper surface with aligned numeric columns.
+- Colours and visual tokens: ivory surfaces, navy text, cyan focus, pink selected state, yellow action treatment, and green difficulty accents remain consistent across expanded, collapsed, and filtered states. No sci-fi surface, neon frame, or dark glass treatment was introduced.
+- Image quality and asset fidelity: package art is aspect-fill cropped into square masks and remains sharp in every captured state. No resource-library cutout, generated bitmap, screenshot slice, custom SVG, or new decorative asset was added.
+- Copy and content: package counts, chart names, mapper lines, key mode, MSD labels, selected mods, and ranking values remain data-driven. Search narrows the browser to the matching package without fabricating placeholder content.
+- Icons: package chevrons, star/favourite, selected marker, filter controls, footer actions, and ranking markers use the existing icon family and remain optically aligned after layout changes.
+- States and interactions: package expand/collapse, selected-package collapse, search filtering, scroll clamping, continuation fades, indicator progress, and 10,000-row virtualisation are covered. Selection and details remain continuous without rebuilding on lightweight in-place updates.
+- Accessibility and viewport resilience: persistent actions remain visible at 1920 x 1080; selected and collapsed states use icon direction, text, shape, and colour rather than colour alone. Reduced-motion and screen-reader semantics were not expanded in this visual pass.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none in the requested square-cover, trailing-rating, expand/collapse, search, or scroll states.
+- P3: the target uses shorter example titles, so its browser appears slightly calmer; Yokko's long stress-test titles intentionally remain to verify truncation and collision safety.
+
+## Verification
+
+- Native Direct3D 11 captures completed successfully at 1920 x 1080 for expanded, collapsing, collapsed, selected-package-collapsed, and filtered states.
+- Full-view comparison used the equal-density source/final board; focused evidence used the native expanded/collapsed and filtered captures because the row typography and 84 px artwork are more legible there.
+- Focused Song Select suite passed: 26 passed, 0 failed, 0 skipped across `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList` using an isolated artifacts directory so the currently running Yokko process was not disturbed.
+- Regression coverage includes square aspect-fill artwork, trailing rating disclosure, package guide reuse, collapse scroll clamping, continuation hints, scroll-indicator progress, filtered empty/results states, selection continuity, and bounded 10,000-row materialisation.
+- `git diff --check`: passed after appending this QA section.
+
+final result: passed
+
+# Song Select balanced selected-title layout QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` (1672 x 941, normalized to 1920 x 1080 at device scale 1; selected title remains a complete, deliberate typographic block rather than an arbitrary clipped line).
+- Baseline implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-search-settled-v1.png` (1920 x 1080, device scale 1, Comfortable UI scale, query `petals`; selected title truncated after `Dreamin...` while the second title line was unused).
+- First two-line pass: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-title-wrap-final-v1.png` (1920 x 1080; complete copy, but greedy wrapping left `Petals` alone on the second line).
+- Final implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-title-wrap-balanced-final-v1.png` (1920 x 1080; balanced `Harmonic Bloom: Symphony` / `of the Dreaming Petals` title block).
+- Equal-state before/final board: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-title-wrap-before-after-v1.png` (native baseline above, native final below, no resampling).
+- Source/final board: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-title-wrap-reference-final-v1.png` (source normalized to 1920 x 1080 above the native final implementation).
+- Viewport and density: source 1672 x 941 and implementation 1920 x 1080, both 16:9; source was Lanczos-scaled to the native 1920 x 1080 implementation before comparison.
+
+## Comparison history
+
+1. Baseline P2: a medium-long selected title was treated as a single 28 px line and visibly truncated even though the card reserves enough vertical space for a second line. This made the title block look like an unfinished generic label rather than the primary song identity.
+2. First-pass P2: lowering the wrap threshold preserved the complete title, but the existing greedy line breaker filled the first line to its maximum and orphaned one word on the second line.
+3. Implemented: selected details now use a balanced two-line layout. When the complete title fits within two measured lines, the break point minimises the difference between line widths; titles that exceed two lines retain the existing bounded ellipsis fallback.
+4. Post-fix evidence: the equal-state board shows complete copy, two optically balanced lines, and unchanged artwork/stat geometry. The source/final board preserves the selected mock's title-first hierarchy without adding target-only decoration.
+
+## Required fidelity review
+
+- Fonts and typography: Yokko's existing display family is retained. Short titles remain one 28 px line; wrapped titles use the established 21 px two-line treatment with -2 px line spacing. The final break avoids both truncation and a one-word orphan.
+- Spacing and layout rhythm: artist and mapper labels use the existing two-line y positions, ending above the chart-facts row at y=164. The 210 px artwork, difficulty pill, dividers, ranking paper, browser, and footer do not move or collide.
+- Colours and visual tokens: no colour, opacity, border, shadow, gradient, or semantic-state token changed. The navy title, cyan mapper, ivory paper, and current pink/yellow/cyan accents remain unchanged.
+- Image quality and asset fidelity: cover crop, selected background, logo, paper, tape, avatars, and mascot are unchanged and remain sharp. No generated image, resource-library cutout, screenshot slice, custom SVG, or decorative asset was added.
+- Copy and content: the complete data-driven song title is now readable. Artist, mapper, chart facts, playback rate, ranking values, filters, and selected mods remain unchanged.
+- Icons: selected-card, filter, ranking, navigation, footer, and play icons are unchanged and retain the existing FontAwesome/Yokko sources.
+- States and interactions: the balanced title is rebuilt through the existing selection and filter paths. Search, package selection, preview audio, list identity, and rapid-selection transition behaviour are unchanged.
+- Accessibility and viewport resilience: the improvement handles longer real-world titles without clipping or overlap at the 1920 x 1080 baseline. Existing tests retain a bounded two-line fallback for exceptionally long or no-space text; screen-reader semantics were not changed.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after replacing clipped and orphaned title states with balanced wrapping.
+- P3: line balance uses the existing lightweight character-width heuristic rather than runtime glyph measurement; the rendered Latin stress case is verified, while additional locale-specific visual corpora can be added if a real title exposes a poor break.
+
+## Verification
+
+- Focused text-layout tests: 4 passed, 0 failed, including the exact moderate-title balance and the existing one/two-line bounds.
+- Full focused Song Select suite: 30 passed, 0 failed, 0 skipped across `SongSelectTextLayoutTest`, `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList` in an isolated artifacts directory.
+- Native Direct3D 11 captures completed successfully at 1920 x 1080 for the baseline, first wrap, and balanced final states. Both comparison boards were opened and inspected as combined inputs.
+- `git diff --check`: passed after appending this QA section.
+
+final result: passed
+
+# Song Select standalone square-cover completion QA (2026-08-01)
+
+## Evidence
+
+- Selected design target: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` at 1672 x 941, compared against Yokko's 1920 x 1080 shared baseline.
+- Equal-state baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-standalone-cover-baseline-v1.png`.
+- Equal-state final: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-standalone-cover-final-v1.png`.
+- Before/after board: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-standalone-cover-before-after-v1.png`.
+- Source/final board: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-standalone-cover-reference-final-v1.png`.
+- Final state: 1920 x 1080, Comfortable density, `solo` search, DT + HD active, and the optional standalone-song preview fixture enabled.
+
+## Comparison history
+
+1. Baseline P2: package headers already used square artwork, but standalone song rows still used a 76 x 68 crop. This left one visible class of horizontally flattened covers and contradicted the user's request that song covers as a system should stop looking flat.
+2. Implemented: the standalone artwork frame becomes 76 x 76 and sits at y=4 in the 84 px row. Existing aspect-fill crop behaviour is preserved, and the content column remains at x=100.
+3. Post-fix evidence: the equal-state board shows a square cover with no distortion, clipping, or text collision. Its silhouette now agrees with the target's selected square-cover motif and Yokko's package-cover system.
+
+## Required fidelity review
+
+- Fonts and typography: unchanged; title, subtitle, mode, mapper, and rating typography preserve the current Yokko hierarchy.
+- Spacing and layout rhythm: the cover has 4 px top and bottom breathing room, with a 16 px gap before the title column. Row height and neighbouring browser geometry do not change.
+- Colours and visual tokens: unchanged; the current ivory paper, navy copy, cyan/pink/yellow accents, selection treatment, and difficulty semantics remain intact.
+- Image quality and asset fidelity: artwork continues to use aspect-fill cropping into a square frame. No new resource, generated art, questionable cutout, screenshot slice, or decorative bitmap was introduced.
+- Copy and content: unchanged; all song metadata remains data-driven and readable.
+- Icons: unchanged; no icon substitution or approximation was introduced.
+- States and interactions: selection, hover, filtering, virtualisation, preview continuity, and package behaviour are unaffected. The new frame is reset correctly when pooled rows are rebound or freed.
+- Accessibility and viewport resilience: the square artwork remains contained inside the existing 84 px row at the 1920 x 1080 baseline and does not reduce the text hit area.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after completing the square-cover rule for standalone songs as well as package headers.
+- P3: the 76 px cover is intentionally larger than compact package-child difficulty rows; this distinguishes a standalone song without returning to banner proportions.
+
+## Verification
+
+- Virtualised-list visual suite: 13 passed, 0 failed, including the explicit 76 x 76 standalone artwork-frame regression.
+- Full focused Song Select suite: 31 passed, 0 failed, 0 skipped across `SongSelectTextLayoutTest`, `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList` in an isolated artifacts directory.
+- Native Direct3D 11 baseline and final captures completed at 1920 x 1080. Both comparison boards were opened and visually inspected.
+- The longest selected package-header state was also captured separately; its title, byline, difficulty, and rating already fit, so no unnecessary density change was made there.
+- `git diff --check`: passed after appending this QA section.
+
+final result: passed
+
+# Song Select package-section rhythm QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` at 1672 x 941, normalized to the shared 1920 x 1080 reference without cropping.
+- Equal-state implementation baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-before-v1.png` at 1920 x 1080.
+- Revised implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-section-rhythm-final-v1.png` at 1920 x 1080.
+- Focused browser comparison, baseline left and revised implementation right: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-section-rhythm-before-after-v1.png`.
+- Full-view comparison, normalized source left and revised implementation right: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-section-rhythm-reference-final-v1.png`.
+- Viewport/state: 1920 x 1080, Comfortable density, 7K filter, DT + HD, three expanded packages, and `Marathon x1.3` selected.
+
+## Comparison history
+
+1. Baseline P2: the same 5 px gap separated child difficulties, a package boundary, and the next package header. Covers and metadata were correct, but the uniform rhythm visually merged multiple packages into one undifferentiated stack.
+2. Implemented: every visible section after the first receives 8 px of additional leading space. Existing 5 px row spacing remains inside each package, producing a measured 13 px inter-package gap without changing row heights or the bounded selection curve.
+3. Post-fix evidence: the focused board shows clear package islands while all three packages and their visible difficulties still fit above the footer. The source/final board confirms the browser now follows the selected reference's grouped song-set rhythm rather than generic card spacing.
+
+## Required fidelity review
+
+- Fonts and typography: unchanged; package titles, child difficulty names, mapper copy, MSD readouts, and key-mode pills keep their existing family, weights, sizes, and wrapping behaviour.
+- Spacing and layout rhythm: intra-package gaps remain 5 px; package-to-package gaps become 13 px. Header and child heights, selected-row proximity curve, search/filter stack, and footer geometry remain unchanged.
+- Colours and visual tokens: unchanged; no fill, border, rail, selection, or difficulty colour was altered.
+- Image quality and asset fidelity: square package covers and aspect-fill crop behaviour are unchanged. No new asset, generated decoration, resource-library cutout, screenshot slice, or approximate code art was introduced.
+- Copy and content: unchanged; the same three package groups, chart metadata, selected difficulty, filters, and mods are visible in the comparison.
+- Icons: unchanged; star, chevron, selected pointer, toolbar, navigation, and footer icons retain their existing sources.
+- States and interactions: expansion/collapse layout animation, virtualisation, scrolling, selection transfer, filtering, and preview continuity are preserved. Section spacing is part of the virtual item geometry, so scroll bounds and transitions share one source of truth.
+- Accessibility and viewport resilience: the added rhythm does not hide the footer or clip a package header at 1920 x 1080. The list still exposes scroll continuation when content exceeds the viewport.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after differentiating package boundaries from child-row spacing.
+- P3: the bottom of the stress fixture ends close to the final child row because all three packages are intentionally expanded; the scroll affordance covers longer real libraries and no persistent control is obscured.
+
+## Verification
+
+- New geometry regression: 1 passed, confirming a 5 px intra-package gap and 13 px inter-package gap.
+- Virtualised-list visual suite: 14 passed, 0 failed, including bounded 10,000-row materialisation, scroll affordances, selection curve, package guide, cover crop, and pooled-row reuse.
+- Full focused Song Select suite: 32 passed, 0 failed, 0 skipped across `SongSelectTextLayoutTest`, `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList` from the isolated `artifacts/song-select-section-spacing` build.
+- Native Direct3D 11 implementation capture completed at 1920 x 1080. Both combined comparison boards were opened and inspected at original detail.
+
+final result: passed
+
+# Song Select focused package expansion QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` at 1672 x 941, normalized to 1920 x 1080 without cropping.
+- Equal-state implementation baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-section-rhythm-final-v1.png` at 1920 x 1080, with every package expanded.
+- Focused-package implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-focused-package-final-v1.png` at 1920 x 1080.
+- Keyboard focus-transfer state: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-focused-package-switch-v1.png` at 1920 x 1080.
+- Focused browser comparison, baseline left and revised implementation right: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-focused-package-before-after-v1.png`.
+- Full-view comparison, normalized source left and revised implementation right: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-focused-package-reference-final-v1.png`.
+- Viewport/state: 1920 x 1080, Comfortable density, 7K filter, DT + HD, and `Marathon x1.3` selected for the default-state comparison.
+
+## Comparison history
+
+1. Baseline P2: all three package groups expanded simultaneously. The selected design keeps only the active package open, so the baseline flattened the package hierarchy and made the browser read like a dense data table.
+2. Implemented: focused expansion now defaults to the selected package. Other package headers remain visible and clickable, all filtered difficulties remain in keyboard navigation, and crossing a package boundary atomically collapses the old package and expands the new one through the existing 230 ms layout transition.
+3. Post-fix evidence: the default capture shows one expanded package and two collapsed neighbours. The focus-transfer capture shows keyboard selection moving into the next package with its cover, background, details, and selected row updating together. No chart content is removed from navigation.
+
+## Required fidelity review
+
+- Fonts and typography: unchanged; package titles, difficulty names, mapper copy, MSD readouts, and key-mode pills keep their existing family, weights, sizes, and wrapping behaviour.
+- Spacing and layout rhythm: the established 5 px intra-package and 13 px inter-package rhythm remains intact. Collapsed headers form clearly separated package islands without changing toolbar or footer geometry.
+- Colours and visual tokens: unchanged; no new fill, border, rail, selection, or difficulty colour was introduced.
+- Image quality and asset fidelity: square package covers and aspect-fill crop behaviour remain unchanged. No new asset, generated decoration, resource-library cutout, screenshot slice, or approximate code art was introduced.
+- Copy and content: unchanged; package titles, chart metadata, filters, mods, and selection data continue to come from the existing fixture and UI state.
+- Icons: unchanged; star, chevron, selected pointer, toolbar, navigation, and footer icons keep their existing sources.
+- States and interactions: pointer toggles, keyboard previous/next, global group expand/collapse, filtering, virtualisation, layout animation, and preview continuity remain available. Explicit global expand/collapse temporarily overrides focused mode; navigating into a hidden package restores focused expansion.
+- Accessibility and viewport resilience: collapsed package headers stay visible and clickable, while all filtered entries remain keyboard navigable even when their rows are not currently materialised.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after introducing selected-package focus and package-boundary transfer.
+- P3: the global group control intentionally overrides focus mode when the user explicitly requests all-collapsed or all-expanded state. Subsequent navigation into a hidden package restores focused mode for usability.
+
+## Verification
+
+- New focused-expansion regression: 1 passed, confirming a single expanded package, retained navigation across four hidden/visible charts, and atomic focus transfer at the package boundary.
+- Full focused Song Select suite: 33 passed, 0 failed, 0 skipped across `SongSelectTextLayoutTest`, `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList` from the isolated `artifacts/song-select-focused-package` build.
+- Isolated build: 0 warnings and 0 errors.
+- Both native Direct3D 11 captures were opened and inspected at original detail.
+- Both combined comparison boards were opened and inspected at original detail.
+
+final result: passed
+
+# Song Select compact collapsed package header QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` at 1672 x 941, normalized to 1920 x 1080 without cropping.
+- Equal-state implementation baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-focused-package-final-v1.png` at 1920 x 1080, with 84 px expanded and collapsed package headers.
+- Revised implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-collapsed-header-final-v1.png` at 1920 x 1080.
+- Long-title stress implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-collapsed-header-long-title-v1.png` at 1920 x 1080.
+- Focused browser comparison, baseline left and revised implementation right: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-collapsed-header-before-after-v1.png`.
+- Full-view comparison, normalized source left and revised implementation right: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-collapsed-header-reference-final-v1.png`.
+- Focused long-title comparison, ordinary package names left and stress state right: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-collapsed-header-long-title-proof-v1.png`.
+- Viewport/state: 1920 x 1080, Comfortable density, 7K filter, DT + HD, `Marathon x1.3` selected, one expanded package, and two collapsed neighbours.
+
+## Comparison history
+
+1. Baseline P2: collapsed package headers retained the same 84 px height as the active expanded header. Although their square covers were correct, the equal height made inactive packages too visually heavy and reduced the focused browser's scan rhythm compared with the selected design.
+2. Implemented: expanded headers remain 84 px, while collapsed headers use a dedicated 72 px layout with a matching 72 x 72 square cover. Collapsed titles use one 16 px truncating line and an 8 px summary line; selected difficulty context is reserved for the expanded state.
+3. Post-fix evidence: the before/after board shows a visibly lighter inactive hierarchy without flattening the artwork. The stress board confirms an oversized real-world package name ends in an ellipsis before the chevron, keeps the summary line clear, and does not alter the expanded package above it.
+
+## Required fidelity review
+
+- Fonts and typography: expanded typography is unchanged. Collapsed package titles now use one 16 px display line with framework truncation; the count summary is reduced to 8 px and remains optically subordinate. The long-title stress state has no wrapping, collision, or clipped glyphs.
+- Spacing and layout rhythm: collapsed height changes from 84 px to 72 px while the established 13 px inter-package separation remains. The browser gains density only in inactive package headers; the 44 px difficulty rows and 84 px expanded header are unchanged.
+- Colours and visual tokens: unchanged; ivory surfaces, navy text, cyan focus borders, yellow stars, pink selection, and pale-cyan chevrons continue to use existing Yokko tokens.
+- Image quality and asset fidelity: collapsed covers remain square and use the existing aspect-fill crop path at their native layout size. The selected reference uses flatter banners, but retaining square covers is an intentional user-directed deviation after the user explicitly rejected flattened artwork. No new asset, generated decoration, resource-library cutout, screenshot slice, or approximate code art was introduced.
+- Copy and content: all package names and count summaries remain dynamic. The long-title fixture changes only preview data and proves production truncation behaviour.
+- Icons: star, play indicator, and chevron retain their existing icon sources and remain vertically centred in both header heights.
+- States and interactions: expand/collapse, focused-package transfer, hover, keyboard navigation, virtualisation, filtering, and preview continuity are unchanged. A collapsed selected package shows package identity rather than clipping the expanded difficulty-context row into 72 px.
+- Accessibility and viewport resilience: the 72 px collapsed header remains above a 44 px pointer target. Long text truncates before the chevron, and all hidden difficulties remain keyboard navigable through the focused-package mechanism.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after separating expanded and collapsed header density.
+- P3: the 72 px square-cover compromise is intentionally taller than the selected reference's banner rows. Reducing it further would weaken the square artwork identity the user requested, so this is accepted rather than actionable drift.
+
+## Verification
+
+- New compact-header regression: 1 passed, confirming 72 x 72 collapsed chrome, a single truncating title line, visible package summary, and suppression of expanded selected context in collapsed state.
+- Focus-transfer regression now also verifies one 84 px expanded header and one 72 px collapsed header before and after keyboard package transfer.
+- Full focused Song Select suite: 34 passed, 0 failed, 0 skipped across `SongSelectTextLayoutTest`, `TestSceneSongSelect`, `TestSceneSongSelectScreen`, and `TestSceneSongSelectVirtualisedList` from the isolated `artifacts/song-select-collapsed-header` build.
+- Isolated build: 0 warnings and 0 errors.
+- Both native Direct3D 11 implementation captures were opened and inspected at original detail.
+- All three combined comparison boards were opened and inspected at original detail.
+
+final result: passed
+
+# Song Select compact chart-row hierarchy QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` at 1672 x 941.
+- Same-state baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-left-rounded-v2.png` at 1920 x 1080.
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-row-hierarchy-v2.png` at 1920 x 1080.
+- Full source/implementation comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-row-hierarchy-reference-v2.png`.
+- Full same-state before/after comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-row-hierarchy-before-after-v2.png`.
+- Focused source/implementation comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-row-hierarchy-reference-focused-v2.png`.
+- Focused same-state before/after comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-row-hierarchy-focused-before-after-v2.png`.
+- Viewport/state: 1920 x 1080, Comfortable density, 7K filter, Harmonic Bloom selected, one expanded package with Normal selected and Hard resting.
+
+## Comparison history
+
+1. Baseline P2: compact child rows used a fully opaque 7 px difficulty stripe, an additional bright package-guide stem, a strong coloured border, a 40% yellow selected wash, and neon green MSD labels. The combined treatment over-signalled difficulty and made the rows read as game HUD blocks rather than the reference's calm subordinate list.
+2. Implemented: the semantic marker is reduced to 3 px at 48% opacity; the package guide uses a one-pixel stem; compact borders use neutral Yokko navy at 12%; the selected wash drops to 18%; the selected outline drops to 1.25 px; and the former green difficulty band maps into Yokko cyan.
+3. Post-fix evidence: focused before/after shows the selected and resting rows retaining hierarchy without a fluorescent edge. The source comparison confirms that both now use a quiet ivory row, small coloured marker, thin rounded selection treatment, trailing rating, and a compact mode action.
+
+## Required fidelity review
+
+- Fonts and typography: difficulty name, mapper, rating unit/value, and key-mode text keep their existing type family, weight, line count, and truncation. No text reflow or clipping is visible.
+- Spacing and layout rhythm: the established 44 px row height, 5 px in-package spacing, 14 px inset, progressive mode-pill width, and package-header alignment remain unchanged.
+- Colours and visual tokens: custom fluorescent green was removed from the visible 5-10 MSD range. Compact rows now use ivory, navy, cyan, yellow, and pink from Yokko's shared palette; selected warmth is intentionally subordinate to the pink action chip.
+- Image quality and asset fidelity: no bitmap, generated image, resource-library cutout, screenshot slice, or new asset was introduced. Package artwork and square cover crop are unchanged.
+- Copy and content: dynamic difficulty name, mapper, rating, mode, and selected label remain unchanged.
+- Icons and affordances: the existing pink play pointer remains the selection anchor. The row stays clickable and double-clickable, while the mode chip still expands only for the active chart.
+- States and interactions: resting, selected, hover, pooled reuse, keyboard focus transfer, package expansion, rating-mode updates, and virtualisation remain implemented.
+- Accessibility and viewport resilience: the 44 px pointer target remains intact; reduced chroma lowers visual noise without reducing text contrast or removing selection redundancies.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after quieting the difficulty rail, selected wash, outline, shadow, hover fill, and rating colour.
+- P3: the source puts numeric difficulty in a leading pill, while Yokko intentionally retains the trailing transparent readout because the user explicitly found the earlier left-side score block abrupt.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build in `artifacts/song-select-row-hierarchy`: 0 warnings and 0 errors.
+- Focused Song Select screen/list run: 31 passed, 0 failed, 0 skipped.
+- Post-colour virtualised-list run: 16 passed, 0 failed, 0 skipped, including the new compact hierarchy regression.
+- Native Direct3D 11 implementation capture completed at 1920 x 1080. Full and focused source comparisons plus same-state before/after boards were opened and inspected at original detail.
+- `git diff --check` passed.
+
+final result: passed
+
+# Song Select package artwork framing QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` at 1672 x 941.
+- Same-state baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-top-nav-v1.png` at 1920 x 1080.
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-artwork-v1.png` at 1920 x 1080.
+- Full source/implementation comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-artwork-reference-v1.png`.
+- Full same-state before/after comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-artwork-before-after-v1.png`.
+- Focused source/implementation comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-artwork-reference-focused-v1.png`.
+- Focused same-state before/after comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-artwork-focused-before-after-v1.png`.
+- Viewport/state: 1920 x 1080, Comfortable density, 7K filter, two collapsed packages and one expanded selected package.
+
+## Comparison history
+
+1. Baseline P2: square package artwork had already corrected the earlier flattened panoramic covers, but it still touched all four card edges. The image therefore read as a hard list slice rather than a deliberately framed cover, and its inner corners disappeared into the card.
+2. Implemented: the package keeps its square allocation while the visible artwork is inset by 5 px on every edge, receives an 8 px radius and a quiet one-pixel light border, and rests on the same ivory card surface as the package copy.
+3. Post-fix evidence: the focused before/after board shows distinct rounded cover corners and consistent breathing room in collapsed and expanded states. Title, count, favourite, chevron, selected context, and child rows retain their previous geometry.
+
+## Required fidelity review
+
+- Fonts and typography: package title, selected chart title, mapper line, song/chart counts, rating, and child-row typography are unchanged. Long collapsed titles remain one-line and truncating.
+- Spacing and layout rhythm: the 72 px collapsed and 84 px expanded allocations remain stable. Visible cover sizes are 62 x 62 and 74 x 74, centred inside their square slots with 5 px padding.
+- Colours and visual tokens: cover framing uses the existing ivory surface and a 58% white hairline; no new glow, gradient, saturated rail, or sci-fi treatment was introduced.
+- Image quality and asset fidelity: original beatmap artwork is still used with the existing centre-crop helper. No screenshot slice, generated substitute, large cutout, or stretched resource was introduced.
+- Copy and content: package titles, counts, chart metadata, mode, rating, and mapper content remain unchanged.
+- Icons and affordances: favourite, chevron, play pointer, mode pill, and selected outline retain their established positions and state behaviour.
+- States and interactions: collapsed, expanded, selected, hover, focus transfer, virtualisation, and pooled reuse remain covered by the existing list suite.
+- Accessibility and viewport resilience: header hit targets and text widths are unchanged; the inset affects only image presentation and does not reduce the clickable card area.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after introducing the inset rounded artwork frame.
+- P3: the source reference uses panoramic package banners, while Yokko intentionally keeps square covers because the user explicitly rejected flattened covers. The hierarchy and spacing are matched without copying that disliked aspect.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build in `artifacts/song-select-package-artwork`: 0 warnings and 0 errors.
+- Focused virtualised-list run: 16 passed, 0 failed, 0 skipped.
+- Focused Song Select screen run: 11 passed, 0 failed, 0 skipped.
+- Native Direct3D 11 capture completed at 1920 x 1080. Full and focused source comparisons plus same-state before/after boards were opened and inspected at original detail.
+- `git diff --check` passed.
+
+final result: passed
+
+# Song Select large package covers and background parity QA (2026-08-01)
+
+## Evidence
+
+- Selected design reference: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` at 1672 x 941.
+- User-reported browser state: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-a713ca0f-90f7-49c5-8cb8-3f0ccfb36f3b.png` at 1598 x 1248.
+- Same-state baseline: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-package-artwork-v1.png` at 1920 x 1080.
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-large-covers-v1.png` at 1920 x 1080.
+- Full same-state before/after comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-large-covers-before-after-v1.png`.
+- Focused same-state cover comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-large-covers-focused-before-after-v1.png`.
+- Focused background-wash comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-browser-shade-before-after-v1.png`.
+- Reported-state/revised-browser comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-large-covers-reported-v1.png`.
+- Full selected-reference/implementation comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-large-covers-reference-v1.png`.
+- Viewport/state: implementation at 1920 x 1080, Comfortable density, 7K filter, two collapsed packages and one selected expanded package. The user report uses different content and aspect ratio, so it is used only to verify the reported right-side wash and cover-scale intent; exact geometry is judged from the same-state implementation pair.
+
+## Comparison history
+
+1. Baseline P2: the previous pass reduced visible package artwork to 62 x 62 collapsed and 74 x 74 expanded. It fixed flattened banners but over-corrected into thumbnail scale. A separate 900 px-wide `createLibraryShade()` also applied an 18% ivory wash only to the right side, producing the rectangular veil reported by the user.
+2. User correction: package artwork should remain square or near-square but operate as a large cover, and the browser must share the same global background treatment as the left column rather than introducing a right-only panel.
+3. Implemented: collapsed headers increase from 72 to 96 px with an 86 x 86 visible cover; expanded headers increase from 84 to 132 px with a 122 x 122 visible cover. Title, byline, count, mode pill, rating, play pointer, and chevron positions were re-authored for the larger geometry. The right-only `createLibraryShade()` layer was removed entirely.
+4. Post-fix evidence: the same-state focused board shows the selected cover becoming the primary package visual while collapsed covers remain useful rather than dominant. The lower-background board shows the browser and left content now using the same global isolation and mood wash with no right-side rectangle.
+
+## Required fidelity review
+
+- Fonts and typography: type family and weights are unchanged. Larger headers add spatial breathing room without enlarging package text into billboard scale; title truncation remains active.
+- Spacing and layout rhythm: collapsed/expanded package allocations are now 96/132 px. Visible covers are centred with 5 px padding; content starts at 120/156 px, preserving a 24 px text gutter after each cover slot.
+- Colours and visual tokens: cards retain Yokko ivory, cyan, yellow, pink, and navy. Removing the library shade eliminates the only right-column-specific background colour treatment.
+- Image quality and asset fidelity: original beatmap artwork remains centre-cropped into real square cover frames at 86/122 px. No stretched banner, generated replacement, screenshot slice, or new resource cutout was introduced.
+- Copy and content: package title, selected chart title, artist/mapper, chart counts, difficulty mode, rating, and child rows remain intact.
+- Icons and affordances: favourite and expansion actions stay on the trailing rail; the selected play pointer and mode pill remain visible after the height change.
+- States and interactions: collapsed, expanded, selected, hover, keyboard focus transfer, scroll clamping, virtualisation, and pooled reuse remain covered by focused tests.
+- Accessibility and viewport resilience: larger package rows increase cover legibility and card targets. Fewer packages are visible simultaneously, but scrolling remains available and the selected package plus its child charts fit within the 1080p browser viewport.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after enlarging the package geometry and removing the right-only background wash.
+- P3: the denser large-cover presentation intentionally shows fewer package headers at once. This is the requested tradeoff and does not obstruct navigation or scrolling.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build in `artifacts/song-select-large-covers`: 0 warnings and 0 errors.
+- Focused virtualised-list run: 16 passed, 0 failed, 0 skipped.
+- Focused Song Select screen run: 11 passed, 0 failed, 0 skipped.
+- Native Direct3D 11 capture completed at 1920 x 1080. The selected reference, user report, full same-state comparison, focused cover comparison, and focused background comparison were opened and inspected at original detail.
+- `git diff --check` passed.
 
 final result: passed

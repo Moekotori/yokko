@@ -80,8 +80,13 @@ namespace Yokko.Game.Tests
                 frameworkConfig.SetValue(
                     FrameworkSetting.Locale,
                     YokkoLocale.Chinese);
+                string layoutSkinPath = Environment.GetEnvironmentVariable(
+                    "YOKKO_LAYOUT_EDITOR_SKIN_SAMPLE");
                 var gameplay = new GameplayScreen(
-                    DemoBeatmaps.CreateFourKeyDemo());
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    skinPath: string.IsNullOrWhiteSpace(layoutSkinPath)
+                        ? null
+                        : layoutSkinPath);
                 Add(new ScreenStack(gameplay)
                 {
                     RelativeSizeAxes = Axes.Both,
@@ -112,6 +117,12 @@ namespace Yokko.Game.Tests
                         .Single();
                     editor.MoveTimingBarForTest(new Vector2(70, -58));
                     editor.ResizeTimingBarForTest(new Vector2(58, 20));
+                    if (!string.IsNullOrWhiteSpace(layoutSkinPath))
+                    {
+                        editor.MoveComboForTest(new Vector2(-150, 90));
+                        editor.ResizeJudgementForTest(
+                            new Vector2(64, 28));
+                    }
                     if (Environment.GetEnvironmentVariable(
                             "YOKKO_LAYOUT_EDITOR_COVER_PREVIEW") == "1")
                     {
@@ -325,18 +336,107 @@ namespace Yokko.Game.Tests
                     RelativeSizeAxes = Axes.Both,
                 });
                 Add(new CursorContainer());
+                double packageToggleDelay = double.TryParse(
+                        Environment.GetEnvironmentVariable(
+                            "YOKKO_SONGSELECT_TOGGLE_DELAY_MS"),
+                        out double configuredToggleDelay)
+                    ? Math.Max(0, configuredToggleDelay)
+                    : 350;
+                string packageToToggle = Environment.GetEnvironmentVariable(
+                        "YOKKO_SONGSELECT_TOGGLE_PACKAGE")
+                    ?? @"C:\Charts\Harmonic Bloom - Symphony of the Dreaming Petals.osz";
                 Scheduler.AddDelayed(() =>
                 {
                     for (int i = 0; i < 4; i++)
                         songSelect.SelectPrevious();
                     songSelect.SetKeyModeFilter(KeyMode.SevenKey);
-                    songSelect.TogglePackage(
-                        @"C:\Charts\Harmonic Bloom - Symphony of the Dreaming Petals.osz");
                 }, 350);
+                if (double.TryParse(
+                        Environment.GetEnvironmentVariable(
+                            "YOKKO_SONGSELECT_DIFFICULTY_MIN"),
+                        out double difficultyMinimum))
+                {
+                    Scheduler.AddDelayed(
+                        () => songSelect.SetMinimumDifficultyFilter(
+                            difficultyMinimum),
+                        520);
+                }
+                string searchQuery = Environment.GetEnvironmentVariable(
+                    "YOKKO_SONGSELECT_SEARCH_QUERY");
+                if (!string.IsNullOrWhiteSpace(searchQuery))
+                {
+                    Scheduler.AddDelayed(
+                        () => songSelect.SetSearchQuery(searchQuery),
+                        560);
+                }
+                if (Environment.GetEnvironmentVariable(
+                        "YOKKO_SONGSELECT_HIDE_CONVERTS") == "1")
+                {
+                    Scheduler.AddDelayed(
+                        songSelect.ToggleConvertedBeatmaps,
+                        560);
+                }
+                if (Environment.GetEnvironmentVariable(
+                        "YOKKO_SONGSELECT_ACTIVE_MODS") == "1")
+                {
+                    Scheduler.AddDelayed(() =>
+                    {
+                        foreach (ManiaModId mod in songSelect
+                                                        .SelectedMods
+                                                        .Mods
+                                                        .ToArray())
+                            songSelect.ToggleMod(mod);
+                        songSelect.ToggleMod(ManiaModId.DoubleTime);
+                        songSelect.ToggleMod(ManiaModId.Hidden);
+                    }, 520);
+                }
+                Scheduler.AddDelayed(
+                    () => songSelect.TogglePackage(packageToToggle),
+                    packageToggleDelay);
+                if (double.TryParse(
+                        Environment.GetEnvironmentVariable(
+                            "YOKKO_SONGSELECT_SECOND_TOGGLE_DELAY_MS"),
+                        out double secondToggleDelay))
+                {
+                    Scheduler.AddDelayed(
+                        () => songSelect.TogglePackage(packageToToggle),
+                        Math.Max(0, secondToggleDelay));
+                }
+                if (double.TryParse(
+                        Environment.GetEnvironmentVariable(
+                            "YOKKO_SONGSELECT_CHANGE_DELAY_MS"),
+                        out double selectionChangeDelay))
+                {
+                    int selectionChangeCount = int.TryParse(
+                            Environment.GetEnvironmentVariable(
+                                "YOKKO_SONGSELECT_CHANGE_COUNT"),
+                            out int configuredSelectionChangeCount)
+                        ? Math.Max(1, configuredSelectionChangeCount)
+                        : 1;
+                    Scheduler.AddDelayed(
+                        () =>
+                        {
+                            for (int i = 0; i < selectionChangeCount; i++)
+                                songSelect.SelectNext();
+                        },
+                        Math.Max(0, selectionChangeDelay));
+                }
                 if (Environment.GetEnvironmentVariable(
                         "YOKKO_SONGSELECT_AUTO_PLAY") == "1")
                 {
                     Scheduler.AddDelayed(songSelect.PlaySelected, 700);
+                }
+                if (Environment.GetEnvironmentVariable(
+                        "YOKKO_SONGSELECT_OPEN_MODS") == "1")
+                {
+                    Scheduler.AddDelayed(songSelect.ToggleModPanel, 700);
+                }
+                if (Environment.GetEnvironmentVariable(
+                        "YOKKO_SONGSELECT_PERSONAL_VIEW") == "1")
+                {
+                    Scheduler.AddDelayed(
+                        songSelect.ActivateRankingPanel,
+                        700);
                 }
                 schedulePreviewScreenshot(1200);
                 return;
@@ -609,6 +709,10 @@ namespace Yokko.Game.Tests
         private void seedSongSelectPreview()
         {
             ImportedCharts.Clear();
+            string harmonicPackagePath = Environment.GetEnvironmentVariable(
+                    "YOKKO_SONGSELECT_LONG_PACKAGE_PREVIEW") == "1"
+                ? @"C:\Charts\Harmonic Bloom - Symphony of the Dreaming Petals Beyond the Infinite Starlight Archive of the Last Celestial Horizon.osz"
+                : @"C:\Charts\Harmonic Bloom - Symphony of the Dreaming Petals.osz";
             ImportedCharts.AddOrReplace(
                 [
                     previewChart(
@@ -676,7 +780,22 @@ namespace Yokko.Game.Tests
                         KeyMode.SevenKey,
                         178),
                 ],
-                @"C:\Charts\Harmonic Bloom - Symphony of the Dreaming Petals.osz");
+                harmonicPackagePath);
+            if (Environment.GetEnvironmentVariable(
+                    "YOKKO_SONGSELECT_STANDALONE_PREVIEW") == "1")
+            {
+                ImportedCharts.AddOrReplace(
+                    [
+                        previewChart(
+                            "Solo Skyline",
+                            "Aster Lane",
+                            "Yokko Team",
+                            "Starlight",
+                            KeyMode.SevenKey,
+                            166),
+                    ],
+                    @"C:\Charts\Solo Skyline.osz");
+            }
         }
 
         private static ChartImportResult previewChart(

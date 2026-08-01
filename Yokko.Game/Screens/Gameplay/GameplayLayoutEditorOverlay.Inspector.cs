@@ -184,7 +184,7 @@ internal partial class GameplayLayoutEditorOverlay
         originalElementAlpha[LayoutElementKind.Combo] = comboReadout.Alpha;
         originalElementAlpha[LayoutElementKind.Judgement] =
             judgementReadout.Alpha;
-        comboReadout.SetEditorPreview(true);
+        setComboEditorPreview(true);
         setJudgementEditorPreview(true);
 
         foreach (LayoutTransformTarget target in allTargets())
@@ -213,7 +213,7 @@ internal partial class GameplayLayoutEditorOverlay
             target.SetAspectLocked(false);
         }
 
-        comboReadout.SetEditorPreview(false);
+        setComboEditorPreview(false);
         setJudgementEditorPreview(false);
         restoreOriginalAlpha(LayoutElementKind.Playfield);
         restoreOriginalAlpha(LayoutElementKind.Hud);
@@ -249,8 +249,11 @@ internal partial class GameplayLayoutEditorOverlay
             LayoutElementKind.Playfield => playfield,
             LayoutElementKind.Hud => hud,
             LayoutElementKind.TimingBar => timingBar,
-            LayoutElementKind.Combo => comboReadout,
-            LayoutElementKind.Judgement => judgementReadout,
+            LayoutElementKind.Combo =>
+                playfield.SkinComboLayoutDrawable ?? comboReadout,
+            LayoutElementKind.Judgement =>
+                playfield.SkinJudgementLayoutDrawable
+                ?? judgementReadout,
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
 
@@ -280,7 +283,14 @@ internal partial class GameplayLayoutEditorOverlay
     private void applyElementAlpha(LayoutElementKind kind, bool hidden)
     {
         Drawable drawable = drawableFor(kind);
-        if (kind == LayoutElementKind.Judgement
+        if (kind == LayoutElementKind.Combo
+            && playfield.UsesSkinJudgementOverlay)
+        {
+            comboReadout.Alpha = 0;
+            playfield.SetSkinComboEditorPreview(
+                IsEditing && !hidden);
+        }
+        else if (kind == LayoutElementKind.Judgement
             && playfield.UsesSkinJudgementOverlay)
         {
             drawable.Alpha = 0;
@@ -306,9 +316,18 @@ internal partial class GameplayLayoutEditorOverlay
 
     private void restoreOriginalAlpha(LayoutElementKind kind)
     {
-        drawableFor(kind).Alpha = kind == LayoutElementKind.TimingBar
-            ? liveSettings.ShowTimingBar() ? 1 : 0
-            : originalElementAlpha.GetValueOrDefault(kind, 1);
+        if (kind == LayoutElementKind.Combo
+            && playfield.UsesSkinJudgementOverlay)
+        {
+            comboReadout.Alpha = 0;
+            playfield.SetSkinComboEditorPreview(false);
+        }
+        else
+        {
+            drawableFor(kind).Alpha = kind == LayoutElementKind.TimingBar
+                ? liveSettings.ShowTimingBar() ? 1 : 0
+                : originalElementAlpha.GetValueOrDefault(kind, 1);
+        }
         Drawable miniDrawable = miniDrawableFor(kind);
         if (miniDrawable != null)
             miniDrawable.Alpha = 1;
@@ -320,6 +339,16 @@ internal partial class GameplayLayoutEditorOverlay
                               && playfield.UsesSkinJudgementOverlay;
         playfield.SetSkinJudgementEditorPreview(useSkinPreview);
         judgementReadout.SetEditorPreview(preview && !useSkinPreview);
+    }
+
+    private void setComboEditorPreview(bool preview)
+    {
+        bool useSkinPreview = preview
+                              && playfield.UsesSkinJudgementOverlay;
+        playfield.SetSkinComboEditorPreview(useSkinPreview);
+        comboReadout.SetEditorPreview(preview && !useSkinPreview);
+        if (playfield.UsesSkinJudgementOverlay)
+            comboReadout.Alpha = 0;
     }
 
     private void setLayerLocked(LayoutElementKind kind, bool locked)

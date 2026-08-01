@@ -700,7 +700,11 @@ public partial class GameplayScreen : Screen
             healthState);
         hud.UpdateState(gameplayTime, judgementState, healthState);
         if (!mods.IsCinema)
+        {
             comboReadout.UpdateState(judgementState.Combo);
+            if (playfield.UsesSkinJudgementOverlay)
+                comboReadout.Alpha = 0;
+        }
 
         if (judgementState.IsComplete
             && gameplayTime >= completionTimeMilliseconds)
@@ -787,6 +791,35 @@ public partial class GameplayScreen : Screen
         playfieldLeft +=
             (float)gameplaySettings.LayoutPlayfieldOffsetX.Value
             * DrawWidth;
+        playfield.SetSkinFeedbackLayout(
+            new Vector2(
+                (float)gameplaySettings.LayoutComboOffsetX.Value
+                * DrawWidth / Math.Max(0.01f, playfield.Scale.X),
+                (float)gameplaySettings.LayoutComboOffsetY.Value
+                * DrawHeight / Math.Max(0.01f, playfield.Scale.Y)),
+            new Vector2(
+                (float)Math.Clamp(
+                    gameplaySettings.LayoutComboScaleX.Value,
+                    YokkoGameplaySettings.MinimumLayoutScale,
+                    YokkoGameplaySettings.MaximumLayoutScale),
+                (float)Math.Clamp(
+                    gameplaySettings.LayoutComboScaleY.Value,
+                    YokkoGameplaySettings.MinimumLayoutScale,
+                    YokkoGameplaySettings.MaximumLayoutScale)),
+            new Vector2(
+                (float)gameplaySettings.LayoutJudgementOffsetX.Value
+                * DrawWidth / Math.Max(0.01f, playfield.Scale.X),
+                (float)gameplaySettings.LayoutJudgementOffsetY.Value
+                * DrawHeight / Math.Max(0.01f, playfield.Scale.Y)),
+            new Vector2(
+                (float)Math.Clamp(
+                    gameplaySettings.LayoutJudgementScaleX.Value,
+                    YokkoGameplaySettings.MinimumLayoutScale,
+                    YokkoGameplaySettings.MaximumLayoutScale),
+                (float)Math.Clamp(
+                    gameplaySettings.LayoutJudgementScaleY.Value,
+                    YokkoGameplaySettings.MinimumLayoutScale,
+                    YokkoGameplaySettings.MaximumLayoutScale)));
 
         hud.Position = new Vector2(
             -20

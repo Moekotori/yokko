@@ -1339,11 +1339,17 @@ namespace Yokko.Game.Tests.Visual
 
             GameplayScreen gameplay = null;
             GameplayPlayfield playfield = null;
+            GameplayLayoutEditorOverlay layoutEditor = null;
+            float originalComboCentre = 0;
+            float originalJudgementWidth = 0;
 
             AddStep("open gameplay with judgement skin", () =>
+            {
+                gameplaySettings.ResetGameplayLayout();
                 screenStack.Push(gameplay = new GameplayScreen(
                     DemoBeatmaps.CreateFourKeyDemo(),
-                    skinPath: skinPath)));
+                    skinPath: skinPath));
+            });
             AddUntilStep("skinned gameplay loaded", () =>
                 (playfield = gameplay?
                     .ChildrenOfType<GameplayPlayfield>()
@@ -1361,21 +1367,43 @@ namespace Yokko.Game.Tests.Visual
                 pauseOverlay.SelectNext();
                 pauseOverlay.SelectNext();
                 pauseOverlay.TriggerSelected();
+                layoutEditor = gameplay
+                    .ChildrenOfType<GameplayLayoutEditorOverlay>()
+                    .Single();
             });
-            AddUntilStep("skin judgement asset is previewed", () =>
+            AddUntilStep("skin feedback assets are previewed", () =>
                 gameplay.IsLayoutEditing
-                && playfield.SkinJudgementEditorPreviewUsesTexture);
+                && playfield.SkinJudgementEditorPreviewUsesTexture
+                && playfield.SkinComboEditorPreviewVisible);
+            AddAssert("built-in feedback stays hidden", () =>
+                gameplay.ChildrenOfType<GameplayComboReadout>()
+                        .Single()
+                        .Alpha == 0
+                && gameplay.ChildrenOfType<JudgementReadout>()
+                        .Single()
+                        .Alpha == 0);
+            AddStep("move skin combo and resize skin judgement", () =>
+            {
+                originalComboCentre =
+                    layoutEditor.ComboEditorCentreXForTest;
+                originalJudgementWidth =
+                    layoutEditor.JudgementEditorWidthForTest;
+                layoutEditor.MoveComboForTest(new Vector2(90, 44));
+                layoutEditor.ResizeJudgementForTest(
+                    new Vector2(48, 20));
+            });
+            AddUntilStep("editor transforms real skin feedback", () =>
+                layoutEditor.ComboEditorCentreXForTest
+                    > originalComboCentre + 60
+                && layoutEditor.JudgementEditorWidthForTest
+                    > originalJudgementWidth + 24);
             AddStep("enable a top blocker", () =>
                 gameplaySettings.LayoutTopCoverRatio.Value = 0.4);
             AddUntilStep("skin feedback stays above the blocker", () =>
                 playfield.LayoutTopCoverHeightForTest > 1
                 && playfield.SkinFeedbackRendersAboveLayoutCovers);
-            AddAssert("default judgement text stays hidden", () =>
-                gameplay.ChildrenOfType<JudgementReadout>()
-                        .Single()
-                        .Alpha == 0);
             AddStep("restore blocker", () =>
-                gameplaySettings.LayoutTopCoverRatio.Value = 0);
+                gameplaySettings.ResetGameplayLayout());
         }
 
         [Test]
