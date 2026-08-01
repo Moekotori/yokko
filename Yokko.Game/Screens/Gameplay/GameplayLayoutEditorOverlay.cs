@@ -1238,6 +1238,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         settings.LayoutPlayfieldHeightScale.Value,
         settings.LayoutHudScaleX.Value,
         settings.LayoutHudScaleY.Value,
+        settings.LayoutAccuracyOffsetX.Value,
+        settings.LayoutAccuracyOffsetY.Value,
+        settings.LayoutAccuracyScaleX.Value,
+        settings.LayoutAccuracyScaleY.Value,
+        settings.LayoutProgressOffsetX.Value,
+        settings.LayoutProgressOffsetY.Value,
+        settings.LayoutProgressScaleX.Value,
+        settings.LayoutProgressScaleY.Value,
         settings.LayoutTimingBarOffsetX.Value,
         settings.LayoutTimingBarOffsetY.Value,
         settings.LayoutTimingBarScaleX.Value,
@@ -1299,6 +1307,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             snapshot.PlayfieldHeightScale;
         settings.LayoutHudScaleX.Value = snapshot.HudScaleX;
         settings.LayoutHudScaleY.Value = snapshot.HudScaleY;
+        settings.LayoutAccuracyOffsetX.Value = snapshot.AccuracyOffsetX;
+        settings.LayoutAccuracyOffsetY.Value = snapshot.AccuracyOffsetY;
+        settings.LayoutAccuracyScaleX.Value = snapshot.AccuracyScaleX;
+        settings.LayoutAccuracyScaleY.Value = snapshot.AccuracyScaleY;
+        settings.LayoutProgressOffsetX.Value = snapshot.ProgressOffsetX;
+        settings.LayoutProgressOffsetY.Value = snapshot.ProgressOffsetY;
+        settings.LayoutProgressScaleX.Value = snapshot.ProgressScaleX;
+        settings.LayoutProgressScaleY.Value = snapshot.ProgressScaleY;
         settings.LayoutTimingBarOffsetX.Value =
             snapshot.TimingBarOffsetX;
         settings.LayoutTimingBarOffsetY.Value =
@@ -1334,7 +1350,27 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             + delta.Y / Math.Max(1, DrawHeight));
     }
 
-    private void moveHud(Vector2 delta)
+    private void moveAccuracy(Vector2 delta)
+    {
+        settings.LayoutAccuracyOffsetX.Value = clampOffset(
+            settings.LayoutAccuracyOffsetX.Value
+            + delta.X / Math.Max(1, DrawWidth));
+        settings.LayoutAccuracyOffsetY.Value = clampOffset(
+            settings.LayoutAccuracyOffsetY.Value
+            + delta.Y / Math.Max(1, DrawHeight));
+    }
+
+    private void moveProgress(Vector2 delta)
+    {
+        settings.LayoutProgressOffsetX.Value = clampOffset(
+            settings.LayoutProgressOffsetX.Value
+            + delta.X / Math.Max(1, DrawWidth));
+        settings.LayoutProgressOffsetY.Value = clampOffset(
+            settings.LayoutProgressOffsetY.Value
+            + delta.Y / Math.Max(1, DrawHeight));
+    }
+
+    private void moveInformation(Vector2 delta)
     {
         settings.LayoutHudOffsetX.Value = clampOffset(
             settings.LayoutHudOffsetX.Value
@@ -1384,7 +1420,23 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         settings.LayoutBottomCoverRatio.SetDefault();
     }
 
-    private void resetHud()
+    private void resetAccuracy()
+    {
+        settings.LayoutAccuracyOffsetX.SetDefault();
+        settings.LayoutAccuracyOffsetY.SetDefault();
+        settings.LayoutAccuracyScaleX.SetDefault();
+        settings.LayoutAccuracyScaleY.SetDefault();
+    }
+
+    private void resetProgress()
+    {
+        settings.LayoutProgressOffsetX.SetDefault();
+        settings.LayoutProgressOffsetY.SetDefault();
+        settings.LayoutProgressScaleX.SetDefault();
+        settings.LayoutProgressScaleY.SetDefault();
+    }
+
+    private void resetInformation()
     {
         settings.LayoutHudOffsetX.SetDefault();
         settings.LayoutHudOffsetY.SetDefault();
@@ -1461,12 +1513,63 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         }
     }
 
-    private void resizeHud(
+    private void resizeAccuracy(ResizeEdges edges, Vector2 delta) =>
+        resizeTopRightHudPart(
+            hud.AccuracyLayoutDrawable,
+            edges,
+            delta,
+            () => settings.LayoutAccuracyScaleX.Value,
+            value => settings.LayoutAccuracyScaleX.Value = value,
+            () => settings.LayoutAccuracyScaleY.Value,
+            value => settings.LayoutAccuracyScaleY.Value = value,
+            () => settings.LayoutAccuracyOffsetX.Value,
+            value => settings.LayoutAccuracyOffsetX.Value = value,
+            () => settings.LayoutAccuracyOffsetY.Value,
+            value => settings.LayoutAccuracyOffsetY.Value = value);
+
+    private void resizeProgress(ResizeEdges edges, Vector2 delta) =>
+        resizeTopRightHudPart(
+            hud.ProgressLayoutDrawable,
+            edges,
+            delta,
+            () => settings.LayoutProgressScaleX.Value,
+            value => settings.LayoutProgressScaleX.Value = value,
+            () => settings.LayoutProgressScaleY.Value,
+            value => settings.LayoutProgressScaleY.Value = value,
+            () => settings.LayoutProgressOffsetX.Value,
+            value => settings.LayoutProgressOffsetX.Value = value,
+            () => settings.LayoutProgressOffsetY.Value,
+            value => settings.LayoutProgressOffsetY.Value = value);
+
+    private void resizeInformation(ResizeEdges edges, Vector2 delta) =>
+        resizeTopRightHudPart(
+            hud.InformationLayoutDrawable,
+            edges,
+            delta,
+            () => settings.LayoutHudScaleX.Value,
+            value => settings.LayoutHudScaleX.Value = value,
+            () => settings.LayoutHudScaleY.Value,
+            value => settings.LayoutHudScaleY.Value = value,
+            () => settings.LayoutHudOffsetX.Value,
+            value => settings.LayoutHudOffsetX.Value = value,
+            () => settings.LayoutHudOffsetY.Value,
+            value => settings.LayoutHudOffsetY.Value = value);
+
+    private void resizeTopRightHudPart(
+        Drawable drawable,
         ResizeEdges edges,
-        Vector2 delta)
+        Vector2 delta,
+        Func<double> scaleX,
+        Action<double> setScaleX,
+        Func<double> scaleY,
+        Action<double> setScaleY,
+        Func<double> offsetX,
+        Action<double> setOffsetX,
+        Func<double> offsetY,
+        Action<double> setOffsetY)
     {
         (Vector2 topLeft, Vector2 bottomRight) =
-            GameplayLayoutGeometry.BoundsIn(this, hud);
+            GameplayLayoutGeometry.BoundsIn(this, drawable);
         float width = Math.Max(1, bottomRight.X - topLeft.X);
         float height = Math.Max(1, bottomRight.Y - topLeft.Y);
 
@@ -1474,17 +1577,17 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         {
             bool fromRight = edges.HasFlag(ResizeEdges.Right);
             float realisedChange = resizeDimension(
-                settings.LayoutHudScaleX.Value,
+                scaleX(),
                 width,
                 (fromRight ? 1 : -1) * delta.X,
                 YokkoGameplaySettings.MinimumLayoutScale,
                 YokkoGameplaySettings.MaximumLayoutScale,
-                value => settings.LayoutHudScaleX.Value = value);
+                setScaleX);
             if (fromRight)
             {
-                settings.LayoutHudOffsetX.Value = clampOffset(
-                    settings.LayoutHudOffsetX.Value
-                    + realisedChange / Math.Max(1, DrawWidth));
+                setOffsetX(clampOffset(
+                    offsetX()
+                    + realisedChange / Math.Max(1, DrawWidth)));
             }
         }
 
@@ -1492,17 +1595,17 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         {
             bool fromBottom = edges.HasFlag(ResizeEdges.Bottom);
             float realisedChange = resizeDimension(
-                settings.LayoutHudScaleY.Value,
+                scaleY(),
                 height,
                 (fromBottom ? 1 : -1) * delta.Y,
                 YokkoGameplaySettings.MinimumLayoutScale,
                 YokkoGameplaySettings.MaximumLayoutScale,
-                value => settings.LayoutHudScaleY.Value = value);
+                setScaleY);
             if (!fromBottom)
             {
-                settings.LayoutHudOffsetY.Value = clampOffset(
-                    settings.LayoutHudOffsetY.Value
-                    - realisedChange / Math.Max(1, DrawHeight));
+                setOffsetY(clampOffset(
+                    offsetY()
+                    - realisedChange / Math.Max(1, DrawHeight)));
             }
         }
     }
@@ -2688,6 +2791,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         double PlayfieldHeightScale,
         double HudScaleX,
         double HudScaleY,
+        double AccuracyOffsetX,
+        double AccuracyOffsetY,
+        double AccuracyScaleX,
+        double AccuracyScaleY,
+        double ProgressOffsetX,
+        double ProgressOffsetY,
+        double ProgressScaleX,
+        double ProgressScaleY,
         double TimingBarOffsetX,
         double TimingBarOffsetY,
         double TimingBarScaleX,

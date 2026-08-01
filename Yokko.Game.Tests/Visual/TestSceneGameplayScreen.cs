@@ -959,9 +959,9 @@ namespace Yokko.Game.Tests.Visual
                 layoutEditor.IsToolWindowVisibleForTest(
                     GameplayLayoutEditorToolWindow.Feedback)
                 && layoutEditor.VisibleToolWindowCountForTest == 6);
-            AddAssert("five elements expose corner resize handles", () =>
-                layoutEditor.TransformTargetCount == 5
-                && layoutEditor.ResizeHandleCount == 20);
+            AddAssert("seven elements expose corner resize handles", () =>
+                layoutEditor.TransformTargetCount == 7
+                && layoutEditor.ResizeHandleCount == 28);
             AddAssert("combo and judgement show editor previews", () =>
                 comboReadout.Alpha > 0
                 && judgementReadout.Alpha > 0
@@ -978,8 +978,8 @@ namespace Yokko.Game.Tests.Visual
                     <= layoutEditor.DrawHeight + 0.01f);
             AddStep("Tab selects the next editable element", () =>
                 layoutEditor.SelectNextElementForTest(false));
-            AddAssert("Tab moves selection to HUD", () =>
-                layoutEditor.SelectedElementForTest == "Hud");
+            AddAssert("Tab moves selection to accuracy", () =>
+                layoutEditor.SelectedElementForTest == "Accuracy");
             AddStep("Shift Tab selects the previous element", () =>
                 layoutEditor.SelectNextElementForTest(true));
             AddAssert("reverse selection returns to playfield", () =>
@@ -1066,16 +1066,42 @@ namespace Yokko.Game.Tests.Visual
             });
             AddStep("unlock timing bar", () =>
                 layoutEditor.SetTimingBarLockedForTest(false));
-            AddStep("hide HUD layer in editor", () =>
+            AddStep("hide lower information layer in editor", () =>
                 layoutEditor.SetHudHiddenForTest(true));
-            AddAssert("hidden HUD remains recoverable from layer list", () =>
+            AddAssert("hidden information remains recoverable independently", () =>
                 layoutEditor.HudHiddenForTest
-                && gameplayHud.Alpha == 0);
-            AddStep("show HUD layer again", () =>
+                && gameplayHud.InformationLayoutDrawable.Alpha == 0
+                && gameplayHud.AccuracyLayoutDrawable.Alpha > 0
+                && gameplayHud.ProgressLayoutDrawable.Alpha > 0);
+            AddStep("show lower information layer again", () =>
                 layoutEditor.SetHudHiddenForTest(false));
-            AddAssert("HUD visibility is restored", () =>
+            AddAssert("information visibility is restored", () =>
                 !layoutEditor.HudHiddenForTest
-                && gameplayHud.Alpha > 0);
+                && gameplayHud.InformationLayoutDrawable.Alpha > 0);
+            double accuracyOffsetX = 0;
+            double progressOffsetY = 0;
+            double informationOffsetX = 0;
+            AddStep("move the three HUD sections independently", () =>
+            {
+                accuracyOffsetX = gameplaySettings.LayoutAccuracyOffsetX.Value;
+                progressOffsetY = gameplaySettings.LayoutProgressOffsetY.Value;
+                informationOffsetX = gameplaySettings.LayoutHudOffsetX.Value;
+                layoutEditor.MoveAccuracyForTest(new Vector2(60, 0));
+                layoutEditor.MoveProgressForTest(new Vector2(0, 50));
+                layoutEditor.MoveInformationForTest(new Vector2(-70, 0));
+            });
+            AddAssert("HUD section positions remain independent", () =>
+                gameplaySettings.LayoutAccuracyOffsetX.Value > accuracyOffsetX
+                && gameplaySettings.LayoutAccuracyOffsetY.Value == 0
+                && gameplaySettings.LayoutProgressOffsetX.Value == 0
+                && gameplaySettings.LayoutProgressOffsetY.Value > progressOffsetY
+                && gameplaySettings.LayoutHudOffsetX.Value < informationOffsetX
+                && gameplaySettings.LayoutHudOffsetY.Value == 0);
+            AddStep("restore layout after HUD section transforms", () =>
+                gameplaySettings.ResetGameplayLayout());
+            AddAssert("zero drag does not move an outlying target", () =>
+                layoutEditor.SnapTimingBarMoveForTest(Vector2.Zero, true)
+                    .LengthSquared < 0.000001f);
             float comboCentreX = 0;
             float judgementWidth = 0;
             AddStep("move combo and resize judgement display", () =>

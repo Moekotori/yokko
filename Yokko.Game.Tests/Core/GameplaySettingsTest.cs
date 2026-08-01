@@ -75,6 +75,14 @@ public sealed class GameplaySettingsTest
         Assert.That(settings.LayoutPlayfieldHeightScale.Value, Is.EqualTo(1));
         Assert.That(settings.LayoutHudScaleX.Value, Is.EqualTo(1));
         Assert.That(settings.LayoutHudScaleY.Value, Is.EqualTo(1));
+        Assert.That(settings.LayoutAccuracyOffsetX.Value, Is.Zero);
+        Assert.That(settings.LayoutAccuracyOffsetY.Value, Is.Zero);
+        Assert.That(settings.LayoutAccuracyScaleX.Value, Is.EqualTo(1));
+        Assert.That(settings.LayoutAccuracyScaleY.Value, Is.EqualTo(1));
+        Assert.That(settings.LayoutProgressOffsetX.Value, Is.Zero);
+        Assert.That(settings.LayoutProgressOffsetY.Value, Is.Zero);
+        Assert.That(settings.LayoutProgressScaleX.Value, Is.EqualTo(1));
+        Assert.That(settings.LayoutProgressScaleY.Value, Is.EqualTo(1));
         Assert.That(settings.LayoutTimingBarOffsetX.Value, Is.Zero);
         Assert.That(settings.LayoutTimingBarOffsetY.Value, Is.Zero);
         Assert.That(settings.LayoutTimingBarScaleX.Value, Is.EqualTo(1));
@@ -459,6 +467,14 @@ public sealed class GameplaySettingsTest
         settings.LayoutPlayfieldHeightScale.Value = 0.8;
         settings.LayoutHudScaleX.Value = 1.2;
         settings.LayoutHudScaleY.Value = 0.75;
+        settings.LayoutAccuracyOffsetX.Value = 0.14;
+        settings.LayoutAccuracyOffsetY.Value = -0.08;
+        settings.LayoutAccuracyScaleX.Value = 1.1;
+        settings.LayoutAccuracyScaleY.Value = 0.9;
+        settings.LayoutProgressOffsetX.Value = -0.16;
+        settings.LayoutProgressOffsetY.Value = 0.12;
+        settings.LayoutProgressScaleX.Value = 0.8;
+        settings.LayoutProgressScaleY.Value = 1.25;
         settings.LayoutTimingBarOffsetX.Value = 0.18;
         settings.LayoutTimingBarOffsetY.Value = -0.12;
         settings.LayoutTimingBarScaleX.Value = 1.4;
@@ -494,6 +510,14 @@ public sealed class GameplaySettingsTest
                 Is.EqualTo(1));
             Assert.That(settings.LayoutHudScaleX.Value, Is.EqualTo(1));
             Assert.That(settings.LayoutHudScaleY.Value, Is.EqualTo(1));
+            Assert.That(settings.LayoutAccuracyOffsetX.Value, Is.Zero);
+            Assert.That(settings.LayoutAccuracyOffsetY.Value, Is.Zero);
+            Assert.That(settings.LayoutAccuracyScaleX.Value, Is.EqualTo(1));
+            Assert.That(settings.LayoutAccuracyScaleY.Value, Is.EqualTo(1));
+            Assert.That(settings.LayoutProgressOffsetX.Value, Is.Zero);
+            Assert.That(settings.LayoutProgressOffsetY.Value, Is.Zero);
+            Assert.That(settings.LayoutProgressScaleX.Value, Is.EqualTo(1));
+            Assert.That(settings.LayoutProgressScaleY.Value, Is.EqualTo(1));
             Assert.That(settings.LayoutTimingBarOffsetX.Value, Is.Zero);
             Assert.That(settings.LayoutTimingBarOffsetY.Value, Is.Zero);
             Assert.That(settings.LayoutTimingBarScaleX.Value, Is.EqualTo(1));
@@ -574,6 +598,14 @@ public sealed class GameplaySettingsTest
                 firstSettings.LayoutPlayfieldHeightScale.Value = 0.85;
                 firstSettings.LayoutHudScaleX.Value = 1.2;
                 firstSettings.LayoutHudScaleY.Value = 0.75;
+                firstSettings.LayoutAccuracyOffsetX.Value = 0.17;
+                firstSettings.LayoutAccuracyOffsetY.Value = -0.09;
+                firstSettings.LayoutAccuracyScaleX.Value = 1.15;
+                firstSettings.LayoutAccuracyScaleY.Value = 0.9;
+                firstSettings.LayoutProgressOffsetX.Value = -0.12;
+                firstSettings.LayoutProgressOffsetY.Value = 0.16;
+                firstSettings.LayoutProgressScaleX.Value = 0.85;
+                firstSettings.LayoutProgressScaleY.Value = 1.3;
                 firstSettings.LayoutTimingBarOffsetX.Value = 0.15;
                 firstSettings.LayoutTimingBarOffsetY.Value = -0.11;
                 firstSettings.LayoutTimingBarScaleX.Value = 1.4;
@@ -690,6 +722,30 @@ public sealed class GameplaySettingsTest
                 Assert.That(
                     restoredSettings.LayoutHudScaleY.Value,
                     Is.EqualTo(0.75).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutAccuracyOffsetX.Value,
+                    Is.EqualTo(0.17).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutAccuracyOffsetY.Value,
+                    Is.EqualTo(-0.09).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutAccuracyScaleX.Value,
+                    Is.EqualTo(1.15).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutAccuracyScaleY.Value,
+                    Is.EqualTo(0.9).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutProgressOffsetX.Value,
+                    Is.EqualTo(-0.12).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutProgressOffsetY.Value,
+                    Is.EqualTo(0.16).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutProgressScaleX.Value,
+                    Is.EqualTo(0.85).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutProgressScaleY.Value,
+                    Is.EqualTo(1.3).Within(0.001));
                 Assert.That(
                     restoredSettings.LayoutTimingBarOffsetX.Value,
                     Is.EqualTo(0.15).Within(0.001));

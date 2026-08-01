@@ -631,6 +631,18 @@ internal static class YokkoStrings
                 "Info panel · drag / resize",
                 "信息面板 · 拖动 / 拉伸边框",
                 "情報パネル · ドラッグ / 拡縮"),
+            ["gameplay.layout_editor.accuracy"] = new(
+                "Accuracy · drag / resize",
+                "ACC · 拖动 / 拉伸边框",
+                "精度 · ドラッグ / 拡縮"),
+            ["gameplay.layout_editor.progress"] = new(
+                "Progress bar · drag / resize",
+                "进度条 · 拖动 / 拉伸边框",
+                "プログレスバー · ドラッグ / 拡縮"),
+            ["gameplay.layout_editor.information"] = new(
+                "Lower information · drag / resize",
+                "下方信息 · 拖动 / 拉伸边框",
+                "下部情報 · ドラッグ / 拡縮"),
             ["gameplay.layout_editor.timing_bar"] = new(
                 "Timing bar · drag / resize",
                 "判定条 · 拖动 / 拉伸边框",
@@ -723,6 +735,18 @@ internal static class YokkoStrings
                 "Info panel",
                 "信息面板",
                 "情報パネル"),
+            ["gameplay.layout_editor.layer.accuracy"] = new(
+                "Accuracy",
+                "ACC",
+                "精度"),
+            ["gameplay.layout_editor.layer.progress"] = new(
+                "Progress bar",
+                "进度条",
+                "プログレスバー"),
+            ["gameplay.layout_editor.layer.information"] = new(
+                "Lower information",
+                "下方信息",
+                "下部情報"),
             ["gameplay.layout_editor.layer.timing_bar"] = new(
                 "Timing bar",
                 "判定条",
