@@ -6,8 +6,10 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.Testing;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Core.Scoring;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -113,7 +115,7 @@ internal partial class SongSelectScoreDetailOverlay : CompositeDrawable
             .ScaleTo(0.99f, 110, Easing.InQuad)
             .FadeOut(90, Easing.InQuad);
         this.FadeOut(120, Easing.InQuad);
-        Scheduler.AddDelayed(closeRequested, 125);
+        closeRequested();
     }
 
     internal void WatchReplay()

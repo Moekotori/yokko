@@ -83,6 +83,38 @@ public class GameplayScoreStoreTest
     }
 
     [Test]
+    public void ReplayPathAndPlayTimePersistWithHistoryEntry()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var first = new GameplayScoreStore();
+        first.Initialise(new NativeStorage(testRoot));
+        string replayPath = Path.Combine(testRoot, "Replays", "play.ykr");
+        DateTimeOffset playedAt = new(2026, 8, 1, 3, 4, 5, TimeSpan.Zero);
+
+        Assert.That(
+            first.SaveBest(
+                beatmap,
+                ManiaModSet.Empty,
+                JudgementConfiguration.YokkoDefault,
+                result(900_000, 0.95),
+                replayPath,
+                playedAt),
+            Is.True);
+
+        var restored = new GameplayScoreStore();
+        restored.Initialise(new NativeStorage(testRoot));
+        StoredGameplayScore saved = restored.GetHistory(
+            beatmap,
+            JudgementConfiguration.YokkoDefault).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.ReplayPath, Is.EqualTo(replayPath));
+            Assert.That(saved.PlayedAt, Is.EqualTo(playedAt));
+        });
+    }
+
+    [Test]
     public void DifferentModSetsKeepIndependentBestScores()
     {
         YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();

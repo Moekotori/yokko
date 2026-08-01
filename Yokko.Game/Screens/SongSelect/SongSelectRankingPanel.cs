@@ -21,13 +21,13 @@ namespace Yokko.Game.Screens.SongSelect;
 internal partial class SongSelectRankingPanel : ClickableContainer
 {
     private const float panel_width = 850;
-    private const float panel_height = 640;
+    private const float panel_height = 570;
     private const float rows_top = 44;
     private const float content_width = 850;
-    private const float content_height = 582;
+    private const float content_height = 512;
     private const float paper_height = rows_top + content_height;
     private const float row_width = 826;
-    private const float row_height = 78;
+    private const float row_height = 70;
     private const float row_spacing = 0;
     private const float score_column_right = 476;
     private const float accuracy_column_right = 586;
@@ -287,10 +287,10 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                     current ? SongSelectTheme.Pink : accent),
                 new Container
                 {
-                    Position = new Vector2(68, 7),
-                    Size = new Vector2(64),
+                    Position = new Vector2(72, 7),
+                    Size = new Vector2(56),
                     Masking = true,
-                    CornerRadius = 32,
+                    CornerRadius = 28,
                     BorderThickness = current ? 2 : 1.2f,
                     BorderColour = current ? SongSelectTheme.Pink : accent,
                     Child = new Sprite
@@ -302,8 +302,8 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                 },
                 text(
                     score.PlayerName,
-                    146,
-                    15,
+                    144,
+                    12,
                     188,
                     17,
                     current ? SongSelectTheme.Pink : primary),
@@ -311,8 +311,8 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                     score.Mods.Count == 0
                         ? "NM"
                         : string.Join("   ", score.Mods),
-                    146,
-                    43,
+                    144,
+                    39,
                     188,
                     10,
                     secondary,
@@ -320,19 +320,19 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                 numericText(
                     $"{score.Score:N0}",
                     score_column_right,
-                    25,
+                    21,
                     18,
                     primary),
                 numericText(
                     $"{score.Accuracy:P2}",
                     accuracy_column_right,
-                    28,
+                    24,
                     13,
                     secondary),
                 numericText(
                     $"{score.MaxCombo:N0}×",
                     combo_column_right,
-                    28,
+                    24,
                     13,
                     secondary),
                 new SongSelectGradeBadge(score.Grade, grade, current)

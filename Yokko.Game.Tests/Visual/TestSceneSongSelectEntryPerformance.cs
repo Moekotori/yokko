@@ -89,10 +89,16 @@ public partial class TestSceneSongSelectEntryPerformance : YokkoTestScene
         AddStep("return to main", () => screenStack.CurrentScreen.Exit());
         AddUntilStep("main screen resumes", () =>
             ReferenceEquals(screenStack.CurrentScreen, mainScreen));
+        AddAssert("next browser is not built during return fade", () =>
+            mainScreen.PreparedSongSelectEntryCount == -1);
+        AddUntilStep("main return motion settles", () =>
+            mainScreen.Alpha >= 0.99f);
         AddUntilStep("next song select preload is ready", () =>
             mainScreen.PreparedSongSelectEntryCount == artworkPaths.Count
             && mainScreen.PreparedSongSelectMaterialisedDrawableCount > 0
             && mainScreen.IsPreparedSongSelectCurrent);
+        AddAssert("next preload starts after return motion", () =>
+            mainScreen.LastSongSelectPreloadDelayAfterReturn >= 500);
         AddStep("open prepared song select again", () =>
         {
             stageAlphaAtNavigation = -1;

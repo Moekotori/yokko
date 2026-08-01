@@ -16,10 +16,12 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
 using Yokko.Game.Importing;
 using Yokko.Game.Screens.SongSelect;
+using Yokko.Game.Scoring;
 using Yokko.Import;
 
 namespace Yokko.Game.Tests.Visual
@@ -33,9 +35,11 @@ namespace Yokko.Game.Tests.Visual
         private IRenderer renderer { get; set; }
 
         [BackgroundDependencyLoader]
-        private void load(ImportedChartLibrary chartLibrary)
+        private void load(
+            ImportedChartLibrary chartLibrary,
+            GameplayScoreStore scoreStore)
         {
-            seedDemoCharts(chartLibrary);
+            seedDemoCharts(chartLibrary, scoreStore);
             Add(screenStack = new ScreenStack(new SongSelectScreen()) { RelativeSizeAxes = Axes.Both });
         }
 
@@ -111,7 +115,7 @@ namespace Yokko.Game.Tests.Visual
                              .All(badge =>
                                  Math.Abs(badge.Width - 36) < 0.01f
                                  && Math.Abs(badge.Height - 32) < 0.01f
-                                 && Math.Abs(badge.X + 70) < 0.01f
+                                 && Math.Abs(badge.X + 62) < 0.01f
                                  && Math.Abs(badge.BorderThickness) < 0.01f));
             AddAssert("grade labels do not use detached card surfaces", () =>
                 currentScreen.ChildrenOfType<SongSelectGradeBadge>()
@@ -152,7 +156,9 @@ namespace Yokko.Game.Tests.Visual
             screenshot.SaveAsPng(outputPath);
         }
 
-        private static void seedDemoCharts(ImportedChartLibrary library)
+        private static void seedDemoCharts(
+            ImportedChartLibrary library,
+            GameplayScoreStore scoreStore)
         {
             (string title, string artist, string creator, string difficulty, KeyMode mode, double bpm)[] demos =
             {
@@ -179,6 +185,25 @@ namespace Yokko.Game.Tests.Visual
                 library.AddOrReplace(
                     new ChartImportResult(beatmap, []),
                     $"demo://song-select/{demo.title}");
+                for (int attempt = 0; attempt < 7; attempt++)
+                {
+                    scoreStore.SaveBest(
+                        beatmap,
+                        ManiaModSet.Empty,
+                        JudgementConfiguration.YokkoDefault,
+                        new ManiaScoreResult(
+                            970_000 - attempt * 25_000,
+                            0.99 - attempt * 0.008,
+                            600 - attempt * 40,
+                            attempt < 3 ? ScoreRank.S : ScoreRank.A,
+                            500 - attempt * 20,
+                            80 + attempt * 10,
+                            12 + attempt * 2,
+                            4 + attempt,
+                            attempt,
+                            attempt / 2),
+                        playedAt: DateTimeOffset.UtcNow.AddMinutes(-attempt));
+                }
             }
         }
     }

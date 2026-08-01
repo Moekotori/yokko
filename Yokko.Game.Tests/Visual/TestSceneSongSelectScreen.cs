@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using System;
+using System.IO;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
@@ -11,7 +12,9 @@ using Yokko.Core.Beatmaps;
 using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
+using Yokko.Core.Scoring;
 using Yokko.Game.Importing;
+using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Settings;
@@ -61,22 +64,17 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             @"C:\Charts\test-pack.osz"));
         AddUntilStep("imported charts visible", () => songSelectScreen.VisibleEntryCount == 2);
         AddAssert("newest import selected", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Seven");
-        AddAssert("box mascot uses one cached texture", () =>
-            songSelectScreen.MascotTextureReady);
-        AddAssert("mascot uses the home sticker bubble", () =>
-            songSelectScreen.MascotBubblePresent
-            && songSelectScreen.MascotMomentSize == new Vector2(330, 150));
         AddAssert("ranking fits 16:9 stage", () =>
             SongSelectScreen.RankingFitsDesignedStage);
         AddAssert("ranking is above footer", () =>
             songSelectScreen.RankingFitsAboveFooter);
         AddAssert("ranking uses the available detail width", () =>
-            songSelectScreen.RankingPanelSize == new Vector2(850, 448));
+            songSelectScreen.RankingPanelSize == new Vector2(850, 570));
         AddAssert("ranking body uses its full height", () =>
-            songSelectScreen.RankingContentSize == new Vector2(850, 390));
+            songSelectScreen.RankingContentSize == new Vector2(850, 512));
         AddAssert("ranking paper includes the header rail", () =>
             songSelectScreen.RankingPaperPosition == Vector2.Zero
-            && songSelectScreen.RankingPaperSize == new Vector2(850, 434));
+            && songSelectScreen.RankingPaperSize == new Vector2(850, 556));
         AddUntilStep("search box uses the space freed by key filter", () =>
             songSelectScreen.SearchBoxSize == new Vector2(710, 48));
         AddAssert("key modes share one compact cycling button", () =>
@@ -202,27 +200,37 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && !songSelectScreen.NoResultsVisible);
         AddAssert("empty search is not dismissed", () => !songSelectScreen.DismissSearch());
 
-        AddAssert("ranking shown by default", () => songSelectScreen.ScoreView == SongSelectScoreView.GlobalRanking);
-        int rankingTransitionVersion = 0;
-        AddStep("remember ranking transition", () =>
-            rankingTransitionVersion = songSelectScreen
-                .RankingContentTransitionVersion);
-        AddStep("click ranking body", songSelectScreen.ActivateRankingPanel);
-        AddAssert("personal record selected", () => songSelectScreen.ScoreView == SongSelectScoreView.Personal);
-        AddUntilStep("personal transition settles", () =>
-            songSelectScreen.RankingContentLayerCount == 1);
-        AddAssert("empty personal history stays on the paper", () =>
-            songSelectScreen.RankingEmptyStateVisible
-            && songSelectScreen.RankingContentTransitionVersion
-                == rankingTransitionVersion + 1);
-        AddStep("click personal record body", songSelectScreen.ActivateRankingPanel);
-        AddAssert("ranking restored", () => songSelectScreen.ScoreView == SongSelectScoreView.GlobalRanking);
-        AddUntilStep("global transition settles", () =>
-            songSelectScreen.RankingContentLayerCount == 1);
-        AddAssert("global ranking replaces the empty state", () =>
-            !songSelectScreen.RankingEmptyStateVisible
-            && songSelectScreen.RankingContentTransitionVersion
-                == rankingTransitionVersion + 2);
+        AddAssert("personal scores shown by default", () =>
+            songSelectScreen.ScoreView == SongSelectScoreView.Personal);
+        AddAssert("empty personal history stays on the enlarged paper", () =>
+            songSelectScreen.RankingContentLayerCount == 1
+            && songSelectScreen.RankingEmptyStateVisible);
+        var detailScore = new SongSelectScore(
+            1,
+            "MOCHI",
+            "yokko",
+            ScoreRank.S,
+            987_654,
+            0.9876,
+            432,
+            ["HD"],
+            true,
+            DateTimeOffset.UtcNow,
+            100,
+            20,
+            4,
+            2,
+            1,
+            0);
+        AddStep("open personal score detail", () =>
+            songSelectScreen.ShowScoreDetails(detailScore));
+        AddAssert("score detail shows the selected real result", () =>
+            songSelectScreen.ScoreDetailVisible
+            && songSelectScreen.DetailScore == detailScore
+            && !songSelectScreen.DetailReplayAvailable);
+        AddStep("close score detail", songSelectScreen.HandleEscape);
+        AddUntilStep("score detail closes smoothly", () =>
+            !songSelectScreen.ScoreDetailVisible);
     }
 
     [Test]
@@ -243,6 +251,66 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("settings return refreshes list once", () =>
             songSelectScreen.SongListRebuildVersion
                 == listVersionBeforeSettings + 1);
+    }
+
+    [Test]
+    public void TestScoreDetailReplayStarts()
+    {
+        string replayPath = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"song-select-score-{Guid.NewGuid():N}.ykr");
+        SongSelectScore replayScore = null;
+
+        AddStep("load replay chart", () =>
+        {
+            importedChartLibrary.Clear();
+            importedChartLibrary.AddOrReplace(
+                [result("Replay Chart", DemoBeatmaps.CreateFourKeyDemo())],
+                @"C:\Charts\replay-chart.osu");
+        });
+        AddUntilStep("replay chart selected", () =>
+            songSelectScreen.SelectedEntry?.Beatmap.Title == "Replay Chart");
+        AddStep("write matching replay", () =>
+        {
+            YokkoBeatmap beatmap = songSelectScreen.SelectedEntry.Beatmap;
+            YokkoReplayIO.WriteToFile(
+                replayPath,
+                beatmap,
+                beatmap,
+                new GameplayReplay(
+                [
+                    new GameplayReplayInput(0, true, 100),
+                    new GameplayReplayInput(0, false, 140),
+                ]));
+            replayScore = new SongSelectScore(
+                1,
+                "MOCHI",
+                "yokko",
+                ScoreRank.S,
+                900_000,
+                0.95,
+                120,
+                [],
+                true,
+                DateTimeOffset.UtcNow,
+                ReplayPath: replayPath);
+        });
+        AddStep("open replay score detail", () =>
+            songSelectScreen.ShowScoreDetails(replayScore));
+        AddAssert("matching replay is available", () =>
+            songSelectScreen.DetailReplayAvailable);
+        AddStep("watch replay", songSelectScreen.ActivateDetailReplay);
+        AddUntilStep("score replay enters gameplay", () =>
+            screenStack.CurrentScreen is GameplaySessionScreen session
+            && session.CurrentGameplay?.ReplayMode == true);
+        AddStep("return from score replay", () =>
+            ((GameplaySessionScreen)screenStack.CurrentScreen)
+            .CurrentGameplay.Exit());
+        AddUntilStep("song select resumes after score replay", () =>
+            screenStack.CurrentScreen == songSelectScreen);
+        AddAssert("score detail is dismissed after replay", () =>
+            !songSelectScreen.ScoreDetailVisible);
+        AddStep("remove test replay", () => File.Delete(replayPath));
     }
 
     [Test]

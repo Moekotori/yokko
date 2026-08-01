@@ -94,6 +94,8 @@ namespace Yokko.Game
         internal YokkoDiagnostics Diagnostics => diagnostics;
         internal ImportedChartLibrary ImportedCharts =>
             importedChartLibrary;
+        internal GameplayScoreStore ScoreStoreForTesting => scoreStore;
+        internal GameplayReplayStore ReplayStoreForTesting => replayStore;
 
         protected YokkoGameBase(
             IKeyInputTimestampBackend keyInputTimestampBackend = null,

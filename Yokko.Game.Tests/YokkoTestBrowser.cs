@@ -322,6 +322,11 @@ namespace Yokko.Game.Tests
                     "YOKKO_SONGSELECT_PREVIEW") == "1")
             {
                 seedSongSelectPreview();
+                if (Environment.GetEnvironmentVariable(
+                        "YOKKO_SONGSELECT_SCORE_PREVIEW") == "1")
+                {
+                    seedSongSelectScorePreview();
+                }
                 frameworkConfig.SetValue(
                     FrameworkSetting.WindowMode,
                     WindowMode.Windowed);
@@ -821,6 +826,59 @@ namespace Yokko.Game.Tests
                             166),
                     ],
                     @"C:\Charts\Solo Skyline.osz");
+            }
+        }
+
+        private void seedSongSelectScorePreview()
+        {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            foreach (ImportedChart chart in ImportedCharts.GetCharts())
+            {
+                YokkoBeatmap beatmap = chart.Result.Beatmap;
+                if (ScoreStoreForTesting.GetHistory(
+                        beatmap,
+                        JudgementConfiguration.YokkoDefault,
+                        1).Count > 0)
+                    continue;
+
+                for (int attempt = 0; attempt < 7; attempt++)
+                {
+                    DateTimeOffset playedAt = now.AddMinutes(-attempt * 17);
+                    ManiaModSet mods = attempt switch
+                    {
+                        1 => ManiaModSet.Empty.With(ManiaModId.Hidden, true),
+                        2 => ManiaModSet.Empty.With(ManiaModId.DoubleTime, true),
+                        _ => ManiaModSet.Empty,
+                    };
+                    var replay = new GameplayReplay(
+                    [
+                        new GameplayReplayInput(0, true, 900 + attempt * 2),
+                        new GameplayReplayInput(0, false, 940 + attempt * 2),
+                    ], mods);
+                    string replayPath = ReplayStoreForTesting.Save(
+                        beatmap,
+                        ManiaBeatmapModTransformer.Apply(beatmap, mods),
+                        replay,
+                        chart.Result.SourceHash,
+                        playedAt);
+                    ScoreStoreForTesting.SaveBest(
+                        beatmap,
+                        mods,
+                        JudgementConfiguration.YokkoDefault,
+                        new ManiaScoreResult(
+                            986_420 - attempt * 21_700,
+                            0.9932 - attempt * 0.0074,
+                            612 - attempt * 37,
+                            attempt < 3 ? ScoreRank.S : ScoreRank.A,
+                            520 - attempt * 18,
+                            84 + attempt * 9,
+                            12 + attempt * 3,
+                            4 + attempt,
+                            attempt,
+                            attempt / 2),
+                        replayPath,
+                        playedAt);
+                }
             }
         }
 

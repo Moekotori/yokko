@@ -188,8 +188,6 @@ public partial class SongSelectScreen : Screen
     [Resolved]
     private GameplayScoreStore scoreStore { get; set; }
     [Resolved]
-    private GameplayReplayStore replayStore { get; set; }
-    [Resolved]
     private ImportedChartLibrary importedChartLibrary { get; set; }
     [Resolved]
     private IRenderer renderer { get; set; }
@@ -376,6 +374,8 @@ public partial class SongSelectScreen : Screen
     internal SongSelectScore DetailScore => scoreDetailOverlay?.Score;
     internal bool DetailReplayAvailable =>
         scoreDetailOverlay?.ReplayAvailable == true;
+    internal void ActivateDetailReplay() =>
+        scoreDetailOverlay?.WatchReplay();
     internal static bool RankingFitsDesignedStage =>
         details_top + ranking_top + ranking_height
         <= designed_height - footer_height;
@@ -610,7 +610,6 @@ public partial class SongSelectScreen : Screen
                 previewPlayer?.WaitForIdleAsync() ?? Task.CompletedTask);
             previewPlayer?.Detach();
         }
-        playExitTransition();
         return base.OnExiting(e);
     }
 
@@ -654,16 +653,6 @@ public partial class SongSelectScreen : Screen
 
     }
 
-    private void playExitTransition()
-    {
-        entryTransitionInProgress = false;
-        header.MoveToY(-7, 140, Easing.OutQuint);
-        detailsHost.MoveToX(details_left - 12, 160, Easing.OutQuint);
-        songBrowser.MoveToX(-browse_right + 18, 160, Easing.OutQuint);
-        footer.MoveToY(10, 140, Easing.OutQuint);
-        this.FadeOut(170, Easing.OutQuint);
-    }
-
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
@@ -686,6 +675,16 @@ public partial class SongSelectScreen : Screen
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
+        if (scoreDetailOverlay != null)
+        {
+            if (e.Key == Key.Escape)
+                scoreDetailOverlay.Close();
+            else if (e.Key == Key.Enter)
+                scoreDetailOverlay.WatchReplay();
+
+            return true;
+        }
+
         if (HandlePlaybackRateShortcut(e.Key, e.AltPressed))
             return true;
 
@@ -813,19 +812,23 @@ public partial class SongSelectScreen : Screen
 
     internal void HandleEscape()
     {
-        if (!DismissSearch())
+        if (scoreDetailOverlay != null)
+            scoreDetailOverlay.Close();
+        else if (!DismissSearch())
             stopPreviewThen(this.Exit);
     }
 
     internal void ToggleScoreView()
     {
-        scoreView = scoreView == SongSelectScoreView.GlobalRanking
-            ? SongSelectScoreView.Personal
-            : SongSelectScoreView.GlobalRanking;
-        rebuildDetails();
+        scoreView = SongSelectScoreView.Personal;
     }
 
-    internal void ActivateRankingPanel() => rankingPanel?.TriggerClick();
+    internal void ActivateRankingPanel()
+    {
+        SongSelectScore first = selectedEntry?.History.FirstOrDefault();
+        if (first != null)
+            ShowScoreDetails(first);
+    }
 
     internal void ActivateSelectedModsButton() =>
         selectedModsButton?.TriggerClick();
@@ -876,7 +879,8 @@ public partial class SongSelectScreen : Screen
 
     private async Task finishGameplayTransitionAsync(
         Task previewStopped,
-        Task<GameplaySessionScreen> gameplayTask)
+        Task<GameplaySessionScreen> gameplayTask,
+        Action<Exception> failure = null)
     {
         try
         {
@@ -907,8 +911,103 @@ public partial class SongSelectScreen : Screen
                 stage.FadeTo(1, 120, Easing.OutQuint)
                      .ScaleTo(1, 120, Easing.OutQuint);
                 playSelectedPreview();
+                failure?.Invoke(exception.GetBaseException());
             });
         }
+    }
+
+    internal void ShowScoreDetails(SongSelectScore score)
+    {
+        if (score == null || transitionPending)
+            return;
+
+        closeScoreDetailImmediately();
+        SongSelectScoreDetailOverlay overlay = null;
+        overlay = new SongSelectScoreDetailOverlay(
+            score,
+            textures.Get("SongSelect/Ui/yokko-avatar-256"),
+            () => closeScoreDetail(overlay),
+            () => watchScoreReplay(score));
+        scoreDetailOverlay = overlay;
+        stage.Add(overlay);
+    }
+
+    private void closeScoreDetail(
+        SongSelectScoreDetailOverlay overlay)
+    {
+        if (!ReferenceEquals(scoreDetailOverlay, overlay))
+            return;
+
+        scoreDetailOverlay = null;
+        Scheduler.AddDelayed(() =>
+        {
+            if (overlay.Parent == stage)
+                stage.Remove(overlay, true);
+        }, 125);
+    }
+
+    private void closeScoreDetailImmediately()
+    {
+        SongSelectScoreDetailOverlay overlay = scoreDetailOverlay;
+        scoreDetailOverlay = null;
+        if (overlay?.Parent == stage)
+            stage.Remove(overlay, true);
+    }
+
+    private void watchScoreReplay(SongSelectScore score)
+    {
+        if (score == null
+            || string.IsNullOrWhiteSpace(score.ReplayPath)
+            || selectedEntry == null
+            || transitionPending)
+        {
+            return;
+        }
+
+        YokkoBeatmap replayBeatmap = selectedEntry.Beatmap;
+        string replayPath = score.ReplayPath;
+        transitionPending = true;
+        previewActive = false;
+        previewPlayer?.Stop();
+        stage.FadeTo(0.84f, 90, Easing.OutQuint)
+             .ScaleTo(0.997f, 90, Easing.OutQuint);
+
+        Task<GameplaySessionScreen> gameplayTask = Task.Run(() =>
+        {
+            YokkoReplayLoadResult loaded =
+                YokkoReplayIO.ReadFromFile(replayPath);
+            string expectedFingerprint =
+                YokkoBeatmapFingerprint.Compute(replayBeatmap);
+            if (!string.Equals(
+                    loaded.BeatmapFingerprint,
+                    expectedFingerprint,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    "This replay belongs to a different chart.");
+            }
+
+            YokkoBeatmap applied = ManiaBeatmapModTransformer.Apply(
+                replayBeatmap,
+                loaded.Replay.Mods);
+            if ((int)applied.KeyMode != loaded.KeyCount)
+            {
+                throw new InvalidDataException(
+                    "The replay key count does not match this chart.");
+            }
+
+            return new GameplaySessionScreen(new GameplayScreen(
+                replayBeatmap,
+                null,
+                null,
+                null,
+                loaded.Replay));
+        });
+        _ = finishGameplayTransitionAsync(
+            previewPlayer?.WaitForIdleAsync() ?? Task.CompletedTask,
+            gameplayTask,
+            exception => scoreDetailOverlay?.ShowReplayError(
+                exception.Message));
     }
 
     private void stopPreviewThen(Action transition)
@@ -1933,39 +2032,6 @@ public partial class SongSelectScreen : Screen
         };
     }
 
-    private Drawable createMascotMoment()
-    {
-        Texture bubbleTexture = textures.Get(
-            "SongSelect/Ui/mascot-bubble-512");
-
-        return mascotMoment = new Container
-        {
-            Anchor = Anchor.BottomLeft,
-            Origin = Anchor.BottomLeft,
-            Position = new Vector2(8, -130),
-            Size = new Vector2(330, 150),
-            Children =
-            [
-                mascotBubble = new HomeMascotBubble(
-                    YokkoStrings.Get("main.bubble_pick_song"),
-                    HomeMascotBubbleStyle.PopSignalSticker,
-                    bubbleTexture)
-                {
-                    Position = new Vector2(88, 20),
-                    Scale = new Vector2(0.78f),
-                },
-                mascotSprite = new Sprite
-                {
-                    Anchor = Anchor.BottomLeft,
-                    Origin = Anchor.BottomLeft,
-                    Size = new Vector2(142),
-                    Texture = textures.Get(
-                        "SongSelect/mascot-box-static"),
-                },
-            ],
-        };
-    }
-
     private Drawable createFooterToolDock(
         SongSelectModsToggleButton mods)
     {
@@ -2511,7 +2577,10 @@ public partial class SongSelectScreen : Screen
         float artistY = detailsTitleLines.Length == 1 ? 102 : 111;
         float mapperY = detailsTitleLines.Length == 1 ? 126 : 134;
 
-        rankingPanel = new SongSelectRankingPanel(selectedEntry, textures, newView => scoreView = newView)
+        rankingPanel = new SongSelectRankingPanel(
+            selectedEntry,
+            textures,
+            ShowScoreDetails)
         {
             Position = new Vector2(0, ranking_top),
         };
@@ -3599,33 +3668,6 @@ public partial class SongSelectScreen : Screen
                 entry.Beatmap,
                 selectedMods,
                 gameplaySettings.GetJudgementConfiguration());
-            IEnumerable<SongSelectScore> ranking = saved == null
-                ? entry.Ranking
-                : entry.Ranking.Where(score => !score.IsCurrentPlayer);
-
-            if (saved != null)
-            {
-                ranking = ranking.Append(new SongSelectScore(
-                                   0,
-                                   "MOCHI",
-                                   "yokko",
-                                   saved.Rank,
-                                   (int)Math.Min(int.MaxValue, saved.Score),
-                                   saved.Accuracy,
-                                   saved.MaxCombo,
-                                   saved.ModLabels,
-                                   true,
-                                   saved.PlayedAt))
-                                 .OrderByDescending(score => score.Score);
-            }
-
-            SongSelectScore[] ranked = ranking
-                               .Select((score, rank) => score with
-                               {
-                                   Rank = rank + 1,
-                               })
-                               .ToArray();
-
             SongSelectScore[] history = scoreStore.GetHistory(
                                                    entry.Beatmap,
                                                    gameplaySettings.GetJudgementConfiguration(),
@@ -3641,7 +3683,16 @@ public partial class SongSelectScreen : Screen
                                                        score.MaxCombo,
                                                        score.ModLabels,
                                                        true,
-                                                       score.PlayedAt))
+                                                       score.PlayedAt,
+                                                       score.Perfect,
+                                                       score.Great,
+                                                       score.Good,
+                                                       score.Ok,
+                                                       score.Meh,
+                                                       score.Miss,
+                                                       score.ComboBreaks,
+                                                       score.MaxMissCombo,
+                                                       score.ReplayPath))
                                                .ToArray();
 
             SongSelectEntry refreshed = entry with
@@ -3650,7 +3701,7 @@ public partial class SongSelectScreen : Screen
                     ? 0
                     : (int)Math.Min(int.MaxValue, saved.Score),
                 BestAccuracy = saved?.Accuracy ?? 0,
-                Ranking = ranked,
+                Ranking = history,
                 History = history,
             };
             entries[i] = refreshed;
@@ -4072,7 +4123,7 @@ public partial class SongSelectScreen : Screen
             bpm,
             0,
             0,
-            createDemoRanking(),
+            [],
             [],
             imported.PackageId,
             imported.PackageName,
@@ -4080,17 +4131,6 @@ public partial class SongSelectScreen : Screen
             imported.Id,
             imported.IsReadOnly);
     }
-
-    private static IReadOnlyList<SongSelectScore> createDemoRanking() =>
-    [
-        new(1, "RIN", "SongSelect/Avatars/rin", ScoreRank.S, 2_845_901, 0.9972, 1842, ["HD"]),
-        new(2, "MIKA", "SongSelect/Avatars/mika", ScoreRank.S, 2_731_550, 0.9928, 1756, ["DT"]),
-        new(3, "NANA", "SongSelect/Avatars/nana", ScoreRank.S, 2_698_234, 0.9891, 1689, ["HR"]),
-        new(4, "LUNA", "SongSelect/Avatars/luna", ScoreRank.A, 2_554_700, 0.9764, 1542, []),
-        new(5, "AOI", "SongSelect/Avatars/aoi", ScoreRank.A, 2_432_190, 0.9682, 1430, ["MR"]),
-        new(6, "MOCHI", "yokko", ScoreRank.A, 2_398_420, 0.9621, 1388, ["HD"], true),
-        new(7, "YUKI", "SongSelect/Avatars/aoi", ScoreRank.A, 2_287_110, 0.9568, 1321, []),
-    ];
 
     private static Drawable createBackgroundIsolation() => new Box
     {

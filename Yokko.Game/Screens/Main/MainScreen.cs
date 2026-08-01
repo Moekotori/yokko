@@ -94,6 +94,7 @@ public partial class MainScreen : Screen
     private bool preloadResourcesDisposed;
     private bool songSelectOpenRequested;
     private int songSelectPreloadGeneration;
+    private double songSelectReturnStartedAt = double.NaN;
 
     private static readonly LocalisableString[] bubbleLines =
     {
@@ -116,6 +117,9 @@ public partial class MainScreen : Screen
 
     internal int PreparedSongSelectMaterialisedDrawableCount =>
         preloadedSongSelect?.MaterialisedSongListDrawableCount ?? -1;
+
+    internal double LastSongSelectPreloadDelayAfterReturn { get; private set; }
+        = double.NaN;
 
     internal bool IsPreparedSongSelectCurrent =>
         preloadedSongSelect != null
@@ -416,9 +420,21 @@ public partial class MainScreen : Screen
     public override void OnResuming(ScreenTransitionEvent e)
     {
         base.OnResuming(e);
-        beginSongSelectPreload();
+        songSelectReturnStartedAt = Time.Current;
         musicPlayer.Activate();
         this.FadeIn(200, Easing.OutQuint);
+
+        // Do not construct and materialise the next browser while the return
+        // animation is drawing. In the real app that work takes around
+        // 30-46 ms and was landing directly inside this 200 ms fade, causing
+        // the visible hitch after leaving song select. Start it once Main is
+        // fully settled; openSongSelect() can still request it immediately if
+        // the player deliberately re-enters before then.
+        Scheduler.AddDelayed(() =>
+        {
+            if (this.IsCurrentScreen())
+                beginSongSelectPreload();
+        }, 500);
     }
 
     public override void OnSuspending(ScreenTransitionEvent e)
@@ -441,6 +457,13 @@ public partial class MainScreen : Screen
     {
         if (songSelectOpenRequested)
             return;
+
+        // Settings navigation starts fading MainScreen as soon as the click is
+        // accepted, while the destination finishes loading. Song select may
+        // spend a few frames waiting for its preloaded textures to reach the
+        // GPU, so provide the same immediate response instead of leaving a
+        // fully static page that feels like a dropped click.
+        this.FadeTo(0.4f, 200, Easing.OutQuint);
 
         if (preloadedSongSelect != null
             && preloadedSongSelect.LibraryRevision
@@ -492,6 +515,12 @@ public partial class MainScreen : Screen
         }
 
         songSelectPreloadInProgress = true;
+        if (!double.IsNaN(songSelectReturnStartedAt))
+        {
+            LastSongSelectPreloadDelayAfterReturn =
+                Time.Current - songSelectReturnStartedAt;
+            songSelectReturnStartedAt = double.NaN;
+        }
         int generation = songSelectPreloadGeneration;
         _ = LoadComponentAsync(
             new SongSelectScreen(

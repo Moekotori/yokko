@@ -5503,3 +5503,33 @@ The native 1920 x 1080 capture keeps the browse column, footer, details, and ran
 3. Dense V3 capture added a realistic twelve-chart package; post-fix evidence shows the scrollbar on the far-right edge and all 4K pills fully contained.
 
 final result: passed
+
+---
+
+# Song Select real-score history and replay-detail QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-4d7bc69b-c0ff-415d-91fa-162a14ef37b5.png` (2048 x 1094 application capture).
+- Native implementation, score list: `D:\YOKKO\.codex-artifacts\song-select-real-scores-qa\song-select-real-scores.png` (1920 x 1080, Comfortable scale).
+- Native implementation, score detail: `D:\YOKKO\.codex-artifacts\song-select-real-scores-qa\song-select-score-detail.png` (1920 x 1080, Comfortable scale).
+- Comparison input: the source, score-list capture, and score-detail capture were opened together and inspected at the same logical 16:9 viewport.
+
+## Findings and resolution
+
+- P1 resolved: the seven named leaderboard users were static demo data. Song Select now reads the selected chart's persisted `GameplayScoreStore` history and renders only the signed-in user's actual attempts, including score, accuracy, max combo, grade, mods, play time, judgement counts, and the linked replay path.
+- P1 resolved: completed gameplay now writes the replay first and stores its exact path on the corresponding score record, using one completion timestamp for both artifacts.
+- P1 resolved: each score row is clickable. The detail modal exposes the complete judgement breakdown and starts `GameplayScreen` in replay mode after validating the replay fingerprint and key count.
+- P2 resolved: the score paper grows to 850 x 570, its body grows to 512 px, rows use a 70 px rhythm, and row avatars grow to 56 x 56. The panel remains above the 1080p footer with a clear gap.
+- P2 resolved: the decorative mascot beneath the score paper is removed, leaving the enlarged score history as the sole lower-left focus.
+- P2 resolved: the detail overlay opens with a short 140-180 ms fade, slide, and scale transition and closes in 90-125 ms; replay loading runs off the update thread and failures return to the modal without stalling Song Select.
+- The implementation preserves the source screen's ivory paper, navy typography, cyan/pink accents, rounded geometry, and existing avatar artwork. No actionable P0/P1/P2 visual issue remains in the requested region.
+
+## Interaction and verification
+
+- Native Windows interaction: clicked a score row, observed the populated detail overlay, clicked `WATCH REPLAY`, and observed the four-key replay gameplay screen.
+- Focused score-store, Song Select interaction, replay launch, and entry-performance tests: 17 passed, 0 failed, 0 skipped.
+- Isolated `Yokko.Game.Tests` build: 0 warnings and 0 errors.
+- `git diff --check` passed; only existing line-ending warnings were emitted.
+
+final result: passed
