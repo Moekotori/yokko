@@ -14,7 +14,9 @@ namespace Yokko.Game.Screens.Gameplay;
 internal partial class GameplayLayoutEditorOverlay
 {
     private Drawable createFeedbackSettingsCard() =>
-        new FeedbackSettingsPanel(liveSettings);
+        createToolWindow(
+            GameplayLayoutEditorToolWindow.Feedback,
+            new FeedbackSettingsPanel(liveSettings));
 
     private partial class FeedbackSettingsPanel : CompositeDrawable
     {

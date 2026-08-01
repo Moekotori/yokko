@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -157,6 +159,8 @@ public partial class SongSelectScreen : Screen
     private Sprite topNavigationLogo;
     private Container topNavigationProfile;
     private SongSelectDifficultyFilterBar difficultyFilterBar;
+    private GameplayPlaybackRateOverlay playbackRateOverlay;
+    private GameplayScrollSpeedOverlay scrollSpeedOverlay;
 
     private List<SongSelectEntry> visibleEntries;
     private List<SongSelectEntry> navigableEntries = [];
@@ -174,6 +178,11 @@ public partial class SongSelectScreen : Screen
     private double minimumStarFilter;
     private bool previewActive;
     private bool transitionPending;
+    private int gameplayPreloadGeneration;
+    private CancellationTokenSource gameplayPreloadScheduleCancellation;
+    private CancellationTokenSource gameplayPreloadCancellation;
+    private Task<GameplaySessionScreen> gameplayPreloadTask;
+    private GameplayPreloadKey? gameplayPreloadKey;
     private bool nextPreloadScheduled;
     private int initialArtworkPrewarmCount;
     private bool entryTransitionInProgress;
@@ -207,6 +216,15 @@ public partial class SongSelectScreen : Screen
     private YokkoDiagnostics diagnostics { get; set; }
     [Resolved]
     private SongSelectArtworkTextureCache artworkTextureCache { get; set; }
+
+    private readonly record struct GameplayPreloadKey(
+        int BeatmapIdentity,
+        string ChartId,
+        string ModsFingerprint,
+        string ArtworkPath);
+
+    private const double selection_preload_delay = 120;
+    private const double settings_preload_delay = 350;
 
     public SongSelectScreen(
         IAudioEngine previewAudioEngine = null,
@@ -247,6 +265,9 @@ public partial class SongSelectScreen : Screen
     internal float StageAlpha => stage?.Alpha ?? 0;
     internal bool EntryTransitionInProgress => entryTransitionInProgress;
     internal int EntryTransitionVersion => entryTransitionVersion;
+    internal bool GameplayPreloadReady =>
+        gameplayPreloadTask?.IsCompletedSuccessfully == true
+        && gameplayPreloadTask.Result.InitialPresentationReady;
     internal bool IsPreparedForNavigation =>
         (visibleEntries.Count == 0
          || songList?.MaterialisedDrawableCount > 0)
@@ -495,6 +516,18 @@ public partial class SongSelectScreen : Screen
                     },
                     createSongBrowser(),
                     createFooter(),
+                    playbackRateOverlay = new GameplayPlaybackRateOverlay
+                    {
+                        Anchor = Anchor.TopCentre,
+                        Origin = Anchor.TopCentre,
+                        Y = 92,
+                    },
+                    scrollSpeedOverlay = new GameplayScrollSpeedOverlay
+                    {
+                        Anchor = Anchor.TopCentre,
+                        Origin = Anchor.TopCentre,
+                        Y = 92,
+                    },
                 },
             },
         };
@@ -559,6 +592,7 @@ public partial class SongSelectScreen : Screen
             $"selected={selectedEntry?.Beatmap.Title ?? "none"}");
         playSelectedPreview();
         playEntryTransition();
+        scheduleGameplayPreload();
 
         if (!nextPreloadScheduled && requestNextPreload != null)
         {
@@ -595,6 +629,7 @@ public partial class SongSelectScreen : Screen
             + $" | preserved={keepExistingSongSelectState}");
         if (!scoreResultVisible)
             playSelectedPreview();
+        scheduleGameplayPreload();
         this.FadeIn(180, Easing.OutQuint);
     }
 
@@ -690,6 +725,8 @@ public partial class SongSelectScreen : Screen
 
             if (previewPlayer != null)
                 _ = previewPlayer.DisposeAsync();
+
+            invalidateGameplayPreload();
         }
 
         base.Dispose(isDisposing);
@@ -710,6 +747,8 @@ public partial class SongSelectScreen : Screen
         }
 
         if (HandlePlaybackRateShortcut(e.Key, e.AltPressed))
+            return true;
+        if (HandleScrollSpeedShortcut(e.Key, e.ControlPressed))
             return true;
 
         switch (e.Key)
@@ -867,6 +906,12 @@ public partial class SongSelectScreen : Screen
         ManiaModSet gameplayMods = selectedMods;
         YokkoBeatmap gameplayBeatmap = selectedEntry.Beatmap;
         string gameplayArtwork = selectedEntry.WallpaperTexture;
+        Texture gameplayArtworkTexture = gameplayArtworkTextureFor(
+            selectedEntry);
+        GameplayPreloadKey gameplayKey = createGameplayPreloadKey(
+            selectedEntry,
+            gameplayMods);
+        string preloadState = gameplayPreloadState(gameplayKey);
         selectedMods =
             YokkoManiaModPreferences.SelectPersistentActiveMods(
                 gameplayMods);
@@ -880,20 +925,21 @@ public partial class SongSelectScreen : Screen
             "play-requested",
             $"title={gameplayBeatmap.Title} | difficulty={gameplayBeatmap.DifficultyName}"
             + $" | keys={(int)gameplayBeatmap.KeyMode}"
-            + $" | mods={string.Join(',', gameplayMods.DisplayLabels)}",
+            + $" | mods={string.Join(',', gameplayMods.DisplayLabels)}"
+            + $" | preload={preloadState}",
             LogLevel.Important);
         previewActive = false;
         previewPlayer?.Stop();
         stage.FadeTo(0.84f, 90, Easing.OutQuint)
              .ScaleTo(0.997f, 90, Easing.OutQuint);
 
-        // Construct and load gameplay while the preview engine shuts down so
-        // chart/skin preparation is not deferred until after the screen swap.
-        Task<GameplaySessionScreen> gameplayTask = Task.Run(() =>
-            new GameplaySessionScreen(new GameplayScreen(
+        Task<GameplaySessionScreen> gameplayTask =
+            getOrStartGameplayPreload(
+                gameplayKey,
                 gameplayBeatmap,
-                mods: gameplayMods,
-                artworkPath: gameplayArtwork)));
+                gameplayMods,
+                gameplayArtwork,
+                gameplayArtworkTexture);
         _ = finishGameplayTransitionAsync(
             previewPlayer?.WaitForIdleAsync() ?? Task.CompletedTask,
             gameplayTask);
@@ -908,9 +954,16 @@ public partial class SongSelectScreen : Screen
         {
             GameplaySessionScreen gameplay =
                 await gameplayTask.ConfigureAwait(false);
-            Task gameplayLoaded = preloadGameplaySessionAsync(gameplay);
+            Task gameplayLoaded = gameplay.InitialGameplayPreloaded
+                ? waitForInitialPresentationReadyAsync(
+                    gameplay,
+                    CancellationToken.None)
+                : preloadGameplaySessionAsync(
+                    gameplay,
+                    CancellationToken.None);
             await Task.WhenAll(previewStopped, gameplayLoaded)
                       .ConfigureAwait(false);
+            releaseGameplayPreloadOwnership(gameplayTask);
             Scheduler.Add(() =>
             {
                 transitionPending = false;
@@ -944,16 +997,23 @@ public partial class SongSelectScreen : Screen
     }
 
     private async Task preloadGameplaySessionAsync(
-        GameplaySessionScreen gameplay)
+        GameplaySessionScreen gameplay,
+        CancellationToken cancellationToken)
     {
         var loadScheduled = new TaskCompletionSource<Task>(
             TaskCreationOptions.RunContinuationsAsynchronously);
+        using CancellationTokenRegistration registration =
+            cancellationToken.Register(() =>
+                loadScheduled.TrySetCanceled(cancellationToken));
         Scheduler.Add(() =>
         {
             try
             {
                 loadScheduled.TrySetResult(
-                    LoadComponentAsync(gameplay, _ => { }));
+                    LoadComponentAsync(
+                        gameplay,
+                        _ => { },
+                        cancellationToken));
             }
             catch (Exception exception)
             {
@@ -963,6 +1023,282 @@ public partial class SongSelectScreen : Screen
 
         Task loadTask = await loadScheduled.Task.ConfigureAwait(false);
         await loadTask.ConfigureAwait(false);
+        await waitForInitialPresentationReadyAsync(
+            gameplay,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private void scheduleGameplayPreload(
+        double delayMilliseconds = selection_preload_delay)
+    {
+        if (transitionPending || selectedEntry == null)
+            return;
+
+        SongSelectEntry entry = selectedEntry;
+        ManiaModSet mods = selectedMods;
+        GameplayPreloadKey key = createGameplayPreloadKey(entry, mods);
+        if (gameplayPreloadKey == key
+            && gameplayPreloadTask is { IsCanceled: false, IsFaulted: false })
+        {
+            return;
+        }
+
+        invalidateGameplayPreload();
+        int generation = gameplayPreloadGeneration;
+        gameplayPreloadScheduleCancellation = new CancellationTokenSource();
+        _ = startGameplayPreloadAfterDelayAsync(
+            entry,
+            mods,
+            key,
+            generation,
+            delayMilliseconds,
+            gameplayPreloadScheduleCancellation);
+    }
+
+    private async Task startGameplayPreloadAfterDelayAsync(
+        SongSelectEntry entry,
+        ManiaModSet mods,
+        GameplayPreloadKey key,
+        int generation,
+        double delayMilliseconds,
+        CancellationTokenSource scheduleCancellation)
+    {
+        try
+        {
+            await Task.Delay(
+                TimeSpan.FromMilliseconds(delayMilliseconds),
+                scheduleCancellation.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        Scheduler.Add(() =>
+        {
+            if (scheduleCancellation.IsCancellationRequested
+                || generation != gameplayPreloadGeneration
+                || transitionPending
+                || selectedEntry == null
+                || createGameplayPreloadKey(selectedEntry, selectedMods) != key)
+            {
+                return;
+            }
+
+            if (ReferenceEquals(
+                    gameplayPreloadScheduleCancellation,
+                    scheduleCancellation))
+            {
+                gameplayPreloadScheduleCancellation = null;
+            }
+            scheduleCancellation.Dispose();
+            _ = getOrStartGameplayPreload(
+                key,
+                entry.Beatmap,
+                mods,
+                entry.WallpaperTexture,
+                gameplayArtworkTextureFor(entry));
+        });
+    }
+
+    private Task<GameplaySessionScreen> getOrStartGameplayPreload(
+        GameplayPreloadKey key,
+        YokkoBeatmap beatmap,
+        ManiaModSet mods,
+        string artworkPath,
+        Texture artworkTexture)
+    {
+        if (gameplayPreloadKey == key
+            && gameplayPreloadTask is { IsCanceled: false, IsFaulted: false })
+        {
+            return gameplayPreloadTask;
+        }
+
+        invalidateGameplayPreload();
+        gameplayPreloadKey = key;
+        gameplayPreloadCancellation = new CancellationTokenSource();
+        CancellationToken cancellationToken =
+            gameplayPreloadCancellation.Token;
+        gameplayPreloadTask = prepareGameplaySessionAsync(
+            beatmap,
+            mods,
+            artworkPath,
+            artworkTexture,
+            cancellationToken);
+        _ = observeGameplayPreloadAsync(gameplayPreloadTask, key);
+        return gameplayPreloadTask;
+    }
+
+    private async Task<GameplaySessionScreen> prepareGameplaySessionAsync(
+        YokkoBeatmap beatmap,
+        ManiaModSet mods,
+        string artworkPath,
+        Texture artworkTexture,
+        CancellationToken cancellationToken)
+    {
+        GameplaySessionScreen gameplay = null;
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            gameplay = await Task.Run(
+                () => new GameplaySessionScreen(new GameplayScreen(
+                    beatmap,
+                    mods: mods,
+                    artworkPath: artworkPath,
+                    preparedArtworkTexture: artworkTexture)),
+                cancellationToken).ConfigureAwait(false);
+            await preloadGameplaySessionAsync(
+                gameplay,
+                cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            diagnostics.Trace(
+                "SONG_SELECT",
+                "gameplay-preload-ready",
+                $"title={beatmap.Title}"
+                + $" | elapsed={stopwatch.Elapsed.TotalMilliseconds:0.###}ms"
+                + $" | pending-textures={gameplay.PendingInitialTextureUploads}");
+            return gameplay;
+        }
+        catch
+        {
+            gameplay?.Dispose();
+            throw;
+        }
+    }
+
+    private Task waitForInitialPresentationReadyAsync(
+        GameplaySessionScreen gameplay,
+        CancellationToken cancellationToken)
+    {
+        if (gameplay.InitialPresentationReady)
+            return Task.CompletedTask;
+
+        var completion = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationTokenRegistration registration =
+            cancellationToken.Register(() =>
+                completion.TrySetCanceled(cancellationToken));
+        Action check = null;
+        check = () =>
+        {
+            if (completion.Task.IsCompleted)
+                return;
+
+            if (gameplay.InitialPresentationReady)
+            {
+                completion.TrySetResult(true);
+                return;
+            }
+
+            Scheduler.AddDelayed(check, 1);
+        };
+        Scheduler.Add(check);
+        return completeAndDisposeRegistrationAsync(completion.Task, registration);
+    }
+
+    private static async Task completeAndDisposeRegistrationAsync(
+        Task task,
+        CancellationTokenRegistration registration)
+    {
+        try
+        {
+            await task.ConfigureAwait(false);
+        }
+        finally
+        {
+            registration.Dispose();
+        }
+    }
+
+    private async Task observeGameplayPreloadAsync(
+        Task<GameplaySessionScreen> preloadTask,
+        GameplayPreloadKey key)
+    {
+        try
+        {
+            await preloadTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            diagnostics.Trace(
+                "SONG_SELECT",
+                "gameplay-preload-failed",
+                $"chart={key.ChartId} | {exception.GetBaseException().Message}");
+        }
+    }
+
+    private void invalidateGameplayPreload()
+    {
+        gameplayPreloadGeneration++;
+        Task<GameplaySessionScreen> staleTask = gameplayPreloadTask;
+        gameplayPreloadTask = null;
+        gameplayPreloadKey = null;
+        gameplayPreloadScheduleCancellation?.Cancel();
+        gameplayPreloadScheduleCancellation?.Dispose();
+        gameplayPreloadScheduleCancellation = null;
+        gameplayPreloadCancellation?.Cancel();
+        gameplayPreloadCancellation?.Dispose();
+        gameplayPreloadCancellation = null;
+
+        if (staleTask != null)
+            _ = disposeStaleGameplayPreloadAsync(staleTask);
+    }
+
+    private async Task disposeStaleGameplayPreloadAsync(
+        Task<GameplaySessionScreen> staleTask)
+    {
+        try
+        {
+            GameplaySessionScreen stale =
+                await staleTask.ConfigureAwait(false);
+            Scheduler.Add(stale.Dispose);
+        }
+        catch
+        {
+        }
+    }
+
+    private void releaseGameplayPreloadOwnership(
+        Task<GameplaySessionScreen> gameplayTask)
+    {
+        if (!ReferenceEquals(gameplayPreloadTask, gameplayTask))
+            return;
+
+        gameplayPreloadGeneration++;
+        gameplayPreloadTask = null;
+        gameplayPreloadKey = null;
+        gameplayPreloadCancellation?.Dispose();
+        gameplayPreloadCancellation = null;
+    }
+
+    private static GameplayPreloadKey createGameplayPreloadKey(
+        SongSelectEntry entry,
+        ManiaModSet mods) =>
+        new(
+            RuntimeHelpers.GetHashCode(entry.Beatmap),
+            entry.ChartId ?? string.Empty,
+            mods.Fingerprint,
+            entry.WallpaperTexture ?? string.Empty);
+
+    private string gameplayPreloadState(GameplayPreloadKey key)
+    {
+        if (gameplayPreloadKey != key || gameplayPreloadTask == null)
+            return "miss";
+        if (gameplayPreloadTask.IsCompletedSuccessfully)
+        {
+            return gameplayPreloadTask.Result.InitialPresentationReady
+                ? "ready"
+                : "cpu-ready";
+        }
+
+        return gameplayPreloadTask.IsFaulted
+            || gameplayPreloadTask.IsCanceled
+                ? "miss"
+                : "warming";
     }
 
     internal void ShowScoreResult(SongSelectScore score)
@@ -1313,7 +1649,10 @@ public partial class SongSelectScreen : Screen
             currentRate,
             amount);
         if (Math.Abs(nextRate - currentRate) < 0.000001)
+        {
+            showPlaybackRateHint();
             return true;
+        }
 
         ManiaModId? currentMod = selectedMods.FixedRateMod;
 
@@ -1360,6 +1699,38 @@ public partial class SongSelectScreen : Screen
                 MidpointRounding.AwayFromZero),
             minimumPlaybackRate,
             maximumPlaybackRate);
+    }
+
+    internal bool HandleScrollSpeedShortcut(
+        Key key,
+        bool controlPressed)
+    {
+        double direction = key switch
+        {
+            _ when key == gameplaySettings.IncreaseScrollSpeedKey.Value => 1,
+            _ when key == gameplaySettings.DecreaseScrollSpeedKey.Value => -1,
+            Key.Plus or Key.KeypadPlus when controlPressed => 1,
+            Key.Minus or Key.KeypadMinus when controlPressed => -1,
+            _ => 0,
+        };
+        if (direction == 0)
+            return false;
+
+        if (gameplaySettings.ScrollSpeedAdjustmentMode.Value
+            == ScrollSpeedAdjustmentMode.Milliseconds)
+        {
+            gameplaySettings.AdjustScrollTimeMilliseconds(
+                -direction
+                * OsuManiaScrollSpeed.ScrollTimeStepMilliseconds);
+        }
+        else
+        {
+            gameplaySettings.AdjustScrollSpeed(
+                direction * OsuManiaScrollSpeed.ShortcutStep);
+        }
+
+        showScrollSpeedHint();
+        return true;
     }
 
     private static ManiaModId fixedRateModFor(
@@ -1587,6 +1958,34 @@ public partial class SongSelectScreen : Screen
         refreshSavedScores();
         rebuildDetails();
         refreshSongListDifficulties();
+        scheduleGameplayPreload(settings_preload_delay);
+    }
+
+    private void showPlaybackRateHint()
+    {
+        if (selectedEntry == null || playbackRateOverlay == null)
+            return;
+
+        scrollSpeedOverlay?.Hide();
+        playbackRateOverlay.Show(
+            selectedMods.PlaybackRate,
+            selectedEntry.Bpm * selectedMods.PlaybackRate,
+            difficultyRatingsFor(selectedEntry),
+            displaySettings.DifficultyRatingMode.Value);
+    }
+
+    private void showScrollSpeedHint()
+    {
+        if (scrollSpeedOverlay == null)
+            return;
+
+        playbackRateOverlay?.Hide();
+        double speed = gameplaySettings.ScrollSpeed.Value;
+        scrollSpeedOverlay.Show(
+            speed,
+            (int)Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(speed)),
+            gameplaySettings.ScrollSpeedAdjustmentMode.Value
+                == ScrollSpeedAdjustmentMode.Milliseconds);
     }
 
     private void onPlaybackRateShortcutChanged()
@@ -1605,6 +2004,8 @@ public partial class SongSelectScreen : Screen
             showModPanelSummary();
         rebuildDetails();
         refreshSongListDifficulties();
+        showPlaybackRateHint();
+        scheduleGameplayPreload(settings_preload_delay);
     }
 
     internal void ToggleModPanel()
@@ -3212,6 +3613,15 @@ public partial class SongSelectScreen : Screen
                 },
                 new SpriteText
                 {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(-4, 0),
+                    Text = "ALT +/-",
+                    Font = HomeTypography.Display(7),
+                    Colour = SongSelectTheme.Pink,
+                },
+                new SpriteText
+                {
                     Position = new Vector2(18, 17),
                     Width = 142,
                     Truncate = true,
@@ -3511,6 +3921,7 @@ public partial class SongSelectScreen : Screen
                 selectionDirection: selectionDirection);
             modSettingsHost?.SetState(selectedMods, entry.Beatmap);
             playSelectedPreview();
+            scheduleGameplayPreload();
         }
 
         if (rebuildList)
@@ -3650,6 +4061,18 @@ public partial class SongSelectScreen : Screen
         return textures.Get(
                    SongSelectArtworkPolicy.Resolve(entry?.WallpaperTexture))
                ?? textures.Get(SongSelectArtworkPolicy.FallbackTexture);
+    }
+
+    private Texture gameplayArtworkTextureFor(SongSelectEntry entry)
+    {
+        if (entry == null
+            || !Path.IsPathRooted(entry.WallpaperTexture)
+            || !File.Exists(entry.WallpaperTexture))
+        {
+            return null;
+        }
+
+        return textureFor(entry);
     }
 
     private void prewarmInitialArtwork()

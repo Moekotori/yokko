@@ -695,6 +695,30 @@ internal static class YokkoStrings
                 "Exit demo",
                 "退出演示",
                 "デモ終了"),
+            ["gameplay.layout_editor.window_controls"] = new(
+                "Window controls",
+                "窗口总控",
+                "ウィンドウ管理"),
+            ["gameplay.layout_editor.window_actions"] = new(
+                "Actions",
+                "操作窗口",
+                "操作"),
+            ["gameplay.layout_editor.drag_title_hint"] = new(
+                "Drag title · click to show / hide",
+                "拖动标题 · 点击显示 / 隐藏",
+                "タイトルをドラッグ · クリックで表示切替"),
+            ["gameplay.layout_editor.ln_preview"] = new(
+                "Live LN cut preview",
+                "削 LN 实时预览",
+                "LN カットのライブプレビュー"),
+            ["gameplay.layout_editor.ln_original"] = new(
+                "Original",
+                "原始",
+                "元の長さ"),
+            ["gameplay.layout_editor.ln_after"] = new(
+                "After cut",
+                "削后",
+                "カット後"),
             ["gameplay.layout_editor.preview"] = new(
                 "Full-page preview",
                 "完整页面预览",
@@ -984,9 +1008,9 @@ internal static class YokkoStrings
                 "流速",
                 "スクロール速度"),
             ["settings.general.mania_scroll_speed_note"] = new(
-                "Drag for coarse adjustment; with Fine on, use the wheel, arrow keys or gameplay shortcuts for 1 ms steps.",
-                "拖动滑块粗调；开启微调后，滚轮、方向键或游玩快捷键每次调整 1 ms。",
-                "ドラッグで大まかに調整し、微調整を有効にするとホイール、方向キー、またはプレイ中のショートカットで 1 ms ずつ調整できます。"),
+                "Fine off: whole levels only. Fine on: drag by tenths; wheel, arrows and gameplay shortcuts adjust 1 ms.",
+                "微调关闭：拖动、滚轮和方向键按整档；开启：拖动可细调，滚轮、方向键或游玩快捷键每次 1 ms。",
+                "微調整オフ：整数段階のみ。オン：ドラッグで細かく、ホイール・方向キー・プレイ中のキーは 1 ms ずつ調整。"),
             ["settings.general.fine_adjustment"] = new(
                 "Fine",
                 "微调",
@@ -1612,9 +1636,9 @@ internal static class YokkoStrings
                 "音符速度",
                 "ノーツ速度"),
             ["settings.gameplay.scroll_speed_note"] = new(
-                "Drag for coarse adjustment; with Fine on, wheel or arrow keys adjust by 1 ms · lower ms is faster.",
-                "拖动滑块粗调；开启微调后，滚轮或方向键每次调整 1 ms · ms 越小越快。",
-                "ドラッグで大まかに調整し、微調整を有効にするとホイールまたは方向キーで 1 ms ずつ調整 · ms が小さいほど高速。"),
+                "Fine off: whole levels only. Fine on: drag by tenths; wheel or arrows adjust 1 ms · lower ms is faster.",
+                "微调关闭：拖动、滚轮和方向键按整档；开启：拖动可细调，滚轮或方向键每次 1 ms · ms 越小越快。",
+                "微調整オフ：整数段階のみ。オン：ドラッグで細かく、ホイール・方向キーは 1 ms ずつ調整 · 小さいほど高速。"),
             ["settings.gameplay.scroll_speed_mode_scale"] = new(
                 "1–40 SCALE",
                 "1–40 档位",

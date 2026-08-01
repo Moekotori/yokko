@@ -921,6 +921,44 @@ namespace Yokko.Game.Tests.Visual
                     .SingleOrDefault()) != null);
             AddAssert("gameplay is paused while arranging", () =>
                 gameplayScreen.IsPaused);
+            AddAssert("six draggable tool windows and controller are visible", () =>
+                layoutEditor.ToolWindowCountForTest == 6
+                && layoutEditor.VisibleToolWindowCountForTest == 6
+                && layoutEditor.ToolWindowControllerVisibleForTest);
+            AddStep("drag every tool window and controller to a viewport edge", () =>
+            {
+                foreach (GameplayLayoutEditorToolWindow kind
+                         in Enum.GetValues<GameplayLayoutEditorToolWindow>())
+                {
+                    layoutEditor.MoveToolWindowForTest(
+                        kind,
+                        new Vector2(-10_000));
+                }
+
+                layoutEditor.MoveToolWindowControllerForTest(
+                    new Vector2(10_000));
+            });
+            AddAssert("all tool windows stay recoverable inside the viewport", () =>
+                Enum.GetValues<GameplayLayoutEditorToolWindow>()
+                    .All(layoutEditor.IsToolWindowInsideViewportForTest)
+                && layoutEditor.IsToolWindowControllerInsideViewportForTest);
+            AddStep("restore tool window positions", () =>
+                layoutEditor.ResetToolWindowPositionsForTest());
+            AddStep("hide feedback window from controller", () =>
+                layoutEditor.ToggleToolWindowForTest(
+                    GameplayLayoutEditorToolWindow.Feedback));
+            AddUntilStep("feedback window hides without hiding controller", () =>
+                !layoutEditor.IsToolWindowVisibleForTest(
+                    GameplayLayoutEditorToolWindow.Feedback)
+                && layoutEditor.VisibleToolWindowCountForTest == 5
+                && layoutEditor.ToolWindowControllerVisibleForTest);
+            AddStep("show feedback window from controller", () =>
+                layoutEditor.ToggleToolWindowForTest(
+                    GameplayLayoutEditorToolWindow.Feedback));
+            AddUntilStep("feedback window is restored", () =>
+                layoutEditor.IsToolWindowVisibleForTest(
+                    GameplayLayoutEditorToolWindow.Feedback)
+                && layoutEditor.VisibleToolWindowCountForTest == 6);
             AddAssert("five elements expose corner resize handles", () =>
                 layoutEditor.TransformTargetCount == 5
                 && layoutEditor.ResizeHandleCount == 20);
@@ -1146,7 +1184,10 @@ namespace Yokko.Game.Tests.Visual
                 && layoutEditor.LongNoteCutPreviewEnabledForTest
                 && Math.Abs(
                     layoutEditor.LongNoteCutPreviewAmountForTest
-                    - 1.2) < 0.001);
+                    - 1.2) < 0.001
+                && layoutEditor.LongNoteCutPreviewSizeForTest.X >= 260
+                && layoutEditor.LongNoteCutPreviewSizeForTest.Y >= 220
+                && layoutEditor.LongNoteCutPreviewRemovedLengthForTest > 20);
             AddStep("restore live LN cut settings", () =>
             {
                 gameplayScreen.SetLayoutEditorLongNoteCutAmountForTest(

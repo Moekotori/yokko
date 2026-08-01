@@ -70,14 +70,15 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                     gameplaySettings.ScrollSpeed,
                     formatScrollSpeed,
                     gameplaySettings.ScrollSpeedAdjustmentMode,
-                    gameplaySettings.AdjustScrollTimeMilliseconds)
+                    gameplaySettings.AdjustScrollTimeMilliseconds,
+                    placeModeBelow: true)
                 {
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
                 }),
             new SpriteText
             {
-                Position = new Vector2(378, 496),
+                Position = new Vector2(378, 522),
                 Width = 840,
                 Text = YokkoStrings.Get("settings.general.language_note"),
                 Font = HomeTypography.Body(15),
@@ -85,16 +86,16 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
             },
             new SpriteText
             {
-                Position = new Vector2(378, 521),
+                Position = new Vector2(378, 547),
                 Width = 840,
                 Text = YokkoStrings.Get(
                     "settings.general.mania_scroll_speed_note"),
                 Font = HomeTypography.Body(15),
                 Colour = SettingsTheme.MutedNavy,
             },
-            SettingsChrome.CreateDivider(552),
+            SettingsChrome.CreateDivider(578),
             SettingsChrome.CreateSettingRow(
-                562,
+                588,
                 YokkoStrings.Get("settings.general.debug_console"),
                 new SettingsBooleanToggle(showDebugConsole)),
             new SettingsPanelFooter(),
@@ -128,8 +129,12 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
         ScrollSpeedAdjustmentMode mode) =>
         gameplaySettings.ScrollSpeedAdjustmentMode.Value = mode;
 
-    private static string formatScrollSpeed(double speed) =>
-        $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(speed)):0} ms  ·  {speed:0.0}";
+    private string formatScrollSpeed(double speed) =>
+        $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(speed)):0} ms  ·  "
+        + (gameplaySettings.ScrollSpeedAdjustmentMode.Value
+            == ScrollSpeedAdjustmentMode.Milliseconds
+            ? $"{speed:0.000}"
+            : $"{speed:0}");
 
     private Drawable createLanguageControl()
     {

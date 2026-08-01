@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -379,7 +380,6 @@ public partial class GameplayPlayfield : CompositeDrawable
         visibleThisFrame = new bool[noteDrawables.Length];
         noteLanes = beatmap.HitObjects.Select(static hitObject => hitObject.Lane).ToArray();
         holdActiveLanes = new bool[keyCount];
-        Array.Fill(noteAttached, true);
         var updateGroups =
             new Dictionary<
                 (ScrollVelocityMap Velocity, ScrollSpeedFactorMap Factor),
@@ -492,7 +492,6 @@ public partial class GameplayPlayfield : CompositeDrawable
         {
             RelativeSizeAxes = Axes.Both,
             Masking = true,
-            Children = noteDrawables,
         };
         visibilityPolicy =
             ManiaVisibilityPolicyResolver.Resolve(this.mods, 0);
@@ -833,15 +832,17 @@ public partial class GameplayPlayfield : CompositeDrawable
         base.LoadComplete();
 
         // Follow lazer's lifetime-managed hit object model: preload every
-        // drawable, then keep only the current visibility window attached to
-        // the live scene graph.
-        noteLayer.Clear(false);
-        Array.Fill(noteAttached, false);
+        // drawable off-tree, then attach only the current visibility window to
+        // the live scene graph. This avoids an O(N) first-frame attach/clear
+        // pass for long charts.
         activeNoteLayerReady = true;
 
         foreach (int index in visibleNoteIndices)
             attachNote(index);
     }
+
+    [BackgroundDependencyLoader]
+    private void loadNotes() => LoadComponents(noteDrawables);
 
     public void SetLanePressed(int lane, bool pressed)
     {

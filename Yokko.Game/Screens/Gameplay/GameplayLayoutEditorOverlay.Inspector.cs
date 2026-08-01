@@ -163,7 +163,9 @@ internal partial class GameplayLayoutEditorOverlay
             applyMetric,
             centreSelected,
             cycleNudgeStep);
-        return inspector;
+        return createToolWindow(
+            GameplayLayoutEditorToolWindow.Inspector,
+            inspector);
     }
 
     private Drawable createCoverPanel()
@@ -173,7 +175,9 @@ internal partial class GameplayLayoutEditorOverlay
             height => applyCoverHeight(true, height),
             enabled => setCoverEnabled(false, enabled),
             height => applyCoverHeight(false, height));
-        return coverPanel;
+        return createToolWindow(
+            GameplayLayoutEditorToolWindow.LaneCovers,
+            coverPanel);
     }
 
     private void beginEditorSession()

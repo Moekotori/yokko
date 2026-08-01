@@ -40,6 +40,14 @@ internal sealed class OsuManiaSkin : IDisposable
         GetTexture("scorebar-bg") != null
         && GetAnimationFrames("scorebar-colour").Count > 0;
 
+    internal bool AllTexturesUploaded =>
+        textureCache.Values.All(texture =>
+            texture == null || texture.UploadComplete);
+
+    internal int PendingTextureUploadCount =>
+        textureCache.Values.Count(texture =>
+            texture != null && !texture.UploadComplete);
+
     public static OsuManiaSkin Load(
         string path,
         int keys,
@@ -73,7 +81,8 @@ internal sealed class OsuManiaSkin : IDisposable
             var constrainedSource = new ConstrainedTextureResourceStore(
                 source,
                 renderer.MaxTextureSize,
-                holdBodyTextureModes);
+                holdBodyTextureModes,
+                maximumLongNoteBodyPixelCount: 1024L * 1024);
             var textureStore = new TextureStore(
                 renderer,
                 new TextureLoaderStore(constrainedSource),

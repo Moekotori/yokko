@@ -569,7 +569,7 @@ public sealed class YokkoGameplaySettings
     }
 
     public void AdjustScrollSpeed(double amount) =>
-        ScrollSpeed.Value = OsuManiaScrollSpeed.Adjust(
+        ScrollSpeed.Value = OsuManiaScrollSpeed.AdjustWholeStep(
             ScrollSpeed.Value,
             amount);
 

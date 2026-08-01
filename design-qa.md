@@ -3,6 +3,54 @@
 > this file are historical evidence or explicitly retained internal artboards,
 > not the current application-wide baseline.
 
+# Chart Library management center (2026-08-01)
+
+## Evidence and normalization
+
+- Source visual truth: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-65d44141-c2a7-4529-8bec-46508f3b2c3c.png`
+- Implementation: `F:\YokkoArtifacts\chart-library-preview\chart-library-zh-v4.png`
+- Full comparison: `F:\YokkoArtifacts\chart-library-preview\home-vs-chart-library-v4.png`
+- Focused header comparison: `F:\YokkoArtifacts\chart-library-preview\home-header-vs-library-header-v4.png`
+- Native Direct3D viewport/state: 1920 x 1080, Chinese, Comfortable, populated managed library, all-source filter.
+- Source is 2560 x 1368 including window chrome; implementation is 1920 x 1080. The source was normalized to 1920 x 1080 for the 3840 x 1080 full-view pair. Matching 1000 x 260 top-left crops form the focused header pair.
+
+## Findings
+
+No actionable P0/P1/P2 differences remain.
+
+- Typography uses Yokko's existing display, body and brand tokens; long titles truncate before metadata/actions.
+- Layout now keeps the homepage's large ivory/cyan split as the page-level composition, with outlined cards, yellow corner diamonds and the bottom hazard rail. The mascot stage is intentionally replaced with a dense management workspace.
+- Colors come from `HomeControlColours`: ink navy, cyan, pale cyan, ivory, pink and yellow.
+- The same alpha-transparent `home-logo-light` asset and `HomeBrandLockup` used by the homepage now render the header without a white raster tile. Existing Font Awesome icons are retained; no screenshot, emoji, custom SVG or placeholder illustration substitutes a source asset.
+- Chinese copy is task-oriented and explicitly communicates that external osu! charts are read-only and source files are untouched.
+- Search/source filtering/empty states passed `TestSceneChartLibraryScreen`; destructive removal requires confirmation. Focused tests passed for managed deletion and external-source rejection.
+
+## Comparison history
+
+### Pass 1 - blocked
+
+- P2: framework-default green scrollbar conflicted with the homepage palette.
+- P2: a star text glyph rendered as a missing character.
+- P2: the unconfigured osu! path was frozen to English.
+- The first screenshot run also exposed duplicate-disposal of the screen cancellation source.
+
+Fixes: added a cyan Yokko scrollbar, changed rating copy to `SR`, retained the path as `LocalisableString`, and made disposal idempotent. The historical v2 capture shows that corrected state and its preview process exits cleanly.
+
+### Pass 2 - blocked after user review
+
+- P1: the header used opaque `home-logo.png`, producing a conspicuous white rectangle instead of the homepage's transparent brand lockup.
+- P2: the full ivory background and pale cyan header read as a generic administration dashboard rather than the homepage's split-stage composition.
+- P2: the first split-stage draft added a sheared ivory strip whose lower edge read as a detached white divider.
+
+Fixes: switched to the alpha-transparent `home-logo-light` asset through the shared `HomeBrandLockup`, moved the primary canvas to cyan, retained an ivory left rail, strengthened the yellow title marker, and removed the detached divider. The v4 full and focused comparison evidence shows a clean alpha edge around the logo and a continuous cyan workspace with no stray strip.
+
+## Residual verification boundary
+
+- P3: the management screen deliberately uses a compact header logo instead of the homepage's hero-scale lockup so the search and actions remain above the fold.
+- The native Windows file/folder picker and a live user osu! Songs folder were not manually completed during visual QA; their existing production APIs are wired into the page.
+
+final result: passed
+
 # Pause overlay dynamic-content verification (2026-07-29, QA5)
 
 ## Evidence

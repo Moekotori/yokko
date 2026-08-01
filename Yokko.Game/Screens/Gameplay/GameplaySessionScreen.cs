@@ -41,6 +41,11 @@ internal partial class GameplaySessionScreen : Screen
     internal GameplayScreen CurrentGameplay =>
         gameplayStack?.CurrentScreen as GameplayScreen;
     internal bool InitialGameplayPreloaded => initialGameplayPreloaded;
+    internal bool InitialPresentationReady =>
+        initialGameplayPreloaded
+        && initialGameplay.PresentationTexturesReady;
+    internal int PendingInitialTextureUploads =>
+        initialGameplay.PendingPresentationTextureUploads;
     internal bool InitialRevealStarted => initialRevealStarted;
     internal bool InitialRevealAnimationComplete =>
         initialRevealStarted

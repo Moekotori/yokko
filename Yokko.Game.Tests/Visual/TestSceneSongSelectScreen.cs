@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osuTK;
@@ -33,6 +34,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     private ImportedChartLibrary importedChartLibrary { get; set; }
     [Resolved]
     private YokkoDisplaySettings displaySettings { get; set; }
+    [Resolved]
+    private YokkoGameplaySettings gameplaySettings { get; set; }
 
     public TestSceneSongSelectScreen()
     {
@@ -487,6 +490,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                 beatmap,
                 0.95);
         SongSelectSongRow originalRow = null;
+        GameplayPlaybackRateOverlay rateOverlay = null;
 
         AddStep("start with one rate test chart", () =>
         {
@@ -508,7 +512,13 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("details start at normal rate", () =>
             songSelectScreen.SelectedMods.PlaybackRate == 1
             && songSelectScreen.DisplayedPlaybackRate == 1
-            && songSelectScreen.DisplayedBpm == "120");
+            && songSelectScreen.DisplayedBpm == "120"
+            && songSelectScreen.ChildrenOfType<SpriteText>().Any(text =>
+                text.Text.ToString() == "ALT +/-"));
+        AddStep("capture playback rate hint", () =>
+            rateOverlay = songSelectScreen
+                .ChildrenOfType<GameplayPlaybackRateOverlay>()
+                .Single());
         AddStep("plain plus is ignored", () =>
             songSelectScreen.HandlePlaybackRateShortcut(
                 Key.Plus,
@@ -526,7 +536,10 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.DisplayedPlaybackRate == 1.05
             && songSelectScreen.DisplayedBpm == "126"
             && songSelectScreen.DisplayedMsdRating?.Value
-               == expectedFastRating.Value);
+               == expectedFastRating.Value
+            && rateOverlay.IsVisible
+            && Math.Abs(rateOverlay.DisplayedRate - 1.05) < 0.000001
+            && Math.Abs(rateOverlay.DisplayedBpm - 126) < 0.000001);
         AddAssert("rate change keeps the existing list row", () =>
             ReferenceEquals(
                 originalRow,
@@ -556,6 +569,53 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.DisplayedBpm == "114"
             && originalRow.DisplayedDifficultyRatings.EtternaMsd.Value
                == expectedSlowRating.Value);
+    }
+
+    [Test]
+    public void TestScrollSpeedShortcutShowsCurrentValue()
+    {
+        double originalSpeed = 0;
+        double originalRate = 0;
+        ScrollSpeedAdjustmentMode originalMode = default;
+        GameplayScrollSpeedOverlay speedOverlay = null;
+
+        AddStep("prepare scroll speed", () =>
+        {
+            originalSpeed = gameplaySettings.ScrollSpeed.Value;
+            originalRate = songSelectScreen.SelectedMods.PlaybackRate;
+            originalMode = gameplaySettings.ScrollSpeedAdjustmentMode.Value;
+            gameplaySettings.SetScrollSpeed(8);
+            gameplaySettings.ScrollSpeedAdjustmentMode.Value =
+                ScrollSpeedAdjustmentMode.OsuManiaScale;
+            speedOverlay = songSelectScreen
+                .ChildrenOfType<GameplayScrollSpeedOverlay>()
+                .Single();
+        });
+        AddAssert("plain plus is ignored for scroll speed", () =>
+            !songSelectScreen.HandleScrollSpeedShortcut(Key.Plus, false)
+            && gameplaySettings.ScrollSpeed.Value == 8);
+        AddStep("control plus increases scroll speed", () =>
+            songSelectScreen.HandleScrollSpeedShortcut(Key.Plus, true));
+        AddAssert("scroll speed hint shows current value", () =>
+            gameplaySettings.ScrollSpeed.Value == 9
+            && speedOverlay.Alpha > 0
+            && speedOverlay.DisplayedSpeed == 9
+            && speedOverlay.DisplayedTimeRangeMilliseconds
+               == (int)Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(9))
+            && speedOverlay.DisplayedLabel == "SCROLL SPEED"
+            && songSelectScreen.SelectedMods.PlaybackRate == originalRate);
+        AddStep("bound decrease key restores scroll speed", () =>
+            songSelectScreen.HandleScrollSpeedShortcut(
+                gameplaySettings.DecreaseScrollSpeedKey.Value,
+                false));
+        AddAssert("bound key shows restored scroll speed", () =>
+            gameplaySettings.ScrollSpeed.Value == 8
+            && speedOverlay.DisplayedSpeed == 8);
+        AddStep("restore scroll speed", () =>
+        {
+            gameplaySettings.SetScrollSpeed(originalSpeed);
+            gameplaySettings.ScrollSpeedAdjustmentMode.Value = originalMode;
+        });
     }
 
     [Test]
@@ -914,6 +974,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                                 .DifficultyAdjustOverallDifficulty == 12
             && songSelectScreen.SelectedMods
                                 .DifficultyAdjustExtendedLimits);
+        AddUntilStep("selected gameplay is GPU-ready before play", () =>
+            songSelectScreen.GameplayPreloadReady);
         AddStep("play selected song", songSelectScreen.PlaySelected);
         AddUntilStep("gameplay receives selected mods", () =>
             screenStack.CurrentScreen is GameplaySessionScreen session

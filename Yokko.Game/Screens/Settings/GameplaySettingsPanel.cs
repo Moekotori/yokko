@@ -789,7 +789,11 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             new GameplayScrollSpeedSlider(
                 settings.ScrollSpeed,
                 value =>
-                    $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(value)):0} ms  ·  {value:0.0}",
+                    $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(value)):0} ms  ·  "
+                    + (settings.ScrollSpeedAdjustmentMode.Value
+                        == ScrollSpeedAdjustmentMode.Milliseconds
+                        ? $"{value:0.000}"
+                        : $"{value:0}"),
                 settings.ScrollSpeedAdjustmentMode,
                 settings.AdjustScrollTimeMilliseconds)
             {
@@ -2195,7 +2199,8 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
         Bindable<double> value,
         Func<double, string> formatter,
         Bindable<ScrollSpeedAdjustmentMode> adjustmentMode,
-        Action<double> adjustScrollTime)
+        Action<double> adjustScrollTime,
+        bool placeModeBelow = false)
     {
         this.value = value;
         this.formatter = formatter;
@@ -2203,12 +2208,18 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
         this.adjustScrollTime = adjustScrollTime;
         Size = new Vector2(390, 54);
 
-        var modeButton = new GameplayStepperModeButton(adjustmentMode)
+        var modeButton = new GameplayStepperModeButton(
+            adjustmentMode,
+            placeModeBelow)
         {
             Anchor = Anchor.TopRight,
             Origin = Anchor.TopRight,
-            Position = new Vector2(-12, 7),
-            Size = new Vector2(112, 18),
+            Position = placeModeBelow
+                ? new Vector2(-2, 60)
+                : new Vector2(-12, 7),
+            Size = placeModeBelow
+                ? new Vector2(148, 30)
+                : new Vector2(112, 18),
         };
 
         InternalChildren = new Drawable[]
@@ -2285,21 +2296,27 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
         };
 
         value.BindValueChanged(onValueChanged, true);
+        adjustmentMode.BindValueChanged(onAdjustmentModeChanged, true);
     }
 
-    internal static double ValueFromProgress(double progress)
+    internal static double ValueFromProgress(
+        double progress,
+        ScrollSpeedAdjustmentMode mode)
     {
         double raw = OsuManiaScrollSpeed.Minimum
                      + Math.Clamp(progress, 0, 1)
                      * (OsuManiaScrollSpeed.Maximum
                         - OsuManiaScrollSpeed.Minimum);
-        return OsuManiaScrollSpeed.Clamp(raw);
+        double clamped = OsuManiaScrollSpeed.Clamp(raw);
+        return mode == ScrollSpeedAdjustmentMode.Milliseconds
+            ? clamped
+            : OsuManiaScrollSpeed.SnapToWholeStep(clamped);
     }
 
     internal static double AdjustForScroll(
         double currentValue,
         float scrollDelta) =>
-        OsuManiaScrollSpeed.Adjust(
+        OsuManiaScrollSpeed.AdjustWholeStep(
             currentValue,
             Math.Sign(scrollDelta) * OsuManiaScrollSpeed.ShortcutStep);
 
@@ -2396,7 +2413,8 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
 
     private void updateFrom(float localX) =>
         value.Value = ValueFromProgress(
-            (localX - track_x) / track_width);
+            (localX - track_x) / track_width,
+            adjustmentMode.Value);
 
     private void onValueChanged(ValueChangedEvent<double> change)
     {
@@ -2408,10 +2426,24 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
         valueText.Text = formatter(change.NewValue);
     }
 
+    private void onAdjustmentModeChanged(
+        ValueChangedEvent<ScrollSpeedAdjustmentMode> change)
+    {
+        if (change.NewValue == ScrollSpeedAdjustmentMode.OsuManiaScale)
+        {
+            value.Value = OsuManiaScrollSpeed.SnapToWholeStep(value.Value);
+        }
+
+        valueText.Text = formatter(value.Value);
+    }
+
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
+        {
             value.ValueChanged -= onValueChanged;
+            adjustmentMode.ValueChanged -= onAdjustmentModeChanged;
+        }
 
         base.Dispose(isDisposing);
     }
@@ -2607,6 +2639,7 @@ internal partial class GameplayValueStepper : CompositeDrawable
 internal partial class GameplayStepperModeButton : ClickableContainer
 {
     private readonly Bindable<ScrollSpeedAdjustmentMode> mode;
+    private readonly bool prominent;
     private readonly Box background;
     private readonly Box switchTrack;
     private readonly Circle switchThumb;
@@ -2620,17 +2653,23 @@ internal partial class GameplayStepperModeButton : ClickableContainer
         mode.Value == ScrollSpeedAdjustmentMode.Milliseconds;
 
     public GameplayStepperModeButton(
-        Bindable<ScrollSpeedAdjustmentMode> mode)
+        Bindable<ScrollSpeedAdjustmentMode> mode,
+        bool prominent = false)
     {
         this.mode = mode;
-        Anchor = Anchor.BottomCentre;
-        Origin = Anchor.BottomCentre;
-        Y = -2;
-        Size = new Vector2(124, 22);
+        this.prominent = prominent;
+        Anchor = prominent ? Anchor.TopRight : Anchor.BottomCentre;
+        Origin = prominent ? Anchor.TopRight : Anchor.BottomCentre;
+        Y = prominent ? 0 : -2;
+        Size = prominent
+            ? new Vector2(148, 30)
+            : new Vector2(124, 22);
         Masking = true;
-        CornerRadius = 5;
-        BorderThickness = 1;
-        BorderColour = SettingsTheme.Divider;
+        CornerRadius = prominent ? 15 : 5;
+        BorderThickness = prominent ? 1.5f : 1;
+        BorderColour = prominent
+            ? HomeControlColours.Navy
+            : SettingsTheme.Divider;
         Action = toggleMode;
 
         InternalChildren = new Drawable[]
@@ -2644,21 +2683,23 @@ internal partial class GameplayStepperModeButton : ClickableContainer
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 7,
+                X = prominent ? 13 : 7,
                 Text = YokkoStrings.Get(
                     "settings.general.fine_adjustment"),
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Display(prominent ? 14 : 12),
                 Colour = HomeControlColours.Navy,
             },
             new Container
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
-                X = -5,
-                Size = new Vector2(32, 16),
+                X = prominent ? -7 : -5,
+                Size = prominent
+                    ? new Vector2(46, 22)
+                    : new Vector2(32, 16),
                 Masking = true,
-                CornerRadius = 8,
-                BorderThickness = 1,
+                CornerRadius = prominent ? 11 : 8,
+                BorderThickness = prominent ? 1.5f : 1,
                 BorderColour = HomeControlColours.Navy,
                 Children = new Drawable[]
                 {
@@ -2671,8 +2712,8 @@ internal partial class GameplayStepperModeButton : ClickableContainer
                     {
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.Centre,
-                        X = 8,
-                        Size = new Vector2(11),
+                        X = prominent ? 11 : 8,
+                        Size = new Vector2(prominent ? 16 : 11),
                         Colour = Color4.White,
                     },
                 },
@@ -2705,11 +2746,16 @@ internal partial class GameplayStepperModeButton : ClickableContainer
             change.NewValue == ScrollSpeedAdjustmentMode.Milliseconds;
         background.Colour = milliseconds
             ? SettingsTheme.StatusCyan
-            : SettingsTheme.PaleCyan;
+            : prominent ? Color4.White : SettingsTheme.PaleCyan;
         switchTrack.Colour = milliseconds
             ? HomeControlColours.Navy
             : SettingsTheme.Divider;
-        switchThumb.X = milliseconds ? 24 : 8;
+        switchThumb.MoveToX(
+            milliseconds
+                ? prominent ? 35 : 24
+                : prominent ? 11 : 8,
+            180,
+            Easing.OutBack);
     }
 
     protected override bool OnHover(HoverEvent e)
@@ -2727,7 +2773,7 @@ internal partial class GameplayStepperModeButton : ClickableContainer
         background.FadeColour(
             milliseconds
                 ? SettingsTheme.StatusCyan
-                : SettingsTheme.PaleCyan,
+                : prominent ? Color4.White : SettingsTheme.PaleCyan,
             120,
             Easing.OutQuint);
     }

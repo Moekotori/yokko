@@ -22,6 +22,7 @@ using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
+using Yokko.Game.Screens.ChartLibrary;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.SongSelect;
 using Yokko.Game.Tests.Development;
@@ -42,6 +43,7 @@ namespace Yokko.Game.Tests
             "YOKKO_OSU_MANIA_SKIN_PREVIEW",
             "YOKKO_MODS_PREVIEW",
             "YOKKO_MAIN_PREVIEW",
+            "YOKKO_CHART_LIBRARY_PREVIEW",
             "YOKKO_SONGSELECT_PREVIEW",
             "YOKKO_RESULT_PREVIEW",
             "YOKKO_PAUSE_PREVIEW",
@@ -340,6 +342,41 @@ namespace Yokko.Game.Tests
                 });
                 Add(new CursorContainer());
                 schedulePreviewScreenshot(1500);
+                return;
+            }
+
+            if (Environment.GetEnvironmentVariable(
+                    "YOKKO_CHART_LIBRARY_PREVIEW") == "1")
+            {
+                seedSongSelectPreview();
+                frameworkConfig.SetValue(
+                    FrameworkSetting.WindowMode,
+                    WindowMode.Windowed);
+                frameworkConfig.SetValue(
+                    FrameworkSetting.WindowedSize,
+                    GetPreviewWindowSize());
+                frameworkConfig.SetValue(
+                    FrameworkSetting.Locale,
+                    Environment.GetEnvironmentVariable(
+                        "YOKKO_PREVIEW_LOCALE")
+                    is { Length: > 0 } libraryLocale
+                        ? libraryLocale
+                        : YokkoLocale.Chinese);
+                if (Enum.TryParse(
+                        Environment.GetEnvironmentVariable(
+                            "YOKKO_PREVIEW_UI_SCALE"),
+                        true,
+                        out YokkoUiScale libraryScale))
+                {
+                    DisplaySettings.UiScale.Value = libraryScale;
+                }
+
+                Add(new ScreenStack(new ChartLibraryScreen())
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                Add(new CursorContainer());
+                schedulePreviewScreenshot(1200);
                 return;
             }
 

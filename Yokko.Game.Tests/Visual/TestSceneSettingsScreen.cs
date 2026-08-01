@@ -881,6 +881,7 @@ namespace Yokko.Game.Tests.Visual
         public void TestScrollSpeedCanBeAdjustedFromGeneral()
         {
             GeneralSettingsPanel general = null;
+            GameplayScrollSpeedSlider scrollSpeedSlider = null;
             GameplayStepperModeButton fineAdjustmentSwitch = null;
             double originalSpeed = OsuManiaScrollSpeed.Default;
             ScrollSpeedAdjustmentMode originalAdjustmentMode =
@@ -899,9 +900,19 @@ namespace Yokko.Game.Tests.Visual
                 general.SetScrollSpeedAdjustmentMode(
                     ScrollSpeedAdjustmentMode.OsuManiaScale));
             AddStep("capture fine adjustment switch", () =>
+            {
+                scrollSpeedSlider = general
+                    .ChildrenOfType<GameplayScrollSpeedSlider>()
+                    .Single();
                 fineAdjustmentSwitch = general
                     .ChildrenOfType<GameplayStepperModeButton>()
-                    .Single());
+                    .Single();
+            });
+            AddAssert("fine adjustment is below slider", () =>
+                general.ToLocalSpace(
+                    fineAdjustmentSwitch.ScreenSpaceDrawQuad.TopLeft).Y
+                > general.ToLocalSpace(
+                    scrollSpeedSlider.ScreenSpaceDrawQuad.BottomLeft).Y);
             AddAssert("fine adjustment starts off", () =>
                 !fineAdjustmentSwitch.IsFineAdjustmentEnabled);
             AddStep("enable fine adjustment", () =>
@@ -916,6 +927,13 @@ namespace Yokko.Game.Tests.Visual
                 System.Math.Abs(
                     OsuManiaScrollSpeed.ComputeScrollTime(
                         general.CurrentScrollSpeed) - 479) < 0.02);
+            AddStep("disable fine adjustment", () =>
+                fineAdjustmentSwitch.TriggerClick());
+            AddAssert("coarse mode snaps to a whole level", () =>
+                general.CurrentScrollSpeedAdjustmentMode
+                    == ScrollSpeedAdjustmentMode.OsuManiaScale
+                && general.CurrentScrollSpeed
+                    == System.Math.Round(general.CurrentScrollSpeed));
             AddStep("restore speed", () =>
             {
                 general.SetScrollSpeed(originalSpeed);

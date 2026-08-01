@@ -321,6 +321,31 @@ public sealed class OsuManiaSkinSourceTest
         });
     }
 
+    [Test]
+    public void CapsTextureUploadPixelArea()
+    {
+        string directory = Path.GetDirectoryName(
+            createPath("background.png"))!;
+        string texturePath = Path.Combine(directory, "background.png");
+
+        using (var image = new Image<Rgba32>(100, 100))
+            image.SaveAsPng(texturePath);
+
+        using var store = new ConstrainedTextureResourceStore(
+            new OsuManiaSkinSource(directory),
+            100,
+            maximumPixelCount: 2500);
+        ImageInfo info = Image.Identify(store.Get("background.png"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(info.Width, Is.EqualTo(50));
+            Assert.That(info.Height, Is.EqualTo(50));
+            Assert.That((long)info.Width * info.Height,
+                Is.LessThanOrEqualTo(2500));
+        });
+    }
+
     private static string createPath(string name)
     {
         string directory = Path.Combine(

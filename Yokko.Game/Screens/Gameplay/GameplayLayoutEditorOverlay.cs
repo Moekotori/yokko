@@ -50,6 +50,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private readonly Stack<LayoutSnapshot> redoHistory = new();
     private readonly Container editorChrome;
     private readonly AutoplayDemoControl autoplayDemoControl;
+    private readonly LongNoteCutPreview longNoteCutPreview;
     private Container overviewContent;
     private Container miniPlayfield;
     private Container miniHud;
@@ -93,10 +94,16 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     internal bool HasUnsavedChangesForTest => hasUnsavedChanges();
 
     internal bool LongNoteCutPreviewEnabledForTest =>
-        liveSettingsPanel?.LongNoteCutPreviewEnabled == true;
+        longNoteCutPreview.IsCutEnabled;
 
     internal double LongNoteCutPreviewAmountForTest =>
-        liveSettingsPanel?.LongNoteCutPreviewAmount ?? 0;
+        longNoteCutPreview.CutAmount;
+
+    internal Vector2 LongNoteCutPreviewSizeForTest =>
+        longNoteCutPreview.Size;
+
+    internal float LongNoteCutPreviewRemovedLengthForTest =>
+        longNoteCutPreview.RemovedLength;
 
     internal bool IsCancelConfirmationPendingForTest =>
         cancelConfirmationPending;
@@ -182,6 +189,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 },
                 verticalSnapGuide = createSnapGuide(true),
                 horizontalSnapGuide = createSnapGuide(false),
+                longNoteCutPreview = new LongNoteCutPreview
+                {
+                    Size = new Vector2(280, 240),
+                    Depth = -70,
+                    Alpha = 0,
+                },
                 createTopBar(),
                 playfieldTarget = new LayoutTransformTarget(
                     this,
@@ -260,6 +273,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 createCoverPanel(),
                 createLiveSettingsCard(),
                 createFeedbackSettingsCard(),
+                createToolWindowController(),
             },
         };
         InternalChildren = new Drawable[]
@@ -301,11 +315,13 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             selectTarget(playfieldTarget);
             updateHistoryButtons();
             refreshSessionHint(force: true);
+            longNoteCutPreview.Alpha = 1;
             this.FadeTo(1, 100, Easing.OutQuint);
         }
         else if (hadActiveSession)
         {
             setChromeVisible(true, animate: false);
+            longNoteCutPreview.Alpha = 0;
             endEditorSession();
             selectTarget(null);
             this.FadeTo(0, 100, Easing.OutQuint);
@@ -336,6 +352,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         restoreOriginalAlpha(LayoutElementKind.TimingBar);
         setComboEditorPreview(false);
         setJudgementEditorPreview(false);
+        longNoteCutPreview.FadeOut(80, Easing.OutQuint);
         if (autoplay)
         {
             this.FadeTo(1, 90, Easing.OutQuint);
@@ -355,6 +372,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         IsEditing = true;
         autoplayDemoControl.FadeTo(0, 80, Easing.OutQuint);
         setChromeVisible(true, animate: false);
+        longNoteCutPreview.FadeIn(100, Easing.OutQuint);
         setComboEditorPreview(true);
         setJudgementEditorPreview(true);
         applyElementAlpha(
@@ -598,6 +616,16 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             judgementTopLeft,
             judgementBottomRight);
 
+        longNoteCutPreview.Position = new Vector2(
+            (playfieldTopLeft.X + playfieldBottomRight.X
+             - longNoteCutPreview.Width) / 2,
+            (playfieldTopLeft.Y + playfieldBottomRight.Y
+             - longNoteCutPreview.Height) / 2);
+        longNoteCutPreview.SetState(
+            liveSettings.LongNoteCutEnabled(),
+            liveSettings.LongNoteCutAmount(),
+            liveSettings.ScrollDirection());
+
         float playfieldHeight = Math.Max(
             1,
             playfieldBottomRight.Y - playfieldTopLeft.Y);
@@ -666,8 +694,10 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         const float buttonWidth = 298;
         const float splitButtonWidth = 145;
 
-        return new Container
-        {
+        return createToolWindow(
+            GameplayLayoutEditorToolWindow.Actions,
+            new Container
+            {
             Position = new Vector2(18),
             Size = new Vector2(panelWidth + 5, panelHeight + 5),
             Depth = -100,
@@ -845,7 +875,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     Colour = HomeControlColours.Yellow,
                 },
             },
-        };
+            });
     }
 
     private void setChromeVisible(bool visible, bool animate)
@@ -936,8 +966,10 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             overviewWidth + overviewPadding * 2,
             overviewHeight + 42);
 
-        return new Container
-        {
+        return createToolWindow(
+            GameplayLayoutEditorToolWindow.Overview,
+            new Container
+            {
             Anchor = Anchor.BottomRight,
             Origin = Anchor.BottomRight,
             Position = new Vector2(-18, -16),
@@ -1064,7 +1096,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     Colour = HomeControlColours.Yellow,
                 },
             },
-        };
+            });
     }
 
     private LayoutTransformTarget hoveredTarget()

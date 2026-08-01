@@ -496,6 +496,102 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
+    public async Task RemovingManagedChartDeletesOnlyItsOwnedImportDirectory()
+    {
+        string root = createTestRoot("managed-remove");
+        string libraryRoot = Path.Combine(root, "Beatmaps");
+        string removedDirectory = Path.Combine(libraryRoot, "first-import");
+        string retainedDirectory = Path.Combine(libraryRoot, "second-import");
+        string removedSource = Path.Combine(removedDirectory, "pack.osz");
+        string retainedSource = Path.Combine(retainedDirectory, "chart.osu");
+        Directory.CreateDirectory(removedDirectory);
+        Directory.CreateDirectory(retainedDirectory);
+        File.WriteAllText(removedSource, "package");
+        File.WriteAllText(Path.Combine(removedDirectory, "audio.ogg"), "audio");
+        File.WriteAllText(retainedSource, "chart");
+
+        try
+        {
+            using var library = new ImportedChartLibrary();
+            library.Initialise(libraryRoot);
+            library.AddOrReplace(
+                [
+                    new ChartImportResult(DemoBeatmaps.CreateFourKeyDemo(), []),
+                    new ChartImportResult(DemoBeatmaps.CreateSevenKeyDemo(), []),
+                ],
+                removedSource);
+            library.AddOrReplace(
+                new ChartImportResult(
+                    DemoBeatmaps.CreateFourKeyDemo() with { Title = "Retained" },
+                    []),
+                retainedSource);
+            int refreshCount = 0;
+            library.LibraryChanged += () => refreshCount++;
+
+            string removedId = library.GetCharts()
+                                      .First(chart => chart.SourcePath == removedSource)
+                                      .Id;
+            ManagedChartRemovalResult result =
+                await library.RemoveManagedChartAsync(removedId);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.RemovedChartCount, Is.EqualTo(2));
+                Assert.That(Directory.Exists(removedDirectory), Is.False);
+                Assert.That(Directory.Exists(retainedDirectory), Is.True);
+                Assert.That(File.Exists(retainedSource), Is.True);
+                Assert.That(library.GetCharts(), Has.Count.EqualTo(1));
+                Assert.That(
+                    library.GetCharts().Single().Result.Beatmap.Title,
+                    Is.EqualTo("Retained"));
+                Assert.That(refreshCount, Is.EqualTo(1));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task RemovingExternalOsuChartIsRejectedWithoutTouchingSource()
+    {
+        string root = createTestRoot("external-remove-rejected");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string setDirectory = Path.Combine(songs, "100 Artist - Song");
+        Directory.CreateDirectory(setDirectory);
+
+        try
+        {
+            string sourcePath = writeOsuChart(setDirectory, "External", 3);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+            await library.RefreshExternalOsuAsync();
+            ImportedChart external = library.GetCharts().Single();
+
+            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await library.RemoveManagedChartAsync(external.Id));
+            Assert.Multiple(() =>
+            {
+                Assert.That(File.Exists(sourcePath), Is.True);
+                Assert.That(library.GetCharts(), Has.Count.EqualTo(1));
+                Assert.That(library.GetCharts().Single().IsReadOnly, Is.True);
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public void PackageAddsAllChartsAndRefreshesOnce()
     {
         var library = new ImportedChartLibrary();
@@ -817,9 +913,18 @@ HitObjects:
 """);
     }
 
-    private static string createTestRoot(string name) => Path.Combine(
-        Path.GetTempPath(),
-        $"yokko-{name}-{Guid.NewGuid():N}");
+    private static string createTestRoot(string name)
+    {
+        string artifactsRoot = Environment.GetEnvironmentVariable(
+            "YOKKO_TEST_ARTIFACTS");
+        if (string.IsNullOrWhiteSpace(artifactsRoot))
+            artifactsRoot = Path.GetTempPath();
+
+        Directory.CreateDirectory(artifactsRoot);
+        return Path.Combine(
+            artifactsRoot,
+            $"yokko-{name}-{Guid.NewGuid():N}");
+    }
 
     private static string writeOsuChart(
         string directory,

@@ -4,6 +4,7 @@ param(
         'Lab',
         'Mods',
         'Main',
+        'ChartLibrary',
         'SongSelect',
         'Settings',
         'Result',
@@ -38,6 +39,8 @@ param(
     [ValidateSet('Debug', 'Release')]
     [string] $Configuration = 'Debug',
 
+    [string] $ArtifactsPath,
+
     [switch] $NoBuild
 )
 
@@ -49,6 +52,7 @@ $previewVariables = @{
     Lab = 'YOKKO_UI_LAB_PREVIEW'
     Mods = 'YOKKO_MODS_PREVIEW'
     Main = 'YOKKO_MAIN_PREVIEW'
+    ChartLibrary = 'YOKKO_CHART_LIBRARY_PREVIEW'
     SongSelect = 'YOKKO_SONGSELECT_PREVIEW'
     Settings = 'YOKKO_SETTINGS_PREVIEW'
     Result = 'YOKKO_RESULT_PREVIEW'
@@ -162,6 +166,11 @@ try {
         '--configuration',
         $Configuration
     )
+    if (-not [string]::IsNullOrWhiteSpace($ArtifactsPath)) {
+        $resolvedArtifactsPath = [IO.Path]::GetFullPath($ArtifactsPath)
+        [IO.Directory]::CreateDirectory($resolvedArtifactsPath) | Out-Null
+        $arguments += @('--artifacts-path', $resolvedArtifactsPath)
+    }
     if ($NoBuild) {
         $arguments += '--no-build'
     }

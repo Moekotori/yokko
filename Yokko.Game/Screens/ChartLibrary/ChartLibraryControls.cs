@@ -388,14 +388,14 @@ internal partial class ChartLibraryChartRow : CompositeDrawable
         Color4 sourceAccent = chart.SourceKind == ImportedChartSourceKind.ExternalOsu
             ? HomeControlColours.Pink
             : HomeControlColours.Cyan;
-        string title = string.IsNullOrWhiteSpace(chart.Result.Beatmap.Title)
-            ? YokkoStrings.Get("chart_library.untitled").ToString()
+        LocalisableString title = string.IsNullOrWhiteSpace(chart.Result.Beatmap.Title)
+            ? YokkoStrings.Get("chart_library.untitled")
             : chart.Result.Beatmap.Title;
         string subtitle = $"{chart.Result.Beatmap.Artist}  //  {chart.Result.Beatmap.DifficultyName}";
         string detail = $"{(int)chart.Result.Beatmap.KeyMode}K";
 
         if (chart.StarRating.Value.HasValue)
-            detail += $"   ★ {chart.StarRating.Value.Value:0.00}";
+            detail += $"   SR {chart.StarRating.Value.Value:0.00}";
 
         if (chart.Bpm.HasValue)
             detail += $"   {chart.Bpm.Value:0} BPM";
@@ -577,5 +577,59 @@ internal partial class ChartLibraryLoadMoreButton : ClickableContainer
             HomeControlColours.PaleCyan.B,
             0.38f), 120, Easing.OutQuint);
         base.OnHoverLost(e);
+    }
+}
+
+internal partial class ChartLibraryScrollContainer : ScrollContainer<Drawable>
+{
+    public ChartLibraryScrollContainer()
+        : base(Direction.Vertical)
+    {
+        ScrollbarOverlapsContent = true;
+        ClampExtension = 0;
+    }
+
+    protected override ScrollbarContainer CreateScrollbar(Direction direction) =>
+        new ChartLibraryScrollbar(direction);
+
+    private partial class ChartLibraryScrollbar : ScrollbarContainer
+    {
+        private const float thickness = 5;
+
+        public ChartLibraryScrollbar(Direction direction)
+            : base(direction)
+        {
+            Alpha = 0.62f;
+            Colour = HomeControlColours.Cyan;
+            CornerRadius = thickness / 2;
+            Masking = true;
+            Margin = new MarginPadding(3);
+            Child = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+            };
+            ResizeTo(1);
+        }
+
+        public override void ResizeTo(
+            float value,
+            int duration = 0,
+            Easing easing = Easing.None)
+        {
+            var size = new Vector2(thickness)
+            {
+                [(int)ScrollDirection] = value,
+            };
+            this.ResizeTo(size, duration, easing);
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            this.FadeTo(1, 100, Easing.OutQuint);
+            return true;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e) =>
+            this.FadeTo(0.62f, 120, Easing.OutQuint);
     }
 }

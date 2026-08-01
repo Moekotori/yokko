@@ -971,16 +971,27 @@ public sealed class GameplaySettingsTest
     }
 
     [Test]
-    public void ScrollSpeedSliderUsesTenthsForDragAndWholeStepsForWheel()
+    public void ScrollSpeedSliderSeparatesWholeAndFineAdjustment()
     {
         Assert.That(
-            GameplayScrollSpeedSlider.ValueFromProgress(0),
+            GameplayScrollSpeedSlider.ValueFromProgress(
+                0,
+                ScrollSpeedAdjustmentMode.OsuManiaScale),
             Is.EqualTo(OsuManiaScrollSpeed.Minimum));
         Assert.That(
-            GameplayScrollSpeedSlider.ValueFromProgress(1),
+            GameplayScrollSpeedSlider.ValueFromProgress(
+                1,
+                ScrollSpeedAdjustmentMode.OsuManiaScale),
             Is.EqualTo(OsuManiaScrollSpeed.Maximum));
         Assert.That(
-            GameplayScrollSpeedSlider.ValueFromProgress(0.5),
+            GameplayScrollSpeedSlider.ValueFromProgress(
+                0.5,
+                ScrollSpeedAdjustmentMode.OsuManiaScale),
+            Is.EqualTo(21));
+        Assert.That(
+            GameplayScrollSpeedSlider.ValueFromProgress(
+                0.5,
+                ScrollSpeedAdjustmentMode.Milliseconds),
             Is.EqualTo(20.5));
         Assert.That(
             GameplayScrollSpeedSlider.AdjustForScroll(34, 1),
@@ -989,8 +1000,14 @@ public sealed class GameplaySettingsTest
             GameplayScrollSpeedSlider.AdjustForScroll(34, -1),
             Is.EqualTo(33));
         Assert.That(
+            GameplayScrollSpeedSlider.AdjustForScroll(34.4, 1),
+            Is.EqualTo(35));
+        Assert.That(
             GameplayScrollSpeedSlider.AdjustForScroll(40, 1),
             Is.EqualTo(40));
+        Assert.That(
+            OsuManiaScrollSpeed.SnapToWholeStep(25.3),
+            Is.EqualTo(25));
         Assert.That(
             GameplayScrollSpeedSlider.FineScrollTimeDeltaForDirection(1),
             Is.EqualTo(-1),

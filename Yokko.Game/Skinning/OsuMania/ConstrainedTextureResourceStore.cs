@@ -27,6 +27,8 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
 {
     private readonly IResourceStore<byte[]> source;
     private readonly int maximumDimension;
+    private readonly long maximumPixelCount;
+    private readonly long maximumLongNoteBodyPixelCount;
     private readonly IReadOnlyDictionary<string, OversizedLongNoteBodyMode>
         longNoteBodyModes;
 
@@ -34,10 +36,16 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
         IResourceStore<byte[]> source,
         int maximumDimension,
         IReadOnlyDictionary<string, OversizedLongNoteBodyMode>
-            longNoteBodyModes = null)
+            longNoteBodyModes = null,
+        long maximumPixelCount = long.MaxValue,
+        long maximumLongNoteBodyPixelCount = long.MaxValue)
     {
         this.source = source ?? throw new ArgumentNullException(nameof(source));
         this.maximumDimension = Math.Max(1, maximumDimension);
+        this.maximumPixelCount = Math.Max(1, maximumPixelCount);
+        this.maximumLongNoteBodyPixelCount = Math.Max(
+            1,
+            maximumLongNoteBodyPixelCount);
         this.longNoteBodyModes =
             longNoteBodyModes
             ?? new Dictionary<string, OversizedLongNoteBodyMode>(
@@ -84,19 +92,55 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
             return data;
         }
 
-        if (info.Width <= maximumDimension
-            && info.Height <= maximumDimension)
-            return data;
-
-        using Image image = Image.Load(data);
         OversizedLongNoteBodyMode bodyMode =
             OversizedLongNoteBodyMode.Resize;
-        bool isLongNoteBody =
-            info.Width <= maximumDimension
-            && info.Height > maximumDimension
-            && longNoteBodyModes.TryGetValue(
-                name,
-                out bodyMode);
+        bool isLongNoteBody = longNoteBodyModes.TryGetValue(
+            name,
+            out bodyMode);
+        long pixelLimit = isLongNoteBody
+            ? Math.Min(
+                maximumPixelCount,
+                maximumLongNoteBodyPixelCount)
+            : maximumPixelCount;
+        long sourcePixelCount = (long)info.Width * info.Height;
+
+        if (info.Width <= maximumDimension
+            && info.Height <= maximumDimension
+            && sourcePixelCount <= pixelLimit)
+        {
+            return data;
+        }
+
+        using Image image = Image.Load(data);
+        int targetWidth;
+        int targetHeight;
+
+        if (isLongNoteBody && info.Width <= maximumDimension)
+        {
+            targetWidth = info.Width;
+            targetHeight = Math.Min(
+                maximumDimension,
+                Math.Max(1, (int)Math.Min(
+                    int.MaxValue,
+                    pixelLimit / Math.Max(1, targetWidth))));
+        }
+        else
+        {
+            double scale = Math.Min(
+                1,
+                Math.Min(
+                    maximumDimension / (double)Math.Max(1, info.Width),
+                    maximumDimension / (double)Math.Max(1, info.Height)));
+            if (sourcePixelCount > pixelLimit)
+            {
+                scale = Math.Min(
+                    scale,
+                    Math.Sqrt(pixelLimit / (double)sourcePixelCount));
+            }
+
+            targetWidth = Math.Max(1, (int)Math.Floor(info.Width * scale));
+            targetHeight = Math.Max(1, (int)Math.Floor(info.Height * scale));
+        }
 
         if (isLongNoteBody
             && bodyMode != OversizedLongNoteBodyMode.Resize)
@@ -104,28 +148,23 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
             int sourceY = bodyMode switch
             {
                 OversizedLongNoteBodyMode.CropEnd =>
-                    info.Height - maximumDimension,
+                    info.Height - targetHeight,
                 OversizedLongNoteBodyMode.CropCentre =>
-                    (info.Height - maximumDimension) / 2,
+                    (info.Height - targetHeight) / 2,
                 _ => 0,
             };
             image.Mutate(context => context.Crop(new Rectangle(
                 0,
                 sourceY,
                 info.Width,
-                maximumDimension)));
+                targetHeight)));
         }
         else
         {
-            var targetSize = isLongNoteBody
-                ? new Size(info.Width, maximumDimension)
-                : new Size(maximumDimension, maximumDimension);
             image.Mutate(context => context.Resize(new ResizeOptions
             {
-                Size = targetSize,
-                Mode = isLongNoteBody
-                    ? ResizeMode.Stretch
-                    : ResizeMode.Max,
+                Size = new Size(targetWidth, targetHeight),
+                Mode = ResizeMode.Stretch,
             }));
         }
 
@@ -135,7 +174,7 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
         Logger.Log(
             $"{(isLongNoteBody && bodyMode != OversizedLongNoteBodyMode.Resize ? "Cropped" : "Resized")} oversized osu! skin texture '{name}' from "
             + $"{info.Width}x{info.Height} to {image.Width}x{image.Height} "
-            + $"for the renderer's {maximumDimension}px texture limit"
+            + $"for the renderer's {maximumDimension}px / {pixelLimit} pixel texture limits"
             + (isLongNoteBody
                 ? " while preserving long-note body pixels."
                 : "."),

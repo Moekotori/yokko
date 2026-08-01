@@ -50,7 +50,9 @@ internal partial class GameplayLayoutEditorOverlay
     private Drawable createLiveSettingsCard()
     {
         liveSettingsPanel = new LiveSettingsPanel(liveSettings);
-        return liveSettingsPanel;
+        return createToolWindow(
+            GameplayLayoutEditorToolWindow.LiveSettings,
+            liveSettingsPanel);
     }
 
     private partial class LiveSettingsPanel : CompositeDrawable
@@ -63,14 +65,6 @@ internal partial class GameplayLayoutEditorOverlay
         private readonly CompactTextButton downscrollButton;
         private readonly CompactTextButton upscrollButton;
         private readonly CompactTextButton longNoteCutToggle;
-        private readonly LongNoteCutPreview longNoteCutPreview;
-
-        internal bool LongNoteCutPreviewEnabled =>
-            longNoteCutPreview.IsCutEnabled;
-
-        internal double LongNoteCutPreviewAmount =>
-            longNoteCutPreview.CutAmount;
-
         public LiveSettingsPanel(
             GameplayLayoutEditorLiveSettings settings)
         {
@@ -354,11 +348,6 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(247, 125),
                     Size = new Vector2(31),
                 },
-                longNoteCutPreview = new LongNoteCutPreview
-                {
-                    Position = new Vector2(344, 92),
-                    Size = new Vector2(60, 64),
-                },
             };
         }
 
@@ -437,10 +426,6 @@ internal partial class GameplayLayoutEditorOverlay
                 direction == ManiaScrollDirection.Downscroll);
             upscrollButton.SetSelected(
                 direction == ManiaScrollDirection.Upscroll);
-            longNoteCutPreview.SetState(
-                cutEnabled,
-                cutAmount,
-                direction);
         }
 
         private void cycleSkin(int direction)
@@ -505,76 +490,153 @@ internal partial class GameplayLayoutEditorOverlay
 
     private partial class LongNoteCutPreview : CompositeDrawable
     {
-        private readonly Box body;
+        private readonly Box originalBody;
+        private readonly Box currentBody;
         private readonly Box removedBody;
-        private readonly Circle head;
-        private readonly Circle tail;
+        private readonly Circle originalHead;
         private readonly Circle originalTail;
+        private readonly Circle currentHead;
+        private readonly Circle currentTail;
+        private readonly Circle currentOriginalTail;
+        private readonly SpriteText valueText;
 
         internal bool IsCutEnabled { get; private set; }
 
         internal double CutAmount { get; private set; }
 
+        internal float RemovedLength => removedBody.Height;
+
         public LongNoteCutPreview()
         {
             Masking = true;
-            CornerRadius = 9;
+            CornerRadius = 13;
             BorderThickness = 1.25f;
             BorderColour = new Color4(
                 HomeControlColours.Navy.R,
                 HomeControlColours.Navy.G,
                 HomeControlColours.Navy.B,
-                0.35f);
+                0.72f);
 
             InternalChildren = new Drawable[]
             {
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = HomeControlColours.PaleCyan,
-                    Alpha = 0.48f,
+                    Colour = new Color4(
+                        HomeControlColours.Ivory.R,
+                        HomeControlColours.Ivory.G,
+                        HomeControlColours.Ivory.B,
+                        0.94f),
                 },
-                removedBody = new Box
+                new Box
                 {
-                    Anchor = Anchor.TopCentre,
-                    Origin = Anchor.TopCentre,
-                    Width = 5,
+                    RelativeSizeAxes = Axes.X,
+                    Height = 5,
                     Colour = HomeControlColours.Pink,
-                    Alpha = 0.24f,
                 },
-                body = new Box
+                new SpriteText
                 {
-                    Anchor = Anchor.TopCentre,
-                    Origin = Anchor.TopCentre,
-                    Width = 9,
+                    Position = new Vector2(14, 10),
+                    Text = YokkoStrings.Get(
+                        "gameplay.layout_editor.ln_preview"),
+                    Font = LayoutEditorTypography.Bold(13),
                     Colour = HomeControlColours.Navy,
                 },
-                originalTail = new Circle
+                valueText = new SpriteText
                 {
-                    Anchor = Anchor.TopCentre,
-                    Origin = Anchor.Centre,
-                    Size = new Vector2(14),
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(-14, 11),
+                    Font = LayoutEditorTypography.Bold(13),
                     Colour = HomeControlColours.Pink,
-                    Alpha = 0.2f,
                 },
-                tail = new Circle
+                createLaneBackdrop(56),
+                createLaneBackdrop(172),
+                new SpriteText
                 {
-                    Anchor = Anchor.TopCentre,
-                    Origin = Anchor.Centre,
-                    Size = new Vector2(14),
-                    Colour = HomeControlColours.Cyan,
+                    Anchor = Anchor.TopLeft,
+                    Origin = Anchor.TopCentre,
+                    Position = new Vector2(82, 45),
+                    Text = YokkoStrings.Get(
+                        "gameplay.layout_editor.ln_original"),
+                    Font = LayoutEditorTypography.Bold(10),
+                    Colour = HomeControlColours.Navy,
                 },
-                head = new Circle
+                new SpriteText
                 {
-                    Anchor = Anchor.TopCentre,
-                    Origin = Anchor.Centre,
-                    Size = new Vector2(18),
-                    Colour = HomeControlColours.Yellow,
-                    BorderThickness = 1,
-                    BorderColour = HomeControlColours.Navy,
+                    Anchor = Anchor.TopLeft,
+                    Origin = Anchor.TopCentre,
+                    Position = new Vector2(198, 45),
+                    Text = YokkoStrings.Get(
+                        "gameplay.layout_editor.ln_after"),
+                    Font = LayoutEditorTypography.Bold(10),
+                    Colour = HomeControlColours.Navy,
                 },
+                new SpriteIcon
+                {
+                    Position = new Vector2(130, 126),
+                    Size = new Vector2(20),
+                    Icon = FontAwesome.Solid.ArrowRight,
+                    Colour = HomeControlColours.Pink,
+                },
+                originalBody = createBody(82, 12, 0.5f),
+                currentBody = createBody(198, 18, 1),
+                removedBody = createBody(198, 24, 0.42f),
+                originalTail = createEnd(82, 16, HomeControlColours.Pink, 0.5f),
+                originalHead = createEnd(82, 22, HomeControlColours.Yellow, 0.72f),
+                currentOriginalTail = createEnd(198, 18, HomeControlColours.Pink, 0.35f),
+                currentTail = createEnd(198, 20, HomeControlColours.Cyan, 1),
+                currentHead = createEnd(198, 26, HomeControlColours.Yellow, 1),
             };
         }
+
+        private static Container createLaneBackdrop(float x) => new()
+        {
+            Position = new Vector2(x, 58),
+            Size = new Vector2(52, 166),
+            Masking = true,
+            CornerRadius = 9,
+            BorderThickness = 1,
+            BorderColour = new Color4(
+                HomeControlColours.Cyan.R,
+                HomeControlColours.Cyan.G,
+                HomeControlColours.Cyan.B,
+                0.42f),
+            Child = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = new Color4(0.01f, 0.018f, 0.045f, 0.82f),
+            },
+        };
+
+        private static Box createBody(
+            float x,
+            float width,
+            float alpha) => new()
+        {
+            Anchor = Anchor.TopLeft,
+            Origin = Anchor.TopCentre,
+            X = x + 26,
+            Width = width,
+            Colour = HomeControlColours.Cyan,
+            Alpha = alpha,
+        };
+
+        private static Circle createEnd(
+            float x,
+            float size,
+            Color4 colour,
+            float alpha) => new()
+        {
+            Anchor = Anchor.TopLeft,
+            Origin = Anchor.Centre,
+            X = x + 26,
+            Size = new Vector2(size),
+            Colour = colour,
+            Alpha = alpha,
+            BorderThickness = 1.25f,
+            BorderColour = HomeControlColours.Navy,
+        };
 
         internal void SetState(
             bool enabled,
@@ -587,34 +649,46 @@ internal partial class GameplayLayoutEditorOverlay
                 YokkoSkinSettings.MinimumLongNoteCutAmount,
                 YokkoSkinSettings.MaximumLongNoteCutAmount);
 
-            const float upperY = 11;
-            const float lowerY = 53;
+            const float upperY = 76;
+            const float lowerY = 206;
             bool upscroll = direction == ManiaScrollDirection.Upscroll;
             float headY = upscroll ? upperY : lowerY;
             float originalTailY = upscroll ? lowerY : upperY;
             float cutDistance = enabled
                 ? (float)(CutAmount
-                    / YokkoSkinSettings.MaximumLongNoteCutAmount * 31)
+                    / YokkoSkinSettings.MaximumLongNoteCutAmount * 92)
                 : 0;
-            float tailY = originalTailY
-                          + Math.Sign(headY - originalTailY)
-                          * cutDistance;
+            float currentTailY = originalTailY
+                                 + Math.Sign(headY - originalTailY)
+                                 * cutDistance;
 
-            head.Y = headY;
-            tail.Y = tailY;
+            valueText.Text = enabled
+                ? $"{CutAmount:0.0}x"
+                : YokkoStrings.Get("gameplay.layout_editor.off");
+
+            originalHead.Y = headY;
             originalTail.Y = originalTailY;
+            setBody(originalBody, headY, originalTailY);
 
-            body.Y = Math.Min(headY, tailY);
-            body.Height = Math.Abs(headY - tailY);
-            removedBody.Y = Math.Min(originalTailY, tailY);
-            removedBody.Height = Math.Abs(originalTailY - tailY);
-            removedBody.Alpha = enabled && cutDistance > 0
-                ? 0.24f
-                : 0;
-            originalTail.Alpha = enabled && cutDistance > 0
-                ? 0.2f
-                : 0;
-            this.Alpha = enabled ? 1 : 0.48f;
+            currentHead.Y = headY;
+            currentTail.Y = currentTailY;
+            currentOriginalTail.Y = originalTailY;
+            setBody(currentBody, headY, currentTailY);
+            setBody(removedBody, originalTailY, currentTailY);
+
+            bool showsCut = enabled && cutDistance > 0.01f;
+            removedBody.Alpha = showsCut ? 0.42f : 0;
+            removedBody.Colour = HomeControlColours.Pink;
+            currentOriginalTail.Alpha = showsCut ? 0.35f : 0;
+            currentTail.Colour = showsCut
+                ? HomeControlColours.Cyan
+                : HomeControlColours.Pink;
+        }
+
+        private static void setBody(Box body, float firstY, float secondY)
+        {
+            body.Y = Math.Min(firstY, secondY);
+            body.Height = Math.Abs(firstY - secondY);
         }
     }
 

@@ -69,6 +69,7 @@ public partial class GameplayScreen : Screen
     private JudgementConfiguration judgementConfiguration;
     private bool minesEnabled;
     private readonly string artworkPath;
+    private readonly Texture preparedArtworkTexture;
     private readonly bool quaverHasSignificantScrollVelocities;
     private readonly BeatTimingMap beatTimingMap;
     private TextureStore artworkTextures;
@@ -217,6 +218,12 @@ public partial class GameplayScreen : Screen
     internal double CompletionTransitionElapsedMilliseconds =>
         completionTransitionElapsedMilliseconds;
     internal bool GameplayFailed => gameplayFailed;
+    internal bool PresentationTexturesReady =>
+        (artworkBackground?.Texture?.UploadComplete ?? true)
+        && (maniaSkin?.AllTexturesUploaded ?? true);
+    internal int PendingPresentationTextureUploads =>
+        (artworkBackground?.Texture?.UploadComplete == false ? 1 : 0)
+        + (maniaSkin?.PendingTextureUploadCount ?? 0);
     internal bool IsPaused => isPaused;
     internal bool ReplaySeekInProgress => replaySeekInProgress;
     internal bool IsLayoutEditing =>
@@ -289,14 +296,16 @@ public partial class GameplayScreen : Screen
         IAudioEngine audioEngine = null,
         string skinPath = null,
         ManiaModSet mods = null,
-        string artworkPath = null)
+        string artworkPath = null,
+        Texture preparedArtworkTexture = null)
         : this(
             beatmap,
             audioEngine,
             skinPath,
             mods,
             null,
-            artworkPath)
+            artworkPath,
+            preparedArtworkTexture)
     {
     }
 
@@ -312,6 +321,7 @@ public partial class GameplayScreen : Screen
             skinPath,
             mods,
             replay,
+            null,
             null)
     {
     }
@@ -322,7 +332,8 @@ public partial class GameplayScreen : Screen
         string skinPath,
         ManiaModSet mods,
         GameplayReplay replay,
-        string artworkPath)
+        string artworkPath,
+        Texture preparedArtworkTexture)
     {
         originalBeatmap = beatmap;
         this.audioEngine = audioEngine;
@@ -338,6 +349,7 @@ public partial class GameplayScreen : Screen
         beatTimingMap = new BeatTimingMap(this.beatmap.TimingPoints);
         this.replay = replay;
         this.artworkPath = artworkPath;
+        this.preparedArtworkTexture = preparedArtworkTexture;
         updateGameplayBounds(includeMines: true);
     }
 
@@ -628,6 +640,10 @@ public partial class GameplayScreen : Screen
     protected override void LoadComplete()
     {
         base.LoadComplete();
+
+        playfield.SetApproachTime(computeApproachTime(
+            appliedScrollSpeed,
+            currentPlaybackRate(currentGameplayTime)));
 
         diagnostics.Trace(
             "GAMEPLAY",
@@ -2877,7 +2893,8 @@ public partial class GameplayScreen : Screen
                 originalBeatmap,
                 skinPath: skinPath,
                 mods: mods,
-                artworkPath: artworkPath);
+                artworkPath: artworkPath,
+                preparedArtworkTexture: preparedArtworkTexture);
             replacement.manualPlaybackRateAdjustment =
                 manualPlaybackRateAdjustment;
             replacement.manualPlaybackRateUsed =
@@ -2928,7 +2945,8 @@ public partial class GameplayScreen : Screen
             skinPath,
             mods,
             completedReplay,
-            artworkPath)
+            artworkPath,
+            preparedArtworkTexture)
         {
             manualPlaybackRateAdjustment =
                 this.manualPlaybackRateAdjustment,
@@ -3080,6 +3098,9 @@ public partial class GameplayScreen : Screen
 
     private Texture loadArtworkTexture(IRenderer renderer)
     {
+        if (preparedArtworkTexture != null)
+            return preparedArtworkTexture;
+
         if (string.IsNullOrWhiteSpace(artworkPath))
             return null;
 
@@ -3090,7 +3111,8 @@ public partial class GameplayScreen : Screen
                 new TextureLoaderStore(
                     new ConstrainedTextureResourceStore(
                         new ChartArtworkResourceStore(),
-                        renderer.MaxTextureSize)),
+                        renderer.MaxTextureSize,
+                        maximumPixelCount: 1920L * 1080)),
                 scaleAdjust: 1);
             return artworkTextures.Get(artworkPath);
         }
@@ -3229,6 +3251,13 @@ public partial class GameplayScreen : Screen
     private void onScrollSpeedChanged(
         osu.Framework.Bindables.ValueChangedEvent<double> change)
     {
+        if (LoadState != LoadState.Loaded
+            || scrollSpeedOverlay?.LoadState != LoadState.Loaded)
+        {
+            appliedScrollSpeed = change.NewValue;
+            return;
+        }
+
         double gameplayTime = currentGameplayTime;
         if (layoutEditor?.IsSessionActive != true
             && !IsScrollSpeedAdjustmentAllowed(

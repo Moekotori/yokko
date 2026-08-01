@@ -65,6 +65,12 @@ internal static class OsuManiaScrollSpeed
     public static double Adjust(double scrollSpeed, double amount) =>
         Clamp(scrollSpeed + amount);
 
+    public static double SnapToWholeStep(double scrollSpeed) =>
+        Clamp(Math.Round(scrollSpeed, MidpointRounding.AwayFromZero));
+
+    public static double AdjustWholeStep(double scrollSpeed, double amount) =>
+        Clamp(SnapToWholeStep(scrollSpeed) + amount);
+
     public static double AdjustScrollTime(
         double scrollSpeed,
         double deltaMilliseconds)

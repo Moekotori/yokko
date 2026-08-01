@@ -55,7 +55,7 @@ public partial class ChartLibraryScreen : Screen
     private Container stage;
     private Container decorationLayer;
     private FillFlowContainer chartRows;
-    private BasicScrollContainer chartScroll;
+    private ChartLibraryScrollContainer chartScroll;
     private ChartLibrarySearchBox searchBox;
     private ChartLibraryFilterChip allFilter;
     private ChartLibraryFilterChip managedFilter;
@@ -76,6 +76,7 @@ public partial class ChartLibraryScreen : Screen
     private string query = string.Empty;
     private int displayLimit = pageSize;
     private bool workInProgress;
+    private bool resourcesDisposed;
     private Vector2 lastResponsiveStageSize;
     private Vector2 parallaxCurrent;
 
@@ -83,6 +84,15 @@ public partial class ChartLibraryScreen : Screen
     internal int ManagedChartCount { get; private set; }
     internal int ExternalChartCount { get; private set; }
     internal ChartLibrarySourceFilter CurrentSourceFilter { get; private set; }
+
+    internal void SetSourceFilter(ChartLibrarySourceFilter filter) =>
+        setFilter(filter);
+
+    internal void SetSearchQuery(string value)
+    {
+        if (searchBox != null)
+            searchBox.Current.Value = value ?? string.Empty;
+    }
 
     [BackgroundDependencyLoader]
     private void load(TextureStore textures)
@@ -92,7 +102,7 @@ public partial class ChartLibraryScreen : Screen
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = HomeControlColours.Ivory,
+                Colour = HomeControlColours.Cyan,
             },
             stage = new Container
             {
@@ -104,14 +114,9 @@ public partial class ChartLibraryScreen : Screen
                 {
                     new Box
                     {
-                        Position = new Vector2(0, 18),
-                        RelativeSizeAxes = Axes.X,
-                        Height = 104,
-                        Colour = new Color4(
-                            HomeControlColours.Cyan.R,
-                            HomeControlColours.Cyan.G,
-                            HomeControlColours.Cyan.B,
-                            0.16f),
+                        RelativeSizeAxes = Axes.Y,
+                        Width = 334,
+                        Colour = HomeControlColours.Ivory,
                     },
                     new HomeMarqueeTicker(),
                     new SpriteText
@@ -121,14 +126,14 @@ public partial class ChartLibraryScreen : Screen
                         Text = "CHART LAB",
                         Font = HomeTypography.Brand(96),
                         Colour = new Color4(
-                            HomeControlColours.Navy.R,
-                            HomeControlColours.Navy.G,
-                            HomeControlColours.Navy.B,
-                            0.045f),
+                            Color4.White.R,
+                            Color4.White.G,
+                            Color4.White.B,
+                            0.075f),
                     },
                     decorationLayer = createDecorationLayer(),
                     new HomeTapRippleLayer(),
-                    createHeader(textures.Get("home-logo")),
+                    createHeader(textures.Get("home-logo-light")),
                     createSidebar(),
                     createLibraryPanel(),
                     new Container
@@ -218,8 +223,9 @@ public partial class ChartLibraryScreen : Screen
 
     protected override void Dispose(bool isDisposing)
     {
-        if (isDisposing)
+        if (isDisposing && !resourcesDisposed)
         {
+            resourcesDisposed = true;
             importedChartLibrary.LibraryChanged -= onLibraryChanged;
             workCancellation.Cancel();
             workCancellation.Dispose();
@@ -239,18 +245,17 @@ public partial class ChartLibraryScreen : Screen
                 FontAwesome.Solid.ArrowLeft,
                 this.Exit,
                 50),
-            new Sprite
+            new HomeBrandLockup(
+                logoTexture,
+                HomeControlColours.Navy,
+                HomeControlColours.Yellow)
             {
-                Position = new Vector2(68, 2),
-                Size = new Vector2(176, 55),
-                Texture = logoTexture,
-                FillMode = FillMode.Fit,
-                Anchor = Anchor.TopLeft,
-                Origin = Anchor.TopLeft,
+                Position = new Vector2(72, -1),
+                Scale = new Vector2(0.36f),
             },
             new Box
             {
-                Position = new Vector2(266, 3),
+                Position = new Vector2(298, 3),
                 Size = new Vector2(2, 56),
                 Colour = new Color4(
                     HomeControlColours.Navy.R,
@@ -258,16 +263,26 @@ public partial class ChartLibraryScreen : Screen
                     HomeControlColours.Navy.B,
                     0.26f),
             },
+            new Box
+            {
+                Position = new Vector2(322, 35),
+                Size = new Vector2(122, 8),
+                Colour = new Color4(
+                    HomeControlColours.Yellow.R,
+                    HomeControlColours.Yellow.G,
+                    HomeControlColours.Yellow.B,
+                    0.82f),
+            },
             new SpriteText
             {
-                Position = new Vector2(288, 0),
+                Position = new Vector2(322, 0),
                 Text = YokkoStrings.Get("chart_library.title"),
                 Font = HomeTypography.Display(31),
                 Colour = HomeControlColours.Navy,
             },
             new SpriteText
             {
-                Position = new Vector2(290, 40),
+                Position = new Vector2(324, 42),
                 Text = YokkoStrings.Get("chart_library.subtitle"),
                 Font = HomeTypography.Body(13),
                 Colour = new Color4(
@@ -319,11 +334,7 @@ public partial class ChartLibraryScreen : Screen
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(
-                    HomeControlColours.PaleCyan.R,
-                    HomeControlColours.PaleCyan.G,
-                    HomeControlColours.PaleCyan.B,
-                    0.46f),
+                Colour = Color4.White,
             },
             new HomeDotField
             {
@@ -477,7 +488,7 @@ public partial class ChartLibraryScreen : Screen
                 Font = HomeTypography.Display(12),
                 Colour = HomeControlColours.Navy,
             },
-            chartScroll = new BasicScrollContainer(Direction.Vertical)
+            chartScroll = new ChartLibraryScrollContainer
             {
                 Position = new Vector2(18, 74),
                 Size = new Vector2(860, 414),
@@ -928,11 +939,11 @@ public partial class ChartLibraryScreen : Screen
             {
                 if (completed.IsCanceled)
                     setStatus(YokkoStrings.Get("chart_library.cancelled"), true);
+                else if (completed.Exception?.GetBaseException().Message
+                         is { Length: > 0 } errorMessage)
+                    setStatus(errorMessage, true);
                 else
-                    setStatus(
-                        completed.Exception?.GetBaseException().Message
-                        ?? YokkoStrings.Get("chart_library.failed").ToString(),
-                        true);
+                    setStatus(YokkoStrings.Get("chart_library.failed"), true);
                 return;
             }
 
@@ -969,8 +980,8 @@ public partial class ChartLibraryScreen : Screen
     private static bool contains(string value, string search) =>
         value?.Contains(search, StringComparison.CurrentCultureIgnoreCase) == true;
 
-    private static string formatPath(string path) =>
+    private static LocalisableString formatPath(string path) =>
         string.IsNullOrWhiteSpace(path)
-            ? YokkoStrings.Get("chart_library.not_configured").ToString()
+            ? YokkoStrings.Get("chart_library.not_configured")
             : path;
 }
