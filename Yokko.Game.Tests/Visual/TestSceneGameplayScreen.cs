@@ -2005,6 +2005,40 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("replay rail shows adjusted rate", () =>
                 Math.Abs(gameplay.CurrentPlaybackRate - 1.05) < 0.001
                 && controls.RateText == "1.05x");
+            AddStep("seek forward from replay rail", () =>
+                controls.ActivateSeekForward());
+            AddUntilStep("paused replay seeks forward", () =>
+                !gameplay.ReplaySeekInProgress
+                && gameplay.IsPaused
+                && gameplay.CurrentGameplayTime > 4000
+                && gameplay.CurrentGameplayTime < 5000
+                && !gameplay.IsLanePressed(0));
+            AddStep("seek backward with Left", () =>
+                gameplay.HandleKeyDownInput(
+                    Key.Left,
+                    false,
+                    false,
+                    false));
+            AddUntilStep("rewind restores the earlier state", () =>
+                !gameplay.ReplaySeekInProgress
+                && gameplay.IsPaused
+                && gameplay.CurrentGameplayTime < 0.001
+                && !gameplay.IsLanePressed(0));
+            AddStep("preview replay progress midpoint", () =>
+                controls.PreviewProgressForTest(0.5));
+            AddAssert("progress preview updates without seeking", () =>
+                Math.Abs(controls.DisplayedProgressMilliseconds - 2500)
+                < 0.001
+                && gameplay.CurrentGameplayTime < 0.001
+                && controls.TimeText == "00:02 / 00:05");
+            AddStep("commit replay progress midpoint", () =>
+                controls.CommitProgressForTest());
+            AddUntilStep("progress commit seeks once and stays paused", () =>
+                !gameplay.ReplaySeekInProgress
+                && gameplay.IsPaused
+                && Math.Abs(gameplay.CurrentGameplayTime - 2500) < 0.001
+                && Math.Abs(controls.DisplayedProgressMilliseconds - 2500)
+                   < 0.001);
             AddStep("resume replay with Space", () =>
                 gameplay.HandleKeyDownInput(
                     Key.Space,

@@ -95,7 +95,9 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
 {
     private readonly Box background;
     private readonly Box bottomAccent;
+    private readonly Container iconTile;
     private readonly SpriteIcon icon;
+    private readonly Sprite diamond;
     private readonly Circle badge;
     private readonly SpriteText countLabel;
     private bool open;
@@ -115,19 +117,45 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Colour = SongSelectSurface.Ivory(0.99f),
             },
-            icon = new SpriteIcon
+            iconTile = new Container
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Y = 14,
-                Size = new Vector2(27),
-                Icon = FontAwesome.Solid.SlidersH,
-                Colour = HomeControlColours.Navy,
+                Y = 7,
+                Size = new Vector2(42),
+                Masking = true,
+                CornerRadius = 10,
+                BorderThickness = 1,
+                BorderColour = new Color4(
+                    HomeControlColours.Pink.R,
+                    HomeControlColours.Pink.G,
+                    HomeControlColours.Pink.B,
+                    0.38f),
+                Children =
+                [
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(
+                            HomeControlColours.Pink.R,
+                            HomeControlColours.Pink.G,
+                            HomeControlColours.Pink.B,
+                            0.08f),
+                    },
+                    icon = new SpriteIcon
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(23),
+                        Icon = FontAwesome.Solid.SlidersH,
+                        Colour = HomeControlColours.Navy,
+                    },
+                ],
             },
-            new Sprite
+            diamond = new Sprite
             {
-                Position = new Vector2(8, 5),
-                Size = new Vector2(22),
+                Position = new Vector2(7, 4),
+                Size = new Vector2(24),
                 Texture = diamondTexture,
                 FillMode = FillMode.Fit,
             },
@@ -195,6 +223,13 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
         icon.Colour = open
             ? HomeControlColours.Pink
             : HomeControlColours.Navy;
+        iconTile.BorderColour = open
+            ? HomeControlColours.Yellow
+            : new Color4(
+                HomeControlColours.Pink.R,
+                HomeControlColours.Pink.G,
+                HomeControlColours.Pink.B,
+                0.38f);
         BorderColour = open
             ? HomeControlColours.Yellow
             : Color4.Transparent;
@@ -209,6 +244,10 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
             HomeControlColours.PaleCyan,
             110,
             Easing.OutQuint);
+        iconTile.RotateTo(-5, 130, Easing.OutQuint);
+        icon.RotateTo(9, 150, Easing.OutQuint);
+        diamond.RotateTo(12, 160, Easing.OutQuint);
+        bottomAccent.ResizeWidthTo(64, 150, Easing.OutQuint);
         this.ScaleTo(1.025f, 110, Easing.OutQuint);
         BorderColour = HomeControlColours.Yellow;
         return true;
@@ -217,7 +256,23 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
     protected override void OnHoverLost(HoverLostEvent e)
     {
         this.ScaleTo(1, 130, Easing.OutQuint);
+        iconTile.RotateTo(0, 180, Easing.OutQuint);
+        icon.RotateTo(0, 200, Easing.OutQuint);
+        diamond.RotateTo(0, 220, Easing.OutQuint);
+        bottomAccent.ResizeWidthTo(36, 150, Easing.OutQuint);
         SetOpen(open);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        this.ScaleTo(0.97f, 70, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        this.ScaleTo(IsHovered ? 1.025f : 1, 180, Easing.OutBack);
+        base.OnMouseUp(e);
     }
 }
 

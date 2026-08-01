@@ -2621,12 +2621,16 @@ internal partial class GameplayStepperModeButton : ClickableContainer
 {
     private readonly Bindable<ScrollSpeedAdjustmentMode> mode;
     private readonly Box background;
+    private readonly Box switchTrack;
+    private readonly Circle switchThumb;
     private readonly SpriteText text;
     private bool isEnabled = true;
 
     public override bool AcceptsFocus => isEnabled;
 
     internal ScrollSpeedAdjustmentMode DisplayedMode => mode.Value;
+    internal bool IsFineAdjustmentEnabled =>
+        mode.Value == ScrollSpeedAdjustmentMode.Milliseconds;
 
     public GameplayStepperModeButton(
         Bindable<ScrollSpeedAdjustmentMode> mode)
@@ -2651,10 +2655,40 @@ internal partial class GameplayStepperModeButton : ClickableContainer
             },
             text = new SpriteText
             {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Font = HomeTypography.Display(13),
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 7,
+                Text = YokkoStrings.Get(
+                    "settings.general.fine_adjustment"),
+                Font = HomeTypography.Display(12),
                 Colour = HomeControlColours.Navy,
+            },
+            new Container
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -5,
+                Size = new Vector2(32, 16),
+                Masking = true,
+                CornerRadius = 8,
+                BorderThickness = 1,
+                BorderColour = HomeControlColours.Navy,
+                Children = new Drawable[]
+                {
+                    switchTrack = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = SettingsTheme.Divider,
+                    },
+                    switchThumb = new Circle
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.Centre,
+                        X = 8,
+                        Size = new Vector2(11),
+                        Colour = Color4.White,
+                    },
+                },
             },
         };
 
@@ -2682,13 +2716,13 @@ internal partial class GameplayStepperModeButton : ClickableContainer
     {
         bool milliseconds =
             change.NewValue == ScrollSpeedAdjustmentMode.Milliseconds;
-        text.Text = YokkoStrings.Get(
-            milliseconds
-                ? "settings.gameplay.scroll_speed_mode_milliseconds"
-                : "settings.gameplay.scroll_speed_mode_scale");
         background.Colour = milliseconds
             ? SettingsTheme.StatusCyan
             : SettingsTheme.PaleCyan;
+        switchTrack.Colour = milliseconds
+            ? HomeControlColours.Navy
+            : SettingsTheme.Divider;
+        switchThumb.X = milliseconds ? 24 : 8;
     }
 
     protected override bool OnHover(HoverEvent e)

@@ -15,6 +15,9 @@ internal partial class SongSelectPlayButton : ClickableContainer
 {
     private readonly Box background;
     private readonly SpriteIcon chevron;
+    private readonly Container playTile;
+    private readonly Box shine;
+    private readonly Sprite tape;
 
     public SongSelectPlayButton(
         Action action,
@@ -40,15 +43,26 @@ internal partial class SongSelectPlayButton : ClickableContainer
             new Container
             {
                 Size = new Vector2(397, 77),
+                Masking = true,
+                CornerRadius = 11,
                 Children =
                 [
                     panel,
-                    new Container
+                    shine = new Box
+                    {
+                        Position = new Vector2(-88, -30),
+                        Size = new Vector2(40, 145),
+                        Rotation = -18,
+                        Colour = new Color4(1f, 1f, 1f, 0.18f),
+                    },
+                    playTile = new Container
                     {
                         Position = new Vector2(13, 7),
                         Size = new Vector2(64),
                         Masking = true,
                         CornerRadius = 8,
+                        BorderThickness = 1.5f,
+                        BorderColour = new Color4(1f, 1f, 1f, 0.32f),
                         Children =
                         [
                             new Box
@@ -96,7 +110,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
                     },
                 ],
             },
-            new Sprite
+            tape = new Sprite
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.Centre,
@@ -115,6 +129,8 @@ internal partial class SongSelectPlayButton : ClickableContainer
             110,
             Easing.OutQuint);
         chevron.MoveToX(-10, 130, Easing.OutQuint);
+        playTile.RotateTo(-3, 150, Easing.OutQuint);
+        tape.RotateTo(6, 170, Easing.OutQuint);
         this.ScaleTo(1.018f, 110, Easing.OutQuint);
         return true;
     }
@@ -123,6 +139,29 @@ internal partial class SongSelectPlayButton : ClickableContainer
     {
         background.FadeColour(SongSelectTheme.Yellow, 130, Easing.OutQuint);
         chevron.MoveToX(-15, 130, Easing.OutQuint);
+        playTile.RotateTo(0, 190, Easing.OutQuint);
+        tape.RotateTo(0, 210, Easing.OutQuint);
         this.ScaleTo(1, 130, Easing.OutQuint);
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+        shine.MoveToX(-88)
+             .Then()
+             .MoveToX(438, 820, Easing.InOutQuart)
+             .Loop(2500);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        this.ScaleTo(0.975f, 75, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        this.ScaleTo(IsHovered ? 1.018f : 1, 190, Easing.OutBack);
+        base.OnMouseUp(e);
     }
 }

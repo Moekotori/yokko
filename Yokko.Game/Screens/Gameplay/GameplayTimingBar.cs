@@ -277,6 +277,10 @@ public partial class GameplayTimingBar : CompositeDrawable
         releaseTrendMarker.Alpha = 0;
         latestText.Text = string.Empty;
         latestText.Alpha = 0;
+        RecordedMarkerCount = 0;
+        LatestHitErrorMilliseconds = null;
+        LatestMarkerPosition = 0;
+        LatestPhase = default;
     }
 
     private void moveTrendMarker(Drawable marker, double error)

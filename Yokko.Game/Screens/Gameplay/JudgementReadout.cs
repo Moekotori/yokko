@@ -97,6 +97,14 @@ public partial class JudgementReadout : CompositeDrawable
         Alpha = 1;
     }
 
+    internal void Clear()
+    {
+        hideAtMilliseconds = double.NegativeInfinity;
+        ratingText.Text = string.Empty;
+        errorText.Text = string.Empty;
+        Alpha = 0;
+    }
+
     internal void SetDisplayDuration(double milliseconds)
     {
         displayDurationMilliseconds = Math.Clamp(

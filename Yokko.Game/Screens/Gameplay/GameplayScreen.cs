@@ -50,6 +50,7 @@ public partial class GameplayScreen : Screen
     private const float minimumPlayfieldWidthScale = 0.2f;
     private const float maximumPlayfieldWidthScale = 2.5f;
     private const double playbackRateStep = 0.05;
+    private const double replaySeekStepMilliseconds = 5000;
     private const double minimumPlaybackRate = 0.25;
     private const double maximumPlaybackRate = 4;
     private const double completionSettleMilliseconds = 180;
@@ -172,6 +173,8 @@ public partial class GameplayScreen : Screen
     private GameplayScrollSpeedOverlay scrollSpeedOverlay;
     private GameplayPlaybackRateOverlay playbackRateOverlay;
     private GameplayReplayControlsOverlay replayControls;
+    private bool replaySeekInProgress;
+    private double pendingReplaySeekTarget = double.NaN;
     private double appliedScrollSpeed;
     private Task keysoundPreparationTask = Task.CompletedTask;
     private GameplayHitSamplePlaybackBinding[][] headSamplesByHitObject = [];
@@ -207,6 +210,7 @@ public partial class GameplayScreen : Screen
         completionTransitionElapsedMilliseconds;
     internal bool GameplayFailed => gameplayFailed;
     internal bool IsPaused => isPaused;
+    internal bool ReplaySeekInProgress => replaySeekInProgress;
     internal bool IsLayoutEditing =>
         layoutEditor?.IsSessionActive == true;
     internal bool IsLayoutTestPlaying =>
@@ -539,6 +543,9 @@ public partial class GameplayScreen : Screen
         {
             AddInternal(replayControls = new GameplayReplayControlsOverlay(
                 () => _ = toggleReplayPlaybackAsync(),
+                () => requestReplaySeek(-1),
+                () => requestReplaySeek(1),
+                requestReplaySeekTo,
                 () => adjustReplayPlaybackRate(-playbackRateStep),
                 () => adjustReplayPlaybackRate(playbackRateStep)));
         }
@@ -650,6 +657,7 @@ public partial class GameplayScreen : Screen
             || gameplayCompleted
             || gameplayFailed
             || retryTransitionInProgress
+            || replaySeekInProgress
             || isPaused)
             return;
 
@@ -996,6 +1004,12 @@ public partial class GameplayScreen : Screen
                 cancelResumeCountdown();
             }
 
+            return true;
+        }
+
+        if (ReplayMode && key is Key.Left or Key.Right)
+        {
+            requestReplaySeek(key == Key.Left ? -1 : 1);
             return true;
         }
 
@@ -1556,6 +1570,11 @@ public partial class GameplayScreen : Screen
                 break;
             }
 
+            collectAndApplyPassiveJudgements(
+                Math.BitDecrement(frame.TimeMilliseconds));
+            if (gameplayFailed)
+                break;
+
             ulong changedLanes = previousLanes ^ frame.PressedLanes;
             for (int lane = 0; lane < pressedLanes.Length; lane++)
             {
@@ -1569,6 +1588,27 @@ public partial class GameplayScreen : Screen
                     applyLaneRelease(lane, frame.TimeMilliseconds);
             }
         }
+    }
+
+    private void collectAndApplyPassiveJudgements(double gameplayTime)
+    {
+        expiredJudgements.Clear();
+        judgementState.CollectMineJudgements(
+            gameplayTime,
+            pressedLanes,
+            expiredJudgements);
+        judgementState.CollectExpiredMisses(
+            gameplayTime,
+            expiredJudgements);
+        foreach (JudgementEvent judgement in expiredJudgements)
+        {
+            applyJudgement(judgement);
+            if (gameplayFailed)
+                break;
+        }
+
+        if (expiredJudgements.Count > 0 && !gameplayFailed)
+            syncAllSlidingSamples();
     }
 
     private long applyLanePress(
@@ -3270,6 +3310,220 @@ public partial class GameplayScreen : Screen
             isPaused);
     }
 
+    private void requestReplaySeek(double direction)
+    {
+        if (!ReplayMode
+            || direction == 0
+            || pauseTransitionInProgress
+            || gameplayBlocked
+            || gameplayCompleted
+            || gameplayFailed
+            || retryTransitionInProgress)
+        {
+            return;
+        }
+
+        double origin = double.IsFinite(pendingReplaySeekTarget)
+            ? pendingReplaySeekTarget
+            : currentGameplayTime;
+        double step = replaySeekStepMilliseconds
+                      * currentPlaybackRate(origin);
+        requestReplaySeekTo(
+            origin + Math.Sign(direction) * step);
+    }
+
+    private void requestReplaySeekTo(double targetGameplayTime)
+    {
+        if (!ReplayMode
+            || !double.IsFinite(targetGameplayTime)
+            || pauseTransitionInProgress
+            || gameplayBlocked
+            || gameplayCompleted
+            || gameplayFailed
+            || retryTransitionInProgress)
+        {
+            replayControls?.CompleteSeekPreview(
+                isPaused ? pausedGameplayTime : currentGameplayTime);
+            return;
+        }
+
+        pendingReplaySeekTarget = Math.Clamp(
+            targetGameplayTime,
+            0,
+            completionTimeMilliseconds);
+        if (!replaySeekInProgress)
+            _ = processReplaySeekRequestsAsync();
+    }
+
+    private async Task processReplaySeekRequestsAsync()
+    {
+        if (replaySeekInProgress)
+            return;
+
+        replaySeekInProgress = true;
+        try
+        {
+            while (double.IsFinite(pendingReplaySeekTarget))
+            {
+                double target = pendingReplaySeekTarget;
+                await seekReplayToAsync(target).ConfigureAwait(true);
+                if (pendingReplaySeekTarget == target)
+                    pendingReplaySeekTarget = double.NaN;
+            }
+        }
+        finally
+        {
+            replaySeekInProgress = false;
+        }
+    }
+
+    private async Task seekReplayToAsync(double targetGameplayTime)
+    {
+        bool remainPaused = isPaused;
+        double previousGameplayTime = currentGameplayTime;
+        double previousAudioPosition = hasAudioClock
+            ? Math.Max(
+                0,
+                previousGameplayTime - activeUserOffsetMilliseconds)
+            : 0;
+        targetGameplayTime = Math.Clamp(
+            targetGameplayTime,
+            0,
+            completionTimeMilliseconds);
+
+        GameplayReplayRestoredState restored =
+            GameplayReplayStateRebuilder.Rebuild(
+                beatmap,
+                replay,
+                mods,
+                judgementState.Windows,
+                judgementConfiguration,
+                minesEnabled,
+                targetGameplayTime);
+        if (restored.HealthState.HasFailed)
+        {
+            diagnostics.Trace(
+                "REPLAY",
+                "seek-rejected",
+                $"target={targetGameplayTime:0.###}ms | reason=failed-state");
+            replayControls?.CompleteSeekPreview(previousGameplayTime);
+            return;
+        }
+
+        isPaused = true;
+        pausedGameplayTime = previousGameplayTime;
+        try
+        {
+            if (hasAudioClock && audioStarted)
+            {
+                await audioEngine.PauseAsync().ConfigureAwait(true);
+                double targetAudioPosition = Math.Max(
+                    0,
+                    targetGameplayTime - activeUserOffsetMilliseconds);
+                await audioEngine.SeekAsync(targetAudioPosition)
+                                 .ConfigureAwait(true);
+                if (remainPaused)
+                    await audioEngine.PauseAsync().ConfigureAwait(true);
+                pausedAudioPosition = targetAudioPosition;
+            }
+            else
+            {
+                frameClockGameplayTime = targetGameplayTime;
+                frameClockLastFrameworkTime = Time.Current;
+                startTimeMilliseconds =
+                    Time.Current
+                    - targetGameplayTime
+                      / currentPlaybackRate(targetGameplayTime);
+                pausedAudioPosition = 0;
+            }
+
+            stopAllSlidingSamples();
+            judgementState = restored.JudgementState;
+            healthState = restored.HealthState;
+            adaptiveSpeedState = restored.AdaptiveSpeedState;
+            replayTimeline = restored.Timeline;
+            keysoundSelector = new GameplayKeysoundSelector(
+                beatmap,
+                judgementState);
+            Array.Copy(
+                restored.PressedLanes,
+                pressedLanes,
+                pressedLanes.Length);
+            expiredJudgements.Clear();
+            inputJudgements.Clear();
+            resetScheduledSampleCursor(targetGameplayTime);
+            pausedGameplayTime = targetGameplayTime;
+            lastStableAudioGameplayTime = targetGameplayTime;
+            lastAppliedPlaybackRate = double.NaN;
+            lastApproachPlaybackRate = double.NaN;
+            timingBar.Clear();
+            judgementReadout.Clear();
+            comboReadout.UpdateState(judgementState.Combo);
+            rebuildGameplayPresentation(reloadSkin: false);
+
+            isPaused = remainPaused;
+            if (!remainPaused)
+                syncAllSlidingSamples();
+            diagnostics.Trace(
+                "REPLAY",
+                "seeked",
+                $"from={previousGameplayTime:0.###}ms"
+                + $" | target={targetGameplayTime:0.###}ms"
+                + $" | paused={remainPaused}");
+        }
+        catch (Exception exception)
+        {
+            pendingReplaySeekTarget = double.NaN;
+            isPaused = remainPaused;
+            if (hasAudioClock && audioStarted)
+            {
+                try
+                {
+                    await audioEngine.SeekAsync(previousAudioPosition)
+                                     .ConfigureAwait(true);
+                    if (remainPaused)
+                        await audioEngine.PauseAsync().ConfigureAwait(true);
+                }
+                catch (Exception restoreException)
+                {
+                    Logger.Error(
+                        restoreException,
+                        "Replay playback could not restore audio after a failed seek.",
+                        LoggingTarget.Runtime);
+                }
+            }
+
+            Logger.Error(
+                exception,
+                "Replay playback could not seek.",
+                LoggingTarget.Runtime);
+        }
+        finally
+        {
+            replayControls?.CompleteSeekPreview(
+                isPaused ? pausedGameplayTime : currentGameplayTime);
+            replayControls?.UpdateState(
+                isPaused ? pausedGameplayTime : currentGameplayTime,
+                completionTimeMilliseconds,
+                currentPlaybackRate(
+                    isPaused ? pausedGameplayTime : currentGameplayTime),
+                isPaused);
+        }
+    }
+
+    private void resetScheduledSampleCursor(double gameplayTime)
+    {
+        nextScheduledSampleIndex = 0;
+        while (nextScheduledSampleIndex < beatmap.ScheduledSamples.Count
+               && beatmap.ScheduledSamples[nextScheduledSampleIndex]
+                         .TimeMilliseconds <= gameplayTime)
+        {
+            nextScheduledSampleIndex++;
+        }
+
+        previousScheduledSampleTime = gameplayTime;
+    }
+
     private async Task toggleReplayPlaybackAsync()
     {
         if (!ReplayMode
@@ -3277,7 +3531,8 @@ public partial class GameplayScreen : Screen
             || gameplayBlocked
             || gameplayCompleted
             || gameplayFailed
-            || retryTransitionInProgress)
+            || retryTransitionInProgress
+            || replaySeekInProgress)
         {
             return;
         }

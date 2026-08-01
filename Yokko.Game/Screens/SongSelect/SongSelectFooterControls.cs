@@ -14,9 +14,11 @@ namespace Yokko.Game.Screens.SongSelect;
 internal partial class SongSelectFooterBackButton : ClickableContainer
 {
     private readonly Box background;
+    private readonly Container keycap;
     private readonly Box underline;
     private readonly SpriteIcon chevron;
     private readonly SpriteText backLabel;
+    private readonly Drawable diamondDecoration;
 
     public SongSelectFooterBackButton(Action action)
         : this(action, null)
@@ -45,7 +47,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
         {
             SongSelectSurface.CreateShadow(10, 0.18f, 3),
             panel,
-            new Container
+            keycap = new Container
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -93,7 +95,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
                 Icon = FontAwesome.Solid.ChevronRight,
                 Colour = HomeControlColours.Pink,
             },
-            createDiamondDecoration(diamondTexture),
+            diamondDecoration = createDiamondDecoration(diamondTexture),
             underline = new Box
             {
                 Anchor = Anchor.BottomLeft,
@@ -131,6 +133,8 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
         backLabel.FadeColour(Color4.White, 120, Easing.OutQuint);
         underline.ResizeWidthTo(58, 150, Easing.OutQuint);
         chevron.MoveToX(-9, 150, Easing.OutQuint);
+        keycap.RotateTo(-4, 140, Easing.OutQuint);
+        diamondDecoration.RotateTo(8, 160, Easing.OutQuint);
         this.ScaleTo(1.018f, 120, Easing.OutQuint);
         return true;
     }
@@ -144,7 +148,21 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
         backLabel.FadeColour(SongSelectTheme.Navy, 140, Easing.OutQuint);
         underline.ResizeWidthTo(0, 130, Easing.OutQuint);
         chevron.MoveToX(-13, 130, Easing.OutQuint);
+        keycap.RotateTo(0, 180, Easing.OutQuint);
+        diamondDecoration.RotateTo(0, 200, Easing.OutQuint);
         this.ScaleTo(1, 140, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        this.ScaleTo(0.975f, 80, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        this.ScaleTo(IsHovered ? 1.018f : 1, 180, Easing.OutBack);
+        base.OnMouseUp(e);
     }
 }
 
@@ -152,6 +170,9 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
 {
     private readonly Box background;
     private readonly Color4 accent;
+    private readonly Container iconTile;
+    private readonly SpriteIcon icon;
+    private readonly Box bottomAccent;
 
     public SongSelectFooterToolButton(
         string label,
@@ -170,14 +191,32 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.Transparent,
             },
-            new SpriteIcon
+            iconTile = new Container
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Y = 14,
-                Size = new Vector2(27),
-                Icon = icon,
-                Colour = accent,
+                Y = 7,
+                Size = new Vector2(42),
+                Masking = true,
+                CornerRadius = 10,
+                BorderThickness = 1,
+                BorderColour = new Color4(accent.R, accent.G, accent.B, 0.38f),
+                Children =
+                [
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(accent.R, accent.G, accent.B, 0.08f),
+                    },
+                    this.icon = new SpriteIcon
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(23),
+                        Icon = icon,
+                        Colour = accent,
+                    },
+                ],
             },
             new SpriteText
             {
@@ -189,7 +228,7 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
                 Spacing = new Vector2(1.2f, 0),
                 Colour = SongSelectTheme.Navy,
             },
-            new Box
+            bottomAccent = new Box
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
@@ -207,6 +246,9 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
             SongSelectTheme.PaleCyan,
             110,
             Easing.OutQuint);
+        iconTile.RotateTo(-5, 130, Easing.OutQuint);
+        icon.RotateTo(12, 150, Easing.OutQuint);
+        bottomAccent.ResizeWidthTo(64, 150, Easing.OutQuint);
         this.ScaleTo(1.025f, 110, Easing.OutQuint);
         return true;
     }
@@ -217,6 +259,21 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
             Color4.Transparent,
             130,
             Easing.OutQuint);
+        iconTile.RotateTo(0, 180, Easing.OutQuint);
+        icon.RotateTo(0, 200, Easing.OutQuint);
+        bottomAccent.ResizeWidthTo(36, 150, Easing.OutQuint);
         this.ScaleTo(1, 130, Easing.OutQuint);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        this.ScaleTo(0.97f, 70, Easing.OutQuint);
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        this.ScaleTo(IsHovered ? 1.025f : 1, 180, Easing.OutBack);
+        base.OnMouseUp(e);
     }
 }

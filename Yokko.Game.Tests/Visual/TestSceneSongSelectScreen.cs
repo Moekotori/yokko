@@ -95,7 +95,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.TopNavigationLogoSize
                == new Vector2(168, 57)
             && songSelectScreen.TopNavigationProfileSize
-               == new Vector2(172, 46));
+               == new Vector2(210, 46));
         AddAssert("browser starts below search, rating and browse controls", () =>
             Math.Abs(songSelectScreen.SongBrowserTop - 232) < 0.01f);
         AddAssert("difficulty filter defaults to all MSD charts", () =>
@@ -160,6 +160,14 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen
                .ChildrenOfType<SongSelectModsToggleButton>()
                .Single().Size == new Vector2(154, 82));
+        AddAssert("demo profile is cleared and pp is removed", () =>
+            songSelectScreen.AccountDisplayName == "YOKKO DEMO"
+            && songSelectScreen.AccountLevelText == "LV.114514"
+            && songSelectScreen.AccountMetricLabels.SequenceEqual(
+                new[] { "PLAYS", "ACC", "GLOBAL" })
+            && songSelectScreen.AccountMetricValues.SequenceEqual(
+                new[] { "0", "0.00%", "#0" })
+            && !songSelectScreen.AccountMetricLabels.Contains("PP"));
         AddAssert("large ui scale has collision-safe footer geometry", () =>
             SongSelectScreen.FooterToolDockSizeFor(YokkoUiScale.Large)
                 == new Vector2(378, 82)

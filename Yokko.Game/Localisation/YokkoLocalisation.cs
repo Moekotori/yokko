@@ -649,13 +649,17 @@ internal static class YokkoStrings
                 "语言更改会立即生效并自动保存。",
                 "言語の変更はすぐに反映され、自動的に保存されます。"),
             ["settings.general.mania_scroll_speed"] = new(
-                "osu!mania scroll speed",
-                "osu!mania 流速",
-                "osu!mania スクロール速度"),
+                "Scroll speed",
+                "流速",
+                "スクロール速度"),
             ["settings.general.mania_scroll_speed_note"] = new(
-                "Switch between the original 1–40 scale and advanced 1 ms tuning · Ctrl + / Ctrl − or F3 / F4 in gameplay.",
-                "可切换原版 1–40 档位与进阶 1 ms 精调 · 游玩时按 Ctrl + / Ctrl − 或 F3 / F4。",
-                "従来の 1–40 段階と上級 1 ms 微調整を切替 · プレイ中は Ctrl + / Ctrl − または F3 / F4。"),
+                "Uses the original 1–40 scale; enable fine adjustment for 1 ms steps · Ctrl + / Ctrl − or F3 / F4 in gameplay.",
+                "默认使用原版 1–40 档位；开启微调后按 1 ms 调整 · 游玩时按 Ctrl + / Ctrl − 或 F3 / F4。",
+                "通常は従来の 1–40 段階を使用し、微調整を有効にすると 1 ms 刻みになります · プレイ中は Ctrl + / Ctrl − または F3 / F4。"),
+            ["settings.general.fine_adjustment"] = new(
+                "Fine",
+                "微调",
+                "微調整"),
             ["settings.general.debug_console"] = new(
                 "Live debug console · F12",
                 "实时调试控制台 · F12",

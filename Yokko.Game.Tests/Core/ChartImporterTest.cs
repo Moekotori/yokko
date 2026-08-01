@@ -1042,7 +1042,7 @@ HitObjects:
   ],
   "effect": [
     { "beat": [2, 0, 1], "scroll": 0.5 },
-    { "beat": [3, 0, 1], "jump": 250 },
+    { "beat": [3, 0, 1], "jump": 250, "sign": 0.5 },
     { "beat": [5, 0, 1], "sv": 2.0 }
   ],
   "note": [
@@ -1089,6 +1089,9 @@ HitObjects:
                     }));
                 Assert.That(result.Warnings.Any(warning =>
                     warning.Contains("jump", StringComparison.OrdinalIgnoreCase)),
+                    Is.True);
+                Assert.That(result.Warnings.Any(warning =>
+                    warning.Contains("sign", StringComparison.OrdinalIgnoreCase)),
                     Is.True);
             });
         }

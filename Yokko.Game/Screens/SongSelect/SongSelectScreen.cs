@@ -66,6 +66,8 @@ public partial class SongSelectScreen : Screen
     private const float browse_height =
         designed_height - footer_height - browse_top - 16;
     private const int initial_artwork_preload_limit = 16;
+    private const string demo_profile_name = "YOKKO DEMO";
+    private const string demo_profile_level = "LV.114514";
 
     private readonly List<SongSelectEntry> entries = createEntries();
     private readonly IAudioEngine suppliedPreviewAudioEngine;
@@ -97,7 +99,7 @@ public partial class SongSelectScreen : Screen
     private Container songBrowser;
     private Container footer;
     private SongSelectFooterBackButton footerBackButton;
-    private Container accountCard;
+    private SongSelectAccountCard accountCard;
     private Container footerToolDock;
     private Container[] footerToolShadows;
     private Box[] footerToolDividers;
@@ -306,6 +308,14 @@ public partial class SongSelectScreen : Screen
         accountCard?.Position ?? Vector2.Zero;
     internal Vector2 AccountCardSize =>
         accountCard?.Size ?? Vector2.Zero;
+    internal string AccountDisplayName =>
+        accountCard?.DisplayName ?? string.Empty;
+    internal string AccountLevelText =>
+        accountCard?.LevelText ?? string.Empty;
+    internal IReadOnlyList<string> AccountMetricLabels =>
+        accountCard?.MetricLabels ?? Array.Empty<string>();
+    internal IReadOnlyList<string> AccountMetricValues =>
+        accountCard?.MetricValues ?? Array.Empty<string>();
     internal int FooterToolShadowCount => footerToolShadows?.Length ?? 0;
     internal static Vector2 FooterToolDockSizeFor(YokkoUiScale scale) =>
         new(scale == YokkoUiScale.Large ? 378 : 462, 82);
@@ -1614,7 +1624,7 @@ public partial class SongSelectScreen : Screen
         Anchor = Anchor.CentreRight,
         Origin = Anchor.CentreRight,
         X = -72,
-        Size = new Vector2(172, 46),
+        Size = new Vector2(210, 46),
         Masking = true,
         CornerRadius = 23,
         BorderThickness = 1,
@@ -1640,7 +1650,7 @@ public partial class SongSelectScreen : Screen
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = 29,
-                Text = "MOCHI",
+                Text = demo_profile_name,
                 Font = HomeTypography.Display(14),
                 Colour = Color4.White,
             },
@@ -2018,6 +2028,15 @@ public partial class SongSelectScreen : Screen
                     Position = new Vector2(24, 24),
                 },
                 createAccountCard(),
+                new Sprite
+                {
+                    Position = new Vector2(800, 34),
+                    Size = new Vector2(36),
+                    Texture = textures.Get(
+                        "SongSelect/Cute/sticker-cyan-sparkle"),
+                    FillMode = FillMode.Fit,
+                    Alpha = 0.76f,
+                },
                 modPanel,
                 createFooterToolDock(mods),
                 new SongSelectPlayButton(
@@ -2146,126 +2165,14 @@ public partial class SongSelectScreen : Screen
 
     internal void OpenOptions() => this.Push(new SettingsScreen());
 
-    private Drawable createAccountCard()
-    {
-        Texture avatar = textures.Get(
-            "SongSelect/Ui/yokko-avatar-256");
-        Container panel = SongSelectSurface.CreateCard(
-            out _,
-            SongSelectSurface.Ivory(0.98f),
-            new Color4(
-                SongSelectTheme.Cyan.R,
-                SongSelectTheme.Cyan.G,
-                SongSelectTheme.Cyan.B,
-                0.48f),
-            10,
-            1.25f);
-
-        return accountCard = new Container
+    private Drawable createAccountCard() => accountCard =
+        new SongSelectAccountCard(
+            demo_profile_name,
+            demo_profile_level,
+            textures.Get("SongSelect/Ui/yokko-avatar-256"),
+            textures.Get("SongSelect/Cute/sticker-star"))
         {
             Position = new Vector2(246, 24),
-            Size = new Vector2(520, 82),
-            Children =
-            [
-                SongSelectSurface.CreateShadow(10, 0.18f, 3),
-                panel,
-                new Container
-                {
-                    Position = new Vector2(9, 7),
-                    Size = new Vector2(68),
-                    Masking = true,
-                    CornerRadius = 32,
-                    BorderThickness = 2,
-                    BorderColour = SongSelectTheme.Cyan,
-                    Child = new Sprite
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Texture = avatar,
-                        FillMode = FillMode.Fill,
-                    },
-                },
-                new Circle
-                {
-                    Position = new Vector2(63, 58),
-                    Size = new Vector2(13),
-                    BorderThickness = 2,
-                    BorderColour = Color4.White,
-                    Colour = new Color4(0.24f, 0.82f, 0.48f, 1f),
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(92, 7),
-                    Text = "MOCHI",
-                    Font = HomeTypography.Display(18),
-                    Colour = SongSelectTheme.Navy,
-                },
-                new SpriteIcon
-                {
-                    Position = new Vector2(181, 17),
-                    Size = new Vector2(7),
-                    Icon = FontAwesome.Solid.Circle,
-                    Colour = new Color4(0.22f, 0.72f, 0.46f, 1f),
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(193, 12),
-                    Text = "ONLINE",
-                    Font = HomeTypography.Display(9),
-                    Colour = new Color4(0.22f, 0.72f, 0.46f, 1f),
-                },
-                accountMetric("7,272", "PP", 92),
-                accountMetric("98.76%", "ACC", 190),
-                accountMetric("#12,846", "GLOBAL", 292),
-                new Box
-                {
-                    Position = new Vector2(92, 67),
-                    Size = new Vector2(286, 5),
-                    Colour = new Color4(
-                        SongSelectTheme.Cyan.R,
-                        SongSelectTheme.Cyan.G,
-                        SongSelectTheme.Cyan.B,
-                        0.24f),
-                },
-                new Box
-                {
-                    Position = new Vector2(92, 67),
-                    Size = new Vector2(162, 5),
-                    Colour = SongSelectTheme.Cyan,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(405, 57),
-                    Text = "LV.45",
-                    Font = HomeTypography.Display(11),
-                    Colour = SongSelectTheme.Pink,
-                },
-            ],
-        };
-    }
-
-    private static Drawable accountMetric(
-        string value,
-        string label,
-        float x) => new Container
-        {
-            Position = new Vector2(x, 31),
-            Size = new Vector2(86, 27),
-            Children =
-        [
-            new SpriteText
-            {
-                Text = value,
-                Font = HomeTypography.Display(12),
-                Colour = SongSelectTheme.Navy,
-            },
-            new SpriteText
-            {
-                Y = 14,
-                Text = label,
-                Font = HomeTypography.Display(8),
-                Colour = SongSelectTheme.Cyan,
-            },
-        ],
         };
 
     private Container createModPanel() => new Container
@@ -3675,7 +3582,7 @@ public partial class SongSelectScreen : Screen
                                                .Select((score, rank) =>
                                                    new SongSelectScore(
                                                        rank + 1,
-                                                       "MOCHI",
+                                                       demo_profile_name,
                                                        "yokko",
                                                        score.Rank,
                                                        (int)Math.Min(int.MaxValue, score.Score),

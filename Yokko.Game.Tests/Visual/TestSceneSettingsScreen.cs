@@ -470,14 +470,16 @@ namespace Yokko.Game.Tests.Visual
                     .Single());
             AddAssert("advanced mode starts off", () =>
                 scrollSpeedModeButton.DisplayedMode
-                    == ScrollSpeedAdjustmentMode.OsuManiaScale);
-            AddStep("click advanced ms tuning", () =>
+                    == ScrollSpeedAdjustmentMode.OsuManiaScale
+                && !scrollSpeedModeButton.IsFineAdjustmentEnabled);
+            AddStep("enable fine adjustment switch", () =>
                 scrollSpeedModeButton.TriggerClick());
             AddStep("set approach time to 442 ms", () =>
                 gameplay.SetScrollTimeMilliseconds(442));
             AddAssert("advanced millisecond mode changed time", () =>
                 gameplay.CurrentScrollSpeedAdjustmentMode
                     == ScrollSpeedAdjustmentMode.Milliseconds
+                && scrollSpeedModeButton.IsFineAdjustmentEnabled
                 &&
                 System.Math.Abs(
                     OsuManiaScrollSpeed.ComputeScrollTime(
@@ -879,6 +881,7 @@ namespace Yokko.Game.Tests.Visual
         public void TestScrollSpeedCanBeAdjustedFromGeneral()
         {
             GeneralSettingsPanel general = null;
+            GameplayStepperModeButton fineAdjustmentSwitch = null;
             double originalSpeed = OsuManiaScrollSpeed.Default;
             ScrollSpeedAdjustmentMode originalAdjustmentMode =
                 ScrollSpeedAdjustmentMode.OsuManiaScale;
@@ -892,14 +895,23 @@ namespace Yokko.Game.Tests.Visual
                 originalAdjustmentMode =
                     general.CurrentScrollSpeedAdjustmentMode;
             });
-            AddStep("enable advanced ms tuning", () =>
+            AddStep("start with fine adjustment off", () =>
                 general.SetScrollSpeedAdjustmentMode(
-                    ScrollSpeedAdjustmentMode.Milliseconds));
+                    ScrollSpeedAdjustmentMode.OsuManiaScale));
+            AddStep("capture fine adjustment switch", () =>
+                fineAdjustmentSwitch = general
+                    .ChildrenOfType<GameplayStepperModeButton>()
+                    .Single());
+            AddAssert("fine adjustment starts off", () =>
+                !fineAdjustmentSwitch.IsFineAdjustmentEnabled);
+            AddStep("enable fine adjustment", () =>
+                fineAdjustmentSwitch.TriggerClick());
             AddStep("set approach time to 479 ms", () =>
                 general.SetScrollTimeMilliseconds(479));
             AddAssert("general advanced mode changed time", () =>
                 general.CurrentScrollSpeedAdjustmentMode
                     == ScrollSpeedAdjustmentMode.Milliseconds
+                && fineAdjustmentSwitch.IsFineAdjustmentEnabled
                 &&
                 System.Math.Abs(
                     OsuManiaScrollSpeed.ComputeScrollTime(

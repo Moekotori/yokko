@@ -308,6 +308,8 @@ public sealed class MalodyChartImporter : IChartImporter
         var samples = new List<YokkoScheduledSample>();
         for (int index = 0; index < sourceNotes.Count; index++)
         {
+            // Malody type-1 sounds are authored autoplay timeline audio, not
+            // optional hit keysounds controlled by PreferKeysounds.
             JsonElement note = sourceNotes[index];
             if (note.ValueKind != JsonValueKind.Object)
                 continue;
@@ -346,6 +348,7 @@ public sealed class MalodyChartImporter : IChartImporter
     {
         var effects = new List<YokkoScrollVelocity>();
         bool hasUnsupportedJump = false;
+        bool hasUnsupportedSign = false;
         foreach (JsonElement effect in readArray(root, "effect"))
         {
             if (effect.ValueKind != JsonValueKind.Object)
@@ -363,12 +366,18 @@ public sealed class MalodyChartImporter : IChartImporter
             }
 
             hasUnsupportedJump |= effect.TryGetProperty("jump", out _);
+            hasUnsupportedSign |= effect.TryGetProperty("sign", out _);
         }
 
         if (hasUnsupportedJump)
         {
             warnings.Add(
                 "Malody jump effects are not represented by Yokko yet and were ignored.");
+        }
+        if (hasUnsupportedSign)
+        {
+            warnings.Add(
+                "Malody sign effects for bar-line density are not represented by Yokko yet and were ignored.");
         }
 
         return ScrollVelocityConversion.FromMalody(

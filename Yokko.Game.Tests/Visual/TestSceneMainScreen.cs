@@ -280,7 +280,7 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("letter ignored", () => !snake.TryHandleArrowKey(Key.Q, false));
             AddAssert("restart key handled", () => snake.TryHandleRestartKey(Key.R, false));
             AddAssert("restart returned to start", () => snake.StepCount == 0
-                                                        && Math.Abs(snake.HeadPosition.X - 132) < 0.01f
+                                                        && Math.Abs(snake.HeadPosition.X - 186) < 0.01f
                                                         && Math.Abs(snake.HeadPosition.Y - 88) < 0.01f);
             AddStep("hide signal snake", () =>
             {
@@ -291,13 +291,11 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
-        public void TestSignalSnakeWrapsAndDiesOnTailCollision()
+        public void TestSignalSnakeStopsAtBoundaryAndDiesOnTailCollision()
         {
             HomeSignalSnake snake = null;
             int steps = 0;
-            int moves = 0;
             int deaths = 0;
-            bool wrapped = false;
 
             AddStep("find signal snake", () =>
             {
@@ -307,28 +305,20 @@ namespace Yokko.Game.Tests.Visual
                 steps = snake.StepCount;
                 deaths = snake.DeathCount;
             });
-            AddStep("move through right edge", () =>
+            AddStep("move against right boundary", () =>
             {
-                for (int i = 0; i < 20; i++)
-                {
-                    float before = snake.HeadPosition.X;
+                for (int i = 0; i < 8; i++)
                     snake.HandleLane(3);
-                    moves++;
-                    if (snake.HeadPosition.X < before)
-                    {
-                        wrapped = true;
-                        break;
-                    }
-                }
             });
-            AddAssert("edge was crossed", () => wrapped);
-            AddAssert("every input advanced", () => snake.StepCount == steps + moves);
-            AddAssert("head wrapped to left edge", () => Math.Abs(snake.HeadPosition.X - 24) < 0.01f);
+            AddAssert("boundary stopped movement", () => snake.StepCount == steps + 3);
+            AddAssert("head stayed at right edge", () => Math.Abs(snake.HeadPosition.X - 240) < 0.01f);
+            AddAssert("boundary did not count as death", () => snake.DeathCount == deaths);
             AddStep("try to reverse into tail", () => snake.HandleLane(0));
             AddAssert("tail collision counted as death", () => snake.DeathCount == deaths + 1);
-            AddAssert("death did not advance movement", () => snake.StepCount == steps + moves);
-            AddWaitStep("wait for respawn", 15);
-            AddAssert("respawned at start", () => Math.Abs(snake.HeadPosition.X - 132) < 0.01f
+            AddAssert("death feedback is visible", () => snake.DeathFeedbackVisible);
+            AddAssert("death did not advance movement", () => snake.StepCount == steps + 3);
+            AddWaitStep("wait for respawn", 40);
+            AddAssert("respawned at start", () => Math.Abs(snake.HeadPosition.X - 186) < 0.01f
                                                     && Math.Abs(snake.HeadPosition.Y - 88) < 0.01f);
             AddAssert("whole tail remains visible", () => snake.VisibleTrailDotCount == 9);
         }

@@ -230,7 +230,7 @@ internal partial class HomeSignalSnake : CompositeDrawable
     private const int initialTrailLength = 9;
     private const int maximumTrailLength = 17;
 
-    private static readonly Vector2 startPosition = new(132, 88);
+    private static readonly Vector2 startPosition = new(186, 88);
     private static readonly Vector2[] directions =
     {
         new(-1, 0),
@@ -258,9 +258,11 @@ internal partial class HomeSignalSnake : CompositeDrawable
     private readonly Circle[] trailDots = new Circle[maximumTrailLength];
     private readonly Container[] pips = new Container[3];
     private readonly Vector2[] pipPositions = new Vector2[3];
+    private readonly Container arenaBorder;
     private readonly Container head;
     private readonly Triangle headArrow;
     private readonly Circle headHalo;
+    private readonly SpriteText deathLabel;
 
     private Vector2 currentPosition;
     private Vector2 currentDirection = directions[3];
@@ -279,10 +281,31 @@ internal partial class HomeSignalSnake : CompositeDrawable
 
     internal int VisibleTrailDotCount => trailDots.Count(dot => dot.Alpha > 0);
 
+    internal bool DeathFeedbackVisible => deathLabel.Alpha > 0;
+
     public HomeSignalSnake()
     {
         Size = new Vector2(260, 180);
         Alpha = 0;
+
+        AddInternal(arenaBorder = new Container
+        {
+            Position = new Vector2(12, 10),
+            Size = new Vector2(242, 160),
+            Masking = true,
+            CornerRadius = 3,
+            BorderThickness = 1,
+            BorderColour = new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                0.16f),
+            Child = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Alpha = 0.01f,
+            },
+        });
 
         for (int i = trailDots.Length - 1; i >= 0; i--)
         {
@@ -338,8 +361,16 @@ internal partial class HomeSignalSnake : CompositeDrawable
             },
         };
         AddInternal(head);
+        AddInternal(deathLabel = new SpriteText
+        {
+            Origin = Anchor.Centre,
+            Font = HomeTypography.Display(9),
+            Text = "SIGNAL LOST",
+            Colour = Color4.White,
+            Alpha = 0,
+        });
 
-        resetSignal(false);
+        resetSignal();
     }
 
     internal void SetAvailable(bool value)
@@ -357,8 +388,16 @@ internal partial class HomeSignalSnake : CompositeDrawable
             return;
 
         Vector2 nextDirection = directions[lane];
-        Vector2 target = wrapPosition(
-            currentPosition + nextDirection * stepDistance);
+        Vector2 target = currentPosition + nextDirection * stepDistance;
+        bool outside = target.X < 24 || target.X > 242
+                       || target.Y < 22 || target.Y > 158;
+
+        if (outside)
+        {
+            playBoundaryBump();
+            return;
+        }
+
         int collidedTrailIndex = trailPoints.FindIndex(
             1,
             point => Vector2.DistanceSquared(point, target) < 36);
@@ -374,9 +413,9 @@ internal partial class HomeSignalSnake : CompositeDrawable
                 if (generation != respawnGeneration)
                     return;
 
-                resetSignal(true);
+                resetSignal();
                 dying = false;
-            }, 180);
+            }, 520);
             return;
         }
 
@@ -388,23 +427,17 @@ internal partial class HomeSignalSnake : CompositeDrawable
         if (trailPoints.Count > trailLength)
             trailPoints.RemoveAt(trailPoints.Count - 1);
 
-        updateSignalDrawables(true, directionRotations[lane]);
+        updateSignalDrawables(directionRotations[lane]);
         collectNearbyPip();
     }
 
-    private static Vector2 wrapPosition(Vector2 position)
+    private void playBoundaryBump()
     {
-        if (position.X < 24)
-            position.X = 240;
-        else if (position.X > 242)
-            position.X = 24;
-
-        if (position.Y < 22)
-            position.Y = 158;
-        else if (position.Y > 158)
-            position.Y = 22;
-
-        return position;
+        headHalo.FlashColour(HomeControlColours.Yellow, 180, Easing.OutQuint);
+        head.ScaleTo(0.9f, 55, Easing.Out)
+            .Then()
+            .ScaleTo(1, 130, Easing.OutBack);
+        arenaBorder.FlashColour(Color4.White, 180, Easing.OutQuint);
     }
 
     private void playTailCollision(int trailIndex)
@@ -416,6 +449,14 @@ internal partial class HomeSignalSnake : CompositeDrawable
 
         if (trailIndex < trailDots.Length)
             trailDots[trailIndex].FlashColour(Color4.White, 240, Easing.OutQuint);
+
+        deathLabel.ClearTransforms();
+        deathLabel.Position = currentPosition + new Vector2(0, -24);
+        deathLabel.Alpha = 1;
+        deathLabel.Scale = new Vector2(0.88f);
+        deathLabel.ScaleTo(1, 120, Easing.OutBack)
+                  .Then(220)
+                  .FadeOut(180, Easing.InQuart);
 
         for (int i = 0; i < 6; i++)
         {
@@ -478,7 +519,7 @@ internal partial class HomeSignalSnake : CompositeDrawable
         StepCount = 0;
         CollectedCount = 0;
         DeathCount = 0;
-        resetSignal(true);
+        resetSignal();
     }
 
     private static Container createPip(Color4 colour) => new()
@@ -504,7 +545,7 @@ internal partial class HomeSignalSnake : CompositeDrawable
         },
     };
 
-    private void resetSignal(bool animate)
+    private void resetSignal()
     {
         currentPosition = startPosition;
         currentDirection = directions[3];
@@ -513,8 +554,8 @@ internal partial class HomeSignalSnake : CompositeDrawable
 
         for (int i = 0; i < trailLength; i++)
         {
-            trailPoints.Add(wrapPosition(
-                currentPosition - currentDirection * stepDistance * i));
+            trailPoints.Add(
+                currentPosition - currentDirection * stepDistance * i);
         }
 
         for (int i = 0; i < pips.Length; i++)
@@ -524,10 +565,10 @@ internal partial class HomeSignalSnake : CompositeDrawable
             pips[i].Alpha = 1;
         }
 
-        updateSignalDrawables(animate, directionRotations[3]);
+        updateSignalDrawables(directionRotations[3]);
     }
 
-    private void updateSignalDrawables(bool animate, float rotation)
+    private void updateSignalDrawables(float rotation)
     {
         for (int i = 0; i < trailDots.Length; i++)
         {
@@ -540,19 +581,13 @@ internal partial class HomeSignalSnake : CompositeDrawable
             if (!visible)
                 continue;
 
-            if (animate)
-                trailDots[i].MoveTo(trailPoints[i], 95, Easing.OutQuint);
-            else
-                trailDots[i].Position = trailPoints[i];
+            trailDots[i].Position = trailPoints[i];
         }
 
         head.ClearTransforms();
-        if (animate)
-            head.MoveTo(currentPosition, 95, Easing.OutQuint);
-        else
-            head.Position = currentPosition;
+        head.Position = currentPosition;
 
-        headArrow.RotateTo(rotation, 85, Easing.OutQuint);
+        headArrow.RotateTo(rotation, 45, Easing.OutQuint);
     }
 
     private void collectNearbyPip()
