@@ -323,24 +323,26 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     }
 
     [Test]
-    public void TestModBrowserUsesReadableCards()
+    public void TestModBrowserUsesRightHandArc()
     {
-        OrbitModNode[] cards = null;
+        OrbitModNode[] nodes = null;
         AddStep("show dense Mod category", () =>
         {
             modsScreen.ResetMods();
             modsScreen.SetCategory(ManiaModCategory.DifficultyIncrease);
-            cards = this.ChildrenOfType<OrbitModNode>().ToArray();
+            nodes = this.ChildrenOfType<OrbitModNode>().ToArray();
         });
-        AddAssert("every visible Mod uses card geometry", () =>
-            cards.Length == 6
-            && cards.All(card =>
-                card.Width == 390
-                && card.Height == 60));
-        AddAssert("cards form one predictable scan column", () =>
-            cards.All(card => card.X == 24)
-            && cards.Select(card => card.Y).Distinct().Count()
-               == cards.Length);
+        AddAssert("every visible Mod uses circular node geometry", () =>
+            nodes.Length == 6
+            && nodes.All(node =>
+                node.Width == 284
+                && node.Height == 86));
+        AddAssert("nodes follow the authored right-hand arc", () =>
+            nodes.Select(node => node.Position)
+                .SequenceEqual(Enumerable.Range(0, 6)
+                    .Select(GameplayModsOrbitWorkspace.CalculateModArcPosition)));
+        AddAssert("adjacent nodes retain their signal connectors", () =>
+            this.ChildrenOfType<OrbitConnector>().Count() == 5);
     }
 
     [Test]
@@ -376,7 +378,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             activationObserved);
         AddStep("remove focused mod again", () =>
             modsScreen.ToggleMod(focused));
-        AddAssert("card interaction removes focused mod", () =>
+        AddAssert("orbit interaction removes focused mod", () =>
             !modsScreen.SelectedMods.Contains(focused));
         AddStep("select 1.50x rate preset", () =>
             fastPreset.ActivateForTest());
