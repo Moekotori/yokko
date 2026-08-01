@@ -1,0 +1,14 @@
+[2026-08-01 18:46:19.777] [00005854] === Logging started ===
+[2026-08-01 18:46:19.781] [00005854] Executing: "C:\Program Files\dotnet\dotnet.exe" test Yokko.Game.Tests/Yokko.Game.Tests.csproj --artifacts-path D:\YOKKO\.tmp\final-ad-store-tests --filter Name=DeveloperAutoplayPersistsScoreHistoryAndReplayPath|Name=CinemaDoesNotPersistScoresOrHistory|Name=LegacyAutomationScoresAreIgnoredWhenLoading -v:minimal, PID: 22612, PPID: 7528
+[2026-08-01 18:46:19.783] [00005854] IsElevated: False
+[2026-08-01 18:46:19.783] [00005854] Is64BitProcess: True
+[2026-08-01 18:46:19.783] [00005854] RebootPending: False
+[2026-08-01 18:46:19.783] [00005854] ProcessorArchitecture: amd64
+[2026-08-01 18:46:19.783] [00005854] HostArchitecture: x64
+[2026-08-01 18:46:19.783] [00005854] SdkDirectory: 10.0.302
+[2026-08-01 18:46:19.783] [00005854] VerifySignatures: False
+[2026-08-01 18:46:19.783] [00005854] SDK feature band: 10.0.300
+[2026-08-01 18:46:32.833] [00005854] Shutting down
+[2026-08-01 18:46:32.833] [00005854] Shutdown completed.
+[2026-08-01 18:46:32.833] [00005854] Restart required: False
+[2026-08-01 18:46:32.833] [00005854] === Logging ended ===

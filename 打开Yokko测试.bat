@@ -33,13 +33,14 @@ echo [Yokko] Building the Etterna MinaCalc difficulty engine...
 powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\build-native-minacalc.ps1" -Configuration Debug
 if errorlevel 1 goto failed
 
-echo [Yokko] Restoring desktop solution...
-dotnet restore ".\Yokko.Desktop.slnf"
+echo [Yokko] Restoring desktop project...
+set "NO_PROXY=api.nuget.org,.nuget.org,%NO_PROXY%"
+dotnet restore ".\Yokko.Desktop\Yokko.Desktop.csproj" --tl:off --verbosity normal
 if errorlevel 1 goto failed
 
 echo.
-echo [Yokko] Building desktop solution...
-dotnet build ".\Yokko.Desktop.slnf" --no-restore
+echo [Yokko] Building desktop project...
+dotnet build ".\Yokko.Desktop\Yokko.Desktop.csproj" --no-restore
 if errorlevel 1 goto failed
 
 echo.

@@ -275,8 +275,10 @@ public class GameplayScoreStoreTest
         });
     }
 
-    [Test]
-    public void LegacyCinemaScoresAreIgnoredWhenLoading()
+    [TestCase("AT")]
+    [TestCase("CN")]
+    public void LegacyAutomationScoresAreIgnoredWhenLoading(
+        string legacyAcronym)
     {
         YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
         var first = new GameplayScoreStore();
@@ -295,7 +297,9 @@ public class GameplayScoreStoreTest
         {
             string path = Path.Combine(testRoot, relativePath);
             string json = File.ReadAllText(path)
-                              .Replace("\"DT\"", "\"CN\"");
+                              .Replace(
+                                  "\"DT\"",
+                                  $"\"{legacyAcronym}\"");
             File.WriteAllText(path, json);
         }
 

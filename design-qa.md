@@ -109,6 +109,7 @@ final result: passed
 
 - Native Direct3D 11 captures completed at 1920 x 1080.
 - Focused localisation, settings interaction, Mod cycling, AD persistence, score-store, and replay round-trip suite: 24 passed, 0 failed, 0 skipped.
+- Focused score migration suite: 4 passed, confirming new AD scores persist while legacy AT and Cinema CN records remain excluded.
 - The AD integration test confirms a perfect automated completion, persisted score, native replay path, and restored AD input stream.
 - `git diff --check` passed for the AD/runtime and focused-test files.
 

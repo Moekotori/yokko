@@ -431,6 +431,10 @@ internal sealed class GameplayScoreStore
         return score.Mods?.Any(static acronym =>
             string.Equals(
                 acronym,
+                "AT",
+                StringComparison.OrdinalIgnoreCase)
+            || string.Equals(
+                acronym,
                 "CN",
                 StringComparison.OrdinalIgnoreCase)) == true;
     }
