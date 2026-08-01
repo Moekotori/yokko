@@ -34,6 +34,7 @@ namespace Yokko.Game
         private readonly Action<Storage> storageReady;
         private readonly string[] startupFiles;
         private readonly IDebugConsoleWindow externalDebugConsole;
+        private readonly string persistentStorageRoot;
 
         internal bool DebugConsoleVisible => Diagnostics.ConsoleVisible.Value;
         internal bool DebugConsoleContains(string text) =>
@@ -49,7 +50,8 @@ namespace Yokko.Game
             IEnumerable<string> startupFiles = null,
             IResourceDirectoryPicker resourceDirectoryPicker = null,
             IDesktopDisplayModeController displayModeController = null,
-            IDebugConsoleWindow externalDebugConsole = null)
+            IDebugConsoleWindow externalDebugConsole = null,
+            string persistentStorageRoot = null)
             : base(
                 keyInputTimestampBackend,
                 resourceDirectoryPicker,
@@ -58,6 +60,17 @@ namespace Yokko.Game
             this.storageReady = storageReady;
             this.startupFiles = startupFiles?.ToArray() ?? [];
             this.externalDebugConsole = externalDebugConsole;
+            this.persistentStorageRoot = persistentStorageRoot;
+        }
+
+        protected override Storage CreateStorage(
+            GameHost host,
+            Storage defaultStorage)
+        {
+            if (string.IsNullOrWhiteSpace(persistentStorageRoot))
+                return defaultStorage;
+
+            return host.GetStorage(persistentStorageRoot);
         }
 
         public override void SetupLogging(
@@ -107,6 +120,11 @@ namespace Yokko.Game
             Diagnostics.ConsoleVisible.BindValueChanged(
                 onDebugConsoleVisibleChanged,
                 true);
+            if (externalDebugConsole != null)
+            {
+                externalDebugConsole.CloseRequested +=
+                    onExternalDebugConsoleCloseRequested;
+            }
             windowMode.BindValueChanged(onWindowModeChanged);
         }
 
@@ -161,6 +179,9 @@ namespace Yokko.Game
             externalDebugConsole?.SetVisible(change.NewValue);
             updatePerformanceTracking();
         }
+
+        private void onExternalDebugConsoleCloseRequested() =>
+            Scheduler.Add(() => Diagnostics.ConsoleVisible.Value = false);
 
         private void updatePerformanceTracking() =>
             performanceReadout.SetTrackingEnabled(
@@ -221,7 +242,11 @@ namespace Yokko.Game
                     onDebugConsoleVisibleChanged;
 
             if (isDisposing && externalDebugConsole != null)
+            {
+                externalDebugConsole.CloseRequested -=
+                    onExternalDebugConsoleCloseRequested;
                 externalDebugConsole.SetVisible(false);
+            }
 
             if (isDisposing && windowMode != null)
                 windowMode.ValueChanged -= onWindowModeChanged;

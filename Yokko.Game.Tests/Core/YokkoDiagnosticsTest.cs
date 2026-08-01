@@ -76,7 +76,7 @@ public sealed class YokkoDiagnosticsTest
     }
 
     [Test]
-    public void ConsoleVisibilityDefaultsOffAndPersists()
+    public void ConsoleVisibilityAlwaysStartsOff()
     {
         string directory = Path.Combine(
             TestContext.CurrentContext.WorkDirectory,
@@ -94,6 +94,7 @@ public sealed class YokkoDiagnosticsTest
                 Assert.That(firstDiagnostics.ConsoleVisible.Value, Is.False);
 
                 firstDiagnostics.ConsoleVisible.Value = true;
+                firstConfig.SetValue(YokkoSetting.DebugConsoleVisible, true);
                 Assert.That(firstConfig.Save(), Is.True);
             }
 
@@ -101,7 +102,10 @@ public sealed class YokkoDiagnosticsTest
             using var restoredConfig = new YokkoConfigManager(
                 new NativeStorage(directory));
             restoredConfig.BindDiagnosticSettings(restoredDiagnostics);
-            Assert.That(restoredDiagnostics.ConsoleVisible.Value, Is.True);
+            Assert.That(restoredDiagnostics.ConsoleVisible.Value, Is.False);
+            Assert.That(
+                File.ReadAllText(Path.Combine(directory, "yokko.ini")),
+                Does.Contain("DebugConsoleVisible = False"));
         }
         finally
         {

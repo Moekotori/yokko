@@ -4,6 +4,7 @@ using NUnit.Framework;
 using osu.Framework.Configuration;
 using osu.Framework.Platform;
 using Yokko.Core.Difficulty;
+using Yokko.Desktop.Platform;
 using Yokko.Game.Audio;
 using Yokko.Game.Configuration;
 using Yokko.Game.Presentation;
@@ -17,6 +18,22 @@ namespace Yokko.Game.Tests.Core;
 [TestFixture]
 public sealed class DisplaySettingsTest
 {
+    [Test]
+    public void WindowsGameStorageUsesRoamingUserDirectory()
+    {
+        if (!OperatingSystem.IsWindows())
+            Assert.Ignore("Windows desktop storage policy only applies on Windows.");
+
+        string expected = Path.Combine(
+            Environment.GetFolderPath(
+                Environment.SpecialFolder.ApplicationData,
+                Environment.SpecialFolderOption.Create),
+            "Yokko");
+
+        Assert.That(WindowsPersistentStorage.RootPath, Is.EqualTo(expected));
+        Assert.That(Path.IsPathFullyQualified(expected), Is.True);
+    }
+
     [TestCase(YokkoBackgroundFrameRate.Fps30, 30)]
     [TestCase(YokkoBackgroundFrameRate.Fps60, 60)]
     [TestCase(YokkoBackgroundFrameRate.Unlimited, 0)]

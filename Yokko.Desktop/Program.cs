@@ -33,7 +33,10 @@ namespace Yokko.Desktop
                     StartupFileArguments.Resolve(args),
                     new WindowsResourceDirectoryPicker(),
                     new FrameworkDesktopDisplayModeController(),
-                    debugConsole));
+                    debugConsole,
+                    OperatingSystem.IsWindows()
+                        ? WindowsPersistentStorage.RootPath
+                        : null));
             }
         }
     }

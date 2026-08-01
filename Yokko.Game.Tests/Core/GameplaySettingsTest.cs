@@ -99,7 +99,7 @@ public sealed class GameplaySettingsTest
         Assert.That(settings.LayoutBottomCoverRatio.Value, Is.Zero);
         Assert.That(
             settings.BackgroundDim.Value,
-            Is.EqualTo(YokkoGameplaySettings.DefaultBackgroundDim));
+            Is.EqualTo(YokkoGameplaySettings.MaximumBackgroundDim));
         Assert.That(settings.KeysoundsEnabled.Value, Is.False);
         Assert.That(settings.MinesEnabled.Value, Is.True);
         Assert.That(settings.PauseWhenUnfocused.Value, Is.True);

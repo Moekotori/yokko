@@ -28,6 +28,37 @@ public sealed class GameplayReplayTimelineTest
     }
 
     [Test]
+    public void RecordedInputsClampClockRegressionWithoutReorderingEdges()
+    {
+        GameplayReplay replay = GameplayReplay.FromRecordedInputs(
+        [
+            new GameplayReplayInput(0, true, 100),
+            new GameplayReplayInput(1, true, 99.75),
+            new GameplayReplayInput(0, false, 101),
+        ]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                replay.Inputs,
+                Is.EqualTo(new[]
+                {
+                    new GameplayReplayInput(0, true, 100),
+                    new GameplayReplayInput(1, true, 100),
+                    new GameplayReplayInput(0, false, 101),
+                }));
+            Assert.That(
+                replay.Frames,
+                Is.EqualTo(new[]
+                {
+                    new GameplayReplayFrame(100, 0b0001),
+                    new GameplayReplayFrame(100, 0b0011),
+                    new GameplayReplayFrame(101, 0b0010),
+                }));
+        });
+    }
+
+    [Test]
     public void TimelinePreservesSameTimeOrderAndSupportsRewind()
     {
         var timeline = new GameplayReplayTimeline(

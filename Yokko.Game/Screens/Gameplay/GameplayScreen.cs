@@ -2259,7 +2259,7 @@ public partial class GameplayScreen : Screen
             + $" | rank={completedResult.Rank}",
             LogLevel.Important);
         completedReplay = replay
-                          ?? new GameplayReplay(
+                          ?? GameplayReplay.FromRecordedInputs(
                               recordedReplayInputs,
                               mods,
                               judgementConfiguration);

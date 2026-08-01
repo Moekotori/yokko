@@ -37,6 +37,38 @@ internal sealed class GameplayReplay
 
     public JudgementConfiguration? JudgementConfiguration { get; }
 
+    /// <summary>
+    /// Builds a replay from live input capture while preserving capture order.
+    /// Separate audio-clock observations can regress by a sub-millisecond
+    /// amount, so recorded edge times are clamped instead of re-sorted.
+    /// </summary>
+    public static GameplayReplay FromRecordedInputs(
+        IEnumerable<GameplayReplayInput> inputs,
+        ManiaModSet mods = null,
+        JudgementConfiguration? judgementConfiguration = null)
+    {
+        ArgumentNullException.ThrowIfNull(inputs);
+
+        var orderedInputs = new List<GameplayReplayInput>();
+        double previousTime = double.NegativeInfinity;
+        foreach (GameplayReplayInput input in inputs)
+        {
+            double orderedTime = Math.Max(
+                input.TimeMilliseconds,
+                previousTime);
+            orderedInputs.Add(input with
+            {
+                TimeMilliseconds = orderedTime,
+            });
+            previousTime = orderedTime;
+        }
+
+        return new GameplayReplay(
+            orderedInputs,
+            mods,
+            judgementConfiguration);
+    }
+
     public GameplayReplay(
         IEnumerable<GameplayReplayInput> inputs,
         ManiaModSet mods = null,

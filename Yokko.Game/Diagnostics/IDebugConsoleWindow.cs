@@ -1,3 +1,5 @@
+using System;
+
 namespace Yokko.Game.Diagnostics;
 
 /// <summary>
@@ -7,5 +9,7 @@ namespace Yokko.Game.Diagnostics;
 /// </summary>
 public interface IDebugConsoleWindow
 {
+    event Action CloseRequested;
+
     void SetVisible(bool visible);
 }

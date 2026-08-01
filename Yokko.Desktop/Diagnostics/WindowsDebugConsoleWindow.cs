@@ -1,110 +1,287 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using Microsoft.Win32.SafeHandles;
 using osu.Framework.Logging;
 using Yokko.Game.Diagnostics;
 
 namespace Yokko.Desktop.Diagnostics;
 
 /// <summary>
-/// Presents live framework logs in a separate native Windows console without
+/// Presents live framework logs in a separate native Windows window without
 /// adding a WindowsDesktop/WinForms runtime dependency to the game executable.
 /// </summary>
 internal sealed class WindowsDebugConsoleWindow : IDebugConsoleWindow, IDisposable
 {
     private const int historyCapacity = 5000;
-    private const int genericRead = unchecked((int)0x80000000);
-    private const int genericWrite = 0x40000000;
-    private const int fileShareRead = 0x00000001;
-    private const int fileShareWrite = 0x00000002;
-    private const int openExisting = 3;
+    private const string windowClassName = "YokkoLiveDebugLogWindow";
+    private const int errorClassAlreadyExists = 1410;
+
+    private const uint wsOverlappedWindow = 0x00CF0000;
+    private const uint wsChild = 0x40000000;
+    private const uint wsVisible = 0x10000000;
+    private const uint wsVScroll = 0x00200000;
+    private const uint wsHScroll = 0x00100000;
+    private const uint esMultiline = 0x0004;
+    private const uint esAutoVScroll = 0x0040;
+    private const uint esAutoHScroll = 0x0080;
+    private const uint esReadOnly = 0x0800;
+    private const uint wsExClientEdge = 0x00000200;
+    private const int cwUseDefault = unchecked((int)0x80000000);
     private const int swHide = 0;
     private const int swShow = 5;
-    private const uint scClose = 0xF060;
-    private const uint mfByCommand = 0x00000000;
+    private const int ansiFixedFont = 11;
+
+    private const uint wmDestroy = 0x0002;
+    private const uint wmSize = 0x0005;
+    private const uint wmClose = 0x0010;
+    private const uint wmSetFont = 0x0030;
+    private const uint emSetSel = 0x00B1;
+    private const uint emReplaceSel = 0x00C2;
+    private const uint emSetLimitText = 0x00C5;
+    private const uint wmAppShow = 0x8001;
+    private const uint wmAppAppendLogs = 0x8002;
+    private const uint wmAppShutdown = 0x8003;
 
     private readonly object sync = new();
     private readonly Queue<string> history = new(historyCapacity);
     private readonly ConcurrentQueue<string> pending = new();
-    private readonly AutoResetEvent logAvailable = new(false);
-    private readonly Thread writerThread;
-    private TextWriter output;
-    private nint consoleWindow;
-    private bool consoleAllocated;
+    private readonly Thread windowThread;
+    private readonly WindowProcedure windowProcedure;
+    private nint window;
+    private nint logView;
+    private bool rebuildRequired;
+    private bool requestedVisible;
     private bool disposing;
+
+    public event Action CloseRequested;
+
+    internal nint WindowHandle
+    {
+        get
+        {
+            lock (sync)
+                return window;
+        }
+    }
+
+    internal int WindowCreationError { get; private set; }
+
+    internal bool WindowThreadAlive => windowThread?.IsAlive == true;
 
     public WindowsDebugConsoleWindow()
     {
+        windowProcedure = handleWindowMessage;
+        if (!OperatingSystem.IsWindows())
+            return;
+
         Logger.NewEntry += onLoggerEntry;
-        writerThread = new Thread(runWriter)
+        windowThread = new Thread(runWindow)
         {
             IsBackground = true,
-            Name = "Yokko debug console writer",
+            Name = "Yokko debug log window",
         };
-        writerThread.Start();
+        windowThread.SetApartmentState(ApartmentState.STA);
+        windowThread.Start();
     }
 
     public void SetVisible(bool visible)
     {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        nint currentWindow;
         lock (sync)
         {
             if (disposing)
                 return;
 
-            if (visible && !consoleAllocated)
-                allocateConsole();
+            requestedVisible = visible;
+            currentWindow = window;
+        }
 
-            if (consoleAllocated)
-                ShowWindow(consoleWindow, visible ? swShow : swHide);
+        if (currentWindow != 0)
+            PostMessage(currentWindow, wmAppShow, visible ? 1 : 0, 0);
+    }
+
+    private void runWindow()
+    {
+        nint instance = GetModuleHandle(null);
+        var windowClass = new WindowClass
+        {
+            Size = (uint)Marshal.SizeOf<WindowClass>(),
+            WindowProcedure = windowProcedure,
+            Instance = instance,
+            Cursor = LoadCursor(0, (nint)32512),
+            BackgroundBrush = (nint)6,
+            ClassName = windowClassName,
+        };
+
+        if (RegisterClassEx(ref windowClass) == 0
+            && Marshal.GetLastWin32Error() != errorClassAlreadyExists)
+        {
+            WindowCreationError = Marshal.GetLastWin32Error();
+            Logger.Log(
+                $"Could not register Yokko debug window class (Win32 error {WindowCreationError}).",
+                LoggingTarget.Runtime,
+                LogLevel.Error);
+            return;
+        }
+
+        nint createdWindow = CreateWindowEx(
+            0,
+            windowClassName,
+            "Yokko - Live Debug Console",
+            wsOverlappedWindow,
+            cwUseDefault,
+            cwUseDefault,
+            1000,
+            640,
+            0,
+            0,
+            instance,
+            0);
+        if (createdWindow == 0)
+        {
+            WindowCreationError = Marshal.GetLastWin32Error();
+            Logger.Log(
+                $"Could not create Yokko debug window (Win32 error {WindowCreationError}).",
+                LoggingTarget.Runtime,
+                LogLevel.Error);
+            return;
+        }
+
+        nint createdLogView = CreateWindowEx(
+            wsExClientEdge,
+            "EDIT",
+            string.Empty,
+            wsChild | wsVisible | wsVScroll | wsHScroll
+            | esMultiline | esAutoVScroll | esAutoHScroll | esReadOnly,
+            0,
+            0,
+            0,
+            0,
+            createdWindow,
+            0,
+            instance,
+            0);
+        if (createdLogView == 0)
+        {
+            WindowCreationError = Marshal.GetLastWin32Error();
+            Logger.Log(
+                $"Could not create Yokko debug log view (Win32 error {WindowCreationError}).",
+                LoggingTarget.Runtime,
+                LogLevel.Error);
+            DestroyWindow(createdWindow);
+            return;
+        }
+
+        SendMessage(createdLogView, wmSetFont, GetStockObject(ansiFixedFont), 1);
+        SendMessage(createdLogView, emSetLimitText, 64 * 1024 * 1024, 0);
+
+        bool showInitially;
+        bool stopImmediately;
+        lock (sync)
+        {
+            stopImmediately = disposing;
+            if (stopImmediately)
+            {
+                showInitially = false;
+            }
+            else
+            {
+                window = createdWindow;
+                logView = createdLogView;
+                rebuildRequired = true;
+                showInitially = requestedVisible;
+            }
+        }
+
+        if (stopImmediately)
+        {
+            DestroyWindow(createdWindow);
+            return;
+        }
+
+        resizeLogView(createdWindow);
+        flushPendingLogs();
+        ShowWindow(createdWindow, showInitially ? swShow : swHide);
+        if (showInitially)
+            UpdateWindow(createdWindow);
+
+        while (GetMessage(out WindowMessage message, 0, 0, 0) > 0)
+        {
+            TranslateMessage(ref message);
+            DispatchMessage(ref message);
+        }
+
+        lock (sync)
+        {
+            window = 0;
+            logView = 0;
         }
     }
 
-    private void allocateConsole()
+    private nint handleWindowMessage(
+        nint handle,
+        uint message,
+        nint wordParameter,
+        nint longParameter)
     {
-        if (!AllocConsole())
-            return;
-
-        SetConsoleTitle("Yokko - Live Debug Console");
-        consoleWindow = GetConsoleWindow();
-
-        // Closing a process-owned Win32 console also terminates the game. Keep
-        // the window safely hideable through F12/the setting instead.
-        nint systemMenu = GetSystemMenu(consoleWindow, false);
-        if (systemMenu != 0)
-            DeleteMenu(systemMenu, scClose, mfByCommand);
-
-        SafeFileHandle handle = CreateFile(
-            "CONOUT$",
-            genericRead | genericWrite,
-            fileShareRead | fileShareWrite,
-            0,
-            openExisting,
-            0,
-            0);
-        if (handle.IsInvalid)
+        switch (message)
         {
-            handle.Dispose();
-            FreeConsole();
-            consoleWindow = 0;
-            return;
+            case wmSize:
+                resizeLogView(handle);
+                return 0;
+
+            case wmClose:
+                lock (sync)
+                    requestedVisible = false;
+                ShowWindow(handle, swHide);
+                CloseRequested?.Invoke();
+                return 0;
+
+            case wmAppShow:
+                bool visible = wordParameter != 0;
+                ShowWindow(handle, visible ? swShow : swHide);
+                if (visible)
+                    UpdateWindow(handle);
+                return 0;
+
+            case wmAppAppendLogs:
+                flushPendingLogs();
+                return 0;
+
+            case wmAppShutdown:
+                DestroyWindow(handle);
+                return 0;
+
+            case wmDestroy:
+                PostQuitMessage(0);
+                return 0;
         }
 
-        output = new StreamWriter(
-            new FileStream(handle, FileAccess.Write),
-            new UTF8Encoding(false))
-        {
-            AutoFlush = true,
-        };
-        consoleAllocated = true;
+        return DefWindowProc(handle, message, wordParameter, longParameter);
+    }
 
-        foreach (string line in history)
-            pending.Enqueue(line);
-        logAvailable.Set();
+    private void resizeLogView(nint handle)
+    {
+        nint currentLogView;
+        lock (sync)
+            currentLogView = logView;
+        if (currentLogView == 0 || !GetClientRect(handle, out Rectangle area))
+            return;
+
+        MoveWindow(
+            currentLogView,
+            0,
+            0,
+            Math.Max(1, area.Right - area.Left),
+            Math.Max(1, area.Bottom - area.Top),
+            true);
     }
 
     private void onLoggerEntry(LogEntry entry)
@@ -119,53 +296,80 @@ internal sealed class WindowsDebugConsoleWindow : IDebugConsoleWindow, IDisposab
         if (entry.Exception != null)
             line += Environment.NewLine + entry.Exception;
 
+        nint currentWindow;
         lock (sync)
         {
             if (disposing)
                 return;
 
             history.Enqueue(line);
-            while (history.Count > historyCapacity)
+            if (history.Count > historyCapacity)
+            {
                 history.Dequeue();
+                rebuildRequired = true;
+            }
+            else
+            {
+                pending.Enqueue(line);
+            }
 
-            if (!consoleAllocated)
+            currentWindow = window;
+        }
+
+        if (currentWindow != 0)
+            PostMessage(currentWindow, wmAppAppendLogs, 0, 0);
+    }
+
+    private void flushPendingLogs()
+    {
+        nint currentLogView;
+        string replacement = null;
+        List<string> additions = null;
+
+        lock (sync)
+        {
+            currentLogView = logView;
+            if (currentLogView == 0)
                 return;
 
-            pending.Enqueue(line);
-        }
-
-        logAvailable.Set();
-    }
-
-    private void runWriter()
-    {
-        while (true)
-        {
-            logAvailable.WaitOne();
-
-            TextWriter currentOutput;
-            lock (sync)
+            if (rebuildRequired)
             {
-                if (disposing)
-                    return;
-
-                currentOutput = output;
+                replacement = string.Join("\r\n", history.Select(normalizeLine));
+                if (replacement.Length > 0)
+                    replacement += "\r\n";
+                rebuildRequired = false;
+                while (pending.TryDequeue(out _))
+                {
+                }
             }
-
-            if (currentOutput == null)
-                continue;
-
-            try
+            else
             {
                 while (pending.TryDequeue(out string line))
-                    currentOutput.WriteLine(line);
-            }
-            catch (IOException)
-            {
-                // The process may be shutting down while the console detaches.
+                    (additions ??= []).Add(line);
             }
         }
+
+        if (replacement != null)
+        {
+            SetWindowText(currentLogView, replacement);
+            SendMessage(currentLogView, emSetSel, -1, -1);
+            return;
+        }
+
+        if (additions == null)
+            return;
+
+        var text = new StringBuilder();
+        foreach (string addition in additions)
+            text.Append(normalizeLine(addition)).Append("\r\n");
+        SendMessage(currentLogView, emSetSel, -1, -1);
+        SendMessage(currentLogView, emReplaceSel, 0, text.ToString());
     }
+
+    private static string normalizeLine(string line) =>
+        line.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n')
+            .Replace("\n", "\r\n", StringComparison.Ordinal);
 
     private static string levelCode(LogLevel level) => level switch
     {
@@ -177,60 +381,171 @@ internal sealed class WindowsDebugConsoleWindow : IDebugConsoleWindow, IDisposab
 
     public void Dispose()
     {
+        if (!OperatingSystem.IsWindows())
+            return;
+
         Logger.NewEntry -= onLoggerEntry;
 
+        nint currentWindow;
         lock (sync)
         {
             if (disposing)
                 return;
 
             disposing = true;
+            currentWindow = window;
         }
 
-        logAvailable.Set();
-        writerThread.Join(TimeSpan.FromSeconds(1));
-
-        lock (sync)
-        {
-            output?.Dispose();
-            output = null;
-            if (consoleAllocated)
-                FreeConsole();
-            consoleAllocated = false;
-            consoleWindow = 0;
-        }
-
-        logAvailable.Dispose();
+        if (currentWindow != 0)
+            PostMessage(currentWindow, wmAppShutdown, 0, 0);
+        windowThread.Join(TimeSpan.FromSeconds(1));
     }
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool AllocConsole();
+    private delegate nint WindowProcedure(
+        nint window,
+        uint message,
+        nint wordParameter,
+        nint longParameter);
 
-    [DllImport("kernel32.dll")]
-    private static extern bool FreeConsole();
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct WindowClass
+    {
+        public uint Size;
+        public uint Style;
+        public WindowProcedure WindowProcedure;
+        public int ClassExtraBytes;
+        public int WindowExtraBytes;
+        public nint Instance;
+        public nint Icon;
+        public nint Cursor;
+        public nint BackgroundBrush;
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string MenuName;
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string ClassName;
+        public nint SmallIcon;
+    }
 
-    [DllImport("kernel32.dll")]
-    private static extern nint GetConsoleWindow();
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowMessage
+    {
+        public nint Window;
+        public uint Message;
+        public nuint WordParameter;
+        public nint LongParameter;
+        public uint Time;
+        public Point Point;
+        public uint Private;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Point
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Rectangle
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-    private static extern bool SetConsoleTitle(string title);
+    private static extern nint GetModuleHandle(string moduleName);
 
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern SafeFileHandle CreateFile(
-        string fileName,
-        int desiredAccess,
-        int shareMode,
-        nint securityAttributes,
-        int creationDisposition,
-        int flagsAndAttributes,
-        nint templateFile);
+    [DllImport("gdi32.dll")]
+    private static extern nint GetStockObject(int objectIndex);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern ushort RegisterClassEx(ref WindowClass windowClass);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern nint CreateWindowEx(
+        uint extendedStyle,
+        string className,
+        string windowName,
+        uint style,
+        int x,
+        int y,
+        int width,
+        int height,
+        nint parent,
+        nint menu,
+        nint instance,
+        nint parameter);
+
+    [DllImport("user32.dll")]
+    private static extern nint DefWindowProc(
+        nint window,
+        uint message,
+        nint wordParameter,
+        nint longParameter);
+
+    [DllImport("user32.dll")]
+    private static extern bool DestroyWindow(nint window);
 
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(nint window, int command);
 
     [DllImport("user32.dll")]
-    private static extern nint GetSystemMenu(nint window, bool revert);
+    private static extern bool UpdateWindow(nint window);
 
     [DllImport("user32.dll")]
-    private static extern bool DeleteMenu(nint menu, uint position, uint flags);
+    private static extern bool GetClientRect(nint window, out Rectangle rectangle);
+
+    [DllImport("user32.dll")]
+    private static extern bool MoveWindow(
+        nint window,
+        int x,
+        int y,
+        int width,
+        int height,
+        bool repaint);
+
+    [DllImport("user32.dll")]
+    private static extern nint LoadCursor(nint instance, nint cursorName);
+
+    [DllImport("user32.dll")]
+    private static extern int GetMessage(
+        out WindowMessage message,
+        nint window,
+        uint minimumMessage,
+        uint maximumMessage);
+
+    [DllImport("user32.dll")]
+    private static extern bool TranslateMessage(ref WindowMessage message);
+
+    [DllImport("user32.dll")]
+    private static extern nint DispatchMessage(ref WindowMessage message);
+
+    [DllImport("user32.dll")]
+    private static extern void PostQuitMessage(int exitCode);
+
+    [DllImport("user32.dll")]
+    private static extern bool PostMessage(
+        nint window,
+        uint message,
+        nint wordParameter,
+        nint longParameter);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern nint SendMessage(
+        nint window,
+        uint message,
+        nint wordParameter,
+        nint longParameter);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern nint SendMessage(
+        nint window,
+        uint message,
+        nint wordParameter,
+        string longParameter);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool SetWindowText(nint window, string text);
 }

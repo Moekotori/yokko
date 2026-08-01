@@ -786,9 +786,15 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
     public void BindDiagnosticSettings(YokkoDiagnostics diagnostics)
     {
         ArgumentNullException.ThrowIfNull(diagnostics);
-        BindWith(
-            YokkoSetting.DebugConsoleVisible,
-            diagnostics.ConsoleVisible);
+        diagnostics.ConsoleVisible.Value = false;
+
+        // Debug visibility is session-only. Clear legacy persisted values so
+        // the external window never opens automatically on the next launch.
+        if (Get<bool>(YokkoSetting.DebugConsoleVisible))
+        {
+            SetValue(YokkoSetting.DebugConsoleVisible, false);
+            Save();
+        }
     }
 
     public bool GetWindowMaximised() =>

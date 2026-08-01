@@ -189,7 +189,7 @@ public sealed class YokkoGameplaySettings
 
     public const double MaximumBackgroundDim = 1;
 
-    public const double DefaultBackgroundDim = 0.5;
+    public const double DefaultBackgroundDim = MaximumBackgroundDim;
 
     public const double BackgroundDimStep = 0.05;
 
