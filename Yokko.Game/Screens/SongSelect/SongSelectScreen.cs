@@ -60,7 +60,7 @@ public partial class SongSelectScreen : Screen
     private const double details_title_units_per_line = 26;
     private const float ranking_top = 294;
     private const float ranking_height = 448;
-    private const float browse_top = 220;
+    private const float browse_top = 232;
     private const float browse_width = 850;
     private const float browse_right = 24;
 
@@ -99,11 +99,8 @@ public partial class SongSelectScreen : Screen
     private SongSelectVirtualisedList songList;
     private SongSelectRankingPanel rankingPanel;
     private SongSelectNoResultsPanel noResults;
-    private SongSelectFilterButton allFilter;
-    private SongSelectFilterButton fourKeyFilter;
-    private SongSelectFilterButton sevenKeyFilter;
+    private SongSelectKeyModeFilterButton keyModeFilterButton;
     private SongSelectSearchBox searchBox;
-    private FillFlowContainer keyFilterGroup;
     private SongSelectModButton doubleTimeMod;
     private SongSelectModButton nightcoreMod;
     private SongSelectModButton halfTimeMod;
@@ -258,8 +255,12 @@ public partial class SongSelectScreen : Screen
     internal bool NoResultsResetVisible =>
         noResults?.ClearButtonVisible ?? false;
     internal Vector2 SearchBoxSize => searchBox?.Size ?? Vector2.Zero;
-    internal Vector2 KeyFilterGroupSize =>
-        keyFilterGroup?.Size ?? Vector2.Zero;
+    internal Vector2 KeyFilterButtonSize =>
+        keyModeFilterButton?.Size ?? Vector2.Zero;
+    internal string KeyFilterButtonValue =>
+        keyModeFilterButton?.DisplayedValue ?? string.Empty;
+    internal Vector2 DifficultyFilterSize =>
+        difficultyFilterBar?.Size ?? Vector2.Zero;
     internal Vector2 BrowseToolbarSize =>
         browseToolbar?.Size ?? Vector2.Zero;
     internal float TopNavigationHeight => topNavigation?.Height ?? 0;
@@ -1344,40 +1345,22 @@ public partial class SongSelectScreen : Screen
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-248, 82),
-                Size = new Vector2(620, 48),
+                Position = new Vector2(-164, 82),
+                Size = new Vector2(710, 48),
             },
-            keyFilterGroup = new FillFlowContainer
+            keyModeFilterButton = new SongSelectKeyModeFilterButton(
+                cycleKeyModeFilter)
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-browse_right, 86),
-                AutoSizeAxes = Axes.Both,
-                Direction = FillDirection.Horizontal,
-                Spacing = new Vector2(2, 0),
-                Children =
-                [
-                    allFilter = new SongSelectFilterButton(
-                        "ALL",
-                        78,
-                        () => SetKeyModeFilter(null),
-                        accentDot: true),
-                    fourKeyFilter = new SongSelectFilterButton(
-                        "4K",
-                        68,
-                        () => SetKeyModeFilter(KeyMode.FourKey)),
-                    sevenKeyFilter = new SongSelectFilterButton(
-                        "7K",
-                        68,
-                        () => SetKeyModeFilter(KeyMode.SevenKey)),
-                ],
+                Position = new Vector2(-browse_right, 82),
             },
             difficultyFilterBar = new SongSelectDifficultyFilterBar(
                 SetMinimumDifficultyFilter)
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-browse_right, 140),
+                Position = new Vector2(-354, 138),
             },
             createBrowseToolbar(),
         ],
@@ -1572,7 +1555,7 @@ public partial class SongSelectScreen : Screen
     {
         Anchor = Anchor.TopRight,
         Origin = Anchor.TopRight,
-        Position = new Vector2(-browse_right, 180),
+        Position = new Vector2(-browse_right, 190),
         Size = new Vector2(browse_width, 34),
         Masking = false,
         Children =
@@ -3814,10 +3797,16 @@ public partial class SongSelectScreen : Screen
 
     private void updateFilters()
     {
-        allFilter?.SetSelected(!keyModeFilter.HasValue);
-        fourKeyFilter?.SetSelected(keyModeFilter == KeyMode.FourKey);
-        sevenKeyFilter?.SetSelected(keyModeFilter == KeyMode.SevenKey);
+        keyModeFilterButton?.SetMode(keyModeFilter);
     }
+
+    private void cycleKeyModeFilter() => SetKeyModeFilter(
+        keyModeFilter switch
+        {
+            null => KeyMode.FourKey,
+            KeyMode.FourKey => KeyMode.SevenKey,
+            _ => null,
+        });
 
     private void toggleSortMode()
     {

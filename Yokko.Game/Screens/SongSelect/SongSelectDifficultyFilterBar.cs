@@ -15,9 +15,9 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectDifficultyFilterBar : ClickableContainer
 {
-    private const float track_left = 190;
-    private const float track_width = 612;
-    private const float track_y = 15;
+    private const float track_left = 184;
+    private const float track_width = 276;
+    private const float track_y = 20;
 
     private readonly Action<double> changed;
     private readonly Box activeTrack;
@@ -36,10 +36,10 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
     internal SongSelectDifficultyFilterBar(Action<double> changed)
     {
         this.changed = changed;
-        Size = new Vector2(850, 32);
+        Size = new Vector2(520, 40);
         Masking = true;
-        CornerRadius = 7;
-        BorderThickness = 1;
+        CornerRadius = 10;
+        BorderThickness = 1.25f;
         BorderColour = new Color4(
             SongSelectTheme.Cyan.R,
             SongSelectTheme.Cyan.G,
@@ -57,8 +57,8 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 10,
-                Size = new Vector2(12),
+                X = 12,
+                Size = new Vector2(15),
                 Icon = FontAwesome.Solid.Signal,
                 Colour = SongSelectTheme.Cyan,
             },
@@ -66,9 +66,9 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 30,
+                X = 36,
                 Text = "MSD RANGE",
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(9),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -79,10 +79,10 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 108,
-                Size = new Vector2(68, 24),
+                X = 105,
+                Size = new Vector2(70, 30),
                 Masking = true,
-                CornerRadius = 6,
+                    CornerRadius = 8,
                 Children =
                 [
                     new Box
@@ -95,15 +95,15 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
                         Text = "ALL",
-                        Font = HomeTypography.Display(10),
+                        Font = HomeTypography.Display(11),
                         Colour = SongSelectTheme.Navy,
                     },
                 ],
             },
             new Box
             {
-                Position = new Vector2(track_left, track_y - 2),
-                Size = new Vector2(track_width, 4),
+                Position = new Vector2(track_left, track_y - 3),
+                Size = new Vector2(track_width, 6),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -112,8 +112,8 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
             },
             new FillFlowContainer
             {
-                Position = new Vector2(track_left, track_y - 2),
-                Size = new Vector2(track_width, 4),
+                Position = new Vector2(track_left, track_y - 3),
+                Size = new Vector2(track_width, 6),
                 Direction = FillDirection.Horizontal,
                 Children =
                 [
@@ -127,8 +127,8 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
             },
             activeTrack = new Box
             {
-                Position = new Vector2(track_left, track_y - 2),
-                Height = 4,
+                Position = new Vector2(track_left, track_y - 3),
+                Height = 6,
                 Colour = SongSelectTheme.Navy,
                 Alpha = 0.28f,
             },
@@ -136,7 +136,7 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
             {
                 Origin = Anchor.Centre,
                 Position = new Vector2(track_left, track_y),
-                Size = new Vector2(13),
+                Size = new Vector2(17),
                 BorderThickness = 2,
                 BorderColour = SongSelectTheme.Cyan,
                 Child = new Box
@@ -243,7 +243,7 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
     private static Box segment(Color4 colour) => new()
     {
         Width = track_width / 6,
-        Height = 4,
+        Height = 6,
         Colour = new Color4(colour.R, colour.G, colour.B, 0.62f),
     };
 }

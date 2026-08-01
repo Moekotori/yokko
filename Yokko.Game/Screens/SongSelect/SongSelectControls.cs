@@ -173,97 +173,119 @@ internal partial class SongSelectSearchBox : BasicTextBox
     }
 }
 
-internal partial class SongSelectFilterButton : ClickableContainer
+internal partial class SongSelectKeyModeFilterButton : ClickableContainer
 {
     private readonly Box background;
-    private readonly SpriteText label;
-    private readonly Circle accentDot;
+    private readonly SpriteText valueText;
     private readonly Box selectionRail;
-    private readonly bool showAccentDot;
-    private bool selected;
 
-    internal bool Selected => selected;
+    internal string DisplayedValue => valueText.Text.ToString();
     internal float SelectionRailAlpha => selectionRail.Alpha;
 
-    public SongSelectFilterButton(LocalisableString text, float width, Action action, bool accentDot = false)
+    public SongSelectKeyModeFilterButton(Action action)
     {
         Action = action;
-        showAccentDot = accentDot;
-        Size = new Vector2(width, 40);
+        Size = new Vector2(130, 48);
         Masking = true;
-        CornerRadius = 8;
-        BorderThickness = 1;
+        CornerRadius = 10;
+        BorderThickness = 1.25f;
         BorderColour = new Color4(
             SongSelectTheme.Cyan.R,
             SongSelectTheme.Cyan.G,
             SongSelectTheme.Cyan.B,
-            0.14f);
+            0.58f);
         InternalChildren = new Drawable[]
         {
             background = new Box
             {
                 RelativeSizeAxes = Axes.Both,
+                Colour = SongSelectTheme.PaleCyan,
             },
-            label = new SpriteText
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Text = text,
-                Font = HomeTypography.Display(12),
-            },
-            this.accentDot = new Circle
+            new Container
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 11,
-                Size = new Vector2(6),
+                X = 8,
+                Size = new Vector2(32),
+                Masking = true,
+                CornerRadius = 7,
+                Children =
+                [
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = SongSelectTheme.Cyan,
+                        Alpha = 0.16f,
+                    },
+                    new SpriteIcon
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(15),
+                        Icon = FontAwesome.Solid.Keyboard,
+                        Colour = SongSelectTheme.Cyan,
+                    },
+                ],
+            },
+            new SpriteText
+            {
+                Position = new Vector2(49, 8),
+                Text = "KEY MODE",
+                Font = HomeTypography.Display(8),
+                Colour = new Color4(
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.56f),
+            },
+            valueText = new SpriteText
+            {
+                Position = new Vector2(49, 22),
+                Text = "ALL",
+                Font = HomeTypography.Display(13),
+                Colour = SongSelectTheme.Navy,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -10,
+                Size = new Vector2(9),
+                Icon = FontAwesome.Solid.SyncAlt,
                 Colour = SongSelectTheme.Pink,
-                Alpha = accentDot ? 1 : 0,
+                Alpha = 0.82f,
             },
             selectionRail = new Box
             {
-                Anchor = Anchor.BottomCentre,
-                Origin = Anchor.BottomCentre,
-                Width = 30,
+                Anchor = Anchor.BottomLeft,
+                Origin = Anchor.BottomLeft,
+                X = 48,
+                Width = 42,
                 Height = 3,
                 Colour = SongSelectTheme.Pink,
             },
         };
-        SetSelected(false);
     }
 
-    public void SetSelected(bool value)
+    internal void SetMode(KeyMode? mode)
     {
-        selected = value;
-        background.Colour = selected
-            ? SongSelectTheme.PaleCyan
-            : SongSelectSurface.Ivory(0.82f);
-        label.Colour = SongSelectTheme.Navy;
-        BorderColour = selected
-            ? new Color4(
-                SongSelectTheme.Cyan.R,
-                SongSelectTheme.Cyan.G,
-                SongSelectTheme.Cyan.B,
-                0.82f)
-            : new Color4(1f, 1f, 1f, 0.18f);
-        accentDot.Colour = SongSelectTheme.Pink;
-        accentDot.Alpha = showAccentDot
-            ? selected ? 1 : 0.28f
-            : 0;
-        selectionRail.Alpha = selected ? 1 : 0;
+        valueText.Text = mode switch
+        {
+            KeyMode.FourKey => "4K",
+            KeyMode.SevenKey => "7K",
+            _ => "ALL",
+        };
+        valueText.Colour = mode.HasValue
+            ? SongSelectTheme.Pink
+            : SongSelectTheme.Navy;
+        selectionRail.Width = mode.HasValue ? 26 : 42;
     }
 
     protected override bool OnHover(HoverEvent e)
     {
         this.ScaleTo(1.012f, 110, Easing.OutQuint);
         background.FadeColour(
-            selected
-                ? new Color4(
-                    SongSelectTheme.PaleCyan.R,
-                    SongSelectTheme.PaleCyan.G,
-                    SongSelectTheme.PaleCyan.B,
-                    1f)
-                : SongSelectTheme.PaleCyan,
+            Color4.White,
             110,
             Easing.OutQuint);
         return true;
@@ -272,7 +294,7 @@ internal partial class SongSelectFilterButton : ClickableContainer
     protected override void OnHoverLost(HoverLostEvent e)
     {
         this.ScaleTo(1, 130, Easing.OutQuint);
-        SetSelected(selected);
+        background.FadeColour(SongSelectTheme.PaleCyan, 130, Easing.OutQuint);
     }
 }
 

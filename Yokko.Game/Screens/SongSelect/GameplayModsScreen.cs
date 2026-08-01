@@ -176,8 +176,6 @@ internal partial class GameplayModsScreen : Screen
         orbitWorkspace?.VisibleMods.Contains(mod) == true;
     internal bool OrbitRepresentsMod(ManiaModId mod) =>
         orbitWorkspace?.RepresentsMod(mod) == true;
-    internal void CycleOrbitMod(ManiaModId mod) =>
-        orbitWorkspace?.CycleNode(mod);
     internal int VisibleOrbitModCount =>
         orbitWorkspace?.VisibleMods.Count ?? 0;
     internal string OrbitActiveCountText =>
@@ -240,7 +238,6 @@ internal partial class GameplayModsScreen : Screen
                         new GameplayModsOrbitWorkspace(
                              NavigateToCategoryPage,
                              ToggleMod,
-                             CycleOrbitModFamily,
                              FocusOrbitMod,
                             SetNoPauseAllowedPauses,
                             PreviewGlobalRate,
@@ -786,56 +783,6 @@ internal partial class GameplayModsScreen : Screen
                 ? ManiaModId.DoubleTime
                 : appliedMod,
             enabled);
-        updateSelection();
-        selectDetail(detailMod);
-    }
-
-    internal void CycleOrbitModFamily(
-        IReadOnlyList<ManiaModId> family)
-    {
-        ManiaModId[] selectableFamily = family
-            .Where(isSelectable)
-            .ToArray();
-        if (selectableFamily.Length == 0)
-            return;
-        if (selectableFamily.Length == 1)
-        {
-            ToggleMod(selectableFamily[0]);
-            return;
-        }
-
-        int activeIndex = Array.FindIndex(
-            selectableFamily,
-            selectedMods.Contains);
-        bool enableNext = activeIndex + 1 < selectableFamily.Length;
-        ManiaModId nextMod = enableNext
-            ? selectableFamily[activeIndex + 1]
-            : selectableFamily[0];
-
-        modPreferences?.Remember(selectedMods);
-        if (activeIndex >= 0)
-        {
-            selectedMods = selectedMods.With(
-                selectableFamily[activeIndex],
-                false);
-        }
-
-        if (enableNext)
-        {
-            selectedMods = nextMod == ManiaModId.Random
-                ? selectedMods.WithRandomSeed(Random.Shared.Next())
-                : selectedMods.With(nextMod, true);
-            selectedMods = modPreferences?.Apply(
-                selectedMods,
-                nextMod) ?? selectedMods;
-            if (isConfigurable(nextMod))
-                settingsHost.Show(nextMod);
-        }
-
-        detailMod = enableNext ? nextMod : selectableFamily[0];
-        orbitWorkspace?.QueueModTransition(
-            selectableFamily[0],
-            enableNext);
         updateSelection();
         selectDetail(detailMod);
     }

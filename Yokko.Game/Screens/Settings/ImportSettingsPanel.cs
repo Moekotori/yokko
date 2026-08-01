@@ -359,7 +359,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = 58,
-                Size = new Vector2(610, 44),
+                Size = new Vector2(390, 44),
                 Children = new Drawable[]
                 {
                     new SpriteText
@@ -372,7 +372,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                     externalOsuPathText = new SpriteText
                     {
                         Y = 22,
-                        Width = 610,
+                        Width = 390,
                         Truncate = true,
                         Font = HomeTypography.Body(14),
                         Colour = SettingsTheme.MutedNavy,
@@ -383,14 +383,47 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
-                X = -24,
-                Width = 160,
+                X = -238,
+                Width = 140,
                 Truncate = true,
                 Font = HomeTypography.Display(13),
                 Colour = HomeControlColours.Pink,
             },
+            new SettingsSkinActionButton(
+                YokkoStrings.Get("settings.import.external_osu_auto_find"),
+                FontAwesome.Solid.Search,
+                autoFindExternalOsu,
+                true)
+            {
+                Position = new Vector2(614, 8),
+            },
+            new SettingsSkinActionButton(
+                YokkoStrings.Get("settings.import.external_osu_manual_select"),
+                FontAwesome.Solid.FolderOpen,
+                openExternalOsuSelector,
+                false)
+            {
+                Position = new Vector2(726, 8),
+            },
         },
     };
+
+    private void autoFindExternalOsu()
+    {
+        if (externalScanInProgress || directoryPickerOpen)
+            return;
+
+        string detected = ExternalOsuSongsLocator.Find(
+            externalOsuSettings.SongsPath.Value);
+        if (detected == null)
+        {
+            externalOsuStatusText.Text = YokkoStrings.Get(
+                "settings.import.external_osu_not_found");
+            return;
+        }
+
+        setExternalOsuPath(detected);
+    }
 
     private async void openDirectorySelector()
     {
@@ -434,14 +467,8 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
         string initialPath = externalOsuSettings.SongsPath.Value;
         if (string.IsNullOrWhiteSpace(initialPath))
         {
-            string detected = System.IO.Path.Combine(
-                Environment.GetFolderPath(
-                    Environment.SpecialFolder.LocalApplicationData),
-                "osu!",
-                "Songs");
-            initialPath = System.IO.Directory.Exists(detected)
-                ? detected
-                : resourceStorage.RootPath;
+            string detected = ExternalOsuSongsLocator.Find();
+            initialPath = detected ?? resourceStorage.RootPath;
         }
 
         if (!resourceDirectoryPicker.IsAvailable)

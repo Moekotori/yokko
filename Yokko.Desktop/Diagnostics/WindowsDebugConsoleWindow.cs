@@ -1,34 +1,52 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Drawing;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
-using System.Windows.Forms;
+using Microsoft.Win32.SafeHandles;
 using osu.Framework.Logging;
 using Yokko.Game.Diagnostics;
 
 namespace Yokko.Desktop.Diagnostics;
 
 /// <summary>
-/// A separate native window for live framework logs. It owns its UI thread so
-/// the game loop never waits for Windows Forms painting or selection work.
+/// Presents live framework logs in a separate native Windows console without
+/// adding a WindowsDesktop/WinForms runtime dependency to the game executable.
 /// </summary>
 internal sealed class WindowsDebugConsoleWindow : IDebugConsoleWindow, IDisposable
 {
     private const int historyCapacity = 5000;
+    private const int genericRead = unchecked((int)0x80000000);
+    private const int genericWrite = 0x40000000;
+    private const int fileShareRead = 0x00000001;
+    private const int fileShareWrite = 0x00000002;
+    private const int openExisting = 3;
+    private const int swHide = 0;
+    private const int swShow = 5;
+    private const uint scClose = 0xF060;
+    private const uint mfByCommand = 0x00000000;
 
     private readonly object sync = new();
     private readonly Queue<string> history = new(historyCapacity);
-    private Thread uiThread;
-    private Form form;
-    private RichTextBox output;
-    private bool requestedVisible;
+    private readonly ConcurrentQueue<string> pending = new();
+    private readonly AutoResetEvent logAvailable = new(false);
+    private readonly Thread writerThread;
+    private TextWriter output;
+    private nint consoleWindow;
+    private bool consoleAllocated;
     private bool disposing;
-
-    public event Action CloseRequested;
 
     public WindowsDebugConsoleWindow()
     {
         Logger.NewEntry += onLoggerEntry;
+        writerThread = new Thread(runWriter)
+        {
+            IsBackground = true,
+            Name = "Yokko debug console writer",
+        };
+        writerThread.Start();
     }
 
     public void SetVisible(bool visible)
@@ -38,93 +56,55 @@ internal sealed class WindowsDebugConsoleWindow : IDebugConsoleWindow, IDisposab
             if (disposing)
                 return;
 
-            requestedVisible = visible;
-            if (visible && uiThread == null)
-            {
-                uiThread = new Thread(runWindow)
-                {
-                    IsBackground = true,
-                    Name = "Yokko debug console",
-                };
-                uiThread.SetApartmentState(ApartmentState.STA);
-                uiThread.Start();
-                return;
-            }
-        }
+            if (visible && !consoleAllocated)
+                allocateConsole();
 
-        invokeOnWindow(() =>
-        {
-            if (visible)
-            {
-                form.Show();
-                form.Activate();
-            }
-            else
-                form.Hide();
-        });
+            if (consoleAllocated)
+                ShowWindow(consoleWindow, visible ? swShow : swHide);
+        }
     }
 
-    private void runWindow()
+    private void allocateConsole()
     {
-        output = new RichTextBox
-        {
-            BackColor = Color.FromArgb(18, 20, 26),
-            BorderStyle = BorderStyle.None,
-            Dock = DockStyle.Fill,
-            Font = new Font(FontFamily.GenericMonospace, 10),
-            ForeColor = Color.Gainsboro,
-            ReadOnly = true,
-            WordWrap = false,
-        };
-        form = new Form
-        {
-            BackColor = output.BackColor,
-            ClientSize = new Size(1100, 680),
-            Controls = { output },
-            Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath!),
-            MinimumSize = new Size(640, 360),
-            StartPosition = FormStartPosition.CenterScreen,
-            Text = "Yokko - Live Debug Console",
-        };
-        form.FormClosing += onFormClosing;
+        if (!AllocConsole())
+            return;
 
-        string[] initialHistory;
-        lock (sync)
+        SetConsoleTitle("Yokko - Live Debug Console");
+        consoleWindow = GetConsoleWindow();
+
+        // Closing a process-owned Win32 console also terminates the game. Keep
+        // the window safely hideable through F12/the setting instead.
+        nint systemMenu = GetSystemMenu(consoleWindow, false);
+        if (systemMenu != 0)
+            DeleteMenu(systemMenu, scClose, mfByCommand);
+
+        SafeFileHandle handle = CreateFile(
+            "CONOUT$",
+            genericRead | genericWrite,
+            fileShareRead | fileShareWrite,
+            0,
+            openExisting,
+            0,
+            0);
+        if (handle.IsInvalid)
         {
-            initialHistory = history.ToArray();
+            handle.Dispose();
+            FreeConsole();
+            consoleWindow = 0;
+            return;
         }
 
-        if (initialHistory.Length > 0)
-            output.AppendText(string.Join(Environment.NewLine, initialHistory) + Environment.NewLine);
-
-        bool shouldInitiallyShow;
-        lock (sync)
-            shouldInitiallyShow = requestedVisible && !disposing;
-
-        if (!shouldInitiallyShow)
-            form.Opacity = 0;
-
-        form.Shown += (_, _) =>
+        output = new StreamWriter(
+            new FileStream(handle, FileAccess.Write),
+            new UTF8Encoding(false))
         {
-            bool shouldShow;
-            lock (sync)
-                shouldShow = requestedVisible && !disposing;
-
-            if (!shouldShow)
-            {
-                form.Hide();
-                form.Opacity = 1;
-            }
+            AutoFlush = true,
         };
+        consoleAllocated = true;
 
-        Application.Run(form);
-
-        lock (sync)
-        {
-            form = null;
-            output = null;
-            uiThread = null;
-        }
+        foreach (string line in history)
+            pending.Enqueue(line);
+        logAvailable.Set();
     }
 
     private void onLoggerEntry(LogEntry entry)
@@ -147,47 +127,43 @@ internal sealed class WindowsDebugConsoleWindow : IDebugConsoleWindow, IDisposab
             history.Enqueue(line);
             while (history.Count > historyCapacity)
                 history.Dequeue();
-        }
 
-        invokeOnWindow(() =>
-        {
-            output.AppendText(line + Environment.NewLine);
-            output.SelectionStart = output.TextLength;
-            output.ScrollToCaret();
-        });
-    }
-
-    private void onFormClosing(object sender, FormClosingEventArgs e)
-    {
-        lock (sync)
-        {
-            if (disposing)
+            if (!consoleAllocated)
                 return;
 
-            requestedVisible = false;
+            pending.Enqueue(line);
         }
 
-        e.Cancel = true;
-        form.Hide();
-        CloseRequested?.Invoke();
+        logAvailable.Set();
     }
 
-    private void invokeOnWindow(Action action)
+    private void runWriter()
     {
-        Form currentForm;
-        lock (sync)
-            currentForm = form;
-
-        if (currentForm == null || currentForm.IsDisposed || !currentForm.IsHandleCreated)
-            return;
-
-        try
+        while (true)
         {
-            currentForm.BeginInvoke(action);
-        }
-        catch (InvalidOperationException)
-        {
-            // The window was closed between the state checks and BeginInvoke.
+            logAvailable.WaitOne();
+
+            TextWriter currentOutput;
+            lock (sync)
+            {
+                if (disposing)
+                    return;
+
+                currentOutput = output;
+            }
+
+            if (currentOutput == null)
+                continue;
+
+            try
+            {
+                while (pending.TryDequeue(out string line))
+                    currentOutput.WriteLine(line);
+            }
+            catch (IOException)
+            {
+                // The process may be shutting down while the console detaches.
+            }
         }
     }
 
@@ -203,24 +179,58 @@ internal sealed class WindowsDebugConsoleWindow : IDebugConsoleWindow, IDisposab
     {
         Logger.NewEntry -= onLoggerEntry;
 
-        Thread thread;
         lock (sync)
         {
             if (disposing)
                 return;
 
             disposing = true;
-            thread = uiThread;
         }
 
-        invokeOnWindow(() =>
-        {
-            form.FormClosing -= onFormClosing;
-            form.Close();
-            Application.ExitThread();
-        });
+        logAvailable.Set();
+        writerThread.Join(TimeSpan.FromSeconds(1));
 
-        if (thread != null && thread != Thread.CurrentThread)
-            thread.Join(TimeSpan.FromSeconds(2));
+        lock (sync)
+        {
+            output?.Dispose();
+            output = null;
+            if (consoleAllocated)
+                FreeConsole();
+            consoleAllocated = false;
+            consoleWindow = 0;
+        }
+
+        logAvailable.Dispose();
     }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool AllocConsole();
+
+    [DllImport("kernel32.dll")]
+    private static extern bool FreeConsole();
+
+    [DllImport("kernel32.dll")]
+    private static extern nint GetConsoleWindow();
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool SetConsoleTitle(string title);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFile(
+        string fileName,
+        int desiredAccess,
+        int shareMode,
+        nint securityAttributes,
+        int creationDisposition,
+        int flagsAndAttributes,
+        nint templateFile);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(nint window, int command);
+
+    [DllImport("user32.dll")]
+    private static extern nint GetSystemMenu(nint window, bool revert);
+
+    [DllImport("user32.dll")]
+    private static extern bool DeleteMenu(nint menu, uint position, uint flags);
 }

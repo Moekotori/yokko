@@ -77,25 +77,18 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("ranking paper includes the header rail", () =>
             songSelectScreen.RankingPaperPosition == Vector2.Zero
             && songSelectScreen.RankingPaperSize == new Vector2(850, 434));
-        AddUntilStep("search box leaves room for key filters", () =>
-            songSelectScreen.SearchBoxSize == new Vector2(620, 48));
-        AddAssert("key filters use one quiet segmented row", () =>
+        AddUntilStep("search box uses the space freed by key filter", () =>
+            songSelectScreen.SearchBoxSize == new Vector2(710, 48));
+        AddAssert("key modes share one compact cycling button", () =>
         {
-            SongSelectFilterButton[] filters = songSelectScreen
-                                                       .ChildrenOfType<SongSelectFilterButton>()
-                                                       .OrderBy(filter => filter.X)
-                                                       .ToArray();
-            return filters.Length == 3
-                   && filters.Select(filter => filter.Size)
-                             .SequenceEqual(
-                                 [
-                                     new Vector2(78, 40),
-                                     new Vector2(68, 40),
-                                     new Vector2(68, 40),
-                                 ])
-                   && filters.Count(filter => filter.Selected) == 1
-                   && filters.Single(filter => filter.Selected)
-                             .SelectionRailAlpha == 1;
+            SongSelectKeyModeFilterButton[] filters = songSelectScreen
+                .ChildrenOfType<SongSelectKeyModeFilterButton>()
+                .ToArray();
+            return filters.Length == 1
+                   && songSelectScreen.KeyFilterButtonSize
+                      == new Vector2(130, 48)
+                   && songSelectScreen.KeyFilterButtonValue == "ALL"
+                   && filters[0].SelectionRailAlpha == 1;
         });
         AddAssert("top navigation keeps the brand lockup proportional", () =>
             Math.Abs(songSelectScreen.TopNavigationHeight - 72) < 0.01f
@@ -106,10 +99,12 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.TopNavigationProfileSize
                == new Vector2(172, 46));
         AddAssert("browser starts below search, rating and browse controls", () =>
-            Math.Abs(songSelectScreen.SongBrowserTop - 220) < 0.01f);
+            Math.Abs(songSelectScreen.SongBrowserTop - 232) < 0.01f);
         AddAssert("difficulty filter defaults to all MSD charts", () =>
             songSelectScreen.MinimumDifficultyFilter == 0
-            && songSelectScreen.DifficultyFilterUnit == "MSD RANGE");
+            && songSelectScreen.DifficultyFilterUnit == "MSD RANGE"
+            && songSelectScreen.DifficultyFilterSize
+               == new Vector2(520, 40));
         AddAssert("browse controls use one compact row", () =>
         {
             SongSelectBrowseToolButton[] controls = songSelectScreen

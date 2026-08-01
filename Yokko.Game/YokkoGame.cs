@@ -57,8 +57,6 @@ namespace Yokko.Game
             this.storageReady = storageReady;
             this.startupFiles = startupFiles?.ToArray() ?? [];
             this.externalDebugConsole = externalDebugConsole;
-            if (externalDebugConsole != null)
-                externalDebugConsole.CloseRequested += onExternalDebugConsoleCloseRequested;
         }
 
         public override void SetupLogging(
@@ -156,9 +154,6 @@ namespace Yokko.Game
             updatePerformanceTracking();
         }
 
-        private void onExternalDebugConsoleCloseRequested() =>
-            Schedule(() => Diagnostics.ConsoleVisible.Value = false);
-
         private void updatePerformanceTracking() =>
             performanceReadout.SetTrackingEnabled(
                 showPerformanceReadout.Value
@@ -218,11 +213,7 @@ namespace Yokko.Game
                     onDebugConsoleVisibleChanged;
 
             if (isDisposing && externalDebugConsole != null)
-            {
-                externalDebugConsole.CloseRequested -=
-                    onExternalDebugConsoleCloseRequested;
                 externalDebugConsole.SetVisible(false);
-            }
 
             if (isDisposing && windowMode != null)
                 windowMode.ValueChanged -= onWindowModeChanged;

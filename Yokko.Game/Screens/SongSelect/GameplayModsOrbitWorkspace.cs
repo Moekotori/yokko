@@ -42,7 +42,6 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
     private readonly Action<ManiaModCategory> selectCategory;
     private readonly Action<ManiaModId> toggleMod;
-    private readonly Action<IReadOnlyList<ManiaModId>> cycleModFamily;
     private readonly Action<ManiaModId> focusMod;
     private readonly Action<int> changeNoPauseAllowance;
     private readonly Action<double> previewRate;
@@ -57,8 +56,6 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private readonly Dictionary<ManiaModCategory, OrbitCategoryButton>
         categoryButtons = new();
     private readonly Dictionary<ManiaModId, OrbitModNode> nodes = new();
-    private readonly Dictionary<ManiaModId, IReadOnlyList<ManiaModId>>
-        nodeFamilies = new();
     private readonly List<OrbitConnector> connectors = new();
     private readonly List<OrbitRatePresetButton> ratePresets = new();
     private readonly List<Circle> capacityDots = new();
@@ -97,16 +94,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
     internal IReadOnlyCollection<ManiaModId> VisibleMods => nodes.Keys;
     internal bool RepresentsMod(ManiaModId mod) =>
-        nodeFamilies.Values.Any(family => family.Contains(mod));
-    internal void CycleNode(ManiaModId mod)
-    {
-        ManiaModId? node = nodes.Keys
-            .Cast<ManiaModId?>()
-            .FirstOrDefault(candidate =>
-                nodeRepresents(candidate!.Value, mod));
-        if (node.HasValue)
-            cycleModFamily(familyForNode(node.Value));
-    }
+        nodes.Keys.Any(node => nodeRepresents(node, mod));
     internal string ActiveCountText => activeCount?.Text.ToString() ?? string.Empty;
     internal string CapacityTelemetryText =>
         capacityTelemetry?.Text.ToString() ?? string.Empty;
@@ -116,7 +104,6 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     internal GameplayModsOrbitWorkspace(
         Action<ManiaModCategory> selectCategory,
         Action<ManiaModId> toggleMod,
-        Action<IReadOnlyList<ManiaModId>> cycleModFamily,
         Action<ManiaModId> focusMod,
         Action<int> changeNoPauseAllowance,
         Action<double> previewRate,
@@ -130,7 +117,6 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     {
         this.selectCategory = selectCategory;
         this.toggleMod = toggleMod;
-        this.cycleModFamily = cycleModFamily;
         this.focusMod = focusMod;
         this.changeNoPauseAllowance = changeNoPauseAllowance;
         this.previewRate = previewRate;
@@ -155,17 +141,12 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         built = true;
         InternalChildren =
         [
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = HomeControlColours.Ivory,
-            },
             new Sprite
             {
                 RelativeSizeAxes = Axes.Both,
                 Texture = paperTexture,
                 FillMode = FillMode.Fill,
-                Alpha = 0.52f,
+                Alpha = 0.16f,
             },
             authoredContent = new Container
             {
@@ -176,6 +157,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                     createCategoryRail(),
                     createOrbit(waveformTexture),
                     createRightPanel(),
+                    createDecorations(waveformTexture),
                 ],
             },
             createFooter(),
@@ -255,11 +237,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
         foreach ((ManiaModId mod, OrbitModNode node) in nodes)
         {
-            ManiaModId presentation = presentationModForNode(mod);
-            IReadOnlyList<ManiaModId> family = familyForNode(mod);
-            node.SetPresentation(
-                OsuManiaModParityCatalog.Get(presentation),
-                family.TakeWhile(member => member != presentation).Count() + 1);
+            node.SetPresentation(OsuManiaModParityCatalog.Get(
+                presentationModForNode(mod)));
             node.SetState(
                 isNodeActive(mod),
                 nodeRepresents(mod, focusedMod),
@@ -329,9 +308,11 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         if (visible.Length == 0)
             return null;
 
-        current = nodes.Keys.FirstOrDefault(
-            node => nodeRepresents(node, current),
-            current);
+        if (current == ManiaModId.Nightcore
+            && visible.Contains(ManiaModId.DoubleTime))
+        {
+            current = ManiaModId.DoubleTime;
+        }
 
         int currentIndex = Array.IndexOf(visible, current);
         if (currentIndex < 0)
@@ -342,33 +323,30 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             % visible.Length];
     }
 
-    private ManiaModId presentationModForNode(ManiaModId nodeMod)
-    {
-        IReadOnlyList<ManiaModId> family = familyForNode(nodeMod);
-        ManiaModId? active = family
-            .Cast<ManiaModId?>()
-            .FirstOrDefault(mod => selectedMods.Contains(mod!.Value));
-        if (active.HasValue)
-            return active.Value;
-
-        return family.Contains(focusedMod) ? focusedMod : nodeMod;
-    }
+    private ManiaModId presentationModForNode(ManiaModId nodeMod) =>
+        nodeMod == ManiaModId.DoubleTime
+        && selectedMods.Contains(ManiaModId.Nightcore)
+            ? ManiaModId.Nightcore
+            : nodeMod;
 
     private bool isNodeActive(ManiaModId nodeMod) =>
-        familyForNode(nodeMod).Any(selectedMods.Contains);
+        selectedMods.Contains(nodeMod)
+        || nodeMod == ManiaModId.DoubleTime
+        && selectedMods.Contains(ManiaModId.Nightcore);
 
-    private bool nodeRepresents(
+    private static bool nodeRepresents(
         ManiaModId nodeMod,
         ManiaModId representedMod) =>
-        familyForNode(nodeMod).Contains(representedMod);
+        nodeMod == representedMod
+        || nodeMod == ManiaModId.DoubleTime
+        && representedMod == ManiaModId.Nightcore;
 
-    private bool transitionContains(
+    private static bool transitionContains(
         IReadOnlySet<ManiaModId> transitions,
         ManiaModId nodeMod) =>
-        familyForNode(nodeMod).Any(transitions.Contains);
-
-    private IReadOnlyList<ManiaModId> familyForNode(ManiaModId nodeMod) =>
-        nodeFamilies.GetValueOrDefault(nodeMod) ?? [nodeMod];
+        transitions.Contains(nodeMod)
+        || nodeMod == ManiaModId.DoubleTime
+        && transitions.Contains(ManiaModId.Nightcore);
 
     internal void TransitionOut(int direction)
     {
@@ -453,34 +431,19 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     {
         var container = new Container
         {
-            Position = new Vector2(38, 174),
-            Size = new Vector2(292, 558),
-            Masking = true,
-            CornerRadius = 16,
-            BorderThickness = 1.5f,
-            BorderColour = new Color4(
-                HomeControlColours.Navy.R,
-                HomeControlColours.Navy.G,
-                HomeControlColours.Navy.B,
-                0.14f),
+            Position = new Vector2(30, 202),
+            Size = new Vector2(292, 540),
         };
 
         container.Add(new Box
         {
-            RelativeSizeAxes = Axes.Both,
-            Colour = new Color4(1f, 1f, 1f, 0.82f),
-        });
-        container.Add(new SpriteText
-        {
-            Position = new Vector2(22, 18),
-            Text = YokkoStrings.Get("mods.categories"),
-            Font = HomeTypography.Display(15),
-            Spacing = new Vector2(0.7f, 0),
+            Position = new Vector2(49, 20),
+            Size = new Vector2(1, 445),
             Colour = new Color4(
                 HomeControlColours.Navy.R,
                 HomeControlColours.Navy.G,
                 HomeControlColours.Navy.B,
-                0.56f),
+                0.34f),
         });
 
         LocalisableString[] labels =
@@ -518,7 +481,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 accents[i],
                 () => selectCategory(page))
             {
-                Position = new Vector2(8, 52 + i * 82),
+                Y = i * 92,
             };
             categoryButtons[page] = button;
             container.Add(button);
@@ -528,11 +491,11 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             FontAwesome.Solid.ChevronLeft,
             () => selectRelativePage(-1))
         {
-            Position = new Vector2(20, 501),
+            Position = new Vector2(7, 489),
         });
         container.Add(pageIndicator = new SpriteText
         {
-            Position = new Vector2(91, 506),
+            Position = new Vector2(76, 494),
             Font = HomeTypography.Display(18),
             Colour = HomeControlColours.Pink,
         });
@@ -540,7 +503,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             FontAwesome.Solid.ChevronRight,
             () => selectRelativePage(1))
         {
-            Position = new Vector2(216, 501),
+            Position = new Vector2(190, 489),
         });
 
         return container;
@@ -554,97 +517,61 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             Size = new Vector2(790, 620),
         };
 
-        orbitHost.Add(new Container
+        orbitHost.Add(createRing(new Vector2(54, 122), 390, 1f, 0.28f));
+        orbitHost.Add(createRing(new Vector2(72, 140), 354, 1.2f, 0.48f));
+        orbitHost.Add(createRing(new Vector2(94, 162), 310, 1f, 0.2f));
+        orbitHost.Add(createRing(new Vector2(119, 187), 260, 1f, 0.16f));
+        orbitHost.Add(createRingArc(
+            new Vector2(-35, 30),
+            570,
+            new Vector2(20, 45),
+            new Vector2(350, 75),
+            new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.68f),
+            1.2f));
+        orbitHost.Add(createRingArc(
+            new Vector2(15, 80),
+            470,
+            new Vector2(15, 190),
+            new Vector2(45, 210),
+            new Color4(HomeControlColours.Pink.R, HomeControlColours.Pink.G, HomeControlColours.Pink.B, 0.64f),
+            1.2f));
+        orbitHost.Add(createRingArc(
+            new Vector2(-35, 30),
+            570,
+            new Vector2(65, 480),
+            new Vector2(360, 70),
+            new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.68f),
+            1.2f));
+        orbitHost.Add(createPulseMarker(
+            new Vector2(102, 238),
+            HomeControlColours.Cyan,
+            0));
+        orbitHost.Add(createPulseMarker(
+            new Vector2(247, 118),
+            HomeControlColours.Cyan,
+            420));
+        orbitHost.Add(createPulseMarker(
+            new Vector2(394, 292),
+            HomeControlColours.Pink,
+            840));
+        var healthPulse = new SpriteIcon
         {
-            Position = new Vector2(0, 22),
-            Size = new Vector2(790, 570),
-            Masking = true,
-            CornerRadius = 18,
-            BorderThickness = 1.5f,
-            BorderColour = new Color4(
-                HomeControlColours.Navy.R,
-                HomeControlColours.Navy.G,
-                HomeControlColours.Navy.B,
-                0.14f),
-            Children =
-            [
-                new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(1f, 1f, 1f, 0.84f),
-                },
-                new Box
-                {
-                    Position = new Vector2(24, 66),
-                    Size = new Vector2(742, 1),
-                    Colour = new Color4(
-                        HomeControlColours.Cyan.R,
-                        HomeControlColours.Cyan.G,
-                        HomeControlColours.Cyan.B,
-                        0.24f),
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(26, 19),
-                    Text = YokkoStrings.Get("mods.choose"),
-                    Font = HomeTypography.Display(22),
-                    Colour = HomeControlColours.Navy,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(26, 45),
-                    Text = YokkoStrings.Get("mods.choose_hint"),
-                    Font = HomeTypography.Body(14),
-                    Colour = new Color4(
-                        HomeControlColours.Navy.R,
-                        HomeControlColours.Navy.G,
-                        HomeControlColours.Navy.B,
-                        0.58f),
-                },
-                new Container
-                {
-                    Position = new Vector2(426, 104),
-                    Size = new Vector2(340, 430),
-                    Masking = true,
-                    CornerRadius = 18,
-                    BorderThickness = 1.5f,
-                    BorderColour = new Color4(
-                        HomeControlColours.Cyan.R,
-                        HomeControlColours.Cyan.G,
-                        HomeControlColours.Cyan.B,
-                        0.25f),
-                    Children =
-                    [
-                        new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Colour = new Color4(
-                                HomeControlColours.PaleCyan.R,
-                                HomeControlColours.PaleCyan.G,
-                                HomeControlColours.PaleCyan.B,
-                                0.24f),
-                        },
-                        new SpriteText
-                        {
-                            Position = new Vector2(20, 16),
-                            Text = YokkoStrings.Get("mods.details"),
-                            Font = HomeTypography.Display(14),
-                            Spacing = new Vector2(0.5f, 0),
-                            Colour = new Color4(
-                                HomeControlColours.Navy.R,
-                                HomeControlColours.Navy.G,
-                                HomeControlColours.Navy.B,
-                                0.52f),
-                        },
-                    ],
-                },
-            ],
-        });
-        orbitHost.Add(orbitTelemetryState = new SpriteText { Alpha = 0 });
+            Position = new Vector2(403, 283),
+            Size = new Vector2(18),
+            Icon = FontAwesome.Solid.Heartbeat,
+            Colour = HomeControlColours.Pink,
+        };
+        loadAnimations.Add(() =>
+            healthPulse.ScaleTo(0.9f)
+                       .Then().ScaleTo(1.16f, 420, Easing.OutQuint)
+                       .Then().ScaleTo(0.9f, 520, Easing.InOutSine)
+                       .Loop(760));
+        orbitHost.Add(healthPulse);
+        orbitHost.Add(createOrbitScale());
+        orbitHost.Add(createOrbitTelemetry());
         orbitHost.Add(orbitScanner = new OrbitSignalScanner
         {
             Position = new Vector2(249, 317),
-            Alpha = 0,
         });
         orbitHost.Add(hero = createHero(waveformTexture));
         orbitHost.Add(nodeHost = new Container
@@ -853,8 +780,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         var result = new OrbitHeroPanel(
             () => toggleMod(focusedMod))
         {
-            Position = new Vector2(446, 150),
-            Size = new Vector2(300, 330),
+            Position = new Vector2(105, 160),
+            Size = new Vector2(300, 266),
         };
         result.Children =
         [
@@ -862,15 +789,15 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Y = 10,
-                Font = HomeTypography.Hero(112),
+                Y = 5,
+                Font = HomeTypography.Hero(146),
                 Colour = HomeControlColours.Pink,
             },
             heroName = new SpriteText
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Y = 116,
+                Y = 132,
                 Font = HomeTypography.Display(26),
                 Colour = HomeControlColours.Navy,
             },
@@ -886,8 +813,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Position = new Vector2(0, 154),
-                Width = 244,
+                Position = new Vector2(0, 166),
+                Width = 218,
                 AutoSizeAxes = Axes.Y,
                 TextAnchor = Anchor.TopCentre,
             },
@@ -895,7 +822,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Position = new Vector2(0, 264),
+                Position = new Vector2(0, 226),
                 Size = new Vector2(138, 36),
                 Colour = HomeControlColours.Pink,
             },
@@ -903,7 +830,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Y = 264,
+                Y = 226,
                 Font = HomeTypography.Display(16),
                 Padding = new MarginPadding
                 {
@@ -916,7 +843,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Position = new Vector2(-45, 273),
+                Position = new Vector2(-45, 235),
                 Size = new Vector2(36, 10),
                 Texture = waveformTexture,
                 Colour = Color4.White,
@@ -925,7 +852,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
-                Position = new Vector2(0, 258),
+                Position = new Vector2(0, 220),
                 Size = new Vector2(218, 42),
                 Alpha = 0,
                 Children =
@@ -964,40 +891,77 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     {
         var panel = new Container
         {
-            Position = new Vector2(1145, 150),
-            Size = new Vector2(425, 570),
-            Masking = true,
-            CornerRadius = 18,
-            BorderThickness = 1.5f,
-            BorderColour = new Color4(
-                HomeControlColours.Navy.R,
-                HomeControlColours.Navy.G,
-                HomeControlColours.Navy.B,
-                0.14f),
+            Position = new Vector2(1145, 132),
+            Size = new Vector2(425, 600),
         };
         panel.Children =
         [
             new Box
             {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(1f, 1f, 1f, 0.84f),
+                Size = new Vector2(1, 600),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.22f),
+            },
+            new Box
+            {
+                Position = new Vector2(26, 18),
+                Size = new Vector2(18, 1),
+                Colour = new Color4(
+                    HomeControlColours.Cyan.R,
+                    HomeControlColours.Cyan.G,
+                    HomeControlColours.Cyan.B,
+                    0.38f),
+            },
+            new Box
+            {
+                Position = new Vector2(26, 18),
+                Size = new Vector2(1, 18),
+                Colour = new Color4(
+                    HomeControlColours.Cyan.R,
+                    HomeControlColours.Cyan.G,
+                    HomeControlColours.Cyan.B,
+                    0.38f),
+            },
+            new Box
+            {
+                Position = new Vector2(384, 232),
+                Size = new Vector2(16, 1),
+                Colour = new Color4(
+                    HomeControlColours.Pink.R,
+                    HomeControlColours.Pink.G,
+                    HomeControlColours.Pink.B,
+                    0.34f),
+            },
+            new Box
+            {
+                Position = new Vector2(399, 217),
+                Size = new Vector2(1, 16),
+                Colour = new Color4(
+                    HomeControlColours.Pink.R,
+                    HomeControlColours.Pink.G,
+                    HomeControlColours.Pink.B,
+                    0.34f),
             },
             new SpriteText
             {
                 Position = new Vector2(41, 28),
                 Text = YokkoStrings.Get("mods.speed_multiplier"),
                 Font = HomeTypography.Display(19),
-                Colour = HomeControlColours.Navy,
+                Spacing = new Vector2(1.1f, 0),
+                Colour = HomeControlColours.Cyan,
             },
             new Box
             {
-                Position = new Vector2(31, 246),
-                Size = new Vector2(365, 1),
+                Position = new Vector2(213, 40),
+                Size = new Vector2(173, 1),
                 Colour = new Color4(
                     HomeControlColours.Cyan.R,
                     HomeControlColours.Cyan.G,
                     HomeControlColours.Cyan.B,
-                    0.25f),
+                    0.72f),
             },
             rateValue = new SpriteText
             {
@@ -1056,25 +1020,40 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             },
             new SpriteText
             {
-                Position = new Vector2(41, 267),
+                Position = new Vector2(41, 266),
                 Text = YokkoStrings.Get("mods.active_mods"),
                 Font = HomeTypography.Display(20),
-                Colour = HomeControlColours.Navy,
+                Spacing = new Vector2(1.1f, 0),
+                Colour = HomeControlColours.Cyan,
+            },
+            new Box
+            {
+                Position = new Vector2(168, 278),
+                Size = new Vector2(191, 1),
+                Colour = new Color4(
+                    HomeControlColours.Cyan.R,
+                    HomeControlColours.Cyan.G,
+                    HomeControlColours.Cyan.B,
+                    0.72f),
             },
             activeCount = new SpriteText
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-30, 269),
-                Font = HomeTypography.Display(16),
-                Colour = HomeControlColours.Pink,
+                Position = new Vector2(-5, 266),
+                Font = HomeTypography.Display(19),
+                Colour = HomeControlColours.Cyan,
             },
             activeRows = new Container
             {
-                Position = new Vector2(31, 305),
-                Size = new Vector2(365, 238),
+                Position = new Vector2(31, 300),
+                Size = new Vector2(365, 264),
             },
             createRightCapacityRail(),
+            new OrbitMicroBarGraph
+            {
+                Position = new Vector2(373, 47),
+            },
         ];
         return panel;
     }
@@ -1083,7 +1062,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     {
         var rail = new Container
         {
-            Position = new Vector2(41, 548),
+            Position = new Vector2(41, 572),
             Size = new Vector2(345, 28),
         };
         rail.Add(capacityTelemetry = new SpriteText
@@ -1091,8 +1070,37 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             Text = "MOD BUS // 00 ACTIVE",
             Font = HomeTypography.Display(12),
             Spacing = new Vector2(0.8f, 0),
-            Alpha = 0,
+            Colour = new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                0.46f),
         });
+        rail.Add(new Box
+        {
+            Position = new Vector2(128, 6),
+            Size = new Vector2(132, 1),
+            Colour = new Color4(
+                HomeControlColours.Cyan.R,
+                HomeControlColours.Cyan.G,
+                HomeControlColours.Cyan.B,
+                0.28f),
+        });
+        for (int i = 0; i < 5; i++)
+        {
+            var dot = new Circle
+            {
+                Position = new Vector2(272 + i * 15, 2),
+                Size = new Vector2(7),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.16f),
+            };
+            capacityDots.Add(dot);
+            rail.Add(dot);
+        }
         return rail;
     }
 
@@ -1270,24 +1278,119 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
     private Drawable createFooter()
     {
+        var scanLine = new Box
+        {
+            Position = new Vector2(0, 3),
+            Size = new Vector2(70, 2),
+            Colour = Color4.White,
+            Alpha = 0.28f,
+        };
+        var footerDots = new HomeDotField
+        {
+            Position = new Vector2(532, 82),
+            Size = new Vector2(42, 28),
+            Colour = new Color4(1, 1, 1, 0.38f),
+        };
+
+        loadAnimations.Add(() =>
+        {
+            scanLine.MoveToX(0)
+                    .Then().MoveToX(1530, 4200, Easing.InOutSine)
+                    .Loop(500);
+            scanLine.FadeTo(0.12f)
+                    .Then().FadeTo(0.7f, 900, Easing.InOutSine)
+                    .Then().FadeTo(0.12f, 900, Easing.InOutSine)
+                    .Loop();
+            footerDots.FadeTo(0.3f)
+                      .Then().FadeTo(0.78f, 1600, Easing.InOutSine)
+                      .Then().FadeTo(0.3f, 1600, Easing.InOutSine)
+                      .Loop();
+        });
+
         return new Container
         {
             Anchor = Anchor.BottomLeft,
             Origin = Anchor.BottomLeft,
             RelativeSizeAxes = Axes.X,
-            Height = 112,
+            Height = 130,
             Children =
             [
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(1f, 1f, 1f, 0.94f),
+                Colour = ColourInfo.GradientHorizontal(
+                    new Color4(0.13f, 0.72f, 0.90f, 1),
+                    new Color4(0.24f, 0.82f, 0.93f, 1)),
+            },
+            new HomeDotField
+            {
+                Position = new Vector2(8, 75),
+                Size = new Vector2(58, 38),
+                Colour = new Color4(1, 1, 1, 0.52f),
+            },
+            new SpriteText
+            {
+                Position = new Vector2(626, 45),
+                Text = "+",
+                Font = HomeTypography.Display(24),
+                Colour = Color4.White,
+            },
+            footerDots,
+            scanLine,
+            new Box
+            {
+                Position = new Vector2(548, 16),
+                Size = new Vector2(1.5f, 98),
+                Colour = new Color4(1, 1, 1, 0.68f),
             },
             new Box
             {
-                RelativeSizeAxes = Axes.X,
-                Height = 2,
-                Colour = HomeControlColours.Cyan,
+                Position = new Vector2(662, 32),
+                Size = new Vector2(6),
+                Colour = HomeControlColours.Pink,
+            },
+            new Box
+            {
+                Position = new Vector2(662, 50),
+                Size = new Vector2(3, 9),
+                Colour = new Color4(1, 1, 1, 0.74f),
+            },
+            new Box
+            {
+                Position = new Vector2(662, 65),
+                Size = new Vector2(3, 9),
+                Colour = new Color4(1, 1, 1, 0.74f),
+            },
+            new Box
+            {
+                Position = new Vector2(1138, 24),
+                Size = new Vector2(8),
+                Colour = HomeControlColours.Yellow,
+            },
+            new Box
+            {
+                Position = new Vector2(258, 22),
+                Size = new Vector2(14),
+                Rotation = 45,
+                Colour = HomeControlColours.Yellow,
+            },
+            new Box
+            {
+                Position = new Vector2(1420, 4),
+                Size = new Vector2(72, 7),
+                Colour = HomeControlColours.Yellow,
+            },
+            new HomeHazardStripes(
+                120,
+                new Color4(1, 1, 1, 0.82f))
+            {
+                Position = new Vector2(112, 116),
+            },
+            new HomeHazardStripes(
+                62,
+                new Color4(1, 1, 1, 0.72f))
+            {
+                Position = new Vector2(905, 112),
             },
             new OrbitFooterButton(
                 YokkoStrings.Get("mods.back"),
@@ -1296,7 +1399,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 OrbitFooterButtonStyle.Back,
                 "ESC")
             {
-                Position = new Vector2(58, 20),
+                Position = new Vector2(88, 30),
             },
             new OrbitFooterButton(
                 YokkoStrings.Get("mods.reset"),
@@ -1306,7 +1409,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-374, 24),
+                Position = new Vector2(-376, 35),
             },
             new OrbitFooterButton(
                 YokkoStrings.Get("mods.done"),
@@ -1316,7 +1419,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-70, 19),
+                Position = new Vector2(-82, 29),
             },
             ],
         };
@@ -1326,29 +1429,51 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     {
         nodeHost.Clear();
         nodes.Clear();
-        nodeFamilies.Clear();
         connectors.Clear();
 
-        IReadOnlyList<IReadOnlyList<ManiaModId>> families =
-            orbitFamilies(category);
-        IReadOnlyList<Vector2> positions = matrixPositions(families.Count);
+        IReadOnlyList<ManiaModDefinition> definitions =
+            orbitDefinitions(category);
+        bool compact = definitions.Count > 6;
+        IReadOnlyList<Vector2> positions = compact
+            ? compactOrbitPositions(definitions.Count)
+            :
+            [
+                new(365, 10),
+                new(498, 109),
+                new(530, 248),
+                new(505, 386),
+                new(430, 468),
+                new(150, 524),
+            ];
 
-        for (int i = 0; i < families.Count; i++)
+        Vector2? previousNodeCentre = null;
+        ManiaModId? previousMod = null;
+        for (int i = 0; i < definitions.Count; i++)
         {
-            IReadOnlyList<ManiaModId> family = families[i];
-            ManiaModDefinition definition =
-                OsuManiaModParityCatalog.Get(family[0]);
+            ManiaModDefinition definition = definitions[i];
             Vector2 position = positions[i];
-            nodeFamilies[definition.Id] = family;
+            Vector2 nodeCentre = position + new Vector2(42);
+            if (previousNodeCentre.HasValue && previousMod.HasValue)
+            {
+                var connector = new OrbitConnector(
+                    previousMod.Value,
+                    definition.Id,
+                    previousNodeCentre.Value,
+                    nodeCentre,
+                    i * 0.13);
+                connectors.Add(connector);
+                nodeHost.Add(connector);
+            }
+            previousNodeCentre = nodeCentre;
+            previousMod = definition.Id;
 
             var node = new OrbitModNode(
                 definition,
                 accentFor(definition),
                 i + 1,
-                () => cycleModFamily(family),
+                () => toggleMod(definition.Id),
                 () => focusMod(definition.Id),
-                true,
-                family.Count)
+                compact)
             {
                 Position = position,
             };
@@ -1357,87 +1482,24 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         }
     }
 
-    private IReadOnlyList<IReadOnlyList<ManiaModId>> orbitFamilies(
+    private IReadOnlyList<ManiaModDefinition> orbitDefinitions(
         ManiaModCategory page)
-    {
-        ManiaModId[][] preferredFamilies = page switch
-        {
-            ManiaModCategory.DifficultyReduction =>
-            [
-                [ManiaModId.Easy],
-                [ManiaModId.HalfTime, ManiaModId.Daycore],
-                [ManiaModId.NoRelease],
-                [ManiaModId.NoFail],
-            ],
-            ManiaModCategory.DifficultyIncrease =>
-            [
-                [ManiaModId.HardRock],
-                [ManiaModId.SuddenDeath, ManiaModId.Perfect],
-                [ManiaModId.DoubleTime, ManiaModId.Nightcore],
-                [
-                    ManiaModId.Hidden,
-                    ManiaModId.Flashlight,
-                    ManiaModId.FadeIn,
-                    ManiaModId.Cover,
-                ],
-                [ManiaModId.AccuracyChallenge],
-                [ManiaModId.NoPause],
-            ],
-            ManiaModCategory.Conversion =>
-            [
-                [ManiaModId.Random],
-                [ManiaModId.DualStages],
-                [ManiaModId.Mirror],
-                [ManiaModId.DifficultyAdjust],
-                [ManiaModId.Classic],
-                [ManiaModId.Invert, ManiaModId.HoldOff],
-                [ManiaModId.ConstantSpeed],
-            ],
-            ManiaModCategory.Automation =>
-            [
-                [ManiaModId.Autoplay, ManiaModId.Cinema],
-            ],
-            ManiaModCategory.Fun =>
-            [
-                [
-                    ManiaModId.WindUp,
-                    ManiaModId.WindDown,
-                    ManiaModId.AdaptiveSpeed,
-                ],
-                [ManiaModId.Muted],
-            ],
-            _ => [],
-        };
-
-        ManiaModId[] available = definitionsForCategory(page)
+        => definitionsForCategory(page)
             .Where(definition =>
-                isSelectable(definition.Id))
-            .Select(definition => definition.Id)
+                isSelectable(definition.Id)
+                && definition.Id != ManiaModId.Nightcore)
             .ToArray();
-        var remaining = available.ToHashSet();
-        var result = new List<IReadOnlyList<ManiaModId>>();
-        foreach (ManiaModId[] preferredFamily in preferredFamilies)
-        {
-            ManiaModId[] family = preferredFamily
-                .Where(remaining.Remove)
-                .ToArray();
-            if (family.Length > 0)
-                result.Add(family);
-        }
 
-        result.AddRange(
-            available
-                .Where(remaining.Contains)
-                .Select(mod => (IReadOnlyList<ManiaModId>)[mod]));
-        return result;
-    }
-
-    private static IReadOnlyList<Vector2> matrixPositions(int count)
+    private static IReadOnlyList<Vector2> compactOrbitPositions(int count)
     {
         var positions = new Vector2[count];
+        Vector2 centre = new(290, 310);
+        Vector2 radius = new(255, 255);
         for (int i = 0; i < count; i++)
         {
-            positions[i] = new Vector2(24, 84 + i * 66);
+            float angle = MathF.PI * 2 * i / count;
+            Vector2 direction = new(MathF.Sin(angle), -MathF.Cos(angle));
+            positions[i] = centre + direction * radius - new Vector2(42);
         }
 
         return positions;
@@ -1515,9 +1577,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             .OrderBy(mod => (int)mod)
             .ToArray();
         ManiaModId[] visibleActive = allActive.Take(5).ToArray();
-        activeCount.Text = YokkoStrings.Get(
-            "mods.active_count",
-            allActive.Length);
+        activeCount.Text = $"({allActive.Length} ACTIVE)";
         capacityTelemetry.Text = $"MOD BUS // {allActive.Length:00} ACTIVE";
         for (int i = 0; i < capacityDots.Count; i++)
         {
@@ -1666,21 +1726,13 @@ internal partial class OrbitCategoryButton : ClickableContainer
     {
         this.accent = accent;
         Action = action;
-        Size = new Vector2(276, 74);
-        Masking = true;
-        CornerRadius = 12;
-        BorderThickness = 1;
-        BorderColour = new Color4(
-            HomeControlColours.Navy.R,
-            HomeControlColours.Navy.G,
-            HomeControlColours.Navy.B,
-            0.12f);
+        Size = new Vector2(292, 80);
         InternalChildren =
         [
             background = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(1f, 1f, 1f, 0.72f),
+                Colour = Color4.Transparent,
             },
             number = new SpriteText
             {
@@ -1690,7 +1742,6 @@ internal partial class OrbitCategoryButton : ClickableContainer
                 Text = $"{page:00}",
                 Font = HomeTypography.Display(20),
                 Colour = HomeControlColours.Navy,
-                Alpha = 0,
             },
             marker = new Circle
             {
@@ -1699,13 +1750,12 @@ internal partial class OrbitCategoryButton : ClickableContainer
                 X = 50,
                 Size = new Vector2(8),
                 Colour = HomeControlColours.Navy,
-                Alpha = 0,
             },
             new Circle
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.Centre,
-                X = 40,
+                X = 98,
                 Size = new Vector2(44),
                 Colour = accent,
             },
@@ -1713,7 +1763,7 @@ internal partial class OrbitCategoryButton : ClickableContainer
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.Centre,
-                Position = new Vector2(40, 0),
+                Position = new Vector2(98, 0),
                 Size = new Vector2(19),
                 Icon = iconUsage,
                 Colour = Color4.White,
@@ -1722,7 +1772,7 @@ internal partial class OrbitCategoryButton : ClickableContainer
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 76,
+                X = 140,
                 Text = text,
                 Font = HomeTypography.Display(20),
                 Colour = HomeControlColours.Navy,
@@ -1731,10 +1781,10 @@ internal partial class OrbitCategoryButton : ClickableContainer
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.Centre,
-                Position = new Vector2(-18, 0),
-                Size = new Vector2(8),
-                Rotation = 0,
-                Colour = accent,
+                Position = new Vector2(-4, 0),
+                Size = new Vector2(10),
+                Rotation = 45,
+                Colour = HomeControlColours.Yellow,
                 Alpha = 0,
             },
         ];
@@ -1757,8 +1807,8 @@ internal partial class OrbitCategoryButton : ClickableContainer
                     HomeControlColours.PaleCyan.R,
                     HomeControlColours.PaleCyan.G,
                     HomeControlColours.PaleCyan.B,
-                    0.72f)
-                : new Color4(1f, 1f, 1f, 0.72f),
+                    0.56f)
+                : Color4.Transparent,
             110);
         marker.FadeColour(selected ? accent : HomeControlColours.Navy, 110);
         number.FadeColour(selected ? accent : HomeControlColours.Navy, 110);
@@ -1768,7 +1818,7 @@ internal partial class OrbitCategoryButton : ClickableContainer
             120,
             Easing.OutQuint);
         label.MoveToX(
-            selected ? 80 : 76,
+            selected ? 143 : 140,
             155,
             Easing.OutQuint);
         selectionDiamond.ClearTransforms();
@@ -1811,7 +1861,7 @@ internal partial class OrbitCategoryButton : ClickableContainer
                 HomeControlColours.PaleCyan.B,
                 0.44f),
             80);
-        label.MoveToX(80, 100, Easing.OutQuint);
+        label.MoveToX(141, 100, Easing.OutQuint);
         label.FadeColour(accent, 80);
         icon.ScaleTo(1.13f, 90, Easing.OutQuint);
         return true;
@@ -1819,7 +1869,7 @@ internal partial class OrbitCategoryButton : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
-        label.MoveToX(selected ? 80 : 76, 120, Easing.OutQuint);
+        label.MoveToX(selected ? 143 : 140, 120, Easing.OutQuint);
         label.FadeColour(
             selected ? accent : HomeControlColours.Navy,
             110);
@@ -1830,8 +1880,8 @@ internal partial class OrbitCategoryButton : ClickableContainer
                     HomeControlColours.PaleCyan.R,
                     HomeControlColours.PaleCyan.G,
                     HomeControlColours.PaleCyan.B,
-                    0.72f)
-                : new Color4(1f, 1f, 1f, 0.72f),
+                    0.56f)
+                : Color4.Transparent,
             110);
     }
 }
@@ -1880,7 +1930,6 @@ internal partial class OrbitConnector : CompositeDrawable
         this.phase = phase;
         RelativeSizeAxes = Axes.Both;
         Depth = 2;
-        Alpha = 0.12f;
 
         Vector2 midpoint = (startCentre + endCentre) / 2;
         Vector2 outward = normalisedOrFallback(
@@ -2428,16 +2477,14 @@ internal partial class OrbitSignalScanner : CompositeDrawable
 internal partial class OrbitModNode : ClickableContainer
 {
     private readonly bool compact;
-    private readonly int familySize;
     private readonly Color4 accent;
-    private readonly Container shadow;
-    private readonly Container activationBurst;
-    private readonly Container activationCore;
-    private readonly Container halo;
-    private readonly Container surface;
-    private readonly Container innerRing;
+    private readonly Circle shadow;
+    private readonly Circle activationBurst;
+    private readonly Circle activationCore;
+    private readonly Circle halo;
+    private readonly Circle surface;
+    private readonly Circle innerRing;
     private readonly SpriteText acronym;
-    private readonly SpriteText cyclePosition;
     private readonly SpriteText name;
     private readonly TextFlowContainer description;
     private readonly Circle stateBadge;
@@ -2461,39 +2508,29 @@ internal partial class OrbitModNode : ClickableContainer
         int index,
         Action action,
         Action focus,
-        bool compact = false,
-        int familySize = 1)
+        bool compact = false)
     {
         ModId = definition.Id;
         presentationMod = definition.Id;
         this.accent = accent;
         this.focus = focus;
         this.compact = compact;
-        this.familySize = familySize;
         Action = action;
-        Size = compact ? new Vector2(390, 60) : new Vector2(284, 86);
+        Size = compact ? new Vector2(88) : new Vector2(284, 86);
         InternalChildren =
         [
-            shadow = new Container
+            shadow = new Circle
             {
-                Position = compact ? new Vector2(2, 4) : new Vector2(2, 6),
-                Size = compact ? new Vector2(390, 60) : new Vector2(88),
-                Masking = true,
-                CornerRadius = compact ? 10 : 44,
+                Position = new Vector2(2, 6),
+                Size = new Vector2(88),
                 Colour = HomeControlColours.Navy,
                 Alpha = 0.055f,
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = Color4.White,
-                },
             },
-            activationBurst = new Container
+            activationBurst = new Circle
             {
-                Position = compact ? new Vector2(-6) : new Vector2(-12),
-                Size = compact ? new Vector2(402, 72) : new Vector2(108),
+                Position = new Vector2(-12),
+                Size = new Vector2(108),
                 Masking = true,
-                CornerRadius = compact ? 14 : 54,
                 BorderThickness = 2,
                 BorderColour = accent,
                 Alpha = 0,
@@ -2503,26 +2540,18 @@ internal partial class OrbitModNode : ClickableContainer
                     Colour = Color4.Transparent,
                 },
             },
-            activationCore = new Container
+            activationCore = new Circle
             {
-                Position = compact ? new Vector2(4) : new Vector2(5),
-                Size = compact ? new Vector2(382, 52) : new Vector2(74),
-                Masking = true,
-                CornerRadius = compact ? 8 : 37,
+                Position = new Vector2(5),
+                Size = new Vector2(74),
                 Colour = accent,
                 Alpha = 0,
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = Color4.White,
-                },
             },
-            halo = new Container
+            halo = new Circle
             {
-                Position = compact ? new Vector2(-4) : new Vector2(-7),
-                Size = compact ? new Vector2(398, 68) : new Vector2(98),
+                Position = new Vector2(-7),
+                Size = new Vector2(98),
                 Masking = true,
-                CornerRadius = compact ? 13 : 49,
                 BorderThickness = 1.2f,
                 BorderColour = accent,
                 Alpha = 0,
@@ -2543,13 +2572,11 @@ internal partial class OrbitModNode : ClickableContainer
                     HomeControlColours.Navy.G,
                     HomeControlColours.Navy.B,
                     0.38f),
-                Alpha = 0,
             },
-            surface = new Container
+            surface = new Circle
             {
-                Size = compact ? new Vector2(390, 60) : new Vector2(84),
+                Size = new Vector2(84),
                 Masking = true,
-                CornerRadius = compact ? 10 : 42,
                 BorderThickness = 1.5f,
                 BorderColour = new Color4(
                     HomeControlColours.Navy.R,
@@ -2559,15 +2586,14 @@ internal partial class OrbitModNode : ClickableContainer
                 Child = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(1f, 1f, 1f, 0.94f),
+                    Colour = Color4.White,
                 },
             },
-            innerRing = new Container
+            innerRing = new Circle
             {
                 Position = new Vector2(5),
-                Size = compact ? new Vector2(380, 50) : new Vector2(74),
+                Size = new Vector2(74),
                 Masking = true,
-                CornerRadius = compact ? 8 : 37,
                 BorderThickness = 1,
                 BorderColour = new Color4(
                     HomeControlColours.Navy.R,
@@ -2579,46 +2605,19 @@ internal partial class OrbitModNode : ClickableContainer
                     RelativeSizeAxes = Axes.Both,
                     Colour = Color4.Transparent,
                 },
-                Alpha = compact ? 0 : 1,
-            },
-            new Circle
-            {
-                Position = compact ? new Vector2(12, 10) : new Vector2(5),
-                Size = compact ? new Vector2(40) : new Vector2(74),
-                Colour = new Color4(
-                    accent.R,
-                    accent.G,
-                    accent.B,
-                    compact ? 0.12f : 0),
             },
             acronym = new SpriteText
             {
                 Anchor = Anchor.TopLeft,
                 Origin = Anchor.Centre,
-                Position = compact
-                    ? new Vector2(32, familySize > 1 ? 25 : 30)
-                    : new Vector2(42, familySize > 1 ? 36 : 42),
+                Position = new Vector2(42),
                 Text = definition.Acronym,
-                Font = HomeTypography.Display(compact ? 19 : 35),
+                Font = HomeTypography.Display(35),
                 Colour = accent,
-            },
-            cyclePosition = new SpriteText
-            {
-                Anchor = Anchor.TopLeft,
-                Origin = Anchor.Centre,
-                Position = compact ? new Vector2(32, 45) : new Vector2(42, 64),
-                Text = familySize > 1 ? $"1/{familySize}" : string.Empty,
-                Font = HomeTypography.Display(9),
-                Spacing = new Vector2(0.8f, 0),
-                Colour = new Color4(
-                    HomeControlColours.Navy.R,
-                    HomeControlColours.Navy.G,
-                    HomeControlColours.Navy.B,
-                    0.5f),
             },
             stateBadge = new Circle
             {
-                Position = compact ? new Vector2(356, 19) : new Vector2(64, 62),
+                Position = new Vector2(64, 62),
                 Size = new Vector2(22),
                 Masking = true,
                 BorderThickness = 1.3f,
@@ -2634,7 +2633,7 @@ internal partial class OrbitModNode : ClickableContainer
             {
                 Anchor = Anchor.TopLeft,
                 Origin = Anchor.Centre,
-                Position = compact ? new Vector2(367, 30) : new Vector2(75, 73),
+                Position = new Vector2(75, 73),
                 Size = new Vector2(8),
                 Icon = FontAwesome.Solid.Plus,
                 Colour = accent,
@@ -2642,14 +2641,14 @@ internal partial class OrbitModNode : ClickableContainer
             },
             name = new SpriteText
             {
-                Position = compact ? new Vector2(70, 7) : new Vector2(106, 12),
+                Position = new Vector2(106, 12),
                 Text = YokkoStrings.ModName(definition),
-                Font = HomeTypography.Display(compact ? 16 : 19),
+                Font = HomeTypography.Display(19),
                 Colour = HomeControlColours.Navy,
             },
             description = new TextFlowContainer(text =>
             {
-                text.Font = HomeTypography.Body(compact ? 12 : 16);
+                text.Font = HomeTypography.Body(16);
                 text.Colour = new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,
@@ -2657,28 +2656,21 @@ internal partial class OrbitModNode : ClickableContainer
                     0.68f);
             })
             {
-                Position = compact ? new Vector2(70, 31) : new Vector2(106, 39),
-                Width = compact ? 268 : 178,
+                Position = new Vector2(106, 39),
+                Width = 178,
                 AutoSizeAxes = Axes.Y,
             },
         ];
         description.AddText(YokkoStrings.ModDescription(definition));
         if (compact)
         {
-            description.AutoSizeAxes = Axes.None;
-            description.Height = 19;
-            description.Masking = true;
+            name.Alpha = 0;
+            description.Alpha = 0;
         }
     }
 
-    internal void SetPresentation(
-        ManiaModDefinition definition,
-        int familyPosition = 1)
+    internal void SetPresentation(ManiaModDefinition definition)
     {
-        cyclePosition.Text = familySize > 1
-            ? $"{familyPosition}/{familySize}"
-            : string.Empty;
-
         if (presentationMod == definition.Id)
             return;
 
@@ -3062,13 +3054,30 @@ internal partial class OrbitActiveModRow : ClickableContainer
         Vector2 size) => new()
     {
         Size = size,
-        Masking = true,
-        CornerRadius = 10,
         Children =
         [
             new Box
             {
-                RelativeSizeAxes = Axes.Both,
+                Position = new Vector2(10, 0),
+                Size = new Vector2(size.X - 20, size.Y),
+                Colour = colour,
+            },
+            new osu.Framework.Graphics.Shapes.Triangle
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.Centre,
+                Position = new Vector2(10, 0),
+                Size = new Vector2(size.Y, 20),
+                Rotation = -90,
+                Colour = colour,
+            },
+            new osu.Framework.Graphics.Shapes.Triangle
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.Centre,
+                Position = new Vector2(-10, 0),
+                Size = new Vector2(size.Y, 20),
+                Rotation = 90,
                 Colour = colour,
             },
         ],
@@ -3144,25 +3153,40 @@ internal partial class OrbitEmptySlot : ClickableContainer
         border = new Container
         {
             RelativeSizeAxes = Axes.Both,
-            Alpha = 0.48f,
-            Masking = true,
-            CornerRadius = 10,
-            BorderThickness = 1,
-            BorderColour = new Color4(
-                HomeControlColours.Cyan.R,
-                HomeControlColours.Cyan.G,
-                HomeControlColours.Cyan.B,
-                0.28f),
+            Alpha = 0.34f,
             Children =
             [
                 new Box
                 {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(
-                        HomeControlColours.PaleCyan.R,
-                        HomeControlColours.PaleCyan.G,
-                        HomeControlColours.PaleCyan.B,
-                        0.34f),
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    Position = new Vector2(12, 0),
+                    Size = new Vector2(145, 1.2f),
+                    Colour = HomeControlColours.Cyan,
+                },
+                new Box
+                {
+                    Anchor = Anchor.CentreRight,
+                    Origin = Anchor.CentreRight,
+                    Position = new Vector2(-12, 0),
+                    Size = new Vector2(145, 1.2f),
+                    Colour = HomeControlColours.Cyan,
+                },
+                new Box
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(12, 0),
+                    Size = new Vector2(1.2f, 9),
+                    Colour = HomeControlColours.Cyan,
+                },
+                new Box
+                {
+                    Anchor = Anchor.CentreRight,
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(-12, 0),
+                    Size = new Vector2(1.2f, 9),
+                    Colour = HomeControlColours.Cyan,
                 },
             ],
         };
@@ -3193,7 +3217,7 @@ internal partial class OrbitEmptySlot : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Position = new Vector2(18, 0),
-                Text = YokkoStrings.Get("mods.add_focused"),
+                Text = "ADD FOCUSED MOD",
                 Font = HomeTypography.Display(11),
                 Spacing = new Vector2(0.7f, 0),
                 Colour = HomeControlColours.Cyan,
@@ -3206,7 +3230,7 @@ internal partial class OrbitEmptySlot : ClickableContainer
 
     protected override bool OnHover(HoverEvent e)
     {
-        border.FadeTo(0.92f, 90);
+        border.FadeTo(0.82f, 90);
         plus.MoveToX(-61, 110, Easing.OutQuint);
         plus.RotateTo(90, 130, Easing.OutQuint);
         hint.FadeIn(100);
@@ -3221,7 +3245,7 @@ internal partial class OrbitEmptySlot : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
-        border.FadeTo(0.48f, 110);
+        border.FadeTo(0.34f, 110);
         plus.MoveToX(0, 120, Easing.OutQuint);
         plus.RotateTo(0, 130, Easing.OutQuint);
         hint.FadeOut(80);
@@ -3637,37 +3661,29 @@ internal partial class OrbitFooterButton : ClickableContainer
         var shadow = new Box
         {
             RelativeSizeAxes = Axes.Both,
-            Position = new Vector2(0, 3),
+            Position = new Vector2(0, 4),
             Colour = style == OrbitFooterButtonStyle.Primary
-                ? new Color4(
-                    HomeControlColours.Navy.R,
-                    HomeControlColours.Navy.G,
-                    HomeControlColours.Navy.B,
-                    0.18f)
+                ? new Color4(0.01f, 0.04f, 0.28f, 0.34f)
                 : new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,
                     HomeControlColours.Navy.B,
-                    0.10f),
+                    0.20f),
         };
         var surface = new Container
         {
             RelativeSizeAxes = Axes.Both,
             Masking = true,
-            CornerRadius = 12,
-            BorderThickness = 1.5f,
-            BorderColour = new Color4(
-                HomeControlColours.Navy.R,
-                HomeControlColours.Navy.G,
-                HomeControlColours.Navy.B,
-                0.32f),
+            CornerRadius = 4,
+            BorderThickness = 2,
+            BorderColour = HomeControlColours.Navy,
             Children =
             [
                 background = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = style == OrbitFooterButtonStyle.Primary
-                        ? HomeControlColours.Yellow
+                        ? HomeControlColours.Navy
                         : HomeControlColours.Ivory,
                 },
                 new Box
@@ -3675,9 +3691,9 @@ internal partial class OrbitFooterButton : ClickableContainer
                     Anchor = Anchor.BottomLeft,
                     Origin = Anchor.BottomLeft,
                     RelativeSizeAxes = Axes.X,
-                    Height = 5,
+                    Height = 18,
                     Colour = style == OrbitFooterButtonStyle.Primary
-                        ? HomeControlColours.Pink
+                        ? new Color4(0.01f, 0.03f, 0.30f, 0.26f)
                         : new Color4(
                             HomeControlColours.PaleCyan.R,
                             HomeControlColours.PaleCyan.G,
@@ -3749,7 +3765,7 @@ internal partial class OrbitFooterButton : ClickableContainer
                     Position = new Vector2(50, 0),
                     Size = new Vector2(32),
                     Icon = icon,
-                    Colour = HomeControlColours.Navy,
+                    Colour = Color4.White,
                 });
             }
 
@@ -3760,8 +3776,13 @@ internal partial class OrbitFooterButton : ClickableContainer
                 X = primary ? 16 : 16,
                 Y = 4,
                 Text = text,
-                Font = HomeTypography.Display(primary ? 34 : 30),
-                Colour = HomeControlColours.Navy,
+                Font = new FontUsage(
+                    "Yokko",
+                    primary ? 56 : 50,
+                    "Bold"),
+                Colour = primary
+                    ? Color4.White
+                    : HomeControlColours.Navy,
             });
             children.Add(chevron = new SpriteIcon
             {
@@ -3771,7 +3792,7 @@ internal partial class OrbitFooterButton : ClickableContainer
                 Size = new Vector2(primary ? 18 : 16),
                 Icon = FontAwesome.Solid.ChevronRight,
                 Colour = primary
-                    ? HomeControlColours.Cyan
+                    ? HomeControlColours.Yellow
                     : HomeControlColours.Pink,
             });
 
@@ -3785,12 +3806,55 @@ internal partial class OrbitFooterButton : ClickableContainer
                     Size = new Vector2(84, 3),
                     Colour = HomeControlColours.Pink,
                 });
+                children.Add(new HomeHazardStripes(
+                    84,
+                    new Color4(
+                        HomeControlColours.Cyan.R,
+                        HomeControlColours.Cyan.G,
+                        HomeControlColours.Cyan.B,
+                        0.76f))
+                {
+                    Anchor = Anchor.BottomRight,
+                    Origin = Anchor.BottomRight,
+                    Position = new Vector2(-24, -12),
+                });
             }
             else
             {
                 underline = null;
             }
         }
+
+        var cornerCuts = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Masking = true,
+        };
+        foreach (Anchor anchor in new[]
+                 {
+                     Anchor.TopLeft,
+                     Anchor.TopRight,
+                     Anchor.BottomLeft,
+                     Anchor.BottomRight,
+                 })
+        {
+            cornerCuts.Add(new Box
+            {
+                Anchor = anchor,
+                Origin = Anchor.Centre,
+                Size = new Vector2(14),
+                Rotation = 45,
+                Colour = style switch
+                {
+                    OrbitFooterButtonStyle.Back =>
+                        new Color4(0.15f, 0.74f, 0.91f, 1),
+                    OrbitFooterButtonStyle.Reset =>
+                        new Color4(0.185f, 0.77f, 0.915f, 1),
+                    _ => new Color4(0.22f, 0.80f, 0.925f, 1),
+                },
+            });
+        }
+        children.Add(cornerCuts);
 
         InternalChildren = children.ToArray();
     }
@@ -3800,7 +3864,7 @@ internal partial class OrbitFooterButton : ClickableContainer
         this.ScaleTo(1.018f, 90, Easing.OutQuint);
         background.FadeColour(
             style == OrbitFooterButtonStyle.Primary
-                ? new Color4(1f, 0.94f, 0.56f, 1)
+                ? new Color4(0.02f, 0.06f, 0.43f, 1)
                 : HomeControlColours.PaleCyan,
             90);
         chevron?.MoveToX(-12, 100, Easing.OutQuint);
@@ -3813,7 +3877,7 @@ internal partial class OrbitFooterButton : ClickableContainer
         this.ScaleTo(1, 120, Easing.OutQuint);
         background.FadeColour(
             style == OrbitFooterButtonStyle.Primary
-                ? HomeControlColours.Yellow
+                ? HomeControlColours.Navy
                 : Color4.White,
             120);
         chevron?.MoveToX(-18, 120, Easing.OutQuint);

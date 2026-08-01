@@ -1555,13 +1555,25 @@ internal static class YokkoStrings
                 "外部 osu! 谱面库（只读）",
                 "外部 osu! Songs（読み取り専用）"),
             ["settings.import.external_osu_unconfigured"] = new(
-                "Select osu!stable Songs once; Yokko will remember it",
-                "选择一次 osu!stable Songs，Yokko 会自动记住",
-                "osu!stable Songs を一度選べば Yokko が記憶します"),
+                "Auto-find or choose osu!stable Songs; Yokko will remember it",
+                "自动查找或手动选择 osu!stable Songs，Yokko 会记住路径",
+                "自動検索または手動で osu!stable Songs を選択すると、Yokko が記憶します"),
+            ["settings.import.external_osu_auto_find"] = new(
+                "Auto-find",
+                "自动查找",
+                "自動検索"),
+            ["settings.import.external_osu_manual_select"] = new(
+                "Choose",
+                "手动选择",
+                "手動選択"),
+            ["settings.import.external_osu_not_found"] = new(
+                "osu!stable not found",
+                "未找到 osu!stable",
+                "osu!stable が見つかりません"),
             ["settings.import.external_osu_count"] = new(
-                "{0} mania charts · read only",
-                "{0} 张 mania 谱面 · 只读",
-                "mania {0} 譜面 · 読み取り専用"),
+                "{0} mania charts",
+                "{0} 张 mania 谱面",
+                "mania {0} 譜面"),
             ["settings.import.external_osu_scanning"] = new(
                 "Indexing...",
                 "正在建立索引…",

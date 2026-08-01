@@ -46,7 +46,8 @@ internal static class ExternalOsuSongsIndex
         string fullPath = Path.GetFullPath(
             Environment.ExpandEnvironmentVariables(selectedPath.Trim()));
 
-        if (Path.GetFileName(fullPath.TrimEnd(
+        if (Directory.Exists(fullPath)
+            && Path.GetFileName(fullPath.TrimEnd(
                 Path.DirectorySeparatorChar,
                 Path.AltDirectorySeparatorChar))
             .Equals("Songs", StringComparison.OrdinalIgnoreCase))
@@ -58,8 +59,13 @@ internal static class ExternalOsuSongsIndex
         if (Directory.Exists(child))
             return Path.GetFullPath(child);
 
+        // osu!stable permits BeatmapDirectory to point at a folder with any
+        // name, so an existing directory is also a valid explicit selection.
+        if (Directory.Exists(fullPath))
+            return fullPath;
+
         throw new DirectoryNotFoundException(
-            "Select an osu!stable Songs directory or its osu! installation directory.");
+            "Select an existing osu!stable beatmap directory or osu! installation directory.");
     }
 
     internal static ExternalOsuIndexDocument Load(

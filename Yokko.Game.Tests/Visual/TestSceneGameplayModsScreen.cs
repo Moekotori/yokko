@@ -417,11 +417,8 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.SetCategory(
                 ManiaModCategory.DifficultyReduction));
         AddAssert("reduction page excludes increase mods", () =>
-            modsScreen.VisibleOrbitModCount == 4
-            && modsScreen.IsOrbitModVisible(ManiaModId.Easy)
+            modsScreen.IsOrbitModVisible(ManiaModId.Easy)
             && modsScreen.IsOrbitModVisible(ManiaModId.HalfTime)
-            && !modsScreen.IsOrbitModVisible(ManiaModId.Daycore)
-            && modsScreen.OrbitRepresentsMod(ManiaModId.Daycore)
             && !modsScreen.IsOrbitModVisible(ManiaModId.HardRock)
             && !modsScreen.IsOrbitModVisible(ManiaModId.SuddenDeath));
 
@@ -434,65 +431,19 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             && !modsScreen.IsOrbitModVisible(ManiaModId.Easy)
             && !modsScreen.IsOrbitModVisible(ManiaModId.HalfTime));
         AddAssert("all increase mods remain reachable", () =>
-            modsScreen.VisibleOrbitModCount == 6
-            && !modsScreen.IsOrbitModVisible(ManiaModId.Perfect)
-            && modsScreen.OrbitRepresentsMod(ManiaModId.Perfect)
+            modsScreen.VisibleOrbitModCount == 10
+            && modsScreen.IsOrbitModVisible(ManiaModId.Perfect)
             && !modsScreen.IsOrbitModVisible(ManiaModId.Nightcore)
             && modsScreen.OrbitRepresentsMod(ManiaModId.Nightcore)
-            && !modsScreen.IsOrbitModVisible(ManiaModId.Flashlight)
-            && modsScreen.OrbitRepresentsMod(ManiaModId.Flashlight)
-            && modsScreen.OrbitRepresentsMod(ManiaModId.FadeIn)
-            && modsScreen.OrbitRepresentsMod(ManiaModId.Cover)
+            && modsScreen.IsOrbitModVisible(ManiaModId.FadeIn)
+            && modsScreen.IsOrbitModVisible(ManiaModId.Cover)
             && modsScreen.IsOrbitModVisible(ManiaModId.AccuracyChallenge));
-
-        AddStep("cycle shared visibility switch", () =>
-        {
-            modsScreen.ResetMods();
-            modsScreen.CycleOrbitMod(ManiaModId.Hidden);
-        });
-        AddAssert("visibility switch starts with Hidden", () =>
-            modsScreen.SelectedMods.Contains(ManiaModId.Hidden));
-        AddStep("cycle visibility switch to Flashlight", () =>
-            modsScreen.CycleOrbitMod(ManiaModId.Hidden));
-        AddAssert("visibility switch replaces Hidden with Flashlight", () =>
-            !modsScreen.SelectedMods.Contains(ManiaModId.Hidden)
-            && modsScreen.SelectedMods.Contains(ManiaModId.Flashlight));
-        AddStep("cycle visibility switch through remaining choices", () =>
-        {
-            modsScreen.CycleOrbitMod(ManiaModId.Hidden);
-            modsScreen.CycleOrbitMod(ManiaModId.Hidden);
-            modsScreen.CycleOrbitMod(ManiaModId.Hidden);
-        });
-        AddAssert("visibility switch turns off after Cover", () =>
-            !modsScreen.SelectedMods.Mods.Any(mod => mod is
-                ManiaModId.Hidden
-                or ManiaModId.Flashlight
-                or ManiaModId.FadeIn
-                or ManiaModId.Cover));
 
         AddStep("show conversion", () =>
             modsScreen.SetCategory(ManiaModCategory.Conversion));
         AddAssert("conversion does not truncate late mods", () =>
-            modsScreen.VisibleOrbitModCount == 6
-            && modsScreen.IsOrbitModVisible(ManiaModId.ConstantSpeed)
-            && !modsScreen.IsOrbitModVisible(ManiaModId.HoldOff)
-            && modsScreen.OrbitRepresentsMod(ManiaModId.HoldOff));
-
-        AddStep("show automation", () =>
-            modsScreen.SetCategory(ManiaModCategory.Automation));
-        AddAssert("automation variants share one switch", () =>
-            modsScreen.VisibleOrbitModCount == 1
-            && modsScreen.IsOrbitModVisible(ManiaModId.Autoplay)
-            && !modsScreen.IsOrbitModVisible(ManiaModId.Cinema)
-            && modsScreen.OrbitRepresentsMod(ManiaModId.Cinema));
-
-        AddStep("show fun", () =>
-            modsScreen.SetCategory(ManiaModCategory.Fun));
-        AddAssert("dynamic speed variants share one switch", () =>
-            modsScreen.VisibleOrbitModCount == 2
-            && modsScreen.IsOrbitModVisible(ManiaModId.WindUp)
-            && modsScreen.OrbitRepresentsMod(ManiaModId.WindDown)
-            && modsScreen.OrbitRepresentsMod(ManiaModId.AdaptiveSpeed));
+            modsScreen.IsOrbitModVisible(ManiaModId.ConstantSpeed)
+            && modsScreen.IsOrbitModVisible(ManiaModId.HoldOff));
 
         AddStep("select more than five compatible mods", () =>
         {
