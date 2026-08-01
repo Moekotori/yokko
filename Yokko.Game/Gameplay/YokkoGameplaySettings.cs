@@ -213,6 +213,22 @@ public sealed class YokkoGameplaySettings
 
     public readonly Bindable<double> LayoutHudScaleY = new(1);
 
+    public readonly Bindable<double> LayoutAccuracyOffsetX = new(0);
+
+    public readonly Bindable<double> LayoutAccuracyOffsetY = new(0);
+
+    public readonly Bindable<double> LayoutAccuracyScaleX = new(1);
+
+    public readonly Bindable<double> LayoutAccuracyScaleY = new(1);
+
+    public readonly Bindable<double> LayoutProgressOffsetX = new(0);
+
+    public readonly Bindable<double> LayoutProgressOffsetY = new(0);
+
+    public readonly Bindable<double> LayoutProgressScaleX = new(1);
+
+    public readonly Bindable<double> LayoutProgressScaleY = new(1);
+
     public readonly Bindable<double> LayoutTimingBarOffsetX = new(0);
 
     public readonly Bindable<double> LayoutTimingBarOffsetY = new(0);
@@ -549,6 +565,14 @@ public sealed class YokkoGameplaySettings
         LayoutPlayfieldHeightScale.SetDefault();
         LayoutHudScaleX.SetDefault();
         LayoutHudScaleY.SetDefault();
+        LayoutAccuracyOffsetX.SetDefault();
+        LayoutAccuracyOffsetY.SetDefault();
+        LayoutAccuracyScaleX.SetDefault();
+        LayoutAccuracyScaleY.SetDefault();
+        LayoutProgressOffsetX.SetDefault();
+        LayoutProgressOffsetY.SetDefault();
+        LayoutProgressScaleX.SetDefault();
+        LayoutProgressScaleY.SetDefault();
         LayoutTimingBarOffsetX.SetDefault();
         LayoutTimingBarOffsetY.SetDefault();
         LayoutTimingBarScaleX.SetDefault();

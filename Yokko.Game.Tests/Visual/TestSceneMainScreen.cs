@@ -235,6 +235,7 @@ namespace Yokko.Game.Tests.Visual
             HomeKeyTestPad pad = null;
             HomeSignalSnake snake = null;
             int steps = 0;
+            int initialTrailDots = 0;
             float positionX = 0;
             float positionY = 0;
 
@@ -248,15 +249,27 @@ namespace Yokko.Game.Tests.Visual
             AddStep("record signal state", () =>
             {
                 steps = snake.StepCount;
+                initialTrailDots = snake.VisibleTrailDotCount;
                 positionX = snake.HeadPosition.X;
                 positionY = snake.HeadPosition.Y;
             });
+            AddAssert("arena boundary stays hidden", () => !snake.ArenaBoundaryVisible);
             AddStep("press right lane", () => pad.PressLane(3));
             AddAssert("signal advanced", () => snake.StepCount == steps + 1);
             AddAssert(
                 "signal head moved",
                 () => snake.HeadPosition.X != positionX
                       || snake.HeadPosition.Y != positionY);
+            AddStep("advance six valid moves", () =>
+            {
+                snake.HandleLane(3);
+                snake.HandleLane(3);
+                snake.HandleLane(1);
+                snake.HandleLane(1);
+                snake.HandleLane(1);
+            });
+            AddAssert("survival difficulty lengthened tail", () => snake.StepCount == steps + 6
+                                                                      && snake.VisibleTrailDotCount == initialTrailDots + 1);
         }
 
         [Test]

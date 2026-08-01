@@ -17,31 +17,23 @@ namespace Yokko.Desktop
                 Assembly.GetExecutingAssembly());
             using var debugConsole = new WindowsDebugConsoleWindow();
 
-            try
+            if (OperatingSystem.IsWindows())
             {
-                if (OperatingSystem.IsWindows())
-                {
-                    WindowsFileAssociationRegistrar.TryRegister(
-                        Environment.ProcessPath);
-                }
-
-                using (GameHost host = Host.GetSuitableDesktopHost(@"Yokko"))
-                {
-                    host.Run(new YokkoGame(
-                        new WindowsRawKeyboardTimestampBackend(),
-                        gameStorage => crashReports.SetStoragePaths(
-                            gameStorage.GetFullPath("crashes", true),
-                            gameStorage.GetFullPath("logs", true)),
-                        StartupFileArguments.Resolve(args),
-                        new WindowsResourceDirectoryPicker(),
-                        new FrameworkDesktopDisplayModeController(),
-                        debugConsole));
-                }
+                WindowsFileAssociationRegistrar.TryRegister(
+                    Environment.ProcessPath);
             }
-            catch (Exception exception)
+
+            using (GameHost host = Host.GetSuitableDesktopHost(@"Yokko"))
             {
-                crashReports.TryWrite(exception, "Desktop main loop");
-                throw;
+                host.Run(new YokkoGame(
+                    new WindowsRawKeyboardTimestampBackend(),
+                    gameStorage => crashReports.SetStoragePaths(
+                        gameStorage.GetFullPath("crash-reports", true),
+                        gameStorage.GetFullPath("logs", true)),
+                    StartupFileArguments.Resolve(args),
+                    new WindowsResourceDirectoryPicker(),
+                    new FrameworkDesktopDisplayModeController(),
+                    debugConsole));
             }
         }
     }

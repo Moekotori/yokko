@@ -24,11 +24,15 @@ internal partial class GameplayAccuracyProgressDisplay : CompositeDrawable
     private readonly OsuScoreFontText accuracyValue;
     private readonly Box progressFill;
     private readonly SpriteText progressTime;
+    private readonly Container accuracyContainer;
+    private readonly Container progressContainer;
 
     internal double DisplayedAccuracy { get; private set; } = 1;
     internal double DisplayedProgress { get; private set; }
     internal bool UsesSkinAccuracyFont => accuracyValue.UsesSkinFont;
     internal string DisplayedProgressTime => progressTime.Text.ToString();
+    internal Drawable AccuracyLayoutDrawable => accuracyContainer;
+    internal Drawable ProgressLayoutDrawable => progressContainer;
 
     internal GameplayAccuracyProgressDisplay(
         OsuManiaSkin skin,
@@ -46,49 +50,67 @@ internal partial class GameplayAccuracyProgressDisplay : CompositeDrawable
 
         InternalChildren = new Drawable[]
         {
-            new SpriteText
+            accuracyContainer = new Container
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Text = "ACCURACY",
-                Font = new FontUsage("Yokko", 14, "Bold"),
-                Colour = new Color4(1f, 1f, 1f, 0.72f),
+                Size = new Vector2(content_width, 67),
+                Children = new Drawable[]
+                {
+                    new SpriteText
+                    {
+                        Anchor = Anchor.TopRight,
+                        Origin = Anchor.TopRight,
+                        Text = "ACCURACY",
+                        Font = new FontUsage("Yokko", 14, "Bold"),
+                        Colour = new Color4(1f, 1f, 1f, 0.72f),
+                    },
+                    accuracyValue = new OsuScoreFontText(skin)
+                    {
+                        Anchor = Anchor.TopRight,
+                        Origin = Anchor.TopRight,
+                        Y = 17,
+                    },
+                },
             },
-            accuracyValue = new OsuScoreFontText(skin)
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                Y = 17,
-            },
-            new CircularContainer
+            progressContainer = new Container
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
                 Y = 76,
-                Size = new Vector2(content_width, progress_height),
-                Masking = true,
+                Size = new Vector2(content_width, 36),
                 Children = new Drawable[]
                 {
-                    new Box
+                    new CircularContainer
                     {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = new Color4(1f, 1f, 1f, 0.18f),
+                        Anchor = Anchor.TopRight,
+                        Origin = Anchor.TopRight,
+                        Size = new Vector2(content_width, progress_height),
+                        Masking = true,
+                        Children = new Drawable[]
+                        {
+                            new Box
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                Colour = new Color4(1f, 1f, 1f, 0.18f),
+                            },
+                            progressFill = new Box
+                            {
+                                RelativeSizeAxes = Axes.Y,
+                                Width = 0,
+                                Colour = YokkoPalette.Cyan,
+                            },
+                        },
                     },
-                    progressFill = new Box
+                    progressTime = new SpriteText
                     {
-                        RelativeSizeAxes = Axes.Y,
-                        Width = 0,
-                        Colour = YokkoPalette.Cyan,
+                        Anchor = Anchor.TopRight,
+                        Origin = Anchor.TopRight,
+                        Y = 12,
+                        Font = new FontUsage("Yokko", 13, "Bold"),
+                        Colour = new Color4(1f, 1f, 1f, 0.72f),
                     },
                 },
-            },
-            progressTime = new SpriteText
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                Y = 88,
-                Font = new FontUsage("Yokko", 13, "Bold"),
-                Colour = new Color4(1f, 1f, 1f, 0.72f),
             },
         };
 

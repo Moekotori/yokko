@@ -40,7 +40,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private readonly Action save;
     private readonly Action close;
     private readonly LayoutTransformTarget playfieldTarget;
-    private readonly LayoutTransformTarget hudTarget;
+    private readonly LayoutTransformTarget accuracyTarget;
+    private readonly LayoutTransformTarget progressTarget;
+    private readonly LayoutTransformTarget informationTarget;
     private readonly LayoutTransformTarget timingBarTarget;
     private readonly LayoutTransformTarget comboTarget;
     private readonly LayoutTransformTarget judgementTarget;
@@ -50,10 +52,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private readonly Stack<LayoutSnapshot> redoHistory = new();
     private readonly Container editorChrome;
     private readonly AutoplayDemoControl autoplayDemoControl;
-    private readonly LongNoteCutPreview longNoteCutPreview;
     private Container overviewContent;
     private Container miniPlayfield;
-    private Container miniHud;
+    private Container miniAccuracy;
+    private Container miniProgress;
+    private Container miniInformation;
     private Container miniTimingBar;
     private Container miniCombo;
     private Container miniJudgement;
@@ -93,29 +96,19 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     internal bool HasUnsavedChangesForTest => hasUnsavedChanges();
 
-    internal bool LongNoteCutPreviewEnabledForTest =>
-        longNoteCutPreview.IsCutEnabled;
-
-    internal double LongNoteCutPreviewAmountForTest =>
-        longNoteCutPreview.CutAmount;
-
-    internal Vector2 LongNoteCutPreviewSizeForTest =>
-        longNoteCutPreview.Size;
-
-    internal float LongNoteCutPreviewRemovedLengthForTest =>
-        longNoteCutPreview.RemovedLength;
-
     internal bool IsCancelConfirmationPendingForTest =>
         cancelConfirmationPending;
 
     internal float OverviewAspectRatio =>
         overviewContent.Width / overviewContent.Height;
 
-    internal int TransformTargetCount => 5;
+    internal int TransformTargetCount => 7;
 
     internal int ResizeHandleCount =>
         playfieldTarget.ResizeHandleCount
-        + hudTarget.ResizeHandleCount
+        + accuracyTarget.ResizeHandleCount
+        + progressTarget.ResizeHandleCount
+        + informationTarget.ResizeHandleCount
         + timingBarTarget.ResizeHandleCount
         + comboTarget.ResizeHandleCount
         + judgementTarget.ResizeHandleCount;
@@ -189,12 +182,6 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 },
                 verticalSnapGuide = createSnapGuide(true),
                 horizontalSnapGuide = createSnapGuide(false),
-                longNoteCutPreview = new LongNoteCutPreview
-                {
-                    Size = new Vector2(280, 240),
-                    Depth = -70,
-                    Alpha = 0,
-                },
                 createTopBar(),
                 playfieldTarget = new LayoutTransformTarget(
                     this,
@@ -208,13 +195,35 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     snapTargetMove,
                     clearSnapGuides,
                     resizePlayfieldWithWheel),
-                hudTarget = new LayoutTransformTarget(
+                accuracyTarget = new LayoutTransformTarget(
                     this,
-                    LayoutElementKind.Hud,
-                    YokkoStrings.Get("gameplay.layout_editor.hud"),
-                    moveHud,
-                    resizeHud,
-                    resetHud,
+                    LayoutElementKind.Accuracy,
+                    YokkoStrings.Get("gameplay.layout_editor.accuracy"),
+                    moveAccuracy,
+                    resizeAccuracy,
+                    resetAccuracy,
+                    beginChange,
+                    selectTarget,
+                    snapTargetMove,
+                    clearSnapGuides),
+                progressTarget = new LayoutTransformTarget(
+                    this,
+                    LayoutElementKind.Progress,
+                    YokkoStrings.Get("gameplay.layout_editor.progress"),
+                    moveProgress,
+                    resizeProgress,
+                    resetProgress,
+                    beginChange,
+                    selectTarget,
+                    snapTargetMove,
+                    clearSnapGuides),
+                informationTarget = new LayoutTransformTarget(
+                    this,
+                    LayoutElementKind.Information,
+                    YokkoStrings.Get("gameplay.layout_editor.information"),
+                    moveInformation,
+                    resizeInformation,
+                    resetInformation,
                     beginChange,
                     selectTarget,
                     snapTargetMove,
@@ -315,13 +324,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             selectTarget(playfieldTarget);
             updateHistoryButtons();
             refreshSessionHint(force: true);
-            longNoteCutPreview.Alpha = 1;
             this.FadeTo(1, 100, Easing.OutQuint);
         }
         else if (hadActiveSession)
         {
             setChromeVisible(true, animate: false);
-            longNoteCutPreview.Alpha = 0;
             endEditorSession();
             selectTarget(null);
             this.FadeTo(0, 100, Easing.OutQuint);
@@ -348,11 +355,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         IsAutoplayDemo = autoplay;
         ClearTransforms();
         restoreOriginalAlpha(LayoutElementKind.Playfield);
-        restoreOriginalAlpha(LayoutElementKind.Hud);
+        restoreOriginalAlpha(LayoutElementKind.Accuracy);
+        restoreOriginalAlpha(LayoutElementKind.Progress);
+        restoreOriginalAlpha(LayoutElementKind.Information);
         restoreOriginalAlpha(LayoutElementKind.TimingBar);
         setComboEditorPreview(false);
         setJudgementEditorPreview(false);
-        longNoteCutPreview.FadeOut(80, Easing.OutQuint);
         if (autoplay)
         {
             this.FadeTo(1, 90, Easing.OutQuint);
@@ -372,15 +380,20 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         IsEditing = true;
         autoplayDemoControl.FadeTo(0, 80, Easing.OutQuint);
         setChromeVisible(true, animate: false);
-        longNoteCutPreview.FadeIn(100, Easing.OutQuint);
         setComboEditorPreview(true);
         setJudgementEditorPreview(true);
         applyElementAlpha(
             LayoutElementKind.Playfield,
             playfieldTarget.EditorHidden);
         applyElementAlpha(
-            LayoutElementKind.Hud,
-            hudTarget.EditorHidden);
+            LayoutElementKind.Accuracy,
+            accuracyTarget.EditorHidden);
+        applyElementAlpha(
+            LayoutElementKind.Progress,
+            progressTarget.EditorHidden);
+        applyElementAlpha(
+            LayoutElementKind.Information,
+            informationTarget.EditorHidden);
         applyElementAlpha(
             LayoutElementKind.TimingBar,
             timingBarTarget.EditorHidden);
@@ -413,8 +426,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 LayoutElementKind.Playfield,
                 playfieldTarget.EditorHidden);
             applyElementAlpha(
-                LayoutElementKind.Hud,
-                hudTarget.EditorHidden);
+                LayoutElementKind.Accuracy,
+                accuracyTarget.EditorHidden);
+            applyElementAlpha(
+                LayoutElementKind.Progress,
+                progressTarget.EditorHidden);
+            applyElementAlpha(
+                LayoutElementKind.Information,
+                informationTarget.EditorHidden);
         }
     }
 
@@ -588,8 +607,18 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         (Vector2 playfieldTopLeft, Vector2 playfieldBottomRight) =
             GameplayLayoutGeometry.BoundsIn(this, playfield);
-        (Vector2 hudTopLeft, Vector2 hudBottomRight) =
-            GameplayLayoutGeometry.BoundsIn(this, hud);
+        (Vector2 accuracyTopLeft, Vector2 accuracyBottomRight) =
+            GameplayLayoutGeometry.BoundsIn(
+                this,
+                hud.AccuracyLayoutDrawable);
+        (Vector2 progressTopLeft, Vector2 progressBottomRight) =
+            GameplayLayoutGeometry.BoundsIn(
+                this,
+                hud.ProgressLayoutDrawable);
+        (Vector2 informationTopLeft, Vector2 informationBottomRight) =
+            GameplayLayoutGeometry.BoundsIn(
+                this,
+                hud.InformationLayoutDrawable);
         (Vector2 timingBarTopLeft, Vector2 timingBarBottomRight) =
             GameplayLayoutGeometry.BoundsIn(this, timingBar);
         (Vector2 comboTopLeft, Vector2 comboBottomRight) =
@@ -605,7 +634,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             playfieldTarget,
             playfieldTopLeft,
             playfieldBottomRight);
-        setBounds(hudTarget, hudTopLeft, hudBottomRight);
+        setBounds(accuracyTarget, accuracyTopLeft, accuracyBottomRight);
+        setBounds(progressTarget, progressTopLeft, progressBottomRight);
+        setBounds(
+            informationTarget,
+            informationTopLeft,
+            informationBottomRight);
         setBounds(
             timingBarTarget,
             timingBarTopLeft,
@@ -615,16 +649,6 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             judgementTarget,
             judgementTopLeft,
             judgementBottomRight);
-
-        longNoteCutPreview.Position = new Vector2(
-            (playfieldTopLeft.X + playfieldBottomRight.X
-             - longNoteCutPreview.Width) / 2,
-            (playfieldTopLeft.Y + playfieldBottomRight.Y
-             - longNoteCutPreview.Height) / 2);
-        longNoteCutPreview.SetState(
-            liveSettings.LongNoteCutEnabled(),
-            liveSettings.LongNoteCutAmount(),
-            liveSettings.ScrollDirection());
 
         float playfieldHeight = Math.Max(
             1,
@@ -675,8 +699,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         updateOverview(
             playfieldTopLeft,
             playfieldBottomRight,
-            hudTopLeft,
-            hudBottomRight,
+            accuracyTopLeft,
+            accuracyBottomRight,
+            progressTopLeft,
+            progressBottomRight,
+            informationTopLeft,
+            informationBottomRight,
             timingBarTopLeft,
             timingBarBottomRight,
             comboTopLeft,
@@ -1046,21 +1074,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                     Colour = Color4.Black,
                                 },
                                 miniPlayfield = createMiniPlayfield(),
-                                miniHud = new Container
-                                {
-                                    Masking = true,
-                                    BorderThickness = 1,
-                                    BorderColour = HomeControlColours.Cyan,
-                                    Child = new Box
-                                    {
-                                        RelativeSizeAxes = Axes.Both,
-                                        Colour = new Color4(
-                                            HomeControlColours.PaleCyan.R,
-                                            HomeControlColours.PaleCyan.G,
-                                            HomeControlColours.PaleCyan.B,
-                                            0.18f),
-                                    },
-                                },
+                                miniAccuracy = createMiniReadout(
+                                    HomeControlColours.PaleCyan),
+                                miniProgress = createMiniReadout(
+                                    HomeControlColours.Cyan),
+                                miniInformation = createMiniReadout(
+                                    HomeControlColours.Navy),
                                 miniTimingBar = new Container
                                 {
                                     Masking = true,
@@ -1110,8 +1129,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         if (timingBarTarget.IsHovered)
             return timingBarTarget;
 
-        if (hudTarget.IsHovered)
-            return hudTarget;
+        if (informationTarget.IsHovered)
+            return informationTarget;
+
+        if (progressTarget.IsHovered)
+            return progressTarget;
+
+        if (accuracyTarget.IsHovered)
+            return accuracyTarget;
 
         return playfieldTarget.IsHovered
             ? playfieldTarget
@@ -1134,7 +1159,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         LayoutTransformTarget[] targets =
         [
             playfieldTarget,
-            hudTarget,
+            accuracyTarget,
+            progressTarget,
+            informationTarget,
             timingBarTarget,
             comboTarget,
             judgementTarget,
@@ -1674,8 +1701,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private void updateOverview(
         Vector2 playfieldTopLeft,
         Vector2 playfieldBottomRight,
-        Vector2 hudTopLeft,
-        Vector2 hudBottomRight,
+        Vector2 accuracyTopLeft,
+        Vector2 accuracyBottomRight,
+        Vector2 progressTopLeft,
+        Vector2 progressBottomRight,
+        Vector2 informationTopLeft,
+        Vector2 informationBottomRight,
         Vector2 timingBarTopLeft,
         Vector2 timingBarBottomRight,
         Vector2 comboTopLeft,
@@ -1687,7 +1718,18 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             miniPlayfield,
             playfieldTopLeft,
             playfieldBottomRight);
-        setOverviewBounds(miniHud, hudTopLeft, hudBottomRight);
+        setOverviewBounds(
+            miniAccuracy,
+            accuracyTopLeft,
+            accuracyBottomRight);
+        setOverviewBounds(
+            miniProgress,
+            progressTopLeft,
+            progressBottomRight);
+        setOverviewBounds(
+            miniInformation,
+            informationTopLeft,
+            informationBottomRight);
         setOverviewBounds(
             miniTimingBar,
             timingBarTopLeft,

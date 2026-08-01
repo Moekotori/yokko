@@ -1173,21 +1173,14 @@ namespace Yokko.Game.Tests.Visual
                 gameplayScreen.SetLayoutEditorLongNoteCutEnabledForTest(true);
                 gameplayScreen.SetLayoutEditorLongNoteCutAmountForTest(1.2);
             });
-            AddUntilStep("LN cut and preview update inside editor", () =>
+            AddUntilStep("LN cut updates inside editor", () =>
                 gameplayScreen.LayoutEditorLongNoteCutEnabledForTest
                 && Math.Abs(
                     gameplayScreen.LayoutEditorLongNoteCutAmountForTest
                     - 1.2) < 0.001
                 && Math.Abs(
                     gameplayScreen.AppliedLongNoteCutAmountForTest
-                    - 1.2) < 0.001
-                && layoutEditor.LongNoteCutPreviewEnabledForTest
-                && Math.Abs(
-                    layoutEditor.LongNoteCutPreviewAmountForTest
-                    - 1.2) < 0.001
-                && layoutEditor.LongNoteCutPreviewSizeForTest.X >= 260
-                && layoutEditor.LongNoteCutPreviewSizeForTest.Y >= 220
-                && layoutEditor.LongNoteCutPreviewRemovedLengthForTest > 20);
+                    - 1.2) < 0.001);
             AddStep("restore live LN cut settings", () =>
             {
                 gameplayScreen.SetLayoutEditorLongNoteCutAmountForTest(
@@ -1340,6 +1333,8 @@ namespace Yokko.Game.Tests.Visual
             AddStep("start autoplay layout demo", () =>
             {
                 gameplayScreen.ResumeCountdownMillisecondsOverride = 0;
+                gameplayScreen.SetLayoutEditorLongNoteCutEnabledForTest(true);
+                gameplayScreen.SetLayoutEditorLongNoteCutAmountForTest(0.4);
                 gameplayScreen.BeginLayoutAutoplayDemoForTest();
             });
             AddUntilStep("autoplay demo keeps editor UI visible", () =>
@@ -1349,6 +1344,22 @@ namespace Yokko.Game.Tests.Visual
                 && gameplayHud.Alpha > 0
                 && layoutEditor.AutoplayControlVisibleForTest
                 && layoutEditor.ChromeAlphaForTest > 0.9f);
+            AddUntilStep("autoplay demo shows real long notes", () =>
+                gameplayScreen.LayoutAutoplayDemoLongNoteCountForTest > 0
+                && gameplayScreen.VisibleLayoutAutoplayDemoLongNoteCountForTest
+                    > 0
+                && gameplayScreen.LayoutAutoplayDemoLongNoteCutDistanceForTest
+                    > 0);
+            float autoplayCutDistance = 0;
+            AddStep("increase LN cut during autoplay demo", () =>
+            {
+                autoplayCutDistance = gameplayScreen
+                    .LayoutAutoplayDemoLongNoteCutDistanceForTest;
+                gameplayScreen.SetLayoutEditorLongNoteCutAmountForTest(1.6);
+            });
+            AddUntilStep("autoplay long notes update cut in real time", () =>
+                gameplayScreen.LayoutAutoplayDemoLongNoteCutDistanceForTest
+                    > autoplayCutDistance + 20);
             AddUntilStep("autoplay demo hits notes", () =>
                 comboReadout.DisplayedCombo > 0
                 && judgementReadout.Alpha > 0);
@@ -1362,6 +1373,13 @@ namespace Yokko.Game.Tests.Visual
                 && layoutEditor.IsEditing
                 && !layoutEditor.AutoplayControlVisibleForTest
                 && layoutEditor.ChromeAlphaForTest > 0.9f);
+            AddStep("restore LN cut after autoplay demo", () =>
+            {
+                gameplayScreen.SetLayoutEditorLongNoteCutAmountForTest(
+                    originalLongNoteCutAmount);
+                gameplayScreen.SetLayoutEditorLongNoteCutEnabledForTest(
+                    originalLongNoteCutEnabled);
+            });
             double testPlayOffset = 0;
             AddStep("prepare unsaved layout test play", () =>
             {

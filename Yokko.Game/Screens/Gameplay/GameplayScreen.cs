@@ -921,20 +921,49 @@ public partial class GameplayScreen : Screen
                     YokkoGameplaySettings.MinimumLayoutScale,
                     YokkoGameplaySettings.MaximumLayoutScale)));
 
-        hud.Position = new Vector2(
-            -20
-            + (float)gameplaySettings.LayoutHudOffsetX.Value * DrawWidth,
-            20
-            + (float)gameplaySettings.LayoutHudOffsetY.Value * DrawHeight);
-        hud.Scale = new Vector2(
-            (float)Math.Clamp(
-                gameplaySettings.LayoutHudScaleX.Value,
-                YokkoGameplaySettings.MinimumLayoutScale,
-                YokkoGameplaySettings.MaximumLayoutScale),
-            (float)Math.Clamp(
-                gameplaySettings.LayoutHudScaleY.Value,
-                YokkoGameplaySettings.MinimumLayoutScale,
-                YokkoGameplaySettings.MaximumLayoutScale));
+        hud.Position = new Vector2(-20, 20);
+        hud.Scale = Vector2.One;
+        hud.SetLayoutTransforms(
+            new Vector2(
+                (float)gameplaySettings.LayoutAccuracyOffsetX.Value
+                * DrawWidth,
+                (float)gameplaySettings.LayoutAccuracyOffsetY.Value
+                * DrawHeight),
+            new Vector2(
+                (float)Math.Clamp(
+                    gameplaySettings.LayoutAccuracyScaleX.Value,
+                    YokkoGameplaySettings.MinimumLayoutScale,
+                    YokkoGameplaySettings.MaximumLayoutScale),
+                (float)Math.Clamp(
+                    gameplaySettings.LayoutAccuracyScaleY.Value,
+                    YokkoGameplaySettings.MinimumLayoutScale,
+                    YokkoGameplaySettings.MaximumLayoutScale)),
+            new Vector2(
+                (float)gameplaySettings.LayoutProgressOffsetX.Value
+                * DrawWidth,
+                (float)gameplaySettings.LayoutProgressOffsetY.Value
+                * DrawHeight),
+            new Vector2(
+                (float)Math.Clamp(
+                    gameplaySettings.LayoutProgressScaleX.Value,
+                    YokkoGameplaySettings.MinimumLayoutScale,
+                    YokkoGameplaySettings.MaximumLayoutScale),
+                (float)Math.Clamp(
+                    gameplaySettings.LayoutProgressScaleY.Value,
+                    YokkoGameplaySettings.MinimumLayoutScale,
+                    YokkoGameplaySettings.MaximumLayoutScale)),
+            new Vector2(
+                (float)gameplaySettings.LayoutHudOffsetX.Value * DrawWidth,
+                (float)gameplaySettings.LayoutHudOffsetY.Value * DrawHeight),
+            new Vector2(
+                (float)Math.Clamp(
+                    gameplaySettings.LayoutHudScaleX.Value,
+                    YokkoGameplaySettings.MinimumLayoutScale,
+                    YokkoGameplaySettings.MaximumLayoutScale),
+                (float)Math.Clamp(
+                    gameplaySettings.LayoutHudScaleY.Value,
+                    YokkoGameplaySettings.MinimumLayoutScale,
+                    YokkoGameplaySettings.MaximumLayoutScale)));
 
         timingBar.Position = new Vector2(
             (float)gameplaySettings.LayoutTimingBarOffsetX.Value * DrawWidth,
@@ -4283,6 +4312,8 @@ public partial class GameplayScreen : Screen
         nextPlayfield.SetApproachTime(computeApproachTime(
             gameplaySettings.ScrollSpeed.Value,
             currentPlaybackRate(gameplayTime)));
+        if (layoutAutoplayDemoActive)
+            nextPlayfield.SetLayoutAutoplayDemo(true, gameplayTime);
         nextPlayfield.UpdateGameplayTime(
             gameplayTime,
             judgementState,
@@ -4358,6 +4389,15 @@ public partial class GameplayScreen : Screen
 
     internal double AppliedLongNoteCutAmountForTest =>
         playfield.LongNoteCutAmount;
+
+    internal int LayoutAutoplayDemoLongNoteCountForTest =>
+        playfield.LayoutAutoplayDemoLongNoteCount;
+
+    internal int VisibleLayoutAutoplayDemoLongNoteCountForTest =>
+        playfield.VisibleLayoutAutoplayDemoLongNoteCount;
+
+    internal float LayoutAutoplayDemoLongNoteCutDistanceForTest =>
+        playfield.LayoutAutoplayDemoLongNoteCutDistance;
 
     internal void SetLayoutEditorLongNoteCutEnabledForTest(bool enabled) =>
         setLayoutEditorLongNoteCutEnabled(enabled);
@@ -4441,6 +4481,7 @@ public partial class GameplayScreen : Screen
         lastReplayAdaptiveSimulationTime = pausedGameplayTime;
 
         layoutAutoplayDemoActive = true;
+        playfield.SetLayoutAutoplayDemo(true, pausedGameplayTime);
     }
 
     private void endLayoutAutoplayReplay()
@@ -4454,6 +4495,7 @@ public partial class GameplayScreen : Screen
                 applyLaneRelease(lane, pausedGameplayTime);
         }
 
+        playfield.SetLayoutAutoplayDemo(false, pausedGameplayTime);
         replay = layoutAutoplayPreviousReplay;
         replayTimeline = layoutAutoplayPreviousReplayTimeline;
         lastReplayAdaptiveSimulationTime =

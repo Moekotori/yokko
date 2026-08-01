@@ -707,18 +707,6 @@ internal static class YokkoStrings
                 "Drag title · click to show / hide",
                 "拖动标题 · 点击显示 / 隐藏",
                 "タイトルをドラッグ · クリックで表示切替"),
-            ["gameplay.layout_editor.ln_preview"] = new(
-                "Live LN cut preview",
-                "削 LN 实时预览",
-                "LN カットのライブプレビュー"),
-            ["gameplay.layout_editor.ln_original"] = new(
-                "Original",
-                "原始",
-                "元の長さ"),
-            ["gameplay.layout_editor.ln_after"] = new(
-                "After cut",
-                "削后",
-                "カット後"),
             ["gameplay.layout_editor.preview"] = new(
                 "Full-page preview",
                 "完整页面预览",

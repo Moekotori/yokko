@@ -124,6 +124,10 @@ namespace Yokko.Desktop.Diagnostics
             appendValue(report, "Timestamp (local)", timestamp.ToLocalTime().ToString("O", CultureInfo.InvariantCulture));
             appendValue(report, "Source", source);
             appendValue(report, "Process terminating", isTerminating);
+            appendValue(
+                report,
+                "Crash reason",
+                $"{exception.GetType().FullName}: {safe(() => exception.Message)}");
 
             appendSection(report, "Application");
             appendValue(report, "Name", assemblyName.Name);
@@ -264,7 +268,7 @@ namespace Yokko.Desktop.Diagnostics
             if (string.IsNullOrWhiteSpace(localData))
                 localData = Path.GetTempPath();
 
-            return Path.Combine(localData, "Yokko", "crashes");
+            return Path.Combine(localData, "Yokko", "crash-reports");
         }
 
         private static string getProcessUptime()

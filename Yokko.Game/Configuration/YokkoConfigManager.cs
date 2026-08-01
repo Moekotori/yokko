@@ -76,6 +76,14 @@ internal enum YokkoSetting
     GameplayLayoutPlayfieldHeightScale,
     GameplayLayoutHudScaleX,
     GameplayLayoutHudScaleY,
+    GameplayLayoutAccuracyOffsetX,
+    GameplayLayoutAccuracyOffsetY,
+    GameplayLayoutAccuracyScaleX,
+    GameplayLayoutAccuracyScaleY,
+    GameplayLayoutProgressOffsetX,
+    GameplayLayoutProgressOffsetY,
+    GameplayLayoutProgressScaleX,
+    GameplayLayoutProgressScaleY,
     GameplayLayoutTimingBarOffsetX,
     GameplayLayoutTimingBarOffsetY,
     GameplayLayoutTimingBarScaleX,
@@ -282,6 +290,54 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             0.05);
         SetDefault(
             YokkoSetting.GameplayLayoutHudScaleY,
+            1.0,
+            YokkoGameplaySettings.MinimumLayoutScale,
+            YokkoGameplaySettings.MaximumLayoutScale,
+            0.05);
+        SetDefault(
+            YokkoSetting.GameplayLayoutAccuracyOffsetX,
+            0.0,
+            YokkoGameplaySettings.MinimumLayoutOffset,
+            YokkoGameplaySettings.MaximumLayoutOffset,
+            0.005);
+        SetDefault(
+            YokkoSetting.GameplayLayoutAccuracyOffsetY,
+            0.0,
+            YokkoGameplaySettings.MinimumLayoutOffset,
+            YokkoGameplaySettings.MaximumLayoutOffset,
+            0.005);
+        SetDefault(
+            YokkoSetting.GameplayLayoutAccuracyScaleX,
+            1.0,
+            YokkoGameplaySettings.MinimumLayoutScale,
+            YokkoGameplaySettings.MaximumLayoutScale,
+            0.05);
+        SetDefault(
+            YokkoSetting.GameplayLayoutAccuracyScaleY,
+            1.0,
+            YokkoGameplaySettings.MinimumLayoutScale,
+            YokkoGameplaySettings.MaximumLayoutScale,
+            0.05);
+        SetDefault(
+            YokkoSetting.GameplayLayoutProgressOffsetX,
+            0.0,
+            YokkoGameplaySettings.MinimumLayoutOffset,
+            YokkoGameplaySettings.MaximumLayoutOffset,
+            0.005);
+        SetDefault(
+            YokkoSetting.GameplayLayoutProgressOffsetY,
+            0.0,
+            YokkoGameplaySettings.MinimumLayoutOffset,
+            YokkoGameplaySettings.MaximumLayoutOffset,
+            0.005);
+        SetDefault(
+            YokkoSetting.GameplayLayoutProgressScaleX,
+            1.0,
+            YokkoGameplaySettings.MinimumLayoutScale,
+            YokkoGameplaySettings.MaximumLayoutScale,
+            0.05);
+        SetDefault(
+            YokkoSetting.GameplayLayoutProgressScaleY,
             1.0,
             YokkoGameplaySettings.MinimumLayoutScale,
             YokkoGameplaySettings.MaximumLayoutScale,
@@ -613,6 +669,30 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.GameplayLayoutHudScaleY,
             settings.LayoutHudScaleY);
+        BindWith(
+            YokkoSetting.GameplayLayoutAccuracyOffsetX,
+            settings.LayoutAccuracyOffsetX);
+        BindWith(
+            YokkoSetting.GameplayLayoutAccuracyOffsetY,
+            settings.LayoutAccuracyOffsetY);
+        BindWith(
+            YokkoSetting.GameplayLayoutAccuracyScaleX,
+            settings.LayoutAccuracyScaleX);
+        BindWith(
+            YokkoSetting.GameplayLayoutAccuracyScaleY,
+            settings.LayoutAccuracyScaleY);
+        BindWith(
+            YokkoSetting.GameplayLayoutProgressOffsetX,
+            settings.LayoutProgressOffsetX);
+        BindWith(
+            YokkoSetting.GameplayLayoutProgressOffsetY,
+            settings.LayoutProgressOffsetY);
+        BindWith(
+            YokkoSetting.GameplayLayoutProgressScaleX,
+            settings.LayoutProgressScaleX);
+        BindWith(
+            YokkoSetting.GameplayLayoutProgressScaleY,
+            settings.LayoutProgressScaleY);
         BindWith(
             YokkoSetting.GameplayLayoutTimingBarOffsetX,
             settings.LayoutTimingBarOffsetX);

@@ -6,6 +6,32 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal static class SongSelectTextLayout
 {
+    private const string external_osu_set_prefix = "external-osu-set\u001f";
+
+    internal static string DisplayPackageName(
+        string packageName,
+        string packageId)
+    {
+        if (string.IsNullOrEmpty(packageId)
+            || !packageId.StartsWith(
+                external_osu_set_prefix,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return packageName ?? string.Empty;
+        }
+
+        string displayName = normalise(packageName);
+        int separator = displayName.IndexOf(' ');
+        if (separator <= 0
+            || !displayName[..separator].All(character =>
+                character is >= '0' and <= '9'))
+        {
+            return displayName;
+        }
+
+        return displayName[(separator + 1)..];
+    }
+
     internal static string[] BalancedTwoLines(
         string value,
         double unitsPerLine)

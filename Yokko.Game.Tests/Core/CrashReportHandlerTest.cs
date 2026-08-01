@@ -55,6 +55,7 @@ public sealed class CrashReportHandlerTest
         {
             Assert.That(report, Does.Contain("Yokko crash report"));
             Assert.That(report, Does.Contain("Source: focused test"));
+            Assert.That(report, Does.Contain("Crash reason: System.ApplicationException: outer failure"));
             Assert.That(report, Does.Contain("Root type: System.ApplicationException"));
             Assert.That(report, Does.Contain("Root message: outer failure"));
             Assert.That(report, Does.Contain("chart = example.osu"));

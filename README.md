@@ -95,11 +95,12 @@ path can also be provided explicitly:
 
 ## Crash Reports
 
-The desktop build writes a timestamped diagnostic report to the `crashes`
-directory in Yokko's user storage when a fatal managed exception reaches the
-process boundary. Each report includes the complete exception chain and stack
-trace, application/runtime/system details, thread context, and the location of
-the related osu!framework logs.
+The desktop build creates a Minecraft-style `crash-reports` directory in
+Yokko's user storage and writes a timestamped diagnostic report there
+when a fatal managed exception reaches the process boundary. Each report
+includes the complete exception chain and stack trace, application/runtime/
+system details, thread context, and the location of the related osu!framework
+logs.
 
 ## Timing Direction
 

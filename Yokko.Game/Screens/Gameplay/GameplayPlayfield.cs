@@ -36,6 +36,9 @@ public partial class GameplayPlayfield : CompositeDrawable
     private List<int> visibleNoteIndices = new();
     private List<int> nextVisibleNoteIndices = new();
     private Container noteLayer;
+    private readonly Container layoutAutoplayDemoNoteLayer;
+    private readonly DrawableNote[] layoutAutoplayDemoNotes;
+    private readonly float[] baseLayoutAutoplayDemoNoteXs;
     private bool activeNoteLayerReady;
     private readonly float topY;
     private readonly float judgementY;
@@ -72,6 +75,12 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly ManiaFlashlightOverlay flashlightOverlay;
     private ManiaVisibilityPolicy visibilityPolicy;
     private double longNoteCutAmount;
+    private bool layoutAutoplayDemoActive;
+    private double layoutAutoplayDemoStartTime;
+
+    private const double layoutAutoplayDemoNoteStartTime = 1100;
+    private const double layoutAutoplayDemoNoteEndTime = 2800;
+    private const double layoutAutoplayDemoPeriod = 3200;
 
     internal float ScrollOrigin => topY;
 
@@ -97,6 +106,18 @@ public partial class GameplayPlayfield : CompositeDrawable
     internal ManiaVisibilityPolicy VisibilityPolicy => visibilityPolicy;
 
     internal double LongNoteCutAmount => longNoteCutAmount;
+
+    internal int LayoutAutoplayDemoLongNoteCount =>
+        layoutAutoplayDemoNotes.Length;
+
+    internal int VisibleLayoutAutoplayDemoLongNoteCount =>
+        layoutAutoplayDemoNotes.Count(static note => note.Alpha > 0.5f);
+
+    internal float LayoutAutoplayDemoLongNoteCutDistance =>
+        layoutAutoplayDemoNotes.Length == 0
+            ? 0
+            : layoutAutoplayDemoNotes.Max(static note =>
+                note.AppliedLongNoteCutDistance);
 
     internal bool UsesSkinJudgementOverlay => skinOverlays.Length > 0;
 
@@ -351,6 +372,38 @@ public partial class GameplayPlayfield : CompositeDrawable
                 Depth = noteDepths[index],
             };
         }).ToArray();
+
+        int layoutDemoNoteCount = Math.Min(4, keyCount);
+        layoutAutoplayDemoNotes = new DrawableNote[layoutDemoNoteCount];
+        baseLayoutAutoplayDemoNoteXs = new float[layoutDemoNoteCount];
+        for (int index = 0; index < layoutDemoNoteCount; index++)
+        {
+            int lane = layoutDemoNoteCount == 1
+                ? 0
+                : (int)Math.Round(
+                    index * (keyCount - 1d) / (layoutDemoNoteCount - 1));
+            float width = configuration?.ColumnWidths[lane]
+                          ?? laneWidth - 16;
+            float x = baseLaneXs[lane] + (configuration == null ? 8 : 0);
+            baseLayoutAutoplayDemoNoteXs[index] = x;
+            layoutAutoplayDemoNotes[index] = new DrawableNote(
+                -1,
+                new YokkoHitObject(
+                    lane,
+                    layoutAutoplayDemoNoteStartTime,
+                    layoutAutoplayDemoNoteEndTime,
+                    HitObjectKind.Hold),
+                width,
+                activeSkin,
+                beatmap.LegacyLongNoteRendering,
+                beatmap.ScratchLane == lane,
+                this.longNoteCutAmount,
+                upscroll)
+            {
+                X = x,
+                Alpha = 0,
+            };
+        }
         ScrollVelocityMap[] noteScrollVelocityMaps =
             beatmap.HitObjects
                    .Select(hitObject =>
@@ -493,9 +546,24 @@ public partial class GameplayPlayfield : CompositeDrawable
             RelativeSizeAxes = Axes.Both,
             Masking = true,
         };
+        layoutAutoplayDemoNoteLayer = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Masking = true,
+            Alpha = 0,
+            Children = layoutAutoplayDemoNotes,
+        };
         visibilityPolicy =
             ManiaVisibilityPolicyResolver.Resolve(this.mods, 0);
-        Drawable noteContent = noteLayer;
+        Drawable noteContent = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Children = new Drawable[]
+            {
+                noteLayer,
+                layoutAutoplayDemoNoteLayer,
+            },
+        };
         if (visibilityPolicy.Mode is ManiaVisibilityMode.FadeIn
             or ManiaVisibilityMode.Hidden
             or ManiaVisibilityMode.Cover)
@@ -939,6 +1007,24 @@ public partial class GameplayPlayfield : CompositeDrawable
         longNoteCutAmount = Math.Max(0, value);
         foreach (DrawableNote note in noteDrawables)
             note.SetLongNoteCutAmount(longNoteCutAmount);
+        foreach (DrawableNote note in layoutAutoplayDemoNotes)
+            note.SetLongNoteCutAmount(longNoteCutAmount);
+    }
+
+    internal void SetLayoutAutoplayDemo(
+        bool active,
+        double gameplayTimeMilliseconds)
+    {
+        if (active && !layoutAutoplayDemoActive)
+            layoutAutoplayDemoStartTime = gameplayTimeMilliseconds;
+
+        layoutAutoplayDemoActive = active;
+        layoutAutoplayDemoNoteLayer.Alpha = active ? 1 : 0;
+        if (active)
+            return;
+
+        foreach (DrawableNote note in layoutAutoplayDemoNotes)
+            note.HideOutsideVisibleRange();
     }
 
     public void SetWidthScale(float value)
@@ -958,6 +1044,13 @@ public partial class GameplayPlayfield : CompositeDrawable
         {
             noteDrawables[i].X = baseNoteXs[i] * value;
             noteDrawables[i].SetColumnScale(value);
+        }
+
+        for (int i = 0; i < layoutAutoplayDemoNotes.Length; i++)
+        {
+            layoutAutoplayDemoNotes[i].X =
+                baseLayoutAutoplayDemoNoteXs[i] * value;
+            layoutAutoplayDemoNotes[i].SetColumnScale(value);
         }
 
         if (stageSideLayer != null)
@@ -1019,6 +1112,7 @@ public partial class GameplayPlayfield : CompositeDrawable
         BeatmapJudgementState state,
         ManiaHealthState healthState = null)
     {
+        updateLayoutAutoplayDemoNotes(gameplayTimeMilliseconds);
         if (healthState != null)
             legacyHealthBar?.SetHealth(healthState.Health);
         updateComboBurst(state.Combo);
@@ -1181,6 +1275,42 @@ public partial class GameplayPlayfield : CompositeDrawable
 
                 skinOverlays[stage].SetHoldActive(active);
             }
+        }
+    }
+
+    private void updateLayoutAutoplayDemoNotes(
+        double gameplayTimeMilliseconds)
+    {
+        if (!layoutAutoplayDemoActive
+            || layoutAutoplayDemoNotes.Length == 0)
+        {
+            return;
+        }
+
+        double elapsed = gameplayTimeMilliseconds
+                         - layoutAutoplayDemoStartTime;
+        double phaseSpacing = layoutAutoplayDemoPeriod
+                              / layoutAutoplayDemoNotes.Length;
+
+        for (int index = 0;
+             index < layoutAutoplayDemoNotes.Length;
+             index++)
+        {
+            double localTime = (elapsed + index * phaseSpacing)
+                               % layoutAutoplayDemoPeriod;
+            if (localTime < 0)
+                localTime += layoutAutoplayDemoPeriod;
+
+            bool holdActive = localTime
+                              is >= layoutAutoplayDemoNoteStartTime
+                              and <= layoutAutoplayDemoNoteEndTime;
+            layoutAutoplayDemoNotes[index].UpdatePosition(
+                localTime,
+                false,
+                holdActive,
+                topY,
+                judgementY,
+                approachTimeMilliseconds);
         }
     }
 

@@ -345,8 +345,8 @@ Logs:
   %APPDATA%\Yokko\logs
 
 Crash reports:
-  %APPDATA%\Yokko\crashes
-  %LOCALAPPDATA%\Yokko\crashes (early startup failures)
+  %APPDATA%\Yokko\crash-reports
+  %LOCALAPPDATA%\Yokko\crash-reports (early startup failures)
 
 This is an unfinished playtest build. When reporting a problem, include this
 file, the reproduction steps, Windows version, and the relevant logs.

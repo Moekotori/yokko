@@ -228,8 +228,11 @@ internal partial class HomeBubblePopGame : CompositeDrawable
 {
     private const float fieldWidth = 300;
     private const float fieldHeight = 220;
-    private const double targetLifetime = 1200;
-    private const double targetFadeDuration = 160;
+    private const double initialTargetLifetime = 900;
+    private const double minimumTargetLifetime = 360;
+    private const double lifetimeReductionPerTarget = 26;
+    private const double targetFadeDuration = 140;
+    private const int maximumMisses = 3;
 
     private readonly Random random = new(0x59_4f_4b_4b);
     private readonly SpriteText statusText;
@@ -237,7 +240,9 @@ internal partial class HomeBubblePopGame : CompositeDrawable
 
     private bool available;
     private bool running;
+    private int missedCount;
     private int targetGeneration;
+    private int targetSequence;
     private Vector2 previousTargetPosition;
 
     internal bool IsRunning => running;
@@ -303,7 +308,9 @@ internal partial class HomeBubblePopGame : CompositeDrawable
         {
             running = true;
             Score = 0;
-            statusText.Text = "戳泡泡 // 000";
+            missedCount = 0;
+            targetSequence = 0;
+            updateRunningStatus();
             playPop(target.Position, target.DrawWidth);
             spawnNextTarget(true);
             return;
@@ -312,7 +319,7 @@ internal partial class HomeBubblePopGame : CompositeDrawable
         Vector2 poppedPosition = target.Position;
         float poppedSize = target.DrawWidth;
         Score++;
-        statusText.Text = $"戳泡泡 // {Score:000}";
+        updateRunningStatus();
         playPop(poppedPosition, poppedSize);
         spawnNextTarget(true);
     }
@@ -322,6 +329,8 @@ internal partial class HomeBubblePopGame : CompositeDrawable
         targetGeneration++;
         running = false;
         Score = 0;
+        missedCount = 0;
+        targetSequence = 0;
         statusText.Text = "戳泡泡 // 点击泡泡开始";
         previousTargetPosition = new Vector2(fieldWidth / 2, 116);
         target.Position = previousTargetPosition;
@@ -351,7 +360,11 @@ internal partial class HomeBubblePopGame : CompositeDrawable
         }
 
         previousTargetPosition = nextPosition;
-        float diameter = random.Next(38, 51);
+        int difficulty = targetSequence++;
+        float diameter = MathF.Max(28, random.Next(42, 51) - difficulty * 0.55f);
+        double lifetime = Math.Max(
+            minimumTargetLifetime,
+            initialTargetLifetime - difficulty * lifetimeReductionPerTarget);
         target.ClearTransforms();
         target.Position = nextPosition;
         target.SetPresentation(false, diameter);
@@ -366,7 +379,7 @@ internal partial class HomeBubblePopGame : CompositeDrawable
         }
 
         int generation = ++targetGeneration;
-        Scheduler.AddDelayed(() => expireTarget(generation), targetLifetime);
+        Scheduler.AddDelayed(() => expireTarget(generation), lifetime);
     }
 
     private void expireTarget(int generation)
@@ -374,14 +387,43 @@ internal partial class HomeBubblePopGame : CompositeDrawable
         if (!running || !available || generation != targetGeneration)
             return;
 
+        missedCount++;
+        updateRunningStatus();
         target.Enabled.Value = false;
         target.FadeOut(targetFadeDuration, Easing.InQuint)
-              .ScaleTo(0.72f, targetFadeDuration, Easing.InBack);
+              .ScaleTo(0, targetFadeDuration, Easing.InBack);
         Scheduler.AddDelayed(() =>
         {
-            if (running && available && generation == targetGeneration)
+            if (!running || !available || generation != targetGeneration)
+                return;
+
+            if (missedCount >= maximumMisses)
+                endGame();
+            else
                 spawnNextTarget(true);
         }, targetFadeDuration);
+    }
+
+    private void updateRunningStatus()
+    {
+        statusText.Text = missedCount == 0
+            ? $"戳泡泡 // {Score:000}"
+            : $"戳泡泡 // {Score:000} // 失误 {missedCount}/{maximumMisses}";
+    }
+
+    private void endGame()
+    {
+        targetGeneration++;
+        running = false;
+        statusText.Text = $"戳泡泡 // 结束 {Score:000} // 点击重开";
+        previousTargetPosition = new Vector2(fieldWidth / 2, 116);
+        target.ClearTransforms();
+        target.Position = previousTargetPosition;
+        target.SetPresentation(true, 46);
+        target.Alpha = 1;
+        target.Scale = new Vector2(0.72f);
+        target.Enabled.Value = available;
+        target.ScaleTo(1, 240, Easing.OutBack);
     }
 
     private void playPop(Vector2 position, float diameter)
@@ -506,6 +548,7 @@ internal partial class HomeSignalSnake : CompositeDrawable
     private const float stepDistance = 18;
     private const int initialTrailLength = 9;
     private const int maximumTrailLength = 17;
+    private const int stepsPerDifficultyIncrease = 6;
 
     private static readonly Vector2 startPosition = new(186, 88);
     private static readonly Vector2[] directions =
@@ -558,6 +601,8 @@ internal partial class HomeSignalSnake : CompositeDrawable
 
     internal int VisibleTrailDotCount => trailDots.Count(dot => dot.Alpha > 0);
 
+    internal bool ArenaBoundaryVisible => arenaBorder.Alpha > 0;
+
     internal bool DeathFeedbackVisible => deathLabel.Alpha > 0;
 
     public HomeSignalSnake()
@@ -569,9 +614,10 @@ internal partial class HomeSignalSnake : CompositeDrawable
         {
             Position = new Vector2(12, 10),
             Size = new Vector2(242, 160),
+            Alpha = 0,
             Masking = true,
             CornerRadius = 3,
-            BorderThickness = 1,
+            BorderThickness = 0,
             BorderColour = new Color4(
                 HomeControlColours.Navy.R,
                 HomeControlColours.Navy.G,
@@ -580,7 +626,7 @@ internal partial class HomeSignalSnake : CompositeDrawable
             Child = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Alpha = 0.01f,
+                Alpha = 0,
             },
         });
 
@@ -705,6 +751,11 @@ internal partial class HomeSignalSnake : CompositeDrawable
         currentDirection = nextDirection;
         currentPosition = target;
         StepCount++;
+        trailLength = Math.Min(
+            maximumTrailLength,
+            Math.Max(
+                trailLength,
+                initialTrailLength + StepCount / stepsPerDifficultyIncrease));
 
         trailPoints.Insert(0, currentPosition);
         if (trailPoints.Count > trailLength)

@@ -644,29 +644,46 @@ internal partial class GameplayLayoutEditorOverlay
         requestedPosition.X = clampTargetAxis(
             requestedPosition.X,
             width,
-            DrawWidth);
+            DrawWidth,
+            moving.Position.X);
         requestedPosition.Y = clampTargetAxis(
             requestedPosition.Y,
             height,
-            DrawHeight);
+            DrawHeight,
+            moving.Position.Y);
         return requestedPosition - moving.Position;
     }
 
     private static float clampTargetAxis(
         float position,
         float targetSize,
-        float viewportSize)
+        float viewportSize,
+        float currentPosition)
     {
+        float minimum;
+        float maximum;
         if (targetSize <= viewportSize)
-            return Math.Clamp(position, 0, viewportSize - targetSize);
+        {
+            minimum = 0;
+            maximum = viewportSize - targetSize;
+        }
+        else
+        {
+            float visibleArea = Math.Min(
+                minimumVisibleTargetArea,
+                viewportSize);
+            minimum = visibleArea - targetSize;
+            maximum = viewportSize - visibleArea;
+        }
 
-        float visibleArea = Math.Min(
-            minimumVisibleTargetArea,
-            viewportSize);
+        // Some default layouts intentionally sit a few pixels beyond the
+        // viewport (for example the top-right HUD at X=-20 and the bottom
+        // timing bar). Preserve that current position as a valid boundary so
+        // the first drag frame does not snap the element into the viewport.
         return Math.Clamp(
             position,
-            visibleArea - targetSize,
-            viewportSize - visibleArea);
+            Math.Min(currentPosition, minimum),
+            Math.Max(currentPosition, maximum));
     }
 
     private static (float Adjustment, float? Guide) findBestSnap(

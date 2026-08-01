@@ -3747,7 +3747,9 @@ public partial class SongSelectScreen : Screen
                 {
                     HeaderEntry = first,
                     PackageId = first.PackageId,
-                    PackageName = first.PackageName,
+                    PackageName = SongSelectTextLayout.DisplayPackageName(
+                        first.PackageName,
+                        first.PackageId),
                     SongCount = songCount,
                     ChartCount = groupEntries.Length,
                     Collapsed = collapsed,

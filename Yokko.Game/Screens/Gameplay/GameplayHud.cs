@@ -33,6 +33,7 @@ public partial class GameplayHud : CompositeDrawable
     private readonly SpriteText healthText;
     private readonly Container healthContainer;
     private readonly GameplayAccuracyProgressDisplay performanceDisplay;
+    private readonly Container informationContainer;
     private AudioReadoutState displayedAudioState;
     private bool hasDisplayedAudioState;
 
@@ -56,6 +57,11 @@ public partial class GameplayHud : CompositeDrawable
         performanceDisplay.DisplayedProgressTime;
     internal bool UsesSkinAccuracyFont =>
         performanceDisplay.UsesSkinAccuracyFont;
+    internal Drawable AccuracyLayoutDrawable =>
+        performanceDisplay.AccuracyLayoutDrawable;
+    internal Drawable ProgressLayoutDrawable =>
+        performanceDisplay.ProgressLayoutDrawable;
+    internal Drawable InformationLayoutDrawable => informationContainer;
     internal bool UsesLegacySkinHealthBar { get; }
 
     public GameplayHud(
@@ -105,8 +111,10 @@ public partial class GameplayHud : CompositeDrawable
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
             },
-            new Container
+            informationContainer = new Container
             {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
                 Y = 124,
                 Size = new Vector2(340, 310),
                 Children = new Drawable[]
@@ -193,6 +201,24 @@ public partial class GameplayHud : CompositeDrawable
                 },
             },
         };
+    }
+
+    internal void SetLayoutTransforms(
+        Vector2 accuracyOffset,
+        Vector2 accuracyScale,
+        Vector2 progressOffset,
+        Vector2 progressScale,
+        Vector2 informationOffset,
+        Vector2 informationScale)
+    {
+        AccuracyLayoutDrawable.Position = accuracyOffset;
+        AccuracyLayoutDrawable.Scale = accuracyScale;
+        ProgressLayoutDrawable.Position =
+            new Vector2(0, 76) + progressOffset;
+        ProgressLayoutDrawable.Scale = progressScale;
+        InformationLayoutDrawable.Position =
+            new Vector2(0, 124) + informationOffset;
+        InformationLayoutDrawable.Scale = informationScale;
     }
 
     private static string formatRulesLabel(
