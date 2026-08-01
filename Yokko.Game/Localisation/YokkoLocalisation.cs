@@ -2010,16 +2010,58 @@ internal static class YokkoStrings
 
             ["settings.about.title"] = new("About", "关于", "情報"),
             ["settings.about.subtitle"] = new(
-                "Version, credits and licences",
-                "版本、制作人员与许可证",
-                "バージョン、クレジット、ライセンス"),
+                "Version, credits and acknowledgements",
+                "版本、制作人员与致谢",
+                "バージョン、クレジット、謝辞"),
             ["settings.about.description"] = new(
-                "Project information and acknowledgements will be collected here.",
-                "项目资料与致谢信息将集中在此。",
-                "プロジェクト情報と謝辞をここにまとめます。"),
+                "Project information and acknowledgements.",
+                "项目资料与致谢信息。",
+                "プロジェクト情報と謝辞。"),
             ["settings.about.section_version"] = new("Version & updates", "版本与更新", "バージョンと更新"),
             ["settings.about.section_credits"] = new("Credits", "制作人员", "クレジット"),
-            ["settings.about.section_licences"] = new("Licences", "许可证", "ライセンス"),
+            ["settings.about.section_acknowledgements"] = new("Acknowledgements", "致谢", "謝辞"),
+            ["settings.about.creator"] = new("Moekotori", "Moekotori", "Moekotori"),
+            ["settings.about.acknowledgements"] = new(
+                "osu!  ·  Etterna  ·  Quaver",
+                "osu!  ·  Etterna  ·  Quaver",
+                "osu!  ·  Etterna  ·  Quaver"),
+            ["settings.safety.title"] = new("Safety", "安全", "セーフティ"),
+            ["settings.safety.subtitle"] = new(
+                "Crash reports and recovery tools",
+                "崩溃报告与恢复工具",
+                "クラッシュレポートと復旧ツール"),
+            ["settings.safety.description"] = new(
+                "Access diagnostics and recovery options.",
+                "查看诊断信息与恢复选项。",
+                "診断情報と復旧オプションを確認します。"),
+            ["settings.safety.crash_reports"] = new(
+                "Crash reports",
+                "崩溃报告",
+                "クラッシュレポート"),
+            ["settings.safety.crash_reports_ready"] = new(
+                "Reports are stored in Yokko's data folder",
+                "报告保存在 Yokko 的数据目录中",
+                "レポートは Yokko のデータフォルダーに保存されます"),
+            ["settings.safety.open_crash_reports"] = new(
+                "Open crash report folder",
+                "打开崩溃报告目录",
+                "クラッシュレポートフォルダーを開く"),
+            ["settings.safety.opened"] = new(
+                "Crash report folder opened",
+                "已打开崩溃报告目录",
+                "クラッシュレポートフォルダーを開きました"),
+            ["settings.safety.open_failed"] = new(
+                "Unable to open the crash report folder",
+                "无法打开崩溃报告目录",
+                "クラッシュレポートフォルダーを開けませんでした"),
+            ["settings.safety.note"] = new(
+                "After a crash, send the newest crash-*.txt file when reporting the problem.",
+                "发生闪退后，反馈问题时请附上时间最新的 crash-*.txt 文件。",
+                "クラッシュ後、問題を報告する際は最新の crash-*.txt ファイルを添付してください。"),
+            ["settings.safety.footer"] = new(
+                "Safety tools do not change gameplay settings",
+                "安全工具不会更改游戏设置",
+                "セーフティツールはゲーム設定を変更しません"),
         };
 
     public static LocalisableString Get(string key, params object[] args)

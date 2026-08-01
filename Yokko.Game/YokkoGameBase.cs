@@ -68,6 +68,8 @@ namespace Yokko.Game
         [Cached]
         private readonly OsuManiaSkinLibrary skinLibrary = new();
         [Cached]
+        private readonly SkinHudLayoutStore skinHudLayoutStore = new();
+        [Cached]
         private readonly OsuManiaSkinCache gameplaySkinCache = new();
         [Cached]
         private readonly SongSelectArtworkTextureCache songSelectArtworkTextureCache = new();
@@ -167,6 +169,11 @@ namespace Yokko.Game
                 importedChartLibrary,
                 skinLibrary,
                 skinSettings);
+            skinHudLayoutStore.Initialise(
+                host.Storage,
+                gameplaySettings,
+                skinSettings,
+                skinLibrary);
             importedChartLibrary.ConfigureExternalOsu(
                 host.Storage,
                 externalOsuSettings);
@@ -298,6 +305,7 @@ namespace Yokko.Game
                     window.Resized -= onWindowResized;
                 }
 
+                skinHudLayoutStore.Dispose();
                 yokkoConfig?.Dispose();
                 frameRateController?.Dispose();
                 desktopBehaviourController?.Dispose();
@@ -764,7 +772,9 @@ namespace Yokko.Game
                 YokkoStrings.Get("settings.skins.importing"),
                 path));
 
-            _ = Task.Run(() => skinLibrary.Import(path))
+            _ = Task.Run(() => skinLibrary.Import(
+                        path,
+                        selectImportedSkin: false))
                     .ContinueWith(
                         task => Scheduler.Add(() =>
                         {
@@ -776,6 +786,8 @@ namespace Yokko.Game
 
                             if (result.Success)
                             {
+                                if (result.Skin != null)
+                                    skinLibrary.Select(result.Skin.Id);
                                 importOverlay.ShowSuccess(
                                     YokkoStrings.Get("settings.skins.import_success"),
                                     result.Skin?.Name ?? result.Message);

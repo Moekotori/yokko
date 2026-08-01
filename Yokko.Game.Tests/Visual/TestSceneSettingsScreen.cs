@@ -82,6 +82,24 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestSafetyPageProvidesCrashReportFolderAction()
+        {
+            SafetySettingsPanel panel = null;
+
+            AddStep("open Safety", () =>
+            {
+                settingsScreen.OpenPage(SettingsPageKind.Safety);
+                panel = (SafetySettingsPanel)settingsScreen.ActivePanel;
+            });
+            AddAssert("uses crash report storage", () =>
+                panel.CrashReportDirectory.EndsWith("crash-reports"));
+            AddAssert("folder action supports keyboard focus", () =>
+                panel.ChildrenOfType<SettingsSegmentedChoiceButton>()
+                     .Single()
+                     .AcceptsFocus);
+        }
+
+        [Test]
         public void TestSkinPageShowsAdditionalLongNoteCutWithoutOverflow()
         {
             AddStep("open Skins", () =>

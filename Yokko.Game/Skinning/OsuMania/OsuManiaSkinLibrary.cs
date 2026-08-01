@@ -34,6 +34,7 @@ internal sealed class OsuManiaSkinLibrary
     private readonly object importLock = new();
 
     public event Action LibraryChanged;
+    public event Action<string> SkinDeleted;
 
     public string LibraryPath => libraryPath;
 
@@ -113,13 +114,17 @@ internal sealed class OsuManiaSkinLibrary
         return skins;
     }
 
-    public SkinImportResult Import(string sourcePath)
+    public SkinImportResult Import(
+        string sourcePath,
+        bool selectImportedSkin = true)
     {
         lock (importLock)
-            return import(sourcePath);
+            return import(sourcePath, selectImportedSkin);
     }
 
-    private SkinImportResult import(string sourcePath)
+    private SkinImportResult import(
+        string sourcePath,
+        bool selectImportedSkin)
     {
         ensureInitialised();
 
@@ -147,8 +152,11 @@ internal sealed class OsuManiaSkinLibrary
                 copyDirectory(importSource, destination);
 
             var entry = createEntry(id, destination, info);
-            settings.SelectedSkinId.Value = id;
-            LibraryChanged?.Invoke();
+            if (selectImportedSkin)
+            {
+                settings.SelectedSkinId.Value = id;
+                LibraryChanged?.Invoke();
+            }
             return new SkinImportResult(true, $"Imported and enabled {entry.Name}.", entry);
         }
         catch (Exception ex)
@@ -186,6 +194,7 @@ internal sealed class OsuManiaSkinLibrary
         if (settings.SelectedSkinId.Value.Equals(id, StringComparison.OrdinalIgnoreCase))
             settings.SelectedSkinId.Value = string.Empty;
 
+        SkinDeleted?.Invoke(id);
         LibraryChanged?.Invoke();
         return true;
     }

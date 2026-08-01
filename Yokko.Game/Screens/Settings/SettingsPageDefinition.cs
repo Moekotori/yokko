@@ -18,6 +18,7 @@ internal enum SettingsPageKind
     Editor,
     Import,
     Accessibility,
+    Safety,
     About,
 }
 
@@ -210,6 +211,18 @@ internal static class SettingsPages
                 "settings.accessibility.",
                 "reduce motion accessibility visual assistance",
                 "减少动画 无障碍 视觉辅助")),
+        SettingsPageKind.Safety => new(
+            kind,
+            YokkoStrings.Get("settings.safety.title"),
+            YokkoStrings.Get("settings.safety.subtitle"),
+            YokkoStrings.Get("settings.safety.description"),
+            FontAwesome.Solid.ShieldAlt,
+            Array.Empty<LocalisableString>(),
+            YokkoStrings.SearchTerms("settings.safety.title"),
+            YokkoStrings.SearchTermsForPrefix(
+                "settings.safety.",
+                "safety crash report diagnostics recovery folder",
+                "安全 崩溃报告 错误报告 诊断 恢复 目录")),
         SettingsPageKind.About => new(
             kind,
             YokkoStrings.Get("settings.about.title"),
@@ -220,12 +233,12 @@ internal static class SettingsPages
             {
                 YokkoStrings.Get("settings.about.section_version"),
                 YokkoStrings.Get("settings.about.section_credits"),
-                YokkoStrings.Get("settings.about.section_licences"),
+                YokkoStrings.Get("settings.about.section_acknowledgements"),
             },
             YokkoStrings.SearchTerms("settings.about.title"),
             YokkoStrings.SearchTermsForPrefix(
                 "settings.about.",
-                "build copyright open source",
+                "build credits acknowledgements Moekotori osu Etterna Quaver",
                 "构建 版权 开源")),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };

@@ -507,6 +507,10 @@ public partial class SettingsScreen : Screen
                 resourceDirectoryPicker,
                 externalOsuSettings,
                 importedChartLibrary),
+            SettingsPageKind.Safety => new SafetySettingsPanel(
+                host,
+                host.Storage.GetFullPath("crash-reports", true)),
+            SettingsPageKind.About => new AboutSettingsPanel(),
             _ => new SettingsPlaceholderPanel(SettingsPages.Get(page)),
         };
 

@@ -86,6 +86,8 @@ public partial class GameplayScreen : Screen
     [Resolved]
     private YokkoGameplaySettings gameplaySettings { get; set; }
     [Resolved]
+    private SkinHudLayoutStore skinHudLayoutStore { get; set; }
+    [Resolved]
     private YokkoDisplaySettings displaySettings { get; set; }
     [Resolved]
     private KeyInputTimestampSource keyInputTimestamps { get; set; }
@@ -4550,18 +4552,25 @@ public partial class GameplayScreen : Screen
         if (pauseOverlay != null)
             pauseOverlay.Alpha = 0;
 
+        skinHudLayoutStore.BeginEditSession();
         layoutEditor.SetEditing(true);
     }
 
     private void closeGameplayLayoutEditor()
     {
+        skinHudLayoutStore.CancelEditSession();
         layoutEditor?.SetEditing(false);
 
         if (pauseOverlay != null)
             pauseOverlay.Alpha = 1;
     }
 
-    private void saveGameplayLayout() => yokkoConfig.Save();
+    private void saveGameplayLayout()
+    {
+        skinHudLayoutStore.CommitEditSession();
+        skinHudLayoutStore.Flush();
+        yokkoConfig.Save();
+    }
 
     internal bool HandleIntroSkip()
     {

@@ -263,6 +263,53 @@ public sealed class YokkoGameplaySettings
 
     public readonly Bindable<double> BackgroundDim = new(DefaultBackgroundDim);
 
+    internal IEnumerable<GameplayHudLayoutSetting> HudLayoutSettings
+    {
+        get
+        {
+            yield return layoutSetting("playfieldOffsetX", LayoutPlayfieldOffsetX);
+            yield return layoutSetting("playfieldOffsetY", LayoutPlayfieldOffsetY);
+            yield return layoutSetting("hudOffsetX", LayoutHudOffsetX);
+            yield return layoutSetting("hudOffsetY", LayoutHudOffsetY);
+            yield return layoutSetting("playfieldWidthScale", LayoutPlayfieldWidthScale, MinimumPlayfieldWidthScale, MaximumPlayfieldWidthScale);
+            yield return layoutSetting("playfieldHeightScale", LayoutPlayfieldHeightScale, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("hudScaleX", LayoutHudScaleX, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("hudScaleY", LayoutHudScaleY, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("accuracyOffsetX", LayoutAccuracyOffsetX);
+            yield return layoutSetting("accuracyOffsetY", LayoutAccuracyOffsetY);
+            yield return layoutSetting("accuracyScaleX", LayoutAccuracyScaleX, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("accuracyScaleY", LayoutAccuracyScaleY, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("progressOffsetX", LayoutProgressOffsetX);
+            yield return layoutSetting("progressOffsetY", LayoutProgressOffsetY);
+            yield return layoutSetting("progressScaleX", LayoutProgressScaleX, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("progressScaleY", LayoutProgressScaleY, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("timingBarOffsetX", LayoutTimingBarOffsetX);
+            yield return layoutSetting("timingBarOffsetY", LayoutTimingBarOffsetY);
+            yield return layoutSetting("timingBarScaleX", LayoutTimingBarScaleX, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("timingBarScaleY", LayoutTimingBarScaleY, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("comboOffsetX", LayoutComboOffsetX);
+            yield return layoutSetting("comboOffsetY", LayoutComboOffsetY);
+            yield return layoutSetting("comboScaleX", LayoutComboScaleX, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("comboScaleY", LayoutComboScaleY, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("judgementOffsetX", LayoutJudgementOffsetX);
+            yield return layoutSetting("judgementOffsetY", LayoutJudgementOffsetY);
+            yield return layoutSetting("judgementScaleX", LayoutJudgementScaleX, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("judgementScaleY", LayoutJudgementScaleY, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("replayControlsOffsetX", ReplayControlsOffsetX);
+            yield return layoutSetting("replayControlsOffsetY", ReplayControlsOffsetY);
+            yield return new GameplayHudLayoutSetting("topCoverRatio", LayoutTopCoverRatio, 0, MaximumTopCoverRatio);
+            yield return new GameplayHudLayoutSetting("bottomCoverRatio", LayoutBottomCoverRatio, 0, MaximumBottomCoverRatio);
+            yield return new GameplayHudLayoutSetting("backgroundDim", BackgroundDim, MinimumBackgroundDim, MaximumBackgroundDim);
+        }
+    }
+
+    private static GameplayHudLayoutSetting layoutSetting(
+        string name,
+        Bindable<double> bindable,
+        double minimum = MinimumLayoutOffset,
+        double maximum = MaximumLayoutOffset) =>
+        new(name, bindable, minimum, maximum);
+
     public readonly BindableBool KeysoundsEnabled = new(false);
 
     public readonly BindableBool MinesEnabled = new(true);
@@ -734,3 +781,9 @@ public sealed class YokkoGameplaySettings
             });
     }
 }
+
+internal readonly record struct GameplayHudLayoutSetting(
+    string Name,
+    Bindable<double> Bindable,
+    double Minimum,
+    double Maximum);
