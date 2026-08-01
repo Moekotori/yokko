@@ -375,7 +375,9 @@ public partial class MainScreen : Screen
         importedChartLibrary.LibraryChanged += onChartLibraryChanged;
         preloadedSongSelect = new SongSelectScreen(
             previewAudioEngine: null,
-            requestNextPreload: beginSongSelectPreload,
+            // MainScreen starts the next preload when it resumes. Building a
+            // second full browser while this one is visible causes an entry hitch.
+            requestNextPreload: null,
             selectionMemory: songSelectSelectionMemory,
             previewHost: musicPlayer);
         LoadComponent(preloadedSongSelect);
@@ -478,7 +480,7 @@ public partial class MainScreen : Screen
         _ = LoadComponentAsync(
             new SongSelectScreen(
                 previewAudioEngine: null,
-                requestNextPreload: beginSongSelectPreload,
+                requestNextPreload: null,
                 selectionMemory: songSelectSelectionMemory,
                 previewHost: musicPlayer),
             screen =>

@@ -15,6 +15,7 @@ namespace Yokko.Desktop
         {
             using var crashReports = new CrashReportHandler(
                 Assembly.GetExecutingAssembly());
+            using var debugConsole = new WindowsDebugConsoleWindow();
 
             try
             {
@@ -33,7 +34,8 @@ namespace Yokko.Desktop
                             gameStorage.GetFullPath("logs", true)),
                         StartupFileArguments.Resolve(args),
                         new WindowsResourceDirectoryPicker(),
-                        new FrameworkDesktopDisplayModeController()));
+                        new FrameworkDesktopDisplayModeController(),
+                        debugConsole));
                 }
             }
             catch (Exception exception)

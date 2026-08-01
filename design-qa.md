@@ -5297,3 +5297,117 @@ final result: passed
 - `git diff --check` passed.
 
 final result: passed
+
+# Song Select mascot sticker integration QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` at 1672 x 941, normalized to 1920 x 1080.
+- Pre-fix native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-entry-performance-v1.png` at 1920 x 1080.
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-mascot-sticker-v1.png` at 1920 x 1080.
+- Full reference/current comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-mascot-audit-reference-v1.png`.
+- Focused reference/before/after comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-mascot-focused-before-after-v1.png`.
+- Viewport/state: native Direct3D 11, 1920 x 1080, 1x density, Comfortable scale, 7K filter, one selected expanded package.
+
+## Comparison history
+
+1. Baseline P2: the 256 px performance derivative of the mascot GIF had lost its transparency metadata, producing a hard opaque white square against the shared wallpaper. It also lacked the small speech-bubble relationship visible in the selected reference.
+2. Implemented: regenerated all 15 GIF frames at 256 x 256 with a reserved transparent palette; reused the real `HomeMascotBubble` component, a purpose-sized derivative of the existing home bubble artwork, and the localized `main.bubble_pick_song` copy.
+3. Post-fix evidence: the focused comparison shows the white square removed, clean transparent silhouette edges, an intentional mascot/bubble overlap, and a clear buffer above the footer. The full native screenshot confirms the decoration does not collide with the ranking panel, account card, or footer controls.
+
+## Required fidelity review
+
+- Fonts and typography: the bubble uses the existing `HomeMascotBubble` optical sizing and home display font. The localized line remains centered and contained within the illustrated label area.
+- Spacing and layout rhythm: the combined moment occupies 330 x 150 px, ends exactly at the footer boundary, and uses the open space below the ranking paper without adding a new large surface.
+- Colours and visual tokens: cyan, navy, yellow, pink, and white come directly from the existing home sticker asset and component.
+- Image quality and asset fidelity: the animation retains all 15 source frames and now preserves binary transparency. The speech bubble is a downsampled project asset rather than a screenshot crop, generated substitute, or code-drawn approximation.
+- Copy and content: `main.bubble_pick_song` provides English, Chinese, and Japanese through the existing localization system.
+- States and interactions: the animated mascot remains active; the added home bubble is decorative and does not intercept any core Song Select action.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after restoring GIF transparency and integrating the home bubble.
+- P3: the selected reference uses a handwritten sentence while Yokko uses its existing localized home bubble typography; this is an intentional product-system choice.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build in `artifacts/song-select-mascot-polish`: 0 warnings and 0 errors.
+- Focused Song Select screen run: 11 passed, 0 failed, 0 skipped.
+- Native Direct3D 11 capture completed at 1920 x 1080; construction remained 269 ms in the captured run.
+- Source/current and focused reference/before/after boards were opened and inspected at original detail.
+- `git diff --check` passed.
+
+final result: passed
+
+# Song Select selected-cover layering QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\generated_images\019fb864-4eef-7463-8392-2664d1e1d9ac\exec-584587db-63d6-4cc7-9bbf-ff94fb6bdffe.png` at 1672 x 941, normalized to 1920 x 1080.
+- Pre-fix native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-mascot-sticker-v1.png` at 1920 x 1080.
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selected-cover-sticker-v1.png` at 1920 x 1080.
+- Initial source/current crop: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selected-cover-audit-v1.png`.
+- Existing-asset edge inspection: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selected-cover-assets-inspection-v1.png`.
+- Focused source/before/after comparison: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-selected-cover-focused-before-after-v1.png`.
+- Viewport/state: native Direct3D 11, 1920 x 1080, 1x density, Comfortable scale, 7K filter, one selected expanded package.
+
+## Comparison history
+
+1. Baseline P2: the 220 x 220 selected cover was correctly sized and rounded but sat completely flush inside the ivory card. Against the selected reference it read as a generic embedded thumbnail rather than the primary tactile record/cover object.
+2. Asset gate: the existing `tape-short` and `sticker-star` resources were composited over an ivory inspection background at original detail. Both retain clean alpha, intentional white sticker borders, and no black edge or dirty fringe.
+3. Implemented: the cover now uses a restrained -1.25 degree rotation, a quiet 11% navy shadow, a 52 x 36 tape accent, and a 34 x 36 star accent. Both decorations remain outside the masked artwork layer so their real silhouettes are preserved.
+4. Post-fix evidence: the focused comparison shows the cover becoming a distinct foreground object while the title, difficulty pill, MSD value, facts, performance strip, and panel bounds remain unchanged.
+
+## Required fidelity review
+
+- Fonts and typography: title, artist, mapper, metric labels, values, and optical weights are unchanged; no decorative text was introduced.
+- Spacing and layout rhythm: the cover centre remains at the original 128 x 128 point and keeps its 220 x 220 allocation. Tape and star occupy only the existing 18 px outer gutter and the gap before the detail content.
+- Colours and visual tokens: both accents use the existing Yokko pink, yellow, navy, and white asset palette; shadow strength matches the surrounding quiet paper treatment.
+- Image quality and asset fidelity: chart artwork keeps its original centre crop, 12 px mask, border, and `YOKKO` mark. The two decorations are existing transparent project assets, not generated approximations or screenshot pieces.
+- Copy and content: all song, mapper, difficulty, performance, and timing content remains identical.
+- States and interactions: the artwork layer is rebuilt with normal selection changes and participates in the existing directional detail transition without adding a new hit target.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none after adding the restrained physical layering.
+- P3: the reference uses a slightly stronger photographic tilt; Yokko intentionally keeps the rotation below 1.5 degrees so long-title layouts and metric alignment remain calm.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build in `artifacts/song-select-selected-cover-sticker`: 0 warnings and 0 errors.
+- Focused Song Select screen run: 11 passed, 0 failed, 0 skipped.
+- Native Direct3D 11 capture completed at 1920 x 1080; construction measured 279 ms in the captured run.
+- Full implementation and focused source/before/after boards were opened and inspected at original detail.
+- `git diff --check` passed.
+
+final result: passed
+
+# Song Select entry-performance and package-title QA (2026-08-01)
+
+## Evidence
+
+- User-reported baseline: entering Song Select visibly paused, and multi-song package rows rendered the normalized difficulty label `PACK` instead of each song title.
+- Revised native implementation: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-pack-titles-fix-v1.png` at 1920 x 1080.
+- Viewport/state: native Direct3D 11, 1920 x 1080, 1x density, Comfortable scale, 7K filter, selected expanded multi-song package.
+
+## Findings and resolution
+
+- P1 performance: each short-lived Song Select instance decoded all 15 mascot GIF frames and created 15 separate textures. The production Home flow also requested another complete Song Select preload 250 ms after the visible page entered. The mascot now uses one TextureStore-cached frame, and production MainScreen no longer schedules a duplicate browser while Song Select is visible. MainScreen still prepares the next browser when it resumes.
+- P1 content: compact package rows always used `DifficultyName`. Compilation normalization intentionally stores `PACK` there, so every row repeated the same label. Group construction now uses the song title for packages containing multiple distinct songs and retains the difficulty name for one-song, multi-difficulty sets.
+- P2 navigation regression prevention: visible child-row count is now sourced from virtual items while keyboard navigation continues to span collapsed package neighbours.
+- P3 intentional tradeoff: the small mascot is static in Song Select. This supersedes the earlier animation decision because eliminating repeated frame decode/upload is more important than decorative motion on a navigation screen.
+
+## Verification
+
+- Native Direct3D 11 capture shows distinct compact-row titles (`Eternal Echoes...`, `Celestial Reverie`) and no repeated `PACK` labels.
+- The comparable native preview construction measurement changed from 286 ms before the fix to 248 ms after the fix; the production-only duplicate 250 ms preload is also removed.
+- Song Select screen, imported-package, and virtual-list focused tests: 29 passed, 0 failed, 0 skipped.
+- Latest `Yokko.Game` isolated build: 0 warnings and 0 errors.
+- A subsequent `Yokko.Game.Tests` rebuild was blocked by an unrelated concurrent target-framework change in `Yokko.Desktop` (`net8.0-windows` referenced by a `net8.0` test project); that parallel work was not modified.
+- `git diff --check` passed.
+
+final result: passed with the unrelated test-project rebuild limitation recorded above

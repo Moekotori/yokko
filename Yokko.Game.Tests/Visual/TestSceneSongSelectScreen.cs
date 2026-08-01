@@ -61,8 +61,11 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             @"C:\Charts\test-pack.osz"));
         AddUntilStep("imported charts visible", () => songSelectScreen.VisibleEntryCount == 2);
         AddAssert("newest import selected", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Seven");
-        AddUntilStep("box mascot gif decoded", () =>
-            songSelectScreen.MascotFrameCount > 1);
+        AddAssert("box mascot uses one cached texture", () =>
+            songSelectScreen.MascotTextureReady);
+        AddAssert("mascot uses the home sticker bubble", () =>
+            songSelectScreen.MascotBubblePresent
+            && songSelectScreen.MascotMomentSize == new Vector2(330, 150));
         AddAssert("ranking fits 16:9 stage", () =>
             SongSelectScreen.RankingFitsDesignedStage);
         AddAssert("ranking is above footer", () =>
@@ -74,8 +77,26 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("ranking paper includes the header rail", () =>
             songSelectScreen.RankingPaperPosition == Vector2.Zero
             && songSelectScreen.RankingPaperSize == new Vector2(850, 434));
-        AddAssert("search box leaves room for key filters", () =>
-            songSelectScreen.SearchBoxSize == new Vector2(564, 48));
+        AddUntilStep("search box leaves room for key filters", () =>
+            songSelectScreen.SearchBoxSize == new Vector2(620, 48));
+        AddAssert("key filters use one quiet segmented row", () =>
+        {
+            SongSelectFilterButton[] filters = songSelectScreen
+                                                       .ChildrenOfType<SongSelectFilterButton>()
+                                                       .OrderBy(filter => filter.X)
+                                                       .ToArray();
+            return filters.Length == 3
+                   && filters.Select(filter => filter.Size)
+                             .SequenceEqual(
+                                 [
+                                     new Vector2(78, 40),
+                                     new Vector2(68, 40),
+                                     new Vector2(68, 40),
+                                 ])
+                   && filters.Count(filter => filter.Selected) == 1
+                   && filters.Single(filter => filter.Selected)
+                             .SelectionRailAlpha == 1;
+        });
         AddAssert("top navigation keeps the brand lockup proportional", () =>
             Math.Abs(songSelectScreen.TopNavigationHeight - 72) < 0.01f
             && songSelectScreen.TopNavigationLogoPosition
@@ -122,6 +143,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                 == new Vector2(850, 256)
             && SongSelectScreen.SelectedArtworkSize
                 == new Vector2(220)
+            && Math.Abs(SongSelectScreen.SelectedArtworkRotation + 1.25f)
+                < 0.01f
             && Math.Abs(SongSelectScreen.RankingTop - 294) < 0.01f);
         AddAssert("selected mods aligns with the ranking header", () =>
             songSelectScreen.SelectedModsButtonPosition

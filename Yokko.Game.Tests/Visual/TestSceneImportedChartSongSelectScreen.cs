@@ -50,6 +50,9 @@ public partial class TestSceneImportedChartSongSelectScreen : YokkoTestScene
             songSelectScreen.SelectedEntry.Beatmap.Title == "Actual song 7");
         AddAssert("package rows use song metadata", () =>
             songSelectScreen.SelectedEntry.Beatmap.Title != "pack");
+        AddUntilStep("package rows show song titles", () =>
+            songSelectScreen.MaterialisedCompactPrimaryTexts.Contains(
+                "Actual song 7"));
         AddStep("collapse package", () => songSelectScreen.TogglePackage(packagePath));
         AddAssert("package is collapsed", () =>
             songSelectScreen.IsPackageCollapsed(packagePath));

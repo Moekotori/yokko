@@ -66,6 +66,7 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
     private SongSelectEntry selectedEntry;
 
     internal int ItemCount => items.Count;
+    internal int VisibleEntryCount => items.Count(item => item.Entry != null);
     internal int MaterialisedDrawableCount => active.Count;
     internal double ScrollPosition => scroll.Current;
     internal float TopScrollHintAlpha => topScrollFade.Alpha;
@@ -449,6 +450,7 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
                     ratingMode(),
                     entry.IsPackage ? null : textureFor(entry),
                     selectedSticker,
+                    item.CompactPrimaryText,
                     () => select(entry),
                     () => play(entry));
                 applyLayoutTransition(
@@ -574,6 +576,7 @@ internal sealed class SongSelectVirtualItem
     internal int ChartCount { get; init; }
     internal bool Collapsed { get; init; }
     internal bool Selected { get; init; }
+    internal string CompactPrimaryText { get; init; }
     internal float VisualHeight { get; init; }
     internal float SectionSpacingBefore { get; init; }
     internal float Top { get; set; }

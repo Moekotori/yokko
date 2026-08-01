@@ -54,6 +54,7 @@ public partial class SongSelectScreen : Screen
     private const float details_width = 850;
     private const float details_panel_height = 256;
     private const float details_artwork_size = 220;
+    private const float selected_artwork_rotation = -1.25f;
     private const float details_content_left = 260;
     private const float details_content_width = 572;
     private const double details_title_units_per_line = 26;
@@ -102,6 +103,7 @@ public partial class SongSelectScreen : Screen
     private SongSelectFilterButton fourKeyFilter;
     private SongSelectFilterButton sevenKeyFilter;
     private SongSelectSearchBox searchBox;
+    private FillFlowContainer keyFilterGroup;
     private SongSelectModButton doubleTimeMod;
     private SongSelectModButton nightcoreMod;
     private SongSelectModButton halfTimeMod;
@@ -137,7 +139,9 @@ public partial class SongSelectScreen : Screen
     private SpriteText modInfoTitle;
     private SpriteText modInfoDescription;
     private ManiaModId? hoveredMod;
-    private AnimatedGifSprite mascotAnimation;
+    private Sprite mascotSprite;
+    private Container mascotMoment;
+    private HomeMascotBubble mascotBubble;
     private SongSelectPreviewPlayer previewPlayer;
     private SongSelectBrowseToolButton sortButton;
     private SongSelectBrowseToolButton groupButton;
@@ -215,9 +219,14 @@ public partial class SongSelectScreen : Screen
 
     internal SongSelectEntry SelectedEntry => selectedEntry;
     internal int VisibleEntryCount => visibleEntries?.Count ?? 0;
-    internal int VisibleRowCount => navigableEntries.Count;
+    internal int VisibleRowCount => songList?.VisibleEntryCount ?? 0;
     internal int MaterialisedSongListDrawableCount =>
         songList?.MaterialisedDrawableCount ?? 0;
+    internal IReadOnlyList<string> MaterialisedCompactPrimaryTexts =>
+        songList?.MaterialisedRows
+                 .Select(row => row.CompactPrimaryText)
+                 .ToArray()
+        ?? [];
     internal int SongListRebuildVersion => songListRebuildVersion;
     internal int DetailsTransitionVersion => detailsTransitionVersion;
     internal int DetailsLayerCount =>
@@ -237,6 +246,8 @@ public partial class SongSelectScreen : Screen
         new(details_width, details_panel_height);
     internal static Vector2 SelectedArtworkSize =>
         new(details_artwork_size);
+    internal static float SelectedArtworkRotation =>
+        selected_artwork_rotation;
     internal static float RankingTop => ranking_top;
     internal long LibraryRevision => libraryRevision;
     internal KeyMode? KeyModeFilter => keyModeFilter;
@@ -247,6 +258,8 @@ public partial class SongSelectScreen : Screen
     internal bool NoResultsResetVisible =>
         noResults?.ClearButtonVisible ?? false;
     internal Vector2 SearchBoxSize => searchBox?.Size ?? Vector2.Zero;
+    internal Vector2 KeyFilterGroupSize =>
+        keyFilterGroup?.Size ?? Vector2.Zero;
     internal Vector2 BrowseToolbarSize =>
         browseToolbar?.Size ?? Vector2.Zero;
     internal float TopNavigationHeight => topNavigation?.Height ?? 0;
@@ -331,7 +344,9 @@ public partial class SongSelectScreen : Screen
         modInfoDescription?.Text.ToString() ?? string.Empty;
     internal bool LegacyInlineModPanelMaterialised =>
         modSettingsHost != null;
-    internal int MascotFrameCount => mascotAnimation?.FrameCount ?? 0;
+    internal bool MascotTextureReady => mascotSprite?.Texture != null;
+    internal bool MascotBubblePresent => mascotBubble != null;
+    internal Vector2 MascotMomentSize => mascotMoment?.Size ?? Vector2.Zero;
     internal static bool RankingFitsDesignedStage =>
         details_top + ranking_top + ranking_height
         <= designed_height - footer_height;
@@ -441,14 +456,7 @@ public partial class SongSelectScreen : Screen
                     },
                     createSongBrowser(),
                     createFooter(),
-                    mascotAnimation = new AnimatedGifSprite(
-                        "Textures/SongSelect/mascot-box-256.gif")
-                    {
-                        Anchor = Anchor.BottomLeft,
-                        Origin = Anchor.BottomLeft,
-                        Position = new Vector2(8, -130),
-                        Size = new Vector2(142),
-                    },
+                    createMascotMoment(),
                 },
             },
         };
@@ -502,9 +510,6 @@ public partial class SongSelectScreen : Screen
         playSelectedPreview();
         stage.FadeIn(260, Easing.OutQuint).MoveToY(0, 420, Easing.OutQuint);
 
-        // Build the next short-lived screen once the first visible frame is
-        // established. This keeps future Home -> Play transitions instant
-        // without making the current click compete with UI construction.
         if (!nextPreloadScheduled && requestNextPreload != null)
         {
             nextPreloadScheduled = true;
@@ -1339,31 +1344,31 @@ public partial class SongSelectScreen : Screen
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-312, 82),
-                Size = new Vector2(564, 48),
+                Position = new Vector2(-248, 82),
+                Size = new Vector2(620, 48),
             },
-            new FillFlowContainer
+            keyFilterGroup = new FillFlowContainer
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-browse_right, 82),
+                Position = new Vector2(-browse_right, 86),
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
-                Spacing = new Vector2(8, 0),
+                Spacing = new Vector2(2, 0),
                 Children =
                 [
                     allFilter = new SongSelectFilterButton(
                         "ALL",
-                        92,
+                        78,
                         () => SetKeyModeFilter(null),
                         accentDot: true),
                     fourKeyFilter = new SongSelectFilterButton(
                         "4K",
-                        80,
+                        68,
                         () => SetKeyModeFilter(KeyMode.FourKey)),
                     sevenKeyFilter = new SongSelectFilterButton(
                         "7K",
-                        80,
+                        68,
                         () => SetKeyModeFilter(KeyMode.SevenKey)),
                 ],
             },
@@ -1852,6 +1857,39 @@ public partial class SongSelectScreen : Screen
                     Position = new Vector2(-24, -24),
                 },
             },
+        };
+    }
+
+    private Drawable createMascotMoment()
+    {
+        Texture bubbleTexture = textures.Get(
+            "SongSelect/Ui/mascot-bubble-512");
+
+        return mascotMoment = new Container
+        {
+            Anchor = Anchor.BottomLeft,
+            Origin = Anchor.BottomLeft,
+            Position = new Vector2(8, -130),
+            Size = new Vector2(330, 150),
+            Children =
+            [
+                mascotBubble = new HomeMascotBubble(
+                    YokkoStrings.Get("main.bubble_pick_song"),
+                    HomeMascotBubbleStyle.PopSignalSticker,
+                    bubbleTexture)
+                {
+                    Position = new Vector2(88, 20),
+                    Scale = new Vector2(0.78f),
+                },
+                mascotSprite = new Sprite
+                {
+                    Anchor = Anchor.BottomLeft,
+                    Origin = Anchor.BottomLeft,
+                    Size = new Vector2(142),
+                    Texture = textures.Get(
+                        "SongSelect/mascot-box-static"),
+                },
+            ],
         };
     }
 
@@ -2730,53 +2768,87 @@ public partial class SongSelectScreen : Screen
                 0.13f),
         };
 
-    private Drawable createSelectedArtwork() => new Container
+    private Drawable createSelectedArtwork()
     {
-        Position = new Vector2(18),
-        Size = new Vector2(details_artwork_size),
-        Masking = true,
-        CornerRadius = 12,
-        BorderThickness = 1,
-        BorderColour = new Color4(
-            SongSelectTheme.Navy.R,
-            SongSelectTheme.Navy.G,
-            SongSelectTheme.Navy.B,
-            0.28f),
-        Children =
-        [
-            SongSelectArtworkCrop.Create(
-                textureFor(selectedEntry),
-                new Vector2(details_artwork_size)),
-            new Box
-            {
-                Anchor = Anchor.BottomLeft,
-                Origin = Anchor.BottomLeft,
-                RelativeSizeAxes = Axes.X,
-                Height = 42,
-                Colour = ColourInfo.GradientVertical(
-                    new Color4(
-                        SongSelectTheme.DeepNavy.R,
-                        SongSelectTheme.DeepNavy.G,
-                        SongSelectTheme.DeepNavy.B,
-                        0),
-                    new Color4(
-                        SongSelectTheme.DeepNavy.R,
-                        SongSelectTheme.DeepNavy.G,
-                        SongSelectTheme.DeepNavy.B,
-                        0.72f)),
-            },
-            new SpriteText
-            {
-                Anchor = Anchor.BottomRight,
-                Origin = Anchor.BottomRight,
-                Position = new Vector2(-10, -8),
-                Text = "YOKKO",
-                Font = HomeTypography.Display(10),
-                Spacing = new Vector2(1.4f, 0),
-                Colour = Color4.White,
-            },
-        ],
-    };
+        var artwork = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Masking = true,
+            CornerRadius = 12,
+            BorderThickness = 1,
+            BorderColour = new Color4(
+                SongSelectTheme.Navy.R,
+                SongSelectTheme.Navy.G,
+                SongSelectTheme.Navy.B,
+                0.28f),
+            Children =
+            [
+                SongSelectArtworkCrop.Create(
+                    textureFor(selectedEntry),
+                    new Vector2(details_artwork_size)),
+                new Box
+                {
+                    Anchor = Anchor.BottomLeft,
+                    Origin = Anchor.BottomLeft,
+                    RelativeSizeAxes = Axes.X,
+                    Height = 42,
+                    Colour = ColourInfo.GradientVertical(
+                        new Color4(
+                            SongSelectTheme.DeepNavy.R,
+                            SongSelectTheme.DeepNavy.G,
+                            SongSelectTheme.DeepNavy.B,
+                            0),
+                        new Color4(
+                            SongSelectTheme.DeepNavy.R,
+                            SongSelectTheme.DeepNavy.G,
+                            SongSelectTheme.DeepNavy.B,
+                            0.72f)),
+                },
+                new SpriteText
+                {
+                    Anchor = Anchor.BottomRight,
+                    Origin = Anchor.BottomRight,
+                    Position = new Vector2(-10, -8),
+                    Text = "YOKKO",
+                    Font = HomeTypography.Display(10),
+                    Spacing = new Vector2(1.4f, 0),
+                    Colour = Color4.White,
+                },
+            ],
+        };
+
+        return new Container
+        {
+            Origin = Anchor.Centre,
+            Position = new Vector2(
+                18 + details_artwork_size / 2),
+            Size = new Vector2(details_artwork_size),
+            Rotation = selected_artwork_rotation,
+            Children =
+            [
+                SongSelectSurface.CreateShadow(12, 0.11f, 2),
+                artwork,
+                new Sprite
+                {
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(18, 3),
+                    Size = new Vector2(52, 36),
+                    Rotation = -8,
+                    Texture = textures.Get(
+                        "SongSelect/Cute/tape-short"),
+                },
+                new Sprite
+                {
+                    Origin = Anchor.Centre,
+                    Position = new Vector2(211, 3),
+                    Size = new Vector2(34, 36),
+                    Rotation = 6,
+                    Texture = textures.Get(
+                        "SongSelect/Cute/sticker-star"),
+                },
+            ],
+        };
+    }
 
     private static Drawable createDifficultyPill(YokkoBeatmap beatmap) =>
         new Container
@@ -3065,6 +3137,11 @@ public partial class SongSelectScreen : Screen
         {
             SongSelectEntry first = group.First();
             SongSelectEntry[] groupEntries = group.ToArray();
+            int songCount = groupEntries
+                           .Select(entry =>
+                               $"{entry.Beatmap.Artist}\u001f{entry.Beatmap.Title}")
+                           .Distinct(StringComparer.OrdinalIgnoreCase)
+                           .Count();
             float sectionSpacing = virtualItems.Count == 0 ? 0 : 8;
             bool collapsed = first.IsPackage
                              && collapsedPackages.Contains(first.PackageId)
@@ -3072,11 +3149,6 @@ public partial class SongSelectScreen : Screen
 
             if (first.IsPackage)
             {
-                int songCount = groupEntries
-                                .Select(entry =>
-                                    $"{entry.Beatmap.Artist}\u001f{entry.Beatmap.Title}")
-                                .Distinct(StringComparer.OrdinalIgnoreCase)
-                                .Count();
                 virtualItems.Add(new SongSelectVirtualItem
                 {
                     HeaderEntry = first,
@@ -3103,6 +3175,9 @@ public partial class SongSelectScreen : Screen
                 virtualItems.Add(new SongSelectVirtualItem
                 {
                     Entry = entry,
+                    CompactPrimaryText = first.IsPackage && songCount > 1
+                        ? entry.Beatmap.Title
+                        : entry.Beatmap.DifficultyName,
                     VisualHeight = entry.IsPackage
                         ? SongSelectSongRow.CompactHeight
                         : 84,

@@ -178,22 +178,26 @@ internal partial class SongSelectFilterButton : ClickableContainer
     private readonly Box background;
     private readonly SpriteText label;
     private readonly Circle accentDot;
+    private readonly Box selectionRail;
     private readonly bool showAccentDot;
     private bool selected;
+
+    internal bool Selected => selected;
+    internal float SelectionRailAlpha => selectionRail.Alpha;
 
     public SongSelectFilterButton(LocalisableString text, float width, Action action, bool accentDot = false)
     {
         Action = action;
         showAccentDot = accentDot;
-        Size = new Vector2(width, 48);
+        Size = new Vector2(width, 40);
         Masking = true;
-        CornerRadius = 9;
+        CornerRadius = 8;
         BorderThickness = 1;
         BorderColour = new Color4(
             SongSelectTheme.Cyan.R,
             SongSelectTheme.Cyan.G,
             SongSelectTheme.Cyan.B,
-            0.24f);
+            0.14f);
         InternalChildren = new Drawable[]
         {
             background = new Box
@@ -205,7 +209,7 @@ internal partial class SongSelectFilterButton : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = text,
-                Font = HomeTypography.Display(14),
+                Font = HomeTypography.Display(12),
             },
             this.accentDot = new Circle
             {
@@ -216,6 +220,14 @@ internal partial class SongSelectFilterButton : ClickableContainer
                 Colour = SongSelectTheme.Pink,
                 Alpha = accentDot ? 1 : 0,
             },
+            selectionRail = new Box
+            {
+                Anchor = Anchor.BottomCentre,
+                Origin = Anchor.BottomCentre,
+                Width = 30,
+                Height = 3,
+                Colour = SongSelectTheme.Pink,
+            },
         };
         SetSelected(false);
     }
@@ -224,30 +236,33 @@ internal partial class SongSelectFilterButton : ClickableContainer
     {
         selected = value;
         background.Colour = selected
-            ? SongSelectTheme.Navy
-            : SongSelectSurface.Ivory(0.98f);
-        label.Colour = selected
-            ? Color4.White
-            : SongSelectTheme.Navy;
+            ? SongSelectTheme.PaleCyan
+            : SongSelectSurface.Ivory(0.82f);
+        label.Colour = SongSelectTheme.Navy;
         BorderColour = selected
             ? new Color4(
                 SongSelectTheme.Cyan.R,
                 SongSelectTheme.Cyan.G,
                 SongSelectTheme.Cyan.B,
-                0.94f)
-            : new Color4(1f, 1f, 1f, 0.26f);
+                0.82f)
+            : new Color4(1f, 1f, 1f, 0.18f);
         accentDot.Colour = SongSelectTheme.Pink;
         accentDot.Alpha = showAccentDot
-            ? selected ? 1 : 0.42f
+            ? selected ? 1 : 0.28f
             : 0;
+        selectionRail.Alpha = selected ? 1 : 0;
     }
 
     protected override bool OnHover(HoverEvent e)
     {
-        this.ScaleTo(1.02f, 110, Easing.OutQuint);
+        this.ScaleTo(1.012f, 110, Easing.OutQuint);
         background.FadeColour(
             selected
-                ? new Color4(0.055f, 0.14f, 0.52f, 1f)
+                ? new Color4(
+                    SongSelectTheme.PaleCyan.R,
+                    SongSelectTheme.PaleCyan.G,
+                    SongSelectTheme.PaleCyan.B,
+                    1f)
                 : SongSelectTheme.PaleCyan,
             110,
             Easing.OutQuint);

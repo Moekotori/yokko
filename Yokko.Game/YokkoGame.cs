@@ -5,6 +5,7 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Configuration;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Input.Events;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
@@ -31,6 +32,7 @@ namespace Yokko.Game
         private WindowModeNotificationOverlay windowModeNotification;
         private readonly Action<Storage> storageReady;
         private readonly string[] startupFiles;
+        private readonly IDebugConsoleWindow externalDebugConsole;
 
         internal bool DebugConsoleVisible => Diagnostics.ConsoleVisible.Value;
         internal bool DebugConsoleContains(string text) =>
@@ -45,7 +47,8 @@ namespace Yokko.Game
             Action<Storage> storageReady = null,
             IEnumerable<string> startupFiles = null,
             IResourceDirectoryPicker resourceDirectoryPicker = null,
-            IDesktopDisplayModeController displayModeController = null)
+            IDesktopDisplayModeController displayModeController = null,
+            IDebugConsoleWindow externalDebugConsole = null)
             : base(
                 keyInputTimestampBackend,
                 resourceDirectoryPicker,
@@ -53,6 +56,9 @@ namespace Yokko.Game
         {
             this.storageReady = storageReady;
             this.startupFiles = startupFiles?.ToArray() ?? [];
+            this.externalDebugConsole = externalDebugConsole;
+            if (externalDebugConsole != null)
+                externalDebugConsole.CloseRequested += onExternalDebugConsoleCloseRequested;
         }
 
         public override void SetupLogging(
@@ -86,7 +92,9 @@ namespace Yokko.Game
                     Position = new osuTK.Vector2(0, 12),
                     Depth = float.MinValue,
                 },
-                debugConsole = new YokkoDebugConsoleOverlay(Diagnostics),
+                externalDebugConsole == null
+                    ? debugConsole = new YokkoDebugConsoleOverlay(Diagnostics)
+                    : new Container(),
                 windowModeNotification = new WindowModeNotificationOverlay(),
             };
 
@@ -142,8 +150,14 @@ namespace Yokko.Game
         }
 
         private void onDebugConsoleVisibleChanged(
-            ValueChangedEvent<bool> change) =>
+            ValueChangedEvent<bool> change)
+        {
+            externalDebugConsole?.SetVisible(change.NewValue);
             updatePerformanceTracking();
+        }
+
+        private void onExternalDebugConsoleCloseRequested() =>
+            Schedule(() => Diagnostics.ConsoleVisible.Value = false);
 
         private void updatePerformanceTracking() =>
             performanceReadout.SetTrackingEnabled(
@@ -202,6 +216,13 @@ namespace Yokko.Game
             if (isDisposing)
                 Diagnostics.ConsoleVisible.ValueChanged -=
                     onDebugConsoleVisibleChanged;
+
+            if (isDisposing && externalDebugConsole != null)
+            {
+                externalDebugConsole.CloseRequested -=
+                    onExternalDebugConsoleCloseRequested;
+                externalDebugConsole.SetVisible(false);
+            }
 
             if (isDisposing && windowMode != null)
                 windowMode.ValueChanged -= onWindowModeChanged;

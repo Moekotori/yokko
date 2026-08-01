@@ -1,6 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup Label="Project">
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- osu!framework owns process DPI setup through the existing manifest. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
     <OutputType>WinExe</OutputType>
     <AssemblyName>Yokko</AssemblyName>
     <ApplicationIcon>game.ico</ApplicationIcon>

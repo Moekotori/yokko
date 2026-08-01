@@ -92,6 +92,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             difficultyRatingMode,
             wallpaper,
             selectedStickerTexture,
+            null,
             select,
             play);
     }
@@ -102,6 +103,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         ManiaDifficultyRatingMode difficultyRatingMode,
         Texture wallpaper,
         Texture selectedStickerTexture,
+        string compactPrimaryTextOverride,
         Action select,
         Action play)
     {
@@ -271,7 +273,8 @@ internal partial class SongSelectSongRow : PoolableDrawable
             addCompactContent(
                 children,
                 entry,
-                difficultyRatingMode);
+                difficultyRatingMode,
+                compactPrimaryTextOverride);
         }
         else
         {
@@ -425,7 +428,8 @@ internal partial class SongSelectSongRow : PoolableDrawable
     private void addCompactContent(
         System.Collections.Generic.ICollection<Drawable> children,
         SongSelectEntry entry,
-        ManiaDifficultyRatingMode difficultyRatingMode)
+        ManiaDifficultyRatingMode difficultyRatingMode,
+        string primaryText)
     {
         SpriteText difficultyUnit = addDifficultyUnit(new SpriteText
         {
@@ -449,7 +453,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             Position = new Vector2(628, 12),
         });
         children.Add(compactPrimaryText = adaptiveLabel(
-            entry.Beatmap.DifficultyName,
+            primaryText ?? entry.Beatmap.DifficultyName,
             24,
             3,
             560,

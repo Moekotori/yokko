@@ -48,6 +48,15 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             new(253 / 255f, 253 / 255f, 252 / 255f, 1f);
     }
 
+    private static class ResultTypography
+    {
+        // Archivo Black ships with a 128 px atlas in Yokko.Resources, so it
+        // stays materially sharper than the shared Roboto atlas for oversized
+        // Latin grades and numeric readouts.
+        public static FontUsage Poster(float size) =>
+            new("ArchivoBlack", size);
+    }
+
     private readonly Action retry;
     private readonly Action watchReplay;
     private readonly Action returnToSongSelect;
@@ -354,10 +363,9 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(856, 65),
+                    Position = new Vector2(856, 76),
                     Text = YokkoStrings.Get("gameplay.result.title"),
-                    Font = HomeTypography.Hero(130),
-                    Scale = new Vector2(1.022f, 1),
+                    Font = HomeTypography.Hero(104),
                     Colour = ResultColours.Navy,
                 },
                 new Box
@@ -380,7 +388,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 songHeading = new ResultSongHeading(
                     $"{beatmap.Title} [{beatmap.DifficultyName}]")
                 {
-                    Position = new Vector2(866, 190),
+                    Position = new Vector2(866, 194),
                 },
                 createScorePanel(result, rank, isNewBest),
                 createSummaryRail(result),
@@ -418,61 +426,59 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(119, -3),
+                        Position = new Vector2(120, 25),
                         Text = rank,
-                        Font = HomeTypography.Hero(240),
-                        Scale = new Vector2(1.105f, 1),
+                        Font = ResultTypography.Poster(160),
                         Colour = ResultColours.Yellow,
-                        Alpha = 0.92f,
+                        Alpha = 0.88f,
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(126, -9),
+                        Position = new Vector2(124, 20),
                         Text = rank,
-                        Font = HomeTypography.Hero(240),
-                        Scale = new Vector2(1.105f, 1),
+                        Font = ResultTypography.Poster(160),
                         Colour = ResultColours.RankCyan,
                     },
                     new Box
                     {
-                        Position = new Vector2(322, 43),
-                        Size = new Vector2(2, 150),
+                        Position = new Vector2(348, 58),
+                        Size = new Vector2(2, 124),
                         Colour = new Color4(1f, 1f, 1f, 0.82f),
                     },
                     new SpriteIcon
                     {
-                        Position = new Vector2(368, 36),
-                        Size = new Vector2(20),
+                        Position = new Vector2(388, 42),
+                        Size = new Vector2(17),
                         Icon = FontAwesome.Solid.Star,
                         Colour = ResultColours.Yellow,
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(404, 33),
+                        Position = new Vector2(420, 39),
                         Text = isNewBest
                             ? YokkoStrings.Get("gameplay.result.new_best")
                             : "SCORE",
-                        Font = HomeTypography.Display(26),
-                        Spacing = new Vector2(2.8f, 0),
+                        Font = HomeTypography.Display(21),
+                        Spacing = new Vector2(2.2f, 0),
                         Colour = isNewBest
                             ? ResultColours.Pink
                             : ResultColours.Cyan,
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(373, 44),
+                        Position = new Vector2(385, 70),
                         Text = $"{result.Score:0000000}",
-                        Font = HomeTypography.Hero(182),
+                        Font = ResultTypography.Poster(108),
                         Colour = Color4.White,
                     },
                     new SpriteText
                     {
-                        Position = new Vector2(373, 44),
+                        Position = new Vector2(385, 70),
                         Text = result.Score
                             .ToString(
                                 "0000000",
                                 CultureInfo.InvariantCulture)[..1],
-                        Font = HomeTypography.Hero(182),
+                        Font = ResultTypography.Poster(108),
                         Colour = ResultColours.Cyan,
                     },
                 },
@@ -1323,11 +1329,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Width = 610,
                     Truncate = true,
                     Text = text,
-                    Font = new FontUsage(
-                        "Roboto",
-                        48,
-                        "Bold",
-                        true),
+                    Font = HomeTypography.Display(40),
                     Colour = ResultColours.Navy,
                 },
                 underline = new Box
@@ -1388,10 +1390,9 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 },
                 valueText = new SpriteText
                 {
-                    Position = new Vector2(6, 20),
+                    Position = new Vector2(6, 25),
                     Text = value,
-                    Font = HomeTypography.Hero(75),
-                    Scale = new Vector2(1, 1.14f),
+                    Font = ResultTypography.Poster(56),
                     Colour = ResultColours.Navy,
                 },
                 underline = new Box
@@ -1406,8 +1407,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         protected override bool OnHover(HoverEvent e)
         {
             background.FadeTo(0.23f, 140, Easing.OutQuint);
-            valueText.MoveToY(20, 150, Easing.OutQuint);
-            valueText.ScaleTo(1.025f, 150, Easing.OutQuint);
+            valueText.MoveToY(23, 150, Easing.OutQuint);
+            valueText.ScaleTo(1.012f, 150, Easing.OutQuint);
             underline.ResizeWidthTo(Width, 180, Easing.OutQuint);
             underline.FadeColour(
                 ResultColours.Cyan,
@@ -1419,7 +1420,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         protected override void OnHoverLost(HoverLostEvent e)
         {
             background.FadeOut(160, Easing.OutQuint);
-            valueText.MoveToY(24, 170, Easing.OutQuint);
+            valueText.MoveToY(25, 170, Easing.OutQuint);
             valueText.ScaleTo(1, 170, Easing.OutQuint);
             underline.ResizeWidthTo(
                 restUnderlineWidth,
@@ -1490,7 +1491,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Origin = Anchor.TopCentre,
                     Y = 32,
                     Text = value.ToString(),
-                    Font = HomeTypography.Display(48),
+                    Font = ResultTypography.Poster(38),
                     Colour = ResultColours.Navy,
                 },
                 shareBar = new Box
