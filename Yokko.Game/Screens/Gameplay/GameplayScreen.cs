@@ -415,12 +415,15 @@ public partial class GameplayScreen : Screen
         }
         if (replay != null)
             replayTimeline = new GameplayReplayTimeline(replay.Frames);
-        keyBindings = beatmap.ScratchLane is int scratchLane
+        keyBindings = beatmap.ScratchLanes.Count > 0
             ? KeyModeBindings.ForMode(
                 beatmap.KeyMode,
-                gameplaySettings.GetBmsInputKeys(
-                    (int)beatmap.KeyMode,
-                    scratchLane))
+                beatmap.ScratchLanes.Count == 2
+                    ? gameplaySettings.GetBmsDoublePlayInputKeys(
+                        (int)beatmap.KeyMode)
+                    : gameplaySettings.GetBmsInputKeys(
+                        (int)beatmap.KeyMode,
+                        beatmap.ScratchLanes[0]))
             : gameplaySettings.SupportedKeyModes.Contains(beatmap.KeyMode)
                 ? KeyModeBindings.ForMode(
                     beatmap.KeyMode,
@@ -2319,8 +2322,11 @@ public partial class GameplayScreen : Screen
             judgementState.Accuracy,
             judgementState.MaximumAchievableAccuracy);
         if (!playfield.UsesSkinJudgementOverlay
-            && judgement.Phase is not JudgementPhase.Hold
-            and not JudgementPhase.HoldBody
+            && judgement.Phase != JudgementPhase.HoldBody
+            // stable resolves an LN as one scorable Hold result; lazer's
+            // non-scorable parent result should remain hidden.
+            && (judgement.Phase != JudgementPhase.Hold
+                || judgement.Rating.AffectsAccuracy())
             && (!isMine || judgement.IsMiss))
         {
             judgementReadout.Show(judgement);

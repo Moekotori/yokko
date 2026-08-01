@@ -164,11 +164,6 @@ public sealed partial class BmsChartImporter : IChartImporter
             warnings.Add(
                 "BMS scratch objects are disabled in Import settings and were ignored.");
         }
-        if (laneMapping.DualScratchApproximation)
-        {
-            warnings.Add(
-                "BMS double-play scratches were preserved as ordinary playable lanes because Yokko cannot mark two scratch lanes yet.");
-        }
         if (events.Any(static value => value.Channel is "04" or "06" or "07" or "0A"))
             warnings.Add("BMS BGA events are not represented by Yokko yet and were ignored.");
         if (events.Any(static value => value.Channel.Length == 2
@@ -460,8 +455,7 @@ public sealed partial class BmsChartImporter : IChartImporter
                 (KeyMode)(keyChannels1P.Length + offset),
                 StageCount: 1,
                 ScratchIgnored: hasScratch && !enableScratch,
-                ScratchLane: includeScratch ? 0 : null,
-                DualScratchApproximation: false);
+                ScratchLane: includeScratch ? 0 : null);
         }
 
         int stageWidth = keyChannels1P.Length + (includeScratch ? 1 : 0);
@@ -480,8 +474,7 @@ public sealed partial class BmsChartImporter : IChartImporter
             (KeyMode)(stageWidth * 2),
             StageCount: 2,
             ScratchIgnored: hasScratch && !enableScratch,
-            ScratchLane: null,
-            DualScratchApproximation: includeScratch);
+            ScratchLane: null);
     }
 
     private static bool laneHasObjects(
@@ -753,8 +746,7 @@ public sealed partial class BmsChartImporter : IChartImporter
         KeyMode KeyMode,
         int StageCount,
         bool ScratchIgnored,
-        int? ScratchLane,
-        bool DualScratchApproximation);
+        int? ScratchLane);
 
     private sealed class MutableBeatNote(
         int lane,

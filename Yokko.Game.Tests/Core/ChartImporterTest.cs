@@ -1560,6 +1560,51 @@ M000
         }
 
         [Test]
+        public void ImportsBmsDoublePlayWithTwoScratchLanes()
+        {
+            string path = writeChart("bms-double-scratch", ".bms", """
+#TITLE Double Scratch
+#PLAYER 3
+#BPM 120
+#00111:01
+#00112:01
+#00113:01
+#00114:01
+#00115:01
+#00116:01
+#00121:01
+#00122:01
+#00123:01
+#00124:01
+#00125:01
+#00126:01
+""", Encoding.ASCII);
+
+            ChartImportResult result = KnownChartImporters.ImportAsync(
+                    new ChartImportRequest(
+                        path,
+                        PreferKeysounds: true,
+                        EnableBmsScratch: true))
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Beatmap.KeyMode, Is.EqualTo(KeyMode.TwelveKey));
+                Assert.That(result.Beatmap.StageCount, Is.EqualTo(2));
+                Assert.That(result.Beatmap.ScratchLane, Is.Null);
+                Assert.That(result.Beatmap.ScratchLanes, Is.EqualTo(new[] { 0, 6 }));
+                Assert.That(result.Beatmap.RegularLaneCount, Is.EqualTo(10));
+                Assert.That(
+                    result.Warnings.Any(warning => warning.Contains(
+                        "scratch",
+                        StringComparison.OrdinalIgnoreCase)),
+                    Is.False);
+            });
+        }
+
+        [Test]
         public void ResolvesEachIfChainInsideOneBmsRandomBlock()
         {
             string path = writeChart("bms-random", ".bms", """

@@ -1619,10 +1619,22 @@ internal static class YokkoStrings
             ["settings.gameplay.lane"] = new("LANE {0}", "轨道 {0}", "レーン {0}"),
             ["settings.gameplay.bms_scratch"] = new("SCRATCH", "皿键", "スクラッチ"),
             ["settings.gameplay.bms_key"] = new("KEY {0}", "键 {0}", "キー {0}"),
+            ["settings.gameplay.bms_stage_scratch"] = new(
+                "{0}P SCRATCH",
+                "{0}P 皿键",
+                "{0}P スクラッチ"),
+            ["settings.gameplay.bms_stage_key"] = new(
+                "{0}P KEY {1}",
+                "{0}P 键 {1}",
+                "{0}P キー {1}"),
             ["settings.gameplay.bms_profile_hint"] = new(
                 "BMS uses an independent scratch + 7-key layout.",
                 "BMS 使用独立的皿键 + 7 键布局。",
                 "BMS は独立したスクラッチ + 7キー配列を使用します。"),
+            ["settings.gameplay.bms_dp_profile_hint"] = new(
+                "BMS DP uses two independent scratch + 7-key stages.",
+                "BMS DP 使用两套独立的皿键 + 7 键布局。",
+                "BMS DP は2組の独立したスクラッチ + 7キー配列を使用します。"),
             ["settings.gameplay.click_to_change"] = new("Change input", "修改输入", "入力を変更"),
             ["settings.gameplay.press_key"] = new("PRESS INPUT", "请按下输入", "入力を押す"),
             ["settings.gameplay.esc_cancel"] = new("Esc to cancel", "Esc 取消", "Esc でキャンセル"),
@@ -1646,6 +1658,10 @@ internal static class YokkoStrings
                 "BMS profile saved · {0}",
                 "BMS 键位已保存 · {0}",
                 "BMS プロファイルを保存しました · {0}"),
+            ["settings.gameplay.bms_dp_profile_saved"] = new(
+                "BMS DP profile saved · {0}",
+                "BMS DP 键位已保存 · {0}",
+                "BMS DP プロファイルを保存しました · {0}"),
             ["settings.gameplay.single_saved"] = new(
                 "Lane {0} is now {1}.",
                 "轨道 {0} 已设为 {1}。",

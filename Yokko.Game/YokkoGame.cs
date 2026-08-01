@@ -88,12 +88,10 @@ namespace Yokko.Game
         [BackgroundDependencyLoader]
         private void load(
             FrameworkConfigManager frameworkConfig,
-            GameHost host,
-            YokkoGameplaySettings gameplaySettings,
-            YokkoAudioSettings audioSettings)
+            GameHost host)
         {
-            this.gameplaySettings = gameplaySettings;
-            this.audioSettings = audioSettings;
+            gameplaySettings = GameplaySettings;
+            audioSettings = AudioSettings;
             windowMode = frameworkConfig.GetBindable<WindowMode>(
                 FrameworkSetting.WindowMode);
             currentDisplayMode = host.Window?.CurrentDisplayMode;

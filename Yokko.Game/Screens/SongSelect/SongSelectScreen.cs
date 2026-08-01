@@ -193,6 +193,10 @@ public partial class SongSelectScreen : Screen
     private int songListRebuildVersion;
     private int detailsTransitionVersion;
     private long libraryRevision = -1;
+    private long libraryStructureRevision = -1;
+    private readonly object pendingLibraryChangeLock = new();
+    private ImportedChartLibraryChange pendingLibraryChange;
+    private volatile bool screenActive;
     private Stopwatch loadStopwatch;
     private double displayedPlaybackRate = 1;
     private string displayedBpm = "0";
@@ -289,6 +293,7 @@ public partial class SongSelectScreen : Screen
         selected_artwork_rotation;
     internal static float RankingTop => ranking_top;
     internal long LibraryRevision => libraryRevision;
+    internal long LibraryStructureRevision => libraryStructureRevision;
     internal KeyMode? KeyModeFilter => keyModeFilter;
     internal string SearchQuery => searchQuery;
     internal bool NoResultsVisible => noResults?.Alpha > 0.5f;
@@ -584,6 +589,8 @@ public partial class SongSelectScreen : Screen
     public override void OnEntering(ScreenTransitionEvent e)
     {
         base.OnEntering(e);
+        screenActive = true;
+        applyPendingLibraryChange();
         restoreRememberedSelection();
         previewActive = true;
         diagnostics.Trace(
@@ -604,6 +611,7 @@ public partial class SongSelectScreen : Screen
     public override void OnResuming(ScreenTransitionEvent e)
     {
         base.OnResuming(e);
+        screenActive = true;
         bool keepExistingSongSelectState = resumeFromGameplayMods;
         resumeFromGameplayMods = false;
         modPanelOpen = false;
@@ -619,6 +627,7 @@ public partial class SongSelectScreen : Screen
             applyFilters();
             rebuildDetails();
         }
+        applyPendingLibraryChange();
         bool scoreResultVisible = scoreResultHost != null;
         previewActive = !scoreResultVisible;
         diagnostics.Trace(
@@ -647,6 +656,7 @@ public partial class SongSelectScreen : Screen
     public override void OnSuspending(ScreenTransitionEvent e)
     {
         base.OnSuspending(e);
+        screenActive = false;
         resumeFromGameplayMods = e.Next is GameplayModsScreen;
         previewActive = false;
         diagnostics.Trace("SONG_SELECT", "suspended");
@@ -657,6 +667,7 @@ public partial class SongSelectScreen : Screen
 
     public override bool OnExiting(ScreenExitEvent e)
     {
+        screenActive = false;
         previewActive = false;
         diagnostics.Trace("SONG_SELECT", "exiting");
         if (previewHost == null)
@@ -4258,8 +4269,97 @@ public partial class SongSelectScreen : Screen
         modsToggleButton?.SetCount(selectedMods.Mods.Count);
     }
 
-    private void onChartLibraryChanged() =>
-        Scheduler.Add(() => synchroniseImportedCharts(true));
+    private void onChartLibraryChanged(ImportedChartLibraryChange change)
+    {
+        lock (pendingLibraryChangeLock)
+        {
+            pendingLibraryChange = pendingLibraryChange == null
+                ? change
+                : pendingLibraryChange.Merge(change);
+        }
+
+        // Match lazer's collection update boundary: many source notifications
+        // may arrive before the next update frame, but only the newest library
+        // state is useful to a consumer. Inactive preloads keep the revision
+        // dirty and apply it when they actually enter the screen stack.
+        Scheduler.AddOnce(applyPendingLibraryChange);
+    }
+
+    private void applyPendingLibraryChange()
+    {
+        if (!screenActive)
+            return;
+
+        ImportedChartLibraryChange change;
+        lock (pendingLibraryChangeLock)
+        {
+            change = pendingLibraryChange;
+            pendingLibraryChange = null;
+        }
+
+        if (change == null || change.Revision <= libraryRevision)
+            return;
+
+        bool structureChanged =
+            (change.Kind & ImportedChartLibraryChangeKind.Structure) != 0;
+        if (!structureChanged
+            && (change.Kind
+                & ImportedChartLibraryChangeKind.DifficultyRatings) != 0
+            && synchroniseImportedDifficultyRatings())
+        {
+            return;
+        }
+
+        synchroniseImportedCharts(selectNewest: structureChanged);
+    }
+
+    private bool synchroniseImportedDifficultyRatings()
+    {
+        (long revision, long structureRevision,
+            IReadOnlyList<ImportedChart> charts) =
+            importedChartLibrary.GetSnapshot();
+        if (structureRevision != libraryStructureRevision
+            || charts.Count != importedEntries.Count)
+        {
+            return false;
+        }
+
+        foreach (ImportedChart chart in charts)
+        {
+            if (!importedEntries.TryGetValue(
+                    chart.Id,
+                    out SongSelectEntry entry)
+                || !importedChartModels.ContainsKey(chart.Id))
+            {
+                return false;
+            }
+
+            ImportedChart previous = importedChartModels[chart.Id];
+            importedChartModels[chart.Id] = chart;
+            if (ReferenceEquals(previous, chart))
+                continue;
+
+            entry.DifficultyRating = chart.DifficultyRating;
+            entry.StarRating = chart.StarRating;
+            difficultyRatingsCache.Remove(entry);
+        }
+
+        libraryRevision = revision;
+        libraryStructureRevision = structureRevision;
+
+        // Background base-rating completion does not alter search, grouping or
+        // title ordering. Only rebuild the cheap virtual index when the current
+        // view explicitly depends on difficulty values.
+        if (sortByDifficulty || MinimumDifficultyFilter > 0)
+            applyFilters();
+        else
+        {
+            songList?.UpdateDifficulties();
+            rebuildDetails();
+        }
+
+        return true;
+    }
 
     private void onDifficultyRatingModeChanged(
         ValueChangedEvent<ManiaDifficultyRatingMode> _)
@@ -4381,7 +4481,8 @@ public partial class SongSelectScreen : Screen
         bool selectNewest = false,
         bool refreshSongList = true)
     {
-        (long revision, IReadOnlyList<ImportedChart> charts) =
+        (long revision, long structureRevision,
+            IReadOnlyList<ImportedChart> charts) =
             importedChartLibrary.GetSnapshot();
         string selectedImportedId = selectedEntry?.ChartId;
         var previousEntries = importedEntries.Values.ToHashSet(
@@ -4432,6 +4533,7 @@ public partial class SongSelectScreen : Screen
         }
 
         libraryRevision = revision;
+        libraryStructureRevision = structureRevision;
 
         if (!selectNewest
             && selectedImportedId != null

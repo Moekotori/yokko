@@ -592,6 +592,9 @@ public sealed class GameplaySettingsTest
                 firstSettings.SetBinding(KeyMode.TenKey, 0, Key.Z);
                 firstSettings.SetBinding(KeyMode.TwentyKey, 19, Key.Slash);
                 firstSettings.SetBmsInputBinding(0, InputKey.MidiC2);
+                firstSettings.SetBmsDoublePlayInputBinding(
+                    8,
+                    InputKey.Joystick4);
                 firstSettings.SetShortcutBinding(
                     ManiaShortcutAction.DecreaseScrollSpeed,
                     Key.F7);
@@ -684,6 +687,9 @@ public sealed class GameplaySettingsTest
                 Assert.That(
                     restoredSettings.GetBmsInputKeys()[0],
                     Is.EqualTo(InputKey.MidiC2));
+                Assert.That(
+                    restoredSettings.GetBmsDoublePlayInputKeys()[8],
+                    Is.EqualTo(InputKey.Joystick4));
                 Assert.That(
                     restoredSettings.DecreaseScrollSpeedKey.Value,
                     Is.EqualTo(Key.F7));
@@ -952,7 +958,7 @@ public sealed class GameplaySettingsTest
         var restored = new YokkoGameplaySettings();
         GameplayKeyProfileCodec.DecodeAndApply(encoded, restored);
 
-        Assert.That(encoded, Does.StartWith("YOKKO-KEYS-V5|1K="));
+        Assert.That(encoded, Does.StartWith("YOKKO-KEYS-V6|1K="));
         foreach (KeyMode mode in source.SupportedKeyModes)
         {
             Assert.That(
@@ -971,12 +977,13 @@ public sealed class GameplaySettingsTest
 
 
     [Test]
-    public void MidiHidAndBmsBindingsRoundTripInVersionFiveProfile()
+    public void MidiHidAndBmsBindingsRoundTripInVersionSixProfile()
     {
         var source = new YokkoGameplaySettings();
         source.SetInputBinding(KeyMode.FourKey, 0, InputKey.MidiC4);
         source.SetInputBinding(KeyMode.FourKey, 1, InputKey.Joystick3);
         source.SetBmsInputBinding(0, InputKey.MidiC2);
+        source.SetBmsDoublePlayInputBinding(8, InputKey.Joystick4);
 
         string encoded = GameplayKeyProfileCodec.Encode(source);
         var restored = new YokkoGameplaySettings();
@@ -988,6 +995,66 @@ public sealed class GameplaySettingsTest
         Assert.That(
             restored.GetBmsInputKeys(),
             Is.EqualTo(source.GetBmsInputKeys()));
+        Assert.That(
+            restored.GetBmsDoublePlayInputKeys(),
+            Is.EqualTo(source.GetBmsDoublePlayInputKeys()));
+    }
+
+    [Test]
+    public void BmsDoublePlayProfileMapsBothScratchLanesPerStage()
+    {
+        var settings = new YokkoGameplaySettings();
+        settings.SetBmsDoublePlayInputBinding(0, InputKey.MidiC2);
+        settings.SetBmsDoublePlayInputBinding(8, InputKey.Joystick4);
+
+        IReadOnlyList<InputKey> sixteenLane =
+            settings.GetBmsDoublePlayInputKeys(16);
+        IReadOnlyList<InputKey> twelveLane =
+            settings.GetBmsDoublePlayInputKeys(12);
+        KeyModeBindings bindings = KeyModeBindings.ForMode(
+            KeyMode.TwelveKey,
+            twelveLane);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(sixteenLane[0], Is.EqualTo(InputKey.MidiC2));
+            Assert.That(sixteenLane[8], Is.EqualTo(InputKey.Joystick4));
+            Assert.That(twelveLane[0], Is.EqualTo(InputKey.MidiC2));
+            Assert.That(twelveLane[6], Is.EqualTo(InputKey.Joystick4));
+            Assert.That(bindings.GetLane(InputKey.MidiC2), Is.Zero);
+            Assert.That(bindings.GetLane(InputKey.Joystick4), Is.EqualTo(6));
+            Assert.That(twelveLane.Skip(1).Take(5),
+                Is.EqualTo(sixteenLane.Skip(2).Take(5)));
+            Assert.That(twelveLane.Skip(7).Take(5),
+                Is.EqualTo(sixteenLane.Skip(10).Take(5)));
+        });
+    }
+
+    [Test]
+    public void VersionFiveProfileImportsWithDefaultBmsDoublePlayBindings()
+    {
+        var source = new YokkoGameplaySettings();
+        source.SetBmsInputBinding(0, InputKey.MidiC2);
+        string versionFive = string.Join(
+                "|",
+                GameplayKeyProfileCodec.Encode(source)
+                    .Split('|')
+                    .Where(part => !part.StartsWith("BMSDP=", StringComparison.Ordinal)))
+            .Replace(
+                "YOKKO-KEYS-V6",
+                "YOKKO-KEYS-V5",
+                StringComparison.Ordinal);
+
+        var restored = new YokkoGameplaySettings();
+        GameplayKeyProfileCodec.DecodeAndApply(versionFive, restored);
+
+        Assert.That(restored.GetBmsInputKeys()[0], Is.EqualTo(InputKey.MidiC2));
+        Assert.That(
+            restored.GetBmsDoublePlayInputKeys()[0],
+            Is.EqualTo(InputKey.LShift));
+        Assert.That(
+            restored.GetBmsDoublePlayInputKeys()[8],
+            Is.EqualTo(InputKey.RShift));
     }
 
     [Test]
@@ -1026,9 +1093,10 @@ public sealed class GameplaySettingsTest
                 "|",
                 GameplayKeyProfileCodec.Encode(source)
                     .Split('|')
-                    .Where(part => !part.StartsWith("BMS=", StringComparison.Ordinal)))
+                    .Where(part => !part.StartsWith("BMS=", StringComparison.Ordinal)
+                                   && !part.StartsWith("BMSDP=", StringComparison.Ordinal)))
             .Replace(
-                "YOKKO-KEYS-V5",
+                "YOKKO-KEYS-V6",
                 "YOKKO-KEYS-V4",
                 StringComparison.Ordinal);
 
@@ -1052,9 +1120,10 @@ public sealed class GameplaySettingsTest
                 "|",
                 GameplayKeyProfileCodec.Encode(source)
                     .Split('|')
-                    .Where(part => !part.StartsWith("BMS=", StringComparison.Ordinal)))
+                    .Where(part => !part.StartsWith("BMS=", StringComparison.Ordinal)
+                                   && !part.StartsWith("BMSDP=", StringComparison.Ordinal)))
             .Replace(
-                "YOKKO-KEYS-V5",
+                "YOKKO-KEYS-V6",
                 "YOKKO-KEYS-V3",
                 StringComparison.Ordinal)
             .Replace(

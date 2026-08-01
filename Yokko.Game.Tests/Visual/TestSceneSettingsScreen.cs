@@ -726,7 +726,13 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SelectAdjacentKeyMode(1));
             AddAssert("BMS scratch and seven keys are visible", () =>
                 gameplay.IsBmsProfileSelected
+                && !gameplay.IsBmsDoublePlayProfileSelected
                 && gameplay.VisibleBindingCardCount == 8);
+            AddStep("next selects BMS DP", () =>
+                gameplay.SelectAdjacentKeyMode(1));
+            AddAssert("both DP stages are visible", () =>
+                gameplay.IsBmsDoublePlayProfileSelected
+                && gameplay.VisibleBindingCardCount == 16);
             AddStep("next wraps to 1K", () =>
                 gameplay.SelectAdjacentKeyMode(1));
             AddAssert("mode picker wrapped", () =>

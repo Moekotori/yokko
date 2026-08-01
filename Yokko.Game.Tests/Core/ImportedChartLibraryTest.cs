@@ -47,7 +47,7 @@ public sealed class ImportedChartLibraryTest
             library.Initialise(storage);
             library.ConfigureExternalOsu(storage, settings);
             int refreshCount = 0;
-            library.LibraryChanged += () => refreshCount++;
+            library.LibraryChanged += _ => refreshCount++;
 
             ExternalOsuLibraryResult result =
                 await library.RefreshExternalOsuAsync();
@@ -139,8 +139,8 @@ public sealed class ImportedChartLibraryTest
             var storage = new NativeStorage(yokkoRoot);
             library.Initialise(storage);
             library.ConfigureExternalOsu(storage, settings);
-            int publishedSnapshots = 0;
-            library.LibraryChanged += () => publishedSnapshots++;
+            var publishedChanges = new List<ImportedChartLibraryChange>();
+            library.LibraryChanged += change => publishedChanges.Add(change);
 
             ExternalOsuLibraryResult result =
                 await library.RefreshExternalOsuAsync();
@@ -150,8 +150,19 @@ public sealed class ImportedChartLibraryTest
             {
                 Assert.That(result.ChartCount, Is.EqualTo(chartCount));
                 Assert.That(library.GetCharts(), Has.Count.EqualTo(chartCount));
-                Assert.That(publishedSnapshots, Is.EqualTo(2),
+                Assert.That(publishedChanges, Has.Count.EqualTo(2),
                     "The initial index and final ratings should each publish once.");
+                Assert.That(
+                    publishedChanges.Select(change => change.Kind),
+                    Is.EqualTo(new[]
+                    {
+                        ImportedChartLibraryChangeKind.Structure,
+                        ImportedChartLibraryChangeKind.DifficultyRatings,
+                    }));
+                Assert.That(
+                    publishedChanges[1].StructureRevision,
+                    Is.EqualTo(publishedChanges[0].StructureRevision),
+                    "Difficulty completion must not invalidate a prepared song list.");
             });
         }
         finally
@@ -657,7 +668,7 @@ public sealed class ImportedChartLibraryTest
                     []),
                 retainedSource);
             int refreshCount = 0;
-            library.LibraryChanged += () => refreshCount++;
+            library.LibraryChanged += _ => refreshCount++;
 
             string removedId = library.GetCharts()
                                       .First(chart => chart.SourcePath == removedSource)
@@ -727,7 +738,7 @@ public sealed class ImportedChartLibraryTest
     {
         var library = new ImportedChartLibrary();
         int refreshCount = 0;
-        library.LibraryChanged += () => refreshCount++;
+        library.LibraryChanged += _ => refreshCount++;
 
         library.AddOrReplace(
             [

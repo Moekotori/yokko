@@ -112,6 +112,13 @@ public static class YokkoBeatmapFingerprint
                 writer.Write("bms-scratch-v1");
                 writer.Write(scratchLane);
             }
+            else if (beatmap.ScratchLanes.Count > 0)
+            {
+                writer.Write("bms-scratch-v2");
+                writer.Write(beatmap.ScratchLanes.Count);
+                foreach (int lane in beatmap.ScratchLanes)
+                    writer.Write(lane);
+            }
 
             // Keep fingerprints for charts without timeline samples stable.
             // The marker makes the appended optional block unambiguous.

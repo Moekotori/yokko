@@ -112,6 +112,49 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestBmsDoublePlayHasTwoScratchLanes()
+        {
+            GameplayScreen gameplay = null;
+            AddStep("open BMS DP scratch chart", () =>
+            {
+                var beatmap = new YokkoBeatmap(
+                    "Double Scratch",
+                    "Yokko",
+                    "Yokko",
+                    "5K + SCR DP",
+                    KeyMode.TwelveKey,
+                    ChartSourceFormat.Bms,
+                    [YokkoTimingPoint.Default],
+                    null,
+                    [
+                        new YokkoHitObject(
+                            0,
+                            1000,
+                            null,
+                            HitObjectKind.Tap),
+                        new YokkoHitObject(
+                            6,
+                            1100,
+                            null,
+                            HitObjectKind.Tap),
+                    ],
+                    StageCount: 2);
+                gameplay = new GameplayScreen(beatmap);
+                screenStack.Push(gameplay);
+            });
+            AddUntilStep("both DP scratch lanes loaded", () =>
+                gameplay?.ChildrenOfType<GameplayPlayfield>()
+                        .SingleOrDefault() is { } playfield
+                && playfield.KeyCount == 12
+                && playfield.GetLaneColumn(0).IsScratchLane
+                && playfield.GetLaneColumn(6).IsScratchLane
+                && !playfield.GetLaneColumn(1).IsScratchLane
+                && !playfield.GetLaneColumn(7).IsScratchLane
+                && playfield.GetDrawableNote(0).IsScratchNote
+                && playfield.GetDrawableNote(1).IsScratchNote);
+        }
+
+        [Test]
         public void TestCustomNightcoreAudioPolicyMatchesLazer()
         {
             var audioEngine = new SeekTrackingAudioEngine();
@@ -4039,6 +4082,27 @@ HitPosition: 400
                          .Count(animation =>
                              animation.Name == "Hit explosion"
                              && animation.Alpha > 0) >= 2);
+            AddStep("show stable hold result", () =>
+            {
+                foreach (LaneColumn lane in
+                         playfield.ChildrenOfType<LaneColumn>())
+                {
+                    lane.ClearTransientFeedback();
+                }
+                playfield.ApplyJudgement(new JudgementEvent(
+                    0,
+                    0,
+                    1000,
+                    1000,
+                    0,
+                    JudgementRating.Perfect,
+                    JudgementPhase.Hold));
+            });
+            AddAssert("stable hold result adds release explosion", () =>
+                playfield.ChildrenOfType<TextureAnimation>()
+                         .Any(animation =>
+                             animation.Name == "Hit explosion"
+                             && animation.Alpha > 0));
             AddStep("release first lane", () =>
                 playfield.SetLanePressed(0, false));
             AddStep("restore scroll speed", () =>

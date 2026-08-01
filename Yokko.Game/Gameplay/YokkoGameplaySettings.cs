@@ -90,6 +90,26 @@ public sealed class YokkoGameplaySettings
         Key.L,
     };
 
+    private static readonly Key[] defaultBmsDoublePlayBindings =
+    {
+        Key.LShift,
+        Key.Z,
+        Key.S,
+        Key.X,
+        Key.D,
+        Key.C,
+        Key.F,
+        Key.V,
+        Key.RShift,
+        Key.M,
+        Key.J,
+        Key.Comma,
+        Key.K,
+        Key.Period,
+        Key.L,
+        Key.Slash,
+    };
+
     private static readonly IReadOnlyDictionary<
         (KeyMode Mode, GameplayKeyPreset Preset),
         Key[]> bindingPresets =
@@ -122,6 +142,8 @@ public sealed class YokkoGameplaySettings
     private readonly Dictionary<KeyMode, Bindable<InputKey>[]> deviceBindingsByMode;
     private readonly Bindable<Key>[] bmsBindings;
     private readonly Bindable<InputKey>[] bmsDeviceBindings;
+    private readonly Bindable<Key>[] bmsDoublePlayBindings;
+    private readonly Bindable<InputKey>[] bmsDoublePlayDeviceBindings;
 
     public IReadOnlyList<KeyMode> SupportedKeyModes =>
         OsuManiaKeyLayout.SupportedModes;
@@ -133,6 +155,9 @@ public sealed class YokkoGameplaySettings
         bindingsByMode[KeyMode.SevenKey];
 
     public IReadOnlyList<Bindable<Key>> BmsBindings => bmsBindings;
+
+    public IReadOnlyList<Bindable<Key>> BmsDoublePlayBindings =>
+        bmsDoublePlayBindings;
 
     internal event Action BindingsChanged;
 
@@ -407,6 +432,10 @@ public sealed class YokkoGameplaySettings
         bmsDeviceBindings = defaultBmsBindings
                             .Select(_ => new Bindable<InputKey>(InputKey.None))
                             .ToArray();
+        bmsDoublePlayBindings = createBindings(defaultBmsDoublePlayBindings);
+        bmsDoublePlayDeviceBindings = defaultBmsDoublePlayBindings
+            .Select(_ => new Bindable<InputKey>(InputKey.None))
+            .ToArray();
 
         foreach (Bindable<Key> binding in bindingsByMode.Values.SelectMany(
                      modeBindings => modeBindings))
@@ -421,6 +450,10 @@ public sealed class YokkoGameplaySettings
         foreach (Bindable<Key> binding in bmsBindings)
             binding.ValueChanged += _ => BindingsChanged?.Invoke();
         foreach (Bindable<InputKey> binding in bmsDeviceBindings)
+            binding.ValueChanged += _ => BindingsChanged?.Invoke();
+        foreach (Bindable<Key> binding in bmsDoublePlayBindings)
+            binding.ValueChanged += _ => BindingsChanged?.Invoke();
+        foreach (Bindable<InputKey> binding in bmsDoublePlayDeviceBindings)
             binding.ValueChanged += _ => BindingsChanged?.Invoke();
         foreach (ManiaShortcutAction action in supportedShortcutActions)
         {
@@ -459,12 +492,41 @@ public sealed class YokkoGameplaySettings
     internal IReadOnlyList<Bindable<InputKey>> BmsDeviceBindings =>
         bmsDeviceBindings;
 
+    internal IReadOnlyList<Bindable<InputKey>> BmsDoublePlayDeviceBindings =>
+        bmsDoublePlayDeviceBindings;
+
     public IReadOnlyList<InputKey> GetBmsInputKeys() =>
         bmsBindings.Select((binding, lane) =>
                 bmsDeviceBindings[lane].Value != InputKey.None
                     ? bmsDeviceBindings[lane].Value
                     : KeyCombination.FromKey(binding.Value))
             .ToArray();
+
+    public IReadOnlyList<InputKey> GetBmsDoublePlayInputKeys() =>
+        bmsDoublePlayBindings.Select((binding, lane) =>
+                bmsDoublePlayDeviceBindings[lane].Value != InputKey.None
+                    ? bmsDoublePlayDeviceBindings[lane].Value
+                    : KeyCombination.FromKey(binding.Value))
+            .ToArray();
+
+    public IReadOnlyList<InputKey> GetBmsDoublePlayInputKeys(int totalLanes)
+    {
+        if (totalLanes is not (12 or 16))
+            throw new ArgumentOutOfRangeException(nameof(totalLanes));
+
+        int stageWidth = totalLanes / 2;
+        int regularCount = stageWidth - 1;
+        IReadOnlyList<InputKey> profile = GetBmsDoublePlayInputKeys();
+        var result = new List<InputKey>(totalLanes);
+        for (int stage = 0; stage < 2; stage++)
+        {
+            int profileStart = stage * 8;
+            int regularStart = profileStart + 1 + (7 - regularCount) / 2;
+            result.Add(profile[profileStart]);
+            result.AddRange(profile.Skip(regularStart).Take(regularCount));
+        }
+        return result;
+    }
 
     public IReadOnlyList<InputKey> GetBmsInputKeys(
         int totalLanes,
@@ -519,12 +581,66 @@ public sealed class YokkoGameplaySettings
             setBmsInputBindingWithoutConflict(lane, keys[lane]);
     }
 
+    public void SetBmsDoublePlayInputBinding(int lane, InputKey key)
+    {
+        validateInputKey(key);
+        if ((uint)lane >= bmsDoublePlayBindings.Length)
+            throw new ArgumentOutOfRangeException(nameof(lane));
+
+        IReadOnlyList<InputKey> current = GetBmsDoublePlayInputKeys();
+        int duplicateLane = current
+                            .Select((value, index) => (value, index))
+                            .Where(entry => entry.index != lane && entry.value == key)
+                            .Select(entry => entry.index)
+                            .DefaultIfEmpty(-1)
+                            .First();
+        InputKey previous = current[lane];
+        setBmsDoublePlayInputBindingWithoutConflict(lane, key);
+        if (duplicateLane >= 0)
+        {
+            setBmsDoublePlayInputBindingWithoutConflict(
+                duplicateLane,
+                previous);
+        }
+    }
+
+    public void SetBmsDoublePlayInputBindings(IReadOnlyList<InputKey> keys)
+    {
+        if (keys == null || keys.Count != bmsDoublePlayBindings.Length)
+        {
+            throw new ArgumentException(
+                "BMS DP requires two scratch lanes and fourteen keys.",
+                nameof(keys));
+        }
+        foreach (InputKey key in keys)
+            validateInputKey(key);
+        if (keys.Distinct().Count() != keys.Count)
+        {
+            throw new ArgumentException(
+                "The BMS DP profile cannot contain duplicate inputs.",
+                nameof(keys));
+        }
+
+        for (int lane = 0; lane < keys.Count; lane++)
+            setBmsDoublePlayInputBindingWithoutConflict(lane, keys[lane]);
+    }
+
     public void ResetBmsBindings()
     {
         for (int lane = 0; lane < defaultBmsBindings.Length; lane++)
         {
             bmsBindings[lane].Value = defaultBmsBindings[lane];
             bmsDeviceBindings[lane].Value = InputKey.None;
+        }
+    }
+
+    public void ResetBmsDoublePlayBindings()
+    {
+        for (int lane = 0; lane < defaultBmsDoublePlayBindings.Length; lane++)
+        {
+            bmsDoublePlayBindings[lane].Value =
+                defaultBmsDoublePlayBindings[lane];
+            bmsDoublePlayDeviceBindings[lane].Value = InputKey.None;
         }
     }
 
@@ -894,6 +1010,21 @@ public sealed class YokkoGameplaySettings
         }
     }
 
+    private void setBmsDoublePlayInputBindingWithoutConflict(
+        int lane,
+        InputKey key)
+    {
+        if (tryGetKeyboardKey(key, out Key keyboardKey))
+        {
+            bmsDoublePlayBindings[lane].Value = keyboardKey;
+            bmsDoublePlayDeviceBindings[lane].Value = InputKey.None;
+        }
+        else
+        {
+            bmsDoublePlayDeviceBindings[lane].Value = key;
+        }
+    }
+
     private static void validateInputKey(InputKey key)
     {
         if (!IsSupportedInputKey(key))
@@ -915,8 +1046,8 @@ public sealed class YokkoGameplaySettings
 
     private static bool tryGetKeyboardKey(InputKey inputKey, out Key key)
     {
-        key = (Key)(int)inputKey;
-        return Enum.IsDefined(key)
+        return Enum.TryParse(inputKey.ToString(), true, out key)
+               && Enum.IsDefined(key)
                && key != Key.Unknown
                && KeyCombination.FromKey(key) == inputKey;
     }

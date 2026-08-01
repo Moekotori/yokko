@@ -100,6 +100,8 @@ namespace Yokko.Game
         private IWindow window;
 
         protected YokkoDisplaySettings DisplaySettings => displaySettings;
+        protected YokkoGameplaySettings GameplaySettings => gameplaySettings;
+        protected YokkoAudioSettings AudioSettings => audioSettings;
         protected YokkoUiThemeStore UiThemeStore => uiTheme;
         internal YokkoDiagnostics Diagnostics => diagnostics;
         internal ImportedChartLibrary ImportedCharts =>

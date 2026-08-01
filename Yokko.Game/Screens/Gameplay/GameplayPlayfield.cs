@@ -323,7 +323,7 @@ public partial class GameplayPlayfield : CompositeDrawable
                                         lane == keyCount - 1
                                         || splitSkinStages
                                         && lane == keyCount / 2 - 1,
-                                        beatmap.ScratchLane == lane,
+                                        beatmap.ScratchLanes.Contains(lane),
                                         upscroll)
                                     {
                                         X = x,
@@ -358,7 +358,7 @@ public partial class GameplayPlayfield : CompositeDrawable
                 width,
                 activeSkin,
                 beatmap.LegacyLongNoteRendering,
-                beatmap.ScratchLane == hitObject.Lane,
+                beatmap.ScratchLanes.Contains(hitObject.Lane),
                 this.longNoteCutAmount,
                 upscroll)
             {
@@ -397,7 +397,7 @@ public partial class GameplayPlayfield : CompositeDrawable
                 width,
                 activeSkin,
                 beatmap.LegacyLongNoteRendering,
-                beatmap.ScratchLane == lane,
+                beatmap.ScratchLanes.Contains(lane),
                 this.longNoteCutAmount,
                 upscroll)
             {
@@ -923,8 +923,11 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     public void ApplyJudgement(JudgementEvent judgement)
     {
-        if (judgement.Phase is JudgementPhase.Hold
-            or JudgementPhase.HoldBody)
+        // lazer's Hold parent result is internal, but stable's single combined
+        // LN result is also represented by this phase and must stay visible.
+        if (judgement.Phase == JudgementPhase.HoldBody
+            || (judgement.Phase == JudgementPhase.Hold
+                && !judgement.Rating.AffectsAccuracy()))
             return;
 
         if (skinOverlays.Length == 1 || !separateSkinScore)

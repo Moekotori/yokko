@@ -102,6 +102,49 @@ public sealed class ManiaBeatmapModTransformerTest
     }
 
     [Test]
+    public void BmsDoublePlayScratchLanesStayFixedUnderRandomAndMirror()
+    {
+        var original = new YokkoBeatmap(
+            "Double Scratch",
+            "Yokko",
+            "Yokko",
+            "5K + SCR DP",
+            KeyMode.TwelveKey,
+            ChartSourceFormat.Bms,
+            [YokkoTimingPoint.Default],
+            null,
+            Enumerable.Range(0, 12)
+                      .Select(lane => new YokkoHitObject(
+                          lane,
+                          1000 + lane * 100,
+                          null,
+                          HitObjectKind.Tap))
+                      .ToArray(),
+            StageCount: 2);
+
+        YokkoBeatmap mirrored = ManiaBeatmapModTransformer.Apply(
+            original,
+            new ManiaModSet([ManiaModId.Mirror]));
+        YokkoBeatmap random = ManiaBeatmapModTransformer.Apply(
+            original,
+            new ManiaModSet([ManiaModId.Random], 741852));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(original.ScratchLanes, Is.EqualTo(new[] { 0, 6 }));
+            Assert.That(mirrored.HitObjects[0].Lane, Is.Zero);
+            Assert.That(mirrored.HitObjects[6].Lane, Is.EqualTo(6));
+            Assert.That(random.HitObjects[0].Lane, Is.Zero);
+            Assert.That(random.HitObjects[6].Lane, Is.EqualTo(6));
+            Assert.That(
+                random.HitObjects.Where((_, lane) => lane is not (0 or 6))
+                      .Select(note => note.Lane)
+                      .Order(),
+                Is.EqualTo(new[] { 1, 2, 3, 4, 5, 7, 8, 9, 10, 11 }));
+        });
+    }
+
+    [Test]
     public void HoldOffKeepsTheHeadAndRemovesTheTail()
     {
         YokkoBeatmap original = createBeatmap();

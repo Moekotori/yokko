@@ -74,6 +74,10 @@ public partial class ChartLibraryScreen : Screen
     private ChartLibraryActionButton autoFindButton;
     private ChartLibraryActionButton disableExternalButton;
     private IReadOnlyList<ImportedChart> snapshot = Array.Empty<ImportedChart>();
+    private ImportedChart[] orderedSnapshot = [];
+    private readonly object pendingLibraryChangeLock = new();
+    private ImportedChartLibraryChange pendingLibraryChange;
+    private volatile bool screenActive;
     private string query = string.Empty;
     private int displayLimit = pageSize;
     private bool workInProgress;
@@ -170,12 +174,28 @@ public partial class ChartLibraryScreen : Screen
     public override void OnEntering(ScreenTransitionEvent e)
     {
         base.OnEntering(e);
+        screenActive = true;
+        applyPendingLibraryChange();
         stage.MoveToY(10).MoveToY(0, 420, Easing.OutQuint);
         this.FadeInFromZero(260, Easing.OutQuint);
     }
 
+    public override void OnResuming(ScreenTransitionEvent e)
+    {
+        base.OnResuming(e);
+        screenActive = true;
+        applyPendingLibraryChange();
+    }
+
+    public override void OnSuspending(ScreenTransitionEvent e)
+    {
+        base.OnSuspending(e);
+        screenActive = false;
+    }
+
     public override bool OnExiting(ScreenExitEvent e)
     {
+        screenActive = false;
         this.FadeOut(180, Easing.OutQuint);
         return base.OnExiting(e);
     }
@@ -630,7 +650,38 @@ public partial class ChartLibraryScreen : Screen
         },
     };
 
-    private void onLibraryChanged() => Scheduler.Add(refreshSnapshot);
+    private void onLibraryChanged(ImportedChartLibraryChange change)
+    {
+        lock (pendingLibraryChangeLock)
+        {
+            pendingLibraryChange = pendingLibraryChange == null
+                ? change
+                : pendingLibraryChange.Merge(change);
+        }
+
+        Scheduler.AddOnce(applyPendingLibraryChange);
+    }
+
+    private void applyPendingLibraryChange()
+    {
+        if (!screenActive)
+            return;
+
+        ImportedChartLibraryChange change;
+        lock (pendingLibraryChangeLock)
+        {
+            change = pendingLibraryChange;
+            pendingLibraryChange = null;
+        }
+
+        if (change == null)
+            return;
+
+        if ((change.Kind & ImportedChartLibraryChangeKind.Structure) != 0)
+            refreshSnapshot();
+        else
+            refreshDifficultyRows();
+    }
 
     private void refreshSnapshot()
     {
@@ -700,6 +751,30 @@ public partial class ChartLibraryScreen : Screen
                                   .ThenBy(chart => chart.Result.Beatmap.DifficultyName,
                                       StringComparer.CurrentCultureIgnoreCase)
                                   .ToArray();
+        orderedSnapshot = ordered;
+        renderRows(ordered);
+    }
+
+    private void refreshDifficultyRows()
+    {
+        snapshot = importedChartLibrary.GetCharts();
+        var latestById = snapshot.ToDictionary(
+            chart => chart.Id,
+            StringComparer.OrdinalIgnoreCase);
+        if (orderedSnapshot.Any(chart => !latestById.ContainsKey(chart.Id)))
+        {
+            refreshSnapshot();
+            return;
+        }
+
+        orderedSnapshot = orderedSnapshot
+                          .Select(chart => latestById[chart.Id])
+                          .ToArray();
+        renderRows(orderedSnapshot);
+    }
+
+    private void renderRows(ImportedChart[] ordered)
+    {
         FilteredChartCount = ordered.Length;
         resultCountText.Text = YokkoStrings.Get(
             "chart_library.result_count",

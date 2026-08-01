@@ -38,6 +38,27 @@ internal enum ImportedChartSourceKind
     ExternalOsu,
 }
 
+[Flags]
+internal enum ImportedChartLibraryChangeKind
+{
+    None = 0,
+    Structure = 1 << 0,
+    DifficultyRatings = 1 << 1,
+}
+
+internal sealed record ImportedChartLibraryChange(
+    long Revision,
+    long StructureRevision,
+    ImportedChartLibraryChangeKind Kind)
+{
+    internal ImportedChartLibraryChange Merge(
+        ImportedChartLibraryChange newer) =>
+        new(
+            Math.Max(Revision, newer.Revision),
+            Math.Max(StructureRevision, newer.StructureRevision),
+            Kind | newer.Kind);
+}
+
 internal sealed record ExternalOsuLibraryResult(
     bool Success,
     string SongsPath,
@@ -80,6 +101,7 @@ internal sealed class ImportedChartLibrary : IDisposable
     private bool startupLoadStarted;
     private int externalOsuConfigurationGeneration;
     private long revision;
+    private long structureRevision;
     private YokkoExternalOsuSettings externalOsuSettings;
     private string externalOsuCachePath;
     private FileSystemWatcher externalWatcher;
@@ -90,7 +112,7 @@ internal sealed class ImportedChartLibrary : IDisposable
     private readonly LinkedList<string> externalBeatmapLru = new();
     private const int externalBeatmapCacheCapacity = 64;
 
-    public event Action LibraryChanged;
+    public event Action<ImportedChartLibraryChange> LibraryChanged;
 
     public string LibraryPath { get; private set; }
     internal string ExternalOsuSongsPath =>
@@ -113,6 +135,15 @@ internal sealed class ImportedChartLibrary : IDisposable
         {
             lock (syncRoot)
                 return revision;
+        }
+    }
+
+    internal long StructureRevision
+    {
+        get
+        {
+            lock (syncRoot)
+                return structureRevision;
         }
     }
 
@@ -220,21 +251,25 @@ internal sealed class ImportedChartLibrary : IDisposable
             return charts.ToArray();
     }
 
-    internal (long Revision, IReadOnlyList<ImportedChart> Charts) GetSnapshot()
+    internal (
+        long Revision,
+        long StructureRevision,
+        IReadOnlyList<ImportedChart> Charts) GetSnapshot()
     {
         lock (syncRoot)
-            return (revision, charts.ToArray());
+            return (revision, structureRevision, charts.ToArray());
     }
 
     internal void Clear()
     {
+        ImportedChartLibraryChange change;
         lock (syncRoot)
         {
             charts.Clear();
-            revision++;
+            change = advanceRevision(ImportedChartLibraryChangeKind.Structure);
         }
 
-        LibraryChanged?.Invoke();
+        LibraryChanged?.Invoke(change);
     }
 
     internal async Task<ManagedChartRemovalResult> RemoveManagedChartAsync(
@@ -295,6 +330,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                 File.Delete(removalTarget);
 
             int removed;
+            ImportedChartLibraryChange change = null;
             lock (syncRoot)
             {
                 removed = charts.RemoveAll(chart =>
@@ -308,11 +344,14 @@ internal sealed class ImportedChartLibrary : IDisposable
                             removalTarget)));
 
                 if (removed > 0)
-                    revision++;
+                {
+                    change = advanceRevision(
+                        ImportedChartLibraryChangeKind.Structure);
+                }
             }
 
             if (removed > 0)
-                LibraryChanged?.Invoke();
+                LibraryChanged?.Invoke(change);
 
             return new ManagedChartRemovalResult(removed, sourcePath);
         }
@@ -474,17 +513,19 @@ internal sealed class ImportedChartLibrary : IDisposable
                 }
             }
 
+            ImportedChartLibraryChange change;
             lock (syncRoot)
             {
                 charts.RemoveAll(chart =>
                     chart.SourceKind == ImportedChartSourceKind.Managed);
                 charts.AddRange(loaded);
-                revision++;
+                change = advanceRevision(
+                    ImportedChartLibraryChangeKind.Structure);
             }
 
             msdRatingCache.SaveIfChanged();
             starRatingCache.SaveIfChanged();
-            LibraryChanged?.Invoke();
+            LibraryChanged?.Invoke(change);
             Logger.Log(
                 $"Persistent beatmap scan loaded {loaded.Count} charts "
                 + $"from {sources.Length} sources in "
@@ -1012,9 +1053,13 @@ internal sealed class ImportedChartLibrary : IDisposable
                       .ToArray();
     }
 
-    private void replaceExternalCharts(IReadOnlyList<ImportedChart> external)
+    private void replaceExternalCharts(
+        IReadOnlyList<ImportedChart> external,
+        ImportedChartLibraryChangeKind requestedChangeKind =
+            ImportedChartLibraryChangeKind.Structure)
     {
         bool changed;
+        ImportedChartLibraryChange change = null;
         lock (syncRoot)
         {
             ImportedChart[] existing = charts
@@ -1027,6 +1072,11 @@ internal sealed class ImportedChartLibrary : IDisposable
             var retainedIds = new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);
             var merged = new ImportedChart[external.Count];
+            ImportedChartLibraryChangeKind actualChangeKind =
+                requestedChangeKind;
+
+            if (existing.Length != external.Count)
+                actualChangeKind |= ImportedChartLibraryChangeKind.Structure;
 
             for (int i = 0; i < external.Count; i++)
             {
@@ -1043,6 +1093,28 @@ internal sealed class ImportedChartLibrary : IDisposable
                 else
                 {
                     merged[i] = incoming;
+
+                    if (current != null
+                        && externalChartEquivalentIgnoringRatings(
+                            current,
+                            incoming))
+                    {
+                        retainedIds.Add(current.Id);
+                    }
+                    else
+                    {
+                        actualChangeKind |=
+                            ImportedChartLibraryChangeKind.Structure;
+                    }
+                }
+
+                if (i >= existing.Length
+                    || !string.Equals(
+                        existing[i].Id,
+                        incoming.Id,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    actualChangeKind |= ImportedChartLibraryChangeKind.Structure;
                 }
             }
 
@@ -1072,14 +1144,21 @@ internal sealed class ImportedChartLibrary : IDisposable
                 }
                 node = next;
             }
-            revision++;
+            change = advanceRevision(actualChangeKind);
         }
 
         if (changed)
-            LibraryChanged?.Invoke();
+            LibraryChanged?.Invoke(change);
     }
 
     private static bool externalChartEquivalent(
+        ImportedChart current,
+        ImportedChart incoming) =>
+        externalChartEquivalentIgnoringRatings(current, incoming)
+        && Equals(current.DifficultyRating, incoming.DifficultyRating)
+        && Equals(current.StarRating, incoming.StarRating);
+
+    private static bool externalChartEquivalentIgnoringRatings(
         ImportedChart current,
         ImportedChart incoming) =>
         string.Equals(current.Id, incoming.Id, StringComparison.OrdinalIgnoreCase)
@@ -1095,9 +1174,7 @@ internal sealed class ImportedChartLibrary : IDisposable
             StringComparison.Ordinal)
         && current.IsPackage == incoming.IsPackage
         && current.IsReadOnly == incoming.IsReadOnly
-        && current.SourceKind == incoming.SourceKind
-        && Equals(current.DifficultyRating, incoming.DifficultyRating)
-        && Equals(current.StarRating, incoming.StarRating);
+        && current.SourceKind == incoming.SourceKind;
 
     private async Task waitForExternalWorkAsync(
         CancellationToken cancellationToken)
@@ -1283,7 +1360,9 @@ internal sealed class ImportedChartLibrary : IDisposable
                     return false;
                 }
 
-                replaceExternalCharts(createExternalCharts(entries));
+                replaceExternalCharts(
+                    createExternalCharts(entries),
+                    ImportedChartLibraryChangeKind.DifficultyRatings);
             }
             return true;
         }
@@ -1436,6 +1515,7 @@ internal sealed class ImportedChartLibrary : IDisposable
         msdRatingCache.SaveIfChanged();
         starRatingCache.SaveIfChanged();
 
+        ImportedChartLibraryChange change;
         lock (syncRoot)
         {
             charts.RemoveAll(chart =>
@@ -1444,10 +1524,22 @@ internal sealed class ImportedChartLibrary : IDisposable
                     sourcePath,
                     StringComparison.OrdinalIgnoreCase));
             charts.AddRange(imported);
-            revision++;
+            change = advanceRevision(
+                ImportedChartLibraryChangeKind.Structure);
         }
 
-        LibraryChanged?.Invoke();
+        LibraryChanged?.Invoke(change);
+    }
+
+    private ImportedChartLibraryChange advanceRevision(
+        ImportedChartLibraryChangeKind kind)
+    {
+        Debug.Assert(Monitor.IsEntered(syncRoot));
+        revision++;
+        if ((kind & ImportedChartLibraryChangeKind.Structure) != 0)
+            structureRevision++;
+
+        return new ImportedChartLibraryChange(revision, structureRevision, kind);
     }
 
     private ImportedChart[] createImportedCharts(

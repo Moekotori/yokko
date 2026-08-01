@@ -150,8 +150,22 @@ public sealed record YokkoBeatmap
 
     /// <summary>
     /// The playable BMS turntable lane, or null for ordinary key charts.
+    /// Double-play BMS charts expose both turntables through
+    /// <see cref="ScratchLanes"/> while retaining null here for compatibility.
     /// </summary>
     public int? ScratchLane { get; init; }
+
+    /// <summary>
+    /// Playable BMS turntable lanes. BMS DP is imported stage-by-stage, so its
+    /// two turntables are the first lane of each six- or eight-lane stage.
+    /// </summary>
+    public IReadOnlyList<int> ScratchLanes => ScratchLane is int scratchLane
+        ? [scratchLane]
+        : SourceFormat is ChartSourceFormat.Bms or ChartSourceFormat.Lr2Bms
+          && StageCount == 2
+          && KeysPerStage is 6 or 8
+            ? [0, KeysPerStage]
+            : [];
 
     public string RomanisedTitle { get; init; }
 
@@ -167,7 +181,7 @@ public sealed record YokkoBeatmap
 
     public int KeysPerStage => (int)KeyMode / StageCount;
 
-    public int RegularLaneCount => (int)KeyMode - (ScratchLane.HasValue ? 1 : 0);
+    public int RegularLaneCount => (int)KeyMode - ScratchLanes.Count;
 
     public int NoteCount => HitObjects.Count(static hitObject => hitObject.Kind is HitObjectKind.Tap or HitObjectKind.Hold);
 }

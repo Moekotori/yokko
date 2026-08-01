@@ -136,6 +136,32 @@ namespace Yokko.Game.Tests.Core
         }
 
         [Test]
+        public void PreservesBmsDoublePlayScratchLayoutThroughEditingConversion()
+        {
+            var source = new YokkoBeatmap(
+                "Double Scratch",
+                "Yokko",
+                "Yokko",
+                "5K + SCR DP",
+                KeyMode.TwelveKey,
+                ChartSourceFormat.Bms,
+                [YokkoTimingPoint.Default],
+                null,
+                [new YokkoHitObject(0, 1000, null, HitObjectKind.Tap)],
+                StageCount: 2);
+
+            YokkoBeatmap playable =
+                EditableBeatmap.FromBeatmap(source).ToBeatmap();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(playable.StageCount, Is.EqualTo(2));
+                Assert.That(playable.ScratchLanes, Is.EqualTo(new[] { 0, 6 }));
+                Assert.That(playable.RegularLaneCount, Is.EqualTo(10));
+            });
+        }
+
+        [Test]
         public void TimelineViewportClampsToAvailableRows()
         {
             var viewport = new TimelineViewport(0, 24);

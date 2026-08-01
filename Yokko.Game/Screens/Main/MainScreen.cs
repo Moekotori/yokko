@@ -96,6 +96,8 @@ public partial class MainScreen : Screen
     private bool songSelectPreloadInProgress;
     private bool preloadResourcesDisposed;
     private bool songSelectOpenRequested;
+    private volatile bool mainActive;
+    private volatile bool songSelectPreloadDirty;
     private int songSelectPreloadGeneration;
     private double songSelectReturnStartedAt = double.NaN;
 
@@ -124,8 +126,8 @@ public partial class MainScreen : Screen
 
     internal bool IsPreparedSongSelectCurrent =>
         preloadedSongSelect != null
-        && preloadedSongSelect.LibraryRevision
-        == importedChartLibrary.Revision
+        && preloadedSongSelect.LibraryStructureRevision
+        == importedChartLibrary.StructureRevision
         && preloadedSongSelect.IsPreparedForNavigation;
 
     private Vector2 parallaxCurrent;
@@ -406,6 +408,8 @@ public partial class MainScreen : Screen
     public override void OnEntering(ScreenTransitionEvent e)
     {
         base.OnEntering(e);
+        mainActive = true;
+        applyPendingLibraryChange();
         cancelExitHold();
         musicPlayer.Activate();
 
@@ -425,6 +429,8 @@ public partial class MainScreen : Screen
     public override void OnResuming(ScreenTransitionEvent e)
     {
         base.OnResuming(e);
+        mainActive = true;
+        applyPendingLibraryChange();
         songSelectReturnStartedAt = Time.Current;
         musicPlayer.Activate();
         this.FadeIn(200, Easing.OutQuint);
@@ -445,6 +451,7 @@ public partial class MainScreen : Screen
     public override void OnSuspending(ScreenTransitionEvent e)
     {
         base.OnSuspending(e);
+        mainActive = false;
         cancelExitHold();
         musicPlayer.Deactivate(pause: !KeepsMusicPlaying(e.Next));
         this.FadeTo(0.4f, 200, Easing.OutQuint);
@@ -452,6 +459,7 @@ public partial class MainScreen : Screen
 
     public override bool OnExiting(ScreenExitEvent e)
     {
+        mainActive = false;
         cancelExitHold();
         musicPlayer.Deactivate();
         this.FadeOut(200, Easing.OutQuint);
@@ -471,8 +479,8 @@ public partial class MainScreen : Screen
         this.FadeTo(0.4f, 200, Easing.OutQuint);
 
         if (preloadedSongSelect != null
-            && preloadedSongSelect.LibraryRevision
-            != importedChartLibrary.Revision)
+            && preloadedSongSelect.LibraryStructureRevision
+            != importedChartLibrary.StructureRevision)
         {
             Logger.Log(
                 "Discarding a stale song select preload before navigation.",
@@ -538,8 +546,8 @@ public partial class MainScreen : Screen
                 songSelectPreloadInProgress = false;
 
                 if (generation != songSelectPreloadGeneration
-                    || screen.LibraryRevision
-                    != importedChartLibrary.Revision)
+                    || screen.LibraryStructureRevision
+                    != importedChartLibrary.StructureRevision)
                 {
                     screen.Dispose();
                     beginSongSelectPreload();
@@ -586,8 +594,21 @@ public partial class MainScreen : Screen
         this.Push(screen);
     }
 
-    private void onChartLibraryChanged() => Scheduler.Add(() =>
+    private void onChartLibraryChanged(ImportedChartLibraryChange change)
     {
+        if ((change.Kind & ImportedChartLibraryChangeKind.Structure) == 0)
+            return;
+
+        songSelectPreloadDirty = true;
+        Scheduler.AddOnce(applyPendingLibraryChange);
+    }
+
+    private void applyPendingLibraryChange()
+    {
+        if (!mainActive || !songSelectPreloadDirty)
+            return;
+
+        songSelectPreloadDirty = false;
         if (preloadResourcesDisposed
             || songSelectPreloadCancellation.IsCancellationRequested
             || IsPreparedSongSelectCurrent)
@@ -596,7 +617,7 @@ public partial class MainScreen : Screen
         }
 
         invalidateSongSelectPreload();
-    });
+    }
 
     private void invalidateSongSelectPreload()
     {

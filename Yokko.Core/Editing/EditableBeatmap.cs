@@ -90,6 +90,8 @@ public sealed class EditableBeatmap
 
     public int? ScratchLane { get; private set; }
 
+    public int StageCount { get; private set; } = 1;
+
     public double PreviewTimeMilliseconds { get; set; } = -1;
 
     public IReadOnlyList<YokkoBreakPeriod> BreakPeriods { get; private set; } = [];
@@ -167,6 +169,7 @@ public sealed class EditableBeatmap
             LegacyLongNoteRendering = beatmap.LegacyLongNoteRendering,
             ScheduledSamples = beatmap.ScheduledSamples.ToArray(),
             ScratchLane = beatmap.ScratchLane,
+            StageCount = beatmap.StageCount,
             preservedObjects = beatmap.HitObjects
                 .Where(static hitObject =>
                     hitObject.Kind is not (
@@ -267,6 +270,7 @@ public sealed class EditableBeatmap
             ScrollSpeedFactors,
             ScrollProfiles,
             DrainRate,
+            StageCount: StageCount,
             PreviewTimeMilliseconds: PreviewTimeMilliseconds,
             BreakPeriods: BreakPeriods,
             LegacyLongNoteRendering: LegacyLongNoteRendering,

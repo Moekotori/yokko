@@ -122,9 +122,9 @@ public static class ManiaBeatmapModTransformer
         }
 
         int laneCount = (int)keyMode;
-        int? scratchLane = original.ScratchLane;
+        HashSet<int> scratchLanes = original.ScratchLanes.ToHashSet();
         int[] movableLanes = Enumerable.Range(0, laneCount)
-                                       .Where(lane => lane != scratchLane)
+                                       .Where(lane => !scratchLanes.Contains(lane))
                                        .ToArray();
         int[]? laneMap = null;
 

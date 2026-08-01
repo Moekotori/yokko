@@ -65,6 +65,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private bool disposed;
     private bool sequentialCapture;
     private bool bmsProfileSelected;
+    private bool bmsDoublePlayProfileSelected;
     private KeyMode selectedKeyMode = KeyMode.FourKey;
 
     internal GameplaySettingsSection CurrentSection { get; private set; } =
@@ -73,6 +74,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal KeyMode SelectedKeyMode => selectedKeyMode;
 
     internal bool IsBmsProfileSelected => bmsProfileSelected;
+
+    internal bool IsBmsDoublePlayProfileSelected =>
+        bmsProfileSelected && bmsDoublePlayProfileSelected;
 
     internal bool IsCapturingKey => capturingCard != null;
 
@@ -215,18 +219,21 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         cancelCapture();
         clearPressedKeys();
         bmsProfileSelected = false;
+        bmsDoublePlayProfileSelected = false;
         selectedKeyMode = keyMode;
         showInputSection(true);
     }
 
-    internal void SelectBmsProfile()
+    internal void SelectBmsProfile(bool doublePlay = false)
     {
-        if (bmsProfileSelected)
+        if (bmsProfileSelected
+            && bmsDoublePlayProfileSelected == doublePlay)
             return;
 
         cancelCapture();
         clearPressedKeys();
         bmsProfileSelected = true;
+        bmsDoublePlayProfileSelected = doublePlay;
         showInputSection(true);
     }
 
@@ -235,8 +242,11 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         if (direction == 0)
             return;
 
-        int profileCount = settings.SupportedKeyModes.Count + 1;
-        int current = bmsProfileSelected ? profileCount - 1 : 0;
+        int profileCount = settings.SupportedKeyModes.Count + 2;
+        int current = bmsProfileSelected
+            ? settings.SupportedKeyModes.Count
+              + (bmsDoublePlayProfileSelected ? 1 : 0)
+            : 0;
         if (!bmsProfileSelected)
         {
             for (int index = 0; index < settings.SupportedKeyModes.Count; index++)
@@ -251,8 +261,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         int next = (current + Math.Sign(direction)
                     + profileCount)
                    % profileCount;
-        if (next == profileCount - 1)
+        if (next == settings.SupportedKeyModes.Count)
             SelectBmsProfile();
+        else if (next == settings.SupportedKeyModes.Count + 1)
+            SelectBmsProfile(doublePlay: true);
         else
             SelectKeyMode(settings.SupportedKeyModes[next]);
     }
@@ -287,7 +299,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     {
         cancelCapture();
         if (bmsProfileSelected)
-            settings.ResetBmsBindings();
+        {
+            if (bmsDoublePlayProfileSelected)
+                settings.ResetBmsDoublePlayBindings();
+            else
+                settings.ResetBmsBindings();
+        }
         else
             settings.ResetBindings(selectedKeyMode);
         showInputMessage(YokkoStrings.Get(
@@ -300,7 +317,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         cancelCapture();
         if (bmsProfileSelected)
         {
-            settings.ResetBmsBindings();
+            if (bmsDoublePlayProfileSelected)
+                settings.ResetBmsDoublePlayBindings();
+            else
+                settings.ResetBmsBindings();
             showInputMessage(YokkoStrings.Get(
                 "settings.gameplay.preset_applied",
                 YokkoStrings.Get("settings.gameplay.preset_standard")));
@@ -415,6 +435,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal InputKey GetBmsInputBinding(int lane) =>
         settings.GetBmsInputKeys()[lane];
+
+    internal InputKey GetBmsDoublePlayInputBinding(int lane) =>
+        settings.GetBmsDoublePlayInputKeys()[lane];
 
     internal void SetLanePressFeedback(bool enabled) =>
         settings.ShowLanePressFeedback.Value = enabled;
@@ -674,7 +697,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             },
             new GameplayCompactButton(
                 bmsProfileSelected
-                    ? "BMS"
+                    ? bmsDoublePlayProfileSelected
+                        ? "BMS DP"
+                        : "BMS SP"
                     : OsuManiaKeyLayout.GetDisplayName(selectedKeyMode),
                 () => SelectAdjacentKeyMode(1),
                 124)
@@ -692,7 +717,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             new GameplayCompactButton(
                 "4K",
                 () => SelectKeyMode(KeyMode.FourKey),
-                54)
+                46)
             {
                 Position = new Vector2(386, 10),
                 IsSelected = !bmsProfileSelected
@@ -701,35 +726,45 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             new GameplayCompactButton(
                 "7K",
                 () => SelectKeyMode(KeyMode.SevenKey),
-                54)
+                46)
             {
-                Position = new Vector2(446, 10),
+                Position = new Vector2(438, 10),
                 IsSelected = !bmsProfileSelected
                              && selectedKeyMode == KeyMode.SevenKey,
             },
             new GameplayCompactButton(
-                "BMS",
-                SelectBmsProfile,
-                54)
+                "BMS SP",
+                () => SelectBmsProfile(),
+                68)
             {
-                Position = new Vector2(506, 10),
-                IsSelected = bmsProfileSelected,
+                Position = new Vector2(490, 10),
+                IsSelected = bmsProfileSelected
+                             && !bmsDoublePlayProfileSelected,
+            },
+            new GameplayCompactButton(
+                "BMS DP",
+                () => SelectBmsProfile(doublePlay: true),
+                68)
+            {
+                Position = new Vector2(564, 10),
+                IsSelected = bmsProfileSelected
+                             && bmsDoublePlayProfileSelected,
             },
             new GameplayCompactButton(
                 YokkoStrings.Get("settings.gameplay.edit_all"),
                 BeginSequentialKeyCapture,
-                122,
+                84,
                 FontAwesome.Solid.Keyboard)
             {
-                Position = new Vector2(566, 10),
+                Position = new Vector2(638, 10),
             },
             new GameplayCompactButton(
                 YokkoStrings.Get("settings.gameplay.reset"),
                 ResetSelectedBindings,
-                122,
+                92,
                 FontAwesome.Solid.ArrowLeft)
             {
-                Position = new Vector2(698, 10),
+                Position = new Vector2(728, 10),
             },
             keyCaptureHint,
             createBindingCards(),
@@ -746,7 +781,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             {
                 Position = new Vector2(20, 70),
                 Text = bmsProfileSelected
-                    ? YokkoStrings.Get("settings.gameplay.bms_profile_hint")
+                    ? YokkoStrings.Get(
+                        bmsDoublePlayProfileSelected
+                            ? "settings.gameplay.bms_dp_profile_hint"
+                            : "settings.gameplay.bms_profile_hint")
                     : YokkoStrings.Get("settings.gameplay.all_modes_hint"),
                 Font = HomeTypography.Body(16),
                 Colour = SettingsTheme.MutedNavy,
@@ -863,9 +901,18 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                     width,
                     rowCount > 1,
                     bmsProfileSelected
-                        ? lane == 0
-                            ? YokkoStrings.Get("settings.gameplay.bms_scratch")
-                            : YokkoStrings.Get("settings.gameplay.bms_key", lane)
+                        ? bmsDoublePlayProfileSelected
+                            ? lane % 8 == 0
+                                ? YokkoStrings.Get(
+                                    "settings.gameplay.bms_stage_scratch",
+                                    lane / 8 + 1)
+                                : YokkoStrings.Get(
+                                    "settings.gameplay.bms_stage_key",
+                                    lane / 8 + 1,
+                                    lane % 8)
+                            : lane == 0
+                                ? YokkoStrings.Get("settings.gameplay.bms_scratch")
+                                : YokkoStrings.Get("settings.gameplay.bms_key", lane)
                         : default);
                 card.Height = rowCount == 1 ? 132 : 62;
                 if (pressedKeys.Contains(getSelectedInputKeys()[lane]))
@@ -880,23 +927,34 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     private IReadOnlyList<Bindable<Key>> getSelectedKeyboardBindings() =>
         bmsProfileSelected
-            ? settings.BmsBindings
+            ? bmsDoublePlayProfileSelected
+                ? settings.BmsDoublePlayBindings
+                : settings.BmsBindings
             : settings.GetBindableKeys(selectedKeyMode);
 
     private IReadOnlyList<Bindable<InputKey>> getSelectedDeviceBindings() =>
         bmsProfileSelected
-            ? settings.BmsDeviceBindings
+            ? bmsDoublePlayProfileSelected
+                ? settings.BmsDoublePlayDeviceBindings
+                : settings.BmsDeviceBindings
             : settings.GetDeviceBindings(selectedKeyMode);
 
     private IReadOnlyList<InputKey> getSelectedInputKeys() =>
         bmsProfileSelected
-            ? settings.GetBmsInputKeys()
+            ? bmsDoublePlayProfileSelected
+                ? settings.GetBmsDoublePlayInputKeys()
+                : settings.GetBmsInputKeys()
             : settings.GetInputKeys(selectedKeyMode);
 
     private void setSelectedInputBinding(int lane, InputKey key)
     {
         if (bmsProfileSelected)
-            settings.SetBmsInputBinding(lane, key);
+        {
+            if (bmsDoublePlayProfileSelected)
+                settings.SetBmsDoublePlayInputBinding(lane, key);
+            else
+                settings.SetBmsInputBinding(lane, key);
+        }
         else
             settings.SetInputBinding(selectedKeyMode, lane, key);
     }
@@ -904,7 +962,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private void setSelectedInputBindings(IReadOnlyList<InputKey> keys)
     {
         if (bmsProfileSelected)
-            settings.SetBmsInputBindings(keys);
+        {
+            if (bmsDoublePlayProfileSelected)
+                settings.SetBmsDoublePlayInputBindings(keys);
+            else
+                settings.SetBmsInputBindings(keys);
+        }
         else
             settings.SetInputBindings(selectedKeyMode, keys);
     }
@@ -1426,7 +1489,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
                 keyCaptureHint.Text = bmsProfileSelected
                     ? YokkoStrings.Get(
-                        "settings.gameplay.bms_profile_saved",
+                        bmsDoublePlayProfileSelected
+                            ? "settings.gameplay.bms_dp_profile_saved"
+                            : "settings.gameplay.bms_profile_saved",
                         formatSelectedInputKeys())
                     : YokkoStrings.Get(
                         "settings.gameplay.sequence_saved",

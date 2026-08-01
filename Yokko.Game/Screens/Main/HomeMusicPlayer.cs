@@ -55,6 +55,7 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
     private int playbackGeneration;
     private bool desiredPlaying;
     private bool screenActive;
+    private volatile bool playlistDirty;
     private bool disposed;
     private string loadedAudioPath;
     private double pausedProgress;
@@ -278,6 +279,7 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
     internal void Activate()
     {
         screenActive = true;
+        refreshPlaylistIfDirty();
         if (desiredPlaying && audioEngine?.Status.IsRunning != true)
             startOrResumeCurrentTrack();
     }
@@ -721,8 +723,25 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
             StringComparer.OrdinalIgnoreCase);
     }
 
-    private void onChartLibraryChanged() =>
-        Scheduler.Add(refreshPlaylist);
+    private void onChartLibraryChanged(ImportedChartLibraryChange change)
+    {
+        // Difficulty-only completion cannot change audio paths or track
+        // metadata, so rebuilding the whole home playlist would be pure work.
+        if ((change.Kind & ImportedChartLibraryChangeKind.Structure) == 0)
+            return;
+
+        playlistDirty = true;
+        Scheduler.AddOnce(refreshPlaylistIfDirty);
+    }
+
+    private void refreshPlaylistIfDirty()
+    {
+        if (!screenActive || !playlistDirty)
+            return;
+
+        playlistDirty = false;
+        refreshPlaylist();
+    }
 
     private void enqueueAudioOperation(
         Func<Task> operation,

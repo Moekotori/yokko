@@ -367,6 +367,7 @@ public partial class DrawableNote : CompositeDrawable
 
         if (judgement.Phase is JudgementPhase.Tap
             or JudgementPhase.HoldTail
+            or JudgementPhase.Hold
             or JudgementPhase.Mine)
         {
             resolved = true;

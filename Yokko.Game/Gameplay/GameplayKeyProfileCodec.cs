@@ -9,7 +9,8 @@ namespace Yokko.Game.Gameplay;
 
 internal static class GameplayKeyProfileCodec
 {
-    private const string currentPrefix = "YOKKO-KEYS-V5";
+    private const string currentPrefix = "YOKKO-KEYS-V6";
+    private const string versionFivePrefix = "YOKKO-KEYS-V5";
     private const string versionFourPrefix = "YOKKO-KEYS-V4";
     private const string versionThreePrefix = "YOKKO-KEYS-V3";
     private const string versionTwoPrefix = "YOKKO-KEYS-V2";
@@ -28,6 +29,7 @@ internal static class GameplayKeyProfileCodec
             "|",
             new[] { currentPrefix }.Concat(laneProfiles)
                                    .Append($"BMS={encodeInputKeys(settings.GetBmsInputKeys())}")
+                                   .Append($"BMSDP={encodeInputKeys(settings.GetBmsDoublePlayInputKeys())}")
                                    .Append(shortcuts));
     }
 
@@ -84,8 +86,29 @@ internal static class GameplayKeyProfileCodec
             return;
         }
 
+        if (parts[0].Equals(versionFivePrefix, StringComparison.Ordinal))
+        {
+            if (parts.Length != settings.SupportedKeyModes.Count + 3)
+                throw new FormatException("The input profile is incomplete.");
+
+            Dictionary<KeyMode, IReadOnlyList<InputKey>> versionFiveProfiles =
+                decodeInputLaneProfiles(parts, settings, 1);
+            IReadOnlyList<InputKey> versionFiveBms = decodeInputPart(
+                parts[settings.SupportedKeyModes.Count + 1],
+                "BMS",
+                8);
+            IReadOnlyDictionary<ManiaShortcutAction, Key> versionFiveShortcuts =
+                decodeShortcuts(parts[^1], settings);
+            foreach ((KeyMode mode, IReadOnlyList<InputKey> keys) in versionFiveProfiles)
+                settings.SetInputBindings(mode, keys);
+            settings.SetBmsInputBindings(versionFiveBms);
+            foreach ((ManiaShortcutAction action, Key key) in versionFiveShortcuts)
+                settings.SetShortcutBinding(action, key);
+            return;
+        }
+
         if (!parts[0].Equals(currentPrefix, StringComparison.Ordinal)
-            || parts.Length != settings.SupportedKeyModes.Count + 3)
+            || parts.Length != settings.SupportedKeyModes.Count + 4)
         {
             throw new FormatException("The key profile version is unsupported.");
         }
@@ -96,12 +119,17 @@ internal static class GameplayKeyProfileCodec
             parts[settings.SupportedKeyModes.Count + 1],
             "BMS",
             8);
+        IReadOnlyList<InputKey> bmsDoublePlay = decodeInputPart(
+            parts[settings.SupportedKeyModes.Count + 2],
+            "BMSDP",
+            16);
         IReadOnlyDictionary<ManiaShortcutAction, Key> shortcuts =
             decodeShortcuts(parts[^1], settings);
 
         foreach ((KeyMode mode, IReadOnlyList<InputKey> keys) in decoded)
             settings.SetInputBindings(mode, keys);
         settings.SetBmsInputBindings(bms);
+        settings.SetBmsDoublePlayInputBindings(bmsDoublePlay);
         foreach ((ManiaShortcutAction action, Key key) in shortcuts)
             settings.SetShortcutBinding(action, key);
     }

@@ -84,8 +84,8 @@ internal sealed record SongSelectEntry
 
     public YokkoBeatmap Beatmap { get; set; }
     public string WallpaperTexture { get; init; }
-    public ManiaMsdResult DifficultyRating { get; init; }
-    public ManiaStarRatingResult StarRating { get; init; }
+    public ManiaMsdResult DifficultyRating { get; set; }
+    public ManiaStarRatingResult StarRating { get; set; }
     public TimeSpan Length { get; init; }
     public double Bpm { get; init; }
     public int BestScore { get; init; }
