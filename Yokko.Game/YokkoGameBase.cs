@@ -317,10 +317,12 @@ namespace Yokko.Game
         private void onFileDropped(string path)
         {
             diagnostics.Trace("FILES", "dropped", path);
-            OpenExternalPath(path);
+            OpenExternalPath(path, playImportedReplay: false);
         }
 
-        protected void OpenExternalPath(string path)
+        protected void OpenExternalPath(
+            string path,
+            bool playImportedReplay = true)
         {
             diagnostics.Trace(
                 "FILES",
@@ -331,7 +333,7 @@ namespace Yokko.Game
                     YokkoReplayIO.FileExtension,
                     StringComparison.OrdinalIgnoreCase))
             {
-                importYokkoReplay(path);
+                importYokkoReplay(path, playImportedReplay);
                 return;
             }
 
@@ -339,7 +341,7 @@ namespace Yokko.Game
                     ".osr",
                     StringComparison.OrdinalIgnoreCase))
             {
-                importOsuReplay(path);
+                importOsuReplay(path, playImportedReplay);
                 return;
             }
 
@@ -347,7 +349,7 @@ namespace Yokko.Game
                     MalodyReplayIO.FileExtension,
                     StringComparison.OrdinalIgnoreCase))
             {
-                importMalodyReplay(path);
+                importMalodyReplay(path, playImportedReplay);
                 return;
             }
 
@@ -372,7 +374,9 @@ namespace Yokko.Game
             windowSizeGuard?.Repair();
         }
 
-        private void importOsuReplay(string path)
+        private void importOsuReplay(
+            string path,
+            bool playImportedReplay)
         {
             diagnostics.Trace("IMPORT", "osu-replay-started", path);
             Scheduler.Add(() => importOverlay.ShowImporting(
@@ -449,14 +453,20 @@ namespace Yokko.Game
                             "osu-replay-completed",
                             $"title={task.Result.Beatmap.Title} | player={task.Result.PlayerName}"
                             + $" | score={task.Result.Score.Score} | added={imported}");
-                        OpenImportedReplay(
-                            task.Result.Beatmap,
-                            task.Result.Replay);
+                        OnReplayImported(task.Result.Beatmap);
+                        if (playImportedReplay)
+                        {
+                            OpenImportedReplay(
+                                task.Result.Beatmap,
+                                task.Result.Replay);
+                        }
                     }),
                     TaskScheduler.Default);
         }
 
-        private void importMalodyReplay(string path)
+        private void importMalodyReplay(
+            string path,
+            bool playImportedReplay)
         {
             diagnostics.Trace("IMPORT", "malody-replay-started", path);
             Scheduler.Add(() => importOverlay.ShowImporting(
@@ -531,9 +541,13 @@ namespace Yokko.Game
                             "malody-replay-completed",
                             $"title={task.Result.Beatmap.Title}"
                             + $" | score={task.Result.Score.Score} | added={imported}");
-                        OpenImportedReplay(
-                            task.Result.Beatmap,
-                            task.Result.Replay);
+                        OnReplayImported(task.Result.Beatmap);
+                        if (playImportedReplay)
+                        {
+                            OpenImportedReplay(
+                                task.Result.Beatmap,
+                                task.Result.Replay);
+                        }
                     }),
                     TaskScheduler.Default);
         }
@@ -545,7 +559,9 @@ namespace Yokko.Game
                           .ToLowerInvariant();
         }
 
-        private void importYokkoReplay(string path)
+        private void importYokkoReplay(
+            string path,
+            bool playImportedReplay)
         {
             diagnostics.Trace("IMPORT", "yokko-replay-started", path);
             Scheduler.Add(() => importOverlay.ShowImporting(
@@ -589,9 +605,18 @@ namespace Yokko.Game
                             "The replay key count does not match its restored Mod configuration.");
                     }
 
+                    string replayPath = playImportedReplay
+                        ? path
+                        : saveDroppedYokkoReplay(
+                            path,
+                            chart.Result.Beatmap,
+                            applied,
+                            loaded);
+
                     return (
                         Beatmap: chart.Result.Beatmap,
-                        loaded.Replay);
+                        loaded.Replay,
+                        ReplayPath: replayPath);
                 })
                 .ContinueWith(
                     task => Scheduler.Add(() =>
@@ -616,17 +641,52 @@ namespace Yokko.Game
                         diagnostics.Trace(
                             "IMPORT",
                             "yokko-replay-completed",
-                            $"title={task.Result.Beatmap.Title} | inputs={task.Result.Replay.Inputs.Count}");
-                        OpenImportedReplay(
-                            task.Result.Beatmap,
-                            task.Result.Replay);
+                            $"title={task.Result.Beatmap.Title} | inputs={task.Result.Replay.Inputs.Count}"
+                            + $" | stored={task.Result.ReplayPath}");
+                        OnReplayImported(task.Result.Beatmap);
+                        if (playImportedReplay)
+                        {
+                            OpenImportedReplay(
+                                task.Result.Beatmap,
+                                task.Result.Replay);
+                        }
                     }),
                     TaskScheduler.Default);
+        }
+
+        private string saveDroppedYokkoReplay(
+            string sourcePath,
+            YokkoBeatmap beatmap,
+            YokkoBeatmap appliedBeatmap,
+            YokkoReplayLoadResult loaded)
+        {
+            string fullSourcePath = Path.GetFullPath(sourcePath);
+            string replayDirectory = Path.GetFullPath(
+                replayStore.ReplayDirectory);
+            if (string.Equals(
+                    Path.GetDirectoryName(fullSourcePath),
+                    replayDirectory,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return fullSourcePath;
+            }
+
+            return replayStore.Save(
+                beatmap,
+                appliedBeatmap,
+                loaded.Replay,
+                loaded.SourceHash,
+                loaded.RecordedAt);
         }
 
         private protected virtual void OpenImportedReplay(
             Yokko.Core.Beatmaps.YokkoBeatmap beatmap,
             GameplayReplay replay)
+        {
+        }
+
+        private protected virtual void OnReplayImported(
+            YokkoBeatmap beatmap)
         {
         }
 

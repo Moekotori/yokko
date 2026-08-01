@@ -17,6 +17,7 @@ using Yokko.Game.Presentation;
 using Yokko.Game.Resources;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Main;
+using Yokko.Game.Screens.SongSelect;
 using Yokko.Core.Beatmaps;
 
 namespace Yokko.Game
@@ -138,6 +139,13 @@ namespace Yokko.Game
                     null,
                     null,
                     replay)));
+        }
+
+        private protected override void OnReplayImported(
+            YokkoBeatmap beatmap)
+        {
+            if (screenStack.CurrentScreen is SongSelectScreen songSelect)
+                songSelect.RefreshImportedReplayScores();
         }
 
         private void onShowPerformanceReadoutChanged(

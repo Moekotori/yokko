@@ -597,6 +597,17 @@ public partial class SongSelectScreen : Screen
         this.FadeIn(180, Easing.OutQuint);
     }
 
+    internal void RefreshImportedReplayScores()
+    {
+        int selectedIndex = Math.Max(0, entries.IndexOf(selectedEntry));
+        refreshSavedScores();
+        selectedEntry = entries.Count == 0
+            ? null
+            : entries[Math.Min(selectedIndex, entries.Count - 1)];
+        applyFilters();
+        rebuildDetails();
+    }
+
     public override void OnSuspending(ScreenTransitionEvent e)
     {
         base.OnSuspending(e);
