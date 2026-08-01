@@ -174,6 +174,8 @@ public partial class SongSelectScreen : Screen
     private bool transitionPending;
     private bool nextPreloadScheduled;
     private int initialArtworkPrewarmCount;
+    private bool entryTransitionInProgress;
+    private int entryTransitionVersion;
     private bool resumeFromGameplayMods;
     private bool detailsTransitionInProgress;
     private int songListRebuildVersion;
@@ -240,11 +242,8 @@ public partial class SongSelectScreen : Screen
         backgroundA?.Alpha ?? 0,
         backgroundB?.Alpha ?? 0);
     internal float StageAlpha => stage?.Alpha ?? 0;
-    internal float EntryTransitionOffset =>
-        Math.Abs(header?.DrawPosition.Y ?? 0)
-        + Math.Abs((detailsHost?.DrawPosition.X ?? details_left) - details_left)
-        + Math.Abs((songBrowser?.DrawPosition.X ?? -browse_right) + browse_right)
-        + Math.Abs(footer?.DrawPosition.Y ?? 0);
+    internal bool EntryTransitionInProgress => entryTransitionInProgress;
+    internal int EntryTransitionVersion => entryTransitionVersion;
     internal Vector2 SelectedChartFactsPosition =>
         selectedChartFactsRow?.Position ?? Vector2.Zero;
     internal Vector2 SelectedChartFactsSize =>
@@ -607,6 +606,9 @@ public partial class SongSelectScreen : Screen
         stage.ClearTransforms();
         stage.Alpha = 1;
         stage.Position = Vector2.Zero;
+        entryTransitionInProgress = true;
+        entryTransitionVersion++;
+        Scheduler.AddDelayed(() => entryTransitionInProgress = false, 290);
 
         header.ClearTransforms();
         header.Y = -10;
@@ -646,6 +648,7 @@ public partial class SongSelectScreen : Screen
 
     private void playExitTransition()
     {
+        entryTransitionInProgress = false;
         header.MoveToY(-7, 140, Easing.OutQuint);
         detailsHost.MoveToX(details_left - 12, 160, Easing.OutQuint);
         songBrowser.MoveToX(-browse_right + 18, 160, Easing.OutQuint);

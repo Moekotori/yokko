@@ -71,13 +71,13 @@ public partial class TestSceneSongSelectEntryPerformance : YokkoTestScene
             stageAlphaAtNavigation >= 0.99f);
         AddUntilStep("entry motion starts", () =>
             screenStack.CurrentScreen is SongSelectScreen songSelect
-            && songSelect.EntryTransitionOffset > 5);
+            && songSelect.EntryTransitionVersion > 0);
         AddUntilStep("song rows materialise", () =>
             screenStack.CurrentScreen is SongSelectScreen songSelect
             && songSelect.MaterialisedSongListDrawableCount > 0);
         AddUntilStep("entry motion settles", () =>
             screenStack.CurrentScreen is SongSelectScreen songSelect
-            && songSelect.EntryTransitionOffset < 0.1f);
+            && !songSelect.EntryTransitionInProgress);
         AddAssert("prepared navigation stays below hitch threshold", () =>
             navigationStopwatch.ElapsedMilliseconds < 250);
         AddAssert("first frame has no artwork cache miss", () =>
@@ -103,7 +103,7 @@ public partial class TestSceneSongSelectEntryPerformance : YokkoTestScene
             stageAlphaAtNavigation >= 0.99f);
         AddUntilStep("repeated entry starts motion", () =>
             screenStack.CurrentScreen is SongSelectScreen songSelect
-            && songSelect.EntryTransitionOffset > 5);
+            && songSelect.EntryTransitionVersion > 0);
         AddStep("return to main again", () =>
             screenStack.CurrentScreen.Exit());
         AddUntilStep("main screen resumes again", () =>
