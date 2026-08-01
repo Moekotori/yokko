@@ -14,7 +14,7 @@ namespace Yokko.Game.Screens.SongSelect;
 internal sealed class SongSelectArtworkTextureCache : IDisposable
 {
     private readonly object syncRoot = new();
-    private readonly HashSet<string> cachedPaths =
+    private readonly Dictionary<string, Texture> cachedTextures =
         new(StringComparer.OrdinalIgnoreCase);
     private TextureStore textureStore;
     private IRenderer renderer;
@@ -47,7 +47,7 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
 
             Texture texture = textureStore.Get(path);
             if (texture != null)
-                cachedPaths.Add(path);
+                cachedTextures[path] = texture;
             return texture;
         }
     }
@@ -57,14 +57,21 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
         get
         {
             lock (syncRoot)
-                return cachedPaths.Count;
+                return cachedTextures.Count;
         }
     }
 
     internal bool IsCached(string path)
     {
         lock (syncRoot)
-            return cachedPaths.Contains(path);
+            return cachedTextures.ContainsKey(path);
+    }
+
+    internal bool IsUploadComplete(string path)
+    {
+        lock (syncRoot)
+            return cachedTextures.TryGetValue(path, out Texture texture)
+                   && texture.UploadComplete;
     }
 
     public void Dispose()
@@ -78,7 +85,7 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
             textureStore?.Dispose();
             textureStore = null;
             renderer = null;
-            cachedPaths.Clear();
+            cachedTextures.Clear();
         }
     }
 }

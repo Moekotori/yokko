@@ -114,10 +114,14 @@ public partial class MainScreen : Screen
     internal int PreparedSongSelectEntryCount =>
         preloadedSongSelect?.VisibleEntryCount ?? -1;
 
+    internal int PreparedSongSelectMaterialisedDrawableCount =>
+        preloadedSongSelect?.MaterialisedSongListDrawableCount ?? -1;
+
     internal bool IsPreparedSongSelectCurrent =>
         preloadedSongSelect != null
         && preloadedSongSelect.LibraryRevision
-        == importedChartLibrary.Revision;
+        == importedChartLibrary.Revision
+        && preloadedSongSelect.IsPreparedForNavigation;
 
     private Vector2 parallaxCurrent;
     private double escapeHoldStartedAt;
@@ -381,6 +385,7 @@ public partial class MainScreen : Screen
             selectionMemory: songSelectSelectionMemory,
             previewHost: musicPlayer);
         LoadComponent(preloadedSongSelect);
+        preloadedSongSelect.PrepareForNavigation();
     }
 
     protected override void LoadComplete()
@@ -459,6 +464,17 @@ public partial class MainScreen : Screen
             return;
         }
 
+        if (!preloadedSongSelect.IsPreparedForNavigation)
+        {
+            Logger.Log(
+                "Song select navigation is waiting for first-frame GPU uploads.",
+                LoggingTarget.Runtime,
+                LogLevel.Important);
+            songSelectOpenRequested = true;
+            Scheduler.AddDelayed(pushSongSelectWhenPrepared, 16);
+            return;
+        }
+
         Logger.Log(
             "Song select navigation used a prepared screen.",
             LoggingTarget.Runtime,
@@ -496,11 +512,33 @@ public partial class MainScreen : Screen
                     return;
                 }
 
+                screen.PrepareForNavigation();
                 preloadedSongSelect = screen;
                 if (songSelectOpenRequested)
-                    pushPreloadedSongSelect();
+                    pushSongSelectWhenPrepared();
             },
             songSelectPreloadCancellation.Token);
+    }
+
+    private void pushSongSelectWhenPrepared()
+    {
+        if (!songSelectOpenRequested
+            || songSelectPreloadCancellation.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (preloadedSongSelect?.IsPreparedForNavigation != true)
+        {
+            Scheduler.AddDelayed(pushSongSelectWhenPrepared, 16);
+            return;
+        }
+
+        Logger.Log(
+            "Song select first-frame resources are GPU-ready.",
+            LoggingTarget.Runtime,
+            LogLevel.Important);
+        pushPreloadedSongSelect();
     }
 
     private void pushPreloadedSongSelect()

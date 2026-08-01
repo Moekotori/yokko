@@ -30,7 +30,8 @@ internal sealed record StoredGameplayScore(
     string[] Mods = null,
     int ComboBreaks = 0,
     int MaxMissCombo = 0,
-    ManiaModConfigurationEnvelope ModConfiguration = null)
+    ManiaModConfigurationEnvelope ModConfiguration = null,
+    string ReplayPath = null)
 {
     [JsonIgnore]
     public IReadOnlyList<string> ModLabels
@@ -118,7 +119,9 @@ internal sealed class GameplayScoreStore
         YokkoBeatmap beatmap,
         ManiaModSet mods,
         JudgementConfiguration judgementConfiguration,
-        ManiaScoreResult result)
+        ManiaScoreResult result,
+        string replayPath = null,
+        DateTimeOffset? playedAt = null)
     {
         ensureInitialised();
         mods ??= ManiaModSet.Empty;
@@ -141,11 +144,12 @@ internal sealed class GameplayScoreStore
             result.Ok,
             result.Meh,
             result.Miss,
-            DateTimeOffset.UtcNow,
+            playedAt ?? DateTimeOffset.UtcNow,
             mods.Acronyms.ToArray(),
             result.ComboBreaks,
             result.MaxMissCombo,
-            ManiaModConfigurationCodec.Capture(mods));
+            ManiaModConfigurationCodec.Capture(mods),
+            replayPath);
         string historyKey = historyKeyFor(
             beatmap,
             judgementConfiguration);

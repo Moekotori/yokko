@@ -27,7 +27,16 @@ internal sealed record SongSelectScore(
     int MaxCombo,
     IReadOnlyList<string> Mods,
     bool IsCurrentPlayer = false,
-    DateTimeOffset? PlayedAt = null);
+    DateTimeOffset? PlayedAt = null,
+    int Perfect = 0,
+    int Great = 0,
+    int Good = 0,
+    int Ok = 0,
+    int Meh = 0,
+    int Miss = 0,
+    int ComboBreaks = 0,
+    int MaxMissCombo = 0,
+    string ReplayPath = null);
 
 internal sealed record SongSelectEntry
 {

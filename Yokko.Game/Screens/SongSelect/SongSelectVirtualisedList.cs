@@ -312,6 +312,19 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
         rangeInvalidated = true;
     }
 
+    internal void PrepareVisibleRangeForNavigation(float viewportHeight)
+    {
+        if (viewportHeight <= 0)
+            return;
+
+        // Preloaded screens are not yet in the drawable tree, so DrawHeight is
+        // still zero and Update() cannot actualise the first rows. Use the
+        // known song-browser viewport to bind the pooled rows now. This queues
+        // their textures and glyphs while MainScreen is still visible.
+        actualiseVisibleRange(viewportHeight);
+        rangeInvalidated = true;
+    }
+
     internal void ScrollPackageToTop(string packageId, bool animated)
     {
         if (packageId != null
@@ -416,7 +429,7 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
         lastScrollPosition = scroll.Current;
         lastViewportHeight = scroll.DrawHeight;
         rangeInvalidated = false;
-        actualiseVisibleRange();
+        actualiseVisibleRange(scroll.DrawHeight);
         updateScrollAffordances();
     }
 
@@ -465,17 +478,17 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
                                  * ScrollIndicatorProgress;
     }
 
-    private void actualiseVisibleRange()
+    private void actualiseVisibleRange(float viewportHeight)
     {
-        if (items.Count == 0 || scroll.DrawHeight <= 0)
+        if (items.Count == 0 || viewportHeight <= 0)
         {
             releaseAll();
             return;
         }
 
-        double preload = scroll.DrawHeight * 0.75;
+        double preload = viewportHeight * 0.75;
         double minimum = Math.Max(0, scroll.Current - preload);
-        double maximum = scroll.Current + scroll.DrawHeight + preload;
+        double maximum = scroll.Current + viewportHeight + preload;
         int first = firstItemEndingAfter(minimum);
         int lastExclusive = firstItemStartingAfter(maximum);
 

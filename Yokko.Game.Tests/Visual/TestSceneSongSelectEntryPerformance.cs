@@ -52,9 +52,12 @@ public partial class TestSceneSongSelectEntryPerformance : YokkoTestScene
         AddStep("publish standalone charts", publishStandaloneCharts);
         AddUntilStep("latest song select preload is ready", () =>
             mainScreen.PreparedSongSelectEntryCount == artworkPaths.Count
+            && mainScreen.PreparedSongSelectMaterialisedDrawableCount > 0
             && mainScreen.IsPreparedSongSelectCurrent);
         AddAssert("all first-frame artwork is cached before navigation", () =>
             artworkPaths.All(artworkTextureCache.IsCached));
+        AddUntilStep("all first-frame artwork uploads complete", () =>
+            artworkPaths.All(artworkTextureCache.IsUploadComplete));
         AddStep("record artwork cache size", () =>
             cachedArtworkBeforeNavigation = artworkTextureCache.CachedArtworkCount);
         AddStep("open prepared song select", () =>
@@ -88,6 +91,7 @@ public partial class TestSceneSongSelectEntryPerformance : YokkoTestScene
             ReferenceEquals(screenStack.CurrentScreen, mainScreen));
         AddUntilStep("next song select preload is ready", () =>
             mainScreen.PreparedSongSelectEntryCount == artworkPaths.Count
+            && mainScreen.PreparedSongSelectMaterialisedDrawableCount > 0
             && mainScreen.IsPreparedSongSelectCurrent);
         AddStep("open prepared song select again", () =>
         {

@@ -59,7 +59,7 @@ public partial class SongSelectScreen : Screen
     private const float details_content_width = 572;
     private const double details_title_units_per_line = 26;
     private const float ranking_top = 294;
-    private const float ranking_height = 448;
+    private const float ranking_height = 570;
     private const float browse_top = 232;
     private const float browse_width = 850;
     private const float browse_right = 24;
@@ -105,6 +105,7 @@ public partial class SongSelectScreen : Screen
     private SongSelectFooterToolButton optionsFooterButton;
     private SongSelectVirtualisedList songList;
     private SongSelectRankingPanel rankingPanel;
+    private SongSelectScoreDetailOverlay scoreDetailOverlay;
     private SongSelectNoResultsPanel noResults;
     private SongSelectKeyModeFilterButton keyModeFilterButton;
     private SongSelectSearchBox searchBox;
@@ -143,9 +144,6 @@ public partial class SongSelectScreen : Screen
     private SpriteText modInfoTitle;
     private SpriteText modInfoDescription;
     private ManiaModId? hoveredMod;
-    private Sprite mascotSprite;
-    private Container mascotMoment;
-    private HomeMascotBubble mascotBubble;
     private SongSelectPreviewPlayer previewPlayer;
     private SongSelectBrowseToolButton sortButton;
     private SongSelectBrowseToolButton groupButton;
@@ -161,7 +159,7 @@ public partial class SongSelectScreen : Screen
     private SongSelectEntry selectedEntry;
     private KeyMode? keyModeFilter;
     private string searchQuery = string.Empty;
-    private SongSelectScoreView scoreView = SongSelectScoreView.GlobalRanking;
+    private SongSelectScoreView scoreView = SongSelectScoreView.Personal;
     private ManiaModSet selectedMods = ManiaModSet.Empty;
     private bool modPanelOpen;
     private bool sortByDifficulty;
@@ -176,6 +174,7 @@ public partial class SongSelectScreen : Screen
     private int initialArtworkPrewarmCount;
     private bool entryTransitionInProgress;
     private int entryTransitionVersion;
+    private readonly List<string> initialArtworkPrewarmPaths = [];
     private bool resumeFromGameplayMods;
     private bool detailsTransitionInProgress;
     private int songListRebuildVersion;
@@ -188,6 +187,8 @@ public partial class SongSelectScreen : Screen
     private ManiaStarRatingResult displayedStarRating;
     [Resolved]
     private GameplayScoreStore scoreStore { get; set; }
+    [Resolved]
+    private GameplayReplayStore replayStore { get; set; }
     [Resolved]
     private ImportedChartLibrary importedChartLibrary { get; set; }
     [Resolved]
@@ -244,6 +245,11 @@ public partial class SongSelectScreen : Screen
     internal float StageAlpha => stage?.Alpha ?? 0;
     internal bool EntryTransitionInProgress => entryTransitionInProgress;
     internal int EntryTransitionVersion => entryTransitionVersion;
+    internal bool IsPreparedForNavigation =>
+        (visibleEntries.Count == 0
+         || songList?.MaterialisedDrawableCount > 0)
+        && initialArtworkPrewarmPaths.All(
+            artworkTextureCache.IsUploadComplete);
     internal Vector2 SelectedChartFactsPosition =>
         selectedChartFactsRow?.Position ?? Vector2.Zero;
     internal Vector2 SelectedChartFactsSize =>
@@ -366,9 +372,10 @@ public partial class SongSelectScreen : Screen
         modInfoDescription?.Text.ToString() ?? string.Empty;
     internal bool LegacyInlineModPanelMaterialised =>
         modSettingsHost != null;
-    internal bool MascotTextureReady => mascotSprite?.Texture != null;
-    internal bool MascotBubblePresent => mascotBubble != null;
-    internal Vector2 MascotMomentSize => mascotMoment?.Size ?? Vector2.Zero;
+    internal bool ScoreDetailVisible => scoreDetailOverlay != null;
+    internal SongSelectScore DetailScore => scoreDetailOverlay?.Score;
+    internal bool DetailReplayAvailable =>
+        scoreDetailOverlay?.ReplayAvailable == true;
     internal static bool RankingFitsDesignedStage =>
         details_top + ranking_top + ranking_height
         <= designed_height - footer_height;
@@ -478,7 +485,6 @@ public partial class SongSelectScreen : Screen
                     },
                     createSongBrowser(),
                     createFooter(),
-                    createMascotMoment(),
                 },
             },
         };
@@ -523,6 +529,15 @@ public partial class SongSelectScreen : Screen
         LoggingTarget.Runtime,
         LogLevel.Important);
 
+    internal void PrepareForNavigation()
+    {
+        songList.PrepareVisibleRangeForNavigation(browse_height);
+        Logger.Log(
+            $"Song select preload materialised {songList.MaterialisedDrawableCount} first-frame rows.",
+            LoggingTarget.Runtime,
+            LogLevel.Important);
+    }
+
     public override void OnEntering(ScreenTransitionEvent e)
     {
         base.OnEntering(e);
@@ -551,6 +566,7 @@ public partial class SongSelectScreen : Screen
         modsToggleButton?.SetOpen(false);
         if (!keepExistingSongSelectState)
         {
+            closeScoreDetailImmediately();
             synchroniseImportedCharts(refreshSongList: false);
             int selectedIndex = Math.Max(0, entries.IndexOf(selectedEntry));
             refreshSavedScores();
@@ -600,50 +616,42 @@ public partial class SongSelectScreen : Screen
 
     private void playEntryTransition()
     {
-        // Keep the prepared background fully opaque from the navigation frame.
-        // Only the independent UI planes move, so the transition can never
-        // expose an empty ScreenStack frame.
+        // Match the motion language used by SettingsScreen: the page surface
+        // is present on the navigation frame, primary content settles over
+        // 180 ms, and the browser rail follows with the same 28 px / 520 ms
+        // OutQuint movement as the settings sidebar. Keeping the surface
+        // opaque means there is never an empty ScreenStack frame between pages.
         stage.ClearTransforms();
         stage.Alpha = 1;
         stage.Position = Vector2.Zero;
         entryTransitionInProgress = true;
         entryTransitionVersion++;
-        Scheduler.AddDelayed(() => entryTransitionInProgress = false, 290);
+        Scheduler.AddDelayed(() => entryTransitionInProgress = false, 520);
 
         header.ClearTransforms();
         header.Y = -10;
-        header.Alpha = 0.88f;
-        header.Delay(10)
-              .MoveToY(0, 180, Easing.OutQuint)
-              .FadeTo(1, 120, Easing.OutQuint);
+        header.Alpha = 0;
+        header.MoveToY(0, 180, Easing.OutQuint)
+              .FadeIn(180, Easing.OutQuint);
 
         detailsHost.ClearTransforms();
-        detailsHost.X = details_left - 18;
-        detailsHost.Alpha = 0.9f;
-        detailsHost.Delay(24)
-                   .MoveToX(details_left, 210, Easing.OutQuint)
-                   .FadeTo(1, 130, Easing.OutQuint);
+        detailsHost.X = details_left + 10;
+        detailsHost.Alpha = 0;
+        detailsHost.MoveToX(details_left, 180, Easing.OutQuint)
+                   .FadeIn(180, Easing.OutQuint);
 
         songBrowser.ClearTransforms();
-        songBrowser.X = -browse_right + 24;
-        songBrowser.Alpha = 0.86f;
-        songBrowser.Delay(42)
-                   .MoveToX(-browse_right, 230, Easing.OutQuint)
-                   .FadeTo(1, 150, Easing.OutQuint);
+        songBrowser.X = -browse_right + 28;
+        songBrowser.Alpha = 0;
+        songBrowser.MoveToX(-browse_right, 520, Easing.OutQuint)
+                   .FadeIn(360, Easing.OutQuint);
 
         footer.ClearTransforms();
-        footer.Y = 12;
-        footer.Alpha = 0.9f;
-        footer.Delay(58)
-              .MoveToY(0, 180, Easing.OutQuint)
-              .FadeTo(1, 130, Easing.OutQuint);
+        footer.Y = 10;
+        footer.Alpha = 0;
+        footer.MoveToY(0, 180, Easing.OutQuint)
+              .FadeIn(180, Easing.OutQuint);
 
-        mascotMoment.ClearTransforms();
-        mascotMoment.X = -6;
-        mascotMoment.Alpha = 0.9f;
-        mascotMoment.Delay(72)
-                    .MoveToX(8, 190, Easing.OutQuint)
-                    .FadeTo(1, 130, Easing.OutQuint);
     }
 
     private void playExitTransition()
@@ -653,7 +661,6 @@ public partial class SongSelectScreen : Screen
         detailsHost.MoveToX(details_left - 12, 160, Easing.OutQuint);
         songBrowser.MoveToX(-browse_right + 18, 160, Easing.OutQuint);
         footer.MoveToY(10, 140, Easing.OutQuint);
-        mascotMoment.MoveToX(-2, 140, Easing.OutQuint);
         this.FadeOut(170, Easing.OutQuint);
     }
 
@@ -3565,6 +3572,7 @@ public partial class SongSelectScreen : Screen
     private void prewarmInitialArtwork()
     {
         initialArtworkPrewarmCount = 0;
+        initialArtworkPrewarmPaths.Clear();
         foreach (SongSelectEntry entry in songList.GetArtworkPreloadCandidates(
                      selectedEntry,
                      browse_height,
@@ -3577,6 +3585,7 @@ public partial class SongSelectScreen : Screen
             }
 
             _ = textureFor(entry);
+            initialArtworkPrewarmPaths.Add(entry.WallpaperTexture);
             initialArtworkPrewarmCount++;
         }
     }

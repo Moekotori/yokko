@@ -2047,6 +2047,9 @@ public partial class GameplayScreen : Screen
                               recordedReplayInputs,
                               mods,
                               judgementConfiguration);
+        DateTimeOffset completedAt = DateTimeOffset.UtcNow;
+        if (!ReplayMode)
+            saveCompletedReplay(completedAt);
         completedResultIsNewBest = BestScoreSaved =
             !ReplayMode
             && !mods.IsAutomation
@@ -2055,9 +2058,9 @@ public partial class GameplayScreen : Screen
                 originalBeatmap,
                 mods,
                 judgementConfiguration,
-                completedResult);
-        if (!ReplayMode)
-            saveCompletedReplay();
+                completedResult,
+                SavedReplayPath,
+                completedAt);
 
         if (audioEngine is IAudioMixControl mixControl)
         {
@@ -2244,7 +2247,7 @@ public partial class GameplayScreen : Screen
         }
     }
 
-    private void saveCompletedReplay()
+    private void saveCompletedReplay(DateTimeOffset recordedAt)
     {
         try
         {
@@ -2262,7 +2265,8 @@ public partial class GameplayScreen : Screen
                 originalBeatmap,
                 beatmap,
                 completedReplay,
-                imported?.Result.SourceHash);
+                imported?.Result.SourceHash,
+                recordedAt);
         }
         catch (Exception exception)
         {

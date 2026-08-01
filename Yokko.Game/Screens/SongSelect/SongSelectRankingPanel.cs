@@ -21,13 +21,13 @@ namespace Yokko.Game.Screens.SongSelect;
 internal partial class SongSelectRankingPanel : ClickableContainer
 {
     private const float panel_width = 850;
-    private const float panel_height = 448;
+    private const float panel_height = 640;
     private const float rows_top = 44;
     private const float content_width = 850;
-    private const float content_height = 390;
+    private const float content_height = 582;
     private const float paper_height = rows_top + content_height;
     private const float row_width = 826;
-    private const float row_height = 52;
+    private const float row_height = 78;
     private const float row_spacing = 0;
     private const float score_column_right = 476;
     private const float accuracy_column_right = 586;
@@ -35,19 +35,14 @@ internal partial class SongSelectRankingPanel : ClickableContainer
 
     private readonly Container content;
     private readonly Container paper;
-    private readonly Box globalUnderline;
-    private readonly Box historyUnderline;
-    private readonly SpriteText globalLabel;
-    private readonly SpriteText historyLabel;
     private readonly SpriteText playerCount;
     private readonly SongSelectEntry entry;
     private readonly TextureStore textures;
-    private readonly Action<SongSelectScoreView> viewChanged;
+    private readonly Action<SongSelectScore> scoreSelected;
     private Container activeContentLayer;
-    private SongSelectScoreView view;
     private int contentTransitionVersion;
 
-    public SongSelectScoreView View => view;
+    public SongSelectScoreView View => SongSelectScoreView.Personal;
     internal Vector2 ContentSize => content.Size;
     internal Vector2 PaperPosition => paper.Position;
     internal Vector2 PaperSize => paper.Size;
@@ -63,16 +58,12 @@ internal partial class SongSelectRankingPanel : ClickableContainer
     public SongSelectRankingPanel(
         SongSelectEntry entry,
         TextureStore textures,
-        Action<SongSelectScoreView> viewChanged)
+        Action<SongSelectScore> scoreSelected)
     {
         this.entry = entry;
         this.textures = textures;
-        this.viewChanged = viewChanged;
+        this.scoreSelected = scoreSelected;
         Size = new Vector2(panel_width, panel_height);
-        Action = () => setAndNotify(
-            view == SongSelectScoreView.GlobalRanking
-                ? SongSelectScoreView.Personal
-                : SongSelectScoreView.GlobalRanking);
 
         Container paperSurface = SongSelectSurface.CreateCard(
             out _,
@@ -103,19 +94,9 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                     0.22f),
             },
             createTab(
-                "GLOBAL",
+                "MY SCORES",
                 8,
-                FontAwesome.Solid.Users,
-                out globalUnderline,
-                out globalLabel,
-                () => setAndNotify(SongSelectScoreView.GlobalRanking)),
-            createTab(
-                "MY HISTORY",
-                142,
-                FontAwesome.Solid.Archive,
-                out historyUnderline,
-                out historyLabel,
-                () => setAndNotify(SongSelectScoreView.Personal)),
+                FontAwesome.Solid.Trophy),
             playerCount = new SpriteText
             {
                 Anchor = Anchor.TopRight,
@@ -139,81 +120,20 @@ internal partial class SongSelectRankingPanel : ClickableContainer
             },
         ];
 
-        applyView(SongSelectScoreView.GlobalRanking, false);
+        applyView(false);
     }
 
     public void SetView(
         SongSelectScoreView newView,
         TextureStore ignored = null)
-        => applyView(newView, activeContentLayer != null);
+        => applyView(activeContentLayer != null);
 
-    private void applyView(
-        SongSelectScoreView newView,
-        bool animate)
+    private void applyView(bool animate)
     {
-        if (newView == view && activeContentLayer != null)
-            return;
-
-        view = newView;
-        bool global = view == SongSelectScoreView.GlobalRanking;
-        Color4 globalColour = global
-            ? SongSelectTheme.Navy
-            : new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.52f);
-        Color4 historyColour = global
-            ? new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.52f)
-            : SongSelectTheme.Pink;
-        globalLabel.ClearTransforms();
-        historyLabel.ClearTransforms();
-        globalUnderline.ClearTransforms();
-        historyUnderline.ClearTransforms();
-        if (animate)
-        {
-            globalLabel.FadeColour(
-                globalColour,
-                130,
-                Easing.OutQuint);
-            historyLabel.FadeColour(
-                historyColour,
-                130,
-                Easing.OutQuint);
-            globalUnderline.FadeTo(
-                global ? 1 : 0,
-                130,
-                Easing.OutQuint);
-            historyUnderline.FadeTo(
-                global ? 0 : 1,
-                130,
-                Easing.OutQuint);
-        }
-        else
-        {
-            globalLabel.Colour = globalColour;
-            historyLabel.Colour = historyColour;
-            globalUnderline.Alpha = global ? 1 : 0;
-            historyUnderline.Alpha = global ? 0 : 1;
-        }
-
         rebuildRows(
-            global ? entry.Ranking : entry.History,
+            entry.History,
             animate,
-            global ? -1 : 1);
-    }
-
-    private void setAndNotify(SongSelectScoreView newView)
-    {
-        if (view == newView)
-            return;
-
-        SetView(newView);
-        viewChanged(newView);
+            1);
     }
 
     private void rebuildRows(
@@ -230,7 +150,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         if (scores.Count == 0)
         {
             nextLayer.Add(new SongSelectRankingEmptyState(
-                view == SongSelectScoreView.Personal));
+                true));
             presentContent(nextLayer, animate, direction);
             return;
         }
@@ -284,7 +204,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
 
     private Drawable createRow(SongSelectScore score)
     {
-        bool current = score.IsCurrentPlayer;
+        bool current = score.Rank == 1;
         Color4 accent = rankAccent(score.Rank, current);
         Color4 grade = gradeColour(score.Grade);
         Color4 primary = SongSelectTheme.Navy;
@@ -293,13 +213,12 @@ internal partial class SongSelectRankingPanel : ClickableContainer
             SongSelectTheme.Navy.G,
             SongSelectTheme.Navy.B,
             0.68f);
-        Texture avatar = current
-            ? textures.Get("SongSelect/Ui/yokko-avatar-256")
-            : textures.Get(score.AvatarTexture);
+        Texture avatar = textures.Get("SongSelect/Ui/yokko-avatar-256");
 
-        return new Container
+        return new ClickableContainer
         {
             Size = new Vector2(row_width, row_height),
+            Action = () => scoreSelected?.Invoke(score),
             Masking = current,
             CornerRadius = 8,
             BorderThickness = current ? 1.5f : 0,
@@ -344,7 +263,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
                     X = 13,
-                    Size = new Vector2(9),
+                    Size = new Vector2(11),
                     Icon = FontAwesome.Solid.Play,
                     Colour = SongSelectTheme.Pink,
                     Alpha = current ? 1 : 0,
@@ -362,16 +281,16 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                 text(
                     current ? $"#{score.Rank}" : score.Rank.ToString(),
                     current || score.Rank == 1 ? 30 : 20,
-                    13,
+                    25,
                     34,
-                    18,
+                    20,
                     current ? SongSelectTheme.Pink : accent),
                 new Container
                 {
-                    Position = new Vector2(68, current ? 3 : 5),
-                    Size = new Vector2(current ? 46 : 42),
+                    Position = new Vector2(68, 7),
+                    Size = new Vector2(64),
                     Masking = true,
-                    CornerRadius = current ? 23 : 21,
+                    CornerRadius = 32,
                     BorderThickness = current ? 2 : 1.2f,
                     BorderColour = current ? SongSelectTheme.Pink : accent,
                     Child = new Sprite
@@ -383,44 +302,59 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                 },
                 text(
                     score.PlayerName,
-                    124,
-                    7,
-                    218,
+                    146,
                     15,
+                    188,
+                    17,
                     current ? SongSelectTheme.Pink : primary),
                 text(
                     score.Mods.Count == 0
                         ? "NM"
                         : string.Join("   ", score.Mods),
-                    124,
-                    29,
-                    218,
-                    8,
+                    146,
+                    43,
+                    188,
+                    10,
                     secondary,
                     false),
                 numericText(
                     $"{score.Score:N0}",
                     score_column_right,
-                    16,
-                    16,
+                    25,
+                    18,
                     primary),
                 numericText(
                     $"{score.Accuracy:P2}",
                     accuracy_column_right,
-                    18,
-                    12,
+                    28,
+                    13,
                     secondary),
                 numericText(
                     $"{score.MaxCombo:N0}×",
                     combo_column_right,
-                    18,
-                    12,
+                    28,
+                    13,
                     secondary),
                 new SongSelectGradeBadge(score.Grade, grade, current)
                 {
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
-                    X = -70,
+                    X = -62,
+                },
+                new SpriteIcon
+                {
+                    Anchor = Anchor.CentreRight,
+                    Origin = Anchor.CentreRight,
+                    X = -20,
+                    Size = new Vector2(13),
+                    Icon = FontAwesome.Solid.ChevronRight,
+                    Colour = score.ReplayPath == null
+                        ? new Color4(
+                            SongSelectTheme.Navy.R,
+                            SongSelectTheme.Navy.G,
+                            SongSelectTheme.Navy.B,
+                            0.34f)
+                        : SongSelectTheme.Cyan,
                 },
             ],
         };
@@ -429,23 +363,18 @@ internal partial class SongSelectRankingPanel : ClickableContainer
     private static Drawable createTab(
         string label,
         float x,
-        IconUsage icon,
-        out Box underline,
-        out SpriteText textDrawable,
-        Action action)
+        IconUsage icon)
     {
-        Box tabUnderline = underline = new Box
+        Box tabUnderline = new Box
         {
             Anchor = Anchor.BottomCentre,
             Origin = Anchor.BottomCentre,
             Y = -1,
-            Width = label == "GLOBAL" ? 108 : 126,
+            Width = 132,
             Height = 3,
-            Colour = label == "GLOBAL"
-                ? SongSelectTheme.Yellow
-                : SongSelectTheme.Pink,
+            Colour = SongSelectTheme.Pink,
         };
-        SpriteText tabLabel = textDrawable = new SpriteText
+        SpriteText tabLabel = new SpriteText
         {
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
@@ -456,8 +385,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         return new ClickableContainer
         {
             Position = new Vector2(x, 0),
-            Size = new Vector2(label == "GLOBAL" ? 118 : 136, 40),
-            Action = action,
+            Size = new Vector2(142, 40),
             Children =
             [
                 new SpriteIcon
@@ -467,9 +395,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                     X = 9,
                     Size = new Vector2(13),
                     Icon = icon,
-                    Colour = label == "GLOBAL"
-                        ? SongSelectTheme.Yellow
-                        : SongSelectTheme.Pink,
+                    Colour = SongSelectTheme.Pink,
                 },
                 tabLabel,
                 tabUnderline,
