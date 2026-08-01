@@ -70,8 +70,7 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                     gameplaySettings.ScrollSpeed,
                     formatScrollSpeed,
                     gameplaySettings.ScrollSpeedAdjustmentMode,
-                    gameplaySettings.AdjustScrollTimeMilliseconds,
-                    formatScrollTime)
+                    gameplaySettings.AdjustScrollTimeMilliseconds)
                 {
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
@@ -131,9 +130,6 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
 
     private static string formatScrollSpeed(double speed) =>
         $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(speed)):0} ms  ·  {speed:0.0}";
-
-    private static string formatScrollTime(double speed) =>
-        $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(speed)):0} ms";
 
     private Drawable createLanguageControl()
     {

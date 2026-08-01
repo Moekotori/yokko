@@ -6,7 +6,8 @@ internal readonly record struct GameplayHitSamplePlaybackBinding(
     string Path,
     double Gain,
     PreparedAudioSampleHandle PreparedHandle,
-    bool HasPreparedHandle)
+    bool HasPreparedHandle,
+    AudioSampleBus Bus = AudioSampleBus.HitSound)
 {
     internal GameplayHitSamplePlaybackBinding(
         ResolvedGameplayHitSample sample)

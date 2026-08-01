@@ -9,6 +9,7 @@ using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -37,7 +38,7 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
         {
             new SpriteText
             {
-                Text = "RANDOM",
+                Text = YokkoStrings.Get("mods.definition.random.name"),
                 Font = HomeTypography.Display(12),
                 Spacing = new Vector2(0.35f, 0),
                 Colour = GameplayModSettingsTheme.Text,
@@ -45,7 +46,7 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
             new SpriteText
             {
                 Y = 24,
-                Text = "CUSTOM SEED",
+                Text = YokkoStrings.Get("mods.settings.custom_seed"),
                 Font = HomeTypography.Body(10),
                 Colour = GameplayModSettingsTheme.Muted,
             },
@@ -90,8 +91,8 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
         seedTextBox.ReadOnly = !isEnabled;
         rerollButton.SetEnabled(isEnabled);
         statusText.Text = isEnabled
-            ? "SAME SEED · SAME LANE SHUFFLE"
-            : "SELECT RD TO CONFIGURE";
+            ? YokkoStrings.Get("mods.settings.same_seed_shuffle")
+            : YokkoStrings.Get("mods.settings.select_first", "RD");
         statusText.Colour = GameplayModSettingsTheme.Accent;
         this.ClearTransforms();
         this.FadeTo(isEnabled ? 1 : 0.42f, 120, Easing.OutQuint);
@@ -108,13 +109,14 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
                 CultureInfo.InvariantCulture,
                 out int seed))
         {
-            statusText.Text = "ENTER A 32-BIT INTEGER";
+            statusText.Text = YokkoStrings.Get(
+                "mods.settings.invalid_seed");
             statusText.Colour = GameplayModSettingsTheme.Selection;
             return;
         }
 
         Seed = seed;
-        statusText.Text = "CUSTOM SEED APPLIED";
+        statusText.Text = YokkoStrings.Get("mods.settings.seed_applied");
         statusText.Colour = GameplayModSettingsTheme.Accent;
         seedChanged(seed);
     }
@@ -151,7 +153,8 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
                 GameplayModSettingsTheme.AccentOn.B,
                 0.96f);
             FontSize = 16;
-            PlaceholderText = "integer seed";
+            PlaceholderText = YokkoStrings.Get(
+                "mods.settings.seed_placeholder");
         }
 
         protected override Drawable GetDrawableCharacter(char c) =>
@@ -208,7 +211,8 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Text = "GENERATE NEW SEED",
+                    Text = YokkoStrings.Get(
+                        "mods.settings.generate_seed"),
                     Font = HomeTypography.Display(10),
                 },
             };
@@ -226,6 +230,31 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
             label.Colour = value
                 ? GameplayModSettingsTheme.Text
                 : GameplayModSettingsTheme.Muted;
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            if (enabled)
+            {
+                background.FadeColour(Color4.White, 90, Easing.OutQuint);
+                this.ScaleTo(1.025f, 100, Easing.OutQuint);
+            }
+
+            return base.OnHover(e);
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            background.FadeColour(
+                new Color4(
+                    GameplayModSettingsTheme.Control.R,
+                    GameplayModSettingsTheme.Control.G,
+                    GameplayModSettingsTheme.Control.B,
+                    0.72f),
+                100,
+                Easing.OutQuint);
+            this.ScaleTo(1, 110, Easing.OutQuint);
+            base.OnHoverLost(e);
         }
     }
 }

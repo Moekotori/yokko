@@ -51,7 +51,7 @@ public class GameplayModSettingsControlTest
     }
 
     [Test]
-    public void SharedStylesPreserveExistingGeometry()
+    public void SharedStylesUsePolishedTouchTargets()
     {
         var rateStep = new GameplayModSettingsStepButton(
             "−",
@@ -70,12 +70,12 @@ public class GameplayModSettingsControlTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(rateStep.Size.X, Is.EqualTo(46));
-            Assert.That(rateStep.Size.Y, Is.EqualTo(29));
-            Assert.That(mutedStep.Size.X, Is.EqualTo(97));
-            Assert.That(mutedStep.Size.Y, Is.EqualTo(30));
-            Assert.That(rateState.Size.Y, Is.EqualTo(29));
-            Assert.That(mutedState.Size.Y, Is.EqualTo(27));
+            Assert.That(rateStep.Size.X, Is.EqualTo(52));
+            Assert.That(rateStep.Size.Y, Is.EqualTo(34));
+            Assert.That(mutedStep.Size.X, Is.EqualTo(103));
+            Assert.That(mutedStep.Size.Y, Is.EqualTo(34));
+            Assert.That(rateState.Size.Y, Is.EqualTo(35));
+            Assert.That(mutedState.Size.Y, Is.EqualTo(33));
         });
     }
 }

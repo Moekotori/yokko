@@ -67,7 +67,7 @@ internal static class GameplayReplayStateRebuilder
             advanceAdaptiveSpeed(
                 adaptiveSpeedState,
                 ref previousSimulationTime,
-                frame.TimeMilliseconds);
+                Math.BitDecrement(frame.TimeMilliseconds));
             collectPassiveJudgements(
                 judgementState,
                 healthState,
@@ -75,6 +75,10 @@ internal static class GameplayReplayStateRebuilder
                 pressedLanes,
                 Math.BitDecrement(frame.TimeMilliseconds),
                 events);
+            advanceAdaptiveSpeed(
+                adaptiveSpeedState,
+                ref previousSimulationTime,
+                frame.TimeMilliseconds);
 
             ulong previousLanes = pressedMask(pressedLanes);
             ulong changedLanes = previousLanes ^ frame.PressedLanes;
@@ -178,12 +182,8 @@ internal static class GameplayReplayStateRebuilder
             && double.IsFinite(previousGameplayTime)
             && gameplayTime > previousGameplayTime)
         {
-            double estimatedRealElapsed =
-                (gameplayTime - previousGameplayTime)
-                / Math.Max(
-                    ManiaAdaptiveSpeedState.MinimumRate,
-                    adaptiveSpeedState.CurrentRate);
-            adaptiveSpeedState.Update(estimatedRealElapsed);
+            adaptiveSpeedState.AdvanceByGameplayTime(
+                gameplayTime - previousGameplayTime);
         }
 
         previousGameplayTime = gameplayTime;

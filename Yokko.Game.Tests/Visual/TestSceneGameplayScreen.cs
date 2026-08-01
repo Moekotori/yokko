@@ -1980,6 +1980,7 @@ namespace Yokko.Game.Tests.Visual
             ]);
             GameplayScreen gameplay = null;
             GameplayReplayControlsOverlay controls = null;
+            GameplayPlayfield initialPlayfield = null;
 
             AddStep("open replay player", () =>
                 screenStack.Push(gameplay = new GameplayScreen(
@@ -1991,6 +1992,9 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("replay controls are visible", () =>
                 (controls = gameplay?
                     .ChildrenOfType<GameplayReplayControlsOverlay>()
+                    .SingleOrDefault()) != null
+                && (initialPlayfield = gameplay
+                    .ChildrenOfType<GameplayPlayfield>()
                     .SingleOrDefault()) != null);
             AddStep("pause from replay rail", () =>
                 controls.ActivateTogglePause());
@@ -2010,8 +2014,7 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("paused replay seeks forward", () =>
                 !gameplay.ReplaySeekInProgress
                 && gameplay.IsPaused
-                && gameplay.CurrentGameplayTime > 4000
-                && gameplay.CurrentGameplayTime < 5000
+                && Math.Abs(gameplay.CurrentGameplayTime - 5050) < 0.001
                 && !gameplay.IsLanePressed(0));
             AddStep("seek backward with Left", () =>
                 gameplay.HandleKeyDownInput(
@@ -2027,18 +2030,28 @@ namespace Yokko.Game.Tests.Visual
             AddStep("preview replay progress midpoint", () =>
                 controls.PreviewProgressForTest(0.5));
             AddAssert("progress preview updates without seeking", () =>
-                Math.Abs(controls.DisplayedProgressMilliseconds - 2500)
+                Math.Abs(controls.DisplayedProgressMilliseconds - 2525)
                 < 0.001
                 && gameplay.CurrentGameplayTime < 0.001
                 && controls.TimeText == "00:02 / 00:05");
+            AddStep("cancel progress drag on focus loss", () =>
+                gameplay.HandleHostDeactivated());
+            AddAssert("cancelled progress preview returns to playback", () =>
+                controls.DisplayedProgressMilliseconds < 0.001);
+            AddStep("preview replay progress midpoint again", () =>
+                controls.PreviewProgressForTest(0.5));
             AddStep("commit replay progress midpoint", () =>
                 controls.CommitProgressForTest());
             AddUntilStep("progress commit seeks once and stays paused", () =>
                 !gameplay.ReplaySeekInProgress
                 && gameplay.IsPaused
-                && Math.Abs(gameplay.CurrentGameplayTime - 2500) < 0.001
-                && Math.Abs(controls.DisplayedProgressMilliseconds - 2500)
-                   < 0.001);
+                && Math.Abs(gameplay.CurrentGameplayTime - 2525) < 0.001
+                && Math.Abs(controls.DisplayedProgressMilliseconds - 2525)
+                   < 0.001
+                && ReferenceEquals(
+                    initialPlayfield,
+                    gameplay.ChildrenOfType<GameplayPlayfield>()
+                        .SingleOrDefault()));
             AddStep("resume replay with Space", () =>
                 gameplay.HandleKeyDownInput(
                     Key.Space,
@@ -2049,6 +2062,197 @@ namespace Yokko.Game.Tests.Visual
                 !gameplay.IsPaused
                 && !controls.ShowsPausedState);
             AddStep("leave replay controls test", () => gameplay.Exit());
+        }
+
+        [Test]
+        public void TestReplaySeekDuringLeadInIsAppliedAfterAudioStarts()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Replay Lead-In Seek Test",
+                AudioPath = "replay-lead-in-seek-fixture.mp3",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        5000,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+            var replay = new GameplayReplay(
+            [
+                new GameplayReplayInput(0, true, 5000),
+                new GameplayReplayInput(0, false, 5050),
+            ]);
+            GameplayScreen gameplay = null;
+            GameplayReplayControlsOverlay controls = null;
+
+            AddStep("open replay during audio lead-in", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    audioEngine,
+                    null,
+                    null,
+                    replay)));
+            AddUntilStep("lead-in replay controls are visible", () =>
+                (controls = gameplay?
+                    .ChildrenOfType<GameplayReplayControlsOverlay>()
+                    .SingleOrDefault()) != null);
+            AddAssert("audio has not started yet", () =>
+                audioEngine.StartCount == 0);
+            AddStep("commit midpoint before audio starts", () =>
+            {
+                controls.PreviewProgressForTest(0.5);
+                controls.CommitProgressForTest();
+            });
+            AddAssert("seek waits for audio start", () =>
+                audioEngine.SeekCount == 0
+                && !gameplay.ReplaySeekInProgress);
+            AddUntilStep("queued replay seek is applied", () =>
+                audioEngine.StartCount == 1
+                && audioEngine.SeekCount == 1
+                && !gameplay.ReplaySeekInProgress);
+            AddAssert("audio starts at committed replay target", () =>
+                Math.Abs(audioEngine.LastSeekMilliseconds - 2500) < 0.001);
+            AddStep("leave replay lead-in seek test", () => gameplay.Exit());
+        }
+
+        [Test]
+        public void TestReplaySeekStaysPausedWhenFocusIsLost()
+        {
+            var seekCompletion = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var audioEngine = new SeekTrackingAudioEngine
+            {
+                SeekCompletion = seekCompletion,
+            };
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Replay Seek Focus Test",
+                AudioPath = "replay-seek-focus-fixture.mp3",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        5000,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+            var replay = new GameplayReplay(
+            [
+                new GameplayReplayInput(0, true, 5000),
+                new GameplayReplayInput(0, false, 5050),
+            ]);
+            GameplayScreen gameplay = null;
+            GameplayReplayControlsOverlay controls = null;
+
+            AddStep("open replay with deferred audio seek", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    audioEngine,
+                    null,
+                    null,
+                    replay)));
+            AddUntilStep("replay audio and controls are ready", () =>
+                audioEngine.StartCount == 1
+                && (controls = gameplay?
+                    .ChildrenOfType<GameplayReplayControlsOverlay>()
+                    .SingleOrDefault()) != null);
+            AddStep("begin deferred replay seek", () =>
+            {
+                controls.PreviewProgressForTest(0.5);
+                controls.CommitProgressForTest();
+            });
+            AddUntilStep("audio seek is waiting", () =>
+                audioEngine.SeekCount == 1
+                && gameplay.ReplaySeekInProgress);
+            AddStep("lose focus while seek is waiting", () =>
+                gameplay.HandleHostDeactivated());
+            AddStep("complete audio seek", () =>
+                seekCompletion.TrySetResult(true));
+            AddUntilStep("seek finishes paused", () =>
+                !gameplay.ReplaySeekInProgress
+                && gameplay.IsPaused
+                && audioEngine.PauseCount >= 2);
+            AddStep("leave replay focus seek test", () => gameplay.Exit());
+        }
+
+        [Test]
+        public void TestPausedReplaySeekRestoresSlidingSampleOnResume()
+        {
+            var audioEngine = new SampleTrackingAudioEngine();
+            bool originalKeysoundsEnabled = false;
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title = "Replay Sliding Seek Test",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        1000,
+                        5000,
+                        HitObjectKind.Hold,
+                        SamplePayload: new YokkoHitSamplePayload(
+                            [new YokkoHitSample(YokkoHitSample.HitNormal)],
+                            PlaySlidingSamples: true)),
+                ],
+            };
+            var replay = new GameplayReplay(
+            [
+                new GameplayReplayInput(0, true, 1000),
+                new GameplayReplayInput(0, false, 5000),
+            ]);
+            GameplayScreen gameplay = null;
+            GameplayReplayControlsOverlay controls = null;
+
+            AddStep("enable replay sliding samples", () =>
+            {
+                originalKeysoundsEnabled =
+                    gameplaySettings.KeysoundsEnabled.Value;
+                gameplaySettings.KeysoundsEnabled.Value = true;
+            });
+            AddStep("open hold replay", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    audioEngine,
+                    null,
+                    null,
+                    replay)));
+            AddUntilStep("hold replay loop is active", () =>
+                gameplay?.CurrentGameplayTime > 1500
+                && audioEngine.ActiveLoopCount == 1
+                && (controls = gameplay
+                    .ChildrenOfType<GameplayReplayControlsOverlay>()
+                    .SingleOrDefault()) != null);
+            AddStep("pause hold replay", () =>
+                controls.ActivateTogglePause());
+            AddUntilStep("pause stops sliding loop", () =>
+                gameplay.IsPaused
+                && audioEngine.ActiveLoopCount == 0);
+            AddStep("seek into held note while paused", () =>
+            {
+                controls.PreviewProgressForTest(0.5);
+                controls.CommitProgressForTest();
+            });
+            AddUntilStep("paused hold seek completes silently", () =>
+                !gameplay.ReplaySeekInProgress
+                && gameplay.IsPaused
+                && gameplay.IsLanePressed(0)
+                && audioEngine.ActiveLoopCount == 0);
+            AddStep("resume held replay", () =>
+                controls.ActivateTogglePause());
+            AddUntilStep("resume restarts sliding loop", () =>
+                !gameplay.IsPaused
+                && audioEngine.ActiveLoopCount == 1);
+            AddStep("restore replay keysound setting", () =>
+            {
+                gameplaySettings.KeysoundsEnabled.Value =
+                    originalKeysoundsEnabled;
+                gameplay.Exit();
+            });
         }
 
         [Test]
@@ -4796,6 +5000,8 @@ StageHint: stage-hint
 
             public TaskCompletionSource<bool> StopCompletion { get; init; }
 
+            public TaskCompletionSource<bool> SeekCompletion { get; init; }
+
             public IReadOnlyList<AudioBackendCapabilities> Backends => [];
 
             public ValueTask<IReadOnlyList<AudioDeviceInfo>> GetOutputDevicesAsync(
@@ -4831,7 +5037,9 @@ StageHint: stage-hint
                 PlaybackTimeMilliseconds = 0;
                 LastSeekMilliseconds = timeMilliseconds;
                 status = createStatus(true);
-                return ValueTask.CompletedTask;
+                return SeekCompletion == null
+                    ? ValueTask.CompletedTask
+                    : new ValueTask(SeekCompletion.Task);
             }
 
             public ValueTask StopAsync(
@@ -4912,10 +5120,15 @@ StageHint: stage-hint
         }
 
         private sealed class SampleTrackingAudioEngine
-            : SeekTrackingAudioEngine, IAudioSamplePlayback
+            : SeekTrackingAudioEngine, IAudioLoopingSamplePlayback
         {
+            private readonly HashSet<uint> activeLoops = [];
+            private uint nextLoopId;
+
             public HashSet<string> PreparedSamples { get; } =
                 new(StringComparer.OrdinalIgnoreCase);
+
+            public int ActiveLoopCount => activeLoops.Count;
 
             public ValueTask PrepareSamplesAsync(
                 IReadOnlyCollection<string> samplePaths,
@@ -4926,6 +5139,18 @@ StageHint: stage-hint
             }
 
             public bool TriggerSample(string samplePath) => true;
+
+            public bool TriggerSample(string samplePath, double gain) => true;
+
+            public uint StartLoopingSample(string samplePath, double gain)
+            {
+                uint loopId = ++nextLoopId;
+                activeLoops.Add(loopId);
+                return loopId;
+            }
+
+            public bool StopLoopingSample(uint loopId) =>
+                activeLoops.Remove(loopId);
         }
 
         private static AudioEngineStatus createAudioStatus(

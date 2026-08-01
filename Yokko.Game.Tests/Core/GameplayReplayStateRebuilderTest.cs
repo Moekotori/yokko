@@ -92,6 +92,62 @@ public sealed class GameplayReplayStateRebuilderTest
         });
     }
 
+    [Test]
+    public void AdaptiveSpeedRebuildUsesDeterministicGameplayTime()
+    {
+        YokkoBeatmap chart = beatmap(
+            new YokkoHitObject(0, 0, null, HitObjectKind.Tap),
+            new YokkoHitObject(1, 1000, null, HitObjectKind.Tap));
+        var replay = new GameplayReplay(
+        [
+            new GameplayReplayInput(0, true, 0),
+            new GameplayReplayInput(0, false, 10),
+            new GameplayReplayInput(1, true, 950),
+            new GameplayReplayInput(1, false, 960),
+        ]);
+        JudgementConfiguration configuration =
+            JudgementConfiguration.YokkoDefault;
+        var windows = new JudgementWindows(
+            chart.OverallDifficulty,
+            configuration: configuration);
+        ManiaModSet mods = ManiaModSet.Empty.WithAdaptiveSpeed(1, false);
+
+        GameplayReplayRestoredState atOneSecond =
+            GameplayReplayStateRebuilder.Rebuild(
+                chart,
+                replay,
+                mods,
+                windows,
+                configuration,
+                minesEnabled: true,
+                1000);
+        GameplayReplayRestoredState atSixSeconds =
+            GameplayReplayStateRebuilder.Rebuild(
+                chart,
+                replay,
+                mods,
+                windows,
+                configuration,
+                minesEnabled: true,
+                6000);
+
+        atOneSecond.AdaptiveSpeedState.AdvanceByGameplayTime(5000);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                atOneSecond.AdaptiveSpeedState.CurrentRate,
+                Is.EqualTo(atSixSeconds.AdaptiveSpeedState.CurrentRate)
+                    .Within(0.000000001));
+            Assert.That(
+                atOneSecond.AdaptiveSpeedState.TargetRate,
+                Is.EqualTo(atSixSeconds.AdaptiveSpeedState.TargetRate));
+            Assert.That(
+                atOneSecond.AdaptiveSpeedState.RecentRates,
+                Is.EqualTo(atSixSeconds.AdaptiveSpeedState.RecentRates));
+        });
+    }
+
     private static YokkoBeatmap beatmap(
         params YokkoHitObject[] hitObjects) =>
         new(

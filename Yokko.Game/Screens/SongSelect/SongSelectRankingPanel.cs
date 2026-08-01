@@ -42,7 +42,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
     private Container activeContentLayer;
     private int contentTransitionVersion;
 
-    public SongSelectScoreView View => SongSelectScoreView.Personal;
+    public SongSelectScoreView View => SongSelectScoreView.GlobalRanking;
     internal Vector2 ContentSize => content.Size;
     internal Vector2 PaperPosition => paper.Position;
     internal Vector2 PaperSize => paper.Size;
@@ -94,7 +94,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                     0.22f),
             },
             createTab(
-                "MY SCORES",
+                "RANKING",
                 8,
                 FontAwesome.Solid.Trophy),
             playerCount = new SpriteText
@@ -131,7 +131,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
     private void applyView(bool animate)
     {
         rebuildRows(
-            entry.History,
+            entry.Ranking,
             animate,
             1);
     }
@@ -150,7 +150,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         if (scores.Count == 0)
         {
             nextLayer.Add(new SongSelectRankingEmptyState(
-                true));
+                false));
             presentContent(nextLayer, animate, direction);
             return;
         }
@@ -204,7 +204,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
 
     private Drawable createRow(SongSelectScore score)
     {
-        bool current = score.Rank == 1;
+        bool current = score.IsCurrentPlayer;
         Color4 accent = rankAccent(score.Rank, current);
         Color4 grade = gradeColour(score.Grade);
         Color4 primary = SongSelectTheme.Navy;

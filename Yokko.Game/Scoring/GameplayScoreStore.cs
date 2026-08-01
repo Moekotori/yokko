@@ -31,7 +31,12 @@ internal sealed record StoredGameplayScore(
     int ComboBreaks = 0,
     int MaxMissCombo = 0,
     ManiaModConfigurationEnvelope ModConfiguration = null,
-    string ReplayPath = null)
+    string ReplayPath = null,
+    string PlayerName = null,
+    string PlayerId = null,
+    string Source = null,
+    bool? IsCurrentPlayer = null,
+    string ExternalScoreId = null)
 {
     [JsonIgnore]
     public IReadOnlyList<string> ModLabels
@@ -197,11 +202,113 @@ internal sealed class GameplayScoreStore
 
         return history.GetValueOrDefault(
                    historyKeyFor(beatmap, judgementConfiguration))?
+               .Where(static score => score.IsCurrentPlayer != false)
                .OrderByDescending(score => score.Score)
                .ThenByDescending(score => score.PlayedAt)
                .Take(limit)
                .ToArray()
                ?? [];
+    }
+
+    public IReadOnlyList<StoredGameplayScore> GetRanking(
+        YokkoBeatmap beatmap,
+        JudgementConfiguration judgementConfiguration,
+        int limit = 50)
+    {
+        ensureInitialised();
+        if (limit <= 0)
+            return [];
+
+        IEnumerable<StoredGameplayScore> ranking =
+            history.GetValueOrDefault(
+                historyKeyFor(beatmap, judgementConfiguration))
+            ?? [];
+        if (judgementConfiguration.Mode != JudgementMode.Yokko)
+        {
+            ranking = ranking.Concat(
+                (history.GetValueOrDefault(historyKeyFor(
+                     beatmap,
+                     JudgementConfiguration.YokkoDefault))
+                 ?? []).Where(static score => score.IsCurrentPlayer == false));
+        }
+
+        return ranking.OrderByDescending(score => score.Score)
+                      .ThenByDescending(score => score.PlayedAt)
+                      .Take(limit)
+                      .ToArray();
+    }
+
+    public bool ImportExternalScore(
+        YokkoBeatmap beatmap,
+        ManiaModSet mods,
+        JudgementConfiguration judgementConfiguration,
+        ManiaScoreResult result,
+        string playerName,
+        string playerId,
+        string source,
+        string externalScoreId,
+        string replayPath,
+        DateTimeOffset? playedAt = null)
+    {
+        ensureInitialised();
+        ArgumentNullException.ThrowIfNull(beatmap);
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentException.ThrowIfNullOrWhiteSpace(source);
+        ArgumentException.ThrowIfNullOrWhiteSpace(externalScoreId);
+        mods ??= ManiaModSet.Empty;
+
+        string historyKey = historyKeyFor(beatmap, judgementConfiguration);
+        List<StoredGameplayScore> attempts =
+            history.GetValueOrDefault(historyKey) ?? [];
+        history[historyKey] = attempts;
+        if (attempts.Any(score =>
+                string.Equals(
+                    score.ExternalScoreId,
+                    externalScoreId,
+                    StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        var imported = new StoredGameplayScore(
+            result.Score,
+            result.Accuracy,
+            result.MaxCombo,
+            result.Rank,
+            result.Perfect,
+            result.Great,
+            result.Good,
+            result.Ok,
+            result.Meh,
+            result.Miss,
+            playedAt ?? DateTimeOffset.UtcNow,
+            mods.Acronyms.ToArray(),
+            result.ComboBreaks,
+            result.MaxMissCombo,
+            ManiaModConfigurationCodec.Capture(mods),
+            replayPath,
+            string.IsNullOrWhiteSpace(playerName)
+                ? source.ToUpperInvariant() + " PLAYER"
+                : playerName.Trim(),
+            string.IsNullOrWhiteSpace(playerId) ? null : playerId.Trim(),
+            source.Trim().ToLowerInvariant(),
+            false,
+            externalScoreId);
+        attempts.Insert(0, imported);
+        if (attempts.Count > maximum_history_entries)
+        {
+            attempts.RemoveRange(
+                maximum_history_entries,
+                attempts.Count - maximum_history_entries);
+        }
+
+        if (save())
+            return true;
+
+        attempts.Remove(imported);
+        if (attempts.Count == 0)
+            history.Remove(historyKey);
+        return false;
     }
 
     private void load()

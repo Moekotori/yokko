@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
+using Yokko.Import.Malody;
 using Yokko.Import.Osu;
 
 namespace Yokko.Game.Gameplay;
@@ -127,6 +128,35 @@ internal sealed class GameplayReplay
         return new GameplayReplay(
             converted,
             OsuLegacyManiaModConverter.Convert(replay.Mods),
+            Yokko.Core.Scoring.JudgementConfiguration.YokkoDefault);
+    }
+
+    public static GameplayReplay FromMalodyReplay(
+        MalodyReplay replay,
+        int keyCount)
+    {
+        ArgumentNullException.ThrowIfNull(replay);
+        if (keyCount is < 1 or > 20)
+            throw new ArgumentOutOfRangeException(nameof(keyCount));
+
+        var converted = new List<GameplayReplayInput>(replay.Events.Count);
+        foreach (MalodyReplayEvent replayEvent in replay.Events)
+        {
+            if (replayEvent.Lane >= keyCount)
+            {
+                throw new InvalidDataException(
+                    $"The replay uses keys outside this {keyCount}K beatmap.");
+            }
+
+            converted.Add(new GameplayReplayInput(
+                replayEvent.Lane,
+                replayEvent.IsPressed,
+                replayEvent.TimeMilliseconds));
+        }
+
+        return new GameplayReplay(
+            converted,
+            MalodyReplayIO.ConvertMods(replay.Mods),
             Yokko.Core.Scoring.JudgementConfiguration.YokkoDefault);
     }
 }

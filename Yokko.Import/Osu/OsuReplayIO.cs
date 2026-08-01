@@ -8,12 +8,25 @@ public readonly record struct OsuReplayFrame(
     double TimeMilliseconds,
     int PressedKeys);
 
+public sealed record OsuReplayScore(
+    int Score,
+    int MaxCombo,
+    int Perfect,
+    int Great,
+    int Good,
+    int Ok,
+    int Meh,
+    int Miss);
+
 public sealed record OsuReplay(
     int GameVersion,
     string BeatmapHash,
     string PlayerName,
     OsuLegacyMods Mods,
-    IReadOnlyList<OsuReplayFrame> Frames);
+    IReadOnlyList<OsuReplayFrame> Frames,
+    OsuReplayScore? Score = null,
+    DateTimeOffset? PlayedAt = null,
+    string? ReplayHash = null);
 
 /// <summary>
 /// Reads legacy osu! replay files. Only osu!mania frame data is accepted.
@@ -59,17 +72,20 @@ public static class OsuReplayIO
                                      "The replay does not identify a beatmap.");
             string playerName = readLegacyString(reader) ?? string.Empty;
 
-            // Replay hash and stable score statistics are metadata only.
-            readLegacyString(reader);
-            for (int i = 0; i < 6; i++)
-                reader.ReadUInt16();
-            reader.ReadInt32();
-            reader.ReadUInt16();
+            string? replayHash = readLegacyString(reader);
+            int great = reader.ReadUInt16();
+            int ok = reader.ReadUInt16();
+            int meh = reader.ReadUInt16();
+            int perfect = reader.ReadUInt16();
+            int good = reader.ReadUInt16();
+            int miss = reader.ReadUInt16();
+            int score = reader.ReadInt32();
+            int maxCombo = reader.ReadUInt16();
             reader.ReadBoolean();
             OsuLegacyMods mods =
                 (OsuLegacyMods)reader.ReadInt32();
             readLegacyString(reader);
-            reader.ReadInt64();
+            long playedAtTicks = reader.ReadInt64();
 
             int compressedLength = reader.ReadInt32();
             if (compressedLength is < 0 or > maximumCompressedBytes)
@@ -90,7 +106,18 @@ public static class OsuReplayIO
                 beatmapHash,
                 playerName,
                 mods,
-                frames);
+                frames,
+                new OsuReplayScore(
+                    Math.Max(0, score),
+                    maxCombo,
+                    perfect,
+                    great,
+                    good,
+                    ok,
+                    meh,
+                    miss),
+                readPlayedAt(playedAtTicks),
+                replayHash);
         }
         catch (InvalidDataException)
         {
@@ -105,6 +132,20 @@ public static class OsuReplayIO
             throw new InvalidDataException(
                 "The osu! replay file is incomplete or malformed.",
                 ex);
+        }
+    }
+
+    private static DateTimeOffset? readPlayedAt(long ticks)
+    {
+        try
+        {
+            return ticks > 0
+                ? new DateTimeOffset(new DateTime(ticks, DateTimeKind.Utc))
+                : null;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return null;
         }
     }
 

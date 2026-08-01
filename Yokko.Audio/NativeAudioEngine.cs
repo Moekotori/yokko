@@ -6,7 +6,7 @@ namespace Yokko.Audio;
 public sealed class NativeAudioEngine :
     IAudioEngine,
     IAudioLoopingSamplePlayback,
-    IPreparedAudioSamplePlayback,
+    IPreparedAudioBusSamplePlayback,
     ITimestampedPreparedAudioSamplePlayback,
     IAudioMixControl,
     IAudioRateControl,
@@ -350,6 +350,15 @@ public sealed class NativeAudioEngine :
                && TriggerPreparedSample(handle, gain);
     }
 
+    public bool TriggerSample(
+        string samplePath,
+        double gain,
+        AudioSampleBus bus)
+    {
+        return TryGetPreparedSampleHandle(samplePath, out var handle)
+               && TriggerPreparedSample(handle, gain, bus);
+    }
+
     public uint StartLoopingSample(string samplePath, double gain)
     {
         return TryGetPreparedSampleHandle(samplePath, out var handle)
@@ -403,6 +412,37 @@ public sealed class NativeAudioEngine :
         try
         {
             return current.TriggerSample(sampleId, (float)gain);
+        }
+        catch (Exception exception)
+            when (exception is ObjectDisposedException or NativeAudioException)
+        {
+            return false;
+        }
+    }
+
+    public bool TriggerPreparedSample(
+        PreparedAudioSampleHandle handle,
+        double gain,
+        AudioSampleBus bus)
+    {
+        if (bus == AudioSampleBus.HitSound)
+            return TriggerPreparedSample(handle, gain);
+        if (bus != AudioSampleBus.Music)
+            return false;
+
+        if (!tryGetActiveSample(
+                handle,
+                gain,
+                out NativeAudioCore? current,
+                out uint sampleId)
+            || current is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return current.TriggerMusicSample(sampleId, (float)gain);
         }
         catch (Exception exception)
             when (exception is ObjectDisposedException or NativeAudioException)
@@ -656,6 +696,7 @@ public sealed class NativeAudioEngine :
             core?.GetStatus().PlaybackTimeMilliseconds ?? 0;
         rateTimeline.SetRate(outputTime, playbackRate);
         source?.SetPlaybackRate(playbackRate);
+        core?.SetMusicSamplePlaybackRate((float)playbackRate);
     }
 
     public async ValueTask PauseAsync(
@@ -784,6 +825,7 @@ public sealed class NativeAudioEngine :
             (float)metronomeVolume);
         // Song rate changes must not alter hitsound pitch or duration.
         core.SetSamplePlaybackRate(1);
+        core.SetMusicSamplePlaybackRate((float)request.PlaybackRate);
         metronomeSampleId = core.RegisterMetronomeSample(
             createMetronomeClick(sampleRate));
         PreparedSampleSet prepared = Volatile.Read(ref preparedSampleSet);

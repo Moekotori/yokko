@@ -188,6 +188,8 @@ internal partial class GameplayReplayControlsOverlay : CompositeDrawable
     internal void CompleteSeekPreview(double currentMilliseconds) =>
         progressBar.CompleteSeek(currentMilliseconds);
 
+    internal void CancelSeekPreview() => progressBar.CancelPreview();
+
     private static GameplayReplayControlButton createButton(
         Anchor anchor,
         Vector2 position,
@@ -325,6 +327,17 @@ internal partial class GameplayReplayProgressBar : CompositeDrawable
             currentMilliseconds,
             0,
             durationMilliseconds);
+        updateVisual();
+    }
+
+    internal void CancelPreview()
+    {
+        if (!pressed)
+            return;
+
+        pressed = false;
+        previewMilliseconds = currentMilliseconds;
+        marker.ScaleTo(IsHovered ? 1.12f : 1, 100, Easing.OutQuint);
         updateVisual();
     }
 

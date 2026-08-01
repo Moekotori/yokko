@@ -3575,31 +3575,19 @@ public partial class SongSelectScreen : Screen
                 entry.Beatmap,
                 selectedMods,
                 gameplaySettings.GetJudgementConfiguration());
+            JudgementConfiguration judgementConfiguration =
+                gameplaySettings.GetJudgementConfiguration();
             SongSelectScore[] history = scoreStore.GetHistory(
                                                    entry.Beatmap,
-                                                   gameplaySettings.GetJudgementConfiguration(),
+                                                   judgementConfiguration,
                                                    30)
-                                               .Select((score, rank) =>
-                                                   new SongSelectScore(
-                                                       rank + 1,
-                                                       demo_profile_name,
-                                                       "yokko",
-                                                       score.Rank,
-                                                       (int)Math.Min(int.MaxValue, score.Score),
-                                                       score.Accuracy,
-                                                       score.MaxCombo,
-                                                       score.ModLabels,
-                                                       true,
-                                                       score.PlayedAt,
-                                                       score.Perfect,
-                                                       score.Great,
-                                                       score.Good,
-                                                       score.Ok,
-                                                       score.Meh,
-                                                       score.Miss,
-                                                       score.ComboBreaks,
-                                                       score.MaxMissCombo,
-                                                       score.ReplayPath))
+                                               .Select(toSongSelectScore)
+                                               .ToArray();
+            SongSelectScore[] ranking = scoreStore.GetRanking(
+                                                   entry.Beatmap,
+                                                   judgementConfiguration,
+                                                   30)
+                                               .Select(toSongSelectScore)
                                                .ToArray();
 
             SongSelectEntry refreshed = entry with
@@ -3608,7 +3596,7 @@ public partial class SongSelectScreen : Screen
                     ? 0
                     : (int)Math.Min(int.MaxValue, saved.Score),
                 BestAccuracy = saved?.Accuracy ?? 0,
-                Ranking = history,
+                Ranking = ranking,
                 History = history,
             };
             entries[i] = refreshed;
@@ -3620,6 +3608,31 @@ public partial class SongSelectScreen : Screen
             {
                 importedEntries[entry.ChartId] = refreshed;
             }
+
+            SongSelectScore toSongSelectScore(
+                StoredGameplayScore score,
+                int rank) => new(
+                    rank + 1,
+                    string.IsNullOrWhiteSpace(score.PlayerName)
+                        ? demo_profile_name
+                        : score.PlayerName,
+                    "yokko",
+                    score.Rank,
+                    (int)Math.Min(int.MaxValue, score.Score),
+                    score.Accuracy,
+                    score.MaxCombo,
+                    score.ModLabels,
+                    score.IsCurrentPlayer != false,
+                    score.PlayedAt,
+                    score.Perfect,
+                    score.Great,
+                    score.Good,
+                    score.Ok,
+                    score.Meh,
+                    score.Miss,
+                    score.ComboBreaks,
+                    score.MaxMissCombo,
+                    score.ReplayPath);
         }
     }
 

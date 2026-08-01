@@ -4,6 +4,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osuTK;
 using Yokko.Core.Mods;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -48,7 +49,7 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
             new SpriteText
             {
                 Y = 34,
-                Text = "SPEED CHANGE",
+                Text = YokkoStrings.Get("mods.settings.speed_change"),
                 Font = HomeTypography.Body(10),
                 Colour = GameplayModSettingsTheme.Muted,
             },
@@ -73,7 +74,7 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
                 Position = new Vector2(51, 58),
             },
             pitchButton = new GameplayModSettingsStateButton(
-                "ADJUST MUSIC PITCH",
+                YokkoStrings.Get("mods.settings.adjust_pitch"),
                 () =>
                 {
                     if (supportsPitchToggle())
@@ -91,7 +92,7 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
             new SpriteText
             {
                 Y = 178,
-                Text = "LAZER RANGE · 0.01× PRECISION",
+                Text = YokkoStrings.Get("mods.settings.rate_precision"),
                 Font = HomeTypography.Body(8),
                 Colour = GameplayModSettingsTheme.Muted,
             },
@@ -113,8 +114,8 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
         ActiveMod = mod;
         SpeedChange = speedChange;
         AdjustPitch = supportsPitchToggle() && adjustPitch;
-        title.Text = OsuManiaModParityCatalog.Get(mod).Name
-                     .ToUpperInvariant();
+        title.Text = YokkoStrings.ModName(
+            OsuManiaModParityCatalog.Get(mod));
         speedValue.Text = $"{speedChange:0.00}×";
 
         bool toggleSupported = supportsPitchToggle();
@@ -125,10 +126,10 @@ internal partial class SongSelectFixedRateSettings : CompositeDrawable
             AdjustPitch);
         pitchButton.Alpha = toggleSupported ? 1 : 0.38f;
         pitchNote.Text = toggleSupported
-            ? "OFF PRESERVES PITCH · ON SCALES WITH RATE"
-            : mod == ManiaModId.Daycore
-                ? "MUSIC FREQUENCY LOCKED TO 0.75×"
-                : "MUSIC FREQUENCY LOCKED TO 1.50×";
+            ? YokkoStrings.Get("mods.settings.pitch_behaviour")
+            : YokkoStrings.Get(
+                "mods.settings.frequency_locked",
+                mod == ManiaModId.Daycore ? "0.75×" : "1.50×");
 
         this.ClearTransforms();
         this.FadeTo(isEnabled ? 1 : 0.42f, 120, Easing.OutQuint);

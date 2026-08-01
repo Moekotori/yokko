@@ -23,6 +23,8 @@ ComboBurstRandom: 1
 [Fonts]
 ComboPrefix: custom/combo
 ComboOverlap: 7
+ScorePrefix: custom/score
+ScoreOverlap: 3
 
 [Mania]
 Keys: 4
@@ -87,6 +89,8 @@ HitPosition: 400
         Assert.That(info.ComboBurstRandom, Is.True);
         Assert.That(info.ComboPrefix, Is.EqualTo("custom/combo"));
         Assert.That(info.ComboOverlap, Is.EqualTo(7));
+        Assert.That(info.ScorePrefix, Is.EqualTo("custom/score"));
+        Assert.That(info.ScoreOverlap, Is.EqualTo(3));
         Assert.That(info.ManiaConfigurations.Keys, Is.EquivalentTo(new[] { 4, 7 }));
 
         OsuManiaSkinConfiguration fourKey = info.GetConfiguration(4);

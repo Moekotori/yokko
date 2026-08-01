@@ -18,6 +18,8 @@ public sealed class ManiaAdaptiveSpeedState
     private const double missMultiplier = 0.95;
     private const int recentResultCount = 8;
     private const double dampingHalfTimeMilliseconds = 50;
+    private static readonly double dampingRate =
+        Math.Log(2) / dampingHalfTimeMilliseconds;
 
     private readonly double[] judgementPointTimes;
     private readonly Queue<double> recentRates =
@@ -127,5 +129,61 @@ public sealed class ManiaAdaptiveSpeedState
         CurrentRate = TargetRate
                       + (CurrentRate - TargetRate)
                       * Math.Pow(0.5, exponent);
+    }
+
+    /// <summary>
+    /// Advances the adaptive controller by chart time rather than wall time.
+    /// This keeps replay simulation independent from the viewer's transport
+    /// speed and makes a seek equivalent to uninterrupted replay playback.
+    /// </summary>
+    public void AdvanceByGameplayTime(double elapsedMilliseconds)
+    {
+        if (!double.IsFinite(elapsedMilliseconds)
+            || elapsedMilliseconds <= 0)
+        {
+            return;
+        }
+
+        if (Math.Abs(CurrentRate - TargetRate) < 0.000000000001)
+        {
+            Update(elapsedMilliseconds / CurrentRate);
+            return;
+        }
+
+        double lower = 0;
+        double upper = elapsedMilliseconds / MinimumRate;
+        double realElapsed = Math.Clamp(
+            elapsedMilliseconds / CurrentRate,
+            lower,
+            upper);
+        for (int iteration = 0; iteration < 12; iteration++)
+        {
+            double decayed = Math.Exp(-dampingRate * realElapsed);
+            double integrated = TargetRate * realElapsed
+                                + (CurrentRate - TargetRate)
+                                  * (1 - decayed)
+                                  / dampingRate;
+            double error = integrated - elapsedMilliseconds;
+            if (Math.Abs(error)
+                <= Math.Max(1, elapsedMilliseconds) * 0.000000000001)
+            {
+                break;
+            }
+
+            if (integrated < elapsedMilliseconds)
+                lower = realElapsed;
+            else
+                upper = realElapsed;
+
+            double instantaneousRate =
+                TargetRate + (CurrentRate - TargetRate) * decayed;
+            double next = realElapsed
+                          - error / instantaneousRate;
+            realElapsed = next > lower && next < upper
+                ? next
+                : (lower + upper) / 2;
+        }
+
+        Update(realElapsed);
     }
 }

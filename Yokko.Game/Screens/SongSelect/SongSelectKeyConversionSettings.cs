@@ -4,9 +4,11 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Mods;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -38,7 +40,7 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
         [
             new SpriteText
             {
-                Text = "KEY CONVERSION",
+                Text = YokkoStrings.Get("mods.settings.key_conversion"),
                 Font = HomeTypography.Display(12),
                 Colour = GameplayModSettingsTheme.Text,
             },
@@ -68,14 +70,16 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
             new SpriteText
             {
                 Y = 172,
-                Text = "REGENERATES FROM ORIGINAL OBJECTS",
+                Text = YokkoStrings.Get(
+                    "mods.settings.regenerate_original"),
                 Font = HomeTypography.Body(8),
                 Colour = GameplayModSettingsTheme.Muted,
             },
             new SpriteText
             {
                 Y = 190,
-                Text = "NATIVE MANIA CHARTS STAY UNCHANGED",
+                Text = YokkoStrings.Get(
+                    "mods.settings.native_unchanged"),
                 Font = HomeTypography.Body(8),
                 Colour = GameplayModSettingsTheme.Muted,
             },
@@ -99,11 +103,16 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
 
         status.Text = isConvertible
             ? keyCount is int selected
-                ? $"TARGET · {selected}{(dualStages ? " + " + selected : string.Empty)} KEYS"
-                : dualStages
-                    ? "TARGET · DUAL LAZER DEFAULT"
-                    : "TARGET · LAZER DEFAULT"
-            : "CURRENT SOURCE · MANIA NATIVE";
+                ? YokkoStrings.Get(
+                    dualStages
+                        ? "mods.settings.key_target_dual"
+                        : "mods.settings.key_target",
+                    selected)
+                : YokkoStrings.Get(
+                    dualStages
+                        ? "mods.settings.key_default_dual"
+                        : "mods.settings.key_default")
+            : YokkoStrings.Get("mods.settings.key_native_source");
         status.Colour = isConvertible
             ? GameplayModSettingsTheme.Accent
             : GameplayModSettingsTheme.Selection;
@@ -129,7 +138,7 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
                     X = 9,
-                    Text = "DUAL STAGES",
+                    Text = YokkoStrings.Get("mods.settings.dual_stages"),
                     Font = HomeTypography.Body(10),
                     Colour = GameplayModSettingsTheme.Text,
                 },
@@ -156,6 +165,19 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
                 ? GameplayModSettingsTheme.AccentOn
                 : GameplayModSettingsTheme.Muted;
             Alpha = enabled ? 1 : 0.42f;
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            if (Alpha > 0.5f)
+                this.ScaleTo(1.025f, 100, Easing.OutQuint);
+            return base.OnHover(e);
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            this.ScaleTo(1, 110, Easing.OutQuint);
+            base.OnHoverLost(e);
         }
     }
 
@@ -220,6 +242,19 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
                     ? GameplayModSettingsTheme.Text
                     : GameplayModSettingsTheme.Muted;
             Alpha = enabled ? 1 : 0.42f;
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            if (Alpha > 0.5f)
+                this.ScaleTo(1.07f, 100, Easing.OutQuint);
+            return base.OnHover(e);
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            this.ScaleTo(1, 110, Easing.OutQuint);
+            base.OnHoverLost(e);
         }
     }
 }

@@ -112,9 +112,9 @@ internal static class YokkoStrings
                 "{0} 個の譜面をインポートしました"),
             ["import.chart.failed"] = new("Chart import failed", "谱面导入失败", "譜面のインポートに失敗"),
             ["import.replay.importing"] = new(
-                "Importing osu! replay",
-                "正在导入 osu! 回放",
-                "osu! リプレイをインポート中"),
+                "Importing replay",
+                "正在导入回放",
+                "リプレイをインポート中"),
             ["import.replay.success"] = new(
                 "Replay ready",
                 "回放已就绪",
@@ -175,10 +175,280 @@ internal static class YokkoStrings
                 "Enabled · adjust below",
                 "已启用 · 下面可以直接调整",
                 "有効 · 下で直接調整できます"),
+            ["mods.settings.active_short"] = new(
+                "Enabled",
+                "已启用",
+                "有効"),
+            ["mods.settings.title"] = new(
+                "Settings",
+                "参数设置",
+                "設定"),
+            ["mods.settings.for_mod"] = new(
+                "{0} settings",
+                "{0}参数",
+                "{0}の設定"),
             ["mods.settings.preview_hint"] = new(
                 "Turn it on, then adjust",
                 "先启用，再调整参数",
                 "有効にしてから調整してください"),
+            ["mods.settings.preview_short"] = new(
+                "Preview",
+                "预览",
+                "プレビュー"),
+            ["mods.settings.on"] = new("ON", "开", "オン"),
+            ["mods.settings.off"] = new("OFF", "关", "オフ"),
+            ["mods.settings.select_first"] = new(
+                "Enable {0} to adjust these settings",
+                "先启用 {0}，再调整这些参数",
+                "先に {0} を有効にしてください"),
+            ["mods.settings.minimum_accuracy"] = new(
+                "Minimum accuracy",
+                "最低准确率",
+                "最低精度"),
+            ["mods.settings.fail_rule"] = new(
+                "Fail condition",
+                "失败标准",
+                "失敗条件"),
+            ["mods.settings.maximum_possible"] = new(
+                "Maximum possible",
+                "理论最高",
+                "到達可能な最高値"),
+            ["mods.settings.current_accuracy"] = new(
+                "Current accuracy",
+                "当前准确率",
+                "現在の精度"),
+            ["mods.settings.fail_below_reachable"] = new(
+                "Fail when reachable accuracy drops below {0}",
+                "可达到准确率低于 {0} 时失败",
+                "到達可能精度が {0} 未満で失敗"),
+            ["mods.settings.fail_below_current"] = new(
+                "Fail when current accuracy drops below {0}",
+                "当前准确率低于 {0} 时失败",
+                "現在精度が {0} 未満で失敗"),
+            ["mods.settings.hp_drain"] = new(
+                "HP drain",
+                "掉血速度",
+                "HP 減少"),
+            ["mods.settings.judgement_difficulty"] = new(
+                "Judgement difficulty · OD",
+                "判定难度 · OD",
+                "判定難易度 · OD"),
+            ["mods.settings.map_values"] = new(
+                "Use map values",
+                "使用谱面数值",
+                "譜面の値を使用"),
+            ["mods.settings.extended_range"] = new(
+                "Extended range",
+                "扩展范围",
+                "拡張範囲"),
+            ["mods.settings.map_value"] = new(
+                "Map {0}",
+                "谱面 {0}",
+                "譜面 {0}"),
+            ["mods.settings.coverage"] = new(
+                "Coverage",
+                "遮挡比例",
+                "遮蔽率"),
+            ["mods.settings.window_size"] = new(
+                "Viewing area",
+                "视野大小",
+                "視野サイズ"),
+            ["mods.settings.with_scroll"] = new(
+                "With scroll",
+                "顺着下落方向",
+                "スクロール方向"),
+            ["mods.settings.against_scroll"] = new(
+                "Against scroll",
+                "反向遮挡",
+                "逆方向"),
+            ["mods.settings.fixed_size"] = new(
+                "Fixed size",
+                "固定大小",
+                "固定サイズ"),
+            ["mods.settings.combo_size"] = new(
+                "Shrink with combo",
+                "随连击缩小",
+                "コンボで縮小"),
+            ["mods.settings.cover_with_scroll"] = new(
+                "The cover expands with the scroll direction",
+                "遮挡区域会顺着下落方向扩大",
+                "カバーはスクロール方向に広がります"),
+            ["mods.settings.cover_against_scroll"] = new(
+                "The cover expands against the scroll direction",
+                "遮挡区域会向下落反方向扩大",
+                "カバーはスクロールと逆方向に広がります"),
+            ["mods.settings.flashlight_combo"] = new(
+                "The viewing area shrinks as combo increases",
+                "连击越高，可见范围越小",
+                "コンボが増えるほど視野が狭くなります"),
+            ["mods.settings.flashlight_fixed"] = new(
+                "The viewing area stays the same size",
+                "可见范围始终保持相同大小",
+                "視野サイズは固定です"),
+            ["mods.settings.speed_change"] = new(
+                "Speed multiplier",
+                "速度倍率",
+                "速度倍率"),
+            ["mods.settings.adjust_pitch"] = new(
+                "Change pitch with speed",
+                "音高随速度变化",
+                "速度に合わせて音程変更"),
+            ["mods.settings.pitch_behaviour"] = new(
+                "OFF keeps the original pitch · ON follows the rate",
+                "关闭时保持原音高 · 开启后音高随速度变化",
+                "オフは元の音程を維持 · オンは速度に追従"),
+            ["mods.settings.frequency_locked"] = new(
+                "Pitch multiplier is fixed at {0}",
+                "该模式的音高倍率固定为 {0}",
+                "音程倍率は {0} に固定"),
+            ["mods.settings.rate_precision"] = new(
+                "0.50x–2.00x range · 0.01x per step",
+                "范围 0.50x–2.00x · 每次调整 0.01x",
+                "範囲 0.50x–2.00x · 1 回 0.01x"),
+            ["mods.settings.initial_rate"] = new(
+                "Starting speed",
+                "初始速度",
+                "開始速度"),
+            ["mods.settings.final_rate"] = new(
+                "Final speed",
+                "最终速度",
+                "最終速度"),
+            ["mods.settings.adaptive_recent"] = new(
+                "Responds to your last 8 results",
+                "根据最近 8 次判定自动调速",
+                "直近 8 回の判定に応じて変化"),
+            ["mods.settings.adaptive_rule"] = new(
+                "Accurate hits speed up · misses slow down",
+                "打得准就加速 · 出现失误就减速",
+                "正確な判定で加速 · ミスで減速"),
+            ["mods.settings.fade_length"] = new(
+                "Fade after",
+                "淡出所需连击",
+                "フェード開始コンボ"),
+            ["mods.settings.combo_count"] = new(
+                "{0} combo",
+                "{0} 连击",
+                "{0} コンボ"),
+            ["mods.settings.start_muted"] = new(
+                "Start muted",
+                "开局静音",
+                "開始時からミュート"),
+            ["mods.settings.keep_metronome"] = new(
+                "Keep metronome",
+                "保留节拍器",
+                "メトロノームを残す"),
+            ["mods.settings.mute_keysounds"] = new(
+                "Mute keysounds too",
+                "同时静音打击音",
+                "キー音もミュート"),
+            ["mods.settings.smooth_fade"] = new(
+                "Music fades smoothly over 500 ms",
+                "音乐会在 500 ms 内平滑淡出",
+                "音楽は 500 ms かけて滑らかに消えます"),
+            ["mods.settings.default_perfect_rule"] = new(
+                "Default lazer mania rule",
+                "默认 lazer mania 规则",
+                "lazer mania の標準ルール"),
+            ["mods.settings.great_keeps_run"] = new(
+                "Great or better keeps the run alive",
+                "Great 或更好的判定不会失败",
+                "Great 以上なら継続"),
+            ["mods.settings.extra_rule"] = new(
+                "Extra restriction",
+                "额外限制",
+                "追加制限"),
+            ["mods.settings.require_perfect"] = new(
+                "Require Perfect hits",
+                "只允许 Perfect 判定",
+                "Perfect 判定のみ許可"),
+            ["mods.settings.allowed_pauses"] = new(
+                "Allowed pauses",
+                "可暂停次数",
+                "一時停止できる回数"),
+            ["mods.settings.zero_pauses"] = new(
+                "0 means pausing is completely disabled",
+                "设为 0 时完全禁止暂停",
+                "0 で一時停止を完全に禁止"),
+            ["mods.settings.final_rate_at_75"] = new(
+                "Reaches the final speed at 75% of the map",
+                "打到谱面 75% 时达到最终速度",
+                "譜面の 75% で最終速度に到達"),
+            ["mods.settings.only_perfect"] = new(
+                "Only Perfect judgements are allowed",
+                "只有 Perfect 判定才不会失败",
+                "Perfect 判定のみ成功"),
+            ["mods.settings.great_or_better"] = new(
+                "Great or better is allowed",
+                "Great 或更好的判定不会失败",
+                "Great 以上なら成功"),
+            ["mods.settings.pause_disabled"] = new(
+                "Pausing is disabled",
+                "本局完全禁止暂停",
+                "一時停止は禁止"),
+            ["mods.settings.pause_count_allowed"] = new(
+                "The first {0} pauses are allowed",
+                "本局最多可以暂停 {0} 次",
+                "このプレイでは {0} 回まで一時停止可能"),
+            ["mods.settings.custom_seed"] = new(
+                "Custom seed",
+                "自定义随机种子",
+                "カスタムシード"),
+            ["mods.settings.same_seed_shuffle"] = new(
+                "The same seed produces the same lane shuffle",
+                "相同种子会得到相同的按键排列",
+                "同じシードなら同じレーン配置"),
+            ["mods.settings.invalid_seed"] = new(
+                "Enter an integer from -2147483648 to 2147483647",
+                "请输入 -2147483648 到 2147483647 之间的整数",
+                "-2147483648 から 2147483647 の整数を入力"),
+            ["mods.settings.seed_applied"] = new(
+                "Custom seed applied",
+                "已应用这个随机种子",
+                "カスタムシードを適用済み"),
+            ["mods.settings.seed_placeholder"] = new(
+                "Enter an integer",
+                "输入一个整数",
+                "整数を入力"),
+            ["mods.settings.generate_seed"] = new(
+                "Generate a new seed",
+                "换一个随机种子",
+                "新しいシードを生成"),
+            ["mods.settings.key_conversion"] = new(
+                "Key conversion",
+                "按键数转换",
+                "キー数変換"),
+            ["mods.settings.regenerate_original"] = new(
+                "Regenerates lanes from the original objects",
+                "会根据原始物件重新生成轨道",
+                "元のオブジェクトからレーンを再生成"),
+            ["mods.settings.native_unchanged"] = new(
+                "Native mania charts cannot be converted",
+                "原生 mania 谱面不会被强行转换",
+                "ネイティブ mania 譜面は変換しません"),
+            ["mods.settings.dual_stages"] = new(
+                "Split into two stages",
+                "拆成前后两组轨道",
+                "2 ステージに分割"),
+            ["mods.settings.key_target"] = new(
+                "Target: {0} keys",
+                "目标：{0} 键",
+                "変換先：{0} キー"),
+            ["mods.settings.key_target_dual"] = new(
+                "Target: two {0}-key stages",
+                "目标：两组 {0} 键轨道",
+                "変換先：{0} キーを 2 ステージ"),
+            ["mods.settings.key_default"] = new(
+                "Target: lazer default",
+                "目标：使用 lazer 默认按键数",
+                "変換先：lazer のデフォルト"),
+            ["mods.settings.key_default_dual"] = new(
+                "Target: two lazer-default stages",
+                "目标：按 lazer 默认规则拆成两组",
+                "変換先：lazer のデフォルトを 2 ステージ"),
+            ["mods.settings.key_native_source"] = new(
+                "Current chart is native mania",
+                "当前是原生 mania 谱面，不能转换按键数",
+                "現在の譜面はネイティブ mania のため変換不可"),
             ["mods.activate_hint"] = new("SPACE · ACTIVATE", "空格 · 启用", "SPACE · 有効化"),
             ["mods.back"] = new("BACK", "返回", "戻る"),
             ["mods.reset"] = new("RESET", "重置", "リセット"),
@@ -653,9 +923,9 @@ internal static class YokkoStrings
                 "流速",
                 "スクロール速度"),
             ["settings.general.mania_scroll_speed_note"] = new(
-                "Uses the original 1–40 scale; enable fine adjustment for 1 ms steps · Ctrl + / Ctrl − or F3 / F4 in gameplay.",
-                "默认使用原版 1–40 档位；开启微调后按 1 ms 调整 · 游玩时按 Ctrl + / Ctrl − 或 F3 / F4。",
-                "通常は従来の 1–40 段階を使用し、微調整を有効にすると 1 ms 刻みになります · プレイ中は Ctrl + / Ctrl − または F3 / F4。"),
+                "Drag for coarse adjustment; with Fine on, use the wheel, arrow keys or gameplay shortcuts for 1 ms steps.",
+                "拖动滑块粗调；开启微调后，滚轮、方向键或游玩快捷键每次调整 1 ms。",
+                "ドラッグで大まかに調整し、微調整を有効にするとホイール、方向キー、またはプレイ中のショートカットで 1 ms ずつ調整できます。"),
             ["settings.general.fine_adjustment"] = new(
                 "Fine",
                 "微调",
@@ -1281,9 +1551,9 @@ internal static class YokkoStrings
                 "音符速度",
                 "ノーツ速度"),
             ["settings.gameplay.scroll_speed_note"] = new(
-                "Original 1–40 scale or advanced 1 ms tuning · lower ms is faster.",
-                "原版 1–40 档位或进阶 1 ms 精调 · ms 越小速度越快。",
-                "従来の 1–40 段階または上級 1 ms 微調整 · ms が小さいほど高速。"),
+                "Drag for coarse adjustment; with Fine on, wheel or arrow keys adjust by 1 ms · lower ms is faster.",
+                "拖动滑块粗调；开启微调后，滚轮或方向键每次调整 1 ms · ms 越小越快。",
+                "ドラッグで大まかに調整し、微調整を有効にするとホイールまたは方向キーで 1 ms ずつ調整 · ms が小さいほど高速。"),
             ["settings.gameplay.scroll_speed_mode_scale"] = new(
                 "1–40 SCALE",
                 "1–40 档位",

@@ -40,6 +40,15 @@ public sealed class OsuReplayIOTest
                 replay.BeatmapHash,
                 Is.EqualTo("0123456789abcdef0123456789abcdef"));
             Assert.That(replay.PlayerName, Is.EqualTo("Yokko Player"));
+            Assert.That(replay.Score, Is.EqualTo(new OsuReplayScore(
+                123456,
+                42,
+                4,
+                1,
+                5,
+                2,
+                3,
+                6)));
             Assert.That(
                 gameplayReplay.Mods.Mods,
                 Is.EqualTo(new[]
@@ -162,8 +171,12 @@ public sealed class OsuReplayIOTest
             writeLegacyString(writer, beatmapHash);
             writeLegacyString(writer, playerName);
             writeLegacyString(writer, "replay hash");
-            for (int i = 0; i < 6; i++)
-                writer.Write((ushort)0);
+            writer.Write((ushort)1); // 300 / Great
+            writer.Write((ushort)2); // 100 / Ok
+            writer.Write((ushort)3); // 50 / Meh
+            writer.Write((ushort)4); // Geki / Perfect
+            writer.Write((ushort)5); // Katu / Good
+            writer.Write((ushort)6); // Miss
             writer.Write(123456);
             writer.Write((ushort)42);
             writer.Write(false);

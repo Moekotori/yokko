@@ -791,9 +791,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 value =>
                     $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(value)):0} ms  ·  {value:0.0}",
                 settings.ScrollSpeedAdjustmentMode,
-                settings.AdjustScrollTimeMilliseconds,
-                value =>
-                    $"{Math.Round(OsuManiaScrollSpeed.ComputeScrollTime(value)):0} ms")
+                settings.AdjustScrollTimeMilliseconds)
             {
                 Position = new Vector2(430, 14),
             },
@@ -2186,7 +2184,6 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
     private readonly Func<double, string> formatter;
     private readonly Bindable<ScrollSpeedAdjustmentMode> adjustmentMode;
     private readonly Action<double> adjustScrollTime;
-    private readonly Func<double, string> scrollTimeFormatter;
     private readonly Box track;
     private readonly Box fill;
     private readonly Circle knob;
@@ -2198,14 +2195,12 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
         Bindable<double> value,
         Func<double, string> formatter,
         Bindable<ScrollSpeedAdjustmentMode> adjustmentMode,
-        Action<double> adjustScrollTime,
-        Func<double, string> scrollTimeFormatter)
+        Action<double> adjustScrollTime)
     {
         this.value = value;
         this.formatter = formatter;
         this.adjustmentMode = adjustmentMode;
         this.adjustScrollTime = adjustScrollTime;
-        this.scrollTimeFormatter = scrollTimeFormatter;
         Size = new Vector2(390, 54);
 
         var modeButton = new GameplayStepperModeButton(adjustmentMode)
@@ -2290,7 +2285,6 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
         };
 
         value.BindValueChanged(onValueChanged, true);
-        adjustmentMode.BindValueChanged(onAdjustmentModeChanged);
     }
 
     internal static double ValueFromProgress(double progress)
@@ -2308,6 +2302,10 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
         OsuManiaScrollSpeed.Adjust(
             currentValue,
             Math.Sign(scrollDelta) * OsuManiaScrollSpeed.ShortcutStep);
+
+    internal static double FineScrollTimeDeltaForDirection(double direction) =>
+        -Math.Sign(direction)
+        * OsuManiaScrollSpeed.ScrollTimeStepMilliseconds;
 
     protected override bool OnMouseDown(MouseDownEvent e)
     {
@@ -2333,7 +2331,8 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
             return false;
 
         if (adjustmentMode.Value == ScrollSpeedAdjustmentMode.Milliseconds)
-            adjustScrollTime(Math.Sign(e.ScrollDelta.Y));
+            adjustScrollTime(
+                FineScrollTimeDeltaForDirection(e.ScrollDelta.Y));
         else
             value.Value = AdjustForScroll(value.Value, e.ScrollDelta.Y);
 
@@ -2356,7 +2355,7 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
         else if (direction != 0)
         {
             if (adjustmentMode.Value == ScrollSpeedAdjustmentMode.Milliseconds)
-                adjustScrollTime(direction);
+                adjustScrollTime(FineScrollTimeDeltaForDirection(direction));
             else
                 value.Value = OsuManiaScrollSpeed.Adjust(
                     value.Value,
@@ -2406,25 +2405,13 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
             / (OsuManiaScrollSpeed.Maximum - OsuManiaScrollSpeed.Minimum));
         fill.Width = progress * track_width;
         knob.X = track_x + progress * track_width;
-        valueText.Text = activeFormatter(change.NewValue);
+        valueText.Text = formatter(change.NewValue);
     }
-
-    private void onAdjustmentModeChanged(
-        ValueChangedEvent<ScrollSpeedAdjustmentMode> _) =>
-        valueText.Text = activeFormatter(value.Value);
-
-    private string activeFormatter(double currentValue) =>
-        adjustmentMode.Value == ScrollSpeedAdjustmentMode.Milliseconds
-            ? scrollTimeFormatter(currentValue)
-            : formatter(currentValue);
 
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
-        {
             value.ValueChanged -= onValueChanged;
-            adjustmentMode.ValueChanged -= onAdjustmentModeChanged;
-        }
 
         base.Dispose(isDisposing);
     }

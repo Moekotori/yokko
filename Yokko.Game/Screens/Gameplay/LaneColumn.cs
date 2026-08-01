@@ -545,6 +545,23 @@ public partial class LaneColumn : CompositeDrawable
                      .FadeOut(220, Easing.OutQuint);
     }
 
+    internal void ClearTransientFeedback()
+    {
+        foreach (TextureAnimation explosion in hitExplosions)
+        {
+            explosion.FinishTransforms();
+            explosion.Alpha = 0;
+        }
+
+        if (mineExplosion != null)
+        {
+            mineExplosion.FinishTransforms();
+            mineExplosion.Alpha = 0;
+        }
+
+        nextHitExplosion = 0;
+    }
+
     public void SetHoldActive(bool active)
     {
         if (holdLight == null || holdLightActive == active)

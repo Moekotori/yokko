@@ -4,6 +4,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osuTK;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -28,14 +29,14 @@ internal partial class SongSelectNoPauseSettings : CompositeDrawable
         [
             new SpriteText
             {
-                Text = "NO PAUSE",
+                Text = YokkoStrings.Get("mods.definition.no-pause.name"),
                 Font = HomeTypography.Display(14),
                 Colour = GameplayModSettingsTheme.Text,
             },
             new SpriteText
             {
                 Y = 27,
-                Text = "ALLOWED PAUSES",
+                Text = YokkoStrings.Get("mods.settings.allowed_pauses"),
                 Font = HomeTypography.Body(12),
                 Colour = GameplayModSettingsTheme.Muted,
             },
@@ -74,7 +75,7 @@ internal partial class SongSelectNoPauseSettings : CompositeDrawable
             new SpriteText
             {
                 Y = 122,
-                Text = "0 = PAUSE COMPLETELY DISABLED",
+                Text = YokkoStrings.Get("mods.settings.zero_pauses"),
                 Font = HomeTypography.Body(11),
                 Colour = GameplayModSettingsTheme.Text,
             },
@@ -97,10 +98,12 @@ internal partial class SongSelectNoPauseSettings : CompositeDrawable
         decreaseButton.SetEnabled(isEnabled && AllowedPauses > 0);
         increaseButton.SetEnabled(isEnabled && AllowedPauses < 10);
         statusText.Text = !isEnabled
-            ? "SELECT NP TO CONFIGURE"
+            ? YokkoStrings.Get("mods.settings.select_first", "NP")
             : AllowedPauses == 0
-                ? "PAUSE IS DISABLED"
-                : $"FIRST {AllowedPauses} PAUSE{(AllowedPauses == 1 ? string.Empty : "S")} ALLOWED";
+                ? YokkoStrings.Get("mods.settings.pause_disabled")
+                : YokkoStrings.Get(
+                    "mods.settings.pause_count_allowed",
+                    AllowedPauses);
         this.ClearTransforms();
         this.FadeTo(isEnabled ? 1 : 0.42f, 120, Easing.OutQuint);
     }

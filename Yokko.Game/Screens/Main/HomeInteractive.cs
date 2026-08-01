@@ -222,6 +222,256 @@ public partial class HomeMarqueeTicker : CompositeDrawable
 }
 
 /// <summary>
+/// 鼠标点击式的首页背景小游戏。点击特殊泡泡开始，命中目标后立即生成下一个并累计分数。
+/// </summary>
+internal partial class HomeBubblePopGame : CompositeDrawable
+{
+    private const float fieldWidth = 300;
+    private const float fieldHeight = 220;
+
+    private readonly Random random = new(0x59_4f_4b_4b);
+    private readonly SpriteText statusText;
+    private readonly HomeBubbleTarget target;
+
+    private bool available;
+    private bool running;
+    private Vector2 previousTargetPosition;
+
+    internal bool IsRunning => running;
+
+    internal int Score { get; private set; }
+
+    internal Vector2 TargetPosition => target.Position;
+
+    internal float TargetDrawWidth => target.DrawWidth;
+
+    public HomeBubblePopGame()
+    {
+        Size = new Vector2(fieldWidth, fieldHeight);
+        Alpha = 0;
+
+        InternalChildren = new Drawable[]
+        {
+            statusText = new SpriteText
+            {
+                Position = new Vector2(12, 8),
+                Font = HomeTypography.Display(9),
+                Text = "戳泡泡 // 点击泡泡开始",
+                Spacing = new Vector2(0.5f, 0),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.64f),
+            },
+            target = new HomeBubbleTarget(handleTargetClicked),
+        };
+
+        resetToReady(false);
+    }
+
+    internal void SetAvailable(bool value)
+    {
+        if (available == value)
+            return;
+
+        available = value;
+        target.Enabled.Value = value;
+        this.FadeTo(value ? 0.9f : 0, value ? 260 : 160, Easing.OutQuint);
+    }
+
+    internal void ActivateTargetForTest() => handleTargetClicked();
+
+    internal void Restart() => resetToReady(true);
+
+    private void handleTargetClicked()
+    {
+        if (!available)
+            return;
+
+        if (!running)
+        {
+            running = true;
+            Score = 0;
+            statusText.Text = "戳泡泡 // 000";
+            spawnNextTarget(true);
+            return;
+        }
+
+        Vector2 poppedPosition = target.Position;
+        float poppedSize = target.DrawWidth;
+        Score++;
+        statusText.Text = $"戳泡泡 // {Score:000}";
+        playPop(poppedPosition, poppedSize);
+        spawnNextTarget(true);
+    }
+
+    private void resetToReady(bool animate)
+    {
+        running = false;
+        Score = 0;
+        statusText.Text = "戳泡泡 // 点击泡泡开始";
+        previousTargetPosition = new Vector2(fieldWidth / 2, 116);
+        target.Position = previousTargetPosition;
+        target.ClearTransforms();
+        target.SetPresentation(true, 46);
+        target.Alpha = 1;
+        target.Scale = Vector2.One;
+
+        if (animate)
+        {
+            target.ScaleTo(0.72f)
+                  .ScaleTo(1, 260, Easing.OutBack);
+        }
+    }
+
+    private void spawnNextTarget(bool animate)
+    {
+        Vector2 nextPosition = previousTargetPosition;
+        for (int attempt = 0; attempt < 8; attempt++)
+        {
+            nextPosition = new Vector2(
+                random.Next(36, 265),
+                random.Next(48, 196));
+            if (Vector2.DistanceSquared(nextPosition, previousTargetPosition) >= 3600)
+                break;
+        }
+
+        previousTargetPosition = nextPosition;
+        float diameter = random.Next(30, 43);
+        target.ClearTransforms();
+        target.Position = nextPosition;
+        target.SetPresentation(false, diameter);
+        target.Alpha = animate ? 0 : 1;
+        target.Scale = animate ? new Vector2(0.62f) : Vector2.One;
+
+        if (animate)
+        {
+            target.FadeIn(90, Easing.OutQuint)
+                  .ScaleTo(1, 180, Easing.OutBack);
+        }
+    }
+
+    private void playPop(Vector2 position, float diameter)
+    {
+        var ring = new Container
+        {
+            Origin = Anchor.Centre,
+            Position = position,
+            Size = new Vector2(MathF.Max(18, diameter * 0.7f)),
+            Masking = true,
+            CornerRadius = 100,
+            BorderThickness = 2,
+            BorderColour = new Color4(1f, 1f, 1f, 0.8f),
+            Child = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Alpha = 0.01f,
+            },
+        };
+        AddInternal(ring);
+        ring.ResizeTo(diameter * 1.8f, 260, Easing.OutQuint)
+            .FadeOut(260, Easing.InQuart)
+            .Expire();
+
+        for (int i = 0; i < 5; i++)
+        {
+            float angle = -MathF.PI / 2 + i * MathF.Tau / 5;
+            var spark = new Circle
+            {
+                Origin = Anchor.Centre,
+                Position = position,
+                Size = new Vector2(i % 2 == 0 ? 4 : 3),
+                Colour = i % 2 == 0
+                    ? HomeControlColours.Pink
+                    : HomeControlColours.Yellow,
+            };
+            AddInternal(spark);
+            spark.MoveTo(position + new Vector2(
+                    MathF.Cos(angle),
+                    MathF.Sin(angle)) * (diameter * 0.7f),
+                    230,
+                    Easing.OutQuint)
+                 .FadeOut(230, Easing.InQuart)
+                 .Expire();
+        }
+    }
+}
+
+internal partial class HomeBubbleTarget : ClickableContainer
+{
+    private readonly Circle outer;
+    private readonly Circle inner;
+    private readonly Circle core;
+    private readonly SpriteIcon playIcon;
+
+    internal HomeBubbleTarget(Action action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        Action = action;
+        Origin = Anchor.Centre;
+        InternalChildren = new Drawable[]
+        {
+            outer = new Circle
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+            },
+            inner = new Circle
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+            },
+            core = new Circle
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+            },
+            playIcon = new SpriteIcon
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Icon = FontAwesome.Solid.Play,
+                Colour = HomeControlColours.Navy,
+            },
+        };
+    }
+
+    internal void SetPresentation(bool startBubble, float diameter)
+    {
+        Size = new Vector2(diameter);
+        outer.Size = new Vector2(diameter);
+        inner.Size = new Vector2(MathF.Max(1, diameter - 4));
+        core.Size = new Vector2(MathF.Max(7, diameter * 0.2f));
+        playIcon.Size = new Vector2(diameter * 0.26f);
+        outer.Colour = startBubble
+            ? HomeControlColours.Yellow
+            : Color4.White;
+        inner.Colour = startBubble
+            ? new Color4(HomeControlColours.Cyan.R, HomeControlColours.Cyan.G, HomeControlColours.Cyan.B, 0.82f)
+            : new Color4(1f, 1f, 1f, 0.66f);
+        core.Colour = startBubble
+            ? HomeControlColours.Yellow
+            : HomeControlColours.Pink;
+        playIcon.Alpha = startBubble ? 1 : 0;
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        this.ScaleTo(1.1f, 90, Easing.OutQuint);
+        inner.FadeColour(Color4.White, 90, Easing.OutQuint);
+        return base.OnHover(e);
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        this.ScaleTo(1, 120, Easing.OutQuint);
+        base.OnHoverLost(e);
+    }
+}
+
+/// <summary>
 /// 藏在首页遥测装饰里的四键信号蛇；不新增面板，也不与角色图层交互。
 /// </summary>
 internal partial class HomeSignalSnake : CompositeDrawable
@@ -364,9 +614,15 @@ internal partial class HomeSignalSnake : CompositeDrawable
         AddInternal(deathLabel = new SpriteText
         {
             Origin = Anchor.Centre,
-            Font = HomeTypography.Display(9),
+            Font = HomeTypography.Display(13),
             Text = "SIGNAL LOST",
-            Colour = Color4.White,
+            Colour = HomeControlColours.Pink,
+            Shadow = true,
+            ShadowColour = new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                0.82f),
             Alpha = 0,
         });
 

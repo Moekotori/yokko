@@ -572,6 +572,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
     {
         private readonly Box background;
         private readonly SpriteText label;
+        private bool selected;
 
         public PageTab(string text, Action action)
         {
@@ -598,6 +599,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
 
         public void SetSelected(bool selected)
         {
+            this.selected = selected;
             BorderColour = selected
                 ? GameplayModSettingsTheme.Selection
                 : GameplayModSettingsTheme.Accent;
@@ -615,5 +617,34 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
 
         public void SetLabel(string text) =>
             label.Text = text;
+
+        protected override bool OnHover(osu.Framework.Input.Events.HoverEvent e)
+        {
+            background.FadeColour(
+                selected
+                    ? GameplayModSettingsTheme.Selection
+                    : Color4.White,
+                90,
+                Easing.OutQuint);
+            this.ScaleTo(1.08f, 100, Easing.OutQuint);
+            return base.OnHover(e);
+        }
+
+        protected override void OnHoverLost(
+            osu.Framework.Input.Events.HoverLostEvent e)
+        {
+            background.FadeColour(
+                selected
+                    ? GameplayModSettingsTheme.Selection
+                    : new Color4(
+                        GameplayModSettingsTheme.Control.R,
+                        GameplayModSettingsTheme.Control.G,
+                        GameplayModSettingsTheme.Control.B,
+                        0.72f),
+                100,
+                Easing.OutQuint);
+            this.ScaleTo(1, 110, Easing.OutQuint);
+            base.OnHoverLost(e);
+        }
     }
 }

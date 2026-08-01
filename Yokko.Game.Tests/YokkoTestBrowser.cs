@@ -1006,6 +1006,30 @@ namespace Yokko.Game.Tests
                         ManiaModId.AccuracyChallenge);
                     break;
 
+                case "config-muted":
+                    modsScreen.ResetMods();
+                    modsScreen.SetCategory(ManiaModCategory.Fun);
+                    modsScreen.CycleOrbitMod(ManiaModId.Muted);
+                    modsScreen.SetMutedInverse(true);
+                    modsScreen.SetMutedMetronome(true);
+                    modsScreen.SetMutedComboCount(150);
+                    break;
+
+                case "config-time-ramp":
+                    modsScreen.ResetMods();
+                    modsScreen.SetCategory(ManiaModCategory.Fun);
+                    modsScreen.CycleOrbitMod(ManiaModId.WindUp);
+                    modsScreen.SetTimeRampInitialRate(0.85);
+                    modsScreen.SetTimeRampFinalRate(1.5);
+                    break;
+
+                case "config-random":
+                    modsScreen.ResetMods();
+                    modsScreen.SetCategory(ManiaModCategory.Conversion);
+                    modsScreen.CycleOrbitMod(ManiaModId.Random);
+                    modsScreen.SetRandomSeed(20260801);
+                    break;
+
                 case "no-pause":
                     modsScreen.ToggleMod(ManiaModId.NoPause);
                     modsScreen.SetNoPauseAllowedPauses(1);

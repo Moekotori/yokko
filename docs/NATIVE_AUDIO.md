@@ -63,6 +63,8 @@ The P0 ABI covers:
 - presented-position/QPC correlation and output-latency reporting;
 - ABI v11 exposure of that raw correlation to the managed timestamped gameplay
   clock;
+- ABI v12 routing for callback-mixed music samples, including a music-volume
+  bus and playback rate independent from ordinary hit sounds;
 - buffer, clock, underrun, callback-work and callback-cadence telemetry.
 
 The audio callback entry point exists for native output backends. It is not a

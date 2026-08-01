@@ -39,7 +39,24 @@ internal static class GameplayHitSamplePlayer
 
             GameplayHitSamplePlaybackBinding sample = samples[index];
             bool sampleTriggered;
-            if (sample.HasPreparedHandle
+            if (sample.Bus != AudioSampleBus.HitSound
+                && sample.HasPreparedHandle
+                && samplePlayback is IPreparedAudioBusSamplePlayback preparedBus)
+            {
+                sampleTriggered = preparedBus.TriggerPreparedSample(
+                    sample.PreparedHandle,
+                    sample.Gain,
+                    sample.Bus);
+            }
+            else if (sample.Bus != AudioSampleBus.HitSound
+                     && samplePlayback is IAudioBusSamplePlayback busPlayback)
+            {
+                sampleTriggered = busPlayback.TriggerSample(
+                    sample.Path,
+                    sample.Gain,
+                    sample.Bus);
+            }
+            else if (sample.HasPreparedHandle
                 && captureTimestamp > 0
                 && timestampFrequency > 0
                 && samplePlayback is

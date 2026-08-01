@@ -3,6 +3,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osuTK;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -42,14 +43,14 @@ internal partial class SongSelectMutedSettings : CompositeDrawable
         [
             new SpriteText
             {
-                Text = "MUTED",
+                Text = YokkoStrings.Get("mods.definition.muted.name"),
                 Font = HomeTypography.Display(12),
                 Colour = GameplayModSettingsTheme.Text,
             },
             new SpriteText
             {
                 Y = 25,
-                Text = "FADE LENGTH",
+                Text = YokkoStrings.Get("mods.settings.fade_length"),
                 Font = HomeTypography.Body(10),
                 Colour = GameplayModSettingsTheme.Muted,
             },
@@ -76,21 +77,21 @@ internal partial class SongSelectMutedSettings : CompositeDrawable
                 Position = new Vector2(105, 48),
             },
             inverseButton = new GameplayModSettingsStateButton(
-                "START MUTED",
+                YokkoStrings.Get("mods.settings.start_muted"),
                 () => inverseChanged(!Inverse),
                 GameplayModSettingsControlStyle.Muted)
             {
                 Position = new Vector2(0, 91),
             },
             metronomeButton = new GameplayModSettingsStateButton(
-                "METRONOME",
+                YokkoStrings.Get("mods.settings.keep_metronome"),
                 () => metronomeChanged(!Metronome),
                 GameplayModSettingsControlStyle.Muted)
             {
                 Position = new Vector2(0, 126),
             },
             hitSoundsButton = new GameplayModSettingsStateButton(
-                "MUTE KEYSOUNDS",
+                YokkoStrings.Get("mods.settings.mute_keysounds"),
                 () => hitSoundsChanged(!AffectsHitSounds),
                 GameplayModSettingsControlStyle.Muted)
             {
@@ -99,7 +100,7 @@ internal partial class SongSelectMutedSettings : CompositeDrawable
             new SpriteText
             {
                 Y = 204,
-                Text = "500 MS SMOOTH AUDIO FADE",
+                Text = YokkoStrings.Get("mods.settings.smooth_fade"),
                 Font = HomeTypography.Body(9),
                 Colour = GameplayModSettingsTheme.Accent,
             },
@@ -118,7 +119,9 @@ internal partial class SongSelectMutedSettings : CompositeDrawable
         Metronome = metronome;
         ComboCount = comboCount;
         AffectsHitSounds = affectsHitSounds;
-        comboValue.Text = $"{comboCount} COMBO";
+        comboValue.Text = YokkoStrings.Get(
+            "mods.settings.combo_count",
+            comboCount);
         decreaseButton.SetEnabled(isEnabled);
         increaseButton.SetEnabled(isEnabled);
         inverseButton.SetState(isEnabled, inverse);

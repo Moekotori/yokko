@@ -263,6 +263,20 @@ namespace yokko::audio
         return YOKKO_AUDIO_OK;
     }
 
+    yokko_audio_result AudioEngine::set_music_sample_playback_rate(
+        const float playback_rate) noexcept
+    {
+        if (!std::isfinite(playback_rate)
+            || playback_rate < 0.25f
+            || playback_rate > 4.0f)
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+
+        music_sample_playback_rate_.store(
+            playback_rate,
+            std::memory_order_release);
+        return YOKKO_AUDIO_OK;
+    }
+
     yokko_audio_result AudioEngine::trigger_sample(
         const uint32_t sample_id,
         const float gain) noexcept
@@ -280,6 +294,27 @@ namespace yokko::audio
                 0,
                 0,
                 0,
+            });
+    }
+
+    yokko_audio_result AudioEngine::trigger_music_sample(
+        const uint32_t sample_id,
+        const float gain) noexcept
+    {
+        if (sample_id == 0 || sample_id > sample_bank_.size())
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+        if (!std::isfinite(gain) || gain < 0.0f || gain > 1.0f)
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+        return enqueue_sample_trigger(
+            {
+                SampleTriggerAction::play,
+                sample_id,
+                gain,
+                0,
+                0,
+                0,
+                0,
+                true,
             });
     }
 
@@ -549,6 +584,7 @@ namespace yokko::audio
             voice.looping =
                 trigger.action == SampleTriggerAction::start_loop;
             voice.loop_id = trigger.loop_id;
+            voice.music = trigger.music;
             next_sample_voice_++;
 
             if (trigger.trace_id != 0)
@@ -671,11 +707,17 @@ namespace yokko::audio
                 sample_bank_[voice.sample_id - 1];
             const float volume = sample.metronome
                 ? metronome_volume_.load(std::memory_order_acquire)
-                : hit_sound_volume_.load(std::memory_order_acquire)
+                : (voice.music
+                       ? music_volume_.load(std::memory_order_acquire)
+                       : hit_sound_volume_.load(std::memory_order_acquire))
                   * voice.gain;
             const double playback_rate = sample.metronome
                 ? 1.0
-                : sample_playback_rate_.load(std::memory_order_acquire);
+                : (voice.music
+                       ? music_sample_playback_rate_.load(
+                           std::memory_order_acquire)
+                       : sample_playback_rate_.load(
+                           std::memory_order_acquire));
 
             for (uint32_t output_frame = 0;
                  output_frame < frame_count;
@@ -1181,6 +1223,17 @@ extern "C"
                        playback_rate);
     }
 
+    yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_set_music_sample_playback_rate(
+            yokko_audio_engine* engine,
+            const float playback_rate)
+    {
+        return engine == nullptr
+                   ? YOKKO_AUDIO_INVALID_ARGUMENT
+                   : engine->implementation.set_music_sample_playback_rate(
+                       playback_rate);
+    }
+
     yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_trigger_sample(
         yokko_audio_engine* engine,
         const uint32_t sample_id)
@@ -1198,6 +1251,19 @@ extern "C"
         return engine == nullptr
                    ? YOKKO_AUDIO_INVALID_ARGUMENT
                    : engine->implementation.trigger_sample(sample_id, gain);
+    }
+
+    yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_trigger_music_sample_with_gain(
+            yokko_audio_engine* engine,
+            const uint32_t sample_id,
+            const float gain)
+    {
+        return engine == nullptr
+                   ? YOKKO_AUDIO_INVALID_ARGUMENT
+                   : engine->implementation.trigger_music_sample(
+                       sample_id,
+                       gain);
     }
 
     yokko_audio_result YOKKO_AUDIO_CALL yokko_audio_trigger_sample_traced(

@@ -1,5 +1,11 @@
 namespace Yokko.Audio;
 
+public enum AudioSampleBus
+{
+    HitSound = 0,
+    Music = 1,
+}
+
 /// <summary>
 /// Optional low-latency one-shot sample capability exposed by an audio engine.
 /// Samples are prepared off the gameplay input path and triggered without
@@ -21,6 +27,19 @@ public interface IAudioSamplePlayback
 public interface IAudioSamplePlaybackWithGain : IAudioSamplePlayback
 {
     bool TriggerSample(string samplePath, double gain);
+}
+
+/// <summary>
+/// Optional per-trigger routing for prepared chart samples. Existing sample
+/// playback remains on the hit-sound bus unless a caller explicitly selects
+/// another bus.
+/// </summary>
+public interface IAudioBusSamplePlayback : IAudioSamplePlaybackWithGain
+{
+    bool TriggerSample(
+        string samplePath,
+        double gain,
+        AudioSampleBus bus);
 }
 
 /// <summary>
@@ -51,4 +70,14 @@ public interface IPreparedAudioSamplePlayback : IAudioLoopingSamplePlayback
     uint StartLoopingPreparedSample(
         PreparedAudioSampleHandle handle,
         double gain);
+}
+
+public interface IPreparedAudioBusSamplePlayback :
+    IPreparedAudioSamplePlayback,
+    IAudioBusSamplePlayback
+{
+    bool TriggerPreparedSample(
+        PreparedAudioSampleHandle handle,
+        double gain,
+        AudioSampleBus bus);
 }

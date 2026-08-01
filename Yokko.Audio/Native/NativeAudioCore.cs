@@ -126,6 +126,13 @@ internal sealed class NativeAudioCore : IDisposable
                 playbackRate),
             "set sample playback rate");
 
+    internal void SetMusicSamplePlaybackRate(float playbackRate)
+        => throwForResult(
+            NativeAudioInterop.SetMusicSamplePlaybackRate(
+                getHandle(),
+                playbackRate),
+            "set music sample playback rate");
+
     internal bool TriggerSample(uint sampleId, float gain = 1)
     {
         NativeAudioResult result =
@@ -138,6 +145,21 @@ internal sealed class NativeAudioCore : IDisposable
             return false;
 
         throwForResult(result, "trigger sample");
+        return true;
+    }
+
+    internal bool TriggerMusicSample(uint sampleId, float gain = 1)
+    {
+        NativeAudioResult result =
+            NativeAudioInterop.TriggerMusicSampleWithGain(
+                getHandle(),
+                sampleId,
+                gain);
+        if (result is NativeAudioResult.NotReady
+            or NativeAudioResult.QueueFull)
+            return false;
+
+        throwForResult(result, "trigger music sample");
         return true;
     }
 

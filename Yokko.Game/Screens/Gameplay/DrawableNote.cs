@@ -47,6 +47,7 @@ public partial class DrawableNote : CompositeDrawable
     private readonly bool legacyLongNoteRendering;
     private double longNoteCutAmount;
     private bool reverseHoldTailForScrollVelocity;
+    private Color4 fallbackColour;
     private float appliedLongNoteCutDistance;
     private float holdBodyY;
     private float holdBodyHeight;
@@ -119,15 +120,16 @@ public partial class DrawableNote : CompositeDrawable
         {
             Height = baseMinimumHeight = 24;
             Masking = true;
+            fallbackColour = isScratchNote
+                ? YokkoPalette.Violet
+                : YokkoPalette.Cyan;
 
             InternalChildren = new Drawable[]
             {
                 fallbackBody = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = isScratchNote
-                        ? YokkoPalette.Violet
-                        : YokkoPalette.Cyan,
+                    Colour = fallbackColour,
                 },
                 new Box
                 {
@@ -184,12 +186,13 @@ public partial class DrawableNote : CompositeDrawable
 
             Height = baseMinimumHeight = 24;
             Masking = true;
+            fallbackColour = isScratchNote
+                ? YokkoPalette.Violet
+                : YokkoPalette.Cyan;
             InternalChild = fallbackBody = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = isScratchNote
-                    ? YokkoPalette.Violet
-                    : YokkoPalette.Cyan,
+                Colour = fallbackColour,
             };
             return;
         }
@@ -262,10 +265,11 @@ public partial class DrawableNote : CompositeDrawable
         }
         else
         {
+            fallbackColour = YokkoPalette.Cyan;
             children.Add(fallbackBody = new Box
             {
                 Width = laneWidth,
-                Colour = YokkoPalette.Cyan,
+                Colour = fallbackColour,
             });
         }
 
@@ -367,6 +371,23 @@ public partial class DrawableNote : CompositeDrawable
         {
             resolved = true;
             Alpha = 0;
+        }
+    }
+
+    internal void ResetForReplaySeek()
+    {
+        ClearTransforms(true);
+        resolved = false;
+        Alpha = 0;
+
+        if (fallbackBody != null)
+            fallbackBody.Colour = fallbackColour;
+
+        if (holdBody != null)
+        {
+            bodyAnimationActive = false;
+            holdBody.IsPlaying = false;
+            holdBody.GotoFrame(0);
         }
     }
 

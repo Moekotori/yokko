@@ -90,4 +90,30 @@ public sealed class YokkoBeatmapFingerprintTest
             YokkoBeatmapFingerprint.Compute(scratch),
             Is.Not.EqualTo(YokkoBeatmapFingerprint.Compute(ordinary)));
     }
+
+    [Test]
+    public void ScheduledSampleBusParticipatesInReplayFingerprint()
+    {
+        YokkoBeatmap hitSound = DemoBeatmaps.CreateFourKeyDemo() with
+        {
+            ScheduledSamples =
+            [
+                new YokkoScheduledSample(500, "sample.wav"),
+            ],
+        };
+        YokkoBeatmap music = hitSound with
+        {
+            ScheduledSamples =
+            [
+                new YokkoScheduledSample(
+                    500,
+                    "sample.wav",
+                    UseMusicBus: true),
+            ],
+        };
+
+        Assert.That(
+            YokkoBeatmapFingerprint.Compute(music),
+            Is.Not.EqualTo(YokkoBeatmapFingerprint.Compute(hitSound)));
+    }
 }

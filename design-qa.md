@@ -85,6 +85,65 @@
 
 final result: passed
 
+---
+
+# Song Select footer micro-interaction and demo-profile QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\attachments\fb5d4ff6-bad6-4a74-86ac-6866ff95b2f7\image-1.png` (2048 x 132).
+- Native implementation screenshot: `D:\YOKKO\artifacts\ui\song-select-footer-normal-final.png` (1920 x 1080).
+- Focused implementation crop: `D:\YOKKO\artifacts\ui\song-select-footer-normal-final-crop.png` (1920 x 130).
+- Same-input comparison board: `D:\YOKKO\artifacts\ui\song-select-footer-comparison-final.png` (1920 x 264; reference above, implementation below).
+- Viewport and state: native Direct3D 11, shared 1920 x 1080 stage, Comfortable UI scale, English UI, selected 7K chart, resting pointer outside the footer controls.
+- Density normalization: the 2048 x 132 source was proportionally resized to 1920 x 124. The native 1920 x 130 footer crop remained at 1x density; the six-pixel height difference is retained rather than stretched.
+
+## Full-view and focused comparison
+
+- The full native view confirms that Back, the 520 x 82 profile card, the responsive three-button tool dock, and Play remain collision-free at the bottom of the 1920 x 1080 stage.
+- A focused comparison was required because the source is only a 132-pixel footer strip. The combined board was opened at original detail and shows the same left identity cluster, central breathing room, right utility cluster, and yellow primary action.
+- Intentional deviations from the source are the requested `YOKKO DEMO`, cleared values, `LV.114514`, removal of PP, the reusable real star/sparkle assets, and more explicit icon tiles. These do not change the existing action hierarchy.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing Roboto/Yokko display typography and Font Awesome icons are retained. `YOKKO DEMO`, `0`, `0.00%`, `#0`, and `LV.114514` remain legible without truncation or collision.
+- Spacing and layout rhythm: the 24-pixel outer margins, 82-pixel control height, 520-pixel profile card, 462-pixel utility dock, and Play spacing remain aligned with the existing responsive geometry contract.
+- Colors and visual tokens: ivory, navy, cyan, pale cyan, yellow, and pink all continue to use Song Select/Home theme colors. Hover fills and accent rails preserve contrast without introducing a new palette.
+- Image quality and asset fidelity: avatar, diamond, star, cyan sparkle, and tape are existing `Yokko.Resources` textures with preserved aspect ratios and clean transparency. No emoji, screenshot slice, handcrafted SVG, or approximate code illustration replaced a visible asset.
+- Copy and content: the displayed profile name is `YOKKO DEMO`; values are `0`, `0.00%`, and `#0`; metric labels are `PLAYS`, `ACC`, and `GLOBAL`; PP is absent; level is `LV.114514`.
+
+## Interaction verification
+
+- Profile card: a native mouse click produced the avatar bounce and temporary `HELLO!` status, then returned to `READY`.
+- Random: a native click changed the selected chart and rebuilt the visible score/list state.
+- Mods: a native click completed the transition into Gameplay Mods; Escape returned to the same Song Select instance.
+- Options: a native click completed the transition into Settings.
+- Play: a native click completed the transition into the selected chart's gameplay screen.
+- Back, tool, Mods, profile, and Play controls all expose hover and pressed-scale feedback; Play also keeps its periodic clipped shine sweep.
+
+## Comparison history
+
+1. Baseline: the functional footer matched the source hierarchy but had flatter tool icons, no press feedback, no profile interaction, the old MOCHI/PP values, and fewer decorative details.
+2. Implementation: added icon tiles, hover rotation/rail expansion, press/release easing, Play shine, the clickable demo profile, and real star/sparkle decorations; replaced the profile copy and removed PP.
+3. First capture: the pointer happened to hover a utility control, so it was retained only as interaction evidence and not used for normal-state comparison.
+4. Final capture: the pointer was moved to a neutral content area before the native 1920 x 1080 renderer capture. The final same-state board shows no actionable P0/P1/P2 mismatch.
+
+## Verification
+
+- Focused `TestSongSelectInteractions` and `TestFooterOptionsOpensSettings`: 2 passed, 0 failed, 0 skipped from the isolated footer build.
+- The same isolated build produced the native 1920 x 1080 Direct3D 11 normal-state screenshot and completed the interactive Windows checks above.
+- `git diff --check` passed.
+- A later fresh rebuild was blocked by unrelated concurrent work in `ExternalReplayScoreConverter.cs` missing `System`/`System.IO` imports; the footer build, focused tests, and native capture had already passed and that file was not modified here.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- P3: the account card is intentionally wider than the normalized reference card to keep the requested six-digit level and three zeroed metrics readable at Yokko's existing Comfortable density.
+
+final result: passed
+
 # Song Select footer hierarchy QA (2026-08-01)
 
 ## Evidence

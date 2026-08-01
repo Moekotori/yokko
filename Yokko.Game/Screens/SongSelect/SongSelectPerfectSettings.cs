@@ -5,6 +5,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -12,7 +13,7 @@ namespace Yokko.Game.Screens.SongSelect;
 internal partial class SongSelectPerfectSettings
     : CompositeDrawable
 {
-    private readonly StrictModeButton strictModeButton;
+    private readonly GameplayModSettingsStateButton strictModeButton;
     private readonly SpriteText statusText;
 
     internal bool RequirePerfectHits { get; private set; }
@@ -26,7 +27,7 @@ internal partial class SongSelectPerfectSettings
         {
             new SpriteText
             {
-                Text = "PERFECT",
+                Text = YokkoStrings.Get("mods.definition.perfect.name"),
                 Font = HomeTypography.Display(12),
                 Spacing = new Vector2(0.35f, 0),
                 Colour = GameplayModSettingsTheme.Text,
@@ -34,14 +35,15 @@ internal partial class SongSelectPerfectSettings
             new SpriteText
             {
                 Y = 28,
-                Text = "DEFAULT LAZER MANIA",
+                Text = YokkoStrings.Get(
+                    "mods.settings.default_perfect_rule"),
                 Font = HomeTypography.Body(10),
                 Colour = GameplayModSettingsTheme.Muted,
             },
             new SpriteText
             {
                 Y = 48,
-                Text = "Great or better keeps the run alive.",
+                Text = YokkoStrings.Get("mods.settings.great_keeps_run"),
                 Font = HomeTypography.Body(10),
                 Colour = GameplayModSettingsTheme.Text,
             },
@@ -58,12 +60,12 @@ internal partial class SongSelectPerfectSettings
             new SpriteText
             {
                 Y = 94,
-                Text = "OPTION",
+                Text = YokkoStrings.Get("mods.settings.extra_rule"),
                 Font = HomeTypography.Body(10),
                 Colour = GameplayModSettingsTheme.Muted,
             },
-            strictModeButton = new StrictModeButton(
-                "REQUIRE PERFECT HITS",
+            strictModeButton = new GameplayModSettingsStateButton(
+                YokkoStrings.Get("mods.settings.require_perfect"),
                 () => requirePerfectHitsChanged(
                     !RequirePerfectHits))
             {
@@ -89,68 +91,13 @@ internal partial class SongSelectPerfectSettings
             isEnabled,
             requirePerfectHits);
         statusText.Text = !isEnabled
-            ? "SELECT PF TO CONFIGURE"
-            : requirePerfectHits
-                ? "ONLY PERFECT HITS PASS"
-                : "GREAT OR BETTER PASSES";
+            ? YokkoStrings.Get("mods.settings.select_first", "PF")
+            : YokkoStrings.Get(
+                requirePerfectHits
+                    ? "mods.settings.only_perfect"
+                    : "mods.settings.great_or_better");
         this.ClearTransforms();
         this.FadeTo(isEnabled ? 1 : 0.42f, 120, Easing.OutQuint);
     }
 
-    private partial class StrictModeButton
-        : ClickableContainer
-    {
-        private readonly Box background;
-        private readonly SpriteText label;
-        private bool enabled;
-
-        public StrictModeButton(
-            string text,
-            Action action)
-        {
-            Action = () =>
-            {
-                if (enabled)
-                    action();
-            };
-            Size = new Vector2(202, 42);
-            Masking = true;
-            CornerRadius = 5;
-            BorderThickness = 1.5f;
-            InternalChildren = new Drawable[]
-            {
-                background = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                },
-                label = new SpriteText
-                {
-                    Anchor = Anchor.Centre,
-                    Origin = Anchor.Centre,
-                    Text = text,
-                    Font = HomeTypography.Display(10),
-                },
-            };
-        }
-
-        public void SetState(
-            bool isEnabled,
-            bool selected)
-        {
-            enabled = isEnabled;
-            BorderColour = selected
-                ? GameplayModSettingsTheme.Selection
-                : GameplayModSettingsTheme.Accent;
-            background.Colour = selected
-                ? GameplayModSettingsTheme.Selection
-                : new Color4(
-                    GameplayModSettingsTheme.Control.R,
-                    GameplayModSettingsTheme.Control.G,
-                    GameplayModSettingsTheme.Control.B,
-                    0.72f);
-            label.Colour = selected
-                ? GameplayModSettingsTheme.AccentOn
-                : GameplayModSettingsTheme.Text;
-        }
-    }
 }

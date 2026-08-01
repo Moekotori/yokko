@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -429,6 +430,67 @@ public class GameplayScoreStoreTest
         {
             Assert.That(saved.ComboBreaks, Is.EqualTo(3));
             Assert.That(saved.MaxMissCombo, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public void ExternalReplayAppearsInRankingWithItsPlayerButNotPersonalHistory()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var first = new GameplayScoreStore();
+        first.Initialise(new NativeStorage(testRoot));
+        Assert.That(first.SaveBest(beatmap, result(700_000, 0.90)), Is.True);
+
+        Assert.That(
+            first.ImportExternalScore(
+                beatmap,
+                ManiaModSet.Empty,
+                JudgementConfiguration.YokkoDefault,
+                result(900_000, 0.98),
+                "OtherPlayer",
+                "OtherPlayer",
+                "osu",
+                "osu:replay-one",
+                Path.Combine(testRoot, "Replays", "external.ykr"),
+                new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero)),
+            Is.True);
+        Assert.That(
+            first.ImportExternalScore(
+                beatmap,
+                ManiaModSet.Empty,
+                JudgementConfiguration.YokkoDefault,
+                result(900_000, 0.98),
+                "OtherPlayer",
+                "OtherPlayer",
+                "osu",
+                "osu:replay-one",
+                null),
+            Is.False);
+
+        var restored = new GameplayScoreStore();
+        restored.Initialise(new NativeStorage(testRoot));
+        IReadOnlyList<StoredGameplayScore> ranking = restored.GetRanking(
+            beatmap,
+            JudgementConfiguration.YokkoDefault);
+        IReadOnlyList<StoredGameplayScore> personal = restored.GetHistory(
+            beatmap,
+            JudgementConfiguration.YokkoDefault);
+        IReadOnlyList<StoredGameplayScore> etternaRanking = restored.GetRanking(
+            beatmap,
+            JudgementConfiguration.EtternaDefault);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ranking, Has.Count.EqualTo(2));
+            Assert.That(ranking[0].PlayerName, Is.EqualTo("OtherPlayer"));
+            Assert.That(ranking[0].PlayerId, Is.EqualTo("OtherPlayer"));
+            Assert.That(ranking[0].Source, Is.EqualTo("osu"));
+            Assert.That(ranking[0].IsCurrentPlayer, Is.False);
+            Assert.That(personal, Has.Count.EqualTo(1));
+            Assert.That(personal[0].Score, Is.EqualTo(700_000));
+            Assert.That(etternaRanking, Has.Count.EqualTo(1));
+            Assert.That(etternaRanking[0].PlayerName, Is.EqualTo("OtherPlayer"));
+            Assert.That(restored.GetBest(beatmap).Score, Is.EqualTo(700_000));
         });
     }
 

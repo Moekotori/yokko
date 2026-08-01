@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
@@ -187,10 +188,16 @@ public sealed class MalodyChartImporter : IChartImporter
                 request.Path,
                 getString(meta, "background", null));
 
+            using FileStream sourceStream = File.OpenRead(request.Path);
+            string sourceHash = Convert.ToHexString(
+                    MD5.HashData(sourceStream))
+                .ToLowerInvariant();
+
             return new ChartImportResult(
                 beatmap,
                 warnings.Distinct().ToArray(),
-                artworkPath);
+                artworkPath,
+                sourceHash);
         }
         catch (JsonException ex)
         {

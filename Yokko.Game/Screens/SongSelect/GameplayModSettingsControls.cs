@@ -4,10 +4,12 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Game.Screens.Main;
+using Yokko.Game.Localisation;
 
 namespace Yokko.Game.Screens.SongSelect;
 
@@ -23,29 +25,30 @@ internal enum GameplayModSettingsControlStyle
 /// </summary>
 internal partial class GameplayModSettingsStepButton : ClickableContainer
 {
+    private readonly Box background;
+
     public override bool AcceptsFocus => Enabled.Value;
 
     internal GameplayModSettingsStepButton(
-        string text,
+        LocalisableString text,
         Action action,
         GameplayModSettingsControlStyle style =
             GameplayModSettingsControlStyle.Rate)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(text);
         ArgumentNullException.ThrowIfNull(action);
 
         bool muted = style == GameplayModSettingsControlStyle.Muted;
         Action = action;
         Size = muted
-            ? new Vector2(97, 30)
-            : new Vector2(46, 29);
+            ? new Vector2(103, 34)
+            : new Vector2(52, 34);
         Masking = true;
-        CornerRadius = muted ? 5 : 4;
-        BorderThickness = 1;
+        CornerRadius = 5;
+        BorderThickness = 1.25f;
         BorderColour = GameplayModSettingsTheme.Accent;
         InternalChildren =
         [
-            new Box
+            background = new Box
             {
                 RelativeSizeAxes = Axes.Both,
                 Colour = withAlpha(
@@ -75,6 +78,26 @@ internal partial class GameplayModSettingsStepButton : ClickableContainer
         return base.OnClick(e);
     }
 
+    protected override bool OnHover(HoverEvent e)
+    {
+        if (Enabled.Value)
+        {
+            background.FadeColour(Color4.White, 90, Easing.OutQuint);
+            this.ScaleTo(1.045f, 100, Easing.OutQuint);
+        }
+        return base.OnHover(e);
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        background.FadeColour(
+            withAlpha(GameplayModSettingsTheme.Control, 0.8f),
+            100,
+            Easing.OutQuint);
+        this.ScaleTo(1, 110, Easing.OutQuint);
+        base.OnHoverLost(e);
+    }
+
     protected override bool OnKeyDown(KeyDownEvent e)
     {
         if (Enabled.Value && (e.Key is Key.Enter or Key.Space))
@@ -100,25 +123,25 @@ internal partial class GameplayModSettingsStateButton : ClickableContainer
     private readonly Box background;
     private readonly SpriteText stateText;
     private readonly GameplayModSettingsControlStyle style;
+    private bool selected;
 
     public override bool AcceptsFocus => Enabled.Value;
 
     internal bool InteractionEnabled => Enabled.Value;
 
     internal GameplayModSettingsStateButton(
-        string text,
+        LocalisableString text,
         Action action,
         GameplayModSettingsControlStyle style =
             GameplayModSettingsControlStyle.Rate)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(text);
         ArgumentNullException.ThrowIfNull(action);
 
         this.style = style;
         Action = action;
         Size = new Vector2(
             202,
-            style == GameplayModSettingsControlStyle.Muted ? 27 : 29);
+            style == GameplayModSettingsControlStyle.Muted ? 33 : 35);
         Masking = true;
         CornerRadius = 4;
         InternalChildren =
@@ -148,6 +171,7 @@ internal partial class GameplayModSettingsStateButton : ClickableContainer
 
     internal void SetState(bool enabled, bool selected)
     {
+        this.selected = selected;
         Enabled.Value = enabled;
         Color4 colour = selected
             ? GameplayModSettingsTheme.Selection
@@ -155,7 +179,8 @@ internal partial class GameplayModSettingsStateButton : ClickableContainer
         background.Colour = style == GameplayModSettingsControlStyle.Muted
             ? withAlpha(colour, selected ? 0.72f : 0.8f)
             : colour;
-        stateText.Text = selected ? "ON" : "OFF";
+        stateText.Text = YokkoStrings.Get(
+            selected ? "mods.settings.on" : "mods.settings.off");
         stateText.Colour = selected
             ? GameplayModSettingsTheme.AccentOn
             : GameplayModSettingsTheme.Muted;
@@ -163,6 +188,33 @@ internal partial class GameplayModSettingsStateButton : ClickableContainer
     }
 
     internal void ActivateForTest() => TriggerClick();
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        if (Enabled.Value)
+        {
+            background.FadeColour(
+                selected
+                    ? GameplayModSettingsTheme.Selection
+                    : Color4.White,
+                90,
+                Easing.OutQuint);
+            this.ScaleTo(1.025f, 100, Easing.OutQuint);
+        }
+        return base.OnHover(e);
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        background.FadeColour(
+            selected
+                ? GameplayModSettingsTheme.Selection
+                : GameplayModSettingsTheme.Control,
+            100,
+            Easing.OutQuint);
+        this.ScaleTo(1, 110, Easing.OutQuint);
+        base.OnHoverLost(e);
+    }
 
     protected override bool OnClick(ClickEvent e)
     {

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -11,6 +12,7 @@ using Yokko.Core.Difficulty;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Game.Presentation;
+using Yokko.Game.Skinning.OsuMania;
 
 namespace Yokko.Game.Screens.Gameplay;
 
@@ -19,10 +21,9 @@ public partial class GameplayHud : CompositeDrawable
     private readonly YokkoBeatmap beatmap;
     private readonly ManiaModSet mods;
     private readonly JudgementConfiguration judgementConfiguration;
-    private readonly SpriteText timeText;
     private readonly SpriteText modsText;
     private readonly SpriteText comboText;
-    private readonly SpriteText accuracyText;
+    private readonly SpriteText rankText;
     private readonly SpriteText challengeText;
     private readonly SpriteText mutedText;
     private readonly SpriteText rateText;
@@ -31,6 +32,7 @@ public partial class GameplayHud : CompositeDrawable
     private readonly Box healthFill;
     private readonly SpriteText healthText;
     private readonly Container healthContainer;
+    private readonly GameplayAccuracyProgressDisplay performanceDisplay;
     private AudioReadoutState displayedAudioState;
     private bool hasDisplayedAudioState;
 
@@ -46,6 +48,14 @@ public partial class GameplayHud : CompositeDrawable
         rateText?.Text.ToString() ?? string.Empty;
     internal string DisplayedMods =>
         modsText?.Text.ToString() ?? string.Empty;
+    internal double DisplayedAccuracy =>
+        performanceDisplay.DisplayedAccuracy;
+    internal double DisplayedProgress =>
+        performanceDisplay.DisplayedProgress;
+    internal string DisplayedProgressTime =>
+        performanceDisplay.DisplayedProgressTime;
+    internal bool UsesSkinAccuracyFont =>
+        performanceDisplay.UsesSkinAccuracyFont;
     internal bool UsesLegacySkinHealthBar { get; }
 
     public GameplayHud(
@@ -53,6 +63,29 @@ public partial class GameplayHud : CompositeDrawable
         ManiaModSet mods = null,
         JudgementConfiguration? judgementConfiguration = null,
         bool useLegacySkinHealthBar = false)
+        : this(
+            beatmap,
+            mods,
+            judgementConfiguration,
+            useLegacySkinHealthBar,
+            null,
+            0,
+            beatmap?.HitObjects.Count > 0
+                ? beatmap.HitObjects.Max(static hitObject =>
+                    hitObject.EndTimeMilliseconds
+                    ?? hitObject.StartTimeMilliseconds)
+                : 0)
+    {
+    }
+
+    internal GameplayHud(
+        YokkoBeatmap beatmap,
+        ManiaModSet mods,
+        JudgementConfiguration? judgementConfiguration,
+        bool useLegacySkinHealthBar,
+        OsuManiaSkin skin,
+        double progressStartTimeMilliseconds,
+        double progressEndTimeMilliseconds)
     {
         this.beatmap = beatmap;
         this.mods = mods ?? ManiaModSet.Empty;
@@ -60,85 +93,103 @@ public partial class GameplayHud : CompositeDrawable
             judgementConfiguration ?? JudgementConfiguration.YokkoDefault;
         UsesLegacySkinHealthBar = useLegacySkinHealthBar;
         Width = 340;
-        Height = 330;
-        Masking = true;
+        Height = 434;
 
         InternalChildren = new Drawable[]
         {
-            new Box
+            performanceDisplay = new GameplayAccuracyProgressDisplay(
+                skin,
+                progressStartTimeMilliseconds,
+                progressEndTimeMilliseconds)
             {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(0.035f, 0.045f, 0.065f, 0.92f),
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
             },
-            new FillFlowContainer
+            new Container
             {
-                RelativeSizeAxes = Axes.Both,
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 10),
-                Padding = new MarginPadding(18),
+                Y = 124,
+                Size = new Vector2(340, 310),
                 Children = new Drawable[]
                 {
-                    new SpriteText
+                    new Box
                     {
-                        Text =
-                            $"{beatmap.Title} [{beatmap.DifficultyName}]",
-                        Font = FontUsage.Default.With(size: 20),
-                        Colour = YokkoPalette.Text,
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(
+                            0.035f,
+                            0.045f,
+                            0.065f,
+                            0.92f),
                     },
-                    modsText = new SpriteText
+                    new FillFlowContainer
                     {
-                        Text = formatRulesLabel(
-                            this.mods,
-                            this.judgementConfiguration),
-                        Font = FontUsage.Default.With(
-                            size: 13,
-                            weight: "SemiBold"),
-                        Colour = YokkoPalette.Rose,
-                    },
-                    timeText = createLine(),
-                    comboText = createLine(),
-                    accuracyText = createLine(),
-                    challengeText = createLine(14),
-                    mutedText = createLine(14),
-                    rateText = createLine(14),
-                    countsText = createLine(16),
-                    healthContainer = new Container
-                    {
-                        Size = useLegacySkinHealthBar
-                            ? Vector2.Zero
-                            : new Vector2(304, 25),
-                        Masking = true,
-                        CornerRadius = 5,
+                        RelativeSizeAxes = Axes.Both,
+                        Direction = FillDirection.Vertical,
+                        Spacing = new Vector2(0, 10),
+                        Padding = new MarginPadding(18),
                         Children = new Drawable[]
                         {
-                            new Box
+                            new SpriteText
                             {
-                                RelativeSizeAxes = Axes.Both,
-                                Colour = new Color4(
-                                    0.08f,
-                                    0.1f,
-                                    0.15f,
-                                    1f),
+                                Text =
+                                    $"{beatmap.Title} [{beatmap.DifficultyName}]",
+                                Font = FontUsage.Default.With(size: 20),
+                                Colour = YokkoPalette.Text,
                             },
-                            healthFill = new Box
+                            modsText = new SpriteText
                             {
-                                RelativeSizeAxes = Axes.Y,
-                                Width = 304,
-                                Colour = YokkoPalette.Cyan,
-                            },
-                            healthText = new SpriteText
-                            {
-                                Anchor = Anchor.Centre,
-                                Origin = Anchor.Centre,
-                                Text = "HP 100%",
+                                Text = formatRulesLabel(
+                                    this.mods,
+                                    this.judgementConfiguration),
                                 Font = FontUsage.Default.With(
                                     size: 13,
                                     weight: "SemiBold"),
-                                Colour = Color4.White,
+                                Colour = YokkoPalette.Rose,
                             },
+                            comboText = createLine(),
+                            rankText = createLine(16),
+                            challengeText = createLine(14),
+                            mutedText = createLine(14),
+                            rateText = createLine(14),
+                            countsText = createLine(16),
+                            healthContainer = new Container
+                            {
+                                Size = useLegacySkinHealthBar
+                                    ? Vector2.Zero
+                                    : new Vector2(304, 25),
+                                Masking = true,
+                                CornerRadius = 5,
+                                Children = new Drawable[]
+                                {
+                                    new Box
+                                    {
+                                        RelativeSizeAxes = Axes.Both,
+                                        Colour = new Color4(
+                                            0.08f,
+                                            0.1f,
+                                            0.15f,
+                                            1f),
+                                    },
+                                    healthFill = new Box
+                                    {
+                                        RelativeSizeAxes = Axes.Y,
+                                        Width = 304,
+                                        Colour = YokkoPalette.Cyan,
+                                    },
+                                    healthText = new SpriteText
+                                    {
+                                        Anchor = Anchor.Centre,
+                                        Origin = Anchor.Centre,
+                                        Text = "HP 100%",
+                                        Font = FontUsage.Default.With(
+                                            size: 13,
+                                            weight: "SemiBold"),
+                                        Colour = Color4.White,
+                                    },
+                                },
+                            },
+                            audioText = createLine(14),
                         },
                     },
-                    audioText = createLine(14),
                 },
             },
         };
@@ -162,7 +213,7 @@ public partial class GameplayHud : CompositeDrawable
         BeatmapJudgementState state,
         ManiaHealthState healthState = null)
     {
-        timeText.Text = $"Time {Math.Max(0, gameplayTimeMilliseconds / 1000):0.00}s";
+        performanceDisplay.UpdateState(gameplayTimeMilliseconds, state);
         bool etterna =
             judgementConfiguration.Mode == JudgementMode.Etterna;
         comboText.Text = etterna
@@ -174,12 +225,9 @@ public partial class GameplayHud : CompositeDrawable
             etterna && state.MissCombo > 0
                 ? YokkoPalette.Rose
                 : YokkoPalette.TextMuted;
-        string rank = etterna
-            ? EtternaScoringRules.GradeLabel(state.Accuracy)
-            : mods.AdjustRank(state.Rank).ToDisplayLabel();
-        accuracyText.Text = etterna
-            ? $"WIFE3 {state.Accuracy * 100:0.00}%  Grade {rank}"
-            : $"Accuracy {state.Accuracy * 100:0.00}%  Rank {rank}";
+        rankText.Text = etterna
+            ? $"Grade {EtternaScoringRules.GradeLabel(state.Accuracy)}"
+            : $"Rank {mods.AdjustRank(state.Rank).ToDisplayLabel()}";
         updateAccuracyChallenge(state);
         countsText.Text =
             judgementConfiguration.Mode == JudgementMode.Etterna

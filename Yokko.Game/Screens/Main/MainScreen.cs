@@ -78,6 +78,7 @@ public partial class MainScreen : Screen
     private HomeExitHoldIndicator exitIndicator;
     private HomeKeyTestPad keyTestPad;
     private HomeSignalSnake signalSnake;
+    private HomeBubblePopGame bubblePopGame;
     private HomeMarqueeTicker ticker;
     private Drawable statusBar;
     private HomePlayerProgressCard playerProgressCard;
@@ -192,6 +193,7 @@ public partial class MainScreen : Screen
                     // Separate from the mascot stage so this background toy
                     // cannot move or modify the character artwork.
                     signalSnake = new HomeSignalSnake(),
+                    bubblePopGame = new HomeBubblePopGame(),
                     waveform = new HomeWaveformVisualiser
                     {
                         Alpha = 0,
@@ -738,6 +740,10 @@ public partial class MainScreen : Screen
             620 + MathF.Max(extra.X, 0) * 0.15f,
             220 + MathF.Max(extra.Y, 0) * 0.12f);
         signalSnake.SetAvailable(stageSize.X >= 1500 && stageSize.Y >= 820);
+        bubblePopGame.Position = new Vector2(
+            610 + MathF.Max(extra.X, 0) * 0.15f,
+            470 + MathF.Max(extra.Y, 0) * 0.14f);
+        bubblePopGame.SetAvailable(stageSize.X >= 1500 && stageSize.Y >= 820);
 
         updatePlayerCardLayout(stageSize.Y < 900);
         updateWaveformObstacles(stageSize, rightStageOffset);

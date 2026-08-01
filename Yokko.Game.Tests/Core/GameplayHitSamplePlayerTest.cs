@@ -96,6 +96,29 @@ namespace Yokko.Game.Tests.Core
             });
         }
 
+        [Test]
+        public void MusicBindingsUseThePreparedMusicBus()
+        {
+            var playback = new PreparedBusTrackingPlayback();
+            var sample = new GameplayHitSamplePlaybackBinding(
+                "background.wav",
+                0.6,
+                new PreparedAudioSampleHandle(new object(), 1, 0),
+                true,
+                AudioSampleBus.Music);
+
+            GameplayHitSamplePlayer.TriggerSamples(playback, [sample]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(playback.BusTriggerCount, Is.EqualTo(1));
+                Assert.That(playback.RegularPreparedTriggerCount, Is.Zero);
+                Assert.That(playback.StringTriggerCount, Is.Zero);
+                Assert.That(playback.LastBus, Is.EqualTo(AudioSampleBus.Music));
+                Assert.That(playback.LastGain, Is.EqualTo(0.6));
+            });
+        }
+
         private class LegacyTrackingPlayback : IAudioLoopingSamplePlayback
         {
             public int StringTriggerCount { get; private set; }
@@ -221,6 +244,60 @@ namespace Yokko.Game.Tests.Core
                 telemetry = default;
                 return false;
             }
+        }
+
+        private sealed class PreparedBusTrackingPlayback :
+            LegacyTrackingPlayback,
+            IPreparedAudioBusSamplePlayback
+        {
+            public int BusTriggerCount { get; private set; }
+
+            public int RegularPreparedTriggerCount { get; private set; }
+
+            public AudioSampleBus LastBus { get; private set; }
+
+            public bool TryGetPreparedSampleHandle(
+                string samplePath,
+                out PreparedAudioSampleHandle handle)
+            {
+                handle = new PreparedAudioSampleHandle(new object(), 1, 0);
+                return true;
+            }
+
+            public bool TriggerPreparedSample(
+                PreparedAudioSampleHandle handle,
+                double gain)
+            {
+                RegularPreparedTriggerCount++;
+                LastGain = gain;
+                return true;
+            }
+
+            public bool TriggerPreparedSample(
+                PreparedAudioSampleHandle handle,
+                double gain,
+                AudioSampleBus bus)
+            {
+                BusTriggerCount++;
+                LastGain = gain;
+                LastBus = bus;
+                return true;
+            }
+
+            public bool TriggerSample(
+                string samplePath,
+                double gain,
+                AudioSampleBus bus)
+            {
+                BusTriggerCount++;
+                LastGain = gain;
+                LastBus = bus;
+                return true;
+            }
+
+            public uint StartLoopingPreparedSample(
+                PreparedAudioSampleHandle handle,
+                double gain) => 1;
         }
     }
 }

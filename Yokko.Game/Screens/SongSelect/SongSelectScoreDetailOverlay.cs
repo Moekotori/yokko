@@ -197,7 +197,9 @@ internal partial class SongSelectScoreDetailOverlay : CompositeDrawable
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
                 Position = new Vector2(-8, 95),
-                Text = $"PERSONAL #{Score.Rank}",
+                Text = Score.IsCurrentPlayer
+                    ? $"PERSONAL #{Score.Rank}"
+                    : $"RANKING #{Score.Rank}",
                 Font = HomeTypography.Display(10),
                 Colour = mutedNavy(0.64f),
             },

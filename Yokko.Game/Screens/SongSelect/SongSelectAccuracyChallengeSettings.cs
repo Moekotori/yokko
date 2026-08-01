@@ -4,9 +4,11 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Mods;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -35,7 +37,8 @@ internal partial class SongSelectAccuracyChallengeSettings
         {
             new SpriteText
             {
-                Text = "ACCURACY CHALLENGE",
+                Text = YokkoStrings.Get(
+                    "mods.definition.accuracy-challenge.name"),
                 Font = HomeTypography.Display(12),
                 Spacing = new Vector2(0.35f, 0),
                 Colour = GameplayModSettingsTheme.Text,
@@ -43,7 +46,7 @@ internal partial class SongSelectAccuracyChallengeSettings
             new SpriteText
             {
                 Y = 24,
-                Text = "MINIMUM ACCURACY",
+                Text = YokkoStrings.Get("mods.settings.minimum_accuracy"),
                 Font = HomeTypography.Body(10),
                 Colour = GameplayModSettingsTheme.Muted,
             },
@@ -88,19 +91,19 @@ internal partial class SongSelectAccuracyChallengeSettings
             new SpriteText
             {
                 Y = 122,
-                Text = "JUDGE AGAINST",
+                Text = YokkoStrings.Get("mods.settings.fail_rule"),
                 Font = HomeTypography.Body(10),
                 Colour = GameplayModSettingsTheme.Muted,
             },
             maximumButton = new ModeButton(
-                "MAX POSSIBLE",
+                YokkoStrings.Get("mods.settings.maximum_possible"),
                 () => modeChanged(
                     ManiaAccuracyMode.MaximumAchievable))
             {
                 Position = new Vector2(0, 145),
             },
             standardButton = new ModeButton(
-                "CURRENT",
+                YokkoStrings.Get("mods.settings.current_accuracy"),
                 () => modeChanged(ManiaAccuracyMode.Standard))
             {
                 Position = new Vector2(105, 145),
@@ -138,9 +141,13 @@ internal partial class SongSelectAccuracyChallengeSettings
             mode == ManiaAccuracyMode.Standard);
         statusText.Text = isEnabled
             ? mode == ManiaAccuracyMode.MaximumAchievable
-                ? $"FAIL BELOW REACHABLE {minimumAccuracy * 100:0.0}%"
-                : $"FAIL BELOW CURRENT {minimumAccuracy * 100:0.0}%"
-            : "SELECT AC TO CONFIGURE";
+                ? YokkoStrings.Get(
+                    "mods.settings.fail_below_reachable",
+                    $"{minimumAccuracy * 100:0.0}%")
+                : YokkoStrings.Get(
+                    "mods.settings.fail_below_current",
+                    $"{minimumAccuracy * 100:0.0}%")
+            : YokkoStrings.Get("mods.settings.select_first", "AC");
         this.ClearTransforms();
         this.FadeTo(isEnabled ? 1 : 0.42f, 120, Easing.OutQuint);
     }
@@ -233,7 +240,7 @@ internal partial class SongSelectAccuracyChallengeSettings
         private readonly SpriteText label;
         private bool enabled;
 
-        public ModeButton(string text, Action action)
+        public ModeButton(LocalisableString text, Action action)
         {
             Action = () =>
             {

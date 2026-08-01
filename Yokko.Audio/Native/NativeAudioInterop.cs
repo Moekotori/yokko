@@ -5,7 +5,7 @@ namespace Yokko.Audio.Native;
 
 internal static partial class NativeAudioInterop
 {
-    internal const uint AbiVersion = 11;
+    internal const uint AbiVersion = 12;
     internal const uint SampleTelemetryAbiVersion = 1;
     internal const string LibraryName = "yokko_audio_native";
 
@@ -79,6 +79,14 @@ internal static partial class NativeAudioInterop
         NativeAudioSafeHandle engine,
         float playbackRate);
 
+    [LibraryImport(
+        LibraryName,
+        EntryPoint = "yokko_audio_set_music_sample_playback_rate")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult SetMusicSamplePlaybackRate(
+        NativeAudioSafeHandle engine,
+        float playbackRate);
+
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_trigger_sample")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     internal static partial NativeAudioResult TriggerSample(
@@ -88,6 +96,15 @@ internal static partial class NativeAudioInterop
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_trigger_sample_with_gain")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     internal static partial NativeAudioResult TriggerSampleWithGain(
+        NativeAudioSafeHandle engine,
+        uint sampleId,
+        float gain);
+
+    [LibraryImport(
+        LibraryName,
+        EntryPoint = "yokko_audio_trigger_music_sample_with_gain")]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial NativeAudioResult TriggerMusicSampleWithGain(
         NativeAudioSafeHandle engine,
         uint sampleId,
         float gain);

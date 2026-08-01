@@ -72,6 +72,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private Container nodeHost;
     private Container activeRows;
     private Container settingsPanel;
+    private Box settingsPanelAccent;
+    private SpriteText settingsPanelAcronym;
     private SpriteText settingsPanelTitle;
     private SpriteText settingsPanelHint;
     private Container hero;
@@ -1100,8 +1102,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                     Size = new Vector2(365, 264),
                 },
             },
-            createSettingsPanel(),
             createRightCapacityRail(),
+            createSettingsPanel(),
             new OrbitMicroBarGraph
             {
                 Position = new Vector2(373, 47),
@@ -1112,16 +1114,16 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
     private Drawable createSettingsPanel()
     {
-        settingsHost.Position = new Vector2(87, 52);
-        settingsHost.Scale = Vector2.One;
+        settingsHost.Position = new Vector2(75, 53);
+        settingsHost.Scale = new Vector2(1.26f);
 
         return settingsPanel = new Container
         {
-            Position = new Vector2(30, 238),
-            Size = new Vector2(377, 328),
+            Position = new Vector2(15, 195),
+            Size = new Vector2(405, 395),
             Masking = true,
-            CornerRadius = 5,
-            BorderThickness = 1.4f,
+            CornerRadius = 7,
+            BorderThickness = 1.6f,
             BorderColour = new Color4(
                 HomeControlColours.Cyan.R,
                 HomeControlColours.Cyan.G,
@@ -1133,33 +1135,65 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = Color4.White,
+                    Colour = GameplayModSettingsTheme.Surface,
+                },
+                settingsPanelAccent = new Box
+                {
+                    RelativeSizeAxes = Axes.X,
+                    Height = 4,
+                    Colour = HomeControlColours.Pink,
+                },
+                new Container
+                {
+                    Position = new Vector2(16, 11),
+                    Size = new Vector2(35),
+                    Masking = true,
+                    CornerRadius = 5,
+                    BorderThickness = 1.4f,
+                    BorderColour = HomeControlColours.Cyan,
+                    Children =
+                    [
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = Color4.White,
+                        },
+                        settingsPanelAcronym = new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Font = HomeTypography.Display(15),
+                            Colour = HomeControlColours.Pink,
+                        },
+                    ],
                 },
                 new Box
                 {
-                    Position = new Vector2(18, 42),
-                    Size = new Vector2(341, 1),
+                    Position = new Vector2(16, 49),
+                    Size = new Vector2(373, 1),
                     Colour = new Color4(
                         HomeControlColours.Cyan.R,
                         HomeControlColours.Cyan.G,
                         HomeControlColours.Cyan.B,
-                        0.42f),
+                        0.34f),
                 },
                 settingsPanelTitle = new SpriteText
                 {
-                    Position = new Vector2(18, 10),
-                    Font = HomeTypography.Display(17),
+                    Position = new Vector2(62, 12),
+                    Font = HomeTypography.Display(18),
                     Colour = HomeControlColours.Navy,
-                    MaxWidth = 210,
+                    MaxWidth = 208,
                     Truncate = true,
                 },
                 settingsPanelHint = new SpriteText
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopRight,
-                    Position = new Vector2(-18, 14),
-                    Font = HomeTypography.Body(12),
+                    Position = new Vector2(-16, 15),
+                    Font = HomeTypography.Body(11),
                     Colour = HomeControlColours.Cyan,
+                    MaxWidth = 118,
+                    Truncate = true,
                 },
                 settingsHost,
             ],
@@ -1720,11 +1754,17 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
 
         bool active = selectedMods.Contains(definition.Id);
         settingsHost.Show(definition.Id);
-        settingsPanelTitle.Text = $"{definition.Acronym} · {YokkoStrings.Get("settings.title")}";
+        Color4 accent = accentFor(definition);
+        settingsPanelAccent.Colour = accent;
+        settingsPanelAcronym.Text = definition.Acronym;
+        settingsPanelAcronym.Colour = accent;
+        settingsPanelTitle.Text = YokkoStrings.Get(
+            "mods.settings.for_mod",
+            YokkoStrings.ModName(definition));
         settingsPanelHint.Text = YokkoStrings.Get(
             active
-                ? "mods.settings.active_hint"
-                : "mods.settings.preview_hint");
+                ? "mods.settings.active_short"
+                : "mods.settings.preview_short");
         settingsPanel.ClearTransforms();
         settingsPanel.FadeIn(120, Easing.OutQuint);
     }

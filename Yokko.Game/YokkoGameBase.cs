@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -27,10 +28,12 @@ using Yokko.Game.Screens.SongSelect;
 using Yokko.Game.Skinning.OsuMania;
 using Yokko.Game.Scoring;
 using Yokko.Import;
+using Yokko.Import.Malody;
 using Yokko.Import.Osu;
 using Yokko.Resources;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
+using Yokko.Core.Scoring;
 
 namespace Yokko.Game
 {
@@ -340,6 +343,14 @@ namespace Yokko.Game
                 return;
             }
 
+            if (Path.GetExtension(path).Equals(
+                    MalodyReplayIO.FileExtension,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                importMalodyReplay(path);
+                return;
+            }
+
             if (KnownChartImporters.CanImport(path))
             {
                 importChart(path);
@@ -379,11 +390,26 @@ namespace Yokko.Game
                     GameplayReplay replay = GameplayReplay.FromOsuReplay(
                         osuReplay,
                         (int)chart.Result.Beatmap.KeyMode);
+                    YokkoBeatmap applied = ManiaBeatmapModTransformer.Apply(
+                        chart.Result.Beatmap,
+                        replay.Mods);
+                    DateTimeOffset playedAt =
+                        osuReplay.PlayedAt ?? DateTimeOffset.UtcNow;
+                    string replayPath = replayStore.Save(
+                        chart.Result.Beatmap,
+                        applied,
+                        replay,
+                        chart.Result.SourceHash,
+                        playedAt);
 
                     return (
                         Beatmap: chart.Result.Beatmap,
                         Replay: replay,
-                        PlayerName: osuReplay.PlayerName);
+                        PlayerName: osuReplay.PlayerName,
+                        Score: ExternalReplayScoreConverter.FromOsu(osuReplay),
+                        ReplayPath: replayPath,
+                        PlayedAt: playedAt,
+                        ExternalScoreId: "osu:" + computeFileHash(path));
                 })
                 .ContinueWith(
                     task => Scheduler.Add(() =>
@@ -402,6 +428,17 @@ namespace Yokko.Game
                             return;
                         }
 
+                        bool imported = scoreStore.ImportExternalScore(
+                            task.Result.Beatmap,
+                            task.Result.Replay.Mods,
+                            JudgementConfiguration.YokkoDefault,
+                            task.Result.Score,
+                            task.Result.PlayerName,
+                            task.Result.PlayerName,
+                            "osu",
+                            task.Result.ExternalScoreId,
+                            task.Result.ReplayPath,
+                            task.Result.PlayedAt);
                         importOverlay.ShowSuccess(
                             YokkoStrings.Get("import.replay.success"),
                             string.IsNullOrWhiteSpace(task.Result.PlayerName)
@@ -410,12 +447,102 @@ namespace Yokko.Game
                         diagnostics.Trace(
                             "IMPORT",
                             "osu-replay-completed",
-                            $"title={task.Result.Beatmap.Title} | player={task.Result.PlayerName}");
+                            $"title={task.Result.Beatmap.Title} | player={task.Result.PlayerName}"
+                            + $" | score={task.Result.Score.Score} | added={imported}");
                         OpenImportedReplay(
                             task.Result.Beatmap,
                             task.Result.Replay);
                     }),
                     TaskScheduler.Default);
+        }
+
+        private void importMalodyReplay(string path)
+        {
+            diagnostics.Trace("IMPORT", "malody-replay-started", path);
+            Scheduler.Add(() => importOverlay.ShowImporting(
+                YokkoStrings.Get("import.replay.importing"),
+                path));
+
+            _ = Task.Run(() =>
+                {
+                    MalodyReplay malodyReplay = MalodyReplayIO.ReadFromFile(path);
+                    ImportedChart chart =
+                        importedChartLibrary.FindBySourceHash(
+                            malodyReplay.BeatmapHash)
+                        ?? throw new InvalidDataException(
+                            "Import the matching Malody Key beatmap before its replay.");
+                    GameplayReplay replay = GameplayReplay.FromMalodyReplay(
+                        malodyReplay,
+                        (int)chart.Result.Beatmap.KeyMode);
+                    YokkoBeatmap applied = ManiaBeatmapModTransformer.Apply(
+                        chart.Result.Beatmap,
+                        replay.Mods);
+                    DateTimeOffset playedAt =
+                        malodyReplay.PlayedAt ?? DateTimeOffset.UtcNow;
+                    string replayPath = replayStore.Save(
+                        chart.Result.Beatmap,
+                        applied,
+                        replay,
+                        chart.Result.SourceHash,
+                        playedAt);
+
+                    return (
+                        Beatmap: chart.Result.Beatmap,
+                        Replay: replay,
+                        Score: ExternalReplayScoreConverter.FromMalody(malodyReplay),
+                        ReplayPath: replayPath,
+                        PlayedAt: playedAt,
+                        ExternalScoreId: "malody:" + computeFileHash(path));
+                })
+                .ContinueWith(
+                    task => Scheduler.Add(() =>
+                    {
+                        if (!task.IsCompletedSuccessfully)
+                        {
+                            diagnostics.Trace(
+                                "IMPORT",
+                                "malody-replay-failed",
+                                task.Exception?.GetBaseException().ToString(),
+                                LogLevel.Error);
+                            importOverlay.ShowFailure(
+                                YokkoStrings.Get("import.replay.failed"),
+                                task.Exception?.GetBaseException().Message
+                                ?? "Unknown replay import error.");
+                            return;
+                        }
+
+                        const string playerName = "MALODY PLAYER";
+                        bool imported = scoreStore.ImportExternalScore(
+                            task.Result.Beatmap,
+                            task.Result.Replay.Mods,
+                            JudgementConfiguration.YokkoDefault,
+                            task.Result.Score,
+                            playerName,
+                            null,
+                            "malody",
+                            task.Result.ExternalScoreId,
+                            task.Result.ReplayPath,
+                            task.Result.PlayedAt);
+                        importOverlay.ShowSuccess(
+                            YokkoStrings.Get("import.replay.success"),
+                            $"{task.Result.Beatmap.Title} · {playerName}");
+                        diagnostics.Trace(
+                            "IMPORT",
+                            "malody-replay-completed",
+                            $"title={task.Result.Beatmap.Title}"
+                            + $" | score={task.Result.Score.Score} | added={imported}");
+                        OpenImportedReplay(
+                            task.Result.Beatmap,
+                            task.Result.Replay);
+                    }),
+                    TaskScheduler.Default);
+        }
+
+        private static string computeFileHash(string path)
+        {
+            using FileStream stream = File.OpenRead(path);
+            return Convert.ToHexString(SHA256.HashData(stream))
+                          .ToLowerInvariant();
         }
 
         private void importYokkoReplay(string path)

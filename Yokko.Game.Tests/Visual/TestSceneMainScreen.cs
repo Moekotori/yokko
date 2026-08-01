@@ -323,6 +323,39 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("whole tail remains visible", () => snake.VisibleTrailDotCount == 9);
         }
 
+        [Test]
+        public void TestBubblePopGameStartsAndScores()
+        {
+            HomeBubblePopGame game = null;
+            float targetX = 0;
+            float targetY = 0;
+
+            AddStep("find bubble pop game", () =>
+            {
+                game = this.ChildrenOfType<HomeBubblePopGame>().Single();
+                game.SetAvailable(true);
+                game.Restart();
+            });
+            AddAssert("waiting for start bubble", () => !game.IsRunning && game.Score == 0);
+            AddAssert("start bubble has clickable size", () => game.TargetDrawWidth >= 40);
+            AddStep("click special start bubble", () => game.ActivateTargetForTest());
+            AddAssert("game started", () => game.IsRunning && game.Score == 0);
+            AddAssert("target bubble has clickable size", () => game.TargetDrawWidth >= 30);
+            AddStep("remember first target", () =>
+            {
+                targetX = game.TargetPosition.X;
+                targetY = game.TargetPosition.Y;
+            });
+            AddStep("pop first target", () => game.ActivateTargetForTest());
+            AddAssert("score increased", () => game.Score == 1);
+            AddAssert(
+                "new bubble spawned elsewhere",
+                () => Math.Abs(game.TargetPosition.X - targetX) > 0.01f
+                      || Math.Abs(game.TargetPosition.Y - targetY) > 0.01f);
+            AddStep("pop second target", () => game.ActivateTargetForTest());
+            AddAssert("score keeps increasing", () => game.Score == 2);
+        }
+
         private void captureScreenshot()
         {
             string outputPath = Environment.GetEnvironmentVariable(

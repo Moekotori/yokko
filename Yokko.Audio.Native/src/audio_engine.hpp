@@ -38,7 +38,12 @@ namespace yokko::audio
             float metronome_volume) noexcept;
         yokko_audio_result set_sample_playback_rate(
             float playback_rate) noexcept;
+        yokko_audio_result set_music_sample_playback_rate(
+            float playback_rate) noexcept;
         yokko_audio_result trigger_sample(
+            uint32_t sample_id,
+            float gain = 1.0f) noexcept;
+        yokko_audio_result trigger_music_sample(
             uint32_t sample_id,
             float gain = 1.0f) noexcept;
         yokko_audio_result trigger_sample_traced(
@@ -116,6 +121,7 @@ namespace yokko::audio
             uint64_t capture_time_100ns{0};
             uint64_t enqueue_time_100ns{0};
             uint64_t callback_time_100ns{0};
+            bool music{false};
         };
 
         enum class SampleTriggerAction : uint8_t
@@ -134,6 +140,7 @@ namespace yokko::audio
             uint64_t trace_id{0};
             uint64_t capture_time_100ns{0};
             uint64_t enqueue_time_100ns{0};
+            bool music{false};
         };
 
         struct SampleTriggerCell
@@ -190,6 +197,7 @@ namespace yokko::audio
         std::atomic<float> hit_sound_volume_{1.0f};
         std::atomic<float> metronome_volume_{0.0f};
         std::atomic<float> sample_playback_rate_{1.0f};
+        std::atomic<float> music_sample_playback_rate_{1.0f};
         std::atomic<uint32_t> next_sample_loop_id_{1};
         std::atomic<bool> accepting_sample_triggers_{true};
         std::atomic<uint32_t> active_sample_trigger_calls_{0};

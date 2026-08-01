@@ -295,6 +295,23 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             activeCombo.Alpha = 1;
     }
 
+    internal void ClearTransientFeedback()
+    {
+        judgementSprite.FinishTransforms();
+        judgementFallback.FinishTransforms();
+        comboDigits.FinishTransforms();
+        comboFallback.FinishTransforms();
+        comboBreakDigits.FinishTransforms();
+        comboBreakFallback.FinishTransforms();
+        judgementSprite.Alpha = 0;
+        judgementFallback.Alpha = 0;
+        comboDigits.Alpha = 0;
+        comboFallback.Alpha = 0;
+        comboBreakDigits.Alpha = 0;
+        comboBreakFallback.Alpha = 0;
+        displayedCombo = -1;
+    }
+
     private Drawable populateCombo(
         int combo,
         Container digits,

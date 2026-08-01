@@ -975,6 +975,14 @@ public sealed class GameplaySettingsTest
         Assert.That(
             GameplayScrollSpeedSlider.AdjustForScroll(40, 1),
             Is.EqualTo(40));
+        Assert.That(
+            GameplayScrollSpeedSlider.FineScrollTimeDeltaForDirection(1),
+            Is.EqualTo(-1),
+            "scrolling up or pressing right/up should make notes faster");
+        Assert.That(
+            GameplayScrollSpeedSlider.FineScrollTimeDeltaForDirection(-1),
+            Is.EqualTo(1),
+            "scrolling down or pressing left/down should make notes slower");
     }
 
     [Test]

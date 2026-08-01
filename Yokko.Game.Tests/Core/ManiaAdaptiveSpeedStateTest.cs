@@ -74,6 +74,30 @@ public sealed class ManiaAdaptiveSpeedStateTest
         });
     }
 
+    [Test]
+    public void GameplayTimeAdvanceIsPartitionInvariant()
+    {
+        var whole = new ManiaAdaptiveSpeedState(createBeatmap());
+        var partitioned = new ManiaAdaptiveSpeedState(createBeatmap());
+        JudgementEvent early = judgement(1, 1000, 900);
+        Assert.That(whole.Apply(early), Is.True);
+        Assert.That(partitioned.Apply(early), Is.True);
+
+        whole.AdvanceByGameplayTime(2400);
+        partitioned.AdvanceByGameplayTime(137);
+        partitioned.AdvanceByGameplayTime(911);
+        partitioned.AdvanceByGameplayTime(1352);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                partitioned.CurrentRate,
+                Is.EqualTo(whole.CurrentRate).Within(0.000000001));
+            Assert.That(partitioned.TargetRate, Is.EqualTo(whole.TargetRate));
+            Assert.That(partitioned.RecentRates, Is.EqualTo(whole.RecentRates));
+        });
+    }
+
     private static JudgementEvent judgement(
         int index,
         double objectTime,

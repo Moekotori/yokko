@@ -128,6 +128,14 @@ public static class YokkoBeatmapFingerprint
                     writer.Write(sample.UnaffectedByRate);
                 }
             }
+
+            if (beatmap.ScheduledSamples.Any(static sample => sample.UseMusicBus))
+            {
+                writer.Write("scheduled-sample-buses-v1");
+                writer.Write(beatmap.ScheduledSamples.Count);
+                foreach (YokkoScheduledSample sample in beatmap.ScheduledSamples)
+                    writer.Write(sample.UseMusicBus);
+            }
         }
 
         return Convert.ToHexString(SHA256.HashData(stream.ToArray()));

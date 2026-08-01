@@ -1183,6 +1183,27 @@ public partial class GameplayPlayfield : CompositeDrawable
         }
     }
 
+    internal void ResetForReplaySeek(
+        double gameplayTimeMilliseconds,
+        BeatmapJudgementState state,
+        ManiaHealthState healthState)
+    {
+        foreach (DrawableNote note in noteDrawables)
+            note.ResetForReplaySeek();
+        foreach (LaneColumn lane in laneColumns)
+            lane.ClearTransientFeedback();
+        foreach (OsuManiaSkinOverlay overlay in skinOverlays)
+            overlay.ClearTransientFeedback();
+        comboBurstLayer?.Clear();
+        lastComboBurstMilestone = 0;
+        comboBurstTextureIndex = 0;
+
+        UpdateGameplayTime(
+            gameplayTimeMilliseconds,
+            state,
+            healthState);
+    }
+
     private void updateComboBurst(int combo)
     {
         if (comboBurstLayer == null)

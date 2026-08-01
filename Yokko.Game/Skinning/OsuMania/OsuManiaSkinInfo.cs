@@ -13,6 +13,10 @@ internal sealed record OsuManiaSkinInfo(
     int ComboOverlap,
     IReadOnlyDictionary<int, OsuManiaSkinConfiguration> ManiaConfigurations)
 {
+    public string ScorePrefix { get; init; } = "score";
+
+    public int ScoreOverlap { get; init; }
+
     public OsuManiaSkinConfiguration GetConfiguration(
         int keys,
         bool? splitStages = null) =>

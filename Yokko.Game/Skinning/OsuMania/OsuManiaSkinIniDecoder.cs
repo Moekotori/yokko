@@ -24,6 +24,8 @@ internal static class OsuManiaSkinIniDecoder
         bool comboBurstRandom = false;
         string comboPrefix = "score";
         int comboOverlap = 0;
+        string scorePrefix = "score";
+        int scoreOverlap = 0;
         string section = string.Empty;
         Dictionary<string, string> maniaValues = null;
         var configurations = new Dictionary<int, OsuManiaSkinConfiguration>();
@@ -102,6 +104,16 @@ internal static class OsuManiaSkinIniDecoder
                              CultureInfo.InvariantCulture,
                              out int parsedOverlap))
                     comboOverlap = parsedOverlap;
+                else if (key.Equals("ScorePrefix", StringComparison.OrdinalIgnoreCase)
+                         && !string.IsNullOrWhiteSpace(value))
+                    scorePrefix = value;
+                else if (key.Equals("ScoreOverlap", StringComparison.OrdinalIgnoreCase)
+                         && int.TryParse(
+                             value,
+                             NumberStyles.Integer,
+                             CultureInfo.InvariantCulture,
+                             out int parsedScoreOverlap))
+                    scoreOverlap = parsedScoreOverlap;
             }
             else if (maniaValues != null)
                 maniaValues[key] = value;
@@ -117,7 +129,11 @@ internal static class OsuManiaSkinIniDecoder
             comboBurstRandom,
             comboPrefix,
             comboOverlap,
-            configurations);
+            configurations)
+        {
+            ScorePrefix = scorePrefix,
+            ScoreOverlap = scoreOverlap,
+        };
     }
 
     private static string readVersion(

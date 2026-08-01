@@ -9,7 +9,8 @@ public sealed record YokkoScheduledSample
         double TimeMilliseconds,
         string Path,
         int Volume = 100,
-        bool UnaffectedByRate = false)
+        bool UnaffectedByRate = false,
+        bool UseMusicBus = false)
     {
         if (!double.IsFinite(TimeMilliseconds))
             throw new ArgumentOutOfRangeException(nameof(TimeMilliseconds));
@@ -22,10 +23,12 @@ public sealed record YokkoScheduledSample
         this.Path = Path;
         this.Volume = Volume;
         this.UnaffectedByRate = UnaffectedByRate;
+        this.UseMusicBus = UseMusicBus;
     }
 
     public double TimeMilliseconds { get; }
     public string Path { get; }
     public int Volume { get; }
     public bool UnaffectedByRate { get; }
+    public bool UseMusicBus { get; }
 }

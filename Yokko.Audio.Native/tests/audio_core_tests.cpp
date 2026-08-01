@@ -474,6 +474,12 @@ namespace
                 0.5f) == YOKKO_AUDIO_OK,
             "mix bus gained keysound trigger");
         require(
+            yokko_audio_trigger_music_sample_with_gain(
+                engine,
+                keysound_id,
+                0.5f) == YOKKO_AUDIO_OK,
+            "mix bus gained music sample trigger");
+        require(
             yokko_audio_trigger_sample(engine, metronome_id) == YOKKO_AUDIO_OK,
             "mix bus metronome trigger");
 
@@ -484,8 +490,8 @@ namespace
                 engine, output.data(), 4, &rendered) == YOKKO_AUDIO_OK,
             "mix bus render");
         require(
-            std::abs(output[0] - 0.55f) < 0.00001f,
-            "music, per-trigger, keysound and metronome gains are independent");
+            std::abs(output[0] - 0.65f) < 0.00001f,
+            "music samples, keysounds and metronome use independent gains");
         require(
             std::abs(output[4] - 0.2f) < 0.00001f,
             "music gain continues after samples end");
@@ -548,6 +554,69 @@ namespace
             yokko_audio_set_sample_playback_rate(engine, 4.1f)
                 == YOKKO_AUDIO_INVALID_ARGUMENT,
             "invalid keysound rate rejected");
+    }
+
+    void test_music_sample_playback_rate_is_independent()
+    {
+        EngineHandle engine;
+        const std::vector<float> silence(8, 0.0f);
+        const std::vector<float> music_sample{
+            0.1f, 0.1f,
+            0.2f, 0.2f,
+            0.3f, 0.3f,
+            0.4f, 0.4f,
+        };
+        uint32_t sample_id = 0;
+        require(
+            yokko_audio_register_sample_f32(
+                engine,
+                music_sample.data(),
+                4,
+                &sample_id) == YOKKO_AUDIO_OK,
+            "rated music sample registration");
+        require(
+            yokko_audio_set_sample_playback_rate(engine, 1.0f)
+                == YOKKO_AUDIO_OK,
+            "keysound rate remains unchanged");
+        require(
+            yokko_audio_set_music_sample_playback_rate(engine, 2.0f)
+                == YOKKO_AUDIO_OK,
+            "rated music sample speed");
+
+        uint32_t accepted = 0;
+        require(
+            yokko_audio_submit_interleaved_f32(
+                engine,
+                silence.data(),
+                4,
+                &accepted) == YOKKO_AUDIO_OK,
+            "rated music sample submit");
+        require(
+            yokko_audio_start(engine) == YOKKO_AUDIO_OK,
+            "rated music sample start");
+        require(
+            yokko_audio_trigger_music_sample_with_gain(
+                engine,
+                sample_id,
+                1.0f) == YOKKO_AUDIO_OK,
+            "rated music sample trigger");
+
+        std::vector<float> output(8);
+        uint32_t rendered = 0;
+        require(
+            yokko_audio_render_interleaved_f32(
+                engine,
+                output.data(),
+                4,
+                &rendered) == YOKKO_AUDIO_OK,
+            "rated music sample render");
+        require(
+            std::abs(output[0] - 0.1f) < 0.00001f
+                && std::abs(output[2] - 0.3f) < 0.00001f,
+            "music sample follows song playback rate");
+        require(
+            output[4] == 0 && output[6] == 0,
+            "rated music sample ends in half the output frames");
     }
 
     void test_looping_keysound_starts_wraps_and_stops()
@@ -904,6 +973,7 @@ int main()
     test_sample_trigger_queue_accepts_multiple_producers();
     test_mix_buses_apply_independent_gains();
     test_keysound_playback_rate_is_callback_side();
+    test_music_sample_playback_rate_is_independent();
     test_looping_keysound_starts_wraps_and_stops();
     test_pause_and_stop_are_deterministic();
     test_output_safety();

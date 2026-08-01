@@ -190,14 +190,11 @@ public sealed partial class BmsChartImporter : IChartImporter
         YokkoScheduledSample[] scheduledSamples = audioPath == null
             ? resolveBackgroundSamples(request.Path, parsed, events, converter, warnings)
             : [];
-        YokkoScrollVelocity[] stopScrollVelocities = createStopScrollVelocities(
-            pauses,
-            converter);
         YokkoHitObject[] hitObjects = beatNotes.Select(note =>
         {
             string? samplePath = request.PreferKeysounds
                                  && parsed.WavFiles.TryGetValue(note.SampleId, out string? sample)
-                ? ImportParsing.ResolveAdjacentAsset(request.Path, sample)
+                ? resolveAudioAsset(request.Path, sample, warnings)
                 : null;
             return new YokkoHitObject(
                 note.Lane,
@@ -208,6 +205,11 @@ public sealed partial class BmsChartImporter : IChartImporter
         }).OrderBy(static note => note.StartTimeMilliseconds)
           .ThenBy(static note => note.Lane)
           .ToArray();
+        ScrollVelocityProfile scrollVelocity = createScrollVelocityProfile(
+            tempoChanges,
+            pauses,
+            converter,
+            tempoConverter.TempoAt(0));
 
         string difficulty = parsed.Headers.GetValueOrDefault(
             "SUBTITLE",
@@ -224,7 +226,8 @@ public sealed partial class BmsChartImporter : IChartImporter
             converter.ToTimingPoints(),
             audioPath,
             hitObjects,
-            ScrollVelocities: stopScrollVelocities,
+            ScrollVelocities: scrollVelocity.Changes,
+            InitialScrollVelocity: scrollVelocity.InitialMultiplier,
             StageCount: laneMapping.StageCount,
             ScheduledSamples: scheduledSamples,
             ScratchLane: laneMapping.ScratchLane);
@@ -335,29 +338,62 @@ public sealed partial class BmsChartImporter : IChartImporter
     {
         var events = new List<RawEvent>();
 
-        foreach (ChannelLine line in channelLines.Where(static line => line.Channel != "02"))
+        foreach (IGrouping<(int Measure, string Channel), ChannelLine> group in
+                 channelLines.Where(static line => line.Channel != "02")
+                             .GroupBy(static line => (line.Measure, line.Channel)))
         {
-            if (line.Data.Length < 2 || line.Data.Length % 2 != 0)
-                continue;
+            IEnumerable<ExpandedObject> objects = group.Key.Channel == "01"
+                ? group.SelectMany(expandLine)
+                : mergeChannelLines(group);
+            double measureBeats = 4 * measureLengths.GetValueOrDefault(
+                group.Key.Measure,
+                1);
 
-            int count = line.Data.Length / 2;
-            double measureBeats = 4 * measureLengths.GetValueOrDefault(line.Measure, 1);
-
-            for (int index = 0; index < count; index++)
+            foreach (ExpandedObject value in objects)
             {
-                string value = line.Data.Substring(index * 2, 2).ToUpperInvariant();
-                if (value == "00")
-                    continue;
-
                 events.Add(new RawEvent(
-                    line.Channel,
-                    measureStarts[line.Measure] + measureBeats * index / count,
-                    value,
-                    line.Order));
+                    group.Key.Channel,
+                    measureStarts[group.Key.Measure]
+                    + measureBeats * value.Position.Numerator
+                    / value.Position.Denominator,
+                    value.Value,
+                    value.Order));
             }
         }
 
         return events;
+    }
+
+    private static IEnumerable<ExpandedObject> mergeChannelLines(
+        IEnumerable<ChannelLine> lines)
+    {
+        var merged = new Dictionary<FractionPosition, ExpandedObject>();
+        foreach (ChannelLine line in lines.OrderBy(static line => line.Order))
+        {
+            foreach (ExpandedObject value in expandLine(line))
+                merged[value.Position] = value;
+        }
+
+        return merged.Values.OrderBy(static value => value.Position);
+    }
+
+    private static IEnumerable<ExpandedObject> expandLine(ChannelLine line)
+    {
+        if (line.Data.Length < 2 || line.Data.Length % 2 != 0)
+            yield break;
+
+        int count = line.Data.Length / 2;
+        for (int index = 0; index < count; index++)
+        {
+            string value = line.Data.Substring(index * 2, 2).ToUpperInvariant();
+            if (value == "00")
+                continue;
+
+            yield return new ExpandedObject(
+                FractionPosition.Create(index, count),
+                value,
+                line.Order);
+        }
     }
 
     private static LaneMapping createLaneMap(
@@ -471,7 +507,7 @@ public sealed partial class BmsChartImporter : IChartImporter
             && backgroundSamples.Length == 1
             && parsed.WavFiles.TryGetValue(backgroundSamples[0], out string? file))
         {
-            string? path = ImportParsing.ResolveAdjacentAsset(chartPath, file);
+            string? path = resolveAudioAsset(chartPath, file, warnings);
             if (path != null)
             {
                 startBeat = backgroundEvents[0].Beat;
@@ -498,7 +534,7 @@ public sealed partial class BmsChartImporter : IChartImporter
         foreach (RawEvent rawEvent in events.Where(static value => value.Channel == "01"))
         {
             string? path = parsed.WavFiles.TryGetValue(rawEvent.Value, out string? file)
-                ? ImportParsing.ResolveAdjacentAsset(chartPath, file)
+                ? resolveAudioAsset(chartPath, file, warnings)
                 : null;
             if (path == null)
             {
@@ -509,7 +545,8 @@ public sealed partial class BmsChartImporter : IChartImporter
             samples.Add((
                 new YokkoScheduledSample(
                     converter.ToMilliseconds(rawEvent.Beat),
-                    path),
+                    path,
+                    UseMusicBus: true),
                 rawEvent.Order));
         }
 
@@ -519,22 +556,113 @@ public sealed partial class BmsChartImporter : IChartImporter
                       .ToArray();
     }
 
-    private static YokkoScrollVelocity[] createStopScrollVelocities(
+    private static ScrollVelocityProfile createScrollVelocityProfile(
+        IEnumerable<TempoChange> tempoChanges,
         IEnumerable<PauseEvent> pauses,
-        BeatTimeConverter converter) =>
-        pauses.GroupBy(static pause => pause.Beat)
-              .OrderBy(static group => group.Key)
-              .SelectMany(group =>
-              {
-                  double start = converter.ToMilliseconds(group.Key);
-                  double duration = group.Sum(static pause => pause.DurationMilliseconds);
-                  return new[]
-                  {
-                      new YokkoScrollVelocity(start, 0),
-                      new YokkoScrollVelocity(start + duration, 1),
-                  };
-              })
-              .ToArray();
+        BeatTimeConverter converter,
+        double baseBpm)
+    {
+        baseBpm = Math.Max(0.0001, baseBpm);
+        var changes = new List<ScrollChange>();
+
+        foreach (TempoChange tempo in tempoChanges)
+        {
+            if (tempo.BeatsPerMinute <= 0)
+                continue;
+
+            changes.Add(new ScrollChange(
+                converter.ToMilliseconds(tempo.Beat),
+                tempo.BeatsPerMinute / baseBpm,
+                Priority: 0));
+        }
+
+        foreach (IGrouping<double, PauseEvent> group in pauses.GroupBy(static pause => pause.Beat))
+        {
+            double start = converter.ToMilliseconds(group.Key);
+            double duration = group.Sum(static pause => pause.DurationMilliseconds);
+            changes.Add(new ScrollChange(start, 0, Priority: 2));
+            changes.Add(new ScrollChange(
+                start + duration,
+                converter.TempoAt(group.Key) / baseBpm,
+                Priority: 1));
+        }
+
+        var result = new List<YokkoScrollVelocity>();
+        double previous = 1;
+        foreach (ScrollChange change in changes.OrderBy(static change => change.TimeMilliseconds)
+                                               .ThenBy(static change => change.Priority)
+                                               .GroupBy(static change => change.TimeMilliseconds)
+                                               .Select(static group => group.Last()))
+        {
+            if (change.Multiplier.Equals(previous))
+                continue;
+
+            result.Add(new YokkoScrollVelocity(
+                change.TimeMilliseconds,
+                change.Multiplier));
+            previous = change.Multiplier;
+        }
+
+        return new ScrollVelocityProfile(1, result);
+    }
+
+    private static string? resolveAudioAsset(
+        string chartPath,
+        string? assetPath,
+        ICollection<string> warnings)
+    {
+        if (string.IsNullOrWhiteSpace(assetPath))
+            return null;
+
+        assetPath = assetPath.Trim().Trim('"');
+        if (Path.IsPathRooted(assetPath))
+            return File.Exists(assetPath) ? Path.GetFullPath(assetPath) : null;
+
+        string chartDirectory = Path.GetFullPath(
+            Path.GetDirectoryName(Path.GetFullPath(chartPath))!);
+        string candidate = Path.GetFullPath(Path.Combine(
+            chartDirectory,
+            assetPath.Replace('/', Path.DirectorySeparatorChar)));
+        string rootPrefix = chartDirectory + Path.DirectorySeparatorChar;
+        if (!candidate.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        string? directory = Path.GetDirectoryName(candidate);
+        if (directory == null || !Directory.Exists(directory))
+            return null;
+
+        string fileName = Path.GetFileName(candidate);
+        string[] exactMatches = Directory.EnumerateFiles(directory)
+                                         .Where(path => string.Equals(
+                                             Path.GetFileName(path),
+                                             fileName,
+                                             StringComparison.OrdinalIgnoreCase))
+                                         .ToArray();
+        if (exactMatches.Length == 1)
+            return exactMatches[0];
+
+        string stem = Path.GetFileNameWithoutExtension(candidate);
+        string[] supportedExtensions = [".wav", ".ogg", ".mp3"];
+        string[] matches = Directory.EnumerateFiles(directory)
+                                    .Where(path => string.Equals(
+                                        Path.GetFileNameWithoutExtension(path),
+                                        stem,
+                                        StringComparison.OrdinalIgnoreCase)
+                                                   && supportedExtensions.Contains(
+                                                       Path.GetExtension(path),
+                                                       StringComparer.OrdinalIgnoreCase))
+                                    .ToArray();
+        if (matches.Length == 1)
+            return matches[0];
+
+        if (matches.Length > 1)
+        {
+            warnings.Add(
+                $"BMS audio asset {assetPath} matched multiple alternate file extensions and was ignored.");
+        }
+
+        return null;
+    }
 
     private static string toLongNoteChannel(string channel)
         => $"{(char)(channel[0] + 4)}{channel[1]}";
@@ -586,7 +714,39 @@ public sealed partial class BmsChartImporter : IChartImporter
 
     private sealed record ChannelLine(int Measure, string Channel, string Data, int Order);
 
+    private readonly record struct FractionPosition(
+        int Numerator,
+        int Denominator) : IComparable<FractionPosition>
+    {
+        public static FractionPosition Create(int numerator, int denominator)
+        {
+            int divisor = greatestCommonDivisor(numerator, denominator);
+            return new FractionPosition(numerator / divisor, denominator / divisor);
+        }
+
+        public int CompareTo(FractionPosition other) =>
+            ((long)Numerator * other.Denominator).CompareTo(
+                (long)other.Numerator * Denominator);
+
+        private static int greatestCommonDivisor(int left, int right)
+        {
+            while (right != 0)
+                (left, right) = (right, left % right);
+            return Math.Max(1, Math.Abs(left));
+        }
+    }
+
+    private sealed record ExpandedObject(
+        FractionPosition Position,
+        string Value,
+        int Order);
+
     private sealed record RawEvent(string Channel, double Beat, string Value, int Order);
+
+    private sealed record ScrollChange(
+        double TimeMilliseconds,
+        double Multiplier,
+        int Priority);
 
     private sealed record LaneMapping(
         IReadOnlyDictionary<string, int> Channels,

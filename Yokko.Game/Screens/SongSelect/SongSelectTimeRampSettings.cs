@@ -3,9 +3,11 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Mods;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -15,7 +17,11 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
     private readonly SpriteText title;
     private readonly SpriteText initialValue;
     private readonly SpriteText finalValue;
-    private readonly ToggleButton pitchButton;
+    private readonly GameplayModSettingsStateButton pitchButton;
+    private readonly GameplayModSettingsStepButton initialDecreaseButton;
+    private readonly GameplayModSettingsStepButton initialIncreaseButton;
+    private readonly GameplayModSettingsStepButton finalDecreaseButton;
+    private readonly GameplayModSettingsStepButton finalIncreaseButton;
     private readonly Action<double> initialChanged;
     private readonly Action<double> finalChanged;
     private readonly Action<bool> pitchChanged;
@@ -42,28 +48,36 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
                 Font = HomeTypography.Display(12),
                 Colour = GameplayModSettingsTheme.Text,
             },
-            label("INITIAL RATE", 29),
+            label(YokkoStrings.Get("mods.settings.initial_rate"), 29),
             initialValue = value(24),
-            new StepButton("−", () => changeInitial(-0.05))
+            initialDecreaseButton = new GameplayModSettingsStepButton(
+                "−",
+                () => changeInitial(-0.05))
             {
                 Position = new Vector2(0, 50),
             },
-            new StepButton("+", () => changeInitial(0.05))
+            initialIncreaseButton = new GameplayModSettingsStepButton(
+                "+",
+                () => changeInitial(0.05))
             {
                 Position = new Vector2(51, 50),
             },
-            label("FINAL RATE", 91),
+            label(YokkoStrings.Get("mods.settings.final_rate"), 91),
             finalValue = value(86),
-            new StepButton("−", () => changeFinal(-0.05))
+            finalDecreaseButton = new GameplayModSettingsStepButton(
+                "−",
+                () => changeFinal(-0.05))
             {
                 Position = new Vector2(0, 112),
             },
-            new StepButton("+", () => changeFinal(0.05))
+            finalIncreaseButton = new GameplayModSettingsStepButton(
+                "+",
+                () => changeFinal(0.05))
             {
                 Position = new Vector2(51, 112),
             },
-            pitchButton = new ToggleButton(
-                "ADJUST MUSIC PITCH",
+            pitchButton = new GameplayModSettingsStateButton(
+                YokkoStrings.Get("mods.settings.adjust_pitch"),
                 () => pitchChanged(!AdjustPitch))
             {
                 Position = new Vector2(0, 158),
@@ -71,7 +85,7 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
             new SpriteText
             {
                 Y = 204,
-                Text = "FINAL RATE AT 75% OF MAP",
+                Text = YokkoStrings.Get("mods.settings.final_rate_at_75"),
                 Font = HomeTypography.Body(9),
                 Colour = GameplayModSettingsTheme.Accent,
             },
@@ -91,11 +105,14 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
         InitialRate = initialRate;
         FinalRate = finalRate;
         AdjustPitch = adjustPitch;
-        title.Text = mod == ManiaModId.WindDown
-            ? "WIND DOWN"
-            : "WIND UP";
+        title.Text = YokkoStrings.ModName(
+            OsuManiaModParityCatalog.Get(mod));
         initialValue.Text = $"{initialRate:0.00}×";
         finalValue.Text = $"{finalRate:0.00}×";
+        initialDecreaseButton.SetEnabled(isEnabled);
+        initialIncreaseButton.SetEnabled(isEnabled);
+        finalDecreaseButton.SetEnabled(isEnabled);
+        finalIncreaseButton.SetEnabled(isEnabled);
         pitchButton.SetState(isEnabled, adjustPitch);
         this.ClearTransforms();
         this.FadeTo(isEnabled ? 1 : 0.42f, 120, Easing.OutQuint);
@@ -127,7 +144,7 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
         finalChanged(Math.Round(Math.Clamp(FinalRate + delta, min, max), 2));
     }
 
-    private static SpriteText label(string text, float y) => new()
+    private static SpriteText label(LocalisableString text, float y) => new()
     {
         Y = y,
         Text = text,
@@ -144,82 +161,4 @@ internal partial class SongSelectTimeRampSettings : CompositeDrawable
         Colour = GameplayModSettingsTheme.Selection,
     };
 
-    private partial class StepButton : ClickableContainer
-    {
-        internal StepButton(string text, Action action)
-        {
-            Action = action;
-            Size = new Vector2(46, 29);
-            Masking = true;
-            CornerRadius = 4;
-            BorderThickness = 1;
-            BorderColour = GameplayModSettingsTheme.Accent;
-            InternalChildren =
-            [
-                new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(
-                        GameplayModSettingsTheme.Control.R,
-                        GameplayModSettingsTheme.Control.G,
-                        GameplayModSettingsTheme.Control.B,
-                        0.8f),
-                },
-                new SpriteText
-                {
-                    Anchor = Anchor.Centre,
-                    Origin = Anchor.Centre,
-                    Text = text,
-                    Font = HomeTypography.Display(14),
-                    Colour = GameplayModSettingsTheme.Text,
-                },
-            ];
-        }
-    }
-
-    private partial class ToggleButton : ClickableContainer
-    {
-        private readonly Box background;
-        private readonly SpriteText state;
-
-        internal ToggleButton(string text, Action action)
-        {
-            Action = action;
-            Size = new Vector2(202, 29);
-            Masking = true;
-            CornerRadius = 4;
-            InternalChildren =
-            [
-                background = new Box { RelativeSizeAxes = Axes.Both },
-                new SpriteText
-                {
-                    Anchor = Anchor.CentreLeft,
-                    Origin = Anchor.CentreLeft,
-                    X = 9,
-                    Text = text,
-                    Font = HomeTypography.Body(10),
-                    Colour = GameplayModSettingsTheme.Text,
-                },
-                state = new SpriteText
-                {
-                    Anchor = Anchor.CentreRight,
-                    Origin = Anchor.CentreRight,
-                    X = -9,
-                    Font = HomeTypography.Display(9),
-                },
-            ];
-        }
-
-        internal void SetState(bool enabled, bool selected)
-        {
-            background.Colour = selected
-                ? GameplayModSettingsTheme.Selection
-                : GameplayModSettingsTheme.Control;
-            state.Text = selected ? "ON" : "OFF";
-            state.Colour = selected
-                ? GameplayModSettingsTheme.AccentOn
-                : GameplayModSettingsTheme.Muted;
-            Alpha = enabled ? 1 : 0.55f;
-        }
-    }
 }

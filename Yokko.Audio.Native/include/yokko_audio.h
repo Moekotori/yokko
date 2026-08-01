@@ -20,7 +20,7 @@ extern "C"
 {
 #endif
 
-#define YOKKO_AUDIO_ABI_VERSION 11u
+#define YOKKO_AUDIO_ABI_VERSION 12u
 #define YOKKO_AUDIO_SAMPLE_TELEMETRY_ABI_VERSION 1u
 
     typedef struct yokko_audio_engine yokko_audio_engine;
@@ -199,6 +199,11 @@ extern "C"
         yokko_audio_engine* engine,
         float playback_rate);
 
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_set_music_sample_playback_rate(
+            yokko_audio_engine* engine,
+            float playback_rate);
+
     /*
      * Enqueues a registered sample without allocating or blocking. The next
      * output callback mixes it directly, bypassing the prefetched music ring.
@@ -211,6 +216,12 @@ extern "C"
         yokko_audio_engine* engine,
         uint32_t sample_id,
         float gain);
+
+    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL
+        yokko_audio_trigger_music_sample_with_gain(
+            yokko_audio_engine* engine,
+            uint32_t sample_id,
+            float gain);
 
     /*
      * Adds opt-in timing to the existing sample trigger path. The capture

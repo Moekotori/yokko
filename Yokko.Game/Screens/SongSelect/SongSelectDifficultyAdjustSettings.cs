@@ -4,9 +4,11 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Game.Screens.Main;
+using Yokko.Game.Localisation;
 
 namespace Yokko.Game.Screens.SongSelect;
 
@@ -37,7 +39,8 @@ internal partial class SongSelectDifficultyAdjustSettings
         {
             new SpriteText
             {
-                Text = "DIFFICULTY ADJUST",
+                Text = YokkoStrings.Get(
+                    "mods.definition.difficulty-adjust.name"),
                 Font = HomeTypography.Display(12),
                 Spacing = new Vector2(0.35f, 0),
                 Colour = GameplayModSettingsTheme.Text,
@@ -45,7 +48,7 @@ internal partial class SongSelectDifficultyAdjustSettings
             new SpriteText
             {
                 Y = 24,
-                Text = "HP DRAIN",
+                Text = YokkoStrings.Get("mods.settings.hp_drain"),
                 Font = HomeTypography.Body(10),
                 Colour = GameplayModSettingsTheme.Muted,
             },
@@ -57,7 +60,8 @@ internal partial class SongSelectDifficultyAdjustSettings
             new SpriteText
             {
                 Y = 80,
-                Text = "ACCURACY · OD",
+                Text = YokkoStrings.Get(
+                    "mods.settings.judgement_difficulty"),
                 Font = HomeTypography.Body(10),
                 Colour = GameplayModSettingsTheme.Muted,
             },
@@ -68,13 +72,13 @@ internal partial class SongSelectDifficultyAdjustSettings
                     Y = 104,
                 },
             mapValuesButton = new SettingButton(
-                "MAP VALUES",
+                YokkoStrings.Get("mods.settings.map_values"),
                 useMapValues)
             {
                 Position = new Vector2(0, 143),
             },
             extendedButton = new SettingButton(
-                "EXTENDED",
+                YokkoStrings.Get("mods.settings.extended_range"),
                 () => extendedLimitsChanged(!ExtendedLimits))
             {
                 Position = new Vector2(105, 143),
@@ -126,7 +130,7 @@ internal partial class SongSelectDifficultyAdjustSettings
         extendedButton.SetState(isEnabled, extendedLimits);
         statusText.Text = isEnabled
             ? $"HP {effectiveDrain:0.0}  ·  OD {effectiveDifficulty:0.0}"
-            : "SELECT DA TO CONFIGURE";
+            : YokkoStrings.Get("mods.settings.select_first", "DA");
         this.ClearTransforms();
         this.FadeTo(isEnabled ? 1 : 0.42f, 120, Easing.OutQuint);
     }
@@ -140,11 +144,13 @@ internal partial class SongSelectDifficultyAdjustSettings
         Colour = GameplayModSettingsTheme.Selection,
     };
 
-    private static string formatValue(
+    private static LocalisableString formatValue(
         double? configured,
         double effective) =>
         configured == null
-            ? $"MAP {effective:0.0}"
+            ? YokkoStrings.Get(
+                "mods.settings.map_value",
+                effective.ToString("0.0"))
             : effective.ToString("0.0");
 
     private partial class DifficultySlider : CompositeDrawable
@@ -242,7 +248,7 @@ internal partial class SongSelectDifficultyAdjustSettings
         private readonly SpriteText label;
         private bool enabled;
 
-        public SettingButton(string text, Action action)
+        public SettingButton(LocalisableString text, Action action)
         {
             Action = () =>
             {

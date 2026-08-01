@@ -4,9 +4,11 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Mods;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -143,10 +145,13 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
         flashlightComboBased = comboBasedSize;
         bool cover = mod == ManiaModId.Cover;
 
-        title.Text = cover ? "COVER" : "FLASHLIGHT";
+        title.Text = YokkoStrings.Get(
+            cover
+                ? "mods.definition.cover.name"
+                : "mods.definition.flashlight.name");
         settingLabel.Text = cover
-            ? "COVERAGE"
-            : "WINDOW SIZE";
+            ? YokkoStrings.Get("mods.settings.coverage")
+            : YokkoStrings.Get("mods.settings.window_size");
         double value = cover
             ? coverCoverage
             : flashlightSizeMultiplier;
@@ -163,9 +168,13 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
         maximumText.Text = cover ? "80%" : "3.0x";
 
         primaryOption.SetLabel(
-            cover ? "WITH SCROLL" : "FIXED SIZE");
+            cover
+                ? YokkoStrings.Get("mods.settings.with_scroll")
+                : YokkoStrings.Get("mods.settings.fixed_size"));
         secondaryOption.SetLabel(
-            cover ? "AGAINST" : "COMBO SIZE");
+            cover
+                ? YokkoStrings.Get("mods.settings.against_scroll")
+                : YokkoStrings.Get("mods.settings.combo_size"));
         primaryOption.SetState(
             isEnabled,
             cover
@@ -177,14 +186,16 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
                 ? direction == ManiaCoverDirection.AgainstScroll
                 : comboBasedSize);
         statusText.Text = !isEnabled
-            ? $"SELECT {(cover ? "CO" : "FL")} TO CONFIGURE"
+            ? YokkoStrings.Get(
+                "mods.settings.select_first",
+                cover ? "CO" : "FL")
             : cover
                 ? direction == ManiaCoverDirection.AlongScroll
-                    ? "COVER EXPANDS WITH SCROLL"
-                    : "COVER EXPANDS AGAINST SCROLL"
+                    ? YokkoStrings.Get("mods.settings.cover_with_scroll")
+                    : YokkoStrings.Get("mods.settings.cover_against_scroll")
                 : comboBasedSize
-                    ? "WINDOW SHRINKS WITH COMBO"
-                    : "WINDOW SIZE STAYS FIXED";
+                    ? YokkoStrings.Get("mods.settings.flashlight_combo")
+                    : YokkoStrings.Get("mods.settings.flashlight_fixed");
         this.ClearTransforms();
         this.FadeTo(isEnabled ? 1 : 0.42f, 120, Easing.OutQuint);
     }
@@ -358,7 +369,7 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
             };
         }
 
-        internal void SetLabel(string text) =>
+        internal void SetLabel(LocalisableString text) =>
             label.Text = text;
 
         internal void SetState(bool isEnabled, bool selected)

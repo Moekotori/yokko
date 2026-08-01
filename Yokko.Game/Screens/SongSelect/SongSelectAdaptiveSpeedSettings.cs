@@ -3,6 +3,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osuTK;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -31,14 +32,15 @@ internal partial class SongSelectAdaptiveSpeedSettings : CompositeDrawable
         [
             new SpriteText
             {
-                Text = "ADAPTIVE SPEED",
+                Text = YokkoStrings.Get(
+                    "mods.definition.adaptive-speed.name"),
                 Font = HomeTypography.Display(12),
                 Colour = GameplayModSettingsTheme.Text,
             },
             new SpriteText
             {
                 Y = 34,
-                Text = "INITIAL RATE",
+                Text = YokkoStrings.Get("mods.settings.initial_rate"),
                 Font = HomeTypography.Body(10),
                 Colour = GameplayModSettingsTheme.Muted,
             },
@@ -63,7 +65,7 @@ internal partial class SongSelectAdaptiveSpeedSettings : CompositeDrawable
                 Position = new Vector2(51, 58),
             },
             pitchButton = new GameplayModSettingsStateButton(
-                "ADJUST MUSIC PITCH",
+                YokkoStrings.Get("mods.settings.adjust_pitch"),
                 () => pitchChanged(!AdjustPitch))
             {
                 Position = new Vector2(0, 108),
@@ -71,14 +73,14 @@ internal partial class SongSelectAdaptiveSpeedSettings : CompositeDrawable
             new SpriteText
             {
                 Y = 159,
-                Text = "RESPONDS TO YOUR LAST 8 RESULTS",
+                Text = YokkoStrings.Get("mods.settings.adaptive_recent"),
                 Font = HomeTypography.Body(9),
                 Colour = GameplayModSettingsTheme.Accent,
             },
             new SpriteText
             {
                 Y = 178,
-                Text = "EARLY HITS SPEED UP · MISSES SLOW DOWN",
+                Text = YokkoStrings.Get("mods.settings.adaptive_rule"),
                 Font = HomeTypography.Body(8),
                 Colour = GameplayModSettingsTheme.Muted,
             },
