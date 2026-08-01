@@ -662,9 +662,10 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     private Drawable createTopBar()
     {
-        const float panelWidth = 300;
-        const float panelHeight = 420;
-        const float buttonWidth = 272;
+        const float panelWidth = 330;
+        const float panelHeight = 392;
+        const float buttonWidth = 298;
+        const float splitButtonWidth = 145;
 
         return new Container
         {
@@ -678,7 +679,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     Position = new Vector2(5),
                     Size = new Vector2(panelWidth, panelHeight),
                     Masking = true,
-                    CornerRadius = 8,
+                    CornerRadius = 12,
                     Child = new Box
                     {
                         RelativeSizeAxes = Axes.Both,
@@ -693,9 +694,13 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 {
                     Size = new Vector2(panelWidth, panelHeight),
                     Masking = true,
-                    CornerRadius = 8,
-                    BorderThickness = 1.5f,
-                    BorderColour = HomeControlColours.Navy,
+                    CornerRadius = 12,
+                    BorderThickness = 1.25f,
+                    BorderColour = new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.72f),
                     Children = new Drawable[]
                     {
                         new Box
@@ -706,23 +711,23 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                         new Box
                         {
                             RelativeSizeAxes = Axes.Y,
-                            Width = 5,
+                            Width = 6,
                             Colour = HomeControlColours.Cyan,
                         },
                         new SpriteText
                         {
-                            Position = new Vector2(16, 13),
+                            Position = new Vector2(20, 15),
                             Text = YokkoStrings.Get(
                                 "gameplay.layout_editor.title"),
-                            Font = LayoutEditorTypography.Bold(14),
+                            Font = LayoutEditorTypography.Bold(16),
                             Colour = HomeControlColours.Navy,
                         },
                         new SpriteText
                         {
-                            Position = new Vector2(16, 42),
+                            Position = new Vector2(20, 49),
                             Text = YokkoStrings.Get(
                                 "gameplay.layout_editor.hint"),
-                            Font = LayoutEditorTypography.Regular(8.5f),
+                            Font = LayoutEditorTypography.Regular(10),
                             Colour = new Color4(
                                 HomeControlColours.Navy.R,
                                 HomeControlColours.Navy.G,
@@ -731,50 +736,76 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                         },
                         editorHint = new SpriteText
                         {
-                            Position = new Vector2(16, 65),
-                            Font = LayoutEditorTypography.Bold(8.5f),
+                            Position = new Vector2(20, 77),
+                            Font = LayoutEditorTypography.Bold(10),
                             Colour = HomeControlColours.Pink,
                         },
                         new FillFlowContainer
                         {
-                            Position = new Vector2(14, 98),
+                            Position = new Vector2(16, 112),
                             AutoSizeAxes = Axes.Y,
                             Width = buttonWidth,
                             Direction = FillDirection.Vertical,
-                            Spacing = new Vector2(0, 6),
+                            Spacing = new Vector2(0, 8),
                             Children = new Drawable[]
                             {
-                                undoButton = new LayoutActionButton(
-                                    YokkoStrings.Get(
-                                        "gameplay.layout_editor.undo"),
-                                    FontAwesome.Solid.Undo,
-                                    undo)
+                                new FillFlowContainer
                                 {
-                                    Width = buttonWidth,
+                                    Size = new Vector2(buttonWidth, 44),
+                                    Direction = FillDirection.Horizontal,
+                                    Spacing = new Vector2(8, 0),
+                                    Children = new Drawable[]
+                                    {
+                                        undoButton = new LayoutActionButton(
+                                            YokkoStrings.Get(
+                                                "gameplay.layout_editor.undo"),
+                                            FontAwesome.Solid.Undo,
+                                            undo)
+                                        {
+                                            Size = new Vector2(
+                                                splitButtonWidth,
+                                                44),
+                                        },
+                                        redoButton = new LayoutActionButton(
+                                            YokkoStrings.Get(
+                                                "gameplay.layout_editor.redo"),
+                                            FontAwesome.Solid.Redo,
+                                            redo)
+                                        {
+                                            Size = new Vector2(
+                                                splitButtonWidth,
+                                                44),
+                                        },
+                                    },
                                 },
-                                redoButton = new LayoutActionButton(
-                                    YokkoStrings.Get(
-                                        "gameplay.layout_editor.redo"),
-                                    FontAwesome.Solid.Redo,
-                                    redo)
+                                new FillFlowContainer
                                 {
-                                    Width = buttonWidth,
-                                },
-                                new LayoutActionButton(
-                                    YokkoStrings.Get(
-                                        "gameplay.layout_editor.reset"),
-                                    FontAwesome.Solid.Trash,
-                                    reset)
-                                {
-                                    Width = buttonWidth,
-                                },
-                                cancelButton = new LayoutActionButton(
-                                    YokkoStrings.Get(
-                                        "gameplay.layout_editor.cancel"),
-                                    FontAwesome.Solid.Times,
-                                    CancelAndClose)
-                                {
-                                    Width = buttonWidth,
+                                    Size = new Vector2(buttonWidth, 44),
+                                    Direction = FillDirection.Horizontal,
+                                    Spacing = new Vector2(8, 0),
+                                    Children = new Drawable[]
+                                    {
+                                        new LayoutActionButton(
+                                            YokkoStrings.Get(
+                                                "gameplay.layout_editor.reset"),
+                                            FontAwesome.Solid.Trash,
+                                            reset)
+                                        {
+                                            Size = new Vector2(
+                                                splitButtonWidth,
+                                                44),
+                                        },
+                                        cancelButton = new LayoutActionButton(
+                                            YokkoStrings.Get(
+                                                "gameplay.layout_editor.cancel"),
+                                            FontAwesome.Solid.Times,
+                                            CancelAndClose)
+                                        {
+                                            Size = new Vector2(
+                                                splitButtonWidth,
+                                                44),
+                                        },
+                                    },
                                 },
                                 new LayoutActionButton(
                                     YokkoStrings.Get(
@@ -782,7 +813,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                     FontAwesome.Solid.Play,
                                     beginTestPlay)
                                 {
-                                    Width = buttonWidth,
+                                    Size = new Vector2(buttonWidth, 44),
                                 },
                                 new LayoutActionButton(
                                     YokkoStrings.Get(
@@ -790,7 +821,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                     FontAwesome.Solid.PlayCircle,
                                     beginAutoplayDemo)
                                 {
-                                    Width = buttonWidth,
+                                    Size = new Vector2(buttonWidth, 44),
                                 },
                                 new LayoutActionButton(
                                     YokkoStrings.Get(
@@ -799,7 +830,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                                     SaveAndClose,
                                     true)
                                 {
-                                    Width = buttonWidth,
+                                    Size = new Vector2(buttonWidth, 48),
                                 },
                             },
                         },
@@ -809,8 +840,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.Centre,
-                    Position = new Vector2(-7, 4),
-                    Size = new Vector2(11),
+                    Position = new Vector2(-8, 5),
+                    Size = new Vector2(13),
                     Rotation = 45,
                     Colour = HomeControlColours.Yellow,
                 },
@@ -910,7 +941,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         {
             Anchor = Anchor.BottomRight,
             Origin = Anchor.BottomRight,
-            Position = new Vector2(-18, -10),
+            Position = new Vector2(-18, -16),
+            Scale = new Vector2(1.08f),
             Size = cardSize + new Vector2(5),
             Children = new Drawable[]
             {
@@ -919,7 +951,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     Position = new Vector2(5),
                     Size = cardSize,
                     Masking = true,
-                    CornerRadius = 8,
+                    CornerRadius = 11,
                     Child = new Box
                     {
                         RelativeSizeAxes = Axes.Both,
@@ -934,9 +966,13 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 {
                     Size = cardSize,
                     Masking = true,
-                    CornerRadius = 8,
-                    BorderThickness = 1.5f,
-                    BorderColour = HomeControlColours.Navy,
+                    CornerRadius = 11,
+                    BorderThickness = 1.25f,
+                    BorderColour = new Color4(
+                        HomeControlColours.Navy.R,
+                        HomeControlColours.Navy.G,
+                        HomeControlColours.Navy.B,
+                        0.72f),
                     Children = new Drawable[]
                     {
                         new Box
@@ -955,7 +991,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                             Position = new Vector2(overviewPadding, 8),
                             Text = YokkoStrings.Get(
                                 "gameplay.layout_editor.preview"),
-                            Font = LayoutEditorTypography.Bold(11),
+                            Font = LayoutEditorTypography.Bold(12),
                             Colour = HomeControlColours.Navy,
                         },
                         overviewContent = new Container
@@ -963,8 +999,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                             Position = new Vector2(overviewPadding, 32),
                             Size = new Vector2(overviewWidth, overviewHeight),
                             Masking = true,
-                            CornerRadius = 4,
-                            BorderThickness = 1.5f,
+                            CornerRadius = 7,
+                            BorderThickness = 1.25f,
                             BorderColour = HomeControlColours.Navy,
                             Children = new Drawable[]
                             {
@@ -2486,8 +2522,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             };
             Size = new Vector2(112, 38);
             Masking = true;
-            CornerRadius = 6;
-            BorderThickness = 1.5f;
+            CornerRadius = 8;
+            BorderThickness = 1.25f;
             BorderColour = primary
                 ? HomeControlColours.Navy
                 : new Color4(
@@ -2523,7 +2559,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                         {
                             Anchor = Anchor.CentreLeft,
                             Origin = Anchor.CentreLeft,
-                            Size = new Vector2(13),
+                            Size = new Vector2(15),
                             Icon = icon,
                             Colour = primary
                                 ? HomeControlColours.Yellow
@@ -2534,7 +2570,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                             Anchor = Anchor.CentreLeft,
                             Origin = Anchor.CentreLeft,
                             Text = text,
-                            Font = LayoutEditorTypography.Bold(9),
+                            Font = LayoutEditorTypography.Bold(10),
                             Colour = primary
                                 ? Color4.White
                                 : HomeControlColours.Navy,
@@ -2615,6 +2651,6 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             new("Yokko", readableSize(size), "Bold");
 
         private static float readableSize(float size) =>
-            MathF.Max(20, size + MathF.Min(12, 10 + size * 0.1f));
+            MathF.Max(23, size + MathF.Min(15, 12 + size * 0.12f));
     }
 }

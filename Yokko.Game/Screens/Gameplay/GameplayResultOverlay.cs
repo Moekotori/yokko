@@ -61,6 +61,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private readonly Action watchReplay;
     private readonly Action returnToSongSelect;
     private readonly JudgementConfiguration judgementConfiguration;
+    private ResultActionButton replayActionButton;
     private Container backdrop;
     private Container stage;
     private Container leftStageLayout;
@@ -87,6 +88,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         songHeading?.UnderlineClearance ?? float.NegativeInfinity;
     internal string DisplayedMods { get; }
     internal bool PracticeSession { get; }
+    internal bool ReplayAvailable { get; private set; }
     internal bool ScorePanelInteractionActive =>
         scorePanel?.InteractionActive == true;
     internal bool EntranceComplete =>
@@ -123,7 +125,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         Action watchReplay,
         Action returnToSongSelect,
         bool practiceSession = false,
-        JudgementConfiguration? judgementConfiguration = null)
+        JudgementConfiguration? judgementConfiguration = null,
+        bool replayAvailable = true)
     {
         mods ??= ManiaModSet.Empty;
         this.judgementConfiguration =
@@ -131,6 +134,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         this.retry = retry;
         this.watchReplay = watchReplay;
         this.returnToSongSelect = returnToSongSelect;
+        ReplayAvailable = replayAvailable && watchReplay != null;
         PracticeSession = practiceSession;
         string displayedMods = mods.IsEmpty
             ? "NM"
@@ -301,7 +305,17 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         }
     }
 
-    internal void TriggerReplay() => watchReplay();
+    internal void TriggerReplay()
+    {
+        if (ReplayAvailable)
+            watchReplay?.Invoke();
+    }
+
+    internal void SetReplayAvailable(bool available)
+    {
+        ReplayAvailable = available && watchReplay != null;
+        replayActionButton?.SetEnabled(ReplayAvailable);
+    }
 
     internal void SetScorePanelInteraction(bool active) =>
         scorePanel?.SetInteractionState(active);
@@ -674,13 +688,14 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     retry,
                     405,
                     true),
-                new ResultActionButton(
+                replayActionButton = new ResultActionButton(
                     YokkoStrings.Get("gameplay.result.watch_replay"),
                     "V",
                     FontAwesome.Solid.Play,
                     watchReplay,
                     257,
-                    false)
+                    false,
+                    ReplayAvailable)
                 {
                     X = 428,
                 },
@@ -1594,6 +1609,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
     private partial class ResultActionButton : ClickableContainer
     {
+        private readonly Action requestedAction;
+        private bool enabled;
         private readonly Box background;
         private readonly Container iconTile;
         private readonly Container keyHint;
@@ -1601,15 +1618,18 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         private readonly Color4 restColour;
         private readonly Color4 hoverColour;
 
+        public override bool HandlePositionalInput => enabled;
+
         public ResultActionButton(
             LocalisableString label,
             string key,
             IconUsage icon,
             Action action,
             float width,
-            bool primary)
+            bool primary,
+            bool enabled = true)
         {
-            Action = action;
+            requestedAction = action;
             Size = new Vector2(width, 98);
             restColour = primary
                 ? ResultColours.Navy
@@ -1748,6 +1768,15 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Colour = ResultColours.Yellow,
                 },
             };
+
+            SetEnabled(enabled);
+        }
+
+        public void SetEnabled(bool enabled)
+        {
+            this.enabled = enabled;
+            Action = enabled ? requestedAction : null;
+            Alpha = enabled ? 1 : 0.42f;
         }
 
         protected override bool OnHover(HoverEvent e)

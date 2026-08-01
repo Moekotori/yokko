@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Difficulty;
+using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -36,7 +37,9 @@ internal sealed record SongSelectScore(
     int Miss = 0,
     int ComboBreaks = 0,
     int MaxMissCombo = 0,
-    string ReplayPath = null);
+    string ReplayPath = null,
+    ManiaModSet ModSet = null,
+    JudgementConfiguration JudgementConfiguration = null);
 
 internal sealed record SongSelectEntry
 {

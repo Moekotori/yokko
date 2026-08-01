@@ -107,7 +107,9 @@ public partial class SongSelectScreen : Screen
     private SongSelectFooterToolButton optionsFooterButton;
     private SongSelectVirtualisedList songList;
     private SongSelectRankingPanel rankingPanel;
-    private SongSelectScoreDetailOverlay scoreDetailOverlay;
+    private ScoreResultInputBlocker scoreResultHost;
+    private GameplayResultOverlay scoreResultOverlay;
+    private SongSelectScore activeScoreResult;
     private SongSelectNoResultsPanel noResults;
     private SongSelectKeyModeFilterButton keyModeFilterButton;
     private SongSelectSearchBox searchBox;
@@ -380,12 +382,12 @@ public partial class SongSelectScreen : Screen
         modInfoDescription?.Text.ToString() ?? string.Empty;
     internal bool LegacyInlineModPanelMaterialised =>
         modSettingsHost != null;
-    internal bool ScoreDetailVisible => scoreDetailOverlay != null;
-    internal SongSelectScore DetailScore => scoreDetailOverlay?.Score;
-    internal bool DetailReplayAvailable =>
-        scoreDetailOverlay?.ReplayAvailable == true;
-    internal void ActivateDetailReplay() =>
-        scoreDetailOverlay?.WatchReplay();
+    internal bool ScoreResultVisible => scoreResultHost != null;
+    internal SongSelectScore ResultScore => activeScoreResult;
+    internal bool ResultReplayAvailable =>
+        scoreResultOverlay?.ReplayAvailable == true;
+    internal void ActivateResultReplay() =>
+        scoreResultOverlay?.TriggerReplay();
     internal static bool RankingFitsDesignedStage =>
         details_top + ranking_top + ranking_height
         <= designed_height - footer_height;
@@ -576,7 +578,6 @@ public partial class SongSelectScreen : Screen
         modsToggleButton?.SetOpen(false);
         if (!keepExistingSongSelectState)
         {
-            closeScoreDetailImmediately();
             synchroniseImportedCharts(refreshSongList: false);
             int selectedIndex = Math.Max(0, entries.IndexOf(selectedEntry));
             refreshSavedScores();
@@ -586,14 +587,16 @@ public partial class SongSelectScreen : Screen
             applyFilters();
             rebuildDetails();
         }
-        previewActive = true;
+        bool scoreResultVisible = scoreResultHost != null;
+        previewActive = !scoreResultVisible;
         diagnostics.Trace(
             "SONG_SELECT",
             "resumed",
             $"entries={entries.Count} | visible={visibleEntries.Count}"
             + $" | selected={selectedEntry?.Beatmap.Title ?? "none"}"
             + $" | preserved={keepExistingSongSelectState}");
-        playSelectedPreview();
+        if (!scoreResultVisible)
+            playSelectedPreview();
         this.FadeIn(180, Easing.OutQuint);
     }
 
@@ -696,12 +699,14 @@ public partial class SongSelectScreen : Screen
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
-        if (scoreDetailOverlay != null)
+        if (scoreResultOverlay != null)
         {
             if (e.Key == Key.Escape)
-                scoreDetailOverlay.Close();
-            else if (e.Key == Key.Enter)
-                scoreDetailOverlay.WatchReplay();
+                closeScoreResult();
+            else if (e.Key is Key.Enter or Key.V)
+                scoreResultOverlay.TriggerReplay();
+            else if (e.Key == Key.R)
+                retryScoreResult();
 
             return true;
         }
@@ -833,8 +838,8 @@ public partial class SongSelectScreen : Screen
 
     internal void HandleEscape()
     {
-        if (scoreDetailOverlay != null)
-            scoreDetailOverlay.Close();
+        if (scoreResultOverlay != null)
+            closeScoreResult();
         else if (!DismissSearch())
             stopPreviewThen(this.Exit);
     }
@@ -848,7 +853,7 @@ public partial class SongSelectScreen : Screen
     {
         SongSelectScore first = selectedEntry?.History.FirstOrDefault();
         if (first != null)
-            ShowScoreDetails(first);
+            ShowScoreResult(first);
     }
 
     internal void ActivateSelectedModsButton() =>
@@ -928,51 +933,114 @@ public partial class SongSelectScreen : Screen
             Scheduler.Add(() =>
             {
                 transitionPending = false;
-                previewActive = true;
+                bool scoreResultVisible = scoreResultHost != null;
+                previewActive = !scoreResultVisible;
                 stage.FadeTo(1, 120, Easing.OutQuint)
                      .ScaleTo(1, 120, Easing.OutQuint);
-                playSelectedPreview();
+                if (!scoreResultVisible)
+                    playSelectedPreview();
                 failure?.Invoke(exception.GetBaseException());
             });
         }
     }
 
-    internal void ShowScoreDetails(SongSelectScore score)
+    internal void ShowScoreResult(SongSelectScore score)
     {
-        if (score == null || transitionPending)
+        if (score == null || selectedEntry == null || transitionPending)
             return;
 
-        closeScoreDetailImmediately();
-        SongSelectScoreDetailOverlay overlay = null;
-        overlay = new SongSelectScoreDetailOverlay(
-            score,
-            textures.Get("SongSelect/Ui/yokko-avatar-256"),
-            () => closeScoreDetail(overlay),
-            () => watchScoreReplay(score));
-        scoreDetailOverlay = overlay;
-        stage.Add(overlay);
+        closeScoreResultImmediately(restartPreview: false);
+        var result = new ManiaScoreResult(
+            score.Score,
+            score.Accuracy,
+            score.MaxCombo,
+            score.Grade,
+            score.Perfect,
+            score.Great,
+            score.Good,
+            score.Ok,
+            score.Meh,
+            score.Miss,
+            score.ComboBreaks,
+            score.MaxMissCombo);
+        bool replayAvailable =
+            !string.IsNullOrWhiteSpace(score.ReplayPath)
+            && File.Exists(score.ReplayPath);
+        activeScoreResult = score;
+        scoreResultOverlay = new GameplayResultOverlay(
+            selectedEntry.Beatmap,
+            result,
+            score.ModSet ?? ManiaModSet.Empty,
+            isNewBest: false,
+            retryScoreResult,
+            () => watchScoreReplay(score),
+            closeScoreResult,
+            practiceSession: false,
+            score.JudgementConfiguration
+                ?? gameplaySettings.GetJudgementConfiguration(),
+            replayAvailable);
+        scoreResultHost = new ScoreResultInputBlocker
+        {
+            RelativeSizeAxes = Axes.Both,
+            Depth = float.MinValue,
+            Child = scoreResultOverlay,
+        };
+        stage.Add(scoreResultHost);
+        previewActive = false;
+        previewPlayer?.Stop();
     }
 
-    private void closeScoreDetail(
-        SongSelectScoreDetailOverlay overlay)
+    private void retryScoreResult()
     {
-        if (!ReferenceEquals(scoreDetailOverlay, overlay))
+        if (activeScoreResult == null
+            || selectedEntry == null
+            || transitionPending
+            || !ensurePlayableBeatmap(selectedEntry))
+        {
+            return;
+        }
+
+        ManiaModSet retryMods = activeScoreResult.ModSet
+                                ?? ManiaModSet.Empty;
+        closeScoreResultImmediately(restartPreview: false);
+        selectedMods = retryMods;
+        updateModSelection();
+        PlaySelected();
+    }
+
+    private void closeScoreResult()
+    {
+        ScoreResultInputBlocker host = scoreResultHost;
+        if (host == null)
             return;
 
-        scoreDetailOverlay = null;
+        scoreResultHost = null;
+        scoreResultOverlay = null;
+        activeScoreResult = null;
+        host.ClearTransforms();
+        host.FadeOut(140, Easing.InQuad);
         Scheduler.AddDelayed(() =>
         {
-            if (overlay.Parent == stage)
-                stage.Remove(overlay, true);
-        }, 125);
+            if (host.Parent == stage)
+                stage.Remove(host, true);
+        }, 145);
+        previewActive = true;
+        playSelectedPreview();
     }
 
-    private void closeScoreDetailImmediately()
+    private void closeScoreResultImmediately(bool restartPreview)
     {
-        SongSelectScoreDetailOverlay overlay = scoreDetailOverlay;
-        scoreDetailOverlay = null;
-        if (overlay?.Parent == stage)
-            stage.Remove(overlay, true);
+        ScoreResultInputBlocker host = scoreResultHost;
+        scoreResultHost = null;
+        scoreResultOverlay = null;
+        activeScoreResult = null;
+        if (host?.Parent == stage)
+            stage.Remove(host, true);
+        if (!restartPreview)
+            return;
+
+        previewActive = true;
+        playSelectedPreview();
     }
 
     private void watchScoreReplay(SongSelectScore score)
@@ -1027,8 +1095,7 @@ public partial class SongSelectScreen : Screen
         _ = finishGameplayTransitionAsync(
             previewPlayer?.WaitForIdleAsync() ?? Task.CompletedTask,
             gameplayTask,
-            exception => scoreDetailOverlay?.ShowReplayError(
-                exception.Message));
+            _ => scoreResultOverlay?.SetReplayAvailable(false));
     }
 
     private void stopPreviewThen(Action transition)
@@ -2498,7 +2565,7 @@ public partial class SongSelectScreen : Screen
         rankingPanel = new SongSelectRankingPanel(
             selectedEntry,
             textures,
-            ShowScoreDetails)
+            ShowScoreResult)
         {
             Position = new Vector2(0, ranking_top),
         };
@@ -3643,7 +3710,9 @@ public partial class SongSelectScreen : Screen
                     score.Miss,
                     score.ComboBreaks,
                     score.MaxMissCombo,
-                    score.ReplayPath);
+                    score.ReplayPath,
+                    score.ModSet,
+                    judgementConfiguration);
         }
     }
 
@@ -4110,5 +4179,10 @@ public partial class SongSelectScreen : Screen
         string ModFingerprint,
         JudgementConfiguration JudgementConfiguration,
         bool MinesEnabled);
+
+    private partial class ScoreResultInputBlocker : Container
+    {
+        public override bool HandlePositionalInput => true;
+    }
 
 }

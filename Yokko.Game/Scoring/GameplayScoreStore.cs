@@ -39,6 +39,42 @@ internal sealed record StoredGameplayScore(
     string ExternalScoreId = null)
 {
     [JsonIgnore]
+    public ManiaModSet ModSet
+    {
+        get
+        {
+            if (ModConfiguration != null)
+            {
+                try
+                {
+                    return ManiaModConfigurationCodec.Restore(
+                        ModConfiguration);
+                }
+                catch (Exception exception) when (
+                    exception is InvalidDataException
+                    or NotSupportedException
+                    or ArgumentException)
+                {
+                    // Scores written by a newer build must remain readable.
+                }
+            }
+
+            ManiaModId[] legacyMods = (Mods ?? [])
+                .Select(label => OsuManiaModParityCatalog.All
+                    .FirstOrDefault(definition => string.Equals(
+                        definition.Acronym,
+                        label,
+                        StringComparison.OrdinalIgnoreCase)))
+                .Where(static definition => definition != null)
+                .Select(static definition => definition!.Id)
+                .ToArray();
+            return legacyMods.Length == 0
+                ? ManiaModSet.Empty
+                : new ManiaModSet(legacyMods);
+        }
+    }
+
+    [JsonIgnore]
     public IReadOnlyList<string> ModLabels
     {
         get
@@ -47,9 +83,7 @@ internal sealed record StoredGameplayScore(
             {
                 try
                 {
-                    return ManiaModConfigurationCodec
-                           .Restore(ModConfiguration)
-                           .DisplayLabels;
+                    return ModSet.DisplayLabels;
                 }
                 catch (Exception exception) when (
                     exception is InvalidDataException
