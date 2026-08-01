@@ -3,10 +3,12 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Mods;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -169,42 +171,42 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             new SpriteText
             {
                 Y = 5,
-                Text = "CFG",
-                Font = HomeTypography.Display(12),
+                Text = YokkoStrings.Get("mods.settings.sections"),
+                Font = HomeTypography.Display(10),
                 Colour = GameplayModSettingsTheme.Muted,
             },
             accuracyTab = new PageTab(
-                "AC",
+                YokkoStrings.Get("mods.settings.tab_challenge"),
                 () => Show(activeFailPage()))
             {
                 Position = new Vector2(27, 0),
             },
             difficultyTab = new PageTab(
-                "DA",
+                YokkoStrings.Get("mods.settings.tab_difficulty"),
                 () => Show(ManiaModId.DifficultyAdjust))
             {
                 Position = new Vector2(56, 0),
             },
             visibilityTab = new PageTab(
-                "VIS",
+                YokkoStrings.Get("mods.settings.tab_visibility"),
                 () => Show(activeVisibilityPage()))
             {
                 Position = new Vector2(85, 0),
             },
             mutedTab = new PageTab(
-                "MU",
+                YokkoStrings.Get("mods.settings.tab_muted"),
                 () => Show(ManiaModId.Muted))
             {
                 Position = new Vector2(114, 0),
             },
             timeRampTab = new PageTab(
-                "RATE",
+                YokkoStrings.Get("mods.settings.tab_rate"),
                 () => Show(activeRatePage()))
             {
                 Position = new Vector2(143, 0),
             },
             keyTab = new PageTab(
-                "KEY",
+                YokkoStrings.Get("mods.settings.tab_conversion"),
                 () => Show(activeConversionPage()))
             {
                 Position = new Vector2(172, 0),
@@ -517,21 +519,18 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
             || activePage == ManiaModId.DualStages;
         keyPage.Alpha = showKey ? 1 : 0;
         accuracyTab.SetLabel(
-            showNoPause ? "NP" : showPerfect ? "PF" : "AC");
+            YokkoStrings.Get("mods.settings.tab_challenge"));
         accuracyTab.SetSelected(
             showNoPause || showPerfect || showAccuracy);
         difficultyTab.SetSelected(showDifficulty);
         visibilityTab.SetLabel(
-            activePage == ManiaModId.Cover
-                ? "CO"
-                : activePage == ManiaModId.Flashlight
-                    ? "FL"
-                    : "VIS");
+            YokkoStrings.Get("mods.settings.tab_visibility"));
         visibilityTab.SetSelected(showVisibility);
         mutedTab.SetSelected(activePage == ManiaModId.Muted);
         timeRampTab.SetSelected(
             showFixedRate || showTimeRamp || showAdaptive);
-        keyTab.SetLabel(showRandom ? "RD" : "KEY");
+        keyTab.SetLabel(
+            YokkoStrings.Get("mods.settings.tab_conversion"));
         keyTab.SetSelected(showKey || showRandom);
     }
 
@@ -574,7 +573,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
         private readonly SpriteText label;
         private bool selected;
 
-        public PageTab(string text, Action action)
+        public PageTab(LocalisableString text, Action action)
         {
             Action = action;
             Size = new Vector2(27, 27);
@@ -615,7 +614,7 @@ internal partial class SongSelectModSettingsHost : CompositeDrawable
                 : GameplayModSettingsTheme.Text;
         }
 
-        public void SetLabel(string text) =>
+        public void SetLabel(LocalisableString text) =>
             label.Text = text;
 
         protected override bool OnHover(osu.Framework.Input.Events.HoverEvent e)

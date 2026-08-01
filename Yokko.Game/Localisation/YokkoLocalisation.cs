@@ -195,6 +195,13 @@ internal static class YokkoStrings
                 "Preview",
                 "预览",
                 "プレビュー"),
+            ["mods.settings.sections"] = new("Pages", "分类", "分類"),
+            ["mods.settings.tab_challenge"] = new("CHL", "挑战", "挑戦"),
+            ["mods.settings.tab_difficulty"] = new("DA", "数值", "数値"),
+            ["mods.settings.tab_visibility"] = new("VIS", "视野", "視野"),
+            ["mods.settings.tab_muted"] = new("MU", "静音", "消音"),
+            ["mods.settings.tab_rate"] = new("RATE", "速度", "速度"),
+            ["mods.settings.tab_conversion"] = new("CVT", "转换", "変換"),
             ["mods.settings.on"] = new("ON", "开", "オン"),
             ["mods.settings.off"] = new("OFF", "关", "オフ"),
             ["mods.settings.select_first"] = new(

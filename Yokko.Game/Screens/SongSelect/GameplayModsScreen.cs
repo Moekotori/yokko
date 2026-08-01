@@ -178,6 +178,8 @@ internal partial class GameplayModsScreen : Screen
         orbitWorkspace?.RepresentsMod(mod) == true;
     internal void CycleOrbitMod(ManiaModId mod) =>
         orbitWorkspace?.CycleNode(mod);
+    internal void FocusOrbitModForTest(ManiaModId mod) =>
+        FocusOrbitMod(mod);
     internal int VisibleOrbitModCount =>
         orbitWorkspace?.VisibleMods.Count ?? 0;
     internal string OrbitActiveCountText =>

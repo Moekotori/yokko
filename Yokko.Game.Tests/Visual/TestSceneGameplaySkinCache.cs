@@ -7,6 +7,7 @@ using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Textures;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Skinning.OsuMania;
 
 namespace Yokko.Game.Tests.Visual;
@@ -21,6 +22,8 @@ public partial class TestSceneGameplaySkinCache : YokkoTestScene
     private OsuManiaSkinCache cache;
     private OsuManiaSkin firstSkin;
     private Texture firstTexture;
+    private OsuManiaSkinLease fontLease;
+    private OsuScoreFontText accuracyText;
 
     [Test]
     public void TestReusesSkinAndTextureAcrossGameplayLeases()
@@ -57,9 +60,32 @@ public partial class TestSceneGameplaySkinCache : YokkoTestScene
         AddAssert("one skin retained", () => cache.RetainedCount == 1);
     }
 
+    [Test]
+    public void TestAccuracyUsesCompleteSkinScoreFont()
+    {
+        AddStep("create skin score font", () =>
+        {
+            skinPath = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                $"yokko-accuracy-font-{Guid.NewGuid():N}.osk");
+            createSkin(skinPath);
+            cache = new OsuManiaSkinCache();
+        });
+        AddStep("load skin score font", () =>
+        {
+            fontLease = cache.Acquire(skinPath, 4, renderer);
+            accuracyText = new OsuScoreFontText(fontLease.Skin);
+            accuracyText.SetText("98.76%");
+        });
+        AddAssert("accuracy uses skin score font", () =>
+            accuracyText.UsesSkinFont
+            && accuracyText.DisplayedText == "98.76%");
+    }
+
     [TearDown]
     public void TearDown()
     {
+        fontLease?.Dispose();
         cache?.Dispose();
         if (skinPath != null && File.Exists(skinPath))
             File.Delete(skinPath);
@@ -75,10 +101,37 @@ public partial class TestSceneGameplaySkinCache : YokkoTestScene
         writeEntry(
             archive,
             "skin.ini",
-            "[General]\nName: Gameplay cache test\n[Mania]\nKeys: 4\nNoteImage0: mania-note1");
-        ZipArchiveEntry texture = archive.CreateEntry("mania-note1.png");
+            "[General]\nName: Gameplay cache test"
+            + "\n[Fonts]\nScorePrefix: custom/accuracy\nScoreOverlap: 2"
+            + "\n[Mania]\nKeys: 4\nNoteImage0: mania-note1");
+        byte[] textureBytes = imageBytes.ToArray();
+        writeTextureEntry(archive, "mania-note1.png", textureBytes);
+        for (int digit = 0; digit < 10; digit++)
+        {
+            writeTextureEntry(
+                archive,
+                $"custom/accuracy-{digit}.png",
+                textureBytes);
+        }
+
+        writeTextureEntry(
+            archive,
+            "custom/accuracy-dot.png",
+            textureBytes);
+        writeTextureEntry(
+            archive,
+            "custom/accuracy-percent.png",
+            textureBytes);
+    }
+
+    private static void writeTextureEntry(
+        ZipArchive archive,
+        string name,
+        byte[] contents)
+    {
+        ZipArchiveEntry texture = archive.CreateEntry(name);
         using Stream textureStream = texture.Open();
-        textureStream.Write(imageBytes.ToArray());
+        textureStream.Write(contents);
     }
 
     private static void writeEntry(

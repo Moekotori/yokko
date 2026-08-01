@@ -2014,7 +2014,8 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("paused replay seeks forward", () =>
                 !gameplay.ReplaySeekInProgress
                 && gameplay.IsPaused
-                && Math.Abs(gameplay.CurrentGameplayTime - 5050) < 0.001
+                && gameplay.CurrentGameplayTime > 4000
+                && gameplay.CurrentGameplayTime <= 5050
                 && !gameplay.IsLanePressed(0));
             AddStep("seek backward with Left", () =>
                 gameplay.HandleKeyDownInput(

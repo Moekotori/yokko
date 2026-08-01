@@ -1004,12 +1004,15 @@ namespace Yokko.Game.Tests
                         ManiaModCategory.DifficultyIncrease);
                     modsScreen.CycleOrbitMod(
                         ManiaModId.AccuracyChallenge);
+                    modsScreen.FocusOrbitModForTest(
+                        ManiaModId.AccuracyChallenge);
                     break;
 
                 case "config-muted":
                     modsScreen.ResetMods();
                     modsScreen.SetCategory(ManiaModCategory.Fun);
                     modsScreen.CycleOrbitMod(ManiaModId.Muted);
+                    modsScreen.FocusOrbitModForTest(ManiaModId.Muted);
                     modsScreen.SetMutedInverse(true);
                     modsScreen.SetMutedMetronome(true);
                     modsScreen.SetMutedComboCount(150);
@@ -1019,6 +1022,7 @@ namespace Yokko.Game.Tests
                     modsScreen.ResetMods();
                     modsScreen.SetCategory(ManiaModCategory.Fun);
                     modsScreen.CycleOrbitMod(ManiaModId.WindUp);
+                    modsScreen.FocusOrbitModForTest(ManiaModId.WindUp);
                     modsScreen.SetTimeRampInitialRate(0.85);
                     modsScreen.SetTimeRampFinalRate(1.5);
                     break;
@@ -1027,6 +1031,7 @@ namespace Yokko.Game.Tests
                     modsScreen.ResetMods();
                     modsScreen.SetCategory(ManiaModCategory.Conversion);
                     modsScreen.CycleOrbitMod(ManiaModId.Random);
+                    modsScreen.FocusOrbitModForTest(ManiaModId.Random);
                     modsScreen.SetRandomSeed(20260801);
                     break;
 
