@@ -119,6 +119,30 @@ public class GameplayScoreStoreTest
     }
 
     [Test]
+    public void ReloadedStoreCanAppendAnotherYokkoScore()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var first = new GameplayScoreStore();
+        first.Initialise(new NativeStorage(testRoot));
+
+        Assert.That(
+            first.SaveBest(beatmap, result(700_000, 0.90)),
+            Is.True);
+
+        var restored = new GameplayScoreStore();
+        restored.Initialise(new NativeStorage(testRoot));
+
+        Assert.That(
+            restored.SaveBest(beatmap, result(800_000, 0.95)),
+            Is.True);
+        Assert.That(
+            restored.GetHistory(
+                beatmap,
+                JudgementConfiguration.YokkoDefault),
+            Has.Count.EqualTo(2));
+    }
+
+    [Test]
     public void DifferentModSetsKeepIndependentBestScores()
     {
         YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();

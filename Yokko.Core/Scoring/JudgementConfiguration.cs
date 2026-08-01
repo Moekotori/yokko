@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Yokko.Core.Scoring;
 
 public enum JudgementMode
@@ -30,6 +32,7 @@ public readonly record struct JudgementConfiguration
     public static JudgementConfiguration QuaverDefault { get; } =
         new(JudgementMode.Quaver);
 
+    [JsonConstructor]
     public JudgementConfiguration(
         JudgementMode mode,
         int etternaJustice = DefaultEtternaJustice)
@@ -56,6 +59,7 @@ public readonly record struct JudgementConfiguration
     /// Source: etternagame/etterna GameState.h
     /// commit 939a26ae042d3a689999a0dae630721c7701f187 (MIT).
     /// </summary>
+    [JsonIgnore]
     public double EtternaTimingScale => EtternaJustice switch
     {
         4 => 1.00,
@@ -68,6 +72,7 @@ public readonly record struct JudgementConfiguration
             "The Etterna Justice value is outside the supported range."),
     };
 
+    [JsonIgnore]
     public string EtternaJusticeLabel =>
         EtternaJustice == MaximumEtternaJustice
             ? "Justice"
