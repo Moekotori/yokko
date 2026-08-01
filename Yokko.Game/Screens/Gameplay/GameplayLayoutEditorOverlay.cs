@@ -36,7 +36,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private readonly GameplayLayoutEditorLiveSettings liveSettings;
     private readonly Action beginTestPlay;
     private readonly Action beginAutoplayDemo;
-    private readonly Action pauseAutoplayDemo;
+    private readonly Action exitAutoplayDemo;
     private readonly Action save;
     private readonly Action close;
     private readonly LayoutTransformTarget playfieldTarget;
@@ -88,7 +88,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     internal bool AutoplayControlVisibleForTest =>
         autoplayDemoControl.Alpha > 0.9f;
 
-    internal void PauseAutoplayDemoForTest() => pauseAutoplayDemo();
+    internal void ExitAutoplayDemoForTest() => exitAutoplayDemo();
 
     internal bool HasUnsavedChangesForTest => hasUnsavedChanges();
 
@@ -145,7 +145,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         GameplayLayoutEditorLiveSettings liveSettings,
         Action beginTestPlay,
         Action beginAutoplayDemo,
-        Action pauseAutoplayDemo,
+        Action exitAutoplayDemo,
         Action save,
         Action close)
     {
@@ -158,7 +158,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         this.liveSettings = liveSettings;
         this.beginTestPlay = beginTestPlay;
         this.beginAutoplayDemo = beginAutoplayDemo;
-        this.pauseAutoplayDemo = pauseAutoplayDemo;
+        this.exitAutoplayDemo = exitAutoplayDemo;
         this.save = save;
         this.close = close;
 
@@ -266,7 +266,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         {
             editorChrome,
             autoplayDemoControl = new AutoplayDemoControl(
-                pauseAutoplayDemo),
+                exitAutoplayDemo),
         };
 
         settings.ToggleLayoutEditorUiKey.ValueChanged +=
@@ -338,7 +338,6 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         setJudgementEditorPreview(false);
         if (autoplay)
         {
-            setChromeVisible(false, animate: true);
             this.FadeTo(1, 90, Easing.OutQuint);
             autoplayDemoControl.FadeTo(1, 120, Easing.OutQuint);
         }
@@ -2410,7 +2409,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     private partial class AutoplayDemoControl : CompositeDrawable
     {
-        public AutoplayDemoControl(Action pause)
+        public AutoplayDemoControl(Action exit)
         {
             Position = new Vector2(18);
             Size = new Vector2(430, 84);
@@ -2466,7 +2465,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                         {
                             Position = new Vector2(16, 48),
                             Text = YokkoStrings.Get(
-                                "gameplay.layout_editor.autoplay_demo_pause_hint"),
+                                "gameplay.layout_editor.autoplay_demo_exit_hint"),
                             Font = LayoutEditorTypography.Regular(8.5f),
                             Colour = new Color4(
                                 HomeControlColours.Navy.R,
@@ -2476,9 +2475,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                         },
                         new LayoutActionButton(
                             YokkoStrings.Get(
-                                "gameplay.layout_editor.autoplay_demo_pause"),
-                            FontAwesome.Solid.Pause,
-                            pause,
+                                "gameplay.layout_editor.autoplay_demo_exit"),
+                            FontAwesome.Solid.SignOutAlt,
+                            exit,
                             true)
                         {
                             Anchor = Anchor.CentreRight,

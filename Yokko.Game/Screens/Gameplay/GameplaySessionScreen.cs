@@ -25,15 +25,28 @@ internal partial class GameplaySessionScreen : Screen
     private GameplaySessionRootScreen root;
     private GameplayRetryTransitionOverlay retryTransition;
     private bool retryHandoffInProgress;
+    private bool initialGameplayPreloaded;
     private GameplayScreen pendingReplacement;
+    private bool initialRevealStarted;
     private bool revealStarted;
     private bool frameRateSessionActive;
 
+    private const double initialFadeDurationMilliseconds = 140;
+    private const double initialMotionDurationMilliseconds = 220;
+    private const float initialScale = 1.012f;
+    private const float initialOffsetY = 10;
     private const double coverDurationMilliseconds = 35;
     private const double revealDurationMilliseconds = 95;
 
     internal GameplayScreen CurrentGameplay =>
         gameplayStack?.CurrentScreen as GameplayScreen;
+    internal bool InitialGameplayPreloaded => initialGameplayPreloaded;
+    internal bool InitialRevealStarted => initialRevealStarted;
+    internal bool InitialRevealAnimationComplete =>
+        initialRevealStarted
+        && Alpha == 1
+        && gameplayStack?.Scale == Vector2.One
+        && gameplayStack.Y == 0;
     internal bool RetryTransitionActive => pendingReplacement != null;
 
     internal GameplaySessionScreen(GameplayScreen initialGameplay)
@@ -41,6 +54,12 @@ internal partial class GameplaySessionScreen : Screen
         this.initialGameplay = initialGameplay
                                ?? throw new ArgumentNullException(
                                    nameof(initialGameplay));
+
+        // The session becomes the outer stack's current screen before its
+        // nested gameplay has finished loading. Keep the launching screen
+        // visible through that gap instead of exposing the session's dark
+        // fallback background.
+        Alpha = 0.001f;
     }
 
     public override void OnEntering(ScreenTransitionEvent e)
@@ -69,6 +88,12 @@ internal partial class GameplaySessionScreen : Screen
     [BackgroundDependencyLoader]
     private void load()
     {
+        // Load the expensive gameplay tree while the launching screen is
+        // still current. Gameplay timing and audio are armed by OnEntering,
+        // so this is preparation only and cannot consume the lead-in early.
+        LoadComponent(initialGameplay);
+        initialGameplayPreloaded = true;
+
         root = new GameplaySessionRootScreen(this);
         gameplayStack = new ScreenStack(root)
         {
@@ -137,6 +162,24 @@ internal partial class GameplaySessionScreen : Screen
     protected override void Update()
     {
         base.Update();
+
+        if (!initialRevealStarted
+            && initialGameplay.IsLoaded
+            && ReferenceEquals(CurrentGameplay, initialGameplay))
+        {
+            initialRevealStarted = true;
+            ClearTransforms();
+            this.FadeTo(1, initialFadeDurationMilliseconds,
+                Easing.OutQuint);
+
+            gameplayStack.ClearTransforms();
+            gameplayStack.Scale = new Vector2(initialScale);
+            gameplayStack.Y = initialOffsetY;
+            gameplayStack.ScaleTo(1, initialMotionDurationMilliseconds,
+                             Easing.OutQuint)
+                         .MoveToY(0, initialMotionDurationMilliseconds,
+                             Easing.OutQuint);
+        }
 
         if (pendingReplacement == null
             || revealStarted

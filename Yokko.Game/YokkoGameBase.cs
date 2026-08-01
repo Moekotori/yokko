@@ -238,7 +238,8 @@ namespace Yokko.Game
                 frameworkConfig,
                 displaySettings,
                 audioSettings,
-                displayModeController);
+                displayModeController,
+                yokkoConfig);
 
             string configuredLocale = frameworkConfig.Get<string>(FrameworkSetting.Locale);
             string normalizedLocale = YokkoLocale.Normalize(configuredLocale);
@@ -283,6 +284,7 @@ namespace Yokko.Game
         protected override void LoadComplete()
         {
             base.LoadComplete();
+            desktopBehaviourController?.RestoreWindowState();
             desktopBehaviourController?.EnsureWindowFrameVisible();
         }
 

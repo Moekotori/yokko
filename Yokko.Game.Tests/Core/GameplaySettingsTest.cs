@@ -471,6 +471,8 @@ public sealed class GameplaySettingsTest
         settings.LayoutJudgementOffsetY.Value = 0.14;
         settings.LayoutJudgementScaleX.Value = 1.3;
         settings.LayoutJudgementScaleY.Value = 0.7;
+        settings.ReplayControlsOffsetX.Value = 0.2;
+        settings.ReplayControlsOffsetY.Value = 0.35;
         settings.LayoutTopCoverRatio.Value = 0.32;
         settings.LayoutBottomCoverRatio.Value = 0.18;
         settings.BackgroundDim.Value = 0.75;
@@ -504,6 +506,8 @@ public sealed class GameplaySettingsTest
             Assert.That(settings.LayoutJudgementOffsetY.Value, Is.Zero);
             Assert.That(settings.LayoutJudgementScaleX.Value, Is.EqualTo(1));
             Assert.That(settings.LayoutJudgementScaleY.Value, Is.EqualTo(1));
+            Assert.That(settings.ReplayControlsOffsetX.Value, Is.Zero);
+            Assert.That(settings.ReplayControlsOffsetY.Value, Is.Zero);
             Assert.That(settings.LayoutTopCoverRatio.Value, Is.Zero);
             Assert.That(settings.LayoutBottomCoverRatio.Value, Is.Zero);
             Assert.That(
@@ -582,6 +586,8 @@ public sealed class GameplaySettingsTest
                 firstSettings.LayoutJudgementOffsetY.Value = 0.24;
                 firstSettings.LayoutJudgementScaleX.Value = 1.45;
                 firstSettings.LayoutJudgementScaleY.Value = 0.75;
+                firstSettings.ReplayControlsOffsetX.Value = 0.2;
+                firstSettings.ReplayControlsOffsetY.Value = 0.35;
                 firstSettings.LayoutTopCoverRatio.Value = 0.28;
                 firstSettings.LayoutBottomCoverRatio.Value = 0.12;
                 firstSettings.BackgroundDim.Value = 0.65;
@@ -720,6 +726,12 @@ public sealed class GameplaySettingsTest
                 Assert.That(
                     restoredSettings.LayoutJudgementScaleY.Value,
                     Is.EqualTo(0.75).Within(0.001));
+                Assert.That(
+                    restoredSettings.ReplayControlsOffsetX.Value,
+                    Is.EqualTo(0.2).Within(0.001));
+                Assert.That(
+                    restoredSettings.ReplayControlsOffsetY.Value,
+                    Is.EqualTo(0.35).Within(0.001));
                 Assert.That(
                     restoredSettings.LayoutTopCoverRatio.Value,
                     Is.EqualTo(0.28).Within(0.001));

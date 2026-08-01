@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -47,6 +47,10 @@ internal sealed record ExternalOsuLibraryResult(
     int ContentReadCount = 0,
     double ElapsedMilliseconds = 0);
 
+internal sealed record ManagedChartRemovalResult(
+    int RemovedChartCount,
+    string SourcePath);
+
 /// <summary>
 /// Owns Yokko's persistent beatmap resource directory and notifies views which
 /// present the playable chart library.
@@ -69,7 +73,6 @@ internal sealed class ImportedChartLibrary : IDisposable
     private Task externalDifficultyTask = Task.CompletedTask;
     private bool startupLoadStarted;
     private long revision;
-    private string libraryPath;
     private YokkoExternalOsuSettings externalOsuSettings;
     private string externalOsuCachePath;
     private FileSystemWatcher externalWatcher;
@@ -82,7 +85,7 @@ internal sealed class ImportedChartLibrary : IDisposable
 
     public event Action LibraryChanged;
 
-    public string LibraryPath => libraryPath;
+    public string LibraryPath { get; private set; }
     internal string ExternalOsuSongsPath =>
         externalOsuSettings?.SongsPath.Value ?? string.Empty;
     internal int ExternalOsuChartCount
@@ -199,8 +202,8 @@ internal sealed class ImportedChartLibrary : IDisposable
     public void Initialise(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        libraryPath = Path.GetFullPath(path);
-        Directory.CreateDirectory(libraryPath);
+        LibraryPath = Path.GetFullPath(path);
+        Directory.CreateDirectory(LibraryPath);
         initialiseDifficultyRatingCaches();
     }
 
@@ -225,6 +228,91 @@ internal sealed class ImportedChartLibrary : IDisposable
         }
 
         LibraryChanged?.Invoke();
+    }
+
+    internal async Task<ManagedChartRemovalResult> RemoveManagedChartAsync(
+        string chartId,
+        CancellationToken cancellationToken = default)
+    {
+        ensureInitialised();
+        ArgumentException.ThrowIfNullOrWhiteSpace(chartId);
+
+        await importLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            ImportedChart selected;
+            lock (syncRoot)
+                selected = charts.FirstOrDefault(chart => chart.Id == chartId);
+
+            if (selected == null)
+                return new ManagedChartRemovalResult(0, string.Empty);
+
+            if (selected.SourceKind != ImportedChartSourceKind.Managed
+                || selected.IsReadOnly)
+            {
+                throw new InvalidOperationException(
+                    "External chart sources are read-only and cannot be removed by Yokko.");
+            }
+
+            string libraryRoot = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(LibraryPath));
+            string sourcePath = Path.GetFullPath(selected.SourcePath);
+            string relativeSource = Path.GetRelativePath(libraryRoot, sourcePath);
+
+            if (Path.IsPathRooted(relativeSource)
+                || relativeSource.Equals("..", StringComparison.Ordinal)
+                || relativeSource.StartsWith(
+                    $"..{Path.DirectorySeparatorChar}",
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "The selected chart is outside Yokko's managed beatmap directory.");
+            }
+
+            string firstSegment = relativeSource.Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                2,
+                StringSplitOptions.RemoveEmptyEntries)[0];
+            bool sourceIsDirectChild = string.Equals(
+                relativeSource,
+                firstSegment,
+                StringComparison.OrdinalIgnoreCase);
+            string removalTarget = sourceIsDirectChild
+                ? sourcePath
+                : Path.Combine(libraryRoot, firstSegment);
+
+            if (Directory.Exists(removalTarget))
+                Directory.Delete(removalTarget, true);
+            else if (File.Exists(removalTarget))
+                File.Delete(removalTarget);
+
+            int removed;
+            lock (syncRoot)
+            {
+                removed = charts.RemoveAll(chart =>
+                    chart.SourceKind == ImportedChartSourceKind.Managed
+                    && (sourceIsDirectChild
+                        ? chart.SourcePath.Equals(
+                            sourcePath,
+                            StringComparison.OrdinalIgnoreCase)
+                        : isPathInside(
+                            Path.GetFullPath(chart.SourcePath),
+                            removalTarget)));
+
+                if (removed > 0)
+                    revision++;
+            }
+
+            if (removed > 0)
+                LibraryChanged?.Invoke();
+
+            return new ManagedChartRemovalResult(removed, sourcePath);
+        }
+        finally
+        {
+            importLock.Release();
+        }
     }
 
     public ImportedChart FindBySourceHash(string sourceHash)
@@ -347,7 +435,7 @@ internal sealed class ImportedChartLibrary : IDisposable
             var loaded = new List<ImportedChart>();
             string[] sources = Directory
                                .EnumerateFiles(
-                                   libraryPath,
+                                   LibraryPath,
                                    "*",
                                    SearchOption.AllDirectories)
                                .Where(KnownChartImporters.CanImport)
@@ -416,8 +504,8 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         try
         {
-            libraryPath = Path.GetFullPath(path);
-            Directory.CreateDirectory(libraryPath);
+            LibraryPath = Path.GetFullPath(path);
+            Directory.CreateDirectory(LibraryPath);
             initialiseDifficultyRatingCaches();
         }
         finally
@@ -1403,7 +1491,7 @@ internal sealed class ImportedChartLibrary : IDisposable
     private void initialiseDifficultyRatingCaches()
     {
         string cacheDirectory = Path.Combine(
-            libraryPath,
+            LibraryPath,
             ".yokko-cache");
         msdRatingCache.Initialise(Path.Combine(
             cacheDirectory,
@@ -1527,7 +1615,7 @@ internal sealed class ImportedChartLibrary : IDisposable
         string baseName = sanitiseName(Path.GetFileNameWithoutExtension(sourcePath));
         string suffix = Guid.NewGuid().ToString("N")[..8];
         string id = $"{baseName}-{suffix}";
-        return Path.Combine(libraryPath, id);
+        return Path.Combine(LibraryPath, id);
     }
 
     private static void copyReferencedAssets(
@@ -1602,9 +1690,19 @@ internal sealed class ImportedChartLibrary : IDisposable
 
     private bool isManagedPath(string path)
     {
-        string root = Path.GetFullPath(libraryPath)
+        string root = Path.GetFullPath(LibraryPath)
                     + Path.DirectorySeparatorChar;
         return path.StartsWith(root, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool isPathInside(string path, string directory)
+    {
+        string root = Path.TrimEndingDirectorySeparator(
+                          Path.GetFullPath(directory))
+                      + Path.DirectorySeparatorChar;
+        return Path.GetFullPath(path).StartsWith(
+            root,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static string sanitiseName(string value)
@@ -1618,7 +1716,7 @@ internal sealed class ImportedChartLibrary : IDisposable
 
     private void ensureInitialised()
     {
-        if (string.IsNullOrWhiteSpace(libraryPath))
+        if (string.IsNullOrWhiteSpace(LibraryPath))
         {
             throw new InvalidOperationException(
                 "The imported chart library has not been initialised.");

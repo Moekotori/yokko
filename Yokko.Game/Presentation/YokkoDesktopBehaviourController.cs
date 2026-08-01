@@ -4,6 +4,7 @@ using osu.Framework.Bindables;
 using osu.Framework.Configuration;
 using osu.Framework.Platform;
 using Yokko.Game.Audio;
+using Yokko.Game.Configuration;
 using Yokko.Game.Resources;
 
 namespace Yokko.Game.Presentation;
@@ -16,6 +17,7 @@ internal sealed class YokkoDesktopBehaviourController : IDisposable
     private readonly YokkoAudioSettings audioSettings;
     private readonly IBindable<bool> windowActive;
     private readonly IDesktopDisplayModeController displayModeController;
+    private readonly YokkoConfigManager yokkoConfig;
     private readonly IWindow window;
     private readonly Bindable<WindowMode> windowMode;
     private readonly Bindable<Display> currentDisplay;
@@ -25,13 +27,15 @@ internal sealed class YokkoDesktopBehaviourController : IDisposable
         FrameworkConfigManager frameworkConfig,
         YokkoDisplaySettings displaySettings,
         YokkoAudioSettings audioSettings,
-        IDesktopDisplayModeController displayModeController)
+        IDesktopDisplayModeController displayModeController,
+        YokkoConfigManager yokkoConfig)
     {
         this.host = host;
         this.frameworkConfig = frameworkConfig;
         this.displaySettings = displaySettings;
         this.audioSettings = audioSettings;
         this.displayModeController = displayModeController;
+        this.yokkoConfig = yokkoConfig;
         window = host.Window;
         windowActive = window?.IsActive;
         windowMode = window?.WindowMode;
@@ -89,10 +93,25 @@ internal sealed class YokkoDesktopBehaviourController : IDisposable
 
     private void onWindowStateChanged(WindowState state)
     {
-        if (state == WindowState.Normal
-            && windowMode?.Value == WindowMode.Windowed)
+        if (windowMode?.Value != WindowMode.Windowed)
+            return;
+
+        if (state == WindowState.Maximised)
+            yokkoConfig.SetWindowMaximised(true);
+        else if (state == WindowState.Normal)
         {
+            yokkoConfig.SetWindowMaximised(false);
             displayModeController.EnsureWindowFrameVisible(window);
+        }
+    }
+
+    internal void RestoreWindowState()
+    {
+        if (window != null
+            && windowMode?.Value == WindowMode.Windowed
+            && yokkoConfig.GetWindowMaximised())
+        {
+            window.WindowState = WindowState.Maximised;
         }
     }
 

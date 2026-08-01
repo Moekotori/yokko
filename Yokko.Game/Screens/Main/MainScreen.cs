@@ -20,6 +20,7 @@ using osuTK.Input;
 using Yokko.Audio;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
+using Yokko.Game.Screens.ChartLibrary;
 using Yokko.Game.Screens.Editor;
 using Yokko.Game.Screens.Settings;
 using Yokko.Game.Screens.SongSelect;
@@ -104,12 +105,10 @@ public partial class MainScreen : Screen
         YokkoStrings.Get("main.bubble_pick_song"),
         YokkoStrings.Get("main.bubble_keys"),
     };
-
-    private int bubbleLineIndex;
     private double lastBubbleInteraction;
     private float sparkleAngleOffset;
 
-    internal int BubbleLineIndex => bubbleLineIndex;
+    internal int BubbleLineIndex { get; private set; }
 
     internal int BubbleLineCount => bubbleLines.Length;
 
@@ -844,7 +843,7 @@ public partial class MainScreen : Screen
     }
 
     internal static bool KeepsMusicPlaying(IScreen next) =>
-        next is SettingsScreen or SongSelectScreen;
+        next is SettingsScreen or SongSelectScreen or ChartLibraryScreen;
 
     private void startAmbientMotion()
     {
@@ -925,8 +924,8 @@ public partial class MainScreen : Screen
     /// </summary>
     internal void advanceBubbleLine()
     {
-        bubbleLineIndex = (bubbleLineIndex + 1) % bubbleLines.Length;
-        bubble.SetText(bubbleLines[bubbleLineIndex]);
+        BubbleLineIndex = (BubbleLineIndex + 1) % bubbleLines.Length;
+        bubble.SetText(bubbleLines[BubbleLineIndex]);
     }
 
     private void spawnSparkles()
@@ -1645,7 +1644,8 @@ public partial class MainScreen : Screen
     };
 
     private Drawable createUtilityArea() => new Container
-    {        Position = new Vector2(1016, 24),
+    {
+        Position = new Vector2(1016, 24),
         Size = new Vector2(240, 150),
         Children = new Drawable[]
         {
@@ -1664,7 +1664,7 @@ public partial class MainScreen : Screen
                     new HomeUtilityButton(string.Empty, FontAwesome.Solid.Cog,
                         () => this.Push(new SettingsScreen()), 72, tooltipText: YokkoStrings.Get("main.settings")),
                     new HomeUtilityButton(string.Empty, FontAwesome.Solid.FolderOpen,
-                        () => this.Push(new EditorScreen(true)), 72, FontAwesome.Solid.ArrowRight,
+                        () => this.Push(new ChartLibraryScreen()), 72, FontAwesome.Solid.ArrowRight,
                         YokkoStrings.Get("main.utility_folder")),
                 },
             },

@@ -237,6 +237,10 @@ public sealed class YokkoGameplaySettings
 
     public readonly Bindable<double> LayoutJudgementScaleY = new(1);
 
+    public readonly Bindable<double> ReplayControlsOffsetX = new(0);
+
+    public readonly Bindable<double> ReplayControlsOffsetY = new(0);
+
     public readonly Bindable<double> LayoutTopCoverRatio = new(0);
 
     public readonly Bindable<double> LayoutBottomCoverRatio = new(0);
@@ -557,6 +561,8 @@ public sealed class YokkoGameplaySettings
         LayoutJudgementOffsetY.SetDefault();
         LayoutJudgementScaleX.SetDefault();
         LayoutJudgementScaleY.SetDefault();
+        ReplayControlsOffsetX.SetDefault();
+        ReplayControlsOffsetY.SetDefault();
         LayoutTopCoverRatio.SetDefault();
         LayoutBottomCoverRatio.SetDefault();
         BackgroundDim.SetDefault();

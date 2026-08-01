@@ -10,7 +10,7 @@ namespace Yokko.Game.Screens.Main;
 
 /// <summary>
 /// 主页贴底的实时频谱可视化条：一排藏青墨色的胶囊细柱紧贴舞台底边向上生长，
-/// 随主页播放器当前歌曲的低/中/高频能量实时跳动，柱顶带白色峰值挂留块，
+/// 随主页播放器当前歌曲的低/中/高频能量实时跳动，
 /// 像印刷海报上的录音室 VU 表——与背景装饰里的均衡器纹样同一语言。
 /// 数据来自 <see cref="AudioWaveformAnalyzer"/> 对真实音频的离线分析，按播放进度逐帧取样。
 /// 立柱经过悬浮卡片下方时自动收低，看起来像从卡片背后穿过。
@@ -28,10 +28,6 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
     private const float min_bar = 3;
     private const float max_bar = 110;
 
-    private const float cap_height = 4;
-    private const float cap_gap = 3;
-    private const float cap_fall_speed = 160;
-
     // 藏青墨色：与背景均衡器纹样、条码、框线相同的印刷油墨色。
     private static readonly Color4 inkColour =
         new(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.85f);
@@ -39,13 +35,10 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
         new(HomeControlColours.Pink.R, HomeControlColours.Pink.G, HomeControlColours.Pink.B, 0.9f);
     private static readonly Color4 yellowInk =
         new(HomeControlColours.Yellow.R, HomeControlColours.Yellow.G, HomeControlColours.Yellow.B, 0.95f);
-    private static readonly Color4 capColour = new(1f, 1f, 1f, 0.95f);
     private static readonly Color4 idleColour =
         new(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.2f);
 
     private readonly Container[] bars = new Container[bar_count];
-    private readonly Container[] caps = new Container[bar_count];
-    private readonly float[] peaks = new float[bar_count];
     private readonly float[] lowWeight = new float[bar_count];
     private readonly float[] midWeight = new float[bar_count];
     private readonly float[] highWeight = new float[bar_count];
@@ -73,10 +66,7 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
             highWeight[i] = gaussian(f, 0.86f, 0.2f);
             jitter[i] = 0.8f + 0.45f * frac(MathF.Sin(i * 12.9898f) * 43758.5453f);
 
-            Color4 ink = accentInk(i);
-            peaks[i] = min_bar;
-
-            // 柱身与峰值块都是胶囊形（圆角取柱宽一半），纯色平涂保持印刷感。
+            // 柱身为胶囊形（圆角取柱宽一半），纯色平涂保持印刷感。
             AddInternal(bars[i] = new Container
             {
                 Anchor = Anchor.BottomLeft,
@@ -87,19 +77,6 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = idleColour,
-                },
-            });
-            AddInternal(caps[i] = new Container
-            {
-                Anchor = Anchor.BottomLeft,
-                Origin = Anchor.BottomLeft,
-                Masking = true,
-                Alpha = 0,
-                Size = new Vector2(3, cap_height),
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = ink == inkColour ? capColour : ink,
                 },
             });
         }
@@ -182,10 +159,9 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
         for (int i = 0; i < bar_count; i++)
         {
             Container bar = bars[i];
-            Container cap = caps[i];
-            bar.X = cap.X = i * pitch + pitch / 2;
-            bar.Width = cap.Width = barWidth;
-            bar.CornerRadius = cap.CornerRadius = barWidth / 2;
+            bar.X = i * pitch + pitch / 2;
+            bar.Width = barWidth;
+            bar.CornerRadius = barWidth / 2;
 
             Box fill = (Box)bar.Child;
 
@@ -193,33 +169,24 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
             {
                 bar.Height = min_bar;
                 fill.Colour = idleColour;
-                cap.Alpha = 0;
-                peaks[i] = min_bar;
                 continue;
             }
 
             fill.Colour = accentInk(i);
 
-            float capMax = max_bar;
+            float heightMax = max_bar;
             foreach (WaveformObstacle obstacle in obstacles)
             {
                 if (bar.X >= obstacle.StartX && bar.X <= obstacle.EndX)
-                    capMax = MathF.Min(capMax, obstacle.MaxHeight);
+                    heightMax = MathF.Min(heightMax, obstacle.MaxHeight);
             }
 
             float energy = (low * lowWeight[i] + mid * midWeight[i] + high * highWeight[i])
                            * loudness
                            * jitter[i];
-            float target = min_bar + MathF.Pow(energy, 1.2f) * (capMax - min_bar);
+            float target = min_bar + MathF.Pow(energy, 1.2f) * (heightMax - min_bar);
             float blend = target > bar.Height ? attack : release;
             bar.Height += (target - bar.Height) * blend;
-
-            // 峰值挂留：柱高冲过峰值时立即跟上，随后匀速下落，且不超过障碍物限高。
-            peaks[i] = MathF.Max(bar.Height, peaks[i] - cap_fall_speed * (elapsed / 1000f));
-            peaks[i] = MathF.Min(peaks[i], capMax);
-
-            cap.Y = -(peaks[i] + cap_gap);
-            cap.Alpha = peaks[i] > min_bar + 2 ? 1 : 0;
         }
     }
 

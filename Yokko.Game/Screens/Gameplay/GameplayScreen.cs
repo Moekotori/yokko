@@ -112,10 +112,13 @@ public partial class GameplayScreen : Screen
     private KeyModeBindings keyBindings;
     private bool[] pressedLanes;
     private double startTimeMilliseconds;
+    private bool gameplayStarted;
+    private bool inputCaptureActive;
     private bool hasAudioClock;
     private bool audioStarted;
     private OsuManiaSkin maniaSkin;
     private OsuManiaSkinLease maniaSkinLease;
+    private string appliedSelectedSkinId = string.Empty;
 
     [Resolved]
     private OsuManiaSkinCache gameplaySkinCache { get; set; }
@@ -435,6 +438,8 @@ public partial class GameplayScreen : Screen
             beatmap,
             judgementState);
         loadSkin(renderer);
+        appliedSelectedSkinId = skinSettings?.SelectedSkinId.Value
+                                ?? string.Empty;
         prepareHitSamples();
         bool hasSamplePlayback = headSamplesByHitObject.Any(
                                      static samples => samples.Length > 0)
@@ -561,7 +566,10 @@ public partial class GameplayScreen : Screen
                 () => requestReplaySeek(1),
                 requestReplaySeekTo,
                 () => adjustReplayPlaybackRate(-playbackRateStep),
-                () => adjustReplayPlaybackRate(playbackRateStep)));
+                () => adjustReplayPlaybackRate(playbackRateStep),
+                gameplaySettings.ReplayControlsOffsetX,
+                gameplaySettings.ReplayControlsOffsetY,
+                saveGameplayLayout));
         }
 
         playfieldWidthScale = (float)Math.Clamp(
@@ -607,7 +615,6 @@ public partial class GameplayScreen : Screen
         appliedScrollSpeed = gameplaySettings.ScrollSpeed.Value;
         gameplaySettings.ScrollSpeed.BindValueChanged(
             onScrollSpeedChanged);
-        host.Deactivated += onHostDeactivated;
         diagnostics.Trace(
             "GAMEPLAY",
             "constructed",
@@ -621,8 +628,24 @@ public partial class GameplayScreen : Screen
     protected override void LoadComplete()
     {
         base.LoadComplete();
+
+        diagnostics.Trace(
+            "GAMEPLAY",
+            "loaded",
+            $"first-object={firstObjectTimeMilliseconds:0.###}ms"
+            + $" | completion={completionTimeMilliseconds:0.###}ms");
+    }
+
+    public override void OnEntering(ScreenTransitionEvent e)
+    {
+        base.OnEntering(e);
+        if (gameplayStarted)
+            return;
+
+        gameplayStarted = true;
+        host.Deactivated += onHostDeactivated;
         if (!ReplayMode && !isPaused)
-            keyInputTimestamps.BeginCapture();
+            beginInputCapture();
 
         startTimeMilliseconds = Time.Current + leadInMilliseconds;
         frameClockGameplayTime =
@@ -640,11 +663,22 @@ public partial class GameplayScreen : Screen
 
         diagnostics.Trace(
             "GAMEPLAY",
-            "loaded",
+            "started",
             $"lead-in={leadInMilliseconds:0.###}ms"
             + $" | first-object={firstObjectTimeMilliseconds:0.###}ms"
             + $" | completion={completionTimeMilliseconds:0.###}ms"
             + $" | raw-input={keyInputTimestamps.IsRawInputAvailable}");
+    }
+
+    public override void OnResuming(ScreenTransitionEvent e)
+    {
+        base.OnResuming(e);
+
+        // Settings is pushed above the still-paused gameplay screen. Apply a
+        // changed library selection to this existing run before it is shown
+        // again, rather than requiring the player to restart the chart.
+        if (isPaused)
+            applySelectedSkinIfChanged();
     }
 
     protected override void Update()
@@ -714,9 +748,14 @@ public partial class GameplayScreen : Screen
             hud.UpdateMutedMix(mutedAudio.Current);
         }
         double visualGameplayTime = hasAudioClock
+                                    && layoutAutoplayDemoActive
             ? GameplayPresentationClock.EstimateVisualTime(
                 gameplayTime,
-                host.Window?.CurrentDisplayMode.Value.RefreshRate ?? 60)
+                audioEngine as ITimestampedAudioClock,
+                clockObservation.Audio,
+                Stopwatch.GetTimestamp(),
+                Stopwatch.Frequency,
+                activeUserOffsetMilliseconds)
             : gameplayTime;
 
         if (ReplayMode)
@@ -1218,7 +1257,7 @@ public partial class GameplayScreen : Screen
         if (!ReplayMode)
         {
             disableRawKeysoundFastPath();
-            keyInputTimestamps.EndCapture();
+            endInputCapture();
         }
         logInputTimingSummary();
 
@@ -1238,7 +1277,7 @@ public partial class GameplayScreen : Screen
             if (!ReplayMode)
             {
                 disableRawKeysoundFastPath();
-                keyInputTimestamps.EndCapture();
+                endInputCapture();
             }
 
             host.Deactivated -= onHostDeactivated;
@@ -2506,7 +2545,7 @@ public partial class GameplayScreen : Screen
         isPaused = true;
 
         if (!ReplayMode)
-            keyInputTimestamps.EndCapture();
+            endInputCapture();
 
         cancelQuickRetryHold();
         AddInternal(pauseOverlay = createPauseOverlay());
@@ -2655,7 +2694,7 @@ public partial class GameplayScreen : Screen
                 LogLevel.Important);
 
             if (!ReplayMode)
-                keyInputTimestamps.BeginCapture();
+                beginInputCapture();
         }
         catch (Exception ex)
         {
@@ -2726,14 +2765,14 @@ public partial class GameplayScreen : Screen
         pauseOverlay = null;
 
         if (!ReplayMode)
-            keyInputTimestamps.BeginCapture();
+            beginInputCapture();
     }
 
     private void recoverLiveInputState(
         double gameplayTime,
         string reason)
     {
-        keyInputTimestamps.EndCapture();
+        endInputCapture();
         releasePressedLanesAt(gameplayTime);
         inputDropTracker.MarkBackendReset();
 
@@ -2744,13 +2783,31 @@ public partial class GameplayScreen : Screen
             && !isPaused)
         {
             rawKeysoundDispatcher?.RefreshAllAndEnable();
-            keyInputTimestamps.BeginCapture();
+            beginInputCapture();
         }
 
         Logger.Log(
             $"Gameplay input state recovered: {reason}.",
             LoggingTarget.Runtime,
             LogLevel.Important);
+    }
+
+    private void beginInputCapture()
+    {
+        if (ReplayMode || inputCaptureActive)
+            return;
+
+        keyInputTimestamps.BeginCapture();
+        inputCaptureActive = true;
+    }
+
+    private void endInputCapture()
+    {
+        if (!inputCaptureActive)
+            return;
+
+        keyInputTimestamps.EndCapture();
+        inputCaptureActive = false;
     }
 
     private void releasePressedLanesAt(double gameplayTime)
@@ -2788,7 +2845,7 @@ public partial class GameplayScreen : Screen
             $"time={currentGameplayTime:0.###}ms | paused={isPaused} | failed={gameplayFailed}",
             LogLevel.Important);
         if (!ReplayMode)
-            keyInputTimestamps.EndCapture();
+            endInputCapture();
 
         _ = retryGameplayAsync();
     }
@@ -2851,7 +2908,7 @@ public partial class GameplayScreen : Screen
         {
             retryTransitionInProgress = false;
             if (!ReplayMode && this.IsCurrentScreen())
-                keyInputTimestamps.BeginCapture();
+                beginInputCapture();
 
             Logger.Error(
                 exception,
@@ -4133,7 +4190,32 @@ public partial class GameplayScreen : Screen
         else if (!skinLibrary.Select(id))
             return;
 
+        applySelectedSkinIfChanged();
+    }
+
+    private void applySelectedSkinIfChanged()
+    {
+        string selectedSkinId = skinSettings?.SelectedSkinId.Value
+                                ?? string.Empty;
+        if (string.Equals(
+                appliedSelectedSkinId,
+                selectedSkinId,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        appliedSelectedSkinId = selectedSkinId;
         rebuildGameplayPresentation(reloadSkin: true);
+
+        // A mania skin can also provide hitsounds. The visual tree and sample
+        // bindings must therefore move to the new skin together while input is
+        // still suspended by the pause state.
+        keyInputTimestamps.SetRawInputFastPathSink(null);
+        rawKeysoundDispatcher?.Disable();
+        rawKeysoundDispatcher = null;
+        prepareHitSamples();
+        keysoundPreparationTask = prepareKeysoundsAsync();
     }
 
     private void setLayoutEditorScrollDirection(

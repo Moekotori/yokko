@@ -33,6 +33,7 @@ using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
+using Yokko.Game.Screens.Settings;
 using Yokko.Game.Skinning.OsuMania;
 using Yokko.Import.Osu;
 
@@ -54,6 +55,9 @@ namespace Yokko.Game.Tests.Visual
 
         [Resolved]
         private YokkoSkinSettings skinSettings { get; set; }
+
+        [Resolved]
+        private OsuManiaSkinLibrary skinLibrary { get; set; }
 
         [Resolved]
         private IRenderer renderer { get; set; }
@@ -1297,18 +1301,18 @@ namespace Yokko.Game.Tests.Visual
                 gameplayScreen.ResumeCountdownMillisecondsOverride = 0;
                 gameplayScreen.BeginLayoutAutoplayDemoForTest();
             });
-            AddUntilStep("autoplay demo keeps gameplay UI visible", () =>
+            AddUntilStep("autoplay demo keeps editor UI visible", () =>
                 gameplayScreen.IsLayoutAutoplayPlaying
                 && gameplayScreen.AutoplayMode
                 && !gameplayScreen.IsPaused
                 && gameplayHud.Alpha > 0
                 && layoutEditor.AutoplayControlVisibleForTest
-                && layoutEditor.ChromeAlphaForTest < 0.01f);
+                && layoutEditor.ChromeAlphaForTest > 0.9f);
             AddUntilStep("autoplay demo hits notes", () =>
                 comboReadout.DisplayedCombo > 0
                 && judgementReadout.Alpha > 0);
-            AddStep("pause autoplay demo", () =>
-                layoutEditor.PauseAutoplayDemoForTest());
+            AddStep("exit autoplay demo", () =>
+                layoutEditor.ExitAutoplayDemoForTest());
             AddUntilStep("autoplay demo returns to editor paused", () =>
                 gameplayScreen.IsPaused
                 && gameplayScreen.IsLayoutEditing
@@ -4320,6 +4324,36 @@ HitPosition: 400
         }
 
         [Test]
+        public void TestPreloadedGameplayWaitsForScreenEntryBeforeStarting()
+        {
+            var audioEngine = new SeekTrackingAudioEngine();
+            GameplaySessionScreen session = null;
+            GameplayScreen gameplay = null;
+
+            AddStep("preload gameplay session", () =>
+                LoadComponent(session = new GameplaySessionScreen(
+                    gameplay = new GameplayScreen(
+                        DemoBeatmaps.CreateFourKeyDemo() with
+                        {
+                            AudioPath = "preload-fixture.mp3",
+                        },
+                        audioEngine))));
+            AddAssert("gameplay is preloaded", () =>
+                session.InitialGameplayPreloaded);
+            AddAssert("preload does not start audio", () =>
+                audioEngine.StartCount == 0);
+            AddStep("enter preloaded gameplay", () =>
+                screenStack.Push(session));
+            AddUntilStep("preloaded gameplay becomes current", () =>
+                ReferenceEquals(session.CurrentGameplay, gameplay));
+            AddUntilStep("audio starts after entry lead-in", () =>
+                audioEngine.StartCount == 1);
+            AddStep("exit gameplay", () => gameplay.Exit());
+            AddUntilStep("gameplay session exits", () =>
+                !ReferenceEquals(screenStack.CurrentScreen, session));
+        }
+
+        [Test]
         public void TestRetryWaitsForAudioReleaseAndReplacesGameplay()
         {
             var audioEngine = new SeekTrackingAudioEngine
@@ -4370,6 +4404,28 @@ HitPosition: 400
             AddStep("exit replacement gameplay", () =>
                 replacement.Exit());
             AddUntilStep("gameplay session exits with its gameplay", () =>
+                !ReferenceEquals(screenStack.CurrentScreen, session));
+        }
+
+        [Test]
+        public void TestInitialGameplaySessionRevealsOnlyAfterGameplayIsReady()
+        {
+            GameplaySessionScreen session = null;
+            GameplayScreen gameplay = null;
+
+            AddStep("open gameplay session", () =>
+                screenStack.Push(session = new GameplaySessionScreen(
+                    gameplay = new GameplayScreen(
+                        DemoBeatmaps.CreateFourKeyDemo()))));
+            AddUntilStep("loaded gameplay begins reveal", () =>
+                ReferenceEquals(screenStack.CurrentScreen, session)
+                && ReferenceEquals(session?.CurrentGameplay, gameplay)
+                && gameplay?.IsLoaded == true
+                && session.InitialRevealStarted);
+            AddUntilStep("gameplay reveal completes", () =>
+                session?.InitialRevealAnimationComplete == true);
+            AddStep("exit gameplay", () => gameplay.Exit());
+            AddUntilStep("gameplay session exits", () =>
                 !ReferenceEquals(screenStack.CurrentScreen, session));
         }
 
@@ -4576,6 +4632,53 @@ HitPosition: 400
                 gameplaySettings.SetShortcutBinding(
                     ManiaShortcutAction.MenuNext,
                     originalMenuNextKey);
+            });
+        }
+
+        [Test]
+        public void TestSkinSelectionUpdatesExistingPausedGameplay()
+        {
+            GameplayScreen gameplay = null;
+            SettingsScreen settings = null;
+            SkinImportResult importedSkin = null;
+            string originalSkinId = string.Empty;
+
+            AddStep("open gameplay with built-in skin", () =>
+            {
+                originalSkinId = skinSettings.SelectedSkinId.Value;
+                skinSettings.SelectedSkinId.Value = string.Empty;
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo()));
+            });
+            AddUntilStep("built-in playfield is ready", () =>
+                gameplay?.ChildrenOfType<GameplayPlayfield>()
+                         .Any(playfield =>
+                             !playfield.UsesSkinJudgementOverlay) == true);
+            AddStep("pause gameplay", () => gameplay.TogglePause());
+            AddUntilStep("gameplay is paused", () =>
+                gameplay.IsPaused && !gameplay.PauseTransitionInProgress);
+            AddStep("open settings over paused gameplay", () =>
+                gameplay.Push(settings = new SettingsScreen()));
+            AddUntilStep("settings is current", () =>
+                ReferenceEquals(screenStack.CurrentScreen, settings));
+            AddStep("select imported skin in settings", () =>
+            {
+                importedSkin = skinLibrary.Import(createTestSkin());
+                Assert.That(importedSkin.Success, Is.True, importedSkin.Message);
+            });
+            AddStep("return to paused gameplay", () => settings.Exit());
+            AddUntilStep("same paused gameplay uses selected skin", () =>
+                ReferenceEquals(screenStack.CurrentScreen, gameplay)
+                && gameplay.IsPaused
+                && gameplay.ChildrenOfType<GameplayPlayfield>()
+                           .Any(playfield =>
+                               playfield.UsesSkinJudgementOverlay));
+            AddStep("clean up imported skin", () =>
+            {
+                gameplay.Exit();
+                if (importedSkin?.Skin != null)
+                    skinLibrary.Delete(importedSkin.Skin.Id);
+                skinSettings.SelectedSkinId.Value = originalSkinId;
             });
         }
 

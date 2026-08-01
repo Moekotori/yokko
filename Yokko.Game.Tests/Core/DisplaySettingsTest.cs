@@ -72,6 +72,7 @@ public sealed class DisplaySettingsTest
                 firstDisplay.BackgroundFrameRate.Value = YokkoBackgroundFrameRate.Fps60;
                 firstDisplay.FullscreenRefreshRate.Value = 165;
                 firstAudio.BackgroundAudio.Value = BackgroundAudioMode.Dim;
+                config.SetWindowMaximised(true);
                 Assert.That(config.Save(), Is.True);
             }
 
@@ -87,6 +88,7 @@ public sealed class DisplaySettingsTest
                     Assert.That(restoredDisplay.BackgroundFrameRate.Value, Is.EqualTo(YokkoBackgroundFrameRate.Fps60));
                     Assert.That(restoredDisplay.FullscreenRefreshRate.Value, Is.EqualTo(165));
                     Assert.That(restoredAudio.BackgroundAudio.Value, Is.EqualTo(BackgroundAudioMode.Dim));
+                    Assert.That(config.GetWindowMaximised(), Is.True);
                 });
             }
         }

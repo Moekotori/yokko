@@ -164,7 +164,8 @@ internal partial class OsuScoreFontText : CompositeDrawable
                                digitTextures,
                                static texture => texture != null)
                            && dotTexture != null
-                           && percentTexture != null;
+                           && percentTexture != null
+                           && hasUsableGlyphDimensions();
         }
 
         InternalChildren = new Drawable[]
@@ -262,6 +263,41 @@ internal partial class OsuScoreFontText : CompositeDrawable
             target_height);
         skinText.AddRange(sprites);
         return true;
+    }
+
+    private bool hasUsableGlyphDimensions()
+    {
+        float maximumDigitWidth = 0;
+        float maximumDigitHeight = 0;
+        foreach (Texture texture in digitTextures)
+        {
+            maximumDigitWidth = Math.Max(
+                maximumDigitWidth,
+                texture.DisplayWidth);
+            maximumDigitHeight = Math.Max(
+                maximumDigitHeight,
+                texture.DisplayHeight);
+        }
+
+        if (maximumDigitWidth <= 0 || maximumDigitHeight <= 0)
+            return false;
+
+        // Some skins contain unrelated or broken score-percent assets with an
+        // enormous transparent canvas. Scaling the complete readout against
+        // one of those makes otherwise valid digits effectively invisible.
+        const float maximum_symbol_scale = 6;
+        return dotTexture.DisplayWidth > 0
+               && dotTexture.DisplayHeight > 0
+               && percentTexture.DisplayWidth > 0
+               && percentTexture.DisplayHeight > 0
+               && dotTexture.DisplayWidth
+               <= maximumDigitWidth * maximum_symbol_scale
+               && dotTexture.DisplayHeight
+               <= maximumDigitHeight * maximum_symbol_scale
+               && percentTexture.DisplayWidth
+               <= maximumDigitWidth * maximum_symbol_scale
+               && percentTexture.DisplayHeight
+               <= maximumDigitHeight * maximum_symbol_scale;
     }
 
     private static Texture getScoreTexture(

@@ -57,21 +57,55 @@ public sealed class GameplayInputClockTest
         Assert.That(gameplayTime, Is.EqualTo(1009.75));
     }
 
-    [TestCase(60)]
-    [TestCase(120)]
-    [TestCase(240)]
-    [TestCase(0)]
-    public void VisualClockUsesTheAuthoritativeJudgementTime(
-        double refreshRate)
+    [Test]
+    public void VisualClockFallsBackToAuthoritativeJudgementTime()
     {
         const double judgementTime = 1000;
 
         double visualTime = GameplayPresentationClock.EstimateVisualTime(
             judgementTime,
-            refreshRate);
+            null,
+            default,
+            10_000,
+            1_000,
+            0);
 
         Assert.That(judgementTime, Is.EqualTo(1000));
         Assert.That(visualTime, Is.EqualTo(judgementTime));
+    }
+
+    [Test]
+    public void VisualClockUsesCorrelatedAudioProjection()
+    {
+        const double judgementTime = 1000;
+        var clock = new FakeTimestampedAudioClock(1004);
+
+        double visualTime = GameplayPresentationClock.EstimateVisualTime(
+            judgementTime,
+            clock,
+            default,
+            10_000,
+            1_000,
+            12.25);
+
+        Assert.That(judgementTime, Is.EqualTo(1000));
+        Assert.That(visualTime, Is.EqualTo(1016.25));
+    }
+
+    [Test]
+    public void VisualClockNeverFallsBehindAuthoritativeTime()
+    {
+        var clock = new FakeTimestampedAudioClock(990);
+
+        Assert.That(
+            GameplayPresentationClock.EstimateVisualTime(
+                1000,
+                clock,
+                default,
+                10_000,
+                1_000,
+                0),
+            Is.EqualTo(1000));
     }
 
     [Test]

@@ -1,5 +1,6 @@
 using System;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -20,6 +21,9 @@ namespace Yokko.Game.Screens.Gameplay;
 /// </summary>
 internal partial class GameplayReplayControlsOverlay : CompositeDrawable
 {
+    private const float visual_scale = 0.72f;
+    private static readonly Vector2 default_position = new(24);
+
     private static readonly YokkoBrandColourTokens colours =
         YokkoUiTheme.Default.Colours.Brand;
     private static readonly FontUsage cute_font = new(
@@ -35,11 +39,20 @@ internal partial class GameplayReplayControlsOverlay : CompositeDrawable
     private readonly Action seekForward;
     private readonly Action decreaseRate;
     private readonly Action increaseRate;
+    private readonly Bindable<double> horizontalOffset;
+    private readonly Bindable<double> verticalOffset;
+    private readonly Action savePosition;
     private readonly SpriteIcon pauseIcon;
     private readonly SpriteText timeText;
     private readonly SpriteText rateText;
     private readonly GameplayReplayProgressBar progressBar;
     private readonly Sprite shell;
+    private Vector2 dragStartPointer;
+    private Vector2 dragStartPosition;
+    private Vector2 lastParentDrawSize;
+    private double lastAppliedHorizontalOffset = double.NaN;
+    private double lastAppliedVerticalOffset = double.NaN;
+    private bool draggingConsole;
 
     internal string TimeText => timeText.Text.ToString();
     internal string RateText => rateText.Text.ToString();
@@ -61,7 +74,10 @@ internal partial class GameplayReplayControlsOverlay : CompositeDrawable
         Action seekForward,
         Action<double> seekTo,
         Action decreaseRate,
-        Action increaseRate)
+        Action increaseRate,
+        Bindable<double> horizontalOffset,
+        Bindable<double> verticalOffset,
+        Action savePosition)
     {
         this.togglePause = togglePause
                            ?? throw new ArgumentNullException(
@@ -79,11 +95,21 @@ internal partial class GameplayReplayControlsOverlay : CompositeDrawable
         this.increaseRate = increaseRate
                             ?? throw new ArgumentNullException(
                                 nameof(increaseRate));
+        this.horizontalOffset = horizontalOffset
+                                ?? throw new ArgumentNullException(
+                                    nameof(horizontalOffset));
+        this.verticalOffset = verticalOffset
+                              ?? throw new ArgumentNullException(
+                                  nameof(verticalOffset));
+        this.savePosition = savePosition
+                            ?? throw new ArgumentNullException(
+                                nameof(savePosition));
 
-        Anchor = Anchor.TopCentre;
-        Origin = Anchor.TopCentre;
-        Position = new Vector2(0, 16);
+        Anchor = Anchor.TopLeft;
+        Origin = Anchor.TopLeft;
+        Position = default_position;
         Size = new Vector2(720, 193);
+        Scale = new Vector2(visual_scale);
         Depth = -260;
 
         InternalChildren =
@@ -160,6 +186,112 @@ internal partial class GameplayReplayControlsOverlay : CompositeDrawable
     private void load(TextureStore textures)
     {
         shell.Texture = textures.Get("Gameplay/replay-controller-shell");
+    }
+
+    protected override void LoadComplete()
+    {
+        base.LoadComplete();
+        applySavedPosition();
+    }
+
+    protected override void Update()
+    {
+        base.Update();
+
+        if (draggingConsole || Parent == null)
+            return;
+
+        Vector2 parentDrawSize = Parent.DrawSize;
+        if (parentDrawSize != lastParentDrawSize
+            || horizontalOffset.Value != lastAppliedHorizontalOffset
+            || verticalOffset.Value != lastAppliedVerticalOffset)
+        {
+            applySavedPosition();
+        }
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        if (e.Button != MouseButton.Left || Parent == null)
+            return false;
+
+        dragStartPointer = Parent.ToLocalSpace(e.ScreenSpaceMousePosition);
+        dragStartPosition = Position;
+        return true;
+    }
+
+    protected override bool OnDragStart(DragStartEvent e)
+    {
+        draggingConsole = Parent != null;
+        return draggingConsole;
+    }
+
+    protected override void OnDrag(DragEvent e)
+    {
+        if (!draggingConsole || Parent == null)
+            return;
+
+        Vector2 pointer = Parent.ToLocalSpace(e.ScreenSpaceMousePosition);
+        Position = clampPosition(
+            dragStartPosition + pointer - dragStartPointer);
+    }
+
+    protected override void OnDragEnd(DragEndEvent e)
+    {
+        if (draggingConsole)
+        {
+            draggingConsole = false;
+            persistPosition();
+        }
+
+        base.OnDragEnd(e);
+    }
+
+    private void applySavedPosition()
+    {
+        if (Parent == null)
+            return;
+
+        lastParentDrawSize = Parent.DrawSize;
+        lastAppliedHorizontalOffset = horizontalOffset.Value;
+        lastAppliedVerticalOffset = verticalOffset.Value;
+        Position = clampPosition(new Vector2(
+            default_position.X
+            + (float)(horizontalOffset.Value * Parent.DrawWidth),
+            default_position.Y
+            + (float)(verticalOffset.Value * Parent.DrawHeight)));
+    }
+
+    private Vector2 clampPosition(Vector2 position)
+    {
+        if (Parent == null)
+            return position;
+
+        float maximumHorizontal = Math.Max(
+            0,
+            Parent.DrawWidth - Size.X * Scale.X);
+        float maximumVertical = Math.Max(
+            0,
+            Parent.DrawHeight - Size.Y * Scale.Y);
+        return new Vector2(
+            Math.Clamp(position.X, 0, maximumHorizontal),
+            Math.Clamp(position.Y, 0, maximumVertical));
+    }
+
+    private void persistPosition()
+    {
+        if (Parent == null)
+            return;
+
+        horizontalOffset.Value =
+            (Position.X - default_position.X)
+            / Math.Max(1, Parent.DrawWidth);
+        verticalOffset.Value =
+            (Position.Y - default_position.Y)
+            / Math.Max(1, Parent.DrawHeight);
+        lastAppliedHorizontalOffset = horizontalOffset.Value;
+        lastAppliedVerticalOffset = verticalOffset.Value;
+        savePosition();
     }
 
     private static GameplayReplayTextButton createTextButton(

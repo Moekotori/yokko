@@ -228,6 +228,8 @@ internal partial class HomeBubblePopGame : CompositeDrawable
 {
     private const float fieldWidth = 300;
     private const float fieldHeight = 220;
+    private const double targetLifetime = 1200;
+    private const double targetFadeDuration = 160;
 
     private readonly Random random = new(0x59_4f_4b_4b);
     private readonly SpriteText statusText;
@@ -235,6 +237,7 @@ internal partial class HomeBubblePopGame : CompositeDrawable
 
     private bool available;
     private bool running;
+    private int targetGeneration;
     private Vector2 previousTargetPosition;
 
     internal bool IsRunning => running;
@@ -276,7 +279,14 @@ internal partial class HomeBubblePopGame : CompositeDrawable
             return;
 
         available = value;
-        target.Enabled.Value = value;
+        if (value)
+            resetToReady(false);
+        else
+        {
+            targetGeneration++;
+            target.Enabled.Value = false;
+        }
+
         this.FadeTo(value ? 0.9f : 0, value ? 260 : 160, Easing.OutQuint);
     }
 
@@ -294,6 +304,7 @@ internal partial class HomeBubblePopGame : CompositeDrawable
             running = true;
             Score = 0;
             statusText.Text = "戳泡泡 // 000";
+            playPop(target.Position, target.DrawWidth);
             spawnNextTarget(true);
             return;
         }
@@ -308,6 +319,7 @@ internal partial class HomeBubblePopGame : CompositeDrawable
 
     private void resetToReady(bool animate)
     {
+        targetGeneration++;
         running = false;
         Score = 0;
         statusText.Text = "戳泡泡 // 点击泡泡开始";
@@ -317,6 +329,7 @@ internal partial class HomeBubblePopGame : CompositeDrawable
         target.SetPresentation(true, 46);
         target.Alpha = 1;
         target.Scale = Vector2.One;
+        target.Enabled.Value = available;
 
         if (animate)
         {
@@ -331,25 +344,44 @@ internal partial class HomeBubblePopGame : CompositeDrawable
         for (int attempt = 0; attempt < 8; attempt++)
         {
             nextPosition = new Vector2(
-                random.Next(36, 265),
-                random.Next(48, 196));
-            if (Vector2.DistanceSquared(nextPosition, previousTargetPosition) >= 3600)
+                random.Next(70, 231),
+                random.Next(70, 171));
+            if (Vector2.DistanceSquared(nextPosition, previousTargetPosition) >= 2025)
                 break;
         }
 
         previousTargetPosition = nextPosition;
-        float diameter = random.Next(30, 43);
+        float diameter = random.Next(38, 51);
         target.ClearTransforms();
         target.Position = nextPosition;
         target.SetPresentation(false, diameter);
         target.Alpha = animate ? 0 : 1;
         target.Scale = animate ? new Vector2(0.62f) : Vector2.One;
+        target.Enabled.Value = available;
 
         if (animate)
         {
             target.FadeIn(90, Easing.OutQuint)
                   .ScaleTo(1, 180, Easing.OutBack);
         }
+
+        int generation = ++targetGeneration;
+        Scheduler.AddDelayed(() => expireTarget(generation), targetLifetime);
+    }
+
+    private void expireTarget(int generation)
+    {
+        if (!running || !available || generation != targetGeneration)
+            return;
+
+        target.Enabled.Value = false;
+        target.FadeOut(targetFadeDuration, Easing.InQuint)
+              .ScaleTo(0.72f, targetFadeDuration, Easing.InBack);
+        Scheduler.AddDelayed(() =>
+        {
+            if (running && available && generation == targetGeneration)
+                spawnNextTarget(true);
+        }, targetFadeDuration);
     }
 
     private void playPop(Vector2 position, float diameter)
@@ -403,7 +435,6 @@ internal partial class HomeBubbleTarget : ClickableContainer
     private readonly Circle outer;
     private readonly Circle inner;
     private readonly Circle core;
-    private readonly SpriteIcon playIcon;
 
     internal HomeBubbleTarget(Action action)
     {
@@ -428,23 +459,20 @@ internal partial class HomeBubbleTarget : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
             },
-            playIcon = new SpriteIcon
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Icon = FontAwesome.Solid.Play,
-                Colour = HomeControlColours.Navy,
-            },
         };
     }
 
     internal void SetPresentation(bool startBubble, float diameter)
     {
+        outer.ClearTransforms();
+        inner.ClearTransforms();
+        core.ClearTransforms();
         Size = new Vector2(diameter);
         outer.Size = new Vector2(diameter);
         inner.Size = new Vector2(MathF.Max(1, diameter - 4));
-        core.Size = new Vector2(MathF.Max(7, diameter * 0.2f));
-        playIcon.Size = new Vector2(diameter * 0.26f);
+        core.Size = new Vector2(startBubble
+            ? MathF.Max(8, diameter * 0.2f)
+            : MathF.Max(26, diameter - 10));
         outer.Colour = startBubble
             ? HomeControlColours.Yellow
             : Color4.White;
@@ -454,7 +482,6 @@ internal partial class HomeBubbleTarget : ClickableContainer
         core.Colour = startBubble
             ? HomeControlColours.Yellow
             : HomeControlColours.Pink;
-        playIcon.Alpha = startBubble ? 1 : 0;
     }
 
     protected override bool OnHover(HoverEvent e)

@@ -82,6 +82,28 @@ public partial class TestSceneGameplaySkinCache : YokkoTestScene
             && accuracyText.DisplayedText == "98.76%");
     }
 
+    [Test]
+    public void TestAccuracyFallsBackFromMalformedSkinScoreFont()
+    {
+        AddStep("create malformed skin score font", () =>
+        {
+            skinPath = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                $"yokko-malformed-accuracy-font-{Guid.NewGuid():N}.osk");
+            createSkin(skinPath, malformedPercent: true);
+            cache = new OsuManiaSkinCache();
+        });
+        AddStep("load malformed skin score font", () =>
+        {
+            fontLease = cache.Acquire(skinPath, 4, renderer);
+            accuracyText = new OsuScoreFontText(fontLease.Skin);
+            accuracyText.SetText("98.76%");
+        });
+        AddAssert("accuracy uses readable fallback", () =>
+            !accuracyText.UsesSkinFont
+            && accuracyText.DisplayedText == "98.76%");
+    }
+
     [TearDown]
     public void TearDown()
     {
@@ -91,11 +113,20 @@ public partial class TestSceneGameplaySkinCache : YokkoTestScene
             File.Delete(skinPath);
     }
 
-    private static void createSkin(string path)
+    private static void createSkin(
+        string path,
+        bool malformedPercent = false)
     {
         using var image = new Image<Rgba32>(8, 8, new Rgba32(80, 220, 255));
         using var imageBytes = new MemoryStream();
         image.SaveAsPng(imageBytes);
+
+        using var malformedImage = new Image<Rgba32>(
+            128,
+            128,
+            new Rgba32(80, 220, 255));
+        using var malformedImageBytes = new MemoryStream();
+        malformedImage.SaveAsPng(malformedImageBytes);
 
         using ZipArchive archive = ZipFile.Open(path, ZipArchiveMode.Create);
         writeEntry(
@@ -121,7 +152,9 @@ public partial class TestSceneGameplaySkinCache : YokkoTestScene
         writeTextureEntry(
             archive,
             "custom/accuracy-percent.png",
-            textureBytes);
+            malformedPercent
+                ? malformedImageBytes.ToArray()
+                : textureBytes);
     }
 
     private static void writeTextureEntry(

@@ -10,6 +10,11 @@ namespace Yokko.Game.Screens.SongSelect;
 internal sealed class SongSelectSelectionMemory
 {
     internal string ChartId { get; set; }
+
+    internal static int ChooseInitialEntryIndex(
+        int entryCount,
+        Random random) =>
+        random.Next(entryCount);
 }
 
 internal enum SongSelectScoreView

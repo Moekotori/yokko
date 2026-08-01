@@ -887,10 +887,8 @@ public partial class SongSelectScreen : Screen
         stage.FadeTo(0.84f, 90, Easing.OutQuint)
              .ScaleTo(0.997f, 90, Easing.OutQuint);
 
-        // Large charts can spend a noticeable frame applying mods and
-        // preparing gameplay bounds. Construct the still-unloaded screen off
-        // the update thread while the preview engine shuts down, then hand it
-        // back to the ScreenStack on the scheduler.
+        // Construct and load gameplay while the preview engine shuts down so
+        // chart/skin preparation is not deferred until after the screen swap.
         Task<GameplaySessionScreen> gameplayTask = Task.Run(() =>
             new GameplaySessionScreen(new GameplayScreen(
                 gameplayBeatmap,
@@ -908,13 +906,16 @@ public partial class SongSelectScreen : Screen
     {
         try
         {
-            await Task.WhenAll(previewStopped, gameplayTask)
+            GameplaySessionScreen gameplay =
+                await gameplayTask.ConfigureAwait(false);
+            Task gameplayLoaded = preloadGameplaySessionAsync(gameplay);
+            await Task.WhenAll(previewStopped, gameplayLoaded)
                       .ConfigureAwait(false);
             Scheduler.Add(() =>
             {
                 transitionPending = false;
                 diagnostics.Trace("SONG_SELECT", "gameplay-ready");
-                this.Push(gameplayTask.Result);
+                this.Push(gameplay);
             });
         }
         catch (Exception exception)
@@ -940,6 +941,28 @@ public partial class SongSelectScreen : Screen
                 failure?.Invoke(exception.GetBaseException());
             });
         }
+    }
+
+    private async Task preloadGameplaySessionAsync(
+        GameplaySessionScreen gameplay)
+    {
+        var loadScheduled = new TaskCompletionSource<Task>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        Scheduler.Add(() =>
+        {
+            try
+            {
+                loadScheduled.TrySetResult(
+                    LoadComponentAsync(gameplay, _ => { }));
+            }
+            catch (Exception exception)
+            {
+                loadScheduled.TrySetException(exception);
+            }
+        });
+
+        Task loadTask = await loadScheduled.Task.ConfigureAwait(false);
+        await loadTask.ConfigureAwait(false);
     }
 
     internal void ShowScoreResult(SongSelectScore score)
@@ -3571,6 +3594,14 @@ public partial class SongSelectScreen : Screen
                 out SongSelectEntry remembered))
         {
             return remembered;
+        }
+
+        if (selectionMemory != null && entries.Count > 0)
+        {
+            return entries[
+                SongSelectSelectionMemory.ChooseInitialEntryIndex(
+                    entries.Count,
+                    Random.Shared)];
         }
 
         return entries.LastOrDefault();

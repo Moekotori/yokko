@@ -88,6 +88,8 @@ internal enum YokkoSetting
     GameplayLayoutJudgementOffsetY,
     GameplayLayoutJudgementScaleX,
     GameplayLayoutJudgementScaleY,
+    GameplayReplayControlsOffsetX,
+    GameplayReplayControlsOffsetY,
     GameplayLayoutTopCoverRatio,
     GameplayLayoutBottomCoverRatio,
     GameplayBackgroundDim,
@@ -105,6 +107,7 @@ internal enum YokkoSetting
     DisplayBackgroundFrameRate,
     DisplayFullscreenRefreshRate,
     DisplayDifficultyRatingMode,
+    WindowMaximised,
     DebugConsoleVisible,
     SkinSelectedId,
     SkinShowComboBursts,
@@ -356,6 +359,18 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoGameplaySettings.MaximumLayoutScale,
             0.05);
         SetDefault(
+            YokkoSetting.GameplayReplayControlsOffsetX,
+            0.0,
+            YokkoGameplaySettings.MinimumLayoutOffset,
+            YokkoGameplaySettings.MaximumLayoutOffset,
+            0.005);
+        SetDefault(
+            YokkoSetting.GameplayReplayControlsOffsetY,
+            0.0,
+            YokkoGameplaySettings.MinimumLayoutOffset,
+            YokkoGameplaySettings.MaximumLayoutOffset,
+            0.005);
+        SetDefault(
             YokkoSetting.GameplayLayoutTopCoverRatio,
             0.0,
             0.0,
@@ -403,6 +418,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSetting.DisplayDifficultyRatingMode,
             Yokko.Core.Difficulty.ManiaDifficultyRatingMode
                 .EtternaMsd);
+        SetDefault(YokkoSetting.WindowMaximised, false);
         SetDefault(YokkoSetting.DebugConsoleVisible, false);
         SetDefault(YokkoSetting.SkinSelectedId, string.Empty);
         SetDefault(YokkoSetting.SkinShowComboBursts, true);
@@ -634,6 +650,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSetting.GameplayLayoutJudgementScaleY,
             settings.LayoutJudgementScaleY);
         BindWith(
+            YokkoSetting.GameplayReplayControlsOffsetX,
+            settings.ReplayControlsOffsetX);
+        BindWith(
+            YokkoSetting.GameplayReplayControlsOffsetY,
+            settings.ReplayControlsOffsetY);
+        BindWith(
             YokkoSetting.GameplayLayoutTopCoverRatio,
             settings.LayoutTopCoverRatio);
         BindWith(
@@ -687,6 +709,15 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.DebugConsoleVisible,
             diagnostics.ConsoleVisible);
+    }
+
+    public bool GetWindowMaximised() =>
+        Get<bool>(YokkoSetting.WindowMaximised);
+
+    public void SetWindowMaximised(bool maximised)
+    {
+        SetValue(YokkoSetting.WindowMaximised, maximised);
+        Save();
     }
 
     public void BindModPreferences(

@@ -1,7 +1,11 @@
 @echo off
 setlocal
+chcp 65001 >nul
 
 cd /d "%~dp0"
+
+powershell -NoProfile -Command "$p = Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'dotnet.exe' -and $_.CommandLine -match 'restore.+Yokko[.]Desktop' }; if ($p) { Write-Host '[Yokko] Another Yokko restore is already running. Close the older launcher first.'; exit 1 }"
+if errorlevel 1 goto failed
 
 where dotnet >nul 2>nul
 if errorlevel 1 (
@@ -34,7 +38,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\build-native-mina
 if errorlevel 1 goto failed
 
 echo [Yokko] Restoring desktop project...
+for /f "usebackq delims=" %%P in (`powershell -NoProfile -Command "$s = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').ProxyServer; if ($s) { if ($s -match '://') { $s } else { 'http://' + $s } }"`) do (
+    set "HTTP_PROXY=%%P"
+    set "HTTPS_PROXY=%%P"
+)
 set "NO_PROXY=api.nuget.org,.nuget.org,%NO_PROXY%"
+set "NUGET_CERT_REVOCATION_MODE=offline"
 dotnet restore ".\Yokko.Desktop\Yokko.Desktop.csproj" --tl:off --verbosity normal
 if errorlevel 1 goto failed
 
