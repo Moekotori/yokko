@@ -91,6 +91,7 @@ internal sealed class ImportedChartLibrary : IDisposable
     private readonly SemaphoreSlim externalDifficultyLock = new(1, 1);
     private readonly object externalWorkPauseLock = new();
     private readonly object externalOsuStateLock = new();
+    private CancellationTokenSource externalOsuRefreshCancellation;
     private TaskCompletionSource<bool> externalWorkResume =
         completedResumeSource();
     private int externalDifficultyGeneration;
@@ -411,6 +412,23 @@ internal sealed class ImportedChartLibrary : IDisposable
         return materialiseExternalChart(chart)?.Result.Beatmap;
     }
 
+    internal async Task<YokkoBeatmap> GetPlayableBeatmapAsync(
+        string chartId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(chartId))
+            return null;
+
+        ImportedChart chart;
+        lock (syncRoot)
+            chart = charts.FirstOrDefault(candidate => candidate.Id == chartId);
+
+        ImportedChart materialised = await materialiseExternalChartAsync(
+            chart,
+            cancellationToken).ConfigureAwait(false);
+        return materialised?.Result.Beatmap;
+    }
+
     public async Task<IReadOnlyList<ChartImportResult>> ImportAsync(
         ChartImportRequest request)
     {
@@ -595,14 +613,26 @@ internal sealed class ImportedChartLibrary : IDisposable
                 exception.Message);
         }
 
+        int configurationGeneration;
         lock (externalOsuStateLock)
         {
             externalOsuConfigurationGeneration++;
+            configurationGeneration = externalOsuConfigurationGeneration;
             externalOsuSettings.SongsPath.Value = songsPath;
             disposeExternalWatcher();
         }
+        cancelExternalOsuRefresh();
         await loadCachedExternalOsuAsync(cancellationToken)
             .ConfigureAwait(false);
+        lock (externalOsuStateLock)
+        {
+            if (!isExternalOsuConfigurationCurrent(
+                    configurationGeneration,
+                    songsPath))
+            {
+                return supersededExternalOsuResult();
+            }
+        }
         return await RefreshExternalOsuAsync(cancellationToken)
             .ConfigureAwait(false);
     }
@@ -618,6 +648,7 @@ internal sealed class ImportedChartLibrary : IDisposable
             disposeExternalWatcher();
             replaceExternalCharts([]);
         }
+        cancelExternalOsuRefresh();
     }
 
     public async Task<FolderChartImportResult> ImportFolderAsync(
@@ -682,13 +713,13 @@ internal sealed class ImportedChartLibrary : IDisposable
         CancellationToken cancellationToken = default)
     {
         ensureExternalConfigured();
-        string songsPath;
-        int configurationGeneration;
-        lock (externalOsuStateLock)
-        {
-            songsPath = ExternalOsuSongsPath;
-            configurationGeneration = externalOsuConfigurationGeneration;
-        }
+        using ExternalOsuRefreshLease refresh = beginExternalOsuRefresh(
+            cancellationToken,
+            out string songsPath,
+            out int configurationGeneration);
+        CancellationToken refreshToken = refresh.Token;
+        int difficultyGeneration = Interlocked.Increment(
+            ref externalDifficultyGeneration);
         if (string.IsNullOrWhiteSpace(songsPath))
         {
             lock (externalOsuStateLock)
@@ -727,9 +758,15 @@ internal sealed class ImportedChartLibrary : IDisposable
         }
 
         Stopwatch stopwatch = Stopwatch.StartNew();
-        await importLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        int difficultyGeneration = Interlocked.Increment(
-            ref externalDifficultyGeneration);
+        try
+        {
+            await importLock.WaitAsync(refreshToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+            when (!cancellationToken.IsCancellationRequested)
+        {
+            return supersededExternalOsuResult();
+        }
 
         try
         {
@@ -745,14 +782,15 @@ internal sealed class ImportedChartLibrary : IDisposable
             IReadOnlyList<ExternalOsuFileSnapshot> snapshots =
                 ExternalOsuSongsIndex.EnumerateFiles(
                     songsPath,
-                    out bool enumerationComplete);
+                    out bool enumerationComplete,
+                    refreshToken);
             var loaded = new ConcurrentBag<ExternalOsuIndexEntry>();
             var changed = new List<ExternalOsuFileSnapshot>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (ExternalOsuFileSnapshot snapshot in snapshots)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                refreshToken.ThrowIfCancellationRequested();
                 seen.Add(snapshot.Path);
 
                 if (cached.TryGetValue(
@@ -778,7 +816,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                         Environment.ProcessorCount / 2,
                         2,
                         8),
-                    CancellationToken = cancellationToken,
+                    CancellationToken = refreshToken,
                 },
                 async (snapshot, token) =>
                 {
@@ -876,12 +914,14 @@ internal sealed class ImportedChartLibrary : IDisposable
                                                    entry => entry.SourcePath,
                                                    StringComparer.OrdinalIgnoreCase)
                                                .ToArray();
+            refreshToken.ThrowIfCancellationRequested();
             ImportedChart[] externalCharts = createExternalCharts(entries);
             msdRatingCache.SaveIfChanged();
             starRatingCache.SaveIfChanged();
 
             try
             {
+                refreshToken.ThrowIfCancellationRequested();
                 ExternalOsuSongsIndex.Save(
                     externalOsuCachePath,
                     songsPath,
@@ -898,6 +938,7 @@ internal sealed class ImportedChartLibrary : IDisposable
 
             lock (externalOsuStateLock)
             {
+                refreshToken.ThrowIfCancellationRequested();
                 if (!isExternalOsuConfigurationCurrent(
                         configurationGeneration,
                         songsPath))
@@ -928,6 +969,11 @@ internal sealed class ImportedChartLibrary : IDisposable
                 snapshots.Count,
                 changed.Count,
                 stopwatch.Elapsed.TotalMilliseconds);
+        }
+        catch (OperationCanceledException)
+            when (!cancellationToken.IsCancellationRequested)
+        {
+            return supersededExternalOsuResult();
         }
         finally
         {
@@ -1668,6 +1714,87 @@ internal sealed class ImportedChartLibrary : IDisposable
         return chart with { Result = result };
     }
 
+    private async Task<ImportedChart> materialiseExternalChartAsync(
+        ImportedChart chart,
+        CancellationToken cancellationToken)
+    {
+        if (chart == null
+            || chart.SourceKind != ImportedChartSourceKind.ExternalOsu)
+        {
+            return chart;
+        }
+
+        lock (syncRoot)
+        {
+            if (externalBeatmapCache.TryGetValue(chart.Id, out ChartImportResult cached))
+            {
+                externalBeatmapLru.Remove(chart.Id);
+                externalBeatmapLru.AddFirst(chart.Id);
+                return chart with { Result = cached };
+            }
+        }
+
+        ChartImportResult result = await Task.Run(async () =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!File.Exists(chart.SourcePath))
+            {
+                throw new FileNotFoundException(
+                    "The external osu!mania source file is unavailable.",
+                    chart.SourcePath);
+            }
+            if (!ExternalOsuSongsIndex.IsManiaFile(chart.SourcePath))
+            {
+                throw new InvalidDataException(
+                    "The external beatmap is no longer an osu!mania chart.");
+            }
+
+            IReadOnlyList<ChartImportResult> results =
+                await KnownChartImporters.ImportAllAsync(
+                    new ChartImportRequest(
+                        chart.SourcePath,
+                        true,
+                        true,
+                        false,
+                        cancellationToken)).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return results.Count == 1
+                ? results[0]
+                : throw new InvalidDataException(
+                    "The external .osu file did not produce exactly one chart.");
+        }, cancellationToken).ConfigureAwait(false);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (syncRoot)
+        {
+            ImportedChart current = charts.FirstOrDefault(candidate =>
+                candidate.Id.Equals(
+                    chart.Id,
+                    StringComparison.OrdinalIgnoreCase));
+            if (current == null
+                || !string.Equals(
+                    current.Result.SourceHash,
+                    chart.Result.SourceHash,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    "The external beatmap changed while it was loading.");
+            }
+
+            externalBeatmapCache[chart.Id] = result;
+            externalBeatmapLru.Remove(chart.Id);
+            externalBeatmapLru.AddFirst(chart.Id);
+            while (externalBeatmapLru.Count > externalBeatmapCacheCapacity)
+            {
+                string evicted = externalBeatmapLru.Last!.Value;
+                externalBeatmapLru.RemoveLast();
+                externalBeatmapCache.Remove(evicted);
+            }
+        }
+
+        return chart with { Result = result };
+    }
+
     private static YokkoBeatmap createExternalSummary(
         YokkoBeatmap beatmap,
         double bpm)
@@ -1984,6 +2111,77 @@ internal sealed class ImportedChartLibrary : IDisposable
         }
     }
 
+    private ExternalOsuRefreshLease beginExternalOsuRefresh(
+        CancellationToken cancellationToken,
+        out string songsPath,
+        out int configurationGeneration)
+    {
+        CancellationTokenSource previous;
+        CancellationTokenSource current =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        lock (externalOsuStateLock)
+        {
+            songsPath = ExternalOsuSongsPath;
+            configurationGeneration = externalOsuConfigurationGeneration;
+            previous = externalOsuRefreshCancellation;
+            externalOsuRefreshCancellation = current;
+        }
+
+        // Cancel outside the state lock. Cancellation continuations are free
+        // to complete the previous refresh without re-entering this lock.
+        previous?.Cancel();
+        return new ExternalOsuRefreshLease(this, current);
+    }
+
+    private void cancelExternalOsuRefresh()
+    {
+        CancellationTokenSource cancellation;
+        lock (externalOsuStateLock)
+        {
+            cancellation = externalOsuRefreshCancellation;
+            externalOsuRefreshCancellation = null;
+        }
+
+        cancellation?.Cancel();
+    }
+
+    private sealed class ExternalOsuRefreshLease : IDisposable
+    {
+        private readonly ImportedChartLibrary owner;
+        private CancellationTokenSource cancellation;
+
+        internal ExternalOsuRefreshLease(
+            ImportedChartLibrary owner,
+            CancellationTokenSource cancellation)
+        {
+            this.owner = owner;
+            this.cancellation = cancellation;
+        }
+
+        internal CancellationToken Token => cancellation.Token;
+
+        public void Dispose()
+        {
+            CancellationTokenSource source = Interlocked.Exchange(
+                ref cancellation,
+                null);
+            if (source == null)
+                return;
+
+            lock (owner.externalOsuStateLock)
+            {
+                if (ReferenceEquals(
+                        owner.externalOsuRefreshCancellation,
+                        source))
+                {
+                    owner.externalOsuRefreshCancellation = null;
+                }
+            }
+
+            source.Dispose();
+        }
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -1991,6 +2189,7 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         disposed = true;
         Interlocked.Increment(ref externalDifficultyGeneration);
+        cancelExternalOsuRefresh();
         SetExternalIndexingPaused(false);
         disposeExternalWatcher();
     }

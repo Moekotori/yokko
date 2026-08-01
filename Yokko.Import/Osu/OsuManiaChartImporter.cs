@@ -26,9 +26,13 @@ public sealed class OsuManiaChartImporter : IChartImporter
 
         if (Path.GetExtension(request.Path).Equals(".osu", StringComparison.OrdinalIgnoreCase))
             return ValueTask.FromResult(new ChartImportResult(
-                OsuManiaBeatmapIO.ReadBeatmapFromFile(request.Path),
+                OsuManiaBeatmapIO.ReadBeatmapFromFile(
+                    request.Path,
+                    request.CancellationToken),
                 [],
-                OsuManiaBeatmapIO.ReadBackgroundPathFromFile(request.Path),
+                OsuManiaBeatmapIO.ReadBackgroundPathFromFile(
+                    request.Path,
+                    request.CancellationToken),
                 computeMd5(request.Path)));
 
         IReadOnlyList<string> charts = ChartArchive.ExtractCharts(request.Path, ".osu");
@@ -38,14 +42,18 @@ public sealed class OsuManiaChartImporter : IChartImporter
         {
             try
             {
-                YokkoBeatmap beatmap = OsuManiaBeatmapIO.ReadBeatmapFromFile(chart);
+                YokkoBeatmap beatmap = OsuManiaBeatmapIO.ReadBeatmapFromFile(
+                    chart,
+                    request.CancellationToken);
                 IReadOnlyList<string> warnings = charts.Count > 1
                     ? [$"This .osz contains {charts.Count} charts; imported {Path.GetFileName(chart)}."]
                     : [];
                 return ValueTask.FromResult(new ChartImportResult(
                     beatmap,
                     warnings,
-                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(chart),
+                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(
+                        chart,
+                        request.CancellationToken),
                     computeMd5(chart)));
             }
             catch (InvalidDataException ex)
@@ -68,9 +76,13 @@ public sealed class OsuManiaChartImporter : IChartImporter
         {
             return ValueTask.FromResult<IReadOnlyList<ChartImportResult>>(
                 [new ChartImportResult(
-                    OsuManiaBeatmapIO.ReadBeatmapFromFile(request.Path),
+                    OsuManiaBeatmapIO.ReadBeatmapFromFile(
+                        request.Path,
+                        request.CancellationToken),
                     [],
-                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(request.Path),
+                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(
+                        request.Path,
+                        request.CancellationToken),
                     computeMd5(request.Path))]);
         }
 
@@ -85,9 +97,13 @@ public sealed class OsuManiaChartImporter : IChartImporter
             try
             {
                 results.Add(new ChartImportResult(
-                    OsuManiaBeatmapIO.ReadBeatmapFromFile(chart),
+                    OsuManiaBeatmapIO.ReadBeatmapFromFile(
+                        chart,
+                        request.CancellationToken),
                     [],
-                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(chart),
+                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(
+                        chart,
+                        request.CancellationToken),
                     computeMd5(chart)));
             }
             catch (InvalidDataException ex)

@@ -10,6 +10,9 @@ namespace Yokko.Import.Osu;
 
 public static class OsuManiaBeatmapIO
 {
+    public const long MaximumFileBytes = 16L * 1024 * 1024;
+    public const int MaximumLineCount = 500_000;
+    public const int MaximumHitObjectLineCount = 250_000;
     private const int hitCircleType = 1;
     private const int sliderType = 2;
     private const int spinnerType = 8;
@@ -21,15 +24,25 @@ public static class OsuManiaBeatmapIO
         return EditableBeatmap.FromBeatmap(ReadBeatmapFromFile(path), path);
     }
 
-    public static YokkoBeatmap ReadBeatmapFromFile(string path)
+    public static YokkoBeatmap ReadBeatmapFromFile(
+        string path,
+        CancellationToken cancellationToken = default)
     {
-        YokkoBeatmap beatmap = ReadBeatmap(File.ReadAllText(path, Encoding.UTF8));
+        cancellationToken.ThrowIfCancellationRequested();
+        YokkoBeatmap beatmap = ReadBeatmap(
+            readTextFromFileWithinBudget(path),
+            cancellationToken);
         return beatmap with { AudioPath = resolveAudioPath(path, beatmap.AudioPath) };
     }
 
-    public static string? ReadBackgroundPathFromFile(string path)
+    public static string? ReadBackgroundPathFromFile(
+        string path,
+        CancellationToken cancellationToken = default)
     {
-        var sections = parseSections(File.ReadAllText(path, Encoding.UTF8));
+        cancellationToken.ThrowIfCancellationRequested();
+        var sections = parseSections(
+            readTextFromFileWithinBudget(path),
+            cancellationToken);
 
         foreach (string rawLine in sections.GetValueOrDefault("Events") ?? [])
         {
@@ -49,11 +62,14 @@ public static class OsuManiaBeatmapIO
         return null;
     }
 
-    public static YokkoBeatmap ReadBeatmap(string text)
+    public static YokkoBeatmap ReadBeatmap(
+        string text,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         int formatVersion = parseFormatVersion(text);
         double legacyTimingOffset = formatVersion < 5 ? 24 : 0;
-        var sections = parseSections(text);
+        var sections = parseSections(text, cancellationToken);
         Dictionary<string, string> general = parseKeyValueSection(sections, "General");
         Dictionary<string, string> metadata = parseKeyValueSection(sections, "Metadata");
         Dictionary<string, string> difficulty = parseKeyValueSection(sections, "Difficulty");
@@ -136,7 +152,8 @@ public static class OsuManiaBeatmapIO
                 overallDifficulty,
                 approachRate,
                 drainRate,
-                legacyTimingOffset);
+                legacyTimingOffset,
+                cancellationToken);
             sourceFormat = ChartSourceFormat.OsuMania;
         }
         else
@@ -356,15 +373,26 @@ public static class OsuManiaBeatmapIO
         return builder.ToString();
     }
 
-    private static Dictionary<string, List<string>> parseSections(string text)
+    private static Dictionary<string, List<string>> parseSections(
+        string text,
+        CancellationToken cancellationToken = default)
     {
         var sections = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         string? currentSection = null;
+        int lineCount = 0;
+        int hitObjectLineCount = 0;
 
         using var reader = new StringReader(text);
 
         while (reader.ReadLine() is { } rawLine)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (++lineCount > MaximumLineCount)
+            {
+                throw new InvalidDataException(
+                    $"osu! beatmap exceeds the {MaximumLineCount:N0}-line safety limit.");
+            }
+
             string line = rawLine.Trim();
 
             if (line.Length == 0)
@@ -380,10 +408,42 @@ public static class OsuManiaBeatmapIO
             if (currentSection == null)
                 continue;
 
+            if (currentSection.Equals(
+                    "HitObjects",
+                    StringComparison.OrdinalIgnoreCase)
+                && !line.StartsWith("//", StringComparison.Ordinal)
+                && ++hitObjectLineCount > MaximumHitObjectLineCount)
+            {
+                throw new InvalidDataException(
+                    $"osu! beatmap exceeds the {MaximumHitObjectLineCount:N0}-object safety limit.");
+            }
+
             sections[currentSection].Add(line);
         }
 
         return sections;
+    }
+
+    private static string readTextFromFileWithinBudget(string path)
+    {
+        var info = new FileInfo(path);
+        if (info.Length > MaximumFileBytes)
+        {
+            throw new InvalidDataException(
+                $"osu! beatmap '{path}' is {info.Length:N0} bytes; "
+                + $"the safety limit is {MaximumFileBytes:N0} bytes.");
+        }
+
+        string text = File.ReadAllText(path, Encoding.UTF8);
+        // Protect against a file growing between the metadata check and read.
+        if (text.Length > MaximumFileBytes)
+        {
+            throw new InvalidDataException(
+                $"osu! beatmap '{path}' grew beyond the "
+                + $"{MaximumFileBytes:N0}-byte safety limit while reading.");
+        }
+
+        return text;
     }
 
     private static Dictionary<string, string> parseKeyValueSection(Dictionary<string, List<string>> sections, string section)
@@ -418,7 +478,8 @@ public static class OsuManiaBeatmapIO
         double overallDifficulty,
         double approachRate,
         double drainRate,
-        double timingOffset)
+        double timingOffset,
+        CancellationToken cancellationToken)
     {
         if (!double.IsFinite(sliderMultiplier)
             || sliderMultiplier <= 0)
@@ -432,6 +493,7 @@ public static class OsuManiaBeatmapIO
 
         foreach (string line in lines)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (line.StartsWith("//", StringComparison.Ordinal))
                 continue;
 

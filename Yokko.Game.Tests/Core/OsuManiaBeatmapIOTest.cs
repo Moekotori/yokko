@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Editing;
 using Yokko.Core.Gameplay;
@@ -14,6 +15,60 @@ namespace Yokko.Game.Tests.Core
     [TestFixture]
     public sealed class OsuManiaBeatmapIOTest
     {
+        [Test]
+        public void RejectsOsuFileAboveSafetyBudgetBeforeParsing()
+        {
+            string path = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                $"oversized-{Guid.NewGuid():N}.osu");
+            try
+            {
+                using (FileStream stream = File.Create(path))
+                {
+                    stream.SetLength(
+                        OsuManiaBeatmapIO.MaximumFileBytes + 1);
+                }
+
+                Assert.That(
+                    () => OsuManiaBeatmapIO.ReadBeatmapFromFile(path),
+                    Throws.TypeOf<InvalidDataException>());
+            }
+            finally
+            {
+                if (File.Exists(path))
+                    File.Delete(path);
+            }
+        }
+
+        [Test]
+        public void RejectsOsuTextAboveLineBudget()
+        {
+            string source = new('\n',
+                OsuManiaBeatmapIO.MaximumLineCount + 1);
+
+            Assert.That(
+                () => OsuManiaBeatmapIO.ReadBeatmap(source),
+                Throws.TypeOf<InvalidDataException>());
+        }
+
+        [Test]
+        public void RejectsOsuTextAboveHitObjectBudget()
+        {
+            var source = new StringBuilder()
+                .AppendLine("osu file format v14")
+                .AppendLine("[HitObjects]");
+            for (int index = 0;
+                 index <= OsuManiaBeatmapIO.MaximumHitObjectLineCount;
+                 index++)
+            {
+                source.AppendLine("0,192,0,1,0,0:0:0:0:");
+            }
+
+            Assert.That(
+                () => OsuManiaBeatmapIO.ReadBeatmap(source.ToString()),
+                Throws.TypeOf<InvalidDataException>());
+        }
+
         [Test]
         public void ReadsOsuManiaTapAndHoldObjects()
         {

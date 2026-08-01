@@ -183,6 +183,29 @@ public sealed class GameplaySettingsTest
     }
 
     [Test]
+    public void InputLabelsUseFriendlyKeyboardNames()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                KeyModeBindings.FormatKey(KeyCombination.FromKey(Key.LShift)),
+                Is.EqualTo("L Shift"));
+            Assert.That(
+                KeyModeBindings.FormatKey(KeyCombination.FromKey(Key.RShift)),
+                Is.EqualTo("R Shift"));
+            Assert.That(
+                KeyModeBindings.FormatKey(KeyCombination.FromKey(Key.Comma)),
+                Is.EqualTo(","));
+            Assert.That(
+                KeyModeBindings.FormatKey(InputKey.MidiC4),
+                Is.EqualTo("MIDI C4"));
+            Assert.That(
+                KeyModeBindings.FormatKey(InputKey.Joystick4),
+                Is.EqualTo("HID 4"));
+        });
+    }
+
+    [Test]
     public void EveryLazerManiaLayoutCanBeCustomised()
     {
         var settings = new YokkoGameplaySettings();

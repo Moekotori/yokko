@@ -308,6 +308,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
 
     internal bool Active => active;
     internal bool Interactive => interactive;
+    internal string DisplayedValue => valueText.Text.ToString();
 
     public SongSelectBrowseToolButton(
         string label,
@@ -436,6 +437,291 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                 : SongSelectSurface.Ivory(0.96f),
             130,
             Easing.OutQuint);
+    }
+}
+
+internal partial class SongSelectSortPopover : CompositeDrawable
+{
+    private readonly IReadOnlyDictionary<
+        SongSelectSortMode,
+        SongSelectSortOptionButton> optionButtons;
+    private readonly SongSelectSortDirectionButton ascendingButton;
+    private readonly SongSelectSortDirectionButton descendingButton;
+    private SongSelectSortMode mode;
+    private SongSelectSortDirection direction;
+
+    internal bool IsOpen { get; private set; }
+    internal SongSelectSortMode Mode => mode;
+    internal SongSelectSortDirection Direction => direction;
+
+    internal SongSelectSortPopover(
+        Action<SongSelectSortMode> modeSelected,
+        Action<SongSelectSortDirection> directionSelected)
+    {
+        Size = new Vector2(430, 274);
+        Masking = true;
+        CornerRadius = 10;
+        BorderThickness = 1;
+        BorderColour = SongSelectSurface.Border(0.24f);
+        Alpha = 0;
+
+        var modes = Enum.GetValues<SongSelectSortMode>();
+        var buttons = new Dictionary<
+            SongSelectSortMode,
+            SongSelectSortOptionButton>();
+        foreach (SongSelectSortMode candidate in modes)
+        {
+            int index = (int)candidate;
+            buttons[candidate] = new SongSelectSortOptionButton(
+                candidate,
+                () => modeSelected(candidate))
+            {
+                Position = new Vector2(
+                    14 + index % 2 * 202,
+                    48 + index / 2 * 42),
+            };
+        }
+        optionButtons = buttons;
+
+        InternalChildren =
+        [
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = SongSelectSurface.Ivory(0.985f),
+            },
+            new Box
+            {
+                RelativeSizeAxes = Axes.X,
+                Height = 40,
+                Colour = SongSelectTheme.Navy,
+            },
+            new SpriteIcon
+            {
+                Position = new Vector2(14, 13),
+                Size = new Vector2(14),
+                Icon = FontAwesome.Solid.SortAmountDown,
+                Colour = SongSelectTheme.Cyan,
+            },
+            new SpriteText
+            {
+                Position = new Vector2(38, 10),
+                Text = "SORT LIBRARY",
+                Font = HomeTypography.Display(12),
+                Colour = Color4.White,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(-14, 12),
+                Text = "LIVE · SELECTION STAYS",
+                Font = HomeTypography.Display(8),
+                Colour = new Color4(1, 1, 1, 0.62f),
+            },
+            .. buttons.Values,
+            new Box
+            {
+                Position = new Vector2(14, 222),
+                Size = new Vector2(402, 1),
+                Colour = SongSelectSurface.Border(0.16f),
+            },
+            new SpriteText
+            {
+                Position = new Vector2(14, 238),
+                Text = "DIRECTION",
+                Font = HomeTypography.Display(8),
+                Colour = new Color4(
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.62f),
+            },
+            ascendingButton = new SongSelectSortDirectionButton(
+                "ASCENDING",
+                FontAwesome.Solid.ArrowUp,
+                () => directionSelected(SongSelectSortDirection.Ascending))
+            {
+                Position = new Vector2(118, 231),
+            },
+            descendingButton = new SongSelectSortDirectionButton(
+                "DESCENDING",
+                FontAwesome.Solid.ArrowDown,
+                () => directionSelected(SongSelectSortDirection.Descending))
+            {
+                Position = new Vector2(270, 231),
+            },
+        ];
+    }
+
+    internal void SetState(
+        SongSelectSortMode value,
+        SongSelectSortDirection newDirection)
+    {
+        mode = value;
+        direction = newDirection;
+        foreach ((SongSelectSortMode candidate, SongSelectSortOptionButton button)
+                 in optionButtons)
+        {
+            button.SetSelected(candidate == mode);
+        }
+        ascendingButton.SetSelected(direction == SongSelectSortDirection.Ascending);
+        descendingButton.SetSelected(direction == SongSelectSortDirection.Descending);
+    }
+
+    internal void Open()
+    {
+        IsOpen = true;
+        this.ClearTransforms();
+        this.FadeIn(120, Easing.OutQuint);
+    }
+
+    internal void Close()
+    {
+        IsOpen = false;
+        this.ClearTransforms();
+        this.FadeOut(90, Easing.OutQuint);
+    }
+}
+
+internal partial class SongSelectSortOptionButton : ClickableContainer
+{
+    private readonly Box background;
+    private readonly SpriteIcon check;
+    private bool selected;
+
+    internal SongSelectSortMode Mode { get; }
+    internal bool Selected => selected;
+
+    internal SongSelectSortOptionButton(
+        SongSelectSortMode mode,
+        Action action)
+    {
+        Mode = mode;
+        Action = action;
+        Size = new Vector2(194, 34);
+        Masking = true;
+        CornerRadius = 6;
+
+        InternalChildren =
+        [
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.Transparent,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 12,
+                Text = SongSelectSorting.Label(mode),
+                Font = HomeTypography.Display(10),
+                Colour = SongSelectTheme.Navy,
+            },
+            check = new SpriteIcon
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -12,
+                Size = new Vector2(11),
+                Icon = FontAwesome.Solid.Check,
+                Colour = SongSelectTheme.Pink,
+                Alpha = 0,
+            },
+        ];
+    }
+
+    internal void SetSelected(bool value)
+    {
+        selected = value;
+        background.Colour = selected
+            ? new Color4(
+                SongSelectTheme.PaleCyan.R,
+                SongSelectTheme.PaleCyan.G,
+                SongSelectTheme.PaleCyan.B,
+                0.72f)
+            : Color4.Transparent;
+        check.Alpha = selected ? 1 : 0;
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        if (!selected)
+            background.FadeColour(
+                new Color4(
+                    SongSelectTheme.PaleCyan.R,
+                    SongSelectTheme.PaleCyan.G,
+                    SongSelectTheme.PaleCyan.B,
+                    0.48f),
+                90);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        background.FadeColour(
+            selected
+                ? new Color4(
+                    SongSelectTheme.PaleCyan.R,
+                    SongSelectTheme.PaleCyan.G,
+                    SongSelectTheme.PaleCyan.B,
+                    0.72f)
+                : Color4.Transparent,
+            100);
+    }
+}
+
+internal partial class SongSelectSortDirectionButton : ClickableContainer
+{
+    private readonly Box background;
+    private readonly SpriteIcon icon;
+    private readonly SpriteText text;
+
+    internal SongSelectSortDirectionButton(
+        string label,
+        IconUsage iconUsage,
+        Action action)
+    {
+        Action = action;
+        Size = new Vector2(142, 32);
+        Masking = true;
+        CornerRadius = 6;
+        BorderThickness = 1;
+        BorderColour = SongSelectSurface.Border(0.16f);
+        InternalChildren =
+        [
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.Transparent,
+            },
+            icon = new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 10,
+                Size = new Vector2(10),
+                Icon = iconUsage,
+                Colour = SongSelectTheme.Cyan,
+            },
+            text = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 28,
+                Text = label,
+                Font = HomeTypography.Display(8),
+                Colour = SongSelectTheme.Navy,
+            },
+        ];
+    }
+
+    internal void SetSelected(bool selected)
+    {
+        background.Colour = selected ? SongSelectTheme.Navy : Color4.Transparent;
+        icon.Colour = selected ? SongSelectTheme.Cyan : SongSelectTheme.Cyan;
+        text.Colour = selected ? Color4.White : SongSelectTheme.Navy;
     }
 }
 

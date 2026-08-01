@@ -1390,6 +1390,14 @@ internal static class YokkoStrings
                 "4K  {0}   ·   7K  {1}",
                 "4K  {0}   ·   7K  {1}",
                 "4K  {0}   ·   7K  {1}"),
+            ["settings.gameplay.selected_profile_ready"] = new(
+                "{0}  ·  {1}",
+                "{0}  ·  {1}",
+                "{0}  ·  {1}"),
+            ["settings.gameplay.selected_profile_ready_many"] = new(
+                "{0} · {1} inputs · keyboard / MIDI / HID ready",
+                "{0} · {1} 个输入 · 键盘 / MIDI / HID 已就绪",
+                "{0} · {1}入力 · キーボード / MIDI / HID 準備完了"),
             ["settings.gameplay.input_monitor"] = new(
                 "Live input monitor",
                 "实时输入监测",
@@ -1616,6 +1624,14 @@ internal static class YokkoStrings
                 "Duplicate inputs swap lanes automatically · Esc cancels capture",
                 "重复输入会自动交换轨道 · Esc 取消录入",
                 "重複した入力は自動で入れ替わります · Esc でキャンセル"),
+            ["settings.gameplay.capture_target"] = new(
+                "Waiting for {0} · press keyboard, MIDI or HID · click Cancel or press Esc",
+                "正在录入 {0} · 请按键盘、MIDI 或 HID 输入 · 点击取消或按 Esc",
+                "{0} を待機中 · キーボード、MIDI、HID を入力 · キャンセルまたは Esc"),
+            ["settings.gameplay.cancel_capture"] = new(
+                "Cancel",
+                "取消",
+                "キャンセル"),
             ["settings.gameplay.lane"] = new("LANE {0}", "轨道 {0}", "レーン {0}"),
             ["settings.gameplay.bms_scratch"] = new("SCRATCH", "皿键", "スクラッチ"),
             ["settings.gameplay.bms_key"] = new("KEY {0}", "键 {0}", "キー {0}"),
@@ -1639,9 +1655,9 @@ internal static class YokkoStrings
             ["settings.gameplay.press_key"] = new("PRESS INPUT", "请按下输入", "入力を押す"),
             ["settings.gameplay.esc_cancel"] = new("Esc to cancel", "Esc 取消", "Esc でキャンセル"),
             ["settings.gameplay.sequence_hint"] = new(
-                "Press input {0} of {1} · Esc cancels the whole set",
-                "请输入第 {0}/{1} 个输入 · Esc 取消整组修改",
-                "{0}/{1} 個目の入力を押す · Esc で全体をキャンセル"),
+                "{0}/{1} · waiting for {2} · click Cancel or press Esc",
+                "第 {0}/{1} 项 · 正在录入 {2} · 点击取消或按 Esc",
+                "{0}/{1} · {2} を待機中 · キャンセルまたは Esc"),
             ["settings.gameplay.sequence_duplicate"] = new(
                 "That key is already used · press a different key",
                 "这个按键已经使用 · 请按其他按键",
@@ -1663,19 +1679,43 @@ internal static class YokkoStrings
                 "BMS DP 键位已保存 · {0}",
                 "BMS DP プロファイルを保存しました · {0}"),
             ["settings.gameplay.single_saved"] = new(
-                "Lane {0} is now {1}.",
-                "轨道 {0} 已设为 {1}。",
-                "レーン {0} を {1} に設定しました。"),
+                "{0} is now {1}.",
+                "{0} 已设为 {1}。",
+                "{0} を {1} に設定しました。"),
             ["settings.gameplay.key_swap_notice"] = new(
-                "{0} was on lane {1}; lanes {1} and {2} were swapped.",
-                "{0} 原本属于轨道 {1}；已交换轨道 {1} 与 {2}。",
-                "{0} はレーン {1} にあり、レーン {1} と {2} を入れ替えました。"),
+                "{0} was on {1}; {1} and {2} were swapped.",
+                "{0} 原本属于 {1}；已交换 {1} 与 {2}。",
+                "{0} は {1} にあり、{1} と {2} を入れ替えました。"),
+            ["settings.gameplay.confirm_reset"] = new(
+                "Confirm",
+                "确认重置",
+                "確認"),
+            ["settings.gameplay.undo_reset"] = new(
+                "Undo",
+                "撤销重置",
+                "元に戻す"),
+            ["settings.gameplay.binding_reset_confirm"] = new(
+                "Click Confirm again to restore this profile's defaults.",
+                "再次点击“确认重置”，将当前配置恢复为默认值。",
+                "もう一度「確認」を押すと、このプロファイルを既定値に戻します。"),
+            ["settings.gameplay.binding_reset_done"] = new(
+                "Defaults restored · Undo is available until the next edit.",
+                "已恢复默认值 · 下次修改前可以撤销。",
+                "既定値に戻しました · 次の変更までは元に戻せます。"),
+            ["settings.gameplay.binding_reset_undone"] = new(
+                "Reset undone · your previous bindings are back.",
+                "已撤销重置 · 原来的键位已恢复。",
+                "リセットを取り消し、以前の設定を復元しました。"),
+            ["settings.gameplay.binding_reset_cancelled"] = new(
+                "Reset cancelled · bindings were not changed.",
+                "已取消重置 · 键位没有变化。",
+                "リセットをキャンセルしました · 設定は変更されていません。"),
             ["settings.gameplay.key_swapped"] = new("Swapped", "已交换", "入れ替え済み"),
             ["settings.gameplay.input_active"] = new("Detected", "已检测", "検出"),
             ["settings.gameplay.input_detected"] = new(
-                "{0} detected · lane {1}",
-                "检测到 {0} · 轨道 {1}",
-                "{0} を検出 · レーン {1}"),
+                "{0} detected · {1}",
+                "检测到 {0} · {1}",
+                "{0} を検出 · {1}"),
             ["settings.gameplay.input_unbound"] = new(
                 "{0} is not bound in this profile",
                 "{0} 未绑定到当前方案",

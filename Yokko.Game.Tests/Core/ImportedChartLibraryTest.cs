@@ -59,7 +59,9 @@ public sealed class ImportedChartLibraryTest
                 await library.RefreshExternalOsuAsync();
             ImportedChart indexedChart = library.GetCharts().Single();
             YokkoBeatmap playableBeatmap =
-                library.GetPlayableBeatmap(indexedChart.Id);
+                await library.GetPlayableBeatmapAsync(indexedChart.Id);
+            YokkoBeatmap cachedPlayableBeatmap =
+                await library.GetPlayableBeatmapAsync(indexedChart.Id);
 
             Assert.Multiple(() =>
             {
@@ -92,6 +94,8 @@ public sealed class ImportedChartLibraryTest
                     "The persistent index should keep only a lightweight beatmap summary.");
                 Assert.That(playableBeatmap.HitObjects, Is.Not.Empty,
                     "Selecting an external chart must materialise its full source beatmap.");
+                Assert.That(cachedPlayableBeatmap, Is.SameAs(playableBeatmap),
+                    "Repeated async materialisation must use the bounded beatmap LRU.");
                 Assert.That(snapshotFiles(songs), Is.EqualTo(originalFiles));
                 Assert.That(File.ReadAllBytes(maniaPath), Is.EqualTo(originalContent));
                 Assert.That(File.GetLastWriteTimeUtc(maniaPath), Is.EqualTo(originalWriteTime));
@@ -245,6 +249,50 @@ public sealed class ImportedChartLibraryTest
             library.SetExternalIndexingPaused(false);
             ExternalOsuLibraryResult result = await refresh;
             Assert.That(result.ChartCount, Is.EqualTo(1));
+            await library.ExternalDifficultyTask;
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task NewExternalOsuRefreshSupersedesPausedRefresh()
+    {
+        string root = createTestRoot("external-osu-refresh-supersede");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string set = Path.Combine(songs, "100 Supersede Test");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        Directory.CreateDirectory(set);
+
+        try
+        {
+            writeOsuChart(set, "Superseded", 3);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+            library.SetExternalIndexingPaused(true);
+
+            Task<ExternalOsuLibraryResult> first =
+                library.RefreshExternalOsuAsync();
+            await Task.Delay(50);
+            Task<ExternalOsuLibraryResult> latest =
+                library.RefreshExternalOsuAsync();
+
+            ExternalOsuLibraryResult superseded = await first;
+            Assert.That(
+                superseded.Message,
+                Does.Contain("superseded").IgnoreCase);
+
+            library.SetExternalIndexingPaused(false);
+            ExternalOsuLibraryResult result = await latest;
+            Assert.That(result.ChartCount, Is.EqualTo(1));
+            await library.ExternalDifficultyTask;
         }
         finally
         {
@@ -318,6 +366,7 @@ public sealed class ImportedChartLibraryTest
                 Assert.That(
                     (await first.RefreshExternalOsuAsync()).ChartCount,
                     Is.EqualTo(1));
+                await first.ExternalDifficultyTask;
             }
 
             string disconnected = Path.Combine(root, "disconnected-Songs");

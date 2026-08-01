@@ -27,7 +27,7 @@ namespace Yokko.Game.Screens.Main;
 /// </summary>
 public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
 {
-    private sealed record ImportedHomeTrack(
+    internal sealed record ImportedHomeTrack(
         string AudioPath,
         string Title,
         string Artist,
@@ -56,6 +56,8 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
     private bool desiredPlaying;
     private bool screenActive;
     private volatile bool playlistDirty;
+    private CancellationTokenSource playlistRefreshCancellation;
+    private int playlistRefreshGeneration;
     private bool disposed;
     private string loadedAudioPath;
     private double pausedProgress;
@@ -587,46 +589,79 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
         if (disposed)
             return;
 
+        applyPlaylist(BuildPlaylistProjection(
+            importedChartLibrary.GetCharts(),
+            CancellationToken.None));
+    }
+
+    internal static ImportedHomeTrack[] BuildPlaylistProjection(
+        IReadOnlyList<ImportedChart> charts,
+        CancellationToken cancellationToken)
+    {
+        var seenAudioPaths = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase);
+        var projected = new List<ImportedHomeTrack>();
+        foreach (ImportedChart chart in charts)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var beatmap = chart.Result.Beatmap;
+            string audioPath = beatmap.AudioPath;
+            if (string.IsNullOrWhiteSpace(audioPath)
+                || !supportedAudioExtensions.Contains(
+                    Path.GetExtension(audioPath),
+                    StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            try
+            {
+                audioPath = Path.GetFullPath(audioPath);
+            }
+            catch (Exception exception) when (exception is ArgumentException
+                                              or NotSupportedException
+                                              or PathTooLongException)
+            {
+                continue;
+            }
+
+            // One set commonly has several difficulties pointing at the same
+            // audio file. Probe the filesystem only once per unique song.
+            if (!seenAudioPaths.Add(audioPath) || !File.Exists(audioPath))
+                continue;
+
+            double bpm = chart.Bpm
+                         ?? beatmap.TimingPoints
+                                   .Where(point =>
+                                       point.Uninherited
+                                       && point.BeatsPerMinute > 0)
+                                   .Select(point => point.BeatsPerMinute)
+                                   .FirstOrDefault();
+            double length = chart.LengthMilliseconds
+                            ?? (beatmap.HitObjects.Count == 0
+                                ? 0
+                                : beatmap.HitObjects.Max(hitObject =>
+                                    hitObject.EndTimeMilliseconds
+                                    ?? hitObject.StartTimeMilliseconds));
+            projected.Add(new ImportedHomeTrack(
+                audioPath,
+                beatmap.Title,
+                beatmap.Artist,
+                bpm,
+                Math.Max(0, length)));
+        }
+
+        return projected.ToArray();
+    }
+
+    private void applyPlaylist(ImportedHomeTrack[] refreshed)
+    {
+        if (disposed)
+            return;
+
         string previousAudioPath = trackIndex >= 0 && trackIndex < tracks.Count
             ? tracks[trackIndex].AudioPath
             : null;
-        ImportedHomeTrack[] refreshed = importedChartLibrary
-                                       .GetCharts()
-                                       .Where(chart =>
-                                           isPlayableAudioPath(
-                                               chart.Result.Beatmap.AudioPath))
-                                       .GroupBy(
-                                           chart => Path.GetFullPath(
-                                               chart.Result.Beatmap.AudioPath),
-                                           StringComparer.OrdinalIgnoreCase)
-                                       .Select(group =>
-                                       {
-                                           ImportedChart chart = group.First();
-                                           var beatmap = chart.Result.Beatmap;
-                                           double bpm = chart.Bpm
-                                               ?? beatmap.TimingPoints
-                                                         .Where(point =>
-                                                             point.Uninherited
-                                                             && point.BeatsPerMinute > 0)
-                                                         .Select(point =>
-                                                             point.BeatsPerMinute)
-                                                         .FirstOrDefault();
-                                           double length = chart.LengthMilliseconds
-                                               ?? (beatmap.HitObjects.Count == 0
-                                                   ? 0
-                                                   : beatmap.HitObjects.Max(hitObject =>
-                                                       hitObject.EndTimeMilliseconds
-                                                       ?? hitObject.StartTimeMilliseconds));
-
-                                           return new ImportedHomeTrack(
-                                               group.Key,
-                                               beatmap.Title,
-                                               beatmap.Artist,
-                                               bpm,
-                                               Math.Max(0, length));
-                                       })
-                                       .ToArray();
-
         tracks = refreshed;
         if (tracks.Count == 0)
         {
@@ -740,7 +775,54 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
             return;
 
         playlistDirty = false;
-        refreshPlaylist();
+        requestPlaylistRefresh();
+    }
+
+    private void requestPlaylistRefresh()
+    {
+        int generation = Interlocked.Increment(
+            ref playlistRefreshGeneration);
+        var cancellation = new CancellationTokenSource();
+        CancellationTokenSource previous = Interlocked.Exchange(
+            ref playlistRefreshCancellation,
+            cancellation);
+        previous?.Cancel();
+
+        _ = Task.Run(
+                () => BuildPlaylistProjection(
+                    importedChartLibrary.GetCharts(),
+                    cancellation.Token),
+                cancellation.Token)
+            .ContinueWith(task =>
+            {
+                Interlocked.CompareExchange(
+                    ref playlistRefreshCancellation,
+                    null,
+                    cancellation);
+                cancellation.Dispose();
+
+                if (task.IsCanceled)
+                    return;
+                if (task.IsFaulted)
+                {
+                    Logger.Error(
+                        task.Exception!.GetBaseException(),
+                        "Could not refresh the home music playlist.",
+                        LoggingTarget.Runtime);
+                    return;
+                }
+
+                ImportedHomeTrack[] refreshed = task.Result;
+                Scheduler.Add(() =>
+                {
+                    if (!disposed
+                        && generation == Volatile.Read(
+                            ref playlistRefreshGeneration))
+                    {
+                        applyPlaylist(refreshed);
+                    }
+                });
+            }, TaskScheduler.Default);
     }
 
     private void enqueueAudioOperation(
@@ -840,6 +922,11 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
         if (isDisposing)
         {
             disposed = true;
+            Interlocked.Increment(ref playlistRefreshGeneration);
+            Interlocked.Exchange(
+                    ref playlistRefreshCancellation,
+                    null)
+                ?.Cancel();
             if (audioSettings != null)
                 audioSettings.MixChanged -= onMixChanged;
             waveformCancellation?.Cancel();

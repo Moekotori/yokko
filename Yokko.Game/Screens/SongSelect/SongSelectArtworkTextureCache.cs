@@ -13,10 +13,15 @@ namespace Yokko.Game.Screens.SongSelect;
 /// </summary>
 internal sealed class SongSelectArtworkTextureCache : IDisposable
 {
+    internal const int Capacity = 24;
+    internal const int MaximumThumbnailDimension = 512;
+    private const long maximum_thumbnail_pixels =
+        (long)MaximumThumbnailDimension * MaximumThumbnailDimension;
     private readonly object syncRoot = new();
-    private readonly Dictionary<string, Texture> cachedTextures =
+    private readonly Dictionary<string, CachedArtwork> cachedTextures =
         new(StringComparer.OrdinalIgnoreCase);
-    private TextureStore textureStore;
+    private readonly LinkedList<string> lru = new();
+    private LargeTextureStore textureStore;
     private IRenderer renderer;
     private bool disposed;
 
@@ -31,13 +36,19 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
             if (textureStore == null)
             {
                 renderer = currentRenderer;
-                textureStore = new TextureStore(
+                int maximumDimension = Math.Min(
+                    MaximumThumbnailDimension,
+                    currentRenderer.MaxTextureSize);
+                textureStore = new LargeTextureStore(
                     currentRenderer,
                     new TextureLoaderStore(
                         new ConstrainedTextureResourceStore(
                             new ChartArtworkResourceStore(),
-                            currentRenderer.MaxTextureSize)),
-                    scaleAdjust: 1);
+                            maximumDimension,
+                            maximumPixelCount: Math.Min(
+                                maximum_thumbnail_pixels,
+                                (long)maximumDimension * maximumDimension))),
+                    manualMipmaps: false);
             }
             else if (!ReferenceEquals(renderer, currentRenderer))
             {
@@ -45,11 +56,32 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
                     "Song-select artwork cannot be shared across renderers.");
             }
 
-            Texture texture = textureStore.Get(path);
-            if (texture != null)
-                cachedTextures[path] = texture;
-            return texture;
+            if (cachedTextures.TryGetValue(path, out CachedArtwork cached))
+            {
+                lru.Remove(cached.Node);
+                lru.AddFirst(cached.Node);
+                return textureStore.Get(path);
+            }
+
+            // LargeTextureStore returns independent reference-counted wrappers.
+            // Keep one pin in the LRU and return a separate wrapper to the
+            // Sprite. Evicting the pin is therefore safe while a visible
+            // drawable still owns the same native texture.
+            Texture pin = textureStore.Get(path);
+            if (pin == null)
+                return null;
+
+            LinkedListNode<string> node = lru.AddFirst(path);
+            cachedTextures[path] = new CachedArtwork(pin, node);
+            trimToCapacity();
+            return textureStore.Get(path);
         }
+    }
+
+    internal void Prewarm(string path, IRenderer currentRenderer)
+    {
+        Texture reference = Get(path, currentRenderer);
+        reference?.Dispose();
     }
 
     internal int CachedArtworkCount
@@ -70,8 +102,8 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
     internal bool IsUploadComplete(string path)
     {
         lock (syncRoot)
-            return cachedTextures.TryGetValue(path, out Texture texture)
-                   && texture.UploadComplete;
+            return cachedTextures.TryGetValue(path, out CachedArtwork cached)
+                   && cached.Texture.UploadComplete;
     }
 
     public void Dispose()
@@ -82,10 +114,28 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
                 return;
 
             disposed = true;
+            foreach (CachedArtwork cached in cachedTextures.Values)
+                cached.Texture.Dispose();
             textureStore?.Dispose();
             textureStore = null;
             renderer = null;
             cachedTextures.Clear();
+            lru.Clear();
         }
     }
+
+    private void trimToCapacity()
+    {
+        while (cachedTextures.Count > Capacity)
+        {
+            LinkedListNode<string> oldest = lru.Last!;
+            lru.RemoveLast();
+            if (cachedTextures.Remove(oldest.Value, out CachedArtwork cached))
+                cached.Texture.Dispose();
+        }
+    }
+
+    private sealed record CachedArtwork(
+        Texture Texture,
+        LinkedListNode<string> Node);
 }

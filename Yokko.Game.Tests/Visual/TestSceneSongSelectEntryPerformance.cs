@@ -6,6 +6,7 @@ using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Rendering;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using SixLabors.ImageSharp;
@@ -36,6 +37,9 @@ public partial class TestSceneSongSelectEntryPerformance : YokkoTestScene
 
     [Resolved]
     private SongSelectArtworkTextureCache artworkTextureCache { get; set; }
+
+    [Resolved]
+    private IRenderer renderer { get; set; }
 
     public TestSceneSongSelectEntryPerformance()
     {
@@ -121,12 +125,40 @@ public partial class TestSceneSongSelectEntryPerformance : YokkoTestScene
         AddStep("clear test library", () => importedChartLibrary.Clear());
     }
 
+    [Test]
+    public void TestArtworkCacheRemainsBounded()
+    {
+        AddStep("create more thumbnails than cache capacity", () =>
+        {
+            temporaryDirectory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                $"artwork-lru-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(temporaryDirectory);
+            for (int index = 0;
+                 index < SongSelectArtworkTextureCache.Capacity + 4;
+                 index++)
+            {
+                string path = Path.Combine(
+                    temporaryDirectory,
+                    $"thumbnail-{index}.png");
+                using var image = new Image<Rgba32>(
+                    64,
+                    64,
+                    new Rgba32((byte)index, 80, 160));
+                image.SaveAsPng(path);
+                artworkTextureCache.Prewarm(path, renderer);
+            }
+        });
+        AddAssert("thumbnail pins remain bounded", () =>
+            artworkTextureCache.CachedArtworkCount
+            <= SongSelectArtworkTextureCache.Capacity);
+    }
+
     private void createLargeArtworks()
     {
         temporaryDirectory = Path.Combine(
-            Path.GetTempPath(),
-            "Yokko-song-select-entry-performance",
-            Guid.NewGuid().ToString("N"));
+            TestContext.CurrentContext.WorkDirectory,
+            $"song-select-entry-performance-{Guid.NewGuid():N}");
         Directory.CreateDirectory(temporaryDirectory);
 
         for (int index = 0; index < 6; index++)

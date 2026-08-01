@@ -48,6 +48,9 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     [Test]
     public void TestSongSelectInteractions()
     {
+        SongSelectEntry selectedBeforeSort = null;
+        int rebuildVersionBeforeSort = 0;
+
         AddAssert("song select is current", () => screenStack.CurrentScreen is SongSelectScreen);
         AddStep("start with empty library", () => importedChartLibrary.Clear());
         AddUntilStep("library is empty", () => songSelectScreen.VisibleEntryCount == 0);
@@ -210,6 +213,37 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.ShowConverts
             && !songSelectScreen.NoResultsVisible);
         AddAssert("empty search is not dismissed", () => !songSelectScreen.DismissSearch());
+
+        AddStep("open full sort menu", () => songSelectScreen
+            .ChildrenOfType<SongSelectBrowseToolButton>()
+            .Single(control => Math.Abs(control.X) < 0.01f)
+            .TriggerClick());
+        AddAssert("sort menu exposes all modes", () =>
+            songSelectScreen.SortPopoverOpen
+            && songSelectScreen.ChildrenOfType<SongSelectSortOptionButton>().Count() == 8);
+        AddStep("escape closes sort menu", songSelectScreen.HandleEscape);
+        AddAssert("sort menu closed without exiting", () =>
+            !songSelectScreen.SortPopoverOpen
+            && screenStack.CurrentScreen == songSelectScreen);
+        AddStep("remember selection before sorting", () =>
+        {
+            selectedBeforeSort = songSelectScreen.SelectedEntry;
+            rebuildVersionBeforeSort = songSelectScreen.SongListRebuildVersion;
+        });
+        AddStep("sort by bpm", () =>
+            songSelectScreen.SetSortMode(SongSelectSortMode.Bpm));
+        AddAssert("new numeric mode defaults descending and keeps selection", () =>
+            songSelectScreen.SortMode == SongSelectSortMode.Bpm
+            && songSelectScreen.SortDirection == SongSelectSortDirection.Descending
+            && songSelectScreen.SortButtonValue.Contains("BPM")
+            && ReferenceEquals(songSelectScreen.SelectedEntry, selectedBeforeSort)
+            && songSelectScreen.SongListRebuildVersion == rebuildVersionBeforeSort + 1);
+        AddStep("reverse bpm sort", () =>
+            songSelectScreen.SetSortDirection(SongSelectSortDirection.Ascending));
+        AddAssert("direction reverses with one rebuild and no reselection", () =>
+            songSelectScreen.SortDirection == SongSelectSortDirection.Ascending
+            && ReferenceEquals(songSelectScreen.SelectedEntry, selectedBeforeSort)
+            && songSelectScreen.SongListRebuildVersion == rebuildVersionBeforeSort + 2);
 
         AddAssert("personal scores shown by default", () =>
             songSelectScreen.ScoreView == SongSelectScoreView.Personal);

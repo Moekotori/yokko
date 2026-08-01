@@ -10,6 +10,9 @@ namespace Yokko.Game.Screens.SongSelect;
 internal sealed class SongSelectSelectionMemory
 {
     internal string ChartId { get; set; }
+    internal SongSelectSortMode SortMode { get; set; } = SongSelectSortMode.Title;
+    internal SongSelectSortDirection SortDirection { get; set; } =
+        SongSelectSortDirection.Ascending;
 
     internal static int ChooseInitialEntryIndex(
         int entryCount,

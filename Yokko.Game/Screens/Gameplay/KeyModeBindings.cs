@@ -10,6 +10,14 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public sealed class KeyModeBindings
 {
+    private static readonly IReadOnlyDictionary<InputKey, Key>
+        keyboardKeysByInput = Enum.GetNames<Key>()
+            .Where(name => name is not ("Unknown" or "LastKey"))
+            .Select(Enum.Parse<Key>)
+            .Where(key => KeyCombination.FromKey(key) != InputKey.None)
+            .GroupBy(KeyCombination.FromKey)
+            .ToDictionary(group => group.Key, group => group.First());
+
     private readonly InputKey[] keys;
     private readonly Dictionary<InputKey, int> lanesByKey;
 
@@ -88,9 +96,18 @@ public sealed class KeyModeBindings
 
     public static string FormatKey(Key key) => key switch
     {
+        Key.LShift => "L Shift",
+        Key.RShift => "R Shift",
         Key.Space => "Space",
+        Key.Comma => ",",
         Key.Period => ".",
         Key.Slash => "/",
+        Key.Semicolon => ";",
+        Key.BracketLeft => "[",
+        Key.BracketRight => "]",
+        Key.BackSlash => "\\",
+        Key.Minus => "-",
+        Key.Plus => "+",
         _ => key.ToString(),
     };
 
@@ -102,7 +119,10 @@ public sealed class KeyModeBindings
         if (name.StartsWith("Joystick", StringComparison.Ordinal))
             return "HID " + name[8..];
 
-        return FormatKey((Key)(int)key);
+        if (keyboardKeysByInput.TryGetValue(key, out Key keyboardKey))
+            return FormatKey(keyboardKey);
+
+        return name;
     }
 
     private static int validateKeyMode(KeyMode keyMode)

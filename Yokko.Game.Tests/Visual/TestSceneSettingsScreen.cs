@@ -597,6 +597,7 @@ namespace Yokko.Game.Tests.Visual
             AddStep("restore preferences", () =>
             {
                 gameplay.ResetSelectedBindings();
+                gameplay.ResetSelectedBindings();
                 gameplay.SetScrollSpeed(originalSpeed);
                 gameplay.SetScrollSpeedAdjustmentMode(
                     originalAdjustmentMode);
@@ -666,6 +667,9 @@ namespace Yokko.Game.Tests.Visual
                 gameplay = (GameplaySettingsPanel)settingsScreen.ActivePanel);
             AddStep("select 4K", () =>
                 gameplay.SelectKeyMode(KeyMode.FourKey));
+            AddAssert("binding cards support keyboard focus", () =>
+                gameplay.ChildrenOfType<GameplayBindingCard>()
+                        .All(card => card.AcceptsFocus));
             AddStep("start sequential capture", () =>
                 gameplay.BeginSequentialKeyCapture());
             AddAssert("sequence starts at first lane", () =>
@@ -696,8 +700,32 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.GetBinding(KeyMode.FourKey, 1) == Key.X &&
                 gameplay.GetBinding(KeyMode.FourKey, 2) == Key.Period &&
                 gameplay.GetBinding(KeyMode.FourKey, 3) == Key.Slash);
-            AddStep("restore 4K defaults", () =>
+            AddStep("request 4K reset", () =>
                 gameplay.ResetSelectedBindings());
+            AddAssert("reset requires confirmation", () =>
+                gameplay.IsResetBindingsPending
+                && gameplay.GetBinding(KeyMode.FourKey, 0) == Key.Z);
+            AddAssert("Esc cancels pending reset", () =>
+                gameplay.DismissTransientUi());
+            AddAssert("cancel keeps bindings", () =>
+                !gameplay.IsResetBindingsPending
+                && gameplay.GetBinding(KeyMode.FourKey, 0) == Key.Z);
+            AddStep("request 4K reset again", () =>
+                gameplay.ResetSelectedBindings());
+            AddStep("confirm 4K reset", () =>
+                gameplay.ResetSelectedBindings());
+            AddAssert("reset can be undone", () =>
+                gameplay.CanUndoBindingReset);
+            AddStep("undo 4K reset", () =>
+                gameplay.ResetSelectedBindings());
+            AddAssert("previous profile restored", () =>
+                gameplay.GetBinding(KeyMode.FourKey, 0) == Key.Z
+                && gameplay.GetBinding(KeyMode.FourKey, 3) == Key.Slash);
+            AddStep("restore 4K defaults", () =>
+            {
+                gameplay.ResetSelectedBindings();
+                gameplay.ResetSelectedBindings();
+            });
         }
 
         [Test]
@@ -742,6 +770,7 @@ namespace Yokko.Game.Tests.Visual
             AddStep("restore 10K + 10K defaults", () =>
             {
                 gameplay.SelectKeyMode(KeyMode.TwentyKey);
+                gameplay.ResetSelectedBindings();
                 gameplay.ResetSelectedBindings();
             });
             AddStep("open standalone Shortcuts", () =>

@@ -152,6 +152,7 @@ public partial class SongSelectScreen : Screen
     private ManiaModId? hoveredMod;
     private SongSelectPreviewPlayer previewPlayer;
     private SongSelectBrowseToolButton sortButton;
+    private SongSelectSortPopover sortPopover;
     private SongSelectBrowseToolButton groupButton;
     private SongSelectBrowseToolButton convertsButton;
     private Container browseToolbar;
@@ -165,12 +166,22 @@ public partial class SongSelectScreen : Screen
     private List<SongSelectEntry> visibleEntries;
     private List<SongSelectEntry> navigableEntries = [];
     private SongSelectEntry selectedEntry;
+    private readonly HashSet<string> materialisedExternalCharts =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<Action<bool>> playableBeatmapCallbacks = [];
+    private CancellationTokenSource playableBeatmapCancellation;
+    private Task<YokkoBeatmap> playableBeatmapTask;
+    private string playableBeatmapChartId;
+    private int playableBeatmapGeneration;
+    private bool playableBeatmapDisposed;
     private KeyMode? keyModeFilter;
     private string searchQuery = string.Empty;
     private SongSelectScoreView scoreView = SongSelectScoreView.Personal;
     private ManiaModSet selectedMods = ManiaModSet.Empty;
     private bool modPanelOpen;
-    private bool sortByDifficulty;
+    private SongSelectSortMode sortMode = SongSelectSortMode.Title;
+    private SongSelectSortDirection sortDirection =
+        SongSelectSortDirection.Ascending;
     private bool packagesCollapsed;
     private bool focusedPackageExpansion = true;
     private bool showConverts = true;
@@ -247,6 +258,11 @@ public partial class SongSelectScreen : Screen
         this.requestNextPreload = requestNextPreload;
         this.selectionMemory = selectionMemory;
         this.previewHost = previewHost;
+        if (selectionMemory != null)
+        {
+            sortMode = selectionMemory.SortMode;
+            sortDirection = selectionMemory.SortDirection;
+        }
     }
 
     internal SongSelectEntry SelectedEntry => selectedEntry;
@@ -319,6 +335,11 @@ public partial class SongSelectScreen : Screen
         topNavigationProfile?.Size ?? Vector2.Zero;
     internal float SongBrowserTop => songBrowser?.Y ?? 0;
     internal bool ShowConverts => showConverts;
+    internal SongSelectSortMode SortMode => sortMode;
+    internal SongSelectSortDirection SortDirection => sortDirection;
+    internal bool SortPopoverOpen => sortPopover?.IsOpen == true;
+    internal string SortButtonValue => sortButton?.DisplayedValue ?? string.Empty;
+    internal IReadOnlyList<SongSelectEntry> VisibleEntries => visibleEntries;
     internal double MinimumDifficultyFilter =>
         displaySettings.DifficultyRatingMode.Value
             == ManiaDifficultyRatingMode.EtternaMsd
@@ -489,7 +510,6 @@ public partial class SongSelectScreen : Screen
         logLoadStage("library snapshot");
         refreshSavedScores();
         selectedEntry = rememberedEntryOrDefault();
-        ensurePlayableBeatmap(selectedEntry);
         rememberSelectedEntry();
         visibleEntries = entries.ToList();
         focusPackageExpansion(selectedEntry?.IsPackage == true
@@ -503,7 +523,7 @@ public partial class SongSelectScreen : Screen
         InternalChildren = new Drawable[]
         {
             backgroundA = createBackground(firstWallpaper),
-            backgroundB = createBackground(firstWallpaper),
+            backgroundB = createBackground(textureFor(selectedEntry)),
             createBackgroundIsolation(),
             createBackgroundMoodWash(),
             stage = new Container
@@ -520,6 +540,7 @@ public partial class SongSelectScreen : Screen
                             designed_height - footer_height - details_top - 18),
                     },
                     createSongBrowser(),
+                    createSortPopover(),
                     createFooter(),
                     playbackRateOverlay = new GameplayPlaybackRateOverlay
                     {
@@ -592,6 +613,7 @@ public partial class SongSelectScreen : Screen
         screenActive = true;
         applyPendingLibraryChange();
         restoreRememberedSelection();
+        requestPlayableBeatmap(selectedEntry);
         previewActive = true;
         diagnostics.Trace(
             "SONG_SELECT",
@@ -624,6 +646,7 @@ public partial class SongSelectScreen : Screen
             selectedEntry = entries.Count == 0
                 ? null
                 : entries[Math.Min(selectedIndex, entries.Count - 1)];
+            requestPlayableBeatmap(selectedEntry);
             applyFilters();
             rebuildDetails();
         }
@@ -649,6 +672,7 @@ public partial class SongSelectScreen : Screen
         selectedEntry = entries.Count == 0
             ? null
             : entries[Math.Min(selectedIndex, entries.Count - 1)];
+        requestPlayableBeatmap(selectedEntry);
         applyFilters();
         rebuildDetails();
     }
@@ -669,6 +693,7 @@ public partial class SongSelectScreen : Screen
     {
         screenActive = false;
         previewActive = false;
+        invalidatePlayableBeatmapRequest();
         diagnostics.Trace("SONG_SELECT", "exiting");
         if (previewHost == null)
             previewPlayer?.Stop();
@@ -737,6 +762,8 @@ public partial class SongSelectScreen : Screen
             if (previewPlayer != null)
                 _ = previewPlayer.DisposeAsync();
 
+            playableBeatmapDisposed = true;
+            invalidatePlayableBeatmapRequest();
             invalidateGameplayPreload();
         }
 
@@ -888,6 +915,11 @@ public partial class SongSelectScreen : Screen
     {
         if (scoreResultOverlay != null)
             closeScoreResult();
+        else if (sortPopover?.IsOpen == true)
+        {
+            sortPopover.Close();
+            sortButton?.SetActive(false);
+        }
         else if (!DismissSearch())
             stopPreviewThen(this.Exit);
     }
@@ -911,8 +943,16 @@ public partial class SongSelectScreen : Screen
     {
         if (selectedEntry == null || transitionPending)
             return;
-        if (!ensurePlayableBeatmap(selectedEntry))
+        if (!isPlayableBeatmapReady(selectedEntry))
+        {
+            SongSelectEntry requested = selectedEntry;
+            requestPlayableBeatmap(requested, success =>
+            {
+                if (success && ReferenceEquals(selectedEntry, requested))
+                    PlaySelected();
+            });
             return;
+        }
 
         ManiaModSet gameplayMods = selectedMods;
         YokkoBeatmap gameplayBeatmap = selectedEntry.Beatmap;
@@ -1044,6 +1084,17 @@ public partial class SongSelectScreen : Screen
     {
         if (transitionPending || selectedEntry == null)
             return;
+
+        if (!isPlayableBeatmapReady(selectedEntry))
+        {
+            SongSelectEntry requested = selectedEntry;
+            requestPlayableBeatmap(requested, success =>
+            {
+                if (success && ReferenceEquals(selectedEntry, requested))
+                    scheduleGameplayPreload(delayMilliseconds);
+            });
+            return;
+        }
 
         SongSelectEntry entry = selectedEntry;
         ManiaModSet mods = selectedMods;
@@ -1362,9 +1413,19 @@ public partial class SongSelectScreen : Screen
     {
         if (activeScoreResult == null
             || selectedEntry == null
-            || transitionPending
-            || !ensurePlayableBeatmap(selectedEntry))
+            || transitionPending)
         {
+            return;
+        }
+
+        if (!isPlayableBeatmapReady(selectedEntry))
+        {
+            SongSelectEntry requested = selectedEntry;
+            requestPlayableBeatmap(requested, success =>
+            {
+                if (success && ReferenceEquals(selectedEntry, requested))
+                    retryScoreResult();
+            });
             return;
         }
 
@@ -2023,8 +2084,16 @@ public partial class SongSelectScreen : Screen
     {
         if (modPanelOpen || selectedEntry == null)
             return;
-        if (!ensurePlayableBeatmap(selectedEntry))
+        if (!isPlayableBeatmapReady(selectedEntry))
+        {
+            SongSelectEntry requested = selectedEntry;
+            requestPlayableBeatmap(requested, success =>
+            {
+                if (success && ReferenceEquals(selectedEntry, requested))
+                    ToggleModPanel();
+            });
             return;
+        }
 
         modPanelOpen = true;
         modsToggleButton?.SetOpen(true);
@@ -2272,10 +2341,10 @@ public partial class SongSelectScreen : Screen
         [
             sortButton = new SongSelectBrowseToolButton(
                 "SORT",
-                sortByDifficulty ? "DIFFICULTY" : "TITLE",
+                sortButtonLabel(),
                 176,
                 FontAwesome.Solid.SortAmountDown,
-                toggleSortMode,
+                toggleSortPopover,
                 68),
             groupButton = new SongSelectBrowseToolButton(
                 "GROUP",
@@ -2318,6 +2387,20 @@ public partial class SongSelectScreen : Screen
         };
         convertsButton.SetActive(showConverts);
         return convertsButton;
+    }
+
+    private Drawable createSortPopover()
+    {
+        sortPopover = new SongSelectSortPopover(
+            SetSortMode,
+            SetSortDirection)
+        {
+            Anchor = Anchor.TopRight,
+            Origin = Anchor.TopRight,
+            Position = new Vector2(-browse_right, browse_top + 4),
+        };
+        sortPopover.SetState(sortMode, sortDirection);
+        return sortPopover;
     }
 
     private Drawable createSongBrowser() => songBrowser = new Container
@@ -3854,22 +3937,17 @@ public partial class SongSelectScreen : Screen
             "filter-applied",
             $"query={searchQuery} | mode={keyModeFilter?.ToString() ?? "all"}"
             + $" | visible={visibleEntries.Count}/{entries.Count}"
-            + $" | difficulty-sort={sortByDifficulty}"
+            + $" | sort={sortMode}:{sortDirection}"
             + $" | difficulty-min={MinimumDifficultyFilter:0.00}"
             + $" | difficulty-unit={ManiaDifficultyPresentation.Unit(displaySettings.DifficultyRatingMode.Value)}"
             + $" | packages-collapsed={packagesCollapsed}"
             + $" | converts={showConverts}");
 
-        if (sortByDifficulty)
-        {
-            visibleEntries = visibleEntries
-                             .OrderBy(entry => entry.PackageName, StringComparer.OrdinalIgnoreCase)
-                             .ThenBy(entry =>
-                                 selectedDifficultyValue(entry)
-                                 ?? double.MaxValue)
-                             .ThenBy(entry => entry.Beatmap.Title, StringComparer.OrdinalIgnoreCase)
-                             .ToList();
-        }
+        visibleEntries = SongSelectSorting.Sort(
+            visibleEntries,
+            sortMode,
+            sortDirection,
+            selectedDifficultyValue);
 
         if (focusedPackageExpansion)
         {
@@ -3934,7 +4012,8 @@ public partial class SongSelectScreen : Screen
                                   entry.PackageId,
                                   StringComparison.OrdinalIgnoreCase);
         selectedEntry = entry;
-        ensurePlayableBeatmap(selectedEntry);
+        if (changed)
+            requestPlayableBeatmap(selectedEntry);
         rememberSelectedEntry();
 
         if (changed)
@@ -4003,20 +4082,70 @@ public partial class SongSelectScreen : Screen
         previewPlayer?.Play(selectedEntry?.Beatmap, selectedMods);
     }
 
-    private bool ensurePlayableBeatmap(SongSelectEntry entry)
-    {
-        if (entry == null || !entry.IsReadOnly)
-            return entry != null;
+    private bool isPlayableBeatmapReady(SongSelectEntry entry) =>
+        entry != null
+        && (!entry.IsReadOnly
+            || (entry.ChartId != null
+                && materialisedExternalCharts.Contains(entry.ChartId)));
 
+    private void requestPlayableBeatmap(
+        SongSelectEntry entry,
+        Action<bool> completed = null)
+    {
+        if (entry == null || playableBeatmapDisposed)
+        {
+            completed?.Invoke(false);
+            return;
+        }
+
+        if (isPlayableBeatmapReady(entry))
+        {
+            if (playableBeatmapTask != null)
+                invalidatePlayableBeatmapRequest();
+            completed?.Invoke(true);
+            return;
+        }
+
+        bool sameRequest = playableBeatmapTask is { IsCompleted: false }
+                           && string.Equals(
+                               playableBeatmapChartId,
+                               entry.ChartId,
+                               StringComparison.OrdinalIgnoreCase);
+        if (sameRequest)
+        {
+            if (completed != null)
+                playableBeatmapCallbacks.Add(completed);
+            return;
+        }
+
+        invalidatePlayableBeatmapRequest();
+        if (completed != null)
+            playableBeatmapCallbacks.Add(completed);
+        playableBeatmapChartId = entry.ChartId;
+        playableBeatmapCancellation = new CancellationTokenSource();
+        int generation = playableBeatmapGeneration;
+        playableBeatmapTask = importedChartLibrary.GetPlayableBeatmapAsync(
+            entry.ChartId,
+            playableBeatmapCancellation.Token);
+        _ = observePlayableBeatmapAsync(
+            playableBeatmapTask,
+            entry,
+            generation);
+    }
+
+    private async Task observePlayableBeatmapAsync(
+        Task<YokkoBeatmap> task,
+        SongSelectEntry entry,
+        int generation)
+    {
+        YokkoBeatmap playable;
         try
         {
-            YokkoBeatmap playable = importedChartLibrary.GetPlayableBeatmap(
-                entry.ChartId);
-            if (playable == null)
-                return false;
-
-            entry.Beatmap = playable;
-            return true;
+            playable = await task.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
         }
         catch (Exception exception)
         {
@@ -4024,8 +4153,67 @@ public partial class SongSelectScreen : Screen
                 exception,
                 $"Could not materialise external chart '{entry.ChartId}'.",
                 LoggingTarget.Runtime);
-            return false;
+            Scheduler.Add(() => completePlayableBeatmapRequest(
+                entry,
+                generation,
+                null));
+            return;
         }
+
+        Scheduler.Add(() => completePlayableBeatmapRequest(
+            entry,
+            generation,
+            playable));
+    }
+
+    private void completePlayableBeatmapRequest(
+        SongSelectEntry entry,
+        int generation,
+        YokkoBeatmap playable)
+    {
+        if (playableBeatmapDisposed
+            || generation != playableBeatmapGeneration
+            || !ReferenceEquals(selectedEntry, entry)
+            || entry.ChartId == null
+            || !importedEntries.TryGetValue(
+                entry.ChartId,
+                out SongSelectEntry tracked)
+            || !ReferenceEquals(tracked, entry))
+        {
+            return;
+        }
+
+        playableBeatmapCancellation?.Dispose();
+        playableBeatmapCancellation = null;
+        playableBeatmapTask = null;
+        playableBeatmapChartId = null;
+        Action<bool>[] callbacks = playableBeatmapCallbacks.ToArray();
+        playableBeatmapCallbacks.Clear();
+        bool success = playable != null;
+        if (success)
+        {
+            entry.Beatmap = playable;
+            materialisedExternalCharts.Add(entry.ChartId);
+            difficultyRatingsCache.Remove(entry);
+            rebuildDetails();
+            modSettingsHost?.SetState(selectedMods, playable);
+            scheduleGameplayPreload();
+        }
+
+        foreach (Action<bool> callback in callbacks)
+            callback(success);
+    }
+
+    private void invalidatePlayableBeatmapRequest(bool clearCallbacks = true)
+    {
+        playableBeatmapGeneration++;
+        playableBeatmapCancellation?.Cancel();
+        playableBeatmapCancellation?.Dispose();
+        playableBeatmapCancellation = null;
+        playableBeatmapTask = null;
+        playableBeatmapChartId = null;
+        if (clearCallbacks)
+            playableBeatmapCallbacks.Clear();
     }
 
     private SongSelectEntry rememberedEntryOrDefault()
@@ -4094,17 +4282,10 @@ public partial class SongSelectScreen : Screen
                ?? textures.Get(SongSelectArtworkPolicy.FallbackTexture);
     }
 
-    private Texture gameplayArtworkTextureFor(SongSelectEntry entry)
-    {
-        if (entry == null
-            || !Path.IsPathRooted(entry.WallpaperTexture)
-            || !File.Exists(entry.WallpaperTexture))
-        {
-            return null;
-        }
-
-        return textureFor(entry);
-    }
+    // Song-select uses bounded 512 px thumbnails. Gameplay intentionally
+    // loads its own 1920x1080-capped artwork instead of reusing a thumbnail.
+    private static Texture gameplayArtworkTextureFor(SongSelectEntry entry) =>
+        null;
 
     private void prewarmInitialArtwork()
     {
@@ -4121,7 +4302,9 @@ public partial class SongSelectScreen : Screen
                 continue;
             }
 
-            _ = textureFor(entry);
+            artworkTextureCache.Prewarm(
+                entry.WallpaperTexture,
+                renderer);
             initialArtworkPrewarmPaths.Add(entry.WallpaperTexture);
             initialArtworkPrewarmCount++;
         }
@@ -4350,7 +4533,8 @@ public partial class SongSelectScreen : Screen
         // Background base-rating completion does not alter search, grouping or
         // title ordering. Only rebuild the cheap virtual index when the current
         // view explicitly depends on difficulty values.
-        if (sortByDifficulty || MinimumDifficultyFilter > 0)
+        if (sortMode == SongSelectSortMode.Difficulty
+            || MinimumDifficultyFilter > 0)
             applyFilters();
         else
         {
@@ -4386,7 +4570,7 @@ public partial class SongSelectScreen : Screen
 
     private void refreshSongListDifficulties()
     {
-        if (sortByDifficulty)
+        if (sortMode == SongSelectSortMode.Difficulty)
         {
             applyFilters();
             return;
@@ -4502,6 +4686,14 @@ public partial class SongSelectScreen : Screen
             }
             else
             {
+                materialisedExternalCharts.Remove(chart.Id);
+                if (string.Equals(
+                        playableBeatmapChartId,
+                        chart.Id,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    invalidatePlayableBeatmapRequest();
+                }
                 entry = createImportedEntry(chart);
                 if (importedEntries.TryGetValue(chart.Id, out SongSelectEntry replaced))
                     difficultyRatingsCache.Remove(replaced);
@@ -4530,6 +4722,13 @@ public partial class SongSelectScreen : Screen
             importedEntries[chart.Id] = entry;
             importedChartModels[chart.Id] = nextModels[chart.Id];
             entries.Add(entry);
+        }
+        materialisedExternalCharts.IntersectWith(nextEntries.Keys);
+
+        if (playableBeatmapChartId != null
+            && !nextEntries.ContainsKey(playableBeatmapChartId))
+        {
+            invalidatePlayableBeatmapRequest();
         }
 
         libraryRevision = revision;
@@ -4576,12 +4775,60 @@ public partial class SongSelectScreen : Screen
             _ => null,
         });
 
-    private void toggleSortMode()
+    internal void SetSortMode(SongSelectSortMode mode)
     {
-        sortByDifficulty = !sortByDifficulty;
-        sortButton?.SetValue(sortByDifficulty ? "DIFFICULTY" : "TITLE");
+        if (sortMode == mode)
+            return;
+
+        sortMode = mode;
+        sortDirection = SongSelectSorting.DefaultDirection(mode);
+        rememberSortState();
+        updateSortControls();
         applyFilters();
     }
+
+    internal void SetSortDirection(SongSelectSortDirection direction)
+    {
+        if (sortDirection == direction)
+            return;
+
+        sortDirection = direction;
+        rememberSortState();
+        updateSortControls();
+        applyFilters();
+    }
+
+    private void toggleSortPopover()
+    {
+        if (sortPopover?.IsOpen == true)
+        {
+            sortPopover.Close();
+            sortButton?.SetActive(false);
+            return;
+        }
+
+        sortPopover?.Open();
+        sortButton?.SetActive(true);
+    }
+
+    private void updateSortControls()
+    {
+        sortButton?.SetValue(sortButtonLabel());
+        sortPopover?.SetState(sortMode, sortDirection);
+    }
+
+    private void rememberSortState()
+    {
+        if (selectionMemory == null)
+            return;
+
+        selectionMemory.SortMode = sortMode;
+        selectionMemory.SortDirection = sortDirection;
+    }
+
+    private string sortButtonLabel() =>
+        $"{SongSelectSorting.Label(sortMode)} "
+        + (sortDirection == SongSelectSortDirection.Ascending ? "↑" : "↓");
 
     private void togglePackageVisibility()
     {

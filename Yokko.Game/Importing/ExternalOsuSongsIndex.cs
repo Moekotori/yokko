@@ -4,8 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using Yokko.Core.Difficulty;
 using Yokko.Import;
+using Yokko.Import.Osu;
 
 namespace Yokko.Game.Importing;
 
@@ -129,7 +131,8 @@ internal static class ExternalOsuSongsIndex
 
     internal static IReadOnlyList<ExternalOsuFileSnapshot> EnumerateFiles(
         string songsPath,
-        out bool complete)
+        out bool complete,
+        CancellationToken cancellationToken = default)
     {
         var files = new List<ExternalOsuFileSnapshot>();
         var pending = new Stack<string>();
@@ -138,6 +141,7 @@ internal static class ExternalOsuSongsIndex
 
         while (pending.Count > 0)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string directory = pending.Pop();
             string[] osuFiles;
 
@@ -159,6 +163,7 @@ internal static class ExternalOsuSongsIndex
             {
                 foreach (string path in osuFiles)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     try
                     {
                         var info = new FileInfo(path);
@@ -183,7 +188,27 @@ internal static class ExternalOsuSongsIndex
             try
             {
                 foreach (string child in Directory.GetDirectories(directory))
-                    pending.Push(child);
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    try
+                    {
+                        // Song folders occasionally contain junctions created
+                        // by backup/sync tools. Following one back into Songs
+                        // would make this explicit DFS never converge.
+                        if ((File.GetAttributes(child)
+                             & FileAttributes.ReparsePoint) != 0)
+                        {
+                            continue;
+                        }
+
+                        pending.Push(child);
+                    }
+                    catch (Exception exception) when (exception is IOException
+                                                      or UnauthorizedAccessException)
+                    {
+                        complete = false;
+                    }
+                }
             }
             catch (Exception exception) when (exception is IOException
                                               or UnauthorizedAccessException)
@@ -198,6 +223,14 @@ internal static class ExternalOsuSongsIndex
 
     internal static bool IsManiaFile(string path)
     {
+        var info = new FileInfo(path);
+        if (info.Length > OsuManiaBeatmapIO.MaximumFileBytes)
+        {
+            throw new InvalidDataException(
+                $"osu! beatmap '{path}' is {info.Length:N0} bytes; "
+                + $"the safety limit is {OsuManiaBeatmapIO.MaximumFileBytes:N0} bytes.");
+        }
+
         using FileStream stream = new(
             path,
             FileMode.Open,
