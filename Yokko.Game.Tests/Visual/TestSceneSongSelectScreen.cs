@@ -190,14 +190,20 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("selection wraps", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");
 
         AddStep("filter 7K", () => songSelectScreen.SetKeyModeFilter(KeyMode.SevenKey));
-        AddAssert("one 7K song visible", () => songSelectScreen.VisibleEntryCount == 1);
+        AddUntilStep("one 7K song visible", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 1);
         AddAssert("selection follows filter", () => songSelectScreen.SelectedEntry.Beatmap.KeyMode == KeyMode.SevenKey);
 
         AddStep("search imported seven", () => songSelectScreen.SetSearchQuery("Imported Seven"));
-        AddAssert("one matching song", () => songSelectScreen.VisibleEntryCount == 1);
+        AddUntilStep("one matching song", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 1);
 
         AddStep("search no results", () => songSelectScreen.SetSearchQuery("not-a-real-song"));
-        AddAssert("empty result is stable", () => songSelectScreen.VisibleEntryCount == 0);
+        AddUntilStep("empty result is stable", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 0);
         AddAssert("empty state explains active filters", () =>
             songSelectScreen.NoResultsVisible
             && songSelectScreen.NoResultsTitle == "NO SONGS MATCH"
@@ -205,13 +211,27 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.NoResultsSummary.Contains("7K")
             && songSelectScreen.NoResultsResetVisible);
         AddStep("clear browse filters", songSelectScreen.ClearBrowseFilters);
-        AddAssert("clear restores the complete library", () =>
-            songSelectScreen.VisibleEntryCount == 2
+        AddUntilStep("clear restores the complete library", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 2
             && songSelectScreen.SearchQuery.Length == 0
             && songSelectScreen.KeyModeFilter == null
             && songSelectScreen.MinimumDifficultyFilter == 0
             && songSelectScreen.ShowConverts
             && !songSelectScreen.NoResultsVisible);
+        AddStep("new search supersedes queued search", () =>
+        {
+            songSelectScreen.SetSearchQuery("not-a-real-song");
+            songSelectScreen.SetSearchQuery("Imported Four");
+        });
+        AddUntilStep("only latest search commits", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 1
+            && songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");
+        AddStep("clear supersession search", songSelectScreen.ClearBrowseFilters);
+        AddUntilStep("complete library returns after supersession", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 2);
         AddAssert("empty search is not dismissed", () => !songSelectScreen.DismissSearch());
 
         AddStep("open full sort menu", () => songSelectScreen
@@ -232,7 +252,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         });
         AddStep("sort by bpm", () =>
             songSelectScreen.SetSortMode(SongSelectSortMode.Bpm));
-        AddAssert("new numeric mode defaults descending and keeps selection", () =>
+        AddUntilStep("new numeric mode defaults descending and keeps selection", () =>
             songSelectScreen.SortMode == SongSelectSortMode.Bpm
             && songSelectScreen.SortDirection == SongSelectSortDirection.Descending
             && songSelectScreen.SortButtonValue.Contains("BPM")
@@ -240,7 +260,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.SongListRebuildVersion == rebuildVersionBeforeSort + 1);
         AddStep("reverse bpm sort", () =>
             songSelectScreen.SetSortDirection(SongSelectSortDirection.Ascending));
-        AddAssert("direction reverses with one rebuild and no reselection", () =>
+        AddUntilStep("direction reverses with one rebuild and no reselection", () =>
             songSelectScreen.SortDirection == SongSelectSortDirection.Ascending
             && ReferenceEquals(songSelectScreen.SelectedEntry, selectedBeforeSort)
             && songSelectScreen.SongListRebuildVersion == rebuildVersionBeforeSort + 2);
@@ -293,8 +313,9 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             screenStack.CurrentScreen.Exit());
         AddUntilStep("song select resumes", () =>
             screenStack.CurrentScreen == songSelectScreen);
-        AddAssert("settings return refreshes list once", () =>
-            songSelectScreen.SongListRebuildVersion
+        AddUntilStep("settings return refreshes list once", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.SongListRebuildVersion
                 == listVersionBeforeSettings + 1);
     }
 
@@ -537,7 +558,10 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         });
         AddUntilStep("rate test chart selected", () =>
             songSelectScreen.SelectedEntry?.Beatmap.Title
-            == beatmap.Title);
+            == beatmap.Title
+            && !songSelectScreen.FilterPending
+            && songSelectScreen.ChildrenOfType<SongSelectSongRow>().Any(row =>
+                row.Entry.Beatmap.Title == beatmap.Title));
         AddStep("capture current list row", () =>
             originalRow = songSelectScreen
                 .ChildrenOfType<SongSelectSongRow>()
@@ -751,6 +775,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                 || songSelectScreen.SelectedModsButtonSummary == "NONE"));
         AddAssert("mod panel starts closed", () =>
             !songSelectScreen.IsModPanelOpen);
+        AddUntilStep("song list settles before mods", () =>
+            !songSelectScreen.FilterPending);
         int listVersionBeforeMods = 0;
         int detailsVersionBeforeMods = 0;
         SongSelectEntry selectionBeforeMods = null;

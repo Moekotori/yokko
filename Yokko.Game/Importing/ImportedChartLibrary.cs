@@ -83,6 +83,10 @@ internal sealed record FolderChartImportResult(
 /// </summary>
 internal sealed class ImportedChartLibrary : IDisposable
 {
+    private sealed record ChartImportOperation(
+        IReadOnlyList<ChartImportResult> Results,
+        ImportedChartLibraryChange Change);
+
     private const string pending_difficulty_reason =
         "Pending background difficulty calculation.";
     private readonly List<ImportedChart> charts = [];
@@ -439,48 +443,60 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         try
         {
-            string sourcePath = Path.GetFullPath(request.Path);
-
-            if (isManagedPath(sourcePath))
-            {
-                IReadOnlyList<ChartImportResult> managedResults =
-                    await KnownChartImporters.ImportAllAsync(
-                        request with { Path = sourcePath });
-                AddOrReplace(managedResults, sourcePath);
-                return managedResults;
-            }
-
-            IReadOnlyList<ChartImportResult> sourceResults =
-                await KnownChartImporters.ImportAllAsync(
-                    request with { Path = sourcePath });
-            string destination = createImportDirectory(sourcePath);
-
-            try
-            {
-                Directory.CreateDirectory(destination);
-                string managedSourcePath = Path.Combine(
-                    destination,
-                    Path.GetFileName(sourcePath));
-                File.Copy(sourcePath, managedSourcePath);
-                copyReferencedAssets(sourcePath, destination, sourceResults);
-
-                IReadOnlyList<ChartImportResult> managedResults =
-                    await KnownChartImporters.ImportAllAsync(
-                        request with { Path = managedSourcePath });
-                AddOrReplace(managedResults, managedSourcePath);
-                return managedResults;
-            }
-            catch
-            {
-                if (Directory.Exists(destination))
-                    Directory.Delete(destination, true);
-
-                throw;
-            }
+            ChartImportOperation operation = await importAsyncLocked(request)
+                .ConfigureAwait(false);
+            LibraryChanged?.Invoke(operation.Change);
+            return operation.Results;
         }
         finally
         {
             importLock.Release();
+        }
+    }
+
+    private async Task<ChartImportOperation> importAsyncLocked(
+        ChartImportRequest request)
+    {
+        string sourcePath = Path.GetFullPath(request.Path);
+
+        if (isManagedPath(sourcePath))
+        {
+            IReadOnlyList<ChartImportResult> managedResults =
+                await KnownChartImporters.ImportAllAsync(
+                    request with { Path = sourcePath }).ConfigureAwait(false);
+            return new ChartImportOperation(
+                managedResults,
+                addOrReplaceCore(managedResults, sourcePath));
+        }
+
+        IReadOnlyList<ChartImportResult> sourceResults =
+            await KnownChartImporters.ImportAllAsync(
+                request with { Path = sourcePath }).ConfigureAwait(false);
+        string destination = createImportDirectory(sourcePath);
+
+        try
+        {
+            Directory.CreateDirectory(destination);
+            string managedSourcePath = Path.Combine(
+                destination,
+                Path.GetFileName(sourcePath));
+            File.Copy(sourcePath, managedSourcePath);
+            copyReferencedAssets(sourcePath, destination, sourceResults);
+
+            IReadOnlyList<ChartImportResult> managedResults =
+                await KnownChartImporters.ImportAllAsync(
+                    request with { Path = managedSourcePath })
+                    .ConfigureAwait(false);
+            return new ChartImportOperation(
+                managedResults,
+                addOrReplaceCore(managedResults, managedSourcePath));
+        }
+        catch
+        {
+            if (Directory.Exists(destination))
+                Directory.Delete(destination, true);
+
+            throw;
         }
     }
 
@@ -679,28 +695,41 @@ internal sealed class ImportedChartLibrary : IDisposable
                            .ToArray();
         int importedCharts = 0;
         int failedFiles = 0;
-
-        foreach (string source in sources)
+        ImportedChartLibraryChange combinedChange = null;
+        await importLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            try
+            foreach (string source in sources)
             {
-                IReadOnlyList<ChartImportResult> results = await ImportAsync(
-                    new ChartImportRequest(
-                        source,
-                        preferKeysounds,
-                        preferSscSimfiles,
-                        enableBmsScratch,
-                        cancellationToken)).ConfigureAwait(false);
-                importedCharts += results.Count;
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    ChartImportOperation operation = await importAsyncLocked(
+                        new ChartImportRequest(
+                            source,
+                            preferKeysounds,
+                            preferSscSimfiles,
+                            enableBmsScratch,
+                            cancellationToken)).ConfigureAwait(false);
+                    importedCharts += operation.Results.Count;
+                    combinedChange = combinedChange == null
+                        ? operation.Change
+                        : combinedChange.Merge(operation.Change);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    failedFiles++;
+                    Logger.Error(
+                        exception,
+                        $"Could not import chart file '{source}' from folder '{folderPath}'.");
+                }
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                failedFiles++;
-                Logger.Error(
-                    exception,
-                    $"Could not import chart file '{source}' from folder '{folderPath}'.");
-            }
+        }
+        finally
+        {
+            importLock.Release();
+            if (combinedChange != null)
+                LibraryChanged?.Invoke(combinedChange);
         }
 
         return new FolderChartImportResult(
@@ -1551,6 +1580,16 @@ internal sealed class ImportedChartLibrary : IDisposable
         IReadOnlyList<ChartImportResult> results,
         string sourcePath)
     {
+        ImportedChartLibraryChange change = addOrReplaceCore(
+            results,
+            sourcePath);
+        LibraryChanged?.Invoke(change);
+    }
+
+    private ImportedChartLibraryChange addOrReplaceCore(
+        IReadOnlyList<ChartImportResult> results,
+        string sourcePath)
+    {
         ArgumentNullException.ThrowIfNull(results);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
 
@@ -1573,8 +1612,7 @@ internal sealed class ImportedChartLibrary : IDisposable
             change = advanceRevision(
                 ImportedChartLibraryChangeKind.Structure);
         }
-
-        LibraryChanged?.Invoke(change);
+        return change;
     }
 
     private ImportedChartLibraryChange advanceRevision(

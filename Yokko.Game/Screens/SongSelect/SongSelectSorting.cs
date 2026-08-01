@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using Yokko.Core.Beatmaps;
 
 namespace Yokko.Game.Screens.SongSelect;
 
@@ -24,6 +26,11 @@ internal enum SongSelectSortDirection
 
 internal static class SongSelectSorting
 {
+    internal sealed record EntrySnapshot(
+        SongSelectEntry Entry,
+        YokkoBeatmap Beatmap,
+        double? DifficultyValue);
+
     internal static SongSelectSortDirection DefaultDirection(
         SongSelectSortMode mode) =>
         mode is SongSelectSortMode.Title
@@ -55,45 +62,83 @@ internal static class SongSelectSorting
         SongSelectSortMode mode,
         SongSelectSortDirection direction,
         Func<SongSelectEntry, double?> difficultyValue)
+        => SortSnapshots(
+            entries.Select(entry => new EntrySnapshot(
+                    entry,
+                    entry.Beatmap,
+                    mode == SongSelectSortMode.Difficulty
+                        ? difficultyValue(entry)
+                        : null))
+                .ToArray(),
+            mode,
+            direction,
+            CancellationToken.None);
+
+    internal static List<SongSelectEntry> SortSnapshots(
+        IReadOnlyList<EntrySnapshot> entries,
+        SongSelectSortMode mode,
+        SongSelectSortDirection direction,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (entries.Count <= 1)
-            return entries.ToList();
+            return entries.Select(snapshot => snapshot.Entry).ToList();
 
         var indexed = entries.Select((entry, index) => new IndexedEntry(entry, index))
                              .ToArray();
-        var comparer = new EntryComparer(mode, direction, difficultyValue);
+        var comparer = new EntryComparer(mode, direction, cancellationToken);
         var indexedComparer = Comparer<IndexedEntry>.Create((left, right) =>
         {
             int result = comparer.Compare(left.Entry, right.Entry);
             return result != 0 ? result : left.Index.CompareTo(right.Index);
         });
 
-        return indexed.GroupBy(
-                          item => item.Entry.PackageId ?? item.Entry.ChartId ?? string.Empty,
-                          StringComparer.OrdinalIgnoreCase)
-                      .Select(group =>
-                      {
-                          IndexedEntry[] sorted = group.OrderBy(item => item, indexedComparer)
-                                                       .ToArray();
-                          return new SortedPackage(sorted, group.Min(item => item.Index));
-                      })
-                      .OrderBy(
-                          package => package.Entries[0],
-                          indexedComparer)
-                      .ThenBy(package => package.FirstIndex)
-                      .SelectMany(package => package.Entries)
-                      .Select(item => item.Entry)
-                      .ToList();
+        try
+        {
+            return indexed.GroupBy(
+                              item => item.Entry.Entry.PackageId
+                                      ?? item.Entry.Entry.ChartId
+                                      ?? string.Empty,
+                              StringComparer.OrdinalIgnoreCase)
+                          .Select(group =>
+                          {
+                              IndexedEntry[] sorted = group.OrderBy(
+                                                               item => item,
+                                                               indexedComparer)
+                                                           .ToArray();
+                              return new SortedPackage(
+                                  sorted,
+                                  group.Min(item => item.Index));
+                          })
+                          .OrderBy(
+                              package => package.Entries[0],
+                              indexedComparer)
+                          .ThenBy(package => package.FirstIndex)
+                          .SelectMany(package => package.Entries)
+                          .Select(item => item.Entry.Entry)
+                          .ToList();
+        }
+        catch (InvalidOperationException exception)
+            when (cancellationToken.IsCancellationRequested
+                  && exception.InnerException is OperationCanceledException)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
     }
 
     private sealed class EntryComparer(
         SongSelectSortMode mode,
         SongSelectSortDirection direction,
-        Func<SongSelectEntry, double?> difficultyValue)
-        : IComparer<SongSelectEntry>
+        CancellationToken cancellationToken)
+        : IComparer<EntrySnapshot>
     {
-        public int Compare(SongSelectEntry left, SongSelectEntry right)
+        private int comparisonCount;
+
+        public int Compare(EntrySnapshot left, EntrySnapshot right)
         {
+            if ((comparisonCount++ & 0xff) == 0)
+                cancellationToken.ThrowIfCancellationRequested();
+
             int primary = mode switch
             {
                 SongSelectSortMode.Title => compareText(
@@ -106,20 +151,20 @@ internal static class SongSelectSorting
                     left.Beatmap.Creator,
                     right.Beatmap.Creator),
                 SongSelectSortMode.Difficulty => compareOptional(
-                    difficultyValue(left),
-                    difficultyValue(right)),
+                    left.DifficultyValue,
+                    right.DifficultyValue),
                 SongSelectSortMode.Bpm => compareOptional(
-                    positiveOrNull(left.Bpm),
-                    positiveOrNull(right.Bpm)),
+                    positiveOrNull(left.Entry.Bpm),
+                    positiveOrNull(right.Entry.Bpm)),
                 SongSelectSortMode.Length => compareOptional(
-                    positiveOrNull(left.Length.TotalMilliseconds),
-                    positiveOrNull(right.Length.TotalMilliseconds)),
+                    positiveOrNull(left.Entry.Length.TotalMilliseconds),
+                    positiveOrNull(right.Entry.Length.TotalMilliseconds)),
                 SongSelectSortMode.LastPlayed => compareOptional(
                     lastPlayedTicks(left),
                     lastPlayedTicks(right)),
                 SongSelectSortMode.BestScore => compareOptional(
-                    positiveOrNull(left.BestScore),
-                    positiveOrNull(right.BestScore)),
+                    positiveOrNull(left.Entry.BestScore),
+                    positiveOrNull(right.Entry.BestScore)),
                 _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
             };
             if (primary != 0)
@@ -139,7 +184,7 @@ internal static class SongSelectSorting
             result = compareTextAscending(left.Beatmap.DifficultyName, right.Beatmap.DifficultyName);
             if (result != 0)
                 return result;
-            return compareTextAscending(left.ChartId, right.ChartId);
+            return compareTextAscending(left.Entry.ChartId, right.Entry.ChartId);
         }
 
         private int compareText(string left, string right)
@@ -167,9 +212,9 @@ internal static class SongSelectSorting
 
         private static double? positiveOrNull(double value) => value > 0 ? value : null;
 
-        private static double? lastPlayedTicks(SongSelectEntry entry)
+        private static double? lastPlayedTicks(EntrySnapshot snapshot)
         {
-            DateTimeOffset? lastPlayed = entry.History
+            DateTimeOffset? lastPlayed = snapshot.Entry.History
                                                 .Where(score => score.PlayedAt.HasValue)
                                                 .Select(score => score.PlayedAt)
                                                 .Max();
@@ -177,7 +222,7 @@ internal static class SongSelectSorting
         }
     }
 
-    private sealed record IndexedEntry(SongSelectEntry Entry, int Index);
+    private sealed record IndexedEntry(EntrySnapshot Entry, int Index);
 
     private sealed record SortedPackage(IndexedEntry[] Entries, int FirstIndex);
 }

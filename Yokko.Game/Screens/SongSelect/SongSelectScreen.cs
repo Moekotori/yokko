@@ -166,11 +166,17 @@ public partial class SongSelectScreen : Screen
     private List<SongSelectEntry> visibleEntries;
     private List<SongSelectEntry> navigableEntries = [];
     private SongSelectEntry selectedEntry;
+    private CancellationTokenSource filterCancellation;
+    private Task<SongSelectFilterResult> filterTask;
+    private int filterGeneration;
+    private bool filterDisposed;
+    private bool filterPending;
     private readonly HashSet<string> materialisedExternalCharts =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Action<bool>> playableBeatmapCallbacks = [];
     private CancellationTokenSource playableBeatmapCancellation;
     private Task<YokkoBeatmap> playableBeatmapTask;
+    private TaskCompletionSource<bool> playableBeatmapStartSignal;
     private string playableBeatmapChartId;
     private int playableBeatmapGeneration;
     private bool playableBeatmapDisposed;
@@ -240,6 +246,8 @@ public partial class SongSelectScreen : Screen
 
     private const double selection_preload_delay = 120;
     private const double settings_preload_delay = 350;
+    private const int filter_debounce_milliseconds = 100;
+    private const int playable_beatmap_debounce_milliseconds = 150;
 
     public SongSelectScreen(
         IAudioEngine previewAudioEngine = null,
@@ -448,6 +456,7 @@ public partial class SongSelectScreen : Screen
         collapsedPackages.Contains(packageId);
     internal int IndexedSongListItemCount => songList?.ItemCount ?? 0;
     internal int NavigableEntryCount => navigableEntries.Count;
+    internal bool FilterPending => filterPending;
     internal bool UsesFocusedPackageExpansion => focusedPackageExpansion;
 
     internal void TogglePackage(string packageId)
@@ -564,7 +573,7 @@ public partial class SongSelectScreen : Screen
         rebuildDetails();
         logLoadStage("selected details");
         refreshDifficultyFilterBar();
-        applyFilters();
+        applyFilters(immediate: true);
         logLoadStage("song rows");
         prewarmInitialArtwork();
         logLoadStage("first-frame artwork");
@@ -765,6 +774,8 @@ public partial class SongSelectScreen : Screen
             playableBeatmapDisposed = true;
             invalidatePlayableBeatmapRequest();
             invalidateGameplayPreload();
+            filterDisposed = true;
+            invalidateFilterRequest();
         }
 
         base.Dispose(isDisposing);
@@ -950,7 +961,7 @@ public partial class SongSelectScreen : Screen
             {
                 if (success && ReferenceEquals(selectedEntry, requested))
                     PlaySelected();
-            });
+            }, immediate: true);
             return;
         }
 
@@ -1425,7 +1436,7 @@ public partial class SongSelectScreen : Screen
             {
                 if (success && ReferenceEquals(selectedEntry, requested))
                     retryScoreResult();
-            });
+            }, immediate: true);
             return;
         }
 
@@ -2091,7 +2102,7 @@ public partial class SongSelectScreen : Screen
             {
                 if (success && ReferenceEquals(selectedEntry, requested))
                     ToggleModPanel();
-            });
+            }, immediate: true);
             return;
         }
 
@@ -3916,38 +3927,157 @@ public partial class SongSelectScreen : Screen
             songList.PrepareViewportFor(selectedEntry, browse_height);
     }
 
-    private void applyFilters()
+    private void applyFilters(bool immediate = false)
     {
-        visibleEntries = entries.Where(entry =>
-            (!keyModeFilter.HasValue || entry.Beatmap.KeyMode == keyModeFilter) &&
-            (showConverts || entry.Beatmap.ConversionSource == null) &&
-            passesDifficultyFilter(entry) &&
-            (string.IsNullOrWhiteSpace(searchQuery) ||
-             entry.Beatmap.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-             entry.Beatmap.RomanisedTitle.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-             entry.Beatmap.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-             entry.Beatmap.RomanisedArtist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-             entry.Beatmap.Creator.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-             entry.Beatmap.DifficultyName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-             entry.Beatmap.Source.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-             entry.Beatmap.Tags.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)))
-                                .ToList();
+        if (filterDisposed)
+            return;
+
+        int generation = ++filterGeneration;
+        invalidateFilterRequest(incrementGeneration: false);
+        bool needsDifficulty = sortMode == SongSelectSortMode.Difficulty
+                               || MinimumDifficultyFilter > 0;
+        var request = new SongSelectFilterRequest(
+            generation,
+            entries.Select(entry => new SongSelectSorting.EntrySnapshot(
+                    entry,
+                    entry.Beatmap,
+                    needsDifficulty
+                        ? selectedDifficultyValue(entry)
+                        : null))
+                .ToArray(),
+            searchQuery,
+            keyModeFilter,
+            showConverts,
+            MinimumDifficultyFilter,
+            sortMode,
+            sortDirection);
+
+        if (immediate)
+        {
+            completeFilterRequest(
+                request,
+                runFilter(request, CancellationToken.None));
+            return;
+        }
+
+        filterCancellation = new CancellationTokenSource();
+        filterPending = true;
+        CancellationToken cancellationToken = filterCancellation.Token;
+        filterTask = Task.Run(async () =>
+        {
+            await Task.Delay(
+                    filter_debounce_milliseconds,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return runFilter(request, cancellationToken);
+        }, cancellationToken);
+        _ = observeFilterRequestAsync(request, filterTask);
+    }
+
+    private static SongSelectFilterResult runFilter(
+        SongSelectFilterRequest request,
+        CancellationToken cancellationToken)
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        var filtered = new List<SongSelectSorting.EntrySnapshot>(
+            request.Entries.Length);
+        for (int index = 0; index < request.Entries.Length; index++)
+        {
+            if ((index & 0x7f) == 0)
+                cancellationToken.ThrowIfCancellationRequested();
+
+            SongSelectSorting.EntrySnapshot snapshot = request.Entries[index];
+            YokkoBeatmap beatmap = snapshot.Beatmap;
+            if (request.KeyModeFilter.HasValue
+                && beatmap.KeyMode != request.KeyModeFilter)
+            {
+                continue;
+            }
+
+            if (!request.ShowConverts && beatmap.ConversionSource != null)
+                continue;
+            if (request.MinimumDifficulty > 0
+                && (!snapshot.DifficultyValue.HasValue
+                    || snapshot.DifficultyValue.Value
+                    < request.MinimumDifficulty))
+            {
+                continue;
+            }
+
+            if (!matchesSearch(beatmap, request.SearchQuery))
+                continue;
+
+            filtered.Add(snapshot);
+        }
+
+        List<SongSelectEntry> sorted = SongSelectSorting.SortSnapshots(
+            filtered,
+            request.SortMode,
+            request.SortDirection,
+            cancellationToken);
+        return new SongSelectFilterResult(sorted, stopwatch.Elapsed);
+    }
+
+    private static bool matchesSearch(YokkoBeatmap beatmap, string query) =>
+        string.IsNullOrWhiteSpace(query)
+        || beatmap.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || beatmap.RomanisedTitle.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || beatmap.Artist.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || beatmap.RomanisedArtist.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || beatmap.Creator.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || beatmap.DifficultyName.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || beatmap.Source.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || beatmap.Tags.Contains(query, StringComparison.OrdinalIgnoreCase);
+
+    private async Task observeFilterRequestAsync(
+        SongSelectFilterRequest request,
+        Task<SongSelectFilterResult> task)
+    {
+        SongSelectFilterResult result;
+        try
+        {
+            result = await task.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception exception)
+        {
+            Logger.Error(
+                exception,
+                "Could not filter the song-select library.",
+                LoggingTarget.Runtime);
+            return;
+        }
+
+        if (!filterDisposed)
+            Scheduler.Add(() => completeFilterRequest(request, result));
+    }
+
+    private void completeFilterRequest(
+        SongSelectFilterRequest request,
+        SongSelectFilterResult result)
+    {
+        if (filterDisposed || request.Generation != filterGeneration)
+            return;
+
+        filterCancellation?.Dispose();
+        filterCancellation = null;
+        filterTask = null;
+        filterPending = false;
+        visibleEntries = result.Entries;
         diagnostics.Trace(
             "SONG_SELECT",
             "filter-applied",
-            $"query={searchQuery} | mode={keyModeFilter?.ToString() ?? "all"}"
+            $"query={request.SearchQuery} | mode={request.KeyModeFilter?.ToString() ?? "all"}"
             + $" | visible={visibleEntries.Count}/{entries.Count}"
-            + $" | sort={sortMode}:{sortDirection}"
-            + $" | difficulty-min={MinimumDifficultyFilter:0.00}"
+            + $" | sort={request.SortMode}:{request.SortDirection}"
+            + $" | difficulty-min={request.MinimumDifficulty:0.00}"
             + $" | difficulty-unit={ManiaDifficultyPresentation.Unit(displaySettings.DifficultyRatingMode.Value)}"
             + $" | packages-collapsed={packagesCollapsed}"
-            + $" | converts={showConverts}");
-
-        visibleEntries = SongSelectSorting.Sort(
-            visibleEntries,
-            sortMode,
-            sortDirection,
-            selectedDifficultyValue);
+            + $" | converts={request.ShowConverts}"
+            + $" | elapsed-ms={result.Elapsed.TotalMilliseconds:0.0}");
 
         if (focusedPackageExpansion)
         {
@@ -3962,6 +4092,31 @@ public partial class SongSelectScreen : Screen
             && !navigableEntries.Contains(selectedEntry))
             select(navigableEntries[0]);
     }
+
+    private void invalidateFilterRequest(bool incrementGeneration = true)
+    {
+        if (incrementGeneration)
+            filterGeneration++;
+        filterCancellation?.Cancel();
+        filterCancellation?.Dispose();
+        filterCancellation = null;
+        filterTask = null;
+        filterPending = false;
+    }
+
+    private sealed record SongSelectFilterRequest(
+        int Generation,
+        SongSelectSorting.EntrySnapshot[] Entries,
+        string SearchQuery,
+        KeyMode? KeyModeFilter,
+        bool ShowConverts,
+        double MinimumDifficulty,
+        SongSelectSortMode SortMode,
+        SongSelectSortDirection SortDirection);
+
+    private sealed record SongSelectFilterResult(
+        List<SongSelectEntry> Entries,
+        TimeSpan Elapsed);
 
     private void selectOffset(int direction)
     {
@@ -4090,7 +4245,8 @@ public partial class SongSelectScreen : Screen
 
     private void requestPlayableBeatmap(
         SongSelectEntry entry,
-        Action<bool> completed = null)
+        Action<bool> completed = null,
+        bool immediate = false)
     {
         if (entry == null || playableBeatmapDisposed)
         {
@@ -4115,6 +4271,8 @@ public partial class SongSelectScreen : Screen
         {
             if (completed != null)
                 playableBeatmapCallbacks.Add(completed);
+            if (immediate)
+                playableBeatmapStartSignal?.TrySetResult(true);
             return;
         }
 
@@ -4123,14 +4281,53 @@ public partial class SongSelectScreen : Screen
             playableBeatmapCallbacks.Add(completed);
         playableBeatmapChartId = entry.ChartId;
         playableBeatmapCancellation = new CancellationTokenSource();
+        playableBeatmapStartSignal = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        if (immediate)
+            playableBeatmapStartSignal.TrySetResult(true);
         int generation = playableBeatmapGeneration;
-        playableBeatmapTask = importedChartLibrary.GetPlayableBeatmapAsync(
+        playableBeatmapTask = materialisePlayableBeatmapAfterSelectionSettlesAsync(
             entry.ChartId,
+            playableBeatmapStartSignal.Task,
             playableBeatmapCancellation.Token);
         _ = observePlayableBeatmapAsync(
             playableBeatmapTask,
             entry,
             generation);
+    }
+
+    private async Task<YokkoBeatmap>
+        materialisePlayableBeatmapAfterSelectionSettlesAsync(
+            string chartId,
+            Task immediateSignal,
+            CancellationToken cancellationToken)
+    {
+        if (!immediateSignal.IsCompleted)
+            await WaitForPlayableBeatmapStartAsync(
+                    immediateSignal,
+                    playable_beatmap_debounce_milliseconds,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+        return await importedChartLibrary.GetPlayableBeatmapAsync(
+                chartId,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    internal static async Task WaitForPlayableBeatmapStartAsync(
+        Task immediateSignal,
+        int delayMilliseconds,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(immediateSignal);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (immediateSignal.IsCompleted)
+            return;
+
+        Task delay = Task.Delay(delayMilliseconds, cancellationToken);
+        await Task.WhenAny(immediateSignal, delay).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     private async Task observePlayableBeatmapAsync(
@@ -4186,6 +4383,7 @@ public partial class SongSelectScreen : Screen
         playableBeatmapCancellation?.Dispose();
         playableBeatmapCancellation = null;
         playableBeatmapTask = null;
+        playableBeatmapStartSignal = null;
         playableBeatmapChartId = null;
         Action<bool>[] callbacks = playableBeatmapCallbacks.ToArray();
         playableBeatmapCallbacks.Clear();
@@ -4211,6 +4409,7 @@ public partial class SongSelectScreen : Screen
         playableBeatmapCancellation?.Dispose();
         playableBeatmapCancellation = null;
         playableBeatmapTask = null;
+        playableBeatmapStartSignal = null;
         playableBeatmapChartId = null;
         if (clearCallbacks)
             playableBeatmapCallbacks.Clear();

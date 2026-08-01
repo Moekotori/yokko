@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using NUnit.Framework;
 using Yokko.Core.Beatmaps;
 using Yokko.Game.Screens.SongSelect;
@@ -96,6 +98,68 @@ public sealed class SongSelectSortingTest
                                  .Select(item => item.Beatmap.Title),
                 Is.EqualTo(new[] { "Fast", "Slow", "Unknown" }));
         });
+    }
+
+    [Test]
+    public void TenThousandSnapshotsSortWithoutMaterialisingRows()
+    {
+        SongSelectEntry[] input = Enumerable.Range(1, 10_000)
+            .Select(index => entry(
+                $"Song {10_001 - index:D5}",
+                $"package-{index:D5}",
+                120 + index % 200))
+            .ToArray();
+        SongSelectSorting.EntrySnapshot[] snapshots = input
+            .Select(item => new SongSelectSorting.EntrySnapshot(
+                item,
+                item.Beatmap,
+                null))
+            .ToArray();
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        SongSelectEntry[] sorted = SongSelectSorting.SortSnapshots(
+                snapshots,
+                SongSelectSortMode.Title,
+                SongSelectSortDirection.Ascending,
+                CancellationToken.None)
+            .ToArray();
+        stopwatch.Stop();
+        TestContext.Progress.WriteLine(
+            $"Sorted 10,000 song-select snapshots in "
+            + $"{stopwatch.Elapsed.TotalMilliseconds:0.0} ms.");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(sorted, Has.Length.EqualTo(10_000));
+            Assert.That(sorted[0].Beatmap.Title, Is.EqualTo("Song 00001"));
+            Assert.That(sorted[^1].Beatmap.Title, Is.EqualTo("Song 10000"));
+        });
+    }
+
+    [Test]
+    public void CancelledSnapshotSortStopsBeforeCommit()
+    {
+        SongSelectEntry[] input = Enumerable.Range(1, 10_000)
+            .Select(index => entry(
+                $"Song {index:D5}",
+                $"package-{index:D5}",
+                120))
+            .ToArray();
+        SongSelectSorting.EntrySnapshot[] snapshots = input
+            .Select(item => new SongSelectSorting.EntrySnapshot(
+                item,
+                item.Beatmap,
+                null))
+            .ToArray();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+            SongSelectSorting.SortSnapshots(
+                snapshots,
+                SongSelectSortMode.Title,
+                SongSelectSortDirection.Ascending,
+                cancellation.Token));
     }
 
     private static SongSelectEntry entry(string title, string packageId, double bpm) =>

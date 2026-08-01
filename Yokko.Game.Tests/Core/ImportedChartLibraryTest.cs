@@ -985,6 +985,8 @@ public sealed class ImportedChartLibraryTest
 
             using var library = new ImportedChartLibrary();
             library.Initialise(new NativeStorage(Path.Combine(root, "Yokko")));
+            int refreshCount = 0;
+            library.LibraryChanged += _ => refreshCount++;
 
             FolderChartImportResult result = await library.ImportFolderAsync(
                 source,
@@ -996,6 +998,7 @@ public sealed class ImportedChartLibraryTest
                 Assert.That(result.SourceFileCount, Is.EqualTo(2));
                 Assert.That(result.ImportedChartCount, Is.EqualTo(2));
                 Assert.That(result.FailedFileCount, Is.Zero);
+                Assert.That(refreshCount, Is.EqualTo(1));
                 Assert.That(library.GetCharts(), Has.Count.EqualTo(2));
                 Assert.That(
                     library.GetCharts().Select(chart => chart.Result.Beatmap.Title),
@@ -1003,6 +1006,51 @@ public sealed class ImportedChartLibraryTest
                 Assert.That(
                     library.GetCharts().Select(chart => chart.SourcePath),
                     Is.All.StartsWith(library.LibraryPath));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ImportFolderPublishesOnceAndIsolatesInvalidFiles()
+    {
+        string root = createTestRoot("folder-import-failure");
+        string source = Path.Combine(root, "source-pack");
+        string validSet = Path.Combine(source, "Valid set");
+        Directory.CreateDirectory(validSet);
+
+        try
+        {
+            writeOsuChart(validSet, "Valid", 3);
+            File.WriteAllBytes(Path.Combine(validSet, "audio.mp3"), []);
+            string invalid = Path.Combine(source, "invalid.osu");
+            using (FileStream stream = File.Create(invalid))
+                stream.SetLength(OsuManiaBeatmapIO.MaximumFileBytes + 1);
+
+            using var library = new ImportedChartLibrary();
+            library.Initialise(new NativeStorage(Path.Combine(root, "Yokko")));
+            int refreshCount = 0;
+            library.LibraryChanged += _ => refreshCount++;
+
+            FolderChartImportResult result = await library.ImportFolderAsync(
+                source,
+                true,
+                true);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.SourceFileCount, Is.EqualTo(2));
+                Assert.That(result.ImportedChartCount, Is.EqualTo(1));
+                Assert.That(result.FailedFileCount, Is.EqualTo(1));
+                Assert.That(refreshCount, Is.EqualTo(1));
+                Assert.That(library.GetCharts(), Has.Count.EqualTo(1));
+                Assert.That(
+                    library.GetCharts().Single().Result.Beatmap.Title,
+                    Is.EqualTo("Valid"));
             });
         }
         finally
