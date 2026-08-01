@@ -29,6 +29,7 @@ using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
+using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
@@ -44,6 +45,9 @@ namespace Yokko.Game.Tests.Visual
 
         [Resolved]
         private YokkoGameplaySettings gameplaySettings { get; set; }
+
+        [Resolved]
+        private YokkoAudioSettings audioSettings { get; set; }
 
         [Resolved]
         private YokkoDisplaySettings displaySettings { get; set; }
@@ -175,6 +179,34 @@ namespace Yokko.Game.Tests.Visual
                 && gameplay
                    .ChildrenOfType<GameplayReplayControlsOverlay>()
                    .SingleOrDefault() == null);
+        }
+
+        [Test]
+        public void TestGameplayUsesArtworkBackground()
+        {
+            GameplayScreen gameplay = null;
+            string artworkPath = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                $"{TestContext.CurrentContext.Test.ID}-background.png");
+
+            AddStep("open gameplay with artwork", () =>
+            {
+                using (var image = new Image<Rgba32>(32, 18, new Rgba32(36, 92, 150)))
+                    image.SaveAsPng(artworkPath);
+
+                gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo(),
+                    artworkPath: artworkPath);
+                screenStack.Push(gameplay);
+            });
+            AddUntilStep(
+                "artwork background loads",
+                () => gameplay?.HasArtworkBackground == true);
+            AddStep("close gameplay", () => gameplay.Exit());
+            AddUntilStep(
+                "gameplay closes",
+                () => !ReferenceEquals(screenStack.CurrentScreen, gameplay));
+            AddStep("remove artwork fixture", () => File.Delete(artworkPath));
         }
 
         [Test]
@@ -1955,6 +1987,51 @@ namespace Yokko.Game.Tests.Visual
                        == YokkoBeatmapFingerprint.Compute(beatmap);
             });
             AddStep("remove native replay fixture", () =>
+                File.Delete(gameplay.SavedReplayPath));
+        }
+
+        [Test]
+        public void TestDeveloperAutoplayPersistsReplayAndScore()
+        {
+            YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+            {
+                Title =
+                    $"Developer Autoplay {TestContext.CurrentContext.Test.ID}",
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        0,
+                        null,
+                        HitObjectKind.Tap),
+                ],
+            };
+            ManiaModSet mods = ManiaModSet.Empty.With(
+                ManiaModId.Autoplay,
+                true);
+            GameplayScreen gameplay = null;
+
+            AddStep("open developer autoplay", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    mods: mods)));
+            AddUntilStep("developer autoplay completes", () =>
+                gameplay?.GameplayCompleted == true);
+            AddAssert("AD run owns generated autoplay", () =>
+                gameplay.DeveloperAutoplayRun
+                && gameplay.CompletedResult.Perfect == 1);
+            AddAssert("AD replay and score were persisted", () =>
+                gameplay.BestScoreSaved
+                && !string.IsNullOrWhiteSpace(gameplay.SavedReplayPath)
+                && File.Exists(gameplay.SavedReplayPath));
+            AddAssert("saved replay restores AD inputs", () =>
+            {
+                YokkoReplayLoadResult restored =
+                    YokkoReplayIO.ReadFromFile(gameplay.SavedReplayPath);
+                return restored.Replay.Mods.Contains(ManiaModId.Autoplay)
+                       && restored.Replay.Frames.Count > 0;
+            });
+            AddStep("remove AD replay fixture", () =>
                 File.Delete(gameplay.SavedReplayPath));
         }
 
@@ -4311,6 +4388,8 @@ HitPosition: 400
             Key originalMenuNextKey = Key.Down;
             bool originalCountdownEnabled = true;
             double originalCountdownDuration = 0;
+            double originalMasterVolume = 1;
+            double originalBackgroundDim = 0.5;
 
             AddStep("open gameplay with audio", () =>
             {
@@ -4320,6 +4399,8 @@ HitPosition: 400
                     gameplaySettings.ResumeCountdownEnabled.Value;
                 originalCountdownDuration =
                     gameplaySettings.ResumeCountdownMilliseconds.Value;
+                originalMasterVolume = audioSettings.MasterVolume.Value;
+                originalBackgroundDim = gameplaySettings.BackgroundDim.Value;
                 gameplaySettings.SetShortcutBinding(
                     ManiaShortcutAction.PauseOrBack,
                     Key.F10);
@@ -4360,6 +4441,8 @@ HitPosition: 400
             {
                 gameplaySettings.ResumeCountdownEnabled.Value = true;
                 gameplaySettings.ResumeCountdownMilliseconds.Value = 1000;
+                audioSettings.MasterVolume.Value = 1;
+                gameplaySettings.BackgroundDim.Value = 0.5;
                 gameplayScreen
                     .ChildrenOfType<GameplayPauseOverlay>()
                     .Single()
@@ -4384,6 +4467,24 @@ HitPosition: 400
                        && Math.Abs(overlay.ResumeCountdownMilliseconds - 2000)
                           < 0.001;
             });
+            AddStep("adjust pause volume and background dim", () =>
+            {
+                GameplayPauseOverlay overlay = gameplayScreen
+                                               .ChildrenOfType<GameplayPauseOverlay>()
+                                               .Single();
+                overlay.AdjustPauseVolume(-1);
+                overlay.AdjustBackgroundDim(1);
+            });
+            AddAssert("pause quick settings update live", () =>
+            {
+                GameplayPauseOverlay overlay = gameplayScreen
+                                               .ChildrenOfType<GameplayPauseOverlay>()
+                                               .Single();
+                return Math.Abs(overlay.MasterVolume - 0.95) < 0.001
+                       && Math.Abs(overlay.BackgroundDim - 0.55) < 0.001
+                       && Math.Abs(audioSettings.MasterVolume.Value - 0.95) < 0.001
+                       && Math.Abs(gameplaySettings.BackgroundDim.Value - 0.55) < 0.001;
+            });
             AddStep("close pause settings and restore value", () =>
             {
                 GameplayPauseOverlay overlay = gameplayScreen
@@ -4394,6 +4495,8 @@ HitPosition: 400
                     originalCountdownEnabled;
                 gameplaySettings.ResumeCountdownMilliseconds.Value =
                     originalCountdownDuration;
+                audioSettings.MasterVolume.Value = originalMasterVolume;
+                gameplaySettings.BackgroundDim.Value = originalBackgroundDim;
             });
             AddAssert("pause settings closes", () =>
                 !gameplayScreen

@@ -43,7 +43,8 @@ public sealed record ManiaModDefinition(
         ManiaModId.HoldOff => "Convert hold notes into regular tap notes.",
         >= ManiaModId.Key1 and <= ManiaModId.Key10 =>
             "Convert a standard-mode chart to this key count.",
-        ManiaModId.Autoplay => "Watch a perfect automated performance.",
+        ManiaModId.Autoplay =>
+            "Automatically play, then save the replay and local score.",
         ManiaModId.Cinema => "Watch an automated performance without the playfield.",
         ManiaModId.WindUp => "Gradually increase playback speed.",
         ManiaModId.WindDown => "Gradually decrease playback speed.",

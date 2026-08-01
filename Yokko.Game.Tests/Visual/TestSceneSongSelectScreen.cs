@@ -230,15 +230,15 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             2,
             1,
             0);
-        AddStep("open personal score detail", () =>
-            songSelectScreen.ShowScoreDetails(detailScore));
-        AddAssert("score detail shows the selected real result", () =>
-            songSelectScreen.ScoreDetailVisible
-            && songSelectScreen.DetailScore == detailScore
-            && !songSelectScreen.DetailReplayAvailable);
-        AddStep("close score detail", songSelectScreen.HandleEscape);
-        AddUntilStep("score detail closes smoothly", () =>
-            !songSelectScreen.ScoreDetailVisible);
+        AddStep("open personal score result", () =>
+            songSelectScreen.ShowScoreResult(detailScore));
+        AddAssert("result page shows the selected real result", () =>
+            songSelectScreen.ScoreResultVisible
+            && songSelectScreen.ResultScore == detailScore
+            && !songSelectScreen.ResultReplayAvailable);
+        AddStep("close score result", songSelectScreen.HandleEscape);
+        AddUntilStep("score result closes smoothly", () =>
+            !songSelectScreen.ScoreResultVisible);
     }
 
     [Test]
@@ -262,7 +262,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     }
 
     [Test]
-    public void TestScoreDetailReplayStarts()
+    public void TestScoreResultReplayStarts()
     {
         string replayPath = Path.Combine(
             TestContext.CurrentContext.WorkDirectory,
@@ -303,11 +303,11 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                 DateTimeOffset.UtcNow,
                 ReplayPath: replayPath);
         });
-        AddStep("open replay score detail", () =>
-            songSelectScreen.ShowScoreDetails(replayScore));
+        AddStep("open replay score result", () =>
+            songSelectScreen.ShowScoreResult(replayScore));
         AddAssert("matching replay is available", () =>
-            songSelectScreen.DetailReplayAvailable);
-        AddStep("watch replay", songSelectScreen.ActivateDetailReplay);
+            songSelectScreen.ResultReplayAvailable);
+        AddStep("watch replay", songSelectScreen.ActivateResultReplay);
         AddUntilStep("score replay enters gameplay", () =>
             screenStack.CurrentScreen is GameplaySessionScreen session
             && session.CurrentGameplay?.ReplayMode == true);
@@ -316,8 +316,11 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             .CurrentGameplay.Exit());
         AddUntilStep("song select resumes after score replay", () =>
             screenStack.CurrentScreen == songSelectScreen);
-        AddAssert("score detail is dismissed after replay", () =>
-            !songSelectScreen.ScoreDetailVisible);
+        AddAssert("score result remains after replay", () =>
+            songSelectScreen.ScoreResultVisible);
+        AddStep("close score result", songSelectScreen.HandleEscape);
+        AddUntilStep("score result closes", () =>
+            !songSelectScreen.ScoreResultVisible);
         AddStep("remove test replay", () => File.Delete(replayPath));
     }
 

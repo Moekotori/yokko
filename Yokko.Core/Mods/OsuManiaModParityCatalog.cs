@@ -68,7 +68,12 @@ public static class OsuManiaModParityCatalog
         mod(ManiaModId.Key9, "key-9", "9K", "9 Keys", ManiaModCategory.Conversion),
         mod(ManiaModId.Key10, "key-10", "10K", "10 Keys", ManiaModCategory.Conversion),
 
-        mod(ManiaModId.Autoplay, "autoplay", "AT", "Autoplay", ManiaModCategory.Automation),
+        mod(
+            ManiaModId.Autoplay,
+            "autoplay",
+            "AD",
+            "Developer Autoplay",
+            ManiaModCategory.Automation),
         mod(ManiaModId.Cinema, "cinema", "CN", "Cinema", ManiaModCategory.Automation),
 
         mod(ManiaModId.WindUp, "wind-up", "WU", "Wind Up", ManiaModCategory.Fun),

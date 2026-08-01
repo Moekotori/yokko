@@ -54,6 +54,16 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("Yokko.Resources/Fonts/Yokko"),
     )
+    parser.add_argument(
+        "--cache",
+        type=Path,
+        default=(
+            Path.home()
+            / ".cache"
+            / "yokko-font-generator"
+            / CHILL_ROUND_GOTHIC_COMMIT
+        ),
+    )
     return parser.parse_args()
 
 
@@ -259,12 +269,7 @@ def main() -> None:
     localisation_characters = collect_localisation_characters(args.strings)
     search_characters = collect_search_characters(args.strings)
 
-    cache = (
-        Path.home()
-        / ".cache"
-        / "yokko-font-generator"
-        / CHILL_ROUND_GOTHIC_COMMIT
-    )
+    cache = args.cache
     cache.mkdir(parents=True, exist_ok=True)
 
     for font_name, url in FONT_URLS.items():

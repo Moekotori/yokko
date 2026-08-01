@@ -65,12 +65,14 @@ public partial class GameplayScreen : Screen
     private readonly string skinPath;
     private readonly ManiaModSet mods;
     private GameplayReplay replay;
+    private bool developerAutoplayRun;
     private JudgementConfiguration judgementConfiguration;
     private bool minesEnabled;
-    private readonly string cinemaArtworkPath;
+    private readonly string artworkPath;
     private readonly bool quaverHasSignificantScrollVelocities;
     private readonly BeatTimingMap beatTimingMap;
-    private TextureStore cinemaArtworkTextures;
+    private TextureStore artworkTextures;
+    private Sprite artworkBackground;
     private readonly List<GameplayReplayInput> recordedReplayInputs = new();
     private readonly List<JudgementEvent> expiredJudgements = new();
     private readonly List<JudgementEvent> inputJudgements = new(8);
@@ -245,6 +247,7 @@ public partial class GameplayScreen : Screen
     internal bool ReplayMode => replay != null;
     internal bool AutoplayMode => mods.IsAutomation
                                   || layoutAutoplayDemoActive;
+    internal bool DeveloperAutoplayRun => developerAutoplayRun;
     internal ManiaModSet Mods => mods;
     internal double CurrentPlaybackRate =>
         currentPlaybackRate(currentGameplayTime);
@@ -261,6 +264,7 @@ public partial class GameplayScreen : Screen
     internal JudgementConfiguration ActiveJudgementConfiguration =>
         judgementConfiguration;
     internal YokkoBeatmap AppliedBeatmap => beatmap;
+    internal bool HasArtworkBackground => artworkBackground != null;
     internal bool IntroSkipAvailable =>
         !gameplayBlocked
         && !gameplayCompleted
@@ -282,14 +286,14 @@ public partial class GameplayScreen : Screen
         IAudioEngine audioEngine = null,
         string skinPath = null,
         ManiaModSet mods = null,
-        string cinemaArtworkPath = null)
+        string artworkPath = null)
         : this(
             beatmap,
             audioEngine,
             skinPath,
             mods,
             null,
-            cinemaArtworkPath)
+            artworkPath)
     {
     }
 
@@ -315,7 +319,7 @@ public partial class GameplayScreen : Screen
         string skinPath,
         ManiaModSet mods,
         GameplayReplay replay,
-        string cinemaArtworkPath)
+        string artworkPath)
     {
         originalBeatmap = beatmap;
         this.audioEngine = audioEngine;
@@ -330,7 +334,7 @@ public partial class GameplayScreen : Screen
             && hasSignificantScrollVelocities(this.beatmap);
         beatTimingMap = new BeatTimingMap(this.beatmap.TimingPoints);
         this.replay = replay;
-        this.cinemaArtworkPath = cinemaArtworkPath;
+        this.artworkPath = artworkPath;
         updateGameplayBounds(includeMines: true);
     }
 
@@ -383,6 +387,7 @@ public partial class GameplayScreen : Screen
                 : gameplaySettings.GetJudgementConfiguration());
         if (replay == null && mods.IsAutomation)
         {
+            developerAutoplayRun = mods.IsDeveloperAutoplay;
             replay = GameplayAutoGenerator.Generate(
                 beatmap,
                 mods,
@@ -565,24 +570,23 @@ public partial class GameplayScreen : Screen
             YokkoGameplaySettings.MaximumPlayfieldWidthScale);
         playfield.SetWidthScale(playfieldWidthScale);
 
+        Texture artworkTexture = loadArtworkTexture(renderer);
+        if (artworkTexture != null)
+        {
+            AddInternal(artworkBackground = new Sprite
+            {
+                RelativeSizeAxes = Axes.Both,
+                Texture = artworkTexture,
+                FillMode = FillMode.Fill,
+                Colour = mods.IsCinema
+                    ? new osuTK.Graphics.Color4(0.82f, 0.82f, 0.86f, 1)
+                    : osuTK.Graphics.Color4.White,
+                Depth = 950,
+            });
+        }
+
         if (mods.IsCinema)
         {
-            Texture cinemaTexture = loadCinemaTexture(renderer);
-            if (cinemaTexture != null)
-            {
-                AddInternal(new Sprite
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Texture = cinemaTexture,
-                    FillMode = FillMode.Fill,
-                    Colour = new osuTK.Graphics.Color4(
-                        0.82f,
-                        0.82f,
-                        0.86f,
-                        1),
-                    Depth = 950,
-                });
-            }
             playfield.Alpha = 0;
             hud.Alpha = 0;
             comboReadout.Alpha = 0;
@@ -1246,7 +1250,7 @@ public partial class GameplayScreen : Screen
             stopAllSlidingSamples();
             _ = audioEngine.DisposeAsync();
             maniaSkinLease?.Dispose();
-            cinemaArtworkTextures?.Dispose();
+            artworkTextures?.Dispose();
         }
 
         base.Dispose(isDisposing);
@@ -2176,11 +2180,11 @@ public partial class GameplayScreen : Screen
                               mods,
                               judgementConfiguration);
         DateTimeOffset completedAt = DateTimeOffset.UtcNow;
-        if (!ReplayMode)
+        if (!ReplayMode || developerAutoplayRun)
             saveCompletedReplay(completedAt);
         completedResultIsNewBest = BestScoreSaved =
-            !ReplayMode
-            && !mods.IsAutomation
+            (!ReplayMode || developerAutoplayRun)
+            && (!mods.IsAutomation || developerAutoplayRun)
             && !manualPlaybackRateUsed
             && scoreStore.SaveBest(
                 originalBeatmap,
@@ -2543,7 +2547,8 @@ public partial class GameplayScreen : Screen
             RetryGameplay,
             () => this.Push(new SettingsScreen()),
             exitPausedGameplay,
-            openGameplayLayoutEditorFromPause);
+            openGameplayLayoutEditorFromPause,
+            audioSettings);
 
     private void beginResumeCountdown()
     {
@@ -2815,7 +2820,7 @@ public partial class GameplayScreen : Screen
                 originalBeatmap,
                 skinPath: skinPath,
                 mods: mods,
-                cinemaArtworkPath: cinemaArtworkPath);
+                artworkPath: artworkPath);
             replacement.manualPlaybackRateAdjustment =
                 manualPlaybackRateAdjustment;
             replacement.manualPlaybackRateUsed =
@@ -2866,7 +2871,7 @@ public partial class GameplayScreen : Screen
             skinPath,
             mods,
             completedReplay,
-            cinemaArtworkPath)
+            artworkPath)
         {
             manualPlaybackRateAdjustment =
                 this.manualPlaybackRateAdjustment,
@@ -3016,26 +3021,26 @@ public partial class GameplayScreen : Screen
         difficultyCalculationRate = double.NaN;
     }
 
-    private Texture loadCinemaTexture(IRenderer renderer)
+    private Texture loadArtworkTexture(IRenderer renderer)
     {
-        if (string.IsNullOrWhiteSpace(cinemaArtworkPath))
+        if (string.IsNullOrWhiteSpace(artworkPath))
             return null;
 
         try
         {
-            cinemaArtworkTextures = new TextureStore(
+            artworkTextures = new TextureStore(
                 renderer,
                 new TextureLoaderStore(
                     new ConstrainedTextureResourceStore(
                         new ChartArtworkResourceStore(),
                         renderer.MaxTextureSize)),
                 scaleAdjust: 1);
-            return cinemaArtworkTextures.Get(cinemaArtworkPath);
+            return artworkTextures.Get(artworkPath);
         }
         catch
         {
-            cinemaArtworkTextures?.Dispose();
-            cinemaArtworkTextures = null;
+            artworkTextures?.Dispose();
+            artworkTextures = null;
             return null;
         }
     }

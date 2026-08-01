@@ -89,7 +89,9 @@ public sealed class GameplaySettingsTest
         Assert.That(settings.LayoutJudgementScaleY.Value, Is.EqualTo(1));
         Assert.That(settings.LayoutTopCoverRatio.Value, Is.Zero);
         Assert.That(settings.LayoutBottomCoverRatio.Value, Is.Zero);
-        Assert.That(settings.BackgroundDim.Value, Is.EqualTo(0.35));
+        Assert.That(
+            settings.BackgroundDim.Value,
+            Is.EqualTo(YokkoGameplaySettings.DefaultBackgroundDim));
         Assert.That(settings.KeysoundsEnabled.Value, Is.False);
         Assert.That(settings.MinesEnabled.Value, Is.True);
         Assert.That(settings.PauseWhenUnfocused.Value, Is.True);
@@ -504,7 +506,9 @@ public sealed class GameplaySettingsTest
             Assert.That(settings.LayoutJudgementScaleY.Value, Is.EqualTo(1));
             Assert.That(settings.LayoutTopCoverRatio.Value, Is.Zero);
             Assert.That(settings.LayoutBottomCoverRatio.Value, Is.Zero);
-            Assert.That(settings.BackgroundDim.Value, Is.EqualTo(0.35));
+            Assert.That(
+                settings.BackgroundDim.Value,
+                Is.EqualTo(YokkoGameplaySettings.DefaultBackgroundDim));
             Assert.That(settings.ScrollSpeed.Value, Is.EqualTo(12));
         });
     }

@@ -36,7 +36,8 @@ internal sealed record StoredGameplayScore(
     string PlayerId = null,
     string Source = null,
     bool? IsCurrentPlayer = null,
-    string ExternalScoreId = null)
+    string ExternalScoreId = null,
+    JudgementConfiguration? JudgementConfiguration = null)
 {
     [JsonIgnore]
     public ManiaModSet ModSet
@@ -164,7 +165,7 @@ internal sealed class GameplayScoreStore
     {
         ensureInitialised();
         mods ??= ManiaModSet.Empty;
-        if (mods.IsAutomation)
+        if (mods.IsAutomation && !mods.IsDeveloperAutoplay)
             return false;
 
         string key = keyFor(
@@ -188,7 +189,8 @@ internal sealed class GameplayScoreStore
             result.ComboBreaks,
             result.MaxMissCombo,
             ManiaModConfigurationCodec.Capture(mods),
-            replayPath);
+            replayPath,
+            JudgementConfiguration: judgementConfiguration);
         string historyKey = historyKeyFor(
             beatmap,
             judgementConfiguration);
@@ -327,7 +329,8 @@ internal sealed class GameplayScoreStore
             string.IsNullOrWhiteSpace(playerId) ? null : playerId.Trim(),
             source.Trim().ToLowerInvariant(),
             false,
-            externalScoreId);
+            externalScoreId,
+            judgementConfiguration);
         attempts.Insert(0, imported);
         if (attempts.Count > maximum_history_entries)
         {
@@ -362,7 +365,7 @@ internal sealed class GameplayScoreStore
                 {
                     foreach ((string key, StoredGameplayScore score) in loaded)
                     {
-                        if (!isAutomationScore(score))
+                        if (!isExcludedAutomationScore(score))
                             scores[key] = score;
                     }
                 }
@@ -388,7 +391,7 @@ internal sealed class GameplayScoreStore
             {
                 history[key] = attempts?
                                .Where(static score =>
-                                   !isAutomationScore(score))
+                                   !isExcludedAutomationScore(score))
                                .ToList()
                                ?? [];
             }
@@ -399,7 +402,8 @@ internal sealed class GameplayScoreStore
         }
     }
 
-    private static bool isAutomationScore(StoredGameplayScore score)
+    private static bool isExcludedAutomationScore(
+        StoredGameplayScore score)
     {
         if (score is null)
             return false;
@@ -410,7 +414,7 @@ internal sealed class GameplayScoreStore
             {
                 if (ManiaModConfigurationCodec
                     .Restore(score.ModConfiguration)
-                    .IsAutomation)
+                    .IsCinema)
                 {
                     return true;
                 }
@@ -425,8 +429,7 @@ internal sealed class GameplayScoreStore
         }
 
         return score.Mods?.Any(static acronym =>
-            string.Equals(acronym, "AT", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(
+            string.Equals(
                 acronym,
                 "CN",
                 StringComparison.OrdinalIgnoreCase)) == true;

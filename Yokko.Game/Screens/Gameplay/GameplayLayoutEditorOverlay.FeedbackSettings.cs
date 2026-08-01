@@ -31,12 +31,17 @@ internal partial class GameplayLayoutEditorOverlay
             Anchor = Anchor.BottomLeft;
             Origin = Anchor.BottomLeft;
             Position = new Vector2(18, -18);
+            Scale = new Vector2(1.08f);
             Size = new Vector2(420, 144);
             Depth = -100;
             Masking = true;
-            CornerRadius = 8;
-            BorderThickness = 1.5f;
-            BorderColour = HomeControlColours.Navy;
+            CornerRadius = 11;
+            BorderThickness = 1.25f;
+            BorderColour = new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                0.72f);
 
             InternalChildren = new Drawable[]
             {
@@ -56,7 +61,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(12, 8),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.feedback_settings"),
-                    Font = LayoutEditorTypography.Bold(9),
+                    Font = LayoutEditorTypography.Bold(12),
                     Colour = HomeControlColours.Navy,
                 },
                 createLabel(
@@ -74,7 +79,7 @@ internal partial class GameplayLayoutEditorOverlay
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Font = LayoutEditorTypography.Bold(8),
+                        Font = LayoutEditorTypography.Bold(10),
                         Colour = HomeControlColours.Navy,
                     },
                     new Vector2(160, 32),
@@ -101,7 +106,7 @@ internal partial class GameplayLayoutEditorOverlay
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Font = LayoutEditorTypography.Bold(8),
+                        Font = LayoutEditorTypography.Bold(10),
                         Colour = HomeControlColours.Navy,
                     },
                     new Vector2(160, 68),
@@ -131,7 +136,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(190, 120),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.timing_bar_visibility"),
-                    Font = LayoutEditorTypography.Bold(8),
+                    Font = LayoutEditorTypography.Bold(10),
                     Colour = HomeControlColours.Navy,
                 },
                 timingBarButton = new CompactTextButton(
@@ -157,7 +162,7 @@ internal partial class GameplayLayoutEditorOverlay
             Origin = Anchor.CentreLeft,
             Position = new Vector2(12, y),
             Text = YokkoStrings.Get(key),
-            Font = LayoutEditorTypography.Bold(8),
+            Font = LayoutEditorTypography.Bold(10),
             Colour = HomeControlColours.Navy,
         };
 
@@ -169,7 +174,7 @@ internal partial class GameplayLayoutEditorOverlay
             Position = position,
             Size = size,
             Masking = true,
-            CornerRadius = 5,
+            CornerRadius = 7,
             BorderThickness = 1,
             BorderColour = HomeControlColours.Navy,
             Children = new Drawable[]

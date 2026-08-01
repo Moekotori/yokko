@@ -1,0 +1,14 @@
+[2026-08-01 18:39:32.342] [00002470] === Logging started ===
+[2026-08-01 18:39:32.347] [00002470] Executing: "C:\Program Files\dotnet\dotnet.exe" test Yokko.Game.Tests/Yokko.Game.Tests.csproj --artifacts-path D:\YOKKO\.tmp\final-mod-tests --filter FullyQualifiedName~LocalisationTest|Name=DeveloperAutoplayPersistsScoreHistoryAndReplayPath|Name=CinemaDoesNotPersistScoresOrHistory|Name=TestDeveloperAutoplayPersistsReplayAndScore|FullyQualifiedName~GameplayModSettingsControlTest|Name=TestDedicatedModsInteractions|Name=TestLazerVisibilitySettingsAreConfigurableAndRemembered|Name=TestLazerRandomCustomSeedIsApplied|Name=TestDoubleTimeCyclesThroughNightcore -v:minimal, PID: 9328, PPID: 35272
+[2026-08-01 18:39:32.348] [00002470] IsElevated: False
+[2026-08-01 18:39:32.348] [00002470] Is64BitProcess: True
+[2026-08-01 18:39:32.348] [00002470] RebootPending: False
+[2026-08-01 18:39:32.348] [00002470] ProcessorArchitecture: amd64
+[2026-08-01 18:39:32.348] [00002470] HostArchitecture: x64
+[2026-08-01 18:39:32.348] [00002470] SdkDirectory: 10.0.302
+[2026-08-01 18:39:32.348] [00002470] VerifySignatures: False
+[2026-08-01 18:39:32.348] [00002470] SDK feature band: 10.0.300
+[2026-08-01 18:39:44.297] [00002470] Shutting down
+[2026-08-01 18:39:44.298] [00002470] Shutdown completed.
+[2026-08-01 18:39:44.298] [00002470] Restart required: False
+[2026-08-01 18:39:44.298] [00002470] === Logging ended ===

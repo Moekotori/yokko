@@ -112,6 +112,9 @@ public class GameplayScoreStoreTest
         {
             Assert.That(saved.ReplayPath, Is.EqualTo(replayPath));
             Assert.That(saved.PlayedAt, Is.EqualTo(playedAt));
+            Assert.That(
+                saved.JudgementConfiguration,
+                Is.EqualTo(JudgementConfiguration.YokkoDefault));
         });
     }
 
@@ -208,14 +211,15 @@ public class GameplayScoreStoreTest
         });
     }
 
-    [TestCase(ManiaModId.Autoplay)]
-    [TestCase(ManiaModId.Cinema)]
-    public void AutomationDoesNotPersistScoresOrHistory(ManiaModId mod)
+    [Test]
+    public void CinemaDoesNotPersistScoresOrHistory()
     {
         YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
         var store = new GameplayScoreStore();
         store.Initialise(new NativeStorage(testRoot));
-        ManiaModSet automation = ManiaModSet.Empty.With(mod, true);
+        ManiaModSet automation = ManiaModSet.Empty.With(
+            ManiaModId.Cinema,
+            true);
 
         Assert.That(
             store.SaveBest(beatmap, automation, result(1_000_000, 1)),
@@ -233,7 +237,46 @@ public class GameplayScoreStoreTest
     }
 
     [Test]
-    public void LegacyAutomationScoresAreIgnoredWhenLoading()
+    public void DeveloperAutoplayPersistsScoreHistoryAndReplayPath()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var store = new GameplayScoreStore();
+        store.Initialise(new NativeStorage(testRoot));
+        ManiaModSet developerAutoplay = ManiaModSet.Empty.With(
+            ManiaModId.Autoplay,
+            true);
+        string replayPath = Path.Combine(
+            testRoot,
+            "Replays",
+            "developer-autoplay.ykr");
+
+        Assert.That(
+            store.SaveBest(
+                beatmap,
+                developerAutoplay,
+                JudgementConfiguration.YokkoDefault,
+                result(1_000_000, 1),
+                replayPath),
+            Is.True);
+
+        var restored = new GameplayScoreStore();
+        restored.Initialise(new NativeStorage(testRoot));
+        StoredGameplayScore saved = restored.GetHistory(
+            beatmap,
+            JudgementConfiguration.YokkoDefault).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.Mods, Is.EqualTo(new[] { "AD" }));
+            Assert.That(saved.ReplayPath, Is.EqualTo(replayPath));
+            Assert.That(
+                restored.GetBest(beatmap, developerAutoplay),
+                Is.Not.Null);
+        });
+    }
+
+    [Test]
+    public void LegacyCinemaScoresAreIgnoredWhenLoading()
     {
         YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
         var first = new GameplayScoreStore();
@@ -252,7 +295,7 @@ public class GameplayScoreStoreTest
         {
             string path = Path.Combine(testRoot, relativePath);
             string json = File.ReadAllText(path)
-                              .Replace("\"DT\"", "\"AT\"");
+                              .Replace("\"DT\"", "\"CN\"");
             File.WriteAllText(path, json);
         }
 

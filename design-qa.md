@@ -87,6 +87,65 @@ final result: passed
 
 ---
 
+# Gameplay Mods settings and AD QA (2026-08-01)
+
+## Evidence
+
+- Same-state source: `C:\Users\nyafa\AppData\Local\Temp\yokko-mod-settings-fixed-1080p.png` (1920 x 1080).
+- Final settings drawer: `D:\YOKKO\.tmp\yokko-settings-final-1080p.png` (1920 x 1080).
+- Final Developer Autoplay state: `D:\YOKKO\.tmp\yokko-ad-mod-final-1080p.png` (1920 x 1080).
+- Comparison input: the source and final settings screenshots were opened together at original detail; the AD state was inspected in the same native viewport.
+
+## Findings and resolution
+
+- P1 resolved: configurable Mods previously used a cramped English-only drawer. The drawer is larger, keeps the existing orbital workspace intact, and presents Chinese category tabs, labels, values, and state copy with clearer hierarchy and larger targets.
+- P1 resolved: several advanced controls looked available while their Mod was inactive or had unclear state. Buttons and steppers now expose hover, focus, pressed, enabled, and disabled behaviour consistently.
+- P1 resolved: the former autoplay entry is now the explicit `AD` Developer Autoplay Mod. It generates the automatic input stream, saves the native `.ykr` replay, and records the score/history entry; replaying that saved file does not create another score.
+- P2 resolved: missing Chinese glyphs found during visual review were added to the production Yokko font atlases.
+- P2 resolved: the first AD capture clipped its description. The final copy is `自动打谱，保存回放和成绩。` and is fully visible in both the node detail and centre card.
+- The latest ring layout, category rail, speed controls, active-Mod bus, footer, palette, and decorative assets remain unchanged.
+
+## Verification
+
+- Native Direct3D 11 captures completed at 1920 x 1080.
+- Focused localisation, settings interaction, Mod cycling, AD persistence, score-store, and replay round-trip suite: 24 passed, 0 failed, 0 skipped.
+- The AD integration test confirms a perfect automated completion, persisted score, native replay path, and restored AD input stream.
+- `git diff --check` passed for the AD/runtime and focused-test files.
+
+final result: passed
+
+---
+
+# Gameplay Replay console redesign QA (2026-08-01)
+
+## Evidence
+
+- Selected visual truth: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-0d22fd6c-2b5c-4873-9777-f48752682c5e.png` (2192 x 717).
+- Native implementation: `F:\YokkoArtifacts\replay-console-qa\implementation-v10.png` (1920 x 1080, 1x density).
+- Combined comparison: `F:\YokkoArtifacts\replay-console-qa\comparison-v10-normalized.png`; both controller crops were normalized to the same 1500 px width without changing their aspect ratios.
+- State: replay playing at 1.00x with a five-second deterministic preview fixture.
+
+## Findings and resolution
+
+- P1 resolved: the old dark capsule was replaced with the selected ivory paper-and-sticker shell, while time, speed, play state, seek actions, and progress remain live code rather than baked artwork.
+- P1 resolved after user review: V5 placed labels and icons by approximate coordinates, leaving the jump labels, pause glyph, rate controls, and progress rail visibly off their artwork centres. V10 uses centres measured from the actual 900 x 241 shell for every interactive element.
+- P2 resolved: `REPLAY` uses the chunky ArchivoBlack poster face while timer, jump, and rate values use Yokko Bold; each dynamic label now has a centred origin and an explicit optical position.
+- P2 resolved: the shell is sized to 720 x 193 and placed at the 1920 x 1080 top centre, keeping the play lanes unobstructed once objects enter the stage.
+- Colors and assets use Yokko's navy, cyan, pink, yellow, and ivory language. The incorrect medical-heart marker was replaced with a separately extracted plain pink heart matching the selected reference.
+- The extracted shell is a 900 x 241 RGBA resource with genuine transparent corners and no dynamic text or button state baked into it.
+- No actionable P0/P1/P2 issue remains in the requested replay-console region.
+
+## Interaction and verification
+
+- Existing replay controls remain clickable and retain pause/resume, ±5 seconds, rate adjustment, track seek, and marker drag behavior.
+- Native Direct3D 11 screenshot completed successfully at 1920 x 1080.
+- The V10 native capture confirms the dynamic labels and icons are centred inside the visible shell controls and the plain-heart marker is centred on the progress rail.
+- Comparison history: V5 exposed the alignment and marker mismatch; V6 tested a poster font across every label and was rejected for crowding; V7-V9 refined optical centres and typography; V10 is the post-fix evidence.
+
+final result: passed
+
+---
+
 # Song Select footer micro-interaction and demo-profile QA (2026-08-01)
 
 ## Evidence

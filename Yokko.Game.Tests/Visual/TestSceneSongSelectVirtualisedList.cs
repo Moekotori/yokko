@@ -109,6 +109,108 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
     }
 
     [Test]
+    public void TestPackageLayoutRebuildKeepsTransitionHeaderAnchored()
+    {
+        SongSelectEntry[] firstPackage = entries.Take(12)
+                                                .Select((entry, index) =>
+                                                    entry with
+                                                    {
+                                                        PackageId = "anchor-first",
+                                                        ChartId = $"anchor-first-{index}",
+                                                    })
+                                                .ToArray();
+        SongSelectEntry[] secondPackage = entries.Skip(12)
+                                                 .Take(12)
+                                                 .Select((entry, index) =>
+                                                     entry with
+                                                     {
+                                                         PackageId = "anchor-second",
+                                                         ChartId = $"anchor-second-{index}",
+                                                     })
+                                                 .ToArray();
+        SongSelectEntry[] trailingPackage = entries.Skip(24)
+                                                   .Take(24)
+                                                   .Select((entry, index) =>
+                                                       entry with
+                                                       {
+                                                           PackageId = "anchor-trailing",
+                                                           ChartId = $"anchor-trailing-{index}",
+                                                       })
+                                                   .ToArray();
+
+        AddStep("show first package expanded", () => list.SetItems(
+            packageLayout(
+                firstPackage,
+                secondPackage,
+                trailingPackage,
+                firstExpanded: true,
+                secondExpanded: false)));
+        AddUntilStep("initial package headers actualised", () =>
+            list.MaterialisedHeaders.Any());
+        AddStep("place second package at viewport top", () =>
+            list.ScrollPackageToTop("anchor-second", false));
+        AddAssert("second package starts away from list origin", () =>
+            list.ScrollPosition > SongSelectPackageHeader.CollapsedHeight + 100);
+        AddStep("transfer expansion to second package", () => list.SetItems(
+            packageLayout(
+                firstPackage,
+                secondPackage,
+                trailingPackage,
+                firstExpanded: false,
+                secondExpanded: true),
+            animateLayout: true,
+            transitionPackageId: "anchor-second"));
+        AddAssert("transition package remains at viewport top", () =>
+            Math.Abs(list.ScrollPosition
+                     - (SongSelectPackageHeader.CollapsedHeight + 13)) < 0.05);
+    }
+
+    private static IEnumerable<SongSelectVirtualItem> packageLayout(
+        SongSelectEntry[] firstPackage,
+        SongSelectEntry[] secondPackage,
+        SongSelectEntry[] trailingPackage,
+        bool firstExpanded,
+        bool secondExpanded)
+    {
+        var result = new List<SongSelectVirtualItem>();
+        addPackage(firstPackage, firstExpanded, 0);
+        addPackage(secondPackage, secondExpanded, 8);
+        addPackage(trailingPackage, true, 8);
+        return result;
+
+        void addPackage(
+            SongSelectEntry[] packageEntries,
+            bool expanded,
+            float spacing)
+        {
+            SongSelectEntry first = packageEntries[0];
+            result.Add(new SongSelectVirtualItem
+            {
+                HeaderEntry = first,
+                PackageId = first.PackageId,
+                PackageName = first.PackageName,
+                SongCount = packageEntries.Length,
+                ChartCount = packageEntries.Length,
+                Collapsed = !expanded,
+                VisualHeight = expanded
+                    ? SongSelectPackageHeader.ExpandedHeight
+                    : SongSelectPackageHeader.CollapsedHeight,
+                SectionSpacingBefore = spacing,
+            });
+
+            if (!expanded)
+                return;
+
+            result.AddRange(packageEntries.Select(entry =>
+                new SongSelectVirtualItem
+                {
+                    Entry = entry,
+                    VisualHeight = SongSelectSongRow.CompactHeight,
+                }));
+        }
+    }
+
+    [Test]
     public void TestArtworkPreloadCoversPreparedRememberedViewport()
     {
         SongSelectEntry[] standalone = entries.Take(200)

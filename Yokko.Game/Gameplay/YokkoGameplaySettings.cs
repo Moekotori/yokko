@@ -189,6 +189,10 @@ public sealed class YokkoGameplaySettings
 
     public const double MaximumBackgroundDim = 1;
 
+    public const double DefaultBackgroundDim = 0.5;
+
+    public const double BackgroundDimStep = 0.05;
+
     /// <summary>
     /// Normalised presentation offsets. These are relative to the gameplay
     /// viewport so a saved layout remains usable across resolutions.
@@ -237,7 +241,7 @@ public sealed class YokkoGameplaySettings
 
     public readonly Bindable<double> LayoutBottomCoverRatio = new(0);
 
-    public readonly Bindable<double> BackgroundDim = new(0.35);
+    public readonly Bindable<double> BackgroundDim = new(DefaultBackgroundDim);
 
     public readonly BindableBool KeysoundsEnabled = new(false);
 

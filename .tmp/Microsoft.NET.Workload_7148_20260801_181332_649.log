@@ -1,0 +1,14 @@
+[2026-08-01 18:13:32.650] [00001BEC] === Logging started ===
+[2026-08-01 18:13:32.657] [00001BEC] Executing: "C:\Program Files\dotnet\dotnet.exe" build Yokko.Game.Tests/Yokko.Game.Tests.csproj --artifacts-path D:\YOKKO\.tmp\ad-mod-build -v:minimal, PID: 7148, PPID: 11408
+[2026-08-01 18:13:32.659] [00001BEC] IsElevated: False
+[2026-08-01 18:13:32.659] [00001BEC] Is64BitProcess: True
+[2026-08-01 18:13:32.659] [00001BEC] RebootPending: False
+[2026-08-01 18:13:32.659] [00001BEC] ProcessorArchitecture: amd64
+[2026-08-01 18:13:32.659] [00001BEC] HostArchitecture: x64
+[2026-08-01 18:13:32.659] [00001BEC] SdkDirectory: 10.0.302
+[2026-08-01 18:13:32.659] [00001BEC] VerifySignatures: False
+[2026-08-01 18:13:32.659] [00001BEC] SDK feature band: 10.0.300
+[2026-08-01 18:13:40.083] [00001BEC] Shutting down
+[2026-08-01 18:13:40.083] [00001BEC] Shutdown completed.
+[2026-08-01 18:13:40.083] [00001BEC] Restart required: False
+[2026-08-01 18:13:40.084] [00001BEC] === Logging ended ===

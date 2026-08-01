@@ -122,7 +122,7 @@ public sealed class ManiaModSetTest
                     ManiaModId.DoubleTime,
                     ManiaModId.Autoplay,
                 }));
-            Assert.That(mods.Acronyms, Is.EqualTo(new[] { "DT", "AT" }));
+            Assert.That(mods.Acronyms, Is.EqualTo(new[] { "DT", "AD" }));
             Assert.That(mods.Fingerprint, Is.EqualTo("double-time+autoplay"));
             Assert.That(mods.PlaybackRate, Is.EqualTo(1.5));
             Assert.That(mods.ChangesAudioPitch, Is.False);

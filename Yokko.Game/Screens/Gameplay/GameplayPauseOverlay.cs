@@ -15,6 +15,7 @@ using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Scoring;
+using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
@@ -77,6 +78,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
     private readonly YokkoBeatmap beatmap;
     private readonly YokkoGameplaySettings gameplaySettings;
+    private readonly YokkoAudioSettings audioSettings;
     private readonly GameplayPauseSnapshot snapshot;
     private readonly Action resume;
     private readonly Action retry;
@@ -104,6 +106,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     internal bool PauseSettingsExpanded => pauseSettingsControl?.IsOpen == true;
     internal bool ResumeCountdownEnabled => gameplaySettings.ResumeCountdownEnabled.Value;
     internal double ResumeCountdownMilliseconds => gameplaySettings.ResumeCountdownMilliseconds.Value;
+    internal double MasterVolume => audioSettings.MasterVolume.Value;
+    internal double BackgroundDim => gameplaySettings.BackgroundDim.Value;
 
     public GameplayPauseOverlay(
         YokkoBeatmap beatmap,
@@ -113,10 +117,12 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         Action retry,
         Action openSettings,
         Action exitGameplay,
-        Action openLayoutEditor = null)
+        Action openLayoutEditor = null,
+        YokkoAudioSettings audioSettings = null)
     {
         this.beatmap = beatmap;
         this.gameplaySettings = gameplaySettings;
+        this.audioSettings = audioSettings ?? new YokkoAudioSettings();
         this.snapshot = snapshot;
         this.resume = resume;
         this.retry = retry;
@@ -217,15 +223,33 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 return true;
             }
 
+            if (matches(ManiaShortcutAction.MenuPrevious, key)
+                || matches(
+                    ManiaShortcutAction.MenuPreviousAlternate,
+                    key))
+            {
+                pauseSettingsControl.SelectPreviousSetting();
+                return true;
+            }
+
+            if (matches(ManiaShortcutAction.MenuNext, key)
+                || matches(
+                    ManiaShortcutAction.MenuNextAlternate,
+                    key))
+            {
+                pauseSettingsControl.SelectNextSetting();
+                return true;
+            }
+
             if (key is Key.Left or Key.Minus or Key.KeypadMinus)
             {
-                pauseSettingsControl.AdjustCountdown(-1);
+                pauseSettingsControl.AdjustSelectedSetting(-1);
                 return true;
             }
 
             if (key is Key.Right or Key.Plus or Key.KeypadPlus)
             {
-                pauseSettingsControl.AdjustCountdown(1);
+                pauseSettingsControl.AdjustSelectedSetting(1);
                 return true;
             }
         }
@@ -282,6 +306,12 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
     internal void AdjustResumeCountdown(int direction) =>
         pauseSettingsControl?.AdjustCountdown(direction);
+
+    internal void AdjustPauseVolume(int direction) =>
+        pauseSettingsControl?.AdjustVolume(direction);
+
+    internal void AdjustBackgroundDim(int direction) =>
+        pauseSettingsControl?.AdjustBackgroundDim(direction);
 
     private static Drawable createBackdrop() =>
         new Container
@@ -604,9 +634,11 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                         0.18f),
                 },
                 actions[0],
-                pauseSettingsControl = new PauseSettingsControl(gameplaySettings)
+                pauseSettingsControl = new PauseSettingsControl(
+                    gameplaySettings,
+                    audioSettings)
                 {
-                    Position = new Vector2(leftContentX + 200, 246),
+                    Position = new Vector2(leftContentX + 200, 160),
                 },
                 actions[1],
                 actions[2],
@@ -2528,32 +2560,45 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
     private partial class PauseSettingsControl : CompositeDrawable
     {
+        private const int settingCount = 3;
+        private const double volumeStep = 0.05;
         private static readonly double[] countdownOptions = [0, 1000, 2000, 3000];
 
         private readonly BindableBool countdownEnabled;
         private readonly Bindable<double> countdownDuration;
+        private readonly Bindable<double> masterVolume;
+        private readonly Bindable<double> backgroundDim;
         private readonly Container drawer;
         private readonly Container drawerShadow;
         private readonly Box drawerConnector;
         private readonly Box chipBackground;
         private readonly Box chipAccent;
         private readonly SpriteIcon chipChevron;
-        private readonly SpriteText valueText;
+        private readonly Box[] settingHighlights = new Box[settingCount];
+        private readonly SpriteText[] settingLabels = new SpriteText[settingCount];
+        private readonly SpriteText countdownValueText;
+        private readonly SpriteText volumeValueText;
+        private readonly SpriteText backgroundDimValueText;
+        private int selectedSetting;
 
         public bool IsOpen { get; private set; }
 
-        public PauseSettingsControl(YokkoGameplaySettings settings)
+        public PauseSettingsControl(
+            YokkoGameplaySettings settings,
+            YokkoAudioSettings audioSettings)
         {
             countdownEnabled = settings.ResumeCountdownEnabled;
             countdownDuration = settings.ResumeCountdownMilliseconds;
-            Size = new Vector2(240, 158);
+            masterVolume = audioSettings.MasterVolume;
+            backgroundDim = settings.BackgroundDim;
+            Size = new Vector2(240, 242);
 
             InternalChildren = new Drawable[]
             {
                 drawerShadow = new Container
                 {
                     Position = new Vector2(4, 5),
-                    Size = new Vector2(240, 96),
+                    Size = new Vector2(240, 182),
                     Masking = true,
                     CornerRadius = 10,
                     Alpha = 0,
@@ -2565,7 +2610,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 },
                 drawer = new Container
                 {
-                    Size = new Vector2(240, 96),
+                    Size = new Vector2(240, 182),
                     Masking = true,
                     CornerRadius = 10,
                     BorderThickness = 1.5f,
@@ -2593,52 +2638,39 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                             Height = 2,
                             Colour = HomeControlColours.Pink,
                         },
-                        new SpriteText
-                        {
-                            Position = new Vector2(16, 18),
-                            Text = YokkoStrings.Get("gameplay.pause.resume_countdown"),
-                            Font = PauseTypography.Display(14),
-                            Colour = HomeControlColours.Navy,
-                        },
-                        new SpriteText
-                        {
-                            Position = new Vector2(16, 48),
-                            Text = "LEFT / RIGHT",
-                            Font = PauseTypography.Display(8.5f),
-                            Spacing = new Vector2(1.2f, 0),
-                            Colour = mutedNavy,
-                        },
-                        new PauseSettingStepButton(
-                            FontAwesome.Solid.Minus,
-                            () => AdjustCountdown(-1))
-                        {
-                            Position = new Vector2(130, 48),
-                        },
-                        valueText = new SpriteText
-                        {
-                            Origin = Anchor.Centre,
-                            Position = new Vector2(182, 63),
-                            Font = PauseTypography.Display(14),
-                            Colour = HomeControlColours.Navy,
-                        },
-                        new PauseSettingStepButton(
-                            FontAwesome.Solid.Plus,
-                            () => AdjustCountdown(1))
-                        {
-                            Position = new Vector2(204, 48),
-                        },
+                        createSettingRow(
+                            YokkoStrings.Get("gameplay.pause.resume_countdown"),
+                            0,
+                            () => AdjustCountdown(-1),
+                            () => AdjustCountdown(1),
+                            out settingLabels[0],
+                            out countdownValueText),
+                        createSettingRow(
+                            YokkoStrings.Get("settings.audio.master_volume"),
+                            1,
+                            () => AdjustVolume(-1),
+                            () => AdjustVolume(1),
+                            out settingLabels[1],
+                            out volumeValueText),
+                        createSettingRow(
+                            YokkoStrings.Get("gameplay.layout_editor.background_dim"),
+                            2,
+                            () => AdjustBackgroundDim(-1),
+                            () => AdjustBackgroundDim(1),
+                            out settingLabels[2],
+                            out backgroundDimValueText),
                     },
                 },
                 drawerConnector = new Box
                 {
-                    Position = new Vector2(128, 96),
-                    Size = new Vector2(2, 9),
+                    Position = new Vector2(128, 182),
+                    Size = new Vector2(2, 8),
                     Colour = HomeControlColours.Cyan,
                     Alpha = 0,
                 },
                 new ClickableContainer
                 {
-                    Position = new Vector2(20, 104),
+                    Position = new Vector2(20, 190),
                     Size = new Vector2(220, 52),
                     Masking = true,
                     CornerRadius = 10,
@@ -2713,6 +2745,82 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
             countdownEnabled.BindValueChanged(_ => updateValueText(), true);
             countdownDuration.BindValueChanged(_ => updateValueText(), true);
+            masterVolume.BindValueChanged(_ => updateValueText(), true);
+            backgroundDim.BindValueChanged(_ => updateValueText(), true);
+            updateSelectedSetting();
+        }
+
+        private Container createSettingRow(
+            LocalisableString label,
+            int index,
+            Action decrease,
+            Action increase,
+            out SpriteText labelText,
+            out SpriteText rowValueText)
+        {
+            labelText = new SpriteText
+            {
+                Position = new Vector2(16, 20),
+                Text = label,
+                Font = PauseTypography.Display(11.5f),
+                Colour = HomeControlColours.Navy,
+            };
+            rowValueText = new SpriteText
+            {
+                Origin = Anchor.Centre,
+                Position = new Vector2(184, 28),
+                Font = PauseTypography.Display(11.5f),
+                Colour = HomeControlColours.Navy,
+            };
+
+            return new Container
+            {
+                Position = new Vector2(0, 5 + index * 58),
+                Size = new Vector2(240, 58),
+                Children = new Drawable[]
+                {
+                    settingHighlights[index] = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = HomeControlColours.PaleCyan,
+                        Alpha = 0,
+                    },
+                    labelText,
+                    new PauseSettingStepButton(
+                        FontAwesome.Solid.Minus,
+                        () =>
+                        {
+                            selectSetting(index);
+                            decrease();
+                        })
+                    {
+                        Position = new Vector2(136, 13),
+                    },
+                    rowValueText,
+                    new PauseSettingStepButton(
+                        FontAwesome.Solid.Plus,
+                        () =>
+                        {
+                            selectSetting(index);
+                            increase();
+                        })
+                    {
+                        Position = new Vector2(204, 13),
+                    },
+                    new Box
+                    {
+                        Anchor = Anchor.BottomCentre,
+                        Origin = Anchor.BottomCentre,
+                        Width = 208,
+                        Height = index == settingCount - 1 ? 0 : 1,
+                        Colour = new Color4(
+                            HomeControlColours.Navy.R,
+                            HomeControlColours.Navy.G,
+                            HomeControlColours.Navy.B,
+                            0.12f),
+                    },
+                },
+            };
         }
 
         public void Toggle()
@@ -2729,6 +2837,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 return;
 
             IsOpen = true;
+            updateSelectedSetting();
             drawerShadow.FadeTo(1, 140, Easing.OutQuint);
             drawer.FadeIn(140, Easing.OutQuint);
             drawer.MoveToY(0, 180, Easing.OutQuint);
@@ -2780,13 +2889,79 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 countdownDuration.Value = nextDuration;
         }
 
+        public void AdjustVolume(int direction) =>
+            adjustPercentage(masterVolume, volumeStep, direction);
+
+        public void AdjustBackgroundDim(int direction) =>
+            adjustPercentage(
+                backgroundDim,
+                YokkoGameplaySettings.BackgroundDimStep,
+                direction);
+
+        public void AdjustSelectedSetting(int direction)
+        {
+            switch (selectedSetting)
+            {
+                case 0:
+                    AdjustCountdown(direction);
+                    break;
+
+                case 1:
+                    AdjustVolume(direction);
+                    break;
+
+                case 2:
+                    AdjustBackgroundDim(direction);
+                    break;
+            }
+        }
+
+        public void SelectPreviousSetting() => selectSetting(selectedSetting - 1);
+
+        public void SelectNextSetting() => selectSetting(selectedSetting + 1);
+
+        private void selectSetting(int index)
+        {
+            selectedSetting = (index % settingCount + settingCount) % settingCount;
+            updateSelectedSetting();
+        }
+
+        private void updateSelectedSetting()
+        {
+            for (int i = 0; i < settingCount; i++)
+            {
+                bool selected = i == selectedSetting;
+                settingHighlights[i].FadeTo(selected ? 0.42f : 0, 100, Easing.OutQuint);
+                settingLabels[i].FadeColour(
+                    selected ? HomeControlColours.Cyan : HomeControlColours.Navy,
+                    100,
+                    Easing.OutQuint);
+            }
+        }
+
+        private static void adjustPercentage(
+            Bindable<double> setting,
+            double step,
+            int direction)
+        {
+            if (direction == 0)
+                return;
+
+            setting.Value = Math.Clamp(
+                Math.Round(setting.Value + Math.Sign(direction) * step, 2),
+                0,
+                1);
+        }
+
         private void updateValueText()
         {
-            valueText.Text = countdownEnabled.Value
+            countdownValueText.Text = countdownEnabled.Value
                 ? YokkoStrings.Get(
                     "gameplay.pause.seconds",
                     Math.Round(countdownDuration.Value / 1000))
                 : YokkoStrings.Get("gameplay.pause.countdown_off");
+            volumeValueText.Text = $"{Math.Round(masterVolume.Value * 100)}%";
+            backgroundDimValueText.Text = $"{Math.Round(backgroundDim.Value * 100)}%";
         }
     }
 

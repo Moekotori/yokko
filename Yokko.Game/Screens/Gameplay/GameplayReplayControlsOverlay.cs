@@ -1,8 +1,10 @@
 using System;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
@@ -18,6 +20,16 @@ namespace Yokko.Game.Screens.Gameplay;
 /// </summary>
 internal partial class GameplayReplayControlsOverlay : CompositeDrawable
 {
+    private static readonly YokkoBrandColourTokens colours =
+        YokkoUiTheme.Default.Colours.Brand;
+    private static readonly FontUsage cute_font = new(
+        "Yokko",
+        18,
+        "Bold");
+    private static readonly FontUsage replay_font = new(
+        "ArchivoBlack",
+        18);
+
     private readonly Action togglePause;
     private readonly Action seekBackward;
     private readonly Action seekForward;
@@ -27,6 +39,7 @@ internal partial class GameplayReplayControlsOverlay : CompositeDrawable
     private readonly SpriteText timeText;
     private readonly SpriteText rateText;
     private readonly GameplayReplayProgressBar progressBar;
+    private readonly Sprite shell;
 
     internal string TimeText => timeText.Text.ToString();
     internal string RateText => rateText.Text.ToString();
@@ -69,98 +82,95 @@ internal partial class GameplayReplayControlsOverlay : CompositeDrawable
 
         Anchor = Anchor.TopCentre;
         Origin = Anchor.TopCentre;
-        Position = new Vector2(0, 24);
-        Size = new Vector2(540, 78);
+        Position = new Vector2(0, 16);
+        Size = new Vector2(720, 193);
         Depth = -260;
 
-        InternalChild = new CircularContainer
-        {
-            RelativeSizeAxes = Axes.Both,
-            CornerRadius = 14,
-            Masking = true,
-            BorderThickness = 1.5f,
-            BorderColour = YokkoPalette.Cyan,
-            Children =
-            [
-                new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.025f, 0.05f, 0.18f, 0.92f),
-                },
-                new SpriteText
-                {
-                    Anchor = Anchor.CentreLeft,
-                    Origin = Anchor.CentreLeft,
-                    X = 18,
-                    Text = "REPLAY",
-                    Font = FontUsage.Default.With(size: 15, weight: "Bold"),
-                    Colour = YokkoPalette.Rose,
-                },
-                timeText = new SpriteText
-                {
-                    Anchor = Anchor.CentreLeft,
-                    Origin = Anchor.CentreLeft,
-                    X = 92,
-                    Text = "00:00 / 00:00",
-                    Font = FontUsage.Default.With(size: 14, weight: "SemiBold"),
-                    Colour = Color4.White,
-                },
-                createButton(
-                    Anchor.CentreRight,
-                    new Vector2(-286, 0),
-                    FontAwesome.Solid.StepBackward,
-                    this.seekBackward),
-                createButton(
-                    Anchor.CentreRight,
-                    new Vector2(-237, 0),
-                    FontAwesome.Solid.StepForward,
-                    this.seekForward),
-                createButton(
-                    Anchor.CentreRight,
-                    new Vector2(-188, 0),
-                    FontAwesome.Solid.Minus,
-                    this.decreaseRate),
-                new Container
-                {
-                    Anchor = Anchor.CentreRight,
-                    Origin = Anchor.Centre,
-                    Position = new Vector2(-139, 0),
-                    Size = new Vector2(58, 38),
-                    Children =
-                    [
-                        rateText = new SpriteText
-                        {
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
-                            Text = "1.00x",
-                            Font = FontUsage.Default.With(
-                                size: 14,
-                                weight: "Bold"),
-                            Colour = YokkoPalette.Cyan,
-                        },
-                    ],
-                },
-                createButton(
-                    Anchor.CentreRight,
-                    new Vector2(-90, 0),
-                    FontAwesome.Solid.Plus,
-                    this.increaseRate),
-                createButton(
-                    Anchor.CentreRight,
-                    new Vector2(-38, 0),
-                    FontAwesome.Solid.Pause,
-                    this.togglePause,
-                    out pauseIcon),
-                progressBar = new GameplayReplayProgressBar(seekTo)
-                {
-                    Anchor = Anchor.BottomLeft,
-                    Origin = Anchor.BottomLeft,
-                    Position = new Vector2(18, -6),
-                    Size = new Vector2(504, 18),
-                },
-            ],
-        };
+        InternalChildren =
+        [
+            shell = new Sprite
+            {
+                RelativeSizeAxes = Axes.Both,
+                FillMode = FillMode.Stretch,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.Centre,
+                Position = new Vector2(116, 44),
+                Text = "REPLAY",
+                Font = replay_font.With(size: 26),
+                Spacing = new Vector2(0.5f, 0),
+                Colour = colours.Ink,
+            },
+            timeText = new SpriteText
+            {
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.Centre,
+                Position = new Vector2(171, 111),
+                Text = "00:00 / 00:00",
+                Font = cute_font.With(size: 24),
+                Colour = colours.Ink,
+            },
+            createTextButton(
+                new Vector2(280, 88),
+                "−5",
+                seekBackward),
+            createButton(
+                new Vector2(367, 88),
+                FontAwesome.Solid.Pause,
+                this.togglePause,
+                new Vector2(86),
+                Color4.White,
+                out pauseIcon),
+            createTextButton(
+                new Vector2(447, 88),
+                "+5",
+                seekForward),
+            createButton(
+                new Vector2(534, 84),
+                FontAwesome.Solid.Minus,
+                this.decreaseRate,
+                new Vector2(44),
+                colours.Ink),
+            rateText = new SpriteText
+            {
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.Centre,
+                Position = new Vector2(588, 84),
+                Text = "1.00x",
+                Font = cute_font.With(size: 25),
+                Colour = colours.Ink,
+            },
+            createButton(
+                new Vector2(642, 84),
+                FontAwesome.Solid.Plus,
+                this.increaseRate,
+                new Vector2(44),
+                colours.Ink),
+            progressBar = new GameplayReplayProgressBar(seekTo)
+            {
+                Position = new Vector2(70, 128),
+                Size = new Vector2(580, 40),
+            },
+        ];
     }
+
+    [BackgroundDependencyLoader]
+    private void load(TextureStore textures)
+    {
+        shell.Texture = textures.Get("Gameplay/replay-controller-shell");
+    }
+
+    private static GameplayReplayTextButton createTextButton(
+        Vector2 position,
+        string text,
+        Action action) => new(text, action)
+        {
+            Anchor = Anchor.TopLeft,
+            Origin = Anchor.Centre,
+            Position = position,
+        };
 
     internal void UpdateState(
         double currentMilliseconds,
@@ -191,28 +201,33 @@ internal partial class GameplayReplayControlsOverlay : CompositeDrawable
     internal void CancelSeekPreview() => progressBar.CancelPreview();
 
     private static GameplayReplayControlButton createButton(
-        Anchor anchor,
-        Vector2 position,
-        IconUsage icon,
-        Action action) => createButton(
-        anchor,
-        position,
-        icon,
-        action,
-        out _);
-
-    private static GameplayReplayControlButton createButton(
-        Anchor anchor,
         Vector2 position,
         IconUsage icon,
         Action action,
+        Vector2 size,
+        Color4 colour) => createButton(
+        position,
+        icon,
+        action,
+        size,
+        colour,
+        out _);
+
+    private static GameplayReplayControlButton createButton(
+        Vector2 position,
+        IconUsage icon,
+        Action action,
+        Vector2 size,
+        Color4 colour,
         out SpriteIcon spriteIcon)
     {
         var button = new GameplayReplayControlButton(
             icon,
-            action)
+            action,
+            size,
+            colour)
         {
-            Anchor = anchor,
+            Anchor = Anchor.TopLeft,
             Origin = Anchor.Centre,
             Position = position,
         };
@@ -231,12 +246,12 @@ internal partial class GameplayReplayControlsOverlay : CompositeDrawable
 
 internal partial class GameplayReplayProgressBar : CompositeDrawable
 {
-    private const float track_padding = 7;
+    private const float track_padding = 4;
 
     private readonly Action<double> seekCommitted;
     private readonly Box track;
     private readonly Box fill;
-    private readonly CircularContainer marker;
+    private readonly Sprite marker;
     private double durationMilliseconds;
     private double currentMilliseconds;
     private double previewMilliseconds;
@@ -261,30 +276,31 @@ internal partial class GameplayReplayProgressBar : CompositeDrawable
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = track_padding,
-                Height = 4,
-                Colour = new Color4(1, 1, 1, 0.2f),
+                Height = 6,
+                Alpha = 0,
             },
             fill = new Box
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = track_padding,
-                Height = 4,
-                Colour = YokkoPalette.Cyan,
+                Height = 6,
+                Colour = YokkoUiTheme.Default.Colours.Brand.Cyan,
             },
-            marker = new CircularContainer
+            marker = new Sprite
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.Centre,
-                Size = new Vector2(12),
-                Masking = true,
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = YokkoPalette.Rose,
-                },
+                Size = new Vector2(46, 42),
+                FillMode = FillMode.Fit,
             },
         ];
+    }
+
+    [BackgroundDependencyLoader]
+    private void load(TextureStore textures)
+    {
+        marker.Texture = textures.Get("Gameplay/replay-progress-heart");
     }
 
     internal double UpdateState(
@@ -406,28 +422,73 @@ internal partial class GameplayReplayProgressBar : CompositeDrawable
 internal partial class GameplayReplayControlButton : ClickableContainer
 {
     internal SpriteIcon Icon { get; }
+    private readonly Color4 iconColour;
 
-    public GameplayReplayControlButton(IconUsage icon, Action action)
+    public GameplayReplayControlButton(
+        IconUsage icon,
+        Action action,
+        Vector2 size,
+        Color4 iconColour)
+    {
+        this.iconColour = iconColour;
+        Action = action;
+        Size = size;
+        Child = Icon = new SpriteIcon
+        {
+            Anchor = Anchor.Centre,
+            Origin = Anchor.Centre,
+            Size = size.X >= 80 ? new Vector2(40) : new Vector2(22),
+            Icon = icon,
+            Colour = iconColour,
+        };
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        Icon.FadeColour(YokkoUiTheme.Default.Colours.Brand.Pink, 100);
+        this.ScaleTo(1.05f, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        Icon.FadeColour(iconColour, 120);
+        this.ScaleTo(1, 120, Easing.OutQuint);
+    }
+}
+
+internal partial class GameplayReplayTextButton : ClickableContainer
+{
+    private static readonly Color4 ink = YokkoUiTheme.Default.Colours.Brand.Ink;
+    private readonly SpriteText text;
+
+    public GameplayReplayTextButton(string label, Action action)
     {
         Action = action;
-        Size = new Vector2(40, 40);
-        CornerRadius = 10;
-        Masking = true;
-        Children =
-        [
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(1, 1, 1, 0.09f),
-            },
-            Icon = new SpriteIcon
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(16),
-                Icon = icon,
-                Colour = Color4.White,
-            },
-        ];
+        Size = new Vector2(58, 58);
+        Child = text = new SpriteText
+        {
+            Anchor = Anchor.Centre,
+            Origin = Anchor.Centre,
+            Text = label,
+            Font = new FontUsage(
+                "Yokko",
+                32,
+                "Bold"),
+            Colour = ink,
+        };
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        text.FadeColour(YokkoUiTheme.Default.Colours.Brand.Pink, 100);
+        this.ScaleTo(1.05f, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        text.FadeColour(ink, 120);
+        this.ScaleTo(1, 120, Easing.OutQuint);
     }
 }

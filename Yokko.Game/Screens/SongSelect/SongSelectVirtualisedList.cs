@@ -62,6 +62,8 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
     private float lastViewportHeight = float.NaN;
     private bool rangeInvalidated = true;
     private bool layoutAnimationPending;
+    private float layoutTransitionOffset;
+    private bool preserveLayoutScreenPositions;
     private string transitionPackageId;
     private SongSelectEntry selectedEntry;
 
@@ -239,6 +241,7 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
         bool animateLayout = false,
         string transitionPackageId = null)
     {
+        double previousScroll = scroll.Current;
         previousEntryTops.Clear();
         previousPackageTops.Clear();
         if (animateLayout)
@@ -272,8 +275,33 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
         }
 
         itemLayer.Height = Math.Max(0, top - item_spacing);
-        if (scroll.Current > itemLayer.Height)
-            scroll.ScrollTo(itemLayer.Height, false);
+        double maximumScroll = Math.Max(
+            0,
+            itemLayer.Height - scroll.DrawHeight);
+        double nextScroll = previousScroll;
+        preserveLayoutScreenPositions = false;
+        if (animateLayout
+            && !string.IsNullOrWhiteSpace(transitionPackageId)
+            && previousPackageTops.TryGetValue(
+                transitionPackageId,
+                out float previousPackageTop)
+            && packageIndices.TryGetValue(
+                transitionPackageId,
+                out int packageIndex))
+        {
+            // Keep the package header under the pointer while the old package
+            // contracts and the new one expands. The subsequent animated
+            // scroll then has one continuous origin instead of first jumping
+            // to the rebuilt coordinates.
+            nextScroll += items[packageIndex].Top - previousPackageTop;
+            preserveLayoutScreenPositions = true;
+        }
+
+        nextScroll = Math.Clamp(nextScroll, 0, maximumScroll);
+        layoutTransitionOffset = (float)(nextScroll - previousScroll);
+        if (Math.Abs(nextScroll - scroll.Current) > 0.01)
+            scroll.ScrollTo(nextScroll, false);
+
         layoutAnimationPending = animateLayout;
         this.transitionPackageId = transitionPackageId;
         rangeInvalidated = true;
@@ -569,6 +597,8 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
                     previousEntryTops.TryGetValue(entry, out float oldTop)
                         ? oldTop
                         : null,
+                    layoutTransitionOffset,
+                    preserveLayoutScreenPositions,
                     transitionPackageId == null
                     || string.Equals(
                         transitionPackageId,
@@ -613,6 +643,8 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
                     out float oldTop)
                     ? oldTop
                     : null,
+                layoutTransitionOffset,
+                preserveLayoutScreenPositions,
                 false);
             itemLayer.Add(header);
             active[index] = header;
@@ -624,6 +656,8 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
         float targetY,
         bool animateLayout,
         float? previousTop,
+        float previousTopOffset,
+        bool preservePreviousScreenPosition,
         bool fadeNewItem)
     {
         drawable.Alpha = 1;
@@ -633,10 +667,10 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
 
         if (previousTop.HasValue)
         {
-            drawable.Y = Math.Clamp(
-                previousTop.Value,
-                targetY - 64,
-                targetY + 64);
+            float previousY = previousTop.Value + previousTopOffset;
+            drawable.Y = preservePreviousScreenPosition
+                ? previousY
+                : Math.Clamp(previousY, targetY - 64, targetY + 64);
         }
         else if (fadeNewItem)
         {

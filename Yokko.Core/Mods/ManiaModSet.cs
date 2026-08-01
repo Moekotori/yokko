@@ -547,6 +547,9 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
 
     public bool IsAutomation => mods.Any(automationMods.Contains);
 
+    public bool IsDeveloperAutoplay =>
+        Contains(ManiaModId.Autoplay);
+
     public bool IsCinema => Contains(ManiaModId.Cinema);
 
     public double HitWindowDifficultyMultiplier =>

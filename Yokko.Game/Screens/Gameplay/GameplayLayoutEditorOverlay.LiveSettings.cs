@@ -78,15 +78,20 @@ internal partial class GameplayLayoutEditorOverlay
                             ?? throw new ArgumentNullException(
                                 nameof(settings));
 
-            Anchor = Anchor.TopRight;
-            Origin = Anchor.TopRight;
-            Position = new Vector2(-18, 678);
+            Anchor = Anchor.TopLeft;
+            Origin = Anchor.TopLeft;
+            Position = new Vector2(18, 430);
+            Scale = new Vector2(1.08f);
             Size = new Vector2(420, 157);
             Depth = -100;
             Masking = true;
-            CornerRadius = 8;
-            BorderThickness = 1.5f;
-            BorderColour = HomeControlColours.Navy;
+            CornerRadius = 11;
+            BorderThickness = 1.25f;
+            BorderColour = new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                0.72f);
 
             InternalChildren = new Drawable[]
             {
@@ -122,7 +127,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(14, 7),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.live_settings"),
-                    Font = LayoutEditorTypography.Bold(10),
+                    Font = LayoutEditorTypography.Bold(12),
                     Colour = HomeControlColours.Navy,
                 },
                 new SpriteText
@@ -132,7 +137,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(16, 44.5f),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.skin"),
-                    Font = LayoutEditorTypography.Bold(9),
+                    Font = LayoutEditorTypography.Bold(10),
                     Colour = HomeControlColours.Navy,
                 },
                 new CompactIconButton(
@@ -147,7 +152,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(115, 29),
                     Size = new Vector2(251, 31),
                     Masking = true,
-                    CornerRadius = 6,
+                    CornerRadius = 8,
                     BorderThickness = 1.25f,
                     BorderColour = new Color4(
                         HomeControlColours.Navy.R,
@@ -167,7 +172,7 @@ internal partial class GameplayLayoutEditorOverlay
                             Origin = Anchor.Centre,
                             MaxWidth = 235,
                             Truncate = true,
-                            Font = LayoutEditorTypography.Bold(9),
+                            Font = LayoutEditorTypography.Bold(10),
                             Colour = HomeControlColours.Navy,
                         },
                     },
@@ -186,7 +191,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(16, 76.5f),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.scroll_speed"),
-                    Font = LayoutEditorTypography.Bold(9),
+                    Font = LayoutEditorTypography.Bold(10),
                     Colour = HomeControlColours.Navy,
                 },
                 new CompactIconButton(
@@ -201,7 +206,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(115, 61),
                     Size = new Vector2(58, 31),
                     Masking = true,
-                    CornerRadius = 6,
+                    CornerRadius = 8,
                     BorderThickness = 1.25f,
                     BorderColour = HomeControlColours.Navy,
                     Children = new Drawable[]
@@ -215,7 +220,7 @@ internal partial class GameplayLayoutEditorOverlay
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            Font = LayoutEditorTypography.Bold(9),
+                            Font = LayoutEditorTypography.Bold(10),
                             Colour = HomeControlColours.Navy,
                         },
                     },
@@ -252,7 +257,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(16, 108.5f),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.background_dim"),
-                    Font = LayoutEditorTypography.Bold(9),
+                    Font = LayoutEditorTypography.Bold(10),
                     Colour = HomeControlColours.Navy,
                 },
                 new CompactIconButton(
@@ -267,7 +272,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(163, 93),
                     Size = new Vector2(82, 31),
                     Masking = true,
-                    CornerRadius = 6,
+                    CornerRadius = 8,
                     BorderThickness = 1.25f,
                     BorderColour = HomeControlColours.Navy,
                     Children = new Drawable[]
@@ -281,7 +286,7 @@ internal partial class GameplayLayoutEditorOverlay
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            Font = LayoutEditorTypography.Bold(9),
+                            Font = LayoutEditorTypography.Bold(10),
                             Colour = HomeControlColours.Navy,
                         },
                     },
@@ -300,7 +305,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(16, 140.5f),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.ln_cut"),
-                    Font = LayoutEditorTypography.Bold(9),
+                    Font = LayoutEditorTypography.Bold(10),
                     Colour = HomeControlColours.Navy,
                 },
                 longNoteCutToggle = new CompactTextButton(
@@ -323,7 +328,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(173, 125),
                     Size = new Vector2(66, 31),
                     Masking = true,
-                    CornerRadius = 6,
+                    CornerRadius = 8,
                     BorderThickness = 1.25f,
                     BorderColour = HomeControlColours.Navy,
                     Children = new Drawable[]
@@ -337,7 +342,7 @@ internal partial class GameplayLayoutEditorOverlay
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            Font = LayoutEditorTypography.Bold(9),
+                            Font = LayoutEditorTypography.Bold(10),
                             Colour = HomeControlColours.Navy,
                         },
                     },
@@ -365,13 +370,13 @@ internal partial class GameplayLayoutEditorOverlay
             Position = position,
             Size = size,
             Masking = true,
-            CornerRadius = 6,
+            CornerRadius = 8,
             BorderThickness = 1,
             BorderColour = new Color4(
                 HomeControlColours.Navy.R,
                 HomeControlColours.Navy.G,
                 HomeControlColours.Navy.B,
-                0.12f),
+                    0.1f),
             Children = new Drawable[]
             {
                 new Box
@@ -381,7 +386,7 @@ internal partial class GameplayLayoutEditorOverlay
                         accent.R,
                         accent.G,
                         accent.B,
-                        0.09f),
+                        0.045f),
                 },
                 new Box
                 {
@@ -513,7 +518,7 @@ internal partial class GameplayLayoutEditorOverlay
         public LongNoteCutPreview()
         {
             Masking = true;
-            CornerRadius = 7;
+            CornerRadius = 9;
             BorderThickness = 1.25f;
             BorderColour = new Color4(
                 HomeControlColours.Navy.R,
@@ -621,7 +626,7 @@ internal partial class GameplayLayoutEditorOverlay
         {
             Action = action;
             Masking = true;
-            CornerRadius = 6;
+            CornerRadius = 8;
             BorderThickness = 1.25f;
             BorderColour = HomeControlColours.Navy;
             InternalChildren = new Drawable[]
@@ -635,7 +640,7 @@ internal partial class GameplayLayoutEditorOverlay
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Size = new Vector2(14),
+                    Size = new Vector2(15),
                     Icon = icon,
                     Colour = HomeControlColours.Navy,
                 },
@@ -672,7 +677,7 @@ internal partial class GameplayLayoutEditorOverlay
         {
             Action = action;
             Masking = true;
-            CornerRadius = 6;
+            CornerRadius = 8;
             BorderThickness = 1.25f;
             BorderColour = HomeControlColours.Navy;
             InternalChildren = new Drawable[]
@@ -687,7 +692,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Text = text,
-                    Font = LayoutEditorTypography.Bold(9),
+                    Font = LayoutEditorTypography.Bold(10),
                     Colour = HomeControlColours.Navy,
                 },
             };

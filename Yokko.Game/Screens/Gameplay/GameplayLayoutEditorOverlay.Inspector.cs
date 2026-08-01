@@ -734,13 +734,18 @@ internal partial class GameplayLayoutEditorOverlay
         {
             Anchor = Anchor.TopRight;
             Origin = Anchor.TopRight;
-            Position = new Vector2(-18, 500);
+            Position = new Vector2(-18, 462);
+            Scale = new Vector2(1.08f);
             Size = new Vector2(360, 178);
             Depth = -100;
             Masking = true;
-            CornerRadius = 8;
-            BorderThickness = 1.5f;
-            BorderColour = HomeControlColours.Navy;
+            CornerRadius = 11;
+            BorderThickness = 1.25f;
+            BorderColour = new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                0.72f);
 
             InternalChildren = new Drawable[]
             {
@@ -760,7 +765,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(12, 10),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.covers"),
-                    Font = LayoutEditorTypography.Bold(11),
+                    Font = LayoutEditorTypography.Bold(12),
                     Colour = HomeControlColours.Navy,
                 },
                 topRow = new CoverRow(
@@ -784,7 +789,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(12, 148),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.cover_hint"),
-                    Font = LayoutEditorTypography.Regular(8),
+                    Font = LayoutEditorTypography.Regular(9),
                     Colour = new Color4(
                         HomeControlColours.Navy.R,
                         HomeControlColours.Navy.G,
@@ -817,7 +822,7 @@ internal partial class GameplayLayoutEditorOverlay
         {
             Size = new Vector2(336, 46);
             Masking = true;
-            CornerRadius = 5;
+            CornerRadius = 7;
             BorderThickness = 1;
             BorderColour = new Color4(
                 HomeControlColours.Navy.R,
@@ -844,7 +849,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Origin = Anchor.CentreLeft,
                     X = 10,
                     Text = label,
-                    Font = LayoutEditorTypography.Bold(9),
+                    Font = LayoutEditorTypography.Bold(10),
                     Colour = HomeControlColours.Navy,
                 },
                 heightField = new NumericField(
@@ -880,8 +885,8 @@ internal partial class GameplayLayoutEditorOverlay
         {
             this.changed = changed;
             Masking = true;
-            CornerRadius = 5;
-            BorderThickness = 1.5f;
+            CornerRadius = 7;
+            BorderThickness = 1.25f;
             BorderColour = HomeControlColours.Navy;
             Action = () => this.changed(!enabled);
 
@@ -895,7 +900,7 @@ internal partial class GameplayLayoutEditorOverlay
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Font = LayoutEditorTypography.Bold(8),
+                    Font = LayoutEditorTypography.Bold(9),
                     Colour = HomeControlColours.Navy,
                 },
             };
@@ -968,13 +973,18 @@ internal partial class GameplayLayoutEditorOverlay
 
             Anchor = Anchor.TopRight;
             Origin = Anchor.TopRight;
-            Position = new Vector2(-18, 92);
+            Position = new Vector2(-18, 18);
+            Scale = new Vector2(1.08f);
             Size = new Vector2(360, 400);
             Depth = -100;
             Masking = true;
-            CornerRadius = 8;
-            BorderThickness = 1.5f;
-            BorderColour = HomeControlColours.Navy;
+            CornerRadius = 11;
+            BorderThickness = 1.25f;
+            BorderColour = new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                0.72f);
 
             LayerRow playfieldRow;
             LayerRow hudRow;
@@ -1000,7 +1010,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(12, 10),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.inspector"),
-                    Font = LayoutEditorTypography.Bold(11),
+                    Font = LayoutEditorTypography.Bold(12),
                     Colour = HomeControlColours.Navy,
                 },
                 playfieldRow = createLayerRow(
@@ -1104,7 +1114,7 @@ internal partial class GameplayLayoutEditorOverlay
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            Font = LayoutEditorTypography.Bold(9),
+                            Font = LayoutEditorTypography.Bold(10),
                             Colour = HomeControlColours.Navy,
                         },
                     },
@@ -1114,7 +1124,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Position = new Vector2(12, 364),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.snap_hint"),
-                    Font = LayoutEditorTypography.Regular(8),
+                    Font = LayoutEditorTypography.Regular(9),
                     Colour = new Color4(
                         HomeControlColours.Navy.R,
                         HomeControlColours.Navy.G,
@@ -1219,7 +1229,7 @@ internal partial class GameplayLayoutEditorOverlay
             Action = select;
             Size = new Vector2(336, 32);
             Masking = true;
-            CornerRadius = 5;
+            CornerRadius = 7;
             BorderThickness = 1;
             BorderColour = new Color4(
                 HomeControlColours.Navy.R,
@@ -1246,7 +1256,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Origin = Anchor.CentreLeft,
                     X = 12,
                     Text = text,
-                    Font = LayoutEditorTypography.Bold(9),
+                    Font = LayoutEditorTypography.Bold(10),
                     Colour = HomeControlColours.Navy,
                 },
                 visibilityButton = new ToggleIconButton(
@@ -1349,7 +1359,7 @@ internal partial class GameplayLayoutEditorOverlay
             this.falseIcon = falseIcon;
             this.changed = changed;
             Masking = true;
-            CornerRadius = 5;
+            CornerRadius = 7;
             BorderThickness = 1;
             BorderColour = new Color4(
                 HomeControlColours.Navy.R,
@@ -1376,7 +1386,7 @@ internal partial class GameplayLayoutEditorOverlay
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Size = new Vector2(14),
+                    Size = new Vector2(15),
                     Colour = HomeControlColours.Navy,
                 },
             };
@@ -1460,7 +1470,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
                     Text = label,
-                    Font = LayoutEditorTypography.Bold(9),
+                    Font = LayoutEditorTypography.Bold(10),
                     Colour = HomeControlColours.Navy,
                 },
                 textBox = new NumericTextBox
@@ -1523,12 +1533,16 @@ internal partial class GameplayLayoutEditorOverlay
         public NumericTextBox()
         {
             Masking = true;
-            CornerRadius = 5;
-            BorderThickness = 1.5f;
-            BorderColour = HomeControlColours.Navy;
+            CornerRadius = 7;
+            BorderThickness = 1.25f;
+            BorderColour = new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                0.72f);
             BackgroundUnfocused = Color4.White;
             BackgroundFocused = HomeControlColours.PaleCyan;
-            FontSize = 15;
+            FontSize = 18;
             CommitOnFocusLost = true;
             ReleaseFocusOnCommit = true;
         }
@@ -1537,13 +1551,13 @@ internal partial class GameplayLayoutEditorOverlay
             new SpriteText
             {
                 Text = c.ToString(),
-                Font = LayoutEditorTypography.Regular(9),
+                Font = LayoutEditorTypography.Regular(10),
                 Colour = HomeControlColours.Navy,
             };
 
         protected override SpriteText CreatePlaceholder() => new()
         {
-            Font = LayoutEditorTypography.Regular(8),
+            Font = LayoutEditorTypography.Regular(9),
             Colour = new Color4(
                 HomeControlColours.Navy.R,
                 HomeControlColours.Navy.G,

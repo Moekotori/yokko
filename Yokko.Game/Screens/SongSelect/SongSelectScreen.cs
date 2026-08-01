@@ -438,9 +438,7 @@ public partial class SongSelectScreen : Screen
             animateLayout: true,
             transitionPackageId: packageId);
 
-        Scheduler.AddDelayed(
-            () => songList?.ScrollPackageToTop(packageId, false),
-            80);
+        songList?.ScrollPackageToTop(packageId, true);
     }
 
     [BackgroundDependencyLoader]
@@ -897,7 +895,7 @@ public partial class SongSelectScreen : Screen
             new GameplaySessionScreen(new GameplayScreen(
                 gameplayBeatmap,
                 mods: gameplayMods,
-                cinemaArtworkPath: gameplayArtwork)));
+                artworkPath: gameplayArtwork)));
         _ = finishGameplayTransitionAsync(
             previewPlayer?.WaitForIdleAsync() ?? Task.CompletedTask,
             gameplayTask);
@@ -972,13 +970,13 @@ public partial class SongSelectScreen : Screen
             result,
             score.ModSet ?? ManiaModSet.Empty,
             isNewBest: false,
-            retryScoreResult,
-            () => watchScoreReplay(score),
-            closeScoreResult,
+            retry: retryScoreResult,
+            watchReplay: () => watchScoreReplay(score),
+            returnToSongSelect: closeScoreResult,
             practiceSession: false,
-            score.JudgementConfiguration
+            judgementConfiguration: score.JudgementConfiguration
                 ?? gameplaySettings.GetJudgementConfiguration(),
-            replayAvailable);
+            replayAvailable: replayAvailable);
         scoreResultHost = new ScoreResultInputBlocker
         {
             RelativeSizeAxes = Axes.Both,
@@ -3712,7 +3710,8 @@ public partial class SongSelectScreen : Screen
                     score.MaxMissCombo,
                     score.ReplayPath,
                     score.ModSet,
-                    judgementConfiguration);
+                    score.JudgementConfiguration
+                        ?? judgementConfiguration);
         }
     }
 

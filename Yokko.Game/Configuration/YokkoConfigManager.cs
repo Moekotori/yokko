@@ -369,10 +369,10 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             0.01);
         SetDefault(
             YokkoSetting.GameplayBackgroundDim,
-            0.35,
+            YokkoGameplaySettings.DefaultBackgroundDim,
             YokkoGameplaySettings.MinimumBackgroundDim,
             YokkoGameplaySettings.MaximumBackgroundDim,
-            0.05);
+            YokkoGameplaySettings.BackgroundDimStep);
         SetDefault(YokkoSetting.GameplayKeysoundsEnabled, false);
         SetDefault(YokkoSetting.GameplayMinesEnabled, true);
         SetDefault(YokkoSetting.GameplayPauseWhenUnfocused, true);

@@ -1035,6 +1035,13 @@ namespace Yokko.Game.Tests
                     modsScreen.SetRandomSeed(20260801);
                     break;
 
+                case "developer-autoplay":
+                    modsScreen.ResetMods();
+                    modsScreen.SetCategory(ManiaModCategory.Automation);
+                    modsScreen.CycleOrbitMod(ManiaModId.Autoplay);
+                    modsScreen.FocusOrbitModForTest(ManiaModId.Autoplay);
+                    break;
+
                 case "no-pause":
                     modsScreen.ToggleMod(ManiaModId.NoPause);
                     modsScreen.SetNoPauseAllowedPauses(1);

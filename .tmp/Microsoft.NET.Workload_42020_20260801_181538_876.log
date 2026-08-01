@@ -1,0 +1,14 @@
+[2026-08-01 18:15:38.877] [0000A424] === Logging started ===
+[2026-08-01 18:15:38.881] [0000A424] Executing: "C:\Program Files\dotnet\dotnet.exe" test Yokko.Game.Tests/Yokko.Game.Tests.csproj --artifacts-path D:\YOKKO\.tmp\ad-mod-tests --filter Name=DeveloperAutoplayPersistsScoreHistoryAndReplayPath|Name=CinemaDoesNotPersistScoresOrHistory|Name=LegacyCinemaScoresAreIgnoredWhenLoading|Name=TestDeveloperAutoplayPersistsReplayAndScore|Name=TestCinemaHidesGameplayAndUsesAutoReplay|Name=TestDedicatedModsInteractions|FullyQualifiedName~GameplayModSettingsControlTest|FullyQualifiedName~ManiaModSetTest -v:minimal, PID: 42020, PPID: 9828
+[2026-08-01 18:15:38.883] [0000A424] IsElevated: False
+[2026-08-01 18:15:38.883] [0000A424] Is64BitProcess: True
+[2026-08-01 18:15:38.883] [0000A424] RebootPending: False
+[2026-08-01 18:15:38.883] [0000A424] ProcessorArchitecture: amd64
+[2026-08-01 18:15:38.883] [0000A424] HostArchitecture: x64
+[2026-08-01 18:15:38.883] [0000A424] SdkDirectory: 10.0.302
+[2026-08-01 18:15:38.883] [0000A424] VerifySignatures: False
+[2026-08-01 18:15:38.883] [0000A424] SDK feature band: 10.0.300
+[2026-08-01 18:15:56.488] [0000A424] Shutting down
+[2026-08-01 18:15:56.488] [0000A424] Shutdown completed.
+[2026-08-01 18:15:56.488] [0000A424] Restart required: False
+[2026-08-01 18:15:56.488] [0000A424] === Logging ended ===
