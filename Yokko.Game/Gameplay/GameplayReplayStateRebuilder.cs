@@ -40,12 +40,19 @@ internal static class GameplayReplayStateRebuilder
                 nameof(targetGameplayTimeMilliseconds));
         }
 
+        OsuStableScoreV1ModMultipliers stableScoreMods =
+            judgementConfiguration.Mode == JudgementMode.OsuStable
+                ? OsuStableScoreV1Mods.Calculate(beatmap, mods)
+                : new OsuStableScoreV1ModMultipliers(
+                    mods.ScoreMultiplier,
+                    1);
         var judgementState = new BeatmapJudgementState(
             beatmap,
             windows,
             mods.Contains(ManiaModId.NoRelease),
-            mods.ScoreMultiplier,
-            minesEnabled);
+            stableScoreMods.ScoreMultiplier,
+            minesEnabled,
+            stableScoreMods.BonusPunishmentDivider);
         var healthState = new ManiaHealthState(
             beatmap,
             mods,

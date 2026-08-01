@@ -117,6 +117,51 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
+    public async Task ExternalDifficultyCompletionPublishesOnlyFinalSnapshot()
+    {
+        string root = createTestRoot("external-osu-difficulty-publish");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        const int chartCount = 130;
+
+        try
+        {
+            for (int index = 0; index < chartCount; index++)
+            {
+                string set = Path.Combine(songs, $"{index:D3} Publish Test");
+                Directory.CreateDirectory(set);
+                writeOsuChart(set, $"Chart {index:D3}", 3);
+            }
+
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+            int publishedSnapshots = 0;
+            library.LibraryChanged += () => publishedSnapshots++;
+
+            ExternalOsuLibraryResult result =
+                await library.RefreshExternalOsuAsync();
+            await library.ExternalDifficultyTask;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ChartCount, Is.EqualTo(chartCount));
+                Assert.That(library.GetCharts(), Has.Count.EqualTo(chartCount));
+                Assert.That(publishedSnapshots, Is.EqualTo(2),
+                    "The initial index and final ratings should each publish once.");
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task ExternalOsuIndexingPausesAndResumesForGameplay()
     {
         string root = createTestRoot("external-osu-pause");
@@ -673,7 +718,7 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
-    public void MultiSongPackageUsesChartVersionAsSongTitle()
+    public void PackagePreservesOsuTitleAndVersionMetadata()
     {
         var library = new ImportedChartLibrary();
         YokkoBeatmap source = DemoBeatmaps.CreateFourKeyDemo() with
@@ -701,10 +746,10 @@ public sealed class ImportedChartLibraryTest
         {
             Assert.That(
                 charts.Select(chart => chart.Result.Beatmap.Title),
-                Is.EqualTo(new[] { "Cold Sweat", "Dear Nostalgists" }));
+                Is.All.EqualTo("GD PACK (clear 2 out of 7 maps)"));
             Assert.That(
                 charts.Select(chart => chart.Result.Beatmap.DifficultyName),
-                Is.All.EqualTo("PACK"));
+                Is.EqualTo(new[] { "Cold Sweat", "Dear Nostalgists" }));
             Assert.That(charts.Select(chart => chart.PackageName), Is.All.EqualTo("VA - GD PACK"));
         });
     }
@@ -851,6 +896,79 @@ public sealed class ImportedChartLibraryTest
                 Assert.That(
                     library.GetCharts().Select(chart => chart.SourcePath),
                     Is.All.StartsWith(library.LibraryPath));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ImportConfiguredChartFolderCorpusDoesNotRejectAnyFiles()
+    {
+        string source = Environment.GetEnvironmentVariable(
+            "YOKKO_TEST_CHART_FOLDER_CORPUS");
+        if (string.IsNullOrWhiteSpace(source) || !Directory.Exists(source))
+        {
+            Assert.Ignore(
+                "Set YOKKO_TEST_CHART_FOLDER_CORPUS to run this real-folder import test.");
+        }
+
+        string root = createTestRoot("folder-import-corpus");
+        try
+        {
+            using var library = new ImportedChartLibrary();
+            library.Initialise(new NativeStorage(root));
+
+            FolderChartImportResult result = await library.ImportFolderAsync(
+                source,
+                true,
+                true);
+            TestContext.Progress.WriteLine(
+                $"Imported {result.ImportedChartCount} charts from "
+                + $"{result.SourceFileCount} files; "
+                + $"{result.FailedFileCount} failed.");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.SourceFileCount, Is.GreaterThan(0));
+                Assert.That(result.ImportedChartCount, Is.GreaterThan(0));
+                Assert.That(result.FailedFileCount, Is.Zero);
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ImportConfiguredChartFileCorpusDoesNotCrash()
+    {
+        string source = Environment.GetEnvironmentVariable(
+            "YOKKO_TEST_CHART_FILE_CORPUS");
+        if (string.IsNullOrWhiteSpace(source) || !File.Exists(source))
+        {
+            Assert.Ignore(
+                "Set YOKKO_TEST_CHART_FILE_CORPUS to run this real-file import test.");
+        }
+
+        string root = createTestRoot("file-import-corpus");
+        try
+        {
+            using var library = new ImportedChartLibrary();
+            library.Initialise(new NativeStorage(root));
+
+            IReadOnlyList<ChartImportResult> results = await library.ImportAsync(
+                new ChartImportRequest(source, true, true));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(results, Is.Not.Empty);
+                Assert.That(library.GetCharts(), Has.Count.EqualTo(results.Count));
             });
         }
         finally

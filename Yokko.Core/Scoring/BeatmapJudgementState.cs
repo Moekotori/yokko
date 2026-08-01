@@ -61,7 +61,8 @@ public sealed class BeatmapJudgementState
         JudgementWindows? windows = null,
         bool noRelease = false,
         double scoreMultiplier = 1,
-        bool minesEnabled = true)
+        bool minesEnabled = true,
+        double osuStableBonusPunishmentDivider = 1)
     {
         this.beatmap = beatmap;
         this.noRelease = noRelease;
@@ -74,7 +75,8 @@ public sealed class BeatmapJudgementState
         scoreProcessor = new ManiaScoreProcessor(
             beatmap,
             scoreMultiplier,
-            Windows.Configuration);
+            Windows.Configuration,
+            osuStableBonusPunishmentDivider);
         totalJudgementObjectCount =
             beatmap.HitObjects.Count(hitObject =>
                 isStandardJudgementObject(hitObject)
@@ -159,9 +161,12 @@ public sealed class BeatmapJudgementState
 
                                  var entries = new List<ExpirationEntry>
                                  {
-                                     new(
-                                         hitObject.StartTimeMilliseconds
-                                         + Windows.MehMilliseconds,
+                                      new(
+                                          hitObject.StartTimeMilliseconds
+                                          + (Windows.Configuration.Mode
+                                                  == JudgementMode.OsuStable
+                                              ? Windows.OkMilliseconds
+                                              : Windows.MehMilliseconds),
                                          index,
                                          hitObject.Kind == HitObjectKind.Hold
                                              ? JudgementPhase.HoldHead
@@ -171,10 +176,13 @@ public sealed class BeatmapJudgementState
                                  if (hitObject.Kind == HitObjectKind.Hold
                                      && hitObject.EndTimeMilliseconds is double endTime)
                                  {
-                                     entries.Add(new ExpirationEntry(
-                                         endTime
-                                         + Windows.MehMilliseconds
-                                         * HoldReleaseWindowLenience,
+                                      entries.Add(new ExpirationEntry(
+                                          endTime
+                                          + (Windows.Configuration.Mode
+                                                  == JudgementMode.OsuStable
+                                              ? Windows.OkMilliseconds
+                                              : Windows.MehMilliseconds
+                                                * HoldReleaseWindowLenience),
                                          index,
                                          JudgementPhase.HoldTail));
                                  }
@@ -354,7 +362,10 @@ public sealed class BeatmapJudgementState
                 continue;
 
             double error = gameplayTimeMilliseconds - hitObject.StartTimeMilliseconds;
-            JudgementRating rating = Windows.Judge(error);
+            JudgementRating rating =
+                Windows.Configuration.Mode == JudgementMode.OsuStable
+                    ? judgeOsuStablePress(error)
+                    : Windows.Judge(error);
 
             if (rating == JudgementRating.None)
                 break;
@@ -363,6 +374,45 @@ public sealed class BeatmapJudgementState
                 && error >= -Windows.MissMilliseconds)
             {
                 state.Holding = true;
+            }
+
+            if (hitObject.Kind == HitObjectKind.Hold
+                && Windows.Configuration.Mode == JudgementMode.OsuStable)
+            {
+                if (error > Windows.OkMilliseconds)
+                {
+                    events.Add(resolveOsuStableHold(
+                        index,
+                        hitObject.StartTimeMilliseconds,
+                        gameplayTimeMilliseconds,
+                        error,
+                        JudgementRating.Miss));
+                    advanceHeadPosition(lane);
+                    break;
+                }
+
+                // ScoreV1 defers a hold's single judgement until the release.
+                // The head event only advances visuals and ordered note-lock.
+                JudgementEvent headEvent = resolveBasic(
+                    index,
+                    hitObject.StartTimeMilliseconds,
+                    gameplayTimeMilliseconds,
+                    error,
+                    JudgementRating.IgnoreHit,
+                    JudgementPhase.HoldHead);
+                // An early press in the MISS band can still produce a MEH if
+                // the key remains held through the tail window. Only the late
+                // MEH side is an immediate miss in stable.
+                state.HeadRating = rating == JudgementRating.Miss
+                    ? JudgementRating.Meh
+                    : rating;
+                state.OsuStableHeadErrorMilliseconds = Math.Abs(error);
+                scoreProcessor.ApplyOsuStableHoldHead();
+                events.Add(headEvent);
+                if (state.HeadRating.IsHit())
+                    forceMissEarlierObjects(index, events);
+                advanceHeadPosition(lane);
+                break;
             }
 
             JudgementPhase phase = hitObject.Kind == HitObjectKind.Hold
@@ -717,6 +767,16 @@ public sealed class BeatmapJudgementState
                 continue;
             }
 
+            if (Windows.Configuration.Mode == JudgementMode.OsuStable)
+            {
+                resolveOsuStableRelease(
+                    index,
+                    gameplayTimeMilliseconds,
+                    endTime,
+                    events);
+                continue;
+            }
+
             double rawError = gameplayTimeMilliseconds - endTime;
             JudgementRating rating = judgeHoldRelease(rawError);
             bool tailResolvedNow = false;
@@ -761,6 +821,104 @@ public sealed class BeatmapJudgementState
 
             state.Holding = false;
         }
+    }
+
+    private JudgementRating judgeOsuStablePress(double errorMilliseconds)
+    {
+        if (errorMilliseconds < -Windows.MissMilliseconds)
+            return JudgementRating.None;
+
+        // Stable automatically misses after the late OK boundary. Early MEH
+        // and MISS inputs remain possible; late MEH inputs never are.
+        if (errorMilliseconds > Windows.OkMilliseconds)
+            return JudgementRating.Miss;
+
+        return Windows.Judge(errorMilliseconds);
+    }
+
+    private void resolveOsuStableRelease(
+        int hitObjectIndex,
+        double gameplayTimeMilliseconds,
+        double endTimeMilliseconds,
+        List<JudgementEvent> events)
+    {
+        ObjectState state = states[hitObjectIndex];
+        double tailError = gameplayTimeMilliseconds - endTimeMilliseconds;
+        state.Holding = false;
+
+        if (tailError < -Windows.MehMilliseconds)
+        {
+            if (!state.BodyBroken)
+            {
+                state.BodyBroken = true;
+                scoreProcessor.ApplyOsuStableHoldBreak();
+            }
+            return;
+        }
+
+        JudgementRating rating;
+        if (tailError > Windows.OkMilliseconds
+            || state.HeadRating == JudgementRating.Miss
+            || state.OsuStableHeadErrorMilliseconds is null)
+        {
+            rating = JudgementRating.Miss;
+        }
+        else
+        {
+            rating = stableHoldRating(hitObjectIndex, tailError);
+        }
+
+        events.Add(resolveOsuStableHold(
+            hitObjectIndex,
+            endTimeMilliseconds,
+            gameplayTimeMilliseconds,
+            tailError,
+            rating));
+    }
+
+    private JudgementRating stableHoldRating(
+        int hitObjectIndex,
+        double tailErrorMilliseconds)
+    {
+        ObjectState state = states[hitObjectIndex];
+        if (state.HeadRating == JudgementRating.Miss
+            || state.OsuStableHeadErrorMilliseconds is not double headError)
+        {
+            return JudgementRating.Miss;
+        }
+
+        // stable judges integer hit errors. Yokko's input clock is
+        // sub-millisecond, so round both sides independently before applying
+        // the documented LN combination table.
+        headError = Math.Round(
+            headError,
+            MidpointRounding.AwayFromZero);
+        double tailError = Math.Round(
+            Math.Abs(tailErrorMilliseconds),
+            MidpointRounding.AwayFromZero);
+        double combinedError = headError + tailError;
+        double perfectWindow = Math.Floor(Windows.PerfectMilliseconds);
+        double greatWindow = Math.Floor(Windows.GreatMilliseconds);
+        double goodWindow = Math.Floor(Windows.GoodMilliseconds);
+        double okWindow = Math.Floor(Windows.OkMilliseconds);
+        JudgementRating rating =
+            headError <= perfectWindow * 1.2
+            && combinedError <= perfectWindow * 2.4
+                ? JudgementRating.Perfect
+                : headError <= greatWindow * 1.1
+                  && combinedError <= greatWindow * 2.2
+                    ? JudgementRating.Great
+                    : headError <= goodWindow
+                      && combinedError <= goodWindow * 2
+                        ? JudgementRating.Good
+                        : headError <= okWindow
+                          && combinedError <= okWindow * 2
+                            ? JudgementRating.Ok
+                            : JudgementRating.Meh;
+
+        return state.BodyBroken && rating > JudgementRating.Meh
+            ? JudgementRating.Meh
+            : rating;
     }
 
     private JudgementRating judgeHoldRelease(double rawError)
@@ -833,6 +991,20 @@ public sealed class BeatmapJudgementState
                 if (state.HeadResolved)
                     continue;
 
+                if (Windows.Configuration.Mode == JudgementMode.OsuStable
+                    && expiration.Phase == JudgementPhase.HoldHead)
+                {
+                    events.Add(resolveOsuStableHold(
+                        i,
+                        hitObject.StartTimeMilliseconds,
+                        null,
+                        gameplayTimeMilliseconds
+                        - hitObject.StartTimeMilliseconds,
+                        JudgementRating.Miss));
+                    advanceHeadPosition(hitObject.Lane);
+                    continue;
+                }
+
                 events.Add(resolveBasic(
                     i,
                     hitObject.StartTimeMilliseconds,
@@ -848,6 +1020,17 @@ public sealed class BeatmapJudgementState
             if (state.TailResolved
                 || hitObject.EndTimeMilliseconds is not double endTime)
                 continue;
+
+            if (Windows.Configuration.Mode == JudgementMode.OsuStable)
+            {
+                events.Add(resolveOsuStableHold(
+                    i,
+                    endTime,
+                    null,
+                    gameplayTimeMilliseconds - endTime,
+                    JudgementRating.Miss));
+                continue;
+            }
 
             events.Add(resolveBasic(
                 i,
@@ -892,6 +1075,18 @@ public sealed class BeatmapJudgementState
                     || hitObject.EndTimeMilliseconds is not double endTime
                     || gameplayTimeMilliseconds < endTime)
                 {
+                    continue;
+                }
+
+                if (Windows.Configuration.Mode == JudgementMode.OsuStable)
+                {
+                    events.Add(resolveOsuStableHold(
+                        index,
+                        endTime,
+                        endTime,
+                        0,
+                        stableHoldRating(index, 0)));
+                    state.Holding = false;
                     continue;
                 }
 
@@ -1254,6 +1449,21 @@ public sealed class BeatmapJudgementState
 
             if (earlier.Kind == HitObjectKind.Hold)
             {
+                if (Windows.Configuration.Mode == JudgementMode.OsuStable)
+                {
+                    if (!state.IsComplete)
+                    {
+                        events.Add(resolveOsuStableHold(
+                            earlierIndex,
+                            earlierEnd,
+                            null,
+                            target.StartTimeMilliseconds - earlierEnd,
+                            JudgementRating.Miss));
+                    }
+
+                    continue;
+                }
+
                 if (!state.ParentResolved)
                 {
                     events.Add(resolveParent(
@@ -1310,6 +1520,39 @@ public sealed class BeatmapJudgementState
         }
 
         nextForceMissPositions[target.Lane] = position;
+    }
+
+    private JudgementEvent resolveOsuStableHold(
+        int hitObjectIndex,
+        double objectTimeMilliseconds,
+        double? hitTimeMilliseconds,
+        double hitErrorMilliseconds,
+        JudgementRating rating)
+    {
+        ObjectState state = states[hitObjectIndex];
+        bool wasComplete = state.IsComplete;
+        state.HeadResolved = true;
+        state.TailResolved = true;
+        state.BodyResolved = true;
+        state.ParentResolved = true;
+        state.Holding = false;
+        state.TailRating = rating;
+        openHoldIndices[beatmap.HitObjects[hitObjectIndex].Lane]
+            .Remove(hitObjectIndex);
+        trackCompletion(state, wasComplete);
+        scoreProcessor.Apply(
+            rating,
+            hitErrorMilliseconds / Windows.SpeedMultiplier,
+            JudgementPhase.Hold,
+            objectTimeMilliseconds);
+
+        return createEvent(
+            hitObjectIndex,
+            objectTimeMilliseconds,
+            hitTimeMilliseconds,
+            hitErrorMilliseconds,
+            rating,
+            JudgementPhase.Hold);
     }
 
     private JudgementEvent resolveBasic(
@@ -1515,6 +1758,7 @@ public sealed class BeatmapJudgementState
         public bool BodyResolved { get; set; }
         public bool BodyBroken { get; set; }
         public bool Holding { get; set; }
+        public double? OsuStableHeadErrorMilliseconds { get; set; }
         public double? EtternaReleasedAtMilliseconds { get; set; }
         public double? EtternaRollLifeExpiresAtMilliseconds { get; set; }
         public bool IsComplete =>

@@ -12,6 +12,7 @@ using osu.Framework.Input.Events;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.Input.Bindings;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
@@ -182,6 +183,7 @@ public partial class GameplayScreen : Screen
     private GameplayScrollSpeedOverlay scrollSpeedOverlay;
     private GameplayPlaybackRateOverlay playbackRateOverlay;
     private GameplayReplayControlsOverlay replayControls;
+    private bool focusModeActive;
     private bool replaySeekInProgress;
     private bool replaySeekPauseRequested;
     private double pendingReplaySeekTarget = double.NaN;
@@ -234,6 +236,7 @@ public partial class GameplayScreen : Screen
         layoutEditor?.IsTestingLayout == true;
     internal bool IsLayoutAutoplayPlaying =>
         layoutEditor?.IsAutoplayDemo == true;
+    internal bool FocusModeActive => focusModeActive;
     internal float LayoutOverviewAspectRatio =>
         layoutEditor?.OverviewAspectRatio ?? 0;
     internal bool PauseTransitionInProgress => pauseTransitionInProgress;
@@ -412,14 +415,19 @@ public partial class GameplayScreen : Screen
         }
         if (replay != null)
             replayTimeline = new GameplayReplayTimeline(replay.Frames);
-        keyBindings = gameplaySettings.SupportedKeyModes.Contains(
-            beatmap.KeyMode)
+        keyBindings = beatmap.ScratchLane is int scratchLane
             ? KeyModeBindings.ForMode(
                 beatmap.KeyMode,
-                gameplaySettings.GetKeys(beatmap.KeyMode))
-            : KeyModeBindings.ForMode(
-                beatmap.KeyMode,
-                beatmap.StageCount);
+                gameplaySettings.GetBmsInputKeys(
+                    (int)beatmap.KeyMode,
+                    scratchLane))
+            : gameplaySettings.SupportedKeyModes.Contains(beatmap.KeyMode)
+                ? KeyModeBindings.ForMode(
+                    beatmap.KeyMode,
+                    gameplaySettings.GetInputKeys(beatmap.KeyMode))
+                : KeyModeBindings.ForMode(
+                    beatmap.KeyMode,
+                    beatmap.StageCount);
         pressedLanes = new bool[keyBindings.KeyCount];
         slidingSampleIndex = new GameplaySlidingSampleIndex(
             beatmap,
@@ -434,20 +442,39 @@ public partial class GameplayScreen : Screen
                 beatmap,
                 mods.AdaptiveInitialRate);
         }
+        double judgementOverallDifficulty =
+            mods.EffectiveOverallDifficulty(beatmap.OverallDifficulty);
+        double judgementDifficultyMultiplier =
+            mods.HitWindowDifficultyMultiplier;
+        if (judgementConfiguration.Mode == JudgementMode.OsuStable
+            && mods.Contains(ManiaModId.Easy))
+        {
+            // stable Easy halves OD; unlike lazer's Mania implementation it
+            // does not scale every window (including MAX) by 1.4x.
+            judgementOverallDifficulty *= 0.5;
+            judgementDifficultyMultiplier = 1;
+        }
+
+        OsuStableScoreV1ModMultipliers stableScoreMods =
+            judgementConfiguration.Mode == JudgementMode.OsuStable
+                ? OsuStableScoreV1Mods.Calculate(beatmap, mods)
+                : new OsuStableScoreV1ModMultipliers(
+                    mods.ScoreMultiplier,
+                    1);
         judgementState = new BeatmapJudgementState(
             beatmap,
             new JudgementWindows(
-                mods.EffectiveOverallDifficulty(
-                    beatmap.OverallDifficulty),
+                judgementOverallDifficulty,
                 mods.HitWindowSpeedMultiplier,
-                mods.HitWindowDifficultyMultiplier,
+                judgementDifficultyMultiplier,
                 mods.Contains(ManiaModId.Classic),
                 mods.Contains(ManiaModId.ScoreV2),
                 beatmap.ConversionSource is not null,
                 judgementConfiguration),
             mods.Contains(ManiaModId.NoRelease),
-            mods.ScoreMultiplier,
-            minesEnabled);
+            stableScoreMods.ScoreMultiplier,
+            minesEnabled,
+            stableScoreMods.BonusPunishmentDivider);
         keysoundSelector = new GameplayKeysoundSelector(
             beatmap,
             judgementState);
@@ -1050,7 +1077,8 @@ public partial class GameplayScreen : Screen
                 e.Key,
                 e.Repeat,
                 e.AltPressed,
-                e.ControlPressed))
+                e.ControlPressed,
+                e.ShiftPressed))
         {
             return true;
         }
@@ -1062,7 +1090,8 @@ public partial class GameplayScreen : Screen
         Key key,
         bool repeat,
         bool altPressed,
-        bool controlPressed)
+        bool controlPressed,
+        bool shiftPressed = false)
     {
         if (retryTransitionInProgress)
             return true;
@@ -1179,6 +1208,12 @@ public partial class GameplayScreen : Screen
         if (isPaused)
             return pauseOverlay?.HandleKey(key) ?? true;
 
+        if (key == Key.Tab && shiftPressed)
+        {
+            setFocusMode(!focusModeActive);
+            return true;
+        }
+
         if (gameplayCompleted)
         {
             if (matchesShortcut(ManiaShortcutAction.Retry, key))
@@ -1262,10 +1297,112 @@ public partial class GameplayScreen : Screen
         return true;
     }
 
+    protected override void UpdateAfterChildren()
+    {
+        base.UpdateAfterChildren();
+
+        if (focusModeActive)
+            hideFocusModePresentation();
+    }
+
+    private void setFocusMode(bool active)
+    {
+        focusModeActive = active;
+        playfield.SetFocusMode(active);
+
+        if (active)
+        {
+            hideFocusModePresentation();
+            return;
+        }
+
+        if (mods.IsCinema)
+            return;
+
+        hud.Alpha = 1;
+        comboReadout.UpdateState(judgementState.Combo);
+        if (playfield.UsesSkinJudgementOverlay)
+            comboReadout.Alpha = 0;
+        timingBar.Alpha = gameplaySettings.ShowTimingBar.Value ? 1 : 0;
+        replayControls?.Show();
+    }
+
+    private void hideFocusModePresentation()
+    {
+        hud.Alpha = 0;
+        comboReadout.Alpha = 0;
+        judgementReadout.Alpha = 0;
+        timingBar.Alpha = 0;
+        scrollSpeedOverlay.Alpha = 0;
+        playbackRateOverlay.Alpha = 0;
+        if (replayControls != null)
+            replayControls.Alpha = 0;
+    }
+
     protected override void OnKeyUp(KeyUpEvent e)
     {
         if (!HandleKeyUpInput(e.Key))
             base.OnKeyUp(e);
+    }
+
+    protected override bool OnJoystickPress(JoystickPressEvent e) =>
+        handleDevicePress(KeyCombination.FromJoystickButton(e.Button))
+        || base.OnJoystickPress(e);
+
+    protected override void OnJoystickRelease(JoystickReleaseEvent e)
+    {
+        if (!handleDeviceRelease(KeyCombination.FromJoystickButton(e.Button)))
+            base.OnJoystickRelease(e);
+    }
+
+    protected override bool OnMidiDown(MidiDownEvent e) =>
+        handleDevicePress(KeyCombination.FromMidiKey(e.Key))
+        || base.OnMidiDown(e);
+
+    protected override void OnMidiUp(MidiUpEvent e)
+    {
+        if (!handleDeviceRelease(KeyCombination.FromMidiKey(e.Key)))
+            base.OnMidiUp(e);
+    }
+
+    private bool handleDevicePress(InputKey key)
+    {
+        int lane = keyBindings.GetLane(key);
+        if (lane < 0)
+            return false;
+
+        if (retryTransitionInProgress
+            || layoutEditor?.IsEditing == true
+            || resumeCountdownInProgress
+            || gameplayBlocked
+            || gameplayFailed
+            || isPaused
+            || gameplayCompleted
+            || ReplayMode)
+        {
+            return true;
+        }
+
+        applyLanePress(lane, currentGameplayTime);
+        return true;
+    }
+
+    private bool handleDeviceRelease(InputKey key)
+    {
+        int lane = keyBindings.GetLane(key);
+        if (lane < 0)
+            return false;
+
+        if (!gameplayCompleted
+            && !gameplayFailed
+            && !retryTransitionInProgress
+            && !ReplayMode
+            && !isPaused)
+        {
+            applyLaneRelease(lane, currentGameplayTime);
+        }
+
+        return true;
     }
 
     internal bool HandleKeyUpInput(Key key)
@@ -4305,6 +4442,7 @@ public partial class GameplayScreen : Screen
 
         GameplayPlayfield nextPlayfield = createGameplayPlayfield();
         nextPlayfield.SetWidthScale(playfieldWidthScale);
+        nextPlayfield.SetFocusMode(focusModeActive);
         for (int lane = 0; lane < pressedLanes.Length; lane++)
             nextPlayfield.SetLanePressed(lane, pressedLanes[lane]);
 
@@ -4551,6 +4689,9 @@ public partial class GameplayScreen : Screen
 
         if (pauseOverlay != null)
             pauseOverlay.Alpha = 0;
+
+        if (focusModeActive)
+            setFocusMode(false);
 
         skinHudLayoutStore.BeginEditSession();
         layoutEditor.SetEditing(true);

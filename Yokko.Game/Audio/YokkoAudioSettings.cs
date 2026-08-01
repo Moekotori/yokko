@@ -17,6 +17,8 @@ public enum BackgroundAudioMode
 /// </summary>
 public sealed class YokkoAudioSettings
 {
+    private const double shortcutVolumeStep = 0.05;
+
     public event Action MixChanged;
 
     public readonly Bindable<bool> HomeMusicEnabled = new(true);
@@ -68,6 +70,21 @@ public sealed class YokkoAudioSettings
         clampVolume(MasterVolume.Value) * backgroundVolumeScale;
 
     public bool IsApplicationActive => applicationActive;
+
+    public double AdjustMasterVolume(int direction)
+    {
+        if (direction == 0)
+            return MasterVolume.Value;
+
+        MasterVolume.Value = Math.Clamp(
+            Math.Round(
+                (MasterVolume.Value
+                 + Math.Sign(direction) * shortcutVolumeStep) * 100)
+            / 100,
+            0,
+            1);
+        return MasterVolume.Value;
+    }
 
     public void SetApplicationActive(bool active)
     {

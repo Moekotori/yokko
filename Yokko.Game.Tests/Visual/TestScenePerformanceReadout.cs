@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using osu.Framework.Graphics;
 using osu.Framework.Testing;
+using osuTK;
 using Yokko.Game.Diagnostics;
 using Yokko.Game.Presentation;
 
@@ -19,6 +20,22 @@ public partial class TestScenePerformanceReadout : YokkoTestScene
         {
             Anchor = Anchor.Centre,
             Origin = Anchor.Centre,
+        });
+    }
+
+    [Test]
+    public void TestDefaultLayoutIsBottomRight()
+    {
+        using var defaultReadout = new YokkoPerformanceReadout(source);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(defaultReadout.Anchor, Is.EqualTo(Anchor.BottomRight));
+            Assert.That(defaultReadout.Origin, Is.EqualTo(Anchor.BottomRight));
+            Assert.That(
+                defaultReadout.Position,
+                Is.EqualTo(new Vector2(
+                    -YokkoPerformanceReadout.EdgeInset)));
         });
     }
 

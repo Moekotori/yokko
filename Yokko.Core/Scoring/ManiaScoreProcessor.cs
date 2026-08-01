@@ -16,6 +16,8 @@ public sealed class ManiaScoreProcessor
     private readonly int maximumAccuracyJudgementCount;
     private readonly double maximumComboPortion;
     private readonly double scoreMultiplier;
+    private readonly double osuStableBonusPunishmentDivider;
+    private readonly bool useOsuStableScoring;
     private readonly bool useEtternaScoring;
     private readonly bool useQuaverScoring;
     private readonly int quaverMaximumScoreCount;
@@ -24,6 +26,10 @@ public sealed class ManiaScoreProcessor
     private double currentMaximumBaseScore;
     private int currentAccuracyJudgementCount;
     private double currentComboPortion;
+    private double osuStableAccuracyTotal;
+    private double osuStableBaseScore;
+    private double osuStableBonusScore;
+    private double osuStableBonus = 100;
     private int quaverMultiplierCount;
     private int quaverScoreCount;
     private double quaverAccuracyWeightTotal;
@@ -37,7 +43,8 @@ public sealed class ManiaScoreProcessor
     public ManiaScoreProcessor(
         YokkoBeatmap beatmap,
         double scoreMultiplier = 1,
-        JudgementConfiguration? judgementConfiguration = null)
+        JudgementConfiguration? judgementConfiguration = null,
+        double osuStableBonusPunishmentDivider = 1)
     {
         if (!double.IsFinite(scoreMultiplier)
             || scoreMultiplier < 0)
@@ -45,24 +52,35 @@ public sealed class ManiaScoreProcessor
             throw new ArgumentOutOfRangeException(
                 nameof(scoreMultiplier));
         }
+        if (!double.IsFinite(osuStableBonusPunishmentDivider)
+            || osuStableBonusPunishmentDivider <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(osuStableBonusPunishmentDivider));
+        }
 
         this.scoreMultiplier = scoreMultiplier;
+        this.osuStableBonusPunishmentDivider =
+            osuStableBonusPunishmentDivider;
         JudgementConfiguration configuration =
             judgementConfiguration
             ?? (beatmap.SourceFormat == ChartSourceFormat.Quaver
                 ? JudgementConfiguration.QuaverDefault
                 : JudgementConfiguration.YokkoDefault);
         Configuration = configuration;
+        useOsuStableScoring =
+            configuration.Mode == JudgementMode.OsuStable;
         useEtternaScoring =
             configuration.Mode == JudgementMode.Etterna;
         useQuaverScoring =
             configuration.Mode == JudgementMode.Quaver;
-        maximumAccuracyJudgementCount = beatmap.HitObjects.Sum(static hitObject => hitObject.Kind switch
-        {
-            HitObjectKind.Tap => 1,
-            HitObjectKind.Hold => 2,
-            _ => 0,
-        });
+        maximumAccuracyJudgementCount = beatmap.HitObjects.Sum(hitObject =>
+            hitObject.Kind switch
+            {
+                HitObjectKind.Tap => 1,
+                HitObjectKind.Hold => useOsuStableScoring ? 1 : 2,
+                _ => 0,
+            });
         etternaMaximumWifePoints =
             beatmap.HitObjects.Count(static hitObject =>
                 hitObject.Kind is HitObjectKind.Tap
@@ -109,6 +127,11 @@ public sealed class ManiaScoreProcessor
                 / 100,
                 0)
             : 1
+        : useOsuStableScoring
+        ? currentAccuracyJudgementCount > 0
+            ? osuStableAccuracyTotal
+              / (currentAccuracyJudgementCount * 300)
+            : 1
         : currentMaximumBaseScore > 0
         ? currentBaseScore / currentMaximumBaseScore
         : 1;
@@ -143,6 +166,13 @@ public sealed class ManiaScoreProcessor
                     / maximumAccuracyJudgementCount
                     / 100,
                     0);
+            }
+
+            if (useOsuStableScoring)
+            {
+                return (osuStableAccuracyTotal
+                        + remainingJudgements * 300)
+                       / (maximumAccuracyJudgementCount * 300);
             }
 
             double maximumFinalBaseScore =
@@ -187,6 +217,12 @@ public sealed class ManiaScoreProcessor
         if (useQuaverScoring)
         {
             applyQuaver(rating, isMine: false);
+            return;
+        }
+
+        if (useOsuStableScoring)
+        {
+            applyOsuStable(rating, phase);
             return;
         }
 
@@ -284,6 +320,104 @@ public sealed class ManiaScoreProcessor
             TotalScoreWithoutMods * scoreMultiplier);
         Rank = RankFromScore(Accuracy, Counts);
     }
+
+    /// <summary>
+    /// osu!stable mania ScoreV1. Each tap or hold contributes exactly one
+    /// result. MAX and 300 are both worth full accuracy, while the base and
+    /// floating bonus portions each contribute half of the 1,000,000 score.
+    /// Source: osu! wiki Gameplay/Score/ScoreV1/osu!mania (CC BY-NC-SA 4.0).
+    /// </summary>
+    internal void ApplyOsuStableHoldHead()
+    {
+        if (!useOsuStableScoring)
+            return;
+
+        Combo++;
+        MaxCombo = Math.Max(MaxCombo, Combo);
+    }
+
+    internal void ApplyOsuStableHoldBreak()
+    {
+        if (!useOsuStableScoring)
+            return;
+
+        Counts.Add(JudgementRating.ComboBreak);
+        Combo = 0;
+    }
+
+    private void applyOsuStable(
+        JudgementRating rating,
+        JudgementPhase phase)
+    {
+        if (!rating.AffectsAccuracy())
+            return;
+
+        Counts.Add(rating);
+        currentAccuracyJudgementCount++;
+
+        if (rating == JudgementRating.Miss)
+            Combo = 0;
+        else if (phase != JudgementPhase.Hold)
+            Combo++;
+
+        MaxCombo = Math.Max(MaxCombo, Combo);
+
+        (double hitValue, double hitBonusValue, double hitBonus,
+            double hitPunishment) = rating switch
+        {
+            JudgementRating.Perfect => (320, 32, 2, 0),
+            JudgementRating.Great => (300, 32, 1, 0),
+            JudgementRating.Good => (200, 16, 0, 8),
+            JudgementRating.Ok => (100, 8, 0, 24),
+            JudgementRating.Meh => (50, 4, 0, 44),
+            JudgementRating.Miss => (0, 0, 0, double.PositiveInfinity),
+            _ => throw new ArgumentOutOfRangeException(nameof(rating)),
+        };
+
+        osuStableBonus = double.IsPositiveInfinity(hitPunishment)
+            ? 0
+            : Math.Clamp(
+                osuStableBonus
+                + hitBonus
+                - hitPunishment / osuStableBonusPunishmentDivider,
+                0,
+                100);
+
+        double perObjectHalf = maximumAccuracyJudgementCount > 0
+            ? 500_000d / maximumAccuracyJudgementCount
+            : 0;
+        osuStableBaseScore += perObjectHalf * hitValue / 320;
+        osuStableBonusScore += perObjectHalf
+                               * hitBonusValue
+                               * Math.Sqrt(osuStableBonus)
+                               / 320;
+        osuStableAccuracyTotal += rating switch
+        {
+            JudgementRating.Perfect or JudgementRating.Great => 300,
+            JudgementRating.Good => 200,
+            JudgementRating.Ok => 100,
+            JudgementRating.Meh => 50,
+            _ => 0,
+        };
+
+        TotalScoreWithoutMods = (long)Math.Round(
+            osuStableBaseScore + osuStableBonusScore);
+        TotalScore = (long)Math.Round(
+            (osuStableBaseScore + osuStableBonusScore)
+            * scoreMultiplier);
+        Rank = osuStableRankFromAccuracy(Accuracy);
+    }
+
+    private static ScoreRank osuStableRankFromAccuracy(double accuracy) =>
+        accuracy switch
+        {
+            1 => ScoreRank.X,
+            > 0.95 => ScoreRank.S,
+            > 0.90 => ScoreRank.A,
+            > 0.80 => ScoreRank.B,
+            > 0.70 => ScoreRank.C,
+            _ => ScoreRank.D,
+        };
 
     private void applyEtterna(
         JudgementRating rating,

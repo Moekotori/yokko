@@ -85,6 +85,8 @@ public partial class ChartLibraryScreen : Screen
     internal int ManagedChartCount { get; private set; }
     internal int ExternalChartCount { get; private set; }
     internal ChartLibrarySourceFilter CurrentSourceFilter { get; private set; }
+    internal bool IsFileSelectorAvailable =>
+        host != null;
 
     internal void SetSourceFilter(ChartLibrarySourceFilter filter) =>
         setFilter(filter);
@@ -774,10 +776,29 @@ public partial class ChartLibraryScreen : Screen
         if (workInProgress)
             return;
 
-        ISystemFileSelector selector = host.CreateSystemFileSelector(
-            KnownChartImporters.FileExtensions);
-        selector.Selected += file => Schedule(() => importChart(file.FullName));
-        selector.Present();
+        if (!IsFileSelectorAvailable)
+        {
+            setStatus(YokkoStrings.Get("chart_library.file_picker_unavailable"), true);
+            return;
+        }
+
+        try
+        {
+            ISystemFileSelector selector = host.CreateSystemFileSelector(
+                KnownChartImporters.FileExtensions);
+            if (selector == null)
+            {
+                setStatus(YokkoStrings.Get("chart_library.file_picker_unavailable"), true);
+                return;
+            }
+
+            selector.Selected += file => Schedule(() => importChart(file.FullName));
+            selector.Present();
+        }
+        catch (Exception exception)
+        {
+            setStatus(exception.Message, true);
+        }
     }
 
     private void importChart(string path)
@@ -928,8 +949,10 @@ public partial class ChartLibraryScreen : Screen
             return;
 
         completeWork(
-            importedChartLibrary.SetExternalOsuSongsPathAsync(
-                path,
+            Task.Run(
+                () => importedChartLibrary.SetExternalOsuSongsPathAsync(
+                    path,
+                    workCancellation.Token),
                 workCancellation.Token),
             result =>
             {
@@ -949,7 +972,9 @@ public partial class ChartLibraryScreen : Screen
             return;
 
         completeWork(
-            refreshAllAsync(workCancellation.Token),
+            Task.Run(
+                () => refreshAllAsync(workCancellation.Token),
+                workCancellation.Token),
             count => YokkoStrings.Get("chart_library.refreshed", count));
     }
 

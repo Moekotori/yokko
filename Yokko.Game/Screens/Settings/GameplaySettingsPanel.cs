@@ -9,6 +9,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osu.Framework.Input.Bindings;
 using osu.Framework.Localisation;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
@@ -41,8 +42,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private readonly YokkoAudioSettings audioSettings;
     private readonly List<GameplaySectionTab> sectionTabs = new();
     private readonly List<GameplayBindingCard> bindingCards = new();
-    private readonly List<Key> sequentialKeys = new();
-    private readonly HashSet<Key> pressedKeys = new();
+    private readonly List<InputKey> sequentialKeys = new();
+    private readonly HashSet<InputKey> pressedKeys = new();
     private readonly Clipboard clipboard;
     private readonly AudioSettingsTestPlayer calibrationPlayer;
     private readonly CancellationTokenSource lifetimeCancellation = new();
@@ -63,12 +64,15 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private bool calibrationResultVisible;
     private bool disposed;
     private bool sequentialCapture;
+    private bool bmsProfileSelected;
     private KeyMode selectedKeyMode = KeyMode.FourKey;
 
     internal GameplaySettingsSection CurrentSection { get; private set; } =
         GameplaySettingsSection.Input;
 
     internal KeyMode SelectedKeyMode => selectedKeyMode;
+
+    internal bool IsBmsProfileSelected => bmsProfileSelected;
 
     internal bool IsCapturingKey => capturingCard != null;
 
@@ -187,6 +191,11 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         {
             binding.BindValueChanged(onBindingChanged);
         }
+        foreach (Bindable<InputKey> binding in settings.SupportedKeyModes.SelectMany(
+                     settings.GetDeviceBindings))
+        {
+            binding.BindValueChanged(_ => refreshStatusMetadata());
+        }
 
         refreshStatusMetadata();
         showSection(CurrentSection, false);
@@ -200,12 +209,24 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal void SelectKeyMode(KeyMode keyMode)
     {
-        if (keyMode == selectedKeyMode)
+        if (!bmsProfileSelected && keyMode == selectedKeyMode)
             return;
 
         cancelCapture();
         clearPressedKeys();
+        bmsProfileSelected = false;
         selectedKeyMode = keyMode;
+        showInputSection(true);
+    }
+
+    internal void SelectBmsProfile()
+    {
+        if (bmsProfileSelected)
+            return;
+
+        cancelCapture();
+        clearPressedKeys();
+        bmsProfileSelected = true;
         showInputSection(true);
     }
 
@@ -214,19 +235,26 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         if (direction == 0)
             return;
 
-        int current = 0;
-        for (int index = 0; index < settings.SupportedKeyModes.Count; index++)
+        int profileCount = settings.SupportedKeyModes.Count + 1;
+        int current = bmsProfileSelected ? profileCount - 1 : 0;
+        if (!bmsProfileSelected)
         {
-            if (settings.SupportedKeyModes[index] == selectedKeyMode)
+            for (int index = 0; index < settings.SupportedKeyModes.Count; index++)
             {
-                current = index;
-                break;
+                if (settings.SupportedKeyModes[index] == selectedKeyMode)
+                {
+                    current = index;
+                    break;
+                }
             }
         }
         int next = (current + Math.Sign(direction)
-                    + settings.SupportedKeyModes.Count)
-                   % settings.SupportedKeyModes.Count;
-        SelectKeyMode(settings.SupportedKeyModes[next]);
+                    + profileCount)
+                   % profileCount;
+        if (next == profileCount - 1)
+            SelectBmsProfile();
+        else
+            SelectKeyMode(settings.SupportedKeyModes[next]);
     }
 
     internal void BeginKeyCapture(int lane)
@@ -258,7 +286,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal void ResetSelectedBindings()
     {
         cancelCapture();
-        settings.ResetBindings(selectedKeyMode);
+        if (bmsProfileSelected)
+            settings.ResetBmsBindings();
+        else
+            settings.ResetBindings(selectedKeyMode);
         showInputMessage(YokkoStrings.Get(
             "settings.gameplay.preset_applied",
             YokkoStrings.Get("settings.gameplay.preset_standard")));
@@ -267,6 +298,14 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal void ApplyBindingPreset(GameplayKeyPreset preset)
     {
         cancelCapture();
+        if (bmsProfileSelected)
+        {
+            settings.ResetBmsBindings();
+            showInputMessage(YokkoStrings.Get(
+                "settings.gameplay.preset_applied",
+                YokkoStrings.Get("settings.gameplay.preset_standard")));
+            return;
+        }
         settings.ApplyBindingPreset(selectedKeyMode, preset);
         showInputMessage(YokkoStrings.Get(
             "settings.gameplay.preset_applied",
@@ -276,6 +315,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal void CopySelectedBindings()
     {
         cancelCapture();
+        if (bmsProfileSelected)
+            return;
         settings.CopyBindingsToOtherMode(selectedKeyMode);
         showInputMessage(YokkoStrings.Get(
             "settings.gameplay.profile_copied",
@@ -369,6 +410,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal Key GetBinding(KeyMode keyMode, int lane) =>
         settings.GetKeys(keyMode)[lane];
 
+    internal InputKey GetInputBinding(KeyMode keyMode, int lane) =>
+        settings.GetInputKeys(keyMode)[lane];
+
+    internal InputKey GetBmsInputBinding(int lane) =>
+        settings.GetBmsInputKeys()[lane];
+
     internal void SetLanePressFeedback(bool enabled) =>
         settings.ShowLanePressFeedback.Value = enabled;
 
@@ -403,13 +450,48 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 return true;
             }
 
-            captureKey(key);
+            captureInput(KeyCombination.FromKey(key));
             return true;
         }
 
         if (key == Key.Escape && IsCalibrationActive)
         {
             cancelCalibration(true);
+            return true;
+        }
+
+        InputKey inputKey = KeyCombination.FromKey(key);
+        if (!pressedKeys.Add(inputKey))
+            return findLane(inputKey) >= 0;
+
+        int lane = findLane(inputKey);
+        if (lane < 0)
+        {
+            refreshLiveInputStatus(inputKey, -1);
+            return false;
+        }
+
+        if (lane < bindingCards.Count)
+            bindingCards[lane].SetPressed(true);
+
+        if (calibrationSession?.TryRecordTap(Time.Current) == true)
+            refreshCalibrationStatus(Time.Current);
+        else if (!IsCalibrationActive)
+            refreshLiveInputStatus(inputKey, lane);
+
+        return true;
+    }
+
+    internal void HandleKeyUp(Key key)
+    {
+        HandleInputUp(KeyCombination.FromKey(key));
+    }
+
+    internal bool HandleInputDown(InputKey key)
+    {
+        if (capturingCard != null)
+        {
+            captureInput(key);
             return true;
         }
 
@@ -425,7 +507,6 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
         if (lane < bindingCards.Count)
             bindingCards[lane].SetPressed(true);
-
         if (calibrationSession?.TryRecordTap(Time.Current) == true)
             refreshCalibrationStatus(Time.Current);
         else if (!IsCalibrationActive)
@@ -434,7 +515,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         return true;
     }
 
-    internal void HandleKeyUp(Key key)
+    internal void HandleInputUp(InputKey key)
     {
         pressedKeys.Remove(key);
         int lane = findLane(key);
@@ -592,7 +673,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(154, 10),
             },
             new GameplayCompactButton(
-                OsuManiaKeyLayout.GetDisplayName(selectedKeyMode),
+                bmsProfileSelected
+                    ? "BMS"
+                    : OsuManiaKeyLayout.GetDisplayName(selectedKeyMode),
                 () => SelectAdjacentKeyMode(1),
                 124)
             {
@@ -612,7 +695,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 54)
             {
                 Position = new Vector2(386, 10),
-                IsSelected = selectedKeyMode == KeyMode.FourKey,
+                IsSelected = !bmsProfileSelected
+                             && selectedKeyMode == KeyMode.FourKey,
             },
             new GameplayCompactButton(
                 "7K",
@@ -620,15 +704,24 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 54)
             {
                 Position = new Vector2(446, 10),
-                IsSelected = selectedKeyMode == KeyMode.SevenKey,
+                IsSelected = !bmsProfileSelected
+                             && selectedKeyMode == KeyMode.SevenKey,
+            },
+            new GameplayCompactButton(
+                "BMS",
+                SelectBmsProfile,
+                54)
+            {
+                Position = new Vector2(506, 10),
+                IsSelected = bmsProfileSelected,
             },
             new GameplayCompactButton(
                 YokkoStrings.Get("settings.gameplay.edit_all"),
                 BeginSequentialKeyCapture,
-                150,
+                122,
                 FontAwesome.Solid.Keyboard)
             {
-                Position = new Vector2(538, 10),
+                Position = new Vector2(566, 10),
             },
             new GameplayCompactButton(
                 YokkoStrings.Get("settings.gameplay.reset"),
@@ -642,7 +735,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             createBindingCards(),
         });
 
-        if (selectedKeyMode is KeyMode.FourKey or KeyMode.SevenKey)
+        if (!bmsProfileSelected
+            && selectedKeyMode is KeyMode.FourKey or KeyMode.SevenKey)
         {
             children.AddRange(createPresetControls());
         }
@@ -659,7 +753,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         }
 
         children.AddRange(createProfileTransferControls(
-            selectedKeyMode is KeyMode.FourKey or KeyMode.SevenKey));
+            !bmsProfileSelected
+            && selectedKeyMode is KeyMode.FourKey or KeyMode.SevenKey));
         setPanelChildren(panel, children);
 
         setContent(panel, animate);
@@ -729,8 +824,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     private Drawable createBindingCards()
     {
-        IReadOnlyList<Bindable<Key>> bindings =
-            settings.GetBindableKeys(selectedKeyMode);
+        IReadOnlyList<Bindable<Key>> bindings = getSelectedKeyboardBindings();
+        IReadOnlyList<Bindable<InputKey>> deviceBindings =
+            getSelectedDeviceBindings();
         int rowCount = bindings.Count > 10 ? 2 : 1;
         int cardsPerRow = bindings.Count / rowCount;
         float spacing = rowCount == 1 ? 10 : 8;
@@ -761,11 +857,15 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 var card = new GameplayBindingCard(
                     lane,
                     bindings[lane],
+                    deviceBindings[lane],
                     () => BeginKeyCapture(capturedLane),
                     width,
-                    rowCount > 1);
+                    rowCount > 1,
+                    bmsProfileSelected && lane == 0
+                        ? YokkoStrings.Get("settings.gameplay.bms_scratch")
+                        : default);
                 card.Height = rowCount == 1 ? 132 : 62;
-                if (pressedKeys.Contains(bindings[lane].Value))
+                if (pressedKeys.Contains(getSelectedInputKeys()[lane]))
                     card.SetPressed(true);
                 bindingCards.Add(card);
                 flow.Add(card);
@@ -773,6 +873,37 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         }
 
         return host;
+    }
+
+    private IReadOnlyList<Bindable<Key>> getSelectedKeyboardBindings() =>
+        bmsProfileSelected
+            ? settings.BmsBindings
+            : settings.GetBindableKeys(selectedKeyMode);
+
+    private IReadOnlyList<Bindable<InputKey>> getSelectedDeviceBindings() =>
+        bmsProfileSelected
+            ? settings.BmsDeviceBindings
+            : settings.GetDeviceBindings(selectedKeyMode);
+
+    private IReadOnlyList<InputKey> getSelectedInputKeys() =>
+        bmsProfileSelected
+            ? settings.GetBmsInputKeys()
+            : settings.GetInputKeys(selectedKeyMode);
+
+    private void setSelectedInputBinding(int lane, InputKey key)
+    {
+        if (bmsProfileSelected)
+            settings.SetBmsInputBinding(lane, key);
+        else
+            settings.SetInputBinding(selectedKeyMode, lane, key);
+    }
+
+    private void setSelectedInputBindings(IReadOnlyList<InputKey> keys)
+    {
+        if (bmsProfileSelected)
+            settings.SetBmsInputBindings(keys);
+        else
+            settings.SetInputBindings(selectedKeyMode, keys);
     }
 
     private Drawable createTimingSection()
@@ -1218,8 +1349,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             "settings.gameplay.input_monitor");
         statusMetadata.Text = YokkoStrings.Get(
             "settings.gameplay.ready_metadata",
-            formatKeys(settings.FourKeyBindings),
-            formatKeys(settings.SevenKeyBindings));
+            formatInputKeys(KeyMode.FourKey),
+            formatInputKeys(KeyMode.SevenKey));
         calibrationButton.SetText(YokkoStrings.Get(
             "settings.gameplay.calibration_start"));
         statusIconBackground.FadeColour(Color4.White, 120);
@@ -1229,6 +1360,14 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         IEnumerable<Bindable<Key>> bindings) =>
         string.Join("  ", bindings.Select(binding =>
             KeyModeBindings.FormatKey(binding.Value).ToUpperInvariant()));
+
+    private string formatInputKeys(KeyMode mode) =>
+        string.Join("  ", settings.GetInputKeys(mode).Select(binding =>
+            KeyModeBindings.FormatKey(binding).ToUpperInvariant()));
+
+    private string formatSelectedInputKeys() =>
+        string.Join("  ", getSelectedInputKeys().Select(binding =>
+            KeyModeBindings.FormatKey(binding).ToUpperInvariant()));
 
     private void onBindingChanged(ValueChangedEvent<Key> _) =>
         refreshStatusMetadata();
@@ -1257,7 +1396,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             bindingCards.Count);
     }
 
-    private void captureKey(Key key)
+    private void captureInput(InputKey key)
     {
         if (sequentialCapture)
         {
@@ -1275,17 +1414,21 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
             if (sequentialKeys.Count == bindingCards.Count)
             {
-                settings.SetBindings(selectedKeyMode, sequentialKeys);
+                setSelectedInputBindings(sequentialKeys);
                 sequentialCapture = false;
                 capturingCard = null;
 
                 foreach (GameplayBindingCard card in bindingCards)
                     card.SetCapturing(false);
 
-                keyCaptureHint.Text = YokkoStrings.Get(
-                    "settings.gameplay.sequence_saved",
-                    selectedKeyMode == KeyMode.FourKey ? 4 : 7,
-                    formatKeys(settings.GetBindableKeys(selectedKeyMode)));
+                keyCaptureHint.Text = bmsProfileSelected
+                    ? YokkoStrings.Get(
+                        "settings.gameplay.bms_profile_saved",
+                        formatSelectedInputKeys())
+                    : YokkoStrings.Get(
+                        "settings.gameplay.sequence_saved",
+                        (int)selectedKeyMode,
+                        formatSelectedInputKeys());
                 return;
             }
 
@@ -1296,20 +1439,18 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         }
 
         int lane = bindingCards.IndexOf(capturingCard);
-        IReadOnlyList<Bindable<Key>> bindings =
-            settings.GetBindableKeys(selectedKeyMode);
+        IReadOnlyList<InputKey> bindings = getSelectedInputKeys();
         int duplicateLane = bindings
-                            .Select((binding, index) =>
-                                (binding, index))
+                            .Select((binding, index) => (binding, index))
                             .Where(entry =>
                                 entry.index != lane
-                                && entry.binding.Value == key)
+                                && entry.binding == key)
                             .Select(entry => entry.index)
                             .DefaultIfEmpty(-1)
                             .First();
 
         GameplayBindingCard capturedCard = capturingCard;
-        settings.SetBinding(selectedKeyMode, lane, key);
+        setSelectedInputBinding(lane, key);
         capturingCard = null;
         capturedCard.SetCapturing(false);
 
@@ -1332,20 +1473,19 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         }
     }
 
-    private int findLane(Key key)
+    private int findLane(InputKey key)
     {
-        IReadOnlyList<Bindable<Key>> bindings =
-            settings.GetBindableKeys(selectedKeyMode);
+        IReadOnlyList<InputKey> bindings = getSelectedInputKeys();
         for (int lane = 0; lane < bindings.Count; lane++)
         {
-            if (bindings[lane].Value == key)
+            if (bindings[lane] == key)
                 return lane;
         }
 
         return -1;
     }
 
-    private void refreshLiveInputStatus(Key key, int lane)
+    private void refreshLiveInputStatus(InputKey key, int lane)
     {
         statusTitle.Text = lane >= 0
             ? YokkoStrings.Get(
@@ -1800,7 +1940,8 @@ internal partial class GameplaySectionTab : ClickableContainer
 
 internal partial class GameplayBindingCard : ClickableContainer
 {
-    private readonly Bindable<Key> binding;
+    private readonly Bindable<Key> keyboardBinding;
+    private readonly Bindable<InputKey> deviceBinding;
     private readonly Box background;
     private readonly SpriteText laneText;
     private readonly SpriteText keyText;
@@ -1811,12 +1952,15 @@ internal partial class GameplayBindingCard : ClickableContainer
 
     public GameplayBindingCard(
         int lane,
-        Bindable<Key> binding,
+        Bindable<Key> keyboardBinding,
+        Bindable<InputKey> deviceBinding,
         Action action,
         float width,
-        bool compact = false)
+        bool compact = false,
+        LocalisableString? customLaneLabel = null)
     {
-        this.binding = binding;
+        this.keyboardBinding = keyboardBinding;
+        this.deviceBinding = deviceBinding;
         this.compact = compact;
         Action = action;
         Size = new Vector2(width, compact ? 62 : 140);
@@ -1837,7 +1981,7 @@ internal partial class GameplayBindingCard : ClickableContainer
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
                 Y = compact ? 4 : 13,
-                Text = YokkoStrings.Get(
+                Text = customLaneLabel ?? YokkoStrings.Get(
                     "settings.gameplay.lane",
                     lane + 1),
                 Font = HomeTypography.Body(compact ? 11 : 16),
@@ -1863,7 +2007,8 @@ internal partial class GameplayBindingCard : ClickableContainer
             },
         };
 
-        binding.BindValueChanged(onBindingChanged, true);
+        keyboardBinding.BindValueChanged(onKeyboardBindingChanged, true);
+        deviceBinding.BindValueChanged(onDeviceBindingChanged, true);
     }
 
     public void SetCapturing(bool isCapturing)
@@ -1881,7 +2026,7 @@ internal partial class GameplayBindingCard : ClickableContainer
             Easing.OutQuint);
         keyText.Text = capturing
             ? YokkoStrings.Get("settings.gameplay.press_key")
-            : displayKey(binding.Value);
+            : displayKey(currentBinding);
         keyText.Font = HomeTypography.Display(
             capturing
                 ? compact ? 10 : 17
@@ -1932,7 +2077,7 @@ internal partial class GameplayBindingCard : ClickableContainer
         this.ScaleTo(pressed ? 1.025f : 1, 80, Easing.OutQuint);
     }
 
-    public void SetPreviewKey(Key key)
+    public void SetPreviewKey(InputKey key)
     {
         capturing = false;
         background.FadeColour(
@@ -1989,13 +2134,23 @@ internal partial class GameplayBindingCard : ClickableContainer
         }, 1200);
     }
 
-    private void onBindingChanged(ValueChangedEvent<Key> change)
+    private InputKey currentBinding => deviceBinding.Value != InputKey.None
+        ? deviceBinding.Value
+        : KeyCombination.FromKey(keyboardBinding.Value);
+
+    private void onKeyboardBindingChanged(ValueChangedEvent<Key> _)
     {
         if (!capturing)
-            keyText.Text = displayKey(change.NewValue);
+            keyText.Text = displayKey(currentBinding);
     }
 
-    private static string displayKey(Key key) =>
+    private void onDeviceBindingChanged(ValueChangedEvent<InputKey> _)
+    {
+        if (!capturing)
+            keyText.Text = displayKey(currentBinding);
+    }
+
+    private static string displayKey(InputKey key) =>
         KeyModeBindings.FormatKey(key).ToUpperInvariant();
 
     protected override bool OnHover(HoverEvent e)
@@ -2015,7 +2170,10 @@ internal partial class GameplayBindingCard : ClickableContainer
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
-            binding.ValueChanged -= onBindingChanged;
+        {
+            keyboardBinding.ValueChanged -= onKeyboardBindingChanged;
+            deviceBinding.ValueChanged -= onDeviceBindingChanged;
+        }
 
         base.Dispose(isDisposing);
     }
@@ -2872,7 +3030,8 @@ internal partial class GameplayEtternaJusticeControls : CompositeDrawable
 internal partial class GameplayJudgementModeSelector : CompositeDrawable
 {
     private readonly Bindable<JudgementMode> mode;
-    private readonly SettingsSegmentedChoiceButton yokkoButton;
+    private readonly SettingsSegmentedChoiceButton lazerButton;
+    private readonly SettingsSegmentedChoiceButton stableButton;
     private readonly SettingsSegmentedChoiceButton etternaButton;
 
     public GameplayJudgementModeSelector(
@@ -2888,18 +3047,24 @@ internal partial class GameplayJudgementModeSelector : CompositeDrawable
             Direction = FillDirection.Horizontal,
             Children = new Drawable[]
             {
-                yokkoButton = new SettingsSegmentedChoiceButton(
+                lazerButton = new SettingsSegmentedChoiceButton(
                     YokkoStrings.Get(
                         "settings.gameplay.judgement_yokko"),
                     FontAwesome.Solid.Gamepad,
                     () => mode.Value = JudgementMode.Yokko,
-                    400),
+                    800f / 3),
+                stableButton = new SettingsSegmentedChoiceButton(
+                    YokkoStrings.Get(
+                        "settings.gameplay.judgement_osu_stable"),
+                    FontAwesome.Solid.Clock,
+                    () => mode.Value = JudgementMode.OsuStable,
+                    800f / 3),
                 etternaButton = new SettingsSegmentedChoiceButton(
                     YokkoStrings.Get(
                         "settings.gameplay.judgement_etterna"),
                     FontAwesome.Solid.Bullseye,
                     () => mode.Value = JudgementMode.Etterna,
-                    400),
+                    800f / 3),
             },
         });
         InternalChild = card;
@@ -2910,7 +3075,9 @@ internal partial class GameplayJudgementModeSelector : CompositeDrawable
     private void onModeChanged(
         ValueChangedEvent<JudgementMode> change)
     {
-        yokkoButton.SetSelected(change.NewValue == JudgementMode.Yokko);
+        lazerButton.SetSelected(change.NewValue == JudgementMode.Yokko);
+        stableButton.SetSelected(
+            change.NewValue == JudgementMode.OsuStable);
         etternaButton.SetSelected(
             change.NewValue == JudgementMode.Etterna);
     }

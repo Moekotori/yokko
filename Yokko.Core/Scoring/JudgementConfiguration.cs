@@ -5,6 +5,7 @@ public enum JudgementMode
     Yokko,
     Etterna,
     Quaver,
+    OsuStable,
 }
 
 /// <summary>
@@ -19,6 +20,9 @@ public readonly record struct JudgementConfiguration
 
     public static JudgementConfiguration YokkoDefault { get; } =
         new(JudgementMode.Yokko);
+
+    public static JudgementConfiguration OsuStableDefault { get; } =
+        new(JudgementMode.OsuStable);
 
     public static JudgementConfiguration EtternaDefault { get; } =
         new(JudgementMode.Etterna);

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
 using Yokko.Core.Timing;
 
@@ -160,6 +161,86 @@ namespace Yokko.Game.Tests.Core
                 Assert.That(windows.OkMilliseconds, Is.EqualTo(97.5));
                 Assert.That(windows.MehMilliseconds, Is.EqualTo(121.5));
                 Assert.That(windows.MissMilliseconds, Is.EqualTo(158.5));
+            });
+        }
+
+        [Test]
+        public void OsuStableModeUsesScoreV1Windows()
+        {
+            var windows = new JudgementWindows(
+                8,
+                configuration: JudgementConfiguration.OsuStableDefault);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(windows.PerfectMilliseconds, Is.EqualTo(16.5));
+                Assert.That(windows.GreatMilliseconds, Is.EqualTo(40.5));
+                Assert.That(windows.GoodMilliseconds, Is.EqualTo(73.5));
+                Assert.That(windows.OkMilliseconds, Is.EqualTo(103.5));
+                Assert.That(windows.MehMilliseconds, Is.EqualTo(127.5));
+                Assert.That(windows.MissMilliseconds, Is.EqualTo(164.5));
+            });
+        }
+
+        [Test]
+        public void OsuStableConvertUsesLegacyConvertWindows()
+        {
+            var windows = new JudgementWindows(
+                overallDifficulty: 5,
+                isConvert: true,
+                configuration: JudgementConfiguration.OsuStableDefault);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(windows.PerfectMilliseconds, Is.EqualTo(16.5));
+                Assert.That(windows.GreatMilliseconds, Is.EqualTo(34.5));
+                Assert.That(windows.GoodMilliseconds, Is.EqualTo(67.5));
+                Assert.That(windows.OkMilliseconds, Is.EqualTo(97.5));
+                Assert.That(windows.MehMilliseconds, Is.EqualTo(121.5));
+                Assert.That(windows.MissMilliseconds, Is.EqualTo(158.5));
+            });
+        }
+
+        [Test]
+        public void OsuStableWindowsIgnoreRateButApplyHardRockScaling()
+        {
+            var doubleTime = new JudgementWindows(
+                8,
+                speedMultiplier: 1.5,
+                configuration: JudgementConfiguration.OsuStableDefault);
+            var hardRock = new JudgementWindows(
+                8,
+                speedMultiplier: 1.5,
+                difficultyMultiplier: 1.4,
+                configuration: JudgementConfiguration.OsuStableDefault);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(doubleTime.PerfectMilliseconds,
+                    Is.EqualTo(16.5));
+                Assert.That(doubleTime.GreatMilliseconds,
+                    Is.EqualTo(40.5));
+                Assert.That(hardRock.PerfectMilliseconds,
+                    Is.EqualTo(11.5));
+                Assert.That(hardRock.GreatMilliseconds,
+                    Is.EqualTo(28.5));
+            });
+        }
+
+        [Test]
+        public void OsuStableTapAllowsEarlyMehButNotLateMeh()
+        {
+            var early = createOsuStableState(createTapBeatmap(1000));
+            var late = createOsuStableState(createTapBeatmap(1000));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    early.JudgeLanePress(0, 890).Single().Rating,
+                    Is.EqualTo(JudgementRating.Meh));
+                Assert.That(
+                    late.JudgeLanePress(0, 1110).Single().Rating,
+                    Is.EqualTo(JudgementRating.Miss));
             });
         }
 
@@ -1082,6 +1163,298 @@ namespace Yokko.Game.Tests.Core
         }
 
         [Test]
+        public void OsuStableHoldProducesOneCombinedScoreV1Judgement()
+        {
+            BeatmapJudgementState state = createOsuStableState(
+                createHoldBeatmap());
+
+            JudgementEvent head = state.JudgeLanePress(1, 1000).Single();
+            JudgementEvent result = state.JudgeLaneRelease(1, 1500).Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(head.Rating, Is.EqualTo(JudgementRating.IgnoreHit));
+                Assert.That(result.Phase, Is.EqualTo(JudgementPhase.Hold));
+                Assert.That(result.Rating, Is.EqualTo(JudgementRating.Perfect));
+                Assert.That(state.Counts.Perfect, Is.EqualTo(1));
+                Assert.That(state.Combo, Is.EqualTo(1));
+                Assert.That(state.Score, Is.EqualTo(1_000_000));
+                Assert.That(state.IsComplete, Is.True);
+            });
+        }
+
+        [Test]
+        public void OsuStableDroppedHoldIsCappedAtMehAfterRegrab()
+        {
+            BeatmapJudgementState state = createOsuStableState(
+                createHoldBeatmap());
+
+            state.JudgeLanePress(1, 1000);
+            Assert.That(state.JudgeLaneRelease(1, 1200), Is.Empty);
+            state.JudgeLanePress(1, 1300);
+            JudgementEvent result = state.JudgeLaneRelease(1, 1500).Single();
+
+            Assert.That(result.Rating, Is.EqualTo(JudgementRating.Meh));
+            Assert.That(state.Counts.Meh, Is.EqualTo(1));
+            Assert.That(state.Combo, Is.Zero);
+            Assert.That(state.ComboBreaks, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void OsuStableHoldComboStartsAtHeadAndBreaksDuringBody()
+        {
+            BeatmapJudgementState state = createOsuStableState(
+                createHoldBeatmap());
+
+            state.JudgeLanePress(1, 1000);
+            Assert.That(state.Combo, Is.EqualTo(1));
+
+            state.JudgeLaneRelease(1, 1200);
+            Assert.Multiple(() =>
+            {
+                Assert.That(state.Combo, Is.Zero);
+                Assert.That(state.ComboBreaks, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void OsuStableEarlyMissBandHoldCanRecoverToMeh()
+        {
+            BeatmapJudgementState state = createOsuStableState(
+                createHoldBeatmap());
+
+            JudgementEvent head = state.JudgeLanePress(1, 850).Single();
+            JudgementEvent tail = state.JudgeLaneRelease(1, 1500).Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(head.Rating,
+                    Is.EqualTo(JudgementRating.IgnoreHit));
+                Assert.That(tail.Rating,
+                    Is.EqualTo(JudgementRating.Meh));
+                Assert.That(state.Combo, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void OsuStableHoldRoundsHeadAndTailBeforeCombiningErrors()
+        {
+            BeatmapJudgementState inside = createOsuStableState(
+                createHoldBeatmap());
+            BeatmapJudgementState outside = createOsuStableState(
+                createHoldBeatmap());
+
+            inside.JudgeLanePress(1, 1019.49);
+            outside.JudgeLanePress(1, 1019.51);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    inside.JudgeLaneRelease(1, 1500).Single().Rating,
+                    Is.EqualTo(JudgementRating.Perfect));
+                Assert.That(
+                    outside.JudgeLaneRelease(1, 1500).Single().Rating,
+                    Is.EqualTo(JudgementRating.Great));
+            });
+        }
+
+        [Test]
+        public void OsuStableScoreV1TreatsMaxAndGreatAsFullAccuracy()
+        {
+            var processor = new ManiaScoreProcessor(
+                createTapBeatmap(1000, 1500),
+                judgementConfiguration:
+                    JudgementConfiguration.OsuStableDefault);
+
+            processor.Apply(JudgementRating.Perfect);
+            processor.Apply(JudgementRating.Great);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(processor.Accuracy, Is.EqualTo(1));
+                Assert.That(processor.Combo, Is.EqualTo(2));
+                Assert.That(processor.TotalScore, Is.EqualTo(984_375));
+            });
+        }
+
+        [Test]
+        public void OsuStableScoreV1UsesDocumentedBonusDividerAndMultiplier()
+        {
+            YokkoBeatmap beatmap = createTapBeatmap(1000, 1500);
+            var noMods = new ManiaScoreProcessor(
+                beatmap,
+                judgementConfiguration:
+                    JudgementConfiguration.OsuStableDefault);
+            var doubleTime = new ManiaScoreProcessor(
+                beatmap,
+                scoreMultiplier: 1,
+                judgementConfiguration:
+                    JudgementConfiguration.OsuStableDefault,
+                osuStableBonusPunishmentDivider: 1.1);
+            var easy = new ManiaScoreProcessor(
+                beatmap,
+                scoreMultiplier: 0.5,
+                judgementConfiguration:
+                    JudgementConfiguration.OsuStableDefault);
+
+            foreach (ManiaScoreProcessor processor in
+                     new[] { noMods, doubleTime })
+            {
+                processor.Apply(JudgementRating.Good);
+                processor.Apply(JudgementRating.Perfect);
+            }
+            easy.Apply(JudgementRating.Perfect);
+            easy.Apply(JudgementRating.Perfect);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(noMods.TotalScore, Is.EqualTo(768_530));
+                Assert.That(doubleTime.TotalScore, Is.EqualTo(769_939));
+                Assert.That(easy.TotalScoreWithoutMods,
+                    Is.EqualTo(1_000_000));
+                Assert.That(easy.TotalScore, Is.EqualTo(500_000));
+            });
+        }
+
+        [Test]
+        public void OsuStableScoreV1MatchesFormulaForEveryThreeHitSequence()
+        {
+            JudgementRating[] ratings =
+            [
+                JudgementRating.Perfect,
+                JudgementRating.Great,
+                JudgementRating.Good,
+                JudgementRating.Ok,
+                JudgementRating.Meh,
+                JudgementRating.Miss,
+            ];
+            YokkoBeatmap beatmap = createTapBeatmap(1000, 1100, 1200);
+
+            foreach (double divider in new[] { 1d, 1.08, 1.1, 1.08 * 1.1 * 1.06 })
+            foreach (JudgementRating first in ratings)
+            foreach (JudgementRating second in ratings)
+            foreach (JudgementRating third in ratings)
+            {
+                JudgementRating[] sequence = [first, second, third];
+                var processor = new ManiaScoreProcessor(
+                    beatmap,
+                    judgementConfiguration:
+                        JudgementConfiguration.OsuStableDefault,
+                    osuStableBonusPunishmentDivider: divider);
+                foreach (JudgementRating rating in sequence)
+                    processor.Apply(rating);
+
+                (long score, double accuracy, int combo, int maxCombo,
+                    ScoreRank rank) = referenceStableScore(
+                        sequence,
+                        divider);
+                string message =
+                    $"divider={divider}, sequence={string.Join(',', sequence)}";
+                Assert.Multiple(() =>
+                {
+                    Assert.That(processor.TotalScore,
+                        Is.EqualTo(score), message);
+                    Assert.That(processor.Accuracy,
+                        Is.EqualTo(accuracy).Within(1e-12), message);
+                    Assert.That(processor.Combo,
+                        Is.EqualTo(combo), message);
+                    Assert.That(processor.MaxCombo,
+                        Is.EqualTo(maxCombo), message);
+                    Assert.That(processor.Rank,
+                        Is.EqualTo(rank), message);
+                });
+            }
+        }
+
+        [Test]
+        public void OsuStableScoreV1UsesStrictGradeThresholds()
+        {
+            double[] times = Enumerable.Range(0, 20)
+                .Select(index => 1000d + index * 100)
+                .ToArray();
+            var exactlyNinetyFive = new ManiaScoreProcessor(
+                createTapBeatmap(times),
+                judgementConfiguration:
+                    JudgementConfiguration.OsuStableDefault);
+            var aboveNinetyFive = new ManiaScoreProcessor(
+                createTapBeatmap(times),
+                judgementConfiguration:
+                    JudgementConfiguration.OsuStableDefault);
+
+            for (int index = 0; index < 20; index++)
+            {
+                exactlyNinetyFive.Apply(index < 17
+                    ? JudgementRating.Great
+                    : JudgementRating.Good);
+                aboveNinetyFive.Apply(index < 18
+                    ? JudgementRating.Great
+                    : JudgementRating.Good);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exactlyNinetyFive.Accuracy,
+                    Is.EqualTo(0.95).Within(1e-12));
+                Assert.That(exactlyNinetyFive.Rank,
+                    Is.EqualTo(ScoreRank.A));
+                Assert.That(aboveNinetyFive.Rank,
+                    Is.EqualTo(ScoreRank.S));
+            });
+        }
+
+        [Test]
+        public void OsuStableScoreV1ModTableMatchesStableValues()
+        {
+            YokkoBeatmap beatmap = createTapBeatmap(1000);
+            var reductions = new ManiaModSet(new[]
+            {
+                ManiaModId.Easy,
+                ManiaModId.NoFail,
+                ManiaModId.HalfTime,
+            });
+            var increases = new ManiaModSet(new[]
+            {
+                ManiaModId.HardRock,
+                ManiaModId.DoubleTime,
+                ManiaModId.Hidden,
+            });
+
+            OsuStableScoreV1ModMultipliers reductionMultipliers =
+                OsuStableScoreV1Mods.Calculate(beatmap, reductions);
+            OsuStableScoreV1ModMultipliers increaseMultipliers =
+                OsuStableScoreV1Mods.Calculate(beatmap, increases);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reductionMultipliers.ScoreMultiplier,
+                    Is.EqualTo(0.125));
+                Assert.That(increaseMultipliers.BonusPunishmentDivider,
+                    Is.EqualTo(1.08 * 1.1 * 1.06).Within(1e-12));
+            });
+        }
+
+        [Test]
+        public void OsuStableScoreV1UsesStableConvertKeyMultiplierTable()
+        {
+            YokkoBeatmap beatmap = createTapBeatmap(1000) with
+            {
+                ConversionSource = new ManiaConversionSource(
+                    CircleSize: 4,
+                    OverallDifficulty: 5,
+                    ApproachRate: 5,
+                    DrainRate: 5,
+                    HitObjects: []),
+            };
+            var oneKey = new ManiaModSet(new[] { ManiaModId.Key1 });
+
+            OsuStableScoreV1ModMultipliers multipliers =
+                OsuStableScoreV1Mods.Calculate(beatmap, oneKey);
+
+            Assert.That(multipliers.ScoreMultiplier,
+                Is.EqualTo(0.78).Within(1e-12));
+        }
+
+        [Test]
         public void NoReleaseAutomaticallyPerfectsAHeldTail()
         {
             var state = new BeatmapJudgementState(
@@ -1413,6 +1786,69 @@ namespace Yokko.Game.Tests.Core
                 new JudgementWindows(overallDifficulty));
         }
 
+        private static (long Score, double Accuracy, int Combo,
+            int MaxCombo, ScoreRank Rank) referenceStableScore(
+            IReadOnlyList<JudgementRating> sequence,
+            double punishmentDivider)
+        {
+            double bonus = 100;
+            double baseScore = 0;
+            double bonusScore = 0;
+            double accuracyTotal = 0;
+            int combo = 0;
+            int maxCombo = 0;
+            double perHitHalf = 500_000d / sequence.Count;
+
+            foreach (JudgementRating rating in sequence)
+            {
+                (double hitValue, double bonusValue, double bonusGain,
+                    double punishment, double accuracyValue) = rating switch
+                {
+                    JudgementRating.Perfect => (320, 32, 2, 0, 300),
+                    JudgementRating.Great => (300, 32, 1, 0, 300),
+                    JudgementRating.Good => (200, 16, 0, 8, 200),
+                    JudgementRating.Ok => (100, 8, 0, 24, 100),
+                    JudgementRating.Meh => (50, 4, 0, 44, 50),
+                    JudgementRating.Miss =>
+                        (0, 0, 0, double.PositiveInfinity, 0),
+                    _ => throw new ArgumentOutOfRangeException(
+                        nameof(sequence)),
+                };
+                bonus = double.IsPositiveInfinity(punishment)
+                    ? 0
+                    : Math.Clamp(
+                        bonus + bonusGain
+                        - punishment / punishmentDivider,
+                        0,
+                        100);
+                baseScore += perHitHalf * hitValue / 320;
+                bonusScore += perHitHalf
+                              * bonusValue
+                              * Math.Sqrt(bonus)
+                              / 320;
+                accuracyTotal += accuracyValue;
+                combo = rating == JudgementRating.Miss ? 0 : combo + 1;
+                maxCombo = Math.Max(maxCombo, combo);
+            }
+
+            double accuracy = accuracyTotal / (sequence.Count * 300);
+            ScoreRank rank = accuracy switch
+            {
+                1 => ScoreRank.X,
+                > 0.95 => ScoreRank.S,
+                > 0.90 => ScoreRank.A,
+                > 0.80 => ScoreRank.B,
+                > 0.70 => ScoreRank.C,
+                _ => ScoreRank.D,
+            };
+            return (
+                (long)Math.Round(baseScore + bonusScore),
+                accuracy,
+                combo,
+                maxCombo,
+                rank);
+        }
+
         private static YokkoBeatmap createTapBeatmap(params double[] times)
             => new(
                 "Tap test",
@@ -1478,6 +1914,15 @@ namespace Yokko.Game.Tests.Core
                     configuration: new JudgementConfiguration(
                         JudgementMode.Etterna,
                         4)));
+
+        private static BeatmapJudgementState createOsuStableState(
+            YokkoBeatmap beatmap)
+            => new(
+                beatmap,
+                new JudgementWindows(
+                    beatmap.OverallDifficulty,
+                    configuration:
+                        JudgementConfiguration.OsuStableDefault));
 
         private static YokkoBeatmap createLaneBeatmap(
             params (double Time, HitObjectKind Kind)[] objects)

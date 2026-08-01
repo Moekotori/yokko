@@ -3027,8 +3027,8 @@ public partial class SongSelectScreen : Screen
                     displayedLengthMilliseconds,
                     bpmLabel,
                     appliedBeatmap.HitObjects.Count,
-                    difficultyRatings,
-                    displaySettings.DifficultyRatingMode.Value),
+                    appliedBeatmap.OverallDifficulty,
+                    appliedBeatmap.DrainRate),
                 createSelectedDetailsDivider(),
                 selectedPerformanceRow =
                     createSelectedPerformanceRow(rateLabel),
@@ -3272,8 +3272,8 @@ public partial class SongSelectScreen : Screen
         double lengthMilliseconds,
         string bpm,
         int noteCount,
-        ManiaDifficultyRatings ratings,
-        ManiaDifficultyRatingMode ratingMode) => new()
+        double overallDifficulty,
+        double drainRate) => new()
         {
             Position = new Vector2(details_content_left, 169),
             Size = new Vector2(details_content_width, 34),
@@ -3286,20 +3286,34 @@ public partial class SongSelectScreen : Screen
                     "LENGTH",
                     TimeSpan.FromMilliseconds(lengthMilliseconds)
                             .ToString(@"mm\:ss")),
-                createDetailsVerticalDivider(176),
+                createDetailsVerticalDivider(110),
                 createSongStat(
-                    196,
+                    122,
                     0,
                     FontAwesome.Solid.WaveSquare,
                     "BPM",
                     bpm),
-                createDetailsVerticalDivider(372),
+                createDetailsVerticalDivider(218),
                 createSongStat(
-                    392,
+                    230,
                     0,
                     FontAwesome.Solid.Music,
                     "NOTES",
                     noteCount.ToString("N0")),
+                createDetailsVerticalDivider(332),
+                createSongStat(
+                    344,
+                    0,
+                    FontAwesome.Solid.Bullseye,
+                    "OD",
+                    overallDifficulty.ToString("0.0")),
+                createDetailsVerticalDivider(434),
+                createSongStat(
+                    446,
+                    0,
+                    FontAwesome.Regular.Heart,
+                    "HP",
+                    drainRate.ToString("0.0")),
             ],
         };
 
@@ -3635,7 +3649,7 @@ public partial class SongSelectScreen : Screen
     private static Drawable createSongStat(float x, float y, IconUsage icon, LocalisableString label, string value) => new Container
     {
         Position = new Vector2(x, y),
-        Size = new Vector2(160, 34),
+        Size = new Vector2(112, 34),
         Children = new Drawable[]
         {
             new SpriteIcon

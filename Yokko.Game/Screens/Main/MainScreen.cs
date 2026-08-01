@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Primitives;
@@ -18,6 +19,7 @@ using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Audio;
+using Yokko.Game.Configuration;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.ChartLibrary;
@@ -39,7 +41,6 @@ public partial class MainScreen : Screen
     private const float musicPlayerHeight = 72;
     // 播放器底部为贴底波形带让位（带高约 64，并留 4px 呼吸缝）；带内立柱经卡片下方时自动收低。
     private const float musicPlayerBottomMargin = 68;
-    private const double exitHoldDuration = 2000;
     private const double bubbleIdleLineInterval = 8000;
     private static readonly Vector2 mascotCentre = new(785, 500);
     private static readonly Vector2 mascotSize = new(1070, 1210);
@@ -130,6 +131,7 @@ public partial class MainScreen : Screen
     private Vector2 parallaxCurrent;
     private double escapeHoldStartedAt;
     private bool isEscapeHeld;
+    private Bindable<double> exitHoldDuration;
 
     [Resolved]
     private GameHost host { get; set; }
@@ -142,8 +144,10 @@ public partial class MainScreen : Screen
     }
 
     [BackgroundDependencyLoader]
-    private void load(TextureStore textures)
+    private void load(TextureStore textures, YokkoConfigManager config)
     {
+        exitHoldDuration = config.GetBindable<double>(
+            YokkoSetting.HomeExitHoldDurationMilliseconds);
         string availableBackend = AudioEngineFactory.AvailableBackends
                                                     .Where(backend => backend.IsAvailable)
                                                     .Select(backendDisplayName)
@@ -683,9 +687,10 @@ public partial class MainScreen : Screen
         if (isEscapeHeld)
         {
             double heldFor = Time.Current - escapeHoldStartedAt;
-            exitIndicator.SetProgress((float)(heldFor / exitHoldDuration));
+            double holdDuration = exitHoldDuration.Value;
+            exitIndicator.SetProgress((float)(heldFor / holdDuration));
 
-            if (heldFor >= exitHoldDuration)
+            if (heldFor >= holdDuration)
             {
                 cancelExitHold();
                 requestGameExit?.Invoke();

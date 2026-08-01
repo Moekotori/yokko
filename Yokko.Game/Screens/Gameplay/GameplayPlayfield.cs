@@ -71,6 +71,7 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly bool comboBurstRandom;
     private int comboBurstTextureIndex;
     private int lastComboBurstMilestone;
+    private bool focusModeActive;
     private readonly ManiaNoteVisibilityCover noteVisibilityCover;
     private readonly ManiaFlashlightOverlay flashlightOverlay;
     private ManiaVisibilityPolicy visibilityPolicy;
@@ -983,6 +984,18 @@ public partial class GameplayPlayfield : CompositeDrawable
             overlay.SetComboEditorPreview(preview);
     }
 
+    internal void SetFocusMode(bool active)
+    {
+        focusModeActive = active;
+
+        foreach (OsuManiaSkinOverlay overlay in skinOverlays)
+            overlay.Alpha = active ? 0 : 1;
+        if (legacyHealthBar != null)
+            legacyHealthBar.Alpha = active ? 0 : 1;
+        if (comboBurstLayer != null)
+            comboBurstLayer.Alpha = active ? 0 : 1;
+    }
+
     internal void SetSkinFeedbackLayout(
         Vector2 comboOffset,
         Vector2 comboScale,
@@ -1121,7 +1134,8 @@ public partial class GameplayPlayfield : CompositeDrawable
             overlay.SetCombo(state.Combo);
         foreach (Sprite warningArrow in warningArrows)
             warningArrow.Alpha =
-                gameplayTimeMilliseconds >= warningArrowStartTime
+                !focusModeActive
+                && gameplayTimeMilliseconds >= warningArrowStartTime
                 && gameplayTimeMilliseconds < firstObjectTime
                     ? 1
                     : 0;

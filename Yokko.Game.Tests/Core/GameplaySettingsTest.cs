@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using osu.Framework.Input.Bindings;
 using osu.Framework.Platform;
 using osuTK.Input;
 using Yokko.Core.Gameplay;
@@ -456,6 +457,27 @@ public sealed class GameplaySettingsTest
     }
 
     [Test]
+    public void MidiAndHidBindingsSwapAndDriveGameplayLookup()
+    {
+        var settings = new YokkoGameplaySettings();
+        settings.SetInputBinding(KeyMode.FourKey, 0, InputKey.MidiC4);
+        settings.SetInputBinding(KeyMode.FourKey, 1, InputKey.Joystick1);
+
+        settings.SetInputBinding(KeyMode.FourKey, 1, InputKey.MidiC4);
+
+        Assert.That(
+            settings.GetInputKeys(KeyMode.FourKey).Take(2),
+            Is.EqualTo(new[] { InputKey.Joystick1, InputKey.MidiC4 }));
+
+        KeyModeBindings bindings = KeyModeBindings.ForMode(
+            KeyMode.FourKey,
+            settings.GetInputKeys(KeyMode.FourKey));
+        Assert.That(bindings.GetLane(InputKey.Joystick1), Is.Zero);
+        Assert.That(bindings.GetLane(InputKey.MidiC4), Is.EqualTo(1));
+        Assert.That(bindings.GetLane(Key.D), Is.EqualTo(-1));
+    }
+
+    [Test]
     public void GameplayLayoutCanResetWithoutChangingGameplayRules()
     {
         var settings = new YokkoGameplaySettings();
@@ -487,6 +509,8 @@ public sealed class GameplaySettingsTest
         settings.LayoutJudgementOffsetY.Value = 0.14;
         settings.LayoutJudgementScaleX.Value = 1.3;
         settings.LayoutJudgementScaleY.Value = 0.7;
+        settings.LayoutPerformanceReadoutOffsetX.Value = -0.42;
+        settings.LayoutPerformanceReadoutOffsetY.Value = -0.35;
         settings.ReplayControlsOffsetX.Value = 0.2;
         settings.ReplayControlsOffsetY.Value = 0.35;
         settings.LayoutTopCoverRatio.Value = 0.32;
@@ -530,6 +554,12 @@ public sealed class GameplaySettingsTest
             Assert.That(settings.LayoutJudgementOffsetY.Value, Is.Zero);
             Assert.That(settings.LayoutJudgementScaleX.Value, Is.EqualTo(1));
             Assert.That(settings.LayoutJudgementScaleY.Value, Is.EqualTo(1));
+            Assert.That(
+                settings.LayoutPerformanceReadoutOffsetX.Value,
+                Is.Zero);
+            Assert.That(
+                settings.LayoutPerformanceReadoutOffsetY.Value,
+                Is.Zero);
             Assert.That(settings.ReplayControlsOffsetX.Value, Is.Zero);
             Assert.That(settings.ReplayControlsOffsetY.Value, Is.Zero);
             Assert.That(settings.LayoutTopCoverRatio.Value, Is.Zero);
@@ -618,6 +648,8 @@ public sealed class GameplaySettingsTest
                 firstSettings.LayoutJudgementOffsetY.Value = 0.24;
                 firstSettings.LayoutJudgementScaleX.Value = 1.45;
                 firstSettings.LayoutJudgementScaleY.Value = 0.75;
+                firstSettings.LayoutPerformanceReadoutOffsetX.Value = -0.42;
+                firstSettings.LayoutPerformanceReadoutOffsetY.Value = -0.35;
                 firstSettings.ReplayControlsOffsetX.Value = 0.2;
                 firstSettings.ReplayControlsOffsetY.Value = 0.35;
                 firstSettings.LayoutTopCoverRatio.Value = 0.28;
@@ -783,6 +815,12 @@ public sealed class GameplaySettingsTest
                     restoredSettings.LayoutJudgementScaleY.Value,
                     Is.EqualTo(0.75).Within(0.001));
                 Assert.That(
+                    restoredSettings.LayoutPerformanceReadoutOffsetX.Value,
+                    Is.EqualTo(-0.42).Within(0.001));
+                Assert.That(
+                    restoredSettings.LayoutPerformanceReadoutOffsetY.Value,
+                    Is.EqualTo(-0.35).Within(0.001));
+                Assert.That(
                     restoredSettings.ReplayControlsOffsetX.Value,
                     Is.EqualTo(0.2).Within(0.001));
                 Assert.That(
@@ -910,7 +948,7 @@ public sealed class GameplaySettingsTest
         var restored = new YokkoGameplaySettings();
         GameplayKeyProfileCodec.DecodeAndApply(encoded, restored);
 
-        Assert.That(encoded, Does.StartWith("YOKKO-KEYS-V3|1K="));
+        Assert.That(encoded, Does.StartWith("YOKKO-KEYS-V4|1K="));
         foreach (KeyMode mode in source.SupportedKeyModes)
         {
             Assert.That(
@@ -927,12 +965,33 @@ public sealed class GameplaySettingsTest
         }
     }
 
+
+    [Test]
+    public void MidiAndHidBindingsRoundTripInVersionFourProfile()
+    {
+        var source = new YokkoGameplaySettings();
+        source.SetInputBinding(KeyMode.FourKey, 0, InputKey.MidiC4);
+        source.SetInputBinding(KeyMode.FourKey, 1, InputKey.Joystick3);
+
+        string encoded = GameplayKeyProfileCodec.Encode(source);
+        var restored = new YokkoGameplaySettings();
+        GameplayKeyProfileCodec.DecodeAndApply(encoded, restored);
+
+        Assert.That(
+            restored.GetInputKeys(KeyMode.FourKey),
+            Is.EqualTo(source.GetInputKeys(KeyMode.FourKey)));
+    }
+
     [Test]
     public void KeyProfileBeforeLayoutEditorShortcutStillImports()
     {
         var source = new YokkoGameplaySettings();
         source.SetBinding(KeyMode.FourKey, 0, Key.Z);
         string legacyV3 = GameplayKeyProfileCodec.Encode(source)
+            .Replace(
+                "YOKKO-KEYS-V4",
+                "YOKKO-KEYS-V3",
+                StringComparison.Ordinal)
             .Replace(
                 ",ToggleLayoutEditorUi:BackSlash",
                 string.Empty,

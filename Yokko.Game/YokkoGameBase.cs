@@ -87,6 +87,8 @@ namespace Yokko.Game
         private readonly YokkoDiagnostics diagnostics = new();
         [Cached(typeof(IResourceDirectoryPicker))]
         private readonly IResourceDirectoryPicker resourceDirectoryPicker;
+        [Cached]
+        private GameHost gameHost;
         [Cached(typeof(IDesktopDisplayModeController))]
         private readonly IDesktopDisplayModeController displayModeController;
         private ImportNotificationOverlay importOverlay;
@@ -152,6 +154,7 @@ namespace Yokko.Game
             }
 
             base.SetHost(host);
+            gameHost = host;
             yokkoConfig ??= new YokkoConfigManager(host.Storage);
             yokkoConfig.BindAudioSettings(audioSettings);
             yokkoConfig.BindDisplaySettings(displaySettings);

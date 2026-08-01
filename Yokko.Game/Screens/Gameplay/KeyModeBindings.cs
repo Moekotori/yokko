@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Input.Bindings;
 using osuTK.Input;
 using Yokko.Core.Gameplay;
 using Yokko.Game.Gameplay;
@@ -9,14 +10,14 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public sealed class KeyModeBindings
 {
-    private readonly Key[] keys;
-    private readonly Dictionary<Key, int> lanesByKey;
+    private readonly InputKey[] keys;
+    private readonly Dictionary<InputKey, int> lanesByKey;
 
-    private KeyModeBindings(KeyMode keyMode, Key[] keys)
+    private KeyModeBindings(KeyMode keyMode, InputKey[] keys)
     {
         KeyMode = keyMode;
         this.keys = keys;
-        lanesByKey = new Dictionary<Key, int>(keys.Length);
+        lanesByKey = new Dictionary<InputKey, int>(keys.Length);
 
         for (int i = 0; i < keys.Length; i++)
             lanesByKey[keys[i]] = i;
@@ -27,7 +28,11 @@ public sealed class KeyModeBindings
     public int KeyCount => keys.Length;
 
     public static KeyModeBindings ForMode(KeyMode keyMode) =>
-        new(keyMode, OsuManiaKeyLayout.GetDefaultKeys(keyMode));
+        new(
+            keyMode,
+            OsuManiaKeyLayout.GetDefaultKeys(keyMode)
+                              .Select(KeyCombination.FromKey)
+                              .ToArray());
 
     public static KeyModeBindings ForMode(
         KeyMode keyMode,
@@ -40,12 +45,14 @@ public sealed class KeyModeBindings
 
         return new KeyModeBindings(
             keyMode,
-            OsuManiaKeyLayout.GetDefaultKeys(keyMode, stageCount));
+            OsuManiaKeyLayout.GetDefaultKeys(keyMode, stageCount)
+                              .Select(KeyCombination.FromKey)
+                              .ToArray());
     }
 
     public static KeyModeBindings ForMode(
         KeyMode keyMode,
-        IReadOnlyList<Key> configuredKeys)
+        IReadOnlyList<InputKey> configuredKeys)
     {
         int expectedCount = validateKeyMode(keyMode);
 
@@ -62,7 +69,17 @@ public sealed class KeyModeBindings
         return new KeyModeBindings(keyMode, configuredKeys.ToArray());
     }
 
-    public int GetLane(Key key) => lanesByKey.TryGetValue(key, out int lane) ? lane : -1;
+    public static KeyModeBindings ForMode(
+        KeyMode keyMode,
+        IReadOnlyList<Key> configuredKeys) =>
+        ForMode(
+            keyMode,
+            configuredKeys?.Select(KeyCombination.FromKey).ToArray());
+
+    public int GetLane(Key key) => GetLane(KeyCombination.FromKey(key));
+
+    public int GetLane(InputKey key) =>
+        lanesByKey.TryGetValue(key, out int lane) ? lane : -1;
 
     public string GetDisplayKey(int lane)
     {
@@ -76,6 +93,17 @@ public sealed class KeyModeBindings
         Key.Slash => "/",
         _ => key.ToString(),
     };
+
+    public static string FormatKey(InputKey key)
+    {
+        string name = key.ToString();
+        if (name.StartsWith("Midi", StringComparison.Ordinal))
+            return "MIDI " + name[4..].Replace("Sharp", "#", StringComparison.Ordinal);
+        if (name.StartsWith("Joystick", StringComparison.Ordinal))
+            return "HID " + name[8..];
+
+        return FormatKey((Key)(int)key);
+    }
 
     private static int validateKeyMode(KeyMode keyMode)
     {

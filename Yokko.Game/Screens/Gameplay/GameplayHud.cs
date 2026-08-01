@@ -228,10 +228,16 @@ public partial class GameplayHud : CompositeDrawable
         string modLabel = mods.IsEmpty
             ? "NM"
             : string.Join("  ", mods.DisplayLabels);
-        return judgementConfiguration.Mode == JudgementMode.Etterna
-            ? $"MODS · {modLabel}  ·  ETTERNA "
-              + judgementConfiguration.EtternaJusticeLabel.ToUpperInvariant()
-            : $"MODS · {modLabel}";
+        return judgementConfiguration.Mode switch
+        {
+            JudgementMode.Etterna =>
+                $"MODS · {modLabel}  ·  ETTERNA "
+                + judgementConfiguration.EtternaJusticeLabel
+                    .ToUpperInvariant(),
+            JudgementMode.OsuStable =>
+                $"MODS · {modLabel}  ·  OSU!STABLE",
+            _ => $"MODS · {modLabel}  ·  OSU!LAZER",
+        };
     }
 
     public void UpdateState(

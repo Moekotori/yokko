@@ -57,7 +57,55 @@ public sealed class JudgementWindows
             configuration ?? JudgementConfiguration.YokkoDefault;
 
         double totalMultiplier = speedMultiplier / difficultyMultiplier;
-        if (Configuration.Mode == JudgementMode.Quaver)
+        if (Configuration.Mode == JudgementMode.OsuStable)
+        {
+            // osu!stable ScoreV1 mania windows. Stable truncates each formula
+            // to an integer and accepts rounded hit errors inclusively, which
+            // produces the observable half-millisecond boundaries below.
+            // Source: osu! wiki, Gameplay/Judgement/osu!mania (CC BY-NC-SA 4.0),
+            // and ppy/osu ManiaHitWindows at commit
+            // 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
+            // Stable leaves the chart-time windows unchanged for DT/NC/HT.
+            // The faster/slower clock rate alone changes their real-time
+            // duration. Difficulty multipliers (notably HR) still apply.
+            double stableMultiplier = 1 / difficultyMultiplier;
+            PerfectMilliseconds = classicWindow(16, stableMultiplier);
+            if (isConvert)
+            {
+                GreatMilliseconds = classicWindow(
+                    Math.Round(overallDifficulty) > 4 ? 34 : 47,
+                    stableMultiplier);
+                GoodMilliseconds = classicWindow(
+                    Math.Round(overallDifficulty) > 4 ? 67 : 77,
+                    stableMultiplier);
+                OkMilliseconds = classicWindow(97, stableMultiplier);
+                MehMilliseconds = classicWindow(121, stableMultiplier);
+                MissMilliseconds = classicWindow(158, stableMultiplier);
+            }
+            else
+            {
+                double invertedOd = Math.Clamp(
+                    10 - overallDifficulty,
+                    0,
+                    10);
+                GreatMilliseconds = classicWindow(
+                    34 + 3 * invertedOd,
+                    stableMultiplier);
+                GoodMilliseconds = classicWindow(
+                    67 + 3 * invertedOd,
+                    stableMultiplier);
+                OkMilliseconds = classicWindow(
+                    97 + 3 * invertedOd,
+                    stableMultiplier);
+                MehMilliseconds = classicWindow(
+                    121 + 3 * invertedOd,
+                    stableMultiplier);
+                MissMilliseconds = classicWindow(
+                    158 + 3 * invertedOd,
+                    stableMultiplier);
+            }
+        }
+        else if (Configuration.Mode == JudgementMode.Quaver)
         {
             // Quaver's standard 4K/7K windows. Playback-rate scaling is
             // applied by Quaver's score processor to every window.

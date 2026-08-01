@@ -507,8 +507,14 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
             setExternalOsuPath(selectedPath);
     }
 
-    private void setExternalOsuPath(string path) => beginExternalScan(
-        importedChartLibrary.SetExternalOsuSongsPathAsync(path));
+    private void setExternalOsuPath(string path)
+    {
+        if (externalScanInProgress)
+            return;
+
+        beginExternalScan(System.Threading.Tasks.Task.Run(
+            () => importedChartLibrary.SetExternalOsuSongsPathAsync(path)));
+    }
 
     private void disableExternalOsu()
     {

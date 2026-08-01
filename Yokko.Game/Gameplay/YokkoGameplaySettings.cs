@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Bindables;
+using osu.Framework.Input.Bindings;
 using osuTK.Input;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
@@ -77,6 +78,18 @@ public sealed class YokkoGameplaySettings
     private static readonly Key[] defaultSevenKeyBindings =
         OsuManiaKeyLayout.GetDefaultKeys(KeyMode.SevenKey);
 
+    private static readonly Key[] defaultBmsBindings =
+    {
+        Key.LShift,
+        Key.S,
+        Key.D,
+        Key.F,
+        Key.Space,
+        Key.J,
+        Key.K,
+        Key.L,
+    };
+
     private static readonly IReadOnlyDictionary<
         (KeyMode Mode, GameplayKeyPreset Preset),
         Key[]> bindingPresets =
@@ -106,6 +119,9 @@ public sealed class YokkoGameplaySettings
         };
 
     private readonly Dictionary<KeyMode, Bindable<Key>[]> bindingsByMode;
+    private readonly Dictionary<KeyMode, Bindable<InputKey>[]> deviceBindingsByMode;
+    private readonly Bindable<Key>[] bmsBindings;
+    private readonly Bindable<InputKey>[] bmsDeviceBindings;
 
     public IReadOnlyList<KeyMode> SupportedKeyModes =>
         OsuManiaKeyLayout.SupportedModes;
@@ -115,6 +131,8 @@ public sealed class YokkoGameplaySettings
 
     public IReadOnlyList<Bindable<Key>> SevenKeyBindings =>
         bindingsByMode[KeyMode.SevenKey];
+
+    public IReadOnlyList<Bindable<Key>> BmsBindings => bmsBindings;
 
     internal event Action BindingsChanged;
 
@@ -380,12 +398,30 @@ public sealed class YokkoGameplaySettings
         bindingsByMode = OsuManiaKeyLayout.SupportedModes.ToDictionary(
             mode => mode,
             mode => createBindings(OsuManiaKeyLayout.GetDefaultKeys(mode)));
+        deviceBindingsByMode = OsuManiaKeyLayout.SupportedModes.ToDictionary(
+            mode => mode,
+            mode => Enumerable.Range(0, (int)mode)
+                              .Select(_ => new Bindable<InputKey>(InputKey.None))
+                              .ToArray());
+        bmsBindings = createBindings(defaultBmsBindings);
+        bmsDeviceBindings = defaultBmsBindings
+                            .Select(_ => new Bindable<InputKey>(InputKey.None))
+                            .ToArray();
 
         foreach (Bindable<Key> binding in bindingsByMode.Values.SelectMany(
                      modeBindings => modeBindings))
         {
             binding.ValueChanged += _ => BindingsChanged?.Invoke();
         }
+        foreach (Bindable<InputKey> binding in deviceBindingsByMode.Values.SelectMany(
+                     modeBindings => modeBindings))
+        {
+            binding.ValueChanged += _ => BindingsChanged?.Invoke();
+        }
+        foreach (Bindable<Key> binding in bmsBindings)
+            binding.ValueChanged += _ => BindingsChanged?.Invoke();
+        foreach (Bindable<InputKey> binding in bmsDeviceBindings)
+            binding.ValueChanged += _ => BindingsChanged?.Invoke();
         foreach (ManiaShortcutAction action in supportedShortcutActions)
         {
             shortcutBindable(action).ValueChanged +=
@@ -406,6 +442,92 @@ public sealed class YokkoGameplaySettings
             .Select(binding => binding.Value)
             .ToArray();
 
+    public IReadOnlyList<InputKey> GetInputKeys(KeyMode keyMode)
+    {
+        IReadOnlyList<Bindable<Key>> keyboardBindings = GetBindableKeys(keyMode);
+        IReadOnlyList<Bindable<InputKey>> deviceBindings = getDeviceBindings(keyMode);
+        return keyboardBindings.Select((binding, lane) =>
+                deviceBindings[lane].Value != InputKey.None
+                    ? deviceBindings[lane].Value
+                    : KeyCombination.FromKey(binding.Value))
+            .ToArray();
+    }
+
+    internal IReadOnlyList<Bindable<InputKey>> GetDeviceBindings(KeyMode keyMode) =>
+        getDeviceBindings(keyMode);
+
+    internal IReadOnlyList<Bindable<InputKey>> BmsDeviceBindings =>
+        bmsDeviceBindings;
+
+    public IReadOnlyList<InputKey> GetBmsInputKeys() =>
+        bmsBindings.Select((binding, lane) =>
+                bmsDeviceBindings[lane].Value != InputKey.None
+                    ? bmsDeviceBindings[lane].Value
+                    : KeyCombination.FromKey(binding.Value))
+            .ToArray();
+
+    public IReadOnlyList<InputKey> GetBmsInputKeys(
+        int totalLanes,
+        int scratchLane)
+    {
+        if (totalLanes is < 2 or > 8)
+            throw new ArgumentOutOfRangeException(nameof(totalLanes));
+        if ((uint)scratchLane >= totalLanes)
+            throw new ArgumentOutOfRangeException(nameof(scratchLane));
+
+        IReadOnlyList<InputKey> profile = GetBmsInputKeys();
+        int regularCount = totalLanes - 1;
+        int regularStart = 1 + (7 - regularCount) / 2;
+        InputKey[] regular = profile.Skip(regularStart)
+                                    .Take(regularCount)
+                                    .ToArray();
+        return regular.Take(scratchLane)
+                      .Append(profile[0])
+                      .Concat(regular.Skip(scratchLane))
+                      .ToArray();
+    }
+
+    public void SetBmsInputBinding(int lane, InputKey key)
+    {
+        validateInputKey(key);
+        if ((uint)lane >= bmsBindings.Length)
+            throw new ArgumentOutOfRangeException(nameof(lane));
+
+        IReadOnlyList<InputKey> current = GetBmsInputKeys();
+        int duplicateLane = current
+                            .Select((value, index) => (value, index))
+                            .Where(entry => entry.index != lane && entry.value == key)
+                            .Select(entry => entry.index)
+                            .DefaultIfEmpty(-1)
+                            .First();
+        InputKey previous = current[lane];
+        setBmsInputBindingWithoutConflict(lane, key);
+        if (duplicateLane >= 0)
+            setBmsInputBindingWithoutConflict(duplicateLane, previous);
+    }
+
+    public void SetBmsInputBindings(IReadOnlyList<InputKey> keys)
+    {
+        if (keys == null || keys.Count != bmsBindings.Length)
+            throw new ArgumentException("BMS requires scratch plus seven keys.", nameof(keys));
+        foreach (InputKey key in keys)
+            validateInputKey(key);
+        if (keys.Distinct().Count() != keys.Count)
+            throw new ArgumentException("The BMS profile cannot contain duplicate inputs.", nameof(keys));
+
+        for (int lane = 0; lane < keys.Count; lane++)
+            setBmsInputBindingWithoutConflict(lane, keys[lane]);
+    }
+
+    public void ResetBmsBindings()
+    {
+        for (int lane = 0; lane < defaultBmsBindings.Length; lane++)
+        {
+            bmsBindings[lane].Value = defaultBmsBindings[lane];
+            bmsDeviceBindings[lane].Value = InputKey.None;
+        }
+    }
+
     /// <summary>
     /// Assigns a key without allowing duplicate lanes. When the requested key is
     /// already in the active profile, both lanes are swapped so the operation is
@@ -421,22 +543,48 @@ public sealed class YokkoGameplaySettings
         if ((uint)lane >= bindings.Count)
             throw new ArgumentOutOfRangeException(nameof(lane));
 
-        int duplicateLane = -1;
-
-        for (int index = 0; index < bindings.Count; index++)
-        {
-            if (index != lane && bindings[index].Value == key)
-            {
-                duplicateLane = index;
-                break;
-            }
-        }
-
-        Key previous = bindings[lane].Value;
-        bindings[lane].Value = key;
+        InputKey inputKey = KeyCombination.FromKey(key);
+        IReadOnlyList<InputKey> current = GetInputKeys(keyMode);
+        int duplicateLane = current
+                            .Select((value, index) => (value, index))
+                            .Where(entry => entry.index != lane && entry.value == inputKey)
+                            .Select(entry => entry.index)
+                            .DefaultIfEmpty(-1)
+                            .First();
+        InputKey previous = current[lane];
+        setInputBindingWithoutConflict(keyMode, lane, inputKey);
 
         if (duplicateLane >= 0)
-            bindings[duplicateLane].Value = previous;
+            setInputBindingWithoutConflict(keyMode, duplicateLane, previous);
+    }
+
+    public void SetInputBinding(KeyMode keyMode, int lane, InputKey key)
+    {
+        validateInputKey(key);
+
+        IReadOnlyList<Bindable<Key>> keyboardBindings = GetBindableKeys(keyMode);
+        IReadOnlyList<Bindable<InputKey>> deviceBindings = getDeviceBindings(keyMode);
+        if ((uint)lane >= keyboardBindings.Count)
+            throw new ArgumentOutOfRangeException(nameof(lane));
+
+        if (tryGetKeyboardKey(key, out Key keyboardKey))
+        {
+            SetBinding(keyMode, lane, keyboardKey);
+            return;
+        }
+
+        IReadOnlyList<InputKey> current = GetInputKeys(keyMode);
+        int duplicateLane = current
+                            .Select((value, index) => (value, index))
+                            .Where(entry => entry.index != lane && entry.value == key)
+                            .Select(entry => entry.index)
+                            .DefaultIfEmpty(-1)
+                            .First();
+        InputKey previous = current[lane];
+        deviceBindings[lane].Value = key;
+
+        if (duplicateLane >= 0)
+            setInputBindingWithoutConflict(keyMode, duplicateLane, previous);
     }
 
     /// <summary>
@@ -463,7 +611,35 @@ public sealed class YokkoGameplaySettings
                 nameof(keys));
 
         for (int index = 0; index < bindings.Count; index++)
+        {
             bindings[index].Value = keys[index];
+            getDeviceBindings(keyMode)[index].Value = InputKey.None;
+        }
+    }
+
+    public void SetInputBindings(
+        KeyMode keyMode,
+        IReadOnlyList<InputKey> keys)
+    {
+        IReadOnlyList<Bindable<Key>> bindings = GetBindableKeys(keyMode);
+        if (keys == null || keys.Count != bindings.Count)
+        {
+            throw new ArgumentException(
+                $"{keyMode} requires exactly {bindings.Count} inputs.",
+                nameof(keys));
+        }
+
+        foreach (InputKey key in keys)
+            validateInputKey(key);
+        if (keys.Distinct().Count() != keys.Count)
+        {
+            throw new ArgumentException(
+                "A gameplay input profile cannot contain duplicate inputs.",
+                nameof(keys));
+        }
+
+        for (int lane = 0; lane < keys.Count; lane++)
+            setInputBindingWithoutConflict(keyMode, lane, keys[lane]);
     }
 
     public void ResetBindings(KeyMode keyMode)
@@ -472,7 +648,10 @@ public sealed class YokkoGameplaySettings
         IReadOnlyList<Bindable<Key>> bindings = GetBindableKeys(keyMode);
 
         for (int index = 0; index < defaults.Length; index++)
+        {
             bindings[index].Value = defaults[index];
+            getDeviceBindings(keyMode)[index].Value = InputKey.None;
+        }
     }
 
     public Key GetShortcutBinding(ManiaShortcutAction action) =>
@@ -570,14 +749,14 @@ public sealed class YokkoGameplaySettings
                 break;
 
             case KeyMode.SevenKey:
-                SetBindings(
+                SetInputBindings(
                     KeyMode.FourKey,
                     new[]
                     {
-                        SevenKeyBindings[1].Value,
-                        SevenKeyBindings[2].Value,
-                        SevenKeyBindings[4].Value,
-                        SevenKeyBindings[5].Value,
+                        GetInputKeys(KeyMode.SevenKey)[1],
+                        GetInputKeys(KeyMode.SevenKey)[2],
+                        GetInputKeys(KeyMode.SevenKey)[4],
+                        GetInputKeys(KeyMode.SevenKey)[5],
                     });
                 break;
 
@@ -678,6 +857,70 @@ public sealed class YokkoGameplaySettings
     private static Bindable<Key>[] createBindings(IEnumerable<Key> defaults) =>
         defaults.Select(key => new Bindable<Key>(key)).ToArray();
 
+    private IReadOnlyList<Bindable<InputKey>> getDeviceBindings(KeyMode keyMode) =>
+        deviceBindingsByMode.TryGetValue(keyMode, out Bindable<InputKey>[] bindings)
+            ? bindings
+            : throw new ArgumentOutOfRangeException(
+                nameof(keyMode),
+                keyMode,
+                "Unsupported key mode.");
+
+    private void setInputBindingWithoutConflict(
+        KeyMode keyMode,
+        int lane,
+        InputKey key)
+    {
+        if (tryGetKeyboardKey(key, out Key keyboardKey))
+        {
+            GetBindableKeys(keyMode)[lane].Value = keyboardKey;
+            getDeviceBindings(keyMode)[lane].Value = InputKey.None;
+        }
+        else
+        {
+            getDeviceBindings(keyMode)[lane].Value = key;
+        }
+    }
+
+    private void setBmsInputBindingWithoutConflict(int lane, InputKey key)
+    {
+        if (tryGetKeyboardKey(key, out Key keyboardKey))
+        {
+            bmsBindings[lane].Value = keyboardKey;
+            bmsDeviceBindings[lane].Value = InputKey.None;
+        }
+        else
+        {
+            bmsDeviceBindings[lane].Value = key;
+        }
+    }
+
+    private static void validateInputKey(InputKey key)
+    {
+        if (!IsSupportedInputKey(key))
+        {
+            throw new ArgumentException(
+                "Only keyboard, MIDI and HID controller inputs are supported.",
+                nameof(key));
+        }
+    }
+
+    internal static bool IsSupportedInputKey(InputKey key)
+    {
+        if (key == InputKey.None || key == InputKey.Escape || !Enum.IsDefined(key))
+            return false;
+        bool supportedDevice = key.ToString().StartsWith("Midi", StringComparison.Ordinal)
+                               || key.ToString().StartsWith("Joystick", StringComparison.Ordinal);
+        return tryGetKeyboardKey(key, out _) || supportedDevice;
+    }
+
+    private static bool tryGetKeyboardKey(InputKey inputKey, out Key key)
+    {
+        key = (Key)(int)inputKey;
+        return Enum.IsDefined(key)
+               && key != Key.Unknown
+               && KeyCombination.FromKey(key) == inputKey;
+    }
+
     private Bindable<Key> shortcutBindable(ManiaShortcutAction action) =>
         action switch
         {
@@ -756,20 +999,20 @@ public sealed class YokkoGameplaySettings
 
     private void copyFourKeyToSevenKey()
     {
-        Key[] fourKeys = GetKeys(KeyMode.FourKey).ToArray();
-        var used = new HashSet<Key>(fourKeys);
-        Key[] fallback =
+        InputKey[] fourKeys = GetInputKeys(KeyMode.FourKey).ToArray();
+        var used = new HashSet<InputKey>(fourKeys);
+        InputKey[] fallback =
         {
-            SevenKeyBindings[0].Value,
-            SevenKeyBindings[3].Value,
-            SevenKeyBindings[6].Value,
-            Key.S,
-            Key.Space,
-            Key.L,
-            Key.A,
-            Key.Semicolon,
-            Key.G,
-            Key.H,
+            GetInputKeys(KeyMode.SevenKey)[0],
+            GetInputKeys(KeyMode.SevenKey)[3],
+            GetInputKeys(KeyMode.SevenKey)[6],
+            InputKey.S,
+            InputKey.Space,
+            InputKey.L,
+            InputKey.A,
+            InputKey.Semicolon,
+            InputKey.G,
+            InputKey.H,
         };
         var extras = fallback.Where(used.Add).Take(3).ToArray();
 
@@ -779,7 +1022,7 @@ public sealed class YokkoGameplaySettings
                 "Could not create a unique 7K profile from the 4K keys.");
         }
 
-        SetBindings(
+        SetInputBindings(
             KeyMode.SevenKey,
             new[]
             {

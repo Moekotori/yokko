@@ -959,8 +959,8 @@ namespace Yokko.Game.Tests.Visual
                 layoutEditor.IsToolWindowVisibleForTest(
                     GameplayLayoutEditorToolWindow.Feedback)
                 && layoutEditor.VisibleToolWindowCountForTest == 6);
-            AddAssert("seven elements expose corner resize handles", () =>
-                layoutEditor.TransformTargetCount == 7
+            AddAssert("eight elements expose only applicable resize handles", () =>
+                layoutEditor.TransformTargetCount == 8
                 && layoutEditor.ResizeHandleCount == 28);
             AddAssert("combo and judgement show editor previews", () =>
                 comboReadout.Alpha > 0
@@ -984,6 +984,12 @@ namespace Yokko.Game.Tests.Visual
                 layoutEditor.SelectNextElementForTest(true));
             AddAssert("reverse selection returns to playfield", () =>
                 layoutEditor.SelectedElementForTest == "Playfield");
+            AddStep("move performance readout", () =>
+                layoutEditor.MovePerformanceReadoutForTest(
+                    new Vector2(-120, -80)));
+            AddAssert("performance readout position is editable", () =>
+                gameplaySettings.LayoutPerformanceReadoutOffsetX.Value < 0
+                && gameplaySettings.LayoutPerformanceReadoutOffsetY.Value < 0);
             AddStep("add top and bottom blockers", () =>
             {
                 layoutEditor.SetTopCoverEnabledForTest(true);
@@ -2648,6 +2654,64 @@ namespace Yokko.Game.Tests.Visual
                            .Single()
                            .DisplayedRuleStatus
                            .Contains("CS"));
+        }
+
+        [Test]
+        public void TestShiftTabTogglesFocusMode()
+        {
+            GameplayScreen gameplay = null;
+            GameplayHud hud = null;
+            GameplayPlayfield playfield = null;
+
+            AddStep("open gameplay", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo())));
+            AddUntilStep("gameplay presentation is loaded", () =>
+            {
+                hud = gameplay?.ChildrenOfType<GameplayHud>()
+                               .SingleOrDefault();
+                playfield = gameplay?.ChildrenOfType<GameplayPlayfield>()
+                                     .SingleOrDefault();
+                return hud?.IsLoaded == true && playfield?.IsLoaded == true;
+            });
+            AddStep("plain Tab does not toggle focus mode", () =>
+                gameplay.HandleKeyDownInput(
+                    Key.Tab,
+                    false,
+                    false,
+                    false));
+            AddAssert("focus mode remains off", () =>
+                !gameplay.FocusModeActive);
+            AddStep("press Shift Tab", () =>
+                gameplay.HandleKeyDownInput(
+                    Key.Tab,
+                    false,
+                    false,
+                    false,
+                    true));
+            AddUntilStep("informational presentation is hidden", () =>
+                gameplay.FocusModeActive
+                && hud.Alpha == 0
+                && gameplay.ChildrenOfType<GameplayComboReadout>()
+                           .Single().Alpha == 0
+                && gameplay.ChildrenOfType<JudgementReadout>()
+                           .Single().Alpha == 0
+                && gameplay.ChildrenOfType<GameplayTimingBar>()
+                           .Single().Alpha == 0
+                && gameplay.ChildrenOfType<GameplayScrollSpeedOverlay>()
+                           .Single().Alpha == 0
+                && gameplay.ChildrenOfType<GameplayPlaybackRateOverlay>()
+                           .Single().Alpha == 0
+                && playfield.Alpha > 0);
+            AddStep("press Shift Tab again", () =>
+                gameplay.HandleKeyDownInput(
+                    Key.Tab,
+                    false,
+                    false,
+                    false,
+                    true));
+            AddUntilStep("normal presentation returns", () =>
+                !gameplay.FocusModeActive && hud.Alpha > 0);
         }
 
         [Test]

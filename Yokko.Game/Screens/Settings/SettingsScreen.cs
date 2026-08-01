@@ -10,6 +10,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
+using osu.Framework.Input.Bindings;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
@@ -509,7 +510,9 @@ public partial class SettingsScreen : Screen
                 importedChartLibrary),
             SettingsPageKind.Safety => new SafetySettingsPanel(
                 host,
-                host.Storage.GetFullPath("crash-reports", true)),
+                host.Storage.GetFullPath("crash-reports", true),
+                yokkoConfig.GetBindable<double>(
+                    YokkoSetting.HomeExitHoldDurationMilliseconds)),
             SettingsPageKind.About => new AboutSettingsPanel(),
             _ => new SettingsPlaceholderPanel(SettingsPages.Get(page)),
         };
@@ -609,6 +612,48 @@ public partial class SettingsScreen : Screen
             gameplayPanel.HandleKeyUp(e.Key);
 
         base.OnKeyUp(e);
+    }
+
+    protected override bool OnJoystickPress(JoystickPressEvent e)
+    {
+        if (activePanel is GameplaySettingsPanel gameplayPanel
+            && gameplayPanel.HandleInputDown(
+                KeyCombination.FromJoystickButton(e.Button)))
+        {
+            return true;
+        }
+
+        return base.OnJoystickPress(e);
+    }
+
+    protected override void OnJoystickRelease(JoystickReleaseEvent e)
+    {
+        if (activePanel is GameplaySettingsPanel gameplayPanel)
+        {
+            gameplayPanel.HandleInputUp(
+                KeyCombination.FromJoystickButton(e.Button));
+        }
+
+        base.OnJoystickRelease(e);
+    }
+
+    protected override bool OnMidiDown(MidiDownEvent e)
+    {
+        if (activePanel is GameplaySettingsPanel gameplayPanel
+            && gameplayPanel.HandleInputDown(KeyCombination.FromMidiKey(e.Key)))
+        {
+            return true;
+        }
+
+        return base.OnMidiDown(e);
+    }
+
+    protected override void OnMidiUp(MidiUpEvent e)
+    {
+        if (activePanel is GameplaySettingsPanel gameplayPanel)
+            gameplayPanel.HandleInputUp(KeyCombination.FromMidiKey(e.Key));
+
+        base.OnMidiUp(e);
     }
 
     private static SettingsPageKind parseRememberedPage(string page) =>

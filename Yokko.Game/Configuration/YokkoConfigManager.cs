@@ -15,6 +15,7 @@ namespace Yokko.Game.Configuration;
 internal enum YokkoSetting
 {
     HomeMusicEnabled,
+    HomeExitHoldDurationMilliseconds,
     AudioMasterVolume,
     AudioMusicVolume,
     AudioHitSoundVolume,
@@ -138,6 +139,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
     protected override void InitialiseDefaults()
     {
         SetDefault(YokkoSetting.HomeMusicEnabled, true);
+        SetDefault(
+            YokkoSetting.HomeExitHoldDurationMilliseconds,
+            1300.0,
+            500.0,
+            3000.0,
+            100.0);
         SetDefault(YokkoSetting.AudioMasterVolume, 1.0, 0.0, 1.0, 0.01);
         SetDefault(YokkoSetting.AudioMusicVolume, 1.0, 0.0, 1.0, 0.01);
         SetDefault(YokkoSetting.AudioHitSoundVolume, 1.0, 0.0, 1.0, 0.01);

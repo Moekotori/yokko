@@ -33,7 +33,9 @@ public partial class TestSceneChartLibraryScreen : YokkoTestScene
     {
         AddAssert("chart library is current", () =>
             screenStack.CurrentScreen is ChartLibraryScreen);
-        AddStep("start with empty library", importedChartLibrary.Clear);
+        AddAssert("file selector is available", () =>
+            libraryScreen.IsFileSelectorAvailable);
+        AddStep("start with empty library", () => importedChartLibrary.Clear());
         AddUntilStep("empty state is visible", () =>
             libraryScreen.FilteredChartCount == 0);
         AddStep("add managed charts", () => importedChartLibrary.AddOrReplace(

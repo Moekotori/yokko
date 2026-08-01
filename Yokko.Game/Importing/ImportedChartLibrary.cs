@@ -1133,8 +1133,13 @@ internal sealed class ImportedChartLibrary : IDisposable
         ExternalOsuIndexEntry[] entries,
         int generation)
     {
-        const int publishBatchSize = 64;
-        int completedSincePublish = 0;
+        // Persist occasional rating-cache checkpoints without rewriting the
+        // full external index or rebuilding every UI consumer. Publishing the
+        // library every 64 charts turns 10,000 charts into roughly 157 full
+        // list rebuilds.
+        const int checkpointBatchSize = 2048;
+        int completedSinceCheckpoint = 0;
+        bool completedAny = false;
 
         for (int index = 0; index < entries.Length; index++)
         {
@@ -1193,17 +1198,19 @@ internal sealed class ImportedChartLibrary : IDisposable
                     DifficultyRating = msd,
                     StarRating = star,
                 };
-                completedSincePublish++;
-                if (completedSincePublish >= publishBatchSize)
+                completedAny = true;
+                completedSinceCheckpoint++;
+                if (completedSinceCheckpoint >= checkpointBatchSize)
                 {
-                    if (!await publishExternalDifficultyBatchAsync(
+                    if (!await persistExternalDifficultyProgressAsync(
                             songsPath,
                             entries,
-                            generation).ConfigureAwait(false))
+                            generation,
+                            publishToLibrary: false).ConfigureAwait(false))
                     {
                         return;
                     }
-                    completedSincePublish = 0;
+                    completedSinceCheckpoint = 0;
                 }
             }
             catch (Exception exception)
@@ -1215,20 +1222,22 @@ internal sealed class ImportedChartLibrary : IDisposable
             }
         }
 
-        if (completedSincePublish > 0)
+        if (completedAny)
         {
-            await publishExternalDifficultyBatchAsync(
+            await persistExternalDifficultyProgressAsync(
                     songsPath,
                     entries,
-                    generation)
+                    generation,
+                    publishToLibrary: true)
                 .ConfigureAwait(false);
         }
     }
 
-    private async Task<bool> publishExternalDifficultyBatchAsync(
+    private async Task<bool> persistExternalDifficultyProgressAsync(
         string songsPath,
         ExternalOsuIndexEntry[] entries,
-        int generation)
+        int generation,
+        bool publishToLibrary)
     {
         await importLock.WaitAsync().ConfigureAwait(false);
         try
@@ -1246,10 +1255,14 @@ internal sealed class ImportedChartLibrary : IDisposable
 
             msdRatingCache.SaveIfChanged();
             starRatingCache.SaveIfChanged();
+            if (!publishToLibrary)
+                return true;
+
             ExternalOsuSongsIndex.Save(
                 externalOsuCachePath,
                 songsPath,
                 entries);
+
             lock (externalOsuStateLock)
             {
                 if (disposed
@@ -1435,7 +1448,6 @@ internal sealed class ImportedChartLibrary : IDisposable
         string sourcePath)
     {
         string packageName = resolvePackageName(results, sourcePath);
-        results = normaliseCompilationMetadata(results);
         // 只有真正包含多张谱面的合集才算图包；单曲 .osz/.zip 只是一首歌，
         // 不能因为扩展名就给它套上图包外壳。
         bool isPackage = results.Count > 1;
@@ -1619,42 +1631,6 @@ internal sealed class ImportedChartLibrary : IDisposable
               .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
               .Select(group => group.Key)
               .FirstOrDefault() ?? string.Empty;
-
-    private static IReadOnlyList<ChartImportResult> normaliseCompilationMetadata(
-        IReadOnlyList<ChartImportResult> results)
-    {
-        if (results.Count < 2
-            || results.Select(result => result.Beatmap.Title)
-                      .Distinct(StringComparer.OrdinalIgnoreCase)
-                      .Count() != 1
-            || results.Select(result => result.Beatmap.DifficultyName)
-                      .Where(name => !string.IsNullOrWhiteSpace(name))
-                      .Distinct(StringComparer.OrdinalIgnoreCase)
-                      .Count() < 2
-            || results.Select(result => result.Beatmap.AudioPath)
-                      .Where(path => !string.IsNullOrWhiteSpace(path))
-                      .Distinct(StringComparer.OrdinalIgnoreCase)
-                      .Count() < 2)
-            return results;
-
-        return results.Select(result =>
-                      {
-                          YokkoBeatmap beatmap = result.Beatmap;
-                          string songTitle = beatmap.DifficultyName.Trim();
-                          if (string.IsNullOrWhiteSpace(songTitle))
-                              return result;
-
-                          return result with
-                          {
-                              Beatmap = beatmap with
-                              {
-                                  Title = songTitle,
-                                  DifficultyName = "PACK",
-                              },
-                          };
-                      })
-                      .ToArray();
-    }
 
     private void initialiseDifficultyRatingCaches()
     {

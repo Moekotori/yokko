@@ -232,6 +232,24 @@ public sealed class AudioSettingsTest
     }
 
     [Test]
+    public void MasterVolumeShortcutUsesFivePercentStepsAndClamps()
+    {
+        var settings = new YokkoAudioSettings();
+
+        settings.MasterVolume.Value = 0.98;
+        Assert.That(settings.AdjustMasterVolume(1), Is.EqualTo(1));
+        Assert.That(settings.AdjustMasterVolume(1), Is.EqualTo(1));
+
+        settings.MasterVolume.Value = 0.02;
+        Assert.That(settings.AdjustMasterVolume(-1), Is.EqualTo(0));
+        Assert.That(settings.AdjustMasterVolume(-1), Is.EqualTo(0));
+
+        settings.MasterVolume.Value = 0.5;
+        Assert.That(settings.AdjustMasterVolume(1), Is.EqualTo(0.55));
+        Assert.That(settings.AdjustMasterVolume(-1), Is.EqualTo(0.5));
+    }
+
+    [Test]
     public void VolumeSliderUsesOnePercentDragAndFivePercentWheelSteps()
     {
         Assert.Multiple(() =>

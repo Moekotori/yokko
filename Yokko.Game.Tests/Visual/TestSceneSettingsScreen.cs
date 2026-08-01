@@ -97,6 +97,18 @@ namespace Yokko.Game.Tests.Visual
                 panel.ChildrenOfType<SettingsSegmentedChoiceButton>()
                      .Single()
                      .AcceptsFocus);
+            AddAssert("exit hold duration is draggable and bounded", () =>
+            {
+                HomeExitHoldDurationSlider slider = panel
+                    .ChildrenOfType<HomeExitHoldDurationSlider>()
+                    .SingleOrDefault();
+
+                return slider?.AcceptsFocus == true
+                       && HomeExitHoldDurationSlider.ValueFromProgress(0)
+                       == HomeExitHoldDurationSlider.MinimumMilliseconds
+                       && HomeExitHoldDurationSlider.ValueFromProgress(1)
+                       == HomeExitHoldDurationSlider.MaximumMilliseconds;
+            });
         }
 
         [Test]
@@ -524,6 +536,12 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SetJudgementMode(JudgementMode.Yokko));
             AddAssert("Etterna Judge control is disabled", () =>
                 !gameplay.IsEtternaJusticeControlEnabled);
+            AddStep("select osu!stable judgement", () =>
+                gameplay.SetJudgementMode(JudgementMode.OsuStable));
+            AddAssert("osu!stable judgement selected", () =>
+                gameplay.CurrentJudgementMode
+                    == JudgementMode.OsuStable
+                && !gameplay.IsEtternaJusticeControlEnabled);
             AddStep("select Etterna J8", () =>
             {
                 gameplay.SetJudgementMode(JudgementMode.Etterna);

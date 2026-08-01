@@ -152,6 +152,7 @@ internal static class YokkoStrings
             ["chart_library.no_importable_files"] = new("No supported chart files were found in this folder.", "这个文件夹中没有找到支持的谱面文件。", "このフォルダーには対応する譜面ファイルがありません。"),
             ["chart_library.folder_import_failed"] = new("Folder import failed for all {0} files.", "文件夹中的 {0} 个谱面文件全部导入失败。", "フォルダー内の {0} ファイルを取り込めませんでした。"),
             ["chart_library.folder_picker_unavailable"] = new("Folder selection is unavailable on this platform.", "当前平台不支持文件夹选择。", "この環境ではフォルダーを選択できません。"),
+            ["chart_library.file_picker_unavailable"] = new("File selection is unavailable on this platform.", "当前平台不支持文件选择。", "この環境ではファイルを選択できません。"),
             ["chart_library.osu_not_found"] = new("No osu! Songs folder was found automatically.", "没有自动找到 osu! Songs 文件夹。", "osu! Songs フォルダーを自動検出できませんでした。"),
             ["chart_library.scanning_osu"] = new("Indexing osu! Songs…", "正在同步 osu! Songs…", "osu! Songs を同期中…"),
             ["chart_library.osu_ready"] = new("osu! Songs connected: {0} charts.", "osu! Songs 已连接，共 {0} 张谱面。", "osu! Songs に接続しました: {0} 譜面。"),
@@ -1608,21 +1609,22 @@ internal static class YokkoStrings
                 "点击快捷键后按下新按键 · 重复时自动交换 · Backspace 取消",
                 "項目を選んでキーを入力 · 重複時は自動交換 · Backspaceでキャンセル"),
             ["settings.gameplay.key_capture_hint"] = new(
-                "Choose a lane, then press the key you want to use.",
-                "选择一个轨道，然后按下你想使用的按键。",
-                "レーンを選び、割り当てたいキーを押してください。"),
+                "Choose a lane, then press a keyboard key, MIDI note or HID button.",
+                "选择一个轨道，然后按下键盘键、MIDI 音符或 HID 按钮。",
+                "レーンを選び、キーボード、MIDI、HID の入力を押してください。"),
             ["settings.gameplay.key_swap_hint"] = new(
-                "Duplicate keys swap lanes automatically · Esc cancels capture",
-                "重复按键会自动交换轨道 · Esc 取消录入",
-                "重複したキーは自動で入れ替わります · Esc でキャンセル"),
+                "Duplicate inputs swap lanes automatically · Esc cancels capture",
+                "重复输入会自动交换轨道 · Esc 取消录入",
+                "重複した入力は自動で入れ替わります · Esc でキャンセル"),
             ["settings.gameplay.lane"] = new("LANE {0}", "轨道 {0}", "レーン {0}"),
-            ["settings.gameplay.click_to_change"] = new("Change key", "修改按键", "キーを変更"),
-            ["settings.gameplay.press_key"] = new("PRESS KEY", "请按键", "キーを入力"),
+            ["settings.gameplay.bms_scratch"] = new("SCRATCH", "皿键", "スクラッチ"),
+            ["settings.gameplay.click_to_change"] = new("Change input", "修改输入", "入力を変更"),
+            ["settings.gameplay.press_key"] = new("PRESS INPUT", "请按下输入", "入力を押す"),
             ["settings.gameplay.esc_cancel"] = new("Esc to cancel", "Esc 取消", "Esc でキャンセル"),
             ["settings.gameplay.sequence_hint"] = new(
-                "Press key {0} of {1} · Esc cancels the whole set",
-                "请输入第 {0}/{1} 个按键 · Esc 取消整组修改",
-                "{0}/{1} 個目のキーを入力 · Esc で全体をキャンセル"),
+                "Press input {0} of {1} · Esc cancels the whole set",
+                "请输入第 {0}/{1} 个输入 · Esc 取消整组修改",
+                "{0}/{1} 個目の入力を押す · Esc で全体をキャンセル"),
             ["settings.gameplay.sequence_duplicate"] = new(
                 "That key is already used · press a different key",
                 "这个按键已经使用 · 请按其他按键",
@@ -1635,6 +1637,10 @@ internal static class YokkoStrings
                 "{0}K profile saved · {1}",
                 "{0}K 键位已保存 · {1}",
                 "{0}K プロファイルを保存しました · {1}"),
+            ["settings.gameplay.bms_profile_saved"] = new(
+                "BMS profile saved · {0}",
+                "BMS 键位已保存 · {0}",
+                "BMS プロファイルを保存しました · {0}"),
             ["settings.gameplay.single_saved"] = new(
                 "Lane {0} is now {1}.",
                 "轨道 {0} 已设为 {1}。",
@@ -1789,13 +1795,17 @@ internal static class YokkoStrings
                 "判定系统",
                 "判定システム"),
             ["settings.gameplay.judgement_note"] = new(
-                "Choose Yokko's osu!mania-compatible rules or Etterna's timing and closest-note behavior.",
-                "选择 Yokko 的 osu!mania 兼容规则，或 Etterna 的窗口与最近音符判定。",
-                "Yokko の osu!mania 互換ルール、または Etterna の判定幅と最近ノーツ判定を選びます。"),
+                "Switch between osu!lazer, osu!stable ScoreV1, and Etterna judgement rules.",
+                "在 osu!lazer、osu!stable ScoreV1 与 Etterna 判定规则间切换。",
+                "osu!lazer、osu!stable ScoreV1、Etterna の判定ルールを切り替えます。"),
             ["settings.gameplay.judgement_yokko"] = new(
-                "Yokko · osu!mania",
-                "Yokko · osu!mania",
-                "Yokko · osu!mania"),
+                "osu!lazer",
+                "osu!lazer",
+                "osu!lazer"),
+            ["settings.gameplay.judgement_osu_stable"] = new(
+                "osu!stable",
+                "osu!stable",
+                "osu!stable"),
             ["settings.gameplay.judgement_etterna"] = new(
                 "Etterna",
                 "Etterna",
@@ -2068,6 +2078,14 @@ internal static class YokkoStrings
                 "Unable to open the crash report folder",
                 "无法打开崩溃报告目录",
                 "クラッシュレポートフォルダーを開けませんでした"),
+            ["settings.safety.exit_hold_duration"] = new(
+                "Hold Esc to exit",
+                "主页按住 Esc 退出时间",
+                "Esc 長押しで終了するまで"),
+            ["settings.safety.exit_hold_duration_value"] = new(
+                "{0:0.0} s",
+                "{0:0.0} 秒",
+                "{0:0.0} 秒"),
             ["settings.safety.note"] = new(
                 "After a crash, send the newest crash-*.txt file when reporting the problem.",
                 "发生闪退后，反馈问题时请附上时间最新的 crash-*.txt 文件。",

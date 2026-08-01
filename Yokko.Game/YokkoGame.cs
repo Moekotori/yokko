@@ -13,6 +13,7 @@ using osuTK.Input;
 using Yokko.Game.Diagnostics;
 using Yokko.Game.Input;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Audio;
 using Yokko.Game.Presentation;
 using Yokko.Game.Resources;
 using Yokko.Game.Screens.Gameplay;
@@ -32,6 +33,8 @@ namespace Yokko.Game
         private Bindable<WindowMode> windowMode;
         private IBindable<DisplayMode> currentDisplayMode;
         private WindowModeNotificationOverlay windowModeNotification;
+        private VolumeNotificationOverlay volumeNotification;
+        private YokkoAudioSettings audioSettings;
         private readonly Action<Storage> storageReady;
         private readonly string[] startupFiles;
         private readonly IDebugConsoleWindow externalDebugConsole;
@@ -86,9 +89,11 @@ namespace Yokko.Game
         private void load(
             FrameworkConfigManager frameworkConfig,
             GameHost host,
-            YokkoGameplaySettings gameplaySettings)
+            YokkoGameplaySettings gameplaySettings,
+            YokkoAudioSettings audioSettings)
         {
             this.gameplaySettings = gameplaySettings;
+            this.audioSettings = audioSettings;
             windowMode = frameworkConfig.GetBindable<WindowMode>(
                 FrameworkSetting.WindowMode);
             currentDisplayMode = host.Window?.CurrentDisplayMode;
@@ -108,6 +113,7 @@ namespace Yokko.Game
                     ? debugConsole = new YokkoDebugConsoleOverlay(Diagnostics)
                     : new Container(),
                 windowModeNotification = new WindowModeNotificationOverlay(),
+                volumeNotification = new VolumeNotificationOverlay(),
             };
 
             screenStack.ScreenPushed += onScreenPushed;
@@ -218,11 +224,21 @@ namespace Yokko.Game
 
         internal bool HandleDesktopShortcut(Key key, bool repeat)
         {
-            if (key != Key.F10 || repeat || Host.Window == null)
-                return false;
+            if (key is Key.VolumeDown or Key.VolumeUp)
+            {
+                double volume = audioSettings.AdjustMasterVolume(
+                    key == Key.VolumeUp ? 1 : -1);
+                volumeNotification?.Show(volume, key == Key.VolumeUp);
+                return true;
+            }
 
-            Host.Window.WindowState = WindowState.Minimised;
-            return true;
+            if (key == Key.F10 && !repeat && Host.Window != null)
+            {
+                Host.Window.WindowState = WindowState.Minimised;
+                return true;
+            }
+
+            return false;
         }
 
         private void onWindowModeChanged(ValueChangedEvent<WindowMode> change) =>

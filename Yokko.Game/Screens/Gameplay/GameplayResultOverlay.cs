@@ -146,6 +146,11 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 + this.judgementConfiguration.EtternaJusticeLabel
                     .ToUpperInvariant();
         }
+        else if (this.judgementConfiguration.Mode
+                 == JudgementMode.OsuStable)
+        {
+            displayedMods += "  ·  OSU!STABLE";
+        }
         DisplayedMods = practiceSession
             ? $"{displayedMods}  ·  PRACTICE"
             : displayedMods;
@@ -776,6 +781,10 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 "ET "
                 + judgementConfiguration.EtternaJusticeLabel
                     .ToUpperInvariant());
+        }
+        else if (judgementConfiguration.Mode == JudgementMode.OsuStable)
+        {
+            labels.Add("STABLE");
         }
 
         if (practiceSession)
