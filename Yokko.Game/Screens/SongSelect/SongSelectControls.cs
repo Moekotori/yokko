@@ -1146,7 +1146,7 @@ internal partial class LegacySongSelectRankingPanel : ClickableContainer
         foreach (SongSelectScore score in entry.Ranking.Take(5))
         {
             Texture avatar = score.IsCurrentPlayer
-                ? textures.Get("yokko").Crop(new RectangleF(270, 2200, 850, 850))
+                ? textures.Get("SongSelect/Ui/yokko-avatar-256")
                 : textures.Get(score.AvatarTexture);
             flow.Add(createRankingRow(score, avatar, rowHeight));
         }

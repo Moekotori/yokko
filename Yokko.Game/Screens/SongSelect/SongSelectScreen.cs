@@ -329,6 +329,8 @@ public partial class SongSelectScreen : Screen
         modInfoTitle?.Text.ToString() ?? string.Empty;
     internal string ModInfoDescription =>
         modInfoDescription?.Text.ToString() ?? string.Empty;
+    internal bool LegacyInlineModPanelMaterialised =>
+        modSettingsHost != null;
     internal int MascotFrameCount => mascotAnimation?.FrameCount ?? 0;
     internal static bool RankingFitsDesignedStage =>
         details_top + ranking_top + ranking_height
@@ -415,7 +417,8 @@ public partial class SongSelectScreen : Screen
             : null);
 
         Texture firstWallpaper = textureFor(selectedEntry);
-        Texture logo = textures.Get("home-logo-light");
+        Texture logo = textures.Get(
+            "SongSelect/Ui/home-logo-light-512");
 
         InternalChildren = new Drawable[]
         {
@@ -439,7 +442,7 @@ public partial class SongSelectScreen : Screen
                     createSongBrowser(),
                     createFooter(),
                     mascotAnimation = new AnimatedGifSprite(
-                        "Textures/SongSelect/mascot-box.gif")
+                        "Textures/SongSelect/mascot-box-256.gif")
                     {
                         Anchor = Anchor.BottomLeft,
                         Origin = Anchor.BottomLeft,
@@ -1477,8 +1480,8 @@ public partial class SongSelectScreen : Screen
                 Child = new Sprite
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Texture = textures.Get("yokko")?.Crop(
-                        new RectangleF(270, 2200, 850, 850)),
+                    Texture = textures.Get(
+                        "SongSelect/Ui/yokko-avatar-256"),
                     FillMode = FillMode.Fill,
                 },
             },
@@ -1522,10 +1525,10 @@ public partial class SongSelectScreen : Screen
         IconUsage icon,
         float x,
         bool selected = false) => new Container
-    {
-        Position = new Vector2(x, 0),
-        Size = new Vector2(48, 72),
-        Children =
+        {
+            Position = new Vector2(x, 0),
+            Size = new Vector2(48, 72),
+            Children =
         [
             new Circle
             {
@@ -1558,7 +1561,7 @@ public partial class SongSelectScreen : Screen
                 Alpha = selected ? 1 : 0,
             },
         ],
-    };
+        };
 
     private Drawable createBrowseToolbar() => browseToolbar = new Container
     {
@@ -1652,151 +1655,160 @@ public partial class SongSelectScreen : Screen
 
     private Drawable createFooter()
     {
-        doubleTimeMod = new SongSelectModButton(
-            ManiaModId.DoubleTime,
-            SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.DoubleTime),
-            onModHoverChanged);
-        nightcoreMod = new SongSelectModButton(
-            ManiaModId.Nightcore,
-            SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.Nightcore),
-            onModHoverChanged);
-        halfTimeMod = new SongSelectModButton(
-            ManiaModId.HalfTime,
-            SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.HalfTime),
-            onModHoverChanged);
-        daycoreMod = new SongSelectModButton(
-            ManiaModId.Daycore,
-            SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.Daycore),
-            onModHoverChanged);
-        easyMod = new SongSelectModButton(
-            ManiaModId.Easy,
-            SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.Easy),
-            onModHoverChanged);
-        noFailMod = new SongSelectModButton(
-            ManiaModId.NoFail,
-            SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.NoFail),
-            onModHoverChanged);
-        suddenDeathMod = new SongSelectModButton(
-            ManiaModId.SuddenDeath,
-            SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.SuddenDeath),
-            onModHoverChanged);
-        perfectMod = new SongSelectModButton(
-            ManiaModId.Perfect,
-            SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.Perfect),
-            onModHoverChanged);
-        hardRockMod = new SongSelectModButton(
-            ManiaModId.HardRock,
-            SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.HardRock),
-            onModHoverChanged);
-        accuracyChallengeMod = new SongSelectModButton(
-            ManiaModId.AccuracyChallenge,
-            SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.AccuracyChallenge),
-            onModHoverChanged);
-        mirrorMod = new SongSelectModButton(
-            ManiaModId.Mirror,
-            SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.Mirror),
-            onModHoverChanged);
-        randomMod = new SongSelectModButton(
-            ManiaModId.Random,
-            SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.Random),
-            onModHoverChanged);
-        holdOffMod = new SongSelectModButton(
-            ManiaModId.HoldOff,
-            SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.HoldOff),
-            onModHoverChanged);
-        noReleaseMod = new SongSelectModButton(
-            ManiaModId.NoRelease,
-            SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.NoRelease),
-            onModHoverChanged);
-        fadeInMod = new SongSelectModButton(
-            ManiaModId.FadeIn,
-            SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.FadeIn),
-            onModHoverChanged);
-        hiddenMod = new SongSelectModButton(
-            ManiaModId.Hidden,
-            SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.Hidden),
-            onModHoverChanged);
-        coverMod = new SongSelectModButton(
-            ManiaModId.Cover,
-            SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.Cover),
-            onModHoverChanged);
-        flashlightMod = new SongSelectModButton(
-            ManiaModId.Flashlight,
-            SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.Flashlight),
-            onModHoverChanged);
-        constantSpeedMod = new SongSelectModButton(
-            ManiaModId.ConstantSpeed,
-            SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.ConstantSpeed),
-            onModHoverChanged);
-        difficultyAdjustMod = new SongSelectModButton(
-            ManiaModId.DifficultyAdjust,
-            SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.DifficultyAdjust),
-            onModHoverChanged);
-        autoplayMod = new SongSelectModButton(
-            ManiaModId.Autoplay,
-            SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.Autoplay),
-            onModHoverChanged);
-        cinemaMod = new SongSelectModButton(
-            ManiaModId.Cinema,
-            SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.Cinema),
-            onModHoverChanged);
-        invertMod = new SongSelectModButton(
-            ManiaModId.Invert,
-            SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.Invert),
-            onModHoverChanged);
-        classicMod = new SongSelectModButton(
-            ManiaModId.Classic,
-            SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.Classic),
-            onModHoverChanged);
-        mutedMod = new SongSelectModButton(
-            ManiaModId.Muted,
-            SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.Muted),
-            onModHoverChanged);
-        windUpMod = new SongSelectModButton(
-            ManiaModId.WindUp,
-            SongSelectTheme.Yellow,
-            () => ToggleMod(ManiaModId.WindUp),
-            onModHoverChanged);
-        windDownMod = new SongSelectModButton(
-            ManiaModId.WindDown,
-            SongSelectTheme.Cyan,
-            () => ToggleMod(ManiaModId.WindDown),
-            onModHoverChanged);
-        adaptiveSpeedMod = new SongSelectModButton(
-            ManiaModId.AdaptiveSpeed,
-            SongSelectTheme.Pink,
-            () => ToggleMod(ManiaModId.AdaptiveSpeed),
-            onModHoverChanged);
+        // MODS now opens the dedicated GameplayModsScreen. Keep the retired
+        // inline panel available only for explicit legacy previewing; eagerly
+        // building its full button/settings tree here stalls every entry into
+        // song select even though the hidden panel is never shown.
+        modPanel = new Container { Alpha = 0 };
+        if (Environment.GetEnvironmentVariable(
+                "YOKKO_LEGACY_INLINE_MOD_PANEL") == "1")
+        {
+            doubleTimeMod = new SongSelectModButton(
+                ManiaModId.DoubleTime,
+                SongSelectTheme.Pink,
+                () => ToggleMod(ManiaModId.DoubleTime),
+                onModHoverChanged);
+            nightcoreMod = new SongSelectModButton(
+                ManiaModId.Nightcore,
+                SongSelectTheme.Yellow,
+                () => ToggleMod(ManiaModId.Nightcore),
+                onModHoverChanged);
+            halfTimeMod = new SongSelectModButton(
+                ManiaModId.HalfTime,
+                SongSelectTheme.Cyan,
+                () => ToggleMod(ManiaModId.HalfTime),
+                onModHoverChanged);
+            daycoreMod = new SongSelectModButton(
+                ManiaModId.Daycore,
+                SongSelectTheme.Pink,
+                () => ToggleMod(ManiaModId.Daycore),
+                onModHoverChanged);
+            easyMod = new SongSelectModButton(
+                ManiaModId.Easy,
+                SongSelectTheme.Cyan,
+                () => ToggleMod(ManiaModId.Easy),
+                onModHoverChanged);
+            noFailMod = new SongSelectModButton(
+                ManiaModId.NoFail,
+                SongSelectTheme.Pink,
+                () => ToggleMod(ManiaModId.NoFail),
+                onModHoverChanged);
+            suddenDeathMod = new SongSelectModButton(
+                ManiaModId.SuddenDeath,
+                SongSelectTheme.Yellow,
+                () => ToggleMod(ManiaModId.SuddenDeath),
+                onModHoverChanged);
+            perfectMod = new SongSelectModButton(
+                ManiaModId.Perfect,
+                SongSelectTheme.Pink,
+                () => ToggleMod(ManiaModId.Perfect),
+                onModHoverChanged);
+            hardRockMod = new SongSelectModButton(
+                ManiaModId.HardRock,
+                SongSelectTheme.Pink,
+                () => ToggleMod(ManiaModId.HardRock),
+                onModHoverChanged);
+            accuracyChallengeMod = new SongSelectModButton(
+                ManiaModId.AccuracyChallenge,
+                SongSelectTheme.Yellow,
+                () => ToggleMod(ManiaModId.AccuracyChallenge),
+                onModHoverChanged);
+            mirrorMod = new SongSelectModButton(
+                ManiaModId.Mirror,
+                SongSelectTheme.Cyan,
+                () => ToggleMod(ManiaModId.Mirror),
+                onModHoverChanged);
+            randomMod = new SongSelectModButton(
+                ManiaModId.Random,
+                SongSelectTheme.Pink,
+                () => ToggleMod(ManiaModId.Random),
+                onModHoverChanged);
+            holdOffMod = new SongSelectModButton(
+                ManiaModId.HoldOff,
+                SongSelectTheme.Yellow,
+                () => ToggleMod(ManiaModId.HoldOff),
+                onModHoverChanged);
+            noReleaseMod = new SongSelectModButton(
+                ManiaModId.NoRelease,
+                SongSelectTheme.Cyan,
+                () => ToggleMod(ManiaModId.NoRelease),
+                onModHoverChanged);
+            fadeInMod = new SongSelectModButton(
+                ManiaModId.FadeIn,
+                SongSelectTheme.Yellow,
+                () => ToggleMod(ManiaModId.FadeIn),
+                onModHoverChanged);
+            hiddenMod = new SongSelectModButton(
+                ManiaModId.Hidden,
+                SongSelectTheme.Pink,
+                () => ToggleMod(ManiaModId.Hidden),
+                onModHoverChanged);
+            coverMod = new SongSelectModButton(
+                ManiaModId.Cover,
+                SongSelectTheme.Cyan,
+                () => ToggleMod(ManiaModId.Cover),
+                onModHoverChanged);
+            flashlightMod = new SongSelectModButton(
+                ManiaModId.Flashlight,
+                SongSelectTheme.Yellow,
+                () => ToggleMod(ManiaModId.Flashlight),
+                onModHoverChanged);
+            constantSpeedMod = new SongSelectModButton(
+                ManiaModId.ConstantSpeed,
+                SongSelectTheme.Cyan,
+                () => ToggleMod(ManiaModId.ConstantSpeed),
+                onModHoverChanged);
+            difficultyAdjustMod = new SongSelectModButton(
+                ManiaModId.DifficultyAdjust,
+                SongSelectTheme.Pink,
+                () => ToggleMod(ManiaModId.DifficultyAdjust),
+                onModHoverChanged);
+            autoplayMod = new SongSelectModButton(
+                ManiaModId.Autoplay,
+                SongSelectTheme.Cyan,
+                () => ToggleMod(ManiaModId.Autoplay),
+                onModHoverChanged);
+            cinemaMod = new SongSelectModButton(
+                ManiaModId.Cinema,
+                SongSelectTheme.Pink,
+                () => ToggleMod(ManiaModId.Cinema),
+                onModHoverChanged);
+            invertMod = new SongSelectModButton(
+                ManiaModId.Invert,
+                SongSelectTheme.Yellow,
+                () => ToggleMod(ManiaModId.Invert),
+                onModHoverChanged);
+            classicMod = new SongSelectModButton(
+                ManiaModId.Classic,
+                SongSelectTheme.Pink,
+                () => ToggleMod(ManiaModId.Classic),
+                onModHoverChanged);
+            mutedMod = new SongSelectModButton(
+                ManiaModId.Muted,
+                SongSelectTheme.Cyan,
+                () => ToggleMod(ManiaModId.Muted),
+                onModHoverChanged);
+            windUpMod = new SongSelectModButton(
+                ManiaModId.WindUp,
+                SongSelectTheme.Yellow,
+                () => ToggleMod(ManiaModId.WindUp),
+                onModHoverChanged);
+            windDownMod = new SongSelectModButton(
+                ManiaModId.WindDown,
+                SongSelectTheme.Cyan,
+                () => ToggleMod(ManiaModId.WindDown),
+                onModHoverChanged);
+            adaptiveSpeedMod = new SongSelectModButton(
+                ManiaModId.AdaptiveSpeed,
+                SongSelectTheme.Pink,
+                () => ToggleMod(ManiaModId.AdaptiveSpeed),
+                onModHoverChanged);
+            modPanel = createModPanel();
+        }
 
         var mods = modsToggleButton = new SongSelectModsToggleButton(
             ToggleModPanel,
             textures.Get("SongSelect/Cute/sticker-diamond"));
-        modPanel = createModPanel();
         updateModSelection();
 
         return footer = new Container
@@ -1923,8 +1935,8 @@ public partial class SongSelectScreen : Screen
 
     private Drawable createAccountCard()
     {
-        Texture avatar = textures.Get("yokko")?
-                                 .Crop(new RectangleF(270, 2200, 850, 850));
+        Texture avatar = textures.Get(
+            "SongSelect/Ui/yokko-avatar-256");
         Container panel = SongSelectSurface.CreateCard(
             out _,
             SongSelectSurface.Ivory(0.98f),
@@ -2681,12 +2693,12 @@ public partial class SongSelectScreen : Screen
 
     private Container createSelectedPerformanceRow(
         string rateLabel) => new()
-    {
-        Position = new Vector2(details_content_left, 213),
-        Size = new Vector2(details_content_width, 35),
-        Masking = true,
-        CornerRadius = 8,
-        Children =
+        {
+            Position = new Vector2(details_content_left, 213),
+            Size = new Vector2(details_content_width, 35),
+            Masking = true,
+            CornerRadius = 8,
+            Children =
         [
             new Box
             {
@@ -2703,7 +2715,7 @@ public partial class SongSelectScreen : Screen
             createDetailsVerticalDivider(386, 27),
             createPlaybackRateStat(402, -3, rateLabel),
         ],
-    };
+        };
 
     private static Drawable createDetailsVerticalDivider(
         float x,

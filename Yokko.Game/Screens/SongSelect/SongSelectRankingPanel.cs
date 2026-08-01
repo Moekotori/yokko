@@ -294,8 +294,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
             SongSelectTheme.Navy.B,
             0.68f);
         Texture avatar = current
-            ? textures.Get("yokko")?.Crop(
-                new RectangleF(270, 2200, 850, 850))
+            ? textures.Get("SongSelect/Ui/yokko-avatar-256")
             : textures.Get(score.AvatarTexture);
 
         return new Container
@@ -486,16 +485,16 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         float size,
         Color4 colour,
         bool strong = true) => new()
-    {
-        Position = new Vector2(x, y),
-        Width = width,
-        Truncate = true,
-        Text = value,
-        Font = strong
+        {
+            Position = new Vector2(x, y),
+            Width = width,
+            Truncate = true,
+            Text = value,
+            Font = strong
             ? HomeTypography.Display(size)
             : HomeTypography.Body(size),
-        Colour = colour,
-    };
+            Colour = colour,
+        };
 
     private static SpriteText numericText(
         string value,
@@ -503,13 +502,13 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         float y,
         float size,
         Color4 colour) => new()
-    {
-        Origin = Anchor.TopRight,
-        Position = new Vector2(right, y),
-        Text = value,
-        Font = HomeTypography.Display(size),
-        Colour = colour,
-    };
+        {
+            Origin = Anchor.TopRight,
+            Position = new Vector2(right, y),
+            Text = value,
+            Font = HomeTypography.Display(size),
+            Colour = colour,
+        };
 
     private static Color4 rankAccent(int rank, bool current) =>
         current

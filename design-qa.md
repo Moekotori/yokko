@@ -5265,3 +5265,35 @@ final result: passed
 - `git diff --check` passed.
 
 final result: passed
+
+# Song Select entry performance and visual-regression QA (2026-08-01)
+
+## Evidence
+
+- Pre-fix native construction timings: 432 ms, 444 ms, and 427 ms; average 434 ms.
+- Revised native construction timings: 265 ms, 268 ms, and 293 ms; average 275 ms.
+- Revised native capture: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-entry-performance-v1.png` at 1920 x 1080.
+- Same-state visual-regression board: `C:\Users\nyafa\.codex\visualizations\2026\07\31\019fb864-4eef-7463-8392-2664d1e1d9ac\song-select-entry-performance-before-after-v1.png`.
+- Renderer: native Direct3D 11, Comfortable density, 7K filter, one expanded package.
+
+## Findings and implementation
+
+1. The normal entry path eagerly constructed 28 legacy mod buttons plus the full retired inline mod-settings tree even though the footer now opens `GameplayModsScreen`. Normal entry now creates only the real footer control; the legacy tree is available solely through the explicit `YOKKO_LEGACY_INLINE_MOD_PANEL=1` diagnostic switch.
+2. Song Select loaded a 2149 x 731 logo, a cropped region from a 2520 x 3360 avatar sheet, and all 15 frames of a 500 x 500 mascot GIF for display slots no larger than 512 px, 256 px, and 142 px respectively. Purpose-sized derivatives are now loaded while the original resources remain untouched.
+3. The cumulative post-library static-UI stage fell from an average 348 ms to 181 ms. End-to-end construction fell from 434 ms to 275 ms, a 36.6% reduction.
+4. A framework `TextureStore.GetAsync()` experiment introduced a reproducible 4-5 second wait when the same artwork was synchronously reused during detail construction. That experiment was fully reverted and is not part of the final implementation.
+
+## Visual fidelity review
+
+- The before/after board was opened at original detail. Panel geometry, text, artwork crop, colours, controls, selected state, and footer layout remain visually equivalent.
+- Purpose-sized assets preserve the original artwork and proportions; no generated replacement, large screenshot slice, or new decorative cutout was introduced.
+- The dedicated Mods screen, selected mod state, song rows, filters, ranking, footer tools, and gameplay handoff remain covered by the focused screen suite.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build in `artifacts/song-select-entry-performance`: 0 warnings and 0 errors.
+- Focused Song Select screen run: 11 passed, 0 failed, 0 skipped.
+- Three revised native Direct3D 11 runs completed at 1920 x 1080.
+- `git diff --check` passed.
+
+final result: passed

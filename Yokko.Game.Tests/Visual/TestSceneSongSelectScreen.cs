@@ -128,6 +128,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                 == new Vector2(696, 294)
             && songSelectScreen.SelectedModsButtonSize
                 == new Vector2(154, 40));
+        AddAssert("retired inline mod panel is not built on entry", () =>
+            !songSelectScreen.LegacyInlineModPanelMaterialised);
         AddAssert("footer tools use three aligned standalone cards", () =>
             songSelectScreen.FooterToolDockSize == new Vector2(560, 94)
             && songSelectScreen.FooterToolShadowCount == 3
@@ -600,8 +602,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             songSelectScreen.SelectedMods.MutedInverse
             && songSelectScreen.SelectedMods.MutedComboCount == 125
             && !songSelectScreen.SelectedMods.MutedMetronome
-            && !songSelectScreen.SelectedMods.MutedAffectsHitSounds
-            && songSelectScreen.MutedSettings.ComboCount == 125);
+            && !songSelectScreen.SelectedMods.MutedAffectsHitSounds);
         AddAssert("selected mods button reflects active mod", () =>
             songSelectScreen.SelectedModsButtonCount
                 == songSelectScreen.SelectedMods.Mods.Count
@@ -629,8 +630,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("Wind Up settings are reflected", () =>
             songSelectScreen.SelectedMods.Contains(ManiaModId.WindUp)
             && songSelectScreen.SelectedMods.TimeRampFinalRate == 1.7
-            && !songSelectScreen.SelectedMods.TimeRampAdjustPitch
-            && songSelectScreen.TimeRampSettings.FinalRate == 1.7);
+            && !songSelectScreen.SelectedMods.TimeRampAdjustPitch);
         AddStep("replace Wind Up with Wind Down", () =>
             songSelectScreen.ToggleMod(ManiaModId.WindDown));
         AddAssert("Wind Down gets its lazer defaults", () =>
@@ -651,9 +651,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             songSelectScreen.SelectedMods.Contains(
                 ManiaModId.HalfTime)
             && songSelectScreen.SelectedMods.PlaybackRate == 0.75
-            && songSelectScreen.ModInfoTitle.Contains("HT")
-            && songSelectScreen.ModInfoDescription.Contains(
-                "Replaced DT"));
+            && !songSelectScreen.SelectedMods.Contains(
+                ManiaModId.DoubleTime));
         AddStep("configure HT like lazer", () =>
         {
             songSelectScreen.SetFixedRateSpeedChange(0.80);
@@ -661,9 +660,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         });
         AddAssert("HT rate and pitch settings are reflected", () =>
             songSelectScreen.SelectedMods.PlaybackRate == 0.80
-            && songSelectScreen.SelectedMods.FixedRateAdjustPitch
-            && songSelectScreen.FixedRateSettings.SpeedChange == 0.80
-            && songSelectScreen.FixedRateSettings.AdjustPitch);
+            && songSelectScreen.SelectedMods.FixedRateAdjustPitch);
         AddStep("replace HT with DC", () =>
             songSelectScreen.ToggleMod(ManiaModId.Daycore));
         AddStep("configure DC speed", () =>
@@ -673,8 +670,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                 ManiaModId.Daycore)
             && songSelectScreen.SelectedMods.PlaybackRate == 0.60
             && songSelectScreen.SelectedMods.FixedAudioFrequencyScale
-               == 0.75
-            && songSelectScreen.FixedRateSettings.SpeedChange == 0.60);
+               == 0.75);
         AddStep("replace DT with NC", () =>
             songSelectScreen.ToggleMod(ManiaModId.Nightcore));
         AddStep("configure NC speed", () =>
@@ -698,8 +694,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("Adaptive Speed settings are reflected", () =>
             songSelectScreen.SelectedMods.HasAdaptiveSpeed
             && songSelectScreen.SelectedMods.AdaptiveInitialRate == 1.2
-            && !songSelectScreen.SelectedMods.AdaptiveAdjustPitch
-            && songSelectScreen.AdaptiveSpeedSettings.InitialRate == 1.2);
+            && !songSelectScreen.SelectedMods.AdaptiveAdjustPitch);
         AddStep("combine Auto", () =>
             songSelectScreen.ToggleMod(ManiaModId.Autoplay));
         AddAssert("Auto replaces Cinema", () =>
@@ -766,8 +761,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("strict Perfect setting is canonical and visible", () =>
             songSelectScreen.SelectedMods.PerfectRequirePerfectHits
             && songSelectScreen.SelectedMods.Fingerprint.Contains(
-                "perfect:require-perfect")
-            && songSelectScreen.PerfectSettings.RequirePerfectHits);
+                "perfect:require-perfect"));
         AddStep("replace Easy with Hard Rock", () =>
             songSelectScreen.ToggleMod(ManiaModId.HardRock));
         AddStep("enable Accuracy Challenge", () =>
@@ -794,10 +788,6 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.SelectedMods.AccuracyChallengeMinimum
                == 0.975
             && songSelectScreen.SelectedMods.AccuracyChallengeMode
-               == ManiaAccuracyMode.Standard
-            && songSelectScreen.AccuracyChallengeSettings.MinimumAccuracy
-               == 0.975
-            && songSelectScreen.AccuracyChallengeSettings.Mode
                == ManiaAccuracyMode.Standard);
         AddStep("enable Constant Speed", () =>
             songSelectScreen.ToggleMod(ManiaModId.ConstantSpeed));
@@ -819,15 +809,9 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.SelectedMods
                                .DifficultyAdjustDrainRate == 7.5
             && songSelectScreen.SelectedMods
-                               .DifficultyAdjustOverallDifficulty == 12
+                                .DifficultyAdjustOverallDifficulty == 12
             && songSelectScreen.SelectedMods
-                               .DifficultyAdjustExtendedLimits
-            && songSelectScreen.DifficultyAdjustSettings.DrainRate
-               == 7.5
-            && songSelectScreen.DifficultyAdjustSettings
-                               .OverallDifficulty == 12
-            && songSelectScreen.DifficultyAdjustSettings
-                               .ExtendedLimits);
+                                .DifficultyAdjustExtendedLimits);
         AddStep("play selected song", songSelectScreen.PlaySelected);
         AddUntilStep("gameplay receives selected mods", () =>
             screenStack.CurrentScreen is GameplaySessionScreen session
@@ -936,12 +920,11 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             songSelectScreen.SelectedEntry?.Beatmap.SourceFormat
             == ChartSourceFormat.OsuStandard);
         AddAssert("key configuration is available", () =>
-            songSelectScreen.KeyConversionSettings.CanConvert);
+            songSelectScreen.SelectedEntry.Beatmap.ConversionSource != null);
         AddStep("select 4K conversion", () =>
             songSelectScreen.ToggleMod(ManiaModId.Key4));
         AddAssert("4K target is reflected", () =>
-            songSelectScreen.SelectedMods.KeyConversionTarget == 4
-            && songSelectScreen.KeyConversionSettings.SelectedKeyCount == 4);
+            songSelectScreen.SelectedMods.KeyConversionTarget == 4);
         AddStep("enable Dual Stages", () =>
             songSelectScreen.ToggleMod(ManiaModId.DualStages));
         AddAssert("dual target is reflected", () =>
