@@ -24,6 +24,7 @@ internal enum ChartLibrarySourceFilter
 
 internal partial class ChartLibraryActionButton : ClickableContainer
 {
+    private readonly Container hoverContent;
     private readonly Box background;
     private readonly SpriteIcon icon;
     private readonly SpriteText label;
@@ -44,80 +45,84 @@ internal partial class ChartLibraryActionButton : ClickableContainer
         this.accent = accent ?? HomeControlColours.Cyan;
         Size = new Vector2(width, 48);
 
-        InternalChildren = new Drawable[]
+        InternalChild = hoverContent = new Container
         {
-            new Container
+            RelativeSizeAxes = Axes.Both,
+            Children = new Drawable[]
             {
-                Position = new Vector2(0, 4),
-                Size = new Vector2(width, 44),
-                Masking = true,
-                CornerRadius = 8,
-                Child = new Box
+                new Container
                 {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(0.015f, 0.045f, 0.28f, 0.22f),
-                },
-            },
-            new Container
-            {
-                Size = new Vector2(width, 44),
-                Masking = true,
-                CornerRadius = 8,
-                BorderThickness = 1.5f,
-                BorderColour = HomeControlColours.Navy,
-                Children = new Drawable[]
-                {
-                    background = new Box
+                    Position = new Vector2(0, 4),
+                    Size = new Vector2(width, 44),
+                    Masking = true,
+                    CornerRadius = 8,
+                    Child = new Box
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Colour = primary ? HomeControlColours.Navy : Color4.White,
-                    },
-                    new Box
-                    {
-                        RelativeSizeAxes = Axes.X,
-                        Height = 3,
-                        Anchor = Anchor.BottomLeft,
-                        Origin = Anchor.BottomLeft,
-                        Colour = this.accent,
-                        Alpha = primary ? 1 : 0.72f,
+                        Colour = new Color4(0.015f, 0.045f, 0.28f, 0.22f),
                     },
                 },
-            },
-            new FillFlowContainer
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Y = -2,
-                AutoSizeAxes = Axes.Both,
-                Direction = FillDirection.Horizontal,
-                Spacing = new Vector2(9, 0),
-                Children = new Drawable[]
+                new Container
                 {
-                    icon = new SpriteIcon
+                    Size = new Vector2(width, 44),
+                    Masking = true,
+                    CornerRadius = 8,
+                    BorderThickness = 1.5f,
+                    BorderColour = HomeControlColours.Navy,
+                    Children = new Drawable[]
                     {
-                        Anchor = Anchor.CentreLeft,
-                        Origin = Anchor.CentreLeft,
-                        Size = new Vector2(17),
-                        Icon = iconUsage,
-                        Colour = primary ? Color4.White : HomeControlColours.Navy,
-                    },
-                    label = new SpriteText
-                    {
-                        Anchor = Anchor.CentreLeft,
-                        Origin = Anchor.CentreLeft,
-                        Text = text,
-                        Font = HomeTypography.Display(15),
-                        Colour = primary ? Color4.White : HomeControlColours.Navy,
+                        background = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = primary ? HomeControlColours.Navy : Color4.White,
+                        },
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.X,
+                            Height = 3,
+                            Anchor = Anchor.BottomLeft,
+                            Origin = Anchor.BottomLeft,
+                            Colour = this.accent,
+                            Alpha = primary ? 1 : 0.72f,
+                        },
                     },
                 },
-            },
-            new Box
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.Centre,
-                Size = new Vector2(10),
-                Rotation = 45,
-                Colour = HomeControlColours.Yellow,
+                new FillFlowContainer
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Y = -2,
+                    AutoSizeAxes = Axes.Both,
+                    Direction = FillDirection.Horizontal,
+                    Spacing = new Vector2(9, 0),
+                    Children = new Drawable[]
+                    {
+                        icon = new SpriteIcon
+                        {
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
+                            Size = new Vector2(17),
+                            Icon = iconUsage,
+                            Colour = primary ? Color4.White : HomeControlColours.Navy,
+                        },
+                        label = new SpriteText
+                        {
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
+                            Text = text,
+                            Font = HomeTypography.Display(15),
+                            Colour = primary ? Color4.White : HomeControlColours.Navy,
+                        },
+                    },
+                },
+                new Box
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.Centre,
+                    Size = new Vector2(10),
+                    Rotation = 45,
+                    Colour = HomeControlColours.Yellow,
+                },
             },
         };
     }
@@ -147,7 +152,7 @@ internal partial class ChartLibraryActionButton : ClickableContainer
                 120,
                 Easing.OutQuint);
             icon.ScaleTo(1.1f, 120, Easing.OutQuint);
-            this.MoveToY(-2, 120, Easing.OutQuint);
+            hoverContent.MoveToY(-2, 120, Easing.OutQuint);
         }
 
         return base.OnHover(e);
@@ -157,7 +162,7 @@ internal partial class ChartLibraryActionButton : ClickableContainer
     {
         background.FadeColour(primary ? HomeControlColours.Navy : Color4.White, 150, Easing.OutQuint);
         icon.ScaleTo(1, 150, Easing.OutQuint);
-        this.MoveToY(0, 150, Easing.OutQuint);
+        hoverContent.MoveToY(0, 150, Easing.OutQuint);
         base.OnHoverLost(e);
     }
 }

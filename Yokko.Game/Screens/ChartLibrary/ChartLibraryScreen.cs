@@ -68,6 +68,7 @@ public partial class ChartLibraryScreen : Screen
     private SpriteText managedPathText;
     private SpriteText externalPathText;
     private ChartLibraryActionButton importButton;
+    private ChartLibraryActionButton importFolderButton;
     private ChartLibraryActionButton selectOsuButton;
     private ChartLibraryActionButton refreshButton;
     private ChartLibraryActionButton autoFindButton;
@@ -310,6 +311,11 @@ public partial class ChartLibraryScreen : Screen
                         FontAwesome.Solid.FolderOpen,
                         chooseExternalOsuFolder,
                         174),
+                    importFolderButton = new ChartLibraryActionButton(
+                        YokkoStrings.Get("chart_library.import_folder"),
+                        FontAwesome.Solid.FolderPlus,
+                        openImportFolderSelector,
+                        148),
                     importButton = new ChartLibraryActionButton(
                         YokkoStrings.Get("chart_library.import"),
                         FontAwesome.Solid.BookOpen,
@@ -790,6 +796,86 @@ public partial class ChartLibraryScreen : Screen
             results => YokkoStrings.Get("chart_library.imported", results.Count));
     }
 
+    private async void openImportFolderSelector()
+    {
+        if (workInProgress)
+            return;
+
+        if (!resourceDirectoryPicker.IsAvailable)
+        {
+            setStatus(YokkoStrings.Get("chart_library.folder_picker_unavailable"), true);
+            return;
+        }
+
+        string selectedPath;
+        try
+        {
+            selectedPath = await resourceDirectoryPicker.PickAsync(
+                importedChartLibrary.LibraryPath);
+        }
+        catch (Exception exception)
+        {
+            setStatus(exception.Message, true);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedPath))
+            importFolder(selectedPath);
+    }
+
+    private void importFolder(string path)
+    {
+        if (!beginWork(YokkoStrings.Get(
+                "chart_library.importing_folder",
+                Path.GetFileName(Path.TrimEndingDirectorySeparator(path)))))
+        {
+            return;
+        }
+
+        completeWork(
+            Task.Run(
+                () => importFolderAsync(path, workCancellation.Token),
+                workCancellation.Token),
+            summary => summary.FailedFileCount == 0
+                ? YokkoStrings.Get(
+                    "chart_library.imported_folder",
+                    summary.ImportedChartCount,
+                    summary.SourceFileCount)
+                : YokkoStrings.Get(
+                    "chart_library.imported_folder_with_failures",
+                    summary.ImportedChartCount,
+                    summary.SourceFileCount,
+                    summary.FailedFileCount));
+    }
+
+    private async Task<FolderChartImportResult> importFolderAsync(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        FolderChartImportResult summary =
+            await importedChartLibrary.ImportFolderAsync(
+                path,
+                importSettings.PreferKeysounds.Value,
+                importSettings.PreferSscSimfiles.Value,
+                importSettings.EnableBmsScratch.Value,
+                cancellationToken).ConfigureAwait(false);
+        if (summary.SourceFileCount == 0)
+        {
+            throw new InvalidOperationException(
+                YokkoStrings.Get("chart_library.no_importable_files").ToString());
+        }
+
+        if (summary.ImportedChartCount == 0 && summary.FailedFileCount > 0)
+        {
+            throw new InvalidOperationException(
+                YokkoStrings.Get(
+                    "chart_library.folder_import_failed",
+                    summary.FailedFileCount).ToString());
+        }
+
+        return summary;
+    }
+
     private async void chooseExternalOsuFolder()
     {
         if (workInProgress)
@@ -955,6 +1041,7 @@ public partial class ChartLibraryScreen : Screen
     private void setActionsEnabled(bool enabled)
     {
         importButton?.SetEnabled(enabled);
+        importFolderButton?.SetEnabled(enabled);
         selectOsuButton?.SetEnabled(enabled);
         refreshButton?.SetEnabled(enabled);
         autoFindButton?.SetEnabled(enabled);
@@ -984,4 +1071,5 @@ public partial class ChartLibraryScreen : Screen
         string.IsNullOrWhiteSpace(path)
             ? YokkoStrings.Get("chart_library.not_configured")
             : path;
+
 }

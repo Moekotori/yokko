@@ -96,6 +96,8 @@ internal enum YokkoSetting
     GameplayLayoutJudgementOffsetY,
     GameplayLayoutJudgementScaleX,
     GameplayLayoutJudgementScaleY,
+    GameplayLayoutPerformanceReadoutOffsetX,
+    GameplayLayoutPerformanceReadoutOffsetY,
     GameplayReplayControlsOffsetX,
     GameplayReplayControlsOffsetY,
     GameplayLayoutTopCoverRatio,
@@ -415,6 +417,18 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoGameplaySettings.MaximumLayoutScale,
             0.05);
         SetDefault(
+            YokkoSetting.GameplayLayoutPerformanceReadoutOffsetX,
+            0.0,
+            YokkoGameplaySettings.MinimumPerformanceReadoutOffset,
+            YokkoGameplaySettings.MaximumPerformanceReadoutOffset,
+            0.005);
+        SetDefault(
+            YokkoSetting.GameplayLayoutPerformanceReadoutOffsetY,
+            0.0,
+            YokkoGameplaySettings.MinimumPerformanceReadoutOffset,
+            YokkoGameplaySettings.MaximumPerformanceReadoutOffset,
+            0.005);
+        SetDefault(
             YokkoSetting.GameplayReplayControlsOffsetX,
             0.0,
             YokkoGameplaySettings.MinimumLayoutOffset,
@@ -729,6 +743,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.GameplayLayoutJudgementScaleY,
             settings.LayoutJudgementScaleY);
+        BindWith(
+            YokkoSetting.GameplayLayoutPerformanceReadoutOffsetX,
+            settings.LayoutPerformanceReadoutOffsetX);
+        BindWith(
+            YokkoSetting.GameplayLayoutPerformanceReadoutOffsetY,
+            settings.LayoutPerformanceReadoutOffsetY);
         BindWith(
             YokkoSetting.GameplayReplayControlsOffsetX,
             settings.ReplayControlsOffsetX);

@@ -181,6 +181,10 @@ public sealed class YokkoGameplaySettings
 
     public const double MaximumLayoutScale = 2.5;
 
+    public const double MinimumPerformanceReadoutOffset = -1;
+
+    public const double MaximumPerformanceReadoutOffset = 0;
+
     public const double MaximumTopCoverRatio = 0.75;
 
     public const double MaximumBottomCoverRatio = 0.5;
@@ -253,6 +257,10 @@ public sealed class YokkoGameplaySettings
 
     public readonly Bindable<double> LayoutJudgementScaleY = new(1);
 
+    public readonly Bindable<double> LayoutPerformanceReadoutOffsetX = new(0);
+
+    public readonly Bindable<double> LayoutPerformanceReadoutOffsetY = new(0);
+
     public readonly Bindable<double> ReplayControlsOffsetX = new(0);
 
     public readonly Bindable<double> ReplayControlsOffsetY = new(0);
@@ -295,6 +303,8 @@ public sealed class YokkoGameplaySettings
             yield return layoutSetting("judgementOffsetY", LayoutJudgementOffsetY);
             yield return layoutSetting("judgementScaleX", LayoutJudgementScaleX, MinimumLayoutScale, MaximumLayoutScale);
             yield return layoutSetting("judgementScaleY", LayoutJudgementScaleY, MinimumLayoutScale, MaximumLayoutScale);
+            yield return layoutSetting("performanceReadoutOffsetX", LayoutPerformanceReadoutOffsetX, MinimumPerformanceReadoutOffset, MaximumPerformanceReadoutOffset);
+            yield return layoutSetting("performanceReadoutOffsetY", LayoutPerformanceReadoutOffsetY, MinimumPerformanceReadoutOffset, MaximumPerformanceReadoutOffset);
             yield return layoutSetting("replayControlsOffsetX", ReplayControlsOffsetX);
             yield return layoutSetting("replayControlsOffsetY", ReplayControlsOffsetY);
             yield return new GameplayHudLayoutSetting("topCoverRatio", LayoutTopCoverRatio, 0, MaximumTopCoverRatio);
@@ -632,6 +642,8 @@ public sealed class YokkoGameplaySettings
         LayoutJudgementOffsetY.SetDefault();
         LayoutJudgementScaleX.SetDefault();
         LayoutJudgementScaleY.SetDefault();
+        LayoutPerformanceReadoutOffsetX.SetDefault();
+        LayoutPerformanceReadoutOffsetY.SetDefault();
         ReplayControlsOffsetX.SetDefault();
         ReplayControlsOffsetY.SetDefault();
         LayoutTopCoverRatio.SetDefault();

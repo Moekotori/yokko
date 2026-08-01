@@ -154,6 +154,48 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
+    public async Task DisablingExternalOsuWhileIndexingPreventsLateLoad()
+    {
+        string root = createTestRoot("external-osu-disable-indexing");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string set = Path.Combine(songs, "100 Disable Test");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        Directory.CreateDirectory(set);
+
+        try
+        {
+            writeOsuChart(set, "Disabled", 3);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+            library.SetExternalIndexingPaused(true);
+
+            Task<ExternalOsuLibraryResult> refresh =
+                library.RefreshExternalOsuAsync();
+            await Task.Delay(50);
+            library.DisableExternalOsu();
+            library.SetExternalIndexingPaused(false);
+
+            ExternalOsuLibraryResult result = await refresh;
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.True);
+                Assert.That(settings.SongsPath.Value, Is.Empty);
+                Assert.That(library.ExternalOsuChartCount, Is.Zero);
+                Assert.That(library.GetCharts(), Is.Empty);
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task ExternalOsuIndexRestoresChartsWhenSongsIsTemporarilyUnavailable()
     {
         string root = createTestRoot("external-osu-restore");
@@ -762,6 +804,53 @@ public sealed class ImportedChartLibraryTest
                 Assert.That(
                     File.Exists(reloaded.GetCharts().Single().ArtworkPath),
                     Is.True);
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ImportFolderRecursivelyImportsSupportedChartFiles()
+    {
+        string root = createTestRoot("folder-import");
+        string source = Path.Combine(root, "source-pack");
+        string firstSet = Path.Combine(source, "First set");
+        string secondSet = Path.Combine(source, "Nested", "Second set");
+        Directory.CreateDirectory(firstSet);
+        Directory.CreateDirectory(secondSet);
+
+        try
+        {
+            writeOsuChart(firstSet, "First", 3);
+            writeOsuChart(secondSet, "Second", 3);
+            File.WriteAllBytes(Path.Combine(firstSet, "audio.mp3"), []);
+            File.WriteAllBytes(Path.Combine(secondSet, "audio.mp3"), []);
+            File.WriteAllText(Path.Combine(source, "notes.txt"), "not a chart");
+
+            using var library = new ImportedChartLibrary();
+            library.Initialise(new NativeStorage(Path.Combine(root, "Yokko")));
+
+            FolderChartImportResult result = await library.ImportFolderAsync(
+                source,
+                true,
+                true);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.SourceFileCount, Is.EqualTo(2));
+                Assert.That(result.ImportedChartCount, Is.EqualTo(2));
+                Assert.That(result.FailedFileCount, Is.Zero);
+                Assert.That(library.GetCharts(), Has.Count.EqualTo(2));
+                Assert.That(
+                    library.GetCharts().Select(chart => chart.Result.Beatmap.Title),
+                    Is.EquivalentTo(new[] { "First", "Second" }));
+                Assert.That(
+                    library.GetCharts().Select(chart => chart.SourcePath),
+                    Is.All.StartsWith(library.LibraryPath));
             });
         }
         finally

@@ -28,6 +28,7 @@ namespace Yokko.Game
         private YokkoPerformanceReadout performanceReadout;
         private YokkoDebugConsoleOverlay debugConsole;
         private BindableBool showPerformanceReadout;
+        private YokkoGameplaySettings gameplaySettings;
         private Bindable<WindowMode> windowMode;
         private IBindable<DisplayMode> currentDisplayMode;
         private WindowModeNotificationOverlay windowModeNotification;
@@ -84,8 +85,10 @@ namespace Yokko.Game
         [BackgroundDependencyLoader]
         private void load(
             FrameworkConfigManager frameworkConfig,
-            GameHost host)
+            GameHost host,
+            YokkoGameplaySettings gameplaySettings)
         {
+            this.gameplaySettings = gameplaySettings;
             windowMode = frameworkConfig.GetBindable<WindowMode>(
                 FrameworkSetting.WindowMode);
             currentDisplayMode = host.Window?.CurrentDisplayMode;
@@ -99,9 +102,6 @@ namespace Yokko.Game
                 performanceReadout = new YokkoPerformanceReadout(
                     diagnostics: Diagnostics)
                 {
-                    Anchor = Anchor.TopCentre,
-                    Origin = Anchor.TopCentre,
-                    Position = new osuTK.Vector2(0, 12),
                     Depth = float.MinValue,
                 },
                 externalDebugConsole == null
@@ -126,6 +126,20 @@ namespace Yokko.Game
                     onExternalDebugConsoleCloseRequested;
             }
             windowMode.BindValueChanged(onWindowModeChanged);
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+
+            if (performanceReadout == null || gameplaySettings == null)
+                return;
+
+            performanceReadout.Position =
+                YokkoPerformanceReadout.GetLayoutPosition(
+                    Content.DrawSize,
+                    gameplaySettings.LayoutPerformanceReadoutOffsetX.Value,
+                    gameplaySettings.LayoutPerformanceReadoutOffsetY.Value);
         }
 
         protected override void LoadComplete()

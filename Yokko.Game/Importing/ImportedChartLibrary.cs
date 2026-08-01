@@ -51,6 +51,11 @@ internal sealed record ManagedChartRemovalResult(
     int RemovedChartCount,
     string SourcePath);
 
+internal sealed record FolderChartImportResult(
+    int ImportedChartCount,
+    int SourceFileCount,
+    int FailedFileCount);
+
 /// <summary>
 /// Owns Yokko's persistent beatmap resource directory and notifies views which
 /// present the playable chart library.
@@ -64,6 +69,7 @@ internal sealed class ImportedChartLibrary : IDisposable
     private readonly SemaphoreSlim importLock = new(1, 1);
     private readonly SemaphoreSlim externalDifficultyLock = new(1, 1);
     private readonly object externalWorkPauseLock = new();
+    private readonly object externalOsuStateLock = new();
     private TaskCompletionSource<bool> externalWorkResume =
         completedResumeSource();
     private int externalDifficultyGeneration;
@@ -72,6 +78,7 @@ internal sealed class ImportedChartLibrary : IDisposable
     private Task<int> startupLoadTask = Task.FromResult(0);
     private Task externalDifficultyTask = Task.CompletedTask;
     private bool startupLoadStarted;
+    private int externalOsuConfigurationGeneration;
     private long revision;
     private YokkoExternalOsuSettings externalOsuSettings;
     private string externalOsuCachePath;
@@ -158,7 +165,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                     preferKeysounds,
                     preferSscSimfiles,
                     enableBmsScratch).ConfigureAwait(false);
-                if (externalOsuSettings != null)
+                if (!string.IsNullOrWhiteSpace(ExternalOsuSongsPath))
                 {
                     // The private index is already enough to populate song
                     // select. Validate file metadata in the background so a
@@ -547,8 +554,12 @@ internal sealed class ImportedChartLibrary : IDisposable
                 exception.Message);
         }
 
-        externalOsuSettings.SongsPath.Value = songsPath;
-        disposeExternalWatcher();
+        lock (externalOsuStateLock)
+        {
+            externalOsuConfigurationGeneration++;
+            externalOsuSettings.SongsPath.Value = songsPath;
+            disposeExternalWatcher();
+        }
         await loadCachedExternalOsuAsync(cancellationToken)
             .ConfigureAwait(false);
         return await RefreshExternalOsuAsync(cancellationToken)
@@ -558,21 +569,97 @@ internal sealed class ImportedChartLibrary : IDisposable
     internal void DisableExternalOsu()
     {
         ensureExternalConfigured();
-        Interlocked.Increment(ref externalDifficultyGeneration);
-        externalOsuSettings.SongsPath.Value = string.Empty;
-        disposeExternalWatcher();
-        replaceExternalCharts([]);
+        lock (externalOsuStateLock)
+        {
+            externalOsuConfigurationGeneration++;
+            Interlocked.Increment(ref externalDifficultyGeneration);
+            externalOsuSettings.SongsPath.Value = string.Empty;
+            disposeExternalWatcher();
+            replaceExternalCharts([]);
+        }
+    }
+
+    public async Task<FolderChartImportResult> ImportFolderAsync(
+        string path,
+        bool preferKeysounds,
+        bool preferSscSimfiles,
+        bool enableBmsScratch = false,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        string folderPath = Path.GetFullPath(path);
+        if (!Directory.Exists(folderPath))
+            throw new DirectoryNotFoundException($"Chart folder not found: {folderPath}");
+
+        string[] sources = Directory
+                           .EnumerateFiles(
+                               folderPath,
+                               "*",
+                               new EnumerationOptions
+                               {
+                                   RecurseSubdirectories = true,
+                                   IgnoreInaccessible = true,
+                                   AttributesToSkip = FileAttributes.ReparsePoint,
+                               })
+                           .Where(KnownChartImporters.CanImport)
+                           .Order(StringComparer.OrdinalIgnoreCase)
+                           .ToArray();
+        int importedCharts = 0;
+        int failedFiles = 0;
+
+        foreach (string source in sources)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                IReadOnlyList<ChartImportResult> results = await ImportAsync(
+                    new ChartImportRequest(
+                        source,
+                        preferKeysounds,
+                        preferSscSimfiles,
+                        enableBmsScratch,
+                        cancellationToken)).ConfigureAwait(false);
+                importedCharts += results.Count;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                failedFiles++;
+                Logger.Error(
+                    exception,
+                    $"Could not import chart file '{source}' from folder '{folderPath}'.");
+            }
+        }
+
+        return new FolderChartImportResult(
+            importedCharts,
+            sources.Length,
+            failedFiles);
     }
 
     internal async Task<ExternalOsuLibraryResult> RefreshExternalOsuAsync(
         CancellationToken cancellationToken = default)
     {
         ensureExternalConfigured();
-        string songsPath = ExternalOsuSongsPath;
+        string songsPath;
+        int configurationGeneration;
+        lock (externalOsuStateLock)
+        {
+            songsPath = ExternalOsuSongsPath;
+            configurationGeneration = externalOsuConfigurationGeneration;
+        }
         if (string.IsNullOrWhiteSpace(songsPath))
         {
-            replaceExternalCharts([]);
-            disposeExternalWatcher();
+            lock (externalOsuStateLock)
+            {
+                if (isExternalOsuConfigurationCurrent(
+                        configurationGeneration,
+                        songsPath))
+                {
+                    replaceExternalCharts([]);
+                    disposeExternalWatcher();
+                }
+            }
             return new ExternalOsuLibraryResult(
                 true,
                 string.Empty,
@@ -582,7 +669,15 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         if (!Directory.Exists(songsPath))
         {
-            disposeExternalWatcher();
+            lock (externalOsuStateLock)
+            {
+                if (isExternalOsuConfigurationCurrent(
+                        configurationGeneration,
+                        songsPath))
+                {
+                    disposeExternalWatcher();
+                }
+            }
             return new ExternalOsuLibraryResult(
                 false,
                 songsPath,
@@ -741,7 +836,6 @@ internal sealed class ImportedChartLibrary : IDisposable
                                                    StringComparer.OrdinalIgnoreCase)
                                                .ToArray();
             ImportedChart[] externalCharts = createExternalCharts(entries);
-            replaceExternalCharts(externalCharts);
             msdRatingCache.SaveIfChanged();
             starRatingCache.SaveIfChanged();
 
@@ -761,11 +855,22 @@ internal sealed class ImportedChartLibrary : IDisposable
                     "Could not save the external osu! library index.");
             }
 
-            configureExternalWatcher(songsPath);
-            startExternalDifficultyCompletion(
-                songsPath,
-                entries,
-                difficultyGeneration);
+            lock (externalOsuStateLock)
+            {
+                if (!isExternalOsuConfigurationCurrent(
+                        configurationGeneration,
+                        songsPath))
+                {
+                    return supersededExternalOsuResult();
+                }
+
+                replaceExternalCharts(externalCharts);
+                configureExternalWatcher(songsPath);
+                startExternalDifficultyCompletion(
+                    songsPath,
+                    entries,
+                    difficultyGeneration);
+            }
             Logger.Log(
                 $"External osu! scan loaded {externalCharts.Length} mania charts "
                 + $"from {snapshots.Count} .osu files; {changed.Count} files "
@@ -792,10 +897,26 @@ internal sealed class ImportedChartLibrary : IDisposable
     private async Task<int> loadCachedExternalOsuAsync(
         CancellationToken cancellationToken = default)
     {
-        if (externalOsuSettings == null
-            || string.IsNullOrWhiteSpace(ExternalOsuSongsPath))
+        string songsPath;
+        int configurationGeneration;
+        lock (externalOsuStateLock)
         {
-            replaceExternalCharts([]);
+            songsPath = ExternalOsuSongsPath;
+            configurationGeneration = externalOsuConfigurationGeneration;
+        }
+
+        if (externalOsuSettings == null
+            || string.IsNullOrWhiteSpace(songsPath))
+        {
+            lock (externalOsuStateLock)
+            {
+                if (isExternalOsuConfigurationCurrent(
+                        configurationGeneration,
+                        songsPath))
+                {
+                    replaceExternalCharts([]);
+                }
+            }
             return 0;
         }
 
@@ -804,16 +925,34 @@ internal sealed class ImportedChartLibrary : IDisposable
         {
             ExternalOsuIndexDocument cached = ExternalOsuSongsIndex.Load(
                 externalOsuCachePath,
-                ExternalOsuSongsPath);
+                songsPath);
             if (cached == null)
             {
-                replaceExternalCharts([]);
+                lock (externalOsuStateLock)
+                {
+                    if (isExternalOsuConfigurationCurrent(
+                            configurationGeneration,
+                            songsPath))
+                    {
+                        replaceExternalCharts([]);
+                    }
+                }
                 return 0;
             }
 
             ImportedChart[] restored = createExternalCharts(
                 cached.Entries);
-            replaceExternalCharts(restored);
+            lock (externalOsuStateLock)
+            {
+                if (!isExternalOsuConfigurationCurrent(
+                        configurationGeneration,
+                        songsPath))
+                {
+                    return 0;
+                }
+
+                replaceExternalCharts(restored);
+            }
             Logger.Log(
                 $"Restored {restored.Length} external osu!mania charts from Yokko's private index.",
                 LoggingTarget.Runtime,
@@ -1111,7 +1250,21 @@ internal sealed class ImportedChartLibrary : IDisposable
                 externalOsuCachePath,
                 songsPath,
                 entries);
-            replaceExternalCharts(createExternalCharts(entries));
+            lock (externalOsuStateLock)
+            {
+                if (disposed
+                    || generation != Volatile.Read(
+                        ref externalDifficultyGeneration)
+                    || !string.Equals(
+                        songsPath,
+                        ExternalOsuSongsPath,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                replaceExternalCharts(createExternalCharts(entries));
+            }
             return true;
         }
         catch (Exception exception) when (exception is IOException
@@ -1173,6 +1326,21 @@ internal sealed class ImportedChartLibrary : IDisposable
         source.SetResult(true);
         return source;
     }
+
+    private bool isExternalOsuConfigurationCurrent(
+        int generation,
+        string songsPath) =>
+        generation == externalOsuConfigurationGeneration
+        && string.Equals(
+            songsPath,
+            ExternalOsuSongsPath,
+            StringComparison.OrdinalIgnoreCase);
+
+    private ExternalOsuLibraryResult supersededExternalOsuResult() => new(
+        true,
+        ExternalOsuSongsPath,
+        ExternalOsuChartCount,
+        "External osu! scan was superseded by a configuration change.");
 
     private void configureExternalWatcher(string songsPath)
     {

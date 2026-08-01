@@ -360,7 +360,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = 58,
-                Size = new Vector2(390, 44),
+                Size = new Vector2(280, 44),
                 Children = new Drawable[]
                 {
                     new SpriteText
@@ -373,7 +373,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                     externalOsuPathText = new SpriteText
                     {
                         Y = 22,
-                        Width = 390,
+                        Width = 280,
                         Truncate = true,
                         Font = HomeTypography.Body(14),
                         Colour = SettingsTheme.MutedNavy,
@@ -384,11 +384,19 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
-                X = -238,
-                Width = 140,
+                X = -350,
+                Width = 132,
                 Truncate = true,
                 Font = HomeTypography.Display(13),
                 Colour = HomeControlColours.Pink,
+            },
+            new SettingsSkinActionButton(
+                YokkoStrings.Get("chart_library.disable_osu"),
+                FontAwesome.Solid.PowerOff,
+                disableExternalOsu,
+                false)
+            {
+                Position = new Vector2(502, 8),
             },
             new SettingsSkinActionButton(
                 YokkoStrings.Get("settings.import.external_osu_auto_find"),

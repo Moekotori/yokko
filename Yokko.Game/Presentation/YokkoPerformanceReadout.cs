@@ -70,6 +70,7 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
     internal const float CardWidth = 324;
     internal const float CardHeight = 36;
     internal const float ExpandedCardHeight = 88;
+    internal const float EdgeInset = 12;
 
     private const double display_refresh_milliseconds = 250;
 
@@ -107,6 +108,9 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
         this.diagnostics = diagnostics;
         if (diagnostics != null)
             process = Process.GetCurrentProcess();
+        Anchor = Anchor.BottomRight;
+        Origin = Anchor.BottomRight;
+        Position = GetLayoutPosition(Vector2.Zero, 0, 0);
         Size = new Vector2(CardWidth, CardHeight);
         Masking = true;
         CornerRadius = 5;
@@ -133,6 +137,14 @@ internal partial class YokkoPerformanceReadout : CompositeDrawable
 
     internal FramePacingHealth DisplayedHealth { get; private set; }
     internal bool TrackingEnabled => trackingEnabled;
+
+    internal static Vector2 GetLayoutPosition(
+        Vector2 viewportSize,
+        double offsetX,
+        double offsetY) =>
+        new(
+            -EdgeInset + (float)offsetX * viewportSize.X,
+            -EdgeInset + (float)offsetY * viewportSize.Y);
 
     [BackgroundDependencyLoader]
     private void load(GameHost host)

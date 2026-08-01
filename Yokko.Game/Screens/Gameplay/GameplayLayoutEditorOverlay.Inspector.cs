@@ -103,6 +103,9 @@ internal partial class GameplayLayoutEditorOverlay
     internal void MoveInformationForTest(Vector2 delta) =>
         informationTarget.MoveBy(delta);
 
+    internal void MovePerformanceReadoutForTest(Vector2 delta) =>
+        performanceReadoutTarget.MoveBy(delta);
+
     internal void MoveComboSafelyForTest(Vector2 delta) =>
         comboTarget.MoveBy(
             snapTargetMove(comboTarget, delta, true));
@@ -154,6 +157,7 @@ internal partial class GameplayLayoutEditorOverlay
         TimingBar,
         Combo,
         Judgement,
+        PerformanceReadout,
     }
 
     private enum LayoutMetricField
@@ -214,6 +218,8 @@ internal partial class GameplayLayoutEditorOverlay
         originalElementAlpha[LayoutElementKind.Combo] = comboReadout.Alpha;
         originalElementAlpha[LayoutElementKind.Judgement] =
             judgementReadout.Alpha;
+        originalElementAlpha[LayoutElementKind.PerformanceReadout] =
+            performanceReadoutPreview.Alpha;
         setComboEditorPreview(true);
         setJudgementEditorPreview(true);
 
@@ -231,6 +237,7 @@ internal partial class GameplayLayoutEditorOverlay
         applyElementAlpha(LayoutElementKind.TimingBar, false);
         applyElementAlpha(LayoutElementKind.Combo, false);
         applyElementAlpha(LayoutElementKind.Judgement, false);
+        applyElementAlpha(LayoutElementKind.PerformanceReadout, false);
         nudgeStep = 1;
         inspector.SetStep(nudgeStep);
         clearSnapGuides();
@@ -254,6 +261,7 @@ internal partial class GameplayLayoutEditorOverlay
         restoreOriginalAlpha(LayoutElementKind.TimingBar);
         restoreOriginalAlpha(LayoutElementKind.Combo);
         restoreOriginalAlpha(LayoutElementKind.Judgement);
+        restoreOriginalAlpha(LayoutElementKind.PerformanceReadout);
         clearSnapGuides();
     }
 
@@ -266,6 +274,7 @@ internal partial class GameplayLayoutEditorOverlay
         yield return timingBarTarget;
         yield return comboTarget;
         yield return judgementTarget;
+        yield return performanceReadoutTarget;
     }
 
     private LayoutTransformTarget targetFor(LayoutElementKind kind) =>
@@ -278,6 +287,7 @@ internal partial class GameplayLayoutEditorOverlay
             LayoutElementKind.TimingBar => timingBarTarget,
             LayoutElementKind.Combo => comboTarget,
             LayoutElementKind.Judgement => judgementTarget,
+            LayoutElementKind.PerformanceReadout => performanceReadoutTarget,
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
 
@@ -294,6 +304,7 @@ internal partial class GameplayLayoutEditorOverlay
             LayoutElementKind.Judgement =>
                 playfield.SkinJudgementLayoutDrawable
                 ?? judgementReadout,
+            LayoutElementKind.PerformanceReadout => performanceReadoutPreview,
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
 
@@ -307,6 +318,7 @@ internal partial class GameplayLayoutEditorOverlay
             LayoutElementKind.TimingBar => miniTimingBar,
             LayoutElementKind.Combo => miniCombo,
             LayoutElementKind.Judgement => miniJudgement,
+            LayoutElementKind.PerformanceReadout => miniPerformanceReadout,
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
 
@@ -524,6 +536,11 @@ internal partial class GameplayLayoutEditorOverlay
         LayoutTransformTarget target = targetFor(kind);
         if (!target.CanEdit || double.IsNaN(rawValue))
             return;
+        if (!target.CanResize
+            && field is LayoutMetricField.Width or LayoutMetricField.Height)
+        {
+            return;
+        }
 
         selectTarget(target);
         beginChange();
@@ -1034,7 +1051,7 @@ internal partial class GameplayLayoutEditorOverlay
             Origin = Anchor.TopRight;
             Position = new Vector2(-18, 18);
             Scale = new Vector2(1.08f);
-            Size = new Vector2(360, 400);
+            Size = new Vector2(360, 426);
             Depth = -100;
             Masking = true;
             CornerRadius = 11;
@@ -1052,6 +1069,7 @@ internal partial class GameplayLayoutEditorOverlay
             LayerRow timingRow;
             LayerRow comboRow;
             LayerRow judgementRow;
+            LayerRow performanceReadoutRow;
 
             InternalChildren = new Drawable[]
             {
@@ -1109,9 +1127,15 @@ internal partial class GameplayLayoutEditorOverlay
                     YokkoStrings.Get(
                         "gameplay.layout_editor.layer.judgement"),
                     198),
+                performanceReadoutRow = createLayerRow(
+                    LayoutElementKind.PerformanceReadout,
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.layer.performance_readout"),
+                    224,
+                    canHide: false),
                 new Box
                 {
-                    Position = new Vector2(12, 230),
+                    Position = new Vector2(12, 256),
                     Size = new Vector2(336, 1),
                     Colour = new Color4(
                         HomeControlColours.Navy.R,
@@ -1122,29 +1146,29 @@ internal partial class GameplayLayoutEditorOverlay
                 xField = createNumericField(
                     "X",
                     LayoutMetricField.X,
-                    new Vector2(12, 240),
+                    new Vector2(12, 266),
                     applyMetric),
                 yField = createNumericField(
                     "Y",
                     LayoutMetricField.Y,
-                    new Vector2(188, 240),
+                    new Vector2(188, 266),
                     applyMetric),
                 widthField = createNumericField(
                     "W",
                     LayoutMetricField.Width,
-                    new Vector2(12, 286),
+                    new Vector2(12, 312),
                     applyMetric),
                 heightField = createNumericField(
                     "H",
                     LayoutMetricField.Height,
-                    new Vector2(188, 286),
+                    new Vector2(188, 312),
                     applyMetric),
                 aspectButton = new ToggleIconButton(
                     FontAwesome.Solid.Link,
                     FontAwesome.Solid.Unlink,
                     value => setAspectLocked(selected, value))
                 {
-                    Position = new Vector2(12, 340),
+                    Position = new Vector2(12, 366),
                     Size = new Vector2(34),
                 },
                 new LayoutActionButton(
@@ -1153,7 +1177,7 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.ArrowsAltH,
                     () => centre(true))
                 {
-                    Position = new Vector2(52, 339),
+                    Position = new Vector2(52, 365),
                     Size = new Vector2(112, 34),
                 },
                 new LayoutActionButton(
@@ -1162,12 +1186,12 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.ArrowsAltV,
                     () => centre(false))
                 {
-                    Position = new Vector2(170, 339),
+                    Position = new Vector2(170, 365),
                     Size = new Vector2(112, 34),
                 },
                 new ClickableContainer
                 {
-                    Position = new Vector2(288, 339),
+                    Position = new Vector2(288, 365),
                     Size = new Vector2(60, 34),
                     Action = cycleStep,
                     Masking = true,
@@ -1192,7 +1216,7 @@ internal partial class GameplayLayoutEditorOverlay
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(12, 382),
+                    Position = new Vector2(12, 408),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.snap_hint"),
                     Font = LayoutEditorTypography.Regular(9),
@@ -1211,6 +1235,8 @@ internal partial class GameplayLayoutEditorOverlay
             layerRows[LayoutElementKind.TimingBar] = timingRow;
             layerRows[LayoutElementKind.Combo] = comboRow;
             layerRows[LayoutElementKind.Judgement] = judgementRow;
+            layerRows[LayoutElementKind.PerformanceReadout] =
+                performanceReadoutRow;
             Select(LayoutElementKind.Playfield);
             SetStep(1);
         }
@@ -1223,6 +1249,7 @@ internal partial class GameplayLayoutEditorOverlay
             selected = kind.Value;
             foreach ((LayoutElementKind rowKind, LayerRow row) in layerRows)
                 row.SetSelected(rowKind == selected);
+            updateFieldAvailability(false);
         }
 
         internal void SetLayerState(
@@ -1236,7 +1263,7 @@ internal partial class GameplayLayoutEditorOverlay
                 return;
 
             aspectButton.SetValue(aspectLocked);
-            setFieldsReadOnly(locked || hidden);
+            updateFieldAvailability(locked || hidden);
         }
 
         internal void SetMetrics(LayoutElementMetrics metrics)
@@ -1255,12 +1282,14 @@ internal partial class GameplayLayoutEditorOverlay
         private LayerRow createLayerRow(
             LayoutElementKind kind,
             LocalisableString text,
-            float y) =>
+            float y,
+            bool canHide = true) =>
             new(
                 text,
                 () => select(kind),
                 hidden => setHidden(kind, hidden),
-                locked => setLocked(kind, locked))
+                locked => setLocked(kind, locked),
+                canHide)
             {
                 Position = new Vector2(12, y),
             };
@@ -1275,13 +1304,14 @@ internal partial class GameplayLayoutEditorOverlay
                 Position = position,
             };
 
-        private void setFieldsReadOnly(bool value)
+        private void updateFieldAvailability(bool readOnly)
         {
-            xField.ReadOnly = value;
-            yField.ReadOnly = value;
-            widthField.ReadOnly = value;
-            heightField.ReadOnly = value;
-            aspectButton.SetAvailable(!value);
+            bool positionOnly = selected == LayoutElementKind.PerformanceReadout;
+            xField.ReadOnly = readOnly;
+            yField.ReadOnly = readOnly;
+            widthField.ReadOnly = readOnly || positionOnly;
+            heightField.ReadOnly = readOnly || positionOnly;
+            aspectButton.SetAvailable(!readOnly && !positionOnly);
         }
     }
 
@@ -1297,7 +1327,8 @@ internal partial class GameplayLayoutEditorOverlay
             LocalisableString text,
             Action select,
             Action<bool> setHidden,
-            Action<bool> setLocked)
+            Action<bool> setLocked,
+            bool canHide)
         {
             Action = select;
             Size = new Vector2(336, 26);
@@ -1353,6 +1384,7 @@ internal partial class GameplayLayoutEditorOverlay
                     Size = new Vector2(24),
                 },
             };
+            visibilityButton.SetAvailable(canHide);
         }
 
         internal void SetSelected(bool selected)

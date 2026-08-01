@@ -142,9 +142,15 @@ internal static class YokkoStrings
             ["chart_library.refresh"] = new("Refresh", "刷新", "更新"),
             ["chart_library.select_osu"] = new("Select osu! folder", "选择 osu! 文件夹", "osu! フォルダーを選択"),
             ["chart_library.import"] = new("Import charts", "导入谱面", "譜面を取り込む"),
+            ["chart_library.import_folder"] = new("Import folder", "导入文件夹", "フォルダーを取り込む"),
             ["chart_library.ready"] = new("Library ready. Drop chart files anywhere to import them too.", "曲库已就绪，也可以把谱面文件直接拖入 Yokko。", "ライブラリの準備ができました。譜面ファイルのドロップにも対応しています。"),
             ["chart_library.importing"] = new("Importing {0}…", "正在导入 {0}…", "{0} を取り込み中…"),
             ["chart_library.imported"] = new("Imported {0} charts.", "已导入 {0} 张谱面。", "{0} 譜面を取り込みました。"),
+            ["chart_library.importing_folder"] = new("Importing folder {0}…", "正在导入文件夹 {0}…", "フォルダー {0} を取り込み中…"),
+            ["chart_library.imported_folder"] = new("Imported {0} charts from {1} files.", "已从 {1} 个文件导入 {0} 张谱面。", "{1} ファイルから {0} 譜面を取り込みました。"),
+            ["chart_library.imported_folder_with_failures"] = new("Imported {0} charts from {1} files; {2} files failed.", "已从 {1} 个文件导入 {0} 张谱面，{2} 个文件失败。", "{1} ファイルから {0} 譜面を取り込み、{2} ファイルが失敗しました。"),
+            ["chart_library.no_importable_files"] = new("No supported chart files were found in this folder.", "这个文件夹中没有找到支持的谱面文件。", "このフォルダーには対応する譜面ファイルがありません。"),
+            ["chart_library.folder_import_failed"] = new("Folder import failed for all {0} files.", "文件夹中的 {0} 个谱面文件全部导入失败。", "フォルダー内の {0} ファイルを取り込めませんでした。"),
             ["chart_library.folder_picker_unavailable"] = new("Folder selection is unavailable on this platform.", "当前平台不支持文件夹选择。", "この環境ではフォルダーを選択できません。"),
             ["chart_library.osu_not_found"] = new("No osu! Songs folder was found automatically.", "没有自动找到 osu! Songs 文件夹。", "osu! Songs フォルダーを自動検出できませんでした。"),
             ["chart_library.scanning_osu"] = new("Indexing osu! Songs…", "正在同步 osu! Songs…", "osu! Songs を同期中…"),
@@ -655,6 +661,10 @@ internal static class YokkoStrings
                 "Judgement · drag / resize",
                 "判定文字 · 拖动 / 拉伸边框",
                 "判定表示 · ドラッグ / 拡縮"),
+            ["gameplay.layout_editor.performance_readout"] = new(
+                "Performance readout · drag",
+                "性能读数 · 拖动",
+                "パフォーマンス表示 · ドラッグ"),
             ["gameplay.layout_editor.cover_top_drag"] = new(
                 "TOP COVER · DRAG TO ADD / RESIZE",
                 "上挡板 · 拖动添加 / 调整",
@@ -759,6 +769,10 @@ internal static class YokkoStrings
                 "Judgement",
                 "判定文字",
                 "判定表示"),
+            ["gameplay.layout_editor.layer.performance_readout"] = new(
+                "Performance readout",
+                "性能读数",
+                "パフォーマンス表示"),
             ["gameplay.layout_editor.centre_x"] = new(
                 "Centre X",
                 "水平居中",
