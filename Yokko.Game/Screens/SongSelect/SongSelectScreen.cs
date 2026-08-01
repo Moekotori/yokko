@@ -63,6 +63,9 @@ public partial class SongSelectScreen : Screen
     private const float browse_top = 232;
     private const float browse_width = 850;
     private const float browse_right = 24;
+    private const float browse_height =
+        designed_height - footer_height - browse_top - 16;
+    private const int initial_artwork_preload_limit = 16;
 
     private readonly List<SongSelectEntry> entries = createEntries();
     private readonly IAudioEngine suppliedPreviewAudioEngine;
@@ -166,6 +169,7 @@ public partial class SongSelectScreen : Screen
     private bool previewActive;
     private bool transitionPending;
     private bool nextPreloadScheduled;
+    private int initialArtworkPrewarmCount;
     private bool resumeFromGameplayMods;
     private bool detailsTransitionInProgress;
     private int songListRebuildVersion;
@@ -470,6 +474,8 @@ public partial class SongSelectScreen : Screen
         refreshDifficultyFilterBar();
         applyFilters();
         logLoadStage("song rows");
+        prewarmInitialArtwork();
+        logLoadStage("first-frame artwork");
         updateFilters();
         displaySettings.DifficultyRatingMode.BindValueChanged(
             onDifficultyRatingModeChanged);
@@ -483,7 +489,8 @@ public partial class SongSelectScreen : Screen
         Logger.Log(
             $"Song select construction: {loadStopwatch.Elapsed.TotalMilliseconds:0} ms "
             + $"({entries.Count} charts, {songList?.ItemCount ?? 0} indexed rows, "
-            + $"{songList?.MaterialisedDrawableCount ?? 0} materialised).",
+            + $"{songList?.MaterialisedDrawableCount ?? 0} materialised, "
+            + $"{initialArtworkPrewarmCount} artwork prewarmed).",
             LoggingTarget.Runtime,
             LogLevel.Important);
         diagnostics.Trace(
@@ -1617,7 +1624,7 @@ public partial class SongSelectScreen : Screen
         Position = new Vector2(-browse_right, browse_top),
         Size = new Vector2(
             browse_width,
-            designed_height - footer_height - browse_top - 16),
+            browse_height),
         Masking = true,
         Children = new Drawable[]
         {
@@ -3163,7 +3170,7 @@ public partial class SongSelectScreen : Screen
                         : entry.Beatmap.DifficultyName,
                     VisualHeight = entry.IsPackage
                         ? SongSelectSongRow.CompactHeight
-                        : 84,
+                        : SongSelectSongRow.StandaloneHeight,
                     SectionSpacingBefore = !first.IsPackage
                                            && entryIndex == 0
                         ? sectionSpacing
@@ -3192,12 +3199,7 @@ public partial class SongSelectScreen : Screen
             return;
 
         if (selectedEntry != null)
-        {
-            Scheduler.AddDelayed(() =>
-            {
-                songList?.ScrollEntryIntoView(selectedEntry, false);
-            }, 260);
-        }
+            songList.PrepareViewportFor(selectedEntry, browse_height);
     }
 
     private void applyFilters()
@@ -3446,6 +3448,25 @@ public partial class SongSelectScreen : Screen
         return textures.Get(
                    SongSelectArtworkPolicy.Resolve(entry?.WallpaperTexture))
                ?? textures.Get(SongSelectArtworkPolicy.FallbackTexture);
+    }
+
+    private void prewarmInitialArtwork()
+    {
+        initialArtworkPrewarmCount = 0;
+        foreach (SongSelectEntry entry in songList.GetArtworkPreloadCandidates(
+                     selectedEntry,
+                     browse_height,
+                     initial_artwork_preload_limit))
+        {
+            if (!Path.IsPathRooted(entry.WallpaperTexture)
+                || !File.Exists(entry.WallpaperTexture))
+            {
+                continue;
+            }
+
+            _ = textureFor(entry);
+            initialArtworkPrewarmCount++;
+        }
     }
 
     private void refreshSavedScores()

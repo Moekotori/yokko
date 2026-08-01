@@ -3393,6 +3393,12 @@ public partial class GameplayScreen : Screen
                 value,
                 YokkoGameplaySettings.MinimumBackgroundDim,
                 YokkoGameplaySettings.MaximumBackgroundDim),
+            () => skinSettings?.LongNoteCutEnabled.Value
+                  ?? YokkoSkinSettings.DefaultLongNoteCutEnabled,
+            setLayoutEditorLongNoteCutEnabled,
+            () => skinSettings?.LongNoteCutAmount.Value
+                  ?? YokkoSkinSettings.DefaultLongNoteCutAmount,
+            setLayoutEditorLongNoteCutAmount,
             () => gameplaySettings
                 .JudgementDisplayDurationMilliseconds.Value,
             setLayoutEditorJudgementDisplayDuration,
@@ -3402,6 +3408,39 @@ public partial class GameplayScreen : Screen
             setLayoutEditorShowJudgementHitError,
             () => gameplaySettings.ShowTimingBar.Value,
             setLayoutEditorShowTimingBar);
+
+    private void setLayoutEditorLongNoteCutEnabled(bool value)
+    {
+        if (skinSettings == null)
+            return;
+
+        skinSettings.LongNoteCutEnabled.Value = value;
+        applyLayoutEditorLongNoteCut();
+    }
+
+    private void setLayoutEditorLongNoteCutAmount(double value)
+    {
+        if (skinSettings == null)
+            return;
+
+        double step = YokkoSkinSettings.LongNoteCutAmountStep;
+        skinSettings.LongNoteCutAmount.Value = Math.Clamp(
+            Math.Round(value / step) * step,
+            YokkoSkinSettings.MinimumLongNoteCutAmount,
+            YokkoSkinSettings.MaximumLongNoteCutAmount);
+        applyLayoutEditorLongNoteCut();
+    }
+
+    private void applyLayoutEditorLongNoteCut()
+    {
+        double amount = skinSettings?.LongNoteCutEnabled.Value == true
+            ? Math.Clamp(
+                skinSettings.LongNoteCutAmount.Value,
+                YokkoSkinSettings.MinimumLongNoteCutAmount,
+                YokkoSkinSettings.MaximumLongNoteCutAmount)
+            : 0;
+        playfield.SetLongNoteCutAmount(amount);
+    }
 
     private void setLayoutEditorJudgementDisplayDuration(double value)
     {
@@ -3576,6 +3615,22 @@ public partial class GameplayScreen : Screen
 
     internal double LayoutEditorBackgroundDimForTest =>
         gameplaySettings.BackgroundDim.Value;
+
+    internal bool LayoutEditorLongNoteCutEnabledForTest =>
+        skinSettings?.LongNoteCutEnabled.Value == true;
+
+    internal double LayoutEditorLongNoteCutAmountForTest =>
+        skinSettings?.LongNoteCutAmount.Value
+        ?? YokkoSkinSettings.DefaultLongNoteCutAmount;
+
+    internal double AppliedLongNoteCutAmountForTest =>
+        playfield.LongNoteCutAmount;
+
+    internal void SetLayoutEditorLongNoteCutEnabledForTest(bool enabled) =>
+        setLayoutEditorLongNoteCutEnabled(enabled);
+
+    internal void SetLayoutEditorLongNoteCutAmountForTest(double amount) =>
+        setLayoutEditorLongNoteCutAmount(amount);
 
     internal float DisplayedBackgroundDimForTest =>
         backgroundDim?.Alpha ?? 0;

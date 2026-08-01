@@ -734,7 +734,7 @@ internal partial class GameplayLayoutEditorOverlay
         {
             Anchor = Anchor.TopRight;
             Origin = Anchor.TopRight;
-            Position = new Vector2(-18, 506);
+            Position = new Vector2(-18, 500);
             Size = new Vector2(360, 178);
             Depth = -100;
             Masking = true;

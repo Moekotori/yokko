@@ -7,6 +7,8 @@ public interface IDesktopDisplayModeController
 {
     bool IsAvailable { get; }
 
+    void EnsureWindowFrameVisible(IWindow window);
+
     bool TryApply(
         IWindow window,
         FrameworkConfigManager frameworkConfig,
@@ -17,6 +19,10 @@ internal sealed class UnavailableDesktopDisplayModeController
     : IDesktopDisplayModeController
 {
     public bool IsAvailable => false;
+
+    public void EnsureWindowFrameVisible(IWindow window)
+    {
+    }
 
     public bool TryApply(
         IWindow window,

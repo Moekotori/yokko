@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Textures;
 using Yokko.Game.Importing;
@@ -13,6 +14,8 @@ namespace Yokko.Game.Screens.SongSelect;
 internal sealed class SongSelectArtworkTextureCache : IDisposable
 {
     private readonly object syncRoot = new();
+    private readonly HashSet<string> cachedPaths =
+        new(StringComparer.OrdinalIgnoreCase);
     private TextureStore textureStore;
     private IRenderer renderer;
     private bool disposed;
@@ -42,8 +45,26 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
                     "Song-select artwork cannot be shared across renderers.");
             }
 
-            return textureStore.Get(path);
+            Texture texture = textureStore.Get(path);
+            if (texture != null)
+                cachedPaths.Add(path);
+            return texture;
         }
+    }
+
+    internal int CachedArtworkCount
+    {
+        get
+        {
+            lock (syncRoot)
+                return cachedPaths.Count;
+        }
+    }
+
+    internal bool IsCached(string path)
+    {
+        lock (syncRoot)
+            return cachedPaths.Contains(path);
     }
 
     public void Dispose()
@@ -57,6 +78,7 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
             textureStore?.Dispose();
             textureStore = null;
             renderer = null;
+            cachedPaths.Clear();
         }
     }
 }

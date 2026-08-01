@@ -48,6 +48,9 @@ internal sealed class YokkoDesktopBehaviourController : IDisposable
         windowMode?.BindValueChanged(onWindowModeChanged);
         currentDisplay?.BindValueChanged(onCurrentDisplayChanged);
         windowActive?.BindValueChanged(onWindowActiveChanged, true);
+        if (window != null)
+            window.WindowStateChanged += onWindowStateChanged;
+
         applyPreferredFullscreenMode();
     }
 
@@ -84,6 +87,24 @@ internal sealed class YokkoDesktopBehaviourController : IDisposable
     private void onCurrentDisplayChanged(ValueChangedEvent<Display> _) =>
         applyPreferredFullscreenMode();
 
+    private void onWindowStateChanged(WindowState state)
+    {
+        if (state == WindowState.Normal
+            && windowMode?.Value == WindowMode.Windowed)
+        {
+            displayModeController.EnsureWindowFrameVisible(window);
+        }
+    }
+
+    internal void EnsureWindowFrameVisible()
+    {
+        if (windowMode?.Value == WindowMode.Windowed
+            && window?.WindowState == WindowState.Normal)
+        {
+            displayModeController.EnsureWindowFrameVisible(window);
+        }
+    }
+
     private void applyPreferredFullscreenMode()
     {
         if (window == null
@@ -119,5 +140,7 @@ internal sealed class YokkoDesktopBehaviourController : IDisposable
             currentDisplay.ValueChanged -= onCurrentDisplayChanged;
         if (windowActive != null)
             windowActive.ValueChanged -= onWindowActiveChanged;
+        if (window != null)
+            window.WindowStateChanged -= onWindowStateChanged;
     }
 }

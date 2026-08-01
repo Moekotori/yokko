@@ -45,7 +45,7 @@ public partial class DrawableNote : CompositeDrawable
     private readonly bool flipHoldBody;
     private readonly bool flipHoldTail;
     private readonly bool legacyLongNoteRendering;
-    private readonly double longNoteCutAmount;
+    private double longNoteCutAmount;
     private bool reverseHoldTailForScrollVelocity;
     private float appliedLongNoteCutDistance;
     private float holdBodyY;
@@ -352,6 +352,9 @@ public partial class DrawableNote : CompositeDrawable
 
         updateHoldBody();
     }
+
+    internal void SetLongNoteCutAmount(double value) =>
+        longNoteCutAmount = Math.Max(0, value);
 
     public void ApplyJudgement(JudgementEvent judgement)
     {

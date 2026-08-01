@@ -555,6 +555,9 @@ public partial class MainScreen : Screen
     {
         if (e.Key != Key.Escape)
         {
+            if (signalSnake.TryHandleRestartKey(e.Key, e.Repeat))
+                return true;
+
             // Bare arrows steer the visible background toy. When the toy is
             // hidden at compact sizes, the existing left/right track shortcuts
             // continue to work.

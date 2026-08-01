@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Graphics;
@@ -108,6 +109,41 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
     }
 
     [Test]
+    public void TestArtworkPreloadCoversPreparedRememberedViewport()
+    {
+        SongSelectEntry[] standalone = entries.Take(200)
+                                              .Select((entry, index) => entry with
+                                              {
+                                                  IsPackage = false,
+                                                  WallpaperTexture = $"art-{index}",
+                                              })
+                                              .ToArray();
+
+        AddStep("index standalone artwork rows", () => list.SetItems(
+            standalone.Select(entry => new SongSelectVirtualItem
+            {
+                Entry = entry,
+                VisualHeight = SongSelectSongRow.StandaloneHeight,
+            })));
+        AddStep("prepare remembered viewport", () =>
+            list.PrepareViewportFor(standalone[^1], 714));
+        AddAssert("remembered viewport is prepared before first update", () =>
+            list.ScrollPosition > 0);
+        AddAssert("preload covers remembered visible region", () =>
+        {
+            IReadOnlyList<SongSelectEntry> candidates =
+                list.GetArtworkPreloadCandidates(
+                    standalone[^1],
+                    714,
+                    16);
+            return candidates.Contains(standalone[^1])
+                   && candidates.Any(entry =>
+                       !ReferenceEquals(entry, standalone[^1]))
+                   && candidates.Count <= 16;
+        });
+    }
+
+    [Test]
     public void TestScrollAffordancesTrackRemainingContent()
     {
         AddStep("index a long browser", () => list.SetItems(
@@ -122,6 +158,8 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
             list.TopScrollHintAlpha < 0.01f
             && list.BottomScrollHintAlpha > 0.9f
             && list.ScrollIndicatorAlpha > 0
+            && Math.Abs(list.ScrollIndicatorRightOffset) < 0.01f
+            && Math.Abs(list.ScrollIndicatorWidth - 5) < 0.01f
             && list.ScrollIndicatorProgress < 0.01f);
         AddStep("jump to last row", () =>
             list.ScrollEntryIntoView(entries[199], false));
@@ -298,8 +336,8 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                 .MaterialisedRows.Single()
                 .ChildrenOfType<SongSelectInlineDifficultyRating>()
                 .Single();
-            return Math.Abs(rating.X - 628) < 0.05f
-                   && Math.Abs(rating.Y - 12) < 0.05f
+            return Math.Abs(rating.X - 610) < 0.05f
+                   && Math.Abs(rating.Y - 18) < 0.05f
                    && Math.Abs(rating.Width - 64) < 0.05f
                    && Math.Abs(rating.Height - 20) < 0.05f
                    && Math.Abs(list.MaterialisedRows.Single().Height
@@ -411,8 +449,8 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
             list.MaterialisedRows.Count() == 2);
         AddAssert("resting rows show quiet key-mode chips", () =>
             list.MaterialisedRows.All(row =>
-                Math.Abs(row.ModePillWidth - 54) < 0.05f
-                && Math.Abs(row.ModePillX - 780) < 0.05f
+                Math.Abs(row.ModePillWidth - 58) < 0.05f
+                && Math.Abs(row.ModePillX - 758) < 0.05f
                 && row.CompactModeTextAlpha > 0.99f
                 && row.ExpandedModeTextAlpha < 0.01f));
         AddStep("select first package row", () =>
@@ -423,11 +461,11 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                 ReferenceEquals(row.Entry, entries[0]));
             SongSelectSongRow resting = list.MaterialisedRows.Single(row =>
                 ReferenceEquals(row.Entry, entries[1]));
-            return Math.Abs(selected.ModePillWidth - 116) < 0.05f
-                   && Math.Abs(selected.ModePillX - 718) < 0.05f
+            return Math.Abs(selected.ModePillWidth - 126) < 0.05f
+                   && Math.Abs(selected.ModePillX - 690) < 0.05f
                    && selected.CompactModeTextAlpha < 0.01f
                    && selected.ExpandedModeTextAlpha > 0.99f
-                   && Math.Abs(resting.ModePillWidth - 54) < 0.05f
+                   && Math.Abs(resting.ModePillWidth - 58) < 0.05f
                    && resting.CompactModeTextAlpha > 0.99f;
         });
         AddStep("transfer selection to second row", () =>
@@ -438,10 +476,10 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                 ReferenceEquals(row.Entry, entries[0]));
             SongSelectSongRow selected = list.MaterialisedRows.Single(row =>
                 ReferenceEquals(row.Entry, entries[1]));
-            return Math.Abs(previous.ModePillWidth - 54) < 0.05f
-                   && Math.Abs(previous.ModePillX - 780) < 0.05f
+            return Math.Abs(previous.ModePillWidth - 58) < 0.05f
+                   && Math.Abs(previous.ModePillX - 758) < 0.05f
                    && previous.CompactModeTextAlpha > 0.99f
-                   && Math.Abs(selected.ModePillWidth - 116) < 0.05f
+                   && Math.Abs(selected.ModePillWidth - 126) < 0.05f
                    && selected.ExpandedModeTextAlpha > 0.99f
                    && list.ItemCount == 2;
         });
@@ -502,14 +540,14 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
             new SongSelectVirtualItem
             {
                 Entry = standalone,
-                VisualHeight = 84,
+                VisualHeight = SongSelectSongRow.StandaloneHeight,
             },
         ]));
         AddUntilStep("standalone row actualised", () =>
             list.MaterialisedRows.Count() == 1);
         AddAssert("standalone cover frame is square", () =>
             list.MaterialisedRows.Single().StandaloneArtworkFrameSize
-            == new Vector2(76));
+            == new Vector2(84));
     }
 
     [Test]
@@ -544,19 +582,19 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
         {
             SongSelectPackageHeader header =
                 list.MaterialisedHeaders.Single();
-            return header.ArtworkFrameSize == new Vector2(132)
-                   && header.ArtworkImageFrameSize == new Vector2(122)
+            return header.ArtworkFrameSize == new Vector2(148)
+                   && header.ArtworkImageFrameSize == new Vector2(138)
                    && Math.Abs(header.ArtworkImageCornerRadius - 8) < 0.05f;
         });
         AddAssert("expanded package actions share the trailing rail", () =>
         {
             SongSelectPackageHeader header =
                 list.MaterialisedHeaders.Single();
-            return Math.Abs(header.PackageContentStart - 156) < 0.05f
+            return Math.Abs(header.PackageContentStart - 172) < 0.05f
                    && header.FavouriteIconAnchor == Anchor.TopRight
                    && header.FavouriteIconPosition == new Vector2(-18, 8)
                    && header.ChevronFrameAnchor == Anchor.TopRight
-                   && header.ChevronFramePosition == new Vector2(-11, 96);
+                   && header.ChevronFramePosition == new Vector2(-11, 112);
         });
         AddAssert("expanded header exposes a quiet guide stem", () =>
         {
@@ -655,7 +693,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                             - SongSelectPackageHeader.CollapsedHeight) < 0.05f
                    && header.ArtworkFrameSize == new Vector2(
                        SongSelectPackageHeader.CollapsedHeight)
-                   && header.ArtworkImageFrameSize == new Vector2(86)
+                   && header.ArtworkImageFrameSize == new Vector2(98)
                    && Math.Abs(header.ArtworkImageCornerRadius - 8) < 0.05f;
         });
         AddAssert("long package title stays on one truncating line", () =>
@@ -664,11 +702,11 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                 list.MaterialisedHeaders.Single();
             return header.PackageTitleLineCount == 1
                    && header.PackageTitleUsesTruncation
-                   && Math.Abs(header.PackageContentStart - 120) < 0.05f
+                   && Math.Abs(header.PackageContentStart - 132) < 0.05f
                    && header.FavouriteIconAnchor == Anchor.TopRight
                    && header.FavouriteIconPosition == new Vector2(-18, 8)
                    && header.ChevronFrameAnchor == Anchor.TopRight
-                   && header.ChevronFramePosition == new Vector2(-11, 60)
+                   && header.ChevronFramePosition == new Vector2(-11, 72)
                    && header.PackageSummaryAlpha > 0.99f
                    && header.SelectedSummaryAlpha < 0.01f
                    && list.ItemCount == 1;

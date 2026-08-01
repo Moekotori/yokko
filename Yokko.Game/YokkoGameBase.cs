@@ -272,6 +272,12 @@ namespace Yokko.Game
                 + $" | skin={skinSettings.SelectedSkinId.Value}");
         }
 
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+            desktopBehaviourController?.EnsureWindowFrameVisible();
+        }
+
         protected override void Dispose(bool isDisposing)
         {
             if (isDisposing)

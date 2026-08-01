@@ -467,6 +467,18 @@ internal static class YokkoStrings
                 "Background dim",
                 "背景暗度",
                 "背景の暗さ"),
+            ["gameplay.layout_editor.ln_cut"] = new(
+                "Cut LN",
+                "削 LN",
+                "LN カット"),
+            ["gameplay.layout_editor.on"] = new(
+                "On",
+                "开",
+                "オン"),
+            ["gameplay.layout_editor.off"] = new(
+                "Off",
+                "关",
+                "オフ"),
 
             ["gameplay.result.title"] = new("RESULT", "结算", "リザルト"),
             ["gameplay.result.max_combo"] = new("MAX COMBO", "最大连击", "MAX COMBO"),

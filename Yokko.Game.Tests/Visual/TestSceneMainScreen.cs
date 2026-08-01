@@ -243,6 +243,7 @@ namespace Yokko.Game.Tests.Visual
                 pad = this.ChildrenOfType<HomeKeyTestPad>().Single();
                 snake = this.ChildrenOfType<HomeSignalSnake>().Single();
                 snake.SetAvailable(true);
+                snake.Restart();
             });
             AddStep("record signal state", () =>
             {
@@ -250,11 +251,7 @@ namespace Yokko.Game.Tests.Visual
                 positionX = snake.HeadPosition.X;
                 positionY = snake.HeadPosition.Y;
             });
-            AddStep("press an open lane", () =>
-            {
-                for (int lane = 0; lane < 4 && snake.StepCount == steps; lane++)
-                    pad.PressLane(lane);
-            });
+            AddStep("press right lane", () => pad.PressLane(3));
             AddAssert("signal advanced", () => snake.StepCount == steps + 1);
             AddAssert(
                 "signal head moved",
@@ -273,6 +270,7 @@ namespace Yokko.Game.Tests.Visual
             {
                 snake = this.ChildrenOfType<HomeSignalSnake>().Single();
                 snake.SetAvailable(true);
+                snake.Restart();
             });
             AddStep("record signal steps", () => steps = snake.StepCount);
             AddAssert("up arrow handled", () => snake.TryHandleArrowKey(Key.Up, false));
@@ -280,6 +278,10 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("repeat consumed", () => snake.TryHandleArrowKey(Key.Up, true));
             AddAssert("repeat did not advance", () => snake.StepCount == steps + 1);
             AddAssert("letter ignored", () => !snake.TryHandleArrowKey(Key.Q, false));
+            AddAssert("restart key handled", () => snake.TryHandleRestartKey(Key.R, false));
+            AddAssert("restart returned to start", () => snake.StepCount == 0
+                                                        && Math.Abs(snake.HeadPosition.X - 132) < 0.01f
+                                                        && Math.Abs(snake.HeadPosition.Y - 88) < 0.01f);
             AddStep("hide signal snake", () =>
             {
                 snake.SetAvailable(false);
@@ -289,18 +291,21 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
-        public void TestSignalSnakeWrapsAndBlocksTailCollision()
+        public void TestSignalSnakeWrapsAndDiesOnTailCollision()
         {
             HomeSignalSnake snake = null;
             int steps = 0;
             int moves = 0;
+            int deaths = 0;
             bool wrapped = false;
 
             AddStep("find signal snake", () =>
             {
                 snake = this.ChildrenOfType<HomeSignalSnake>().Single();
                 snake.SetAvailable(true);
+                snake.Restart();
                 steps = snake.StepCount;
+                deaths = snake.DeathCount;
             });
             AddStep("move through right edge", () =>
             {
@@ -320,10 +325,12 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("every input advanced", () => snake.StepCount == steps + moves);
             AddAssert("head wrapped to left edge", () => Math.Abs(snake.HeadPosition.X - 24) < 0.01f);
             AddStep("try to reverse into tail", () => snake.HandleLane(0));
-            AddAssert("tail collision blocked movement", () => snake.StepCount == steps + moves);
-            AddAssert("head stayed at left edge", () => Math.Abs(snake.HeadPosition.X - 24) < 0.01f);
-            AddStep("steer away from tail", () => snake.HandleLane(1));
-            AddAssert("safe direction advanced", () => snake.StepCount == steps + moves + 1);
+            AddAssert("tail collision counted as death", () => snake.DeathCount == deaths + 1);
+            AddAssert("death did not advance movement", () => snake.StepCount == steps + moves);
+            AddWaitStep("wait for respawn", 15);
+            AddAssert("respawned at start", () => Math.Abs(snake.HeadPosition.X - 132) < 0.01f
+                                                    && Math.Abs(snake.HeadPosition.Y - 88) < 0.01f);
+            AddAssert("whole tail remains visible", () => snake.VisibleTrailDotCount == 9);
         }
 
         private void captureScreenshot()

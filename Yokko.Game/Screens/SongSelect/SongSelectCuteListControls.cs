@@ -20,7 +20,8 @@ namespace Yokko.Game.Screens.SongSelect;
 internal partial class SongSelectSongRow : PoolableDrawable
 {
     private const float row_width = 850;
-    internal const float CompactHeight = 44;
+    internal const float CompactHeight = 56;
+    internal const float StandaloneHeight = 92;
     internal const float CompactLeadingAccentWidth = 3;
     internal const float CompactLeadingAccentOpacity = 0.48f;
     internal const float CompactSelectionOutlineThickness = 1.25f;
@@ -124,7 +125,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         Action = select;
         DoubleClickAction = play;
         compact = entry.IsPackage;
-        float rowHeight = compact ? CompactHeight : 84;
+        float rowHeight = compact ? CompactHeight : StandaloneHeight;
         restingX = compact ? 14 : 0;
         selectionIndent = 0;
         ArgumentNullException.ThrowIfNull(ratings);
@@ -450,23 +451,23 @@ internal partial class SongSelectSongRow : PoolableDrawable
             difficultyUnit,
             difficultyValue)
         {
-            Position = new Vector2(628, 12),
+            Position = new Vector2(610, 18),
         });
         children.Add(compactPrimaryText = adaptiveLabel(
             primaryText ?? entry.Beatmap.DifficultyName,
-            24,
-            3,
-            560,
-            15,
+            28,
+            5,
+            540,
+            17,
             SongSelectTheme.Navy,
             SongSelectTheme.Navy,
             true));
         children.Add(compactSecondaryText = adaptiveLabel(
             $"mapped by {entry.Beatmap.Creator}",
-            24,
-            25,
-            560,
-            8,
+            28,
+            34,
+            540,
+            9,
             new Color4(
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
@@ -481,7 +482,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             false));
         children.Add(compactModePill = new SongSelectProgressiveModePill(
             entry,
-            9));
+            13));
     }
 
     private void addStandaloneContent(
@@ -493,29 +494,29 @@ internal partial class SongSelectSongRow : PoolableDrawable
         children.Add(standaloneArtworkFrame = new Container
         {
             Position = new Vector2(8, 4),
-            Size = new Vector2(76),
+            Size = new Vector2(84),
             Masking = true,
             CornerRadius = 7,
             BorderThickness = 1,
             BorderColour = new Color4(1f, 1f, 1f, 0.52f),
             Child = SongSelectArtworkCrop.Create(
                 wallpaper,
-                new Vector2(76)),
+                new Vector2(84)),
         });
         children.Add(adaptiveLabel(
             entry.Beatmap.Title,
-            100,
-            10,
-            504,
-            15,
+            110,
+            11,
+            494,
+            16,
             SongSelectTheme.Navy,
             SongSelectTheme.Navy,
             true));
         children.Add(adaptiveLabel(
             entry.Beatmap.Artist,
-            100,
-            36,
-            484,
+            110,
+            40,
+            474,
             10,
             new Color4(
                 SongSelectTheme.Navy.R,
@@ -530,15 +531,15 @@ internal partial class SongSelectSongRow : PoolableDrawable
             true));
         children.Add(adaptiveLabel(
             $"mapped by {entry.Beatmap.Creator}",
-            100,
-            57,
-            484,
-            8,
+            110,
+            64,
+            474,
+            9,
             SongSelectTheme.Cyan,
             SongSelectTheme.Cyan,
             true,
             false));
-        children.Add(createFullModePill(entry, 690, 22));
+        children.Add(createFullModePill(entry, 684, 25));
         children.Add(createDifficultyBadge(
             displayedDifficultyRatings,
             difficultyRatingMode,
@@ -692,9 +693,9 @@ internal partial class SongSelectSongRow : PoolableDrawable
 
 internal partial class SongSelectProgressiveModePill : CompositeDrawable
 {
-    private const float compact_width = 54;
-    private const float expanded_width = 116;
-    private const float right_edge = 834;
+    private const float compact_width = 58;
+    private const float expanded_width = 126;
+    private const float right_edge = 816;
 
     private readonly Box surface;
     private readonly SpriteText compactText;
@@ -708,7 +709,7 @@ internal partial class SongSelectProgressiveModePill : CompositeDrawable
         float y)
     {
         Position = new Vector2(right_edge - compact_width, y);
-        Size = new Vector2(compact_width, 26);
+        Size = new Vector2(compact_width, 30);
         Masking = true;
         CornerRadius = 7;
         InternalChildren =
@@ -722,20 +723,20 @@ internal partial class SongSelectProgressiveModePill : CompositeDrawable
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Width = 44,
+                Width = 48,
                 Truncate = true,
                 Text = $"{(int)entry.Beatmap.KeyMode}K",
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Display(10),
                 Colour = SongSelectTheme.Pink,
             },
             expandedText = new SpriteText
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Width = 102,
+                Width = 112,
                 Truncate = true,
                 Text = $"{(int)entry.Beatmap.KeyMode}K · SELECTED",
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(9),
                 Colour = Color4.White,
                 Alpha = 0,
             },
@@ -807,11 +808,11 @@ internal partial class SongSelectInlineDifficultyRating : CompositeDrawable
 
 internal partial class SongSelectPackageHeader : PoolableDrawable
 {
-    internal const float ExpandedHeight = 132;
-    internal const float CollapsedHeight = 96;
+    internal const float ExpandedHeight = 148;
+    internal const float CollapsedHeight = 108;
 
-    private const float expanded_content_start = 156;
-    private const float collapsed_content_start = 120;
+    private const float expanded_content_start = 172;
+    private const float collapsed_content_start = 132;
     private const float action_safe_right = 796;
 
     private Action toggle;
@@ -1219,7 +1220,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         float titleWidth = action_safe_right - contentStart;
         var flow = new FillFlowContainer
         {
-            Position = new Vector2(contentStart, collapsed ? 22 : 18),
+            Position = new Vector2(contentStart, collapsed ? 24 : 20),
             Width = titleWidth,
             AutoSizeAxes = Axes.Y,
             Direction = FillDirection.Vertical,
@@ -1234,7 +1235,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 Truncate = true,
                 Text = lines[i],
                 Font = HomeTypography.Display(
-                    collapsed ? 16 : lines.Length == 1 ? 18 : 15),
+                    collapsed ? 17 : lines.Length == 1 ? 19 : 16),
                 Colour = SongSelectTheme.Navy,
             };
             packageTitleTexts[i] = title;
@@ -1258,9 +1259,9 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 label(
                     $"{songCount} SONGS · {chartCount} CHARTS",
                     contentStart,
-                    collapsed ? 62 : 84,
+                    collapsed ? 70 : 98,
                     action_safe_right - contentStart,
-                    collapsed ? 8 : 9,
+                    collapsed ? 9 : 10,
                     new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
@@ -1278,16 +1279,16 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             selectedTitle = label(
                 string.Empty,
                 contentStart,
-                14,
-                590,
-                17,
+                16,
+                574,
+                18,
                 SongSelectTheme.Navy),
             selectedByline = label(
                 string.Empty,
                 contentStart,
-                44,
-                500,
-                9,
+                49,
+                490,
+                10,
                 new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -1295,8 +1296,8 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                     0.68f)),
             new Container
             {
-                Position = new Vector2(contentStart, 92),
-                Size = new Vector2(212, 24),
+                Position = new Vector2(contentStart, 108),
+                Size = new Vector2(220, 28),
                 Masking = true,
                 CornerRadius = 7,
                 Children =
@@ -1314,9 +1315,9 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Width = 196,
+                        Width = 204,
                         Truncate = true,
-                        Font = HomeTypography.Display(8),
+                        Font = HomeTypography.Display(9),
                         Colour = Color4.White,
                     },
                 ],
@@ -1324,14 +1325,14 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             selectedRatingUnit = label(
                 string.Empty,
                 650,
-                98,
+                115,
                 40,
                 7,
                 SongSelectTheme.Cyan),
             selectedRatingValue = new SpriteText
             {
                 Origin = Anchor.TopRight,
-                Position = new Vector2(746, 92),
+                Position = new Vector2(746, 109),
                 Width = 54,
                 Truncate = true,
                 Font = HomeTypography.Display(11),

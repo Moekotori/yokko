@@ -73,10 +73,79 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
     internal float BottomScrollHintAlpha => bottomScrollFade.Alpha;
     internal float ScrollIndicatorAlpha => scrollIndicator.Alpha;
     internal float ScrollIndicatorProgress { get; private set; }
+    internal float ScrollIndicatorRightOffset => scrollIndicator.X;
+    internal float ScrollIndicatorWidth => scrollIndicator.Width;
     internal IEnumerable<SongSelectSongRow> MaterialisedRows =>
         active.Values.OfType<SongSelectSongRow>();
     internal IEnumerable<SongSelectPackageHeader> MaterialisedHeaders =>
         active.Values.OfType<SongSelectPackageHeader>();
+
+    internal IReadOnlyList<SongSelectEntry> GetArtworkPreloadCandidates(
+        SongSelectEntry selected,
+        float viewportHeight,
+        int maximumCount)
+    {
+        if (items.Count == 0 || viewportHeight <= 0 || maximumCount <= 0)
+            return [];
+
+        var result = new List<SongSelectEntry>();
+        var seen = new HashSet<SongSelectEntry>(
+            ReferenceEqualityComparer.Instance);
+
+        if (selected != null
+            && entryIndices.TryGetValue(selected, out int selectedIndex))
+        {
+            SongSelectVirtualItem selectedItem = items[selectedIndex];
+            double selectedScroll = Math.Clamp(
+                selectedItem.Top + selectedItem.VisualHeight - viewportHeight,
+                0,
+                Math.Max(0, itemLayer.Height - viewportHeight));
+            addArtworkEntry(selected);
+            addRange(selectedScroll);
+        }
+        else
+        {
+            addRange(0);
+        }
+
+        return result;
+
+        void addRange(double scrollPosition)
+        {
+            if (result.Count >= maximumCount)
+                return;
+
+            double preload = viewportHeight * 0.75;
+            double minimum = Math.Max(0, scrollPosition - preload);
+            double maximum = scrollPosition + viewportHeight + preload;
+            int first = firstItemEndingAfter(minimum);
+            int lastExclusive = firstItemStartingAfter(maximum);
+
+            for (int index = first;
+                 index < lastExclusive && result.Count < maximumCount;
+                 index++)
+            {
+                SongSelectVirtualItem item = items[index];
+                SongSelectEntry artworkEntry = item.Entry == null
+                    ? item.HeaderEntry
+                    : item.Entry.IsPackage
+                        ? null
+                        : item.Entry;
+
+                addArtworkEntry(artworkEntry);
+            }
+        }
+
+        void addArtworkEntry(SongSelectEntry entry)
+        {
+            if (entry != null
+                && result.Count < maximumCount
+                && seen.Add(entry))
+            {
+                result.Add(entry);
+            }
+        }
+    }
 
     public SongSelectVirtualisedList(
         Func<SongSelectEntry, ManiaDifficultyRatings> ratingsFor,
@@ -133,8 +202,8 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-3, scroll_indicator_inset),
-                Width = 4,
+                Position = new Vector2(0, scroll_indicator_inset),
+                Width = 5,
                 Alpha = 0,
                 Children =
                 [
@@ -142,7 +211,7 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
                     {
                         RelativeSizeAxes = Axes.Both,
                         Masking = true,
-                        CornerRadius = 2,
+                        CornerRadius = 2.5f,
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
@@ -151,9 +220,9 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
                     },
                     scrollIndicatorThumb = new Container
                     {
-                        Width = 4,
+                        Width = 5,
                         Masking = true,
-                        CornerRadius = 2,
+                        CornerRadius = 2.5f,
                         Child = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
@@ -214,6 +283,33 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
     {
         if (entry != null && entryIndices.TryGetValue(entry, out int index))
             scrollItemIntoView(items[index], animated);
+    }
+
+    internal void PrepareViewportFor(
+        SongSelectEntry entry,
+        float viewportHeight)
+    {
+        if (entry == null
+            || viewportHeight <= 0
+            || !entryIndices.TryGetValue(entry, out int index))
+        {
+            return;
+        }
+
+        SongSelectVirtualItem item = items[index];
+        double target = scroll.Current;
+        if (item.Top < target)
+            target = item.Top;
+        else if (item.Top + item.VisualHeight > target + viewportHeight)
+            target = item.Top + item.VisualHeight - viewportHeight;
+
+        scroll.ScrollTo(
+            Math.Clamp(
+                target,
+                0,
+                Math.Max(0, itemLayer.Height - viewportHeight)),
+            false);
+        rangeInvalidated = true;
     }
 
     internal void ScrollPackageToTop(string packageId, bool animated)

@@ -5411,3 +5411,50 @@ final result: passed
 - `git diff --check` passed.
 
 final result: passed with the unrelated test-project rebuild limitation recorded above
+
+---
+
+# Song Select list sizing and trailing-safe-area QA (2026-08-01)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\AppData\Local\Temp\codex-clipboard-246d1629-8400-4323-9551-2b0da1e3c0cc.png` (1400 x 1183 cropped app view).
+- Native implementation: `C:\Users\nyafa\.codex\visualizations\2026\08\01\019fbb21-b35d-7561-8525-b0bb34b8f427\songselect-list-size-implementation-dense-v3.png` (1920 x 1080, 1x density, Comfortable scale).
+- Focused comparison: `C:\Users\nyafa\.codex\visualizations\2026\08\01\019fbb21-b35d-7561-8525-b0bb34b8f427\songselect-list-size-focused-comparison.png`.
+- State: expanded one-song 4K package with twelve compact difficulties, a selected child, and an overflowing scroll viewport.
+- Normalization: the source browse crop (1178 x 1183) and implementation browse crop (875 x 880) were proportionally fitted into equal 980 x 980 comparison cells; no stretching was used.
+
+## Full-view and focused comparison
+
+The native 1920 x 1080 capture keeps the browse column, footer, details, and ranking regions collision-free after the row increases. The focused comparison confirms that compact rows now have visibly larger text and vertical padding, the selected `4K · SELECTED` pill has a stable trailing gap, and the cyan scroll indicator sits on the browser's absolute right edge.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing Yokko fonts and weights are preserved; compact primary text increases from 15 to 17, mapper text from 8 to 9, and selected pill text from 8 to 9.
+- Spacing and layout rhythm: compact rows increase from 44 to 56, standalone rows to 92, expanded package headers from 132 to 148, and collapsed package headers from 96 to 108.
+- Colors and tokens: existing ivory, navy, cyan, pink, yellow, and difficulty-rating colors are unchanged.
+- Image quality and assets: package artwork continues using the production crop path; only its frame grows with the header.
+- Copy and content: difficulty names, mapper, rating, key mode, and selected state remain present and untruncated in the captured dense package.
+
+## Findings and resolution
+
+- P1 resolved: the selected key-mode pill previously competed with the scrollbar and rounded boundary. Its local right edge moves from 834 to 816, leaving roughly 18-20 px of stable trailing space.
+- P2 resolved: the custom scroll indicator moves from a -3 px inset to the absolute right edge and grows from 4 to 5 px for a clearer boundary.
+- P2 resolved: compact package difficulties were undersized. Row, label, mapper, rating, and mode-chip dimensions now share a readable 56 px rhythm.
+- No actionable P0/P1/P2 issue remains in the requested browse-list region.
+
+## Interaction and verification
+
+- The dense native preview exercised a twelve-chart package, selected-row expansion, virtualisation, and an overflowing scroll viewport.
+- Isolated `Yokko.Game.Tests` build: 0 warnings and 0 errors.
+- Focused virtual-list tests: 17 passed, 0 failed, 0 skipped.
+- Native Direct3D 11 screenshot completed successfully at 1920 x 1080.
+- `git diff --check` passed.
+
+## Comparison history
+
+1. Initial user capture: scrollbar felt detached, selected 4K tag approached the right boundary, and compact chart rows were too small.
+2. V1 native capture confirmed the larger hierarchy and safe pill position but did not overflow, so the scrollbar was not visible.
+3. Dense V3 capture added a realistic twelve-chart package; post-fix evidence shows the scrollbar on the far-right edge and all 4K pills fully contained.
+
+final result: passed

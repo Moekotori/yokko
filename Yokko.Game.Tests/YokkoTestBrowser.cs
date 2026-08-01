@@ -115,6 +115,8 @@ namespace Yokko.Game.Tests
                     GameplayLayoutEditorOverlay editor = gameplay
                         .ChildrenOfType<GameplayLayoutEditorOverlay>()
                         .Single();
+                    gameplay.SetLayoutEditorLongNoteCutEnabledForTest(true);
+                    gameplay.SetLayoutEditorLongNoteCutAmountForTest(1.2);
                     editor.MoveTimingBarForTest(new Vector2(70, -58));
                     editor.ResizeTimingBarForTest(new Vector2(58, 20));
                     if (!string.IsNullOrWhiteSpace(layoutSkinPath))
@@ -349,7 +351,11 @@ namespace Yokko.Game.Tests
                 {
                     for (int i = 0; i < 4; i++)
                         songSelect.SelectPrevious();
-                    songSelect.SetKeyModeFilter(KeyMode.SevenKey);
+                    songSelect.SetKeyModeFilter(
+                        Environment.GetEnvironmentVariable(
+                            "YOKKO_SONGSELECT_DENSE_PACKAGE_PREVIEW") == "1"
+                            ? KeyMode.FourKey
+                            : KeyMode.SevenKey);
                 }, 350);
                 if (double.TryParse(
                         Environment.GetEnvironmentVariable(
@@ -763,8 +769,26 @@ namespace Yokko.Game.Tests
                         190),
                 ],
                 @"C:\Charts\Neon Pulse Overdrive - Ultra Resonance Protocol.osz");
-            ImportedCharts.AddOrReplace(
-                [
+            ChartImportResult[] harmonicPreviewCharts =
+                Environment.GetEnvironmentVariable(
+                    "YOKKO_SONGSELECT_DENSE_PACKAGE_PREVIEW") == "1"
+                    ?
+                    [
+                        previewChart("Aether", "Kaitendaentai", "Yorusen Haneoto", "240 edit", KeyMode.FourKey, 240),
+                        previewChart("Aether", "Kaitendaentai", "Yorusen Haneoto", "x (210bpm)", KeyMode.FourKey, 210),
+                        previewChart("Aether", "Kaitendaentai", "Yorusen Haneoto", "x (220bpm)", KeyMode.FourKey, 220),
+                        previewChart("Aether", "Kaitendaentai", "Yorusen Haneoto", "x (230bpm)", KeyMode.FourKey, 230),
+                        previewChart("Aether", "Kaitendaentai", "Yorusen Haneoto", "x (240bpm)", KeyMode.FourKey, 240),
+                        previewChart("Aether", "Kaitendaentai", "Yorusen Haneoto", "x@LNise", KeyMode.FourKey, 250),
+                        previewChart("Aether", "Kaitendaentai", "Yorusen Haneoto", "x", KeyMode.FourKey, 260),
+                        previewChart("Aether", "Kaitendaentai", "Yorusen Haneoto", "x (270bpm)", KeyMode.FourKey, 270),
+                        previewChart("Aether", "Kaitendaentai", "Yorusen Haneoto", "x (280bpm)", KeyMode.FourKey, 280),
+                        previewChart("Aether", "Kaitendaentai", "Yorusen Haneoto", "x (290bpm)", KeyMode.FourKey, 290),
+                        previewChart("Aether", "Kaitendaentai", "Yorusen Haneoto", "x (300bpm)", KeyMode.FourKey, 300),
+                        previewChart("Aether", "Kaitendaentai", "Yorusen Haneoto", "x (310bpm)", KeyMode.FourKey, 310),
+                    ]
+                    :
+                    [
                     previewChart(
                         "Harmonic Bloom: Symphony of the Dreaming Petals",
                         "Koharu",
@@ -779,7 +803,9 @@ namespace Yokko.Game.Tests
                         "Hard",
                         KeyMode.SevenKey,
                         178),
-                ],
+                    ];
+            ImportedCharts.AddOrReplace(
+                harmonicPreviewCharts,
                 harmonicPackagePath);
             if (Environment.GetEnvironmentVariable(
                     "YOKKO_SONGSELECT_STANDALONE_PREVIEW") == "1")

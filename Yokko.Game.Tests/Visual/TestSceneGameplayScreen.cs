@@ -1084,7 +1084,37 @@ namespace Yokko.Game.Tests.Visual
                     gameplayScreen.AppliedScrollSpeedForTest
                     - originalScrollSpeed) < 0.001
                 && gameplayScreen.LayoutEditorScrollDirectionForTest
-                == originalScrollDirection);
+                    == originalScrollDirection);
+            bool originalLongNoteCutEnabled = false;
+            double originalLongNoteCutAmount = 0;
+            AddStep("change live LN cut settings", () =>
+            {
+                originalLongNoteCutEnabled =
+                    gameplayScreen.LayoutEditorLongNoteCutEnabledForTest;
+                originalLongNoteCutAmount =
+                    gameplayScreen.LayoutEditorLongNoteCutAmountForTest;
+                gameplayScreen.SetLayoutEditorLongNoteCutEnabledForTest(true);
+                gameplayScreen.SetLayoutEditorLongNoteCutAmountForTest(1.2);
+            });
+            AddUntilStep("LN cut and preview update inside editor", () =>
+                gameplayScreen.LayoutEditorLongNoteCutEnabledForTest
+                && Math.Abs(
+                    gameplayScreen.LayoutEditorLongNoteCutAmountForTest
+                    - 1.2) < 0.001
+                && Math.Abs(
+                    gameplayScreen.AppliedLongNoteCutAmountForTest
+                    - 1.2) < 0.001
+                && layoutEditor.LongNoteCutPreviewEnabledForTest
+                && Math.Abs(
+                    layoutEditor.LongNoteCutPreviewAmountForTest
+                    - 1.2) < 0.001);
+            AddStep("restore live LN cut settings", () =>
+            {
+                gameplayScreen.SetLayoutEditorLongNoteCutAmountForTest(
+                    originalLongNoteCutAmount);
+                gameplayScreen.SetLayoutEditorLongNoteCutEnabledForTest(
+                    originalLongNoteCutEnabled);
+            });
             double originalJudgementDuration = 0;
             double originalJudgementOpacity = 0;
             bool originalShowHitError = false;

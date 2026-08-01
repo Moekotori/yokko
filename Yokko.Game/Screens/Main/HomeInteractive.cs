@@ -266,12 +266,18 @@ internal partial class HomeSignalSnake : CompositeDrawable
     private Vector2 currentDirection = directions[3];
     private int trailLength = initialTrailLength;
     private bool available;
+    private bool dying;
+    private int respawnGeneration;
 
     internal int StepCount { get; private set; }
 
     internal int CollectedCount { get; private set; }
 
+    internal int DeathCount { get; private set; }
+
     internal Vector2 HeadPosition => currentPosition;
+
+    internal int VisibleTrailDotCount => trailDots.Count(dot => dot.Alpha > 0);
 
     public HomeSignalSnake()
     {
@@ -347,7 +353,7 @@ internal partial class HomeSignalSnake : CompositeDrawable
 
     internal void HandleLane(int lane)
     {
-        if (!available || lane < 0 || lane >= directions.Length)
+        if (!available || dying || lane < 0 || lane >= directions.Length)
             return;
 
         Vector2 nextDirection = directions[lane];
@@ -360,6 +366,17 @@ internal partial class HomeSignalSnake : CompositeDrawable
         if (collidedTrailIndex >= 0)
         {
             playTailCollision(collidedTrailIndex);
+            DeathCount++;
+            dying = true;
+            int generation = ++respawnGeneration;
+            Scheduler.AddDelayed(() =>
+            {
+                if (generation != respawnGeneration)
+                    return;
+
+                resetSignal(true);
+                dying = false;
+            }, 180);
             return;
         }
 
@@ -399,6 +416,28 @@ internal partial class HomeSignalSnake : CompositeDrawable
 
         if (trailIndex < trailDots.Length)
             trailDots[trailIndex].FlashColour(Color4.White, 240, Easing.OutQuint);
+
+        for (int i = 0; i < 6; i++)
+        {
+            float angle = i * MathF.Tau / 6;
+            var particle = new Circle
+            {
+                Origin = Anchor.Centre,
+                Position = currentPosition,
+                Size = new Vector2(4),
+                Colour = i % 2 == 0
+                    ? HomeControlColours.Pink
+                    : Color4.White,
+            };
+            AddInternal(particle);
+            particle.MoveTo(currentPosition + new Vector2(
+                    MathF.Cos(angle),
+                    MathF.Sin(angle)) * 22,
+                    240,
+                    Easing.OutQuint)
+                    .FadeOut(240, Easing.InQuart)
+                    .Expire();
+        }
     }
 
     internal bool TryHandleArrowKey(Key key, bool repeat)
@@ -419,6 +458,27 @@ internal partial class HomeSignalSnake : CompositeDrawable
             HandleLane(lane);
 
         return true;
+    }
+
+    internal bool TryHandleRestartKey(Key key, bool repeat)
+    {
+        if (!available || key != Key.R)
+            return false;
+
+        if (!repeat)
+            Restart();
+
+        return true;
+    }
+
+    internal void Restart()
+    {
+        respawnGeneration++;
+        dying = false;
+        StepCount = 0;
+        CollectedCount = 0;
+        DeathCount = 0;
+        resetSignal(true);
     }
 
     private static Container createPip(Color4 colour) => new()

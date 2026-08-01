@@ -70,6 +70,7 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly ManiaNoteVisibilityCover noteVisibilityCover;
     private readonly ManiaFlashlightOverlay flashlightOverlay;
     private ManiaVisibilityPolicy visibilityPolicy;
+    private double longNoteCutAmount;
 
     internal float ScrollOrigin => topY;
 
@@ -93,6 +94,8 @@ public partial class GameplayPlayfield : CompositeDrawable
         noteUpdateStates[index].StartPosition;
 
     internal ManiaVisibilityPolicy VisibilityPolicy => visibilityPolicy;
+
+    internal double LongNoteCutAmount => longNoteCutAmount;
 
     internal bool UsesSkinJudgementOverlay => skinOverlays.Length > 0;
 
@@ -169,6 +172,7 @@ public partial class GameplayPlayfield : CompositeDrawable
             ManiaScrollDirection.Downscroll)
     {
         this.mods = mods ?? ManiaModSet.Empty;
+        this.longNoteCutAmount = Math.Max(0, longNoteCutAmount);
         upscroll = scrollDirection == ManiaScrollDirection.Upscroll;
         this.approachTimeMilliseconds = approachTimeMilliseconds;
         bool constantSpeed =
@@ -332,7 +336,7 @@ public partial class GameplayPlayfield : CompositeDrawable
                 activeSkin,
                 beatmap.LegacyLongNoteRendering,
                 beatmap.ScratchLane == hitObject.Lane,
-                longNoteCutAmount,
+                this.longNoteCutAmount,
                 upscroll)
             {
                 X = x,
@@ -917,6 +921,13 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     public void SetApproachTime(double value) =>
         approachTimeMilliseconds = Math.Max(1, value);
+
+    internal void SetLongNoteCutAmount(double value)
+    {
+        longNoteCutAmount = Math.Max(0, value);
+        foreach (DrawableNote note in noteDrawables)
+            note.SetLongNoteCutAmount(longNoteCutAmount);
+    }
 
     public void SetWidthScale(float value)
     {

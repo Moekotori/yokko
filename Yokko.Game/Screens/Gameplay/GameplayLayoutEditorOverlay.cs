@@ -92,6 +92,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     internal bool HasUnsavedChangesForTest => hasUnsavedChanges();
 
+    internal bool LongNoteCutPreviewEnabledForTest =>
+        liveSettingsPanel?.LongNoteCutPreviewEnabled == true;
+
+    internal double LongNoteCutPreviewAmountForTest =>
+        liveSettingsPanel?.LongNoteCutPreviewAmount ?? 0;
+
     internal bool IsCancelConfirmationPendingForTest =>
         cancelConfirmationPending;
 
@@ -904,7 +910,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         {
             Anchor = Anchor.BottomRight,
             Origin = Anchor.BottomRight,
-            Position = new Vector2(-18, -18),
+            Position = new Vector2(-18, -10),
             Size = cardSize + new Vector2(5),
             Children = new Drawable[]
             {
@@ -1158,6 +1164,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         liveSettings.ScrollSpeed(),
         liveSettings.ScrollDirection(),
         liveSettings.BackgroundDim(),
+        liveSettings.LongNoteCutEnabled(),
+        liveSettings.LongNoteCutAmount(),
         liveSettings.JudgementDisplayDuration(),
         liveSettings.JudgementOpacity(),
         liveSettings.ShowJudgementHitError(),
@@ -1173,6 +1181,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         liveSettings.SetScrollDirection(snapshot.ScrollDirection);
         liveSettings.SetScrollSpeed(snapshot.ScrollSpeed);
         liveSettings.SetBackgroundDim(snapshot.BackgroundDim);
+        liveSettings.SetLongNoteCutAmount(snapshot.LongNoteCutAmount);
+        liveSettings.SetLongNoteCutEnabled(snapshot.LongNoteCutEnabled);
         liveSettings.SetJudgementDisplayDuration(
             snapshot.JudgementDisplayDuration);
         liveSettings.SetJudgementOpacity(snapshot.JudgementOpacity);
@@ -2589,6 +2599,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         double ScrollSpeed,
         ManiaScrollDirection ScrollDirection,
         double BackgroundDim,
+        bool LongNoteCutEnabled,
+        double LongNoteCutAmount,
         double JudgementDisplayDuration,
         double JudgementOpacity,
         bool ShowJudgementHitError,
