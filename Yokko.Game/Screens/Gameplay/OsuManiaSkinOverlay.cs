@@ -38,6 +38,8 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
     private Vector2 comboLayoutScale = Vector2.One;
     private Vector2 judgementLayoutScale = Vector2.One;
     private double judgementDisplayDuration = JudgementAnimationDuration;
+    private float judgementOpacity = 1;
+    private bool judgementVisible = true;
     private bool editorPreview;
     private int displayedCombo = -1;
 
@@ -46,6 +48,10 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
 
     internal bool EditorComboPreviewVisible =>
         comboDigits.Alpha > 0 || comboFallback.Alpha > 0;
+
+    internal bool ComboVisibleForTest => comboContainer.Alpha > 0;
+
+    internal bool JudgementVisibleForTest => judgementContainer.Alpha > 0;
 
     internal Drawable ComboLayoutDrawable =>
         comboDigits.Alpha > 0 ? comboDigits : comboFallback;
@@ -106,7 +112,7 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Font = FontUsage.Default.With(size: 44),
+                        Font = new FontUsage("NotoSansCJK").With(size: 44),
                         Alpha = 0,
                     },
                 },
@@ -131,7 +137,7 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Font = FontUsage.Default.With(size: 44),
+                        Font = new FontUsage("NotoSansCJK").With(size: 44),
                         Alpha = 0,
                         Blending = BlendingParameters.Additive,
                         Colour = configuration.ComboBreakColour,
@@ -146,7 +152,7 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Font = FontUsage.Default.With(size: 44),
+                        Font = new FontUsage("NotoSansCJK").With(size: 44),
                         Alpha = 0,
                     },
                 },
@@ -421,8 +427,21 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         double opacity)
     {
         judgementDisplayDuration = Math.Max(60, displayDuration);
-        judgementContainer.Alpha = (float)Math.Clamp(opacity, 0, 1);
+        judgementOpacity = (float)Math.Clamp(opacity, 0, 1);
+        updateJudgementVisibility();
     }
+
+    public void SetComboVisible(bool visible) =>
+        comboContainer.Alpha = visible ? 1 : 0;
+
+    public void SetJudgementVisible(bool visible)
+    {
+        judgementVisible = visible;
+        updateJudgementVisibility();
+    }
+
+    private void updateJudgementVisibility() =>
+        judgementContainer.Alpha = judgementVisible ? judgementOpacity : 0;
 
     public void SetEditorPreview(bool preview)
     {

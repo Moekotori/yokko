@@ -955,6 +955,7 @@ namespace Yokko.Game.Tests.Visual
             GameplayHud gameplayHud = null;
             GameplayComboReadout comboReadout = null;
             JudgementReadout judgementReadout = null;
+            GameplayPlayfield gameplayPlayfield = null;
 
             AddStep("open gameplay layout fixture", () =>
             {
@@ -998,6 +999,9 @@ namespace Yokko.Game.Tests.Visual
                     .SingleOrDefault()) != null
                 && (judgementReadout = gameplayScreen
                     .ChildrenOfType<JudgementReadout>()
+                    .SingleOrDefault()) != null
+                && (gameplayPlayfield = gameplayScreen
+                    .ChildrenOfType<GameplayPlayfield>()
                     .SingleOrDefault()) != null);
             AddAssert("gameplay is paused while arranging", () =>
                 gameplayScreen.IsPaused);
@@ -1064,6 +1068,15 @@ namespace Yokko.Game.Tests.Visual
                 layoutEditor.SelectNextElementForTest(true));
             AddAssert("reverse selection returns to playfield", () =>
                 layoutEditor.SelectedElementForTest == "Playfield");
+            AddStep("hide accuracy and select next", () =>
+            {
+                layoutEditor.SetAccuracyHiddenForTest(true);
+                layoutEditor.SelectNextElementForTest(false);
+            });
+            AddAssert("Tab skips hidden elements", () =>
+                layoutEditor.SelectedElementForTest == "Progress");
+            AddStep("restore accuracy", () =>
+                layoutEditor.SetAccuracyHiddenForTest(false));
             AddStep("move performance readout", () =>
                 layoutEditor.MovePerformanceReadoutForTest(
                     new Vector2(-120, -80)));
@@ -1460,6 +1473,7 @@ namespace Yokko.Game.Tests.Visual
                 gameplayScreen.LayoutAutoplayDemoLongNoteCountForTest > 0
                 && gameplayScreen.VisibleLayoutAutoplayDemoLongNoteCountForTest
                     > 0
+                && !gameplayPlayfield.RegularNoteLayerVisible
                 && gameplayScreen.LayoutAutoplayDemoLongNoteCutDistanceForTest
                     > 0);
             float autoplayCutDistance = 0;
@@ -1483,6 +1497,7 @@ namespace Yokko.Game.Tests.Visual
                 && !gameplayScreen.IsLayoutAutoplayPlaying
                 && !gameplayScreen.AutoplayMode
                 && layoutEditor.IsEditing
+                && gameplayPlayfield.RegularNoteLayerVisible
                 && !layoutEditor.AutoplayControlVisibleForTest
                 && layoutEditor.ChromeAlphaForTest > 0.9f);
             AddStep("restore LN cut after autoplay demo", () =>
@@ -1642,6 +1657,27 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("skin feedback stays above the blocker", () =>
                 playfield.LayoutTopCoverHeightForTest > 1
                 && playfield.SkinFeedbackRendersAboveLayoutCovers);
+            AddStep("hide skin feedback and start autoplay", () =>
+            {
+                layoutEditor.SetComboHiddenForTest(true);
+                layoutEditor.SetJudgementHiddenForTest(true);
+                gameplay.ResumeCountdownMillisecondsOverride = 0;
+                gameplay.BeginLayoutAutoplayDemoForTest();
+            });
+            AddUntilStep("hidden skin feedback stays hidden in autoplay", () =>
+                gameplay.IsLayoutAutoplayPlaying
+                && !playfield.SkinComboVisibleForTest
+                && !playfield.SkinJudgementVisibleForTest);
+            AddStep("exit autoplay and restore feedback", () =>
+            {
+                layoutEditor.ExitAutoplayDemoForTest();
+                layoutEditor.SetComboHiddenForTest(false);
+                layoutEditor.SetJudgementHiddenForTest(false);
+            });
+            AddUntilStep("skin feedback is visible again", () =>
+                gameplay.IsLayoutEditing
+                && playfield.SkinComboVisibleForTest
+                && playfield.SkinJudgementVisibleForTest);
             AddStep("restore blocker", () =>
                 gameplaySettings.ResetGameplayLayout());
         }

@@ -264,9 +264,8 @@ namespace Yokko.Game
 
             var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
             Resources.AddStore(resources);
-            AddFont(Resources, @"Fonts/Yokko/Yokko");
-            AddFont(Resources, @"Fonts/Yokko/Yokko-Bold");
-            AddFont(Resources, @"Fonts/YokkoInput/YokkoInput");
+            AddFont(Resources, @"Fonts/NotoSansCJK/NotoSansCJK");
+            AddFont(Resources, @"Fonts/NotoSansCJK/NotoSansCJK-Bold");
             AddFont(Resources, @"Fonts/ArchivoBlack/ArchivoBlack");
             _ = importedChartLibrary.BeginStartupLoad(
                 importSettings.PreferKeysounds.Value,

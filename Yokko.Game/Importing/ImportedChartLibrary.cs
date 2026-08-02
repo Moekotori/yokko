@@ -554,9 +554,10 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         await externalDifficultyLock.WaitAsync(cancellationToken)
             .ConfigureAwait(false);
+        ManiaDifficultyRatings ratings;
         try
         {
-            return new ManiaDifficultyRatings(
+            ratings = new ManiaDifficultyRatings(
                 msdRatingCache.GetOrCalculate(materialised.Result.Beatmap),
                 starRatingCache.GetOrCalculate(materialised.Result.Beatmap));
         }
@@ -564,6 +565,42 @@ internal sealed class ImportedChartLibrary : IDisposable
         {
             externalDifficultyLock.Release();
         }
+
+        publishRequestedDifficultyRatings(materialised, ratings);
+        return ratings;
+    }
+
+    private void publishRequestedDifficultyRatings(
+        ImportedChart materialised,
+        ManiaDifficultyRatings ratings)
+    {
+        ImportedChartLibraryChange change = null;
+        lock (syncRoot)
+        {
+            int index = charts.FindIndex(candidate => candidate.Id.Equals(
+                materialised.Id,
+                StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+                return;
+
+            ImportedChart current = charts[index];
+            if (!externalChartEquivalentIgnoringRatings(current, materialised)
+                || Equals(current.DifficultyRating, ratings.EtternaMsd)
+                   && Equals(current.StarRating, ratings.RebirthStars))
+            {
+                return;
+            }
+
+            charts[index] = current with
+            {
+                DifficultyRating = ratings.EtternaMsd,
+                StarRating = ratings.RebirthStars,
+            };
+            change = advanceRevision(
+                ImportedChartLibraryChangeKind.DifficultyRatings);
+        }
+
+        LibraryChanged?.Invoke(change);
     }
 
     public async Task<IReadOnlyList<ChartImportResult>> ImportAsync(

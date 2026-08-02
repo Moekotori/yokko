@@ -61,8 +61,8 @@ internal static class YokkoLocalisation
 
 internal static class YokkoStrings
 {
-    // System-provided text is not present in the localisation table, but still
-    // needs glyphs in Yokko's deliberately subsetted bitmap font.
+    // Kept as a regression sample for system-provided text even though the
+    // complete Noto Sans CJK UI atlases no longer depend on a hand-curated set.
     internal const string ExternalTextGlyphs = "扬声器耳机头戴式数字音频线路输出蓝牙【粉投手】";
 
     private sealed record Translation(string English, string Chinese, string Japanese);
@@ -799,9 +799,9 @@ internal static class YokkoStrings
                 "垂直居中",
                 "垂直中央"),
             ["gameplay.layout_editor.snap_hint"] = new(
-                "Drag to move · Shift locks axis · Ctrl+wheel resizes lanes",
-                "拖动即可移动 · Shift 锁定方向 · Ctrl+滚动缩放轨道",
-                "ドラッグで移動 · Shift 軸固定 · Ctrl+ホイールでレーン拡縮"),
+                "Drag to move · Shift locks axis · Alt bypasses snap · Ctrl+wheel resizes lanes",
+                "拖动即可移动 · Shift 锁定方向 · Alt 临时关闭吸附 · Ctrl+滚动缩放轨道",
+                "ドラッグで移動 · Shift 軸固定 · Alt でスナップ無効 · Ctrl+ホイールでレーン拡縮"),
             ["gameplay.layout_editor.covers"] = new(
                 "LANE BLOCKERS",
                 "轨道挡板",

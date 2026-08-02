@@ -496,14 +496,11 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         };
 
     /// <summary>
-    /// 拉丁标题用 ArchivoBlack 海报体；CJK 标题走 ArchivoBlack 的回退链
-    /// 只能拿到 Yokko Regular，改走 Roboto Bold 的 CJK 回退拿到
-    /// Yokko-Bold，让「暂停」这类标题保持粗体量感。
+    /// Keep the whole localised title in the shared CJK family. Only the size
+    /// changes to preserve the existing Latin and CJK layout proportions.
     /// </summary>
     private static FontUsage pauseTitleFont(bool prefersCjkFallback) =>
-        prefersCjkFallback
-            ? PauseTypography.Display(56)
-            : PauseTypography.Poster(64);
+        PauseTypography.Display(prefersCjkFallback ? 56 : 64);
 
     private Drawable createActionColumn()
     {
@@ -2145,8 +2142,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     }
 
     /// <summary>
-    /// 暂停界面的字体分工：海报体（ArchivoBlack，128px 基准图集，
-    /// CJK 自动回退 Yokko 字体）负责大标题与主数字，Roboto 负责正文。
+    /// Localised text uses the shared CJK family. Archivo Black is restricted
+    /// to the numeric judgement readout below.
     /// </summary>
     private static class PauseTypography
     {

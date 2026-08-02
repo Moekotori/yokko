@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -192,6 +193,73 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                 Directory.Delete(movedLibrary, true);
             Directory.CreateDirectory(importedChartLibrary.LibraryPath);
         });
+    }
+
+    [Test]
+    public void TestCachedManagedSummaryMaterialisesBeforeImmediatePlay()
+    {
+        string fixture = null;
+        Task<int> cachedLoad = null;
+        Task<int> cleanupLoad = null;
+
+        AddStep("create cached managed summary", () =>
+        {
+            fixture = Path.Combine(
+                importedChartLibrary.LibraryPath,
+                $"cached-managed-summary-{Guid.NewGuid():N}.osz");
+            importedChartLibrary.DisableExternalOsu();
+            importedChartLibrary.Clear();
+            Directory.CreateDirectory(importedChartLibrary.LibraryPath);
+            string text = OsuManiaBeatmapIO.WriteBeatmap(
+                DemoBeatmaps.CreateFourKeyDemo() with
+                {
+                    Title = "Cached Managed Summary",
+                    AudioPath = null,
+                });
+            using (ZipArchive archive = ZipFile.Open(
+                       fixture,
+                       ZipArchiveMode.Create))
+            {
+                ZipArchiveEntry entry = archive.CreateEntry("summary.osu");
+                using StreamWriter writer = new(
+                    entry.Open(),
+                    new UTF8Encoding(false));
+                writer.Write(text);
+            }
+            cachedLoad = Task.Run(async () =>
+            {
+                await importedChartLibrary.LoadFromDiskAsync(true, true);
+                return await importedChartLibrary.LoadFromDiskAsync(true, true);
+            });
+        });
+        AddUntilStep("cached summary is selected", () =>
+            cachedLoad?.IsCompletedSuccessfully == true
+            && songSelectScreen.SelectedEntry?.Beatmap.Title
+            == "Cached Managed Summary"
+            && songSelectScreen.SelectedEntry.Beatmap.HitObjects.Count == 0);
+        AddStep("press Enter immediately", () => InputManager.Key(Key.Enter));
+        AddUntilStep("full managed chart enters gameplay", () =>
+            screenStack.CurrentScreen is GameplaySessionScreen session
+            && session.CurrentGameplay is GameplayScreen gameplay
+            && gameplay.AppliedBeatmap.HitObjects.Count > 0);
+        AddAssert("summary never reaches gameplay", () =>
+            ((GameplaySessionScreen)screenStack.CurrentScreen)
+            .CurrentGameplay.AppliedBeatmap.HitObjects.Count
+            == DemoBeatmaps.CreateFourKeyDemo().HitObjects.Count);
+        AddStep("return from managed gameplay", () =>
+            ((GameplaySessionScreen)screenStack.CurrentScreen)
+            .CurrentGameplay.Exit());
+        AddUntilStep("song select resumes after managed gameplay", () =>
+            screenStack.CurrentScreen == songSelectScreen);
+        AddStep("clean cached managed fixture", () =>
+        {
+            if (File.Exists(fixture))
+                File.Delete(fixture);
+            cleanupLoad = importedChartLibrary.LoadFromDiskAsync(true, true);
+        });
+        AddUntilStep("cached managed fixture is removed", () =>
+            cleanupLoad?.IsCompletedSuccessfully == true
+            && songSelectScreen.VisibleEntryCount == 0);
     }
 
     [Test]

@@ -141,10 +141,13 @@ public sealed record YokkoUiTypographyTokens(
     string StickerFont,
     float MinimumReadableSize)
 {
+    public const string CompleteFamily = "NotoSansCJK";
+    public const string CompleteBoldFamily = "NotoSansCJK-Bold";
+
     public static YokkoUiTypographyTokens Default { get; } = new(
-        "Roboto",
-        "YokkoInput",
-        "ArchivoBlack",
+        CompleteFamily,
+        CompleteFamily,
+        CompleteBoldFamily,
         14);
 
     public FontUsage Display(float size) =>
@@ -274,6 +277,24 @@ public sealed class YokkoUiThemeStore
         {
             throw new ArgumentException(
                 "Theme font names must not be empty.",
+                nameof(theme));
+        }
+
+        if (!string.Equals(
+                theme.Typography.PrimaryFont,
+                YokkoUiTypographyTokens.CompleteFamily,
+                StringComparison.Ordinal)
+            || !string.Equals(
+                theme.Typography.InputFont,
+                YokkoUiTypographyTokens.CompleteFamily,
+                StringComparison.Ordinal)
+            || (theme.Typography.StickerFont
+                    != YokkoUiTypographyTokens.CompleteFamily
+                && theme.Typography.StickerFont
+                    != YokkoUiTypographyTokens.CompleteBoldFamily))
+        {
+            throw new ArgumentException(
+                "Theme text fonts must use Yokko's complete Noto Sans CJK family.",
                 nameof(theme));
         }
 

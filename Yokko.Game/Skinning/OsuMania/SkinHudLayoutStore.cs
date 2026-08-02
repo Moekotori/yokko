@@ -136,29 +136,47 @@ internal sealed class SkinHudLayoutStore : IDisposable
     {
         lock (sync)
         {
-            if (editSessionLayouts == null)
-                return;
-
-            string initialSkinId = editSessionInitialSkinId;
-            editSessionLayouts = null;
-            editSessionInitialSkinId = null;
-            suppressSkinChange = true;
-
-            try
-            {
-                skinSettings.SelectedSkinId.Value = initialSkinId;
-                activeSkinId = initialSkinId;
-
-                if (tryLoad(getProfilePath(activeSkinId), activeSkinId, out HudLayoutSnapshot saved))
-                    applyLocked(saved);
-                else
-                    applyLocked(resetAndCaptureLocked());
-            }
-            finally
-            {
-                suppressSkinChange = false;
-            }
+            cancelEditSessionLocked();
         }
+    }
+
+    private void cancelEditSessionLocked()
+    {
+        if (editSessionLayouts == null)
+            return;
+
+        string initialSkinId = resolveRollbackSkinIdLocked(
+            editSessionInitialSkinId);
+        editSessionLayouts = null;
+        editSessionInitialSkinId = null;
+        suppressSkinChange = true;
+
+        try
+        {
+            skinSettings.SelectedSkinId.Value = initialSkinId;
+            activeSkinId = initialSkinId;
+
+            if (tryLoad(getProfilePath(activeSkinId), activeSkinId, out HudLayoutSnapshot saved))
+                applyLocked(saved);
+            else
+                applyLocked(resetAndCaptureLocked());
+        }
+        finally
+        {
+            suppressSkinChange = false;
+        }
+    }
+
+    private string resolveRollbackSkinIdLocked(string skinId)
+    {
+        string normalised = normaliseSkinId(skinId);
+        if (normalised.Length == 0 || skinLibrary == null)
+            return normalised;
+
+        return skinLibrary.GetInstalledSkins().Any(
+            installed => idsEqual(installed.Id, normalised))
+            ? normalised
+            : string.Empty;
     }
 
     public void Flush()
@@ -181,6 +199,8 @@ internal sealed class SkinHudLayoutStore : IDisposable
             string normalised = normaliseSkinId(skinId);
             if (editSessionLayouts != null)
                 editSessionLayouts.Remove(normalised);
+            if (idsEqual(editSessionInitialSkinId, normalised))
+                editSessionInitialSkinId = string.Empty;
 
             if (pendingSkinId != null && idsEqual(pendingSkinId, normalised))
                 clearPendingLocked();
@@ -420,7 +440,7 @@ internal sealed class SkinHudLayoutStore : IDisposable
                 return;
 
             if (editSessionLayouts != null)
-                CommitEditSession();
+                cancelEditSessionLocked();
             else if (gameplaySettings != null)
                 flushLocked();
 

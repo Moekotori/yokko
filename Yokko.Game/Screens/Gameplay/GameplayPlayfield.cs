@@ -93,6 +93,8 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     internal int ActiveDrawableNoteCount => noteLayer.Count;
 
+    internal bool RegularNoteLayerVisible => noteLayer.Alpha > 0.5f;
+
     internal int LastHoldRangeNodeVisits { get; private set; }
 
     internal int KeyCount => laneColumns.Length;
@@ -989,6 +991,24 @@ public partial class GameplayPlayfield : CompositeDrawable
             overlay.SetComboEditorPreview(preview);
     }
 
+    internal void SetSkinComboVisible(bool visible)
+    {
+        foreach (OsuManiaSkinOverlay overlay in skinOverlays)
+            overlay.SetComboVisible(visible);
+    }
+
+    internal void SetSkinJudgementVisible(bool visible)
+    {
+        foreach (OsuManiaSkinOverlay overlay in skinOverlays)
+            overlay.SetJudgementVisible(visible);
+    }
+
+    internal bool SkinComboVisibleForTest =>
+        skinOverlays.Length > 0 && skinOverlays.All(overlay => overlay.ComboVisibleForTest);
+
+    internal bool SkinJudgementVisibleForTest =>
+        skinOverlays.Length > 0 && skinOverlays.All(overlay => overlay.JudgementVisibleForTest);
+
     internal void SetFocusMode(bool active)
     {
         focusModeActive = active;
@@ -1037,6 +1057,7 @@ public partial class GameplayPlayfield : CompositeDrawable
             layoutAutoplayDemoStartTime = gameplayTimeMilliseconds;
 
         layoutAutoplayDemoActive = active;
+        noteLayer.Alpha = active ? 0 : 1;
         layoutAutoplayDemoNoteLayer.Alpha = active ? 1 : 0;
         if (active)
             return;

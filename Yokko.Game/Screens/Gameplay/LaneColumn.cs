@@ -102,7 +102,7 @@ public partial class LaneColumn : CompositeDrawable
                     Origin = Anchor.TopCentre,
                     Y = 10,
                     Text = "SCRATCH",
-                    Font = FontUsage.Default.With(size: 12, weight: "Bold"),
+                    Font = new FontUsage("NotoSansCJK").With(size: 12, weight: "Bold"),
                     Colour = YokkoPalette.Violet,
                 });
             }
@@ -146,7 +146,7 @@ public partial class LaneColumn : CompositeDrawable
                             : Anchor.BottomCentre,
                         Y = upscroll ? 26 : -26,
                         Text = displayKey,
-                        Font = FontUsage.Default.With(size: 18),
+                        Font = new FontUsage("NotoSansCJK").With(size: 18),
                         Colour = YokkoPalette.TextMuted,
                     },
                     mineExplosion = createMineExplosion(
@@ -215,7 +215,7 @@ public partial class LaneColumn : CompositeDrawable
                 Origin = Anchor.TopCentre,
                 Y = 8,
                 Text = "SCRATCH",
-                Font = FontUsage.Default.With(size: 12, weight: "Bold"),
+                Font = new FontUsage("NotoSansCJK").With(size: 12, weight: "Bold"),
                 Colour = YokkoPalette.Violet,
             });
         }
@@ -317,7 +317,7 @@ public partial class LaneColumn : CompositeDrawable
                     ? keyHeight / 2
                     : -keyHeight / 2,
                 Text = displayKey,
-                Font = FontUsage.Default.With(size: 16),
+                Font = new FontUsage("NotoSansCJK").With(size: 16),
                 Colour = configuration.KeyWarningColour,
             });
             skinKeyWarning.Delay(500).FadeOut(3000);
@@ -334,7 +334,7 @@ public partial class LaneColumn : CompositeDrawable
                     : Anchor.BottomCentre,
                 Y = upscroll ? 26 : -26,
                 Text = displayKey,
-                Font = FontUsage.Default.With(size: 18),
+                Font = new FontUsage("NotoSansCJK").With(size: 18),
                 Colour = YokkoPalette.TextMuted,
             });
         }

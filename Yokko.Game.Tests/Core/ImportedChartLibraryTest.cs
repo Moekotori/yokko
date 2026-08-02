@@ -139,8 +139,14 @@ public sealed class ImportedChartLibraryTest
             var storage = new NativeStorage(yokkoRoot);
             library.Initialise(storage);
             library.ConfigureExternalOsu(storage, settings);
+            int difficultyChanges = 0;
             library.LibraryChanged += change =>
             {
+                if ((change.Kind
+                     & ImportedChartLibraryChangeKind.DifficultyRatings) != 0)
+                {
+                    difficultyChanges++;
+                }
                 if ((change.Kind
                      & ImportedChartLibraryChangeKind.Structure) != 0)
                 {
@@ -154,6 +160,7 @@ public sealed class ImportedChartLibraryTest
                 ImportedChart indexed = library.GetCharts().Single();
                 ManiaDifficultyRatings ratings =
                     await library.GetBaseDifficultyRatingsAsync(indexed.Id);
+                ImportedChart published = library.GetCharts().Single();
 
                 Assert.Multiple(() =>
                 {
@@ -169,6 +176,11 @@ public sealed class ImportedChartLibraryTest
                         ratings.RebirthStars.IsSuccess,
                         Is.True,
                         ratings.RebirthStars.FailureReason);
+                    Assert.That(published.DifficultyRating.IsSuccess, Is.True,
+                        "A priority calculation must update the shared library model.");
+                    Assert.That(published.StarRating.IsSuccess, Is.True,
+                        "Song Select must not need a click to observe the calculated stars.");
+                    Assert.That(difficultyChanges, Is.GreaterThanOrEqualTo(1));
                 });
             }
             finally

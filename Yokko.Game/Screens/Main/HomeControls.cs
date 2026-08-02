@@ -42,7 +42,7 @@ internal static class HomeTypography
 
     public static FontUsage Brand(float size) => typography.Brand(size);
 
-    // 贴纸气泡用的粗海报体（Archivo Black 位图图集，CJK 自动回退 Yokko 字体）。
+    // Sticker labels stay in the same complete bold CJK family as other UI text.
     public static FontUsage Sticker(float size) => typography.Sticker(size);
 }
 

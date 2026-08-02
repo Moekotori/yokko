@@ -90,4 +90,16 @@ public class YokkoUiThemeFileTest
         Assert.Throws<ArgumentNullException>(() => store.Apply(invalid));
         Assert.That(store.Current.Value, Is.SameAs(YokkoUiTheme.Default));
     }
+
+    [Test]
+    public void IncompleteThemeFontIsRejected()
+    {
+        Assert.Throws<ArgumentException>(() => YokkoUiThemeFile.Parse(
+            """
+            {
+              "schemaVersion": 1,
+              "typography": { "primaryFont": "Roboto" }
+            }
+            """));
+    }
 }

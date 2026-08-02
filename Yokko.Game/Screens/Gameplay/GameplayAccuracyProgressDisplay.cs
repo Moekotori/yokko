@@ -62,7 +62,7 @@ internal partial class GameplayAccuracyProgressDisplay : CompositeDrawable
                         Anchor = Anchor.TopRight,
                         Origin = Anchor.TopRight,
                         Text = "ACCURACY",
-                        Font = new FontUsage("Yokko", 14, "Bold"),
+                        Font = new FontUsage("NotoSansCJK", 14, "Bold"),
                         Colour = new Color4(1f, 1f, 1f, 0.72f),
                     },
                     accuracyValue = new OsuScoreFontText(skin)
@@ -107,7 +107,7 @@ internal partial class GameplayAccuracyProgressDisplay : CompositeDrawable
                         Anchor = Anchor.TopRight,
                         Origin = Anchor.TopRight,
                         Y = 12,
-                        Font = new FontUsage("Yokko", 13, "Bold"),
+                        Font = new FontUsage("NotoSansCJK", 13, "Bold"),
                         Colour = new Color4(1f, 1f, 1f, 0.72f),
                     },
                 },
@@ -203,7 +203,7 @@ internal partial class OsuScoreFontText : CompositeDrawable
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Font = new FontUsage("Yokko", 46, "Bold"),
+                Font = new FontUsage("NotoSansCJK", 46, "Bold"),
                 Colour = Color4.White,
             },
         };

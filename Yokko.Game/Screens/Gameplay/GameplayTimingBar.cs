@@ -147,7 +147,7 @@ public partial class GameplayTimingBar : CompositeDrawable
                 Text = YokkoStrings.Get(
                     "gameplay.timing.early_limit",
                     maximumHitErrorMilliseconds),
-                Font = FontUsage.Default.With(size: 11.5f, weight: "SemiBold"),
+                Font = new FontUsage("NotoSansCJK").With(size: 11.5f, weight: "SemiBold"),
                 Colour = YokkoPalette.TextMuted,
                 Spacing = new Vector2(0.25f, 0),
             },
@@ -160,7 +160,7 @@ public partial class GameplayTimingBar : CompositeDrawable
                 Text = YokkoStrings.Get(
                     "gameplay.timing.late_limit",
                     maximumHitErrorMilliseconds),
-                Font = FontUsage.Default.With(size: 11.5f, weight: "SemiBold"),
+                Font = new FontUsage("NotoSansCJK").With(size: 11.5f, weight: "SemiBold"),
                 Colour = YokkoPalette.TextMuted,
                 Spacing = new Vector2(0.25f, 0),
             },
@@ -170,7 +170,7 @@ public partial class GameplayTimingBar : CompositeDrawable
                 Origin = Anchor.TopCentre,
                 Y = markerY + 15,
                 Text = string.Empty,
-                Font = FontUsage.Default.With(size: 11.5f, weight: "SemiBold"),
+                Font = new FontUsage("NotoSansCJK").With(size: 11.5f, weight: "SemiBold"),
                 Colour = YokkoPalette.TextMuted,
             },
         };

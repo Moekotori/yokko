@@ -37,13 +37,13 @@ internal partial class GameplayCinemaIndicator : CompositeDrawable
                     new SpriteText
                     {
                         Text = "CINEMA",
-                        Font = FontUsage.Default.With(size: 18, weight: "Bold"),
+                        Font = new FontUsage("NotoSansCJK").With(size: 18, weight: "Bold"),
                         Colour = YokkoPalette.Cyan,
                     },
                     new SpriteText
                     {
                         Text = "AUTO · PLAYFIELD HIDDEN",
-                        Font = FontUsage.Default.With(size: 11),
+                        Font = new FontUsage("NotoSansCJK").With(size: 11),
                         Colour = YokkoPalette.TextMuted,
                     },
                 ],

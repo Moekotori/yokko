@@ -403,6 +403,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         restoreOriginalAlpha(LayoutElementKind.PerformanceReadout);
         setComboEditorPreview(false);
         setJudgementEditorPreview(false);
+        applyElementAlpha(
+            LayoutElementKind.Combo,
+            comboTarget.EditorHidden);
+        applyElementAlpha(
+            LayoutElementKind.Judgement,
+            judgementTarget.EditorHidden);
         if (autoplay)
         {
             this.FadeTo(1, 90, Easing.OutQuint);
@@ -457,16 +463,25 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     {
         playfield.SetSkinComboEditorPreview(false);
         playfield.SetSkinJudgementEditorPreview(false);
+        playfield.SetSkinComboVisible(true);
+        playfield.SetSkinJudgementVisible(true);
         playfield = nextPlayfield
                     ?? throw new ArgumentNullException(
                         nameof(nextPlayfield));
         hud = nextHud
               ?? throw new ArgumentNullException(nameof(nextHud));
 
-        if (IsEditing)
+        // Rebuilt targets may belong to a different skin. Layout snapshots do
+        // not carry skin identity, so never let history from the old target
+        // tree mutate the newly selected skin.
+        undoHistory.Clear();
+        redoHistory.Clear();
+        updateHistoryButtons();
+
+        if (IsSessionActive)
         {
-            setComboEditorPreview(true);
-            setJudgementEditorPreview(true);
+            setComboEditorPreview(IsEditing);
+            setJudgementEditorPreview(IsEditing);
             applyElementAlpha(
                 LayoutElementKind.Playfield,
                 playfieldTarget.EditorHidden);
@@ -479,6 +494,18 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             applyElementAlpha(
                 LayoutElementKind.Information,
                 informationTarget.EditorHidden);
+            applyElementAlpha(
+                LayoutElementKind.TimingBar,
+                timingBarTarget.EditorHidden);
+            applyElementAlpha(
+                LayoutElementKind.Combo,
+                comboTarget.EditorHidden);
+            applyElementAlpha(
+                LayoutElementKind.Judgement,
+                judgementTarget.EditorHidden);
+            applyElementAlpha(
+                LayoutElementKind.PerformanceReadout,
+                performanceReadoutTarget.EditorHidden);
         }
     }
 
@@ -1233,17 +1260,23 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             performanceReadoutTarget,
         ];
 
-        if (selectedTarget == null)
+        int direction = backwards ? -1 : 1;
+        int current = selectedTarget == null
+            ? backwards ? 0 : targets.Length - 1
+            : Array.IndexOf(targets, selectedTarget);
+
+        for (int offset = 1; offset <= targets.Length; offset++)
         {
-            selectTarget(backwards ? targets[^1] : targets[0]);
-            return;
+            int next = (current + direction * offset + targets.Length)
+                       % targets.Length;
+            if (targets[next].CanEdit)
+            {
+                selectTarget(targets[next]);
+                return;
+            }
         }
 
-        int current = Array.IndexOf(targets, selectedTarget);
-        int direction = backwards ? -1 : 1;
-        int next = (current + direction + targets.Length)
-                   % targets.Length;
-        selectTarget(targets[next]);
+        selectTarget(null);
     }
 
     private void resetTarget(LayoutTransformTarget target)
@@ -2091,6 +2124,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Container handles;
         private readonly Box selectionTint;
         private Vector2 lastMousePosition;
+        private Vector2? dragLogicalPosition;
         private Axes? constrainedDragAxis;
         private bool selected;
         private bool hovered;
@@ -2110,6 +2144,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         internal float LockedAspectRatio { get; private set; } = 1;
 
         internal bool CanEdit => !IsLocked && !EditorHidden;
+
+        internal Vector2 MovementPosition => dragLogicalPosition ?? Position;
 
         public LayoutTransformTarget(
             Drawable coordinateSpace,
@@ -2260,6 +2296,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 return false;
 
             beginChange();
+            dragLogicalPosition = Position;
             return true;
         }
 
@@ -2313,14 +2350,16 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             Vector2 delta = snapMove(
                 this,
                 requestedDelta,
-                true);
+                e.AltPressed);
             drag(delta);
+            dragLogicalPosition = MovementPosition + delta;
             lastMousePosition = current;
         }
 
         protected override void OnDragEnd(DragEndEvent e)
         {
             constrainedDragAxis = null;
+            dragLogicalPosition = null;
             clearGuides();
             base.OnDragEnd(e);
         }
@@ -2946,10 +2985,10 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private static class LayoutEditorTypography
     {
         public static FontUsage Regular(float size) =>
-            new("Yokko", readableSize(size));
+            new("NotoSansCJK", readableSize(size));
 
         public static FontUsage Bold(float size) =>
-            new("Yokko", readableSize(size), "Bold");
+            new("NotoSansCJK", readableSize(size), "Bold");
 
         private static float readableSize(float size) =>
             MathF.Max(23, size + MathF.Min(15, 12 + size * 0.12f));

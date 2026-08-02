@@ -71,9 +71,11 @@ public class LocalisationTest
     [Test]
     public void SharedTypographyMaintainsReadableFontMetrics()
     {
-        Assert.That(HomeTypography.Body(16).Family, Is.EqualTo("Roboto"));
-        Assert.That(HomeTypography.Display(16).Family, Is.EqualTo("Roboto"));
-        Assert.That(HomeTypography.SearchInput(16).Family, Is.EqualTo("YokkoInput"));
+        Assert.That(HomeTypography.Body(16).Family, Is.EqualTo("NotoSansCJK"));
+        Assert.That(HomeTypography.Display(16).Family, Is.EqualTo("NotoSansCJK"));
+        Assert.That(HomeTypography.SearchInput(16).Family, Is.EqualTo("NotoSansCJK"));
+        Assert.That(HomeTypography.Sticker(16).Family, Is.EqualTo("NotoSansCJK-Bold"));
+        Assert.That(HomeTypography.Display(16).Weight, Is.EqualTo("Bold"));
         Assert.That(HomeTypography.Display(6).Size, Is.EqualTo(14));
         Assert.That(HomeTypography.Body(16).Size, Is.EqualTo(20.8f)
             .Within(0.001f));
@@ -82,9 +84,9 @@ public class LocalisationTest
         Assert.That(HomeTypography.Hero(72).Size, Is.EqualTo(78));
     }
 
-    [TestCase("Fonts/Yokko/Yokko.bin")]
-    [TestCase("Fonts/Yokko/Yokko-Bold.bin")]
-    public void LocalisationFontContainsEveryNonAsciiCharacter(string resourceName)
+    [TestCase("Fonts/NotoSansCJK/NotoSansCJK.bin")]
+    [TestCase("Fonts/NotoSansCJK/NotoSansCJK-Bold.bin")]
+    public void UiFontContainsLocalisationAndExternalText(string resourceName)
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
         using Stream stream = resources.GetStream(resourceName);
@@ -104,23 +106,45 @@ public class LocalisationTest
         Assert.That(
             missing,
             Is.Empty,
-            "Regenerate Yokko's localisation fonts with " +
+            "Regenerate Yokko's UI fonts with " +
             $"`python scripts/generate-localisation-font.py`; missing: {new string(missing)}");
     }
 
-    [Test]
-    public void SearchInputFontContainsRepresentativeChineseGlyphs()
+    [TestCase("Fonts/NotoSansCJK/NotoSansCJK.bin")]
+    [TestCase("Fonts/NotoSansCJK/NotoSansCJK-Bold.bin")]
+    public void UiFontCoversRepresentativeImportedMetadata(string resourceName)
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
-        using Stream stream = resources.GetStream("Fonts/YokkoInput/YokkoInput.bin");
+        using Stream stream = resources.GetStream(resourceName);
         HashSet<int> glyphs = readGlyphCodepoints(stream);
-        const string searchInput = "中文输入测试搜索窗口显示音频键盘皮肤导入优化";
+        const string metadata =
+            "中文輸入検索カタカナひらがな語り한국어제목РусскийΕλληνικα♪→★";
 
         Assert.That(
-            searchInput.Where(character => !glyphs.Contains(character)),
+            metadata.Where(character => !glyphs.Contains(character)),
             Is.Empty,
-            "The settings search box must render common Chinese queries without replacement glyphs.");
+            "UI and imported metadata must render without replacement glyphs.");
     }
+
+    [TestCase("Fonts/NotoSansCJK/NotoSansCJK.bin")]
+    [TestCase("Fonts/NotoSansCJK/NotoSansCJK-Bold.bin")]
+    public void UiFontKeepsCompleteEastAsianCoverage(string resourceName)
+    {
+        using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
+        using Stream stream = resources.GetStream(resourceName);
+        HashSet<int> glyphs = readGlyphCodepoints(stream);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(countRange(glyphs, 0x3040, 0x309f), Is.GreaterThanOrEqualTo(90), "Hiragana");
+            Assert.That(countRange(glyphs, 0x30a0, 0x30ff), Is.GreaterThanOrEqualTo(90), "Katakana");
+            Assert.That(countRange(glyphs, 0x4e00, 0x9fff), Is.GreaterThanOrEqualTo(20_900), "CJK unified ideographs");
+            Assert.That(countRange(glyphs, 0xac00, 0xd7a3), Is.EqualTo(11_172), "modern Hangul syllables");
+        });
+    }
+
+    private static int countRange(HashSet<int> glyphs, int start, int end) =>
+        glyphs.Count(codepoint => codepoint >= start && codepoint <= end);
 
     private static HashSet<int> readGlyphCodepoints(Stream stream)
     {

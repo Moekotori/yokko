@@ -129,6 +129,35 @@ public sealed class SkinHudLayoutStoreTest
     }
 
     [Test]
+    public void DisposingDuringEditRollsBackInsteadOfSaving()
+    {
+        var skinSettings = new YokkoSkinSettings();
+        skinSettings.SelectedSkinId.Value = "skin-a";
+        var gameplaySettings = new YokkoGameplaySettings();
+        var store = new SkinHudLayoutStore();
+        store.Initialise(
+            new NativeStorage(testRoot),
+            gameplaySettings,
+            skinSettings);
+        gameplaySettings.LayoutHudOffsetY.Value = 0.18;
+        store.Flush();
+
+        store.BeginEditSession();
+        gameplaySettings.LayoutHudOffsetY.Value = -0.47;
+        store.Dispose();
+
+        Assert.That(gameplaySettings.LayoutHudOffsetY.Value, Is.EqualTo(0.18));
+
+        var restoredGameplay = new YokkoGameplaySettings();
+        using var restoredStore = new SkinHudLayoutStore();
+        restoredStore.Initialise(
+            new NativeStorage(testRoot),
+            restoredGameplay,
+            skinSettings);
+        Assert.That(restoredGameplay.LayoutHudOffsetY.Value, Is.EqualTo(0.18));
+    }
+
+    [Test]
     public void FirstProfileMigratesExistingGlobalLayoutOnlyOnce()
     {
         var skinSettings = new YokkoSkinSettings();

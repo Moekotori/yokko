@@ -181,7 +181,7 @@ public partial class SongSelectScreen : Screen
     private int filterGeneration;
     private bool filterDisposed;
     private bool filterPending;
-    private readonly HashSet<string> materialisedExternalCharts =
+    private readonly HashSet<string> materialisedImportedCharts =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Action<bool>> playableBeatmapCallbacks = [];
     private CancellationTokenSource playableBeatmapCancellation;
@@ -831,9 +831,12 @@ public partial class SongSelectScreen : Screen
             packageDifficultyDisposed = true;
             invalidatePackageDifficultyRequest();
             invalidateGameplayPreload();
-            libraryReloadDisposed = true;
-            libraryReloadCancellation.Cancel();
-            libraryReloadCancellation.Dispose();
+            if (!libraryReloadDisposed)
+            {
+                libraryReloadDisposed = true;
+                libraryReloadCancellation.Cancel();
+                libraryReloadCancellation.Dispose();
+            }
             filterDisposed = true;
             invalidateFilterRequest();
         }
@@ -1153,18 +1156,19 @@ public partial class SongSelectScreen : Screen
             && importedChartModels.TryGetValue(
                 selectedEntry.ChartId,
                 out ImportedChart imported)
-            && imported.SourceKind == ImportedChartSourceKind.ExternalOsu
+            && imported.RequiresMaterialisation
             && !File.Exists(imported.SourcePath))
         {
             invalidatePlayableBeatmapRequest();
             invalidateGameplayPreload();
-            importedChartLibrary.PruneUnavailableExternalCharts();
+            if (imported.SourceKind == ImportedChartSourceKind.ExternalOsu)
+                importedChartLibrary.PruneUnavailableExternalCharts();
             playButton?.SetError();
             return;
         }
         if (!isPlayableBeatmapReady(selectedEntry))
         {
-            playButton?.SetPreparing("PREPARING EXTERNAL CHART");
+            playButton?.SetPreparing("PREPARING CHART");
             SongSelectEntry requested = selectedEntry;
             requestPlayableBeatmap(requested, success =>
             {
@@ -4627,11 +4631,20 @@ public partial class SongSelectScreen : Screen
         previewPlayer?.Play(selectedEntry?.Beatmap, selectedMods);
     }
 
-    private bool isPlayableBeatmapReady(SongSelectEntry entry) =>
-        entry != null
-        && (!entry.IsReadOnly
-            || (entry.ChartId != null
-                && materialisedExternalCharts.Contains(entry.ChartId)));
+    private bool isPlayableBeatmapReady(SongSelectEntry entry)
+    {
+        if (entry == null)
+            return false;
+
+        if (entry.ChartId == null)
+            return true;
+
+        return importedChartModels.TryGetValue(
+                   entry.ChartId,
+                   out ImportedChart imported)
+               && (!imported.RequiresMaterialisation
+                   || materialisedImportedCharts.Contains(entry.ChartId));
+    }
 
     private void requestExpandedPackageDifficulties(string packageId)
     {
@@ -4642,7 +4655,10 @@ public partial class SongSelectScreen : Screen
             return;
         }
 
-        if (packageDifficultyTask is { IsCompleted: false }
+        // The worker can complete before its scheduled UI callbacks run. Keep
+        // treating it as active until that callback clears the task; restarting
+        // here increments the generation and discards every completed result.
+        if (packageDifficultyTask != null
             && string.Equals(
                 packageDifficultyPackageId,
                 packageId,
@@ -4737,16 +4753,16 @@ public partial class SongSelectScreen : Screen
             || !importedEntries.TryGetValue(
                 entry.ChartId,
                 out SongSelectEntry tracked)
-            || !ReferenceEquals(tracked, entry))
+            )
         {
             return;
         }
 
-        entry.DifficultyRating = ratings.EtternaMsd;
-        entry.StarRating = ratings.RebirthStars;
-        difficultyRatingsCache.Remove(entry);
+        tracked.DifficultyRating = ratings.EtternaMsd;
+        tracked.StarRating = ratings.RebirthStars;
+        difficultyRatingsCache.Remove(tracked);
         songList?.UpdateDifficulties();
-        if (ReferenceEquals(entry, selectedEntry))
+        if (ReferenceEquals(tracked, selectedEntry))
             rebuildDetails();
     }
 
@@ -4909,7 +4925,7 @@ public partial class SongSelectScreen : Screen
         {
             entry.Beatmap = playable;
             basicFilterSnapshots = null;
-            materialisedExternalCharts.Add(entry.ChartId);
+            materialisedImportedCharts.Add(entry.ChartId);
             difficultyRatingsCache.Remove(entry);
             rebuildDetails();
             refreshSongListDifficulties();
@@ -5303,7 +5319,7 @@ public partial class SongSelectScreen : Screen
                                              entry.ChartId,
                                              out ImportedChart imported)
                                          && imported.RequiresMaterialisation
-                                         && !materialisedExternalCharts.Contains(
+                                         && !materialisedImportedCharts.Contains(
                                              entry.ChartId);
         if (usesUnmaterialisedSummary)
         {
@@ -5420,7 +5436,7 @@ public partial class SongSelectScreen : Screen
             }
             else
             {
-                materialisedExternalCharts.Remove(chart.Id);
+                materialisedImportedCharts.Remove(chart.Id);
                 if (string.Equals(
                         playableBeatmapChartId,
                         chart.Id,
@@ -5457,7 +5473,7 @@ public partial class SongSelectScreen : Screen
             importedChartModels[chart.Id] = nextModels[chart.Id];
             entries.Add(entry);
         }
-        materialisedExternalCharts.IntersectWith(nextEntries.Keys);
+        materialisedImportedCharts.IntersectWith(nextEntries.Keys);
         basicFilterSnapshots = null;
 
         if (playableBeatmapChartId != null

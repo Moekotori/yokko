@@ -60,19 +60,19 @@ public partial class StartPanel : ClickableContainer
                     new SpriteText
                     {
                         Text = eyebrow,
-                        Font = FontUsage.Default.With(size: 12, weight: "Bold"),
+                        Font = new FontUsage("NotoSansCJK").With(size: 12, weight: "Bold"),
                         Colour = accent,
                     },
                     new SpriteText
                     {
                         Text = title,
-                        Font = FontUsage.Default.With(size: primary ? 26 : 22, weight: "SemiBold"),
+                        Font = new FontUsage("NotoSansCJK").With(size: primary ? 26 : 22, weight: "SemiBold"),
                         Colour = YokkoPalette.Text,
                     },
                     new SpriteText
                     {
                         Text = detail,
-                        Font = FontUsage.Default.With(size: 15),
+                        Font = new FontUsage("NotoSansCJK").With(size: 15),
                         Colour = YokkoPalette.TextMuted,
                     },
                 },

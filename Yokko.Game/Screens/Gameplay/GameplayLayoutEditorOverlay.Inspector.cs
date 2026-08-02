@@ -85,6 +85,12 @@ internal partial class GameplayLayoutEditorOverlay
     internal void SetProgressHiddenForTest(bool hidden) =>
         setLayerHidden(LayoutElementKind.Progress, hidden);
 
+    internal void SetComboHiddenForTest(bool hidden) =>
+        setLayerHidden(LayoutElementKind.Combo, hidden);
+
+    internal void SetJudgementHiddenForTest(bool hidden) =>
+        setLayerHidden(LayoutElementKind.Judgement, hidden);
+
     internal void SetTimingBarWidthForTest(double width) =>
         applyMetric(
             LayoutElementKind.TimingBar,
@@ -339,6 +345,7 @@ internal partial class GameplayLayoutEditorOverlay
             && playfield.UsesSkinJudgementOverlay)
         {
             comboReadout.Alpha = 0;
+            playfield.SetSkinComboVisible(!hidden);
             playfield.SetSkinComboEditorPreview(
                 IsEditing && !hidden);
         }
@@ -346,6 +353,7 @@ internal partial class GameplayLayoutEditorOverlay
             && playfield.UsesSkinJudgementOverlay)
         {
             drawable.Alpha = 0;
+            playfield.SetSkinJudgementVisible(!hidden);
             playfield.SetSkinJudgementEditorPreview(
                 IsEditing && !hidden);
         }
@@ -372,7 +380,15 @@ internal partial class GameplayLayoutEditorOverlay
             && playfield.UsesSkinJudgementOverlay)
         {
             comboReadout.Alpha = 0;
+            playfield.SetSkinComboVisible(true);
             playfield.SetSkinComboEditorPreview(false);
+        }
+        else if (kind == LayoutElementKind.Judgement
+                 && playfield.UsesSkinJudgementOverlay)
+        {
+            drawableFor(kind).Alpha = 0;
+            playfield.SetSkinJudgementVisible(true);
+            playfield.SetSkinJudgementEditorPreview(false);
         }
         else
         {
@@ -628,8 +644,9 @@ internal partial class GameplayLayoutEditorOverlay
             return clampMoveToViewport(moving, adjustedDelta);
         }
 
-        float left = moving.X + requestedDelta.X;
-        float top = moving.Y + requestedDelta.Y;
+        Vector2 currentPosition = moving.MovementPosition;
+        float left = currentPosition.X + requestedDelta.X;
+        float top = currentPosition.Y + requestedDelta.Y;
         float width = moving.DrawWidth;
         float height = moving.DrawHeight;
 
@@ -675,7 +692,8 @@ internal partial class GameplayLayoutEditorOverlay
         LayoutTransformTarget moving,
         Vector2 requestedDelta)
     {
-        Vector2 requestedPosition = moving.Position + requestedDelta;
+        Vector2 currentPosition = moving.MovementPosition;
+        Vector2 requestedPosition = currentPosition + requestedDelta;
         float width = Math.Max(1, moving.DrawWidth);
         float height = Math.Max(1, moving.DrawHeight);
 
@@ -683,13 +701,13 @@ internal partial class GameplayLayoutEditorOverlay
             requestedPosition.X,
             width,
             DrawWidth,
-            moving.Position.X);
+            currentPosition.X);
         requestedPosition.Y = clampTargetAxis(
             requestedPosition.Y,
             height,
             DrawHeight,
-            moving.Position.Y);
-        return requestedPosition - moving.Position;
+            currentPosition.Y);
+        return requestedPosition - currentPosition;
     }
 
     private static float clampTargetAxis(
