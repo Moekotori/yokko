@@ -6,6 +6,7 @@ using System.Text;
 using Yokko.Import;
 using Yokko.Import.Bms;
 using Yokko.Core.Beatmaps;
+using Yokko.Core.Scoring;
 
 namespace Yokko.Game.Tests.Core;
 
@@ -167,6 +168,11 @@ public sealed class BmsChartImporterRegressionTest
 #RANK 4
 #00111:01
 """, "rank-last.bms");
+        string sevenKeyChart = writeChart(directory, """
+#TITLE Seven key profile
+#BPM 120
+#00118:01
+""", "seven-key.bme");
 
         BmsJudgementMetadata defaultRank =
             import(defaultChart).Beatmap.BmsJudgement!.Value;
@@ -174,18 +180,22 @@ public sealed class BmsChartImporterRegressionTest
             import(defExLastChart).Beatmap.BmsJudgement!.Value;
         BmsJudgementMetadata rankLast =
             import(rankLastChart).Beatmap.BmsJudgement!.Value;
+        BmsJudgementMetadata sevenKey =
+            import(sevenKeyChart).Beatmap.BmsJudgement!.Value;
 
         Assert.Multiple(() =>
         {
             Assert.That(defaultRank.WindowMultiplier, Is.EqualTo(0.75));
             Assert.That(defaultRank.Source,
                 Is.EqualTo(BmsJudgementRankSource.Default));
+            Assert.That(defaultRank.RegularKeysPerStage, Is.EqualTo(5));
             Assert.That(defExLast.WindowMultiplier, Is.EqualTo(0.37));
             Assert.That(defExLast.Source,
                 Is.EqualTo(BmsJudgementRankSource.DefExRank));
             Assert.That(rankLast.WindowMultiplier, Is.EqualTo(1.25));
             Assert.That(rankLast.Source,
                 Is.EqualTo(BmsJudgementRankSource.Rank));
+            Assert.That(sevenKey.RegularKeysPerStage, Is.EqualTo(7));
         });
     }
 
@@ -209,6 +219,61 @@ public sealed class BmsChartImporterRegressionTest
             Assert.That(metadata.Value, Is.EqualTo(101));
             Assert.That(metadata.Source,
                 Is.EqualTo(BmsJudgementRankSource.DefExRank));
+        });
+    }
+
+    [Test]
+    public void DefExRankOneRetainsLegalZeroPercentWindow()
+    {
+        string directory = createTestDirectory();
+        string chart = writeChart(directory, """
+#TITLE Zero percent DEFEX rank
+#BPM 120
+#DEFEXRANK 1
+#00111:01
+""", "defex-zero.bms");
+
+        ChartImportResult result = import(chart);
+        BmsJudgementMetadata metadata =
+            result.Beatmap.BmsJudgement!.Value;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(metadata.WindowMultiplier, Is.Zero);
+            Assert.That(metadata.Value, Is.EqualTo(1));
+            Assert.That(
+                new BmsJudgementWindows(metadata).Judge(
+                    0,
+                    BmsJudgeObjectType.Note),
+                Is.EqualTo(JudgementRating.Perfect));
+            Assert.That(
+                new BmsJudgementWindows(metadata).Judge(
+                    0.001,
+                    BmsJudgeObjectType.Note),
+                Is.EqualTo(JudgementRating.None));
+        });
+    }
+
+    [Test]
+    public void WarnsWhenLongNoteSemanticsExceedTraditionalLnSupport()
+    {
+        string directory = createTestDirectory();
+        string chart = writeChart(directory, """
+#TITLE Unsupported BMS long notes
+#BPM 120
+#LNMODE 3
+#00151:0101
+#00156:0101
+""", "unsupported-ln.bms");
+
+        ChartImportResult result = import(chart);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Warnings,
+                Has.Some.Contains("CN/HCN judgement"));
+            Assert.That(result.Warnings,
+                Has.Some.Contains("long-scratch/BSS"));
         });
     }
 

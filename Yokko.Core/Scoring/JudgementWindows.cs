@@ -49,7 +49,7 @@ public sealed class JudgementWindows
         if (!double.IsFinite(difficultyMultiplier) || difficultyMultiplier <= 0)
             throw new ArgumentOutOfRangeException(nameof(difficultyMultiplier));
         if (!double.IsFinite(bmsJudgeWindowMultiplier)
-            || bmsJudgeWindowMultiplier <= 0)
+            || bmsJudgeWindowMultiplier < 0)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(bmsJudgeWindowMultiplier));

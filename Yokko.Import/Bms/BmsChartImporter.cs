@@ -184,6 +184,11 @@ public sealed partial class BmsChartImporter : IChartImporter
             warnings.Add(
                 "BMS CN/HCN judgement and continuous gauge semantics are not represented yet; long notes use traditional LN judgement.");
         }
+        if (events.Any(static value => value.Channel is "56" or "66"))
+        {
+            warnings.Add(
+                "BMS long-scratch/BSS directional input semantics are not represented exactly; the object uses Yokko's single scratch lane input.");
+        }
 
         var unshiftedConverter = new BeatTimeConverter(tempoChanges, pauses);
         string? audioPath = resolveBackgroundAudio(request.Path, parsed, events, warnings, out double audioStartBeat);
@@ -233,7 +238,10 @@ public sealed partial class BmsChartImporter : IChartImporter
             StageCount: laneMapping.StageCount,
             ScheduledSamples: scheduledSamples,
             ScratchLane: laneMapping.ScratchLane,
-            BmsJudgement: parsed.BmsJudgement);
+            BmsJudgement: parsed.BmsJudgement with
+            {
+                RegularKeysPerStage = laneMapping.BmsRegularKeysPerStage,
+            });
 
         return ValueTask.FromResult(new ChartImportResult(beatmap, warnings.Distinct().ToArray()));
     }
@@ -491,7 +499,8 @@ public sealed partial class BmsChartImporter : IChartImporter
                 (KeyMode)(keyChannels1P.Length + offset),
                 StageCount: 1,
                 ScratchIgnored: hasScratch && !enableScratch,
-                ScratchLane: includeScratch ? 0 : null);
+                ScratchLane: includeScratch ? 0 : null,
+                BmsRegularKeysPerStage: sevenKey ? 7 : 5);
         }
 
         int stageWidth = keyChannels1P.Length + (includeScratch ? 1 : 0);
@@ -510,7 +519,8 @@ public sealed partial class BmsChartImporter : IChartImporter
             (KeyMode)(stageWidth * 2),
             StageCount: 2,
             ScratchIgnored: hasScratch && !enableScratch,
-            ScratchLane: null);
+            ScratchLane: null,
+            BmsRegularKeysPerStage: sevenKey ? 7 : 5);
     }
 
     private static bool laneHasObjects(
@@ -784,7 +794,8 @@ public sealed partial class BmsChartImporter : IChartImporter
         KeyMode KeyMode,
         int StageCount,
         bool ScratchIgnored,
-        int? ScratchLane);
+        int? ScratchLane,
+        int BmsRegularKeysPerStage);
 
     private sealed class MutableBeatNote(
         int lane,

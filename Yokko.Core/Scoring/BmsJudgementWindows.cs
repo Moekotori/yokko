@@ -27,7 +27,7 @@ public sealed class BmsJudgementWindows
         int regularKeysPerStage = 7)
     {
         if (!double.IsFinite(metadata.WindowMultiplier)
-            || metadata.WindowMultiplier <= 0)
+            || metadata.WindowMultiplier < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(metadata));
         }

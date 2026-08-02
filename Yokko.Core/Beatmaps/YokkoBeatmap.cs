@@ -102,7 +102,7 @@ public sealed record YokkoBeatmap
                     ChartSourceFormat.Bms
                     or ChartSourceFormat.Lr2Bms)
                 || !double.IsFinite(bmsJudgement.WindowMultiplier)
-                || bmsJudgement.WindowMultiplier <= 0
+                || bmsJudgement.WindowMultiplier < 0
                 || bmsJudgement.RegularKeysPerStage is not (null or 5 or 7)))
         {
             throw new ArgumentOutOfRangeException(nameof(BmsJudgement));

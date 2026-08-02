@@ -99,7 +99,10 @@ public sealed record ManiaStarRatingContext
             ?? (beatmap.RegularLaneCount / beatmap.StageCount == 5 ? 5 : 7));
 
         return new ManiaStarRatingContext(
-            windows.GreatMilliseconds / timelineRate,
+            // DEFEXRANK 1 normalises to a legal 0% beatoraja window. Star
+            // Rating Rebirth requires a positive input, so use one
+            // microsecond solely for its difficulty approximation.
+            Math.Max(windows.GreatMilliseconds / timelineRate, 0.001),
             !mods.Contains(ManiaModId.NoRelease),
             minesEnabled,
             mods.HasDynamicRate && !dynamicRatePretransformed
