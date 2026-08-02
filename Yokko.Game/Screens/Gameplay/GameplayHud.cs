@@ -146,6 +146,7 @@ public partial class GameplayHud : CompositeDrawable
                             modsText = new SpriteText
                             {
                                 Text = formatRulesLabel(
+                                    beatmap,
                                     this.mods,
                                     this.judgementConfiguration),
                                 Font = new FontUsage("NotoSansCJK").With(
@@ -222,6 +223,7 @@ public partial class GameplayHud : CompositeDrawable
     }
 
     private static string formatRulesLabel(
+        YokkoBeatmap beatmap,
         ManiaModSet mods,
         JudgementConfiguration judgementConfiguration)
     {
@@ -236,6 +238,10 @@ public partial class GameplayHud : CompositeDrawable
                     .ToUpperInvariant(),
             JudgementMode.OsuStable =>
                 $"MODS · {modLabel}  ·  OSU!STABLE",
+            JudgementMode.BmsBeatoraja =>
+                $"MODS · {modLabel}  ·  BMS / BEATORAJA "
+                + (beatmap.BmsJudgement
+                   ?? BmsJudgementMetadata.Default).DisplayLabel,
             _ => $"MODS · {modLabel}  ·  OSU!LAZER",
         };
     }
@@ -266,6 +272,10 @@ public partial class GameplayHud : CompositeDrawable
                 ? $"M {state.Counts.Perfect}  P {state.Counts.Great}  "
                   + $"Great {state.Counts.Good}  Good {state.Counts.Ok}  "
                   + $"Bad {state.Counts.Meh}  Miss {state.Counts.Miss}"
+                : judgementConfiguration.Mode == JudgementMode.BmsBeatoraja
+                    ? $"PG {state.Counts.Perfect}  GR {state.Counts.Great}  "
+                      + $"GD {state.Counts.Good}  BD {state.Counts.Ok}  "
+                      + $"PR {state.Counts.Miss}  MS {state.Counts.Meh}"
                 : judgementConfiguration.Mode == JudgementMode.OsuStable
                     ? $"300G {state.Counts.Perfect}  300 {state.Counts.Great}  "
                       + $"200 {state.Counts.Good}  100 {state.Counts.Ok}  "

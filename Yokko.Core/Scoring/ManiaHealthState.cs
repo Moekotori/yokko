@@ -118,6 +118,7 @@ public sealed class ManiaHealthState
         double maximumAchievableAccuracy)
     {
         if (mods.Contains(ManiaModId.Perfect)
+            && judgement.Phase != JudgementPhase.BmsEmptyPress
             && (judgement.Rating.AffectsAccuracy()
                 || judgement.Rating.AffectsCombo())
             && (mods.PerfectRequirePerfectHits

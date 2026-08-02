@@ -177,6 +177,13 @@ public sealed partial class BmsChartImporter : IChartImporter
         }
         if (parsed.Headers.GetValueOrDefault("LNTYPE") == "2")
             warnings.Add("BMS LNTYPE 2 continuation semantics are not fully supported; long notes may differ from the source.");
+        if (ImportParsing.Int(
+                parsed.Headers.GetValueOrDefault("LNMODE"),
+                1) is 2 or 3)
+        {
+            warnings.Add(
+                "BMS CN/HCN judgement and continuous gauge semantics are not represented yet; long notes use traditional LN judgement.");
+        }
 
         var unshiftedConverter = new BeatTimeConverter(tempoChanges, pauses);
         string? audioPath = resolveBackgroundAudio(request.Path, parsed, events, warnings, out double audioStartBeat);
@@ -225,7 +232,8 @@ public sealed partial class BmsChartImporter : IChartImporter
             InitialScrollVelocity: scrollVelocity.InitialMultiplier,
             StageCount: laneMapping.StageCount,
             ScheduledSamples: scheduledSamples,
-            ScratchLane: laneMapping.ScratchLane);
+            ScratchLane: laneMapping.ScratchLane,
+            BmsJudgement: parsed.BmsJudgement);
 
         return ValueTask.FromResult(new ChartImportResult(beatmap, warnings.Distinct().ToArray()));
     }
@@ -319,6 +327,34 @@ public sealed partial class BmsChartImporter : IChartImporter
                 parsed.Stops[key[4..]] = ImportParsing.Double(value);
             else if (key == "LNOBJ")
                 parsed.LongNoteObject = value.ToUpperInvariant();
+            else if (key == "RANK")
+            {
+                int rank = ImportParsing.Int(value, -1);
+                if (rank is >= 0 and <= 4)
+                {
+                    parsed.BmsJudgement =
+                        BmsJudgementMetadata.FromRank(rank);
+                }
+                else
+                {
+                    parsed.Warnings.Add(
+                        $"Ignored invalid BMS RANK value {value}.");
+                }
+            }
+            else if (key == "DEFEXRANK")
+            {
+                int rank = ImportParsing.Int(value, 0);
+                if (rank > 0)
+                {
+                    parsed.BmsJudgement =
+                        BmsJudgementMetadata.FromDefExRank(rank);
+                }
+                else
+                {
+                    parsed.Warnings.Add(
+                        $"Ignored invalid BMS DEFEXRANK value {value}.");
+                }
+            }
             else
                 parsed.Headers[key] = value;
         }
@@ -696,6 +732,8 @@ public sealed partial class BmsChartImporter : IChartImporter
         public List<ChannelLine> ChannelLines { get; } = [];
         public List<string> Warnings { get; } = [];
         public string? LongNoteObject { get; set; }
+        public BmsJudgementMetadata BmsJudgement { get; set; } =
+            BmsJudgementMetadata.Default;
     }
 
     private sealed class RandomContext(bool parentActive, int selection)

@@ -33,7 +33,9 @@ public sealed class JudgementWindows
         bool classic = false,
         bool scoreV2 = false,
         bool isConvert = false,
-        JudgementConfiguration? configuration = null)
+        JudgementConfiguration? configuration = null,
+        double bmsJudgeWindowMultiplier = 0.75,
+        int bmsRegularKeysPerStage = 7)
     {
         if (!double.IsFinite(overallDifficulty)
             || overallDifficulty is < -15 or > 15)
@@ -46,6 +48,12 @@ public sealed class JudgementWindows
 
         if (!double.IsFinite(difficultyMultiplier) || difficultyMultiplier <= 0)
             throw new ArgumentOutOfRangeException(nameof(difficultyMultiplier));
+        if (!double.IsFinite(bmsJudgeWindowMultiplier)
+            || bmsJudgeWindowMultiplier <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(bmsJudgeWindowMultiplier));
+        }
 
         OverallDifficulty = overallDifficulty;
         SpeedMultiplier = speedMultiplier;
@@ -55,9 +63,25 @@ public sealed class JudgementWindows
         IsConvert = isConvert;
         Configuration =
             configuration ?? JudgementConfiguration.YokkoDefault;
+        BmsJudgeWindowMultiplier = bmsJudgeWindowMultiplier;
+        BmsRegularKeysPerStage = bmsRegularKeysPerStage == 5 ? 5 : 7;
 
         double totalMultiplier = speedMultiplier / difficultyMultiplier;
-        if (Configuration.Mode == JudgementMode.OsuStable)
+        if (Configuration.Mode == JudgementMode.BmsBeatoraja)
+        {
+            double bmsMultiplier =
+                bmsJudgeWindowMultiplier * speedMultiplier;
+            PerfectMilliseconds = 20 * bmsMultiplier;
+            GreatMilliseconds = (BmsRegularKeysPerStage == 5 ? 50 : 60)
+                                * bmsMultiplier;
+            GoodMilliseconds = (BmsRegularKeysPerStage == 5 ? 100 : 150)
+                               * bmsMultiplier;
+            OkMilliseconds = (BmsRegularKeysPerStage == 5 ? 150 : 280)
+                             * bmsMultiplier;
+            MehMilliseconds = OkMilliseconds;
+            MissMilliseconds = 500 * speedMultiplier;
+        }
+        else if (Configuration.Mode == JudgementMode.OsuStable)
         {
             // osu!stable ScoreV1 mania windows. Stable truncates each formula
             // to an integer and accepts rounded hit errors inclusively, which
@@ -199,6 +223,10 @@ public sealed class JudgementWindows
     public bool IsConvert { get; }
 
     public JudgementConfiguration Configuration { get; }
+
+    public double BmsJudgeWindowMultiplier { get; }
+
+    public int BmsRegularKeysPerStage { get; }
 
     public double PerfectMilliseconds { get; }
 

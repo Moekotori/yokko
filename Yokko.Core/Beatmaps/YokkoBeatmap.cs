@@ -28,6 +28,7 @@ public sealed record YokkoBeatmap
         bool LegacyLongNoteRendering = false,
         IReadOnlyList<YokkoScheduledSample>? ScheduledSamples = null,
         int? ScratchLane = null,
+        BmsJudgementMetadata? BmsJudgement = null,
         string? RomanisedTitle = null,
         string? RomanisedArtist = null,
         string Source = "",
@@ -96,6 +97,17 @@ public sealed record YokkoBeatmap
         this.LegacyLongNoteRendering = LegacyLongNoteRendering;
         this.ScheduledSamples = ScheduledSamples ?? [];
         this.ScratchLane = ScratchLane;
+        if (BmsJudgement is { } bmsJudgement
+            && (SourceFormat is not (
+                    ChartSourceFormat.Bms
+                    or ChartSourceFormat.Lr2Bms)
+                || !double.IsFinite(bmsJudgement.WindowMultiplier)
+                || bmsJudgement.WindowMultiplier <= 0
+                || bmsJudgement.RegularKeysPerStage is not (null or 5 or 7)))
+        {
+            throw new ArgumentOutOfRangeException(nameof(BmsJudgement));
+        }
+        this.BmsJudgement = BmsJudgement;
         this.RomanisedTitle = string.IsNullOrWhiteSpace(RomanisedTitle)
             ? Title
             : RomanisedTitle;
@@ -154,6 +166,8 @@ public sealed record YokkoBeatmap
     /// <see cref="ScratchLanes"/> while retaining null here for compatibility.
     /// </summary>
     public int? ScratchLane { get; init; }
+
+    public BmsJudgementMetadata? BmsJudgement { get; init; }
 
     /// <summary>
     /// Playable BMS turntable lanes. BMS DP is imported stage-by-stage, so its

@@ -533,6 +533,16 @@ internal sealed class GameplayScoreStore
                   .Append(judgementConfiguration.EtternaJustice);
         }
 
+        if (judgementConfiguration.Mode == JudgementMode.BmsBeatoraja
+            && beatmap.BmsJudgement is { } bmsJudgement)
+        {
+            source.Append('\u001f')
+                  .Append("bms-rank:")
+                  .Append(bmsJudgement.WindowMultiplier.ToString(
+                      "R",
+                      CultureInfo.InvariantCulture));
+        }
+
         foreach (YokkoHitObject hitObject in beatmap.HitObjects)
         {
             source.Append('\u001e')

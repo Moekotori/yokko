@@ -386,6 +386,227 @@ namespace Yokko.Game.Tests.Core
                 Is.EqualTo(JudgementPhase.Mine));
         }
 
+        [TestCase(0, 5, 15, 37.5, 55, 70)]
+        [TestCase(1, 10, 30, 75, 110, 140)]
+        [TestCase(2, 15, 45, 112.5, 165, 210)]
+        [TestCase(3, 20, 60, 150, 220, 280)]
+        [TestCase(4, 25, 75, 187.5, 275, 350)]
+        public void BmsSevenKeyWindowsMatchBeatoraja(
+            int rank,
+            double pgreat,
+            double great,
+            double good,
+            double badEarly,
+            double badLate)
+        {
+            var windows = new BmsJudgementWindows(
+                BmsJudgementMetadata.FromRank(rank));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    windows.Judge(pgreat, BmsJudgeObjectType.Note),
+                    Is.EqualTo(JudgementRating.Perfect));
+                Assert.That(
+                    windows.Judge(great, BmsJudgeObjectType.Note),
+                    Is.EqualTo(JudgementRating.Great));
+                Assert.That(
+                    windows.Judge(good, BmsJudgeObjectType.Note),
+                    Is.EqualTo(JudgementRating.Good));
+                Assert.That(
+                    windows.Judge(-badEarly, BmsJudgeObjectType.Note),
+                    Is.EqualTo(JudgementRating.Ok));
+                Assert.That(
+                    windows.Judge(badLate, BmsJudgeObjectType.Note),
+                    Is.EqualTo(JudgementRating.Ok));
+                Assert.That(
+                    windows.Judge(
+                        Math.BitDecrement(-badEarly),
+                        BmsJudgeObjectType.Note),
+                    Is.EqualTo(JudgementRating.None));
+                Assert.That(
+                    windows.Judge(
+                        Math.BitIncrement(badLate),
+                        BmsJudgeObjectType.Note),
+                    Is.EqualTo(JudgementRating.None));
+            });
+        }
+
+        [TestCase(5, BmsJudgeObjectType.Note, 20, 50, 100, JudgementRating.Good, 150, 150)]
+        [TestCase(5, BmsJudgeObjectType.Scratch, 30, 60, 110, JudgementRating.Good, 160, 160)]
+        [TestCase(5, BmsJudgeObjectType.LongNoteEnd, 120, 150, 200, JudgementRating.Good, 250, 250)]
+        [TestCase(5, BmsJudgeObjectType.LongScratchEnd, 130, 160, 160, JudgementRating.Great, 260, 260)]
+        [TestCase(7, BmsJudgeObjectType.Note, 20, 60, 150, JudgementRating.Good, 220, 280)]
+        [TestCase(7, BmsJudgeObjectType.Scratch, 30, 70, 160, JudgementRating.Good, 230, 290)]
+        [TestCase(7, BmsJudgeObjectType.LongNoteEnd, 120, 160, 200, JudgementRating.Good, 220, 280)]
+        [TestCase(7, BmsJudgeObjectType.LongScratchEnd, 130, 170, 210, JudgementRating.Good, 230, 290)]
+        public void BmsEasyObjectWindowsMatchBeatoraja(
+            int regularKeys,
+            BmsJudgeObjectType type,
+            double pgreat,
+            double great,
+            double good,
+            JudgementRating goodBoundaryRating,
+            double badEarly,
+            double badLate)
+        {
+            var windows = new BmsJudgementWindows(
+                BmsJudgementMetadata.FromRank(3),
+                regularKeysPerStage: regularKeys);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(windows.Judge(pgreat, type),
+                    Is.EqualTo(JudgementRating.Perfect));
+                Assert.That(windows.Judge(great, type),
+                    Is.EqualTo(JudgementRating.Great));
+                Assert.That(windows.Judge(good, type),
+                    Is.EqualTo(goodBoundaryRating));
+                Assert.That(windows.Judge(-badEarly, type),
+                    Is.EqualTo(JudgementRating.Ok));
+                Assert.That(windows.Judge(badLate, type),
+                    Is.EqualTo(JudgementRating.Ok));
+            });
+        }
+
+        [Test]
+        public void BmsEmptyPressDoesNotConsumeTheNote()
+        {
+            BeatmapJudgementState state = createBmsState(
+                createBmsTapBeatmap(BmsJudgementMetadata.FromRank(3)));
+
+            JudgementEvent emptyPress = state.JudgeLanePress(0, 600).Single();
+            JudgementEvent hit = state.JudgeLanePress(0, 1000).Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(emptyPress.Rating, Is.EqualTo(JudgementRating.Meh));
+                Assert.That(emptyPress.Phase,
+                    Is.EqualTo(JudgementPhase.BmsEmptyPress));
+                Assert.That(state.Counts.Meh, Is.EqualTo(1));
+                Assert.That(hit.Rating, Is.EqualTo(JudgementRating.Perfect));
+                Assert.That(state.IsResolved(0), Is.True);
+            });
+        }
+
+        [Test]
+        public void BmsEmptyPressAfterFinalNoteUsesTheResolvedNote()
+        {
+            BeatmapJudgementState state = createBmsState(
+                createBmsTapBeatmap(BmsJudgementMetadata.FromRank(3)));
+
+            state.JudgeLanePress(0, 1000);
+            state.JudgeLaneRelease(0, 1050);
+            JudgementEvent emptyPress =
+                state.JudgeLanePress(0, 1100).Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(emptyPress.Rating, Is.EqualTo(JudgementRating.Meh));
+                Assert.That(emptyPress.Phase,
+                    Is.EqualTo(JudgementPhase.BmsEmptyPress));
+                Assert.That(emptyPress.HitObjectIndex, Is.Zero);
+                Assert.That(state.Counts.Meh, Is.EqualTo(1));
+                Assert.That(state.Counts.Perfect, Is.EqualTo(1));
+            });
+        }
+
+        [TestCase(5, true)]
+        [TestCase(7, false)]
+        public void BmsEmptyPressComboRuleMatchesKeyProfile(
+            int regularKeys,
+            bool breaksCombo)
+        {
+            var beatmap = new YokkoBeatmap(
+                "BMS empty MS combo test",
+                "Yokko",
+                "Yokko",
+                $"{regularKeys}K",
+                regularKeys == 5 ? KeyMode.SixKey : KeyMode.EightKey,
+                ChartSourceFormat.Bms,
+                [YokkoTimingPoint.Default],
+                null,
+                [new YokkoHitObject(1, 1000, null, HitObjectKind.Tap)],
+                ScratchLane: 0,
+                BmsJudgement: BmsJudgementMetadata.FromRank(3));
+            BeatmapJudgementState state = createBmsState(beatmap);
+
+            state.JudgeLanePress(1, 1000);
+            state.JudgeLaneRelease(1, 1050);
+            state.JudgeLanePress(1, 1100);
+
+            Assert.That(state.Combo, Is.EqualTo(breaksCombo ? 0 : 1));
+        }
+
+        [Test]
+        public void BmsNaturalPoorOccursAfterLateBadBoundary()
+        {
+            BeatmapJudgementState state = createBmsState(
+                createBmsTapBeatmap(BmsJudgementMetadata.FromRank(3)));
+
+            Assert.That(state.CollectExpiredMisses(1280), Is.Empty);
+            JudgementEvent poor =
+                state.CollectExpiredMisses(1280.001).Single();
+
+            Assert.That(poor.Rating, Is.EqualTo(JudgementRating.Miss));
+            Assert.That(
+                JudgementConfiguration.BmsBeatorajaDefault.RatingLabel(
+                    poor.Rating),
+                Is.EqualTo("POOR"));
+        }
+
+        [Test]
+        public void BmsScratchAndTraditionalLongNoteUseDedicatedWindows()
+        {
+            YokkoBeatmap scratchBeatmap = createBmsTapBeatmap(
+                BmsJudgementMetadata.FromRank(3),
+                scratchLane: 0);
+            BeatmapJudgementState scratchState = createBmsState(scratchBeatmap);
+            Assert.That(
+                scratchState.JudgeLanePress(0, 1030).Single().Rating,
+                Is.EqualTo(JudgementRating.Perfect));
+
+            BeatmapJudgementState holdState = createBmsState(
+                createBmsHoldBeatmap(BmsJudgementMetadata.FromRank(3)));
+            JudgementEvent head = holdState.JudgeLanePress(0, 1060).Single();
+            JudgementEvent tail = holdState.JudgeLaneRelease(0, 1380).Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(head.Rating, Is.EqualTo(JudgementRating.IgnoreHit));
+                Assert.That(holdState.Counts.TotalBasic, Is.EqualTo(1));
+                Assert.That(tail.Phase, Is.EqualTo(JudgementPhase.Hold));
+                Assert.That(tail.Rating, Is.EqualTo(JudgementRating.Great));
+            });
+        }
+
+        [Test]
+        public void BmsTraditionalLongNoteLateReleaseCanDegradeHead()
+        {
+            BeatmapJudgementState state = createBmsState(
+                createBmsHoldBeatmap(BmsJudgementMetadata.FromRank(3)));
+
+            state.JudgeLanePress(0, 1000);
+            JudgementEvent tail =
+                state.JudgeLaneRelease(0, 1710).Single();
+
+            Assert.That(tail.Rating, Is.EqualTo(JudgementRating.Ok));
+        }
+
+        [Test]
+        public void BmsTraditionalLongNoteHeldPastTailKeepsHeadRating()
+        {
+            BeatmapJudgementState state = createBmsState(
+                createBmsHoldBeatmap(BmsJudgementMetadata.FromRank(3)));
+
+            state.JudgeLanePress(0, 1060);
+
+            Assert.That(state.CollectExpiredMisses(1500), Is.Empty);
+            JudgementEvent tail =
+                state.CollectExpiredMisses(1500.001).Single();
+            Assert.That(tail.Rating, Is.EqualTo(JudgementRating.Great));
+        }
+
         [TestCase(4, 22.5, 45, 90, 135)]
         [TestCase(5, 18.9, 37.8, 75.6, 113.4)]
         [TestCase(6, 14.85, 29.7, 59.4, 89.1)]
@@ -1954,6 +2175,57 @@ namespace Yokko.Game.Tests.Core
                     beatmap.OverallDifficulty,
                     configuration:
                         JudgementConfiguration.OsuStableDefault));
+
+        private static BeatmapJudgementState createBmsState(
+            YokkoBeatmap beatmap)
+            => new(
+                beatmap,
+                new JudgementWindows(
+                    configuration:
+                        JudgementConfiguration.BmsBeatorajaDefault,
+                    bmsJudgeWindowMultiplier:
+                        beatmap.BmsJudgement?.WindowMultiplier
+                        ?? BmsJudgementMetadata.Default.WindowMultiplier,
+                    bmsRegularKeysPerStage:
+                        beatmap.RegularLaneCount / beatmap.StageCount == 5
+                            ? 5
+                            : 7));
+
+        private static YokkoBeatmap createBmsTapBeatmap(
+            BmsJudgementMetadata metadata,
+            int? scratchLane = null)
+            => new(
+                "BMS tap test",
+                "Yokko",
+                "Yokko",
+                "7K",
+                scratchLane.HasValue
+                    ? KeyMode.EightKey
+                    : KeyMode.SevenKey,
+                ChartSourceFormat.Bms,
+                [YokkoTimingPoint.Default],
+                null,
+                [new YokkoHitObject(0, 1000, null, HitObjectKind.Tap)],
+                ScratchLane: scratchLane,
+                BmsJudgement: metadata);
+
+        private static YokkoBeatmap createBmsHoldBeatmap(
+            BmsJudgementMetadata metadata)
+            => new(
+                "BMS LN test",
+                "Yokko",
+                "Yokko",
+                "7K",
+                KeyMode.SevenKey,
+                ChartSourceFormat.Bms,
+                [YokkoTimingPoint.Default],
+                null,
+                [new YokkoHitObject(
+                    0,
+                    1000,
+                    1500,
+                    HitObjectKind.Hold)],
+                BmsJudgement: metadata);
 
         private static YokkoBeatmap createLaneBeatmap(
             params (double Time, HitObjectKind Kind)[] objects)

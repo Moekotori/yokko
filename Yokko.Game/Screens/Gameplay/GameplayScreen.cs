@@ -489,7 +489,13 @@ public partial class GameplayScreen : Screen
                 mods.Contains(ManiaModId.Classic),
                 mods.Contains(ManiaModId.ScoreV2),
                 beatmap.ConversionSource is not null,
-                judgementConfiguration),
+                judgementConfiguration,
+                beatmap.BmsJudgement?.WindowMultiplier
+                ?? BmsJudgementMetadata.Default.WindowMultiplier,
+                beatmap.BmsJudgement?.RegularKeysPerStage
+                ?? (beatmap.RegularLaneCount / beatmap.StageCount == 5
+                    ? 5
+                    : 7)),
             mods.Contains(ManiaModId.NoRelease),
             stableScoreMods.ScoreMultiplier,
             minesEnabled,

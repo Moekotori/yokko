@@ -1009,6 +1009,7 @@ public partial class GameplayPlayfield : CompositeDrawable
         }
 
         if ((uint)judgement.Lane < laneColumns.Length
+            && judgement.Phase != JudgementPhase.BmsEmptyPress
             && judgement.Rating is JudgementRating.Meh
                 or JudgementRating.Ok
                 or JudgementRating.Good

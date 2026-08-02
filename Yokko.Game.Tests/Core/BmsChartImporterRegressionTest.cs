@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Yokko.Import;
 using Yokko.Import.Bms;
+using Yokko.Core.Beatmaps;
 
 namespace Yokko.Game.Tests.Core;
 
@@ -140,6 +141,74 @@ public sealed class BmsChartImporterRegressionTest
             Assert.That(
                 result.Beatmap.HitObjects.Max(static note => note.StartTimeMilliseconds),
                 Is.EqualTo(3250).Within(0.001));
+        });
+    }
+
+    [Test]
+    public void RetainsRankAndDefExRankWithBeatorajaLineOrder()
+    {
+        string directory = createTestDirectory();
+        string defaultChart = writeChart(directory, """
+#TITLE Default rank
+#BPM 120
+#00111:01
+""", "default.bms");
+        string defExLastChart = writeChart(directory, """
+#TITLE DEFEX last
+#BPM 120
+#RANK 3
+#DEFEXRANK 50
+#00111:01
+""", "defex-last.bms");
+        string rankLastChart = writeChart(directory, """
+#TITLE RANK last
+#BPM 120
+#DEFEXRANK 50
+#RANK 4
+#00111:01
+""", "rank-last.bms");
+
+        BmsJudgementMetadata defaultRank =
+            import(defaultChart).Beatmap.BmsJudgement!.Value;
+        BmsJudgementMetadata defExLast =
+            import(defExLastChart).Beatmap.BmsJudgement!.Value;
+        BmsJudgementMetadata rankLast =
+            import(rankLastChart).Beatmap.BmsJudgement!.Value;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(defaultRank.WindowMultiplier, Is.EqualTo(0.75));
+            Assert.That(defaultRank.Source,
+                Is.EqualTo(BmsJudgementRankSource.Default));
+            Assert.That(defExLast.WindowMultiplier, Is.EqualTo(0.37));
+            Assert.That(defExLast.Source,
+                Is.EqualTo(BmsJudgementRankSource.DefExRank));
+            Assert.That(rankLast.WindowMultiplier, Is.EqualTo(1.25));
+            Assert.That(rankLast.Source,
+                Is.EqualTo(BmsJudgementRankSource.Rank));
+        });
+    }
+
+    [Test]
+    public void DefExRankUsesBeatorajaIntegerNormalisation()
+    {
+        string directory = createTestDirectory();
+        string chart = writeChart(directory, """
+#TITLE Integer DEFEX rank
+#BPM 120
+#DEFEXRANK 101
+#00111:01
+""", "defex-integer.bms");
+
+        BmsJudgementMetadata metadata =
+            import(chart).Beatmap.BmsJudgement!.Value;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(metadata.WindowMultiplier, Is.EqualTo(0.75));
+            Assert.That(metadata.Value, Is.EqualTo(101));
+            Assert.That(metadata.Source,
+                Is.EqualTo(BmsJudgementRankSource.DefExRank));
         });
     }
 

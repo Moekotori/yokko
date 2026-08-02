@@ -578,6 +578,12 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.CurrentJudgementMode
                     == JudgementMode.OsuStable
                 && !gameplay.IsEtternaJusticeControlEnabled);
+            AddStep("select BMS judgement", () =>
+                gameplay.SetJudgementMode(JudgementMode.BmsBeatoraja));
+            AddAssert("BMS judgement selected", () =>
+                gameplay.CurrentJudgementMode
+                    == JudgementMode.BmsBeatoraja
+                && !gameplay.IsEtternaJusticeControlEnabled);
             AddStep("select Etterna J8", () =>
             {
                 gameplay.SetJudgementMode(JudgementMode.Etterna);

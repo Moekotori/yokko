@@ -120,6 +120,13 @@ public static class YokkoBeatmapFingerprint
                     writer.Write(lane);
             }
 
+            if (beatmap.BmsJudgement is { } bmsJudgement)
+            {
+                writer.Write("bms-judgement-v1");
+                writer.Write(bmsJudgement.WindowMultiplier);
+                writer.Write(bmsJudgement.RegularKeysPerStage ?? 0);
+            }
+
             // Keep fingerprints for charts without timeline samples stable.
             // The marker makes the appended optional block unambiguous.
             if (beatmap.ScheduledSamples.Count > 0)

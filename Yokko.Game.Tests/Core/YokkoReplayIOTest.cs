@@ -118,6 +118,24 @@ public sealed class YokkoReplayIOTest
     }
 
     [Test]
+    public void NativeReplayRoundTripsBmsJudgementMode()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var replay = new GameplayReplay(
+            [],
+            ManiaModSet.Empty,
+            JudgementConfiguration.BmsBeatorajaDefault);
+        using var stream = new MemoryStream();
+
+        YokkoReplayIO.Write(stream, beatmap, beatmap, replay);
+        stream.Position = 0;
+
+        Assert.That(
+            YokkoReplayIO.Read(stream).Replay.JudgementConfiguration,
+            Is.EqualTo(JudgementConfiguration.BmsBeatorajaDefault));
+    }
+
+    [Test]
     public void ReplayRejectsLaneOutsideAppliedKeyMode()
     {
         YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();

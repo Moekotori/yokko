@@ -225,24 +225,45 @@ internal partial class SongSelectScoreDetailOverlay : CompositeDrawable
         JudgementConfiguration configuration =
             Score.JudgementConfiguration
             ?? JudgementConfiguration.YokkoDefault;
-        JudgementRating[] ratings =
-        [
-            JudgementRating.Perfect,
-            JudgementRating.Great,
-            JudgementRating.Good,
-            JudgementRating.Ok,
-            JudgementRating.Meh,
-            JudgementRating.Miss,
-        ];
-        int[] values =
-        [
-            Score.Perfect,
-            Score.Great,
-            Score.Good,
-            Score.Ok,
-            Score.Meh,
-            Score.Miss,
-        ];
+        bool bms = configuration.Mode == JudgementMode.BmsBeatoraja;
+        JudgementRating[] ratings = bms
+            ?
+            [
+                JudgementRating.Perfect,
+                JudgementRating.Great,
+                JudgementRating.Good,
+                JudgementRating.Ok,
+                JudgementRating.Miss,
+                JudgementRating.Meh,
+            ]
+            :
+            [
+                JudgementRating.Perfect,
+                JudgementRating.Great,
+                JudgementRating.Good,
+                JudgementRating.Ok,
+                JudgementRating.Meh,
+                JudgementRating.Miss,
+            ];
+        int[] values = bms
+            ?
+            [
+                Score.Perfect,
+                Score.Great,
+                Score.Good,
+                Score.Ok,
+                Score.Miss,
+                Score.Meh,
+            ]
+            :
+            [
+                Score.Perfect,
+                Score.Great,
+                Score.Good,
+                Score.Ok,
+                Score.Meh,
+                Score.Miss,
+            ];
         Color4[] defaultColours =
         [
             SongSelectTheme.PaleCyan,

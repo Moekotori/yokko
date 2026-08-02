@@ -1919,9 +1919,9 @@ internal static class YokkoStrings
                 "判定系统",
                 "判定システム"),
             ["settings.gameplay.judgement_note"] = new(
-                "Switch between osu!lazer, osu!stable ScoreV1, and Etterna judgement rules.",
-                "在 osu!lazer、osu!stable ScoreV1 与 Etterna 判定规则间切换。",
-                "osu!lazer、osu!stable ScoreV1、Etterna の判定ルールを切り替えます。"),
+                "Switch judgement rules. BMS follows beatoraja 5K/7K timing, scratch, empty MS, and traditional LN rules; score and gauge remain Yokko's.",
+                "切换判定规则。BMS 模式对齐 beatoraja 的 5K/7K 时间窗、皿键、空按 MS 与传统 LN；计分和血条仍使用 Yokko 规则。",
+                "判定ルールを切り替えます。BMS は beatoraja の5K/7K判定幅、スクラッチ、空押しMS、従来LNに準拠し、スコアとゲージは Yokko 仕様です。"),
             ["settings.gameplay.judgement_apply_next_game"] = new(
                 "Changes are saved now and apply next play. The current play keeps its starting rules.",
                 "更改会立即保存，并从下一局开始生效；当前局继续沿用开局时的判定规则。",
@@ -1938,6 +1938,10 @@ internal static class YokkoStrings
                 "Etterna",
                 "Etterna",
                 "Etterna"),
+            ["settings.gameplay.judgement_bms_beatoraja"] = new(
+                "BMS",
+                "BMS",
+                "BMS"),
             ["settings.gameplay.etterna_justice"] = new(
                 "Etterna Judge",
                 "Etterna 判定等级",

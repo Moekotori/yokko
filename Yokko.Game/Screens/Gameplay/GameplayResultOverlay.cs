@@ -162,6 +162,13 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         {
             displayedMods += "  ·  OSU!STABLE";
         }
+        else if (this.judgementConfiguration.Mode
+                 == JudgementMode.BmsBeatoraja)
+        {
+            displayedMods += "  ·  BMS / BEATORAJA "
+                             + (beatmap.BmsJudgement
+                                ?? BmsJudgementMetadata.Default).DisplayLabel;
+        }
 
         DisplayedMods = practiceSession
             ? $"{displayedMods}  ·  PRACTICE"
@@ -884,24 +891,46 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
     private Drawable createJudgementStrip(ManiaScoreResult result)
     {
-        JudgementRating[] ratings =
-        [
-            JudgementRating.Perfect,
-            JudgementRating.Great,
-            JudgementRating.Good,
-            JudgementRating.Ok,
-            JudgementRating.Meh,
-            JudgementRating.Miss,
-        ];
-        int[] values =
-        [
-            result.Perfect,
-            result.Great,
-            result.Good,
-            result.Ok,
-            result.Meh,
-            result.Miss,
-        ];
+        bool bms = judgementConfiguration.Mode
+                   == JudgementMode.BmsBeatoraja;
+        JudgementRating[] ratings = bms
+            ?
+            [
+                JudgementRating.Perfect,
+                JudgementRating.Great,
+                JudgementRating.Good,
+                JudgementRating.Ok,
+                JudgementRating.Miss,
+                JudgementRating.Meh,
+            ]
+            :
+            [
+                JudgementRating.Perfect,
+                JudgementRating.Great,
+                JudgementRating.Good,
+                JudgementRating.Ok,
+                JudgementRating.Meh,
+                JudgementRating.Miss,
+            ];
+        int[] values = bms
+            ?
+            [
+                result.Perfect,
+                result.Great,
+                result.Good,
+                result.Ok,
+                result.Miss,
+                result.Meh,
+            ]
+            :
+            [
+                result.Perfect,
+                result.Great,
+                result.Good,
+                result.Ok,
+                result.Meh,
+                result.Miss,
+            ];
         Color4[] defaultColours =
         {
             ResultColours.Pink,
@@ -1019,6 +1048,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             JudgementMode.Etterna =>
                 $"ETTERNA {judgementConfiguration.EtternaJusticeLabel.ToUpperInvariant()}",
             JudgementMode.OsuStable => "OSU!STABLE",
+            JudgementMode.BmsBeatoraja => "BMS / BEATORAJA",
             _ => "YOKKO",
         };
 

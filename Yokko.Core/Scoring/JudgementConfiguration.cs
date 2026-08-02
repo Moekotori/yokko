@@ -8,6 +8,7 @@ public enum JudgementMode
     Etterna,
     Quaver,
     OsuStable,
+    BmsBeatoraja,
 }
 
 /// <summary>
@@ -31,6 +32,9 @@ public readonly record struct JudgementConfiguration
 
     public static JudgementConfiguration QuaverDefault { get; } =
         new(JudgementMode.Quaver);
+
+    public static JudgementConfiguration BmsBeatorajaDefault { get; } =
+        new(JudgementMode.BmsBeatoraja);
 
     [JsonConstructor]
     public JudgementConfiguration(
@@ -80,6 +84,21 @@ public readonly record struct JudgementConfiguration
 
     public string RatingLabel(JudgementRating rating)
     {
+        if (Mode == JudgementMode.BmsBeatoraja)
+        {
+            return rating switch
+            {
+                JudgementRating.Perfect => "PGREAT",
+                JudgementRating.Great => "GREAT",
+                JudgementRating.Good => "GOOD",
+                JudgementRating.Ok => "BAD",
+                JudgementRating.Meh => "MISS",
+                JudgementRating.Miss
+                    or JudgementRating.ComboBreak => "POOR",
+                _ => rating.ToString().ToUpperInvariant(),
+            };
+        }
+
         if (Mode == JudgementMode.Quaver)
         {
             return rating switch

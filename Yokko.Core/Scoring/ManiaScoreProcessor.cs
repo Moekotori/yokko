@@ -20,6 +20,7 @@ public sealed class ManiaScoreProcessor
     private readonly bool useOsuStableScoring;
     private readonly bool useEtternaScoring;
     private readonly bool useQuaverScoring;
+    private readonly bool useBmsJudgement;
     private readonly int quaverMaximumScoreCount;
 
     private double currentBaseScore;
@@ -74,11 +75,15 @@ public sealed class ManiaScoreProcessor
             configuration.Mode == JudgementMode.Etterna;
         useQuaverScoring =
             configuration.Mode == JudgementMode.Quaver;
+        useBmsJudgement =
+            configuration.Mode == JudgementMode.BmsBeatoraja;
         maximumAccuracyJudgementCount = beatmap.HitObjects.Sum(hitObject =>
             hitObject.Kind switch
             {
                 HitObjectKind.Tap => 1,
-                HitObjectKind.Hold => useOsuStableScoring ? 1 : 2,
+                HitObjectKind.Hold => useOsuStableScoring || useBmsJudgement
+                    ? 1
+                    : 2,
                 _ => 0,
             });
         etternaMaximumWifePoints =
@@ -226,6 +231,12 @@ public sealed class ManiaScoreProcessor
             return;
         }
 
+        if (useBmsJudgement)
+        {
+            applyBms(rating);
+            return;
+        }
+
         Counts.Add(rating);
 
         if (rating.IncreasesCombo())
@@ -247,6 +258,41 @@ public sealed class ManiaScoreProcessor
         if (rating.IsScorable())
             currentComboPortion += comboScoreChange(rating, Combo);
 
+        updateScore();
+    }
+
+    internal void ApplyBmsEmptyPress(bool breaksCombo)
+    {
+        if (!useBmsJudgement)
+            return;
+
+        Counts.Add(JudgementRating.Meh);
+        if (breaksCombo)
+            Combo = 0;
+    }
+
+    private void applyBms(JudgementRating rating)
+    {
+        if (!rating.AffectsAccuracy())
+            return;
+
+        Counts.Add(rating);
+        if (rating is JudgementRating.Perfect
+            or JudgementRating.Great
+            or JudgementRating.Good)
+        {
+            Combo++;
+        }
+        else
+        {
+            Combo = 0;
+        }
+
+        MaxCombo = Math.Max(MaxCombo, Combo);
+        currentMaximumBaseScore += baseScoreFor(JudgementRating.Perfect);
+        currentAccuracyJudgementCount++;
+        currentBaseScore += baseScoreFor(rating);
+        currentComboPortion += comboScoreChange(rating, Combo);
         updateScore();
     }
 

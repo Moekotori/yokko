@@ -54,6 +54,12 @@ internal sealed record GameplayPauseSnapshot(
                 + state.Windows.Configuration.EtternaJusticeLabel
                     .ToUpperInvariant();
         }
+        else if (state.Windows.Configuration.Mode
+                 == JudgementMode.BmsBeatoraja)
+        {
+            displayedMods += "  ·  BMS / BEATORAJA "
+                             + state.ActiveBmsJudgement!.Value.DisplayLabel;
+        }
 
         return new GameplayPauseSnapshot(
             current,

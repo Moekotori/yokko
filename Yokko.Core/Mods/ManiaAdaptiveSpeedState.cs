@@ -64,7 +64,8 @@ public sealed class ManiaAdaptiveSpeedState
     public bool Apply(JudgementEvent judgement)
     {
         ArgumentNullException.ThrowIfNull(judgement);
-        if (!judgement.Rating.AffectsAccuracy())
+        if (!judgement.Rating.AffectsAccuracy()
+            || judgement.Phase == JudgementPhase.BmsEmptyPress)
             return false;
 
         int index = Array.BinarySearch(

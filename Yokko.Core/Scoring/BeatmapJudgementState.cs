@@ -51,6 +51,7 @@ public sealed class BeatmapJudgementState
     private readonly List<int> openHoldSnapshot = [];
     private readonly ExpirationEntry[] expirations;
     private readonly ManiaScoreProcessor scoreProcessor;
+    private readonly BmsJudgementWindows? bmsWindows;
     private readonly int totalJudgementObjectCount;
     private readonly bool noRelease;
     private int nextExpiration;
@@ -67,6 +68,18 @@ public sealed class BeatmapJudgementState
         this.beatmap = beatmap;
         this.noRelease = noRelease;
         Windows = windows ?? new JudgementWindows(beatmap.OverallDifficulty);
+        if (Windows.Configuration.Mode == JudgementMode.BmsBeatoraja)
+        {
+            BmsJudgementMetadata metadata =
+                beatmap.BmsJudgement ?? BmsJudgementMetadata.Default;
+            bmsWindows = new BmsJudgementWindows(
+                metadata with
+                {
+                    WindowMultiplier = Windows.BmsJudgeWindowMultiplier,
+                },
+                Windows.SpeedMultiplier,
+                Windows.BmsRegularKeysPerStage);
+        }
         states = beatmap.HitObjects
                         .Select(hitObject => new ObjectState(
                             hitObject,
@@ -163,10 +176,7 @@ public sealed class BeatmapJudgementState
                                  {
                                       new(
                                           hitObject.StartTimeMilliseconds
-                                          + (Windows.Configuration.Mode
-                                                  == JudgementMode.OsuStable
-                                              ? Windows.OkMilliseconds
-                                              : Windows.MehMilliseconds),
+                                          + headLateMissBoundary(hitObject),
                                          index,
                                          hitObject.Kind == HitObjectKind.Hold
                                              ? JudgementPhase.HoldHead
@@ -178,11 +188,7 @@ public sealed class BeatmapJudgementState
                                  {
                                       entries.Add(new ExpirationEntry(
                                           endTime
-                                          + (Windows.Configuration.Mode
-                                                  == JudgementMode.OsuStable
-                                              ? Windows.OkMilliseconds
-                                              : Windows.MehMilliseconds
-                                                * HoldReleaseWindowLenience),
+                                              + tailLateMissBoundary(hitObject),
                                          index,
                                          JudgementPhase.HoldTail));
                                  }
@@ -197,6 +203,14 @@ public sealed class BeatmapJudgementState
     }
 
     public JudgementWindows Windows { get; }
+
+    public BmsJudgementMetadata? ActiveBmsJudgement =>
+        Windows.Configuration.Mode == JudgementMode.BmsBeatoraja
+            ? (beatmap.BmsJudgement ?? BmsJudgementMetadata.Default) with
+            {
+                WindowMultiplier = Windows.BmsJudgeWindowMultiplier,
+            }
+            : null;
 
     // Yokko works in rate-adjusted chart time. Etterna divides note offsets by
     // the music rate before applying its fixed 75ms real-time window, so the
@@ -220,6 +234,28 @@ public sealed class BeatmapJudgementState
 
     public double ActiveEtternaRollDropWindowMilliseconds =>
         EtternaRollDropWindowMilliseconds * Windows.SpeedMultiplier;
+
+    private double headLateMissBoundary(YokkoHitObject hitObject) =>
+        Windows.Configuration.Mode switch
+        {
+            JudgementMode.OsuStable => Windows.OkMilliseconds,
+            JudgementMode.BmsBeatoraja => bmsWindows!
+                .LateMissBoundaryMilliseconds(bmsObjectType(
+                    hitObject.Lane,
+                    longNoteEnd: false)),
+            _ => Windows.MehMilliseconds,
+        };
+
+    private double tailLateMissBoundary(YokkoHitObject hitObject) =>
+        Windows.Configuration.Mode switch
+        {
+            JudgementMode.OsuStable => Windows.OkMilliseconds,
+            JudgementMode.BmsBeatoraja => bmsWindows!
+                .LateMissBoundaryMilliseconds(bmsObjectType(
+                    hitObject.Lane,
+                    longNoteEnd: true)),
+            _ => Windows.MehMilliseconds * HoldReleaseWindowLenience,
+        };
 
     public JudgementCounter Counts => scoreProcessor.Counts;
 
@@ -315,6 +351,13 @@ public sealed class BeatmapJudgementState
                 lane,
                 gameplayTimeMilliseconds,
                 events);
+            return;
+        }
+
+        if (Windows.Configuration.Mode == JudgementMode.BmsBeatoraja)
+        {
+            judgeMinePress(lane, gameplayTimeMilliseconds, events);
+            judgeBmsPress(lane, gameplayTimeMilliseconds, events);
             return;
         }
 
@@ -728,6 +771,12 @@ public sealed class BeatmapJudgementState
 
         lanePressedSinceMilliseconds[lane] = null;
 
+        if (Windows.Configuration.Mode == JudgementMode.BmsBeatoraja)
+        {
+            resolveBmsRelease(lane, gameplayTimeMilliseconds, events);
+            return;
+        }
+
         openHoldSnapshot.Clear();
         openHoldSnapshot.AddRange(openHoldIndices[lane]);
         foreach (int index in openHoldSnapshot)
@@ -834,6 +883,217 @@ public sealed class BeatmapJudgementState
             return JudgementRating.Miss;
 
         return Windows.Judge(errorMilliseconds);
+    }
+
+    private void judgeBmsPress(
+        int lane,
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events)
+    {
+        advanceHeadPosition(lane);
+        int[] laneIndices = laneObjectIndices[lane];
+        BmsJudgeObjectType type = bmsObjectType(lane, longNoteEnd: false);
+        int position = nextHeadPositions[lane];
+        int nextIndex = position < laneIndices.Length
+            ? laneIndices[position]
+            : -1;
+        double nextError = nextIndex >= 0
+            ? gameplayTimeMilliseconds
+              - beatmap.HitObjects[nextIndex].StartTimeMilliseconds
+            : double.NaN;
+        JudgementRating rating = nextIndex >= 0
+            ? bmsWindows!.Judge(nextError, type)
+            : JudgementRating.None;
+
+        if (rating == JudgementRating.None)
+        {
+            int emptyPressIndex = findBmsEmptyPressTarget(
+                laneIndices,
+                position,
+                gameplayTimeMilliseconds,
+                type);
+            if (emptyPressIndex >= 0)
+            {
+                YokkoHitObject emptyPressTarget =
+                    beatmap.HitObjects[emptyPressIndex];
+                double emptyPressError = gameplayTimeMilliseconds
+                                         - emptyPressTarget
+                                             .StartTimeMilliseconds;
+                scoreProcessor.ApplyBmsEmptyPress(
+                    bmsWindows!.EmptyPressBreaksCombo);
+                events.Add(createEvent(
+                    emptyPressIndex,
+                    emptyPressTarget.StartTimeMilliseconds,
+                    gameplayTimeMilliseconds,
+                    emptyPressError,
+                    JudgementRating.Meh,
+                    JudgementPhase.BmsEmptyPress));
+            }
+
+            return;
+        }
+
+        int index = nextIndex;
+        YokkoHitObject hitObject = beatmap.HitObjects[index];
+        double error = nextError;
+
+        if (hitObject.Kind == HitObjectKind.Hold)
+        {
+            ObjectState state = states[index];
+            state.Holding = true;
+            state.BmsHeadErrorMilliseconds = error;
+            JudgementEvent headEvent = resolveBasic(
+                index,
+                hitObject.StartTimeMilliseconds,
+                gameplayTimeMilliseconds,
+                error,
+                JudgementRating.IgnoreHit,
+                JudgementPhase.HoldHead);
+            state.HeadRating = rating;
+            events.Add(headEvent);
+        }
+        else
+        {
+            events.Add(resolveBasic(
+                index,
+                hitObject.StartTimeMilliseconds,
+                gameplayTimeMilliseconds,
+                error,
+                rating,
+                JudgementPhase.Tap));
+        }
+
+        advanceHeadPosition(lane);
+    }
+
+    private int findBmsEmptyPressTarget(
+        IReadOnlyList<int> laneIndices,
+        int nextPosition,
+        double gameplayTimeMilliseconds,
+        BmsJudgeObjectType type)
+    {
+        int target = -1;
+        double targetDistance = double.PositiveInfinity;
+
+        // beatoraja may attach MS to either an unresolved upcoming note or a
+        // previously judged note. This matters after the final note and in
+        // gaps where only the previous note is inside the fixed MS window.
+        for (int position = Math.Max(0, nextPosition - 1);
+             position <= nextPosition && position < laneIndices.Count;
+             position++)
+        {
+            int index = laneIndices[position];
+            YokkoHitObject hitObject = beatmap.HitObjects[index];
+            double error = gameplayTimeMilliseconds
+                           - hitObject.StartTimeMilliseconds;
+            bool isEmptyPress = states[index].HeadResolved
+                ? bmsWindows!.IsWithinEmptyPressWindow(error, type)
+                : bmsWindows!.IsEmptyPress(error, type);
+            if (!isEmptyPress)
+                continue;
+
+            double distance = Math.Abs(error);
+            if (distance < targetDistance)
+            {
+                target = index;
+                targetDistance = distance;
+            }
+        }
+
+        return target;
+    }
+
+    private void resolveBmsRelease(
+        int lane,
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events)
+    {
+        if (noRelease)
+            return;
+
+        openHoldSnapshot.Clear();
+        openHoldSnapshot.AddRange(openHoldIndices[lane]);
+        foreach (int index in openHoldSnapshot)
+        {
+            YokkoHitObject hitObject = beatmap.HitObjects[index];
+            ObjectState state = states[index];
+            if (hitObject.Kind != HitObjectKind.Hold
+                || !state.Holding
+                || state.TailResolved
+                || hitObject.EndTimeMilliseconds is not double endTime)
+            {
+                continue;
+            }
+
+            state.Holding = false;
+            double tailError = gameplayTimeMilliseconds - endTime;
+            JudgementRating tailRating = bmsWindows!.Judge(
+                tailError,
+                bmsObjectType(lane, longNoteEnd: true));
+            if (tailRating == JudgementRating.None)
+                tailRating = JudgementRating.Miss;
+
+            JudgementRating rating = worseBmsRating(
+                state.HeadRating,
+                tailRating);
+            double headError = state.BmsHeadErrorMilliseconds ?? 0;
+            double combinedError = Math.Abs(headError) >= Math.Abs(tailError)
+                ? headError
+                : tailError;
+            events.Add(resolveBmsHold(
+                index,
+                endTime,
+                gameplayTimeMilliseconds,
+                combinedError,
+                rating));
+        }
+    }
+
+    private void resolveBmsHeldTails(
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events)
+    {
+        foreach (HashSet<int> laneHolds in openHoldIndices)
+        {
+            foreach (int index in laneHolds.ToArray())
+            {
+                YokkoHitObject hitObject = beatmap.HitObjects[index];
+                ObjectState state = states[index];
+                if (state.TailResolved
+                    || !state.Holding
+                    || hitObject.EndTimeMilliseconds is not double endTime
+                    || gameplayTimeMilliseconds <= endTime)
+                {
+                    continue;
+                }
+
+                events.Add(resolveBmsHold(
+                    index,
+                    endTime,
+                    endTime,
+                    state.BmsHeadErrorMilliseconds ?? 0,
+                    state.HeadRating));
+            }
+        }
+    }
+
+    private static JudgementRating worseBmsRating(
+        JudgementRating head,
+        JudgementRating tail) =>
+        (JudgementRating)Math.Min((int)head, (int)tail);
+
+    private BmsJudgeObjectType bmsObjectType(
+        int lane,
+        bool longNoteEnd)
+    {
+        bool scratch = beatmap.ScratchLanes.Contains(lane);
+        return (scratch, longNoteEnd) switch
+        {
+            (false, false) => BmsJudgeObjectType.Note,
+            (true, false) => BmsJudgeObjectType.Scratch,
+            (false, true) => BmsJudgeObjectType.LongNoteEnd,
+            (true, true) => BmsJudgeObjectType.LongScratchEnd,
+        };
     }
 
     private void resolveOsuStableRelease(
@@ -957,6 +1217,8 @@ public sealed class BeatmapJudgementState
         ArgumentNullException.ThrowIfNull(events);
         if (Windows.Configuration.Mode == JudgementMode.Etterna)
             resolveEtternaHeldTails(gameplayTimeMilliseconds, events);
+        else if (Windows.Configuration.Mode == JudgementMode.BmsBeatoraja)
+            resolveBmsHeldTails(gameplayTimeMilliseconds, events);
         else
             resolveHeldNoReleaseTails(gameplayTimeMilliseconds, events);
 
@@ -1005,6 +1267,20 @@ public sealed class BeatmapJudgementState
                     continue;
                 }
 
+                if (Windows.Configuration.Mode == JudgementMode.BmsBeatoraja
+                    && expiration.Phase == JudgementPhase.HoldHead)
+                {
+                    events.Add(resolveBmsHold(
+                        i,
+                        hitObject.StartTimeMilliseconds,
+                        null,
+                        gameplayTimeMilliseconds
+                        - hitObject.StartTimeMilliseconds,
+                        JudgementRating.Miss));
+                    advanceHeadPosition(hitObject.Lane);
+                    continue;
+                }
+
                 events.Add(resolveBasic(
                     i,
                     hitObject.StartTimeMilliseconds,
@@ -1024,6 +1300,17 @@ public sealed class BeatmapJudgementState
             if (Windows.Configuration.Mode == JudgementMode.OsuStable)
             {
                 events.Add(resolveOsuStableHold(
+                    i,
+                    endTime,
+                    null,
+                    gameplayTimeMilliseconds - endTime,
+                    JudgementRating.Miss));
+                continue;
+            }
+
+            if (Windows.Configuration.Mode == JudgementMode.BmsBeatoraja)
+            {
+                events.Add(resolveBmsHold(
                     i,
                     endTime,
                     null,
@@ -1555,6 +1842,41 @@ public sealed class BeatmapJudgementState
             JudgementPhase.Hold);
     }
 
+    private JudgementEvent resolveBmsHold(
+        int hitObjectIndex,
+        double objectTimeMilliseconds,
+        double? hitTimeMilliseconds,
+        double hitErrorMilliseconds,
+        JudgementRating rating)
+    {
+        ObjectState state = states[hitObjectIndex];
+        bool wasComplete = state.IsComplete;
+        state.HeadResolved = true;
+        if (state.HeadRating == JudgementRating.None)
+            state.HeadRating = rating;
+        state.TailResolved = true;
+        state.TailRating = rating;
+        state.BodyResolved = true;
+        state.ParentResolved = true;
+        state.Holding = false;
+        openHoldIndices[beatmap.HitObjects[hitObjectIndex].Lane]
+            .Remove(hitObjectIndex);
+        trackCompletion(state, wasComplete);
+        scoreProcessor.Apply(
+            rating,
+            hitErrorMilliseconds / Windows.SpeedMultiplier,
+            JudgementPhase.Hold,
+            objectTimeMilliseconds);
+
+        return createEvent(
+            hitObjectIndex,
+            objectTimeMilliseconds,
+            hitTimeMilliseconds,
+            hitErrorMilliseconds,
+            rating,
+            JudgementPhase.Hold);
+    }
+
     private JudgementEvent resolveBasic(
         int hitObjectIndex,
         double objectTimeMilliseconds,
@@ -1759,6 +2081,7 @@ public sealed class BeatmapJudgementState
         public bool BodyBroken { get; set; }
         public bool Holding { get; set; }
         public double? OsuStableHeadErrorMilliseconds { get; set; }
+        public double? BmsHeadErrorMilliseconds { get; set; }
         public double? EtternaReleasedAtMilliseconds { get; set; }
         public double? EtternaRollLifeExpiresAtMilliseconds { get; set; }
         public bool IsComplete =>

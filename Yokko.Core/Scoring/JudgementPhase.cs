@@ -8,4 +8,5 @@ public enum JudgementPhase
     HoldBody,
     HoldTail,
     Mine,
+    BmsEmptyPress,
 }

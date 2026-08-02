@@ -1511,24 +1511,45 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     {
         JudgementConfiguration configuration =
             snapshot.JudgementConfiguration;
-        JudgementRating[] ratings =
-        [
-            JudgementRating.Perfect,
-            JudgementRating.Great,
-            JudgementRating.Good,
-            JudgementRating.Ok,
-            JudgementRating.Meh,
-            JudgementRating.Miss,
-        ];
-        int[] values =
-        [
-            snapshot.Perfect,
-            snapshot.Great,
-            snapshot.Good,
-            snapshot.Ok,
-            snapshot.Meh,
-            snapshot.Miss,
-        ];
+        bool bms = configuration.Mode == JudgementMode.BmsBeatoraja;
+        JudgementRating[] ratings = bms
+            ?
+            [
+                JudgementRating.Perfect,
+                JudgementRating.Great,
+                JudgementRating.Good,
+                JudgementRating.Ok,
+                JudgementRating.Miss,
+                JudgementRating.Meh,
+            ]
+            :
+            [
+                JudgementRating.Perfect,
+                JudgementRating.Great,
+                JudgementRating.Good,
+                JudgementRating.Ok,
+                JudgementRating.Meh,
+                JudgementRating.Miss,
+            ];
+        int[] values = bms
+            ?
+            [
+                snapshot.Perfect,
+                snapshot.Great,
+                snapshot.Good,
+                snapshot.Ok,
+                snapshot.Miss,
+                snapshot.Meh,
+            ]
+            :
+            [
+                snapshot.Perfect,
+                snapshot.Great,
+                snapshot.Good,
+                snapshot.Ok,
+                snapshot.Meh,
+                snapshot.Miss,
+            ];
         Color4[] defaultColours =
         {
             HomeControlColours.Yellow,

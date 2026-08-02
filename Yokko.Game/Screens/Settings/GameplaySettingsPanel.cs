@@ -3368,6 +3368,7 @@ internal partial class GameplayJudgementModeSelector : CompositeDrawable
     private readonly SettingsSegmentedChoiceButton lazerButton;
     private readonly SettingsSegmentedChoiceButton stableButton;
     private readonly SettingsSegmentedChoiceButton etternaButton;
+    private readonly SettingsSegmentedChoiceButton bmsButton;
 
     public GameplayJudgementModeSelector(
         Bindable<JudgementMode> mode)
@@ -3387,19 +3388,25 @@ internal partial class GameplayJudgementModeSelector : CompositeDrawable
                         "settings.gameplay.judgement_yokko"),
                     FontAwesome.Solid.Gamepad,
                     () => mode.Value = JudgementMode.Yokko,
-                    800f / 3),
+                    800f / 4),
                 stableButton = new SettingsSegmentedChoiceButton(
                     YokkoStrings.Get(
                         "settings.gameplay.judgement_osu_stable"),
                     FontAwesome.Solid.Clock,
                     () => mode.Value = JudgementMode.OsuStable,
-                    800f / 3),
+                    800f / 4),
                 etternaButton = new SettingsSegmentedChoiceButton(
                     YokkoStrings.Get(
                         "settings.gameplay.judgement_etterna"),
                     FontAwesome.Solid.Bullseye,
                     () => mode.Value = JudgementMode.Etterna,
-                    800f / 3),
+                    800f / 4),
+                bmsButton = new SettingsSegmentedChoiceButton(
+                    YokkoStrings.Get(
+                        "settings.gameplay.judgement_bms_beatoraja"),
+                    FontAwesome.Solid.CompactDisc,
+                    () => mode.Value = JudgementMode.BmsBeatoraja,
+                    800f / 4),
             },
         });
         InternalChild = card;
@@ -3415,6 +3422,8 @@ internal partial class GameplayJudgementModeSelector : CompositeDrawable
             change.NewValue == JudgementMode.OsuStable);
         etternaButton.SetSelected(
             change.NewValue == JudgementMode.Etterna);
+        bmsButton.SetSelected(
+            change.NewValue == JudgementMode.BmsBeatoraja);
     }
 
     protected override void Dispose(bool isDisposing)
