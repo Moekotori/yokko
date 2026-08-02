@@ -451,7 +451,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         {
             Text = ManiaDifficultyPresentation.Unit(
                 difficultyRatingMode),
-            Font = HomeTypography.Display(11),
+            Font = HomeTypography.Display(15),
             Colour = accent,
         });
         SpriteText difficultyValue = addDifficultyValue(new SpriteText
@@ -459,7 +459,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             Text = ManiaDifficultyPresentation.FormatValue(
                 displayedDifficultyRatings,
                 difficultyRatingMode),
-            Font = HomeTypography.Display(13),
+            Font = HomeTypography.Display(20),
             Colour = SongSelectTheme.Navy,
         });
         children.Add(new SongSelectInlineDifficultyRating(
@@ -473,7 +473,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             28,
             5,
             540,
-            19,
+            23,
             SongSelectTheme.Navy,
             SongSelectTheme.Navy,
             true));
@@ -482,17 +482,17 @@ internal partial class SongSelectSongRow : PoolableDrawable
             28,
             33,
             540,
-            11,
+            16,
             new Color4(
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
                 SongSelectTheme.Navy.B,
-                0.68f),
+                0.82f),
             new Color4(
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
                 SongSelectTheme.Navy.B,
-                0.70f),
+                0.84f),
             true,
             false));
         children.Add(compactModePill = new SongSelectProgressiveModePill(
@@ -531,7 +531,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             246,
             15,
             514,
-            22,
+            26,
             SongSelectTheme.Navy,
             SongSelectTheme.Navy,
             true));
@@ -540,7 +540,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             246,
             52,
             500,
-            14,
+            17,
             new Color4(
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
@@ -557,7 +557,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             246,
             77,
             500,
-            13,
+            17,
             SongSelectTheme.Cyan,
             SongSelectTheme.Cyan,
             true,
@@ -608,7 +608,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
                 Truncate = true,
                 Text = $"{(int)entry.Beatmap.KeyMode}K · "
                        + entry.Beatmap.DifficultyName,
-                Font = HomeTypography.Display(13),
+                Font = HomeTypography.Display(16),
                 Colour = Color4.White,
             },
         ],
@@ -658,7 +658,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         SpriteText unitText = addDifficultyUnit(new SpriteText
         {
             Text = ManiaDifficultyPresentation.Unit(mode),
-            Font = HomeTypography.Display(11),
+            Font = HomeTypography.Display(15),
             Colour = DifficultyColour(ratings, mode),
         });
         SpriteText valueText = addDifficultyValue(new SpriteText
@@ -666,7 +666,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             Text = ManiaDifficultyPresentation.FormatValue(
                 ratings,
                 mode),
-            Font = HomeTypography.Display(15),
+            Font = HomeTypography.Display(20),
             Colour = SongSelectTheme.Ivory,
         });
         adaptiveTexts.Add((
@@ -1330,19 +1330,19 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 contentStart,
                 16,
                 574,
-                21,
+                25,
                 SongSelectTheme.Navy),
             selectedByline = label(
                 string.Empty,
                 contentStart,
                 49,
                 490,
-                12,
+                16,
                 new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
                     SongSelectTheme.Navy.B,
-                    0.68f)),
+                    0.82f)),
             label(
                 "PREVIEWING  ·  ENTER TO PLAY",
                 contentStart,
@@ -1373,7 +1373,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                         Origin = Anchor.Centre,
                         Width = 260,
                         Truncate = true,
-                        Font = HomeTypography.Display(13),
+                        Font = HomeTypography.Display(16),
                         Colour = Color4.White,
                     },
                 ],
@@ -1383,7 +1383,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 660,
                 106,
                 40,
-                11,
+                15,
                 SongSelectTheme.Cyan),
             selectedRatingValue = new SpriteText
             {
@@ -1391,7 +1391,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 Position = new Vector2(754, 100),
                 Width = 54,
                 Truncate = true,
-                Font = HomeTypography.Display(15),
+                Font = HomeTypography.Display(20),
                 Colour = SongSelectTheme.Navy,
             },
         ],

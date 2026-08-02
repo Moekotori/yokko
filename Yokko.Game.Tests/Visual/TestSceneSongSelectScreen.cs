@@ -129,6 +129,61 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
     }
 
     [Test]
+    public void TestCachedExternalSummaryMaterialisesBeforeImmediatePlay()
+    {
+        string root = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"yokko-song-select-external-summary-{Guid.NewGuid():N}");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string set = Path.Combine(songs, "100 External Summary Set");
+        Task<ExternalOsuLibraryResult> scanTask = null;
+
+        AddStep("create cached external summary", () =>
+        {
+            importedChartLibrary.DisableExternalOsu();
+            importedChartLibrary.Clear();
+            Directory.CreateDirectory(set);
+            string chart = OsuManiaBeatmapIO.WriteBeatmap(
+                DemoBeatmaps.CreateFourKeyDemo() with
+                {
+                    Title = "Cached External Summary",
+                    AudioPath = null,
+                });
+            File.WriteAllText(
+                Path.Combine(set, "summary.osu"),
+                chart,
+                new UTF8Encoding(false));
+            scanTask = importedChartLibrary.SetExternalOsuSongsPathAsync(songs);
+        });
+        AddUntilStep("external summary is selected", () =>
+            scanTask?.IsCompletedSuccessfully == true
+            && songSelectScreen.SelectedEntry?.Beatmap.Title
+            == "Cached External Summary"
+            && songSelectScreen.SelectedEntry.Beatmap.HitObjects.Count == 0);
+        AddStep("press Enter immediately", () => InputManager.Key(Key.Enter));
+        AddUntilStep("full external chart enters gameplay", () =>
+            screenStack.CurrentScreen is GameplaySessionScreen session
+            && session.CurrentGameplay is GameplayScreen gameplay
+            && gameplay.AppliedBeatmap.HitObjects.Count > 0);
+        AddAssert("external summary never reaches gameplay", () =>
+            ((GameplaySessionScreen)screenStack.CurrentScreen)
+            .CurrentGameplay.AppliedBeatmap.HitObjects.Count
+            == DemoBeatmaps.CreateFourKeyDemo().HitObjects.Count);
+        AddStep("return from external gameplay", () =>
+            ((GameplaySessionScreen)screenStack.CurrentScreen)
+            .CurrentGameplay.Exit());
+        AddUntilStep("song select resumes after external gameplay", () =>
+            screenStack.CurrentScreen == songSelectScreen);
+        AddStep("clean cached external fixture", () =>
+        {
+            importedChartLibrary.DisableExternalOsu();
+            externalOsuSettings.SongsPath.Value = string.Empty;
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        });
+    }
+
+    [Test]
     public void TestExpandedExternalPackagePublishesEveryDifficultyWithoutSelection()
     {
         string root = Path.Combine(

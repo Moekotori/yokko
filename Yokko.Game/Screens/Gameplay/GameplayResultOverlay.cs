@@ -216,8 +216,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                             {
                                 Anchor = Anchor.TopLeft,
                                 Origin = Anchor.Centre,
-                                Position = new Vector2(1550, 570),
-                                Size = new Vector2(1080),
+                                Position = new Vector2(1600, 570),
+                                Size = new Vector2(1040),
                                 Alpha = 0,
                             },
                         },
@@ -257,6 +257,21 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                        .MoveToY(564, 2800, Easing.InOutSine)
                        .Then()
                        .MoveToY(576, 2800, Easing.InOutSine)
+                       .Loop();
+        resultCharacter.Delay(900)
+                       .MoveToX(1596, 3900, Easing.InOutSine)
+                       .Then()
+                       .MoveToX(1604, 3900, Easing.InOutSine)
+                       .Loop();
+        resultCharacter.Delay(900)
+                       .RotateTo(-0.35f, 3600, Easing.InOutSine)
+                       .Then()
+                       .RotateTo(0.35f, 3600, Easing.InOutSine)
+                       .Loop();
+        resultCharacter.Delay(900)
+                       .ScaleTo(1.006f, 2800, Easing.InOutSine)
+                       .Then()
+                       .ScaleTo(1, 2800, Easing.InOutSine)
                        .Loop();
 
         scoreSignalRunner
@@ -380,49 +395,28 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(574, 16),
-                    Text = "PLAYER",
-                    Font = HomeTypography.Display(15),
-                    Spacing = new Vector2(1.4f, 0),
+                    Position = new Vector2(574, 28),
+                    Text = $"PLAYER  {presentation.PlayerName}",
+                    Width = 404,
+                    Truncate = true,
+                    Font = HomeTypography.Display(28),
                     Colour = ResultColours.Navy,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(574, 43),
-                    Text = presentation.PlayerName,
-                    Width = 205,
-                    Truncate = true,
-                    Font = HomeTypography.Display(29),
-                    Colour = ResultColours.Navy,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(788, 51),
-                    Text = $"UID {presentation.PlayerId}",
-                    Width = 190,
+                    Position = new Vector2(574, 68),
+                    Text = $"UID {presentation.PlayerId}  //  PLAYED {playedAt}",
+                    Width = 404,
                     Truncate = true,
                     Font = HomeTypography.Display(15),
+                    Spacing = new Vector2(0.5f, 0),
                     Colour = ResultColours.Muted,
                 },
                 new Box
                 {
-                    Position = new Vector2(574, 80),
-                    Size = new Vector2(404, 2),
-                    Colour = new Color4(0.51f, 0.58f, 0.76f, 0.5f),
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(574, 91),
-                    Text = "PLAYED AT",
-                    Font = HomeTypography.Display(13),
-                    Colour = ResultColours.Navy,
-                },
-                new SpriteText
-                {
-                    Position = new Vector2(680, 91),
-                    Text = playedAt,
-                    Font = HomeTypography.Display(15),
-                    Colour = ResultColours.Navy,
+                    Position = new Vector2(574, 101),
+                    Size = new Vector2(120, 3),
+                    Colour = ResultColours.Cyan,
                 },
             },
         };
@@ -456,7 +450,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 {
                     Position = new Vector2(808, 27),
                     Text = $"{(int)beatmap.KeyMode}K  ·  OD {beatmap.OverallDifficulty:0.#}",
-                    Font = HomeTypography.Display(19),
+                    Font = HomeTypography.Display(21),
                     Colour = ResultColours.Navy,
                 },
             },
@@ -483,7 +477,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Width = 140,
                     Truncate = true,
                     Text = difficulty.ToUpperInvariant(),
-                    Font = HomeTypography.Display(16),
+                    Font = HomeTypography.Display(17),
                     Colour = Color4.White,
                 },
             },
@@ -585,7 +579,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 {
                     Position = new Vector2(248, 28),
                     Text = isNewBest ? "NEW BEST" : "SCORE",
-                    Font = HomeTypography.Display(17),
+                    Font = HomeTypography.Display(19),
                     Spacing = new Vector2(1.6f, 0),
                     Colour = isNewBest
                         ? ResultColours.Pink
@@ -612,21 +606,21 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 {
                     Position = new Vector2(240, 166),
                     Text = "PREVIOUS BEST",
-                    Font = HomeTypography.Display(13),
+                    Font = HomeTypography.Display(15),
                     Colour = ResultColours.Cyan,
                 },
                 new SpriteText
                 {
                     Position = new Vector2(240, 187),
                     Text = previousBest,
-                    Font = HomeTypography.Display(24),
+                    Font = HomeTypography.Display(27),
                     Colour = Color4.White,
                 },
                 new SpriteText
                 {
                     Position = new Vector2(476, 182),
                     Text = delta,
-                    Font = HomeTypography.Display(28),
+                    Font = HomeTypography.Display(30),
                     Colour = ResultColours.Yellow,
                 },
                 new Box
@@ -649,18 +643,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     "MISSES",
                     result.Miss.ToString(CultureInfo.InvariantCulture),
                     708,
-                    78,
+                    154,
                     ResultColours.Pink),
-                new SpriteText
-                {
-                    Anchor = Anchor.BottomRight,
-                    Origin = Anchor.BottomRight,
-                    Position = new Vector2(-20, -12),
-                    Text = "SCORE BUS // LIVE",
-                    Font = HomeTypography.Display(8),
-                    Spacing = new Vector2(0.8f, 0),
-                    Colour = new Color4(1, 1, 1, 0.44f),
-                },
                 new Box
                 {
                     Position = new Vector2(968, 10),
@@ -697,20 +681,39 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         new Container
         {
             Position = new Vector2(x, y),
-            Size = new Vector2(246, 80),
+            Size = new Vector2(242, 52),
+            Masking = true,
+            CornerRadius = 8,
+            BorderThickness = 1,
+            BorderColour = new Color4(
+                accent.R,
+                accent.G,
+                accent.B,
+                0.72f),
             Children = new Drawable[]
             {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = accent,
+                    Alpha = 0.10f,
+                },
                 new SpriteText
                 {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    X = 16,
                     Text = label,
-                    Font = HomeTypography.Display(14),
+                    Font = HomeTypography.Display(16),
                     Colour = accent,
                 },
                 new SpriteText
                 {
-                    Y = 24,
+                    Anchor = Anchor.CentreRight,
+                    Origin = Anchor.CentreRight,
+                    X = -18,
                     Text = value,
-                    Font = ResultTypography.Poster(38),
+                    Font = ResultTypography.Poster(32),
                     Colour = Color4.White,
                 },
             },
@@ -719,32 +722,48 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private Drawable createSummaryRail(ManiaScoreResult result) =>
         new Container
         {
-            Position = new Vector2(contentLeft, 554),
-            Size = new Vector2(contentWidth, 72),
+            Position = new Vector2(contentLeft, 546),
+            Size = new Vector2(contentWidth, 84),
+            Masking = true,
+            CornerRadius = 6,
+            BorderThickness = 1,
+            BorderColour = new Color4(
+                ResultColours.Navy.R,
+                ResultColours.Navy.G,
+                ResultColours.Navy.B,
+                0.24f),
             Children = new Drawable[]
             {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = ResultColours.SoftCyan,
+                    Alpha = 0.20f,
+                },
                 createMetricCell(
                     judgementConfiguration.Mode == JudgementMode.Etterna
                         ? "WIFE3"
                         : "ACCURACY",
                     $"{result.Accuracy * 100:0.00}%",
                     0,
-                    300),
+                    contentWidth / 4,
+                    true),
                 createMetricCell(
                     "MAX COMBO",
                     $"{result.MaxCombo:N0}×",
-                    326,
-                    300),
+                    contentWidth / 4,
+                    contentWidth / 4,
+                    true),
                 createMetricCell(
                     "RATE",
                     $"{mods.FixedRateSpeedChange:0.00}×",
-                    652,
-                    160),
+                    contentWidth / 2,
+                    contentWidth / 4),
                 createMetricCell(
                     "RULESET",
                     rulesetLabel(),
-                    812,
-                    174),
+                    contentWidth * 3 / 4,
+                    contentWidth / 4),
             },
         };
 
@@ -752,8 +771,9 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         LocalisableString label,
         string value,
         float x,
-        float width) =>
-        new ResultMetricCell(label, value, width)
+        float width,
+        bool prominent = false) =>
+        new ResultMetricCell(label, value, width, prominent)
         {
             Position = new Vector2(x, 0),
         };
@@ -763,7 +783,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         GameplayTimingSummary timing = presentation.Timing;
         return new Container
         {
-            Position = new Vector2(contentLeft, 640),
+            Position = new Vector2(contentLeft, 652),
             Size = new Vector2(contentWidth, 48),
             Children = new Drawable[]
             {
@@ -824,14 +844,14 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 new SpriteText
                 {
                     Text = label,
-                    Font = HomeTypography.Display(12),
+                    Font = HomeTypography.Display(14),
                     Colour = colour,
                 },
                 new SpriteText
                 {
                     X = 74,
                     Text = value,
-                    Font = HomeTypography.Display(17),
+                    Font = HomeTypography.Display(19),
                     Colour = ResultColours.Navy,
                 },
             },
@@ -905,7 +925,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
         return new Container
         {
-            Position = new Vector2(contentLeft, 696),
+            Position = new Vector2(contentLeft, 708),
             Size = new Vector2(judgementStripWidth, 88),
             Child = flow,
         };
@@ -914,8 +934,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private Drawable createActionRow() =>
         new Container
         {
-            Position = new Vector2(contentLeft, 808),
-            Size = new Vector2(contentWidth, 76),
+            Position = new Vector2(contentLeft, 930),
+            Size = new Vector2(contentWidth, 84),
             Children = new Drawable[]
             {
                 new ResultActionButton(
@@ -1504,7 +1524,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Width = 570,
                     Truncate = true,
                     Text = displayOrDash(titleText),
-                    Font = HomeTypography.Display(31),
+                    Font = HomeTypography.Display(33),
                     Colour = ResultColours.Navy,
                 },
                 new SpriteText
@@ -1513,7 +1533,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Width = 570,
                     Truncate = true,
                     Text = displayOrDash(artist),
-                    Font = HomeTypography.Display(15),
+                    Font = HomeTypography.Display(16),
                     Colour = ResultColours.Muted,
                 },
                 underline = new Box
@@ -1540,16 +1560,19 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         private readonly SpriteText valueText;
         private readonly Box hoverUnderline;
         private readonly float hoverUnderlineWidth;
+        private readonly float restValueY;
 
         public override bool HandlePositionalInput => true;
 
         public ResultMetricCell(
             LocalisableString label,
             string value,
-            float width)
+            float width,
+            bool prominent)
         {
             hoverUnderlineWidth = Math.Max(24, width - 48);
-            Size = new Vector2(width, 72);
+            restValueY = prominent ? 31 : 35;
+            Size = new Vector2(width, 84);
             InternalChildren = new Drawable[]
             {
                 background = new Box
@@ -1567,18 +1590,19 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(24, 4),
+                    Position = new Vector2(24, 10),
                     Text = label,
-                    Font = HomeTypography.Display(13),
+                    Font = HomeTypography.Display(15),
                     Colour = ResultColours.Muted,
                 },
                 valueText = new SpriteText
                 {
-                    Position = new Vector2(24, 27),
+                    Position = new Vector2(24, restValueY),
                     Width = width - 34,
                     Truncate = true,
                     Text = value,
-                    Font = HomeTypography.Display(width < 180 ? 22 : 31),
+                    Font = HomeTypography.Display(
+                        prominent ? 38 : 26),
                     Colour = ResultColours.Navy,
                 },
                 hoverUnderline = new Box
@@ -1595,7 +1619,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         protected override bool OnHover(HoverEvent e)
         {
             background.FadeTo(0.3f, 140, Easing.OutQuint);
-            valueText.MoveToY(24, 150, Easing.OutQuint);
+            valueText.MoveToY(restValueY - 3, 150, Easing.OutQuint);
             hoverUnderline.ResizeWidthTo(
                 hoverUnderlineWidth,
                 180,
@@ -1606,7 +1630,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         protected override void OnHoverLost(HoverLostEvent e)
         {
             background.FadeOut(160, Easing.OutQuint);
-            valueText.MoveToY(27, 170, Easing.OutQuint);
+            valueText.MoveToY(restValueY, 170, Easing.OutQuint);
             hoverUnderline.ResizeWidthTo(0, 150, Easing.OutQuint);
         }
     }
@@ -1656,21 +1680,21 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Width = cellWidth - 22,
                     Truncate = true,
                     Text = label,
-                    Font = HomeTypography.Display(13),
+                    Font = HomeTypography.Display(15),
                     Colour = colour,
                 },
                 valueText = new SpriteText
                 {
                     Position = new Vector2(12, 28),
                     Text = value.ToString("N0", CultureInfo.InvariantCulture),
-                    Font = HomeTypography.Display(27),
+                    Font = HomeTypography.Display(30),
                     Colour = ResultColours.Navy,
                 },
                 new SpriteText
                 {
                     Position = new Vector2(12, 59),
                     Text = $"{share * 100:0.00}%",
-                    Font = HomeTypography.Display(13),
+                    Font = HomeTypography.Display(14),
                     Colour = ResultColours.Navy,
                 },
                 shareBar = new Box
@@ -1723,7 +1747,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             bool enabled = true)
         {
             requestedAction = action;
-            Size = new Vector2(width, 74);
+            Size = new Vector2(width, 82);
             restColour = primary ? ResultColours.Navy : Color4.White;
             hoverColour = primary
                 ? new Color4(0.045f, 0.13f, 0.66f, 1f)
@@ -1757,7 +1781,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
                     X = 28,
-                    Size = new Vector2(24),
+                    Size = new Vector2(28),
                     Icon = iconUsage,
                     Colour = primary ? Color4.White : ResultColours.Navy,
                 },
@@ -1768,7 +1792,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Width = width - 110,
                     Truncate = true,
                     Text = label,
-                    Font = HomeTypography.Display(22),
+                    Font = HomeTypography.Display(25),
                     Colour = primary ? Color4.White : ResultColours.Navy,
                 },
                 keycap = new Container
@@ -1798,7 +1822,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
                             Text = key,
-                            Font = HomeTypography.Display(10),
+                            Font = HomeTypography.Display(11),
                             Colour = primary
                                 ? ResultColours.Yellow
                                 : ResultColours.Pink,
