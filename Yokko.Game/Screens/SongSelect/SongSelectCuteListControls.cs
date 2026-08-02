@@ -451,7 +451,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         {
             Text = ManiaDifficultyPresentation.Unit(
                 difficultyRatingMode),
-            Font = HomeTypography.Display(15),
+            Font = HomeTypography.Display(16),
             Colour = accent,
         });
         SpriteText difficultyValue = addDifficultyValue(new SpriteText
@@ -459,7 +459,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             Text = ManiaDifficultyPresentation.FormatValue(
                 displayedDifficultyRatings,
                 difficultyRatingMode),
-            Font = HomeTypography.Display(20),
+            Font = HomeTypography.Display(21),
             Colour = SongSelectTheme.Navy,
         });
         children.Add(new SongSelectInlineDifficultyRating(
@@ -826,10 +826,14 @@ internal partial class SongSelectInlineDifficultyRating : CompositeDrawable
     {
         UnitText = unitText;
         ValueText = valueText;
-        Size = new Vector2(64, 20);
+        Size = new Vector2(112, 22);
+        UnitText.Width = 42;
+        UnitText.Truncate = true;
         UnitText.Position = new Vector2(0, 6);
         ValueText.Anchor = Anchor.TopRight;
         ValueText.Origin = Anchor.TopRight;
+        ValueText.Width = 66;
+        ValueText.Truncate = true;
         ValueText.Y = 2;
         InternalChildren =
         [
@@ -1284,7 +1288,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 Truncate = true,
                 Text = lines[i],
                 Font = HomeTypography.Display(
-                    collapsed ? 19 : lines.Length == 1 ? 21 : 18),
+                    collapsed ? 20 : lines.Length == 1 ? 22 : 19),
                 Colour = SongSelectTheme.Navy,
             };
             packageTitleTexts[i] = title;
@@ -1380,18 +1384,18 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             },
             selectedRatingUnit = label(
                 string.Empty,
-                660,
+                648,
                 106,
-                40,
-                15,
+                44,
+                16,
                 SongSelectTheme.Cyan),
             selectedRatingValue = new SpriteText
             {
                 Origin = Anchor.TopRight,
-                Position = new Vector2(754, 100),
-                Width = 54,
+                Position = new Vector2(766, 100),
+                Width = 68,
                 Truncate = true,
-                Font = HomeTypography.Display(20),
+                Font = HomeTypography.Display(21),
                 Colour = SongSelectTheme.Navy,
             },
         ],

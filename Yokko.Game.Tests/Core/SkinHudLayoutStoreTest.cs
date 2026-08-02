@@ -40,6 +40,8 @@ public sealed class SkinHudLayoutStoreTest
             gameplaySettings.LayoutComboScaleX.Value = 1.35;
             gameplaySettings.LayoutComboVisible.Value = 0;
             gameplaySettings.LayoutJudgementVisible.Value = 0;
+            gameplaySettings.LayoutHitEffectsVisible.Value = 0;
+            gameplaySettings.LayoutJudgementLineOffsetY.Value = 0.12;
             gameplaySettings.BackgroundDim.Value = 0.4;
             store.Flush();
 
@@ -50,6 +52,8 @@ public sealed class SkinHudLayoutStoreTest
                 Assert.That(gameplaySettings.LayoutComboScaleX.Value, Is.EqualTo(1));
                 Assert.That(gameplaySettings.LayoutComboVisible.Value, Is.EqualTo(1));
                 Assert.That(gameplaySettings.LayoutJudgementVisible.Value, Is.EqualTo(1));
+                Assert.That(gameplaySettings.LayoutHitEffectsVisible.Value, Is.EqualTo(1));
+                Assert.That(gameplaySettings.LayoutJudgementLineOffsetY.Value, Is.Zero);
                 Assert.That(
                     gameplaySettings.BackgroundDim.Value,
                     Is.EqualTo(YokkoGameplaySettings.DefaultBackgroundDim));
@@ -59,6 +63,8 @@ public sealed class SkinHudLayoutStoreTest
             gameplaySettings.LayoutComboScaleX.Value = 0.7;
             gameplaySettings.LayoutComboVisible.Value = 1;
             gameplaySettings.LayoutJudgementVisible.Value = 1;
+            gameplaySettings.LayoutHitEffectsVisible.Value = 1;
+            gameplaySettings.LayoutJudgementLineOffsetY.Value = -0.08;
             gameplaySettings.BackgroundDim.Value = 0.15;
             store.Flush();
 
@@ -69,6 +75,8 @@ public sealed class SkinHudLayoutStoreTest
                 Assert.That(gameplaySettings.LayoutComboScaleX.Value, Is.EqualTo(1.35));
                 Assert.That(gameplaySettings.LayoutComboVisible.Value, Is.Zero);
                 Assert.That(gameplaySettings.LayoutJudgementVisible.Value, Is.Zero);
+                Assert.That(gameplaySettings.LayoutHitEffectsVisible.Value, Is.Zero);
+                Assert.That(gameplaySettings.LayoutJudgementLineOffsetY.Value, Is.EqualTo(0.12));
                 Assert.That(gameplaySettings.BackgroundDim.Value, Is.EqualTo(0.4));
             });
         }
@@ -88,6 +96,8 @@ public sealed class SkinHudLayoutStoreTest
             Assert.That(restoredGameplay.LayoutComboScaleX.Value, Is.EqualTo(0.7));
             Assert.That(restoredGameplay.LayoutComboVisible.Value, Is.EqualTo(1));
             Assert.That(restoredGameplay.LayoutJudgementVisible.Value, Is.EqualTo(1));
+            Assert.That(restoredGameplay.LayoutHitEffectsVisible.Value, Is.EqualTo(1));
+            Assert.That(restoredGameplay.LayoutJudgementLineOffsetY.Value, Is.EqualTo(-0.08));
             Assert.That(restoredGameplay.BackgroundDim.Value, Is.EqualTo(0.15));
             Assert.That(
                 Directory.EnumerateFiles(

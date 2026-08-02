@@ -68,6 +68,9 @@ internal partial class GameplayLayoutEditorOverlay
 
     internal float BottomCoverHeightForTest => coverHeight(false);
 
+    internal float JudgementLinePositionForTest =>
+        playfield.JudgementPosition;
+
     internal bool TopCoverEnabledForTest =>
         settings.LayoutTopCoverRatio.Value > 0.0001;
 
@@ -91,6 +94,12 @@ internal partial class GameplayLayoutEditorOverlay
 
     internal void SetJudgementHiddenForTest(bool hidden) =>
         setLayerHidden(LayoutElementKind.Judgement, hidden);
+
+    internal void SetHitEffectsHiddenForTest(bool hidden) =>
+        setHitEffectsHidden(hidden);
+
+    internal bool HitEffectsHiddenForTest =>
+        settings.LayoutHitEffectsVisible.Value < 0.5;
 
     internal void SetTimingBarWidthForTest(double width) =>
         applyMetric(
@@ -126,6 +135,14 @@ internal partial class GameplayLayoutEditorOverlay
             ResizeEdges.Right | ResizeEdges.Bottom,
             delta);
 
+    internal void DragJudgementPointerIncrementallyForTest(
+        Vector2 totalDelta,
+        int steps) =>
+        judgementTarget.DragPointerIncrementallyForTest(totalDelta, steps);
+
+    internal bool JudgementCentreAllowsMoveDragForTest =>
+        judgementTarget.CentreAvoidsResizeHandlesForTest;
+
     internal void SetTopCoverEnabledForTest(bool enabled) =>
         setCoverEnabled(true, enabled);
 
@@ -137,6 +154,19 @@ internal partial class GameplayLayoutEditorOverlay
 
     internal void SetBottomCoverHeightForTest(double height) =>
         applyCoverHeight(false, height);
+
+    internal void SetJudgementLinePositionForTest(double position) =>
+        applyJudgementLinePosition(position);
+
+    internal void DragJudgementLineForTest(double position)
+    {
+        (Vector2 topLeft, Vector2 bottomRight) =
+            GameplayLayoutGeometry.BoundsIn(this, playfield);
+        float y = topLeft.Y
+                  + (float)(position / Math.Max(1, playfield.DrawHeight))
+                  * (bottomRight.Y - topLeft.Y);
+        updateJudgementLine(ToScreenSpace(new Vector2(topLeft.X, y)));
+    }
 
     internal void DragTopCoverResizeForTest(float height)
     {
@@ -188,6 +218,7 @@ internal partial class GameplayLayoutEditorOverlay
         inspector = new LayoutInspectorPanel(
             kind => selectTarget(targetFor(kind)),
             setLayerHidden,
+            setHitEffectsHidden,
             setLayerLocked,
             setAspectLocked,
             applyMetric,
@@ -204,7 +235,9 @@ internal partial class GameplayLayoutEditorOverlay
             enabled => setCoverEnabled(true, enabled),
             height => applyCoverHeight(true, height),
             enabled => setCoverEnabled(false, enabled),
-            height => applyCoverHeight(false, height));
+            height => applyCoverHeight(false, height),
+            applyJudgementLinePosition,
+            resetJudgementLine);
         return createToolWindow(
             GameplayLayoutEditorToolWindow.LaneCovers,
             coverPanel);
@@ -230,13 +263,11 @@ internal partial class GameplayLayoutEditorOverlay
 
         foreach (LayoutTransformTarget target in allTargets())
         {
-            target.SetEditorHidden(!isLayoutElementVisible(target.Kind));
             target.SetLocked(false);
             target.SetAspectLocked(false);
         }
 
-        foreach (LayoutTransformTarget target in allTargets())
-            applyElementAlpha(target.Kind, target.EditorHidden);
+        syncTargetVisibilityFromSettings();
         nudgeStep = 1;
         inspector.SetStep(nudgeStep);
         clearSnapGuides();
@@ -334,6 +365,22 @@ internal partial class GameplayLayoutEditorOverlay
             target.AspectLocked);
     }
 
+    private void setHitEffectsHidden(bool hidden)
+    {
+        if (!IsEditing)
+            return;
+
+        bool currentlyHidden =
+            settings.LayoutHitEffectsVisible.Value < 0.5;
+        if (currentlyHidden == hidden)
+            return;
+
+        beginChange();
+        settings.LayoutHitEffectsVisible.Value = hidden ? 0 : 1;
+        playfield.SetHitEffectsVisible(!hidden);
+        inspector.SetHitEffectsHidden(hidden);
+    }
+
     private bool isLayoutElementVisible(LayoutElementKind kind) =>
         visibilitySetting(kind).Value >= 0.5;
 
@@ -354,6 +401,14 @@ internal partial class GameplayLayoutEditorOverlay
                 target.EditorHidden,
                 target.AspectLocked);
         }
+
+        bool hitEffectsHidden =
+            settings.LayoutHitEffectsVisible.Value < 0.5;
+        playfield.SetHitEffectsVisible(!hitEffectsHidden);
+        inspector?.SetHitEffectsHidden(hitEffectsHidden);
+        settings.LayoutJudgementLineOffsetY.Value =
+            playfield.SetJudgementLineOffset(
+                settings.LayoutJudgementLineOffsetY.Value);
     }
 
     private Bindable<double> visibilitySetting(LayoutElementKind kind) =>
@@ -493,7 +548,8 @@ internal partial class GameplayLayoutEditorOverlay
             TopCoverEnabledForTest,
             TopCoverHeightForTest,
             BottomCoverEnabledForTest,
-            BottomCoverHeightForTest);
+            BottomCoverHeightForTest,
+            playfield.JudgementPosition);
 
         if (selectedTarget == null)
             return;
@@ -529,6 +585,29 @@ internal partial class GameplayLayoutEditorOverlay
         }
 
         setCoverHeightRatio(top, defaultCoverHeight);
+    }
+
+    private void applyJudgementLinePosition(double position)
+    {
+        if (!IsEditing)
+            return;
+
+        beginChange();
+        double requestedOffset =
+            (position - playfield.BaseJudgementPosition)
+            / Math.Max(1, playfield.DrawHeight);
+        settings.LayoutJudgementLineOffsetY.Value =
+            playfield.SetJudgementLineOffset(requestedOffset);
+    }
+
+    private void resetJudgementLine()
+    {
+        if (!IsEditing)
+            return;
+
+        beginChange();
+        settings.LayoutJudgementLineOffsetY.Value =
+            playfield.SetJudgementLineOffset(0);
     }
 
     private void applyCoverHeight(bool top, double rawHeight)
@@ -835,18 +914,21 @@ internal partial class GameplayLayoutEditorOverlay
     {
         private readonly CoverRow topRow;
         private readonly CoverRow bottomRow;
+        private readonly JudgementLineRow judgementLineRow;
 
         public CoverPanel(
             Action<bool> setTopEnabled,
             Action<double> setTopHeight,
             Action<bool> setBottomEnabled,
-            Action<double> setBottomHeight)
+            Action<double> setBottomHeight,
+            Action<double> setJudgementLinePosition,
+            Action resetJudgementLine)
         {
             Anchor = Anchor.TopRight;
             Origin = Anchor.TopRight;
             Position = new Vector2(-18, 462);
             Scale = new Vector2(1.08f);
-            Size = new Vector2(360, 178);
+            Size = new Vector2(360, 230);
             Depth = -100;
             Masking = true;
             CornerRadius = 11;
@@ -894,9 +976,17 @@ internal partial class GameplayLayoutEditorOverlay
                 {
                     Position = new Vector2(12, 92),
                 },
+                judgementLineRow = new JudgementLineRow(
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.judgement_line"),
+                    setJudgementLinePosition,
+                    resetJudgementLine)
+                {
+                    Position = new Vector2(12, 144),
+                },
                 new SpriteText
                 {
-                    Position = new Vector2(12, 148),
+                    Position = new Vector2(12, 204),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.cover_hint"),
                     Font = LayoutEditorTypography.Regular(9),
@@ -913,11 +1003,73 @@ internal partial class GameplayLayoutEditorOverlay
             bool topEnabled,
             float topHeight,
             bool bottomEnabled,
-            float bottomHeight)
+            float bottomHeight,
+            float judgementLinePosition)
         {
             topRow.SetState(topEnabled, topHeight);
             bottomRow.SetState(bottomEnabled, bottomHeight);
+            judgementLineRow.SetPosition(judgementLinePosition);
         }
+    }
+
+    private partial class JudgementLineRow : CompositeDrawable
+    {
+        private readonly NumericField positionField;
+
+        public JudgementLineRow(
+            LocalisableString label,
+            Action<double> setPosition,
+            Action reset)
+        {
+            Size = new Vector2(336, 46);
+            Masking = true;
+            CornerRadius = 7;
+            BorderThickness = 1;
+            BorderColour = new Color4(
+                HomeControlColours.Navy.R,
+                HomeControlColours.Navy.G,
+                HomeControlColours.Navy.B,
+                0.28f);
+            InternalChildren = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Color4.White,
+                },
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Y,
+                    Width = 4,
+                    Colour = HomeControlColours.Yellow,
+                },
+                new SpriteText
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    X = 10,
+                    Text = label,
+                    Font = LayoutEditorTypography.Bold(10),
+                    Colour = HomeControlColours.Navy,
+                },
+                positionField = new NumericField("Y", setPosition)
+                {
+                    Position = new Vector2(108, 3),
+                },
+                new LayoutActionButton(
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.reset_line"),
+                    FontAwesome.Solid.Undo,
+                    reset)
+                {
+                    Position = new Vector2(272, 5),
+                    Size = new Vector2(60, 36),
+                },
+            };
+        }
+
+        internal void SetPosition(float position) =>
+            positionField.SetValue(position);
     }
 
     private partial class CoverRow : CompositeDrawable
@@ -1063,11 +1215,13 @@ internal partial class GameplayLayoutEditorOverlay
         private readonly NumericField heightField;
         private readonly ToggleIconButton aspectButton;
         private readonly SpriteText stepText;
+        private readonly LayerRow hitEffectsRow;
         private LayoutElementKind selected = LayoutElementKind.Playfield;
 
         public LayoutInspectorPanel(
             Action<LayoutElementKind> select,
             Action<LayoutElementKind, bool> setHidden,
+            Action<bool> setHitEffectsHidden,
             Action<LayoutElementKind, bool> setLocked,
             Action<LayoutElementKind, bool> setAspectLocked,
             Action<LayoutElementKind, LayoutMetricField, double> applyMetric,
@@ -1083,7 +1237,7 @@ internal partial class GameplayLayoutEditorOverlay
             Origin = Anchor.TopRight;
             Position = new Vector2(-18, 18);
             Scale = new Vector2(1.08f);
-            Size = new Vector2(360, 380);
+            Size = new Vector2(360, 410);
             Depth = -100;
             Masking = true;
             CornerRadius = 11;
@@ -1165,9 +1319,20 @@ internal partial class GameplayLayoutEditorOverlay
                         "gameplay.layout_editor.layer.performance_readout"),
                     224,
                     canHide: false),
+                hitEffectsRow = new LayerRow(
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.layer.hit_effects"),
+                    () => { },
+                    setHitEffectsHidden,
+                    _ => { },
+                    canHide: true,
+                    canLock: false)
+                {
+                    Position = new Vector2(12, 250),
+                },
                 new Box
                 {
-                    Position = new Vector2(12, 256),
+                    Position = new Vector2(12, 282),
                     Size = new Vector2(336, 1),
                     Colour = new Color4(
                         HomeControlColours.Navy.R,
@@ -1178,19 +1343,19 @@ internal partial class GameplayLayoutEditorOverlay
                 widthField = createNumericField(
                     "W",
                     LayoutMetricField.Width,
-                    new Vector2(12, 266),
+                    new Vector2(12, 292),
                     applyMetric),
                 heightField = createNumericField(
                     "H",
                     LayoutMetricField.Height,
-                    new Vector2(188, 266),
+                    new Vector2(188, 292),
                     applyMetric),
                 aspectButton = new ToggleIconButton(
                     FontAwesome.Solid.Link,
                     FontAwesome.Solid.Unlink,
                     value => setAspectLocked(selected, value))
                 {
-                    Position = new Vector2(12, 320),
+                    Position = new Vector2(12, 346),
                     Size = new Vector2(34),
                 },
                 new LayoutActionButton(
@@ -1199,7 +1364,7 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.ArrowsAltH,
                     () => centre(true))
                 {
-                    Position = new Vector2(52, 319),
+                    Position = new Vector2(52, 345),
                     Size = new Vector2(112, 34),
                 },
                 new LayoutActionButton(
@@ -1208,12 +1373,12 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.ArrowsAltV,
                     () => centre(false))
                 {
-                    Position = new Vector2(170, 319),
+                    Position = new Vector2(170, 345),
                     Size = new Vector2(112, 34),
                 },
                 new ClickableContainer
                 {
-                    Position = new Vector2(288, 319),
+                    Position = new Vector2(288, 345),
                     Size = new Vector2(60, 34),
                     Action = cycleStep,
                     Masking = true,
@@ -1238,7 +1403,7 @@ internal partial class GameplayLayoutEditorOverlay
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(12, 362),
+                    Position = new Vector2(12, 388),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.snap_hint"),
                     Font = LayoutEditorTypography.Regular(9),
@@ -1287,6 +1452,9 @@ internal partial class GameplayLayoutEditorOverlay
             aspectButton.SetValue(aspectLocked);
             updateFieldAvailability(locked || hidden);
         }
+
+        internal void SetHitEffectsHidden(bool hidden) =>
+            hitEffectsRow.SetState(false, hidden);
 
         internal void SetMetrics(LayoutElementMetrics metrics)
         {
@@ -1346,7 +1514,8 @@ internal partial class GameplayLayoutEditorOverlay
             Action select,
             Action<bool> setHidden,
             Action<bool> setLocked,
-            bool canHide)
+            bool canHide,
+            bool canLock = true)
         {
             Action = select;
             Size = new Vector2(336, 26);
@@ -1403,6 +1572,13 @@ internal partial class GameplayLayoutEditorOverlay
                 },
             };
             visibilityButton.SetAvailable(canHide);
+            if (canLock)
+                lockButton.SetAvailable(true);
+            else
+            {
+                visibilityButton.X = -5;
+                lockButton.Hide();
+            }
         }
 
         internal void SetSelected(bool selected)

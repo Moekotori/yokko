@@ -68,7 +68,7 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 36,
                 Text = "MSD RANGE",
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Display(10),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -95,7 +95,7 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
                         Text = "ALL",
-                        Font = HomeTypography.Display(11),
+                        Font = HomeTypography.Display(12),
                         Colour = SongSelectTheme.Navy,
                     },
                 ],

@@ -267,6 +267,12 @@ public partial class GameplayScreen : Screen
     internal ManiaScoreResult CurrentResultForTest =>
         judgementState.CreateResult();
     internal int ResultHitErrorCountForTest => resultHitErrors.Count;
+
+    internal double PlayfieldApproachTimeForTest =>
+        playfield?.ApproachTimeMilliseconds ?? 0;
+
+    internal bool PlayfieldJudgementRegionAlignedForTest =>
+        playfield?.JudgementRegionAlignedForTest == true;
     internal string SavedReplayPath { get; private set; }
     internal bool BestScoreSaved { get; private set; }
     internal bool ReplayMode => replay != null;
@@ -3145,6 +3151,12 @@ public partial class GameplayScreen : Screen
 
     private void beginQuickRetryHold()
     {
+        if (QuickRetryHoldMilliseconds <= 0)
+        {
+            RetryGameplay();
+            return;
+        }
+
         if (double.IsNaN(quickRetryHoldStartTime))
             quickRetryHoldStartTime = Time.Current;
     }
@@ -3247,21 +3259,9 @@ public partial class GameplayScreen : Screen
 
     private async Task retryGameplayAsync()
     {
+        GameplaySessionRootScreen sessionRoot = null;
         try
         {
-            // A retry creates a fresh audio engine. Wait until this engine has
-            // released its WASAPI endpoint before loading the replacement.
-            if (completionAudioStopRequested)
-                await completionAudioStopTask.ConfigureAwait(true);
-            else
-                await audioEngine.StopAsync().ConfigureAwait(true);
-
-            if (!this.IsCurrentScreen())
-            {
-                findGameplaySessionRoot()?.CancelRetryTransition();
-                return;
-            }
-
             var replacement = new GameplayScreen(
                 originalBeatmap,
                 skinPath: skinPath,
@@ -3272,15 +3272,35 @@ public partial class GameplayScreen : Screen
                 manualPlaybackRateAdjustment;
             replacement.manualPlaybackRateUsed =
                 Math.Abs(manualPlaybackRateAdjustment) > 0.000001;
+
+            // Loading presentation does not start gameplay audio (that is
+            // guarded by OnEntering), so overlap it with release of the old
+            // endpoint instead of paying both waits serially.
+            sessionRoot = findGameplaySessionRoot();
+            sessionRoot?.PrepareGameplayReplacement(replacement);
+
+            // A retry creates a fresh audio engine. Wait until this engine has
+            // released its WASAPI endpoint before entering the replacement.
+            if (completionAudioStopRequested)
+                await completionAudioStopTask.ConfigureAwait(true);
+            else
+                await audioEngine.StopAsync().ConfigureAwait(true);
+
+            if (!this.IsCurrentScreen())
+            {
+                sessionRoot?.CancelRetryTransition();
+                return;
+            }
+
+            if (sessionRoot != null)
+            {
+                sessionRoot.CommitGameplayReplacement(replacement);
+                return;
+            }
+
             IScreen destination = this.GetParentScreen();
             while (destination is GameplayScreen)
                 destination = destination.GetParentScreen();
-
-            if (destination is GameplaySessionRootScreen sessionRoot)
-            {
-                sessionRoot.ReplaceGameplay(replacement);
-                return;
-            }
 
             if (destination == null)
             {
@@ -3297,7 +3317,7 @@ public partial class GameplayScreen : Screen
         catch (Exception exception)
         {
             retryTransitionInProgress = false;
-            findGameplaySessionRoot()?.CancelRetryTransition();
+            sessionRoot?.CancelRetryTransition();
             if (!ReplayMode && this.IsCurrentScreen())
                 beginInputCapture();
 
@@ -3651,7 +3671,7 @@ public partial class GameplayScreen : Screen
         showScrollSpeedOverlay(appliedScrollSpeed, false);
     }
 
-    private double computeApproachTime(
+    private double computeBaseApproachTime(
         double scrollSpeed,
         double playbackRate = 1)
     {
@@ -3666,6 +3686,16 @@ public partial class GameplayScreen : Screen
             playbackRate,
             gameplaySettings.QuaverScrollRateNormalization.Value,
             quaverHasSignificantScrollVelocities);
+    }
+
+    private double computeApproachTime(
+        double scrollSpeed,
+        double playbackRate = 1,
+        GameplayPlayfield targetPlayfield = null)
+    {
+        GameplayPlayfield target = targetPlayfield ?? playfield;
+        return computeBaseApproachTime(scrollSpeed, playbackRate)
+               * (target?.JudgementTravelScale ?? 1);
     }
 
     private void updatePlaybackRateAdjustedApproachTime(
@@ -4425,7 +4455,7 @@ public partial class GameplayScreen : Screen
             beatmap,
             keyBindings,
             maniaSkin,
-            computeApproachTime(
+            computeBaseApproachTime(
                 gameplaySettings.ScrollSpeed.Value,
                 currentPlaybackRate(0)),
             gameplaySettings.ShowLanePressFeedback.Value,
@@ -4445,6 +4475,9 @@ public partial class GameplayScreen : Screen
             Origin = Anchor.BottomCentre,
             Scale = Vector2.One,
         };
+
+        result.SetJudgementLineOffset(
+            gameplaySettings.LayoutJudgementLineOffsetY.Value);
 
         result.ConfigureSkinJudgementFeedback(
             gameplaySettings.JudgementDisplayDurationMilliseconds.Value,
@@ -4487,6 +4520,11 @@ public partial class GameplayScreen : Screen
             gameplaySettings.LayoutComboVisible.Value >= 0.5;
         bool judgementVisible =
             gameplaySettings.LayoutJudgementVisible.Value >= 0.5;
+        bool hitEffectsVisible =
+            gameplaySettings.LayoutHitEffectsVisible.Value >= 0.5;
+
+        playfield.SetJudgementLineOffset(
+            gameplaySettings.LayoutJudgementLineOffsetY.Value);
 
         playfield.Alpha = playfieldVisible ? 1 : 0;
         hud.AccuracyLayoutDrawable.Alpha = accuracyVisible ? 1 : 0;
@@ -4498,6 +4536,7 @@ public partial class GameplayScreen : Screen
             : 0;
         playfield.SetSkinComboVisible(comboVisible);
         playfield.SetSkinJudgementVisible(judgementVisible);
+        playfield.SetHitEffectsVisible(hitEffectsVisible);
         comboReadout.Alpha = comboVisible
                              && !playfield.UsesSkinJudgementOverlay
             ? 1
@@ -4706,7 +4745,8 @@ public partial class GameplayScreen : Screen
             : currentGameplayTime;
         nextPlayfield.SetApproachTime(computeApproachTime(
             gameplaySettings.ScrollSpeed.Value,
-            currentPlaybackRate(gameplayTime)));
+            currentPlaybackRate(gameplayTime),
+            nextPlayfield));
         if (layoutAutoplayDemoActive)
             nextPlayfield.SetLayoutAutoplayDemo(true, gameplayTime);
         nextPlayfield.UpdateGameplayTime(

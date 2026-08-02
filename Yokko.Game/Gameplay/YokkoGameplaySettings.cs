@@ -230,7 +230,9 @@ public sealed class YokkoGameplaySettings
 
     public const double MaximumTopCoverRatio = 0.75;
 
-    public const double MaximumBottomCoverRatio = 0.5;
+    // The bottom cover is user-authored HUD geometry. Keep only the physical
+    // playfield boundary; the previous 50% cap prevented valid layouts.
+    public const double MaximumBottomCoverRatio = 1;
 
     public const double MinimumBackgroundDim = 0;
 
@@ -323,6 +325,10 @@ public sealed class YokkoGameplaySettings
 
     public readonly Bindable<double> LayoutPerformanceReadoutVisible = new(1);
 
+    public readonly Bindable<double> LayoutHitEffectsVisible = new(1);
+
+    public readonly Bindable<double> LayoutJudgementLineOffsetY = new(0);
+
     public readonly Bindable<double> ReplayControlsOffsetX = new(0);
 
     public readonly Bindable<double> ReplayControlsOffsetY = new(0);
@@ -375,6 +381,8 @@ public sealed class YokkoGameplaySettings
             yield return layoutSetting("comboVisible", LayoutComboVisible, 0, 1);
             yield return layoutSetting("judgementVisible", LayoutJudgementVisible, 0, 1);
             yield return layoutSetting("performanceReadoutVisible", LayoutPerformanceReadoutVisible, 0, 1);
+            yield return layoutSetting("hitEffectsVisible", LayoutHitEffectsVisible, 0, 1);
+            yield return layoutSetting("judgementLineOffsetY", LayoutJudgementLineOffsetY, -1, 1);
             yield return layoutSetting("replayControlsOffsetX", ReplayControlsOffsetX);
             yield return layoutSetting("replayControlsOffsetY", ReplayControlsOffsetY);
             yield return new GameplayHudLayoutSetting("topCoverRatio", LayoutTopCoverRatio, 0, MaximumTopCoverRatio);
@@ -974,6 +982,8 @@ public sealed class YokkoGameplaySettings
         LayoutComboVisible.SetDefault();
         LayoutJudgementVisible.SetDefault();
         LayoutPerformanceReadoutVisible.SetDefault();
+        LayoutHitEffectsVisible.SetDefault();
+        LayoutJudgementLineOffsetY.SetDefault();
         ReplayControlsOffsetX.SetDefault();
         ReplayControlsOffsetY.SetDefault();
         LayoutTopCoverRatio.SetDefault();

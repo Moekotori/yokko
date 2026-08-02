@@ -1107,6 +1107,51 @@ namespace Yokko.Game.Tests.Visual
             AddUntilStep("exact blocker heights are applied", () =>
                 Math.Abs(layoutEditor.TopCoverHeightForTest - 210) < 2
                 && Math.Abs(layoutEditor.BottomCoverHeightForTest - 84) < 2);
+            float baseJudgementPosition = 0;
+            double baseJudgementApproachTime = 0;
+            AddStep("set exact judgement line position", () =>
+            {
+                baseJudgementPosition =
+                    layoutEditor.JudgementLinePositionForTest;
+                baseJudgementApproachTime =
+                    gameplayScreen.PlayfieldApproachTimeForTest;
+                layoutEditor.SetJudgementLinePositionForTest(
+                    baseJudgementPosition - 80);
+            });
+            AddUntilStep("judgement region moves as one unit", () =>
+                Math.Abs(
+                    layoutEditor.JudgementLinePositionForTest
+                    - (baseJudgementPosition - 80)) < 0.1
+                && gameplayScreen.PlayfieldJudgementRegionAlignedForTest
+                && gameplayScreen.PlayfieldApproachTimeForTest
+                    < baseJudgementApproachTime);
+            AddStep("drag judgement line to another exact position", () =>
+                layoutEditor.DragJudgementLineForTest(
+                    baseJudgementPosition - 32));
+            AddUntilStep("drag uses the same judgement geometry path", () =>
+                Math.Abs(
+                    layoutEditor.JudgementLinePositionForTest
+                    - (baseJudgementPosition - 32)) < 0.1
+                && gameplayScreen.PlayfieldJudgementRegionAlignedForTest);
+            AddStep("reset judgement line to skin baseline", () =>
+                layoutEditor.SetJudgementLinePositionForTest(
+                    baseJudgementPosition));
+            AddUntilStep("judgement line baseline restores", () =>
+                Math.Abs(
+                    layoutEditor.JudgementLinePositionForTest
+                    - baseJudgementPosition) < 0.1
+                && Math.Abs(
+                    gameplayScreen.PlayfieldApproachTimeForTest
+                    - baseJudgementApproachTime) < 0.1);
+            AddStep("bottom blocker can fill the whole playfield", () =>
+                layoutEditor.SetBottomCoverHeightForTest(10000));
+            AddUntilStep("bottom blocker has no artificial half-height cap", () =>
+                Math.Abs(
+                    gameplaySettings.LayoutBottomCoverRatio.Value
+                    - YokkoGameplaySettings.MaximumBottomCoverRatio) < 0.0001
+                && gameplaySettings.LayoutBottomCoverRatio.Value > 0.99);
+            AddStep("restore exact bottom blocker height", () =>
+                layoutEditor.SetBottomCoverHeightForTest(84));
             AddStep("drag top blocker resize bar", () =>
                 layoutEditor.DragTopCoverResizeForTest(160));
             AddUntilStep("drag resize changes blocker height", () =>
@@ -1203,6 +1248,27 @@ namespace Yokko.Game.Tests.Visual
                 && gameplaySettings.LayoutHudOffsetX.Value < informationOffsetX
                 && gameplaySettings.LayoutHudOffsetY.Value == 0);
             AddStep("restore layout after HUD section transforms", () =>
+                gameplaySettings.ResetGameplayLayout());
+            double judgementOffsetX = 0;
+            AddStep("slow pointer drag escapes centre snap", () =>
+            {
+                judgementOffsetX =
+                    gameplaySettings.LayoutJudgementOffsetX.Value;
+                layoutEditor.DragJudgementPointerIncrementallyForTest(
+                    new Vector2(24, 0),
+                    24);
+            });
+            AddAssert("incremental drag moves judgement", () =>
+                gameplaySettings.LayoutJudgementOffsetX.Value
+                    > judgementOffsetX + 0.005);
+            AddStep("shrink judgement to minimum scale", () =>
+            {
+                gameplaySettings.LayoutJudgementScaleX.Value = 0.25;
+                gameplaySettings.LayoutJudgementScaleY.Value = 0.25;
+            });
+            AddUntilStep("small judgement keeps a movable centre", () =>
+                layoutEditor.JudgementCentreAllowsMoveDragForTest);
+            AddStep("restore layout after pointer regressions", () =>
                 gameplaySettings.ResetGameplayLayout());
             AddAssert("zero drag does not move an outlying target", () =>
                 layoutEditor.SnapTimingBarMoveForTest(Vector2.Zero, true)
@@ -1695,29 +1761,35 @@ namespace Yokko.Game.Tests.Visual
             {
                 layoutEditor.SetComboHiddenForTest(true);
                 layoutEditor.SetJudgementHiddenForTest(true);
+                layoutEditor.SetHitEffectsHiddenForTest(true);
                 gameplay.ResumeCountdownMillisecondsOverride = 0;
                 gameplay.BeginLayoutAutoplayDemoForTest();
             });
             AddUntilStep("hidden skin feedback stays hidden in autoplay", () =>
                 gameplay.IsLayoutAutoplayPlaying
                 && !playfield.SkinComboVisibleForTest
-                && !playfield.SkinJudgementVisibleForTest);
+                && !playfield.SkinJudgementVisibleForTest
+                && !playfield.HitEffectsVisibleForTest);
             AddStep("exit autoplay", () =>
                 layoutEditor.ExitAutoplayDemoForTest());
             AddUntilStep("editor returns with feedback still hidden", () =>
                 gameplay.IsLayoutEditing
                 && layoutEditor.IsEditing
                 && !playfield.SkinComboVisibleForTest
-                && !playfield.SkinJudgementVisibleForTest);
+                && !playfield.SkinJudgementVisibleForTest
+                && layoutEditor.HitEffectsHiddenForTest
+                && !playfield.HitEffectsVisibleForTest);
             AddStep("restore feedback", () =>
             {
                 layoutEditor.SetComboHiddenForTest(false);
                 layoutEditor.SetJudgementHiddenForTest(false);
+                layoutEditor.SetHitEffectsHiddenForTest(false);
             });
             AddUntilStep("skin feedback is visible again", () =>
                 gameplay.IsLayoutEditing
                 && playfield.SkinComboVisibleForTest
-                && playfield.SkinJudgementVisibleForTest);
+                && playfield.SkinJudgementVisibleForTest
+                && playfield.HitEffectsVisibleForTest);
             AddStep("restore blocker", () =>
                 gameplaySettings.ResetGameplayLayout());
         }
@@ -4092,6 +4164,7 @@ HitPosition: 400
 """);
             ManiaScrollDirection originalDirection =
                 ManiaScrollDirection.Downscroll;
+            GameplayPlayfield upscrollPlayfield = null;
 
             AddStep("select upscroll", () =>
             {
@@ -4106,10 +4179,31 @@ HitPosition: 400
                     skinPath: skinPath)));
             AddUntilStep("upscroll geometry applied", () =>
             {
-                GameplayPlayfield playfield = (screenStack.CurrentScreen as Drawable)?
-                                              .ChildrenOfType<GameplayPlayfield>()
-                                              .SingleOrDefault();
-                return playfield?.ScrollOrigin == 480 && playfield.JudgementPosition == 80;
+                upscrollPlayfield = (screenStack.CurrentScreen as Drawable)?
+                                    .ChildrenOfType<GameplayPlayfield>()
+                                    .SingleOrDefault();
+                return upscrollPlayfield?.ScrollOrigin == 480
+                       && upscrollPlayfield.JudgementPosition == 80;
+            });
+            double upscrollBaseApproachTime = 0;
+            AddStep("move upscroll judgement region down", () =>
+            {
+                upscrollBaseApproachTime =
+                    upscrollPlayfield.ApproachTimeMilliseconds;
+                gameplaySettings.LayoutJudgementLineOffsetY.Value =
+                    40.0 / 480;
+                upscrollPlayfield.SetJudgementLineOffset(40.0 / 480);
+            });
+            AddAssert("upscroll geometry and speed stay aligned", () =>
+                Math.Abs(upscrollPlayfield.JudgementPosition - 120) < 0.1
+                && upscrollPlayfield.JudgementRegionAlignedForTest
+                && Math.Abs(
+                    upscrollPlayfield.ApproachTimeMilliseconds
+                    - upscrollBaseApproachTime * 360 / 400) < 0.1);
+            AddStep("restore upscroll judgement region", () =>
+            {
+                gameplaySettings.LayoutJudgementLineOffsetY.Value = 0;
+                upscrollPlayfield.SetJudgementLineOffset(0);
             });
             AddUntilStep("notes and receptors flipped", () =>
             {
@@ -4205,6 +4299,25 @@ HitPosition: 400
                                testSpeed,
                                460)) < 0.001;
             });
+            double skinBaseApproachTime = 0;
+            AddStep("move skin judgement region", () =>
+            {
+                skinBaseApproachTime = playfield.ApproachTimeMilliseconds;
+                gameplaySettings.LayoutJudgementLineOffsetY.Value =
+                    -60.0 / 480;
+                playfield.SetJudgementLineOffset(-60.0 / 480);
+            });
+            AddAssert("skin line receptor and speed remain aligned", () =>
+                Math.Abs(playfield.JudgementPosition - 400) < 0.1
+                && playfield.JudgementRegionAlignedForTest
+                && Math.Abs(
+                    playfield.ApproachTimeMilliseconds
+                    - skinBaseApproachTime * 400 / 460) < 0.1);
+            AddStep("restore skin judgement region", () =>
+            {
+                gameplaySettings.LayoutJudgementLineOffsetY.Value = 0;
+                playfield.SetJudgementLineOffset(0);
+            });
             AddStep("press first lane", () =>
                 playfield.SetLanePressed(0, true));
             AddAssert("skin lane light turns on", () =>
@@ -4225,6 +4338,46 @@ HitPosition: 400
                          .Any(animation =>
                              animation.Name == "Hit explosion"
                              && animation.Alpha > 0));
+            AddStep("hide all lane hit effects", () =>
+            {
+                gameplaySettings.LayoutHitEffectsVisible.Value = 0;
+                playfield.SetHitEffectsVisible(false);
+            });
+            AddAssert("hit effects reject new emissions immediately", () =>
+                !playfield.HitEffectsVisibleForTest);
+            AddAssert("hit effect layers hide immediately", () =>
+                playfield.HitEffectLayersHiddenForTest);
+            AddAssert("active lane lights are cleared", () =>
+                playfield.ChildrenOfType<TextureAnimation>()
+                         .Where(animation => animation.Name == "Lane light")
+                         .All(animation => animation.Alpha == 0));
+            AddStep("trigger feedback while effects are hidden", () =>
+            {
+                playfield.SetLanePressed(0, true);
+                playfield.ApplyJudgement(new JudgementEvent(
+                    0,
+                    0,
+                    1000,
+                    1000,
+                    0,
+                    JudgementRating.Perfect));
+            });
+            AddAssert("future hit effects stay hidden", () =>
+                playfield.HitEffectsHiddenForTest
+                && playfield.ChildrenOfType<TextureAnimation>()
+                            .Where(animation => animation.Name == "Lane light")
+                            .All(animation => animation.Alpha == 0));
+            AddStep("restore lane hit effects", () =>
+            {
+                gameplaySettings.LayoutHitEffectsVisible.Value = 1;
+                playfield.SetHitEffectsVisible(true);
+            });
+            AddAssert("restored effects resume immediately", () =>
+                playfield.HitEffectsVisibleForTest
+                && playfield.ChildrenOfType<TextureAnimation>()
+                            .Any(animation =>
+                                animation.Name == "Lane light"
+                                && animation.Alpha > 0.99f));
             AddStep("show overlapping hits", () =>
             {
                 playfield.ApplyJudgement(new JudgementEvent(
@@ -4762,6 +4915,11 @@ HitPosition: 400
                 && ReferenceEquals(screenStack.CurrentScreen, session)
                 && ReferenceEquals(session.CurrentGameplay, gameplay)
                 && session.RetryTransitionActive);
+            AddUntilStep("retry status is immediately visible", () =>
+                session.RetryStatusVisible);
+            AddUntilStep("replacement preloads during audio release", () =>
+                session.PendingReplacementLoaded
+                && ReferenceEquals(session.CurrentGameplay, gameplay));
             AddStep("release old audio session", () =>
                 audioEngine.StopCompletion.SetResult(true));
             AddUntilStep("replacement gameplay is current", () =>
@@ -5296,7 +5454,7 @@ HitPosition: 400
         }
 
         [Test]
-        public void TestQuickRetryUsesShortHoldToPreventAccidents()
+        public void TestQuickRetryRequiresShortHoldToPreventAccidents()
         {
             var audioEngine = new SeekTrackingAudioEngine();
             YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with

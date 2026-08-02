@@ -539,7 +539,7 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
                     Text = personalHistory
                         ? "NO LOCAL PLAYS YET"
                         : "NO RANKING DATA",
-                    Font = HomeTypography.Display(18),
+                    Font = HomeTypography.Display(20),
                     Colour = SongSelectTheme.Navy,
                 },
                 new SpriteText
@@ -548,7 +548,7 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
                     Text = personalHistory
                         ? "YOUR RESULTS AND REPLAYS WILL LIVE HERE"
                         : "COMPLETE THIS CHART TO CREATE THE FIRST RESULT",
-                    Font = HomeTypography.Body(11),
+                    Font = HomeTypography.Body(12),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
@@ -587,7 +587,7 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
                             Origin = Anchor.CentreLeft,
                             X = 34,
                             Text = "PLAY TO SET YOUR FIRST SCORE",
-                            Font = HomeTypography.Display(9),
+                            Font = HomeTypography.Display(10),
                             Colour = SongSelectTheme.Navy,
                         },
                     ],

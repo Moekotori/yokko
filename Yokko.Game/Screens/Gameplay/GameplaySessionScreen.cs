@@ -28,6 +28,8 @@ internal partial class GameplaySessionScreen : Screen
     private bool retryHandoffInProgress;
     private bool initialGameplayPreloaded;
     private GameplayScreen pendingReplacement;
+    private bool pendingReplacementLoadComplete;
+    private bool replacementCommitRequested;
     private bool initialRevealStarted;
     private bool revealStarted;
     private bool frameRateSessionActive;
@@ -52,6 +54,9 @@ internal partial class GameplaySessionScreen : Screen
         && gameplayStack?.Scale == Vector2.One
         && gameplayStack.Y == 0;
     internal bool RetryTransitionActive => retryTransitionActive;
+    internal bool RetryStatusVisible => retryTransition.StatusVisible;
+    internal bool PendingReplacementLoaded =>
+        pendingReplacementLoadComplete;
 
     internal GameplaySessionScreen(GameplayScreen initialGameplay)
     {
@@ -134,21 +139,68 @@ internal partial class GameplaySessionScreen : Screen
 
     internal void CancelRetryTransition()
     {
+        GameplayScreen cancelledReplacement = pendingReplacement;
+        bool disposeReplacement = pendingReplacementLoadComplete;
         retryTransitionActive = false;
         pendingReplacement = null;
+        pendingReplacementLoadComplete = false;
+        replacementCommitRequested = false;
         revealStarted = false;
         retryTransition.ResetInstant();
+
+        if (disposeReplacement)
+            cancelledReplacement?.Dispose();
     }
 
-    internal void ReplaceGameplay(GameplayScreen replacement)
+    internal void PrepareGameplayReplacement(GameplayScreen replacement)
     {
         if (pendingReplacement != null)
             return;
 
         BeginRetryTransition();
         pendingReplacement = replacement;
+        pendingReplacementLoadComplete = false;
+        replacementCommitRequested = false;
         revealStarted = false;
-        performGameplayReplacement(replacement);
+
+        _ = LoadComponentAsync(replacement, loadedReplacement =>
+        {
+            if (!ReferenceEquals(pendingReplacement, loadedReplacement))
+            {
+                loadedReplacement.Dispose();
+                return;
+            }
+
+            pendingReplacementLoadComplete = true;
+            tryPerformGameplayReplacement();
+        });
+    }
+
+    internal void CommitGameplayReplacement(GameplayScreen replacement)
+    {
+        if (!ReferenceEquals(pendingReplacement, replacement))
+            return;
+
+        replacementCommitRequested = true;
+        tryPerformGameplayReplacement();
+    }
+
+    internal void ReplaceGameplay(GameplayScreen replacement)
+    {
+        PrepareGameplayReplacement(replacement);
+        CommitGameplayReplacement(replacement);
+    }
+
+    private void tryPerformGameplayReplacement()
+    {
+        if (!replacementCommitRequested
+            || !pendingReplacementLoadComplete
+            || pendingReplacement == null)
+        {
+            return;
+        }
+
+        performGameplayReplacement(pendingReplacement);
     }
 
     private void performGameplayReplacement(GameplayScreen replacement)
@@ -213,6 +265,8 @@ internal partial class GameplaySessionScreen : Screen
         gameplayStack.Scale = Vector2.One;
         retryTransition.ResetInstant();
         pendingReplacement = null;
+        pendingReplacementLoadComplete = false;
+        replacementCommitRequested = false;
         revealStarted = false;
         retryTransitionActive = false;
     }
@@ -266,6 +320,12 @@ internal sealed partial class GameplaySessionRootScreen : Screen
 
     internal void ReplaceGameplay(GameplayScreen replacement) =>
         session.ReplaceGameplay(replacement);
+
+    internal void PrepareGameplayReplacement(GameplayScreen replacement) =>
+        session.PrepareGameplayReplacement(replacement);
+
+    internal void CommitGameplayReplacement(GameplayScreen replacement) =>
+        session.CommitGameplayReplacement(replacement);
 
     internal void BeginRetryTransition() =>
         session.BeginRetryTransition();

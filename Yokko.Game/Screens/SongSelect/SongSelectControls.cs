@@ -49,7 +49,7 @@ internal partial class SongSelectSearchBox : BasicTextBox
             0.56f);
         BackgroundUnfocused = SongSelectSurface.Ivory(0.98f);
         BackgroundFocused = SongSelectTheme.PaleCyan;
-        FontSize = 15;
+        FontSize = 17;
         PlaceholderText = YokkoStrings.Get("song_select.search");
 
         AddInternal(new Container
@@ -89,7 +89,7 @@ internal partial class SongSelectSearchBox : BasicTextBox
             Origin = Anchor.CentreRight,
             X = -13,
             Text = "ESC",
-            Font = HomeTypography.Display(9),
+            Font = HomeTypography.Display(10),
             Colour = new Color4(
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
@@ -127,13 +127,13 @@ internal partial class SongSelectSearchBox : BasicTextBox
     protected override Drawable GetDrawableCharacter(char c) => new SpriteText
     {
         Text = c.ToString(),
-        Font = HomeTypography.Body(15),
+        Font = HomeTypography.Body(17),
         Colour = SongSelectTheme.Navy,
     };
 
     protected override SpriteText CreatePlaceholder() => new()
     {
-        Font = HomeTypography.Body(15),
+        Font = HomeTypography.Body(17),
         Colour = new Color4(
             SongSelectTheme.Navy.R,
             SongSelectTheme.Navy.G,
@@ -231,7 +231,7 @@ internal partial class SongSelectKeyModeFilterButton : ClickableContainer
             {
                 Position = new Vector2(49, 8),
                 Text = "KEY MODE",
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(9),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -242,7 +242,7 @@ internal partial class SongSelectKeyModeFilterButton : ClickableContainer
             {
                 Position = new Vector2(49, 22),
                 Text = "ALL",
-                Font = HomeTypography.Display(13),
+                Font = HomeTypography.Display(14),
                 Colour = SongSelectTheme.Navy,
             },
             new SpriteIcon

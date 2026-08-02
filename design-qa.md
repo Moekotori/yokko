@@ -53,6 +53,48 @@ final result: passed
 
 ---
 
+# Song Select typography and MSD-column QA (2026-08-02)
+
+## Evidence and normalization
+
+- Source visual truth: `F:\Temp\codex-clipboard-479894bf-b9d1-4905-b398-a0a88177d9ed.png` (2560 x 1440), the user-reported Comfortable Song Select screen with overlapping compact-row MSD labels and values.
+- Native implementation: `F:\YokkoArtifacts\songselect-typography\songselect-typography-msd.png` (1920 x 1080), Direct3D 11, Comfortable scale, selected expanded package and empty ranking state.
+- Full-view comparison: `F:\YokkoArtifacts\songselect-typography\songselect-typography-full-comparison.png` (3840 x 1080). The source was downsampled to 1920 x 1080 and placed left of the unchanged-density implementation.
+- Focused MSD comparison: `F:\YokkoArtifacts\songselect-typography\songselect-typography-msd-comparison.png` (1200 x 700), using native crops from the reported and revised rating columns.
+- CSS size is not applicable: both artifacts are native osu!framework captures at 16:9. Source density is 2560 x 1440 and implementation density is 1920 x 1080; normalization uses one proportional downsample only.
+- The chart datasets differ, so content identity is not used as fidelity evidence. The comparison is limited to the same screen, scale mode, typography hierarchy, and rating-column geometry.
+
+## Findings and resolution
+
+- P1 resolved: compact rows placed the MSD unit and five-character value in one 64-unit absolute-positioned region, so values such as `19.41` and `25.23` visibly overprinted `MSD`. The region is now 112 units wide with explicit 42-unit and 66-unit columns plus a four-unit gap; the value remains right-aligned.
+- P2 resolved: the selected package summary used a similarly tight rating allocation. Its unit/value tracks are wider and use the same clearer optical hierarchy.
+- P2 resolved: the screen's small supporting typography lacked hierarchy at 1080p. Detail artist/mapper text, difficulty pills, chart facts, performance labels, empty-ranking copy, search text, key mode, MSD filter, package titles, Back, and footer tool labels were raised selectively by one or two design sizes.
+- No actionable P0/P1/P2 issue remains in the captured state. Compact song title/mapper lines, the details title, performance values, shortcut legend, and Play label intentionally keep their existing sizes because their current vertical or horizontal bounds are already tight.
+
+## Required fidelity surfaces
+
+- Fonts and typography: the existing Noto Sans CJK display/body families and weights are preserved. Supporting text is larger without replacing the established type system; the focused comparison shows clear separation between the MSD unit and numeric value.
+- Spacing and layout rhythm: the 56-unit compact-row height and right-side mode pill remain unchanged. The expanded rating readout fits between the song copy and the 7K mode pill, and the full-view capture shows no new clipping or vertical collisions.
+- Colors and visual tokens: navy, cyan, pink, yellow, pale cyan, and ivory tokens are unchanged.
+- Image quality and asset fidelity: artwork, wallpaper, logo, stickers, icons, and crops are unchanged; no generated or placeholder asset was introduced.
+- Copy and content: runtime chart titles, mapper, rating mode, values, controls, and empty-state copy remain data-driven. The preview uses a different built-in chart set from the user capture, which is recorded above rather than treated as a visual mismatch.
+
+## Comparison history
+
+1. User capture: `MSD` and the rating value collide repeatedly across the compact difficulty list; small supporting labels are difficult to scan at 1080p.
+2. Revised native capture: the unit/value tracks are visibly separate for both `4.28` and `5.05`, the selected header uses the same readable spacing, and the selectively enlarged text remains within its cards and controls.
+
+## Verification and limits
+
+- Isolated `Yokko.Game.Tests` build succeeded with 0 warnings and 0 errors.
+- Focused `TestCompactRatingLivesInTrailingMetadata` passed, including the widened readout, separate unit/value columns, unchanged compact-row height, active rating-mode refresh, and in-place difficulty refresh.
+- Native Direct3D 11 preview and screenshot completed successfully at 1920 x 1080 Comfortable scale.
+- The typography-only pass did not repeat mouse interaction testing; hit targets and control geometry were not changed.
+
+final result: passed
+
+---
+
 # Gameplay Result detailed-layout polish QA (2026-08-02)
 
 ## Evidence

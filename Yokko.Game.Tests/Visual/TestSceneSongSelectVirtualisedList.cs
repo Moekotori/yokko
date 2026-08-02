@@ -463,16 +463,20 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
         ]));
         AddUntilStep("compact row actualised", () =>
             list.MaterialisedRows.Count() == 1);
-        AddAssert("rating is a transparent trailing readout", () =>
+        AddAssert("rating uses separate trailing metadata columns", () =>
         {
             SongSelectInlineDifficultyRating rating = list
                 .MaterialisedRows.Single()
                 .ChildrenOfType<SongSelectInlineDifficultyRating>()
                 .Single();
             return Math.Abs(rating.X - 650) < 0.05f
-                   && Math.Abs(rating.Y - 18) < 0.05f
-                   && Math.Abs(rating.Width - 64) < 0.05f
-                   && Math.Abs(rating.Height - 20) < 0.05f
+                   && Math.Abs(rating.Y - 17) < 0.05f
+                   && Math.Abs(rating.Width - 112) < 0.05f
+                   && Math.Abs(rating.Height - 22) < 0.05f
+                   && Math.Abs(rating.UnitText.Width - 42) < 0.05f
+                   && Math.Abs(rating.ValueText.Width - 66) < 0.05f
+                   && rating.UnitText.Width + rating.ValueText.Width
+                   <= rating.Width - 4
                    && Math.Abs(list.MaterialisedRows.Single().Height
                                - SongSelectSongRow.CompactHeight) < 0.05f
                    && Math.Abs(rating.BorderThickness) < 0.01f

@@ -41,7 +41,8 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly float[] baseLayoutAutoplayDemoNoteXs;
     private bool activeNoteLayerReady;
     private readonly float topY;
-    private readonly float judgementY;
+    private readonly float baseJudgementY;
+    private float judgementY;
     private readonly float basePlayfieldWidth;
     private readonly float[] baseLaneXs;
     private readonly float[] baseNoteXs;
@@ -52,6 +53,8 @@ public partial class GameplayPlayfield : CompositeDrawable
     private readonly Sprite[] stageHintSprites = [];
     private readonly float[] baseStageHintHeights = [];
     private readonly Box[] skinJudgementLines = [];
+    private readonly Box builtInJudgementLine;
+    private readonly Box builtInJudgementGuide;
     private readonly Sprite[] warningArrows = [];
     private readonly double firstObjectTime;
     private readonly double warningArrowStartTime =
@@ -86,6 +89,38 @@ public partial class GameplayPlayfield : CompositeDrawable
     internal float ScrollOrigin => topY;
 
     internal float JudgementPosition => judgementY;
+
+    internal float BaseJudgementPosition => baseJudgementY;
+
+    internal double JudgementTravelScale =>
+        Math.Abs(judgementY - topY)
+        / Math.Max(1, Math.Abs(baseJudgementY - topY));
+
+    internal bool JudgementRegionAlignedForTest
+    {
+        get
+        {
+            float offset = judgementY - baseJudgementY;
+            bool lanesAligned = laneColumns.All(lane =>
+                Math.Abs(lane.ReceptorLayer.Y - offset) < 0.01f);
+            bool hintsAligned = stageHintSprites.All(hint =>
+                Math.Abs(hint.Y - judgementY) < 0.01f);
+            bool skinLinesAligned = skinJudgementLines.All(line =>
+                Math.Abs(line.Y - judgementY) < 0.01f);
+            bool builtInLinesAligned =
+                (builtInJudgementLine == null
+                 || Math.Abs(
+                     builtInJudgementLine.Y - (judgementY - 1)) < 0.01f)
+                && (builtInJudgementGuide == null
+                    || Math.Abs(
+                        builtInJudgementGuide.Y
+                        - (judgementY + (upscroll ? 36 : -36))) < 0.01f);
+            return lanesAligned
+                   && hintsAligned
+                   && skinLinesAligned
+                   && builtInLinesAligned;
+        }
+    }
 
     internal double ApproachTimeMilliseconds => approachTimeMilliseconds;
 
@@ -143,6 +178,17 @@ public partial class GameplayPlayfield : CompositeDrawable
         || skinOverlays.All(overlay =>
             overlay.Depth < layoutTopCover.Depth
             && overlay.Depth < layoutBottomCover.Depth);
+
+    internal bool HitEffectsVisibleForTest =>
+        laneColumns.All(column => column.HitEffectsVisibleForTest);
+
+    internal bool HitEffectsHiddenForTest =>
+        laneColumns.All(column =>
+            !column.HitEffectsVisibleForTest
+            && column.HitEffectsLayerHiddenForTest);
+
+    internal bool HitEffectLayersHiddenForTest =>
+        laneColumns.All(column => column.HitEffectsLayerHiddenForTest);
 
     internal float LayoutTopCoverHeightForTest => layoutTopCover.Height;
 
@@ -293,6 +339,7 @@ public partial class GameplayPlayfield : CompositeDrawable
                 : hitPosition;
         }
         receptorAtBottom = !upscroll;
+        baseJudgementY = judgementY;
         Size = new Vector2(
             playfieldWidth,
             activeSkin == null ? 620 : 480);
@@ -649,7 +696,7 @@ public partial class GameplayPlayfield : CompositeDrawable
 
         if (beatmap.StageCount == 2 && activeSkin == null)
         {
-            children.Add(new Box
+            children.Add(builtInJudgementLine = new Box
             {
                 X = defaultStageWidth,
                 Width = dualStageGap,
@@ -741,7 +788,7 @@ public partial class GameplayPlayfield : CompositeDrawable
         }
         else if (activeSkin == null)
         {
-            children.Add(new Box
+            children.Add(builtInJudgementGuide = new Box
             {
                 RelativeSizeAxes = Axes.X,
                 Height = 2,
@@ -925,6 +972,12 @@ public partial class GameplayPlayfield : CompositeDrawable
         laneColumns[lane].SetPressed(pressed);
     }
 
+    internal void SetHitEffectsVisible(bool visible)
+    {
+        foreach (LaneColumn column in laneColumns)
+            column.SetHitEffectsVisible(visible);
+    }
+
     public void ApplyJudgement(JudgementEvent judgement)
     {
         // lazer's Hold parent result is internal, but stable's single combined
@@ -1039,6 +1092,36 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     public void SetApproachTime(double value) =>
         approachTimeMilliseconds = Math.Max(1, value);
+
+    internal double SetJudgementLineOffset(double normalisedOffset)
+    {
+        double oldDistance = Math.Max(1, Math.Abs(judgementY - topY));
+        float requested = baseJudgementY
+                          + (float)(normalisedOffset * Height);
+        judgementY = Math.Clamp(
+            requested,
+            0,
+            Height);
+        float realisedOffset = judgementY - baseJudgementY;
+
+        foreach (LaneColumn lane in laneColumns)
+            lane.SetJudgementLineOffset(realisedOffset);
+        foreach (Sprite hint in stageHintSprites)
+            hint.Y = judgementY;
+        foreach (Box line in skinJudgementLines)
+            line.Y = judgementY;
+        if (builtInJudgementLine != null)
+            builtInJudgementLine.Y = judgementY - 1;
+        if (builtInJudgementGuide != null)
+        {
+            builtInJudgementGuide.Y =
+                judgementY + (upscroll ? 36 : -36);
+        }
+
+        double newDistance = Math.Max(1, Math.Abs(judgementY - topY));
+        approachTimeMilliseconds *= newDistance / oldDistance;
+        return realisedOffset / Math.Max(1, Height);
+    }
 
     internal void SetLongNoteCutAmount(double value)
     {

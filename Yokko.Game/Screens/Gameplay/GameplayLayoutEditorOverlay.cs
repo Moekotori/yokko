@@ -50,6 +50,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private readonly LayoutTransformTarget performanceReadoutTarget;
     private readonly CoverDragHandle topCoverHandle;
     private readonly CoverDragHandle bottomCoverHandle;
+    private readonly CoverDragHandle judgementLineHandle;
     private readonly Stack<LayoutSnapshot> undoHistory = new();
     private readonly Stack<LayoutSnapshot> redoHistory = new();
     private readonly Container editorChrome;
@@ -334,6 +335,13 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                         "gameplay.layout_editor.cover_bottom_drag"),
                     HomeControlColours.Pink,
                     updateBottomCover,
+                    beginChange),
+                judgementLineHandle = new CoverDragHandle(
+                    this,
+                    YokkoStrings.Get(
+                        "gameplay.layout_editor.judgement_line_drag"),
+                    HomeControlColours.Yellow,
+                    updateJudgementLine,
                     beginChange),
                 createOverviewCard(),
                 createInspectorCard(),
@@ -836,6 +844,16 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             bottomCoverHandle,
             playfieldTopLeft.X,
             bottomBoundary,
+            playfieldBottomRight.X - playfieldTopLeft.X);
+        float judgementLineY = playfieldTopLeft.Y
+                               + playfieldHeight
+                               * playfield.JudgementPosition
+                               / Math.Max(1, playfield.DrawHeight);
+        judgementLineHandle.SetActive(IsEditing);
+        setHandleBounds(
+            judgementLineHandle,
+            playfieldTopLeft.X,
+            judgementLineY,
             playfieldBottomRight.X - playfieldTopLeft.X);
 
         updateOverview(
@@ -1425,6 +1443,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         settings.LayoutComboVisible.Value,
         settings.LayoutJudgementVisible.Value,
         settings.LayoutPerformanceReadoutVisible.Value,
+        settings.LayoutHitEffectsVisible.Value,
+        settings.LayoutJudgementLineOffsetY.Value,
         settings.LayoutTopCoverRatio.Value,
         settings.LayoutBottomCoverRatio.Value);
 
@@ -1515,6 +1535,10 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         settings.LayoutJudgementVisible.Value = snapshot.JudgementVisible;
         settings.LayoutPerformanceReadoutVisible.Value =
             snapshot.PerformanceReadoutVisible;
+        settings.LayoutHitEffectsVisible.Value =
+            snapshot.HitEffectsVisible;
+        settings.LayoutJudgementLineOffsetY.Value =
+            snapshot.JudgementLineOffsetY;
         settings.LayoutTopCoverRatio.Value = snapshot.TopCoverRatio;
         settings.LayoutBottomCoverRatio.Value =
             snapshot.BottomCoverRatio;
@@ -1995,6 +2019,17 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             YokkoGameplaySettings.MaximumBottomCoverRatio);
     }
 
+    private void updateJudgementLine(Vector2 screenSpacePosition)
+    {
+        Vector2 local = ToLocalSpace(screenSpacePosition);
+        (Vector2 topLeft, Vector2 bottomRight) =
+            GameplayLayoutGeometry.BoundsIn(this, playfield);
+        double logicalY = (local.Y - topLeft.Y)
+                          / Math.Max(1, bottomRight.Y - topLeft.Y)
+                          * playfield.DrawHeight;
+        applyJudgementLinePosition(logicalY);
+    }
+
     private void reset()
     {
         ResetAll();
@@ -2216,7 +2251,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Container labelPanel;
         private readonly Container handles;
         private readonly Box selectionTint;
-        private Vector2 lastMousePosition;
+        private Vector2 dragStartMousePosition;
+        private Vector2 dragStartLogicalPosition;
         private Vector2? dragLogicalPosition;
         private Axes? constrainedDragAxis;
         private bool selected;
@@ -2362,6 +2398,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 beginChange,
                 () => select(this),
                 () => selected && CanEdit,
+                () => new Vector2(DrawWidth, DrawHeight),
+                anchor,
                 edge)
             {
                 Anchor = anchor,
@@ -2379,7 +2417,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 return false;
 
             select(this);
-            lastMousePosition = coordinateSpace.ToLocalSpace(
+            dragStartMousePosition = coordinateSpace.ToLocalSpace(
                 e.ScreenSpaceMousePosition);
             constrainedDragAxis = null;
             return true;
@@ -2391,6 +2429,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 return false;
 
             beginChange();
+            dragStartLogicalPosition = Position;
             dragLogicalPosition = Position;
             return true;
         }
@@ -2423,32 +2462,43 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         {
             Vector2 current = coordinateSpace.ToLocalSpace(
                 e.ScreenSpaceMousePosition);
-            Vector2 requestedDelta = current - lastMousePosition;
-            if (e.ShiftPressed)
+            applyPointerDrag(current, e.ShiftPressed, e.AltPressed);
+        }
+
+        private void applyPointerDrag(
+            Vector2 current,
+            bool shiftPressed,
+            bool altPressed)
+        {
+            // Keep the unsnapped displacement from the start of the gesture.
+            // If snapping is applied to each individual mouse event, slow
+            // movement never accumulates past the snap threshold and a
+            // centred element can feel permanently stuck.
+            Vector2 totalDelta = current - dragStartMousePosition;
+            if (shiftPressed)
             {
                 constrainedDragAxis ??=
-                    Math.Abs(requestedDelta.X) >= Math.Abs(requestedDelta.Y)
+                    Math.Abs(totalDelta.X) >= Math.Abs(totalDelta.Y)
                         ? Axes.X
                         : Axes.Y;
                 if (constrainedDragAxis == Axes.X)
-                    requestedDelta.Y = 0;
+                    totalDelta.Y = 0;
                 else
-                    requestedDelta.X = 0;
+                    totalDelta.X = 0;
             }
             else
                 constrainedDragAxis = null;
 
-            // Mouse input can arrive more than once before Update() refreshes
-            // this target from the live layout. Apply only the new pointer
-            // movement so a stale target position cannot accumulate the same
-            // distance repeatedly and launch the element across the screen.
+            Vector2 requestedPosition =
+                dragStartLogicalPosition + totalDelta;
+            Vector2 requestedDelta =
+                requestedPosition - MovementPosition;
             Vector2 delta = snapMove(
                 this,
                 requestedDelta,
-                e.AltPressed);
+                altPressed);
             Vector2 realisedDelta = MoveBy(delta);
             dragLogicalPosition = MovementPosition + realisedDelta;
-            lastMousePosition = current;
         }
 
         protected override void OnDragEnd(DragEndEvent e)
@@ -2532,6 +2582,47 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         internal void ResizeBy(ResizeEdges edges, Vector2 delta) =>
             resize?.Invoke(edges, delta);
+
+        internal void DragPointerIncrementallyForTest(
+            Vector2 totalDelta,
+            int steps)
+        {
+            if (!CanEdit)
+                return;
+
+            beginChange();
+            dragStartMousePosition = Vector2.Zero;
+            dragStartLogicalPosition = Position;
+            dragLogicalPosition = Position;
+            constrainedDragAxis = null;
+            for (int i = 1; i <= Math.Max(1, steps); i++)
+            {
+                applyPointerDrag(
+                    totalDelta * i / Math.Max(1, steps),
+                    false,
+                    false);
+            }
+
+            constrainedDragAxis = null;
+            dragLogicalPosition = null;
+            clearGuides();
+        }
+
+        internal bool CentreAvoidsResizeHandlesForTest
+        {
+            get
+            {
+                Vector2 centre = ToScreenSpace(
+                    new Vector2(DrawWidth / 2, DrawHeight / 2));
+                foreach (Drawable child in handles.Children)
+                {
+                    if (child.ReceivePositionalInputAt(centre))
+                        return false;
+                }
+
+                return true;
+            }
+        }
 
         internal void SetLocked(bool value)
         {
@@ -2632,6 +2723,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Action beginChange;
         private readonly Action select;
         private readonly Func<bool> canEdit;
+        private readonly Func<Vector2> targetSize;
+        private readonly Anchor anchor;
         private readonly Box fill;
         private readonly Color4 idleColour;
         private Vector2 lastPosition;
@@ -2643,6 +2736,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             Action beginChange,
             Action select,
             Func<bool> canEdit,
+            Func<Vector2> targetSize,
+            Anchor anchor,
             bool edge)
         {
             this.coordinateSpace = coordinateSpace;
@@ -2650,6 +2745,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             this.beginChange = beginChange;
             this.select = select;
             this.canEdit = canEdit;
+            this.targetSize = targetSize;
+            this.anchor = anchor;
             Depth = -30;
             Masking = true;
             CornerRadius = edge ? 3 : 2;
@@ -2663,6 +2760,30 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 RelativeSizeAxes = Axes.Both,
                 Colour = idleColour,
             };
+        }
+
+        public override bool ReceivePositionalInputAt(
+            Vector2 screenSpacePos)
+        {
+            if (!base.ReceivePositionalInputAt(screenSpacePos))
+                return false;
+
+            Vector2 local = ToLocalSpace(screenSpacePos);
+            Vector2 size = targetSize();
+            float hitWidth = Math.Min(
+                DrawWidth,
+                Math.Max(3, size.X / 3));
+            float hitHeight = Math.Min(
+                DrawHeight,
+                Math.Max(3, size.Y / 3));
+            bool right = anchor is Anchor.TopRight or Anchor.BottomRight;
+            bool bottom = anchor is Anchor.BottomLeft or Anchor.BottomRight;
+            float distanceX = right ? DrawWidth - local.X : local.X;
+            float distanceY = bottom ? DrawHeight - local.Y : local.Y;
+            return distanceX >= 0
+                   && distanceY >= 0
+                   && distanceX <= hitWidth
+                   && distanceY <= hitHeight;
         }
 
         protected override bool OnMouseDown(MouseDownEvent e)
@@ -3116,6 +3237,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         double ComboVisible,
         double JudgementVisible,
         double PerformanceReadoutVisible,
+        double HitEffectsVisible,
+        double JudgementLineOffsetY,
         double TopCoverRatio,
         double BottomCoverRatio);
 

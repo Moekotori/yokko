@@ -30,12 +30,16 @@ public partial class LaneColumn : CompositeDrawable
     private readonly SpriteText skinKeyWarning;
     private readonly Box builtInReceptorGlow;
     private readonly Box builtInReceptorCore;
+    private readonly Container hitEffectsLayer;
     private readonly float baseLaneWidth;
     private readonly float baseLaneLightHeight;
+    private readonly float baseLaneLightY;
     private readonly bool idleKeyFlipped;
     private readonly bool pressedKeyFlipped;
     private readonly bool showPressFeedback;
     private bool holdLightActive;
+    private bool lanePressed;
+    private bool hitEffectsVisible = true;
     private int nextHitExplosion;
     private float columnScale = 1;
 
@@ -149,12 +153,16 @@ public partial class LaneColumn : CompositeDrawable
                         Font = new FontUsage("NotoSansCJK").With(size: 18),
                         Colour = YokkoPalette.TextMuted,
                     },
-                    mineExplosion = createMineExplosion(
-                        upscroll
-                            ? Anchor.TopCentre
-                            : Anchor.BottomCentre,
-                        upscroll ? 92 : -92,
-                        54),
+                    hitEffectsLayer = new Container
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Child = mineExplosion = createMineExplosion(
+                            upscroll
+                                ? Anchor.TopCentre
+                                : Anchor.BottomCentre,
+                            upscroll ? 92 : -92,
+                            54),
+                    },
                 },
             };
             return;
@@ -237,6 +245,7 @@ public partial class LaneColumn : CompositeDrawable
                     configuration.ColumnLineColour));
         }
         var receptorChildren = new List<Drawable>();
+        var hitEffectChildren = new List<Drawable>();
         IReadOnlyList<Texture> lightTextures =
             skin.GetAnimationFrames(
                 configuration.LightImage,
@@ -281,6 +290,7 @@ public partial class LaneColumn : CompositeDrawable
                 laneLight,
                 lightTextures,
                 1000.0 / configuration.LightFramePerSecond);
+            baseLaneLightY = laneLight.Y;
         }
 
         if (idleTexture != null)
@@ -370,7 +380,7 @@ public partial class LaneColumn : CompositeDrawable
                 };
                 addFrames(explosion, explosionTextures, frameDuration);
                 hitExplosions[index] = explosion;
-                receptorChildren.Add(explosion);
+                hitEffectChildren.Add(explosion);
             }
         }
 
@@ -400,10 +410,10 @@ public partial class LaneColumn : CompositeDrawable
                 holdLight,
                 holdLightTextures,
                 Math.Max(1000.0 / 60, 170.0 / holdLightTextures.Count));
-            receptorChildren.Add(holdLight);
+            hitEffectChildren.Add(holdLight);
         }
 
-        receptorChildren.Add(mineExplosion = createMineExplosion(
+        hitEffectChildren.Add(mineExplosion = createMineExplosion(
             upscroll
                 ? Anchor.TopCentre
                 : Anchor.BottomCentre,
@@ -411,6 +421,11 @@ public partial class LaneColumn : CompositeDrawable
                 ? 480 - hitPosition
                 : -(480 - hitPosition),
             Math.Clamp(laneWidth * 1.25f, 28, 54)));
+        receptorChildren.Add(hitEffectsLayer = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Children = hitEffectChildren.ToArray(),
+        });
 
         InternalChildren = backgroundChildren.ToArray();
         ReceptorLayer = new Container
@@ -469,8 +484,16 @@ public partial class LaneColumn : CompositeDrawable
         }
     }
 
+    internal void SetJudgementLineOffset(float offsetY)
+    {
+        ReceptorLayer.Y = offsetY;
+        if (laneLight != null)
+            laneLight.Y = baseLaneLightY + offsetY;
+    }
+
     public void SetPressed(bool pressed)
     {
+        lanePressed = pressed;
         if (!showPressFeedback)
             return;
 
@@ -503,6 +526,12 @@ public partial class LaneColumn : CompositeDrawable
 
         laneLight.FinishTransforms();
 
+        if (!hitEffectsVisible)
+        {
+            laneLight.Alpha = 0;
+            return;
+        }
+
         if (pressed)
         {
             laneLight.Alpha = 1;
@@ -517,7 +546,7 @@ public partial class LaneColumn : CompositeDrawable
 
     public void ShowHitExplosion()
     {
-        if (hitExplosions.Length == 0)
+        if (!hitEffectsVisible || hitExplosions.Length == 0)
             return;
 
         TextureAnimation hitExplosion =
@@ -531,6 +560,9 @@ public partial class LaneColumn : CompositeDrawable
 
     public void ShowMineExplosion()
     {
+        if (!hitEffectsVisible)
+            return;
+
         mineExplosion.FinishTransforms();
         mineExplosion.Alpha = 1;
         mineExplosion.Scale = new Vector2(columnScale * 0.55f);
@@ -570,6 +602,12 @@ public partial class LaneColumn : CompositeDrawable
         holdLightActive = active;
         holdLight.FinishTransforms();
 
+        if (!hitEffectsVisible)
+        {
+            holdLight.Alpha = 0;
+            return;
+        }
+
         if (active)
         {
             holdLight.GotoFrame(0);
@@ -580,6 +618,51 @@ public partial class LaneColumn : CompositeDrawable
             holdLight.FadeOut(120);
         }
     }
+
+    internal void SetHitEffectsVisible(bool visible)
+    {
+        if (hitEffectsVisible == visible)
+            return;
+
+        hitEffectsVisible = visible;
+        hitEffectsLayer.Alpha = visible ? 1 : 0;
+        if (!visible)
+        {
+            ClearTransientFeedback();
+            if (laneLight != null)
+            {
+                laneLight.FinishTransforms();
+                laneLight.Alpha = 0;
+            }
+
+            if (holdLight != null)
+            {
+                holdLight.FinishTransforms();
+                holdLight.Alpha = 0;
+            }
+
+            return;
+        }
+
+        if (showPressFeedback && laneLight != null && lanePressed)
+        {
+            laneLight.FinishTransforms();
+            laneLight.Alpha = 1;
+            laneLight.Scale = Vector2.One;
+        }
+
+        if (holdLight != null && holdLightActive)
+        {
+            holdLight.FinishTransforms();
+            holdLight.GotoFrame(0);
+            holdLight.FadeInFromZero(80);
+        }
+    }
+
+    internal bool HitEffectsVisibleForTest => hitEffectsVisible;
+
+    internal bool HitEffectsLayerHiddenForTest =>
+        hitEffectsLayer.Alpha == 0;
 
     private static Sprite createKeySprite(
         Texture texture,

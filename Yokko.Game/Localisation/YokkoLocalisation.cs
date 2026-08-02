@@ -616,6 +616,7 @@ internal static class YokkoStrings
             ["gameplay.pause.resume"] = new("Resume", "继续游戏", "ゲームに戻る"),
             ["gameplay.pause.resume_hint"] = new("ESC  RESUME", "ESC  继续", "ESC  再開"),
             ["gameplay.pause.retry"] = new("Restart", "重新开始", "リスタート"),
+            ["gameplay.retry.restarting"] = new("Restarting…", "正在重新开始…", "リスタート中…"),
             ["gameplay.pause.settings"] = new("Settings", "设置", "設定"),
             ["gameplay.pause.pause_settings"] = new("Pause settings", "暂停设置", "ポーズ設定"),
             ["gameplay.pause.resume_countdown"] = new("Resume countdown", "恢复倒计时", "再開カウントダウン"),
@@ -790,6 +791,10 @@ internal static class YokkoStrings
                 "Performance readout",
                 "性能读数",
                 "パフォーマンス表示"),
+            ["gameplay.layout_editor.layer.hit_effects"] = new(
+                "Hit effects",
+                "击打特效",
+                "ヒットエフェクト"),
             ["gameplay.layout_editor.centre_x"] = new(
                 "Centre X",
                 "水平居中",
@@ -803,9 +808,9 @@ internal static class YokkoStrings
                 "拖动即可移动 · Shift 锁定方向 · Alt 临时关闭吸附 · Ctrl+滚动缩放轨道",
                 "ドラッグで移動 · Shift 軸固定 · Alt でスナップ無効 · Ctrl+ホイールでレーン拡縮"),
             ["gameplay.layout_editor.covers"] = new(
-                "LANE BLOCKERS",
-                "轨道挡板",
-                "レーン遮蔽"),
+                "LANE GEOMETRY",
+                "轨道几何",
+                "レーン配置"),
             ["gameplay.layout_editor.top_cover"] = new(
                 "Top",
                 "上挡板",
@@ -814,6 +819,18 @@ internal static class YokkoStrings
                 "Bottom",
                 "下挡板",
                 "下側"),
+            ["gameplay.layout_editor.judgement_line"] = new(
+                "Hit line",
+                "判定线",
+                "判定ライン"),
+            ["gameplay.layout_editor.judgement_line_drag"] = new(
+                "Hit line · drag to adjust",
+                "判定线 · 拖动调整",
+                "判定ライン · ドラッグで調整"),
+            ["gameplay.layout_editor.reset_line"] = new(
+                "Reset",
+                "复位",
+                "リセット"),
             ["gameplay.layout_editor.add_cover"] = new(
                 "Add",
                 "添加",
@@ -823,9 +840,9 @@ internal static class YokkoStrings
                 "移除",
                 "削除"),
             ["gameplay.layout_editor.cover_hint"] = new(
-                "Enter px height or drag the highlighted resize bar.",
-                "输入像素高度，或拖动轨道上高亮的缩放条。",
-                "px 高さを入力、または強調表示されたバーをドラッグ。"),
+                "Enter px values or drag the highlighted bars on the lane.",
+                "输入像素数值，或直接拖动轨道上的高亮条。",
+                "px 値を入力、またはレーン上のバーをドラッグ。"),
             ["gameplay.layout_editor.live_settings"] = new(
                 "LIVE PLAY SETTINGS",
                 "实时游玩设置",

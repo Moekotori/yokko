@@ -3056,7 +3056,7 @@ public partial class SongSelectScreen : Screen
                     Origin = Anchor.CentreLeft,
                     X = 34,
                     Text = label,
-                    Font = HomeTypography.Display(9),
+                    Font = HomeTypography.Display(10),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
@@ -3467,7 +3467,7 @@ public partial class SongSelectScreen : Screen
                     Width = details_content_width,
                     Truncate = true,
                     Text = selectedEntry.Beatmap.Artist,
-                    Font = HomeTypography.Display(16),
+                    Font = HomeTypography.Display(17),
                     Colour = SongSelectTheme.Navy,
                 },
                 new SpriteText
@@ -3476,7 +3476,7 @@ public partial class SongSelectScreen : Screen
                     Width = details_content_width,
                     Truncate = true,
                     Text = $"mapped by {selectedEntry.Beatmap.Creator}",
-                    Font = HomeTypography.Body(13),
+                    Font = HomeTypography.Body(14),
                     Colour = SongSelectTheme.Cyan,
                 },
                 selectedChartFactsRow = createSelectedChartFactsRow(
@@ -3619,7 +3619,7 @@ public partial class SongSelectScreen : Screen
                 {
                     Position = new Vector2(20, 12),
                     Text = "YOUR POSITION",
-                    Font = HomeTypography.Display(9),
+                    Font = HomeTypography.Display(10),
                     Colour = SongSelectTheme.Cyan,
                 },
                 new SpriteText
@@ -3654,7 +3654,7 @@ public partial class SongSelectScreen : Screen
             new SpriteText
             {
                 Text = label,
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Display(10),
                 Colour = new Color4(
                     SongSelectTheme.PaleCyan.R,
                     SongSelectTheme.PaleCyan.G,
@@ -3935,7 +3935,7 @@ public partial class SongSelectScreen : Screen
                           + beatmap.DifficultyName
                         : $"{(int)beatmap.KeyMode}K · "
                           + beatmap.DifficultyName,
-                    Font = HomeTypography.Display(9),
+                    Font = HomeTypography.Display(10),
                     Colour = SongSelectTheme.Navy,
                 },
             ],
@@ -3970,7 +3970,7 @@ public partial class SongSelectScreen : Screen
                            + ManiaDifficultyPresentation.FormatValue(
                                ratings,
                                mode),
-                    Font = HomeTypography.Display(9),
+                    Font = HomeTypography.Display(10),
                     Colour = SongSelectTheme.Navy,
                 },
             ],
@@ -3993,7 +3993,7 @@ public partial class SongSelectScreen : Screen
             {
                 Position = new Vector2(18, 0),
                 Text = "BEST SCORE",
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Display(10),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -4033,7 +4033,7 @@ public partial class SongSelectScreen : Screen
                 {
                     Position = new Vector2(18, 0),
                     Text = "BEST ACCURACY",
-                    Font = HomeTypography.Display(9),
+                    Font = HomeTypography.Display(10),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
@@ -4074,7 +4074,7 @@ public partial class SongSelectScreen : Screen
                 {
                     Position = new Vector2(18, 0),
                     Text = "PLAYBACK RATE",
-                    Font = HomeTypography.Display(9),
+                    Font = HomeTypography.Display(10),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
@@ -4119,7 +4119,7 @@ public partial class SongSelectScreen : Screen
             {
                 Position = new Vector2(15, 0),
                 Text = label,
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(9),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -4130,7 +4130,7 @@ public partial class SongSelectScreen : Screen
             {
                 Position = new Vector2(15, 14),
                 Text = value,
-                Font = HomeTypography.Display(13),
+                Font = HomeTypography.Display(14),
                 Colour = SongSelectTheme.Navy,
             },
         },
