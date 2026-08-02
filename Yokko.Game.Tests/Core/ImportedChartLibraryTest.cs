@@ -83,6 +83,10 @@ public sealed class ImportedChartLibraryTest
                     Is.EqualTo(ImportedChartSourceKind.ExternalOsu));
                 Assert.That(library.GetCharts().Single().IsReadOnly, Is.True);
                 Assert.That(
+                    indexedChart.RequiresMaterialisation,
+                    Is.True,
+                    "External index entries are lightweight summaries and must never be sent directly to gameplay.");
+                Assert.That(
                     indexedChart.Result.Beatmap.SourceFormat,
                     Is.EqualTo(ChartSourceFormat.OsuMania));
                 Assert.That(firstIndexedChart.DifficultyRating.IsSuccess,

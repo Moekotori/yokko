@@ -1399,7 +1399,8 @@ internal sealed class ImportedChartLibrary : IDisposable
                               true,
                               entry.LengthMilliseconds,
                               entry.Bpm,
-                              entry.BeatmapFingerprint);
+                              entry.BeatmapFingerprint,
+                              true);
                       })
                       .ToArray();
     }

@@ -4143,10 +4143,7 @@ internal partial class OrbitFooterButton : ClickableContainer
                 X = primary ? 16 : 16,
                 Y = 4,
                 Text = text,
-                Font = new FontUsage(
-                    "Yokko",
-                    primary ? 56 : 50,
-                    "Bold"),
+                Font = HomeTypography.Display(primary ? 56 : 50),
                 Colour = primary
                     ? Color4.White
                     : HomeControlColours.Navy,

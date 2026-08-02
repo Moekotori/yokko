@@ -129,6 +129,99 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
     }
 
     [Test]
+    public void TestExpandedExternalPackagePublishesEveryDifficultyWithoutSelection()
+    {
+        string root = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"yokko-song-select-package-difficulty-{Guid.NewGuid():N}");
+        string realPackage = Environment.GetEnvironmentVariable(
+            "YOKKO_TEST_EXTERNAL_OSU_PACKAGE");
+        string songs = string.IsNullOrWhiteSpace(realPackage)
+            ? Path.Combine(root, "osu!", "Songs")
+            : realPackage;
+        string set = Path.Combine(songs, "100 Automatic Package Ratings");
+        int expectedChartCount = string.IsNullOrWhiteSpace(realPackage)
+            ? 8
+            : Directory.EnumerateFiles(realPackage, "*.osu").Count();
+        Task<ExternalOsuLibraryResult> configureTask = null;
+        Task difficultyTask = null;
+        Action<ImportedChartLibraryChange> pauseBackground = null;
+
+        AddStep("create eight-chart external package", () =>
+        {
+            importedChartLibrary.DisableExternalOsu();
+            importedChartLibrary.Clear();
+            if (string.IsNullOrWhiteSpace(realPackage))
+            {
+                Directory.CreateDirectory(set);
+                for (int i = 0; i < expectedChartCount; i++)
+                {
+                    string chart = OsuManiaBeatmapIO.WriteBeatmap(
+                        DemoBeatmaps.CreateFourKeyDemo() with
+                        {
+                            Title = $"Automatic Rating {i + 1}",
+                            Artist = "VA",
+                            DifficultyName = $"PACK {i + 1}",
+                            AudioPath = null,
+                        });
+                    File.WriteAllText(
+                        Path.Combine(set, $"automatic-{i + 1}.osu"),
+                        chart,
+                        new UTF8Encoding(false));
+                }
+            }
+
+            pauseBackground = change =>
+            {
+                if ((change.Kind
+                     & ImportedChartLibraryChangeKind.Structure) != 0)
+                {
+                    importedChartLibrary.SetExternalIndexingPaused(true);
+                }
+            };
+            importedChartLibrary.LibraryChanged += pauseBackground;
+            configureTask = importedChartLibrary.SetExternalOsuSongsPathAsync(
+                songs);
+        });
+        AddUntilStep("external package loads", () =>
+            configureTask?.IsCompletedSuccessfully == true
+            && importedChartLibrary.GetCharts().Count == expectedChartCount
+            && songSelectScreen.VisibleEntryCount == expectedChartCount);
+        AddUntilStep("all visible rows receive ratings without selection", () =>
+        {
+            ImportedChart[] charts = importedChartLibrary.GetCharts().ToArray();
+            SongSelectSongRow[] rows = songSelectScreen
+                                       .ChildrenOfType<SongSelectSongRow>()
+                                       .ToArray();
+            return charts.Length == expectedChartCount
+                   && charts.All(chart =>
+                       chart.DifficultyRating?.IsSuccess == true
+                       && chart.StarRating?.IsSuccess == true)
+                   && rows.Length >= expectedChartCount
+                   && rows.All(row =>
+                       row.DisplayedDifficultyRatings?.EtternaMsd?.IsSuccess
+                       == true
+                       && row.DisplayedDifficultyRatings?.RebirthStars?.IsSuccess
+                       == true);
+        });
+        AddStep("resume and clean external fixture", () =>
+        {
+            importedChartLibrary.LibraryChanged -= pauseBackground;
+            importedChartLibrary.SetExternalIndexingPaused(false);
+            difficultyTask = importedChartLibrary.ExternalDifficultyTask;
+        });
+        AddUntilStep("background task exits", () =>
+            difficultyTask?.IsCompleted == true);
+        AddStep("remove external fixture", () =>
+        {
+            importedChartLibrary.DisableExternalOsu();
+            externalOsuSettings.SongsPath.Value = string.Empty;
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        });
+    }
+
+    [Test]
     public void TestF5ClearsMovedManagedLibraryAndBlocksPlay()
     {
         string movedLibrary = Path.Combine(
