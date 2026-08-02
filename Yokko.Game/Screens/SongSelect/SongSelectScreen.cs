@@ -171,9 +171,12 @@ public partial class SongSelectScreen : Screen
 
     private List<SongSelectEntry> visibleEntries;
     private List<SongSelectEntry> navigableEntries = [];
+    private readonly Dictionary<SongSelectEntry, int> navigableEntryIndices =
+        new(ReferenceEqualityComparer.Instance);
     private SongSelectEntry selectedEntry;
     private CancellationTokenSource filterCancellation;
     private Task<SongSelectFilterResult> filterTask;
+    private SongSelectSorting.EntrySnapshot[] basicFilterSnapshots;
     private int filterGeneration;
     private bool filterDisposed;
     private bool filterPending;
@@ -3255,8 +3258,11 @@ public partial class SongSelectScreen : Screen
             ManiaBeatmapModTransformer.Apply(
                 selectedEntry.Beatmap,
                 selectedMods);
-        double appliedLengthMilliseconds =
-            appliedBeatmap.HitObjects.Count == 0
+        double appliedLengthMilliseconds = ReferenceEquals(
+            appliedBeatmap,
+            selectedEntry.Beatmap)
+            ? selectedEntry.Length.TotalMilliseconds
+            : appliedBeatmap.HitObjects.Count == 0
                 ? 0
                 : appliedBeatmap.HitObjects.Max(hitObject =>
                     hitObject.EndTimeMilliseconds
@@ -4049,6 +4055,9 @@ public partial class SongSelectScreen : Screen
 
         songListRebuildVersion++;
         navigableEntries = visibleEntries.ToList();
+        navigableEntryIndices.Clear();
+        for (int index = 0; index < navigableEntries.Count; index++)
+            navigableEntryIndices[navigableEntries[index]] = index;
         var virtualItems = new List<SongSelectVirtualItem>();
 
         foreach (IGrouping<string, SongSelectEntry> group in visibleEntries.GroupBy(
@@ -4143,15 +4152,30 @@ public partial class SongSelectScreen : Screen
         invalidateFilterRequest(incrementGeneration: false);
         bool needsDifficulty = sortMode == SongSelectSortMode.Difficulty
                                || MinimumDifficultyFilter > 0;
+        SongSelectSorting.EntrySnapshot[] filterEntries;
+        if (needsDifficulty)
+        {
+            filterEntries = entries.Select(entry =>
+                    new SongSelectSorting.EntrySnapshot(
+                        entry,
+                        entry.Beatmap,
+                        selectedDifficultyValue(entry)))
+                .ToArray();
+        }
+        else
+        {
+            basicFilterSnapshots ??= entries.Select(entry =>
+                    new SongSelectSorting.EntrySnapshot(
+                        entry,
+                        entry.Beatmap,
+                        null))
+                .ToArray();
+            filterEntries = basicFilterSnapshots;
+        }
+
         var request = new SongSelectFilterRequest(
             generation,
-            entries.Select(entry => new SongSelectSorting.EntrySnapshot(
-                    entry,
-                    entry.Beatmap,
-                    needsDifficulty
-                        ? selectedDifficultyValue(entry)
-                        : null))
-                .ToArray(),
+            filterEntries,
             searchQuery,
             keyModeFilter,
             showConverts,
@@ -4330,8 +4354,8 @@ public partial class SongSelectScreen : Screen
         if (navigableEntries.Count == 0)
             return;
 
-        int index = navigableEntries.IndexOf(selectedEntry);
-        if (index < 0)
+        if (selectedEntry == null
+            || !navigableEntryIndices.TryGetValue(selectedEntry, out int index))
             index = 0;
         else
             index = wrap
@@ -4355,7 +4379,12 @@ public partial class SongSelectScreen : Screen
         if (navigableEntries.Count == 0)
             return;
 
-        int currentIndex = navigableEntries.IndexOf(selectedEntry);
+        int currentIndex = selectedEntry != null
+                           && navigableEntryIndices.TryGetValue(
+                               selectedEntry,
+                               out int selectedIndex)
+            ? selectedIndex
+            : -1;
         int randomIndex = navigableEntries.Count == 1
             ? 0
             : Random.Shared.Next(navigableEntries.Count - 1);
@@ -4370,8 +4399,17 @@ public partial class SongSelectScreen : Screen
         if (entry == null)
             return;
 
-        int previousIndex = navigableEntries.IndexOf(selectedEntry);
-        int nextIndex = navigableEntries.IndexOf(entry);
+        int previousIndex = selectedEntry != null
+                            && navigableEntryIndices.TryGetValue(
+                                selectedEntry,
+                                out int selectedIndex)
+            ? selectedIndex
+            : -1;
+        int nextIndex = navigableEntryIndices.TryGetValue(
+            entry,
+            out int entryIndex)
+            ? entryIndex
+            : -1;
         float selectionDirection = previousIndex >= 0
                                    && nextIndex >= 0
                                    && nextIndex < previousIndex
@@ -4610,6 +4648,7 @@ public partial class SongSelectScreen : Screen
         if (success)
         {
             entry.Beatmap = playable;
+            basicFilterSnapshots = null;
             materialisedExternalCharts.Add(entry.ChartId);
             difficultyRatingsCache.Remove(entry);
             rebuildDetails();
@@ -4668,12 +4707,7 @@ public partial class SongSelectScreen : Screen
         if (selectionMemory == null || selectedEntry == null)
             return;
 
-        selectionMemory.ChartId = importedEntries
-                                  .Where(pair => ReferenceEquals(
-                                      pair.Value,
-                                      selectedEntry))
-                                  .Select(pair => pair.Key)
-                                  .FirstOrDefault();
+        selectionMemory.ChartId = selectedEntry.ChartId;
     }
 
     private Texture textureFor(SongSelectEntry entry)
@@ -5142,6 +5176,7 @@ public partial class SongSelectScreen : Screen
             entries.Add(entry);
         }
         materialisedExternalCharts.IntersectWith(nextEntries.Keys);
+        basicFilterSnapshots = null;
 
         if (playableBeatmapChartId != null
             && !nextEntries.ContainsKey(playableBeatmapChartId))

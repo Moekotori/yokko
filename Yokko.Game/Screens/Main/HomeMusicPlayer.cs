@@ -49,6 +49,8 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
 
     private readonly object audioQueueLock = new();
     private IReadOnlyList<ImportedHomeTrack> tracks = [];
+    private readonly Dictionary<string, int> trackIndices =
+        new(StringComparer.OrdinalIgnoreCase);
     private Task audioQueue = Task.CompletedTask;
     private IAudioEngine audioEngine;
     private int trackIndex = -1;
@@ -310,16 +312,7 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
             return;
 
         string audioPath = Path.GetFullPath(beatmap.AudioPath);
-        int index = tracks
-                    .Select((track, trackIndex) => (track, trackIndex))
-                    .Where(pair => string.Equals(
-                        pair.track.AudioPath,
-                        audioPath,
-                        StringComparison.OrdinalIgnoreCase))
-                    .Select(pair => pair.trackIndex)
-                    .DefaultIfEmpty(-1)
-                    .First();
-        if (index < 0)
+        if (!trackIndices.TryGetValue(audioPath, out int index))
             return;
 
         bool changed = trackIndex != index;
@@ -663,6 +656,9 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
             ? tracks[trackIndex].AudioPath
             : null;
         tracks = refreshed;
+        trackIndices.Clear();
+        for (int index = 0; index < tracks.Count; index++)
+            trackIndices[tracks[index].AudioPath] = index;
         if (tracks.Count == 0)
         {
             trackIndex = -1;
@@ -680,12 +676,9 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
 
         int preservedIndex = previousAudioPath == null
             ? -1
-            : Array.FindIndex(
-                refreshed,
-                track => string.Equals(
-                    track.AudioPath,
-                    previousAudioPath,
-                    StringComparison.OrdinalIgnoreCase));
+            : trackIndices.TryGetValue(previousAudioPath, out int previousIndex)
+                ? previousIndex
+                : -1;
         bool trackChanged = preservedIndex < 0;
         trackIndex = preservedIndex >= 0
             ? preservedIndex

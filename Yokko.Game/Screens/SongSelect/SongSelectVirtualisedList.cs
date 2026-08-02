@@ -30,6 +30,8 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
     private const int maximum_header_pool_size = 16;
     private const float edge_fade_height = 28;
     private const float scroll_indicator_inset = 12;
+    private const double navigation_scroll_decay = 0.018;
+    private const double maximum_animated_viewports = 1.5;
 
     private readonly Func<SongSelectEntry, ManiaDifficultyRatings> ratingsFor;
     private readonly Func<SongSelectEntry, Texture> textureFor;
@@ -688,10 +690,30 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
     {
         double top = item.Top;
         double bottom = top + item.VisualHeight;
+        double target = scroll.Current;
         if (top < scroll.Current)
-            scroll.ScrollTo(top, animated);
+            target = top;
         else if (bottom > scroll.Current + scroll.DrawHeight)
-            scroll.ScrollTo(bottom - scroll.DrawHeight, animated);
+            target = bottom - scroll.DrawHeight;
+
+        if (Math.Abs(target - scroll.Current) < 0.01)
+            return;
+
+        // Animating a random/Home/End jump through thousands of logical rows
+        // forces the virtual list to materialise and decode artwork for every
+        // intermediate viewport. Keep nearby keyboard browsing animated, but
+        // land distant jumps directly on their destination.
+        double animatedDistance = Math.Max(
+            item.VisualHeight * 8,
+            scroll.DrawHeight * maximum_animated_viewports);
+        bool animateNavigation = animated
+                                 && Math.Abs(target - scroll.Current)
+                                 <= animatedDistance;
+        scroll.ScrollTo(
+            target,
+            animateNavigation,
+            navigation_scroll_decay);
+        rangeInvalidated = true;
     }
 
     private void releaseAll()

@@ -75,8 +75,10 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
             list.MaterialisedDrawableCount > 0);
         AddAssert("initial drawable count is bounded", () =>
             list.MaterialisedDrawableCount <= 40);
-        AddStep("jump to last row", () =>
-            list.ScrollEntryIntoView(entries[^1], false));
+        AddStep("animate far jump to last row", () =>
+            list.ScrollEntryIntoView(entries[^1], true));
+        AddAssert("far jump lands without traversing intermediate rows", () =>
+            list.ScrollPosition > 100_000);
         AddUntilStep("last row actualised", () =>
             list.MaterialisedRows.Any(row =>
                 ReferenceEquals(row.Entry, entries[^1])));

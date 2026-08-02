@@ -11,6 +11,16 @@ namespace Yokko.Game.Tests.Core;
 public sealed class ManiaBeatmapModTransformerTest
 {
     [Test]
+    public void EmptyModsReuseOriginalBeatmap()
+    {
+        YokkoBeatmap original = createBeatmap();
+
+        Assert.That(
+            ManiaBeatmapModTransformer.Apply(original, ManiaModSet.Empty),
+            Is.SameAs(original));
+    }
+
+    [Test]
     public void MirrorFlipsEveryObjectHorizontally()
     {
         YokkoBeatmap transformed = ManiaBeatmapModTransformer.Apply(

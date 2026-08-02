@@ -145,6 +145,7 @@ public partial class GameplayScreen : Screen
     private bool gameplayFailed;
     private double diagnosticSnapshotElapsed;
     private bool retryTransitionInProgress;
+    private double quickRetryHoldStartTime = double.NaN;
     private GameplayHud hud;
     private ManiaScoreResult completedResult;
     private GameplayResultOverlay resultOverlay;
@@ -251,7 +252,10 @@ public partial class GameplayScreen : Screen
         ? Math.Max(0, mods.NoPauseAllowedPauses - pausesUsed)
         : int.MaxValue;
     internal bool ResumeCountdownInProgress => resumeCountdownInProgress;
+    internal bool QuickRetryHoldActive =>
+        !double.IsNaN(quickRetryHoldStartTime);
     internal double? ResumeCountdownMillisecondsOverride;
+    internal double QuickRetryHoldMilliseconds = 180;
 
     private double resumeCountdownDuration =>
         ResumeCountdownMillisecondsOverride
@@ -737,6 +741,7 @@ public partial class GameplayScreen : Screen
         base.Update();
         updatePlayfieldLayout();
         drainAudioSampleTriggerTelemetry();
+        updateQuickRetryHold();
         updateDiagnosticSnapshot();
         replayControls?.UpdateState(
             currentGameplayTime,
@@ -1276,7 +1281,7 @@ public partial class GameplayScreen : Screen
         if (matchesShortcut(ManiaShortcutAction.QuickRetry, key))
         {
             if (!repeat)
-                RetryGameplay();
+                beginQuickRetryHold();
             return true;
         }
 
@@ -1413,6 +1418,9 @@ public partial class GameplayScreen : Screen
 
     internal bool HandleKeyUpInput(Key key)
     {
+        if (matchesShortcut(ManiaShortcutAction.QuickRetry, key))
+            cancelQuickRetryHold();
+
         if (gameplayCompleted
             || gameplayFailed
             || retryTransitionInProgress
@@ -3087,6 +3095,41 @@ public partial class GameplayScreen : Screen
             $"Gameplay input state recovered: {reason}.",
             LoggingTarget.Runtime,
             LogLevel.Important);
+    }
+
+    private void beginQuickRetryHold()
+    {
+        if (double.IsNaN(quickRetryHoldStartTime))
+            quickRetryHoldStartTime = Time.Current;
+    }
+
+    private void cancelQuickRetryHold() =>
+        quickRetryHoldStartTime = double.NaN;
+
+    private void updateQuickRetryHold()
+    {
+        if (double.IsNaN(quickRetryHoldStartTime))
+            return;
+
+        if (gameplayBlocked
+            || gameplayCompleted
+            || gameplayFailed
+            || retryTransitionInProgress
+            || isPaused
+            || resumeCountdownInProgress)
+        {
+            cancelQuickRetryHold();
+            return;
+        }
+
+        if (Time.Current - quickRetryHoldStartTime
+            < QuickRetryHoldMilliseconds)
+        {
+            return;
+        }
+
+        cancelQuickRetryHold();
+        RetryGameplay();
     }
 
     private void beginInputCapture()

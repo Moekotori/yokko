@@ -19,6 +19,8 @@ public static class ManiaBeatmapModTransformer
     {
         ArgumentNullException.ThrowIfNull(original);
         mods ??= ManiaModSet.Empty;
+        if (mods.IsEmpty)
+            return original;
 
         KeyMode keyMode = original.KeyMode;
         int stageCount = original.StageCount;
