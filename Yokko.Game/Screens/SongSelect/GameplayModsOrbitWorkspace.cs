@@ -558,7 +558,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         container.Add(pageIndicator = new SpriteText
         {
             Position = new Vector2(76, 494),
-            Font = HomeTypography.Display(18),
+            Font = HomeTypography.Display(22),
             Colour = HomeControlColours.Pink,
         });
         container.Add(new OrbitRailArrow(
@@ -2023,7 +2023,7 @@ internal partial class OrbitCategoryButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 15,
                 Text = $"{page:00}",
-                Font = HomeTypography.Display(20),
+                Font = HomeTypography.Display(24),
                 Colour = HomeControlColours.Navy,
             },
             marker = new Circle
@@ -2047,7 +2047,7 @@ internal partial class OrbitCategoryButton : ClickableContainer
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.Centre,
                 Position = new Vector2(98, 0),
-                Size = new Vector2(19),
+                Size = new Vector2(22),
                 Icon = iconUsage,
                 Colour = Color4.White,
             },
@@ -2057,7 +2057,7 @@ internal partial class OrbitCategoryButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 140,
                 Text = text,
-                Font = HomeTypography.Display(20),
+                Font = HomeTypography.Display(24),
                 Colour = HomeControlColours.Navy,
             },
             selectionDiamond = new Box

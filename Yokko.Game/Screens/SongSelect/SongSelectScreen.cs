@@ -4057,7 +4057,7 @@ public partial class SongSelectScreen : Screen
                                $"{entry.Beatmap.Artist}\u001f{entry.Beatmap.Title}")
                            .Distinct(StringComparer.OrdinalIgnoreCase)
                            .Count();
-            float sectionSpacing = virtualItems.Count == 0 ? 0 : 8;
+            float sectionSpacing = virtualItems.Count == 0 ? 0 : 12;
             bool collapsed = first.IsPackage
                              && collapsedPackages.Contains(first.PackageId)
                              && string.IsNullOrWhiteSpace(searchQuery);
@@ -4608,6 +4608,7 @@ public partial class SongSelectScreen : Screen
             materialisedExternalCharts.Add(entry.ChartId);
             difficultyRatingsCache.Remove(entry);
             rebuildDetails();
+            refreshSongListDifficulties();
             modSettingsHost?.SetState(selectedMods, playable);
             scheduleGameplayPreload();
         }
@@ -4980,7 +4981,8 @@ public partial class SongSelectScreen : Screen
 
     private void refreshSongListDifficulties()
     {
-        if (sortMode == SongSelectSortMode.Difficulty)
+        if (sortMode == SongSelectSortMode.Difficulty
+            || MinimumDifficultyFilter > 0)
         {
             applyFilters();
             return;

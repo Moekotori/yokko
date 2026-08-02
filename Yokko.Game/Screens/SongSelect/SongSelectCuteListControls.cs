@@ -457,7 +457,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             difficultyUnit,
             difficultyValue)
         {
-            Position = new Vector2(610, 18),
+            Position = new Vector2(650, 18),
         });
         children.Add(compactPrimaryText = adaptiveLabel(
             primaryText ?? entry.Beatmap.DifficultyName,
@@ -563,7 +563,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             SongSelectTheme.Pink,
             true));
         standalonePreviewHint.Alpha = 0;
-        children.Add(createFullModePill(entry, 792, 32));
+        children.Add(createFullModePill(entry, 760, 92));
         children.Add(createDifficultyBadge(
             displayedDifficultyRatings,
             difficultyRatingMode,
@@ -719,7 +719,7 @@ internal partial class SongSelectProgressiveModePill : CompositeDrawable
 {
     private const float compact_width = 58;
     private const float expanded_width = 126;
-    private const float right_edge = 816;
+    private const float right_edge = 930;
 
     private readonly Box surface;
     private readonly SpriteText compactText;
@@ -853,6 +853,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
     private Container chevronFrame;
     private Container packageSummaryLayer;
     private Container selectedSummaryLayer;
+    private Container selectedModePill;
     private SpriteText[] packageTitleTexts;
     private SpriteText selectedTitle;
     private SpriteText selectedByline;
@@ -881,6 +882,12 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         selectedModeText?.Text.ToString() ?? string.Empty;
     internal string SelectedContextRating =>
         selectedRatingValue?.Text.ToString() ?? string.Empty;
+    internal Vector2 SelectedModePillPosition =>
+        selectedModePill?.Position ?? Vector2.Zero;
+    internal Vector2 SelectedModePillSize =>
+        selectedModePill?.Size ?? Vector2.Zero;
+    internal Vector2 SelectedRatingPosition =>
+        selectedRatingValue?.Position ?? Vector2.Zero;
     internal int PackageTitleLineCount => packageTitleTexts?.Length ?? 0;
     internal bool PackageTitleUsesTruncation =>
         packageTitleTexts?.All(text => text.Truncate) == true;
@@ -1012,8 +1019,9 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 Origin = Anchor.TopRight,
                 Position = new Vector2(-18, 8),
                 Size = new Vector2(16),
-                Icon = FontAwesome.Solid.Star,
-                Colour = SongSelectTheme.Yellow,
+                Icon = FontAwesome.Solid.LayerGroup,
+                Colour = SongSelectTheme.Cyan,
+                Alpha = 0.56f,
             },
             selectedIndicator = new SpriteIcon
             {
@@ -1021,9 +1029,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                     selected
                         ? artwork_width + 8
                         : artwork_width + 4,
-                    collapsed
-                        ? headerHeight - 29
-                        : headerHeight - 33),
+                    headerHeight - 27),
                 Size = new Vector2(11),
                 Icon = FontAwesome.Solid.Play,
                 Colour = SongSelectTheme.Pink,
@@ -1226,6 +1232,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         chevronFrame = null;
         packageSummaryLayer = null;
         selectedSummaryLayer = null;
+        selectedModePill = null;
         packageTitleTexts = null;
         selectedTitle = null;
         selectedByline = null;
@@ -1330,10 +1337,10 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 360,
                 9,
                 SongSelectTheme.Pink),
-            new Container
+            selectedModePill = new Container
             {
-                Position = new Vector2(contentStart, 108),
-                Size = new Vector2(220, 28),
+                Position = new Vector2(contentStart, 98),
+                Size = new Vector2(300, 26),
                 Masking = true,
                 CornerRadius = 7,
                 Children =
@@ -1351,7 +1358,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Width = 204,
+                        Width = 284,
                         Truncate = true,
                         Font = HomeTypography.Display(9),
                         Colour = Color4.White,
@@ -1360,15 +1367,15 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             },
             selectedRatingUnit = label(
                 string.Empty,
-                650,
-                115,
+                660,
+                106,
                 40,
                 7,
                 SongSelectTheme.Cyan),
             selectedRatingValue = new SpriteText
             {
                 Origin = Anchor.TopRight,
-                Position = new Vector2(746, 109),
+                Position = new Vector2(754, 100),
                 Width = 54,
                 Truncate = true,
                 Font = HomeTypography.Display(11),

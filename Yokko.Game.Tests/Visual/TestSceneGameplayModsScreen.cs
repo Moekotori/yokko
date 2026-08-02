@@ -249,7 +249,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     }
 
     [Test]
-    public void TestCoverSettingsRemainWhileFlashlightStaysSimple()
+    public void TestVisibilityModsAvoidLargeSettingsPanel()
     {
         AddStep("clear visibility preferences", () =>
         {
@@ -258,8 +258,10 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         });
         AddStep("enable Cover", () =>
             modsScreen.ToggleMod(ManiaModId.Cover));
-        AddAssert("Cover opens configuration page", () =>
-            modsScreen.SettingsHost.ActivePage == ManiaModId.Cover);
+        AddWaitStep("wait for Cover simple state", 10);
+        AddAssert("Cover does not open a settings page", () =>
+            modsScreen.SelectedMods.Contains(ManiaModId.Cover)
+            && !modsScreen.OrbitSettingsPanelVisible);
         AddStep("configure Cover", () =>
         {
             modsScreen.SetCoverCoverage(0.7);
@@ -296,9 +298,10 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.ResetMods();
             modsScreen.ToggleMod(ManiaModId.Random);
         });
-        AddAssert("Random opens seed configuration", () =>
-            modsScreen.SettingsHost.ActivePage
-            == ManiaModId.Random);
+        AddWaitStep("wait for Random simple state", 10);
+        AddAssert("Random does not open a settings page", () =>
+            modsScreen.SelectedMods.Contains(ManiaModId.Random)
+            && !modsScreen.OrbitSettingsPanelVisible);
         AddStep("set signed custom seed", () =>
             modsScreen.SetRandomSeed(-123456789));
         AddAssert("custom seed reaches replay-owned Mod set", () =>
@@ -442,12 +445,12 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
                 .FamilyIndicatorText == "1/2");
         AddStep("cycle slow-rate switch to Daycore", () =>
             modsScreen.CycleOrbitMod(ManiaModId.HalfTime));
-        AddWaitStep("wait for Daycore settings", 10);
+        AddWaitStep("wait for Daycore simple state", 10);
         AddAssert("Daycore replaces Half Time in the shared switch", () =>
             !modsScreen.SelectedMods.Contains(ManiaModId.HalfTime)
             && modsScreen.SelectedMods.Contains(ManiaModId.Daycore)
             && modsScreen.DetailMod == ManiaModId.Daycore
-            && modsScreen.OrbitSettingsPanelVisible
+            && !modsScreen.OrbitSettingsPanelVisible
             && this.ChildrenOfType<OrbitModNode>()
                 .Single(node => node.ModId == ManiaModId.HalfTime)
                 .FamilyIndicatorText == "2/2");
@@ -653,6 +656,39 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     }
 
     [Test]
+    public void TestEveryPreviouslyConfigurableModAvoidsLargePanel()
+    {
+        ManiaModId[] mods =
+        [
+            ManiaModId.Daycore,
+            ManiaModId.Nightcore,
+            ManiaModId.DifficultyAdjust,
+            ManiaModId.Muted,
+            ManiaModId.Cover,
+            ManiaModId.WindUp,
+            ManiaModId.WindDown,
+            ManiaModId.AdaptiveSpeed,
+            ManiaModId.Random,
+        ];
+
+        foreach (ManiaModId mod in mods)
+        {
+            AddStep($"focus simple {mod}", () =>
+            {
+                modsScreen.ResetMods();
+                modsScreen.SetCategory(
+                    OsuManiaModParityCatalog.Get(mod).Category);
+                modsScreen.ToggleMod(mod);
+                modsScreen.FocusOrbitModForTest(mod);
+            });
+            AddWaitStep($"settle simple {mod}", 10);
+            AddAssert($"{mod} has no large panel", () =>
+                modsScreen.SelectedMods.Contains(mod)
+                && !modsScreen.OrbitSettingsPanelVisible);
+        }
+    }
+
+    [Test]
     public void TestActiveModRowsFocusBeforeRemoving()
     {
         OrbitActiveModRow activeRow = null;
@@ -722,20 +758,19 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     }
 
     [Test]
-    public void TestConfigurableSettingsUseLightWorkspace()
+    public void TestDifficultyAdjustAvoidsLargeSettingsPanel()
     {
-        AddStep("show Difficulty Adjust settings", () =>
+        AddStep("enable Difficulty Adjust", () =>
         {
             modsScreen.ResetMods();
             modsScreen.SetCategory(ManiaModCategory.Conversion);
             modsScreen.ToggleMod(ManiaModId.DifficultyAdjust);
         });
-        AddAssert("configuration card uses the light workspace", () =>
-            modsScreen.ConfigurablePanelColour.R > 0.9f
-            && modsScreen.ConfigurablePanelColour.G > 0.9f
-            && modsScreen.ConfigurablePanelColour.B > 0.9f);
-        AddWaitStep("wait for settings transition", 10);
-        AddStep("capture light settings workspace", captureScreenshot);
+        AddWaitStep("wait for Difficulty Adjust simple state", 10);
+        AddAssert("Difficulty Adjust has no large settings panel", () =>
+            modsScreen.SelectedMods.Contains(ManiaModId.DifficultyAdjust)
+            && !modsScreen.OrbitSettingsPanelVisible);
+        AddStep("capture simple Mod workspace", captureScreenshot);
         AddUntilStep("screenshot saved", () => screenshotSaved);
     }
 

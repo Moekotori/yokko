@@ -2447,8 +2447,12 @@ internal partial class GameplayModsScreen : Screen
         else
         {
             ManiaModId rateMod = nextValue < 1
-                ? ManiaModId.HalfTime
-                : ManiaModId.DoubleTime;
+                ? selectedMods.Contains(ManiaModId.Daycore)
+                    ? ManiaModId.Daycore
+                    : ManiaModId.HalfTime
+                : selectedMods.Contains(ManiaModId.Nightcore)
+                    ? ManiaModId.Nightcore
+                    : ManiaModId.DoubleTime;
             double constrained = nextValue < 1
                 ? Math.Min(nextValue, 0.99)
                 : Math.Max(nextValue, 1.01);
@@ -2700,10 +2704,7 @@ internal partial class GameplayModsScreen : Screen
             or ManiaModId.DualStages
         || isKeyConversionMod(mod);
 
-    private static bool hasLargeSettingsPanel(ManiaModId mod) =>
-        isConfigurable(mod)
-        && mod is not ManiaModId.AccuracyChallenge
-            and not ManiaModId.NoPause;
+    private static bool hasLargeSettingsPanel(ManiaModId mod) => false;
 
     private static bool isKeyConversionMod(ManiaModId mod) =>
         mod is >= ManiaModId.Key1 and <= ManiaModId.Key10;

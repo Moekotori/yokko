@@ -23,7 +23,7 @@ namespace Yokko.Game.Screens.SongSelect;
 /// </summary>
 internal partial class SongSelectVirtualisedList : CompositeDrawable
 {
-    private const float item_spacing = 5;
+    private const float item_spacing = 7;
     private const int initial_row_pool_size = 16;
     private const int maximum_row_pool_size = 40;
     private const int initial_header_pool_size = 4;

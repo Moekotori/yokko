@@ -19,11 +19,12 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
     private const int item_count = 10_000;
     private readonly SongSelectVirtualisedList list;
     private readonly SongSelectEntry[] entries;
+    private ManiaDifficultyRatings currentRatings;
 
     public TestSceneSongSelectVirtualisedList()
     {
         var beatmap = DemoBeatmaps.CreateFourKeyDemo();
-        var ratings = new ManiaDifficultyRatings(
+        var ratings = currentRatings = new ManiaDifficultyRatings(
             ManiaMsdCalculator.CalculateResult(beatmap),
             ManiaStarRatingCalculator.CalculateResult(beatmap));
         entries = Enumerable.Range(0, item_count)
@@ -45,7 +46,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                             .ToArray();
 
         Add(list = new SongSelectVirtualisedList(
-            _ => ratings,
+            _ => currentRatings,
             _ => null,
             () => ManiaDifficultyRatingMode.EtternaMsd,
             null,
@@ -439,7 +440,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                 .MaterialisedRows.Single()
                 .ChildrenOfType<SongSelectInlineDifficultyRating>()
                 .Single();
-            return Math.Abs(rating.X - 610) < 0.05f
+            return Math.Abs(rating.X - 650) < 0.05f
                    && Math.Abs(rating.Y - 18) < 0.05f
                    && Math.Abs(rating.Width - 64) < 0.05f
                    && Math.Abs(rating.Height - 20) < 0.05f
@@ -473,6 +474,18 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                            ManiaDifficultyRatingMode.RebirthStars)
                    && list.ItemCount == 1;
         });
+        AddStep("replace calculated ratings and refresh active row", () =>
+        {
+            YokkoBeatmap alternate = DemoBeatmaps.CreateSevenKeyDemo();
+            currentRatings = new ManiaDifficultyRatings(
+                ManiaMsdCalculator.CalculateResult(alternate),
+                ManiaStarRatingCalculator.CalculateResult(alternate));
+            list.UpdateDifficulties();
+        });
+        AddAssert("active row adopts refreshed rating without rebind", () =>
+            ReferenceEquals(
+                list.MaterialisedRows.Single().DisplayedDifficultyRatings,
+                currentRatings));
     }
 
     [Test]
@@ -553,7 +566,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
         AddAssert("resting rows show quiet key-mode chips", () =>
             list.MaterialisedRows.All(row =>
                 Math.Abs(row.ModePillWidth - 58) < 0.05f
-                && Math.Abs(row.ModePillX - 758) < 0.05f
+                && Math.Abs(row.ModePillX - 872) < 0.05f
                 && row.CompactModeTextAlpha > 0.99f
                 && row.ExpandedModeTextAlpha < 0.01f));
         AddStep("select first package row", () =>
@@ -565,7 +578,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
             SongSelectSongRow resting = list.MaterialisedRows.Single(row =>
                 ReferenceEquals(row.Entry, entries[1]));
             return Math.Abs(selected.ModePillWidth - 126) < 0.05f
-                   && Math.Abs(selected.ModePillX - 690) < 0.05f
+                   && Math.Abs(selected.ModePillX - 804) < 0.05f
                    && selected.CompactModeTextAlpha < 0.01f
                    && selected.ExpandedModeTextAlpha > 0.99f
                    && Math.Abs(resting.ModePillWidth - 58) < 0.05f
@@ -580,7 +593,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
             SongSelectSongRow selected = list.MaterialisedRows.Single(row =>
                 ReferenceEquals(row.Entry, entries[1]));
             return Math.Abs(previous.ModePillWidth - 58) < 0.05f
-                   && Math.Abs(previous.ModePillX - 758) < 0.05f
+                   && Math.Abs(previous.ModePillX - 872) < 0.05f
                    && previous.CompactModeTextAlpha > 0.99f
                    && Math.Abs(selected.ModePillWidth - 126) < 0.05f
                    && selected.ExpandedModeTextAlpha > 0.99f
@@ -740,8 +753,35 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                    && header.SelectedContextByline.Contains(
                        entries[0].Beatmap.Creator)
                    && header.SelectedContextMode.StartsWith("4K")
+                   && header.SelectedModePillPosition
+                      == new Vector2(244, 98)
+                   && header.SelectedModePillSize
+                      == new Vector2(300, 26)
+                   && header.SelectedRatingPosition
+                      == new Vector2(754, 100)
                    && !string.IsNullOrWhiteSpace(
                        header.SelectedContextRating);
+        });
+        AddStep("refresh selected package rating in place", () =>
+        {
+            YokkoBeatmap alternate = DemoBeatmaps.CreateSevenKeyDemo();
+            currentRatings = new ManiaDifficultyRatings(
+                ManiaMsdCalculator.CalculateResult(alternate),
+                ManiaStarRatingCalculator.CalculateResult(alternate));
+            list.UpdateDifficulties();
+        });
+        AddAssert("package header and child share refreshed MSD", () =>
+        {
+            SongSelectPackageHeader header =
+                list.MaterialisedHeaders.Single();
+            SongSelectSongRow row = list.MaterialisedRows.Single();
+            string expected = ManiaDifficultyPresentation.FormatValue(
+                currentRatings,
+                ManiaDifficultyRatingMode.EtternaMsd);
+            return header.SelectedContextRating == expected
+                   && ReferenceEquals(
+                       row.DisplayedDifficultyRatings,
+                       currentRatings);
         });
         AddStep("collapse package and reuse header", () =>
         {

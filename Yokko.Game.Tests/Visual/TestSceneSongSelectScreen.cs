@@ -192,6 +192,26 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.PlayButtonEyebrow
                 == "START SELECTED CHART"
             && songSelectScreen.PlayButtonAction == "PLAY");
+        AddStep("show chart preparation feedback", () => songSelectScreen
+            .ChildrenOfType<SongSelectPlayButton>()
+            .Single()
+            .SetPreparing("PREPARING EXTERNAL CHART"));
+        AddAssert("play action communicates loading", () =>
+            songSelectScreen.PlayButtonEyebrow
+                == "PREPARING EXTERNAL CHART"
+            && songSelectScreen.PlayButtonAction == "LOADING...");
+        AddStep("show recoverable chart load failure", () => songSelectScreen
+            .ChildrenOfType<SongSelectPlayButton>()
+            .Single()
+            .SetError());
+        AddAssert("failed play action offers retry", () =>
+            songSelectScreen.PlayButtonEyebrow
+                == "CHART COULD NOT LOAD"
+            && songSelectScreen.PlayButtonAction == "RETRY");
+        AddStep("restore ready play action", () => songSelectScreen
+            .ChildrenOfType<SongSelectPlayButton>()
+            .Single()
+            .SetReady());
 
         AddStep("select next song", songSelectScreen.SelectNext);
         AddAssert("selection wraps", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");

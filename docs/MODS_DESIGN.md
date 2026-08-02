@@ -34,6 +34,10 @@ appear selectable until its complete behaviour is registered and tested.
 
 The currently selectable implementation slices are:
 
+The dedicated Mod workspace intentionally avoids per-Mod right-side settings
+cards. Simple Mods use canonical defaults; AC and NP use compact hero controls,
+and DC/NC reuse the global rate control.
+
 - fixed rate: canonical 0.75x HT and 1.50x DT, plus configurable DC and NC
   across their upstream ranges;
 - conversion: MR, seeded RD, HO, IN, CL, CS, configurable DA, DS and
