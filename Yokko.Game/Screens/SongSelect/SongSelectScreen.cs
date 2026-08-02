@@ -1488,7 +1488,12 @@ public partial class SongSelectScreen : Screen
             practiceSession: false,
             judgementConfiguration: score.JudgementConfiguration
                 ?? gameplaySettings.GetJudgementConfiguration(),
-            replayAvailable: replayAvailable);
+            replayAvailable: replayAvailable,
+            presentation: new GameplayResultPresentation(
+                score.PlayerName,
+                score.PlayerId,
+                score.PlayedAt,
+                ReplaySaved: replayAvailable));
         scoreResultHost = new ScoreResultInputBlocker
         {
             RelativeSizeAxes = Axes.Both,
@@ -2427,7 +2432,7 @@ public partial class SongSelectScreen : Screen
         Anchor = Anchor.TopRight,
         Origin = Anchor.TopRight,
         Position = new Vector2(-browse_right, 136),
-        Size = new Vector2(browse_width, 34),
+        Size = new Vector2(browse_width, 40),
         Masking = false,
         Children =
         [
@@ -2899,7 +2904,7 @@ public partial class SongSelectScreen : Screen
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
                             Text = key,
-                            Font = HomeTypography.Display(8),
+                            Font = HomeTypography.Display(9),
                             Colour = SongSelectTheme.Navy,
                         },
                     ],
@@ -2910,12 +2915,12 @@ public partial class SongSelectScreen : Screen
                     Origin = Anchor.CentreLeft,
                     X = 34,
                     Text = label,
-                    Font = HomeTypography.Display(8),
+                    Font = HomeTypography.Display(9),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
                         SongSelectTheme.Navy.B,
-                        0.72f),
+                        0.78f),
                 },
             ],
         };
@@ -3505,7 +3510,7 @@ public partial class SongSelectScreen : Screen
             new SpriteText
             {
                 Text = label,
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(9),
                 Colour = new Color4(
                     SongSelectTheme.PaleCyan.R,
                     SongSelectTheme.PaleCyan.G,
@@ -3844,7 +3849,7 @@ public partial class SongSelectScreen : Screen
             {
                 Position = new Vector2(18, 0),
                 Text = "BEST SCORE",
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(9),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -3860,7 +3865,7 @@ public partial class SongSelectScreen : Screen
                     ? $"{selectedEntry.BestScore:N0}"
                     : "NO SCORE",
                 Font = HomeTypography.Display(
-                    selectedEntry.BestScore > 0 ? 13 : 9),
+                    selectedEntry.BestScore > 0 ? 14 : 10),
                 Colour = SongSelectTheme.Navy,
             },
         },
@@ -3884,7 +3889,7 @@ public partial class SongSelectScreen : Screen
                 {
                     Position = new Vector2(18, 0),
                     Text = "BEST ACCURACY",
-                    Font = HomeTypography.Display(7),
+                    Font = HomeTypography.Display(9),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
@@ -3899,7 +3904,7 @@ public partial class SongSelectScreen : Screen
                     Text = selectedEntry.BestAccuracy > 0
                         ? $"{selectedEntry.BestAccuracy:P2}"
                         : "--",
-                    Font = HomeTypography.Display(13),
+                    Font = HomeTypography.Display(14),
                     Colour = SongSelectTheme.Navy,
                 },
             ],
@@ -3925,7 +3930,7 @@ public partial class SongSelectScreen : Screen
                 {
                     Position = new Vector2(18, 0),
                     Text = "PLAYBACK RATE",
-                    Font = HomeTypography.Display(7),
+                    Font = HomeTypography.Display(9),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
@@ -3938,7 +3943,7 @@ public partial class SongSelectScreen : Screen
                     Origin = Anchor.TopRight,
                     Position = new Vector2(-4, 0),
                     Text = "ALT +/-",
-                    Font = HomeTypography.Display(7),
+                    Font = HomeTypography.Display(8),
                     Colour = SongSelectTheme.Pink,
                 },
                 new SpriteText
@@ -3947,7 +3952,7 @@ public partial class SongSelectScreen : Screen
                     Width = 142,
                     Truncate = true,
                     Text = rateLabel,
-                    Font = HomeTypography.Display(13),
+                    Font = HomeTypography.Display(14),
                     Colour = SongSelectTheme.Navy,
                 },
             ],
@@ -3970,7 +3975,7 @@ public partial class SongSelectScreen : Screen
             {
                 Position = new Vector2(15, 0),
                 Text = label,
-                Font = HomeTypography.Display(7),
+                Font = HomeTypography.Display(8),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -3981,7 +3986,7 @@ public partial class SongSelectScreen : Screen
             {
                 Position = new Vector2(15, 14),
                 Text = value,
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Display(13),
                 Colour = SongSelectTheme.Navy,
             },
         },
@@ -4790,7 +4795,8 @@ public partial class SongSelectScreen : Screen
                     score.ReplayPath,
                     score.ModSet,
                     score.JudgementConfiguration
-                        ?? judgementConfiguration);
+                        ?? judgementConfiguration,
+                    score.PlayerId);
         }
     }
 
@@ -5410,7 +5416,7 @@ public partial class SongSelectScreen : Screen
         // This is deliberately neutral and constant. It protects the paper
         // UI from both blown-out and very busy chart artwork without sampling
         // or adapting to any specific beatmap's palette.
-        Colour = new Color4(1f, 0.995f, 0.972f, 0.76f),
+        Colour = new Color4(1f, 0.995f, 0.972f, 0.70f),
     };
 
     private static Drawable createBackgroundMoodWash() => new Container
@@ -5426,12 +5432,12 @@ public partial class SongSelectScreen : Screen
                         SongSelectTheme.Cyan.R,
                         SongSelectTheme.Cyan.G,
                         SongSelectTheme.Cyan.B,
-                        0.08f),
+                        0.10f),
                     new Color4(
                         SongSelectTheme.Pink.R,
                         SongSelectTheme.Pink.G,
                         SongSelectTheme.Pink.B,
-                        0.025f)),
+                        0.035f)),
             },
             new Box
             {

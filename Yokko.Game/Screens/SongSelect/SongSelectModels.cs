@@ -48,7 +48,8 @@ internal sealed record SongSelectScore(
     int MaxMissCombo = 0,
     string ReplayPath = null,
     ManiaModSet ModSet = null,
-    JudgementConfiguration? JudgementConfiguration = null);
+    JudgementConfiguration? JudgementConfiguration = null,
+    string PlayerId = null);
 
 internal sealed record SongSelectEntry
 {

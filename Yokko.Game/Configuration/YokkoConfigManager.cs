@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using osu.Framework.Configuration;
 using osu.Framework.Platform;
 using Yokko.Audio;
@@ -126,6 +127,8 @@ internal enum YokkoSetting
     SkinShowComboBursts,
     SkinLongNoteCutEnabled,
     SkinLongNoteCutAmount,
+    PlayerDisplayName,
+    PlayerId,
     SettingsLastPage,
 }
 
@@ -518,6 +521,15 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoSkinSettings.MinimumLongNoteCutAmount,
             YokkoSkinSettings.MaximumLongNoteCutAmount,
             YokkoSkinSettings.LongNoteCutAmountStep);
+        SetDefault(
+            YokkoSetting.PlayerDisplayName,
+            string.IsNullOrWhiteSpace(Environment.UserName)
+                ? "LOCAL PLAYER"
+                : Environment.UserName.ToUpperInvariant());
+        SetDefault(
+            YokkoSetting.PlayerId,
+            Random.Shared.Next(10_000_000, 100_000_000).ToString(
+                CultureInfo.InvariantCulture));
         SetDefault(YokkoSetting.SettingsLastPage, "Display");
     }
 

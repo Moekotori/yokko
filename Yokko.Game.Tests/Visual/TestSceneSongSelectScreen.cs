@@ -120,7 +120,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                                                     .ToArray();
             return controls.Length == 4
                    && controls.All(control =>
-                       Math.Abs(control.Height - 34) < 0.01f)
+                       Math.Abs(control.Height - 40) < 0.01f)
                    && controls.All(control =>
                        Math.Abs(control.BorderThickness - 1) < 0.01f
                        && Math.Abs(control.CornerRadius - 7) < 0.01f)
@@ -130,7 +130,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                    && controls.All(control => control.Interactive);
         });
         AddAssert("browse controls span one aligned rounded row", () =>
-            songSelectScreen.BrowseToolbarSize == new Vector2(980, 34));
+            songSelectScreen.BrowseToolbarSize == new Vector2(980, 40));
         AddAssert("selected details separate chart facts from performance", () =>
             songSelectScreen.SelectedChartFactsPosition
                 == new Vector2(310, 210)

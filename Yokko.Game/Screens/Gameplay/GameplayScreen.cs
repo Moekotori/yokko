@@ -79,6 +79,7 @@ public partial class GameplayScreen : Screen
     private readonly List<GameplayReplayInput> recordedReplayInputs = new();
     private readonly List<JudgementEvent> expiredJudgements = new();
     private readonly List<JudgementEvent> inputJudgements = new(8);
+    private readonly List<double> resultHitErrors = new(1024);
     [Resolved]
     private YokkoAudioSettings audioSettings { get; set; }
     [Resolved]
@@ -147,6 +148,7 @@ public partial class GameplayScreen : Screen
     private GameplayHud hud;
     private ManiaScoreResult completedResult;
     private GameplayResultOverlay resultOverlay;
+    private GameplayResultPresentation completedResultPresentation;
     private bool completedResultIsNewBest;
     private double completionTransitionElapsedMilliseconds;
     private IAudioMixControl completionMixControl;
@@ -2459,6 +2461,14 @@ public partial class GameplayScreen : Screen
 
         playfield.ApplyJudgement(judgement);
         bool isMine = judgement.Phase == JudgementPhase.Mine;
+        if (!isMine
+            && !judgement.IsMiss
+            && judgement.HitTimeMilliseconds.HasValue
+            && judgement.Rating.AffectsAccuracy()
+            && judgement.Phase != JudgementPhase.HoldBody)
+        {
+            resultHitErrors.Add(judgement.HitErrorMilliseconds);
+        }
         if (gameplaySettings.ShowTimingBar.Value && !isMine)
             timingBar.Show(judgement);
         adaptiveSpeedState?.Apply(judgement);
@@ -2554,6 +2564,13 @@ public partial class GameplayScreen : Screen
                               mods,
                               judgementConfiguration);
         DateTimeOffset completedAt = DateTimeOffset.UtcNow;
+        StoredGameplayScore previousBest = scoreStore.GetBest(
+            originalBeatmap,
+            mods,
+            judgementConfiguration);
+        string playerName = yokkoConfig.Get<string>(
+            YokkoSetting.PlayerDisplayName);
+        string playerId = yokkoConfig.Get<string>(YokkoSetting.PlayerId);
         if (!ReplayMode || developerAutoplayRun)
             saveCompletedReplay(completedAt);
         completedResultIsNewBest = BestScoreSaved =
@@ -2566,7 +2583,17 @@ public partial class GameplayScreen : Screen
                 judgementConfiguration,
                 completedResult,
                 SavedReplayPath,
-                completedAt);
+                completedAt,
+                playerName,
+                playerId);
+        completedResultPresentation = new GameplayResultPresentation(
+            playerName,
+            playerId,
+            completedAt,
+            previousBest?.Score,
+            !string.IsNullOrWhiteSpace(SavedReplayPath)
+            && File.Exists(SavedReplayPath),
+            GameplayTimingSummary.FromHitErrors(resultHitErrors));
 
         if (audioEngine is IAudioMixControl mixControl)
         {
@@ -2670,7 +2697,8 @@ public partial class GameplayScreen : Screen
             () => runAfterGameplayCompletionTransition(
                 () => this.Exit()),
             manualPlaybackRateUsed,
-            judgementConfiguration);
+            judgementConfiguration,
+            presentation: completedResultPresentation);
         AddInternal(resultOverlay);
     }
 

@@ -273,6 +273,53 @@ public sealed class DisplaySettingsTest
     }
 
     [Test]
+    public void LocalPlayerIdentityIsCreatedAndPersists()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "player-identity-config",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            string playerName;
+            string playerId;
+            using (var firstConfig = new YokkoConfigManager(
+                       new NativeStorage(directory)))
+            {
+                playerName = firstConfig.Get<string>(
+                    YokkoSetting.PlayerDisplayName);
+                playerId = firstConfig.Get<string>(YokkoSetting.PlayerId);
+                Assert.That(firstConfig.Save(), Is.True);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(playerName, Is.Not.Empty);
+                Assert.That(playerId, Does.Match("^[0-9]{8}$"));
+            });
+
+            using var restoredConfig = new YokkoConfigManager(
+                new NativeStorage(directory));
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    restoredConfig.Get<string>(YokkoSetting.PlayerDisplayName),
+                    Is.EqualTo(playerName));
+                Assert.That(
+                    restoredConfig.Get<string>(YokkoSetting.PlayerId),
+                    Is.EqualTo(playerId));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
     public void InterfaceScalePersistsAcrossConfigInstances()
     {
         string directory = Path.Combine(
@@ -460,22 +507,22 @@ public sealed class DisplaySettingsTest
     }
 
     [Test]
-    public void ResultScreenScalesReferenceCanvasProportionally()
+    public void ResultScreenScalesThe1920By1080CanvasProportionally()
     {
         Assert.Multiple(() =>
         {
             Assert.That(
                 GameplayResultOverlay.CalculateResponsiveStageScale(
                     new osuTK.Vector2(1777.7778f, 1000)),
-                Is.EqualTo(1.1111111f).Within(0.0001f));
+                Is.EqualTo(0.9259259f).Within(0.0001f));
             Assert.That(
                 GameplayResultOverlay.CalculateResponsiveStageScale(
                     new osuTK.Vector2(1024, 576)),
-                Is.EqualTo(0.64f).Within(0.0001f));
+                Is.EqualTo(0.5333333f).Within(0.0001f));
             Assert.That(
                 GameplayResultOverlay.CalculateResponsiveStageScale(
                     new osuTK.Vector2(1600, 1000)),
-                Is.EqualTo(1f).Within(0.0001f));
+                Is.EqualTo(0.8333333f).Within(0.0001f));
         });
     }
 

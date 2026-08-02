@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using osu.Framework.Allocation;
+using System.Linq;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Primitives;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
-using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
@@ -23,36 +22,34 @@ namespace Yokko.Game.Screens.Gameplay;
 
 internal partial class GameplayResultOverlay : CompositeDrawable
 {
-    // Legacy internal artboard retained for source-art alignment. The stage is
-    // proportionally fitted to the shared 1920x1080 viewport; these dimensions
-    // are not a reference for new full-screen layouts.
-    private const float designedWidth = 1600;
-    private const float designedHeight = 900;
-    private const float judgementStripWidth = 1110;
+    private const float designedWidth = 1920;
+    private const float designedHeight = 1080;
+    private const float contentLeft = 76;
+    private const float contentWidth = 986;
+    private const float judgementStripWidth = contentWidth;
 
     private static class ResultColours
     {
         public static readonly Color4 Navy =
-            new(2 / 255f, 23 / 255f, 117 / 255f, 1f);
+            new(7 / 255f, 27 / 255f, 120 / 255f, 1f);
         public static readonly Color4 Cyan =
-            new(107 / 255f, 219 / 255f, 253 / 255f, 1f);
+            new(98 / 255f, 216 / 255f, 248 / 255f, 1f);
         public static readonly Color4 RankCyan =
-            new(162 / 255f, 231 / 255f, 253 / 255f, 1f);
+            new(217 / 255f, 247 / 255f, 255 / 255f, 1f);
         public static readonly Color4 SoftCyan =
-            new(214 / 255f, 245 / 255f, 255 / 255f, 1f);
+            new(217 / 255f, 247 / 255f, 255 / 255f, 1f);
         public static readonly Color4 Yellow =
-            new(252 / 255f, 220 / 255f, 92 / 255f, 1f);
+            new(255 / 255f, 230 / 255f, 111 / 255f, 1f);
         public static readonly Color4 Pink =
-            new(255 / 255f, 82 / 255f, 197 / 255f, 1f);
+            new(255 / 255f, 99 / 255f, 199 / 255f, 1f);
         public static readonly Color4 Ivory =
-            new(253 / 255f, 253 / 255f, 252 / 255f, 1f);
+            new(255 / 255f, 253 / 255f, 247 / 255f, 1f);
+        public static readonly Color4 Muted =
+            new(82 / 255f, 96 / 255f, 142 / 255f, 1f);
     }
 
     private static class ResultTypography
     {
-        // Archivo Black ships with a 128 px atlas in Yokko.Resources, so it
-        // stays materially sharper than the shared Roboto atlas for oversized
-        // Latin grades and numeric readouts.
         public static FontUsage Poster(float size) =>
             new("ArchivoBlack", size);
     }
@@ -61,27 +58,30 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private readonly Action watchReplay;
     private readonly Action returnToSongSelect;
     private readonly JudgementConfiguration judgementConfiguration;
+    private readonly ManiaModSet mods;
+    private readonly GameplayResultPresentation presentation;
+    private readonly IReadOnlyList<string> modChipLabels;
     private ResultActionButton replayActionButton;
     private Container backdrop;
     private Container stage;
     private Container leftStageLayout;
-    private Container rightStageLayout;
     private Container rightStageContent;
-    private Container leftDecorationLayout;
-    private Container rightDecorationLayout;
-    private Container brandHost;
-    private Sprite stageAtmosphere;
-    private Sprite mascot;
-    private Sprite scoreRibbon;
     private Box scoreSignalRunner;
     private ResultScorePanel scorePanel;
+    private ResultRankSeal rankSeal;
     private ResultSongHeading songHeading;
-    private readonly List<SpriteIcon> ambientAccents = new();
-    private readonly IReadOnlyList<string> modChipLabels;
     private int renderedModChipCount;
     private float lastResponsiveStageScale;
 
-    internal bool MascotReady => mascot?.Texture != null;
+    // Kept for existing result-flow tests while the selected design's
+    // character layer is intentionally deferred.
+    internal bool MascotReady => true;
+    internal bool CharacterStageReady => rightStageContent != null;
+    internal bool RankSealReady => rankSeal != null;
+    internal bool RankSealLabelFits => rankSeal?.LabelFits == true;
+    internal string DisplayedRank => rankSeal?.DisplayedLabel ?? string.Empty;
+    internal string RankSealEyebrow => rankSeal?.Eyebrow ?? string.Empty;
+    internal string RankSealFooter => rankSeal?.Footer ?? string.Empty;
     internal int ActionCount => 3;
     internal int RenderedModChipCount => renderedModChipCount;
     internal float SongTitleUnderlineClearance =>
@@ -89,6 +89,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     internal string DisplayedMods { get; }
     internal bool PracticeSession { get; }
     internal bool ReplayAvailable { get; private set; }
+    internal string DisplayedPlayerName => presentation.PlayerName;
+    internal string DisplayedPlayerId => presentation.PlayerId;
     internal bool ScorePanelInteractionActive =>
         scorePanel?.InteractionActive == true;
     internal bool EntranceComplete =>
@@ -126,19 +128,26 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         Action returnToSongSelect,
         bool practiceSession = false,
         JudgementConfiguration? judgementConfiguration = null,
-        bool replayAvailable = true)
+        bool replayAvailable = true,
+        GameplayResultPresentation presentation = null)
     {
-        mods ??= ManiaModSet.Empty;
+        ArgumentNullException.ThrowIfNull(beatmap);
+        ArgumentNullException.ThrowIfNull(result);
+
+        this.mods = mods ?? ManiaModSet.Empty;
         this.judgementConfiguration =
             judgementConfiguration ?? JudgementConfiguration.YokkoDefault;
         this.retry = retry;
         this.watchReplay = watchReplay;
         this.returnToSongSelect = returnToSongSelect;
+        this.presentation = normalisePresentation(
+            presentation ?? GameplayResultPresentation.LocalFallback());
         ReplayAvailable = replayAvailable && watchReplay != null;
         PracticeSession = practiceSession;
-        string displayedMods = mods.IsEmpty
+
+        string displayedMods = this.mods.IsEmpty
             ? "NM"
-            : string.Join("  ", mods.DisplayLabels);
+            : string.Join("  ", this.mods.DisplayLabels);
         if (this.judgementConfiguration.Mode == JudgementMode.Etterna)
         {
             displayedMods +=
@@ -151,11 +160,12 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         {
             displayedMods += "  ·  OSU!STABLE";
         }
+
         DisplayedMods = practiceSession
             ? $"{displayedMods}  ·  PRACTICE"
             : displayedMods;
         modChipLabels = createModChipLabels(
-            mods,
+            this.mods,
             this.judgementConfiguration,
             practiceSession);
 
@@ -174,13 +184,10 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             {
                 RelativeSizeAxes = Axes.Both,
                 Alpha = 0,
-                Children = new Drawable[]
+                Child = new Box
                 {
-                    new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = ResultColours.Ivory,
-                    },
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = ResultColours.Ivory,
                 },
             },
             stage = new Container
@@ -191,9 +198,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 Alpha = 0,
                 Children = new Drawable[]
                 {
-                    createIvoryStage(),
+                    createStageBackground(),
                     createTickerStrip(),
-                    createDecorations(),
                     leftStageLayout = new Container
                     {
                         Size = new Vector2(designedWidth, designedHeight),
@@ -203,38 +209,13 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                             rank,
                             isNewBest),
                     },
-                    rightStageLayout = new Container
+                    rightStageContent = new Container
                     {
                         Size = new Vector2(designedWidth, designedHeight),
-                        Child = rightStageContent = new Container
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Child = createMascotStage(),
-                        },
+                        Child = createCharacterStagePlaceholder(),
                     },
                 },
             },
-        };
-    }
-
-    [BackgroundDependencyLoader]
-    private void load(TextureStore textures)
-    {
-        Texture mascotTexture = textures
-            .Get("Gameplay/yokko-result-standing")
-            .Crop(new RectangleF(60, 150, 820, 1140));
-        mascot.Texture = mascotTexture;
-        scoreRibbon.Texture = textures
-            .Get("Gameplay/yokko-result-ribbon")
-            .Crop(new RectangleF(43, 297, 1598, 301));
-        stageAtmosphere.Texture = textures
-            .Get("Gameplay/yokko-result-stage-atmosphere");
-        brandHost.Child = new HomeBrandLockup(
-            textures.Get("home-logo-light"),
-            ResultColours.Navy,
-            ResultColours.Yellow)
-        {
-            Scale = Vector2.One,
         };
     }
 
@@ -242,40 +223,22 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     {
         base.LoadComplete();
 
-        // Preserve the final gameplay frame while the result background,
-        // score data, and mascot arrive as separate visual layers.
         stage.Alpha = 1;
         leftStageLayout.Alpha = 0;
         leftStageLayout.X = -18;
         rightStageContent.Alpha = 0;
         rightStageContent.X = 24;
-        leftDecorationLayout.Alpha = 0;
-        rightDecorationLayout.Alpha = 0;
 
         backdrop.FadeIn(360, Easing.OutQuint);
-        leftDecorationLayout.Delay(70).FadeIn(260, Easing.OutQuint);
-        rightDecorationLayout.Delay(110).FadeIn(260, Easing.OutQuint);
         leftStageLayout.Delay(70).FadeIn(300, Easing.OutQuint);
         leftStageLayout.Delay(70).MoveToX(0, 400, Easing.OutQuint);
         rightStageContent.Delay(130).FadeIn(340, Easing.OutQuint);
         rightStageContent.Delay(130).MoveToX(0, 350, Easing.OutQuint);
-        mascot.MoveToY(mascot.Y + 4, 2100, Easing.InOutSine)
-              .Then()
-              .MoveToY(mascot.Y - 4, 2100, Easing.InOutSine)
-              .Loop();
-        mascot.MoveToX(mascot.X + 3, 2600, Easing.InOutSine)
-              .Then()
-              .MoveToX(mascot.X - 3, 2600, Easing.InOutSine)
-              .Loop();
-        mascot.RotateTo(-0.35f, 2300, Easing.InOutSine)
-              .Then()
-              .RotateTo(0.35f, 2300, Easing.InOutSine)
-              .Loop();
 
         scoreSignalRunner
-            .MoveToX(975, 2600, Easing.InOutSine)
+            .MoveToX(850, 2600, Easing.InOutSine)
             .Then()
-            .MoveToX(108, 0)
+            .MoveToX(30, 0)
             .Delay(650)
             .Loop();
         scoreSignalRunner
@@ -285,29 +248,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             .Then()
             .FadeTo(0.78f, 700, Easing.InOutSine)
             .Loop();
-
-        for (int i = 0; i < ambientAccents.Count; i++)
-        {
-            SpriteIcon accent = ambientAccents[i];
-            float restY = accent.Y;
-            double delay = 180 + i * 170;
-
-            accent.Delay(delay)
-                  .MoveToY(restY - 5, 1250, Easing.InOutSine)
-                  .Then()
-                  .MoveToY(restY + 3, 1250, Easing.InOutSine)
-                  .Loop();
-            accent.Delay(delay)
-                  .FadeTo(0.38f, 900, Easing.InOutSine)
-                  .Then()
-                  .FadeTo(1, 900, Easing.InOutSine)
-                  .Loop();
-            accent.Delay(delay)
-                  .RotateTo(-9, 1500, Easing.InOutSine)
-                  .Then()
-                  .RotateTo(9, 1500, Easing.InOutSine)
-                  .Loop();
-        }
     }
 
     internal void TriggerReplay()
@@ -338,10 +278,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         rightStageContent.FinishTransforms();
         rightStageContent.Alpha = 1;
         rightStageContent.X = 0;
-        leftDecorationLayout.FinishTransforms();
-        leftDecorationLayout.Alpha = 1;
-        rightDecorationLayout.FinishTransforms();
-        rightDecorationLayout.Alpha = 1;
     }
 
     protected override void Update()
@@ -369,50 +305,167 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         YokkoBeatmap beatmap,
         ManiaScoreResult result,
         string rank,
-        bool isNewBest) =>
-        new Container
+        bool isNewBest)
+    {
+        string chartFingerprint = YokkoBeatmapFingerprint.Compute(beatmap);
+
+        return new Container
         {
             RelativeSizeAxes = Axes.Both,
             Children = new Drawable[]
             {
-                brandHost = new Container
-                {
-                    Position = new Vector2(57, 83),
-                    Size = new Vector2(430, 150),
-                },
+                createHeader(),
+                createSongBar(beatmap),
+                createScorePanel(result, rank, isNewBest),
+                createSummaryRail(result),
+                createTimingStrip(),
+                createJudgementStrip(result),
+                createDetailsLedger(beatmap, result, isNewBest),
+                createProvenanceRail(beatmap, chartFingerprint),
+                createActionRow(),
+            },
+        };
+    }
+
+    private Drawable createHeader()
+    {
+        DateTimeOffset? localPlayedAt = presentation.PlayedAt?.ToLocalTime();
+        string playedAt = localPlayedAt?.ToString(
+            "yyyy.MM.dd  HH:mm:ss",
+            CultureInfo.InvariantCulture) ?? "TIME UNAVAILABLE";
+
+        return new Container
+        {
+            Position = new Vector2(contentLeft, 68),
+            Size = new Vector2(contentWidth, 128),
+            Children = new Drawable[]
+            {
                 new SpriteText
                 {
-                    Position = new Vector2(856, 76),
-                    Text = YokkoStrings.Get("gameplay.result.title"),
-                    Font = HomeTypography.Hero(104),
+                    Text = "RESULT",
+                    Font = HomeTypography.Hero(88),
                     Colour = ResultColours.Navy,
                 },
                 new Box
                 {
-                    Position = new Vector2(1265, 162),
-                    Size = new Vector2(70, 3),
-                    Colour = ResultColours.Navy,
+                    Position = new Vector2(0, 105),
+                    Size = new Vector2(458, 4),
+                    Colour = ResultColours.Cyan,
                 },
                 new HomeMicroLine
                 {
-                    Position = new Vector2(1337, 159),
-                    Width = 35,
-                },
-                new HomeCrosshairMark
-                {
-                    Position = new Vector2(1495, 126),
+                    Position = new Vector2(458, 102),
+                    Width = 64,
                     Colour = ResultColours.Navy,
-                    Scale = new Vector2(0.72f),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(574, 16),
+                    Text = "PLAYER",
+                    Font = HomeTypography.Display(15),
+                    Spacing = new Vector2(1.4f, 0),
+                    Colour = ResultColours.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(574, 43),
+                    Text = presentation.PlayerName,
+                    Width = 205,
+                    Truncate = true,
+                    Font = HomeTypography.Display(29),
+                    Colour = ResultColours.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(788, 51),
+                    Text = $"UID {presentation.PlayerId}",
+                    Width = 190,
+                    Truncate = true,
+                    Font = HomeTypography.Display(15),
+                    Colour = ResultColours.Muted,
+                },
+                new Box
+                {
+                    Position = new Vector2(574, 80),
+                    Size = new Vector2(404, 2),
+                    Colour = new Color4(0.51f, 0.58f, 0.76f, 0.5f),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(574, 91),
+                    Text = "PLAYED AT",
+                    Font = HomeTypography.Display(13),
+                    Colour = ResultColours.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(680, 91),
+                    Text = playedAt,
+                    Font = HomeTypography.Display(15),
+                    Colour = ResultColours.Navy,
+                },
+            },
+        };
+    }
+
+    private Drawable createSongBar(YokkoBeatmap beatmap) =>
+        new Container
+        {
+            Position = new Vector2(contentLeft, 212),
+            Size = new Vector2(contentWidth, 84),
+            Masking = true,
+            CornerRadius = 6,
+            BorderThickness = 2,
+            BorderColour = ResultColours.Navy,
+            Children = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = ResultColours.SoftCyan,
+                    Alpha = 0.28f,
                 },
                 songHeading = new ResultSongHeading(
-                    $"{beatmap.Title} [{beatmap.DifficultyName}]")
+                    beatmap.Title,
+                    beatmap.Artist)
                 {
-                    Position = new Vector2(866, 194),
+                    Position = new Vector2(24, 10),
                 },
-                createScorePanel(result, rank, isNewBest),
-                createSummaryRail(result),
-                createJudgementStrip(result),
-                createActionRow(),
+                createDifficultyChip(beatmap.DifficultyName),
+                new SpriteText
+                {
+                    Position = new Vector2(808, 27),
+                    Text = $"{(int)beatmap.KeyMode}K  ·  OD {beatmap.OverallDifficulty:0.#}",
+                    Font = HomeTypography.Display(19),
+                    Colour = ResultColours.Navy,
+                },
+            },
+        };
+
+    private static Drawable createDifficultyChip(string difficulty) =>
+        new Container
+        {
+            Position = new Vector2(624, 20),
+            Size = new Vector2(164, 44),
+            Masking = true,
+            CornerRadius = 8,
+            Children = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = ResultColours.Pink,
+                },
+                new SpriteText
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Width = 140,
+                    Truncate = true,
+                    Text = difficulty.ToUpperInvariant(),
+                    Font = HomeTypography.Display(16),
+                    Colour = Color4.White,
+                },
             },
         };
 
@@ -421,183 +474,227 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         string rank,
         bool isNewBest)
     {
-        return new Container
+        string previousBest = presentation.PreviousBestScore?.ToString(
+            "N0",
+            CultureInfo.InvariantCulture) ?? "—";
+        string delta = presentation.PreviousBestScore is long previous
+            ? formatSignedScore(result.Score - previous)
+            : "—";
+
+        return scorePanel = new ResultScorePanel
         {
-            Position = new Vector2(486, 258),
-            Size = new Vector2(1140, 236),
-            Child = scorePanel = new ResultScorePanel
+            Position = new Vector2(contentLeft, 310),
+            Size = new Vector2(contentWidth, 224),
+            Masking = true,
+            CornerRadius = 6,
+            BorderThickness = 1.5f,
+            BorderColour = new Color4(
+                ResultColours.Cyan.R,
+                ResultColours.Cyan.G,
+                ResultColours.Cyan.B,
+                0.82f),
+            Children = new Drawable[]
             {
-                Origin = Anchor.CentreLeft,
-                Position = new Vector2(0, 118),
-                Size = new Vector2(1140, 236),
-                Children = new Drawable[]
+                new Box
                 {
-                    scoreRibbon = new Sprite
-                    {
-                        Size = new Vector2(1140, 236),
-                    },
-                    scoreSignalRunner = new Box
-                    {
-                        Position = new Vector2(108, 11),
-                        Size = new Vector2(72, 3),
-                        Colour = ResultColours.SoftCyan,
-                        Alpha = 0.78f,
-                    },
-                    new SpriteText
-                    {
-                        Position = new Vector2(120, 25),
-                        Text = rank,
-                        Font = ResultTypography.Poster(160),
-                        Colour = ResultColours.Yellow,
-                        Alpha = 0.88f,
-                    },
-                    new SpriteText
-                    {
-                        Position = new Vector2(124, 20),
-                        Text = rank,
-                        Font = ResultTypography.Poster(160),
-                        Colour = ResultColours.RankCyan,
-                    },
-                    new Box
-                    {
-                        Position = new Vector2(348, 58),
-                        Size = new Vector2(2, 124),
-                        Colour = new Color4(1f, 1f, 1f, 0.82f),
-                    },
-                    new SpriteIcon
-                    {
-                        Position = new Vector2(388, 42),
-                        Size = new Vector2(17),
-                        Icon = FontAwesome.Solid.Star,
-                        Colour = ResultColours.Yellow,
-                    },
-                    new SpriteText
-                    {
-                        Position = new Vector2(420, 39),
-                        Text = isNewBest
-                            ? YokkoStrings.Get("gameplay.result.new_best")
-                            : "SCORE",
-                        Font = HomeTypography.Display(21),
-                        Spacing = new Vector2(2.2f, 0),
-                        Colour = isNewBest
-                            ? ResultColours.Pink
-                            : ResultColours.Cyan,
-                    },
-                    new SpriteText
-                    {
-                        Position = new Vector2(385, 70),
-                        Text = $"{result.Score:0000000}",
-                        Font = ResultTypography.Poster(108),
-                        Colour = Color4.White,
-                    },
-                    new SpriteText
-                    {
-                        Position = new Vector2(385, 70),
-                        Text = result.Score
-                            .ToString(
-                                "0000000",
-                                CultureInfo.InvariantCulture)[..1],
-                        Font = ResultTypography.Poster(108),
-                        Colour = ResultColours.Cyan,
-                    },
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = ColourInfo.GradientHorizontal(
+                        new Color4(0.035f, 0.12f, 0.49f, 1f),
+                        new Color4(0.015f, 0.045f, 0.23f, 1f)),
                 },
+                new Box
+                {
+                    RelativeSizeAxes = Axes.X,
+                    Height = 5,
+                    Colour = ResultColours.Cyan,
+                },
+                new Box
+                {
+                    Position = new Vector2(558, 0),
+                    Size = new Vector2(118, 5),
+                    Colour = ResultColours.Pink,
+                },
+                new Box
+                {
+                    Position = new Vector2(-82, -52),
+                    Size = new Vector2(66, 360),
+                    Rotation = 18,
+                    Colour = Color4.White,
+                    Alpha = 0.055f,
+                },
+                scoreSignalRunner = new Box
+                {
+                    Position = new Vector2(30, 12),
+                    Size = new Vector2(72, 3),
+                    Colour = ResultColours.SoftCyan,
+                },
+                rankSeal = new ResultRankSeal(
+                    rank,
+                    gradeColour(mods.AdjustRank(result.Rank)),
+                    judgementConfiguration.Mode == JudgementMode.Etterna,
+                    judgementConfiguration.EtternaJusticeLabel)
+                {
+                    Position = new Vector2(20, 14),
+                },
+                new Box
+                {
+                    Position = new Vector2(216, 26),
+                    Size = new Vector2(2, 190),
+                    Colour = new Color4(1, 1, 1, 0.58f),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(248, 28),
+                    Text = isNewBest ? "NEW BEST" : "SCORE",
+                    Font = HomeTypography.Display(17),
+                    Spacing = new Vector2(1.6f, 0),
+                    Colour = isNewBest
+                        ? ResultColours.Pink
+                        : ResultColours.Cyan,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(240, 57),
+                    Width = 420,
+                    Truncate = true,
+                    Text = result.Score.ToString(
+                        "N0",
+                        CultureInfo.InvariantCulture),
+                    Font = ResultTypography.Poster(72),
+                    Colour = Color4.White,
+                },
+                new Box
+                {
+                    Position = new Vector2(240, 151),
+                    Size = new Vector2(406, 2),
+                    Colour = new Color4(1, 1, 1, 0.55f),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(240, 166),
+                    Text = "PREVIOUS BEST",
+                    Font = HomeTypography.Display(13),
+                    Colour = ResultColours.Cyan,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(240, 187),
+                    Text = previousBest,
+                    Font = HomeTypography.Display(24),
+                    Colour = Color4.White,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(476, 182),
+                    Text = delta,
+                    Font = HomeTypography.Display(28),
+                    Colour = ResultColours.Yellow,
+                },
+                new Box
+                {
+                    Position = new Vector2(674, 26),
+                    Size = new Vector2(2, 190),
+                    Colour = new Color4(1, 1, 1, 0.72f),
+                },
+                new HomeDotField
+                {
+                    Position = new Vector2(832, 20),
+                    Size = new Vector2(120, 42),
+                    Colour = new Color4(
+                        ResultColours.Cyan.R,
+                        ResultColours.Cyan.G,
+                        ResultColours.Cyan.B,
+                        0.17f),
+                },
+                createScoreSideMetric(
+                    "COMBO BREAKS",
+                    result.ComboBreaks.ToString(CultureInfo.InvariantCulture),
+                    708,
+                    26,
+                    ResultColours.Cyan),
+                new Box
+                {
+                    Position = new Vector2(708, 112),
+                    Size = new Vector2(236, 2),
+                    Colour = new Color4(1, 1, 1, 0.5f),
+                },
+                createScoreSideMetric(
+                    "MISSES",
+                    result.Miss.ToString(CultureInfo.InvariantCulture),
+                    708,
+                    132,
+                    ResultColours.Pink),
             },
         };
     }
 
+    private static Color4 gradeColour(ScoreRank rank) => rank switch
+    {
+        ScoreRank.X or ScoreRank.XH => ResultColours.RankCyan,
+        ScoreRank.S or ScoreRank.SH => ResultColours.Cyan,
+        ScoreRank.A => new Color4(0.62f, 0.94f, 0.25f, 1f),
+        ScoreRank.B => ResultColours.Yellow,
+        ScoreRank.C => new Color4(1f, 0.57f, 0.21f, 1f),
+        _ => ResultColours.Pink,
+    };
+
+    private static Drawable createScoreSideMetric(
+        string label,
+        string value,
+        float x,
+        float y,
+        Color4 accent) =>
+        new Container
+        {
+            Position = new Vector2(x, y),
+            Size = new Vector2(246, 80),
+            Children = new Drawable[]
+            {
+                new SpriteText
+                {
+                    Text = label,
+                    Font = HomeTypography.Display(14),
+                    Colour = accent,
+                },
+                new SpriteText
+                {
+                    Y = 24,
+                    Text = value,
+                    Font = ResultTypography.Poster(38),
+                    Colour = Color4.White,
+                },
+            },
+        };
+
     private Drawable createSummaryRail(ManiaScoreResult result) =>
         new Container
         {
-            Position = new Vector2(590, 514),
-            Size = new Vector2(960, 138),
+            Position = new Vector2(contentLeft, 554),
+            Size = new Vector2(contentWidth, 72),
             Children = new Drawable[]
             {
-                new Container
-                {
-                    Size = new Vector2(306, 132),
-                    Children = new Drawable[]
-                    {
-                        new SpriteText
-                        {
-                            Position = new Vector2(0, 10),
-                            Text = "MODS",
-                            Font = HomeTypography.Display(17),
-                            Spacing = new Vector2(1.6f, 0),
-                            Colour = ResultColours.Navy,
-                        },
-                        new Box
-                        {
-                            Position = new Vector2(82, 26),
-                            Size = new Vector2(142, 2),
-                            Colour = ResultColours.Navy,
-                        },
-                        new Box
-                        {
-                            Position = new Vector2(231, 21),
-                            Size = new Vector2(10),
-                            Rotation = 45,
-                            Colour = ResultColours.Yellow,
-                        },
-                        createModChipRail(),
-                    },
-                },
-                new Box
-                {
-                    Position = new Vector2(292, 10),
-                    Size = new Vector2(1, 104),
-                    Colour = new Color4(
-                        ResultColours.Navy.R,
-                        ResultColours.Navy.G,
-                        ResultColours.Navy.B,
-                        0.42f),
-                },
                 createMetricCell(
                     judgementConfiguration.Mode == JudgementMode.Etterna
                         ? "WIFE3"
                         : "ACCURACY",
                     $"{result.Accuracy * 100:0.00}%",
-                    351,
-                    247),
-                new Box
-                {
-                    Position = new Vector2(631, 10),
-                    Size = new Vector2(1, 104),
-                    Colour = new Color4(
-                        ResultColours.Navy.R,
-                        ResultColours.Navy.G,
-                        ResultColours.Navy.B,
-                        0.42f),
-                },
+                    0,
+                    300),
                 createMetricCell(
-                    judgementConfiguration.Mode == JudgementMode.Etterna
-                        ? "MAX · CB · MISS"
-                        : YokkoStrings.Get("gameplay.result.max_combo"),
-                    judgementConfiguration.Mode == JudgementMode.Etterna
-                        ? $"{result.MaxCombo} · {result.ComboBreaks}"
-                          + $" · {result.MaxMissCombo}"
-                        : result.MaxCombo.ToString(),
-                    688,
-                    124),
-                new Box
-                {
-                    Position = new Vector2(-74, 132),
-                    Size = new Vector2(1052, 2),
-                    Colour = ResultColours.Navy,
-                },
-                new Box
-                {
-                    Position = new Vector2(-77, 128),
-                    Size = new Vector2(9),
-                    Rotation = 45,
-                    Colour = ResultColours.Cyan,
-                },
-                new Box
-                {
-                    Position = new Vector2(973, 128),
-                    Size = new Vector2(9),
-                    Rotation = 45,
-                    Colour = ResultColours.Navy,
-                },
+                    "MAX COMBO",
+                    $"{result.MaxCombo:N0}×",
+                    326,
+                    300),
+                createMetricCell(
+                    "RATE",
+                    $"{mods.FixedRateSpeedChange:0.00}×",
+                    652,
+                    160),
+                createMetricCell(
+                    "RULESET",
+                    rulesetLabel(),
+                    812,
+                    174),
             },
         };
 
@@ -611,79 +708,267 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             Position = new Vector2(x, 0),
         };
 
+    private Drawable createTimingStrip()
+    {
+        GameplayTimingSummary timing = presentation.Timing;
+        return new Container
+        {
+            Position = new Vector2(contentLeft, 640),
+            Size = new Vector2(contentWidth, 48),
+            Children = new Drawable[]
+            {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.X,
+                    Height = 2,
+                    Colour = ResultColours.Navy,
+                    Alpha = 0.42f,
+                },
+                createInlineDatum(
+                    "EARLY",
+                    timing?.EarlyCount.ToString(CultureInfo.InvariantCulture)
+                        ?? "—",
+                    18,
+                    ResultColours.Cyan),
+                createInlineDatum(
+                    "ON TIME",
+                    timing?.OnTimeCount.ToString(CultureInfo.InvariantCulture)
+                        ?? "—",
+                    190,
+                    ResultColours.Cyan),
+                createInlineDatum(
+                    "LATE",
+                    timing?.LateCount.ToString(CultureInfo.InvariantCulture)
+                        ?? "—",
+                    390,
+                    ResultColours.Pink),
+                createInlineDatum(
+                    "MEAN",
+                    timing == null
+                        ? "—"
+                        : $"{timing.MeanMilliseconds:+0.0;-0.0;0.0} ms",
+                    560,
+                    ResultColours.Navy),
+                createInlineDatum(
+                    "UR",
+                    timing?.UnstableRate.ToString(
+                        "0.0",
+                        CultureInfo.InvariantCulture) ?? "—",
+                    810,
+                    ResultColours.Pink),
+            },
+        };
+    }
+
+    private static Drawable createInlineDatum(
+        string label,
+        string value,
+        float x,
+        Color4 colour) =>
+        new Container
+        {
+            Position = new Vector2(x, 14),
+            Size = new Vector2(170, 30),
+            Children = new Drawable[]
+            {
+                new SpriteText
+                {
+                    Text = label,
+                    Font = HomeTypography.Display(12),
+                    Colour = colour,
+                },
+                new SpriteText
+                {
+                    X = 74,
+                    Text = value,
+                    Font = HomeTypography.Display(17),
+                    Colour = ResultColours.Navy,
+                },
+            },
+        };
+
     private Drawable createJudgementStrip(ManiaScoreResult result)
     {
         string[] labels =
             judgementConfiguration.Mode == JudgementMode.Etterna
-                ? ["MARV", "PERF", "GREAT", "GOOD", "BAD", "MISS"]
-                : ["P", "G", "GOOD", "OK", "MEH", "MISS"];
+                ? ["MARVELOUS", "PERFECT", "GREAT", "GOOD", "BAD", "MISS"]
+                : ["PERFECT", "GREAT", "GOOD", "OK", "MEH", "MISS"];
         (string Label, int Value, Color4 Colour)[] judgements =
         {
             (labels[0], result.Perfect, ResultColours.Pink),
             (labels[1], result.Great, ResultColours.Cyan),
             (labels[2], result.Good, new Color4(0.14f, 0.72f, 0.42f, 1f)),
-            (labels[3], result.Ok, new Color4(1f, 0.7f, 0.08f, 1f)),
-            (labels[4], result.Meh, new Color4(0.65f, 0.27f, 0.96f, 1f)),
-            (labels[5], result.Miss, new Color4(0.97f, 0.12f, 0.19f, 1f)),
+            (labels[3], result.Ok, new Color4(1f, 0.62f, 0.12f, 1f)),
+            (labels[4], result.Meh, new Color4(0.56f, 0.42f, 0.91f, 1f)),
+            (labels[5], result.Miss, new Color4(1f, 0.36f, 0.48f, 1f)),
         };
 
+        int totalJudgements = judgements.Sum(static judgement =>
+            judgement.Value);
         var flow = new FillFlowContainer
         {
             RelativeSizeAxes = Axes.Both,
             Direction = FillDirection.Horizontal,
         };
-
-        int totalJudgements = 0;
-        foreach ((string _, int value, Color4 _) in judgements)
-            totalJudgements += value;
-
         foreach ((string label, int value, Color4 colour) in judgements)
         {
-            flow.Add(createJudgementCell(
+            flow.Add(new ResultJudgementCell(
                 label,
                 value,
                 colour,
                 totalJudgements == 0
                     ? 0
-                    : value / (float)totalJudgements));
+                    : value / (float)totalJudgements)
+            {
+                Width = judgementStripWidth / 6,
+                RelativeSizeAxes = Axes.Y,
+            });
         }
 
         return new Container
         {
-            Position = new Vector2(470, 656),
-            Size = new Vector2(judgementStripWidth, 86),
+            Position = new Vector2(contentLeft, 696),
+            Size = new Vector2(judgementStripWidth, 88),
+            Child = flow,
+        };
+    }
+
+    private Drawable createDetailsLedger(
+        YokkoBeatmap beatmap,
+        ManiaScoreResult result,
+        bool isNewBest)
+    {
+        string replayStatus = presentation.ReplaySaved
+            ? "SAVED"
+            : ReplayAvailable ? "READY" : "NONE";
+
+        return new Container
+        {
+            Position = new Vector2(contentLeft, 800),
+            Size = new Vector2(contentWidth, 112),
             Children = new Drawable[]
             {
-                flow,
-                new SpriteIcon
+                new Box
                 {
-                    Anchor = Anchor.CentreRight,
-                    Origin = Anchor.CentreRight,
-                    X = 0,
-                    Size = new Vector2(13),
-                    Icon = FontAwesome.Solid.Plus,
+                    RelativeSizeAxes = Axes.X,
+                    Height = 2,
                     Colour = ResultColours.Navy,
+                    Alpha = 0.42f,
+                },
+                createDetailColumn(
+                    0,
+                    250,
+                    ("CLEAR TYPE", isNewBest ? "NEW BEST" : "CLEARED"),
+                    ("RULESET", rulesetLabel()),
+                    ("RATE", $"{mods.FixedRateSpeedChange:0.00}×")),
+                createDetailColumn(
+                    276,
+                    236,
+                    ("DEVICE", "KEYBOARD"),
+                    ("REPLAY", replayStatus),
+                    ("MAX MISS", result.MaxMissCombo.ToString(
+                        CultureInfo.InvariantCulture))),
+                createDetailColumn(
+                    538,
+                    448,
+                    ("MAPPER", displayOrDash(beatmap.Creator)),
+                    ("BPM / LENGTH", $"{formatBpm(beatmap)}  ·  {formatDuration(beatmap)}"),
+                    ("NOTES", beatmap.NoteCount.ToString(
+                        "N0",
+                        CultureInfo.InvariantCulture))),
+                new SpriteText
+                {
+                    Position = new Vector2(730, 78),
+                    Text = "MODS",
+                    Font = HomeTypography.Display(11),
+                    Colour = ResultColours.Muted,
+                },
+                new Container
+                {
+                    Position = new Vector2(780, 72),
+                    Size = new Vector2(206, 30),
+                    Child = createModChipRail(206),
                 },
             },
         };
     }
 
-    private static Drawable createJudgementCell(
-        string label,
-        int value,
-        Color4 colour,
-        float share) =>
-        new ResultJudgementCell(label, value, colour, share)
+    private static Drawable createDetailColumn(
+        float x,
+        float width,
+        params (string Label, string Value)[] rows)
+    {
+        var container = new Container
         {
-            Width = judgementStripWidth / 6,
-            RelativeSizeAxes = Axes.Y,
+            Position = new Vector2(x, 12),
+            Size = new Vector2(width, 92),
+        };
+        for (int i = 0; i < rows.Length; i++)
+        {
+            float y = i * 29;
+            container.Add(new SpriteText
+            {
+                Position = new Vector2(4, y),
+                Text = rows[i].Label,
+                Font = HomeTypography.Display(11),
+                Colour = ResultColours.Muted,
+            });
+            container.Add(new SpriteText
+            {
+                Position = new Vector2(width < 260 ? 112 : 126, y),
+                Width = width - (width < 260 ? 118 : 132),
+                Truncate = true,
+                Text = rows[i].Value,
+                Font = HomeTypography.Display(14),
+                Colour = ResultColours.Navy,
+            });
+            container.Add(new Box
+            {
+                Position = new Vector2(0, y + 23),
+                Size = new Vector2(width - 12, 1),
+                Colour = ResultColours.Navy,
+                Alpha = 0.22f,
+            });
+        }
+
+        return container;
+    }
+
+    private Drawable createProvenanceRail(
+        YokkoBeatmap beatmap,
+        string fingerprint) =>
+        new Container
+        {
+            Position = new Vector2(contentLeft, 916),
+            Size = new Vector2(contentWidth, 38),
+            Children = new Drawable[]
+            {
+                createInlineDatum(
+                    "SOURCE",
+                    beatmap.SourceFormat.ToString().ToUpperInvariant(),
+                    0,
+                    ResultColours.Navy),
+                createInlineDatum(
+                    "CHART ID",
+                    beatmap.OnlineBeatmapId > 0
+                        ? beatmap.OnlineBeatmapId.ToString(
+                            CultureInfo.InvariantCulture)
+                        : fingerprint[..8].ToUpperInvariant(),
+                    320,
+                    ResultColours.Navy),
+                createInlineDatum(
+                    "HASH",
+                    formatHash(fingerprint),
+                    650,
+                    ResultColours.Navy),
+            },
         };
 
     private Drawable createActionRow() =>
         new Container
         {
-            Position = new Vector2(590, 761),
-            Size = new Vector2(960, 102),
+            Position = new Vector2(contentLeft, 964),
+            Size = new Vector2(contentWidth, 76),
             Children = new Drawable[]
             {
                 new ResultActionButton(
@@ -691,31 +976,97 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     "R",
                     FontAwesome.Solid.Redo,
                     retry,
-                    405,
+                    280,
                     true),
                 replayActionButton = new ResultActionButton(
                     YokkoStrings.Get("gameplay.result.watch_replay"),
                     "V",
                     FontAwesome.Solid.Play,
                     watchReplay,
-                    257,
+                    300,
                     false,
                     ReplayAvailable)
                 {
-                    X = 428,
+                    X = 304,
                 },
                 new ResultActionButton(
                     YokkoStrings.Get("gameplay.result.return"),
                     "ESC",
                     FontAwesome.Solid.Music,
                     returnToSongSelect,
-                    265,
+                    284,
                     false)
                 {
-                    X = 703,
+                    X = 628,
                 },
             },
         };
+
+    private static GameplayResultPresentation normalisePresentation(
+        GameplayResultPresentation value) =>
+        value with
+        {
+            PlayerName = displayOr(value.PlayerName, "LOCAL PLAYER"),
+            PlayerId = displayOr(value.PlayerId, "LOCAL"),
+        };
+
+    private static string displayOr(string value, string fallback) =>
+        string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+    private static string displayOrDash(string value) =>
+        displayOr(value, "—");
+
+    private static string formatSignedScore(long value) =>
+        value > 0
+            ? $"+{value.ToString("N0", CultureInfo.InvariantCulture)}"
+            : value.ToString("N0", CultureInfo.InvariantCulture);
+
+    private string rulesetLabel() =>
+        judgementConfiguration.Mode switch
+        {
+            JudgementMode.Etterna =>
+                $"ETTERNA {judgementConfiguration.EtternaJusticeLabel.ToUpperInvariant()}",
+            JudgementMode.OsuStable => "OSU!STABLE",
+            _ => "YOKKO",
+        };
+
+    private static string formatBpm(YokkoBeatmap beatmap)
+    {
+        double[] bpms = beatmap.TimingPoints
+            .Where(static point => point.Uninherited
+                                   && point.BeatsPerMinute > 0)
+            .Select(static point => point.BeatsPerMinute)
+            .ToArray();
+        if (bpms.Length == 0)
+            return "—";
+
+        double minimum = bpms.Min();
+        double maximum = bpms.Max();
+        return Math.Abs(maximum - minimum) < 0.05
+            ? minimum.ToString("0.##", CultureInfo.InvariantCulture)
+            : $"{minimum.ToString("0.##", CultureInfo.InvariantCulture)}-{maximum.ToString("0.##", CultureInfo.InvariantCulture)}";
+    }
+
+    private static string formatDuration(YokkoBeatmap beatmap)
+    {
+        if (beatmap.HitObjects.Count == 0)
+            return "00:00";
+
+        double durationMilliseconds = beatmap.HitObjects.Max(
+            static hitObject =>
+                hitObject.EndTimeMilliseconds
+                ?? hitObject.StartTimeMilliseconds);
+        TimeSpan duration = TimeSpan.FromMilliseconds(
+            Math.Max(0, durationMilliseconds));
+        return duration.TotalHours >= 1
+            ? duration.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
+            : duration.ToString(@"mm\:ss", CultureInfo.InvariantCulture);
+    }
+
+    private static string formatHash(string fingerprint) =>
+        fingerprint.Length <= 12
+            ? fingerprint.ToUpperInvariant()
+            : $"{fingerprint[..4].ToUpperInvariant()}…{fingerprint[^4..].ToUpperInvariant()}";
 
     private static IReadOnlyList<string> createModChipLabels(
         ManiaModSet mods,
@@ -730,48 +1081,15 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         }
         else
         {
-            var fixedRateLabels = new List<string>();
-            var detailLabels = new List<string>();
-
-            for (int i = 0; i < mods.Acronyms.Count; i++)
-            {
-                string acronym = mods.Acronyms[i].ToUpperInvariant();
-                if (isFixedRateAcronym(acronym))
-                    fixedRateLabels.Add(acronym);
-                else
-                    labels.Add(acronym);
-
-                string displayLabel = mods.DisplayLabels[i];
-                string prefix = acronym + " ";
-                if (!displayLabel.StartsWith(
-                        prefix,
-                        StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                string detail = displayLabel[prefix.Length..]
-                    .ToUpperInvariant();
-                if (detail.Length <= 12
-                    && (detail.Contains('×')
-                        || detail.Contains('→')
-                        || detail == "MAX"))
-                    detailLabels.Add(detail);
-            }
-
-            labels.AddRange(fixedRateLabels);
-            if (fixedRateLabels.Count > 0
-                && Math.Abs(mods.FixedRateSpeedChange - 1) > 0.001)
+            labels.AddRange(mods.Acronyms.Select(static acronym =>
+                acronym.ToUpperInvariant()));
+            if (Math.Abs(mods.FixedRateSpeedChange - 1) > 0.001)
             {
                 labels.Add(
                     mods.FixedRateSpeedChange.ToString(
                         "0.00",
                         CultureInfo.InvariantCulture)
                     + "×");
-            }
-
-            foreach (string detail in detailLabels)
-            {
-                if (!labels.Contains(detail))
-                    labels.Add(detail);
             }
         }
 
@@ -793,13 +1111,9 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         return labels;
     }
 
-    private static bool isFixedRateAcronym(string acronym) =>
-        acronym is "HT" or "DC" or "DT" or "NC";
-
-    private Drawable createModChipRail()
+    private Drawable createModChipRail(float maxWidth = 300)
     {
-        const float maxWidth = 306;
-        const float spacing = 10;
+        const float spacing = 8;
         var visible = new List<(string Label, float Width)>();
         float usedWidth = 0;
 
@@ -821,7 +1135,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         {
             string overflowLabel = $"+{hiddenCount}";
             float overflowWidth = calculateModChipWidth(overflowLabel);
-
             while (visible.Count > 0
                    && usedWidth + spacing + overflowWidth > maxWidth)
             {
@@ -839,32 +1152,25 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         }
 
         renderedModChipCount = visible.Count;
-
         var flow = new FillFlowContainer
         {
-            Position = new Vector2(0, 36),
             AutoSizeAxes = Axes.Both,
             Direction = FillDirection.Horizontal,
             Spacing = new Vector2(spacing, 0),
         };
-
         foreach ((string label, float width) in visible)
-            flow.Add(createModChip(label, width));
-
+            flow.Add(new ResultModChip(label, width));
         return flow;
     }
 
     private static float calculateModChipWidth(string label) =>
-        Math.Clamp(30 + label.Length * 11, 62, 118);
+        Math.Clamp(24 + label.Length * 9, 54, 112);
 
-    private static Drawable createModChip(string label, float width) =>
-        new ResultModChip(label, width);
-
-    private static Drawable createTickerStrip() =>
+    private Drawable createTickerStrip() =>
         new Container
         {
             RelativeSizeAxes = Axes.X,
-            Height = 26,
+            Height = 36,
             Children = new Drawable[]
             {
                 new Box
@@ -872,441 +1178,296 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     RelativeSizeAxes = Axes.Both,
                     Colour = ResultColours.Navy,
                 },
-                createTickerFlow(),
+                new SpriteText
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    X = 38,
+                    Text = "YOKKO RHYTHM CHART STUDIO  //  4K MANIA  //  RESULT ARCHIVE  //  VOL.01",
+                    Font = HomeTypography.Display(12),
+                    Spacing = new Vector2(1.2f, 0),
+                    Colour = Color4.White,
+                },
+                new SpriteText
+                {
+                    Anchor = Anchor.CentreRight,
+                    Origin = Anchor.CentreRight,
+                    X = -38,
+                    Text = presentation.PlayedAt?.ToLocalTime().ToString(
+                        "yyyy.MM.dd",
+                        CultureInfo.InvariantCulture)
+                        ?? "RESULT SESSION",
+                    Font = HomeTypography.Display(11),
+                    Spacing = new Vector2(1.2f, 0),
+                    Colour = ResultColours.Yellow,
+                },
             },
         };
 
-    private static Drawable createTickerFlow()
-    {
-        string[] segments =
-        {
-            "YOKKO RHYTHM STUDIO // EST. 2025 // VOL.01",
-            "YOKKO RHYTHM STUDIO // 4K MANIA",
-            "CHART LAB // FEEL THE BEAT",
-            "RHYTHM CHART STUDIO // EST. 2025 // VOL.01",
-            "YOKKO RHYTHM STUDIO // 4K MANIA",
-        };
-
-        var flow = new FillFlowContainer
-        {
-            Anchor = Anchor.CentreLeft,
-            Origin = Anchor.CentreLeft,
-            X = 24,
-            AutoSizeAxes = Axes.Both,
-            Direction = FillDirection.Horizontal,
-            Spacing = new Vector2(8, 0),
-        };
-
-        for (int i = 0; i < segments.Length; i++)
-        {
-            flow.Add(new SpriteText
-            {
-                Text = segments[i],
-                Font = HomeTypography.Display(10),
-                Spacing = new Vector2(1.8f, 0),
-                Colour = Color4.White,
-            });
-
-            if (i == segments.Length - 1)
-                continue;
-
-            flow.Add(new SpriteIcon
-            {
-                Y = 5,
-                Size = new Vector2(8),
-                Icon = FontAwesome.Solid.Star,
-                Colour = ResultColours.Yellow,
-            });
-        }
-
-        return flow;
-    }
-
-    private Drawable createMascotStage() =>
+    private static Drawable createStageBackground() =>
         new Container
         {
             RelativeSizeAxes = Axes.Both,
             Children = new Drawable[]
             {
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = ResultColours.Ivory,
+                },
+                new Box
+                {
+                    Position = new Vector2(1170, -60),
+                    Size = new Vector2(900, 1240),
+                    Rotation = 7,
+                    Colour = ResultColours.SoftCyan,
+                },
+                new Box
+                {
+                    Position = new Vector2(1220, -70),
+                    Size = new Vector2(770, 220),
+                    Rotation = 7,
+                    Colour = ResultColours.Cyan,
+                    Alpha = 0.5f,
+                },
+                new Box
+                {
+                    Position = new Vector2(1168, -60),
+                    Size = new Vector2(5, 1240),
+                    Rotation = 7,
+                    Colour = Color4.White,
+                },
+            },
+        };
+
+    private static Drawable createCharacterStagePlaceholder() =>
+        new Container
+        {
+            Position = new Vector2(1160, 36),
+            Size = new Vector2(760, 1044),
+            Children = new Drawable[]
+            {
                 new HomeDotField
                 {
-                    Position = new Vector2(26, 268),
-                    Size = new Vector2(92, 58),
-                    Colour = new Color4(
-                        ResultColours.Cyan.R,
-                        ResultColours.Cyan.G,
-                        ResultColours.Cyan.B,
-                        0.52f),
+                    Position = new Vector2(510, 74),
+                    Size = new Vector2(140, 80),
+                    Colour = new Color4(1, 1, 1, 0.56f),
                 },
                 new HomeMicroLine
                 {
-                    Position = new Vector2(38, 247),
-                    Width = 74,
-                    Colour = ResultColours.Cyan,
+                    Position = new Vector2(504, 174),
+                    Width = 118,
+                    Colour = Color4.White,
                 },
-                new HomeCrosshairMark
+                new HomeDotField
                 {
-                    Position = new Vector2(80, 302),
-                    Colour = ResultColours.Navy,
-                    Scale = new Vector2(0.72f),
-                },
-                new Circle
-                {
-                    Position = new Vector2(56, 849),
-                    Size = new Vector2(430, 30),
-                    Colour = new Color4(
-                        ResultColours.Cyan.R,
-                        ResultColours.Cyan.G,
-                        ResultColours.Cyan.B,
-                        0.38f),
-                },
-                mascot = new Sprite
-                {
-                    Origin = Anchor.Centre,
-                    Position = new Vector2(290, 536),
-                    Size = new Vector2(470, 654),
-                },
-                createAmbientAccent(
-                    new Vector2(506, 278),
-                    17,
-                    FontAwesome.Solid.Star,
-                    ResultColours.Yellow),
-                createAmbientAccent(
-                    new Vector2(474, 672),
-                    12,
-                    FontAwesome.Solid.Plus,
-                    ResultColours.Pink),
-                new SpriteText
-                {
-                    Position = new Vector2(34, 400),
-                    Rotation = -90,
-                    Text = "RHYTHM CHART STUDIO  //  VOL.01",
-                    Font = HomeTypography.Display(10),
-                    Spacing = new Vector2(1.7f, 0),
+                    Position = new Vector2(74, 800),
+                    Size = new Vector2(108, 64),
                     Colour = new Color4(
                         ResultColours.Navy.R,
                         ResultColours.Navy.G,
                         ResultColours.Navy.B,
-                        0.38f),
-                },
-                new HomeDotField
-                {
-                    Position = new Vector2(480, 796),
-                    Size = new Vector2(70, 48),
-                    Colour = new Color4(
-                        ResultColours.Cyan.R,
-                        ResultColours.Cyan.G,
-                        ResultColours.Cyan.B,
-                        0.38f),
-                },
-                new SpriteIcon
-                {
-                    Position = new Vector2(484, 735),
-                    Size = new Vector2(14),
-                    Icon = FontAwesome.Solid.Plus,
-                    Colour = ResultColours.Pink,
-                },
-                new Circle
-                {
-                    Position = new Vector2(526, 186),
-                    Size = new Vector2(18),
-                    BorderThickness = 2,
-                    BorderColour = ResultColours.Cyan,
-                    Masking = true,
-                    Colour = ResultColours.Ivory,
+                        0.16f),
                 },
             },
         };
 
-    private Drawable createDecorations() =>
-        new Container
+    private partial class ResultRankSeal : CompositeDrawable
+    {
+        private readonly SpriteText rankText;
+        private readonly Box accentBar;
+
+        public string DisplayedLabel { get; }
+        public string Eyebrow { get; }
+        public string Footer { get; }
+
+        public bool LabelFits =>
+            rankText.Scale.X >= 0.99f && rankText.DrawWidth <= 151;
+
+        public ResultRankSeal(
+            string rank,
+            Color4 accent,
+            bool etterna,
+            string etternaJusticeLabel)
         {
-            RelativeSizeAxes = Axes.Both,
-            Children = new Drawable[]
-            {
-                leftDecorationLayout = new Container
+            string label = displayOr(rank, "—");
+            bool etternaASequence = etterna
+                                    && label.Length is >= 2 and <= 5
+                                    && label.All(character => character == 'A');
+            float rankSize = etternaASequence
+                ? label.Length switch
                 {
-                    Size = new Vector2(designedWidth, designedHeight),
-                    Children = new Drawable[]
+                    2 => 78,
+                    3 => 57,
+                    4 => 45,
+                    5 => 35,
+                    _ => 112,
+                }
+                : label.Length switch
+                {
+                    1 => 112,
+                    2 => 82,
+                    3 => 42,
+                    4 => 34,
+                    5 => 28,
+                    _ => 24,
+                };
+            float rankTracking = etternaASequence
+                ? label.Length switch
+                {
+                    2 => -3,
+                    3 => -5.5f,
+                    4 => -7,
+                    5 => -8.5f,
+                    _ => 0,
+                }
+                : 0;
+
+            DisplayedLabel = label;
+            Eyebrow = etterna ? "WIFE3 GRADE" : "GRADE";
+            Footer = etterna
+                ? $"ETTERNA // {etternaJusticeLabel.ToUpperInvariant()}"
+                : "YOKKO // RANK";
+
+            Size = new Vector2(176, 196);
+            InternalChildren = new Drawable[]
+            {
+                new Container
+                {
+                    Position = new Vector2(5, 6),
+                    Size = new Vector2(171, 190),
+                    Masking = true,
+                    CornerRadius = 17,
+                    Child = new Box
                     {
-                        new SpriteIcon
-                        {
-                            Position = new Vector2(52, 77),
-                            Size = new Vector2(13),
-                            Icon = FontAwesome.Solid.Plus,
-                            Colour = ResultColours.Pink,
-                        },
-                        new SpriteIcon
-                        {
-                            Position = new Vector2(111, 67),
-                            Size = new Vector2(11),
-                            Icon = FontAwesome.Solid.Plus,
-                            Colour = ResultColours.Cyan,
-                        },
-                        new SpriteIcon
-                        {
-                            Position = new Vector2(42, 108),
-                            Size = new Vector2(9),
-                            Icon = FontAwesome.Solid.Plus,
-                            Colour = ResultColours.Yellow,
-                        },
-                        new Box
-                        {
-                            Position = new Vector2(26, 330),
-                            Size = new Vector2(2, 330),
-                            Colour = new Color4(
-                                ResultColours.Navy.R,
-                                ResultColours.Navy.G,
-                                ResultColours.Navy.B,
-                                0.68f),
-                        },
-                        new Box
-                        {
-                            Position = new Vector2(26, 330),
-                            Size = new Vector2(16, 2),
-                            Colour = ResultColours.Navy,
-                        },
-                        createLeftPulseLine(),
-                        createLeftBars(),
-                        new HomeConnectorPlus
-                        {
-                            Position = new Vector2(27, 544),
-                            Scale = new Vector2(0.78f),
-                        },
-                        new HomeDotField
-                        {
-                            Position = new Vector2(20, 708),
-                            Size = new Vector2(64, 44),
-                            Colour = new Color4(
-                                ResultColours.Cyan.R,
-                                ResultColours.Cyan.G,
-                                ResultColours.Cyan.B,
-                                0.35f),
-                        },
-                        new HomeHazardStripes(
-                            410,
-                            new Color4(
-                                ResultColours.Navy.R,
-                                ResultColours.Navy.G,
-                                ResultColours.Navy.B,
-                                0.38f))
-                        {
-                            Position = new Vector2(0, 892),
-                        },
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(
+                            accent.R,
+                            accent.G,
+                            accent.B,
+                            0.24f),
                     },
                 },
-                rightDecorationLayout = new Container
+                new Container
                 {
-                    Size = new Vector2(designedWidth, designedHeight),
+                    Size = new Vector2(171, 190),
+                    Masking = true,
+                    CornerRadius = 16,
+                    BorderThickness = 2,
+                    BorderColour = new Color4(
+                        accent.R,
+                        accent.G,
+                        accent.B,
+                        0.92f),
                     Children = new Drawable[]
                     {
-                        new SpriteIcon
+                        new Box
                         {
-                            Position = new Vector2(1535, 143),
-                            Size = new Vector2(15),
-                            Icon = FontAwesome.Solid.Plus,
-                            Colour = ResultColours.Pink,
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = ColourInfo.GradientVertical(
+                                new Color4(0.075f, 0.24f, 0.62f, 1f),
+                                new Color4(0.012f, 0.035f, 0.18f, 1f)),
                         },
-                        new SpriteIcon
+                        new Box
                         {
-                            Position = new Vector2(1452, 137),
-                            Size = new Vector2(12),
-                            Icon = FontAwesome.Solid.Plus,
-                            Colour = ResultColours.Cyan,
+                            Position = new Vector2(-40, -16),
+                            Size = new Vector2(48, 238),
+                            Rotation = 18,
+                            Colour = Color4.White,
+                            Alpha = 0.10f,
                         },
-                        new SpriteIcon
+                        new Box
                         {
-                            Position = new Vector2(1571, 399),
-                            Size = new Vector2(11),
-                            Icon = FontAwesome.Solid.Plus,
-                            Colour = ResultColours.Yellow,
-                        },
-                        createAmbientAccent(
-                            new Vector2(1394, 212),
-                            10,
-                            FontAwesome.Solid.Plus,
-                            ResultColours.Yellow),
-                        createAmbientAccent(
-                            new Vector2(1508, 692),
-                            14,
-                            FontAwesome.Solid.Star,
-                            ResultColours.Cyan),
-                        new HomeDotField
-                        {
-                            Position = new Vector2(1412, 80),
-                            Size = new Vector2(70, 38),
-                            Colour = new Color4(
-                                ResultColours.Cyan.R,
-                                ResultColours.Cyan.G,
-                                ResultColours.Cyan.B,
-                                0.3f),
+                            RelativeSizeAxes = Axes.X,
+                            Height = 3,
+                            Colour = accent,
                         },
                         new HomeDotField
                         {
-                            Position = new Vector2(1430, 548),
-                            Size = new Vector2(108, 58),
+                            Position = new Vector2(100, 17),
+                            Size = new Vector2(55, 30),
                             Colour = new Color4(
-                                ResultColours.Cyan.R,
-                                ResultColours.Cyan.G,
-                                ResultColours.Cyan.B,
+                                accent.R,
+                                accent.G,
+                                accent.B,
                                 0.24f),
                         },
-                        createResultPulseLine(),
+                        new Container
+                        {
+                            Position = new Vector2(6),
+                            Size = new Vector2(159, 178),
+                            Masking = true,
+                            CornerRadius = 11,
+                            BorderThickness = 1,
+                            BorderColour = new Color4(1, 1, 1, 0.24f),
+                            Child = new Box
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                Alpha = 0.01f,
+                            },
+                        },
+                        new SpriteText
+                        {
+                            Position = new Vector2(16, 13),
+                            Text = Eyebrow,
+                            Font = HomeTypography.Display(11),
+                            Spacing = new Vector2(1.5f, 0),
+                            Colour = accent,
+                        },
+                        rankText = new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Y = -2,
+                            Text = label,
+                            Font = ResultTypography.Poster(rankSize),
+                            Spacing = new Vector2(rankTracking, 0),
+                            Colour = ColourInfo.GradientVertical(
+                                Color4.White,
+                                accent),
+                            Shadow = true,
+                            ShadowColour = new Color4(
+                                0.01f,
+                                0.02f,
+                                0.11f,
+                                0.82f),
+                        },
+                        accentBar = new Box
+                        {
+                            Anchor = Anchor.BottomLeft,
+                            Origin = Anchor.BottomLeft,
+                            Position = new Vector2(16, -15),
+                            Size = new Vector2(42, 3),
+                            Colour = accent,
+                        },
+                        new SpriteText
+                        {
+                            Anchor = Anchor.BottomRight,
+                            Origin = Anchor.BottomRight,
+                            Position = new Vector2(-15, -12),
+                            Text = Footer,
+                            Font = HomeTypography.Display(8),
+                            Spacing = new Vector2(0.8f, 0),
+                            Colour = new Color4(1, 1, 1, 0.62f),
+                        },
                     },
                 },
-            },
-        };
-
-    private SpriteIcon createAmbientAccent(
-        Vector2 position,
-        float size,
-        IconUsage icon,
-        Color4 colour)
-    {
-        var accent = new SpriteIcon
-        {
-            Position = position,
-            Size = new Vector2(size),
-            Icon = icon,
-            Colour = colour,
-        };
-        ambientAccents.Add(accent);
-        return accent;
-    }
-
-    private static Drawable createLeftPulseLine() =>
-        new Container
-        {
-            Position = new Vector2(18, 350),
-            Size = new Vector2(102, 28),
-            Children = new Drawable[]
-            {
-                new Box
-                {
-                    Position = new Vector2(0, 14),
-                    Size = new Vector2(22, 2),
-                    Colour = ResultColours.Pink,
-                },
-                new Box
-                {
-                    Position = new Vector2(20, 10),
-                    Size = new Vector2(18, 2),
-                    Rotation = -58,
-                    Colour = ResultColours.Pink,
-                },
-                new Box
-                {
-                    Position = new Vector2(29, 6),
-                    Size = new Vector2(27, 2),
-                    Rotation = 76,
-                    Colour = ResultColours.Pink,
-                },
-                new Box
-                {
-                    Position = new Vector2(45, 13),
-                    Size = new Vector2(23, 2),
-                    Rotation = -69,
-                    Colour = ResultColours.Pink,
-                },
-                new Box
-                {
-                    Position = new Vector2(60, 14),
-                    Size = new Vector2(42, 2),
-                    Colour = ResultColours.Pink,
-                },
-            },
-        };
-
-    private static Drawable createLeftBars()
-    {
-        float[] heights =
-        {
-            18, 33, 48, 27, 41, 23, 36, 15, 30, 43, 25, 17, 35, 22,
-        };
-        var bars = new Container
-        {
-            Position = new Vector2(0, 440),
-            Size = new Vector2(112, 52),
-        };
-
-        for (int i = 0; i < heights.Length; i++)
-        {
-            bars.Add(new Box
-            {
-                Anchor = Anchor.BottomLeft,
-                Origin = Anchor.BottomLeft,
-                Position = new Vector2(i * 8, 0),
-                Size = new Vector2(4, heights[i]),
-                Colour = new Color4(
-                    ResultColours.Cyan.R,
-                    ResultColours.Cyan.G,
-                    ResultColours.Cyan.B,
-                    0.42f),
-            });
+            };
         }
 
-        return bars;
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            rankText.Scale = new Vector2(0.86f);
+            rankText.Alpha = 0;
+            rankText.FadeIn(240, Easing.OutQuint);
+            rankText.ScaleTo(1, 460, Easing.OutBack);
+
+            accentBar.Width = 0;
+            accentBar.ResizeWidthTo(42, 420, Easing.OutQuint);
+        }
     }
-
-    private static Drawable createResultPulseLine() =>
-        new Container
-        {
-            Position = new Vector2(1436, 872),
-            Size = new Vector2(124, 22),
-            Children = new Drawable[]
-            {
-                new Circle
-                {
-                    Position = new Vector2(0, 8),
-                    Size = new Vector2(7),
-                    Colour = ResultColours.Pink,
-                },
-                new Box
-                {
-                    Position = new Vector2(12, 10),
-                    Size = new Vector2(48, 2),
-                    Colour = ResultColours.Pink,
-                },
-                new Box
-                {
-                    Position = new Vector2(58, 6),
-                    Size = new Vector2(14, 2),
-                    Rotation = -48,
-                    Colour = ResultColours.Pink,
-                },
-                new Box
-                {
-                    Position = new Vector2(68, 6),
-                    Size = new Vector2(16, 2),
-                    Rotation = 62,
-                    Colour = ResultColours.Pink,
-                },
-                new Box
-                {
-                    Position = new Vector2(80, 10),
-                    Size = new Vector2(44, 2),
-                    Colour = ResultColours.Pink,
-                },
-            },
-        };
-
-    private Drawable createIvoryStage() =>
-        new Container
-        {
-            RelativeSizeAxes = Axes.Both,
-            Children = new Drawable[]
-            {
-                new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = ResultColours.Ivory,
-                },
-                stageAtmosphere = new Sprite
-                {
-                    Size = new Vector2(designedWidth, designedHeight),
-                },
-            },
-        };
 
     private partial class ResultScorePanel : Container
     {
@@ -1317,8 +1478,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         public void SetInteractionState(bool active)
         {
             InteractionActive = active;
-            this.MoveToY(active ? 114 : 118, 180, Easing.OutQuint);
-            this.ScaleTo(active ? 1.008f : 1, 180, Easing.OutQuint);
+            this.MoveToY(active ? 306 : 310, 180, Easing.OutQuint);
+            this.ScaleTo(active ? 1.006f : 1, 180, Easing.OutQuint);
         }
 
         protected override bool OnHover(HoverEvent e)
@@ -1327,40 +1488,46 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             return true;
         }
 
-        protected override void OnHoverLost(HoverLostEvent e)
-        {
+        protected override void OnHoverLost(HoverLostEvent e) =>
             SetInteractionState(false);
-        }
     }
 
     private partial class ResultSongHeading : CompositeDrawable
     {
-        private const float underlineGap = 6;
+        private const float underlineGap = 4;
 
         private readonly SpriteText title;
         private readonly Box underline;
 
-        public float UnderlineClearance =>
-            underline.Y - title.DrawHeight;
+        public float UnderlineClearance => underline.Y - title.DrawHeight;
 
-        public ResultSongHeading(string text)
+        public ResultSongHeading(string titleText, string artist)
         {
-            Size = new Vector2(610, 80);
+            Size = new Vector2(570, 64);
             InternalChildren = new Drawable[]
             {
                 title = new SpriteText
                 {
-                    Width = 610,
+                    Width = 570,
                     Truncate = true,
-                    Text = text,
-                    Font = HomeTypography.Display(40),
+                    Text = displayOrDash(titleText),
+                    Font = HomeTypography.Display(31),
                     Colour = ResultColours.Navy,
+                },
+                new SpriteText
+                {
+                    Y = 38,
+                    Width = 570,
+                    Truncate = true,
+                    Text = displayOrDash(artist),
+                    Font = HomeTypography.Display(15),
+                    Colour = ResultColours.Muted,
                 },
                 underline = new Box
                 {
-                    X = -4,
-                    Size = new Vector2(176, 6),
-                    Colour = ResultColours.Yellow,
+                    X = -2,
+                    Size = new Vector2(150, 3),
+                    Colour = ResultColours.Cyan,
                 },
             };
         }
@@ -1368,8 +1535,9 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         protected override void LoadComplete()
         {
             base.LoadComplete();
-            underline.Y =
-                MathF.Ceiling(title.DrawHeight) + underlineGap;
+            underline.Y = MathF.Max(
+                58,
+                MathF.Ceiling(title.DrawHeight) + underlineGap);
         }
     }
 
@@ -1377,8 +1545,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     {
         private readonly Box background;
         private readonly SpriteText valueText;
-        private readonly Box underline;
-        private readonly float restUnderlineWidth;
 
         public override bool HandlePositionalInput => true;
 
@@ -1387,83 +1553,60 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             string value,
             float width)
         {
-            Size = new Vector2(width, 126);
-            restUnderlineWidth = width - 18;
-
+            Size = new Vector2(width, 72);
             InternalChildren = new Drawable[]
             {
-                new Container
+                background = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Masking = true,
-                    CornerRadius = 8,
-                    Child = background = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = ResultColours.SoftCyan,
-                        Alpha = 0,
-                    },
+                    Colour = ResultColours.SoftCyan,
+                    Alpha = 0,
+                },
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Y,
+                    Width = 2,
+                    Colour = ResultColours.Navy,
+                    Alpha = 0.25f,
                 },
                 new SpriteText
                 {
-                    X = 6,
+                    Position = new Vector2(24, 4),
                     Text = label,
-                    Font = HomeTypography.Display(19),
-                    Spacing = new Vector2(3, 0),
-                    Colour = ResultColours.Navy,
+                    Font = HomeTypography.Display(13),
+                    Colour = ResultColours.Muted,
                 },
                 valueText = new SpriteText
                 {
-                    Position = new Vector2(6, 25),
+                    Position = new Vector2(24, 27),
+                    Width = width - 34,
+                    Truncate = true,
                     Text = value,
-                    Font = ResultTypography.Poster(56),
+                    Font = HomeTypography.Display(width < 180 ? 22 : 31),
                     Colour = ResultColours.Navy,
-                },
-                underline = new Box
-                {
-                    Position = new Vector2(0, 98),
-                    Size = new Vector2(restUnderlineWidth, 6),
-                    Colour = ResultColours.Yellow,
                 },
             };
         }
 
         protected override bool OnHover(HoverEvent e)
         {
-            background.FadeTo(0.23f, 140, Easing.OutQuint);
-            valueText.MoveToY(23, 150, Easing.OutQuint);
-            valueText.ScaleTo(1.012f, 150, Easing.OutQuint);
-            underline.ResizeWidthTo(Width, 180, Easing.OutQuint);
-            underline.FadeColour(
-                ResultColours.Cyan,
-                150,
-                Easing.OutQuint);
+            background.FadeTo(0.3f, 140, Easing.OutQuint);
+            valueText.MoveToY(24, 150, Easing.OutQuint);
             return true;
         }
 
         protected override void OnHoverLost(HoverLostEvent e)
         {
             background.FadeOut(160, Easing.OutQuint);
-            valueText.MoveToY(25, 170, Easing.OutQuint);
-            valueText.ScaleTo(1, 170, Easing.OutQuint);
-            underline.ResizeWidthTo(
-                restUnderlineWidth,
-                170,
-                Easing.OutQuint);
-            underline.FadeColour(
-                ResultColours.Yellow,
-                160,
-                Easing.OutQuint);
+            valueText.MoveToY(27, 170, Easing.OutQuint);
         }
     }
 
     private partial class ResultJudgementCell : Container
     {
-        private const float cellWidth = judgementStripWidth / 6;
-
         private readonly Box background;
-        private readonly Box shareBar;
         private readonly SpriteText valueText;
+        private readonly Box shareBar;
         private readonly float shareWidth;
 
         public override bool HandlePositionalInput => true;
@@ -1474,6 +1617,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             Color4 colour,
             float share)
         {
+            float cellWidth = judgementStripWidth / 6;
             shareWidth = Math.Clamp(
                 (cellWidth - 24) * share,
                 0,
@@ -1491,38 +1635,40 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 {
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
-                    Width = 1,
                     RelativeSizeAxes = Axes.Y,
-                    Height = 0.7f,
-                    Colour = new Color4(
-                        ResultColours.Navy.R,
-                        ResultColours.Navy.G,
-                        ResultColours.Navy.B,
-                        0.28f),
+                    Height = 0.72f,
+                    Width = 1,
+                    Colour = ResultColours.Navy,
+                    Alpha = 0.24f,
                 },
                 new SpriteText
                 {
-                    Anchor = Anchor.TopCentre,
-                    Origin = Anchor.TopCentre,
-                    Y = 9,
+                    Position = new Vector2(12, 6),
+                    Width = cellWidth - 22,
+                    Truncate = true,
                     Text = label,
-                    Font = HomeTypography.Display(20),
+                    Font = HomeTypography.Display(13),
                     Colour = colour,
                 },
                 valueText = new SpriteText
                 {
-                    Anchor = Anchor.TopCentre,
-                    Origin = Anchor.TopCentre,
-                    Y = 32,
-                    Text = value.ToString(),
-                    Font = ResultTypography.Poster(38),
+                    Position = new Vector2(12, 28),
+                    Text = value.ToString("N0", CultureInfo.InvariantCulture),
+                    Font = HomeTypography.Display(27),
+                    Colour = ResultColours.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(12, 59),
+                    Text = $"{share * 100:0.00}%",
+                    Font = HomeTypography.Display(13),
                     Colour = ResultColours.Navy,
                 },
                 shareBar = new Box
                 {
-                    Anchor = Anchor.BottomCentre,
-                    Origin = Anchor.BottomCentre,
-                    Y = -1,
+                    Anchor = Anchor.BottomLeft,
+                    Origin = Anchor.BottomLeft,
+                    Position = new Vector2(12, -1),
                     Size = new Vector2(0, 3),
                     Colour = colour,
                 },
@@ -1532,8 +1678,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         protected override bool OnHover(HoverEvent e)
         {
             background.FadeTo(0.08f, 120, Easing.OutQuint);
-            valueText.MoveToY(30, 140, Easing.OutQuint);
-            valueText.ScaleTo(1.07f, 140, Easing.OutQuint);
+            valueText.MoveToY(25, 140, Easing.OutQuint);
             shareBar.ResizeWidthTo(shareWidth, 190, Easing.OutQuint);
             return true;
         }
@@ -1541,78 +1686,36 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         protected override void OnHoverLost(HoverLostEvent e)
         {
             background.FadeOut(150, Easing.OutQuint);
-            valueText.MoveToY(34, 160, Easing.OutQuint);
-            valueText.ScaleTo(1, 160, Easing.OutQuint);
+            valueText.MoveToY(28, 160, Easing.OutQuint);
             shareBar.ResizeWidthTo(0, 150, Easing.OutQuint);
         }
     }
 
     private partial class ResultModChip : Container
     {
-        private readonly Box background;
-        private readonly Box topAccent;
-
-        public override bool HandlePositionalInput => true;
-
         public ResultModChip(string label, float width)
         {
-            Size = new Vector2(width, 58);
+            Size = new Vector2(width, 28);
             Masking = true;
-            CornerRadius = 8;
-            BorderThickness = 2;
+            CornerRadius = 5;
+            BorderThickness = 1.5f;
             BorderColour = ResultColours.Navy;
-
             InternalChildren = new Drawable[]
             {
-                background = new Box
+                new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = ResultColours.Navy,
+                    Colour = Color4.White,
                 },
                 new SpriteText
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Text = label,
-                    Font = HomeTypography.Display(20),
-                    Colour = Color4.White,
-                },
-                topAccent = new Box
-                {
-                    Position = new Vector2(0, 0),
-                    Size = new Vector2(width, 4),
-                    Colour = ResultColours.Yellow,
+                    Font = HomeTypography.Display(12),
+                    Colour = ResultColours.Navy,
                 },
             };
-        }
-
-        protected override bool OnHover(HoverEvent e)
-        {
-            background.FadeColour(
-                new Color4(0.055f, 0.15f, 0.7f, 1f),
-                120,
-                Easing.OutQuint);
-            topAccent.FadeColour(
-                ResultColours.Cyan,
-                120,
-                Easing.OutQuint);
-            this.MoveToY(-4, 140, Easing.OutQuint);
-            this.ScaleTo(1.035f, 140, Easing.OutQuint);
-            return true;
-        }
-
-        protected override void OnHoverLost(HoverLostEvent e)
-        {
-            background.FadeColour(
-                ResultColours.Navy,
-                150,
-                Easing.OutQuint);
-            topAccent.FadeColour(
-                ResultColours.Yellow,
-                150,
-                Easing.OutQuint);
-            this.MoveToY(0, 160, Easing.OutQuint);
-            this.ScaleTo(1, 160, Easing.OutQuint);
         }
     }
 
@@ -1621,9 +1724,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         private readonly Action requestedAction;
         private bool enabled;
         private readonly Box background;
-        private readonly Container iconTile;
-        private readonly Container keyHint;
-        private readonly SpriteIcon chevron;
+        private readonly SpriteIcon icon;
         private readonly Color4 restColour;
         private readonly Color4 hoverColour;
 
@@ -1632,149 +1733,59 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         public ResultActionButton(
             LocalisableString label,
             string key,
-            IconUsage icon,
+            IconUsage iconUsage,
             Action action,
             float width,
             bool primary,
             bool enabled = true)
         {
             requestedAction = action;
-            Size = new Vector2(width, 98);
-            restColour = primary
-                ? ResultColours.Navy
-                : Color4.White;
+            Size = new Vector2(width, 74);
+            restColour = primary ? ResultColours.Navy : Color4.White;
             hoverColour = primary
                 ? new Color4(0.045f, 0.13f, 0.66f, 1f)
                 : ResultColours.SoftCyan;
+            Masking = true;
+            CornerRadius = 9;
+            BorderThickness = 2;
+            BorderColour = ResultColours.Navy;
 
             InternalChildren = new Drawable[]
             {
-                iconTile = new Container
+                background = new Box
                 {
-                    Position = new Vector2(0, 7),
-                    Size = new Vector2(width, 91),
-                    Masking = true,
-                    CornerRadius = 8,
-                    Child = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = new Color4(0.015f, 0.045f, 0.28f, 0.3f),
-                    },
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = restColour,
                 },
-                new Container
+                icon = new SpriteIcon
                 {
-                    Size = new Vector2(width, 95),
-                    Masking = true,
-                    CornerRadius = 8,
-                    BorderThickness = 2,
-                    BorderColour = ResultColours.Navy,
-                    Children = new Drawable[]
-                    {
-                        background = new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Colour = restColour,
-                        },
-                        new HomeDotField
-                        {
-                            Anchor = Anchor.CentreRight,
-                            Origin = Anchor.CentreRight,
-                            Position = new Vector2(-25, 0),
-                            Size = new Vector2(92, 50),
-                            Alpha = primary ? 0.18f : 0.09f,
-                            Colour = primary
-                                ? ResultColours.Cyan
-                                : ResultColours.Navy,
-                        },
-                    },
-                },
-                new Container
-                {
-                    Position = new Vector2(
-                        14,
-                        primary ? 12 : 20),
-                    Size = new Vector2(primary ? 66 : 54),
-                    CornerRadius = 7,
-                    Masking = true,
-                    BorderThickness = primary ? 0 : 1.5f,
-                    BorderColour = ResultColours.Navy,
-                    Children = new Drawable[]
-                    {
-                        new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Colour = primary
-                                ? Color4.White
-                                : ResultColours.SoftCyan,
-                        },
-                        new SpriteIcon
-                        {
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
-                            Size = new Vector2(primary ? 31 : 26),
-                            Icon = icon,
-                            Colour = ResultColours.Navy,
-                        },
-                    },
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    X = 28,
+                    Size = new Vector2(24),
+                    Icon = iconUsage,
+                    Colour = primary ? Color4.White : ResultColours.Navy,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(
-                        primary ? 98 : 78,
-                        primary ? 18 : 33),
-                    Width = width - 126,
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    Width = width - 110,
                     Truncate = true,
                     Text = label,
-                    Font = HomeTypography.Display(primary ? 50 : 18),
-                    Scale = Vector2.One,
-                    Colour = primary
-                        ? Color4.White
-                        : ResultColours.Navy,
+                    Font = HomeTypography.Display(22),
+                    Colour = primary ? Color4.White : ResultColours.Navy,
                 },
-                chevron = new SpriteIcon
+                new SpriteText
                 {
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
-                    Position = new Vector2(-18, 0),
-                    Size = new Vector2(14, 22),
-                    Icon = FontAwesome.Solid.ChevronRight,
+                    X = -22,
+                    Text = key,
+                    Font = HomeTypography.Display(11),
                     Colour = primary
                         ? ResultColours.Yellow
                         : ResultColours.Pink,
-                },
-                keyHint = new Container
-                {
-                    Position = new Vector2(width - 62, 8),
-                    Size = new Vector2(38, 18),
-                    Masking = true,
-                    CornerRadius = 4,
-                    Alpha = 0,
-                    Children = new Drawable[]
-                    {
-                        new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Colour = primary
-                                ? ResultColours.Yellow
-                                : ResultColours.SoftCyan,
-                        },
-                        new SpriteText
-                        {
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
-                            Text = key,
-                            Font = HomeTypography.Display(10),
-                            Spacing = new Vector2(0.8f, 0),
-                            Colour = ResultColours.Navy,
-                        },
-                    },
-                },
-                new Box
-                {
-                    Position = new Vector2(width - 11, -5),
-                    Size = new Vector2(10),
-                    Rotation = 45,
-                    Colour = ResultColours.Yellow,
                 },
             };
 
@@ -1791,37 +1802,27 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         protected override bool OnHover(HoverEvent e)
         {
             background.FadeColour(hoverColour, 120);
-            iconTile.ScaleTo(1.06f, 140, Easing.OutQuint);
-            chevron.MoveToX(-11, 150, Easing.OutQuint);
-            keyHint.FadeIn(100, Easing.OutQuint);
-            keyHint.MoveToY(5, 140, Easing.OutQuint);
+            icon.ScaleTo(1.08f, 140, Easing.OutQuint);
             this.MoveToY(-3, 140, Easing.OutQuint);
-            this.ScaleTo(1.01f, 140, Easing.OutQuint);
             return true;
         }
 
         protected override void OnHoverLost(HoverLostEvent e)
         {
             background.FadeColour(restColour, 140);
-            iconTile.ScaleTo(1, 150, Easing.OutQuint);
-            chevron.MoveToX(-18, 160, Easing.OutQuint);
-            keyHint.FadeOut(100, Easing.OutQuint);
-            keyHint.MoveToY(8, 140, Easing.OutQuint);
+            icon.ScaleTo(1, 150, Easing.OutQuint);
             this.MoveToY(0, 160, Easing.OutQuint);
-            this.ScaleTo(1, 160, Easing.OutQuint);
         }
 
         protected override bool OnMouseDown(MouseDownEvent e)
         {
-            this.MoveToY(1, 80, Easing.OutQuint);
-            this.ScaleTo(0.975f, 80, Easing.OutQuint);
+            this.ScaleTo(0.98f, 80, Easing.OutQuint);
             return base.OnMouseDown(e);
         }
 
         protected override void OnMouseUp(MouseUpEvent e)
         {
-            this.MoveToY(IsHovered ? -3 : 0, 220, Easing.OutBack);
-            this.ScaleTo(IsHovered ? 1.01f : 1, 220, Easing.OutBack);
+            this.ScaleTo(1, 180, Easing.OutBack);
             base.OnMouseUp(e);
         }
     }

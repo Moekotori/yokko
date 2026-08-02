@@ -833,7 +833,7 @@ internal partial class SongSelectInlineDifficultyRating : CompositeDrawable
 internal partial class SongSelectPackageHeader : PoolableDrawable
 {
     internal const float ExpandedHeight = 132;
-    internal const float CollapsedHeight = 132;
+    internal const float CollapsedHeight = 112;
 
     private const float artwork_width = 228;
     private const float content_start = 244;
@@ -940,7 +940,11 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         toggle = toggleAction;
         expanded = !collapsed;
         float headerHeight = collapsed ? CollapsedHeight : ExpandedHeight;
-        float contentStart = content_start;
+        float artworkWidth = collapsed ? 193 : artwork_width;
+        Vector2 artworkSize = collapsed
+            ? new Vector2(185, headerHeight - 8)
+            : SongSelectSongRow.StandaloneArtworkSize;
+        float contentStart = collapsed ? 209 : content_start;
         PackageContentStart = contentStart;
         Size = new Vector2(SongSelectSongRow.RowWidth, headerHeight);
         Masking = true;
@@ -965,11 +969,11 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             },
             artworkFrame = new Container
             {
-                Size = new Vector2(artwork_width, headerHeight),
+                Size = new Vector2(artworkWidth, headerHeight),
                 Child = artworkImageFrame = new Container
                 {
                     Position = new Vector2(4),
-                    Size = SongSelectSongRow.StandaloneArtworkSize,
+                    Size = artworkSize,
                     Masking = true,
                     CornerRadius = 8,
                     BorderThickness = 1,
@@ -983,7 +987,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                         },
                         SongSelectArtworkCrop.CreateFit(
                             wallpaper,
-                            SongSelectSongRow.StandaloneArtworkSize),
+                            artworkSize),
                     ],
                 },
             },
@@ -992,7 +996,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
                 RelativeSizeAxes = Axes.Y,
-                Width = SongSelectSongRow.RowWidth - artwork_width,
+                Width = SongSelectSongRow.RowWidth - artworkWidth,
                 Children =
                 [
                     hoverSurface = new Box
@@ -1027,8 +1031,8 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             {
                 Position = new Vector2(
                     selected
-                        ? artwork_width + 8
-                        : artwork_width + 4,
+                        ? artworkWidth + 8
+                        : artworkWidth + 4,
                     headerHeight - 27),
                 Size = new Vector2(11),
                 Icon = FontAwesome.Solid.Play,
@@ -1073,7 +1077,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             {
                 Anchor = Anchor.BottomRight,
                 Origin = Anchor.BottomRight,
-                Width = SongSelectSongRow.RowWidth - artwork_width,
+                Width = SongSelectSongRow.RowWidth - artworkWidth,
                 Height = 2,
                 Colour = SongSelectTheme.Cyan,
                 Alpha = expanded ? 0.32f : 0,
@@ -1340,7 +1344,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             selectedModePill = new Container
             {
                 Position = new Vector2(contentStart, 98),
-                Size = new Vector2(300, 26),
+                Size = new Vector2(276, 26),
                 Masking = true,
                 CornerRadius = 7,
                 Children =
@@ -1352,13 +1356,13 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                             SongSelectTheme.Pink.R,
                             SongSelectTheme.Pink.G,
                             SongSelectTheme.Pink.B,
-                            0.88f),
+                            0.72f),
                     },
                     selectedModeText = new SpriteText
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Width = 284,
+                        Width = 260,
                         Truncate = true,
                         Font = HomeTypography.Display(9),
                         Colour = Color4.White,

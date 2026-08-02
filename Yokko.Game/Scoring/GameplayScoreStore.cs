@@ -161,7 +161,9 @@ internal sealed class GameplayScoreStore
         JudgementConfiguration judgementConfiguration,
         ManiaScoreResult result,
         string replayPath = null,
-        DateTimeOffset? playedAt = null)
+        DateTimeOffset? playedAt = null,
+        string playerName = null,
+        string playerId = null)
     {
         ensureInitialised();
         mods ??= ManiaModSet.Empty;
@@ -190,6 +192,9 @@ internal sealed class GameplayScoreStore
             result.MaxMissCombo,
             ManiaModConfigurationCodec.Capture(mods),
             replayPath,
+            playerName,
+            playerId,
+            IsCurrentPlayer: true,
             JudgementConfiguration: judgementConfiguration);
         string historyKey = historyKeyFor(
             beatmap,

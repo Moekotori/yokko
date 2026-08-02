@@ -99,7 +99,9 @@ public class GameplayScoreStoreTest
                 JudgementConfiguration.YokkoDefault,
                 result(900_000, 0.95),
                 replayPath,
-                playedAt),
+                playedAt,
+                "NYAFA",
+                "10248631"),
             Is.True);
 
         var restored = new GameplayScoreStore();
@@ -112,6 +114,9 @@ public class GameplayScoreStoreTest
         {
             Assert.That(saved.ReplayPath, Is.EqualTo(replayPath));
             Assert.That(saved.PlayedAt, Is.EqualTo(playedAt));
+            Assert.That(saved.PlayerName, Is.EqualTo("NYAFA"));
+            Assert.That(saved.PlayerId, Is.EqualTo("10248631"));
+            Assert.That(saved.IsCurrentPlayer, Is.True);
             Assert.That(
                 saved.JudgementConfiguration,
                 Is.EqualTo(JudgementConfiguration.YokkoDefault));

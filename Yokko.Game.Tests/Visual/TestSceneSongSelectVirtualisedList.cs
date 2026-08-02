@@ -163,7 +163,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
             transitionPackageId: "anchor-second"));
         AddAssert("transition package remains at viewport top", () =>
             Math.Abs(list.ScrollPosition
-                     - (SongSelectPackageHeader.CollapsedHeight + 13)) < 0.05);
+                     - (SongSelectPackageHeader.CollapsedHeight + 15)) < 0.05);
     }
 
     private static IEnumerable<SongSelectVirtualItem> packageLayout(
@@ -416,8 +416,8 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                                  - (headers[0].Y + headers[0].Height);
             float sectionGap = headers[1].Y
                                - (row.Y + row.Height);
-            return Math.Abs(inPackageGap - 5) < 0.05f
-                   && Math.Abs(sectionGap - 13) < 0.05f;
+            return Math.Abs(inPackageGap - 7) < 0.05f
+                   && Math.Abs(sectionGap - 15) < 0.05f;
         });
     }
 
@@ -756,7 +756,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                    && header.SelectedModePillPosition
                       == new Vector2(244, 98)
                    && header.SelectedModePillSize
-                      == new Vector2(300, 26)
+                      == new Vector2(276, 26)
                    && header.SelectedRatingPosition
                       == new Vector2(754, 100)
                    && !string.IsNullOrWhiteSpace(
@@ -846,9 +846,8 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                 list.MaterialisedHeaders.Single();
             return Math.Abs(header.Height
                             - SongSelectPackageHeader.CollapsedHeight) < 0.05f
-                   && header.ArtworkFrameSize == new Vector2(228, 132)
-                   && header.ArtworkImageFrameSize
-                      == SongSelectSongRow.StandaloneArtworkSize
+                   && header.ArtworkFrameSize == new Vector2(193, 112)
+                   && header.ArtworkImageFrameSize == new Vector2(185, 104)
                    && Math.Abs(header.ArtworkImageCornerRadius - 8) < 0.05f;
         });
         AddAssert("long package title stays on one truncating line", () =>
@@ -857,11 +856,11 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                 list.MaterialisedHeaders.Single();
             return header.PackageTitleLineCount == 1
                    && header.PackageTitleUsesTruncation
-                   && Math.Abs(header.PackageContentStart - 244) < 0.05f
+                   && Math.Abs(header.PackageContentStart - 209) < 0.05f
                    && header.FavouriteIconAnchor == Anchor.TopRight
                    && header.FavouriteIconPosition == new Vector2(-18, 8)
                    && header.ChevronFrameAnchor == Anchor.TopRight
-                   && header.ChevronFramePosition == new Vector2(-11, 96)
+                   && header.ChevronFramePosition == new Vector2(-11, 76)
                    && header.PackageSummaryAlpha > 0.99f
                    && header.SelectedSummaryAlpha < 0.01f
                    && list.ItemCount == 1;

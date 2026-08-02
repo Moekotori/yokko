@@ -103,7 +103,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                 Origin = Anchor.TopRight,
                 Position = new Vector2(-214, 14),
                 Text = "0 PLAYS",
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(9),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -380,7 +380,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
             Origin = Anchor.CentreLeft,
             X = 31,
             Text = label,
-            Font = HomeTypography.Display(10),
+            Font = HomeTypography.Display(11),
         };
         return new ClickableContainer
         {
@@ -466,49 +466,134 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
     {
         PersonalHistory = personalHistory;
         RelativeSizeAxes = Axes.Both;
-        InternalChildren =
-        [
-            new SpriteIcon
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Y = -42,
-                Size = new Vector2(24),
-                Icon = personalHistory
-                    ? FontAwesome.Solid.Archive
-                    : FontAwesome.Solid.Users,
-                Colour = personalHistory
-                    ? SongSelectTheme.Pink
-                    : SongSelectTheme.Cyan,
-                Alpha = 0.78f,
-            },
-            new SpriteText
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Y = -5,
-                Text = personalHistory
-                    ? "NO LOCAL PLAYS YET"
-                    : "NO RANKING DATA",
-                Font = HomeTypography.Display(16),
-                Colour = SongSelectTheme.Navy,
-            },
-            new SpriteText
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Y = 22,
-                Text = personalHistory
-                    ? "PLAY THIS CHART TO START YOUR HISTORY"
-                    : "RANKING DATA WILL APPEAR HERE",
-                Font = HomeTypography.Body(11),
-                Colour = new Color4(
-                    SongSelectTheme.Navy.R,
-                    SongSelectTheme.Navy.G,
-                    SongSelectTheme.Navy.B,
-                    0.62f),
-            },
-        ];
+        InternalChild = new Container
+        {
+            Anchor = Anchor.Centre,
+            Origin = Anchor.Centre,
+            Y = -22,
+            Size = new Vector2(430, 166),
+            Masking = true,
+            CornerRadius = 14,
+            BorderThickness = 1,
+            BorderColour = new Color4(
+                SongSelectTheme.Cyan.R,
+                SongSelectTheme.Cyan.G,
+                SongSelectTheme.Cyan.B,
+                0.30f),
+            Children =
+            [
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = new Color4(
+                        SongSelectTheme.PaleCyan.R,
+                        SongSelectTheme.PaleCyan.G,
+                        SongSelectTheme.PaleCyan.B,
+                        0.24f),
+                },
+                new Box
+                {
+                    RelativeSizeAxes = Axes.X,
+                    Height = 3,
+                    Colour = SongSelectTheme.Cyan,
+                    Alpha = 0.74f,
+                },
+                new Container
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    X = 28,
+                    Size = new Vector2(68),
+                    Masking = true,
+                    CornerRadius = 34,
+                    BorderThickness = 1.5f,
+                    BorderColour = new Color4(
+                        SongSelectTheme.Cyan.R,
+                        SongSelectTheme.Cyan.G,
+                        SongSelectTheme.Cyan.B,
+                        0.52f),
+                    Children =
+                    [
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = SongSelectSurface.Ivory(0.82f),
+                        },
+                        new SpriteIcon
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Size = new Vector2(27),
+                            Icon = personalHistory
+                                ? FontAwesome.Solid.Archive
+                                : FontAwesome.Solid.Users,
+                            Colour = personalHistory
+                                ? SongSelectTheme.Pink
+                                : SongSelectTheme.Cyan,
+                        },
+                    ],
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(118, 30),
+                    Text = personalHistory
+                        ? "NO LOCAL PLAYS YET"
+                        : "NO RANKING DATA",
+                    Font = HomeTypography.Display(18),
+                    Colour = SongSelectTheme.Navy,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(118, 62),
+                    Text = personalHistory
+                        ? "YOUR RESULTS AND REPLAYS WILL LIVE HERE"
+                        : "COMPLETE THIS CHART TO CREATE THE FIRST RESULT",
+                    Font = HomeTypography.Body(11),
+                    Colour = new Color4(
+                        SongSelectTheme.Navy.R,
+                        SongSelectTheme.Navy.G,
+                        SongSelectTheme.Navy.B,
+                        0.64f),
+                },
+                new Container
+                {
+                    Position = new Vector2(118, 101),
+                    Size = new Vector2(250, 32),
+                    Masking = true,
+                    CornerRadius = 8,
+                    Children =
+                    [
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = new Color4(
+                                SongSelectTheme.Yellow.R,
+                                SongSelectTheme.Yellow.G,
+                                SongSelectTheme.Yellow.B,
+                                0.48f),
+                        },
+                        new SpriteIcon
+                        {
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
+                            X = 13,
+                            Size = new Vector2(11),
+                            Icon = FontAwesome.Solid.Play,
+                            Colour = SongSelectTheme.Navy,
+                        },
+                        new SpriteText
+                        {
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
+                            X = 34,
+                            Text = "PLAY TO SET YOUR FIRST SCORE",
+                            Font = HomeTypography.Display(9),
+                            Colour = SongSelectTheme.Navy,
+                        },
+                    ],
+                },
+            ],
+        };
     }
 }
 

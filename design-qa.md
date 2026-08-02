@@ -53,6 +53,66 @@ final result: passed
 
 ---
 
+# Gameplay Result detailed-layout polish QA (2026-08-02)
+
+## Evidence
+
+- Source visual truth: `C:\Users\nyafa\.codex\visualizations\2026\08\02\019fc034-5412-72b3-9757-bd99a914457e\yokko-result-variant-1-detailed.png` (1920 x 1080).
+- Final native implementation: `F:\YokkoArtifacts\result-detailed-polish\screenshots\result-preview-polished-final.png` (1920 x 1080).
+- Etterna AAAAA stress implementation: `F:\YokkoArtifacts\result-detailed-polish\screenshots\result-preview-etterna-aaaaa-final.png` (1920 x 1080).
+- Full-view comparison: `F:\YokkoArtifacts\result-detailed-polish\qa\result-full-source-left-implementation-right.png` (source left, implementation right).
+- Focused score-region comparison: `F:\YokkoArtifacts\result-detailed-polish\qa\result-score-region-source-left-implementation-right.png` (source left, implementation right).
+- Etterna full-view comparison: `F:\YokkoArtifacts\result-detailed-polish\qa\result-etterna-full-source-left-implementation-right.png` (source left, Etterna implementation right).
+- Etterna focused rank comparison: `F:\YokkoArtifacts\result-detailed-polish\qa\result-etterna-rank-source-left-implementation-right.png` (source rank region left, Etterna AAAAA rank region right).
+- Viewport and density: native osu!framework Direct3D 11 preview, authored 1920 x 1080 stage at scale 1; source and implementation are both 1920 x 1080 with no density normalization required.
+- State: result screen after entrance animation, Chinese action labels, detailed local-player data. The preview uses a valid B-grade demo result rather than the mock's S-grade values. The right illustration is intentionally omitted under the current user-approved scope, so its empty stage is not treated as a fidelity defect.
+
+## Findings
+
+- [P1 resolved] The previous grade was a single oversized flat glyph and looked unfinished beside the selected mock. It is now a dynamic rank seal with grade-aware colour, a white-to-accent glyph treatment, layered border, restrained shadow, micro-labels, and an entrance animation. It supports X/XH/S/SH/A/B/C/D and Etterna A-through-AAAAA labels without a static or fabricated result image.
+- [P2 resolved] The implementation previously retained a vertical left/right split, while the selected design uses a strong diagonal paper edge. The cyan stage and white separator now follow the reference's slanted boundary from header to footer.
+- [P2 resolved] The score panel was too tall and pushed the action row close to the bottom edge. The panel is 20 px shorter, the lower ledger follows the reference's tighter vertical rhythm, and the action row now ends with a 42 px bottom margin.
+- [P2 resolved] The three result actions filled the entire content width and crossed the visual paper wedge. Their widths and gaps now match the selected reference's shorter editorial row while preserving the same retry, replay, and return interactions.
+- [P2 resolved] Etterna `AA` through `AAAAA` previously relied on the generic long-label shrink path. Etterna A-sequence grades now use dedicated optical sizes and negative tracking, preserving the full label without weakening it into tiny text. The seal also identifies the scoring context as `WIFE3 GRADE` and `ETTERNA // J4`.
+- [P2 resolved] The narrow summary cell truncated `ETTERNA J4` to `ETTERNA...` in the first native stress capture. The RATE/RULESET tracks were rebalanced, and the post-fix capture shows the complete ruleset value.
+- [P3] The selected mock's rank is deliberately minimal, while the implementation uses a more explicit card-like seal in response to the user's request that the grade graphic feel more finished. This is an intentional polish deviation rather than an unresolved mismatch.
+
+## Required fidelity surfaces
+
+- Fonts and typography: Archivo Black remains the exact score/rank display face; Yokko display/body faces retain the existing product system. Score, previous-best, labels, and small ledger text now have distinct optical hierarchy. Dedicated AA-through-AAAAA tracking keeps the Etterna grade bold and fully legible in the captured worst-case AAAAA state.
+- Spacing and layout rhythm: header, chart strip, score block, summary, timing, judgement, metadata, provenance, and actions align to the same 1920 x 1080 grid. The slanted stage edge clears every interactive control.
+- Colors and visual tokens: navy, cyan, pale cyan, yellow, pink, and ivory remain the existing Yokko tokens. The score panel adds only token-derived gradients and low-opacity highlights.
+- Image quality and asset fidelity: no character or supplied illustration was modified. The rank remains dynamic UI data rather than a rasterized screenshot or generated text asset; the intentionally empty character stage stays sharp at native resolution.
+- Copy and content: player name, local UID, play time, chart data, score delta, timing, judgements, replay state, provenance, and action labels remain truthful runtime fields. Etterna captures show the runtime Wife3 grade and justice label in full; no mock performance value was invented.
+
+## Comparison history
+
+1. Earlier native capture `F:\YokkoArtifacts\result-detailed\screenshots\result-preview-1920x1080-final.png`: flat B glyph, vertical stage boundary, 244 px score block, and full-width buttons were visible P1/P2 differences.
+2. Rank-seal V1 `F:\YokkoArtifacts\result-detailed-polish\screenshots\result-preview-rank-seal.png`: dynamic seal and richer score surface were added, but the lower stack still sat too close to the viewport edge.
+3. Rank-seal V2 `F:\YokkoArtifacts\result-detailed-polish\screenshots\result-preview-rank-seal-v2.png`: vertical rhythm and bottom margin were corrected.
+4. Final V3: the diagonal paper edge and action widths were aligned to the reference; the combined full-view and focused-region evidence shows no remaining actionable P0/P1/P2 issue within the current no-character scope.
+5. Etterna stress V1 `F:\YokkoArtifacts\result-detailed-polish\screenshots\result-preview-etterna-aaaaa.png`: the new AAAAA seal fit, but the adjacent summary rail visibly truncated the ruleset to `ETTERNA...`.
+6. Etterna stress V2 `F:\YokkoArtifacts\result-detailed-polish\screenshots\result-preview-etterna-aaaaa-final.png`: the RULESET track was widened to show `ETTERNA J4`; combined full-view and focused evidence shows no remaining AAAAA overflow, metadata truncation, or actionable P0/P1/P2 issue.
+
+## Open Questions
+
+- None for this pass. Adding the untouched supplied character later is a separate approved follow-up, not a blocker for the result-information layout.
+
+## Implementation Checklist
+
+- Dynamic grade seal covers Yokko and Etterna grade lengths.
+- Etterna AA-through-AAAAA preserves the complete label and displays Wife3/J4 context without truncation.
+- Retry, replay, and return actions retain enabled/disabled, hover, press, and keyboard-label states.
+- Native 1920 x 1080 render, focused result scene, isolated build, and diff check must pass before handoff.
+
+## Follow-up Polish
+
+- P3 only: when the character layer is added, tune its crop and overlap against the final diagonal edge without moving the left ledger.
+
+final result: passed
+
+---
+
 # Song Select full-art browse redesign QA (2026-08-02)
 
 ## Evidence
@@ -5654,6 +5714,39 @@ final result: passed with the unrelated test-project rebuild limitation recorded
 
 ---
 
+# Song Select browse interaction and MSD refresh QA (2026-08-02)
+
+## Evidence
+
+- User-reported source: `F:\Temp\codex-clipboard-b4088c69-be9e-4c29-bccb-2ee70fd0719d.png` (2048 x 1152), showing an expanded external package whose left detail displayed `MSD 29.63` while its right-side group and child rows remained `MSD --`.
+- Current-run baseline: `F:\YokkoArtifacts\songselect-interaction-audit\01-before-1920x1080.png`.
+- Final native implementation: `F:\YokkoArtifacts\songselect-interaction\after-1920x1080.png` (1920 x 1080, Direct3D 11, Comfortable scale).
+
+## Findings and resolution
+
+- P1 resolved: external charts enter the browser as lightweight summaries. After full beatmap materialisation, the selected detail panel rebuilt from the complete chart, but already-materialised virtual rows retained the summary difficulty. The completion path now refreshes the active list drawables after invalidating the rating cache, so the package header and child rows receive the same numeric MSD as the left detail panel.
+- P2 resolved: the expanded package's selected mode pill previously extended below the 132 px header and competed with the rating column. The mode and MSD metadata now share a contained lower rail, with the rating aligned consistently across the header and children.
+- P2 resolved: right-list groups gain slightly wider section spacing, a calmer package-group marker, and a less crowded trailing metadata area. Full wide artwork remains contained and is not converted to a cropped square song-cover treatment.
+- P2 resolved: keyboard browsing now includes Up/Down, PageUp/PageDown, Home/End, Ctrl+F or `/` for search, `F` for filters, `R` for random, and Enter for play. These shortcuts are surfaced in the footer rather than hidden.
+- P2 resolved: Play visibly reports preparation and failure states, and the filter popover provides one reset action. Search now participates in the active-filter count.
+
+## Primary interaction flow
+
+1. Browse or jump through the right list: healthy; movement is bounded and the shortcuts are visible.
+2. Select an external chart and wait for materialisation: healthy; the left detail, expanded group, and child row converge on the refreshed MSD value.
+3. Filter, search, reset, and start play: healthy; active state and preparation/error feedback are explicit.
+
+## Verification
+
+- Isolated `Yokko.Game.Tests` build: 0 warnings and 0 errors.
+- Focused Song Select screen and virtual-list tests: 34 passed, 0 failed, including in-place header/child difficulty refresh and keyboard interaction coverage.
+- Final native Direct3D 11 preview completed successfully at 1920 x 1080. The captured selected package shows numeric MSD in both the group summary and selected child row, without clipped mode metadata.
+- Screenshot review does not claim assistive-technology or full WCAG validation; keyboard paths and visible state changes are covered by the focused scene tests.
+
+final result: passed
+
+---
+
 # Song Select list sizing and trailing-safe-area QA (2026-08-01)
 
 ## Evidence
@@ -5726,5 +5819,44 @@ final result: passed
 - Focused score-store, Song Select interaction, replay launch, and entry-performance tests: 17 passed, 0 failed, 0 skipped.
 - Isolated `Yokko.Game.Tests` build: 0 warnings and 0 errors.
 - `git diff --check` passed; only existing line-ending warnings were emitted.
+
+final result: passed
+
+---
+
+# Song Select whole-page visual polish QA (2026-08-02)
+
+## Evidence
+
+- Current-run native baseline: `F:\YokkoArtifacts\songselect-page-polish\01-baseline-1920x1080.png`.
+- Final native implementation: `F:\YokkoArtifacts\songselect-page-polish\04-final-1920x1080.png`.
+- Same-state comparison: `F:\YokkoArtifacts\songselect-page-polish\05-final-comparison-3840x1080.png`.
+- Viewport/state: 1920 x 1080, Direct3D 11, Comfortable scale, 7K filter, selected expanded multi-chart package, empty ranking state.
+
+## Findings and resolution
+
+- P2 resolved: the ranking paper occupied nearly half the screen while its empty message was visually tiny. The empty state is now an intentional compact panel with a larger icon, clearer hierarchy, and a truthful first-score prompt; populated rankings retain their existing table geometry.
+- P2 resolved: the second browse-control row used 34 px buttons next to a 40 px difficulty bar. Filter and sort controls now share the 40 px rhythm and use slightly larger labels and values.
+- P2 resolved: the Key Mode control previously carried a stronger cyan surface than its neighbouring search and browse controls. Its resting surface now uses the shared ivory treatment while the pink value and rail retain active-state visibility.
+- P2 resolved: collapsed and expanded packages both consumed 132 px, obscuring their hierarchy. Collapsed groups now use a 112 px row and a dedicated 185 x 104 near-16:9 contain-fit artwork slot, while selected expanded groups retain the larger 220 x 124 artwork.
+- P2 resolved: the selected package header's pink mode strip competed with child selection. It is shorter and lower-chroma while remaining readable; the child row remains the primary selection signal.
+- P2 resolved: 7-8 px chart facts, performance labels, ranking metadata, browse labels, and shortcut hints were increased where their existing bounds safely supported it.
+- P3 resolved: the wallpaper isolation is slightly less opaque and the shared cyan/pink mood wash is slightly richer, restoring depth without reducing paper-surface readability.
+
+## Primary interaction flow
+
+1. Scan the selected chart and its facts: healthy; title, artwork, MSD, chart facts, personal metrics, and play rate retain a clear top-to-bottom hierarchy.
+2. Search and refine the library: healthy; search, key mode, difficulty, filters, and sort now share consistent control sizing and active-state treatment.
+3. Browse grouped charts: healthy; collapsed groups are visibly subordinate, complete artwork stays contained without black bars, and the selected expanded group keeps the strongest context.
+4. Review history or start a first score: healthy; the empty ranking state explains the next action without pretending to contain ranking data.
+5. Use footer actions: healthy; shortcuts, Mods, Random, Options, Back, profile, and Play remain present with Play as the dominant yellow action.
+
+## Verification and limits
+
+- Isolated `Yokko.Game.Tests` build: 0 warnings and 0 errors.
+- Focused Song Select screen and virtual-list tests: 34 passed, 0 failed.
+- Final native Direct3D 11 preview completed successfully at 1920 x 1080.
+- The baseline and final screenshots were combined into one identical-state comparison before acceptance.
+- Screenshot review does not establish assistive-technology or complete WCAG compliance; existing keyboard paths and visible state transitions remain covered by focused scene tests.
 
 final result: passed

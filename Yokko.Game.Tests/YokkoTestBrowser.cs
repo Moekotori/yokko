@@ -520,25 +520,42 @@ namespace Yokko.Game.Tests
             {
                 frameworkConfig.SetValue(
                     FrameworkSetting.Locale,
-                    YokkoLocale.English);
+                    YokkoLocale.Chinese);
                 frameworkConfig.SetValue(
                     FrameworkSetting.WindowMode,
                     WindowMode.Windowed);
                 frameworkConfig.SetValue(
                     FrameworkSetting.WindowedSize,
                     GetPreviewWindowSize());
+                bool etternaPreview = Environment.GetEnvironmentVariable(
+                    "YOKKO_RESULT_ETTERNA_PREVIEW") == "1";
                 YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
                 {
-                    Title = "Afterimage",
-                    DifficultyName = "Insane",
+                    Title = etternaPreview
+                        ? "Etterna Grade Stress Test"
+                        : "Afterimage",
+                    DifficultyName = etternaPreview ? "Justice J4" : "Insane",
                 };
-                ManiaModSet mods = ManiaModSet.Empty
-                    .With(ManiaModId.Hidden, true)
-                    .WithFixedRate(ManiaModId.DoubleTime, 1.5);
-
-                var resultOverlay = new GameplayResultOverlay(
-                    beatmap,
-                    new ManiaScoreResult(
+                ManiaModSet mods = etternaPreview
+                    ? ManiaModSet.Empty
+                    : ManiaModSet.Empty
+                        .With(ManiaModId.Hidden, true)
+                        .WithFixedRate(ManiaModId.DoubleTime, 1.5);
+                ManiaScoreResult result = etternaPreview
+                    ? new ManiaScoreResult(
+                        999_935,
+                        0.999935,
+                        1234,
+                        ScoreRank.X,
+                        1000,
+                        20,
+                        4,
+                        2,
+                        1,
+                        0,
+                        7,
+                        3)
+                    : new ManiaScoreResult(
                         537_761,
                         0.8251,
                         20,
@@ -548,14 +565,39 @@ namespace Yokko.Game.Tests
                         0,
                         0,
                         0,
-                        4),
+                        4);
+
+                var resultOverlay = new GameplayResultOverlay(
+                    beatmap,
+                    result,
                     mods,
                     true,
                     () => { },
                     () => { },
-                    () => { });
+                    () => { },
+                    judgementConfiguration: etternaPreview
+                        ? JudgementConfiguration.EtternaDefault
+                        : JudgementConfiguration.YokkoDefault,
+                    presentation: new GameplayResultPresentation(
+                        "NYAFA",
+                        "10248631",
+                        new DateTimeOffset(
+                            2026,
+                            8,
+                            2,
+                            13,
+                            46,
+                            18,
+                            TimeSpan.Zero),
+                        531_540,
+                        true,
+                        new GameplayTimingSummary(
+                            73,
+                            1_796,
+                            73,
+                            1.8,
+                            82.4)));
                 Add(resultOverlay);
-                Add(new CursorContainer());
                 if (Environment.GetEnvironmentVariable(
                         "YOKKO_RESULT_INTERACTION_PREVIEW") == "1")
                 {

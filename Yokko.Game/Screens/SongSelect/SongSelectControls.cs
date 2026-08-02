@@ -199,7 +199,7 @@ internal partial class SongSelectKeyModeFilterButton : ClickableContainer
             background = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = SongSelectTheme.PaleCyan,
+                Colour = SongSelectSurface.Ivory(0.98f),
             },
             new Container
             {
@@ -294,7 +294,10 @@ internal partial class SongSelectKeyModeFilterButton : ClickableContainer
     protected override void OnHoverLost(HoverLostEvent e)
     {
         this.ScaleTo(1, 130, Easing.OutQuint);
-        background.FadeColour(SongSelectTheme.PaleCyan, 130, Easing.OutQuint);
+        background.FadeColour(
+            SongSelectSurface.Ivory(0.98f),
+            130,
+            Easing.OutQuint);
     }
 }
 
@@ -322,7 +325,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
     {
         this.interactive = interactive;
         Action = interactive ? action : null;
-        Size = new Vector2(width, 34);
+        Size = new Vector2(width, 40);
         Masking = true;
         CornerRadius = 7;
         BorderThickness = 1;
@@ -350,7 +353,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 30,
                 Text = label,
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(9),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -365,7 +368,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                 Width = width - valueX - 30,
                 Truncate = true,
                 Text = value,
-                Font = HomeTypography.Display(10),
+                Font = HomeTypography.Display(11),
                 Colour = SongSelectTheme.Navy,
             },
             new SpriteIcon
@@ -516,7 +519,7 @@ internal partial class SongSelectSortPopover : CompositeDrawable
                 Origin = Anchor.TopRight,
                 Position = new Vector2(-14, 12),
                 Text = "LIVE · SELECTION STAYS",
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(9),
                 Colour = new Color4(1, 1, 1, 0.62f),
             },
             .. buttons.Values,
@@ -616,7 +619,7 @@ internal partial class SongSelectSortOptionButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 12,
                 Text = SongSelectSorting.Label(mode),
-                Font = HomeTypography.Display(10),
+                Font = HomeTypography.Display(11),
                 Colour = SongSelectTheme.Navy,
             },
             check = new SpriteIcon

@@ -54,10 +54,34 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
                 true,
                 () => { },
                 () => { },
-                () => { }));
+                () => { },
+                presentation: new GameplayResultPresentation(
+                    "NYAFA",
+                    "10248631",
+                    new DateTimeOffset(
+                        2026,
+                        8,
+                        2,
+                        13,
+                        46,
+                        18,
+                        TimeSpan.Zero),
+                    531_540,
+                    true,
+                    new GameplayTimingSummary(
+                        73,
+                        1_796,
+                        73,
+                        1.8,
+                        82.4))));
         });
-        AddUntilStep("mascot texture loaded", () =>
-            overlay?.MascotReady == true);
+        AddUntilStep("character stage ready", () =>
+            overlay?.CharacterStageReady == true);
+        AddUntilStep("rank seal ready", () =>
+            overlay?.RankSealReady == true);
+        AddAssert("player identity is displayed", () =>
+            overlay?.DisplayedPlayerName == "NYAFA"
+            && overlay.DisplayedPlayerId == "10248631");
         AddUntilStep("song underline clears title", () =>
             overlay?.SongTitleUnderlineClearance >= 6);
         AddAssert("mod chip is visible", () =>
@@ -67,6 +91,8 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
             && overlay.DisplayedMods.Contains("DT"));
         AddUntilStep("entrance animation completes", () =>
             overlay?.EntranceComplete == true);
+        AddUntilStep("rank label fits its seal", () =>
+            overlay?.RankSealLabelFits == true);
         AddStep("preview score-panel interaction", () =>
             overlay.SetScorePanelInteraction(true));
         AddAssert("score-panel interaction is active", () =>
@@ -97,6 +123,11 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
             using var screenshot = (Image<Rgba32>)takeScreenshot.Invoke(
                 renderer,
                 null);
+            if (screenshot.Width <= 1 || screenshot.Height <= 1)
+            {
+                throw new InvalidOperationException(
+                    $"Renderer returned an unusable {screenshot.Width}x{screenshot.Height} screenshot.");
+            }
             Directory.CreateDirectory(
                 Path.GetDirectoryName(outputPath)
                 ?? throw new InvalidOperationException(
@@ -142,11 +173,20 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
                 judgementConfiguration:
                     JudgementConfiguration.EtternaDefault));
         });
-        AddUntilStep("Etterna result assets load", () =>
-            overlay?.MascotReady == true);
+        AddUntilStep("Etterna result stage loads", () =>
+            overlay?.CharacterStageReady == true);
+        AddUntilStep("Etterna rank seal loads", () =>
+            overlay?.RankSealReady == true);
         AddAssert("Etterna judgement is shown", () =>
             overlay?.DisplayedMods.Contains("ETTERNA J4") == true);
+        AddAssert("Etterna long grade is preserved", () =>
+            overlay?.DisplayedRank == "AAAAA");
+        AddAssert("Etterna rank seal is identified", () =>
+            overlay?.RankSealEyebrow == "WIFE3 GRADE"
+            && overlay.RankSealFooter == "ETTERNA // J4");
         AddUntilStep("Etterna result entrance completes", () =>
             overlay?.EntranceComplete == true);
+        AddUntilStep("Etterna rank label fits its seal", () =>
+            overlay?.RankSealLabelFits == true);
     }
 }
