@@ -192,7 +192,8 @@ public partial class GameplayPlayfield : CompositeDrawable
         bool showComboBursts = true,
         double longNoteCutAmount = 0,
         ManiaScrollDirection scrollDirection =
-            ManiaScrollDirection.Downscroll)
+            ManiaScrollDirection.Downscroll,
+        JudgementConfiguration? judgementConfiguration = null)
     {
         this.mods = mods ?? ManiaModSet.Empty;
         this.longNoteCutAmount = Math.Max(0, longNoteCutAmount);
@@ -817,7 +818,8 @@ public partial class GameplayPlayfield : CompositeDrawable
             skinOverlays = stageSegments
                            .Select(segment => new OsuManiaSkinOverlay(
                                activeSkin,
-                               upscroll)
+                               upscroll,
+                               judgementConfiguration)
                            {
                                X = segment.X,
                                Width = segment.Width,

@@ -3,6 +3,7 @@ using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Lines;
 using osu.Framework.Graphics.Shapes;
@@ -1511,23 +1512,55 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
     private Drawable createJudgementLedger()
     {
-        string[] labels =
-            snapshot.JudgementConfiguration.Mode
-            == JudgementMode.Etterna
-                ? ["MARVELOUS", "PERFECT", "GREAT", "GOOD", "BAD", "MISS"]
-                : ["PERFECT", "GREAT", "GOOD", "OK", "MEH", "MISS"];
-        (string Label, int Value, Color4 Colour)[] judgements =
+        JudgementConfiguration configuration =
+            snapshot.JudgementConfiguration;
+        JudgementRating[] ratings =
+        [
+            JudgementRating.Perfect,
+            JudgementRating.Great,
+            JudgementRating.Good,
+            JudgementRating.Ok,
+            JudgementRating.Meh,
+            JudgementRating.Miss,
+        ];
+        int[] values =
+        [
+            snapshot.Perfect,
+            snapshot.Great,
+            snapshot.Good,
+            snapshot.Ok,
+            snapshot.Meh,
+            snapshot.Miss,
+        ];
+        Color4[] defaultColours =
         {
-            (labels[0], snapshot.Perfect, HomeControlColours.Yellow),
-            (labels[1], snapshot.Great, HomeControlColours.Cyan),
-            (labels[2], snapshot.Good, new Color4(0.16f, 0.72f, 0.34f, 1f)),
-            (labels[3], snapshot.Ok, new Color4(0.12f, 0.48f, 0.95f, 1f)),
-            (labels[4], snapshot.Meh, new Color4(1f, 0.42f, 0.08f, 1f)),
-            (labels[5], snapshot.Miss, HomeControlColours.Pink),
+            HomeControlColours.Yellow,
+            HomeControlColours.Cyan,
+            new Color4(0.16f, 0.72f, 0.34f, 1f),
+            new Color4(0.12f, 0.48f, 0.95f, 1f),
+            new Color4(1f, 0.42f, 0.08f, 1f),
+            HomeControlColours.Pink,
         };
+        var judgements =
+            new (string Label, int Value, ColourInfo Colour, Color4 Solid)[6];
+        for (int i = 0; i < ratings.Length; i++)
+        {
+            JudgementRating rating = ratings[i];
+            bool stable = configuration.Mode == JudgementMode.OsuStable;
+            Color4 solid = stable
+                ? RatingColours.StableSolid(rating)
+                : defaultColours[i];
+            judgements[i] = (
+                configuration.RatingLabel(rating),
+                values[i],
+                stable
+                    ? RatingColours.ForDisplay(rating, configuration)
+                    : solid,
+                solid);
+        }
 
         int totalJudged = 0;
-        foreach ((_, int value, _) in judgements)
+        foreach ((_, int value, _, _) in judgements)
             totalJudged += value;
 
         var ledger = new Container
@@ -1566,12 +1599,14 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         const float cellWidth = 102;
         for (int i = 0; i < judgements.Length; i++)
         {
-            (string label, int value, Color4 colour) = judgements[i];
+            (string label, int value, ColourInfo colour, Color4 solid) =
+                judgements[i];
             ledger.Add(new JudgementCell(
                 $"0{i + 1}",
                 label,
                 value,
                 colour,
+                solid,
                 i < judgements.Length - 1)
             {
                 X = i * cellWidth,
@@ -1609,7 +1644,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             string index,
             string label,
             int value,
-            Color4 colour,
+            ColourInfo colour,
+            Color4 solidColour,
             bool showDivider)
         {
             Size = new Vector2(cell_width, 124);
@@ -1623,9 +1659,9 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     Y = 4,
                     Size = new Vector2(cell_width - 18, 112),
                     Colour = new Color4(
-                        colour.R,
-                        colour.G,
-                        colour.B,
+                        solidColour.R,
+                        solidColour.G,
+                        solidColour.B,
                         0.1f),
                     Alpha = 0,
                 },
@@ -1638,9 +1674,9 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                     Font = PauseTypography.Display(9),
                     Spacing = new Vector2(1, 0),
                     Colour = new Color4(
-                        colour.R,
-                        colour.G,
-                        colour.B,
+                        solidColour.R,
+                        solidColour.G,
+                        solidColour.B,
                         0.55f),
                 },
                 new SpriteText

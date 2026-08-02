@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
@@ -10,6 +11,7 @@ using osu.Framework.Testing;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Scoring;
+using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -220,15 +222,54 @@ internal partial class SongSelectScoreDetailOverlay : CompositeDrawable
 
     private Drawable createJudgements()
     {
-        (string label, int value, Color4 colour)[] judgements =
+        JudgementConfiguration configuration =
+            Score.JudgementConfiguration
+            ?? JudgementConfiguration.YokkoDefault;
+        JudgementRating[] ratings =
         [
-            ("PERFECT", Score.Perfect, SongSelectTheme.PaleCyan),
-            ("GREAT", Score.Great, SongSelectTheme.Cyan),
-            ("GOOD", Score.Good, new Color4(0.62f, 0.94f, 0.25f, 1f)),
-            ("OK", Score.Ok, SongSelectTheme.Yellow),
-            ("MEH", Score.Meh, new Color4(1f, 0.58f, 0.38f, 1f)),
-            ("MISS", Score.Miss, SongSelectTheme.Pink),
+            JudgementRating.Perfect,
+            JudgementRating.Great,
+            JudgementRating.Good,
+            JudgementRating.Ok,
+            JudgementRating.Meh,
+            JudgementRating.Miss,
         ];
+        int[] values =
+        [
+            Score.Perfect,
+            Score.Great,
+            Score.Good,
+            Score.Ok,
+            Score.Meh,
+            Score.Miss,
+        ];
+        Color4[] defaultColours =
+        [
+            SongSelectTheme.PaleCyan,
+            SongSelectTheme.Cyan,
+            new Color4(0.62f, 0.94f, 0.25f, 1f),
+            SongSelectTheme.Yellow,
+            new Color4(1f, 0.58f, 0.38f, 1f),
+            SongSelectTheme.Pink,
+        ];
+        var judgements =
+            new (string Label, int Value, ColourInfo Accent, Color4 Border,
+                bool AccentText)[6];
+        for (int i = 0; i < ratings.Length; i++)
+        {
+            JudgementRating rating = ratings[i];
+            bool stable = configuration.Mode == JudgementMode.OsuStable;
+            judgements[i] = (
+                configuration.RatingLabel(rating),
+                values[i],
+                stable
+                    ? RatingColours.ForDisplay(rating, configuration)
+                    : defaultColours[i],
+                stable
+                    ? RatingColours.StableSolid(rating)
+                    : defaultColours[i],
+                stable);
+        }
         var flow = new FillFlowContainer
         {
             Position = new Vector2(34, 314),
@@ -236,8 +277,17 @@ internal partial class SongSelectScoreDetailOverlay : CompositeDrawable
             Direction = FillDirection.Full,
             Spacing = new Vector2(12),
         };
-        foreach ((string label, int value, Color4 colour) in judgements)
-            flow.Add(judgementMetric(label, value, colour));
+        foreach ((string label, int value, ColourInfo accent, Color4 border,
+                     bool accentText)
+                 in judgements)
+        {
+            flow.Add(judgementMetric(
+                label,
+                value,
+                accent,
+                border,
+                accentText));
+        }
         return flow;
     }
 
@@ -317,13 +367,19 @@ internal partial class SongSelectScoreDetailOverlay : CompositeDrawable
     private static Drawable judgementMetric(
         string label,
         int value,
-        Color4 accent) => new Container
+        ColourInfo accent,
+        Color4 borderAccent,
+        bool accentText) => new Container
     {
         Size = new Vector2(276, 77),
         Masking = true,
         CornerRadius = 10,
         BorderThickness = 1,
-        BorderColour = new Color4(accent.R, accent.G, accent.B, 0.52f),
+        BorderColour = new Color4(
+            borderAccent.R,
+            borderAccent.G,
+            borderAccent.B,
+            0.52f),
         Children =
         [
             new Box
@@ -344,7 +400,7 @@ internal partial class SongSelectScoreDetailOverlay : CompositeDrawable
                 X = 22,
                 Text = label,
                 Font = HomeTypography.Display(11),
-                Colour = mutedNavy(0.66f),
+                Colour = accentText ? accent : mutedNavy(0.66f),
             },
             new SpriteText
             {
@@ -353,7 +409,7 @@ internal partial class SongSelectScoreDetailOverlay : CompositeDrawable
                 X = -20,
                 Text = $"{value:N0}",
                 Font = HomeTypography.Display(21),
-                Colour = SongSelectTheme.Navy,
+                Colour = accentText ? accent : SongSelectTheme.Navy,
             },
         ],
     };

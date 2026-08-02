@@ -89,7 +89,7 @@ public partial class JudgementReadout : CompositeDrawable
             : configuration.RatingLabel(judgement.Rating);
         ratingText.Colour = isMine
             ? YokkoPalette.Rose
-            : RatingColours.For(judgement.Rating);
+            : RatingColours.ForDisplay(judgement.Rating, configuration);
         errorText.Text = judgement.IsMiss && !isMine
             ? "missed"
             : $"{judgement.HitErrorMilliseconds:+0.0;-0.0;0.0} ms";
@@ -132,9 +132,11 @@ public partial class JudgementReadout : CompositeDrawable
         editorPreview = preview;
         if (preview)
         {
-            ratingText.Text = "GREAT";
-            ratingText.Colour = RatingColours.For(
+            ratingText.Text = configuration.RatingLabel(
                 JudgementRating.Great);
+            ratingText.Colour = RatingColours.ForDisplay(
+                JudgementRating.Great,
+                configuration);
             errorText.Text = "+12.0 ms";
             Alpha = 1;
             return;

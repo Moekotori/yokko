@@ -2,6 +2,8 @@ using NUnit.Framework;
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Sprites;
@@ -22,11 +24,12 @@ using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Settings;
 using Yokko.Game.Screens.SongSelect;
 using Yokko.Import;
+using Yokko.Import.Osu;
 
 namespace Yokko.Game.Tests.Visual;
 
 [TestFixture]
-public partial class TestSceneSongSelectScreen : YokkoTestScene
+public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
 {
     private readonly ScreenStack screenStack;
     private readonly SongSelectScreen songSelectScreen;
@@ -39,6 +42,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     private YokkoGameplaySettings gameplaySettings { get; set; }
     [Resolved]
     private GameplayScoreStore scoreStore { get; set; }
+    [Resolved]
+    private YokkoExternalOsuSettings externalOsuSettings { get; set; }
 
     public TestSceneSongSelectScreen()
     {
@@ -51,8 +56,6 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     [Test]
     public void TestF5ReloadsLibraryFromDisk()
     {
-        bool handled = false;
-
         AddStep("start with empty library", () => importedChartLibrary.Clear());
         AddUntilStep("library is empty", () =>
             songSelectScreen.VisibleEntryCount == 0);
@@ -61,13 +64,67 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             @"C:\Charts\transient.osu"));
         AddUntilStep("transient chart is visible", () =>
             songSelectScreen.VisibleEntryCount == 1);
-        AddStep("press F5", () =>
-            handled = songSelectScreen.HandleBrowseKey(Key.F5));
-        AddAssert("F5 is handled", () => handled);
+        AddStep("press physical F5", () => InputManager.Key(Key.F5));
         AddUntilStep("reload completes", () =>
             !songSelectScreen.LibraryReloadInProgress);
         AddUntilStep("disk snapshot replaces transient chart", () =>
             songSelectScreen.VisibleEntryCount == 0);
+    }
+
+    [Test]
+    public void TestF5RemovesMovedExternalChartAndBlocksPlay()
+    {
+        string root = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"yokko-song-select-f5-moved-{Guid.NewGuid():N}");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string set = Path.Combine(songs, "100 F5 Moved Set");
+        string chartPath = Path.Combine(set, "moved.osu");
+        Task<ExternalOsuLibraryResult> configureTask = null;
+
+        AddStep("create external chart", () =>
+        {
+            importedChartLibrary.DisableExternalOsu();
+            importedChartLibrary.Clear();
+            Directory.CreateDirectory(set);
+            string chart = OsuManiaBeatmapIO.WriteBeatmap(
+                DemoBeatmaps.CreateFourKeyDemo() with
+                {
+                    Title = "F5 Moved External",
+                    AudioPath = null,
+                });
+            File.WriteAllText(chartPath, chart, new UTF8Encoding(false));
+            configureTask = importedChartLibrary.SetExternalOsuSongsPathAsync(songs);
+        });
+        AddUntilStep("external scan completes", () =>
+            configureTask?.IsCompletedSuccessfully == true);
+        AddUntilStep("external chart is selected", () =>
+            songSelectScreen.SelectedEntry?.Beatmap.Title
+                == "F5 Moved External");
+        AddUntilStep("external gameplay is preloaded", () =>
+            songSelectScreen.GameplayPreloadReady);
+        AddStep("move source then press F5 and Enter", () =>
+        {
+            File.Move(chartPath, Path.Combine(root, "moved.osu"));
+            InputManager.Key(Key.F5);
+            InputManager.Key(Key.Enter);
+        });
+        AddUntilStep("reload completes", () =>
+            !songSelectScreen.LibraryReloadInProgress);
+        AddUntilStep("moved chart disappears", () =>
+            songSelectScreen.VisibleEntryCount == 0
+            && importedChartLibrary.ExternalOsuChartCount == 0);
+        AddStep("press Enter after removal", () => InputManager.Key(Key.Enter));
+        AddAssert("stale chart never enters gameplay", () =>
+            screenStack.CurrentScreen == songSelectScreen
+            && songSelectScreen.PlayButtonAction != "LOADING...");
+        AddStep("clean external fixture", () =>
+        {
+            importedChartLibrary.DisableExternalOsu();
+            externalOsuSettings.SongsPath.Value = string.Empty;
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        });
     }
 
     [Test]
@@ -403,7 +460,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     public void TestScoreResultReplayStarts()
     {
         string replayPath = Path.Combine(
-            TestContext.CurrentContext.WorkDirectory,
+            Path.GetTempPath(),
             $"song-select-score-{Guid.NewGuid():N}.ykr");
         SongSelectScore replayScore = null;
 

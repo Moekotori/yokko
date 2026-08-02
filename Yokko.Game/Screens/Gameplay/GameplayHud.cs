@@ -266,6 +266,10 @@ public partial class GameplayHud : CompositeDrawable
                 ? $"M {state.Counts.Perfect}  P {state.Counts.Great}  "
                   + $"Great {state.Counts.Good}  Good {state.Counts.Ok}  "
                   + $"Bad {state.Counts.Meh}  Miss {state.Counts.Miss}"
+                : judgementConfiguration.Mode == JudgementMode.OsuStable
+                    ? $"300G {state.Counts.Perfect}  300 {state.Counts.Great}  "
+                      + $"200 {state.Counts.Good}  100 {state.Counts.Ok}  "
+                      + $"50 {state.Counts.Meh}  M {state.Counts.Miss}"
                 : $"P {state.Counts.Perfect}  G {state.Counts.Great}  "
                   + $"Good {state.Counts.Good}  Ok {state.Counts.Ok}  "
                   + $"Meh {state.Counts.Meh}  M {state.Counts.Miss}";

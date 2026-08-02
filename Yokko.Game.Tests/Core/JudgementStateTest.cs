@@ -183,6 +183,35 @@ namespace Yokko.Game.Tests.Core
         }
 
         [Test]
+        public void OsuStableLabelsKeepRainbowAndGold300Separate()
+        {
+            JudgementConfiguration configuration =
+                JudgementConfiguration.OsuStableDefault;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    configuration.RatingLabel(JudgementRating.Perfect),
+                    Is.EqualTo("300G"));
+                Assert.That(
+                    configuration.RatingLabel(JudgementRating.Great),
+                    Is.EqualTo("300"));
+                Assert.That(
+                    configuration.RatingLabel(JudgementRating.Good),
+                    Is.EqualTo("200"));
+                Assert.That(
+                    configuration.RatingLabel(JudgementRating.Ok),
+                    Is.EqualTo("100"));
+                Assert.That(
+                    configuration.RatingLabel(JudgementRating.Meh),
+                    Is.EqualTo("50"));
+                Assert.That(
+                    configuration.RatingLabel(JudgementRating.Miss),
+                    Is.EqualTo("MISS"));
+            });
+        }
+
+        [Test]
         public void OsuStableConvertUsesLegacyConvertWindows()
         {
             var windows = new JudgementWindows(
@@ -1271,6 +1300,8 @@ namespace Yokko.Game.Tests.Core
 
             Assert.Multiple(() =>
             {
+                Assert.That(processor.Counts.Perfect, Is.EqualTo(1));
+                Assert.That(processor.Counts.Great, Is.EqualTo(1));
                 Assert.That(processor.Accuracy, Is.EqualTo(1));
                 Assert.That(processor.Combo, Is.EqualTo(2));
                 Assert.That(processor.TotalScore, Is.EqualTo(984_375));

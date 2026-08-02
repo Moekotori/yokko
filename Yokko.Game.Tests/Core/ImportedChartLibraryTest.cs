@@ -122,7 +122,70 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
-    public async Task ExternalDifficultyCompletionPublishesOnlyFinalSnapshot()
+    public async Task ExternalBaseDifficultyCanBeRequestedBeforeBackgroundPass()
+    {
+        string root = createTestRoot("external-osu-priority-difficulty");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string set = Path.Combine(songs, "100 Priority Difficulty");
+        Directory.CreateDirectory(set);
+
+        try
+        {
+            writeOsuChart(set, "Priority", 3);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+            library.LibraryChanged += change =>
+            {
+                if ((change.Kind
+                     & ImportedChartLibraryChangeKind.Structure) != 0)
+                {
+                    library.SetExternalIndexingPaused(true);
+                }
+            };
+            try
+            {
+                ExternalOsuLibraryResult result =
+                    await library.RefreshExternalOsuAsync();
+                ImportedChart indexed = library.GetCharts().Single();
+                ManiaDifficultyRatings ratings =
+                    await library.GetBaseDifficultyRatingsAsync(indexed.Id);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.ChartCount, Is.EqualTo(1));
+                    Assert.That(indexed.DifficultyRating.IsSuccess, Is.False);
+                    Assert.That(indexed.StarRating.IsSuccess, Is.False);
+                    Assert.That(
+                        ratings.EtternaMsd.FailureReason,
+                        Is.Not.EqualTo(
+                            "Pending background difficulty calculation."),
+                        "The priority request must run MinaCalc instead of returning the indexed pending placeholder.");
+                    Assert.That(
+                        ratings.RebirthStars.IsSuccess,
+                        Is.True,
+                        ratings.RebirthStars.FailureReason);
+                });
+            }
+            finally
+            {
+                library.SetExternalIndexingPaused(false);
+                await library.ExternalDifficultyTask;
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ExternalDifficultyCompletionPublishesIncrementalRatings()
     {
         string root = createTestRoot("external-osu-difficulty-publish");
         string yokkoRoot = Path.Combine(root, "Yokko");
@@ -145,7 +208,17 @@ public sealed class ImportedChartLibraryTest
             library.Initialise(storage);
             library.ConfigureExternalOsu(storage, settings);
             var publishedChanges = new List<ImportedChartLibraryChange>();
-            library.LibraryChanged += change => publishedChanges.Add(change);
+            var publishedStarCounts = new List<int>();
+            library.LibraryChanged += change =>
+            {
+                publishedChanges.Add(change);
+                if ((change.Kind
+                     & ImportedChartLibraryChangeKind.DifficultyRatings) != 0)
+                {
+                    publishedStarCounts.Add(library.GetCharts().Count(
+                        chart => chart.StarRating.IsSuccess));
+                }
+            };
 
             ExternalOsuLibraryResult result =
                 await library.RefreshExternalOsuAsync();
@@ -155,19 +228,29 @@ public sealed class ImportedChartLibraryTest
             {
                 Assert.That(result.ChartCount, Is.EqualTo(chartCount));
                 Assert.That(library.GetCharts(), Has.Count.EqualTo(chartCount));
-                Assert.That(publishedChanges, Has.Count.EqualTo(2),
-                    "The initial index and final ratings should each publish once.");
+                Assert.That(publishedChanges.Count, Is.GreaterThan(2),
+                    "Long difficulty passes should publish completed ratings before the final snapshot.");
                 Assert.That(
-                    publishedChanges.Select(change => change.Kind),
-                    Is.EqualTo(new[]
-                    {
-                        ImportedChartLibraryChangeKind.Structure,
-                        ImportedChartLibraryChangeKind.DifficultyRatings,
-                    }));
+                    publishedChanges[0].Kind,
+                    Is.EqualTo(ImportedChartLibraryChangeKind.Structure));
                 Assert.That(
-                    publishedChanges[1].StructureRevision,
-                    Is.EqualTo(publishedChanges[0].StructureRevision),
+                    publishedChanges.Skip(1).All(change =>
+                        change.Kind == ImportedChartLibraryChangeKind.DifficultyRatings),
+                    Is.True,
+                    "Incremental publications must update ratings without rebuilding the library structure.");
+                Assert.That(
+                    publishedChanges.Skip(1).All(change =>
+                        change.StructureRevision
+                        == publishedChanges[0].StructureRevision),
+                    Is.True,
                     "Difficulty completion must not invalidate a prepared song list.");
+                Assert.That(
+                    publishedStarCounts[0],
+                    Is.InRange(1, chartCount - 1),
+                    "The first ratings update should expose partial progress before the full pass finishes.");
+                Assert.That(
+                    publishedStarCounts[^1],
+                    Is.EqualTo(chartCount));
             });
         }
         finally
@@ -447,6 +530,59 @@ public sealed class ImportedChartLibraryTest
                 Assert.That(removed, Is.Null);
                 Assert.That(settings.SongsPath.Value, Is.EqualTo(songs));
             });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ExternalOsuPruneEvictsMaterialisedChartAfterSetIsMoved()
+    {
+        string root = createTestRoot("external-osu-prune-moved-set");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string set = Path.Combine(songs, "302 Artist - Moved Set");
+        Directory.CreateDirectory(set);
+
+        try
+        {
+            writeOsuChart(set, "Moved Set", 3);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+            Assert.That(
+                (await library.RefreshExternalOsuAsync()).ChartCount,
+                Is.EqualTo(1));
+            await library.ExternalDifficultyTask;
+            ImportedChart indexed = library.GetCharts().Single();
+            Assert.That(
+                (await library.GetPlayableBeatmapAsync(indexed.Id)).HitObjects,
+                Is.Not.Empty,
+                "Precondition: the full external beatmap must already be cached.");
+
+            library.SetExternalIndexingPaused(true);
+            Directory.Move(set, Path.Combine(root, "moved-set"));
+
+            Assert.ThrowsAsync<FileNotFoundException>(async () =>
+                await library.GetPlayableBeatmapAsync(indexed.Id),
+                "A materialised cache entry must not bypass source availability.");
+            Assert.That(library.PruneUnavailableExternalCharts(), Is.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(library.ExternalOsuChartCount, Is.Zero);
+                Assert.That(library.GetCharts(), Is.Empty);
+            });
+            Assert.That(
+                await library.GetPlayableBeatmapAsync(indexed.Id),
+                Is.Null,
+                "A pruned chart must no longer be playable.");
+            library.SetExternalIndexingPaused(false);
         }
         finally
         {

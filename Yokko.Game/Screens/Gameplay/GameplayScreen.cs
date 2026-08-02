@@ -4384,7 +4384,8 @@ public partial class GameplayScreen : Screen
                     YokkoSkinSettings.MinimumLongNoteCutAmount,
                     YokkoSkinSettings.MaximumLongNoteCutAmount)
                 : 0,
-            gameplaySettings.ScrollDirection.Value)
+            gameplaySettings.ScrollDirection.Value,
+            judgementConfiguration)
         {
             Anchor = Anchor.BottomCentre,
             Origin = Anchor.BottomCentre,

@@ -864,19 +864,47 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
     private Drawable createJudgementStrip(ManiaScoreResult result)
     {
-        string[] labels =
-            judgementConfiguration.Mode == JudgementMode.Etterna
-                ? ["MARVELOUS", "PERFECT", "GREAT", "GOOD", "BAD", "MISS"]
-                : ["PERFECT", "GREAT", "GOOD", "OK", "MEH", "MISS"];
-        (string Label, int Value, Color4 Colour)[] judgements =
+        JudgementRating[] ratings =
+        [
+            JudgementRating.Perfect,
+            JudgementRating.Great,
+            JudgementRating.Good,
+            JudgementRating.Ok,
+            JudgementRating.Meh,
+            JudgementRating.Miss,
+        ];
+        int[] values =
+        [
+            result.Perfect,
+            result.Great,
+            result.Good,
+            result.Ok,
+            result.Meh,
+            result.Miss,
+        ];
+        Color4[] defaultColours =
         {
-            (labels[0], result.Perfect, ResultColours.Pink),
-            (labels[1], result.Great, ResultColours.Cyan),
-            (labels[2], result.Good, new Color4(0.14f, 0.72f, 0.42f, 1f)),
-            (labels[3], result.Ok, new Color4(1f, 0.62f, 0.12f, 1f)),
-            (labels[4], result.Meh, new Color4(0.56f, 0.42f, 0.91f, 1f)),
-            (labels[5], result.Miss, new Color4(1f, 0.36f, 0.48f, 1f)),
+            ResultColours.Pink,
+            ResultColours.Cyan,
+            new Color4(0.14f, 0.72f, 0.42f, 1f),
+            new Color4(1f, 0.62f, 0.12f, 1f),
+            new Color4(0.56f, 0.42f, 0.91f, 1f),
+            new Color4(1f, 0.36f, 0.48f, 1f),
         };
+        var judgements =
+            new (string Label, int Value, ColourInfo Colour)[6];
+        for (int i = 0; i < ratings.Length; i++)
+        {
+            JudgementRating rating = ratings[i];
+            judgements[i] = (
+                judgementConfiguration.RatingLabel(rating),
+                values[i],
+                judgementConfiguration.Mode == JudgementMode.OsuStable
+                    ? RatingColours.ForDisplay(
+                        rating,
+                        judgementConfiguration)
+                    : defaultColours[i]);
+        }
 
         int totalJudgements = judgements.Sum(static judgement =>
             judgement.Value);
@@ -885,7 +913,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             RelativeSizeAxes = Axes.Both,
             Direction = FillDirection.Horizontal,
         };
-        foreach ((string label, int value, Color4 colour) in judgements)
+        foreach ((string label, int value, ColourInfo colour) in judgements)
         {
             flow.Add(new ResultJudgementCell(
                 label,
@@ -1887,7 +1915,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         public ResultJudgementCell(
             string label,
             int value,
-            Color4 colour,
+            ColourInfo colour,
             float share)
         {
             float cellWidth = judgementStripWidth / 6;

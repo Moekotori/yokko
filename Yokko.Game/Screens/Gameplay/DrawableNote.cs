@@ -211,9 +211,9 @@ public partial class DrawableNote : CompositeDrawable
         IReadOnlyList<Texture> bodyFrames = skin.GetAnimationFrames(
             configuration.HoldBodyImages[lane],
             fallback.HoldBodyImages[lane],
-            // Style 1 repeats the complete image. Styles 2-4 preserve an
-            // edge (or the centre) and extend it using clamp-to-edge.
-            repeatVertically: noteBodyStyle == 1);
+            // Every non-stretch legacy style repeats the body texture. Styles
+            // 2-4 differ only in which edge (or centre) anchors that repeat.
+            repeatVertically: noteBodyStyle != 0);
         IReadOnlyList<Texture> tailFrames =
             skin.GetAnimationFrames(
                 configuration.HoldTailImages[lane],

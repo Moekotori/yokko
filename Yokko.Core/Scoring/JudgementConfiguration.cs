@@ -95,6 +95,21 @@ public readonly record struct JudgementConfiguration
             };
         }
 
+        if (Mode == JudgementMode.OsuStable)
+        {
+            return rating switch
+            {
+                JudgementRating.Perfect => "300G",
+                JudgementRating.Great => "300",
+                JudgementRating.Good => "200",
+                JudgementRating.Ok => "100",
+                JudgementRating.Meh => "50",
+                JudgementRating.Miss
+                    or JudgementRating.ComboBreak => "MISS",
+                _ => rating.ToString().ToUpperInvariant(),
+            };
+        }
+
         if (Mode != JudgementMode.Etterna)
             return rating == JudgementRating.ComboBreak
                 ? "MISS"

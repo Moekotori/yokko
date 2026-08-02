@@ -19,6 +19,7 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
     internal const double JudgementAnimationDuration = 220;
 
     private readonly OsuManiaSkin skin;
+    private readonly JudgementConfiguration judgementConfiguration;
     private readonly Container judgementContainer;
     private readonly LegacyManiaAnimatedSprite judgementSprite;
     private readonly SpriteText judgementFallback;
@@ -54,9 +55,12 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
 
     public OsuManiaSkinOverlay(
         OsuManiaSkin skin,
-        bool upscroll = false)
+        bool upscroll = false,
+        JudgementConfiguration? judgementConfiguration = null)
     {
         this.skin = skin ?? throw new ArgumentNullException(nameof(skin));
+        this.judgementConfiguration =
+            judgementConfiguration ?? JudgementConfiguration.YokkoDefault;
         OsuManiaSkinConfiguration configuration = skin.Configuration;
         overlayScale = usesScaledOverlays(skin.Info.Version)
             ? 1 / OsuManiaSkinConfiguration.LegacyPositionScaleFactor
@@ -206,12 +210,11 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         }
         else
         {
-            judgementFallback.Text = judgement.Rating switch
-            {
-                JudgementRating.ComboBreak => "MISS",
-                _ => judgement.Rating.ToString().ToUpperInvariant(),
-            };
-            judgementFallback.Colour = RatingColours.For(judgement.Rating);
+            judgementFallback.Text =
+                this.judgementConfiguration.RatingLabel(judgement.Rating);
+            judgementFallback.Colour = RatingColours.ForDisplay(
+                judgement.Rating,
+                this.judgementConfiguration);
         }
 
         judgementSprite.FinishTransforms();

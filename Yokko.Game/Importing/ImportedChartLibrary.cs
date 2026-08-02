@@ -281,6 +281,34 @@ internal sealed class ImportedChartLibrary : IDisposable
             return (revision, structureRevision, charts.ToArray());
     }
 
+    internal int PruneUnavailableExternalCharts()
+    {
+        ImportedChartLibraryChange change = null;
+        int removed;
+        lock (syncRoot)
+        {
+            string[] unavailableIds = charts
+                                      .Where(chart => chart.SourceKind
+                                                      == ImportedChartSourceKind.ExternalOsu
+                                                      && !File.Exists(chart.SourcePath))
+                                      .Select(chart => chart.Id)
+                                      .ToArray();
+            removed = unavailableIds.Length;
+            if (removed == 0)
+                return 0;
+
+            var unavailable = new HashSet<string>(
+                unavailableIds,
+                StringComparer.OrdinalIgnoreCase);
+            charts.RemoveAll(chart => unavailable.Contains(chart.Id));
+            evictMaterialisedCharts(unavailable.Contains);
+            change = advanceRevision(ImportedChartLibraryChangeKind.Structure);
+        }
+
+        LibraryChanged?.Invoke(change);
+        return removed;
+    }
+
     internal void Clear()
     {
         ImportedChartLibraryChange change;
@@ -450,6 +478,47 @@ internal sealed class ImportedChartLibrary : IDisposable
             chart,
             cancellationToken).ConfigureAwait(false);
         return materialised?.Result.Beatmap;
+    }
+
+    internal async Task<ManiaDifficultyRatings> GetBaseDifficultyRatingsAsync(
+        string chartId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(chartId))
+            return null;
+
+        ImportedChart chart;
+        lock (syncRoot)
+            chart = charts.FirstOrDefault(candidate => candidate.Id == chartId);
+        if (chart == null)
+            return null;
+        if (chart.DifficultyRating?.IsSuccess == true
+            && chart.StarRating?.IsSuccess == true)
+        {
+            return new ManiaDifficultyRatings(
+                chart.DifficultyRating,
+                chart.StarRating);
+        }
+
+        ImportedChart materialised = await materialiseChartAsync(
+                chart,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (materialised == null)
+            return null;
+
+        await externalDifficultyLock.WaitAsync(cancellationToken)
+            .ConfigureAwait(false);
+        try
+        {
+            return new ManiaDifficultyRatings(
+                msdRatingCache.GetOrCalculate(materialised.Result.Beatmap),
+                starRatingCache.GetOrCalculate(materialised.Result.Beatmap));
+        }
+        finally
+        {
+            externalDifficultyLock.Release();
+        }
     }
 
     public async Task<IReadOnlyList<ChartImportResult>> ImportAsync(
@@ -1024,7 +1093,8 @@ internal sealed class ImportedChartLibrary : IDisposable
             {
                 foreach (ExternalOsuIndexEntry retained in cached.Values)
                 {
-                    if (!seen.Contains(retained.SourcePath))
+                    if (!seen.Contains(retained.SourcePath)
+                        && File.Exists(retained.SourcePath))
                         loaded.Add(retained);
                 }
             }
@@ -1405,9 +1475,12 @@ internal sealed class ImportedChartLibrary : IDisposable
         // consumers on a time throttle so visible rows do not remain pending
         // until a large library's entire difficulty pass has completed.
         const int checkpointBatchSize = 2048;
+        const int progressPublishBatchSize = 128;
         int completedSinceCheckpoint = 0;
         bool completedAny = false;
         Stopwatch progressPublishStopwatch = Stopwatch.StartNew();
+        var completedForPublish = new List<ExternalOsuIndexEntry>(
+            progressPublishBatchSize);
 
         for (int index = 0; index < entries.Length; index++)
         {
@@ -1468,16 +1541,19 @@ internal sealed class ImportedChartLibrary : IDisposable
                 };
                 completedAny = true;
                 completedSinceCheckpoint++;
-                if (progressPublishStopwatch.ElapsedMilliseconds
+                completedForPublish.Add(entries[index]);
+                if (completedForPublish.Count >= progressPublishBatchSize
+                    || progressPublishStopwatch.ElapsedMilliseconds
                     >= difficulty_progress_publish_interval_milliseconds)
                 {
                     if (!publishExternalDifficultyProgress(
                             songsPath,
-                            entries,
+                            completedForPublish,
                             generation))
                     {
                         return;
                     }
+                    completedForPublish.Clear();
                     progressPublishStopwatch.Restart();
                 }
                 if (completedSinceCheckpoint >= checkpointBatchSize)
@@ -1515,9 +1591,11 @@ internal sealed class ImportedChartLibrary : IDisposable
 
     private bool publishExternalDifficultyProgress(
         string songsPath,
-        ExternalOsuIndexEntry[] entries,
+        IReadOnlyList<ExternalOsuIndexEntry> completed,
         int generation)
     {
+        ImportedChartLibraryChange change = null;
+        bool changed = false;
         lock (externalOsuStateLock)
         {
             if (disposed
@@ -1531,11 +1609,44 @@ internal sealed class ImportedChartLibrary : IDisposable
                 return false;
             }
 
-            replaceExternalCharts(
-                createExternalCharts(entries),
-                ImportedChartLibraryChangeKind.DifficultyRatings);
-            return true;
+            lock (syncRoot)
+            {
+                foreach (ExternalOsuIndexEntry entry in completed)
+                {
+                    string id = $"external-osu\u001f{entry.SourcePath}";
+                    int index = charts.FindIndex(chart =>
+                        chart.Id.Equals(
+                            id,
+                            StringComparison.OrdinalIgnoreCase));
+                    if (index < 0)
+                        continue;
+
+                    ImportedChart current = charts[index];
+                    if (Equals(current.DifficultyRating, entry.DifficultyRating)
+                        && Equals(current.StarRating, entry.StarRating))
+                    {
+                        continue;
+                    }
+
+                    charts[index] = current with
+                    {
+                        DifficultyRating = entry.DifficultyRating,
+                        StarRating = entry.StarRating,
+                    };
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    change = advanceRevision(
+                        ImportedChartLibraryChangeKind.DifficultyRatings);
+                }
+            }
         }
+
+        if (change != null)
+            LibraryChanged?.Invoke(change);
+        return true;
     }
 
     private async Task<bool> persistExternalDifficultyProgressAsync(
@@ -1920,6 +2031,13 @@ internal sealed class ImportedChartLibrary : IDisposable
             return chart;
         }
 
+        if (!File.Exists(chart.SourcePath))
+        {
+            throw new FileNotFoundException(
+                "The chart source file is unavailable.",
+                chart.SourcePath);
+        }
+
         ChartImportResult result;
         lock (syncRoot)
         {
@@ -1931,12 +2049,6 @@ internal sealed class ImportedChartLibrary : IDisposable
             }
         }
 
-        if (!File.Exists(chart.SourcePath))
-        {
-            throw new FileNotFoundException(
-                "The external osu!mania source file is unavailable.",
-                chart.SourcePath);
-        }
         if (chart.SourceKind == ImportedChartSourceKind.ExternalOsu
             && !ExternalOsuSongsIndex.IsManiaFile(chart.SourcePath))
         {
@@ -1965,7 +2077,8 @@ internal sealed class ImportedChartLibrary : IDisposable
                 candidate.Id.Equals(
                     chart.Id,
                     StringComparison.OrdinalIgnoreCase));
-            if (!ReferenceEquals(current, chart))
+            if (current == null
+                || !externalChartEquivalentIgnoringRatings(current, chart))
             {
                 throw new InvalidDataException(
                     "The beatmap changed while it was loading.");
@@ -1996,6 +2109,14 @@ internal sealed class ImportedChartLibrary : IDisposable
             return chart;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!File.Exists(chart.SourcePath))
+        {
+            throw new FileNotFoundException(
+                "The chart source file is unavailable.",
+                chart.SourcePath);
+        }
+
         lock (syncRoot)
         {
             if (externalBeatmapCache.TryGetValue(chart.Id, out ChartImportResult cached))
@@ -2009,12 +2130,6 @@ internal sealed class ImportedChartLibrary : IDisposable
         ChartImportResult result = await Task.Run(async () =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!File.Exists(chart.SourcePath))
-            {
-                throw new FileNotFoundException(
-                    "The external osu!mania source file is unavailable.",
-                    chart.SourcePath);
-            }
             if (chart.SourceKind == ImportedChartSourceKind.ExternalOsu
                 && !ExternalOsuSongsIndex.IsManiaFile(chart.SourcePath))
             {
@@ -2044,7 +2159,8 @@ internal sealed class ImportedChartLibrary : IDisposable
                 candidate.Id.Equals(
                     chart.Id,
                     StringComparison.OrdinalIgnoreCase));
-            if (!ReferenceEquals(current, chart))
+            if (current == null
+                || !externalChartEquivalentIgnoringRatings(current, chart))
             {
                 throw new InvalidDataException(
                     "The beatmap changed while it was loading.");

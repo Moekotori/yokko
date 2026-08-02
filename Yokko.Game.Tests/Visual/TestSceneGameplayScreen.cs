@@ -3396,7 +3396,7 @@ LightingLWidth: 20,20,20,20
                            - body.Texture.DisplayHeight
                            * body.Width
                            / body.Texture.DisplayWidth) < 0.01f
-                       && body.Texture.WrapModeT == WrapMode.ClampToEdge;
+                       && body.Texture.WrapModeT == WrapMode.Repeat;
             });
         }
 

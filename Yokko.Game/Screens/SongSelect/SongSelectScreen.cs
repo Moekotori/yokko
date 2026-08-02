@@ -190,6 +190,11 @@ public partial class SongSelectScreen : Screen
     private string playableBeatmapChartId;
     private int playableBeatmapGeneration;
     private bool playableBeatmapDisposed;
+    private CancellationTokenSource packageDifficultyCancellation;
+    private Task packageDifficultyTask;
+    private string packageDifficultyPackageId;
+    private int packageDifficultyGeneration;
+    private bool packageDifficultyDisposed;
     private KeyMode? keyModeFilter;
     private string searchQuery = string.Empty;
     private SongSelectScoreView scoreView = SongSelectScoreView.Personal;
@@ -518,6 +523,8 @@ public partial class SongSelectScreen : Screen
             if (packageSelection != null)
                 select(packageSelection, false);
         }
+        if (expanding)
+            requestExpandedPackageDifficulties(packageId);
 
         // 展开/折叠只影响列表排布：不走 applyFilters（会把折叠进去的选中顶
         // 替换成第一首歌），也不重播整列表的入场动画、不把滚动条拽回选中行。
@@ -659,6 +666,7 @@ public partial class SongSelectScreen : Screen
         applyPendingLibraryChange();
         restoreRememberedSelection();
         requestPlayableBeatmap(selectedEntry);
+        requestExpandedPackageDifficulties(selectedEntry?.PackageId);
         previewActive = true;
         diagnostics.Trace(
             "SONG_SELECT",
@@ -695,6 +703,7 @@ public partial class SongSelectScreen : Screen
             rebuildDetails();
         }
         applyPendingLibraryChange();
+        requestExpandedPackageDifficulties(selectedEntry?.PackageId);
         bool scoreResultVisible = scoreResultHost != null;
         previewActive = !scoreResultVisible;
         diagnostics.Trace(
@@ -734,6 +743,7 @@ public partial class SongSelectScreen : Screen
     {
         base.OnSuspending(e);
         screenActive = false;
+        invalidatePackageDifficultyRequest();
         resumeFromGameplayMods = e.Next is GameplayModsScreen;
         previewActive = false;
         diagnostics.Trace("SONG_SELECT", "suspended");
@@ -747,6 +757,7 @@ public partial class SongSelectScreen : Screen
         screenActive = false;
         previewActive = false;
         invalidatePlayableBeatmapRequest();
+        invalidatePackageDifficultyRequest();
         diagnostics.Trace("SONG_SELECT", "exiting");
         if (previewHost == null)
             previewPlayer?.Stop();
@@ -817,6 +828,8 @@ public partial class SongSelectScreen : Screen
 
             playableBeatmapDisposed = true;
             invalidatePlayableBeatmapRequest();
+            packageDifficultyDisposed = true;
+            invalidatePackageDifficultyRequest();
             invalidateGameplayPreload();
             libraryReloadDisposed = true;
             libraryReloadCancellation.Cancel();
@@ -930,6 +943,9 @@ public partial class SongSelectScreen : Screen
         if (libraryReloadInProgress || libraryReloadDisposed)
             return;
 
+        invalidatePlayableBeatmapRequest();
+        invalidateGameplayPreload();
+        importedChartLibrary.PruneUnavailableExternalCharts();
         libraryReloadInProgress = true;
         preserveSelectionForLibraryReload = true;
         libraryReloadOverlay?.ShowImporting(
@@ -1126,8 +1142,26 @@ public partial class SongSelectScreen : Screen
 
     internal void PlaySelected()
     {
-        if (selectedEntry == null || transitionPending)
+        if (selectedEntry == null || transitionPending || libraryReloadInProgress)
             return;
+        if (!entries.Contains(selectedEntry))
+        {
+            playButton?.SetError();
+            return;
+        }
+        if (selectedEntry.ChartId != null
+            && importedChartModels.TryGetValue(
+                selectedEntry.ChartId,
+                out ImportedChart imported)
+            && imported.SourceKind == ImportedChartSourceKind.ExternalOsu
+            && !File.Exists(imported.SourcePath))
+        {
+            invalidatePlayableBeatmapRequest();
+            invalidateGameplayPreload();
+            importedChartLibrary.PruneUnavailableExternalCharts();
+            playButton?.SetError();
+            return;
+        }
         if (!isPlayableBeatmapReady(selectedEntry))
         {
             playButton?.SetPreparing("PREPARING EXTERNAL CHART");
@@ -4599,6 +4633,133 @@ public partial class SongSelectScreen : Screen
             || (entry.ChartId != null
                 && materialisedExternalCharts.Contains(entry.ChartId)));
 
+    private void requestExpandedPackageDifficulties(string packageId)
+    {
+        if (packageDifficultyDisposed
+            || !screenActive
+            || string.IsNullOrWhiteSpace(packageId))
+        {
+            return;
+        }
+
+        if (packageDifficultyTask is { IsCompleted: false }
+            && string.Equals(
+                packageDifficultyPackageId,
+                packageId,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        invalidatePackageDifficultyRequest();
+        SongSelectEntry[] pending = importedEntries.Values.Where(entry =>
+                entry.IsPackage
+                && string.Equals(
+                    entry.PackageId,
+                    packageId,
+                    StringComparison.OrdinalIgnoreCase)
+                && (entry.DifficultyRating?.IsSuccess != true
+                    || entry.StarRating?.IsSuccess != true))
+            .ToArray();
+        if (pending.Length == 0)
+            return;
+
+        packageDifficultyPackageId = packageId;
+        packageDifficultyCancellation = new CancellationTokenSource();
+        int generation = packageDifficultyGeneration;
+        packageDifficultyTask = completeExpandedPackageDifficultiesAsync(
+            pending,
+            generation,
+            packageDifficultyCancellation.Token);
+    }
+
+    private async Task completeExpandedPackageDifficultiesAsync(
+        IReadOnlyList<SongSelectEntry> pending,
+        int generation,
+        CancellationToken cancellationToken)
+    {
+        foreach (SongSelectEntry entry in pending)
+        {
+            ManiaDifficultyRatings ratings;
+            try
+            {
+                ratings = await importedChartLibrary.GetBaseDifficultyRatingsAsync(
+                        entry.ChartId,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (ratings == null)
+                    continue;
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                Logger.Error(
+                    exception,
+                    $"Could not calculate visible chart difficulty for '{entry.ChartId}'.",
+                    LoggingTarget.Runtime);
+                continue;
+            }
+
+            Scheduler.Add(() => applyExpandedPackageDifficulty(
+                entry,
+                ratings,
+                generation));
+        }
+
+        Scheduler.Add(() =>
+        {
+            if (packageDifficultyDisposed
+                || generation != packageDifficultyGeneration)
+            {
+                return;
+            }
+
+            packageDifficultyTask = null;
+            packageDifficultyPackageId = null;
+            packageDifficultyCancellation?.Dispose();
+            packageDifficultyCancellation = null;
+            refreshSongListDifficulties();
+        });
+    }
+
+    private void applyExpandedPackageDifficulty(
+        SongSelectEntry entry,
+        ManiaDifficultyRatings ratings,
+        int generation)
+    {
+        if (packageDifficultyDisposed
+            || generation != packageDifficultyGeneration
+            || entry.ChartId == null
+            || !importedEntries.TryGetValue(
+                entry.ChartId,
+                out SongSelectEntry tracked)
+            || !ReferenceEquals(tracked, entry))
+        {
+            return;
+        }
+
+        entry.DifficultyRating = ratings.EtternaMsd;
+        entry.StarRating = ratings.RebirthStars;
+        difficultyRatingsCache.Remove(entry);
+        songList?.UpdateDifficulties();
+        if (ReferenceEquals(entry, selectedEntry))
+            rebuildDetails();
+    }
+
+    private void invalidatePackageDifficultyRequest()
+    {
+        packageDifficultyGeneration++;
+        packageDifficultyCancellation?.Cancel();
+        packageDifficultyCancellation?.Dispose();
+        packageDifficultyCancellation = null;
+        packageDifficultyTask = null;
+        packageDifficultyPackageId = null;
+    }
+
     private void requestPlayableBeatmap(
         SongSelectEntry entry,
         Action<bool> completed = null,
@@ -5137,6 +5298,24 @@ public partial class SongSelectScreen : Screen
     private ManiaDifficultyRatings difficultyRatingsFor(
         SongSelectEntry entry)
     {
+        bool usesUnmaterialisedSummary = entry.ChartId != null
+                                         && importedChartModels.TryGetValue(
+                                             entry.ChartId,
+                                             out ImportedChart imported)
+                                         && imported.RequiresMaterialisation
+                                         && !materialisedExternalCharts.Contains(
+                                             entry.ChartId);
+        if (usesUnmaterialisedSummary)
+        {
+            // External/indexed entries intentionally contain no hit objects.
+            // Until the full chart is materialised, show the asynchronously
+            // calculated base ratings instead of running mod difficulty over
+            // an empty summary and replacing a known value with "--".
+            return new ManiaDifficultyRatings(
+                entry.DifficultyRating,
+                entry.StarRating);
+        }
+
         JudgementConfiguration judgementConfiguration =
             entry.Beatmap.SourceFormat == ChartSourceFormat.Quaver
                 ? JudgementConfiguration.QuaverDefault
@@ -5472,6 +5651,8 @@ public partial class SongSelectScreen : Screen
                 collapsedPackages.Add(candidate);
             }
         }
+
+        requestExpandedPackageDifficulties(packageId);
     }
 
     internal void ToggleConvertedBeatmaps()
