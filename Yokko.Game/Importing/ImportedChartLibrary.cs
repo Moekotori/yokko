@@ -321,6 +321,51 @@ internal sealed class ImportedChartLibrary : IDisposable
         LibraryChanged?.Invoke(change);
     }
 
+    private int clearManagedChartsForMissingLibrary(
+        bool preferKeysounds,
+        bool preferSscSimfiles,
+        bool enableBmsScratch)
+    {
+        ImportedChartLibraryChange change = null;
+        int removed;
+        lock (syncRoot)
+        {
+            string[] managedIds = charts
+                                  .Where(chart => chart.SourceKind
+                                                  == ImportedChartSourceKind.Managed)
+                                  .Select(chart => chart.Id)
+                                  .ToArray();
+            removed = managedIds.Length;
+            if (removed > 0)
+            {
+                var unavailable = new HashSet<string>(
+                    managedIds,
+                    StringComparer.OrdinalIgnoreCase);
+                charts.RemoveAll(chart => unavailable.Contains(chart.Id));
+                evictMaterialisedCharts(unavailable.Contains);
+                change = advanceRevision(
+                    ImportedChartLibraryChangeKind.Structure);
+            }
+        }
+
+        managedPreferKeysounds = preferKeysounds;
+        managedPreferSscSimfiles = preferSscSimfiles;
+        managedEnableBmsScratch = enableBmsScratch;
+        LastManagedScannedFileCount = 0;
+        LastManagedContentReadCount = 0;
+        LastManagedCacheHitCount = 0;
+
+        if (change != null)
+            LibraryChanged?.Invoke(change);
+
+        Logger.Log(
+            $"Managed beatmap directory '{LibraryPath}' is unavailable; "
+            + $"removed {removed} stale charts from the active library.",
+            LoggingTarget.Runtime,
+            LogLevel.Important);
+        return 0;
+    }
+
     internal async Task<ManagedChartRemovalResult> RemoveManagedChartAsync(
         string chartId,
         CancellationToken cancellationToken = default)
@@ -604,6 +649,14 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         try
         {
+            if (!Directory.Exists(LibraryPath))
+            {
+                return clearManagedChartsForMissingLibrary(
+                    preferKeysounds,
+                    preferSscSimfiles,
+                    enableBmsScratch);
+            }
+
             var loaded = new List<ImportedChart>();
             var updatedEntries = new List<ManagedChartIndexEntry>();
             ManagedChartIndexDocument index = ManagedChartLibraryIndex.Load(
@@ -623,14 +676,25 @@ internal sealed class ImportedChartLibrary : IDisposable
                     StringComparer.OrdinalIgnoreCase)
                 ?? new Dictionary<string, ManagedChartIndexEntry>(
                     StringComparer.OrdinalIgnoreCase);
-            string[] sources = Directory
-                               .EnumerateFiles(
-                                   LibraryPath,
-                                   "*",
-                                   SearchOption.AllDirectories)
-                               .Where(KnownChartImporters.CanImport)
-                               .Order(StringComparer.OrdinalIgnoreCase)
-                               .ToArray();
+            string[] sources;
+            try
+            {
+                sources = Directory
+                          .EnumerateFiles(
+                              LibraryPath,
+                              "*",
+                              SearchOption.AllDirectories)
+                          .Where(KnownChartImporters.CanImport)
+                          .Order(StringComparer.OrdinalIgnoreCase)
+                          .ToArray();
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return clearManagedChartsForMissingLibrary(
+                    preferKeysounds,
+                    preferSscSimfiles,
+                    enableBmsScratch);
+            }
             int contentReadCount = 0;
             int cacheHitCount = 0;
 

@@ -128,6 +128,73 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
     }
 
     [Test]
+    public void TestF5ClearsMovedManagedLibraryAndBlocksPlay()
+    {
+        string movedLibrary = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"yokko-moved-managed-library-{Guid.NewGuid():N}");
+        Task<int> initialLoad = null;
+
+        AddStep("create managed multi-chart package", () =>
+        {
+            importedChartLibrary.DisableExternalOsu();
+            importedChartLibrary.Clear();
+            Directory.CreateDirectory(importedChartLibrary.LibraryPath);
+            string package = Path.Combine(
+                importedChartLibrary.LibraryPath,
+                "GD PACK");
+            Directory.CreateDirectory(package);
+            foreach (string difficulty in new[]
+                     {
+                         "Electroman Adventures",
+                         "Cold Sweat",
+                     })
+            {
+                string text = OsuManiaBeatmapIO.WriteBeatmap(
+                    DemoBeatmaps.CreateFourKeyDemo() with
+                    {
+                        Title = "GD PACK",
+                        DifficultyName = difficulty,
+                        AudioPath = null,
+                    });
+                File.WriteAllText(
+                    Path.Combine(package, $"{difficulty}.osu"),
+                    text,
+                    new UTF8Encoding(false));
+            }
+
+            initialLoad = importedChartLibrary.LoadFromDiskAsync(true, true);
+        });
+        AddUntilStep("managed package loads", () =>
+            initialLoad?.IsCompletedSuccessfully == true
+            && songSelectScreen.VisibleEntryCount == 2);
+        AddUntilStep("managed gameplay is preloaded", () =>
+            songSelectScreen.GameplayPreloadReady);
+        AddStep("move managed root then press F5 and Enter", () =>
+        {
+            Directory.Move(importedChartLibrary.LibraryPath, movedLibrary);
+            InputManager.Key(Key.F5);
+            InputManager.Key(Key.Enter);
+        });
+        AddUntilStep("managed reload completes", () =>
+            !songSelectScreen.LibraryReloadInProgress);
+        AddUntilStep("all moved managed charts disappear", () =>
+            songSelectScreen.VisibleEntryCount == 0
+            && importedChartLibrary.GetCharts().Count == 0);
+        AddStep("press Enter after managed removal", () =>
+            InputManager.Key(Key.Enter));
+        AddAssert("managed stale chart never enters gameplay", () =>
+            screenStack.CurrentScreen == songSelectScreen
+            && songSelectScreen.PlayButtonAction != "LOADING...");
+        AddStep("clean managed fixture", () =>
+        {
+            if (Directory.Exists(movedLibrary))
+                Directory.Delete(movedLibrary, true);
+            Directory.CreateDirectory(importedChartLibrary.LibraryPath);
+        });
+    }
+
+    [Test]
     public void TestSongSelectInteractions()
     {
         SongSelectEntry selectedBeforeSort = null;

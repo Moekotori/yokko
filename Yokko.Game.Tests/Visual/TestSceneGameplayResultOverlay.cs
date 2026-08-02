@@ -88,8 +88,6 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
             && overlay.DisplayedPlayerId == "10248631");
         AddUntilStep("song underline clears title", () =>
             overlay?.SongTitleUnderlineClearance >= 6);
-        AddAssert("mod chip is visible", () =>
-            overlay?.RenderedModChipCount >= 3);
         AddAssert("mod labels are preserved", () =>
             overlay?.DisplayedMods.Contains("HD") == true
             && overlay.DisplayedMods.Contains("DT"));

@@ -799,9 +799,9 @@ internal static class YokkoStrings
                 "垂直居中",
                 "垂直中央"),
             ["gameplay.layout_editor.snap_hint"] = new(
-                "Shift locks axis · Alt bypasses snap · Ctrl+wheel resizes lanes",
-                "Shift 锁定方向 · Alt 关闭吸附 · Ctrl+滚动缩放轨道",
-                "Shift 軸固定 · Alt スナップ解除 · Ctrl+ホイールでレーン拡縮"),
+                "Drag to move · Shift locks axis · Ctrl+wheel resizes lanes",
+                "拖动即可移动 · Shift 锁定方向 · Ctrl+滚动缩放轨道",
+                "ドラッグで移動 · Shift 軸固定 · Ctrl+ホイールでレーン拡縮"),
             ["gameplay.layout_editor.covers"] = new(
                 "LANE BLOCKERS",
                 "轨道挡板",

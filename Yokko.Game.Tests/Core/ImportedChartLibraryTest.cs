@@ -1164,6 +1164,73 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
+    public async Task MissingManagedLibraryRootClearsLoadedAndMaterialisedCharts()
+    {
+        string root = createTestRoot("managed-root-moved");
+        string movedLibrary = Path.Combine(root, "MovedBeatmaps");
+
+        try
+        {
+            using var library = new ImportedChartLibrary();
+            library.Initialise(new NativeStorage(root));
+            string packageDirectory = Path.Combine(
+                library.LibraryPath,
+                "GD PACK");
+            Directory.CreateDirectory(packageDirectory);
+            writeOsuChart(
+                packageDirectory,
+                "GD PACK",
+                3,
+                "Electroman Adventures",
+                "Electroman Adventures");
+            writeOsuChart(
+                packageDirectory,
+                "GD PACK",
+                3,
+                "Cold Sweat",
+                "Cold Sweat");
+
+            Assert.That(await library.LoadFromDiskAsync(true, true), Is.EqualTo(2));
+            ImportedChart selected = library.GetCharts().Single(chart =>
+                chart.Result.Beatmap.DifficultyName == "Electroman Adventures");
+            Assert.That(
+                (await library.GetPlayableBeatmapAsync(selected.Id)).HitObjects,
+                Is.Not.Empty);
+
+            Directory.Move(library.LibraryPath, movedLibrary);
+            int changedCount = 0;
+            library.LibraryChanged += change =>
+            {
+                if ((change.Kind & ImportedChartLibraryChangeKind.Structure) != 0)
+                    changedCount++;
+            };
+
+            int count = await library.LoadFromDiskAsync(true, true);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(count, Is.Zero);
+                Assert.That(library.GetCharts(), Is.Empty);
+                Assert.That(changedCount, Is.EqualTo(1));
+                Assert.That(library.LastManagedScannedFileCount, Is.Zero);
+                Assert.That(library.LastManagedCacheHitCount, Is.Zero);
+                Assert.That(library.LastManagedContentReadCount, Is.Zero);
+                Assert.That(Directory.Exists(library.LibraryPath), Is.False,
+                    "F5 must not silently recreate a moved library path.");
+            });
+            Assert.That(
+                await library.GetPlayableBeatmapAsync(selected.Id),
+                Is.Null,
+                "A chart materialised before the move must not remain playable.");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task ManagedWarmStartUsesPersistedIndexWithoutParsingSources()
     {
         string root = createTestRoot("managed-warm-start");

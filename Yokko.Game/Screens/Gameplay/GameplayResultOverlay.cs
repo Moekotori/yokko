@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using osu.Framework.Allocation;
@@ -62,7 +61,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private readonly JudgementConfiguration judgementConfiguration;
     private readonly ManiaModSet mods;
     private readonly GameplayResultPresentation presentation;
-    private readonly IReadOnlyList<string> modChipLabels;
     private ResultActionButton replayActionButton;
     private Container backdrop;
     private Container stage;
@@ -74,7 +72,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private ResultStageDecorations stageDecorations;
     private Sprite resultCharacter;
     private ResultSongHeading songHeading;
-    private int renderedModChipCount;
     private float lastResponsiveStageScale;
 
     // Kept for existing result-flow tests; the supplied character artwork is
@@ -89,7 +86,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     internal string RankSealEyebrow => rankSeal?.Eyebrow ?? string.Empty;
     internal string RankSealFooter => rankSeal?.Footer ?? string.Empty;
     internal int ActionCount => 3;
-    internal int RenderedModChipCount => renderedModChipCount;
     internal float SongTitleUnderlineClearance =>
         songHeading?.UnderlineClearance ?? float.NegativeInfinity;
     internal string DisplayedMods { get; }
@@ -170,11 +166,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         DisplayedMods = practiceSession
             ? $"{displayedMods}  ·  PRACTICE"
             : displayedMods;
-        modChipLabels = createModChipLabels(
-            this.mods,
-            this.judgementConfiguration,
-            practiceSession);
-
         RelativeSizeAxes = Axes.Both;
         Depth = -10;
 
@@ -340,8 +331,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         string rank,
         bool isNewBest)
     {
-        string chartFingerprint = YokkoBeatmapFingerprint.Compute(beatmap);
-
         return new Container
         {
             RelativeSizeAxes = Axes.Both,
@@ -353,8 +342,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 createSummaryRail(result),
                 createTimingStrip(),
                 createJudgementStrip(result),
-                createDetailsLedger(beatmap, result, isNewBest),
-                createProvenanceRail(beatmap, chartFingerprint),
                 createActionRow(),
             },
         };
@@ -659,22 +646,10 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                         0.17f),
                 },
                 createScoreSideMetric(
-                    "COMBO BREAKS",
-                    result.ComboBreaks.ToString(CultureInfo.InvariantCulture),
-                    708,
-                    26,
-                    ResultColours.Cyan),
-                new Box
-                {
-                    Position = new Vector2(708, 112),
-                    Size = new Vector2(236, 2),
-                    Colour = new Color4(1, 1, 1, 0.5f),
-                },
-                createScoreSideMetric(
                     "MISSES",
                     result.Miss.ToString(CultureInfo.InvariantCulture),
                     708,
-                    132,
+                    78,
                     ResultColours.Pink),
                 new SpriteText
                 {
@@ -936,141 +911,10 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         };
     }
 
-    private Drawable createDetailsLedger(
-        YokkoBeatmap beatmap,
-        ManiaScoreResult result,
-        bool isNewBest)
-    {
-        string replayStatus = presentation.ReplaySaved
-            ? "SAVED"
-            : ReplayAvailable ? "READY" : "NONE";
-
-        return new Container
-        {
-            Position = new Vector2(contentLeft, 800),
-            Size = new Vector2(contentWidth, 112),
-            Children = new Drawable[]
-            {
-                new Box
-                {
-                    RelativeSizeAxes = Axes.X,
-                    Height = 2,
-                    Colour = ResultColours.Navy,
-                    Alpha = 0.42f,
-                },
-                createDetailColumn(
-                    0,
-                    250,
-                    ("CLEAR TYPE", isNewBest ? "NEW BEST" : "CLEARED"),
-                    ("RULESET", rulesetLabel()),
-                    ("RATE", $"{mods.FixedRateSpeedChange:0.00}×")),
-                createDetailColumn(
-                    276,
-                    236,
-                    ("DEVICE", "KEYBOARD"),
-                    ("REPLAY", replayStatus),
-                    ("MAX MISS", result.MaxMissCombo.ToString(
-                        CultureInfo.InvariantCulture))),
-                createDetailColumn(
-                    538,
-                    448,
-                    ("MAPPER", displayOrDash(beatmap.Creator)),
-                    ("BPM / LENGTH", $"{formatBpm(beatmap)}  ·  {formatDuration(beatmap)}"),
-                    ("NOTES", beatmap.NoteCount.ToString(
-                        "N0",
-                        CultureInfo.InvariantCulture))),
-                new SpriteText
-                {
-                    Position = new Vector2(730, 78),
-                    Text = "MODS",
-                    Font = HomeTypography.Display(11),
-                    Colour = ResultColours.Muted,
-                },
-                new Container
-                {
-                    Position = new Vector2(780, 72),
-                    Size = new Vector2(206, 30),
-                    Child = createModChipRail(206),
-                },
-            },
-        };
-    }
-
-    private static Drawable createDetailColumn(
-        float x,
-        float width,
-        params (string Label, string Value)[] rows)
-    {
-        var container = new Container
-        {
-            Position = new Vector2(x, 12),
-            Size = new Vector2(width, 92),
-        };
-        for (int i = 0; i < rows.Length; i++)
-        {
-            float y = i * 29;
-            container.Add(new SpriteText
-            {
-                Position = new Vector2(4, y),
-                Text = rows[i].Label,
-                Font = HomeTypography.Display(11),
-                Colour = ResultColours.Muted,
-            });
-            container.Add(new SpriteText
-            {
-                Position = new Vector2(width < 260 ? 112 : 126, y),
-                Width = width - (width < 260 ? 118 : 132),
-                Truncate = true,
-                Text = rows[i].Value,
-                Font = HomeTypography.Display(14),
-                Colour = ResultColours.Navy,
-            });
-            container.Add(new Box
-            {
-                Position = new Vector2(0, y + 23),
-                Size = new Vector2(width - 12, 1),
-                Colour = ResultColours.Navy,
-                Alpha = 0.22f,
-            });
-        }
-
-        return container;
-    }
-
-    private Drawable createProvenanceRail(
-        YokkoBeatmap beatmap,
-        string fingerprint) =>
-        new Container
-        {
-            Position = new Vector2(contentLeft, 916),
-            Size = new Vector2(contentWidth, 38),
-            Children = new Drawable[]
-            {
-                createInlineDatum(
-                    "SOURCE",
-                    beatmap.SourceFormat.ToString().ToUpperInvariant(),
-                    0,
-                    ResultColours.Navy),
-                createInlineDatum(
-                    "CHART ID",
-                    beatmap.OnlineBeatmapId > 0
-                        ? beatmap.OnlineBeatmapId.ToString(
-                            CultureInfo.InvariantCulture)
-                        : fingerprint[..8].ToUpperInvariant(),
-                    320,
-                    ResultColours.Navy),
-                createInlineDatum(
-                    "HASH",
-                    formatHash(fingerprint),
-                    650,
-                    ResultColours.Navy),
-            },
-        };
-
     private Drawable createActionRow() =>
         new Container
         {
-            Position = new Vector2(contentLeft, 964),
+            Position = new Vector2(contentLeft, 808),
             Size = new Vector2(contentWidth, 76),
             Children = new Drawable[]
             {
@@ -1132,142 +976,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             JudgementMode.OsuStable => "OSU!STABLE",
             _ => "YOKKO",
         };
-
-    private static string formatBpm(YokkoBeatmap beatmap)
-    {
-        double[] bpms = beatmap.TimingPoints
-            .Where(static point => point.Uninherited
-                                   && point.BeatsPerMinute > 0)
-            .Select(static point => point.BeatsPerMinute)
-            .ToArray();
-        if (bpms.Length == 0)
-            return "—";
-
-        double minimum = bpms.Min();
-        double maximum = bpms.Max();
-        return Math.Abs(maximum - minimum) < 0.05
-            ? minimum.ToString("0.##", CultureInfo.InvariantCulture)
-            : $"{minimum.ToString("0.##", CultureInfo.InvariantCulture)}-{maximum.ToString("0.##", CultureInfo.InvariantCulture)}";
-    }
-
-    private static string formatDuration(YokkoBeatmap beatmap)
-    {
-        if (beatmap.HitObjects.Count == 0)
-            return "00:00";
-
-        double durationMilliseconds = beatmap.HitObjects.Max(
-            static hitObject =>
-                hitObject.EndTimeMilliseconds
-                ?? hitObject.StartTimeMilliseconds);
-        TimeSpan duration = TimeSpan.FromMilliseconds(
-            Math.Max(0, durationMilliseconds));
-        return duration.TotalHours >= 1
-            ? duration.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
-            : duration.ToString(@"mm\:ss", CultureInfo.InvariantCulture);
-    }
-
-    private static string formatHash(string fingerprint) =>
-        fingerprint.Length <= 12
-            ? fingerprint.ToUpperInvariant()
-            : $"{fingerprint[..4].ToUpperInvariant()}…{fingerprint[^4..].ToUpperInvariant()}";
-
-    private static IReadOnlyList<string> createModChipLabels(
-        ManiaModSet mods,
-        JudgementConfiguration judgementConfiguration,
-        bool practiceSession)
-    {
-        var labels = new List<string>();
-
-        if (mods.IsEmpty)
-        {
-            labels.Add("NM");
-        }
-        else
-        {
-            labels.AddRange(mods.Acronyms.Select(static acronym =>
-                acronym.ToUpperInvariant()));
-            if (Math.Abs(mods.FixedRateSpeedChange - 1) > 0.001)
-            {
-                labels.Add(
-                    mods.FixedRateSpeedChange.ToString(
-                        "0.00",
-                        CultureInfo.InvariantCulture)
-                    + "×");
-            }
-        }
-
-        if (judgementConfiguration.Mode == JudgementMode.Etterna)
-        {
-            labels.Add(
-                "ET "
-                + judgementConfiguration.EtternaJusticeLabel
-                    .ToUpperInvariant());
-        }
-        else if (judgementConfiguration.Mode == JudgementMode.OsuStable)
-        {
-            labels.Add("STABLE");
-        }
-
-        if (practiceSession)
-            labels.Add("PRACTICE");
-
-        return labels;
-    }
-
-    private Drawable createModChipRail(float maxWidth = 300)
-    {
-        const float spacing = 8;
-        var visible = new List<(string Label, float Width)>();
-        float usedWidth = 0;
-
-        foreach (string label in modChipLabels)
-        {
-            float width = calculateModChipWidth(label);
-            float nextWidth = usedWidth
-                              + (visible.Count > 0 ? spacing : 0)
-                              + width;
-            if (nextWidth > maxWidth)
-                break;
-
-            visible.Add((label, width));
-            usedWidth = nextWidth;
-        }
-
-        int hiddenCount = modChipLabels.Count - visible.Count;
-        if (hiddenCount > 0)
-        {
-            string overflowLabel = $"+{hiddenCount}";
-            float overflowWidth = calculateModChipWidth(overflowLabel);
-            while (visible.Count > 0
-                   && usedWidth + spacing + overflowWidth > maxWidth)
-            {
-                (string _, float removedWidth) = visible[^1];
-                visible.RemoveAt(visible.Count - 1);
-                usedWidth -= removedWidth;
-                if (visible.Count > 0)
-                    usedWidth -= spacing;
-                hiddenCount++;
-                overflowLabel = $"+{hiddenCount}";
-                overflowWidth = calculateModChipWidth(overflowLabel);
-            }
-
-            visible.Add((overflowLabel, overflowWidth));
-        }
-
-        renderedModChipCount = visible.Count;
-        var flow = new FillFlowContainer
-        {
-            AutoSizeAxes = Axes.Both,
-            Direction = FillDirection.Horizontal,
-            Spacing = new Vector2(spacing, 0),
-        };
-        foreach ((string label, float width) in visible)
-            flow.Add(new ResultModChip(label, width));
-        return flow;
-    }
-
-    private static float calculateModChipWidth(string label) =>
-        Math.Clamp(24 + label.Length * 9, 54, 112);
 
     private Drawable createTickerStrip() =>
         new Container
@@ -1989,34 +1697,6 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             background.FadeOut(150, Easing.OutQuint);
             valueText.MoveToY(28, 160, Easing.OutQuint);
             shareBar.ResizeWidthTo(0, 150, Easing.OutQuint);
-        }
-    }
-
-    private partial class ResultModChip : Container
-    {
-        public ResultModChip(string label, float width)
-        {
-            Size = new Vector2(width, 28);
-            Masking = true;
-            CornerRadius = 5;
-            BorderThickness = 1.5f;
-            BorderColour = ResultColours.Navy;
-            InternalChildren = new Drawable[]
-            {
-                new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = Color4.White,
-                },
-                new SpriteText
-                {
-                    Anchor = Anchor.Centre,
-                    Origin = Anchor.Centre,
-                    Text = label,
-                    Font = HomeTypography.Display(12),
-                    Colour = ResultColours.Navy,
-                },
-            };
         }
     }
 

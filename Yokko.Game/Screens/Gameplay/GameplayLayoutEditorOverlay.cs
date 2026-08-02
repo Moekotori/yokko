@@ -2090,8 +2090,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Container labelPanel;
         private readonly Container handles;
         private readonly Box selectionTint;
-        private Vector2 dragStartMousePosition;
-        private Vector2 dragStartTargetPosition;
+        private Vector2 lastMousePosition;
         private Axes? constrainedDragAxis;
         private bool selected;
         private bool hovered;
@@ -2249,9 +2248,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 return false;
 
             select(this);
-            dragStartMousePosition = coordinateSpace.ToLocalSpace(
+            lastMousePosition = coordinateSpace.ToLocalSpace(
                 e.ScreenSpaceMousePosition);
-            dragStartTargetPosition = Position;
             constrainedDragAxis = null;
             return true;
         }
@@ -2293,28 +2291,31 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         {
             Vector2 current = coordinateSpace.ToLocalSpace(
                 e.ScreenSpaceMousePosition);
-            Vector2 pointerDelta = current - dragStartMousePosition;
+            Vector2 requestedDelta = current - lastMousePosition;
             if (e.ShiftPressed)
             {
                 constrainedDragAxis ??=
-                    Math.Abs(pointerDelta.X) >= Math.Abs(pointerDelta.Y)
+                    Math.Abs(requestedDelta.X) >= Math.Abs(requestedDelta.Y)
                         ? Axes.X
                         : Axes.Y;
                 if (constrainedDragAxis == Axes.X)
-                    pointerDelta.Y = 0;
+                    requestedDelta.Y = 0;
                 else
-                    pointerDelta.X = 0;
+                    requestedDelta.X = 0;
             }
             else
                 constrainedDragAxis = null;
 
-            Vector2 desiredPosition = dragStartTargetPosition + pointerDelta;
-            Vector2 requestedDelta = desiredPosition - Position;
+            // Mouse input can arrive more than once before Update() refreshes
+            // this target from the live layout. Apply only the new pointer
+            // movement so a stale target position cannot accumulate the same
+            // distance repeatedly and launch the element across the screen.
             Vector2 delta = snapMove(
                 this,
                 requestedDelta,
-                e.AltPressed);
+                true);
             drag(delta);
+            lastMousePosition = current;
         }
 
         protected override void OnDragEnd(DragEndEvent e)

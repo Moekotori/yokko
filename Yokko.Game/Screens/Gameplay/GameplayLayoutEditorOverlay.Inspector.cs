@@ -162,8 +162,6 @@ internal partial class GameplayLayoutEditorOverlay
 
     private enum LayoutMetricField
     {
-        X,
-        Y,
         Width,
         Height,
     }
@@ -455,8 +453,6 @@ internal partial class GameplayLayoutEditorOverlay
             selectedTarget.EditorHidden,
             selectedTarget.AspectLocked);
         inspector.SetMetrics(new LayoutElementMetrics(
-            selectedTarget.X,
-            selectedTarget.Y,
             selectedTarget.DrawWidth,
             selectedTarget.DrawHeight));
     }
@@ -546,21 +542,11 @@ internal partial class GameplayLayoutEditorOverlay
         beginChange();
 
         float value = (float)Math.Clamp(rawValue, -10000, 10000);
-        Vector2 currentPosition = target.Position;
         Vector2 currentSize = new(target.DrawWidth, target.DrawHeight);
-        Vector2 requestedPosition = currentPosition;
         Vector2 requestedSize = currentSize;
 
         switch (field)
         {
-            case LayoutMetricField.X:
-                requestedPosition.X = value;
-                break;
-
-            case LayoutMetricField.Y:
-                requestedPosition.Y = value;
-                break;
-
             case LayoutMetricField.Width:
                 requestedSize.X = Math.Max(8, value);
                 if (target.AspectLocked)
@@ -586,9 +572,6 @@ internal partial class GameplayLayoutEditorOverlay
                 ResizeEdges.Right | ResizeEdges.Bottom,
                 requestedSize - currentSize);
         }
-
-        if (requestedPosition != currentPosition)
-            target.MoveBy(requestedPosition - currentPosition);
     }
 
     private void centreSelected(bool horizontal)
@@ -792,8 +775,6 @@ internal partial class GameplayLayoutEditorOverlay
     }
 
     private readonly record struct LayoutElementMetrics(
-        float X,
-        float Y,
         float Width,
         float Height);
 
@@ -1025,8 +1006,6 @@ internal partial class GameplayLayoutEditorOverlay
         private readonly Action<LayoutElementKind, bool> setAspectLocked;
         private readonly Dictionary<LayoutElementKind, LayerRow> layerRows =
             new();
-        private readonly NumericField xField;
-        private readonly NumericField yField;
         private readonly NumericField widthField;
         private readonly NumericField heightField;
         private readonly ToggleIconButton aspectButton;
@@ -1051,7 +1030,7 @@ internal partial class GameplayLayoutEditorOverlay
             Origin = Anchor.TopRight;
             Position = new Vector2(-18, 18);
             Scale = new Vector2(1.08f);
-            Size = new Vector2(360, 426);
+            Size = new Vector2(360, 380);
             Depth = -100;
             Masking = true;
             CornerRadius = 11;
@@ -1143,32 +1122,22 @@ internal partial class GameplayLayoutEditorOverlay
                         HomeControlColours.Navy.B,
                         0.16f),
                 },
-                xField = createNumericField(
-                    "X",
-                    LayoutMetricField.X,
-                    new Vector2(12, 266),
-                    applyMetric),
-                yField = createNumericField(
-                    "Y",
-                    LayoutMetricField.Y,
-                    new Vector2(188, 266),
-                    applyMetric),
                 widthField = createNumericField(
                     "W",
                     LayoutMetricField.Width,
-                    new Vector2(12, 312),
+                    new Vector2(12, 266),
                     applyMetric),
                 heightField = createNumericField(
                     "H",
                     LayoutMetricField.Height,
-                    new Vector2(188, 312),
+                    new Vector2(188, 266),
                     applyMetric),
                 aspectButton = new ToggleIconButton(
                     FontAwesome.Solid.Link,
                     FontAwesome.Solid.Unlink,
                     value => setAspectLocked(selected, value))
                 {
-                    Position = new Vector2(12, 366),
+                    Position = new Vector2(12, 320),
                     Size = new Vector2(34),
                 },
                 new LayoutActionButton(
@@ -1177,7 +1146,7 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.ArrowsAltH,
                     () => centre(true))
                 {
-                    Position = new Vector2(52, 365),
+                    Position = new Vector2(52, 319),
                     Size = new Vector2(112, 34),
                 },
                 new LayoutActionButton(
@@ -1186,12 +1155,12 @@ internal partial class GameplayLayoutEditorOverlay
                     FontAwesome.Solid.ArrowsAltV,
                     () => centre(false))
                 {
-                    Position = new Vector2(170, 365),
+                    Position = new Vector2(170, 319),
                     Size = new Vector2(112, 34),
                 },
                 new ClickableContainer
                 {
-                    Position = new Vector2(288, 365),
+                    Position = new Vector2(288, 319),
                     Size = new Vector2(60, 34),
                     Action = cycleStep,
                     Masking = true,
@@ -1216,7 +1185,7 @@ internal partial class GameplayLayoutEditorOverlay
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(12, 408),
+                    Position = new Vector2(12, 362),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.snap_hint"),
                     Font = LayoutEditorTypography.Regular(9),
@@ -1268,8 +1237,6 @@ internal partial class GameplayLayoutEditorOverlay
 
         internal void SetMetrics(LayoutElementMetrics metrics)
         {
-            xField.SetValue(metrics.X);
-            yField.SetValue(metrics.Y);
             widthField.SetValue(metrics.Width);
             heightField.SetValue(metrics.Height);
         }
@@ -1307,8 +1274,6 @@ internal partial class GameplayLayoutEditorOverlay
         private void updateFieldAvailability(bool readOnly)
         {
             bool positionOnly = selected == LayoutElementKind.PerformanceReadout;
-            xField.ReadOnly = readOnly;
-            yField.ReadOnly = readOnly;
             widthField.ReadOnly = readOnly || positionOnly;
             heightField.ReadOnly = readOnly || positionOnly;
             aspectButton.SetAvailable(!readOnly && !positionOnly);
