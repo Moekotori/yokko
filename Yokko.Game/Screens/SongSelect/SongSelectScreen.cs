@@ -4752,8 +4752,7 @@ public partial class SongSelectScreen : Screen
             || entry.ChartId == null
             || !importedEntries.TryGetValue(
                 entry.ChartId,
-                out SongSelectEntry tracked)
-            )
+                out SongSelectEntry tracked))
         {
             return;
         }
