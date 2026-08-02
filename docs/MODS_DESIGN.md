@@ -34,13 +34,13 @@ appear selectable until its complete behaviour is registered and tested.
 
 The currently selectable implementation slices are:
 
-- fixed rate: configurable HT, DC, DT and NC across their upstream ranges;
+- fixed rate: canonical 0.75x HT and 1.50x DT, plus configurable DC and NC
+  across their upstream ranges;
 - conversion: MR, seeded RD, HO, IN, CL, CS, configurable DA, DS and
   1K through 10K;
 - difficulty reduction: EZ, NF and NR;
-- difficulty increase: HR, SD, PF and configurable AC;
-- visibility: FI and HD plus configurable CO and FL across their upstream
-  ranges and options;
+- difficulty increase: HR, SD and PF, plus compact minimum-accuracy AC;
+- visibility: FI, HD and FL, plus configurable CO;
 - automation: AT and CN;
 - audio: configurable MU;
 - dynamic rate: configurable WU, WD and AS.

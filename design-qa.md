@@ -51,6 +51,34 @@ Fixes: switched to the alpha-transparent `home-logo-light` asset through the sha
 
 final result: passed
 
+---
+
+# Song Select full-art browse redesign QA (2026-08-02)
+
+## Evidence
+
+- Selected visual target: `C:\Users\nyafa\.codex\generated_images\019fbfaf-a442-7b50-a5ed-f240301b90c9\exec-0af12fe6-71df-4fd9-a5e2-e8820a6e84f9.png`.
+- Native implementation: `F:\YokkoArtifacts\songselect-full-art\final-1920x1080.png`.
+- Viewport/state: native 1920 x 1080, Comfortable scale, populated 7K library, active filters, selected multi-chart package.
+
+## Findings and resolution
+
+- P1 resolved: right-side standalone rows and package headers previously forced artwork into small square cover crops. They now reserve a 220 x 124 landscape frame and use contain fitting, so the complete source image remains visible without cropping.
+- P1 resolved: the narrow 850-unit browser and dense toolbar made selection and filtering harder to scan. The browser is now 980 units wide; search, difficulty, Filters, and Sort form a clearer two-row control hierarchy with a consolidated dismissible filter popover.
+- P2 resolved: selected-chart details and ranking paper were undersized relative to the 1080p stage. Artwork, facts, performance data, and ranking space are enlarged while preserving the footer clearance.
+- P2 resolved: selection intent is explicit. Selected full-art rows and expanded-package summaries identify the preview state and retain Enter-to-play behavior.
+- The left detail area intentionally has no waveform. Dynamic text, filtering, selection, and play state remain code-rendered; no screenshot slice is used as UI.
+
+## Interaction and verification
+
+- Filters and Sort open as separate popovers; Escape dismisses either without leaving Song Select.
+- Search/filter supersession, selection preservation, sort direction, virtualised package materialisation, full-art geometry, and contain-fit behavior are covered by focused tests.
+- Isolated `Yokko.Game` and `Yokko.Game.Tests` builds passed with 0 warnings and 0 errors.
+- Focused Song Select suite passed 34 / 34, including final filter-popover open/dismiss assertions.
+- The native screenshot was captured successfully before an unrelated existing Gameplay preloader duplicate-parent exception ended the preview host.
+
+final result: passed
+
 # Pause overlay dynamic-content verification (2026-07-29, QA5)
 
 ## Evidence

@@ -566,6 +566,8 @@ namespace Yokko.Game.Tests.Visual
             AddStep("open judgement", () =>
                 gameplay.SelectSection(
                     GameplaySettingsSection.Judgement));
+            AddAssert("judgement changes explain next-play application", () =>
+                gameplay.ShowsJudgementNextGameNotice);
             AddStep("select Yokko judgement", () =>
                 gameplay.SetJudgementMode(JudgementMode.Yokko));
             AddAssert("Etterna Judge control is disabled", () =>

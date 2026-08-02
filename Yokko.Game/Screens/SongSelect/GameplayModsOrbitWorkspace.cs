@@ -46,6 +46,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private readonly Action<IReadOnlyList<ManiaModId>> cycleModFamily;
     private readonly Action<ManiaModId> focusMod;
     private readonly Action<int> changeNoPauseAllowance;
+    private readonly Action<double> changeAccuracyChallengeMinimum;
     private readonly Action<double> previewRate;
     private readonly Action completeRate;
     private readonly Action reset;
@@ -87,6 +88,10 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private SpriteText noPauseAllowanceValue;
     private OrbitSquareButton noPauseMinus;
     private OrbitSquareButton noPausePlus;
+    private Container accuracyChallengeControl;
+    private SpriteText accuracyChallengeValue;
+    private OrbitSquareButton accuracyChallengeMinus;
+    private OrbitSquareButton accuracyChallengePlus;
     private SpriteText pageIndicator;
     private SpriteText rateValue;
     private SpriteText activeCount;
@@ -132,6 +137,12 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     internal string CapacityTelemetryText =>
         capacityTelemetry?.Text.ToString() ?? string.Empty;
     internal bool SettingsPanelVisible => settingsPanel?.Alpha > 0;
+    internal bool AccuracyChallengeControlVisible =>
+        accuracyChallengeControl?.Alpha > 0;
+    internal string AccuracyChallengeValueText =>
+        accuracyChallengeValue?.Text.ToString() ?? string.Empty;
+    internal bool NoPauseControlVisible =>
+        noPauseAllowanceControl?.Alpha > 0;
     private ManiaModId? pendingTransitionMod;
     private bool pendingTransitionActive;
 
@@ -141,6 +152,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         Action<IReadOnlyList<ManiaModId>> cycleModFamily,
         Action<ManiaModId> focusMod,
         Action<int> changeNoPauseAllowance,
+        Action<double> changeAccuracyChallengeMinimum,
         Action<double> previewRate,
         Action completeRate,
         Action reset,
@@ -157,6 +169,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         this.cycleModFamily = cycleModFamily;
         this.focusMod = focusMod;
         this.changeNoPauseAllowance = changeNoPauseAllowance;
+        this.changeAccuracyChallengeMinimum =
+            changeAccuracyChallengeMinimum;
         this.previewRate = previewRate;
         this.completeRate = completeRate;
         this.reset = reset;
@@ -931,6 +945,51 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                     },
                 ],
             },
+            accuracyChallengeControl = new Container
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Position = new Vector2(0, 220),
+                Size = new Vector2(218, 42),
+                Alpha = 0,
+                Children =
+                [
+                    accuracyChallengeMinus = new OrbitSquareButton(
+                        FontAwesome.Solid.Minus,
+                        () => changeAccuracyChallengeMinimum(
+                            Math.Max(
+                                0.6,
+                                Math.Round(
+                                    selectedMods.AccuracyChallengeMinimum
+                                    - 0.001,
+                                    3))))
+                    {
+                        Size = new Vector2(42),
+                    },
+                    accuracyChallengeValue = new SpriteText
+                    {
+                        Anchor = Anchor.TopCentre,
+                        Origin = Anchor.TopCentre,
+                        Y = 10,
+                        Font = HomeTypography.Display(17),
+                        Colour = HomeControlColours.Navy,
+                    },
+                    accuracyChallengePlus = new OrbitSquareButton(
+                        FontAwesome.Solid.Plus,
+                        () => changeAccuracyChallengeMinimum(
+                            Math.Min(
+                                0.999,
+                                Math.Round(
+                                    selectedMods.AccuracyChallengeMinimum
+                                    + 0.001,
+                                    3))))
+                    {
+                        Anchor = Anchor.TopRight,
+                        Origin = Anchor.TopRight,
+                        Size = new Vector2(42),
+                    },
+                ],
+            },
         ];
         return result;
     }
@@ -1625,6 +1684,13 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     {
         ManiaModId[][] preferredFamilies = page switch
         {
+            ManiaModCategory.DifficultyReduction =>
+            [
+                [ManiaModId.Easy],
+                [ManiaModId.HalfTime, ManiaModId.Daycore],
+                [ManiaModId.NoRelease],
+                [ManiaModId.NoFail],
+            ],
             ManiaModCategory.DifficultyIncrease =>
             [
                 [ManiaModId.HardRock],
@@ -1686,6 +1752,10 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         bool active = selectedMods.Contains(definition.Id);
         bool showNoPauseAllowance =
             definition.Id == ManiaModId.NoPause && active;
+        bool showAccuracyChallenge =
+            definition.Id == ManiaModId.AccuracyChallenge && active;
+        bool showCompactControl =
+            showNoPauseAllowance || showAccuracyChallenge;
         Color4 accent = accentFor(definition);
         heroAcronym.Text = definition.Acronym;
         heroAcronym.Colour = accent;
@@ -1698,18 +1768,25 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         heroState.Colour = active ? Color4.White : HomeControlColours.Cyan;
         heroStateBackground.Colour = active ? accent : Color4.Transparent;
         heroStateIcon.Alpha = active ? 1 : 0;
-        heroStateBackground.Alpha = showNoPauseAllowance ? 0 : 1;
-        heroState.Alpha = showNoPauseAllowance ? 0 : 1;
-        heroStateIcon.Alpha = showNoPauseAllowance ? 0 : heroStateIcon.Alpha;
+        heroStateBackground.Alpha = showCompactControl ? 0 : 1;
+        heroState.Alpha = showCompactControl ? 0 : 1;
+        heroStateIcon.Alpha = showCompactControl ? 0 : heroStateIcon.Alpha;
         noPauseAllowanceControl.Alpha = showNoPauseAllowance ? 1 : 0;
         noPauseAllowanceValue.Text = YokkoStrings.Get(
             "mods.no_pause.allowance",
             selectedMods.NoPauseAllowedPauses);
         noPauseMinus.SetEnabled(selectedMods.NoPauseAllowedPauses > 0);
         noPausePlus.SetEnabled(selectedMods.NoPauseAllowedPauses < 10);
+        accuracyChallengeControl.Alpha = showAccuracyChallenge ? 1 : 0;
+        accuracyChallengeValue.Text =
+            $"{selectedMods.AccuracyChallengeMinimum * 100:0.0}%";
+        accuracyChallengeMinus.SetEnabled(
+            selectedMods.AccuracyChallengeMinimum > 0.6);
+        accuracyChallengePlus.SetEnabled(
+            selectedMods.AccuracyChallengeMinimum < 0.999);
         hero.FadeTo(1, 80);
 
-        if (activated && !showNoPauseAllowance)
+        if (activated && !showCompactControl)
         {
             heroAcronym.ClearTransforms();
             heroAcronym.ScaleTo(0.9f)

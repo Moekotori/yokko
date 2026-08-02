@@ -21,10 +21,10 @@ namespace Yokko.Game.Screens.SongSelect;
 internal partial class SongSelectRankingPanel : ClickableContainer
 {
     private const float panel_width = 850;
-    private const float panel_height = 570;
+    private const float panel_height = 508;
     private const float rows_top = 44;
     private const float content_width = 850;
-    private const float content_height = 512;
+    private const float content_height = 450;
     private const float paper_height = rows_top + content_height;
     private const float row_width = 826;
     private const float row_height = 70;

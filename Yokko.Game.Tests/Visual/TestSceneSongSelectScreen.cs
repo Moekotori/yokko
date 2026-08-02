@@ -78,14 +78,14 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddAssert("ranking is above footer", () =>
             songSelectScreen.RankingFitsAboveFooter);
         AddAssert("ranking uses the available detail width", () =>
-            songSelectScreen.RankingPanelSize == new Vector2(850, 570));
+            songSelectScreen.RankingPanelSize == new Vector2(850, 508));
         AddAssert("ranking body uses its full height", () =>
-            songSelectScreen.RankingContentSize == new Vector2(850, 512));
+            songSelectScreen.RankingContentSize == new Vector2(850, 450));
         AddAssert("ranking paper includes the header rail", () =>
             songSelectScreen.RankingPaperPosition == Vector2.Zero
-            && songSelectScreen.RankingPaperSize == new Vector2(850, 556));
+            && songSelectScreen.RankingPaperSize == new Vector2(850, 494));
         AddUntilStep("search box uses the space freed by key filter", () =>
-            songSelectScreen.SearchBoxSize == new Vector2(710, 48));
+            songSelectScreen.SearchBoxSize == new Vector2(816, 48));
         AddAssert("key modes share one compact cycling button", () =>
         {
             SongSelectKeyModeFilterButton[] filters = songSelectScreen
@@ -106,7 +106,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.TopNavigationProfileSize
                == new Vector2(210, 46));
         AddAssert("browser starts below search, rating and browse controls", () =>
-            Math.Abs(songSelectScreen.SongBrowserTop - 232) < 0.01f);
+            Math.Abs(songSelectScreen.SongBrowserTop - 184) < 0.01f);
         AddAssert("difficulty filter defaults to all MSD charts", () =>
             songSelectScreen.MinimumDifficultyFilter == 0
             && songSelectScreen.DifficultyFilterUnit == "MSD RANGE"
@@ -124,33 +124,32 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                    && controls.All(control =>
                        Math.Abs(control.BorderThickness - 1) < 0.01f
                        && Math.Abs(control.CornerRadius - 7) < 0.01f)
-                   && controls.Select(control => control.X)
-                              .SequenceEqual([0, 184, 388, 614])
                    && controls.Select(control => control.Width)
-                              .SequenceEqual([176, 196, 218, 236])
-                   && controls.Count(control => control.Interactive) == 3;
+                              .OrderBy(width => width)
+                              .SequenceEqual([184, 184, 200, 200])
+                   && controls.All(control => control.Interactive);
         });
         AddAssert("browse controls span one aligned rounded row", () =>
-            songSelectScreen.BrowseToolbarSize == new Vector2(850, 34));
+            songSelectScreen.BrowseToolbarSize == new Vector2(980, 34));
         AddAssert("selected details separate chart facts from performance", () =>
             songSelectScreen.SelectedChartFactsPosition
-                == new Vector2(260, 169)
+                == new Vector2(310, 210)
             && songSelectScreen.SelectedChartFactsSize
-                == new Vector2(572, 34)
+                == new Vector2(522, 34)
             && songSelectScreen.SelectedPerformancePosition
-                == new Vector2(260, 213)
+                == new Vector2(310, 255)
             && songSelectScreen.SelectedPerformanceSize
-                == new Vector2(572, 35)
+                == new Vector2(522, 35)
             && SongSelectScreen.SelectedDetailsPanelSize
-                == new Vector2(850, 256)
+                == new Vector2(850, 320)
             && SongSelectScreen.SelectedArtworkSize
-                == new Vector2(220)
+                == new Vector2(280)
             && Math.Abs(SongSelectScreen.SelectedArtworkRotation + 1.25f)
                 < 0.01f
-            && Math.Abs(SongSelectScreen.RankingTop - 294) < 0.01f);
+            && Math.Abs(SongSelectScreen.RankingTop - 340) < 0.01f);
         AddAssert("selected mods aligns with the ranking header", () =>
             songSelectScreen.SelectedModsButtonPosition
-                == new Vector2(696, 294)
+                == new Vector2(696, 340)
             && songSelectScreen.SelectedModsButtonSize
                 == new Vector2(154, 40));
         AddAssert("retired inline mod panel is not built on entry", () =>
@@ -188,9 +187,34 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
                 YokkoUiScale.Comfortable) == new Vector2(462, 82)
             && SongSelectScreen.FooterToolButtonWidthFor(
                 YokkoUiScale.Comfortable) == 154);
+        AddAssert("high-frequency shortcuts are discoverable", () =>
+            songSelectScreen.ShortcutLegendSize == new Vector2(220, 82)
+            && songSelectScreen.PlayButtonEyebrow
+                == "START SELECTED CHART"
+            && songSelectScreen.PlayButtonAction == "PLAY");
 
         AddStep("select next song", songSelectScreen.SelectNext);
         AddAssert("selection wraps", () => songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");
+        AddStep("end jumps to last song", () =>
+            songSelectScreen.HandleBrowseKey(Key.End));
+        AddAssert("end selected newest boundary", () =>
+            songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Seven");
+        AddStep("home jumps to first song", () =>
+            songSelectScreen.HandleBrowseKey(Key.Home));
+        AddAssert("home selected oldest boundary", () =>
+            songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");
+        AddStep("page down clamps at last song", () =>
+            songSelectScreen.HandleBrowseKey(Key.PageDown));
+        AddAssert("page jump reaches last song", () =>
+            songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Seven");
+        AddStep("random shortcut avoids current song", () =>
+            songSelectScreen.HandleBrowseKey(Key.R));
+        AddAssert("random shortcut selected the other song", () =>
+            songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");
+        AddStep("control f focuses search", () =>
+            songSelectScreen.HandleBrowseKey(Key.F, controlPressed: true));
+        AddAssert("search receives keyboard focus", () =>
+            songSelectScreen.SearchHasFocus);
 
         AddStep("filter 7K", () => songSelectScreen.SetKeyModeFilter(KeyMode.SevenKey));
         AddUntilStep("one 7K song visible", () =>
@@ -202,6 +226,8 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
         AddUntilStep("one matching song", () =>
             !songSelectScreen.FilterPending
             && songSelectScreen.VisibleEntryCount == 1);
+        AddAssert("search is counted as an active filter", () =>
+            songSelectScreen.FiltersButtonValue == "2 ACTIVE");
 
         AddStep("search no results", () => songSelectScreen.SetSearchQuery("not-a-real-song"));
         AddUntilStep("empty result is stable", () =>
@@ -221,6 +247,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.KeyModeFilter == null
             && songSelectScreen.MinimumDifficultyFilter == 0
             && songSelectScreen.ShowConverts
+            && songSelectScreen.FiltersButtonValue == "0 ACTIVE"
             && !songSelectScreen.NoResultsVisible);
         AddStep("new search supersedes queued search", () =>
         {
@@ -237,9 +264,17 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && songSelectScreen.VisibleEntryCount == 2);
         AddAssert("empty search is not dismissed", () => !songSelectScreen.DismissSearch());
 
+        AddStep("open consolidated filters from keyboard", () =>
+            songSelectScreen.HandleBrowseKey(Key.F));
+        AddAssert("filters popover opens", () => songSelectScreen.FiltersPopoverOpen);
+        AddStep("escape closes filters", songSelectScreen.HandleEscape);
+        AddAssert("filters close without exiting", () =>
+            !songSelectScreen.FiltersPopoverOpen
+            && screenStack.CurrentScreen == songSelectScreen);
+
         AddStep("open full sort menu", () => songSelectScreen
             .ChildrenOfType<SongSelectBrowseToolButton>()
-            .Single(control => Math.Abs(control.X) < 0.01f)
+            .Single(control => Math.Abs(control.X - 780) < 0.01f)
             .TriggerClick());
         AddAssert("sort menu exposes all modes", () =>
             songSelectScreen.SortPopoverOpen

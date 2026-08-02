@@ -1846,6 +1846,16 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         lock (syncRoot)
         {
+            ImportedChart current = charts.FirstOrDefault(candidate =>
+                candidate.Id.Equals(
+                    chart.Id,
+                    StringComparison.OrdinalIgnoreCase));
+            if (!ReferenceEquals(current, chart))
+            {
+                throw new InvalidDataException(
+                    "The beatmap changed while it was loading.");
+            }
+
             externalBeatmapCache[chart.Id] = result;
             externalBeatmapLru.Remove(chart.Id);
             externalBeatmapLru.AddFirst(chart.Id);
@@ -1919,14 +1929,10 @@ internal sealed class ImportedChartLibrary : IDisposable
                 candidate.Id.Equals(
                     chart.Id,
                     StringComparison.OrdinalIgnoreCase));
-            if (current == null
-                || !string.Equals(
-                    current.Result.SourceHash,
-                    chart.Result.SourceHash,
-                    StringComparison.OrdinalIgnoreCase))
+            if (!ReferenceEquals(current, chart))
             {
                 throw new InvalidDataException(
-                    "The external beatmap changed while it was loading.");
+                    "The beatmap changed while it was loading.");
             }
 
             externalBeatmapCache[chart.Id] = result;
@@ -1961,12 +1967,28 @@ internal sealed class ImportedChartLibrary : IDisposable
             && ordinal >= 0
             && ordinal < results.Count)
         {
-            return results[ordinal];
+            ChartImportResult candidate = results[ordinal];
+            if (fingerprintMatches(chart, candidate))
+                return candidate;
+
+            ChartImportResult[] exactMatches = results.Where(result =>
+                fingerprintMatches(chart, result)).ToArray();
+            if (exactMatches.Length == 1)
+                return exactMatches[0];
         }
 
         throw new InvalidDataException(
             "The chart source no longer produces the indexed difficulty.");
     }
+
+    private static bool fingerprintMatches(
+        ImportedChart chart,
+        ChartImportResult result) =>
+        !string.IsNullOrWhiteSpace(chart.BeatmapFingerprint)
+        && string.Equals(
+            YokkoBeatmapFingerprint.Compute(result.Beatmap),
+            chart.BeatmapFingerprint,
+            StringComparison.OrdinalIgnoreCase);
 
     private static YokkoBeatmap createExternalSummary(
         YokkoBeatmap beatmap,

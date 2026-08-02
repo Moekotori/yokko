@@ -15,9 +15,15 @@ internal partial class SongSelectPlayButton : ClickableContainer
 {
     private readonly Box background;
     private readonly SpriteIcon chevron;
+    private readonly SpriteIcon stateIcon;
     private readonly Container playTile;
     private readonly Box shine;
     private readonly Sprite tape;
+    private readonly SpriteText eyebrowText;
+    private readonly SpriteText actionText;
+
+    internal string EyebrowText => eyebrowText.Text.ToString();
+    internal string ActionText => actionText.Text.ToString();
 
     public SongSelectPlayButton(
         Action action,
@@ -70,7 +76,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
                                 RelativeSizeAxes = Axes.Both,
                                 Colour = SongSelectTheme.Navy,
                             },
-                            new SpriteIcon
+                            stateIcon = new SpriteIcon
                             {
                                 Anchor = Anchor.Centre,
                                 Origin = Anchor.Centre,
@@ -80,7 +86,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
                             },
                         ],
                     },
-                    new SpriteText
+                    eyebrowText = new SpriteText
                     {
                         Position = new Vector2(96, 13),
                         Text = "START SELECTED CHART",
@@ -92,7 +98,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
                             SongSelectTheme.Navy.B,
                             0.64f),
                     },
-                    new SpriteText
+                    actionText = new SpriteText
                     {
                         Position = new Vector2(95, 25),
                         Text = "PLAY",
@@ -120,6 +126,45 @@ internal partial class SongSelectPlayButton : ClickableContainer
                 FillMode = FillMode.Fit,
             },
         ];
+    }
+
+    internal void SetReady()
+    {
+        Enabled.Value = true;
+        eyebrowText.Text = "START SELECTED CHART";
+        actionText.Text = "PLAY";
+        stateIcon.Icon = FontAwesome.Solid.Play;
+        background.FadeColour(SongSelectTheme.Yellow, 120, Easing.OutQuint);
+        chevron.FadeTo(1, 120, Easing.OutQuint);
+        shine.FadeTo(1, 120, Easing.OutQuint);
+    }
+
+    internal void SetPreparing(string message = "PREPARING CHART")
+    {
+        Enabled.Value = false;
+        eyebrowText.Text = message;
+        actionText.Text = "LOADING...";
+        stateIcon.Icon = FontAwesome.Solid.HourglassHalf;
+        background.FadeColour(
+            new Color4(1f, 0.91f, 0.38f, 1f),
+            100,
+            Easing.OutQuint);
+        chevron.FadeTo(0.38f, 100, Easing.OutQuint);
+        shine.FadeTo(0.28f, 100, Easing.OutQuint);
+    }
+
+    internal void SetError()
+    {
+        Enabled.Value = true;
+        eyebrowText.Text = "CHART COULD NOT LOAD";
+        actionText.Text = "RETRY";
+        stateIcon.Icon = FontAwesome.Solid.ExclamationTriangle;
+        background.FadeColour(
+            new Color4(1f, 0.70f, 0.76f, 1f),
+            120,
+            Easing.OutQuint);
+        chevron.FadeTo(1, 120, Easing.OutQuint);
+        shine.FadeTo(0.55f, 120, Easing.OutQuint);
     }
 
     protected override bool OnHover(HoverEvent e)

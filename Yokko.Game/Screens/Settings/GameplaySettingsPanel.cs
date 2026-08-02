@@ -56,6 +56,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private GameplayCompactButton captureToggleButton;
     private GameplayCompactButton resetBindingsButton;
     private GameplayEtternaJusticeControls etternaJusticeControls;
+    private Container judgementNextGameNotice;
     private SpriteText keyCaptureHint;
     private CancellationTokenSource calibrationRunCancellation;
     private GameplayCalibrationSession calibrationSession;
@@ -117,6 +118,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal bool IsEtternaJusticeControlEnabled =>
         etternaJusticeControls?.IsEnabled
         ?? settings.JudgementMode.Value == JudgementMode.Etterna;
+
+    internal bool ShowsJudgementNextGameNotice =>
+        judgementNextGameNotice != null;
 
     internal bool ShowLanePressFeedback =>
         settings.ShowLanePressFeedback.Value;
@@ -1252,6 +1256,40 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                     : $"J{Math.Round(value):0}")
             {
                 Position = new Vector2(20, 157),
+            },
+            judgementNextGameNotice = new Container
+            {
+                Position = new Vector2(20, 274),
+                Size = new Vector2(800, 36),
+                Masking = true,
+                CornerRadius = 6,
+                Children = new Drawable[]
+                {
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(1f, 0.84f, 0.2f, 0.18f),
+                    },
+                    new SpriteIcon
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        Position = new Vector2(12, 0),
+                        Size = new Vector2(14),
+                        Icon = FontAwesome.Solid.Clock,
+                        Colour = HomeControlColours.Navy,
+                    },
+                    new SpriteText
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        Position = new Vector2(36, 0),
+                        Text = YokkoStrings.Get(
+                            "settings.gameplay.judgement_apply_next_game"),
+                        Font = HomeTypography.Body(14),
+                        Colour = HomeControlColours.Navy,
+                    },
+                },
             },
         });
 

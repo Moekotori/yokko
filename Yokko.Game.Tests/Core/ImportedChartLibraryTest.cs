@@ -423,6 +423,7 @@ public sealed class ImportedChartLibraryTest
             Assert.That(
                 (await library.RefreshExternalOsuAsync()).ChartCount,
                 Is.EqualTo(2));
+            await library.ExternalDifficultyTask;
 
             string firstText = File.ReadAllText(firstPath)
                                    .Replace("Mode: 3", "Mode: 0");
@@ -431,12 +432,12 @@ public sealed class ImportedChartLibraryTest
                 firstPath,
                 DateTime.UtcNow.AddSeconds(2));
 
+            ExternalOsuLibraryResult refreshed =
+                await library.RefreshExternalOsuAsync();
+            await library.ExternalDifficultyTask;
             Assert.Multiple(() =>
             {
-                Assert.That(
-                    library.RefreshExternalOsuAsync().GetAwaiter().GetResult()
-                           .ChartCount,
-                    Is.EqualTo(1));
+                Assert.That(refreshed.ChartCount, Is.EqualTo(1));
                 Assert.That(
                     library.GetCharts().Single().Result.Beatmap.Title,
                     Is.EqualTo("Second"));
@@ -1187,6 +1188,140 @@ public sealed class ImportedChartLibraryTest
                 Assert.That(reloaded.LastManagedCacheHitCount, Is.EqualTo(1));
                 Assert.That(reloaded.LastManagedContentReadCount, Is.EqualTo(1));
             });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ImportAndRemoveSynchroniseManagedIndex()
+    {
+        string root = createTestRoot("managed-import-remove-index");
+        string external = Path.Combine(root, "external");
+        Directory.CreateDirectory(external);
+        try
+        {
+            using var library = new ImportedChartLibrary();
+            library.Initialise(new NativeStorage(root));
+            string retainedDirectory = Path.Combine(library.LibraryPath, "Retained");
+            Directory.CreateDirectory(retainedDirectory);
+            writeOsuChart(retainedDirectory, "Retained", 3);
+            await library.LoadFromDiskAsync(true, true);
+
+            string importedSource = writeOsuChart(external, "Imported", 3);
+            await library.ImportAsync(new ChartImportRequest(importedSource, true));
+            ImportedChart imported = library.GetCharts().Single(chart =>
+                chart.Result.Beatmap.Title == "Imported");
+            Assert.That(
+                (await library.RemoveManagedChartAsync(imported.Id)).RemovedChartCount,
+                Is.EqualTo(1));
+
+            using var reloaded = new ImportedChartLibrary();
+            reloaded.Initialise(new NativeStorage(root));
+            Assert.That(await reloaded.LoadFromDiskAsync(true, true), Is.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(reloaded.GetCharts().Single().Result.Beatmap.Title,
+                    Is.EqualTo("Retained"));
+                Assert.That(reloaded.LastManagedCacheHitCount, Is.EqualTo(1));
+                Assert.That(reloaded.LastManagedContentReadCount, Is.Zero);
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task SameInstanceReloadEvictsMaterialisedManagedChart()
+    {
+        string root = createTestRoot("managed-materialised-reload");
+        try
+        {
+            using var library = new ImportedChartLibrary();
+            library.Initialise(new NativeStorage(root));
+            string directory = Path.Combine(library.LibraryPath, "Chart");
+            Directory.CreateDirectory(directory);
+            string source = writeOsuChart(directory, "Before", 3);
+            await library.LoadFromDiskAsync(true, true);
+            string chartId = library.GetCharts().Single().Id;
+            Assert.That(
+                (await library.GetPlayableBeatmapAsync(chartId)).Title,
+                Is.EqualTo("Before"));
+
+            YokkoBeatmap changed = OsuManiaBeatmapIO.ReadBeatmapFromFile(source) with
+            {
+                Title = "After",
+            };
+            File.WriteAllText(source, OsuManiaBeatmapIO.WriteBeatmap(changed));
+            File.SetLastWriteTimeUtc(source, DateTime.UtcNow.AddSeconds(2));
+            await library.LoadFromDiskAsync(true, true);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(library.LastManagedContentReadCount, Is.EqualTo(1));
+                Assert.That(
+                    library.GetPlayableBeatmap(chartId).Title,
+                    Is.EqualTo("After"));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ChangeLibraryPathUsesOnlyNewIndexAndMaterialisedCharts()
+    {
+        string root = createTestRoot("managed-change-path");
+        string firstPath = Path.Combine(root, "FirstLibrary");
+        string secondPath = Path.Combine(root, "SecondLibrary");
+        Directory.CreateDirectory(firstPath);
+        Directory.CreateDirectory(secondPath);
+        try
+        {
+            string firstDirectory = Path.Combine(firstPath, "First");
+            string secondDirectory = Path.Combine(secondPath, "Second");
+            Directory.CreateDirectory(firstDirectory);
+            Directory.CreateDirectory(secondDirectory);
+            writeOsuChart(firstDirectory, "First", 3);
+            writeOsuChart(secondDirectory, "Second", 3);
+
+            using (var secondIndexer = new ImportedChartLibrary())
+            {
+                secondIndexer.Initialise(secondPath);
+                await secondIndexer.LoadFromDiskAsync(true, true);
+            }
+
+            using var library = new ImportedChartLibrary();
+            library.Initialise(firstPath);
+            await library.LoadFromDiskAsync(true, true);
+            ImportedChart first = library.GetCharts().Single();
+            Assert.That(
+                (await library.GetPlayableBeatmapAsync(first.Id)).Title,
+                Is.EqualTo("First"));
+
+            Assert.That(
+                await library.ChangeLibraryPathAsync(secondPath, true, true),
+                Is.EqualTo(1));
+            ImportedChart second = library.GetCharts().Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(second.Result.Beatmap.Title, Is.EqualTo("Second"));
+                Assert.That(library.LastManagedCacheHitCount, Is.EqualTo(1));
+                Assert.That(library.LastManagedContentReadCount, Is.Zero);
+            });
+            Assert.That(
+                (await library.GetPlayableBeatmapAsync(second.Id)).Title,
+                Is.EqualTo("Second"));
+            Assert.That(library.GetPlayableBeatmap(first.Id), Is.Null);
         }
         finally
         {

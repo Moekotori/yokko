@@ -561,10 +561,8 @@ internal partial class SongSelectSongRow : PoolableDrawable
             9,
             SongSelectTheme.Pink,
             SongSelectTheme.Pink,
-            true)
-        {
-            Alpha = 0,
-        });
+            true));
+        standalonePreviewHint.Alpha = 0;
         children.Add(createFullModePill(entry, 792, 32));
         children.Add(createDifficultyBadge(
             displayedDifficultyRatings,
@@ -1325,6 +1323,13 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                     SongSelectTheme.Navy.G,
                     SongSelectTheme.Navy.B,
                     0.68f)),
+            label(
+                "PREVIEWING  ·  ENTER TO PLAY",
+                contentStart,
+                76,
+                360,
+                9,
+                SongSelectTheme.Pink),
             new Container
             {
                 Position = new Vector2(contentStart, 108),

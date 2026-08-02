@@ -368,6 +368,43 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestJudgementPreferenceChangesApplyNextPlay()
+        {
+            GameplayScreen gameplay = null;
+            JudgementMode originalMode = JudgementMode.Yokko;
+            double originalJustice =
+                JudgementConfiguration.DefaultEtternaJustice;
+
+            AddStep("start play with Yokko judgement", () =>
+            {
+                originalMode = gameplaySettings.JudgementMode.Value;
+                originalJustice = gameplaySettings.EtternaJustice.Value;
+                gameplaySettings.JudgementMode.Value = JudgementMode.Yokko;
+                gameplaySettings.SetEtternaJustice(
+                    JudgementConfiguration.DefaultEtternaJustice);
+                screenStack.Push(gameplay = new GameplayScreen(
+                    DemoBeatmaps.CreateFourKeyDemo()));
+            });
+            AddUntilStep("starting judgement is loaded", () =>
+                gameplay?.ActiveJudgementWindows != null);
+            AddStep("change saved judgement during play", () =>
+            {
+                gameplaySettings.JudgementMode.Value = JudgementMode.Etterna;
+                gameplaySettings.SetEtternaJustice(8);
+            });
+            AddAssert("current play keeps starting judgement", () =>
+                gameplay.ActiveJudgementConfiguration.Mode
+                    == JudgementMode.Yokko
+                && gameplay.ActiveJudgementWindows.Configuration.Mode
+                    == JudgementMode.Yokko);
+            AddStep("restore judgement preference", () =>
+            {
+                gameplaySettings.JudgementMode.Value = originalMode;
+                gameplaySettings.SetEtternaJustice(originalJustice);
+            });
+        }
+
+        [Test]
         public void TestWindUpAdvancesFrameClockAndHudRate()
         {
             GameplayScreen gameplay = null;

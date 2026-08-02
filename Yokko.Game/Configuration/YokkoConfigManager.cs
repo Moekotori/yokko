@@ -883,9 +883,16 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.ManiaModConfiguration,
             preferences.SerializedConfiguration);
-        BindWith(
-            YokkoSetting.ManiaActiveMods,
-            preferences.SerializedActiveMods);
+
+        // Active Mods are session-only. Keep their configurable values above,
+        // but always begin a new game launch with every Mod disabled and clear
+        // selections persisted by older versions.
+        preferences.SerializedActiveMods.Value = string.Empty;
+        if (!string.IsNullOrEmpty(Get<string>(YokkoSetting.ManiaActiveMods)))
+        {
+            SetValue(YokkoSetting.ManiaActiveMods, string.Empty);
+            Save();
+        }
     }
 
     public void BindSkinSettings(YokkoSkinSettings settings)

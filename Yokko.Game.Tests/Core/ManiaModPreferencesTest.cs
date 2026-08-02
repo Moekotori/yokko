@@ -133,7 +133,7 @@ public sealed class ManiaModPreferencesTest
     }
 
     [Test]
-    public void ActiveModsPersistUntilUserDisablesThem()
+    public void ActiveModsResetAcrossConfigInstances()
     {
         string directory = Path.Combine(
             TestContext.CurrentContext.WorkDirectory,
@@ -155,6 +155,12 @@ public sealed class ManiaModPreferencesTest
                             0.82,
                             true)
                         .With(ManiaModId.Hidden, true));
+                Assert.That(
+                    first.RestoreActiveMods().IsEmpty,
+                    Is.False);
+                config.SetValue(
+                    YokkoSetting.ManiaActiveMods,
+                    first.SerializedActiveMods.Value);
                 Assert.That(config.Save(), Is.True);
             }
 
@@ -167,38 +173,10 @@ public sealed class ManiaModPreferencesTest
 
                 Assert.Multiple(() =>
                 {
+                    Assert.That(active, Is.EqualTo(ManiaModSet.Empty));
                     Assert.That(
-                        active.Contains(ManiaModId.HalfTime),
-                        Is.True);
-                    Assert.That(
-                        active.Contains(ManiaModId.Hidden),
-                        Is.True);
-                    Assert.That(
-                        active.FixedRateSpeedChange,
-                        Is.EqualTo(0.82));
-                    Assert.That(active.FixedRateAdjustPitch, Is.True);
-                });
-
-                restored.RememberActiveMods(
-                    active.With(ManiaModId.HalfTime, false));
-                Assert.That(config.Save(), Is.True);
-            }
-
-            using (var config =
-                   new YokkoConfigManager(new NativeStorage(directory)))
-            {
-                var restored = new YokkoManiaModPreferences();
-                config.BindModPreferences(restored);
-                ManiaModSet active = restored.RestoreActiveMods();
-
-                Assert.Multiple(() =>
-                {
-                    Assert.That(
-                        active.Contains(ManiaModId.HalfTime),
-                        Is.False);
-                    Assert.That(
-                        active.Contains(ManiaModId.Hidden),
-                        Is.True);
+                        config.Get<string>(YokkoSetting.ManiaActiveMods),
+                        Is.Empty);
                 });
             }
         }

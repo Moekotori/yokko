@@ -10,8 +10,8 @@ using Yokko.Core.Mods;
 namespace Yokko.Game.Gameplay;
 
 /// <summary>
-/// Global Mania Mod memory. Keeps the active selection across song changes and
-/// restarts, as well as each configurable Mod's last valid settings.
+/// Global Mania Mod memory. Keeps the active selection across song changes in
+/// the current session, as well as each configurable Mod's last valid settings.
 /// </summary>
 internal sealed class YokkoManiaModPreferences
 {

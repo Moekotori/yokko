@@ -348,7 +348,8 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                    && Math.Abs(rows[4].X - 18) < 0.05f
                    && rows[0].SelectionIndent == 4
                    && rows[2].SelectionIndent == 0
-                   && Math.Abs(rows[0].X + rows[0].Width - 850) < 0.05f;
+                   && Math.Abs(rows[0].X + rows[0].Width
+                               - SongSelectSongRow.RowWidth) < 0.05f;
         });
         AddStep("select final package row", () =>
             list.UpdateSelection(entries[4]));
@@ -627,10 +628,21 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
             SongSelectArtworkCrop.CalculateCoverSize(
                 Vector2.Zero,
                 new Vector2(76)) == new Vector2(76));
+        AddAssert("landscape artwork fits wide frame without cropping", () =>
+        {
+            Vector2 source = new(1920, 1080);
+            Vector2 result = SongSelectArtworkCrop.CalculateFitSize(
+                source,
+                SongSelectSongRow.StandaloneArtworkSize);
+            return result.X <= SongSelectSongRow.StandaloneArtworkSize.X
+                   && result.Y <= SongSelectSongRow.StandaloneArtworkSize.Y
+                   && Math.Abs(result.X / result.Y
+                               - source.X / source.Y) < 0.0001f;
+        });
     }
 
     [Test]
-    public void TestStandaloneSongUsesSquareArtworkFrame()
+    public void TestStandaloneSongUsesWideArtworkFrame()
     {
         SongSelectEntry standalone = entries[0] with
         {
@@ -647,9 +659,9 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
         ]));
         AddUntilStep("standalone row actualised", () =>
             list.MaterialisedRows.Count() == 1);
-        AddAssert("standalone cover frame is square", () =>
+        AddAssert("standalone cover frame is wide", () =>
             list.MaterialisedRows.Single().StandaloneArtworkFrameSize
-            == new Vector2(84));
+            == SongSelectSongRow.StandaloneArtworkSize);
     }
 
     [Test]
@@ -680,23 +692,24 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
         AddUntilStep("header and child actualised", () =>
             list.MaterialisedHeaders.Count() == 1
             && list.MaterialisedRows.Count() == 1);
-        AddAssert("package cover frame is square", () =>
+        AddAssert("package cover frame preserves wide artwork", () =>
         {
             SongSelectPackageHeader header =
                 list.MaterialisedHeaders.Single();
-            return header.ArtworkFrameSize == new Vector2(148)
-                   && header.ArtworkImageFrameSize == new Vector2(138)
+            return header.ArtworkFrameSize == new Vector2(228, 132)
+                   && header.ArtworkImageFrameSize
+                      == SongSelectSongRow.StandaloneArtworkSize
                    && Math.Abs(header.ArtworkImageCornerRadius - 8) < 0.05f;
         });
         AddAssert("expanded package actions share the trailing rail", () =>
         {
             SongSelectPackageHeader header =
                 list.MaterialisedHeaders.Single();
-            return Math.Abs(header.PackageContentStart - 172) < 0.05f
+            return Math.Abs(header.PackageContentStart - 244) < 0.05f
                    && header.FavouriteIconAnchor == Anchor.TopRight
                    && header.FavouriteIconPosition == new Vector2(-18, 8)
                    && header.ChevronFrameAnchor == Anchor.TopRight
-                   && header.ChevronFramePosition == new Vector2(-11, 112);
+                   && header.ChevronFramePosition == new Vector2(-11, 96);
         });
         AddAssert("expanded header exposes a quiet guide stem", () =>
         {
@@ -787,15 +800,15 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
         });
         AddUntilStep("compact header actualised", () =>
             list.MaterialisedHeaders.Count() == 1);
-        AddAssert("collapsed header preserves a square compact cover", () =>
+        AddAssert("collapsed header preserves the complete wide artwork", () =>
         {
             SongSelectPackageHeader header =
                 list.MaterialisedHeaders.Single();
             return Math.Abs(header.Height
                             - SongSelectPackageHeader.CollapsedHeight) < 0.05f
-                   && header.ArtworkFrameSize == new Vector2(
-                       SongSelectPackageHeader.CollapsedHeight)
-                   && header.ArtworkImageFrameSize == new Vector2(98)
+                   && header.ArtworkFrameSize == new Vector2(228, 132)
+                   && header.ArtworkImageFrameSize
+                      == SongSelectSongRow.StandaloneArtworkSize
                    && Math.Abs(header.ArtworkImageCornerRadius - 8) < 0.05f;
         });
         AddAssert("long package title stays on one truncating line", () =>
@@ -804,11 +817,11 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                 list.MaterialisedHeaders.Single();
             return header.PackageTitleLineCount == 1
                    && header.PackageTitleUsesTruncation
-                   && Math.Abs(header.PackageContentStart - 132) < 0.05f
+                   && Math.Abs(header.PackageContentStart - 244) < 0.05f
                    && header.FavouriteIconAnchor == Anchor.TopRight
                    && header.FavouriteIconPosition == new Vector2(-18, 8)
                    && header.ChevronFrameAnchor == Anchor.TopRight
-                   && header.ChevronFramePosition == new Vector2(-11, 72)
+                   && header.ChevronFramePosition == new Vector2(-11, 96)
                    && header.PackageSummaryAlpha > 0.99f
                    && header.SelectedSummaryAlpha < 0.01f
                    && list.ItemCount == 1;

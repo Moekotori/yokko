@@ -88,34 +88,41 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             && modsScreen.SelectedMods.Contains(ManiaModId.Hidden));
         AddAssert("reset is enabled for active mods", () =>
             modsScreen.ResetEnabled);
-        AddStep("Enter removes focused Half Time", () =>
+        AddStep("Enter advances focused Half Time to Daycore", () =>
             modsScreen.HandleInteractionKey(Key.Enter));
-        AddAssert("Enter acts on focus instead of closing", () =>
-            !modsScreen.SelectedMods.Contains(ManiaModId.HalfTime));
+        AddAssert("Enter advances the shared slow-rate switch", () =>
+            !modsScreen.SelectedMods.Contains(ManiaModId.HalfTime)
+            && modsScreen.SelectedMods.Contains(ManiaModId.Daycore));
+        AddStep("Enter turns the shared slow-rate switch off", () =>
+            modsScreen.HandleInteractionKey(Key.Enter));
+        AddAssert("second Enter removes Daycore", () =>
+            !modsScreen.SelectedMods.Contains(ManiaModId.HalfTime)
+            && !modsScreen.SelectedMods.Contains(ManiaModId.Daycore));
         AddStep("Enter restores focused Half Time", () =>
             modsScreen.HandleInteractionKey(Key.Enter));
         AddAssert("focused Half Time is active again", () =>
             modsScreen.SelectedMods.Contains(ManiaModId.HalfTime));
-        AddStep("plus adjusts focused rate", () =>
-            modsScreen.HandleInteractionKey(Key.Plus));
-        AddAssert("keyboard rate adjustment is precise", () =>
-            modsScreen.SelectedMods.FixedRateSpeedChange == 0.76);
-        AddStep("configure Half Time", () =>
-        {
-            modsScreen.SetFixedRateSpeedChange(0.80);
-            modsScreen.SetFixedRateAdjustPitch(true);
-        });
-        AddAssert("fixed-rate configuration reaches page state", () =>
-            modsScreen.SelectedMods.PlaybackRate == 0.80
-            && modsScreen.SelectedMods.FixedRateAdjustPitch);
+        AddStep("plus does not adjust fixed Half Time", () =>
+            Assert.That(
+                modsScreen.HandleInteractionKey(Key.Plus),
+                Is.False));
+        AddAssert("Half Time stays canonical without settings", () =>
+            modsScreen.SelectedMods.FixedRateSpeedChange == 0.75
+            && !modsScreen.SelectedMods.FixedRateAdjustPitch);
         AddStep("preview configurable mod", () =>
             modsScreen.ToggleMod(ManiaModId.AccuracyChallenge));
-        AddWaitStep("wait for visible configuration panel", 10);
-        AddAssert("config panel owns the settings row", () =>
-            modsScreen.SettingsHost.ActivePage
-            == ManiaModId.AccuracyChallenge
-            && !modsScreen.DetailHintVisible
-            && modsScreen.OrbitSettingsPanelVisible);
+        AddWaitStep("wait for compact accuracy control", 10);
+        AddAssert("Accuracy Challenge stays in the hero", () =>
+            modsScreen.OrbitAccuracyControlVisible
+            && modsScreen.OrbitAccuracyValueText == "90.0%"
+            && !modsScreen.OrbitSettingsPanelVisible);
+        AddStep("adjust compact accuracy target", () =>
+            modsScreen.SetAccuracyChallengeMinimum(0.975));
+        AddAssert("compact accuracy reaches page state", () =>
+            modsScreen.SelectedMods.AccuracyChallengeMinimum == 0.975
+            && modsScreen.SelectedMods.AccuracyChallengeMode
+               == ManiaAccuracyMode.MaximumAchievable
+            && modsScreen.OrbitAccuracyValueText == "97.5%");
         AddStep("preview plain mod", () =>
             modsScreen.ToggleMod(ManiaModId.Easy));
         AddWaitStep("wait for hidden slider state", 10);
@@ -185,11 +192,11 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddStep("commit final page selection", modsScreen.CommitSelection);
         AddAssert("page commits to Song Select once requested", () =>
             observedMods.Mods.Count == 0);
-        AddStep("prepare inactive Half Time slider", () =>
+        AddStep("prepare inactive Daycore slider", () =>
         {
             modsScreen.SetCategory(
                 ManiaModCategory.DifficultyReduction);
-            modsScreen.ToggleMod(ManiaModId.HalfTime);
+            modsScreen.ToggleMod(ManiaModId.Daycore);
             modsScreen.ResetMods();
             commitsBeforePreview = observedCommitCount;
         });
@@ -202,7 +209,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.PreviewFixedRateSpeedChange(0.82));
         AddAssert("drag is immediate and does not rebuild Song Select", () =>
             modsScreen.SelectedMods.FixedRateMod
-            == ManiaModId.HalfTime
+            == ManiaModId.Daycore
             && modsScreen.SelectedMods.FixedRateSpeedChange == 0.82
             && observedCommitCount == commitsBeforePreview);
         AddStep("finish slider interaction", () =>
@@ -213,7 +220,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.CommitSelection);
         AddAssert("page handoff commits the final rate once", () =>
             observedCommitCount == commitsBeforePreview + 1
-            && observedMods.FixedRateMod == ManiaModId.HalfTime
+            && observedMods.FixedRateMod == ManiaModId.Daycore
             && observedMods.FixedRateSpeedChange == 0.82);
     }
 
@@ -242,7 +249,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     }
 
     [Test]
-    public void TestLazerVisibilitySettingsAreConfigurableAndRemembered()
+    public void TestCoverSettingsRemainWhileFlashlightStaysSimple()
     {
         AddStep("clear visibility preferences", () =>
         {
@@ -266,18 +273,10 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
                == ManiaCoverDirection.AgainstScroll);
         AddStep("replace with Flashlight", () =>
             modsScreen.ToggleMod(ManiaModId.Flashlight));
-        AddAssert("Flashlight opens configuration page", () =>
-            modsScreen.SettingsHost.ActivePage
-            == ManiaModId.Flashlight);
-        AddStep("configure Flashlight", () =>
-        {
-            modsScreen.SetFlashlightSizeMultiplier(1.8);
-            modsScreen.SetFlashlightComboBasedSize(true);
-        });
-        AddAssert("Flashlight settings reach session", () =>
+        AddWaitStep("wait for Flashlight simple state", 10);
+        AddAssert("Flashlight does not open a settings page", () =>
             modsScreen.SelectedMods.Contains(ManiaModId.Flashlight)
-            && modsScreen.SelectedMods.FlashlightSizeMultiplier == 1.8
-            && modsScreen.SelectedMods.FlashlightComboBasedSize);
+            && !modsScreen.OrbitSettingsPanelVisible);
         AddStep("restore Cover", () =>
             modsScreen.ToggleMod(ManiaModId.Cover));
         AddAssert("Cover preference is restored independently", () =>
@@ -420,12 +419,43 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.SetCategory(
                 ManiaModCategory.DifficultyReduction));
         AddAssert("reduction page excludes increase mods", () =>
-            modsScreen.VisibleOrbitModCount == 5
+            modsScreen.VisibleOrbitModCount == 4
             && modsScreen.IsOrbitModVisible(ManiaModId.Easy)
             && modsScreen.IsOrbitModVisible(ManiaModId.HalfTime)
-            && modsScreen.IsOrbitModVisible(ManiaModId.Daycore)
+            && !modsScreen.IsOrbitModVisible(ManiaModId.Daycore)
+            && modsScreen.OrbitRepresentsMod(ManiaModId.Daycore)
             && !modsScreen.IsOrbitModVisible(ManiaModId.HardRock)
             && !modsScreen.IsOrbitModVisible(ManiaModId.SuddenDeath));
+
+        AddStep("cycle shared slow-rate switch", () =>
+        {
+            modsScreen.ResetMods();
+            modsScreen.CycleOrbitMod(ManiaModId.HalfTime);
+        });
+        AddWaitStep("wait for fixed Half Time presentation", 10);
+        AddAssert("slow-rate switch starts with fixed Half Time", () =>
+            modsScreen.SelectedMods.Contains(ManiaModId.HalfTime)
+            && modsScreen.SelectedMods.PlaybackRate == 0.75
+            && !modsScreen.OrbitSettingsPanelVisible
+            && this.ChildrenOfType<OrbitModNode>()
+                .Single(node => node.ModId == ManiaModId.HalfTime)
+                .FamilyIndicatorText == "1/2");
+        AddStep("cycle slow-rate switch to Daycore", () =>
+            modsScreen.CycleOrbitMod(ManiaModId.HalfTime));
+        AddWaitStep("wait for Daycore settings", 10);
+        AddAssert("Daycore replaces Half Time in the shared switch", () =>
+            !modsScreen.SelectedMods.Contains(ManiaModId.HalfTime)
+            && modsScreen.SelectedMods.Contains(ManiaModId.Daycore)
+            && modsScreen.DetailMod == ManiaModId.Daycore
+            && modsScreen.OrbitSettingsPanelVisible
+            && this.ChildrenOfType<OrbitModNode>()
+                .Single(node => node.ModId == ManiaModId.HalfTime)
+                .FamilyIndicatorText == "2/2");
+        AddStep("cycle slow-rate switch off", () =>
+            modsScreen.CycleOrbitMod(ManiaModId.HalfTime));
+        AddAssert("shared slow-rate switch turns off after Daycore", () =>
+            !modsScreen.SelectedMods.Contains(ManiaModId.HalfTime)
+            && !modsScreen.SelectedMods.Contains(ManiaModId.Daycore));
 
         AddStep("show difficulty increase", () =>
             modsScreen.SetCategory(
@@ -561,6 +591,9 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.SelectedMods.Contains(ManiaModId.DoubleTime)
             && modsScreen.SelectedMods.FixedRateSpeedChange == 1.5
             && !modsScreen.SelectedMods.Contains(ManiaModId.Nightcore));
+        AddWaitStep("wait for Double Time simple state", 10);
+        AddAssert("Double Time does not open a settings page", () =>
+            !modsScreen.OrbitSettingsPanelVisible);
         AddStep("cycle Double Time to Nightcore", () =>
             modsScreen.ToggleMod(ManiaModId.DoubleTime));
         AddAssert("second press enables Nightcore", () =>
@@ -577,6 +610,46 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             && !modsScreen.SelectedMods.Contains(ManiaModId.Nightcore));
         AddStep("clear Double Time preference fixture", () =>
             modPreferences.SerializedConfiguration.Value = string.Empty);
+    }
+
+    [Test]
+    public void TestSimpleIncreaseModsAvoidLargeSettingsPanel()
+    {
+        AddStep("prepare difficulty increase", () =>
+        {
+            modPreferences.SerializedConfiguration.Value = string.Empty;
+            modsScreen.ResetMods();
+            modsScreen.SetCategory(ManiaModCategory.DifficultyIncrease);
+        });
+        AddStep("enable and focus Perfect", () =>
+        {
+            modsScreen.ToggleMod(ManiaModId.Perfect);
+            modsScreen.FocusOrbitModForTest(ManiaModId.Perfect);
+        });
+        AddWaitStep("settle Perfect state", 10);
+        AddAssert("Perfect has no large settings panel", () =>
+            modsScreen.SelectedMods.Contains(ManiaModId.Perfect)
+            && !modsScreen.OrbitSettingsPanelVisible);
+        AddStep("replace with Flashlight", () =>
+        {
+            modsScreen.ToggleMod(ManiaModId.Flashlight);
+            modsScreen.FocusOrbitModForTest(ManiaModId.Flashlight);
+        });
+        AddWaitStep("settle Flashlight state", 10);
+        AddAssert("Flashlight has no large settings panel", () =>
+            modsScreen.SelectedMods.Contains(ManiaModId.Flashlight)
+            && !modsScreen.OrbitSettingsPanelVisible);
+        AddStep("enable and focus No Pause", () =>
+        {
+            modsScreen.ToggleMod(ManiaModId.NoPause);
+            modsScreen.FocusOrbitModForTest(ManiaModId.NoPause);
+            modsScreen.SetNoPauseAllowedPauses(2);
+        });
+        AddWaitStep("settle No Pause compact control", 10);
+        AddAssert("No Pause uses only its compact control", () =>
+            modsScreen.SelectedMods.NoPauseAllowedPauses == 2
+            && modsScreen.OrbitNoPauseControlVisible
+            && !modsScreen.OrbitSettingsPanelVisible);
     }
 
     [Test]

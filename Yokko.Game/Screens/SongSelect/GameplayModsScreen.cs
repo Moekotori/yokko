@@ -188,6 +188,12 @@ internal partial class GameplayModsScreen : Screen
         orbitWorkspace?.CapacityTelemetryText ?? string.Empty;
     internal bool OrbitSettingsPanelVisible =>
         orbitWorkspace?.SettingsPanelVisible == true;
+    internal bool OrbitAccuracyControlVisible =>
+        orbitWorkspace?.AccuracyChallengeControlVisible == true;
+    internal string OrbitAccuracyValueText =>
+        orbitWorkspace?.AccuracyChallengeValueText ?? string.Empty;
+    internal bool OrbitNoPauseControlVisible =>
+        orbitWorkspace?.NoPauseControlVisible == true;
     internal bool IsPageTransitioning => pageTransitioning;
     internal float OrbitContentX => orbitWorkspace?.OrbitContentX ?? 335;
     internal string SearchQuery => searchQuery;
@@ -246,8 +252,9 @@ internal partial class GameplayModsScreen : Screen
                              NavigateToCategoryPage,
                              ToggleMod,
                              CycleOrbitModFamily,
-                             FocusOrbitMod,
+                            FocusOrbitMod,
                             SetNoPauseAllowedPauses,
+                            SetAccuracyChallengeMinimum,
                             PreviewGlobalRate,
                             CompleteFixedRateInteraction,
                              ResetMods,
@@ -260,7 +267,7 @@ internal partial class GameplayModsScreen : Screen
                              settingsHost,
                              category => definitionsFor(category),
                              isSelectable,
-                             isConfigurable)
+                             hasLargeSettingsPanel)
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
@@ -474,7 +481,8 @@ internal partial class GameplayModsScreen : Screen
                 return true;
 
             case Key.P:
-                if (isPitchAdjustableFixedRate(detailMod)
+                if (hasFixedRateSettings(detailMod)
+                    && isPitchAdjustableFixedRate(detailMod)
                     && selectedMods.FixedRateMod == detailMod)
                 {
                     SetFixedRateAdjustPitch(
@@ -783,12 +791,19 @@ internal partial class GameplayModsScreen : Screen
         selectedMods = appliedMod == ManiaModId.Random && enabled
             ? selectedMods.WithRandomSeed(Random.Shared.Next())
             : selectedMods.With(appliedMod, enabled);
-        if (enabled)
+        if (enabled && isConfigurable(appliedMod))
             selectedMods = modPreferences?.Apply(
                 selectedMods,
                 appliedMod) ?? selectedMods;
 
-        if (enabled && isConfigurable(appliedMod))
+        if (enabled && appliedMod == ManiaModId.AccuracyChallenge)
+        {
+            selectedMods = selectedMods.WithAccuracyChallenge(
+                selectedMods.AccuracyChallengeMinimum,
+                ManiaAccuracyMode.MaximumAchievable);
+        }
+
+        if (enabled && hasLargeSettingsPanel(appliedMod))
             settingsHost.Show(appliedMod);
 
         orbitWorkspace?.QueueModTransition(
@@ -838,7 +853,7 @@ internal partial class GameplayModsScreen : Screen
             selectedMods = modPreferences?.Apply(
                 selectedMods,
                 nextMod) ?? selectedMods;
-            if (isConfigurable(nextMod))
+            if (hasLargeSettingsPanel(nextMod))
                 settingsHost.Show(nextMod);
         }
 
@@ -861,7 +876,7 @@ internal partial class GameplayModsScreen : Screen
     {
         selectedMods = selectedMods.WithAccuracyChallenge(
             value,
-            selectedMods.AccuracyChallengeMode);
+            ManiaAccuracyMode.MaximumAchievable);
         updateSelection();
     }
 
@@ -2334,8 +2349,8 @@ internal partial class GameplayModsScreen : Screen
         detailBadge.BorderThickness = active ? 2.2f : 1.5f;
         detailName.Colour = HomeControlColours.Navy;
 
-        bool fixedRateMod = isFixedRateMod(mod);
-        bool configurable = isConfigurable(mod) && !fixedRateMod;
+        bool fixedRateMod = hasFixedRateSettings(mod);
+        bool configurable = hasLargeSettingsPanel(mod) && !fixedRateMod;
         settingsHeader.Text = configurable
             ? active
                 ? "SETTINGS · ACTIVE"
@@ -2585,7 +2600,7 @@ internal partial class GameplayModsScreen : Screen
 
     internal void PreviewFixedRateSpeedChange(double value)
     {
-        if (!isFixedRateMod(detailMod))
+        if (!hasFixedRateSettings(detailMod))
             return;
 
         ManiaModId mod = detailMod;
@@ -2633,7 +2648,7 @@ internal partial class GameplayModsScreen : Screen
 
     private bool adjustFocusedFixedRate(double delta)
     {
-        if (!isFixedRateMod(detailMod))
+        if (!hasFixedRateSettings(detailMod))
             return false;
 
         double minimum = isSlowFixedRateMod(detailMod) ? 0.5 : 1.01;
@@ -2672,15 +2687,11 @@ internal partial class GameplayModsScreen : Screen
 
     private static bool isConfigurable(ManiaModId mod) =>
         mod is ManiaModId.NoPause
-            or ManiaModId.Perfect
             or ManiaModId.AccuracyChallenge
             or ManiaModId.DifficultyAdjust
             or ManiaModId.Muted
             or ManiaModId.Cover
-            or ManiaModId.Flashlight
-            or ManiaModId.HalfTime
             or ManiaModId.Daycore
-            or ManiaModId.DoubleTime
             or ManiaModId.Nightcore
             or ManiaModId.WindUp
             or ManiaModId.WindDown
@@ -2688,6 +2699,11 @@ internal partial class GameplayModsScreen : Screen
             or ManiaModId.Random
             or ManiaModId.DualStages
         || isKeyConversionMod(mod);
+
+    private static bool hasLargeSettingsPanel(ManiaModId mod) =>
+        isConfigurable(mod)
+        && mod is not ManiaModId.AccuracyChallenge
+            and not ManiaModId.NoPause;
 
     private static bool isKeyConversionMod(ManiaModId mod) =>
         mod is >= ManiaModId.Key1 and <= ManiaModId.Key10;
@@ -2706,6 +2722,9 @@ internal partial class GameplayModsScreen : Screen
             or ManiaModId.Daycore
             or ManiaModId.DoubleTime
             or ManiaModId.Nightcore;
+
+    private static bool hasFixedRateSettings(ManiaModId mod) =>
+        mod is ManiaModId.Daycore or ManiaModId.Nightcore;
 
     private static bool isSlowFixedRateMod(ManiaModId mod) =>
         mod is ManiaModId.HalfTime or ManiaModId.Daycore;

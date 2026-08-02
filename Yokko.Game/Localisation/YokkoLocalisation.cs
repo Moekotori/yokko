@@ -1889,6 +1889,10 @@ internal static class YokkoStrings
                 "Switch between osu!lazer, osu!stable ScoreV1, and Etterna judgement rules.",
                 "在 osu!lazer、osu!stable ScoreV1 与 Etterna 判定规则间切换。",
                 "osu!lazer、osu!stable ScoreV1、Etterna の判定ルールを切り替えます。"),
+            ["settings.gameplay.judgement_apply_next_game"] = new(
+                "Changes are saved now and apply next play. The current play keeps its starting rules.",
+                "更改会立即保存，并从下一局开始生效；当前局继续沿用开局时的判定规则。",
+                "変更はすぐ保存され、次のプレイから反映されます。現在のプレイの判定は変わりません。"),
             ["settings.gameplay.judgement_yokko"] = new(
                 "osu!lazer",
                 "osu!lazer",
