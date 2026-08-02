@@ -144,6 +144,12 @@ namespace Yokko.Game
                     Content.DrawSize,
                     gameplaySettings.LayoutPerformanceReadoutOffsetX.Value,
                     gameplaySettings.LayoutPerformanceReadoutOffsetY.Value);
+            performanceReadout.Alpha = showPerformanceReadout.Value
+                                       && gameplaySettings
+                                           .LayoutPerformanceReadoutVisible
+                                           .Value >= 0.5
+                ? 1
+                : 0;
         }
 
         protected override void LoadComplete()

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -229,19 +230,13 @@ internal partial class GameplayLayoutEditorOverlay
 
         foreach (LayoutTransformTarget target in allTargets())
         {
-            target.SetEditorHidden(false);
+            target.SetEditorHidden(!isLayoutElementVisible(target.Kind));
             target.SetLocked(false);
             target.SetAspectLocked(false);
         }
 
-        applyElementAlpha(LayoutElementKind.Playfield, false);
-        applyElementAlpha(LayoutElementKind.Accuracy, false);
-        applyElementAlpha(LayoutElementKind.Progress, false);
-        applyElementAlpha(LayoutElementKind.Information, false);
-        applyElementAlpha(LayoutElementKind.TimingBar, false);
-        applyElementAlpha(LayoutElementKind.Combo, false);
-        applyElementAlpha(LayoutElementKind.Judgement, false);
-        applyElementAlpha(LayoutElementKind.PerformanceReadout, false);
+        foreach (LayoutTransformTarget target in allTargets())
+            applyElementAlpha(target.Kind, target.EditorHidden);
         nudgeStep = 1;
         inspector.SetStep(nudgeStep);
         clearSnapGuides();
@@ -251,21 +246,14 @@ internal partial class GameplayLayoutEditorOverlay
     {
         foreach (LayoutTransformTarget target in allTargets())
         {
-            target.SetEditorHidden(false);
             target.SetLocked(false);
             target.SetAspectLocked(false);
         }
 
         setComboEditorPreview(false);
         setJudgementEditorPreview(false);
-        restoreOriginalAlpha(LayoutElementKind.Playfield);
-        restoreOriginalAlpha(LayoutElementKind.Accuracy);
-        restoreOriginalAlpha(LayoutElementKind.Progress);
-        restoreOriginalAlpha(LayoutElementKind.Information);
-        restoreOriginalAlpha(LayoutElementKind.TimingBar);
-        restoreOriginalAlpha(LayoutElementKind.Combo);
-        restoreOriginalAlpha(LayoutElementKind.Judgement);
-        restoreOriginalAlpha(LayoutElementKind.PerformanceReadout);
+        foreach (LayoutTransformTarget target in allTargets())
+            applyElementAlpha(target.Kind, target.EditorHidden);
         clearSnapGuides();
     }
 
@@ -329,6 +317,11 @@ internal partial class GameplayLayoutEditorOverlay
     private void setLayerHidden(LayoutElementKind kind, bool hidden)
     {
         LayoutTransformTarget target = targetFor(kind);
+        if (target.EditorHidden == hidden)
+            return;
+
+        beginChange();
+        setLayoutElementVisible(kind, !hidden);
         target.SetEditorHidden(hidden);
         applyElementAlpha(kind, hidden);
         inspector.SetLayerState(
@@ -337,6 +330,29 @@ internal partial class GameplayLayoutEditorOverlay
             target.EditorHidden,
             target.AspectLocked);
     }
+
+    private bool isLayoutElementVisible(LayoutElementKind kind) =>
+        visibilitySetting(kind).Value >= 0.5;
+
+    private void setLayoutElementVisible(
+        LayoutElementKind kind,
+        bool visible) =>
+        visibilitySetting(kind).Value = visible ? 1 : 0;
+
+    private Bindable<double> visibilitySetting(LayoutElementKind kind) =>
+        kind switch
+        {
+            LayoutElementKind.Playfield => settings.LayoutPlayfieldVisible,
+            LayoutElementKind.Accuracy => settings.LayoutAccuracyVisible,
+            LayoutElementKind.Progress => settings.LayoutProgressVisible,
+            LayoutElementKind.Information => settings.LayoutInformationVisible,
+            LayoutElementKind.TimingBar => settings.LayoutTimingBarVisible,
+            LayoutElementKind.Combo => settings.LayoutComboVisible,
+            LayoutElementKind.Judgement => settings.LayoutJudgementVisible,
+            LayoutElementKind.PerformanceReadout =>
+                settings.LayoutPerformanceReadoutVisible,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        };
 
     private void applyElementAlpha(LayoutElementKind kind, bool hidden)
     {
@@ -361,6 +377,8 @@ internal partial class GameplayLayoutEditorOverlay
         {
             drawable.Alpha = hidden
                 ? 0
+                : kind == LayoutElementKind.PerformanceReadout
+                    ? 1
                 : kind == LayoutElementKind.TimingBar
                     ? liveSettings.ShowTimingBar() ? 1 : 0
                 : kind is LayoutElementKind.Combo

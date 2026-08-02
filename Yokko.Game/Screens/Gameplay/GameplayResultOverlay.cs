@@ -780,7 +780,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
     private Drawable createTimingStrip()
     {
-        GameplayTimingSummary timing = presentation.Timing;
+        GameplayTimingStatistics timing = presentation.Timing;
         return new Container
         {
             Position = new Vector2(contentLeft, 652),
@@ -795,37 +795,44 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Alpha = 0.42f,
                 },
                 createInlineDatum(
-                    "EARLY",
-                    timing?.EarlyCount.ToString(CultureInfo.InvariantCulture)
-                        ?? "—",
+                    "FAST",
+                    formatDirectionalTiming(
+                        timing?.EarlyCount,
+                        timing?.EarlyAverageMilliseconds),
                     18,
-                    ResultColours.Cyan),
+                    ResultColours.Cyan,
+                    56),
                 createInlineDatum(
                     "ON TIME",
                     timing?.OnTimeCount.ToString(CultureInfo.InvariantCulture)
                         ?? "—",
-                    190,
-                    ResultColours.Cyan),
+                    225,
+                    ResultColours.Cyan,
+                    84),
                 createInlineDatum(
                     "LATE",
-                    timing?.LateCount.ToString(CultureInfo.InvariantCulture)
-                        ?? "—",
-                    390,
-                    ResultColours.Pink),
+                    formatDirectionalTiming(
+                        timing?.LateCount,
+                        timing?.LateAverageMilliseconds),
+                    420,
+                    ResultColours.Pink,
+                    54),
                 createInlineDatum(
                     "MEAN",
                     timing == null
                         ? "—"
                         : $"{timing.MeanMilliseconds:+0.0;-0.0;0.0} ms",
-                    560,
-                    ResultColours.Navy),
+                    620,
+                    ResultColours.Navy,
+                    70),
                 createInlineDatum(
                     "UR",
                     timing?.UnstableRate.ToString(
                         "0.0",
                         CultureInfo.InvariantCulture) ?? "—",
                     810,
-                    ResultColours.Pink),
+                    ResultColours.Pink,
+                    44),
             },
         };
     }
@@ -834,7 +841,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         string label,
         string value,
         float x,
-        Color4 colour) =>
+        Color4 colour,
+        float valueX = 74) =>
         new Container
         {
             Position = new Vector2(x, 14),
@@ -849,13 +857,30 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 },
                 new SpriteText
                 {
-                    X = 74,
+                    X = valueX,
                     Text = value,
                     Font = HomeTypography.Display(19),
                     Colour = ResultColours.Navy,
                 },
             },
         };
+
+    private static string formatDirectionalTiming(
+        int? count,
+        double? averageMilliseconds)
+    {
+        if (count is null)
+            return "—";
+        if (averageMilliseconds is null)
+            return count.Value.ToString(CultureInfo.InvariantCulture);
+
+        return count.Value.ToString(CultureInfo.InvariantCulture)
+               + " / "
+               + averageMilliseconds.Value.ToString(
+                   "+0.0;-0.0;0.0",
+                   CultureInfo.InvariantCulture)
+               + "ms";
+    }
 
     private Drawable createJudgementStrip(ManiaScoreResult result)
     {

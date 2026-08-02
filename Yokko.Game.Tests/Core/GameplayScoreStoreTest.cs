@@ -124,6 +124,49 @@ public class GameplayScoreStoreTest
     }
 
     [Test]
+    public void TimingStatisticsPersistWithHistoryEntry()
+    {
+        YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();
+        var first = new GameplayScoreStore();
+        first.Initialise(new NativeStorage(testRoot));
+        GameplayTimingStatistics timing =
+            GameplayTimingStatistics.FromHitErrors([-12.5, -4, 0, 6, 18])!;
+
+        Assert.That(
+            first.SaveBest(
+                beatmap,
+                ManiaModSet.Empty,
+                JudgementConfiguration.YokkoDefault,
+                result(900_000, 0.95),
+                playerId: "10248631",
+                timing: timing),
+            Is.True);
+
+        var restored = new GameplayScoreStore();
+        restored.Initialise(new NativeStorage(testRoot));
+        GameplayTimingStatistics saved = restored.GetHistory(
+            beatmap,
+            JudgementConfiguration.YokkoDefault).Single().Timing;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved, Is.Not.Null);
+            Assert.That(saved.SampleCount, Is.EqualTo(5));
+            Assert.That(saved.EarlyCount, Is.EqualTo(2));
+            Assert.That(saved.OnTimeCount, Is.EqualTo(1));
+            Assert.That(saved.LateCount, Is.EqualTo(2));
+            Assert.That(
+                saved.EarlyAverageMilliseconds,
+                Is.EqualTo(-8.25).Within(0.0001));
+            Assert.That(
+                saved.LateAverageMilliseconds,
+                Is.EqualTo(12).Within(0.0001));
+            Assert.That(saved.MeanMilliseconds, Is.EqualTo(1.5).Within(0.0001));
+            Assert.That(saved.UnstableRate, Is.GreaterThan(0));
+        });
+    }
+
+    [Test]
     public void ReloadedStoreCanAppendAnotherYokkoScore()
     {
         YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo();

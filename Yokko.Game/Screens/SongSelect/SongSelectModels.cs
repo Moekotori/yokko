@@ -49,7 +49,8 @@ internal sealed record SongSelectScore(
     string ReplayPath = null,
     ManiaModSet ModSet = null,
     JudgementConfiguration? JudgementConfiguration = null,
-    string PlayerId = null);
+    string PlayerId = null,
+    GameplayTimingStatistics Timing = null);
 
 internal sealed record SongSelectEntry
 {

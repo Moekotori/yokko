@@ -591,10 +591,13 @@ namespace Yokko.Game.Tests
                             TimeSpan.Zero),
                         531_540,
                         true,
-                        new GameplayTimingSummary(
+                        new GameplayTimingStatistics(
+                            1_942,
                             73,
                             1_796,
                             73,
+                            -12.4,
+                            13.1,
                             1.8,
                             82.4)));
                 Add(resultOverlay);

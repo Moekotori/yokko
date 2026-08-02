@@ -1632,7 +1632,8 @@ public partial class SongSelectScreen : Screen
                 score.PlayerName,
                 score.PlayerId,
                 score.PlayedAt,
-                ReplaySaved: replayAvailable));
+                ReplaySaved: replayAvailable,
+                Timing: score.Timing));
         scoreResultHost = new ScoreResultInputBlocker
         {
             RelativeSizeAxes = Axes.Both,
@@ -5105,7 +5106,8 @@ public partial class SongSelectScreen : Screen
                     score.ModSet,
                     score.JudgementConfiguration
                         ?? judgementConfiguration,
-                    score.PlayerId);
+                    score.PlayerId,
+                    score.Timing);
         }
     }
 

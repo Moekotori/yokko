@@ -304,6 +304,25 @@ public sealed class YokkoGameplaySettings
 
     public readonly Bindable<double> LayoutPerformanceReadoutOffsetY = new(0);
 
+    // Visibility belongs to the saved HUD layout just like position and scale.
+    // Doubles are used intentionally because skin layout profiles are a small
+    // numeric dictionary; 0 is hidden and 1 is visible.
+    public readonly Bindable<double> LayoutPlayfieldVisible = new(1);
+
+    public readonly Bindable<double> LayoutAccuracyVisible = new(1);
+
+    public readonly Bindable<double> LayoutProgressVisible = new(1);
+
+    public readonly Bindable<double> LayoutInformationVisible = new(1);
+
+    public readonly Bindable<double> LayoutTimingBarVisible = new(1);
+
+    public readonly Bindable<double> LayoutComboVisible = new(1);
+
+    public readonly Bindable<double> LayoutJudgementVisible = new(1);
+
+    public readonly Bindable<double> LayoutPerformanceReadoutVisible = new(1);
+
     public readonly Bindable<double> ReplayControlsOffsetX = new(0);
 
     public readonly Bindable<double> ReplayControlsOffsetY = new(0);
@@ -348,6 +367,14 @@ public sealed class YokkoGameplaySettings
             yield return layoutSetting("judgementScaleY", LayoutJudgementScaleY, MinimumLayoutScale, MaximumLayoutScale);
             yield return layoutSetting("performanceReadoutOffsetX", LayoutPerformanceReadoutOffsetX, MinimumPerformanceReadoutOffset, MaximumPerformanceReadoutOffset);
             yield return layoutSetting("performanceReadoutOffsetY", LayoutPerformanceReadoutOffsetY, MinimumPerformanceReadoutOffset, MaximumPerformanceReadoutOffset);
+            yield return layoutSetting("playfieldVisible", LayoutPlayfieldVisible, 0, 1);
+            yield return layoutSetting("accuracyVisible", LayoutAccuracyVisible, 0, 1);
+            yield return layoutSetting("progressVisible", LayoutProgressVisible, 0, 1);
+            yield return layoutSetting("informationVisible", LayoutInformationVisible, 0, 1);
+            yield return layoutSetting("timingBarVisible", LayoutTimingBarVisible, 0, 1);
+            yield return layoutSetting("comboVisible", LayoutComboVisible, 0, 1);
+            yield return layoutSetting("judgementVisible", LayoutJudgementVisible, 0, 1);
+            yield return layoutSetting("performanceReadoutVisible", LayoutPerformanceReadoutVisible, 0, 1);
             yield return layoutSetting("replayControlsOffsetX", ReplayControlsOffsetX);
             yield return layoutSetting("replayControlsOffsetY", ReplayControlsOffsetY);
             yield return new GameplayHudLayoutSetting("topCoverRatio", LayoutTopCoverRatio, 0, MaximumTopCoverRatio);
@@ -939,6 +966,14 @@ public sealed class YokkoGameplaySettings
         LayoutJudgementScaleY.SetDefault();
         LayoutPerformanceReadoutOffsetX.SetDefault();
         LayoutPerformanceReadoutOffsetY.SetDefault();
+        LayoutPlayfieldVisible.SetDefault();
+        LayoutAccuracyVisible.SetDefault();
+        LayoutProgressVisible.SetDefault();
+        LayoutInformationVisible.SetDefault();
+        LayoutTimingBarVisible.SetDefault();
+        LayoutComboVisible.SetDefault();
+        LayoutJudgementVisible.SetDefault();
+        LayoutPerformanceReadoutVisible.SetDefault();
         ReplayControlsOffsetX.SetDefault();
         ReplayControlsOffsetY.SetDefault();
         LayoutTopCoverRatio.SetDefault();

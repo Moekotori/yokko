@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -111,9 +112,7 @@ public partial class GameplayScreen : Screen
     private GameplayPlayfield playfield;
     private GameplayLaneCovers laneCovers;
     private GameplayLayoutEditorOverlay layoutEditor;
-    private GameplayReplay layoutAutoplayPreviousReplay;
-    private GameplayReplayTimeline layoutAutoplayPreviousReplayTimeline;
-    private double layoutAutoplayPreviousReplayAdaptiveSimulationTime;
+    private LayoutAutoplayRollbackState layoutAutoplayRollback;
     private bool layoutAutoplayDemoActive;
     private KeyModeBindings keyBindings;
     private bool[] pressedLanes;
@@ -628,6 +627,7 @@ public partial class GameplayScreen : Screen
             YokkoGameplaySettings.MinimumPlayfieldWidthScale,
             YokkoGameplaySettings.MaximumPlayfieldWidthScale);
         playfield.SetWidthScale(playfieldWidthScale);
+        applySavedHudVisibility();
 
         Texture artworkTexture = loadArtworkTexture(renderer);
         if (artworkTexture != null)
@@ -680,6 +680,10 @@ public partial class GameplayScreen : Screen
     {
         base.LoadComplete();
 
+        if (skinSettings != null)
+            skinSettings.SelectedSkinId.ValueChanged +=
+                onSelectedSkinIdChanged;
+
         playfield.SetApproachTime(computeApproachTime(
             appliedScrollSpeed,
             currentPlaybackRate(currentGameplayTime)));
@@ -689,6 +693,21 @@ public partial class GameplayScreen : Screen
             "loaded",
             $"first-object={firstObjectTimeMilliseconds:0.###}ms"
             + $" | completion={completionTimeMilliseconds:0.###}ms");
+    }
+
+    private void onSelectedSkinIdChanged(ValueChangedEvent<string> _)
+    {
+        Scheduler.Add(() =>
+        {
+            if (!isPaused
+                || layoutEditor?.IsSessionActive != true
+                || layoutEditor.IsAutoplayDemo)
+            {
+                return;
+            }
+
+            applySelectedSkinIfChanged();
+        });
     }
 
     public override void OnEntering(ScreenTransitionEvent e)
@@ -1065,6 +1084,7 @@ public partial class GameplayScreen : Screen
             - playbackRateOverlay.Width,
             20,
             GameplayPlaybackRateOverlay.PreferredLeft);
+        applySavedHudVisibility();
     }
 
     protected override bool OnScroll(ScrollEvent e)
@@ -1484,6 +1504,11 @@ public partial class GameplayScreen : Screen
             audioSettings.MixChanged -= onAudioMixChanged;
             gameplaySettings.ScrollSpeed.ValueChanged -=
                 onScrollSpeedChanged;
+            if (skinSettings != null)
+            {
+                skinSettings.SelectedSkinId.ValueChanged -=
+                    onSelectedSkinIdChanged;
+            }
             if (!completionAudioStopRequested)
                 mutedAudio?.Restore();
             stopAllSlidingSamples();
@@ -2459,13 +2484,12 @@ public partial class GameplayScreen : Screen
 
         playfield.ApplyJudgement(judgement);
         bool isMine = judgement.Phase == JudgementPhase.Mine;
-        if (!isMine
-            && !judgement.IsMiss
-            && judgement.HitTimeMilliseconds.HasValue
-            && judgement.Rating.AffectsAccuracy()
-            && judgement.Phase != JudgementPhase.HoldBody)
+        if (GameplayTimingStatistics.TryGetRealInputError(
+                judgement,
+                judgementState.Windows.SpeedMultiplier,
+                out double realHitErrorMilliseconds))
         {
-            resultHitErrors.Add(judgement.HitErrorMilliseconds);
+            resultHitErrors.Add(realHitErrorMilliseconds);
         }
         if (gameplaySettings.ShowTimingBar.Value && !isMine)
             timingBar.Show(judgement);
@@ -2494,6 +2518,12 @@ public partial class GameplayScreen : Screen
 
     private void failGameplay()
     {
+        if (layoutAutoplayDemoActive)
+        {
+            _ = returnToLayoutEditorFromTestAsync();
+            return;
+        }
+
         if (gameplayFailed || gameplayCompleted)
             return;
 
@@ -2526,6 +2556,12 @@ public partial class GameplayScreen : Screen
 
     private void completeGameplay()
     {
+        if (layoutAutoplayDemoActive)
+        {
+            _ = returnToLayoutEditorFromTestAsync();
+            return;
+        }
+
         if (gameplayCompleted)
             return;
 
@@ -2561,6 +2597,8 @@ public partial class GameplayScreen : Screen
                               mods,
                               judgementConfiguration);
         DateTimeOffset completedAt = DateTimeOffset.UtcNow;
+        GameplayTimingStatistics completedTiming =
+            GameplayTimingStatistics.FromHitErrors(resultHitErrors);
         StoredGameplayScore previousBest = scoreStore.GetBest(
             originalBeatmap,
             mods,
@@ -2582,7 +2620,8 @@ public partial class GameplayScreen : Screen
                 SavedReplayPath,
                 completedAt,
                 playerName,
-                playerId);
+                playerId,
+                completedTiming);
         completedResultPresentation = new GameplayResultPresentation(
             playerName,
             playerId,
@@ -2590,7 +2629,7 @@ public partial class GameplayScreen : Screen
             previousBest?.Score,
             !string.IsNullOrWhiteSpace(SavedReplayPath)
             && File.Exists(SavedReplayPath),
-            GameplayTimingSummary.FromHitErrors(resultHitErrors));
+            completedTiming);
 
         if (audioEngine is IAudioMixControl mixControl)
         {
@@ -2927,7 +2966,7 @@ public partial class GameplayScreen : Screen
         finally
         {
             pauseTransitionInProgress = false;
-            restoreLayoutEditorAfterTest();
+            await restoreLayoutEditorAfterTestAsync().ConfigureAwait(true);
         }
     }
 
@@ -4127,6 +4166,14 @@ public partial class GameplayScreen : Screen
         double FrameClockLastFrameworkTime,
         double StartTimeMilliseconds);
 
+    private sealed record LayoutAutoplayRollbackState(
+        GameplayReplay Replay,
+        GameplayReplayTimeline Timeline,
+        GameplayReplay BaselineReplay,
+        ReplaySeekRollbackState Timing,
+        double[] ResultHitErrors,
+        int PausesUsed);
+
     private void resetScheduledSampleCursor(double gameplayTime)
     {
         nextScheduledSampleIndex = 0;
@@ -4414,6 +4461,46 @@ public partial class GameplayScreen : Screen
             Position = new Vector2(-20, 20),
         };
 
+    private void applySavedHudVisibility()
+    {
+        if (mods.IsCinema)
+            return;
+
+        bool playfieldVisible =
+            gameplaySettings.LayoutPlayfieldVisible.Value >= 0.5;
+        bool accuracyVisible =
+            gameplaySettings.LayoutAccuracyVisible.Value >= 0.5;
+        bool progressVisible =
+            gameplaySettings.LayoutProgressVisible.Value >= 0.5;
+        bool informationVisible =
+            gameplaySettings.LayoutInformationVisible.Value >= 0.5;
+        bool timingBarVisible =
+            gameplaySettings.LayoutTimingBarVisible.Value >= 0.5;
+        bool comboVisible =
+            gameplaySettings.LayoutComboVisible.Value >= 0.5;
+        bool judgementVisible =
+            gameplaySettings.LayoutJudgementVisible.Value >= 0.5;
+
+        playfield.Alpha = playfieldVisible ? 1 : 0;
+        hud.AccuracyLayoutDrawable.Alpha = accuracyVisible ? 1 : 0;
+        hud.ProgressLayoutDrawable.Alpha = progressVisible ? 1 : 0;
+        hud.InformationLayoutDrawable.Alpha = informationVisible ? 1 : 0;
+        timingBar.Alpha = timingBarVisible
+                          && gameplaySettings.ShowTimingBar.Value
+            ? 1
+            : 0;
+        playfield.SetSkinComboVisible(comboVisible);
+        playfield.SetSkinJudgementVisible(judgementVisible);
+        comboReadout.Alpha = comboVisible
+                             && !playfield.UsesSkinJudgementOverlay
+            ? 1
+            : 0;
+        judgementReadout.Alpha = judgementVisible
+                                 && !playfield.UsesSkinJudgementOverlay
+            ? 1
+            : 0;
+    }
+
     private GameplayLayoutEditorLiveSettings
         createLayoutEditorLiveSettings() =>
         new(
@@ -4508,7 +4595,7 @@ public partial class GameplayScreen : Screen
     private void setLayoutEditorShowTimingBar(bool value)
     {
         gameplaySettings.ShowTimingBar.Value = value;
-        timingBar.Alpha = value ? 1 : 0;
+        applySavedHudVisibility();
     }
 
     private IReadOnlyList<GameplayLayoutEditorSkinOption>
@@ -4646,7 +4733,8 @@ public partial class GameplayScreen : Screen
         AddInternal(nextPlayfield);
         AddInternal(nextCovers);
         AddInternal(nextHud);
-        layoutEditor?.ReplaceTargets(nextPlayfield, nextHud);
+        applySavedHudVisibility();
+        layoutEditor?.ReplaceTargets(nextPlayfield, nextHud, reloadSkin);
         updatePlayfieldLayout();
 
         previousPlayfield?.Expire();
@@ -4772,10 +4860,19 @@ public partial class GameplayScreen : Screen
 
     private void beginLayoutAutoplayReplay()
     {
-        layoutAutoplayPreviousReplay = replay;
-        layoutAutoplayPreviousReplayTimeline = replayTimeline;
-        layoutAutoplayPreviousReplayAdaptiveSimulationTime =
-            lastReplayAdaptiveSimulationTime;
+        GameplayReplay baselineReplay = replay
+            ?? GameplayReplay.FromRecordedInputs(
+                recordedReplayInputs,
+                mods,
+                judgementConfiguration);
+        ReplaySeekRollbackState timing = captureReplaySeekRollbackState();
+        layoutAutoplayRollback = new LayoutAutoplayRollbackState(
+            replay,
+            replayTimeline,
+            baselineReplay,
+            timing,
+            resultHitErrors.ToArray(),
+            pausesUsed);
         replay = GameplayAutoGenerator.Generate(
             beatmap,
             mods,
@@ -4788,24 +4885,60 @@ public partial class GameplayScreen : Screen
         playfield.SetLayoutAutoplayDemo(true, pausedGameplayTime);
     }
 
-    private void endLayoutAutoplayReplay()
+    private async Task endLayoutAutoplayReplayAsync()
     {
         if (!layoutAutoplayDemoActive)
             return;
 
-        for (int lane = 0; lane < pressedLanes.Length; lane++)
+        LayoutAutoplayRollbackState rollback = layoutAutoplayRollback;
+        if (rollback == null)
+            throw new InvalidOperationException(
+                "The layout autoplay rollback state is missing.");
+
+        stopAllSlidingSamples();
+        GameplayReplayRestoredState restored = await Task.Run(() =>
+            GameplayReplayStateRebuilder.Rebuild(
+                beatmap,
+                rollback.BaselineReplay,
+                mods,
+                rollback.Timing.JudgementState.Windows,
+                judgementConfiguration,
+                minesEnabled,
+                rollback.Timing.PausedGameplayTime)).ConfigureAwait(true);
+
+        if (hasAudioClock && audioStarted)
         {
-            if (pressedLanes[lane])
-                applyLaneRelease(lane, pausedGameplayTime);
+            await audioEngine.SeekAsync(
+                rollback.Timing.PausedAudioPosition).ConfigureAwait(true);
+            await audioEngine.PauseAsync().ConfigureAwait(true);
         }
 
-        playfield.SetLayoutAutoplayDemo(false, pausedGameplayTime);
-        replay = layoutAutoplayPreviousReplay;
-        replayTimeline = layoutAutoplayPreviousReplayTimeline;
+        applyReplayRestoredState(
+            restored,
+            rollback.Timing.PausedGameplayTime);
+        replay = rollback.Replay;
+        replayTimeline = rollback.Timeline;
+        nextScheduledSampleIndex = rollback.Timing.NextScheduledSampleIndex;
+        previousScheduledSampleTime =
+            rollback.Timing.PreviousScheduledSampleTime;
+        pausedGameplayTime = rollback.Timing.PausedGameplayTime;
+        pausedAudioPosition = rollback.Timing.PausedAudioPosition;
+        lastStableAudioGameplayTime =
+            rollback.Timing.LastStableAudioGameplayTime;
+        lastAppliedPlaybackRate = rollback.Timing.LastAppliedPlaybackRate;
+        lastApproachPlaybackRate = rollback.Timing.LastApproachPlaybackRate;
         lastReplayAdaptiveSimulationTime =
-            layoutAutoplayPreviousReplayAdaptiveSimulationTime;
-        layoutAutoplayPreviousReplay = null;
-        layoutAutoplayPreviousReplayTimeline = null;
+            rollback.Timing.LastReplayAdaptiveSimulationTime;
+        frameClockGameplayTime = rollback.Timing.FrameClockGameplayTime;
+        frameClockLastFrameworkTime = rollback.Timing.FrameClockLastFrameworkTime;
+        startTimeMilliseconds = rollback.Timing.StartTimeMilliseconds;
+        resultHitErrors.Clear();
+        resultHitErrors.AddRange(rollback.ResultHitErrors);
+        pausesUsed = rollback.PausesUsed;
+        playfield.SetLayoutAutoplayDemo(
+            false,
+            rollback.Timing.PausedGameplayTime);
+        layoutAutoplayRollback = null;
         layoutAutoplayDemoActive = false;
     }
 
@@ -4817,24 +4950,25 @@ public partial class GameplayScreen : Screen
         if (resumeCountdownInProgress)
         {
             cancelResumeCountdown();
-            restoreLayoutEditorAfterTest();
+            await restoreLayoutEditorAfterTestAsync().ConfigureAwait(true);
             return;
         }
 
         if (!isPaused)
             await pauseGameplayAsync().ConfigureAwait(true);
         else
-            restoreLayoutEditorAfterTest();
+            await restoreLayoutEditorAfterTestAsync().ConfigureAwait(true);
     }
 
-    private void restoreLayoutEditorAfterTest()
+    private async Task restoreLayoutEditorAfterTestAsync()
     {
         if (layoutEditor?.IsTestingLayout != true || !isPaused)
             return;
 
         if (pauseOverlay != null)
             pauseOverlay.Alpha = 0;
-        endLayoutAutoplayReplay();
+        await endLayoutAutoplayReplayAsync().ConfigureAwait(true);
+        applySelectedSkinIfChanged();
         layoutEditor.EndTestPlay();
     }
 
@@ -4864,6 +4998,7 @@ public partial class GameplayScreen : Screen
     private void closeGameplayLayoutEditor()
     {
         skinHudLayoutStore.CancelEditSession();
+        applySelectedSkinIfChanged();
         layoutEditor?.SetEditing(false);
 
         if (pauseOverlay != null)

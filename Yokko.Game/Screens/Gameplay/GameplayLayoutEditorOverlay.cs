@@ -53,6 +53,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private readonly Stack<LayoutSnapshot> undoHistory = new();
     private readonly Stack<LayoutSnapshot> redoHistory = new();
     private readonly Container editorChrome;
+    private readonly DemoInputBlocker demoInputBlocker;
     private readonly AutoplayDemoControl autoplayDemoControl;
     private Container overviewContent;
     private Container miniPlayfield;
@@ -63,7 +64,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private Container miniCombo;
     private Container miniJudgement;
     private Container miniPerformanceReadout;
-    private Container performanceReadoutPreview;
+    private YokkoPerformanceReadout performanceReadoutPreview;
     private Box miniTopCover;
     private Box miniBottomCover;
     private Box miniBackgroundDim;
@@ -76,6 +77,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private LiveSettingsSnapshot liveSettingsSessionStart;
     private bool cancelConfirmationPending;
     private double cancelConfirmationExpiresAt;
+    private LayoutSnapshot cancelConfirmationLayout;
+    private LiveSettingsSnapshot cancelConfirmationLiveSettings;
     private bool? displayedDirtyState;
     private bool displayedCancelConfirmation;
 
@@ -188,15 +191,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 verticalSnapGuide = createSnapGuide(true),
                 horizontalSnapGuide = createSnapGuide(false),
                 createTopBar(),
-                performanceReadoutPreview = new Container
-                {
-                    Anchor = Anchor.BottomRight,
-                    Origin = Anchor.BottomRight,
-                    Size = new Vector2(
-                        YokkoPerformanceReadout.CardWidth,
-                        YokkoPerformanceReadout.CardHeight),
-                    Alpha = 0,
-                },
+                performanceReadoutPreview = createPerformanceReadoutPreview(),
                 playfieldTarget = new LayoutTransformTarget(
                     this,
                     LayoutElementKind.Playfield,
@@ -208,6 +203,10 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     selectTarget,
                     snapTargetMove,
                     clearSnapGuides,
+                    delta => constrainOffsetDelta(
+                        delta,
+                        settings.LayoutPlayfieldOffsetX,
+                        settings.LayoutPlayfieldOffsetY),
                     resizePlayfieldWithWheel),
                 accuracyTarget = new LayoutTransformTarget(
                     this,
@@ -219,7 +218,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     beginChange,
                     selectTarget,
                     snapTargetMove,
-                    clearSnapGuides),
+                    clearSnapGuides,
+                    delta => constrainOffsetDelta(
+                        delta,
+                        settings.LayoutAccuracyOffsetX,
+                        settings.LayoutAccuracyOffsetY)),
                 progressTarget = new LayoutTransformTarget(
                     this,
                     LayoutElementKind.Progress,
@@ -230,7 +233,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     beginChange,
                     selectTarget,
                     snapTargetMove,
-                    clearSnapGuides),
+                    clearSnapGuides,
+                    delta => constrainOffsetDelta(
+                        delta,
+                        settings.LayoutProgressOffsetX,
+                        settings.LayoutProgressOffsetY)),
                 informationTarget = new LayoutTransformTarget(
                     this,
                     LayoutElementKind.Information,
@@ -241,7 +248,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     beginChange,
                     selectTarget,
                     snapTargetMove,
-                    clearSnapGuides),
+                    clearSnapGuides,
+                    delta => constrainOffsetDelta(
+                        delta,
+                        settings.LayoutHudOffsetX,
+                        settings.LayoutHudOffsetY)),
                 timingBarTarget = new LayoutTransformTarget(
                     this,
                     LayoutElementKind.TimingBar,
@@ -252,7 +263,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     beginChange,
                     selectTarget,
                     snapTargetMove,
-                    clearSnapGuides),
+                    clearSnapGuides,
+                    delta => constrainOffsetDelta(
+                        delta,
+                        settings.LayoutTimingBarOffsetX,
+                        settings.LayoutTimingBarOffsetY)),
                 comboTarget = new LayoutTransformTarget(
                     this,
                     LayoutElementKind.Combo,
@@ -264,7 +279,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     beginChange,
                     selectTarget,
                     snapTargetMove,
-                    clearSnapGuides),
+                    clearSnapGuides,
+                    delta => constrainOffsetDelta(
+                        delta,
+                        settings.LayoutComboOffsetX,
+                        settings.LayoutComboOffsetY)),
                 judgementTarget = new LayoutTransformTarget(
                     this,
                     LayoutElementKind.Judgement,
@@ -276,7 +295,11 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     beginChange,
                     selectTarget,
                     snapTargetMove,
-                    clearSnapGuides),
+                    clearSnapGuides,
+                    delta => constrainOffsetDelta(
+                        delta,
+                        settings.LayoutJudgementOffsetX,
+                        settings.LayoutJudgementOffsetY)),
                 performanceReadoutTarget = new LayoutTransformTarget(
                     this,
                     LayoutElementKind.PerformanceReadout,
@@ -288,7 +311,13 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                     beginChange,
                     selectTarget,
                     snapTargetMove,
-                    clearSnapGuides),
+                    clearSnapGuides,
+                    delta => constrainOffsetDelta(
+                        delta,
+                        settings.LayoutPerformanceReadoutOffsetX,
+                        settings.LayoutPerformanceReadoutOffsetY,
+                        YokkoGameplaySettings.MinimumPerformanceReadoutOffset,
+                        YokkoGameplaySettings.MaximumPerformanceReadoutOffset)),
                 topCoverHandle = new CoverDragHandle(
                     this,
                     YokkoStrings.Get(
@@ -314,6 +343,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         InternalChildren = new Drawable[]
         {
             editorChrome,
+            demoInputBlocker = new DemoInputBlocker(),
             autoplayDemoControl = new AutoplayDemoControl(
                 exitAutoplayDemo),
         };
@@ -326,6 +356,17 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private void onToggleLayoutEditorUiKeyChanged(
         ValueChangedEvent<Key> _) =>
         updateEditorHint();
+
+    private static YokkoPerformanceReadout
+        createPerformanceReadoutPreview()
+    {
+        var preview = new YokkoPerformanceReadout
+        {
+            Alpha = 0,
+        };
+        preview.SetTrackingEnabled(false);
+        return preview;
+    }
 
     protected override void Dispose(bool isDisposing)
     {
@@ -350,6 +391,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         ClearTransforms();
         autoplayDemoControl.ClearTransforms();
         autoplayDemoControl.Alpha = 0;
+        demoInputBlocker.Alpha = 0;
 
         if (editing)
         {
@@ -394,21 +436,12 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         IsEditing = false;
         IsTestingLayout = true;
         IsAutoplayDemo = autoplay;
+        demoInputBlocker.Alpha = autoplay ? 1 : 0;
         ClearTransforms();
-        restoreOriginalAlpha(LayoutElementKind.Playfield);
-        restoreOriginalAlpha(LayoutElementKind.Accuracy);
-        restoreOriginalAlpha(LayoutElementKind.Progress);
-        restoreOriginalAlpha(LayoutElementKind.Information);
-        restoreOriginalAlpha(LayoutElementKind.TimingBar);
-        restoreOriginalAlpha(LayoutElementKind.PerformanceReadout);
         setComboEditorPreview(false);
         setJudgementEditorPreview(false);
-        applyElementAlpha(
-            LayoutElementKind.Combo,
-            comboTarget.EditorHidden);
-        applyElementAlpha(
-            LayoutElementKind.Judgement,
-            judgementTarget.EditorHidden);
+        foreach (LayoutTransformTarget target in allTargets())
+            applyElementAlpha(target.Kind, target.EditorHidden);
         if (autoplay)
         {
             this.FadeTo(1, 90, Easing.OutQuint);
@@ -426,6 +459,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         IsTestingLayout = false;
         IsAutoplayDemo = false;
         IsEditing = true;
+        demoInputBlocker.Alpha = 0;
         autoplayDemoControl.FadeTo(0, 80, Easing.OutQuint);
         setChromeVisible(true, animate: false);
         setComboEditorPreview(true);
@@ -459,7 +493,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     internal void ReplaceTargets(
         GameplayPlayfield nextPlayfield,
-        GameplayHud nextHud)
+        GameplayHud nextHud,
+        bool clearHistory = false)
     {
         playfield.SetSkinComboEditorPreview(false);
         playfield.SetSkinJudgementEditorPreview(false);
@@ -471,12 +506,25 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         hud = nextHud
               ?? throw new ArgumentNullException(nameof(nextHud));
 
+        foreach (LayoutTransformTarget target in allTargets())
+        {
+            target.SetEditorHidden(!isLayoutElementVisible(target.Kind));
+            inspector.SetLayerState(
+                target.Kind,
+                target.IsLocked,
+                target.EditorHidden,
+                target.AspectLocked);
+        }
+
         // Rebuilt targets may belong to a different skin. Layout snapshots do
         // not carry skin identity, so never let history from the old target
         // tree mutate the newly selected skin.
-        undoHistory.Clear();
-        redoHistory.Clear();
-        updateHistoryButtons();
+        if (clearHistory)
+        {
+            undoHistory.Clear();
+            redoHistory.Clear();
+            updateHistoryButtons();
+        }
 
         if (IsSessionActive)
         {
@@ -511,6 +559,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     internal void SaveAndClose()
     {
+        if (!IsEditing)
+            return;
+
         cancelConfirmationPending = false;
         save();
         close();
@@ -518,6 +569,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     internal void CancelAndClose()
     {
+        if (!IsEditing)
+            return;
+
         if (!hasUnsavedChanges())
         {
             cancelConfirmationPending = false;
@@ -526,10 +580,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         }
 
         if (!cancelConfirmationPending
-            || Time.Current > cancelConfirmationExpiresAt)
+            || Time.Current > cancelConfirmationExpiresAt
+            || captureLayout() != cancelConfirmationLayout
+            || captureLiveSettings() != cancelConfirmationLiveSettings)
         {
             cancelConfirmationPending = true;
             cancelConfirmationExpiresAt = Time.Current + 3000;
+            cancelConfirmationLayout = captureLayout();
+            cancelConfirmationLiveSettings = captureLiveSettings();
             refreshSessionHint(force: true);
             return;
         }
@@ -542,6 +600,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     internal void ResetAll()
     {
+        if (!IsEditing)
+            return;
+
         beginChange();
         settings.ResetGameplayLayout();
     }
@@ -1294,6 +1355,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
     private void beginChange()
     {
+        cancelConfirmationPending = false;
         LayoutSnapshot current = captureLayout();
         if (undoHistory.Count == 0 || undoHistory.Peek() != current)
             undoHistory.Push(current);
@@ -1359,6 +1421,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         settings.LayoutJudgementScaleY.Value,
         settings.LayoutPerformanceReadoutOffsetX.Value,
         settings.LayoutPerformanceReadoutOffsetY.Value,
+        settings.LayoutPlayfieldVisible.Value,
+        settings.LayoutAccuracyVisible.Value,
+        settings.LayoutProgressVisible.Value,
+        settings.LayoutInformationVisible.Value,
+        settings.LayoutTimingBarVisible.Value,
+        settings.LayoutComboVisible.Value,
+        settings.LayoutJudgementVisible.Value,
+        settings.LayoutPerformanceReadoutVisible.Value,
         settings.LayoutTopCoverRatio.Value,
         settings.LayoutBottomCoverRatio.Value);
 
@@ -1440,6 +1510,15 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             snapshot.PerformanceReadoutOffsetX;
         settings.LayoutPerformanceReadoutOffsetY.Value =
             snapshot.PerformanceReadoutOffsetY;
+        settings.LayoutPlayfieldVisible.Value = snapshot.PlayfieldVisible;
+        settings.LayoutAccuracyVisible.Value = snapshot.AccuracyVisible;
+        settings.LayoutProgressVisible.Value = snapshot.ProgressVisible;
+        settings.LayoutInformationVisible.Value = snapshot.InformationVisible;
+        settings.LayoutTimingBarVisible.Value = snapshot.TimingBarVisible;
+        settings.LayoutComboVisible.Value = snapshot.ComboVisible;
+        settings.LayoutJudgementVisible.Value = snapshot.JudgementVisible;
+        settings.LayoutPerformanceReadoutVisible.Value =
+            snapshot.PerformanceReadoutVisible;
         settings.LayoutTopCoverRatio.Value = snapshot.TopCoverRatio;
         settings.LayoutBottomCoverRatio.Value =
             snapshot.BottomCoverRatio;
@@ -2052,6 +2131,22 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             YokkoGameplaySettings.MinimumPerformanceReadoutOffset,
             YokkoGameplaySettings.MaximumPerformanceReadoutOffset);
 
+    private Vector2 constrainOffsetDelta(
+        Vector2 delta,
+        Bindable<double> x,
+        Bindable<double> y,
+        double minimum = YokkoGameplaySettings.MinimumLayoutOffset,
+        double maximum = YokkoGameplaySettings.MaximumLayoutOffset) =>
+        new(
+            Math.Clamp(
+                delta.X,
+                (float)((minimum - x.Value) * Math.Max(1, DrawWidth)),
+                (float)((maximum - x.Value) * Math.Max(1, DrawWidth))),
+            Math.Clamp(
+                delta.Y,
+                (float)((minimum - y.Value) * Math.Max(1, DrawHeight)),
+                (float)((maximum - y.Value) * Math.Max(1, DrawHeight))));
+
     private static Container createMiniPlayfield() =>
         new()
         {
@@ -2118,6 +2213,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             bool,
             Vector2> snapMove;
         private readonly Action clearGuides;
+        private readonly Func<Vector2, Vector2> constrainMoveDelta;
         private readonly Action<float> scroll;
         private readonly Container frame;
         private readonly Container labelPanel;
@@ -2160,8 +2256,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 LayoutTransformTarget,
                 Vector2,
                 bool,
-                Vector2> snapMove,
+            Vector2> snapMove,
             Action clearGuides,
+            Func<Vector2, Vector2> constrainMoveDelta = null,
             Action<float> scroll = null)
         {
             this.coordinateSpace = coordinateSpace;
@@ -2173,6 +2270,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             this.select = select;
             this.snapMove = snapMove;
             this.clearGuides = clearGuides;
+            this.constrainMoveDelta = constrainMoveDelta;
             this.scroll = scroll;
             Masking = false;
 
@@ -2351,8 +2449,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
                 this,
                 requestedDelta,
                 e.AltPressed);
-            drag(delta);
-            dragLogicalPosition = MovementPosition + delta;
+            Vector2 realisedDelta = MoveBy(delta);
+            dragLogicalPosition = MovementPosition + realisedDelta;
             lastMousePosition = current;
         }
 
@@ -2427,7 +2525,13 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         internal void Reset() => reset();
 
-        internal void MoveBy(Vector2 delta) => drag(delta);
+        internal Vector2 MoveBy(Vector2 delta)
+        {
+            Vector2 constrained =
+                constrainMoveDelta?.Invoke(delta) ?? delta;
+            drag(constrained);
+            return constrained;
+        }
 
         internal void ResizeBy(ResizeEdges edges, Vector2 delta) =>
             resize?.Invoke(edges, delta);
@@ -2477,7 +2581,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
             Vector2 requestedDelta =
                 direction * Math.Max(0.1f, distance);
-            drag(snapMove(this, requestedDelta, true));
+            Vector2 delta = snapMove(this, requestedDelta, true);
+            MoveBy(delta);
             return true;
         }
 
@@ -2533,6 +2638,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         private readonly Box fill;
         private readonly Color4 idleColour;
         private Vector2 lastPosition;
+        private Vector2 pendingDelta;
 
         public ResizeHandle(
             Drawable coordinateSpace,
@@ -2586,8 +2692,30 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         {
             Vector2 current = coordinateSpace.ToLocalSpace(
                 e.ScreenSpaceMousePosition);
-            resize(current - lastPosition);
+            pendingDelta += current - lastPosition;
             lastPosition = current;
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+            flushPendingResize();
+        }
+
+        protected override void OnDragEnd(DragEndEvent e)
+        {
+            flushPendingResize();
+            base.OnDragEnd(e);
+        }
+
+        private void flushPendingResize()
+        {
+            if (pendingDelta == Vector2.Zero)
+                return;
+
+            Vector2 delta = pendingDelta;
+            pendingDelta = Vector2.Zero;
+            resize(delta);
         }
 
         protected override bool OnHover(HoverEvent e)
@@ -2607,6 +2735,22 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             BorderColour = HomeControlColours.Navy;
             this.ScaleTo(1, 110, Easing.OutQuint);
         }
+    }
+
+    private partial class DemoInputBlocker : CompositeDrawable
+    {
+        public override bool HandlePositionalInput => Alpha > 0;
+
+        public DemoInputBlocker()
+        {
+            RelativeSizeAxes = Axes.Both;
+            Depth = -100;
+            Alpha = 0;
+        }
+
+        protected override bool OnMouseDown(MouseDownEvent e) => true;
+
+        protected override bool OnScroll(ScrollEvent e) => true;
     }
 
     private partial class CoverDragHandle : CompositeDrawable
@@ -2967,6 +3111,14 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         double JudgementScaleY,
         double PerformanceReadoutOffsetX,
         double PerformanceReadoutOffsetY,
+        double PlayfieldVisible,
+        double AccuracyVisible,
+        double ProgressVisible,
+        double InformationVisible,
+        double TimingBarVisible,
+        double ComboVisible,
+        double JudgementVisible,
+        double PerformanceReadoutVisible,
         double TopCoverRatio,
         double BottomCoverRatio);
 

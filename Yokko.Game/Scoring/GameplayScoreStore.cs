@@ -37,7 +37,8 @@ internal sealed record StoredGameplayScore(
     string Source = null,
     bool? IsCurrentPlayer = null,
     string ExternalScoreId = null,
-    JudgementConfiguration? JudgementConfiguration = null)
+    JudgementConfiguration? JudgementConfiguration = null,
+    GameplayTimingStatistics Timing = null)
 {
     [JsonIgnore]
     public ManiaModSet ModSet
@@ -163,7 +164,8 @@ internal sealed class GameplayScoreStore
         string replayPath = null,
         DateTimeOffset? playedAt = null,
         string playerName = null,
-        string playerId = null)
+        string playerId = null,
+        GameplayTimingStatistics timing = null)
     {
         ensureInitialised();
         mods ??= ManiaModSet.Empty;
@@ -195,7 +197,8 @@ internal sealed class GameplayScoreStore
             playerName,
             playerId,
             IsCurrentPlayer: true,
-            JudgementConfiguration: judgementConfiguration);
+            JudgementConfiguration: judgementConfiguration,
+            Timing: timing);
         string historyKey = historyKeyFor(
             beatmap,
             judgementConfiguration);
