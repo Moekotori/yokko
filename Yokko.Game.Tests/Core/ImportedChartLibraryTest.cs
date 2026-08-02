@@ -345,7 +345,7 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
-    public async Task ExternalOsuIndexRestoresChartsWhenSongsIsTemporarilyUnavailable()
+    public async Task ExternalOsuIndexHidesChartsWhenSongsIsUnavailable()
     {
         string root = createTestRoot("external-osu-restore");
         string yokkoRoot = Path.Combine(root, "Yokko");
@@ -380,11 +380,71 @@ public sealed class ImportedChartLibraryTest
 
             Assert.Multiple(() =>
             {
-                Assert.That(count, Is.EqualTo(1));
-                Assert.That(restored.ExternalOsuChartCount, Is.EqualTo(1));
-                Assert.That(
-                    restored.GetCharts().Single().Result.Beatmap.Title,
-                    Is.EqualTo("Persistent"));
+                Assert.That(count, Is.Zero);
+                Assert.That(restored.ExternalOsuChartCount, Is.Zero);
+                Assert.That(restored.GetCharts(), Is.Empty);
+                Assert.That(settings.SongsPath.Value, Is.EqualTo(songs));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ExternalOsuRefreshHidesChartsAfterSongsIsMoved()
+    {
+        string root = createTestRoot("external-osu-moved");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string set = Path.Combine(songs, "301 Artist - Moved Song");
+        Directory.CreateDirectory(set);
+
+        try
+        {
+            writeOsuChart(set, "Moved", 3);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+            Assert.That(
+                (await library.RefreshExternalOsuAsync()).ChartCount,
+                Is.EqualTo(1));
+            await library.ExternalDifficultyTask;
+            ImportedChart indexed = library.GetCharts().Single();
+            Assert.That(
+                (await library.GetPlayableBeatmapAsync(indexed.Id)).HitObjects,
+                Is.Not.Empty,
+                "The regression must also cover an external chart already held in the materialisation cache.");
+            var hidden = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            library.LibraryChanged += _ =>
+            {
+                if (library.ExternalOsuChartCount == 0)
+                    hidden.TrySetResult(true);
+            };
+
+            Directory.Move(songs, Path.Combine(root, "moved-Songs"));
+            Assert.That(
+                await Task.WhenAny(hidden.Task, Task.Delay(5000)),
+                Is.SameAs(hidden.Task),
+                "Moving the configured osu! path should hide its charts without a manual refresh.");
+            ExternalOsuLibraryResult unavailable =
+                await library.RefreshExternalOsuAsync();
+            YokkoBeatmap removed =
+                await library.GetPlayableBeatmapAsync(indexed.Id);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(unavailable.Success, Is.False);
+                Assert.That(unavailable.ChartCount, Is.Zero);
+                Assert.That(library.ExternalOsuChartCount, Is.Zero);
+                Assert.That(library.GetCharts(), Is.Empty);
+                Assert.That(removed, Is.Null);
                 Assert.That(settings.SongsPath.Value, Is.EqualTo(songs));
             });
         }

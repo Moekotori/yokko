@@ -185,8 +185,9 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             !modsScreen.SelectedMods.Contains(ManiaModId.Key4)
             && modsScreen.InteractionHintText.Contains(
                 "REQUIRES OSU!STANDARD CHART"));
-        AddStep("reset gameplay mods", modsScreen.ResetMods);
-        AddAssert("reset clears page selection", () =>
+        AddStep("press R to clear gameplay mods", () =>
+            modsScreen.HandleInteractionKey(Key.R));
+        AddAssert("R shortcut clears page selection", () =>
             modsScreen.SelectedMods.Mods.Count == 0
             && !modsScreen.ResetEnabled);
         AddStep("commit final page selection", modsScreen.CommitSelection);
@@ -689,7 +690,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     }
 
     [Test]
-    public void TestActiveModRowsFocusBeforeRemoving()
+    public void TestActiveModRowsRemoveOnClick()
     {
         OrbitActiveModRow activeRow = null;
         AddStep("prepare active row", () =>
@@ -702,15 +703,8 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         });
         AddStep("activate the active row", () =>
             activeRow.ActivateForTest());
-        AddAssert("row focuses without removing", () =>
-            modsScreen.ActiveCategory
-                == ManiaModCategory.DifficultyReduction
-            && modsScreen.DetailMod == ManiaModId.HalfTime
-            && modsScreen.SelectedMods.Contains(ManiaModId.HalfTime));
-        AddStep("remove from dedicated control", () =>
-            activeRow.RemoveForTest());
         AddWaitStep("wait for removal motion", 12);
-        AddAssert("dedicated remove control disables mod", () =>
+        AddAssert("clicking the active row disables mod", () =>
             !modsScreen.SelectedMods.Contains(ManiaModId.HalfTime));
     }
 

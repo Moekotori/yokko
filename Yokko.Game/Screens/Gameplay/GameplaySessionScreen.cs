@@ -36,7 +36,6 @@ internal partial class GameplaySessionScreen : Screen
     private const double initialMotionDurationMilliseconds = 220;
     private const float initialScale = 1.012f;
     private const float initialOffsetY = 10;
-    private const double revealDurationMilliseconds = 45;
 
     internal GameplayScreen CurrentGameplay =>
         gameplayStack?.CurrentScreen as GameplayScreen;
@@ -195,6 +194,7 @@ internal partial class GameplaySessionScreen : Screen
             || revealStarted
             || !pendingReplacement.IsLoaded
             || !pendingReplacement.PresentationTexturesReady
+            || !retryTransition.CoverComplete
             || !ReferenceEquals(CurrentGameplay, pendingReplacement))
         {
             return;
@@ -203,7 +203,7 @@ internal partial class GameplaySessionScreen : Screen
         revealStarted = true;
         retryTransition.BeginReveal();
         Scheduler.AddDelayed(completeRetryTransition,
-            revealDurationMilliseconds);
+            GameplayRetryTransitionOverlay.RevealDurationMilliseconds);
     }
 
     private void completeRetryTransition()

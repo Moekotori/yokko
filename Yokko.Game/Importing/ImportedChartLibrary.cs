@@ -91,6 +91,7 @@ internal sealed class ImportedChartLibrary : IDisposable
 
     private const string pending_difficulty_reason =
         "Pending background difficulty calculation.";
+    private const int difficulty_progress_publish_interval_milliseconds = 750;
     private readonly List<ImportedChart> charts = [];
     private readonly object syncRoot = new();
     private readonly SemaphoreSlim importLock = new(1, 1);
@@ -117,6 +118,9 @@ internal sealed class ImportedChartLibrary : IDisposable
     private bool managedEnableBmsScratch;
     private FileSystemWatcher externalWatcher;
     private Timer externalWatcherDebounce;
+    private Timer externalAvailabilityTimer;
+    private string observedExternalOsuPath;
+    private bool? observedExternalOsuAvailable;
     private bool disposed;
     private readonly Dictionary<string, ChartImportResult> externalBeatmapCache =
         new(StringComparer.OrdinalIgnoreCase);
@@ -244,6 +248,7 @@ internal sealed class ImportedChartLibrary : IDisposable
             Path.Combine("cache", "external-osu"),
             true);
         externalOsuCachePath = Path.Combine(cacheDirectory, "library-index.json");
+        configureExternalAvailabilityMonitor(ExternalOsuSongsPath);
     }
 
     public void Initialise(Storage storage)
@@ -711,6 +716,7 @@ internal sealed class ImportedChartLibrary : IDisposable
             configurationGeneration = externalOsuConfigurationGeneration;
             externalOsuSettings.SongsPath.Value = songsPath;
             disposeExternalWatcher();
+            configureExternalAvailabilityMonitor(songsPath);
         }
         cancelExternalOsuRefresh();
         await loadCachedExternalOsuAsync(cancellationToken)
@@ -737,6 +743,7 @@ internal sealed class ImportedChartLibrary : IDisposable
             Interlocked.Increment(ref externalDifficultyGeneration);
             externalOsuSettings.SongsPath.Value = string.Empty;
             disposeExternalWatcher();
+            disposeExternalAvailabilityMonitor();
             replaceExternalCharts([]);
         }
         cancelExternalOsuRefresh();
@@ -859,14 +866,15 @@ internal sealed class ImportedChartLibrary : IDisposable
                         configurationGeneration,
                         songsPath))
                 {
+                    replaceExternalCharts([]);
                     disposeExternalWatcher();
                 }
             }
             return new ExternalOsuLibraryResult(
                 false,
                 songsPath,
-                ExternalOsuChartCount,
-                "The configured osu! Songs directory is unavailable. Cached charts were retained.");
+                0,
+                "The configured osu! Songs directory is unavailable. External charts were hidden.");
         }
 
         Stopwatch stopwatch = Stopwatch.StartNew();
@@ -1106,6 +1114,20 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         if (externalOsuSettings == null
             || string.IsNullOrWhiteSpace(songsPath))
+        {
+            lock (externalOsuStateLock)
+            {
+                if (isExternalOsuConfigurationCurrent(
+                        configurationGeneration,
+                        songsPath))
+                {
+                    replaceExternalCharts([]);
+                }
+            }
+            return 0;
+        }
+
+        if (!Directory.Exists(songsPath))
         {
             lock (externalOsuStateLock)
             {
@@ -1379,12 +1401,13 @@ internal sealed class ImportedChartLibrary : IDisposable
         int generation)
     {
         // Persist occasional rating-cache checkpoints without rewriting the
-        // full external index or rebuilding every UI consumer. Publishing the
-        // library every 64 charts turns 10,000 charts into roughly 157 full
-        // list rebuilds.
+        // full external index. Separately publish completed values to active
+        // consumers on a time throttle so visible rows do not remain pending
+        // until a large library's entire difficulty pass has completed.
         const int checkpointBatchSize = 2048;
         int completedSinceCheckpoint = 0;
         bool completedAny = false;
+        Stopwatch progressPublishStopwatch = Stopwatch.StartNew();
 
         for (int index = 0; index < entries.Length; index++)
         {
@@ -1445,6 +1468,18 @@ internal sealed class ImportedChartLibrary : IDisposable
                 };
                 completedAny = true;
                 completedSinceCheckpoint++;
+                if (progressPublishStopwatch.ElapsedMilliseconds
+                    >= difficulty_progress_publish_interval_milliseconds)
+                {
+                    if (!publishExternalDifficultyProgress(
+                            songsPath,
+                            entries,
+                            generation))
+                    {
+                        return;
+                    }
+                    progressPublishStopwatch.Restart();
+                }
                 if (completedSinceCheckpoint >= checkpointBatchSize)
                 {
                     if (!await persistExternalDifficultyProgressAsync(
@@ -1475,6 +1510,31 @@ internal sealed class ImportedChartLibrary : IDisposable
                     generation,
                     publishToLibrary: true)
                 .ConfigureAwait(false);
+        }
+    }
+
+    private bool publishExternalDifficultyProgress(
+        string songsPath,
+        ExternalOsuIndexEntry[] entries,
+        int generation)
+    {
+        lock (externalOsuStateLock)
+        {
+            if (disposed
+                || generation != Volatile.Read(
+                    ref externalDifficultyGeneration)
+                || !string.Equals(
+                    songsPath,
+                    ExternalOsuSongsPath,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            replaceExternalCharts(
+                createExternalCharts(entries),
+                ImportedChartLibraryChangeKind.DifficultyRatings);
+            return true;
         }
     }
 
@@ -1654,6 +1714,61 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         externalWatcherDebounce?.Dispose();
         externalWatcherDebounce = null;
+    }
+
+    private void configureExternalAvailabilityMonitor(string songsPath)
+    {
+        disposeExternalAvailabilityMonitor();
+        if (disposed || string.IsNullOrWhiteSpace(songsPath))
+            return;
+
+        observedExternalOsuPath = songsPath;
+        observedExternalOsuAvailable = Directory.Exists(songsPath);
+        externalAvailabilityTimer = new Timer(
+            _ => checkExternalOsuAvailability(),
+            null,
+            1000,
+            1000);
+    }
+
+    private void checkExternalOsuAvailability()
+    {
+        lock (externalOsuStateLock)
+        {
+            if (disposed
+                || string.IsNullOrWhiteSpace(observedExternalOsuPath)
+                || !string.Equals(
+                    observedExternalOsuPath,
+                    ExternalOsuSongsPath,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            bool available = Directory.Exists(observedExternalOsuPath);
+            if (observedExternalOsuAvailable == available)
+                return;
+
+            observedExternalOsuAvailable = available;
+        }
+
+        _ = RefreshExternalOsuAsync().ContinueWith(task =>
+        {
+            if (task.Exception != null)
+            {
+                Logger.Error(
+                    task.Exception.GetBaseException(),
+                    "Could not refresh the external osu! library after its path availability changed.");
+            }
+        }, TaskContinuationOptions.OnlyOnFaulted);
+    }
+
+    private void disposeExternalAvailabilityMonitor()
+    {
+        externalAvailabilityTimer?.Dispose();
+        externalAvailabilityTimer = null;
+        observedExternalOsuPath = null;
+        observedExternalOsuAvailable = null;
     }
 
     public void AddOrReplace(ChartImportResult result, string sourcePath)
@@ -2563,5 +2678,6 @@ internal sealed class ImportedChartLibrary : IDisposable
         cancelExternalOsuRefresh();
         SetExternalIndexingPaused(false);
         disposeExternalWatcher();
+        disposeExternalAvailabilityMonitor();
     }
 }

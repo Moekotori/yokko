@@ -71,9 +71,11 @@ final result: passed
 - Refined interaction comparison: `F:\YokkoArtifacts\result-interface-polish\qa\result-polish-normal-left-hover-right.png` (rest state left, score-panel hover state right).
 - Focused stage comparison: `F:\YokkoArtifacts\result-interface-polish\qa\result-polish-stage-source-left-implementation-right.png` (source character stage left, untouched-character placeholder decoration system right).
 - Character-integrated native implementation: `F:\YokkoArtifacts\result-character\screenshots\result-character-final.png` (1920 x 1080).
+- Character-background native implementation: `F:\YokkoArtifacts\result-character\screenshots\result-background-final.png` (1920 x 1080).
+- Transparent foreground native implementation: `F:\YokkoArtifacts\result-character\screenshots\result-transparent-foreground-final.png` (1920 x 1080).
 - Character-integrated full-view comparison: `F:\YokkoArtifacts\result-character\qa\result-character-full-source-left-implementation-right.png` (source left, implementation right).
 - Focused character-stage comparison: `F:\YokkoArtifacts\result-character\qa\result-character-stage-source-left-implementation-right.png` (source left, implementation right).
-- Supplied character source: `F:\download\插画109 (3).png`; embedded resource: `Yokko.Resources\Textures\Gameplay\yokko-result-character-user.png`. Both SHA-256 values are `AD71399E7289AA2DF901D1C08E8D0A971A395B64CA535EA90EC3A7043B671F9B`.
+- Current supplied cutout source: `F:\download\插画109 (3).png`; embedded resource: `Yokko.Resources\Textures\Gameplay\yokko-result-character-user.png`. Both SHA-256 values are `AD71399E7289AA2DF901D1C08E8D0A971A395B64CA535EA90EC3A7043B671F9B`.
 - Viewport and density: native osu!framework Direct3D 11 preview, authored 1920 x 1080 stage at scale 1; source and implementation are both 1920 x 1080 with no density normalization required.
 - State: result screen after entrance animation, Chinese action labels, detailed local-player data, and the exact supplied character on the right stage. The preview uses a valid B-grade demo result rather than the mock's S-grade values.
 - Native interaction check: the live 1280 x 720 target window was activated and inspected. The score panel, MAX COMBO summary cell, and Watch Replay action were hovered in sequence; lift/glow, underline, cyan fill, accent rail, icon, and keycap feedback appeared without firing an action. Preview logs contained no error, exception, or fatal entry.
@@ -88,6 +90,8 @@ final result: passed
 - [P2 resolved] The narrow summary cell truncated `ETTERNA J4` to `ETTERNA...` in the first native stress capture. The RATE/RULESET tracks were rebalanced, and the post-fix capture shows the complete ruleset value.
 - [P2 resolved] The no-character right stage previously read as unfinished empty cyan space. It now has a quiet result-archive composition using nested registration rings, a tilted frame, crosshair, corner marks, dot fields, session numbering, color registration bars, and slow breathing/scan motion. These elements stay behind the future untouched character layer and reuse existing Yokko visual tokens.
 - [P2 resolved] The character stage now loads the user's byte-identical transparent PNG at 1080 x 1080, centred at `(1550, 570)`. Its silhouette crosses only the far-right edge of the diagonal score boundary, keeps core score and action content clear, and uses a restrained fade/scale entrance plus slow vertical float.
+- [P2 resolved] The user replaced the cutout with the complete opaque character-background artwork. The current sprite is 980 x 980, centred at `(1430, 570)`, and rendered below the live result ledger and ticker. This exposes the right-side accessories and background while keeping every score field and action readable.
+- [P2 resolved] The final partially transparent artwork is rendered as a 900 x 900 foreground layer centred at `(1470, 570)`, above the result ledger but below the ticker. Its left edge reaches only the score card's nonessential far-right trim; grade, score, combo breaks, misses, summary values, metadata, and actions remain unobstructed.
 - [P2 resolved] Hover affordances were too subtle to explain what was interactive. The score panel now gains a controlled lift, low-opacity glow, and pink edge scan; summary cells expose a cyan underline; action buttons use visible hover fill, animated accent rails, icon lift, compact keycaps, and retained press scale.
 - [P3] The selected mock's rank is deliberately minimal, while the implementation uses a more explicit card-like seal in response to the user's request that the grade graphic feel more finished. This is an intentional polish deviation rather than an unresolved mismatch.
 
@@ -96,7 +100,7 @@ final result: passed
 - Fonts and typography: Archivo Black remains the exact score/rank display face; Yokko display/body faces retain the existing product system. Score, previous-best, labels, and small ledger text now have distinct optical hierarchy. Dedicated AA-through-AAAAA tracking keeps the Etterna grade bold and fully legible in the captured worst-case AAAAA state.
 - Spacing and layout rhythm: header, chart strip, score block, summary, timing, judgement, metadata, provenance, and actions align to the same 1920 x 1080 grid. The large character uses the right-stage centre, crosses the slanted edge only slightly, and avoids the core information and action targets.
 - Colors and visual tokens: navy, cyan, pale cyan, yellow, pink, and ivory remain the existing Yokko tokens. The score panel and stage ornaments add only token-derived low-opacity highlights and registration accents.
-- Image quality and asset fidelity: the supplied character was copied byte-for-byte without AI generation, repainting, retouching, cropping, or resampling of the source file. The rank remains dynamic UI data rather than a rasterized screenshot or generated text asset.
+- Image quality and asset fidelity: the restored character cutout was copied byte-for-byte without AI generation, repainting, retouching, cropping, or resampling of the source file. Runtime scaling affects only presentation; the embedded PNG remains identical to the user's source. The rank remains dynamic UI data rather than a rasterized screenshot or generated text asset.
 - Copy and content: player name, local UID, play time, chart data, score delta, timing, judgements, replay state, provenance, and action labels remain truthful runtime fields. Etterna captures show the runtime Wife3 grade and justice label in full; no mock performance value was invented.
 
 ## Comparison history
@@ -111,6 +115,9 @@ final result: passed
 8. Live interaction pass: hover behavior was verified in the real target window for the score panel, MAX COMBO cell, and Watch Replay action. The combined normal/hover comparison and native target-window inspection show no actionable P0/P1/P2 issue within the current untouched-character scope.
 9. Character V1 `F:\YokkoArtifacts\result-character\screenshots\result-character-v1.png`: the large character matched the intended right-stage composition, but its halo sat too close to the top ticker.
 10. Character V2 `F:\YokkoArtifacts\result-character\screenshots\result-character-final.png`: the character centre moved down 30 px, clearing the ticker while retaining the large face-led crop and slight diagonal overlap. Full-view and focused comparisons show no actionable P0/P1/P2 issue in the character integration.
+11. Character-background V1 `F:\YokkoArtifacts\result-character\screenshots\result-background-final.png`: the complete opaque artwork replaced the cutout, moved below the live result layers, scaled to 980 px, and shifted left. The full right-side prop and background composition is visible without obscuring the result ledger.
+12. Transparent foreground V1 `F:\YokkoArtifacts\result-character\screenshots\result-transparent-foreground-final.png`: the partially transparent replacement moved above the result UI, scaled to 900 px, and aligned to the right edge. The artwork is no longer covered by result panels, while all essential score information remains clear.
+13. Final user-directed revert: the background variants were removed and the original cutout composition from Character V2 was restored at 1080 x 1080 and `(1550, 570)`.
 
 ## Open Questions
 
@@ -123,7 +130,7 @@ final result: passed
 - Retry, replay, and return actions retain enabled/disabled, hover, press, and keyboard-label states.
 - Score-panel, summary-cell, judgement-share, and action-button hover feedback is visible without moving the information grid.
 - Right-stage ornaments animate slowly and preserve the future character-safe center.
-- Exact supplied character asset is loaded as a separate texture layer with no image modification.
+- Exact supplied character cutout is loaded as a separate texture layer with no image modification.
 - Character entrance and idle motion stay subtle and do not move any information or interaction surface.
 - Native 1920 x 1080 render, focused result scene, isolated build, and diff check must pass before handoff.
 

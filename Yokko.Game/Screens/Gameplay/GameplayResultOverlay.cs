@@ -77,8 +77,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private int renderedModChipCount;
     private float lastResponsiveStageScale;
 
-    // Kept for existing result-flow tests while the selected design's
-    // character layer is intentionally deferred.
+    // Kept for existing result-flow tests; the supplied character artwork is
+    // loaded as a separate foreground stage layer beside the live result UI.
     internal bool MascotReady => true;
     internal bool CharacterStageReady => rightStageContent != null;
     internal bool CharacterTextureReady => resultCharacter?.Texture != null;

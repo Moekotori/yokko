@@ -12,7 +12,17 @@ namespace Yokko.Game.Screens.Gameplay;
 /// </summary>
 internal partial class GameplayRetryTransitionOverlay : CompositeDrawable
 {
+    private const double coverDurationMilliseconds = 55;
+    private const double revealDurationMilliseconds = 75;
+
     private readonly Box veil;
+
+    internal bool CoverComplete =>
+        Alpha == 1
+        && veil.Alpha >= 0.999f;
+
+    internal static double RevealDurationMilliseconds =>
+        revealDurationMilliseconds;
 
     internal GameplayRetryTransitionOverlay()
     {
@@ -34,7 +44,8 @@ internal partial class GameplayRetryTransitionOverlay : CompositeDrawable
     {
         ClearTransforms(true);
         Alpha = 1;
-        veil.Alpha = 1;
+        veil.Alpha = 0;
+        veil.FadeTo(1, coverDurationMilliseconds, Easing.OutQuint);
     }
 
     internal void BeginReveal()
@@ -43,8 +54,8 @@ internal partial class GameplayRetryTransitionOverlay : CompositeDrawable
         Alpha = 1;
 
         veil.Alpha = 1;
-        veil.FadeOut(45, Easing.OutQuint);
-        this.Delay(45).FadeOut();
+        veil.FadeOut(revealDurationMilliseconds, Easing.OutQuint);
+        this.Delay(revealDurationMilliseconds).FadeOut();
     }
 
     internal void ResetInstant()

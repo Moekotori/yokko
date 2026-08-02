@@ -1,11 +1,14 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using NUnit.Framework;
 using Yokko.Core.Beatmaps;
+using Yokko.Game.Audio;
 using Yokko.Game.Importing;
 using Yokko.Game.Screens.Main;
+using Yokko.Game.Screens.SongSelect;
 using Yokko.Import;
 
 namespace Yokko.Game.Tests.Core;
@@ -98,5 +101,45 @@ public sealed class HomeMusicPlayerTest
                 selections.Distinct().Count(),
                 Is.GreaterThan(1));
         });
+    }
+
+    [Test]
+    public void AdoptingSongSelectPreviewDoesNotEnableHomeMusicPreference()
+    {
+        string audioPath = Path.GetFullPath("preview.ogg");
+        var beatmap = DemoBeatmaps.CreateFourKeyDemo() with
+        {
+            AudioPath = audioPath,
+        };
+        var settings = new YokkoAudioSettings();
+        settings.HomeMusicEnabled.Value = false;
+
+        using var player = new HomeMusicPlayer();
+        typeof(HomeMusicPlayer)
+            .GetProperty(
+                "audioSettings",
+                BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(player, settings);
+        typeof(HomeMusicPlayer)
+            .GetField(
+                "tracks",
+                BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(
+                player,
+                new HomeMusicPlayer.ImportedHomeTrack[]
+                {
+                    new(audioPath, "Preview", "Artist", 180, 60_000),
+                });
+        var trackIndices = (System.Collections.Generic.Dictionary<string, int>)
+            typeof(HomeMusicPlayer)
+                .GetField(
+                    "trackIndices",
+                    BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(player)!;
+        trackIndices[audioPath] = 0;
+
+        ((ISongSelectPreviewHost)player).AdoptPreview(beatmap);
+
+        Assert.That(settings.HomeMusicEnabled.Value, Is.False);
     }
 }

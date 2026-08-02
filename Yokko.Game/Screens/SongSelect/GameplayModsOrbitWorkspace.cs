@@ -1606,7 +1606,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 YokkoStrings.Get("mods.reset"),
                 FontAwesome.Solid.Undo,
                 reset,
-                OrbitFooterButtonStyle.Reset)
+                OrbitFooterButtonStyle.Reset,
+                "R")
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
@@ -1883,12 +1884,6 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 var row = new OrbitActiveModRow(
                     definition,
                     accentFor(definition),
-                    () =>
-                    {
-                        if (category != definition.Category)
-                            selectCategory(definition.Category);
-                        focusMod(definition.Id);
-                    },
                     () => Scheduler.AddDelayed(
                         () => toggleMod(definition.Id),
                         135))
@@ -3254,12 +3249,11 @@ internal partial class OrbitActiveModRow : ClickableContainer
     internal OrbitActiveModRow(
         ManiaModDefinition definition,
         Color4 accent,
-        Action focus,
         Action remove)
     {
         ModId = definition.Id;
-        Action = focus;
         this.remove = remove;
+        Action = beginRemove;
         Size = new Vector2(365, 48);
         background = createHexagonLayer(
             Color4.White,
@@ -4062,6 +4056,36 @@ internal partial class OrbitFooterButton : ClickableContainer
                 Icon = icon,
                 Colour = HomeControlColours.Navy,
             });
+            if (badgeText != null)
+            {
+                children.Add(new Container
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(-3, 3),
+                    Size = new Vector2(22, 18),
+                    Masking = true,
+                    CornerRadius = 5,
+                    BorderThickness = 1.5f,
+                    BorderColour = HomeControlColours.Navy,
+                    Children =
+                    [
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = HomeControlColours.Ivory,
+                        },
+                        new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Text = badgeText,
+                            Font = HomeTypography.Display(10),
+                            Colour = HomeControlColours.Navy,
+                        },
+                    ],
+                });
+            }
             chevron = null;
             underline = null;
         }

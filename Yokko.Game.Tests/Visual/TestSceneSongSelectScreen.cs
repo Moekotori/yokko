@@ -49,6 +49,28 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
     }
 
     [Test]
+    public void TestF5ReloadsLibraryFromDisk()
+    {
+        bool handled = false;
+
+        AddStep("start with empty library", () => importedChartLibrary.Clear());
+        AddUntilStep("library is empty", () =>
+            songSelectScreen.VisibleEntryCount == 0);
+        AddStep("add transient chart", () => importedChartLibrary.AddOrReplace(
+            result("Transient", DemoBeatmaps.CreateFourKeyDemo()),
+            @"C:\Charts\transient.osu"));
+        AddUntilStep("transient chart is visible", () =>
+            songSelectScreen.VisibleEntryCount == 1);
+        AddStep("press F5", () =>
+            handled = songSelectScreen.HandleBrowseKey(Key.F5));
+        AddAssert("F5 is handled", () => handled);
+        AddUntilStep("reload completes", () =>
+            !songSelectScreen.LibraryReloadInProgress);
+        AddUntilStep("disk snapshot replaces transient chart", () =>
+            songSelectScreen.VisibleEntryCount == 0);
+    }
+
+    [Test]
     public void TestSongSelectInteractions()
     {
         SongSelectEntry selectedBeforeSort = null;
@@ -188,7 +210,7 @@ public partial class TestSceneSongSelectScreen : YokkoTestScene
             && SongSelectScreen.FooterToolButtonWidthFor(
                 YokkoUiScale.Comfortable) == 154);
         AddAssert("high-frequency shortcuts are discoverable", () =>
-            songSelectScreen.ShortcutLegendSize == new Vector2(220, 82)
+            songSelectScreen.ShortcutLegendSize == new Vector2(220, 106)
             && songSelectScreen.PlayButtonEyebrow
                 == "START SELECTED CHART"
             && songSelectScreen.PlayButtonAction == "PLAY");

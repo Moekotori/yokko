@@ -168,6 +168,7 @@ public partial class SongSelectScreen : Screen
     private SongSelectDifficultyFilterBar difficultyFilterBar;
     private GameplayPlaybackRateOverlay playbackRateOverlay;
     private GameplayScrollSpeedOverlay scrollSpeedOverlay;
+    private ImportNotificationOverlay libraryReloadOverlay;
 
     private List<SongSelectEntry> visibleEntries;
     private List<SongSelectEntry> navigableEntries = [];
@@ -210,6 +211,10 @@ public partial class SongSelectScreen : Screen
     private Task<GameplaySessionScreen> gameplayPreloadTask;
     private GameplayPreloadKey? gameplayPreloadKey;
     private bool nextPreloadScheduled;
+    private readonly CancellationTokenSource libraryReloadCancellation = new();
+    private bool libraryReloadInProgress;
+    private bool preserveSelectionForLibraryReload;
+    private bool libraryReloadDisposed;
     private int initialArtworkPrewarmCount;
     private bool entryTransitionInProgress;
     private int entryTransitionVersion;
@@ -238,6 +243,10 @@ public partial class SongSelectScreen : Screen
     private YokkoAudioSettings audioSettings { get; set; }
     [Resolved]
     private YokkoGameplaySettings gameplaySettings { get; set; }
+    [Resolved]
+    private YokkoImportSettings importSettings { get; set; }
+    [Resolved]
+    private YokkoExternalOsuSettings externalOsuSettings { get; set; }
     [Resolved]
     private YokkoManiaModPreferences modPreferences { get; set; }
     [Resolved]
@@ -481,6 +490,7 @@ public partial class SongSelectScreen : Screen
     internal int NavigableEntryCount => navigableEntries.Count;
     internal bool FilterPending => filterPending;
     internal bool UsesFocusedPackageExpansion => focusedPackageExpansion;
+    internal bool LibraryReloadInProgress => libraryReloadInProgress;
 
     internal void TogglePackage(string packageId)
     {
@@ -587,6 +597,7 @@ public partial class SongSelectScreen : Screen
                         Origin = Anchor.TopCentre,
                         Y = 92,
                     },
+                    libraryReloadOverlay = new ImportNotificationOverlay(),
                 },
             },
         };
@@ -807,6 +818,9 @@ public partial class SongSelectScreen : Screen
             playableBeatmapDisposed = true;
             invalidatePlayableBeatmapRequest();
             invalidateGameplayPreload();
+            libraryReloadDisposed = true;
+            libraryReloadCancellation.Cancel();
+            libraryReloadCancellation.Dispose();
             filterDisposed = true;
             invalidateFilterRequest();
         }
@@ -831,6 +845,9 @@ public partial class SongSelectScreen : Screen
         if (HandlePlaybackRateShortcut(e.Key, e.AltPressed))
             return true;
         if (HandleScrollSpeedShortcut(e.Key, e.ControlPressed))
+            return true;
+
+        if (e.Key == Key.F5 && e.Repeat)
             return true;
 
         if (HandleBrowseKey(e.Key, e.ControlPressed))
@@ -891,6 +908,10 @@ public partial class SongSelectScreen : Screen
                 selectRandomEntry();
                 return true;
 
+            case Key.F5:
+                reloadLibrary();
+                return true;
+
             case Key.Escape:
                 HandleEscape();
                 return true;
@@ -903,6 +924,83 @@ public partial class SongSelectScreen : Screen
     internal void SelectNext() => selectOffset(1);
 
     internal void SelectPrevious() => selectOffset(-1);
+
+    private void reloadLibrary()
+    {
+        if (libraryReloadInProgress || libraryReloadDisposed)
+            return;
+
+        libraryReloadInProgress = true;
+        preserveSelectionForLibraryReload = true;
+        libraryReloadOverlay?.ShowImporting(
+            YokkoStrings.Get("song_select.reload_working"),
+            "F5");
+        _ = reloadLibraryAsync(libraryReloadCancellation.Token);
+    }
+
+    private async Task reloadLibraryAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            int count = await Task.Run(async () =>
+            {
+                int managedCount = await importedChartLibrary.LoadFromDiskAsync(
+                    importSettings.PreferKeysounds.Value,
+                    importSettings.PreferSscSimfiles.Value,
+                    importSettings.EnableBmsScratch.Value,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (string.IsNullOrWhiteSpace(externalOsuSettings.SongsPath.Value))
+                    return managedCount;
+
+                ExternalOsuLibraryResult external =
+                    await importedChartLibrary.RefreshExternalOsuAsync(
+                        cancellationToken).ConfigureAwait(false);
+                if (!external.Success)
+                    throw new InvalidOperationException(external.Message);
+
+                return managedCount + external.ChartCount;
+            }, cancellationToken).ConfigureAwait(false);
+
+            if (!libraryReloadDisposed)
+            {
+                Scheduler.Add(() =>
+                {
+                    if (libraryReloadDisposed)
+                        return;
+                    applyPendingLibraryChange();
+                    libraryReloadInProgress = false;
+                    if (screenActive)
+                        preserveSelectionForLibraryReload = false;
+                    libraryReloadOverlay?.ShowSuccess(
+                        YokkoStrings.Get("song_select.reload_complete", count),
+                        YokkoStrings.Get("song_select.reload_hint"));
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            Logger.Error(exception, "Could not reload the song-select beatmap library.");
+            if (!libraryReloadDisposed)
+            {
+                Scheduler.Add(() =>
+                {
+                    if (libraryReloadDisposed)
+                        return;
+                    applyPendingLibraryChange();
+                    libraryReloadInProgress = false;
+                    if (screenActive)
+                        preserveSelectionForLibraryReload = false;
+                    libraryReloadOverlay?.ShowFailure(
+                        YokkoStrings.Get("song_select.reload_failed"),
+                        exception.Message);
+                });
+            }
+        }
+    }
 
     internal void SetKeyModeFilter(KeyMode? mode)
     {
@@ -2855,7 +2953,7 @@ public partial class SongSelectScreen : Screen
     private Drawable createShortcutLegend() => shortcutLegend = new Container
     {
         Position = new Vector2(786, 24),
-        Size = new Vector2(220, 82),
+        Size = new Vector2(220, 106),
         Masking = true,
         CornerRadius = 10,
         BorderThickness = 1,
@@ -2873,6 +2971,7 @@ public partial class SongSelectScreen : Screen
             shortcutHint("F", "FILTERS", 116, 34),
             shortcutHint("R", "RANDOM", 12, 58),
             shortcutHint("ENT", "PLAY", 116, 58),
+            shortcutHint("F5", "RELOAD", 12, 82),
         ],
     };
 
@@ -3329,7 +3428,7 @@ public partial class SongSelectScreen : Screen
                     Width = details_content_width,
                     Truncate = true,
                     Text = selectedEntry.Beatmap.Artist,
-                    Font = HomeTypography.Display(14),
+                    Font = HomeTypography.Display(16),
                     Colour = SongSelectTheme.Navy,
                 },
                 new SpriteText
@@ -3338,7 +3437,7 @@ public partial class SongSelectScreen : Screen
                     Width = details_content_width,
                     Truncate = true,
                     Text = $"mapped by {selectedEntry.Beatmap.Creator}",
-                    Font = HomeTypography.Body(10),
+                    Font = HomeTypography.Body(13),
                     Colour = SongSelectTheme.Cyan,
                 },
                 selectedChartFactsRow = createSelectedChartFactsRow(
@@ -4944,7 +5043,11 @@ public partial class SongSelectScreen : Screen
             return;
         }
 
-        synchroniseImportedCharts(selectNewest: structureChanged);
+        synchroniseImportedCharts(
+            selectNewest: structureChanged
+                          && !preserveSelectionForLibraryReload);
+        if (preserveSelectionForLibraryReload && !libraryReloadInProgress)
+            preserveSelectionForLibraryReload = false;
     }
 
     private bool synchroniseImportedDifficultyRatings()

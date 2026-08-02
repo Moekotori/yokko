@@ -324,7 +324,6 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
             : tracks[index].FallbackLength;
         playbackGeneration++;
         desiredPlaying = true;
-        audioSettings.HomeMusicEnabled.Value = true;
         playPauseButton.Icon.Icon = FontAwesome.Solid.Pause;
         updateTrackDisplay(tracks[index], changed);
         ensureWaveformForCurrentTrack();
