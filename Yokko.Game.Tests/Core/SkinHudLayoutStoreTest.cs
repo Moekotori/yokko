@@ -38,6 +38,8 @@ public sealed class SkinHudLayoutStoreTest
                 skinSettings);
             gameplaySettings.LayoutPlayfieldOffsetX.Value = 0.24;
             gameplaySettings.LayoutComboScaleX.Value = 1.35;
+            gameplaySettings.LayoutComboVisible.Value = 0;
+            gameplaySettings.LayoutJudgementVisible.Value = 0;
             gameplaySettings.BackgroundDim.Value = 0.4;
             store.Flush();
 
@@ -46,6 +48,8 @@ public sealed class SkinHudLayoutStoreTest
             {
                 Assert.That(gameplaySettings.LayoutPlayfieldOffsetX.Value, Is.Zero);
                 Assert.That(gameplaySettings.LayoutComboScaleX.Value, Is.EqualTo(1));
+                Assert.That(gameplaySettings.LayoutComboVisible.Value, Is.EqualTo(1));
+                Assert.That(gameplaySettings.LayoutJudgementVisible.Value, Is.EqualTo(1));
                 Assert.That(
                     gameplaySettings.BackgroundDim.Value,
                     Is.EqualTo(YokkoGameplaySettings.DefaultBackgroundDim));
@@ -53,6 +57,8 @@ public sealed class SkinHudLayoutStoreTest
 
             gameplaySettings.LayoutPlayfieldOffsetX.Value = -0.31;
             gameplaySettings.LayoutComboScaleX.Value = 0.7;
+            gameplaySettings.LayoutComboVisible.Value = 1;
+            gameplaySettings.LayoutJudgementVisible.Value = 1;
             gameplaySettings.BackgroundDim.Value = 0.15;
             store.Flush();
 
@@ -61,6 +67,8 @@ public sealed class SkinHudLayoutStoreTest
             {
                 Assert.That(gameplaySettings.LayoutPlayfieldOffsetX.Value, Is.EqualTo(0.24));
                 Assert.That(gameplaySettings.LayoutComboScaleX.Value, Is.EqualTo(1.35));
+                Assert.That(gameplaySettings.LayoutComboVisible.Value, Is.Zero);
+                Assert.That(gameplaySettings.LayoutJudgementVisible.Value, Is.Zero);
                 Assert.That(gameplaySettings.BackgroundDim.Value, Is.EqualTo(0.4));
             });
         }
@@ -78,6 +86,8 @@ public sealed class SkinHudLayoutStoreTest
         {
             Assert.That(restoredGameplay.LayoutPlayfieldOffsetX.Value, Is.EqualTo(-0.31));
             Assert.That(restoredGameplay.LayoutComboScaleX.Value, Is.EqualTo(0.7));
+            Assert.That(restoredGameplay.LayoutComboVisible.Value, Is.EqualTo(1));
+            Assert.That(restoredGameplay.LayoutJudgementVisible.Value, Is.EqualTo(1));
             Assert.That(restoredGameplay.BackgroundDim.Value, Is.EqualTo(0.15));
             Assert.That(
                 Directory.EnumerateFiles(

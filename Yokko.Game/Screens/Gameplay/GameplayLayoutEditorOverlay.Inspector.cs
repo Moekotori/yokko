@@ -316,6 +316,9 @@ internal partial class GameplayLayoutEditorOverlay
 
     private void setLayerHidden(LayoutElementKind kind, bool hidden)
     {
+        if (!IsEditing)
+            return;
+
         LayoutTransformTarget target = targetFor(kind);
         if (target.EditorHidden == hidden)
             return;
@@ -338,6 +341,20 @@ internal partial class GameplayLayoutEditorOverlay
         LayoutElementKind kind,
         bool visible) =>
         visibilitySetting(kind).Value = visible ? 1 : 0;
+
+    private void syncTargetVisibilityFromSettings()
+    {
+        foreach (LayoutTransformTarget target in allTargets())
+        {
+            target.SetEditorHidden(!isLayoutElementVisible(target.Kind));
+            applyElementAlpha(target.Kind, target.EditorHidden);
+            inspector?.SetLayerState(
+                target.Kind,
+                target.IsLocked,
+                target.EditorHidden,
+                target.AspectLocked);
+        }
+    }
 
     private Bindable<double> visibilitySetting(LayoutElementKind kind) =>
         kind switch

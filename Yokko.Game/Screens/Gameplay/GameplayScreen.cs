@@ -114,6 +114,7 @@ public partial class GameplayScreen : Screen
     private GameplayLayoutEditorOverlay layoutEditor;
     private LayoutAutoplayRollbackState layoutAutoplayRollback;
     private bool layoutAutoplayDemoActive;
+    private bool layoutPreviewReturnInProgress;
     private KeyModeBindings keyBindings;
     private bool[] pressedLanes;
     private double startTimeMilliseconds;
@@ -263,6 +264,9 @@ public partial class GameplayScreen : Screen
             : 0);
     internal double CurrentGameplayTime => currentGameplayTime;
     internal ManiaScoreResult CompletedResult => completedResult;
+    internal ManiaScoreResult CurrentResultForTest =>
+        judgementState.CreateResult();
+    internal int ResultHitErrorCountForTest => resultHitErrors.Count;
     internal string SavedReplayPath { get; private set; }
     internal bool BestScoreSaved { get; private set; }
     internal bool ReplayMode => replay != null;
@@ -1089,7 +1093,7 @@ public partial class GameplayScreen : Screen
 
     protected override bool OnScroll(ScrollEvent e)
     {
-        if (layoutEditor?.IsEditing == true)
+        if (layoutEditor?.IsSessionActive == true)
             return true;
 
         if (isPaused)
@@ -1126,13 +1130,16 @@ public partial class GameplayScreen : Screen
         if (retryTransitionInProgress)
             return true;
 
-        if (layoutEditor?.IsTestingLayout == true
-            && !repeat
-            && matchesShortcut(
-                ManiaShortcutAction.PauseOrBack,
-                key))
+        if (layoutEditor?.IsTestingLayout == true)
         {
-            _ = returnToLayoutEditorFromTestAsync();
+            if (!repeat
+                && matchesShortcut(
+                    ManiaShortcutAction.PauseOrBack,
+                    key))
+            {
+                _ = returnToLayoutEditorFromTestAsync();
+            }
+
             return true;
         }
 
@@ -4944,20 +4951,39 @@ public partial class GameplayScreen : Screen
 
     private async Task returnToLayoutEditorFromTestAsync()
     {
-        if (layoutEditor?.IsTestingLayout != true)
-            return;
-
-        if (resumeCountdownInProgress)
+        if (layoutEditor?.IsTestingLayout != true
+            || layoutPreviewReturnInProgress)
         {
-            cancelResumeCountdown();
-            await restoreLayoutEditorAfterTestAsync().ConfigureAwait(true);
             return;
         }
 
-        if (!isPaused)
-            await pauseGameplayAsync().ConfigureAwait(true);
-        else
-            await restoreLayoutEditorAfterTestAsync().ConfigureAwait(true);
+        layoutPreviewReturnInProgress = true;
+        try
+        {
+            if (resumeCountdownInProgress)
+            {
+                cancelResumeCountdown();
+                await restoreLayoutEditorAfterTestAsync().ConfigureAwait(true);
+                return;
+            }
+
+            if (!isPaused)
+                await pauseGameplayAsync().ConfigureAwait(true);
+            else
+                await restoreLayoutEditorAfterTestAsync().ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            isPaused = true;
+            Logger.Error(
+                exception,
+                "The layout preview could not restore its entry state.",
+                LoggingTarget.Runtime);
+        }
+        finally
+        {
+            layoutPreviewReturnInProgress = false;
+        }
     }
 
     private async Task restoreLayoutEditorAfterTestAsync()

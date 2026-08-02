@@ -99,6 +99,9 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     internal bool AutoplayControlVisibleForTest =>
         autoplayDemoControl.Alpha > 0.9f;
 
+    internal float PerformanceReadoutPreviewAlphaForTest =>
+        performanceReadoutPreview.Alpha;
+
     internal void ExitAutoplayDemoForTest() => exitAutoplayDemo();
 
     internal bool HasUnsavedChangesForTest => hasUnsavedChanges();
@@ -506,15 +509,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         hud = nextHud
               ?? throw new ArgumentNullException(nameof(nextHud));
 
-        foreach (LayoutTransformTarget target in allTargets())
-        {
-            target.SetEditorHidden(!isLayoutElementVisible(target.Kind));
-            inspector.SetLayerState(
-                target.Kind,
-                target.IsLocked,
-                target.EditorHidden,
-                target.AspectLocked);
-        }
+        syncTargetVisibilityFromSettings();
 
         // Rebuilt targets may belong to a different skin. Layout snapshots do
         // not carry skin identity, so never let history from the old target
@@ -605,6 +600,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
 
         beginChange();
         settings.ResetGameplayLayout();
+        syncTargetVisibilityFromSettings();
     }
 
     internal void ToggleChrome()
@@ -1522,6 +1518,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         settings.LayoutTopCoverRatio.Value = snapshot.TopCoverRatio;
         settings.LayoutBottomCoverRatio.Value =
             snapshot.BottomCoverRatio;
+        syncTargetVisibilityFromSettings();
     }
 
     private void movePlayfield(Vector2 delta)

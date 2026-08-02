@@ -956,6 +956,10 @@ namespace Yokko.Game.Tests.Visual
             GameplayComboReadout comboReadout = null;
             JudgementReadout judgementReadout = null;
             GameplayPlayfield gameplayPlayfield = null;
+            ManiaScoreResult autoplayBaselineResult = null;
+            double autoplayBaselineTime = 0;
+            int autoplayBaselinePauses = 0;
+            int autoplayBaselineHitErrors = 0;
 
             AddStep("open gameplay layout fixture", () =>
             {
@@ -1056,6 +1060,8 @@ namespace Yokko.Game.Tests.Visual
                     - 16f / 9f) < 0.001f);
             AddAssert("playfield starts selected", () =>
                 layoutEditor.SelectedElementForTest == "Playfield");
+            AddAssert("performance target has a visible real preview", () =>
+                layoutEditor.PerformanceReadoutPreviewAlphaForTest > 0.99f);
             AddAssert("inactive blocker handles stay inside the canvas", () =>
                 layoutEditor.TopCoverHandleTopForTest >= -0.01f
                 && layoutEditor.BottomCoverHandleBottomForTest
@@ -1371,10 +1377,14 @@ namespace Yokko.Game.Tests.Visual
                 GameplayHud[] huds = gameplayScreen
                     .ChildrenOfType<GameplayHud>()
                     .ToArray();
-                if (huds.Length != 1)
+                GameplayPlayfield[] playfields = gameplayScreen
+                    .ChildrenOfType<GameplayPlayfield>()
+                    .ToArray();
+                if (huds.Length != 1 || playfields.Length != 1)
                     return false;
 
                 gameplayHud = huds[0];
+                gameplayPlayfield = playfields[0];
                 return gameplayHud.IsLoaded;
             });
             AddStep("customise editor UI toggle shortcut", () =>
@@ -1457,6 +1467,11 @@ namespace Yokko.Game.Tests.Visual
                 && timingBar.Scale.Y > 1.2f);
             AddStep("start autoplay layout demo", () =>
             {
+                autoplayBaselineResult = gameplayScreen.CurrentResultForTest;
+                autoplayBaselineTime = gameplayScreen.CurrentGameplayTime;
+                autoplayBaselinePauses = gameplayScreen.PausesUsed;
+                autoplayBaselineHitErrors =
+                    gameplayScreen.ResultHitErrorCountForTest;
                 gameplayScreen.ResumeCountdownMillisecondsOverride = 0;
                 gameplayScreen.SetLayoutEditorLongNoteCutEnabledForTest(true);
                 gameplayScreen.SetLayoutEditorLongNoteCutAmountForTest(0.4);
@@ -1500,6 +1515,14 @@ namespace Yokko.Game.Tests.Visual
                 && gameplayPlayfield.RegularNoteLayerVisible
                 && !layoutEditor.AutoplayControlVisibleForTest
                 && layoutEditor.ChromeAlphaForTest > 0.9f);
+            AddAssert("autoplay demo restores the real run exactly", () =>
+                gameplayScreen.CurrentResultForTest == autoplayBaselineResult
+                && Math.Abs(
+                    gameplayScreen.CurrentGameplayTime
+                    - autoplayBaselineTime) < 0.01
+                && gameplayScreen.PausesUsed == autoplayBaselinePauses
+                && gameplayScreen.ResultHitErrorCountForTest
+                    == autoplayBaselineHitErrors);
             AddStep("restore LN cut after autoplay demo", () =>
             {
                 gameplayScreen.SetLayoutEditorLongNoteCutAmountForTest(
@@ -1553,6 +1576,17 @@ namespace Yokko.Game.Tests.Visual
                     false,
                     false));
             AddAssert("first Escape asks before discarding", () =>
+                gameplayScreen.IsLayoutEditing
+                && layoutEditor.IsCancelConfirmationPendingForTest);
+            AddStep("make another change after discard warning", () =>
+                layoutEditor.MoveTimingBarForTest(new Vector2(8, 0)));
+            AddStep("stale confirmation does not discard", () =>
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Escape,
+                    false,
+                    false,
+                    false));
+            AddAssert("new change requires a fresh confirmation", () =>
                 gameplayScreen.IsLayoutEditing
                 && layoutEditor.IsCancelConfirmationPendingForTest);
             AddStep("confirm discard with Escape", () =>
@@ -1668,9 +1702,15 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.IsLayoutAutoplayPlaying
                 && !playfield.SkinComboVisibleForTest
                 && !playfield.SkinJudgementVisibleForTest);
-            AddStep("exit autoplay and restore feedback", () =>
+            AddStep("exit autoplay", () =>
+                layoutEditor.ExitAutoplayDemoForTest());
+            AddUntilStep("editor returns with feedback still hidden", () =>
+                gameplay.IsLayoutEditing
+                && layoutEditor.IsEditing
+                && !playfield.SkinComboVisibleForTest
+                && !playfield.SkinJudgementVisibleForTest);
+            AddStep("restore feedback", () =>
             {
-                layoutEditor.ExitAutoplayDemoForTest();
                 layoutEditor.SetComboHiddenForTest(false);
                 layoutEditor.SetJudgementHiddenForTest(false);
             });
