@@ -181,7 +181,6 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(378, 320),
                 Size = new Vector2(840, 328),
             },
-            new SettingsPanelFooter(),
             new HomeDotCross
             {
                 Position = new Vector2(1088, 594),
@@ -248,11 +247,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         if (direction == 0)
             return;
 
-        int profileCount = settings.SupportedKeyModes.Count + 2;
-        int current = bmsProfileSelected
-            ? settings.SupportedKeyModes.Count
-              + (bmsDoublePlayProfileSelected ? 1 : 0)
-            : 0;
+        int current = 0;
         if (!bmsProfileSelected)
         {
             for (int index = 0; index < settings.SupportedKeyModes.Count; index++)
@@ -264,15 +259,17 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 }
             }
         }
-        int next = (current + Math.Sign(direction)
-                    + profileCount)
-                   % profileCount;
-        if (next == settings.SupportedKeyModes.Count)
-            SelectBmsProfile();
-        else if (next == settings.SupportedKeyModes.Count + 1)
-            SelectBmsProfile(doublePlay: true);
         else
-            SelectKeyMode(settings.SupportedKeyModes[next]);
+        {
+            current = direction > 0
+                ? -1
+                : settings.SupportedKeyModes.Count;
+        }
+
+        int next = (current + Math.Sign(direction)
+                    + settings.SupportedKeyModes.Count)
+                   % settings.SupportedKeyModes.Count;
+        SelectKeyMode(settings.SupportedKeyModes[next]);
     }
 
     internal void BeginKeyCapture(int lane)
@@ -753,33 +750,29 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 () => SelectAdjacentKeyMode(-1),
                 42)
             {
-                Position = new Vector2(154, 10),
+                Position = new Vector2(104, 10),
             },
-            new GameplayCompactButton(
+            new GameplayProfileBadge(
                 bmsProfileSelected
-                    ? bmsDoublePlayProfileSelected
-                        ? "BMS DP"
-                        : "BMS SP"
+                    ? "BMS"
                     : OsuManiaKeyLayout.GetDisplayName(selectedKeyMode),
-                () => SelectAdjacentKeyMode(1),
-                124)
+                106)
             {
-                Position = new Vector2(202, 10),
-                IsSelected = true,
+                Position = new Vector2(152, 10),
             },
             new GameplayCompactButton(
                 "›",
                 () => SelectAdjacentKeyMode(1),
                 42)
             {
-                Position = new Vector2(332, 10),
+                Position = new Vector2(264, 10),
             },
             new GameplayCompactButton(
                 "4K",
                 () => SelectKeyMode(KeyMode.FourKey),
                 46)
             {
-                Position = new Vector2(386, 10),
+                Position = new Vector2(318, 10),
                 IsSelected = !bmsProfileSelected
                              && selectedKeyMode == KeyMode.FourKey,
             },
@@ -788,53 +781,46 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 () => SelectKeyMode(KeyMode.SevenKey),
                 46)
             {
-                Position = new Vector2(438, 10),
+                Position = new Vector2(370, 10),
                 IsSelected = !bmsProfileSelected
                              && selectedKeyMode == KeyMode.SevenKey,
             },
             new GameplayCompactButton(
-                "BMS SP",
+                "BMS",
                 () => SelectBmsProfile(),
-                68)
+                72)
             {
-                Position = new Vector2(490, 10),
-                IsSelected = bmsProfileSelected
-                             && !bmsDoublePlayProfileSelected,
-            },
-            new GameplayCompactButton(
-                "BMS DP",
-                () => SelectBmsProfile(doublePlay: true),
-                68)
-            {
-                Position = new Vector2(564, 10),
-                IsSelected = bmsProfileSelected
-                             && bmsDoublePlayProfileSelected,
+                Position = new Vector2(422, 10),
+                IsSelected = bmsProfileSelected,
             },
             captureToggleButton = new GameplayCompactButton(
                 YokkoStrings.Get("settings.gameplay.edit_all"),
                 BeginSequentialKeyCapture,
-                84,
+                112,
                 FontAwesome.Solid.Keyboard)
             {
-                Position = new Vector2(638, 10),
+                Position = new Vector2(566, 10),
             },
             resetBindingsButton = new GameplayCompactButton(
                 resetButtonLabel(),
                 ResetSelectedBindings,
-                92,
+                132,
                 CanUndoBindingReset
                     ? FontAwesome.Solid.Undo
                     : FontAwesome.Solid.ArrowLeft)
             {
-                Position = new Vector2(728, 10),
+                Position = new Vector2(688, 10),
                 IsSelected = IsResetBindingsPending,
             },
             keyCaptureHint,
             createBindingCards(),
         });
 
-        if (!bmsProfileSelected
-            && selectedKeyMode is KeyMode.FourKey or KeyMode.SevenKey)
+        if (bmsProfileSelected)
+        {
+            children.AddRange(createBmsModeControls());
+        }
+        else if (selectedKeyMode is KeyMode.FourKey or KeyMode.SevenKey)
         {
             children.AddRange(createPresetControls());
         }
@@ -843,12 +829,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             children.Add(new SpriteText
             {
                 Position = new Vector2(20, 70),
-                Text = bmsProfileSelected
-                    ? YokkoStrings.Get(
-                        bmsDoublePlayProfileSelected
-                            ? "settings.gameplay.bms_dp_profile_hint"
-                            : "settings.gameplay.bms_profile_hint")
-                    : YokkoStrings.Get("settings.gameplay.all_modes_hint"),
+                Text = YokkoStrings.Get("settings.gameplay.all_modes_hint"),
                 Font = HomeTypography.Body(16),
                 Colour = SettingsTheme.MutedNavy,
             });
@@ -860,6 +841,40 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         setPanelChildren(panel, children);
 
         setContent(panel, animate);
+    }
+
+    private IEnumerable<Drawable> createBmsModeControls()
+    {
+        yield return new SpriteText
+        {
+            Position = new Vector2(20, 70),
+            Text = YokkoStrings.Get("settings.gameplay.bms_mode"),
+            Font = HomeTypography.Display(17),
+            Colour = HomeControlColours.Navy,
+        };
+        yield return new GameplayCompactButton(
+            YokkoStrings.Get("settings.gameplay.bms_single_play"),
+            () => SelectBmsProfile(),
+            110)
+        {
+            Position = new Vector2(112, 58),
+            IsSelected = !bmsDoublePlayProfileSelected,
+        };
+        yield return new GameplayCompactButton(
+            YokkoStrings.Get("settings.gameplay.bms_double_play"),
+            () => SelectBmsProfile(doublePlay: true),
+            110)
+        {
+            Position = new Vector2(228, 58),
+            IsSelected = bmsDoublePlayProfileSelected,
+        };
+        yield return new SpriteText
+        {
+            Position = new Vector2(354, 70),
+            Text = YokkoStrings.Get("settings.gameplay.bms_layout_note"),
+            Font = HomeTypography.Body(14),
+            Colour = SettingsTheme.MutedNavy,
+        };
     }
 
     private IEnumerable<Drawable> createPresetControls()
@@ -893,10 +908,11 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             Position = new Vector2(262, 58),
         };
         yield return new GameplayCompactButton(
-            YokkoStrings.Get("settings.gameplay.copy_other_mode"),
+            YokkoStrings.Get(
+                "settings.gameplay.copy_to_mode",
+                selectedKeyMode == KeyMode.FourKey ? "7K" : "4K"),
             CopySelectedBindings,
-            140,
-            FontAwesome.Solid.Copy)
+            140)
         {
             Position = new Vector2(348, 58),
         };
@@ -909,16 +925,14 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         yield return new GameplayCompactButton(
             YokkoStrings.Get("settings.gameplay.export_profile"),
             ExportKeyProfiles,
-            96,
-            FontAwesome.Solid.Upload)
+            96)
         {
             Position = new Vector2(exportX, 58),
         };
         yield return new GameplayCompactButton(
             YokkoStrings.Get("settings.gameplay.import_profile"),
             () => ImportKeyProfiles(),
-            96,
-            FontAwesome.Solid.Download)
+            96)
         {
             Position = new Vector2(exportX + 106, 58),
         };
@@ -2144,6 +2158,8 @@ internal partial class GameplayBindingCard : ClickableContainer
     private readonly SpriteText keyText;
     private readonly SpriteText actionText;
     private readonly bool compact;
+    private readonly float captureKeyFontSize;
+    private readonly float idleKeyFontSize;
     private readonly Color4 idleBorderColour;
     private readonly Color4 idleLaneColour;
     private bool capturing;
@@ -2165,6 +2181,10 @@ internal partial class GameplayBindingCard : ClickableContainer
         this.keyboardBinding = keyboardBinding;
         this.deviceBinding = deviceBinding;
         this.compact = compact;
+        idleKeyFontSize = compact || width < 120
+            ? width < 85 ? 17 : 19
+            : 30;
+        captureKeyFontSize = compact || width < 120 ? 10 : 17;
         Action = action;
         Size = new Vector2(width, compact ? 62 : 140);
         Masking = true;
@@ -2192,7 +2212,8 @@ internal partial class GameplayBindingCard : ClickableContainer
                 Text = customLaneLabel ?? YokkoStrings.Get(
                     "settings.gameplay.lane",
                     lane + 1),
-                Font = HomeTypography.Body(compact ? 11 : 16),
+                Font = HomeTypography.Body(
+                    compact ? 11 : width < 120 ? 13 : 16),
                 Colour = idleLaneColour,
             },
             keyText = new SpriteText
@@ -2200,7 +2221,7 @@ internal partial class GameplayBindingCard : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Y = compact ? 5 : -3,
-                Font = HomeTypography.Display(compact ? 19 : 30),
+                Font = HomeTypography.Display(idleKeyFontSize),
                 Colour = HomeControlColours.Navy,
             },
             actionText = new SpriteText
@@ -2210,7 +2231,8 @@ internal partial class GameplayBindingCard : ClickableContainer
                 Y = compact ? -3 : -14,
                 Text = YokkoStrings.Get(
                     "settings.gameplay.click_to_change"),
-                Font = HomeTypography.Body(compact ? 10 : 16),
+                Font = HomeTypography.Body(
+                    compact ? 10 : width < 120 ? 12 : 16),
                 Colour = SettingsTheme.MutedNavy,
             },
         };
@@ -2236,9 +2258,7 @@ internal partial class GameplayBindingCard : ClickableContainer
             ? YokkoStrings.Get("settings.gameplay.press_key")
             : displayKey(currentBinding);
         keyText.Font = HomeTypography.Display(
-            capturing
-                ? compact ? 10 : 17
-                : compact ? 19 : 30);
+            capturing ? captureKeyFontSize : idleKeyFontSize);
         keyText.FadeColour(
             capturing || pressed ? Color4.White : HomeControlColours.Navy,
             120,
@@ -2297,7 +2317,7 @@ internal partial class GameplayBindingCard : ClickableContainer
             120,
             Easing.OutQuint);
         keyText.Text = displayKey(key);
-        keyText.Font = HomeTypography.Display(compact ? 19 : 30);
+        keyText.Font = HomeTypography.Display(idleKeyFontSize);
         keyText.FadeColour(
             HomeControlColours.Navy,
             120,
@@ -2415,6 +2435,34 @@ internal partial class GameplayBindingCard : ClickableContainer
         }
 
         base.Dispose(isDisposing);
+    }
+}
+
+internal partial class GameplayProfileBadge : CompositeDrawable
+{
+    public GameplayProfileBadge(LocalisableString label, float width)
+    {
+        Size = new Vector2(width, 42);
+        Masking = true;
+        CornerRadius = 7;
+        BorderThickness = 1.2f;
+        BorderColour = HomeControlColours.Navy;
+        InternalChildren = new Drawable[]
+        {
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = SettingsTheme.PaleCyan,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Text = label,
+                Font = HomeTypography.Display(18),
+                Colour = HomeControlColours.Navy,
+            },
+        };
     }
 }
 

@@ -134,12 +134,6 @@ internal partial class SettingsSidebar : CompositeDrawable
                 Height = 664,
                 Colour = SettingsTheme.Divider,
             },
-            new HomeBarcode("NO.010-SET", showLabel: false)
-            {
-                Anchor = Anchor.BottomLeft,
-                Origin = Anchor.BottomLeft,
-                Position = new Vector2(38, -18),
-            },
             new HomeBeatPips(
                 new Color4(
                     HomeControlColours.Navy.R,

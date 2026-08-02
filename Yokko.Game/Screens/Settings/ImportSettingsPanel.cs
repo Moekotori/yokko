@@ -91,7 +91,6 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
             createBehaviourCards(),
             createLocationCard(),
             createExternalOsuCard(),
-            new SettingsPanelFooter(),
             directorySelector = new ResourceDirectorySelectorOverlay(
                 migrateTo,
                 migrateToDefault),

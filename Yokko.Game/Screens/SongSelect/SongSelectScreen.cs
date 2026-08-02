@@ -54,16 +54,16 @@ public partial class SongSelectScreen : Screen
     private const float details_top = 82;
     private const float details_left = 36;
     private const float details_width = 850;
-    private const float details_panel_height = 256;
-    private const float details_artwork_size = 220;
+    private const float details_panel_height = 320;
+    private const float details_artwork_size = 280;
     private const float selected_artwork_rotation = -1.25f;
-    private const float details_content_left = 260;
-    private const float details_content_width = 572;
+    private const float details_content_left = 310;
+    private const float details_content_width = 522;
     private const double details_title_units_per_line = 26;
-    private const float ranking_top = 294;
-    private const float ranking_height = 570;
-    private const float browse_top = 232;
-    private const float browse_width = 850;
+    private const float ranking_top = 340;
+    private const float ranking_height = 508;
+    private const float browse_top = 184;
+    private const float browse_width = 980;
     private const float browse_right = 24;
     private const float browse_height =
         designed_height - footer_height - browse_top - 16;
@@ -155,7 +155,10 @@ public partial class SongSelectScreen : Screen
     private SongSelectSortPopover sortPopover;
     private SongSelectBrowseToolButton groupButton;
     private SongSelectBrowseToolButton convertsButton;
+    private SongSelectBrowseToolButton filtersButton;
     private Container browseToolbar;
+    private Container filtersPopover;
+    private bool filtersPopoverOpen;
     private Container topNavigation;
     private Sprite topNavigationLogo;
     private Container topNavigationProfile;
@@ -555,6 +558,7 @@ public partial class SongSelectScreen : Screen
                     },
                     createSongBrowser(),
                     createSortPopover(),
+                    createFiltersPopover(),
                     createFooter(),
                     playbackRateOverlay = new GameplayPlaybackRateOverlay
                     {
@@ -826,6 +830,14 @@ public partial class SongSelectScreen : Screen
                 ToggleModPanel();
                 return true;
 
+            case Key.F:
+                toggleFiltersPopover();
+                return true;
+
+            case Key.Slash:
+                GetContainingFocusManager()?.ChangeFocus(searchBox);
+                return true;
+
             case Key.Enter:
                 PlaySelected();
                 return true;
@@ -943,6 +955,8 @@ public partial class SongSelectScreen : Screen
             sortPopover.Close();
             sortButton?.SetActive(false);
         }
+        else if (filtersPopoverOpen)
+            closeFiltersPopover();
         else if (!DismissSearch())
             stopPreviewThen(this.Exit);
     }
@@ -2148,7 +2162,7 @@ public partial class SongSelectScreen : Screen
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
                 Position = new Vector2(-164, 82),
-                Size = new Vector2(710, 48),
+                Size = new Vector2(816, 48),
             },
             keyModeFilterButton = new SongSelectKeyModeFilterButton(
                 cycleKeyModeFilter)
@@ -2162,7 +2176,7 @@ public partial class SongSelectScreen : Screen
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-354, 138),
+                Position = new Vector2(-460, 136),
             },
             createBrowseToolbar(),
         ],
@@ -2357,56 +2371,99 @@ public partial class SongSelectScreen : Screen
     {
         Anchor = Anchor.TopRight,
         Origin = Anchor.TopRight,
-        Position = new Vector2(-browse_right, 190),
+        Position = new Vector2(-browse_right, 136),
         Size = new Vector2(browse_width, 34),
         Masking = false,
         Children =
         [
+            filtersButton = new SongSelectBrowseToolButton(
+                "FILTERS",
+                "0 ACTIVE",
+                200,
+                FontAwesome.Solid.Filter,
+                toggleFiltersPopover,
+                82)
+            {
+                X = 570,
+            },
             sortButton = new SongSelectBrowseToolButton(
                 "SORT",
                 sortButtonLabel(),
-                176,
+                200,
                 FontAwesome.Solid.SortAmountDown,
                 toggleSortPopover,
-                68),
-            groupButton = new SongSelectBrowseToolButton(
-                "GROUP",
-                packagesCollapsed ? "COLLAPSED" : "BEATMAPS",
-                196,
-                FontAwesome.Solid.LayerGroup,
-                togglePackageVisibility,
-                76)
+                68)
             {
-                X = 184,
+                X = 780,
             },
-            new SongSelectBrowseToolButton(
-                "LIBRARY",
-                "ALL SONGS",
-                218,
-                FontAwesome.Solid.Archive,
-                null,
-                82,
-                interactive: false,
-                showChevron: false)
-            {
-                X = 388,
-            },
-            createConvertsButton(),
         ],
     };
+
+    private Drawable createFiltersPopover()
+    {
+        Container card = SongSelectSurface.CreateCard(
+            out _,
+            SongSelectSurface.Ivory(0.99f),
+            SongSelectSurface.Border(0.24f),
+            10,
+            1);
+        filtersPopover = new Container
+        {
+            Anchor = Anchor.TopRight,
+            Origin = Anchor.TopRight,
+            Position = new Vector2(-browse_right - 210, browse_top + 4),
+            Size = new Vector2(410, 132),
+            Alpha = 0,
+            Children =
+            [
+                SongSelectSurface.CreateShadow(10, 0.12f, 3),
+                card,
+                new SpriteText
+                {
+                    Position = new Vector2(14, 12),
+                    Text = "LIBRARY FILTERS",
+                    Font = HomeTypography.Display(11),
+                    Colour = SongSelectTheme.Navy,
+                },
+                groupButton = new SongSelectBrowseToolButton(
+                    "GROUP",
+                    packagesCollapsed ? "COLLAPSED" : "BEATMAPS",
+                    184,
+                    FontAwesome.Solid.LayerGroup,
+                    togglePackageVisibility,
+                    76)
+                {
+                    Position = new Vector2(14, 46),
+                },
+                createConvertsButton(),
+                new SpriteText
+                {
+                    Position = new Vector2(14, 96),
+                    Text = "F  CLOSE  ·  ESC  DISMISS",
+                    Font = HomeTypography.Display(8),
+                    Colour = new Color4(
+                        SongSelectTheme.Navy.R,
+                        SongSelectTheme.Navy.G,
+                        SongSelectTheme.Navy.B,
+                        0.56f),
+                },
+            ],
+        };
+        return filtersPopover;
+    }
 
     private Drawable createConvertsButton()
     {
         convertsButton = new SongSelectBrowseToolButton(
             "CONVERTS",
             showConverts ? "SHOWN" : "HIDDEN",
-            236,
+            184,
             FontAwesome.Solid.ExchangeAlt,
             ToggleConvertedBeatmaps,
-            104,
+            84,
             showChevron: false)
         {
-            X = 614,
+            Position = new Vector2(212, 46),
         };
         convertsButton.SetActive(showConverts);
         return convertsButton;
@@ -4973,6 +5030,11 @@ public partial class SongSelectScreen : Screen
     private void updateFilters()
     {
         keyModeFilterButton?.SetMode(keyModeFilter);
+        int activeCount = (keyModeFilter.HasValue ? 1 : 0)
+                          + (MinimumDifficultyFilter > 0 ? 1 : 0)
+                          + (!showConverts ? 1 : 0)
+                          + (packagesCollapsed ? 1 : 0);
+        filtersButton?.SetValue($"{activeCount} ACTIVE");
     }
 
     private void cycleKeyModeFilter() => SetKeyModeFilter(
@@ -5015,8 +5077,37 @@ public partial class SongSelectScreen : Screen
             return;
         }
 
+        closeFiltersPopover();
         sortPopover?.Open();
         sortButton?.SetActive(true);
+    }
+
+    private void toggleFiltersPopover()
+    {
+        if (filtersPopoverOpen)
+        {
+            closeFiltersPopover();
+            return;
+        }
+
+        if (sortPopover?.IsOpen == true)
+        {
+            sortPopover.Close();
+            sortButton?.SetActive(false);
+        }
+
+        filtersPopoverOpen = true;
+        filtersPopover?.ClearTransforms();
+        filtersPopover?.FadeIn(120, Easing.OutQuint);
+        filtersButton?.SetActive(true);
+    }
+
+    private void closeFiltersPopover()
+    {
+        filtersPopoverOpen = false;
+        filtersPopover?.ClearTransforms();
+        filtersPopover?.FadeOut(90, Easing.OutQuint);
+        filtersButton?.SetActive(false);
     }
 
     private void updateSortControls()
@@ -5058,6 +5149,7 @@ public partial class SongSelectScreen : Screen
             collapsedPackages.Clear();
         }
 
+        updateFilters();
         rebuildSongList(
             animate: false,
             animateLayout: true);
@@ -5068,6 +5160,7 @@ public partial class SongSelectScreen : Screen
         focusedPackageExpansion = true;
         packagesCollapsed = false;
         groupButton?.SetValue("BEATMAPS");
+        updateFilters();
         focusPackageExpansion(packageId);
     }
 
@@ -5094,6 +5187,7 @@ public partial class SongSelectScreen : Screen
         showConverts = !showConverts;
         convertsButton?.SetValue(showConverts ? "SHOWN" : "HIDDEN");
         convertsButton?.SetActive(showConverts);
+        updateFilters();
         applyFilters();
     }
 

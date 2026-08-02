@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -966,6 +967,291 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
+    public async Task ManagedWarmStartUsesPersistedIndexWithoutParsingSources()
+    {
+        string root = createTestRoot("managed-warm-start");
+        try
+        {
+            using var first = new ImportedChartLibrary();
+            first.Initialise(new NativeStorage(root));
+            string firstDirectory = Path.Combine(first.LibraryPath, "First");
+            string secondDirectory = Path.Combine(first.LibraryPath, "Second");
+            Directory.CreateDirectory(firstDirectory);
+            Directory.CreateDirectory(secondDirectory);
+            writeOsuChart(firstDirectory, "First", 3);
+            writeOsuChart(secondDirectory, "Second", 3);
+
+            Assert.That(await first.LoadFromDiskAsync(true, true), Is.EqualTo(2));
+            Assert.That(first.LastManagedContentReadCount, Is.EqualTo(2));
+            string[] expectedIds = first.GetCharts()
+                .Select(chart => chart.Id)
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            using var reloaded = new ImportedChartLibrary();
+            reloaded.Initialise(new NativeStorage(root));
+            Assert.That(await reloaded.BeginStartupLoad(true, true), Is.EqualTo(2));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reloaded.LastManagedScannedFileCount, Is.EqualTo(2));
+                Assert.That(reloaded.LastManagedCacheHitCount, Is.EqualTo(2));
+                Assert.That(reloaded.LastManagedContentReadCount, Is.Zero);
+                Assert.That(
+                    reloaded.GetCharts().Select(chart => chart.Id)
+                        .Order(StringComparer.OrdinalIgnoreCase),
+                    Is.EqualTo(expectedIds));
+                Assert.That(
+                    reloaded.GetCharts().Select(chart => chart.Result.Beatmap.Title),
+                    Is.EquivalentTo(new[] { "First", "Second" }));
+            });
+
+            YokkoBeatmap playable = await reloaded.GetPlayableBeatmapAsync(
+                reloaded.GetCharts().Single(chart =>
+                    chart.Result.Beatmap.Title == "Second").Id);
+            Assert.That(playable.HitObjects, Is.Not.Empty);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ManagedIncrementalLoadParsesOnlyAddedAndChangedSources()
+    {
+        string root = createTestRoot("managed-incremental");
+        try
+        {
+            using var first = new ImportedChartLibrary();
+            first.Initialise(new NativeStorage(root));
+            string unchangedDirectory = Path.Combine(first.LibraryPath, "Unchanged");
+            string changedDirectory = Path.Combine(first.LibraryPath, "Changed");
+            string removedDirectory = Path.Combine(first.LibraryPath, "Removed");
+            Directory.CreateDirectory(unchangedDirectory);
+            Directory.CreateDirectory(changedDirectory);
+            Directory.CreateDirectory(removedDirectory);
+            string unchanged = writeOsuChart(
+                unchangedDirectory,
+                "Unchanged",
+                3);
+            string changed = writeOsuChart(
+                changedDirectory,
+                "Changed",
+                3);
+            string removed = writeOsuChart(
+                removedDirectory,
+                "Removed",
+                3);
+            await first.LoadFromDiskAsync(true, true);
+            string unchangedId = first.GetCharts().Single(chart =>
+                chart.SourcePath == unchanged).Id;
+
+            File.Delete(removed);
+            YokkoBeatmap changedBeatmap =
+                OsuManiaBeatmapIO.ReadBeatmapFromFile(changed) with
+                {
+                    Title = "Changed v2",
+                };
+            File.WriteAllText(changed, OsuManiaBeatmapIO.WriteBeatmap(changedBeatmap));
+            File.SetLastWriteTimeUtc(changed, DateTime.UtcNow.AddSeconds(2));
+            string addedDirectory = Path.Combine(first.LibraryPath, "Added");
+            Directory.CreateDirectory(addedDirectory);
+            writeOsuChart(addedDirectory, "Added", 3);
+
+            using var reloaded = new ImportedChartLibrary();
+            reloaded.Initialise(new NativeStorage(root));
+            Assert.That(await reloaded.LoadFromDiskAsync(true, true), Is.EqualTo(3));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reloaded.LastManagedScannedFileCount, Is.EqualTo(3));
+                Assert.That(reloaded.LastManagedCacheHitCount, Is.EqualTo(1));
+                Assert.That(reloaded.LastManagedContentReadCount, Is.EqualTo(2));
+                Assert.That(
+                    reloaded.GetCharts().Select(chart => chart.Result.Beatmap.Title),
+                    Is.EquivalentTo(new[] { "Unchanged", "Changed v2", "Added" }));
+                Assert.That(
+                    reloaded.GetCharts().Single(chart =>
+                        chart.Result.Beatmap.Title == "Unchanged").Id,
+                    Is.EqualTo(unchangedId));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task CorruptManagedIndexFallsBackToSourceParsing()
+    {
+        string root = createTestRoot("managed-corrupt-index");
+        try
+        {
+            using var first = new ImportedChartLibrary();
+            first.Initialise(new NativeStorage(root));
+            string chartDirectory = Path.Combine(first.LibraryPath, "Chart");
+            Directory.CreateDirectory(chartDirectory);
+            writeOsuChart(chartDirectory, "Chart", 3);
+            await first.LoadFromDiskAsync(true, true);
+            File.WriteAllText(
+                Path.Combine(
+                    first.LibraryPath,
+                    ".yokko-cache",
+                    ManagedChartLibraryIndex.FileName),
+                "{ truncated");
+
+            using var reloaded = new ImportedChartLibrary();
+            reloaded.Initialise(new NativeStorage(root));
+            Assert.That(await reloaded.LoadFromDiskAsync(true, true), Is.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(reloaded.LastManagedCacheHitCount, Is.Zero);
+                Assert.That(reloaded.LastManagedContentReadCount, Is.EqualTo(1));
+                Assert.That(reloaded.GetCharts().Single().Result.Beatmap.Title,
+                    Is.EqualTo("Chart"));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ManagedImportPreferenceChangeInvalidatesIndex()
+    {
+        string root = createTestRoot("managed-preference-change");
+        try
+        {
+            using var first = new ImportedChartLibrary();
+            first.Initialise(new NativeStorage(root));
+            string chartDirectory = Path.Combine(first.LibraryPath, "Chart");
+            Directory.CreateDirectory(chartDirectory);
+            writeOsuChart(chartDirectory, "Chart", 3);
+            await first.LoadFromDiskAsync(true, true);
+
+            using var reloaded = new ImportedChartLibrary();
+            reloaded.Initialise(new NativeStorage(root));
+            Assert.That(await reloaded.LoadFromDiskAsync(false, true), Is.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(reloaded.LastManagedCacheHitCount, Is.Zero);
+                Assert.That(reloaded.LastManagedContentReadCount, Is.EqualTo(1));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ManagedDependencyChangeInvalidatesOnlyItsSource()
+    {
+        string root = createTestRoot("managed-dependency-change");
+        try
+        {
+            using var first = new ImportedChartLibrary();
+            first.Initialise(new NativeStorage(root));
+            string firstDirectory = Path.Combine(first.LibraryPath, "First");
+            string secondDirectory = Path.Combine(first.LibraryPath, "Second");
+            Directory.CreateDirectory(firstDirectory);
+            Directory.CreateDirectory(secondDirectory);
+            string firstChart = writeOsuChart(firstDirectory, "First", 3);
+            writeOsuChart(secondDirectory, "Second", 3);
+            string artwork = Path.Combine(firstDirectory, "background.jpg");
+            File.WriteAllBytes(artwork, [1, 2, 3]);
+            File.WriteAllText(
+                firstChart,
+                File.ReadAllText(firstChart).Replace(
+                    "//Background and Video events",
+                    "//Background and Video events"
+                    + Environment.NewLine
+                    + "0,0,\"background.jpg\",0,0"));
+            await first.LoadFromDiskAsync(true, true);
+
+            File.WriteAllBytes(artwork, [1, 2, 3, 4]);
+            File.SetLastWriteTimeUtc(artwork, DateTime.UtcNow.AddSeconds(2));
+
+            using var reloaded = new ImportedChartLibrary();
+            reloaded.Initialise(new NativeStorage(root));
+            Assert.That(await reloaded.LoadFromDiskAsync(true, true), Is.EqualTo(2));
+            Assert.Multiple(() =>
+            {
+                Assert.That(reloaded.LastManagedCacheHitCount, Is.EqualTo(1));
+                Assert.That(reloaded.LastManagedContentReadCount, Is.EqualTo(1));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ManagedWarmStartScalesToConfiguredLibrary()
+    {
+        if (!int.TryParse(
+                Environment.GetEnvironmentVariable("YOKKO_TEST_MANAGED_LIBRARY_COUNT"),
+                out int sourceCount)
+            || sourceCount <= 0)
+        {
+            Assert.Ignore(
+                "Set YOKKO_TEST_MANAGED_LIBRARY_COUNT to run the large managed-library benchmark.");
+        }
+
+        string root = createTestRoot("managed-large-library");
+        try
+        {
+            using var first = new ImportedChartLibrary();
+            first.Initialise(new NativeStorage(root));
+            for (int i = 0; i < sourceCount; i++)
+            {
+                string directory = Path.Combine(first.LibraryPath, $"Set-{i:D5}");
+                Directory.CreateDirectory(directory);
+                writeOsuChart(directory, $"Chart {i:D5}", 3);
+            }
+
+            var cold = Stopwatch.StartNew();
+            Assert.That(
+                await first.LoadFromDiskAsync(true, true),
+                Is.EqualTo(sourceCount));
+            cold.Stop();
+
+            using var reloaded = new ImportedChartLibrary();
+            reloaded.Initialise(new NativeStorage(root));
+            var warm = Stopwatch.StartNew();
+            Assert.That(
+                await reloaded.LoadFromDiskAsync(true, true),
+                Is.EqualTo(sourceCount));
+            warm.Stop();
+            TestContext.Progress.WriteLine(
+                $"Managed library {sourceCount}: cold={cold.Elapsed.TotalMilliseconds:0} ms, "
+                + $"warm={warm.Elapsed.TotalMilliseconds:0} ms.");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reloaded.LastManagedScannedFileCount, Is.EqualTo(sourceCount));
+                Assert.That(reloaded.LastManagedCacheHitCount, Is.EqualTo(sourceCount));
+                Assert.That(reloaded.LastManagedContentReadCount, Is.Zero);
+                Assert.That(warm.Elapsed, Is.LessThan(cold.Elapsed));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task ImportFolderRecursivelyImportsSupportedChartFiles()
     {
         string root = createTestRoot("folder-import");
@@ -1172,7 +1458,9 @@ public sealed class ImportedChartLibraryTest
             using var reloaded = new ImportedChartLibrary();
             reloaded.Initialise(new NativeStorage(root));
             int count = await reloaded.LoadFromDiskAsync(true, true);
-            YokkoBeatmap beatmap = reloaded.GetCharts().Single().Result.Beatmap;
+            ImportedChart reloadedChart = reloaded.GetCharts().Single();
+            YokkoBeatmap beatmap = await reloaded.GetPlayableBeatmapAsync(
+                reloadedChart.Id);
 
             Assert.Multiple(() =>
             {
@@ -1243,6 +1531,12 @@ public sealed class ImportedChartLibraryTest
             Assert.That(
                 reloaded.GetCharts().Select(
                     chart => chart.Result.Beatmap.DifficultyName),
+                Is.EquivalentTo(new[] { "Easy", "Hard" }));
+            YokkoBeatmap[] playable = await Task.WhenAll(
+                reloaded.GetCharts().Select(chart =>
+                    reloaded.GetPlayableBeatmapAsync(chart.Id)));
+            Assert.That(
+                playable.Select(beatmap => beatmap.DifficultyName),
                 Is.EquivalentTo(new[] { "Easy", "Hard" }));
         }
         finally

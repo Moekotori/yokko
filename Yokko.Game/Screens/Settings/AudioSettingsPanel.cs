@@ -131,8 +131,6 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 YokkoStrings.Get("settings.audio.offset"),
                 new SettingsOffsetStepper(
                     settings.UserOffsetMilliseconds)),
-            new SettingsPanelFooter(
-                YokkoStrings.Get("settings.audio.apply_next_playback")),
         };
 
         selectedDeviceId.BindValueChanged(

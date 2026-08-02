@@ -23,6 +23,7 @@ internal enum ManiaShortcutPage
     Editor,
     Menu,
     Results,
+    System,
 }
 
 internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTransientUi
@@ -74,7 +75,6 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(378, 264),
                 Size = new Vector2(840, 352),
             },
-            new SettingsPanelFooter(),
             new HomeDotCross
             {
                 Position = new Vector2(1088, 594),
@@ -290,7 +290,7 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
             new GameplayCompactButton(
                 YokkoStrings.Get("settings.gameplay.shortcuts_gameplay"),
                 () => SelectShortcutPage(ManiaShortcutPage.Gameplay),
-                126)
+                112)
             {
                 Position = new Vector2(20, 10),
                 IsSelected = shortcutPage == ManiaShortcutPage.Gameplay,
@@ -298,26 +298,34 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
             new GameplayCompactButton(
                 YokkoStrings.Get("settings.gameplay.shortcuts_menu"),
                 () => SelectShortcutPage(ManiaShortcutPage.Menu),
-                126)
+                112)
             {
-                Position = new Vector2(154, 10),
+                Position = new Vector2(140, 10),
                 IsSelected = shortcutPage == ManiaShortcutPage.Menu,
             },
             new GameplayCompactButton(
                 YokkoStrings.Get("settings.gameplay.shortcuts_results"),
                 () => SelectShortcutPage(ManiaShortcutPage.Results),
-                126)
+                112)
             {
-                Position = new Vector2(288, 10),
+                Position = new Vector2(260, 10),
                 IsSelected = shortcutPage == ManiaShortcutPage.Results,
             },
             new GameplayCompactButton(
                 YokkoStrings.Get("settings.gameplay.shortcuts_editor"),
                 () => SelectShortcutPage(ManiaShortcutPage.Editor),
-                126)
+                112)
             {
-                Position = new Vector2(422, 10),
+                Position = new Vector2(380, 10),
                 IsSelected = shortcutPage == ManiaShortcutPage.Editor,
+            },
+            new GameplayCompactButton(
+                YokkoStrings.Get("settings.shortcuts.system"),
+                () => SelectShortcutPage(ManiaShortcutPage.System),
+                112)
+            {
+                Position = new Vector2(500, 10),
+                IsSelected = shortcutPage == ManiaShortcutPage.System,
             },
             new GameplayCompactButton(
                 resetAllButtonLabel(),
@@ -329,57 +337,85 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
             {
                 Position = new Vector2(644, 10),
                 IsSelected = resetAllPending,
-                IsEnabled = settings.ModifiedShortcutBindingCount > 0
-                            || resetUndoSnapshot != null,
+                IsEnabled = shortcutPage != ManiaShortcutPage.System
+                            && (settings.ModifiedShortcutBindingCount > 0
+                                || resetUndoSnapshot != null),
             },
         };
 
-        ManiaShortcutAction[] actions = shortcutActionsForPage(shortcutPage);
-        for (int index = 0; index < actions.Length; index++)
+        if (shortcutPage == ManiaShortcutPage.System)
         {
-            ManiaShortcutAction action = actions[index];
-            float y = 62 + index * 44;
             children.Add(new SpriteText
             {
-                Position = new Vector2(20, y + 11),
-                Text = shortcutLabel(action),
-                Font = HomeTypography.Display(15),
+                Position = new Vector2(20, 88),
+                Text = YokkoStrings.Get("settings.desktop.boss_key"),
+                Font = HomeTypography.Display(18),
                 Colour = HomeControlColours.Navy,
             });
-            bool isDefault = settings.IsShortcutBindingDefault(action);
-            if (!isDefault)
+            children.Add(new SpriteText
             {
-                children.Add(new SpriteText
-                {
-                    Position = new Vector2(358, y + 11),
-                    Text = YokkoStrings.Get("settings.shortcuts.modified"),
-                    Font = HomeTypography.Display(14),
-                    Colour = HomeControlColours.Pink,
-                });
-            }
-            children.Add(createShortcutButton(
-                action,
-                new Vector2(520, y),
-                174));
-            children.Add(new GameplayCompactButton(
-                YokkoStrings.Get(isDefault
-                    ? "settings.shortcuts.is_default"
-                    : "settings.gameplay.shortcut_default"),
-                () => ResetShortcutBinding(action),
-                116)
+                Position = new Vector2(20, 122),
+                Text = YokkoStrings.Get("settings.shortcuts.system_fixed_hint"),
+                Font = HomeTypography.Body(14),
+                Colour = SettingsTheme.MutedNavy,
+            });
+            children.Add(new DesktopShortcutHint(
+                "F10",
+                FontAwesome.Solid.WindowMinimize,
+                300)
             {
-                Position = new Vector2(704, y),
-                IsEnabled = !isDefault,
+                Position = new Vector2(520, 72),
             });
         }
-
-        children.Add(new SpriteText
+        else
         {
-            Position = new Vector2(20, 312),
-            Text = YokkoStrings.Get("settings.gameplay.shortcut_hint"),
-            Font = HomeTypography.Body(14),
-            Colour = SettingsTheme.MutedNavy,
-        });
+            ManiaShortcutAction[] actions = shortcutActionsForPage(shortcutPage);
+            for (int index = 0; index < actions.Length; index++)
+            {
+                ManiaShortcutAction action = actions[index];
+                float y = 62 + index * 44;
+                children.Add(new SpriteText
+                {
+                    Position = new Vector2(20, y + 11),
+                    Text = shortcutLabel(action),
+                    Font = HomeTypography.Display(15),
+                    Colour = HomeControlColours.Navy,
+                });
+                bool isDefault = settings.IsShortcutBindingDefault(action);
+                if (!isDefault)
+                {
+                    children.Add(new SpriteText
+                    {
+                        Position = new Vector2(358, y + 11),
+                        Text = YokkoStrings.Get("settings.shortcuts.modified"),
+                        Font = HomeTypography.Display(14),
+                        Colour = HomeControlColours.Pink,
+                    });
+                }
+                children.Add(createShortcutButton(
+                    action,
+                    new Vector2(520, y),
+                    174));
+                children.Add(new GameplayCompactButton(
+                    YokkoStrings.Get(isDefault
+                        ? "settings.shortcuts.is_default"
+                        : "settings.gameplay.shortcut_default"),
+                    () => ResetShortcutBinding(action),
+                    116)
+                {
+                    Position = new Vector2(704, y),
+                    IsEnabled = !isDefault,
+                });
+            }
+
+            children.Add(new SpriteText
+            {
+                Position = new Vector2(20, 312),
+                Text = YokkoStrings.Get("settings.gameplay.shortcut_hint"),
+                Font = HomeTypography.Body(14),
+                Colour = SettingsTheme.MutedNavy,
+            });
+        }
 
         setPanelChildren(panel, children);
         return panel;
@@ -445,6 +481,7 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
                 ManiaShortcutAction.Retry,
                 ManiaShortcutAction.WatchReplay,
             ],
+            ManiaShortcutPage.System => [],
             _ => throw new ArgumentOutOfRangeException(nameof(page)),
         };
 

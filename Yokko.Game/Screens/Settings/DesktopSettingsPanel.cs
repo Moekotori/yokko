@@ -24,16 +24,26 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
     private readonly YokkoAudioSettings audioSettings;
     private readonly IWindow window;
     private readonly List<SettingsSegmentedChoiceButton> displayButtons = new();
-    private readonly List<SettingsSegmentedChoiceButton> refreshButtons = new();
     private readonly Container displayControlHost;
-    private readonly Container refreshControlHost;
     private readonly SpriteText statusMetadata;
+    private readonly Container backgroundFrameRateRow;
+    private readonly Drawable postFrameRateDivider;
+    private readonly Container backgroundAudioRow;
+    private readonly Drawable postAudioDivider;
+    private readonly Container fullscreenDisplayRow;
+    private readonly SettingsBooleanToggle dynamicFrameRateToggle;
 
     internal bool FastAltTabEnabled => displaySettings.FastAltTab.Value;
     internal double BackgroundFrameRate =>
         displaySettings.BackgroundFrameRate.Value;
     internal double BackgroundAudioVolume =>
         audioSettings.BackgroundVolume.Value;
+    internal bool DynamicBackgroundFrameRateEnabled =>
+        displaySettings.DynamicBackgroundFrameRate.Value;
+    internal bool IsBackgroundFrameRateVisible =>
+        backgroundFrameRateRow.Alpha > 0.99f;
+    internal SettingsBooleanToggle DynamicFrameRateToggle =>
+        dynamicFrameRateToggle;
 
     internal DesktopSettingsPanel(
         YokkoDisplaySettings displaySettings,
@@ -49,11 +59,26 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
         {
             Size = new Vector2(SettingsChrome.ControlWidth, SettingsChrome.ControlHeight),
         };
-        refreshControlHost = new Container
-        {
-            Size = new Vector2(SettingsChrome.ControlWidth, SettingsChrome.ControlHeight),
-        };
-
+        backgroundFrameRateRow = SettingsChrome.CreateSettingRow(
+            402,
+            YokkoStrings.Get("settings.desktop.background_fps"),
+            new DesktopSettingsSlider(
+                displaySettings.BackgroundFrameRate,
+                DesktopSettingsSliderKind.FrameRate));
+        postFrameRateDivider = SettingsChrome.CreateDivider(462);
+        backgroundAudioRow = SettingsChrome.CreateSettingRow(
+            466,
+            YokkoStrings.Get("settings.desktop.background_audio"),
+            new DesktopSettingsSlider(
+                audioSettings.BackgroundVolume,
+                DesktopSettingsSliderKind.Percentage));
+        postAudioDivider = SettingsChrome.CreateDivider(526);
+        fullscreenDisplayRow = SettingsChrome.CreateSettingRow(
+            530,
+            YokkoStrings.Get("settings.desktop.fullscreen_display"),
+            displayControlHost);
+        dynamicFrameRateToggle = new SettingsBooleanToggle(
+            displaySettings.DynamicBackgroundFrameRate);
         InternalChildren = new Drawable[]
         {
             SettingsChrome.CreateHeader(
@@ -75,41 +100,24 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
             SettingsChrome.CreateDivider(334),
             SettingsChrome.CreateSettingRow(
                 338,
-                YokkoStrings.Get("settings.desktop.background_fps"),
-                new DesktopSettingsSlider(
-                    displaySettings.BackgroundFrameRate,
-                    DesktopSettingsSliderKind.FrameRate)),
+                YokkoStrings.Get("settings.desktop.dynamic_fps"),
+                dynamicFrameRateToggle),
             SettingsChrome.CreateDivider(398),
-            SettingsChrome.CreateSettingRow(
-                402,
-                YokkoStrings.Get("settings.desktop.background_audio"),
-                new DesktopSettingsSlider(
-                    audioSettings.BackgroundVolume,
-                    DesktopSettingsSliderKind.Percentage)),
-            SettingsChrome.CreateDivider(462),
-            SettingsChrome.CreateSettingRow(
-                466,
-                YokkoStrings.Get("settings.desktop.fullscreen_display"),
-                displayControlHost),
-            SettingsChrome.CreateDivider(526),
-            SettingsChrome.CreateSettingRow(
-                530,
-                YokkoStrings.Get("settings.desktop.refresh_rate"),
-                refreshControlHost),
-            SettingsChrome.CreateDivider(590),
-            SettingsChrome.CreateSettingRow(
-                594,
-                YokkoStrings.Get("settings.desktop.boss_key"),
-                new DesktopShortcutHint("F10", FontAwesome.Solid.WindowMinimize)),
-            new SettingsPanelFooter(),
+            backgroundFrameRateRow,
+            postFrameRateDivider,
+            backgroundAudioRow,
+            postAudioDivider,
+            fullscreenDisplayRow,
         };
 
         rebuildDisplayControls();
         refreshSelection();
+        refreshDynamicFrameRateLayout(false);
 
         displaySettings.FastAltTab.BindValueChanged(onPreferenceChanged);
+        displaySettings.DynamicBackgroundFrameRate.BindValueChanged(
+            onDynamicBackgroundFrameRateChanged);
         displaySettings.BackgroundFrameRate.BindValueChanged(onPreferenceChanged);
-        displaySettings.FullscreenRefreshRate.BindValueChanged(onPreferenceChanged);
         audioSettings.BackgroundVolume.BindValueChanged(onPreferenceChanged);
         window?.CurrentDisplayBindable.BindValueChanged(onDisplayChanged);
         window?.CurrentDisplayMode.BindValueChanged(onDisplayModeChanged);
@@ -126,7 +134,6 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
             displayControlHost.Child = new DesktopShortcutHint(
                 "—",
                 FontAwesome.Solid.Desktop);
-            rebuildRefreshControls();
             return;
         }
 
@@ -149,52 +156,7 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
 
         displayControlHost.Child =
             SettingsChrome.CreateSegmentedControl(displayButtons);
-        rebuildRefreshControls();
     }
-
-    private void rebuildRefreshControls()
-    {
-        refreshButtons.Clear();
-        Display display = window?.CurrentDisplayBindable.Value;
-        int[] rates = GetNativeRefreshRates(display);
-
-        if (rates.Length == 0)
-        {
-            refreshControlHost.Child = new DesktopShortcutHint(
-                "AUTO",
-                FontAwesome.Solid.SyncAlt);
-            return;
-        }
-
-        float width = SettingsChrome.ControlWidth / rates.Length;
-        foreach (int rate in rates)
-        {
-            int captured = rate;
-            refreshButtons.Add(new SettingsSegmentedChoiceButton(
-                rate.ToString(),
-                FontAwesome.Solid.SyncAlt,
-                () => displaySettings.FullscreenRefreshRate.Value = captured,
-                width)
-            {
-                Value = rate,
-            });
-        }
-
-        refreshControlHost.Child =
-            SettingsChrome.CreateSegmentedControl(refreshButtons);
-    }
-
-    internal static int[] GetNativeRefreshRates(Display display) =>
-        display?.DisplayModes
-            .Where(mode =>
-                mode.Size == display.Bounds.Size
-                && mode.RefreshRate > 0)
-            .Select(mode => (int)MathF.Round(mode.RefreshRate))
-            .Distinct()
-            .OrderByDescending(rate => rate)
-            .Take(6)
-            .OrderBy(rate => rate)
-            .ToArray() ?? [];
 
     private void selectDisplay(Display display)
     {
@@ -202,25 +164,62 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
             return;
 
         window.CurrentDisplayBindable.Value = display;
-        int[] rates = GetNativeRefreshRates(display);
-        if (rates.Length > 0
-            && !rates.Contains(displaySettings.FullscreenRefreshRate.Value))
-        {
-            displaySettings.FullscreenRefreshRate.Value = rates[^1];
-        }
-
-        rebuildRefreshControls();
         refreshSelection();
     }
 
     private void onPreferenceChanged<T>(ValueChangedEvent<T> _) =>
         refreshSelection();
 
-    private void onDisplayChanged(ValueChangedEvent<Display> _)
+    private void onDynamicBackgroundFrameRateChanged(
+        ValueChangedEvent<bool> _) =>
+        refreshDynamicFrameRateLayout(true);
+
+    private void refreshDynamicFrameRateLayout(bool animate)
     {
-        rebuildRefreshControls();
-        refreshSelection();
+        bool enabled = displaySettings.DynamicBackgroundFrameRate.Value;
+        float audioY = enabled ? 466 : 402;
+        float audioDividerY = enabled ? 526 : 462;
+        float displayY = enabled ? 530 : 466;
+
+        backgroundFrameRateRow.ClearTransforms();
+        postFrameRateDivider.ClearTransforms();
+        backgroundAudioRow.ClearTransforms();
+        postAudioDivider.ClearTransforms();
+        fullscreenDisplayRow.ClearTransforms();
+
+        if (!animate)
+        {
+            backgroundFrameRateRow.Alpha = enabled ? 1 : 0;
+            backgroundFrameRateRow.Y = 402;
+            postFrameRateDivider.Alpha = enabled ? 1 : 0;
+            backgroundAudioRow.Y = audioY;
+            postAudioDivider.Y = audioDividerY;
+            fullscreenDisplayRow.Y = displayY;
+            return;
+        }
+
+        if (enabled)
+        {
+            backgroundFrameRateRow.Y = 392;
+            backgroundFrameRateRow.Alpha = 0;
+            backgroundFrameRateRow
+                .FadeIn(150, Easing.OutQuint)
+                .MoveToY(402, 190, Easing.OutQuint);
+            postFrameRateDivider.FadeIn(150, Easing.OutQuint);
+        }
+        else
+        {
+            backgroundFrameRateRow.FadeOut(110, Easing.OutQuint);
+            postFrameRateDivider.FadeOut(110, Easing.OutQuint);
+        }
+
+        backgroundAudioRow.MoveToY(audioY, 190, Easing.OutQuint);
+        postAudioDivider.MoveToY(audioDividerY, 190, Easing.OutQuint);
+        fullscreenDisplayRow.MoveToY(displayY, 190, Easing.OutQuint);
     }
+
+    private void onDisplayChanged(ValueChangedEvent<Display> _) =>
+        refreshSelection();
 
     private void onDisplayModeChanged(ValueChangedEvent<DisplayMode> _) =>
         refreshSelection();
@@ -240,11 +239,6 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
             button.SetSelected(button.Value is int index
                                && index == display?.Index);
 
-        int selectedRate = displaySettings.FullscreenRefreshRate.Value > 0
-            ? displaySettings.FullscreenRefreshRate.Value
-            : (int)MathF.Round(mode.RefreshRate);
-        foreach (SettingsSegmentedChoiceButton button in refreshButtons)
-            button.SetSelected(button.Value is int rate && rate == selectedRate);
     }
 
     protected override void Dispose(bool isDisposing)
@@ -252,8 +246,9 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
         if (isDisposing)
         {
             displaySettings.FastAltTab.ValueChanged -= onPreferenceChanged;
+            displaySettings.DynamicBackgroundFrameRate.ValueChanged -=
+                onDynamicBackgroundFrameRateChanged;
             displaySettings.BackgroundFrameRate.ValueChanged -= onPreferenceChanged;
-            displaySettings.FullscreenRefreshRate.ValueChanged -= onPreferenceChanged;
             audioSettings.BackgroundVolume.ValueChanged -= onPreferenceChanged;
             if (window != null)
             {
@@ -516,9 +511,12 @@ internal partial class DesktopSettingsSlider : CompositeDrawable
 
 internal partial class DesktopShortcutHint : CompositeDrawable
 {
-    internal DesktopShortcutHint(string text, IconUsage icon)
+    internal DesktopShortcutHint(
+        string text,
+        IconUsage icon,
+        float width = SettingsChrome.ControlWidth)
     {
-        Size = new Vector2(SettingsChrome.ControlWidth, SettingsChrome.ControlHeight);
+        Size = new Vector2(width, SettingsChrome.ControlHeight);
         Masking = true;
         CornerRadius = 8;
         BorderThickness = 1.5f;

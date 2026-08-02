@@ -578,9 +578,6 @@ public partial class SettingsScreen : Screen
         if (e.Key != Key.Escape)
             return base.OnKeyDown(e);
 
-        (activePanel as CompositeDrawable)?.ChildrenOfType<SettingsPanelFooter>()
-                                           .FirstOrDefault()?.FlashEsc();
-
         if (DismissTransientUi())
             return true;
 

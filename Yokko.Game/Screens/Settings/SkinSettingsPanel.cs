@@ -76,8 +76,6 @@ internal partial class SkinSettingsPanel : CompositeDrawable
                 Position = new Vector2(380, 610),
                 Size = new Vector2(826, 26),
             },
-            new SettingsPanelFooter(
-                YokkoStrings.Get("settings.skins.apply_next_gameplay")),
         };
 
         library.LibraryChanged += onLibraryChanged;

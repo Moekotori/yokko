@@ -19,9 +19,10 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectSongRow : PoolableDrawable
 {
-    private const float row_width = 850;
+    internal const float RowWidth = 980;
     internal const float CompactHeight = 56;
-    internal const float StandaloneHeight = 92;
+    internal const float StandaloneHeight = 132;
+    internal static readonly Vector2 StandaloneArtworkSize = new(220, 124);
     internal const float CompactLeadingAccentWidth = 3;
     internal const float CompactLeadingAccentOpacity = 0.48f;
     internal const float CompactSelectionOutlineThickness = 1.25f;
@@ -38,6 +39,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
     private SongSelectProgressiveModePill compactModePill;
     private SpriteText compactPrimaryText;
     private SpriteText compactSecondaryText;
+    private SpriteText standalonePreviewHint;
     private readonly List<(Box Box, float Alpha)> accentBoxes = [];
     private readonly List<(Container Container, float Alpha)> accentBorders = [];
     private readonly List<SpriteText> difficultyValueTexts = [];
@@ -119,6 +121,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         compactModePill = null;
         compactPrimaryText = null;
         compactSecondaryText = null;
+        standalonePreviewHint = null;
         standaloneArtworkFrame = null;
         leadingAccent = null;
         Entry = entry;
@@ -134,7 +137,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             ratings,
             difficultyRatingMode);
         X = restingX;
-        Size = new Vector2(row_width - restingX, rowHeight);
+        Size = new Vector2(RowWidth - restingX, rowHeight);
 
         float panelBorderAlpha = compact ? 0.12f : 0.38f;
         Color4 panelBorder = compact
@@ -210,8 +213,8 @@ internal partial class SongSelectSongRow : PoolableDrawable
         {
             Position = compact ? new Vector2(1) : new Vector2(2),
             Size = compact
-                ? new Vector2(row_width - restingX - 2, rowHeight - 2)
-                : new Vector2(row_width - restingX - 4, rowHeight - 4),
+                ? new Vector2(RowWidth - restingX - 2, rowHeight - 2)
+                : new Vector2(RowWidth - restingX - 4, rowHeight - 4),
             Masking = true,
             CornerRadius = 8,
             BorderThickness = compact
@@ -358,19 +361,21 @@ internal partial class SongSelectSongRow : PoolableDrawable
         arrow.FadeTo(selected && compact ? 1 : 0, 120, Easing.OutQuint);
         selectedSticker.FadeTo(0, 140, Easing.OutQuint);
         compactModePill?.SetExpanded(selected, animated);
+        if (standalonePreviewHint != null)
+            standalonePreviewHint.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
         float targetX = selectionTargetX();
         if (animated)
         {
             this.MoveToX(targetX, 170, Easing.OutQuint);
             this.ResizeWidthTo(
-                row_width - targetX,
+                RowWidth - targetX,
                 170,
                 Easing.OutQuint);
         }
         else
         {
             X = targetX;
-            Width = row_width - targetX;
+            Width = RowWidth - targetX;
         }
     }
 
@@ -385,7 +390,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         float targetX = selectionTargetX() - 3;
         this.MoveToX(targetX, 120, Easing.OutQuint);
         this.ResizeWidthTo(
-            row_width - targetX,
+            RowWidth - targetX,
             120,
             Easing.OutQuint);
         return true;
@@ -420,6 +425,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         compactModePill = null;
         compactPrimaryText = null;
         compactSecondaryText = null;
+        standalonePreviewHint = null;
         standaloneArtworkFrame = null;
         leadingAccent = null;
         ClearInternal(true);
@@ -494,30 +500,38 @@ internal partial class SongSelectSongRow : PoolableDrawable
         children.Add(standaloneArtworkFrame = new Container
         {
             Position = new Vector2(8, 4),
-            Size = new Vector2(84),
+            Size = StandaloneArtworkSize,
             Masking = true,
             CornerRadius = 7,
             BorderThickness = 1,
             BorderColour = new Color4(1f, 1f, 1f, 0.52f),
-            Child = SongSelectArtworkCrop.Create(
-                wallpaper,
-                new Vector2(84)),
+            Children =
+            [
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = SongSelectTheme.DeepNavy,
+                },
+                SongSelectArtworkCrop.CreateFit(
+                    wallpaper,
+                    StandaloneArtworkSize),
+            ],
         });
         children.Add(adaptiveLabel(
             entry.Beatmap.Title,
-            110,
-            11,
-            494,
-            16,
+            246,
+            18,
+            514,
+            19,
             SongSelectTheme.Navy,
             SongSelectTheme.Navy,
             true));
         children.Add(adaptiveLabel(
             entry.Beatmap.Artist,
-            110,
-            40,
-            474,
-            10,
+            246,
+            54,
+            500,
+            11,
             new Color4(
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
@@ -531,20 +545,32 @@ internal partial class SongSelectSongRow : PoolableDrawable
             true));
         children.Add(adaptiveLabel(
             $"mapped by {entry.Beatmap.Creator}",
-            110,
-            64,
-            474,
-            9,
+            246,
+            80,
+            500,
+            10,
             SongSelectTheme.Cyan,
             SongSelectTheme.Cyan,
             true,
             false));
-        children.Add(createFullModePill(entry, 684, 25));
+        children.Add(standalonePreviewHint = adaptiveLabel(
+            "PREVIEWING  ·  ENTER TO PLAY",
+            246,
+            106,
+            360,
+            9,
+            SongSelectTheme.Pink,
+            SongSelectTheme.Pink,
+            true)
+        {
+            Alpha = 0,
+        });
+        children.Add(createFullModePill(entry, 792, 32));
         children.Add(createDifficultyBadge(
             displayedDifficultyRatings,
             difficultyRatingMode,
-            -14,
-            -13));
+            -18,
+            -18));
     }
 
     private static Drawable createFullModePill(
@@ -808,12 +834,12 @@ internal partial class SongSelectInlineDifficultyRating : CompositeDrawable
 
 internal partial class SongSelectPackageHeader : PoolableDrawable
 {
-    internal const float ExpandedHeight = 148;
-    internal const float CollapsedHeight = 108;
+    internal const float ExpandedHeight = 132;
+    internal const float CollapsedHeight = 132;
 
-    private const float expanded_content_start = 172;
-    private const float collapsed_content_start = 132;
-    private const float action_safe_right = 796;
+    private const float artwork_width = 228;
+    private const float content_start = 244;
+    private const float action_safe_right = 926;
 
     private Action toggle;
     private Box stateBackground;
@@ -909,12 +935,9 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         toggle = toggleAction;
         expanded = !collapsed;
         float headerHeight = collapsed ? CollapsedHeight : ExpandedHeight;
-        float artworkSize = headerHeight;
-        float contentStart = collapsed
-            ? collapsed_content_start
-            : expanded_content_start;
+        float contentStart = content_start;
         PackageContentStart = contentStart;
-        Size = new Vector2(850, headerHeight);
+        Size = new Vector2(SongSelectSongRow.RowWidth, headerHeight);
         Masking = true;
         CornerRadius = 10;
         BorderThickness = selected ? 2 : 1;
@@ -937,18 +960,26 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             },
             artworkFrame = new Container
             {
-                Size = new Vector2(artworkSize),
+                Size = new Vector2(artwork_width, headerHeight),
                 Child = artworkImageFrame = new Container
                 {
-                    Position = new Vector2(5),
-                    Size = new Vector2(artworkSize - 10),
+                    Position = new Vector2(4),
+                    Size = SongSelectSongRow.StandaloneArtworkSize,
                     Masking = true,
                     CornerRadius = 8,
                     BorderThickness = 1,
                     BorderColour = new Color4(1f, 1f, 1f, 0.58f),
-                    Child = SongSelectArtworkCrop.Create(
-                        wallpaper,
-                        new Vector2(artworkSize - 10)),
+                    Children =
+                    [
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = SongSelectTheme.DeepNavy,
+                        },
+                        SongSelectArtworkCrop.CreateFit(
+                            wallpaper,
+                            SongSelectSongRow.StandaloneArtworkSize),
+                    ],
                 },
             },
             new Container
@@ -956,7 +987,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
                 RelativeSizeAxes = Axes.Y,
-                Width = 850 - artworkSize,
+                Width = SongSelectSongRow.RowWidth - artwork_width,
                 Children =
                 [
                     hoverSurface = new Box
@@ -990,8 +1021,8 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             {
                 Position = new Vector2(
                     selected
-                        ? artworkSize + 8
-                        : artworkSize + 4,
+                        ? artwork_width + 8
+                        : artwork_width + 4,
                     collapsed
                         ? headerHeight - 29
                         : headerHeight - 33),
@@ -1038,7 +1069,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             {
                 Anchor = Anchor.BottomRight,
                 Origin = Anchor.BottomRight,
-                Width = 850 - artworkSize,
+                Width = SongSelectSongRow.RowWidth - artwork_width,
                 Height = 2,
                 Colour = SongSelectTheme.Cyan,
                 Alpha = expanded ? 0.32f : 0,
@@ -1047,7 +1078,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             {
                 Anchor = Anchor.BottomRight,
                 Origin = Anchor.BottomRight,
-                Width = 850 - artworkSize,
+                Width = SongSelectSongRow.RowWidth - artwork_width,
                 Height = selected ? 3 : 0,
                 Colour = SongSelectTheme.Cyan,
             },

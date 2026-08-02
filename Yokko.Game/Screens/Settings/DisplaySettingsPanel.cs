@@ -182,7 +182,6 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
                 YokkoStrings.Get(
                     "settings.display.difficulty_rating"),
                 createDifficultyRatingControl()),
-            new SettingsPanelFooter(),
         };
 
         windowedSize.BindValueChanged(onWindowedSizeChanged, true);

@@ -98,7 +98,6 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                 588,
                 YokkoStrings.Get("settings.general.debug_console"),
                 new SettingsBooleanToggle(showDebugConsole)),
-            new SettingsPanelFooter(),
             new HomeDotCross
             {
                 Position = new Vector2(1088, 594),

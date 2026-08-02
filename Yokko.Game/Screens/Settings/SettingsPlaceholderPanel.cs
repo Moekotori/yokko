@@ -44,7 +44,6 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
                 Colour = HomeControlColours.Navy,
             },
             createSectionList(page),
-            new SettingsPanelFooter(),
             new HomeDotCross
             {
                 Position = new Vector2(1088, 594),

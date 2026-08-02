@@ -46,7 +46,6 @@ internal partial class AboutSettingsPanel : CompositeDrawable
                 YokkoStrings.Get("settings.about.section_acknowledgements"),
                 YokkoStrings.Get("settings.about.acknowledgements"),
                 Color4.White),
-            new SettingsPanelFooter(YokkoStrings.Get("settings.about.description")),
         };
     }
 

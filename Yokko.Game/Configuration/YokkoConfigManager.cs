@@ -116,9 +116,9 @@ internal enum YokkoSetting
     DisplayFrameLimit,
     DisplayShowPerformanceReadout,
     DisplayFastAltTab,
+    DisplayDynamicBackgroundFrameRate,
     DisplayBackgroundFrameRate,
     DisplayBackgroundFrameRateLimit,
-    DisplayFullscreenRefreshRate,
     DisplayDifficultyRatingMode,
     WindowMaximised,
     DebugConsoleVisible,
@@ -491,6 +491,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoFrameRateLimits.LowLatencyDefault);
         SetDefault(YokkoSetting.DisplayShowPerformanceReadout, false);
         SetDefault(YokkoSetting.DisplayFastAltTab, true);
+        SetDefault(YokkoSetting.DisplayDynamicBackgroundFrameRate, true);
         SetDefault(
             YokkoSetting.DisplayBackgroundFrameRate,
             YokkoBackgroundFrameRate.Fps30);
@@ -500,11 +501,6 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoDisplaySettings.UnlimitedBackgroundFrameRate,
             YokkoDisplaySettings.MaximumBackgroundFrameRate,
             YokkoDisplaySettings.BackgroundFrameRateStep);
-        SetDefault(
-            YokkoSetting.DisplayFullscreenRefreshRate,
-            0,
-            0,
-            1000);
         SetDefault(
             YokkoSetting.DisplayDifficultyRatingMode,
             Yokko.Core.Difficulty.ManiaDifficultyRatingMode
@@ -829,6 +825,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.DisplayFastAltTab,
             settings.FastAltTab);
+        BindWith(
+            YokkoSetting.DisplayDynamicBackgroundFrameRate,
+            settings.DynamicBackgroundFrameRate);
         double backgroundFrameRate = Get<double>(
             YokkoSetting.DisplayBackgroundFrameRateLimit);
         YokkoBackgroundFrameRate legacyBackgroundFrameRate =
@@ -849,9 +848,6 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.DisplayBackgroundFrameRateLimit,
             settings.BackgroundFrameRate);
-        BindWith(
-            YokkoSetting.DisplayFullscreenRefreshRate,
-            settings.FullscreenRefreshRate);
         BindWith(
             YokkoSetting.DisplayDifficultyRatingMode,
             settings.DifficultyRatingMode);

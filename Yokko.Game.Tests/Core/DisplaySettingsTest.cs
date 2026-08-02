@@ -34,17 +34,21 @@ public sealed class DisplaySettingsTest
         Assert.That(Path.IsPathFullyQualified(expected), Is.True);
     }
 
-    [TestCase(15, 15)]
-    [TestCase(85, 85)]
-    [TestCase(240, 240)]
-    [TestCase(0, 0)]
-    [TestCase(500, 240)]
+    [TestCase(true, 15, 15)]
+    [TestCase(true, 85, 85)]
+    [TestCase(true, 240, 240)]
+    [TestCase(true, 0, 0)]
+    [TestCase(true, 500, 240)]
+    [TestCase(false, 85, 0)]
     public void BackgroundFrameRateMapsToInactiveHostLimit(
+        bool dynamicBackgroundFrameRate,
         double frameRate,
         double expected)
     {
         Assert.That(
-            YokkoDesktopBehaviourController.GetMaximumInactiveHz(frameRate),
+            YokkoDesktopBehaviourController.GetMaximumInactiveHz(
+                dynamicBackgroundFrameRate,
+                frameRate),
             Is.EqualTo(expected));
     }
 
@@ -91,8 +95,8 @@ public sealed class DisplaySettingsTest
                 config.BindDisplaySettings(firstDisplay);
                 config.BindAudioSettings(firstAudio);
                 firstDisplay.FastAltTab.Value = false;
+                firstDisplay.DynamicBackgroundFrameRate.Value = false;
                 firstDisplay.BackgroundFrameRate.Value = 85;
-                firstDisplay.FullscreenRefreshRate.Value = 165;
                 firstAudio.BackgroundVolume.Value = 0.37;
                 config.SetWindowMaximised(true);
                 Assert.That(config.Save(), Is.True);
@@ -107,8 +111,10 @@ public sealed class DisplaySettingsTest
                 Assert.Multiple(() =>
                 {
                     Assert.That(restoredDisplay.FastAltTab.Value, Is.False);
+                    Assert.That(
+                        restoredDisplay.DynamicBackgroundFrameRate.Value,
+                        Is.False);
                     Assert.That(restoredDisplay.BackgroundFrameRate.Value, Is.EqualTo(85));
-                    Assert.That(restoredDisplay.FullscreenRefreshRate.Value, Is.EqualTo(165));
                     Assert.That(restoredAudio.BackgroundVolume.Value, Is.EqualTo(0.37));
                     Assert.That(config.GetWindowMaximised(), Is.True);
                 });
@@ -142,6 +148,48 @@ public sealed class DisplaySettingsTest
                 DesktopSettingsSlider.PercentageFromProgress(0.374),
                 Is.EqualTo(0.37));
         });
+    }
+
+    [Test]
+    public void LegacyDesktopChoicesMigrateToSliderValues()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "desktop-slider-migration",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            using (var legacy = new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                legacy.SetValue(
+                    YokkoSetting.DisplayBackgroundFrameRate,
+                    YokkoBackgroundFrameRate.Fps60);
+                legacy.SetValue(
+                    YokkoSetting.AudioBackgroundMode,
+                    BackgroundAudioMode.Dim);
+                Assert.That(legacy.Save(), Is.True);
+            }
+
+            var display = new YokkoDisplaySettings();
+            var audio = new YokkoAudioSettings();
+            using (var migrated = new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                migrated.BindDisplaySettings(display);
+                migrated.BindAudioSettings(audio);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(display.BackgroundFrameRate.Value, Is.EqualTo(60));
+                    Assert.That(audio.BackgroundVolume.Value, Is.EqualTo(0.2));
+                });
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
     }
 
     [Test]

@@ -76,7 +76,6 @@ internal partial class SafetySettingsPanel : CompositeDrawable
                 Font = HomeTypography.Body(17),
                 Colour = SettingsTheme.MutedNavy,
             },
-            new SettingsPanelFooter(YokkoStrings.Get("settings.safety.footer")),
         };
 
         statusMetadata.Text = YokkoStrings.Get(

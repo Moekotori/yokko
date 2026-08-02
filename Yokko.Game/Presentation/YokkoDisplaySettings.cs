@@ -45,13 +45,13 @@ public sealed class YokkoDisplaySettings
         new(YokkoFrameRateLimits.LowLatencyDefault);
     public readonly BindableBool ShowPerformanceReadout = new(false);
     public readonly BindableBool FastAltTab = new(true);
+    public readonly BindableBool DynamicBackgroundFrameRate = new(true);
     public const double MinimumBackgroundFrameRate = 15;
     public const double MaximumBackgroundFrameRate = 240;
     public const double BackgroundFrameRateStep = 5;
     public const double UnlimitedBackgroundFrameRate = 0;
 
     public readonly Bindable<double> BackgroundFrameRate = new(30);
-    public readonly Bindable<int> FullscreenRefreshRate = new(0);
     public readonly Bindable<ManiaDifficultyRatingMode>
         DifficultyRatingMode = new(
             ManiaDifficultyRatingMode.EtternaMsd);

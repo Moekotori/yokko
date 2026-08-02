@@ -40,4 +40,37 @@ internal static class SongSelectArtworkCrop
             frameSize.Y / sourceSize.Y);
         return sourceSize * scale;
     }
+
+    internal static Sprite CreateFit(Texture texture, Vector2 frameSize)
+    {
+        Vector2 sourceSize = texture == null
+            ? frameSize
+            : new Vector2(texture.DisplayWidth, texture.DisplayHeight);
+        return new Sprite
+        {
+            Anchor = Anchor.Centre,
+            Origin = Anchor.Centre,
+            Size = CalculateFitSize(sourceSize, frameSize),
+            Texture = texture,
+            FillMode = FillMode.Fill,
+        };
+    }
+
+    internal static Vector2 CalculateFitSize(
+        Vector2 sourceSize,
+        Vector2 frameSize)
+    {
+        if (sourceSize.X <= 0
+            || sourceSize.Y <= 0
+            || frameSize.X <= 0
+            || frameSize.Y <= 0)
+        {
+            return frameSize;
+        }
+
+        float scale = Math.Min(
+            frameSize.X / sourceSize.X,
+            frameSize.Y / sourceSize.Y);
+        return sourceSize * scale;
+    }
 }

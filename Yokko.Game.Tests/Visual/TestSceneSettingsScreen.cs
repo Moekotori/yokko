@@ -249,6 +249,40 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestBackgroundFrameRateFollowsDynamicFrameRate()
+        {
+            bool original = true;
+            DesktopSettingsPanel desktop = null;
+
+            AddStep("remember dynamic frame rate", () =>
+                original = displaySettings.DynamicBackgroundFrameRate.Value);
+            AddStep("disable dynamic frame rate", () =>
+                displaySettings.DynamicBackgroundFrameRate.Value = false);
+            AddStep("open Desktop", () =>
+            {
+                settingsScreen.OpenPage(SettingsPageKind.Desktop);
+                desktop = (DesktopSettingsPanel)settingsScreen.ActivePanel;
+            });
+            AddAssert("background frame rate is hidden", () =>
+                !desktop.IsBackgroundFrameRateVisible
+                && desktop.DynamicFrameRateToggle.AcceptsFocus);
+            AddStep("click dynamic frame rate", () =>
+                desktop.DynamicFrameRateToggle.TriggerClick());
+            AddWaitStep("wait for reveal", 20);
+            AddAssert("background frame rate is visible", () =>
+                desktop.DynamicBackgroundFrameRateEnabled
+                && desktop.IsBackgroundFrameRateVisible);
+            AddStep("click dynamic frame rate again", () =>
+                desktop.DynamicFrameRateToggle.TriggerClick());
+            AddWaitStep("wait for collapse", 20);
+            AddAssert("background frame rate hides again", () =>
+                !desktop.DynamicBackgroundFrameRateEnabled
+                && !desktop.IsBackgroundFrameRateVisible);
+            AddStep("restore dynamic frame rate", () =>
+                displaySettings.DynamicBackgroundFrameRate.Value = original);
+        }
+
+        [Test]
         public void TestDifficultyRatingModeCanBeChangedFromDisplayPage()
         {
             ManiaDifficultyRatingMode originalMode =
@@ -729,6 +763,35 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestBmsProfilesAreGroupedAwayFromRegularModes()
+        {
+            GameplaySettingsPanel gameplay = null;
+
+            AddStep("open Gameplay", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Gameplay));
+            AddStep("capture Gameplay", () =>
+                gameplay = (GameplaySettingsPanel)settingsScreen.ActivePanel);
+            AddStep("select final regular mode", () =>
+                gameplay.SelectKeyMode(KeyMode.TwentyKey));
+            AddStep("advance regular mode", () =>
+                gameplay.SelectAdjacentKeyMode(1));
+            AddAssert("regular modes wrap without opening BMS", () =>
+                !gameplay.IsBmsProfileSelected
+                && gameplay.SelectedKeyMode == KeyMode.OneKey);
+            AddStep("open BMS group", () =>
+                gameplay.SelectBmsProfile());
+            AddAssert("BMS opens in single play", () =>
+                gameplay.IsBmsProfileSelected
+                && !gameplay.IsBmsDoublePlayProfileSelected
+                && gameplay.VisibleBindingCardCount == 8);
+            AddStep("choose double play", () =>
+                gameplay.SelectBmsProfile(doublePlay: true));
+            AddAssert("double play stays inside BMS group", () =>
+                gameplay.IsBmsDoublePlayProfileSelected
+                && gameplay.VisibleBindingCardCount == 16);
+        }
+
+        [Test]
         public void TestEveryManiaKeyModeAndStandaloneShortcutsCanBeEdited()
         {
             GameplaySettingsPanel gameplay = null;
@@ -750,20 +813,26 @@ namespace Yokko.Game.Tests.Visual
             });
             AddAssert("20K custom key saved", () =>
                 gameplay.GetBinding(KeyMode.TwentyKey, 19) == Key.Slash);
-            AddStep("next selects BMS", () =>
+            AddStep("next wraps regular modes to 1K", () =>
                 gameplay.SelectAdjacentKeyMode(1));
+            AddAssert("regular mode picker wrapped", () =>
+                !gameplay.IsBmsProfileSelected
+                && gameplay.SelectedKeyMode == KeyMode.OneKey
+                && gameplay.VisibleBindingCardCount == 1);
+            AddStep("open the BMS group", () =>
+                gameplay.SelectBmsProfile());
             AddAssert("BMS scratch and seven keys are visible", () =>
                 gameplay.IsBmsProfileSelected
                 && !gameplay.IsBmsDoublePlayProfileSelected
                 && gameplay.VisibleBindingCardCount == 8);
-            AddStep("next selects BMS DP", () =>
-                gameplay.SelectAdjacentKeyMode(1));
+            AddStep("select BMS double play", () =>
+                gameplay.SelectBmsProfile(doublePlay: true));
             AddAssert("both DP stages are visible", () =>
                 gameplay.IsBmsDoublePlayProfileSelected
                 && gameplay.VisibleBindingCardCount == 16);
-            AddStep("next wraps to 1K", () =>
+            AddStep("regular stepper leaves BMS for 1K", () =>
                 gameplay.SelectAdjacentKeyMode(1));
-            AddAssert("mode picker wrapped", () =>
+            AddAssert("regular mode picker resumes at 1K", () =>
                 !gameplay.IsBmsProfileSelected
                 && gameplay.SelectedKeyMode == KeyMode.OneKey
                 && gameplay.VisibleBindingCardCount == 1);
@@ -827,6 +896,11 @@ namespace Yokko.Game.Tests.Visual
             AddStep("restore replay shortcut only", () =>
                 shortcuts.ResetShortcutBinding(
                     ManiaShortcutAction.WatchReplay));
+            AddStep("open system shortcuts", () =>
+                shortcuts.SelectShortcutPage(ManiaShortcutPage.System));
+            AddAssert("minimise shortcut moved to system shortcuts", () =>
+                shortcuts.CurrentShortcutPage == ManiaShortcutPage.System
+                && shortcuts.ChildrenOfType<DesktopShortcutHint>().Any());
             AddAssert("single shortcut restored", () =>
                 shortcuts.GetShortcutBinding(
                     ManiaShortcutAction.WatchReplay) == Key.V
