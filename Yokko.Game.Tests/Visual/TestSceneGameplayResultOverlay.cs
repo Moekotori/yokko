@@ -77,6 +77,10 @@ public partial class TestSceneGameplayResultOverlay : YokkoTestScene
         });
         AddUntilStep("character stage ready", () =>
             overlay?.CharacterStageReady == true);
+        AddUntilStep("stage decorations ready", () =>
+            overlay?.StageDecorationsReady == true);
+        AddUntilStep("character texture ready", () =>
+            overlay?.CharacterTextureReady == true);
         AddUntilStep("rank seal ready", () =>
             overlay?.RankSealReady == true);
         AddAssert("player identity is displayed", () =>

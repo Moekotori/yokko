@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osuTK;
@@ -69,6 +71,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private Box scoreSignalRunner;
     private ResultScorePanel scorePanel;
     private ResultRankSeal rankSeal;
+    private ResultStageDecorations stageDecorations;
+    private Sprite resultCharacter;
     private ResultSongHeading songHeading;
     private int renderedModChipCount;
     private float lastResponsiveStageScale;
@@ -77,6 +81,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     // character layer is intentionally deferred.
     internal bool MascotReady => true;
     internal bool CharacterStageReady => rightStageContent != null;
+    internal bool CharacterTextureReady => resultCharacter?.Texture != null;
+    internal bool StageDecorationsReady => stageDecorations != null;
     internal bool RankSealReady => rankSeal != null;
     internal bool RankSealLabelFits => rankSeal?.LabelFits == true;
     internal string DisplayedRank => rankSeal?.DisplayedLabel ?? string.Empty;
@@ -212,11 +218,29 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     rightStageContent = new Container
                     {
                         Size = new Vector2(designedWidth, designedHeight),
-                        Child = createCharacterStagePlaceholder(),
+                        Children = new Drawable[]
+                        {
+                            createCharacterStagePlaceholder(),
+                            resultCharacter = new Sprite
+                            {
+                                Anchor = Anchor.TopLeft,
+                                Origin = Anchor.Centre,
+                                Position = new Vector2(1550, 570),
+                                Size = new Vector2(1080),
+                                Alpha = 0,
+                            },
+                        },
                     },
                 },
             },
         };
+    }
+
+    [BackgroundDependencyLoader]
+    private void load(TextureStore textures)
+    {
+        resultCharacter.Texture = textures.Get(
+            "Gameplay/yokko-result-character-user");
     }
 
     protected override void LoadComplete()
@@ -234,6 +258,15 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         leftStageLayout.Delay(70).MoveToX(0, 400, Easing.OutQuint);
         rightStageContent.Delay(130).FadeIn(340, Easing.OutQuint);
         rightStageContent.Delay(130).MoveToX(0, 350, Easing.OutQuint);
+
+        resultCharacter.Scale = new Vector2(0.94f);
+        resultCharacter.Delay(150).FadeIn(380, Easing.OutQuint);
+        resultCharacter.Delay(150).ScaleTo(1, 620, Easing.OutBack);
+        resultCharacter.Delay(900)
+                       .MoveToY(564, 2800, Easing.InOutSine)
+                       .Then()
+                       .MoveToY(576, 2800, Easing.InOutSine)
+                       .Loop();
 
         scoreSignalRunner
             .MoveToX(850, 2600, Easing.InOutSine)
@@ -480,8 +513,26 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         string delta = presentation.PreviousBestScore is long previous
             ? formatSignedScore(result.Score - previous)
             : "—";
+        var interactionGlow = new Box
+        {
+            RelativeSizeAxes = Axes.Both,
+            Colour = ResultColours.SoftCyan,
+            Alpha = 0,
+        };
+        var interactionRail = new Box
+        {
+            Anchor = Anchor.CentreRight,
+            Origin = Anchor.CentreRight,
+            RelativePositionAxes = Axes.X,
+            X = 1,
+            Width = 4,
+            Height = 0,
+            Colour = ResultColours.Pink,
+        };
 
-        return scorePanel = new ResultScorePanel
+        return scorePanel = new ResultScorePanel(
+            interactionGlow,
+            interactionRail)
         {
             Position = new Vector2(contentLeft, 310),
             Size = new Vector2(contentWidth, 224),
@@ -502,6 +553,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                         new Color4(0.035f, 0.12f, 0.49f, 1f),
                         new Color4(0.015f, 0.045f, 0.23f, 1f)),
                 },
+                interactionGlow,
                 new Box
                 {
                     RelativeSizeAxes = Axes.X,
@@ -624,6 +676,29 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     708,
                     132,
                     ResultColours.Pink),
+                new SpriteText
+                {
+                    Anchor = Anchor.BottomRight,
+                    Origin = Anchor.BottomRight,
+                    Position = new Vector2(-20, -12),
+                    Text = "SCORE BUS // LIVE",
+                    Font = HomeTypography.Display(8),
+                    Spacing = new Vector2(0.8f, 0),
+                    Colour = new Color4(1, 1, 1, 0.44f),
+                },
+                new Box
+                {
+                    Position = new Vector2(968, 10),
+                    Size = new Vector2(12, 2),
+                    Colour = ResultColours.Pink,
+                },
+                new Box
+                {
+                    Position = new Vector2(978, 10),
+                    Size = new Vector2(2, 12),
+                    Colour = ResultColours.Pink,
+                },
+                interactionRail,
             },
         };
     }
@@ -1240,12 +1315,22 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             },
         };
 
-    private static Drawable createCharacterStagePlaceholder() =>
-        new Container
+    private Drawable createCharacterStagePlaceholder() =>
+        stageDecorations = new ResultStageDecorations
         {
             Position = new Vector2(1160, 36),
             Size = new Vector2(760, 1044),
-            Children = new Drawable[]
+        };
+
+    private partial class ResultStageDecorations : CompositeDrawable
+    {
+        private readonly Container orbitFrame;
+        private readonly CircularContainer outerRing;
+        private readonly Box pulseBar;
+
+        public ResultStageDecorations()
+        {
+            InternalChildren = new Drawable[]
             {
                 new HomeDotField
                 {
@@ -1259,6 +1344,135 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Width = 118,
                     Colour = Color4.White,
                 },
+                new SpriteText
+                {
+                    Position = new Vector2(92, 112),
+                    Text = "PLAY COMPLETE",
+                    Font = HomeTypography.Display(20),
+                    Spacing = new Vector2(2.2f, 0),
+                    Colour = ResultColours.Navy,
+                    Alpha = 0.78f,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(94, 143),
+                    Text = "PERFORMANCE RECORD  //  ARCHIVE 08",
+                    Font = HomeTypography.Display(9),
+                    Spacing = new Vector2(1.2f, 0),
+                    Colour = ResultColours.Navy,
+                    Alpha = 0.48f,
+                },
+                new Box
+                {
+                    Position = new Vector2(94, 174),
+                    Size = new Vector2(112, 4),
+                    Colour = ResultColours.Pink,
+                },
+                new Box
+                {
+                    Position = new Vector2(206, 174),
+                    Size = new Vector2(46, 4),
+                    Colour = ResultColours.Yellow,
+                },
+                orbitFrame = new Container
+                {
+                    Position = new Vector2(112, 250),
+                    Size = new Vector2(500, 560),
+                    Rotation = -7,
+                    Masking = true,
+                    CornerRadius = 34,
+                    BorderThickness = 2,
+                    BorderColour = new Color4(
+                        ResultColours.Navy.R,
+                        ResultColours.Navy.G,
+                        ResultColours.Navy.B,
+                        0.18f),
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(1, 1, 1, 0.012f),
+                    },
+                },
+                outerRing = new CircularContainer
+                {
+                    Position = new Vector2(150, 280),
+                    Size = new Vector2(438),
+                    Masking = true,
+                    BorderThickness = 3,
+                    BorderColour = new Color4(
+                        ResultColours.Navy.R,
+                        ResultColours.Navy.G,
+                        ResultColours.Navy.B,
+                        0.20f),
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(1, 1, 1, 0.008f),
+                    },
+                },
+                new CircularContainer
+                {
+                    Position = new Vector2(238, 368),
+                    Size = new Vector2(262),
+                    Masking = true,
+                    BorderThickness = 2,
+                    BorderColour = new Color4(1, 1, 1, 0.62f),
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(1, 1, 1, 0.012f),
+                    },
+                },
+                new Box
+                {
+                    Position = new Vector2(118, 498),
+                    Size = new Vector2(492, 2),
+                    Colour = ResultColours.Navy,
+                    Alpha = 0.18f,
+                },
+                new Box
+                {
+                    Position = new Vector2(368, 250),
+                    Size = new Vector2(2, 560),
+                    Colour = ResultColours.Navy,
+                    Alpha = 0.18f,
+                },
+                new Box
+                {
+                    Position = new Vector2(352, 482),
+                    Size = new Vector2(34, 34),
+                    Colour = ResultColours.Yellow,
+                    Alpha = 0.82f,
+                },
+                new Box
+                {
+                    Position = new Vector2(360, 490),
+                    Size = new Vector2(18, 18),
+                    Colour = ResultColours.Pink,
+                },
+                pulseBar = new Box
+                {
+                    Position = new Vector2(114, 824),
+                    Size = new Vector2(92, 5),
+                    Colour = ResultColours.Pink,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(118, 842),
+                    Text = "YOKKO // RESULT SESSION",
+                    Font = HomeTypography.Display(10),
+                    Spacing = new Vector2(1.3f, 0),
+                    Colour = ResultColours.Navy,
+                    Alpha = 0.62f,
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(480, 690),
+                    Text = "08",
+                    Font = HomeTypography.Hero(146),
+                    Colour = ResultColours.Navy,
+                    Alpha = 0.10f,
+                },
                 new HomeDotField
                 {
                     Position = new Vector2(74, 800),
@@ -1269,8 +1483,37 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                         ResultColours.Navy.B,
                         0.16f),
                 },
-            },
-        };
+                new HomeCornerBracket
+                {
+                    Position = new Vector2(92, 224),
+                    Height = 58,
+                    Colour = ResultColours.Navy,
+                },
+                new HomeCornerBracket
+                {
+                    Position = new Vector2(626, 800),
+                    Height = 58,
+                    Rotation = 180,
+                    Colour = ResultColours.Navy,
+                },
+            };
+        }
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            orbitFrame.RotateTo(5, 7200, Easing.InOutSine)
+                      .Then().RotateTo(-7, 7200, Easing.InOutSine)
+                      .Loop();
+            outerRing.ScaleTo(1.035f, 3200, Easing.InOutSine)
+                     .Then().ScaleTo(1, 3200, Easing.InOutSine)
+                     .Loop();
+            pulseBar.ResizeWidthTo(174, 1800, Easing.InOutSine)
+                    .Then().ResizeWidthTo(92, 1800, Easing.InOutSine)
+                    .Loop();
+        }
+    }
 
     private partial class ResultRankSeal : CompositeDrawable
     {
@@ -1471,15 +1714,29 @@ internal partial class GameplayResultOverlay : CompositeDrawable
 
     private partial class ResultScorePanel : Container
     {
+        private readonly Box interactionGlow;
+        private readonly Box interactionRail;
+
         public bool InteractionActive { get; private set; }
 
         public override bool HandlePositionalInput => true;
+
+        public ResultScorePanel(Box interactionGlow, Box interactionRail)
+        {
+            this.interactionGlow = interactionGlow;
+            this.interactionRail = interactionRail;
+        }
 
         public void SetInteractionState(bool active)
         {
             InteractionActive = active;
             this.MoveToY(active ? 306 : 310, 180, Easing.OutQuint);
             this.ScaleTo(active ? 1.006f : 1, 180, Easing.OutQuint);
+            interactionGlow.FadeTo(active ? 0.055f : 0, 180, Easing.OutQuint);
+            interactionRail.ResizeHeightTo(
+                active ? 196 : 0,
+                active ? 220 : 160,
+                Easing.OutQuint);
         }
 
         protected override bool OnHover(HoverEvent e)
@@ -1545,6 +1802,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     {
         private readonly Box background;
         private readonly SpriteText valueText;
+        private readonly Box hoverUnderline;
+        private readonly float hoverUnderlineWidth;
 
         public override bool HandlePositionalInput => true;
 
@@ -1553,6 +1812,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
             string value,
             float width)
         {
+            hoverUnderlineWidth = Math.Max(24, width - 48);
             Size = new Vector2(width, 72);
             InternalChildren = new Drawable[]
             {
@@ -1585,6 +1845,14 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Font = HomeTypography.Display(width < 180 ? 22 : 31),
                     Colour = ResultColours.Navy,
                 },
+                hoverUnderline = new Box
+                {
+                    Anchor = Anchor.BottomLeft,
+                    Origin = Anchor.BottomLeft,
+                    Position = new Vector2(24, -2),
+                    Size = new Vector2(0, 2),
+                    Colour = ResultColours.Cyan,
+                },
             };
         }
 
@@ -1592,6 +1860,10 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         {
             background.FadeTo(0.3f, 140, Easing.OutQuint);
             valueText.MoveToY(24, 150, Easing.OutQuint);
+            hoverUnderline.ResizeWidthTo(
+                hoverUnderlineWidth,
+                180,
+                Easing.OutQuint);
             return true;
         }
 
@@ -1599,6 +1871,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         {
             background.FadeOut(160, Easing.OutQuint);
             valueText.MoveToY(27, 170, Easing.OutQuint);
+            hoverUnderline.ResizeWidthTo(0, 150, Easing.OutQuint);
         }
     }
 
@@ -1727,6 +2000,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         private readonly SpriteIcon icon;
         private readonly Color4 restColour;
         private readonly Color4 hoverColour;
+        private readonly Box accentRail;
+        private readonly Container keycap;
 
         public override bool HandlePositionalInput => enabled;
 
@@ -1757,6 +2032,18 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     RelativeSizeAxes = Axes.Both,
                     Colour = restColour,
                 },
+                accentRail = new Box
+                {
+                    Anchor = Anchor.BottomLeft,
+                    Origin = Anchor.BottomLeft,
+                    RelativeSizeAxes = Axes.X,
+                    Width = 0.18f,
+                    Height = 3,
+                    Colour = primary
+                        ? ResultColours.Yellow
+                        : ResultColours.Pink,
+                    Alpha = 0.72f,
+                },
                 icon = new SpriteIcon
                 {
                     Anchor = Anchor.CentreLeft,
@@ -1776,16 +2063,39 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                     Font = HomeTypography.Display(22),
                     Colour = primary ? Color4.White : ResultColours.Navy,
                 },
-                new SpriteText
+                keycap = new Container
                 {
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
-                    X = -22,
-                    Text = key,
-                    Font = HomeTypography.Display(11),
-                    Colour = primary
+                    X = -18,
+                    Size = new Vector2(key.Length > 1 ? 48 : 34, 25),
+                    Masking = true,
+                    CornerRadius = 5,
+                    BorderThickness = 1,
+                    BorderColour = primary
                         ? ResultColours.Yellow
                         : ResultColours.Pink,
+                    Children = new Drawable[]
+                    {
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = primary
+                                ? new Color4(1, 1, 1, 0.05f)
+                                : ResultColours.SoftCyan,
+                            Alpha = primary ? 1 : 0.42f,
+                        },
+                        new SpriteText
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            Text = key,
+                            Font = HomeTypography.Display(10),
+                            Colour = primary
+                                ? ResultColours.Yellow
+                                : ResultColours.Pink,
+                        },
+                    },
                 },
             };
 
@@ -1803,6 +2113,9 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         {
             background.FadeColour(hoverColour, 120);
             icon.ScaleTo(1.08f, 140, Easing.OutQuint);
+            keycap.ScaleTo(1.06f, 140, Easing.OutQuint);
+            accentRail.ResizeWidthTo(1, 180, Easing.OutQuint);
+            accentRail.FadeTo(1, 120);
             this.MoveToY(-3, 140, Easing.OutQuint);
             return true;
         }
@@ -1811,6 +2124,9 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         {
             background.FadeColour(restColour, 140);
             icon.ScaleTo(1, 150, Easing.OutQuint);
+            keycap.ScaleTo(1, 150, Easing.OutQuint);
+            accentRail.ResizeWidthTo(0.18f, 170, Easing.OutQuint);
+            accentRail.FadeTo(0.72f, 140);
             this.MoveToY(0, 160, Easing.OutQuint);
         }
 

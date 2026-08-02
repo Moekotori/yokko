@@ -110,6 +110,33 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
     }
 
     [Test]
+    public void TestReleasedRowIgnoresStaleSelectionCallback()
+    {
+        SongSelectSongRow releasedRow = null;
+
+        AddStep("show one row", () => list.SetItems(
+        [
+            new SongSelectVirtualItem
+            {
+                Entry = entries[0],
+                VisualHeight = 58,
+            },
+        ]));
+        AddUntilStep("row is materialised", () =>
+            list.MaterialisedRows.Count() == 1);
+        AddStep("capture row", () =>
+            releasedRow = list.MaterialisedRows.Single());
+        AddStep("release row", () =>
+            list.SetItems(Array.Empty<SongSelectVirtualItem>()));
+        AddUntilStep("released row is returned to pool", () =>
+            releasedRow.Entry == null);
+        AddStep("ignore stale selection callback", () =>
+            releasedRow.SetSelected(false));
+        AddAssert("list remains empty", () =>
+            list.MaterialisedDrawableCount == 0);
+    }
+
+    [Test]
     public void TestPackageLayoutRebuildKeepsTransitionHeaderAnchored()
     {
         SongSelectEntry[] firstPackage = entries.Take(12)

@@ -914,9 +914,11 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.SkinLongNoteCutEnabled,
             settings.LongNoteCutEnabled);
+        settings.LongNoteCutEnabled.BindValueChanged(_ => Save());
         BindWith(
             YokkoSetting.SkinLongNoteCutAmount,
             settings.LongNoteCutAmount);
+        settings.LongNoteCutAmount.BindValueChanged(_ => Save());
     }
 
     public string GetLastSettingsPage() =>

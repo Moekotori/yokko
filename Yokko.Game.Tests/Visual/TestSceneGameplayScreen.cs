@@ -4684,11 +4684,10 @@ HitPosition: 400
             AddAssert("retry waits and coalesces", () =>
                 audioEngine.StopCount == 1
                 && ReferenceEquals(screenStack.CurrentScreen, session)
-                && ReferenceEquals(session.CurrentGameplay, gameplay));
+                && ReferenceEquals(session.CurrentGameplay, gameplay)
+                && session.RetryTransitionActive);
             AddStep("release old audio session", () =>
                 audioEngine.StopCompletion.SetResult(true));
-            AddUntilStep("retry animation starts", () =>
-                session.RetryTransitionActive);
             AddUntilStep("replacement gameplay is current", () =>
             {
                 replacement = session?.CurrentGameplay;
@@ -5221,7 +5220,7 @@ HitPosition: 400
         }
 
         [Test]
-        public void TestQuickRetryRequiresHold()
+        public void TestQuickRetryShortcutIsImmediate()
         {
             var audioEngine = new SeekTrackingAudioEngine();
             YokkoBeatmap beatmap = DemoBeatmaps.CreateFourKeyDemo() with
@@ -5229,53 +5228,35 @@ HitPosition: 400
                 AudioPath = "quick-retry-fixture.mp3",
             };
             GameplayScreen gameplayScreen = null;
-            double originalHold = 0;
 
             AddStep("open gameplay with audio", () =>
             {
                 gameplaySettings.ResetShortcutBindings();
                 gameplayScreen = new GameplayScreen(beatmap, audioEngine);
                 screenStack.Push(gameplayScreen);
-                originalHold = gameplayScreen.QuickRetryHoldMilliseconds;
             });
             AddUntilStep("audio starts", () =>
                 audioEngine.StartCount == 1);
-            AddStep("tap quick retry briefly", () =>
+            AddStep("press quick retry", () =>
             {
-                gameplayScreen.QuickRetryHoldMilliseconds = 10000;
                 gameplayScreen.HandleKeyDownInput(
                     Key.Tilde,
                     false,
                     false,
                     false);
             });
-            AddAssert("hold indicator activates without retry", () =>
-                gameplayScreen.QuickRetryHoldActive
-                && audioEngine.StopCount == 0);
-            AddStep("release before the threshold", () =>
-                gameplayScreen.HandleKeyUpInput(Key.Tilde));
-            AddAssert("release cancels the hold", () =>
-                !gameplayScreen.QuickRetryHoldActive);
-            AddWaitStep("wait past any hidden retry", 10);
-            AddAssert("no retry happened", () =>
-                audioEngine.StopCount == 0);
-            AddStep("hold quick retry to the threshold", () =>
-            {
-                gameplayScreen.QuickRetryHoldMilliseconds = 60;
-                gameplayScreen.HandleKeyDownInput(
-                    Key.Tilde,
-                    false,
-                    false,
-                    false);
-            });
-            AddUntilStep("hold fires the retry", () =>
+            AddAssert("retry starts immediately", () =>
                 audioEngine.StopCount == 1);
-            AddStep("restore hold duration", () =>
+            AddStep("ignore repeated keydown", () =>
             {
-                if (gameplayScreen != null)
-                    gameplayScreen.QuickRetryHoldMilliseconds =
-                        originalHold;
+                gameplayScreen.HandleKeyDownInput(
+                    Key.Tilde,
+                    true,
+                    false,
+                    false);
             });
+            AddAssert("retry remains coalesced", () =>
+                audioEngine.StopCount == 1);
         }
 
         [Test]

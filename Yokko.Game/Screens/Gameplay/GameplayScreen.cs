@@ -176,8 +176,6 @@ public partial class GameplayScreen : Screen
     private double pausedAudioPosition;
     private GameplayPauseOverlay pauseOverlay;
     private GameplayResumeCountdown resumeCountdown;
-    private double quickRetryHoldStartTime = double.NaN;
-    private GameplayQuickRetryIndicator quickRetryIndicator;
     private GameplayFailOverlay failOverlay;
     private Box backgroundDim;
     private GameplayComboReadout comboReadout;
@@ -253,10 +251,7 @@ public partial class GameplayScreen : Screen
         ? Math.Max(0, mods.NoPauseAllowedPauses - pausesUsed)
         : int.MaxValue;
     internal bool ResumeCountdownInProgress => resumeCountdownInProgress;
-    internal bool QuickRetryHoldActive =>
-        !double.IsNaN(quickRetryHoldStartTime);
     internal double? ResumeCountdownMillisecondsOverride;
-    internal double QuickRetryHoldMilliseconds = 400;
 
     private double resumeCountdownDuration =>
         ResumeCountdownMillisecondsOverride
@@ -742,7 +737,6 @@ public partial class GameplayScreen : Screen
         base.Update();
         updatePlayfieldLayout();
         drainAudioSampleTriggerTelemetry();
-        updateQuickRetryHold();
         updateDiagnosticSnapshot();
         replayControls?.UpdateState(
             currentGameplayTime,
@@ -1281,7 +1275,8 @@ public partial class GameplayScreen : Screen
 
         if (matchesShortcut(ManiaShortcutAction.QuickRetry, key))
         {
-            beginQuickRetryHold();
+            if (!repeat)
+                RetryGameplay();
             return true;
         }
 
@@ -1418,11 +1413,6 @@ public partial class GameplayScreen : Screen
 
     internal bool HandleKeyUpInput(Key key)
     {
-        // Releasing the quick-retry key before the hold completes cancels
-        // the retry, even when the release lands inside a pause.
-        if (matchesShortcut(ManiaShortcutAction.QuickRetry, key))
-            cancelQuickRetryHold();
-
         if (gameplayCompleted
             || gameplayFailed
             || retryTransitionInProgress
@@ -2535,7 +2525,6 @@ public partial class GameplayScreen : Screen
         gameplayCompletionTransitionActive = true;
         completionTransitionElapsedMilliseconds = 0;
         disableRawKeysoundFastPath();
-        cancelQuickRetryHold();
         stopAllSlidingSamples();
         for (int lane = 0; lane < pressedLanes.Length; lane++)
         {
@@ -2910,7 +2899,6 @@ public partial class GameplayScreen : Screen
         if (!ReplayMode)
             endInputCapture();
 
-        cancelQuickRetryHold();
         AddInternal(pauseOverlay = createPauseOverlay());
 
         try
@@ -2962,7 +2950,6 @@ public partial class GameplayScreen : Screen
         }
 
         pauseTransitionInProgress = true;
-        cancelQuickRetryHold();
         pauseOverlay?.FadeOut(140, Easing.OutQuint)
                      .Expire();
         pauseOverlay = null;
@@ -3068,59 +3055,6 @@ public partial class GameplayScreen : Screen
         }
     }
 
-    private void beginQuickRetryHold()
-    {
-        if (!double.IsNaN(quickRetryHoldStartTime))
-            return;
-
-        quickRetryHoldStartTime = Time.Current;
-        if (quickRetryIndicator == null)
-        {
-            AddInternal(quickRetryIndicator =
-                new GameplayQuickRetryIndicator(
-                    KeyModeBindings.FormatKey(
-                            gameplaySettings.GetShortcutBinding(
-                                ManiaShortcutAction.QuickRetry))
-                        .ToUpperInvariant()));
-        }
-
-        quickRetryIndicator.ShowHold();
-    }
-
-    private void cancelQuickRetryHold()
-    {
-        quickRetryHoldStartTime = double.NaN;
-        quickRetryIndicator?.CancelHold();
-    }
-
-    private void updateQuickRetryHold()
-    {
-        if (double.IsNaN(quickRetryHoldStartTime))
-            return;
-
-        if (gameplayBlocked
-            || gameplayCompleted
-            || gameplayFailed
-            || retryTransitionInProgress
-            || isPaused
-            || resumeCountdownInProgress)
-        {
-            cancelQuickRetryHold();
-            return;
-        }
-
-        double progress =
-            (Time.Current - quickRetryHoldStartTime)
-            / QuickRetryHoldMilliseconds;
-        quickRetryIndicator?.UpdateProgress(progress);
-
-        if (progress >= 1)
-        {
-            cancelQuickRetryHold();
-            RetryGameplay();
-        }
-    }
-
     private void cancelFailedPause()
     {
         isPaused = false;
@@ -3200,8 +3134,8 @@ public partial class GameplayScreen : Screen
         resumeCountdownInProgress = false;
         resumeCountdown?.Expire();
         resumeCountdown = null;
-        cancelQuickRetryHold();
         retryTransitionInProgress = true;
+        findGameplaySessionRoot()?.BeginRetryTransition();
         diagnostics.Trace(
             "GAMEPLAY",
             "retry-requested",
@@ -3234,7 +3168,10 @@ public partial class GameplayScreen : Screen
                 await audioEngine.StopAsync().ConfigureAwait(true);
 
             if (!this.IsCurrentScreen())
+            {
+                findGameplaySessionRoot()?.CancelRetryTransition();
                 return;
+            }
 
             var replacement = new GameplayScreen(
                 originalBeatmap,
@@ -3271,6 +3208,7 @@ public partial class GameplayScreen : Screen
         catch (Exception exception)
         {
             retryTransitionInProgress = false;
+            findGameplaySessionRoot()?.CancelRetryTransition();
             if (!ReplayMode && this.IsCurrentScreen())
                 beginInputCapture();
 

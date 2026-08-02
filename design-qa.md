@@ -64,8 +64,19 @@ final result: passed
 - Focused score-region comparison: `F:\YokkoArtifacts\result-detailed-polish\qa\result-score-region-source-left-implementation-right.png` (source left, implementation right).
 - Etterna full-view comparison: `F:\YokkoArtifacts\result-detailed-polish\qa\result-etterna-full-source-left-implementation-right.png` (source left, Etterna implementation right).
 - Etterna focused rank comparison: `F:\YokkoArtifacts\result-detailed-polish\qa\result-etterna-rank-source-left-implementation-right.png` (source rank region left, Etterna AAAAA rank region right).
+- Refined native implementation: `F:\YokkoArtifacts\result-interface-polish\screenshots\result-polish-normal.png` (1920 x 1080).
+- Refined score-panel interaction state: `F:\YokkoArtifacts\result-interface-polish\screenshots\result-polish-score-hover.png` (1920 x 1080).
+- Refined Etterna AAAAA state: `F:\YokkoArtifacts\result-interface-polish\screenshots\result-polish-etterna-aaaaa.png` (1920 x 1080).
+- Refined full-view comparison: `F:\YokkoArtifacts\result-interface-polish\qa\result-polish-full-source-left-implementation-right.png` (source left, implementation right).
+- Refined interaction comparison: `F:\YokkoArtifacts\result-interface-polish\qa\result-polish-normal-left-hover-right.png` (rest state left, score-panel hover state right).
+- Focused stage comparison: `F:\YokkoArtifacts\result-interface-polish\qa\result-polish-stage-source-left-implementation-right.png` (source character stage left, untouched-character placeholder decoration system right).
+- Character-integrated native implementation: `F:\YokkoArtifacts\result-character\screenshots\result-character-final.png` (1920 x 1080).
+- Character-integrated full-view comparison: `F:\YokkoArtifacts\result-character\qa\result-character-full-source-left-implementation-right.png` (source left, implementation right).
+- Focused character-stage comparison: `F:\YokkoArtifacts\result-character\qa\result-character-stage-source-left-implementation-right.png` (source left, implementation right).
+- Supplied character source: `F:\download\插画109 (3).png`; embedded resource: `Yokko.Resources\Textures\Gameplay\yokko-result-character-user.png`. Both SHA-256 values are `AD71399E7289AA2DF901D1C08E8D0A971A395B64CA535EA90EC3A7043B671F9B`.
 - Viewport and density: native osu!framework Direct3D 11 preview, authored 1920 x 1080 stage at scale 1; source and implementation are both 1920 x 1080 with no density normalization required.
-- State: result screen after entrance animation, Chinese action labels, detailed local-player data. The preview uses a valid B-grade demo result rather than the mock's S-grade values. The right illustration is intentionally omitted under the current user-approved scope, so its empty stage is not treated as a fidelity defect.
+- State: result screen after entrance animation, Chinese action labels, detailed local-player data, and the exact supplied character on the right stage. The preview uses a valid B-grade demo result rather than the mock's S-grade values.
+- Native interaction check: the live 1280 x 720 target window was activated and inspected. The score panel, MAX COMBO summary cell, and Watch Replay action were hovered in sequence; lift/glow, underline, cyan fill, accent rail, icon, and keycap feedback appeared without firing an action. Preview logs contained no error, exception, or fatal entry.
 
 ## Findings
 
@@ -75,14 +86,17 @@ final result: passed
 - [P2 resolved] The three result actions filled the entire content width and crossed the visual paper wedge. Their widths and gaps now match the selected reference's shorter editorial row while preserving the same retry, replay, and return interactions.
 - [P2 resolved] Etterna `AA` through `AAAAA` previously relied on the generic long-label shrink path. Etterna A-sequence grades now use dedicated optical sizes and negative tracking, preserving the full label without weakening it into tiny text. The seal also identifies the scoring context as `WIFE3 GRADE` and `ETTERNA // J4`.
 - [P2 resolved] The narrow summary cell truncated `ETTERNA J4` to `ETTERNA...` in the first native stress capture. The RATE/RULESET tracks were rebalanced, and the post-fix capture shows the complete ruleset value.
+- [P2 resolved] The no-character right stage previously read as unfinished empty cyan space. It now has a quiet result-archive composition using nested registration rings, a tilted frame, crosshair, corner marks, dot fields, session numbering, color registration bars, and slow breathing/scan motion. These elements stay behind the future untouched character layer and reuse existing Yokko visual tokens.
+- [P2 resolved] The character stage now loads the user's byte-identical transparent PNG at 1080 x 1080, centred at `(1550, 570)`. Its silhouette crosses only the far-right edge of the diagonal score boundary, keeps core score and action content clear, and uses a restrained fade/scale entrance plus slow vertical float.
+- [P2 resolved] Hover affordances were too subtle to explain what was interactive. The score panel now gains a controlled lift, low-opacity glow, and pink edge scan; summary cells expose a cyan underline; action buttons use visible hover fill, animated accent rails, icon lift, compact keycaps, and retained press scale.
 - [P3] The selected mock's rank is deliberately minimal, while the implementation uses a more explicit card-like seal in response to the user's request that the grade graphic feel more finished. This is an intentional polish deviation rather than an unresolved mismatch.
 
 ## Required fidelity surfaces
 
 - Fonts and typography: Archivo Black remains the exact score/rank display face; Yokko display/body faces retain the existing product system. Score, previous-best, labels, and small ledger text now have distinct optical hierarchy. Dedicated AA-through-AAAAA tracking keeps the Etterna grade bold and fully legible in the captured worst-case AAAAA state.
-- Spacing and layout rhythm: header, chart strip, score block, summary, timing, judgement, metadata, provenance, and actions align to the same 1920 x 1080 grid. The slanted stage edge clears every interactive control.
-- Colors and visual tokens: navy, cyan, pale cyan, yellow, pink, and ivory remain the existing Yokko tokens. The score panel adds only token-derived gradients and low-opacity highlights.
-- Image quality and asset fidelity: no character or supplied illustration was modified. The rank remains dynamic UI data rather than a rasterized screenshot or generated text asset; the intentionally empty character stage stays sharp at native resolution.
+- Spacing and layout rhythm: header, chart strip, score block, summary, timing, judgement, metadata, provenance, and actions align to the same 1920 x 1080 grid. The large character uses the right-stage centre, crosses the slanted edge only slightly, and avoids the core information and action targets.
+- Colors and visual tokens: navy, cyan, pale cyan, yellow, pink, and ivory remain the existing Yokko tokens. The score panel and stage ornaments add only token-derived low-opacity highlights and registration accents.
+- Image quality and asset fidelity: the supplied character was copied byte-for-byte without AI generation, repainting, retouching, cropping, or resampling of the source file. The rank remains dynamic UI data rather than a rasterized screenshot or generated text asset.
 - Copy and content: player name, local UID, play time, chart data, score delta, timing, judgements, replay state, provenance, and action labels remain truthful runtime fields. Etterna captures show the runtime Wife3 grade and justice label in full; no mock performance value was invented.
 
 ## Comparison history
@@ -93,21 +107,29 @@ final result: passed
 4. Final V3: the diagonal paper edge and action widths were aligned to the reference; the combined full-view and focused-region evidence shows no remaining actionable P0/P1/P2 issue within the current no-character scope.
 5. Etterna stress V1 `F:\YokkoArtifacts\result-detailed-polish\screenshots\result-preview-etterna-aaaaa.png`: the new AAAAA seal fit, but the adjacent summary rail visibly truncated the ruleset to `ETTERNA...`.
 6. Etterna stress V2 `F:\YokkoArtifacts\result-detailed-polish\screenshots\result-preview-etterna-aaaaa-final.png`: the RULESET track was widened to show `ETTERNA J4`; combined full-view and focused evidence shows no remaining AAAAA overflow, metadata truncation, or actionable P0/P1/P2 issue.
+7. Interaction/decor V1 `F:\YokkoArtifacts\result-interface-polish\screenshots\result-polish-normal.png`: the previously empty right stage gained a restrained archive motif; score, metric, judgement, and action interactions gained clearer feedback while the dense information grid stayed fixed.
+8. Live interaction pass: hover behavior was verified in the real target window for the score panel, MAX COMBO cell, and Watch Replay action. The combined normal/hover comparison and native target-window inspection show no actionable P0/P1/P2 issue within the current untouched-character scope.
+9. Character V1 `F:\YokkoArtifacts\result-character\screenshots\result-character-v1.png`: the large character matched the intended right-stage composition, but its halo sat too close to the top ticker.
+10. Character V2 `F:\YokkoArtifacts\result-character\screenshots\result-character-final.png`: the character centre moved down 30 px, clearing the ticker while retaining the large face-led crop and slight diagonal overlap. Full-view and focused comparisons show no actionable P0/P1/P2 issue in the character integration.
 
 ## Open Questions
 
-- None for this pass. Adding the untouched supplied character later is a separate approved follow-up, not a blocker for the result-information layout.
+- None for this pass.
 
 ## Implementation Checklist
 
 - Dynamic grade seal covers Yokko and Etterna grade lengths.
 - Etterna AA-through-AAAAA preserves the complete label and displays Wife3/J4 context without truncation.
 - Retry, replay, and return actions retain enabled/disabled, hover, press, and keyboard-label states.
+- Score-panel, summary-cell, judgement-share, and action-button hover feedback is visible without moving the information grid.
+- Right-stage ornaments animate slowly and preserve the future character-safe center.
+- Exact supplied character asset is loaded as a separate texture layer with no image modification.
+- Character entrance and idle motion stay subtle and do not move any information or interaction surface.
 - Native 1920 x 1080 render, focused result scene, isolated build, and diff check must pass before handoff.
 
 ## Follow-up Polish
 
-- P3 only: when the character layer is added, tune its crop and overlap against the final diagonal edge without moving the left ledger.
+- None required for the current character-integrated composition.
 
 final result: passed
 

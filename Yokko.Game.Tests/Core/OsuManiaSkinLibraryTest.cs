@@ -37,6 +37,26 @@ public sealed class OsuManiaSkinLibraryTest
         });
     }
 
+    [Test]
+    public void AdditionalLongNoteCutPreferenceSavesImmediately()
+    {
+        using var firstConfig =
+            new YokkoConfigManager(new NativeStorage(testRoot));
+        var firstSettings = new YokkoSkinSettings();
+        firstConfig.BindSkinSettings(firstSettings);
+
+        firstSettings.LongNoteCutEnabled.Value = true;
+        Assert.That(firstConfig.Save(), Is.True);
+        firstSettings.LongNoteCutEnabled.Value = false;
+
+        using var restoredConfig =
+            new YokkoConfigManager(new NativeStorage(testRoot));
+        var restoredSettings = new YokkoSkinSettings();
+        restoredConfig.BindSkinSettings(restoredSettings);
+
+        Assert.That(restoredSettings.LongNoteCutEnabled.Value, Is.False);
+    }
+
     [TearDown]
     public void TearDown()
     {

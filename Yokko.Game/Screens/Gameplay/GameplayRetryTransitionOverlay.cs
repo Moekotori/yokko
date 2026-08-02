@@ -34,9 +34,7 @@ internal partial class GameplayRetryTransitionOverlay : CompositeDrawable
     {
         ClearTransforms(true);
         Alpha = 1;
-
-        veil.Alpha = 0;
-        veil.FadeTo(1, 35, Easing.OutQuint);
+        veil.Alpha = 1;
     }
 
     internal void BeginReveal()
@@ -45,8 +43,8 @@ internal partial class GameplayRetryTransitionOverlay : CompositeDrawable
         Alpha = 1;
 
         veil.Alpha = 1;
-        veil.FadeOut(85, Easing.OutQuint);
-        this.Delay(90).FadeOut();
+        veil.FadeOut(45, Easing.OutQuint);
+        this.Delay(45).FadeOut();
     }
 
     internal void ResetInstant()

@@ -339,6 +339,12 @@ internal partial class SongSelectSongRow : PoolableDrawable
         float neighbourIndent,
         bool animated = true)
     {
+        // A virtualised row can leave the drawable tree while the input
+        // manager is still dispatching HoverLost for its previous position.
+        // FreeAfterUse() has already released its children at that point.
+        if (Entry == null)
+            return;
+
         selected = value;
         selectionIndent = compact
             ? Math.Clamp(neighbourIndent, 0, 12)
@@ -381,6 +387,9 @@ internal partial class SongSelectSongRow : PoolableDrawable
 
     protected override bool OnHover(HoverEvent e)
     {
+        if (Entry == null)
+            return false;
+
         surface.FadeColour(
             compact
                 ? new Color4(0.95f, 0.99f, 1f, 0.99f)

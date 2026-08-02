@@ -24,6 +24,7 @@ internal partial class GameplaySessionScreen : Screen
     private ScreenStack gameplayStack;
     private GameplaySessionRootScreen root;
     private GameplayRetryTransitionOverlay retryTransition;
+    private bool retryTransitionActive;
     private bool retryHandoffInProgress;
     private bool initialGameplayPreloaded;
     private GameplayScreen pendingReplacement;
@@ -35,8 +36,7 @@ internal partial class GameplaySessionScreen : Screen
     private const double initialMotionDurationMilliseconds = 220;
     private const float initialScale = 1.012f;
     private const float initialOffsetY = 10;
-    private const double coverDurationMilliseconds = 35;
-    private const double revealDurationMilliseconds = 95;
+    private const double revealDurationMilliseconds = 45;
 
     internal GameplayScreen CurrentGameplay =>
         gameplayStack?.CurrentScreen as GameplayScreen;
@@ -52,7 +52,7 @@ internal partial class GameplaySessionScreen : Screen
         && Alpha == 1
         && gameplayStack?.Scale == Vector2.One
         && gameplayStack.Y == 0;
-    internal bool RetryTransitionActive => pendingReplacement != null;
+    internal bool RetryTransitionActive => retryTransitionActive;
 
     internal GameplaySessionScreen(GameplayScreen initialGameplay)
     {
@@ -123,34 +123,39 @@ internal partial class GameplaySessionScreen : Screen
             root.Push(initialGameplay);
     }
 
+    internal void BeginRetryTransition()
+    {
+        if (retryTransitionActive)
+            return;
+
+        retryTransitionActive = true;
+        revealStarted = false;
+        retryTransition.BeginCover();
+    }
+
+    internal void CancelRetryTransition()
+    {
+        retryTransitionActive = false;
+        pendingReplacement = null;
+        revealStarted = false;
+        retryTransition.ResetInstant();
+    }
+
     internal void ReplaceGameplay(GameplayScreen replacement)
     {
         if (pendingReplacement != null)
             return;
 
+        BeginRetryTransition();
         pendingReplacement = replacement;
         revealStarted = false;
-        retryTransition.BeginCover();
-        gameplayStack.ClearTransforms();
-        gameplayStack.FadeTo(0.88f, coverDurationMilliseconds,
-            Easing.OutQuint);
-        gameplayStack.ScaleTo(0.996f, coverDurationMilliseconds,
-            Easing.OutQuint);
-        Scheduler.AddDelayed(
-            () => performGameplayReplacement(replacement),
-            coverDurationMilliseconds);
+        performGameplayReplacement(replacement);
     }
 
     private void performGameplayReplacement(GameplayScreen replacement)
     {
         if (!ReferenceEquals(pendingReplacement, replacement))
             return;
-
-        gameplayStack.ClearTransforms();
-        // Keep the nested ScreenStack updating while the opaque transition
-        // cover hides it. Alpha zero would suspend its load continuation.
-        gameplayStack.Alpha = 0.001f;
-        gameplayStack.Scale = new Vector2(1.004f);
 
         retryHandoffInProgress = true;
         try
@@ -189,15 +194,13 @@ internal partial class GameplaySessionScreen : Screen
         if (pendingReplacement == null
             || revealStarted
             || !pendingReplacement.IsLoaded
+            || !pendingReplacement.PresentationTexturesReady
             || !ReferenceEquals(CurrentGameplay, pendingReplacement))
         {
             return;
         }
 
         revealStarted = true;
-        gameplayStack.ClearTransforms();
-        gameplayStack.FadeTo(1, 75, Easing.OutQuint)
-                     .ScaleTo(1, 95, Easing.OutQuint);
         retryTransition.BeginReveal();
         Scheduler.AddDelayed(completeRetryTransition,
             revealDurationMilliseconds);
@@ -211,6 +214,7 @@ internal partial class GameplaySessionScreen : Screen
         retryTransition.ResetInstant();
         pendingReplacement = null;
         revealStarted = false;
+        retryTransitionActive = false;
     }
 
     private void onGameplayScreenExited(IScreen last, IScreen next)
@@ -262,6 +266,12 @@ internal sealed partial class GameplaySessionRootScreen : Screen
 
     internal void ReplaceGameplay(GameplayScreen replacement) =>
         session.ReplaceGameplay(replacement);
+
+    internal void BeginRetryTransition() =>
+        session.BeginRetryTransition();
+
+    internal void CancelRetryTransition() =>
+        session.CancelRetryTransition();
 
     internal bool RetryTransitionActive =>
         session.RetryTransitionActive;
