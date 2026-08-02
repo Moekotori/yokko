@@ -2,6 +2,8 @@
 param(
     [string]$AsioSdkDir = $env:YOKKO_ASIO_SDK_DIR,
 
+    [string]$ArtifactsRoot,
+
     [switch]$OpenOutputFolder
 )
 
@@ -194,8 +196,33 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $desktopProject = Join-Path $repoRoot "Yokko.Desktop\Yokko.Desktop.csproj"
 $nativeSource = Join-Path $repoRoot "Yokko.Audio.Native"
 $minacalcSource = Join-Path $repoRoot "Yokko.MinaCalc.Native"
-$packageRoot = Join-Path $repoRoot "artifacts\packages"
-$intermediateRoot = Join-Path $repoRoot ".artifacts\package-build"
+$packageArtifactRoot =
+    if ([string]::IsNullOrWhiteSpace($ArtifactsRoot))
+    {
+        $repoRoot
+    }
+    else
+    {
+        [IO.Path]::GetFullPath($ArtifactsRoot)
+    }
+$packageRoot =
+    if ([string]::IsNullOrWhiteSpace($ArtifactsRoot))
+    {
+        Join-Path $packageArtifactRoot "artifacts\packages"
+    }
+    else
+    {
+        Join-Path $packageArtifactRoot "packages"
+    }
+$intermediateRoot =
+    if ([string]::IsNullOrWhiteSpace($ArtifactsRoot))
+    {
+        Join-Path $packageArtifactRoot ".artifacts\package-build"
+    }
+    else
+    {
+        Join-Path $packageArtifactRoot "build"
+    }
 
 requireCommand "dotnet" "Install the .NET 8 SDK x64."
 requireCommand "cmake" "Install Visual Studio C++ desktop tools with CMake support."
@@ -232,6 +259,7 @@ $zipPath = "$publishPath.zip"
 $checksumPath = "$zipPath.sha256"
 $nativeBuildPath = Join-Path $intermediateRoot "native-$audioVariant"
 $minacalcBuildPath = Join-Path $intermediateRoot "native-minacalc"
+$dotnetArtifactsPath = Join-Path $intermediateRoot "dotnet"
 
 if (Test-Path -LiteralPath $publishPath)
 {
@@ -275,7 +303,8 @@ try
 
     invokeChecked "dotnet" @(
         "restore", $desktopProject,
-        "-r", "win-x64"
+        "-r", "win-x64",
+        "--artifacts-path", $dotnetArtifactsPath
     ) "Restoring the Windows desktop runtime"
 
     invokeChecked "dotnet" @(
@@ -285,6 +314,7 @@ try
         "--self-contained", "true",
         "-p:PublishSingleFile=false",
         "-p:PublishTrimmed=false",
+        "--artifacts-path", $dotnetArtifactsPath,
         "--no-restore",
         "-o", $publishPath
     ) "Publishing the self-contained Windows build"
