@@ -4400,7 +4400,7 @@ public partial class SongSelectScreen : Screen
                 knownValues);
         }
 
-        bool canReuseSortedEntries = sortMode != SongSelectSortMode.Difficulty
+        bool canReuseSortedEntries = canCacheSortOrder(sortMode)
                                      && sortedFilterSnapshots != null
                                      && sortedFilterMode == sortMode
                                      && sortedFilterDirection == sortDirection;
@@ -4452,8 +4452,7 @@ public partial class SongSelectScreen : Screen
         SongSelectSorting.EntrySnapshot[] sortedSourceEntries = null;
         IReadOnlyList<SongSelectSorting.EntrySnapshot> sourceEntries =
             request.Entries;
-        bool canSortBeforeFiltering =
-            request.SortMode != SongSelectSortMode.Difficulty;
+        bool canSortBeforeFiltering = canCacheSortOrder(request.SortMode);
         if (canSortBeforeFiltering && !request.EntriesAlreadySorted)
         {
             Interlocked.Increment(ref filterSortPassCount);
@@ -4687,6 +4686,11 @@ public partial class SongSelectScreen : Screen
         sortedFilterMode = null;
         sortedFilterDirection = null;
     }
+
+    private static bool canCacheSortOrder(SongSelectSortMode mode) =>
+        mode is SongSelectSortMode.Title
+            or SongSelectSortMode.Artist
+            or SongSelectSortMode.Creator;
 
     private sealed record SongSelectFilterRequest(
         int Generation,
