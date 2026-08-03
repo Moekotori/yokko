@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -20,6 +19,7 @@ internal partial class GameplayGhostComparisonPanel : CompositeDrawable
 {
     private readonly SpriteText statusText;
     private readonly SpriteText[] rows = new SpriteText[3];
+    private int displayedGhostCount = -1;
 
     internal string DisplayedScore => rows[0].Text.ToString();
     internal string DisplayedAccuracy => rows[1].Text.ToString();
@@ -65,12 +65,17 @@ internal partial class GameplayGhostComparisonPanel : CompositeDrawable
         long liveScore,
         double liveAccuracy,
         int liveMissCount,
-        IReadOnlyList<GameplayGhostRaceSnapshot> ghosts)
+        GameplayGhostRaceSnapshot[] ghosts,
+        int ghostCount)
     {
-        statusText.Text = $"LIVE vs {ghosts.Count}";
+        if (displayedGhostCount != ghostCount)
+        {
+            displayedGhostCount = ghostCount;
+            statusText.Text = $"LIVE vs {ghostCount}";
+        }
         for (int i = 0; i < rows.Length; i++)
         {
-            if (i >= ghosts.Count)
+            if (i >= ghostCount)
             {
                 rows[i].Text = string.Empty;
                 continue;
@@ -86,16 +91,6 @@ internal partial class GameplayGhostComparisonPanel : CompositeDrawable
             rows[i].Colour = deltaColour(scoreDelta);
         }
     }
-
-    internal void UpdateComparison(
-        long liveScore,
-        double liveAccuracy,
-        int liveMissCount,
-        GameplayGhostSnapshot ghost) => UpdateComparisons(
-        liveScore,
-        liveAccuracy,
-        liveMissCount,
-        [new GameplayGhostRaceSnapshot("PB", ghost)]);
 
     private static SpriteText createValueText(Vector2 position) => new()
     {

@@ -152,6 +152,11 @@ public partial class GameplayScreen : Screen
     private GameplayGhostComparisonPanel ghostComparison;
     private GhostRaceTimeline[] ghostRaceTimelines = [];
     private int[] ghostSnapshotIndices = [];
+    private GameplayGhostRaceSnapshot[] ghostComparisonSnapshots = [];
+    private int ghostComparisonSnapshotCount;
+    private long lastGhostComparisonScore = long.MinValue;
+    private double lastGhostComparisonAccuracy = double.NaN;
+    private int lastGhostComparisonMissCount = -1;
     private ManiaScoreResult completedResult;
     private GameplayResultOverlay resultOverlay;
     private GameplayResultPresentation completedResultPresentation;
@@ -902,6 +907,12 @@ public partial class GameplayScreen : Screen
                 ghostSnapshotIndices = Enumerable.Repeat(
                     -1,
                     loadedTimelines.Length).ToArray();
+                ghostComparisonSnapshots =
+                    new GameplayGhostRaceSnapshot[loadedTimelines.Length];
+                ghostComparisonSnapshotCount = 0;
+                lastGhostComparisonScore = long.MinValue;
+                lastGhostComparisonAccuracy = double.NaN;
+                lastGhostComparisonMissCount = -1;
                 diagnostics.Trace(
                     "GAMEPLAY",
                     "local-race-ready",
@@ -934,26 +945,51 @@ public partial class GameplayScreen : Screen
             return;
         }
 
-        var snapshots = new List<GameplayGhostRaceSnapshot>(
-            ghostRaceTimelines.Length);
+        bool snapshotChanged = false;
+        int snapshotCount = 0;
         for (int i = 0; i < ghostRaceTimelines.Length; i++)
         {
+            int previousIndex = ghostSnapshotIndices[i];
             if (ghostRaceTimelines[i].Timeline.TryQuery(
                     gameplayTime,
                     ref ghostSnapshotIndices[i],
                     out GameplayGhostSnapshot snapshot))
             {
-                snapshots.Add(new GameplayGhostRaceSnapshot(
+                var comparison = new GameplayGhostRaceSnapshot(
                     ghostRaceTimelines[i].Label,
-                    snapshot));
+                    snapshot);
+                if (snapshotCount >= ghostComparisonSnapshotCount
+                    || ghostComparisonSnapshots[snapshotCount] != comparison
+                    || previousIndex != ghostSnapshotIndices[i])
+                {
+                    snapshotChanged = true;
+                }
+                ghostComparisonSnapshots[snapshotCount++] = comparison;
             }
         }
 
+        long liveScore = judgementState.Score;
+        double liveAccuracy = judgementState.Accuracy;
+        int liveMissCount = judgementState.Counts.Miss;
+        if (!snapshotChanged
+            && snapshotCount == ghostComparisonSnapshotCount
+            && liveScore == lastGhostComparisonScore
+            && liveAccuracy == lastGhostComparisonAccuracy
+            && liveMissCount == lastGhostComparisonMissCount)
+        {
+            return;
+        }
+
+        ghostComparisonSnapshotCount = snapshotCount;
+        lastGhostComparisonScore = liveScore;
+        lastGhostComparisonAccuracy = liveAccuracy;
+        lastGhostComparisonMissCount = liveMissCount;
         ghostComparison.UpdateComparisons(
-            judgementState.Score,
-            judgementState.Accuracy,
-            judgementState.Counts.Miss,
-            snapshots);
+            liveScore,
+            liveAccuracy,
+            liveMissCount,
+            ghostComparisonSnapshots,
+            snapshotCount);
     }
 
     public override void OnEntering(ScreenTransitionEvent e)

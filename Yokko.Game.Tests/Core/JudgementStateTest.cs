@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
@@ -296,6 +297,68 @@ namespace Yokko.Game.Tests.Core
             long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
             Assert.That(allocated, Is.Zero);
+        }
+
+        [Test]
+        public void ActiveBmsHoldPassiveChecksDoNotAllocateAfterWarmup()
+        {
+            BeatmapJudgementState state = createBmsState(
+                createHoldBeatmap(endTime: 10_000));
+            var events = new List<JudgementEvent>(8);
+            state.JudgeLanePress(1, 1000, events);
+            events.Clear();
+
+            for (int index = 0; index < 1000; index++)
+            {
+                state.CollectExpiredMisses(1200, events);
+                events.Clear();
+            }
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            for (int index = 0; index < 10_000; index++)
+            {
+                state.CollectExpiredMisses(1200, events);
+                events.Clear();
+            }
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.That(allocated, Is.Zero);
+        }
+
+        [Test]
+        public void DenseHundredKpsLaneWorkloadStaysAllocationBounded()
+        {
+            const int pressCount = 20_000;
+            YokkoBeatmap beatmap = createDenseTapBeatmap(pressCount, 10);
+
+            runDenseLaneWorkload(beatmap);
+
+            var state = new BeatmapJudgementState(beatmap);
+            var events = new List<JudgementEvent>(8);
+            var stopwatch = new Stopwatch();
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            stopwatch.Start();
+            for (int index = 0; index < pressCount; index++)
+            {
+                int lane = index % 4;
+                double time = index * 10d;
+                state.JudgeLanePress(lane, time, events);
+                events.Clear();
+                state.JudgeLaneRelease(lane, time + 1, events);
+                events.Clear();
+            }
+            stopwatch.Stop();
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            double bytesPerPress = allocated / (double)pressCount;
+
+            TestContext.WriteLine(
+                $"100 KPS dense lane workload: {stopwatch.ElapsedMilliseconds} ms, "
+                + $"{bytesPerPress:0.00} B/press");
+            Assert.Multiple(() =>
+            {
+                Assert.That(bytesPerPress, Is.LessThan(512));
+                Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(5000));
+            });
         }
 
         [Test]
@@ -2338,6 +2401,47 @@ namespace Yokko.Game.Tests.Core
                     HitObjectKind.Hold,
                     HoldType: holdType)],
                 8);
+
+        private static YokkoBeatmap createDenseTapBeatmap(
+            int pressCount,
+            double intervalMilliseconds)
+        {
+            var hitObjects = new List<YokkoHitObject>(pressCount);
+            for (int index = 0; index < pressCount; index++)
+            {
+                hitObjects.Add(new YokkoHitObject(
+                    index % 4,
+                    index * intervalMilliseconds,
+                    null,
+                    HitObjectKind.Tap));
+            }
+
+            return new YokkoBeatmap(
+                "Dense hot path test",
+                "Yokko",
+                "Yokko",
+                "4K",
+                KeyMode.FourKey,
+                ChartSourceFormat.Yokko,
+                [YokkoTimingPoint.Default],
+                null,
+                hitObjects);
+        }
+
+        private static void runDenseLaneWorkload(YokkoBeatmap beatmap)
+        {
+            var state = new BeatmapJudgementState(beatmap);
+            var events = new List<JudgementEvent>(8);
+            for (int index = 0; index < beatmap.HitObjects.Count; index++)
+            {
+                int lane = index % 4;
+                double time = index * 10d;
+                state.JudgeLanePress(lane, time, events);
+                events.Clear();
+                state.JudgeLaneRelease(lane, time + 1, events);
+                events.Clear();
+            }
+        }
 
         private static YokkoBeatmap createMineBeatmap()
             => createLaneBeatmap((1000, HitObjectKind.Mine));

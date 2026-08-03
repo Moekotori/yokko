@@ -23,6 +23,8 @@ internal sealed class GameplayReplaySimulator
     public ManiaAdaptiveSpeedState AdaptiveSpeedState { get; }
     public bool[] PressedLanes { get; }
     public double? NextReplayFrameTime => Timeline.NextFrame?.TimeMilliseconds;
+    public double? NextPassiveJudgementTime =>
+        JudgementState.NextPassiveJudgementTimeMilliseconds(PressedLanes);
 
     public GameplayReplaySimulator(
         YokkoBeatmap beatmap,

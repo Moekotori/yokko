@@ -62,4 +62,63 @@ public partial class TestSceneImportedChartSongSelectScreen : YokkoTestScene
         AddAssert("all package chart rows restored", () =>
             songSelectScreen.VisibleRowCount == 7);
     }
+
+    [Test]
+    public void TestLargeLibraryDeltaIsAppliedAcrossFrames()
+    {
+        const int chartCount = 512;
+        const string packagePath = @"C:\Charts\large-pack.osz";
+        ImportedChart[] charts = Enumerable.Range(1, chartCount)
+                                           .Select(index =>
+                                           {
+                                               var result = new ChartImportResult(
+                                                   DemoBeatmaps.CreateFourKeyDemo() with
+                                                   {
+                                                       Title = $"Large package {index}",
+                                                       DifficultyName = $"Chart {index}",
+                                                       AudioPath = $@"C:\Audio\large-{index}.ogg",
+                                                   },
+                                                   []);
+                                               return new ImportedChart(
+                                                   $"large-{index}",
+                                                   packagePath,
+                                                   result,
+                                                   null,
+                                                   default,
+                                                   default,
+                                                   packagePath,
+                                                   "Large package",
+                                                   true);
+                                           })
+                                           .ToArray();
+
+        AddStep("publish large delta", () =>
+            songSelectScreen.ApplyChartLibraryChange(
+                new ImportedChartLibraryChange(
+                    songSelectScreen.LibraryRevision + 1,
+                    songSelectScreen.LibraryStructureRevision + 1,
+                    ImportedChartLibraryChangeKind.Structure,
+                    chartCount,
+                    new ImportedChartLibraryDelta(charts, []))));
+        AddUntilStep("large delta settled", () =>
+            !songSelectScreen.LibraryDeltaApplyInProgress
+            && songSelectScreen.VisibleEntryCount == chartCount);
+        AddAssert("delta used multiple frames", () =>
+            songSelectScreen.LastLibraryDeltaApplyFrameCount > 1);
+        AddStep("publish large removal delta", () =>
+            songSelectScreen.ApplyChartLibraryChange(
+                new ImportedChartLibraryChange(
+                    songSelectScreen.LibraryRevision + 1,
+                    songSelectScreen.LibraryStructureRevision + 1,
+                    ImportedChartLibraryChangeKind.Structure,
+                    0,
+                    new ImportedChartLibraryDelta(
+                        [],
+                        charts.Select(chart => chart.Id).ToArray()))));
+        AddUntilStep("large removal settled", () =>
+            !songSelectScreen.LibraryDeltaApplyInProgress
+            && songSelectScreen.VisibleEntryCount == 0);
+        AddAssert("removal delta used multiple frames", () =>
+            songSelectScreen.LastLibraryDeltaApplyFrameCount > 1);
+    }
 }

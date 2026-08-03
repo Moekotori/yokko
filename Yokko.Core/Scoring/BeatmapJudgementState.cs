@@ -204,6 +204,104 @@ public sealed class BeatmapJudgementState
 
     public JudgementWindows Windows { get; }
 
+    /// <summary>
+    /// Returns the next time at which advancing without a new input can change
+    /// judgement state. Replay and ghost simulation use this to skip silent
+    /// spans without polling the full chart at a fixed interval.
+    /// </summary>
+    public double? NextPassiveJudgementTimeMilliseconds(
+        IReadOnlyList<bool> pressedLanes)
+    {
+        ArgumentNullException.ThrowIfNull(pressedLanes);
+
+        double nextTime = nextExpiration < expirations.Length
+            // Expirations deliberately use a strict greater-than boundary.
+            ? Math.BitIncrement(expirations[nextExpiration].TimeMilliseconds)
+            : double.PositiveInfinity;
+
+        int laneCount = Math.Min(
+            laneMineObjectIndices.Length,
+            pressedLanes.Count);
+        for (int lane = 0; lane < laneCount; lane++)
+        {
+            if (!pressedLanes[lane]
+                || lanePressedSinceMilliseconds[lane] is not double pressedSince)
+            {
+                continue;
+            }
+
+            int[] mineIndices = laneMineObjectIndices[lane];
+            for (int position = nextMinePositions[lane];
+                 position < mineIndices.Length;
+                 position++)
+            {
+                int index = mineIndices[position];
+                if (states[index].HeadResolved)
+                    continue;
+
+                double mineTime =
+                    beatmap.HitObjects[index].StartTimeMilliseconds;
+                if (mineTime >= pressedSince)
+                    nextTime = Math.Min(nextTime, mineTime);
+                break;
+            }
+        }
+
+        foreach (HashSet<int> laneHolds in openHoldIndices)
+        {
+            foreach (int index in laneHolds)
+            {
+                YokkoHitObject hitObject = beatmap.HitObjects[index];
+                ObjectState state = states[index];
+                if (state.TailResolved
+                    || hitObject.EndTimeMilliseconds is not double endTime)
+                {
+                    continue;
+                }
+
+                double holdTime;
+                if (Windows.Configuration.Mode == JudgementMode.BmsBeatoraja)
+                {
+                    if (!state.Holding)
+                        continue;
+                    holdTime = Math.BitIncrement(endTime);
+                }
+                else if (Windows.Configuration.Mode == JudgementMode.Etterna)
+                {
+                    if (hitObject.HoldType == HoldNoteType.Roll)
+                    {
+                        double expiry =
+                            state.EtternaRollLifeExpiresAtMilliseconds
+                            ?? hitObject.StartTimeMilliseconds
+                            + ActiveEtternaRollDropWindowMilliseconds;
+                        holdTime = Math.Min(expiry, endTime);
+                    }
+                    else if (!state.Holding
+                             && state.EtternaReleasedAtMilliseconds
+                             is double releasedAt)
+                    {
+                        holdTime = Math.Min(
+                            releasedAt
+                            + ActiveEtternaHoldDropWindowMilliseconds,
+                            endTime);
+                    }
+                    else
+                        holdTime = endTime;
+                }
+                else
+                {
+                    if (!noRelease || !state.Holding)
+                        continue;
+                    holdTime = endTime;
+                }
+
+                nextTime = Math.Min(nextTime, holdTime);
+            }
+        }
+
+        return double.IsFinite(nextTime) ? nextTime : null;
+    }
+
     public BmsJudgementMetadata? ActiveBmsJudgement =>
         Windows.Configuration.Mode == JudgementMode.BmsBeatoraja
             ? (beatmap.BmsJudgement ?? BmsJudgementMetadata.Default) with
@@ -1129,7 +1227,9 @@ public sealed class BeatmapJudgementState
     {
         foreach (HashSet<int> laneHolds in openHoldIndices)
         {
-            foreach (int index in laneHolds.ToArray())
+            openHoldSnapshot.Clear();
+            openHoldSnapshot.AddRange(laneHolds);
+            foreach (int index in openHoldSnapshot)
             {
                 YokkoHitObject hitObject = beatmap.HitObjects[index];
                 ObjectState state = states[index];
@@ -1427,7 +1527,9 @@ public sealed class BeatmapJudgementState
 
         foreach (HashSet<int> laneHolds in openHoldIndices)
         {
-            foreach (int index in laneHolds.ToArray())
+            openHoldSnapshot.Clear();
+            openHoldSnapshot.AddRange(laneHolds);
+            foreach (int index in openHoldSnapshot)
             {
                 YokkoHitObject hitObject = beatmap.HitObjects[index];
                 ObjectState state = states[index];
@@ -1486,7 +1588,9 @@ public sealed class BeatmapJudgementState
     {
         foreach (HashSet<int> laneHolds in openHoldIndices)
         {
-            foreach (int index in laneHolds.ToArray())
+            openHoldSnapshot.Clear();
+            openHoldSnapshot.AddRange(laneHolds);
+            foreach (int index in openHoldSnapshot)
             {
                 YokkoHitObject hitObject = beatmap.HitObjects[index];
                 ObjectState state = states[index];

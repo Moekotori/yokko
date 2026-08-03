@@ -74,4 +74,79 @@ public sealed class GameplayGhostTimelineTest
             Assert.That(cachedIndex, Is.GreaterThanOrEqualTo(0));
         });
     }
+
+    [Test]
+    public void LongSilentSpanUsesEventDrivenSimulation()
+    {
+        const double lateObjectTime = 10 * 60 * 1000;
+        var chart = new YokkoBeatmap(
+            "Event driven ghost test",
+            "Yokko",
+            "Yokko",
+            "4K",
+            KeyMode.FourKey,
+            ChartSourceFormat.Yokko,
+            [YokkoTimingPoint.Default],
+            null,
+            [
+                new YokkoHitObject(
+                    0,
+                    1000,
+                    null,
+                    HitObjectKind.Mine),
+                new YokkoHitObject(
+                    1,
+                    lateObjectTime,
+                    null,
+                    HitObjectKind.Tap),
+            ]);
+        var replay = new GameplayReplay(
+        [
+            new GameplayReplayInput(0, true, 0),
+            new GameplayReplayInput(0, false, 2000),
+        ]);
+        JudgementConfiguration configuration =
+            JudgementConfiguration.YokkoDefault;
+        var windows = new JudgementWindows(
+            chart.OverallDifficulty,
+            configuration: configuration);
+
+        GameplayGhostTimeline ghost = GameplayGhostTimeline.Build(
+            chart,
+            replay,
+            ManiaModSet.Empty,
+            windows,
+            configuration,
+            minesEnabled: true);
+        GameplayReplayRestoredState rebuilt =
+            GameplayReplayStateRebuilder.Rebuild(
+                chart,
+                replay,
+                ManiaModSet.Empty,
+                windows,
+                configuration,
+                minesEnabled: true,
+                lateObjectTime + 3000);
+
+        int cachedIndex = -1;
+        Assert.That(
+            ghost.TryQuery(
+                lateObjectTime + 3000,
+                ref cachedIndex,
+                out GameplayGhostSnapshot final),
+            Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                final.Score,
+                Is.EqualTo(rebuilt.JudgementState.Score));
+            Assert.That(
+                final.MissCount,
+                Is.EqualTo(rebuilt.JudgementState.Counts.Miss));
+            Assert.That(
+                ghost.SimulationStepCount,
+                Is.LessThan(16),
+                "A ten-minute silent span must not be sampled every 25ms.");
+        });
+    }
 }

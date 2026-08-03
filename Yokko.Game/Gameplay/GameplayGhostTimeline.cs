@@ -17,16 +17,19 @@ internal readonly record struct GameplayGhostSnapshot(
 
 internal sealed class GameplayGhostTimeline
 {
-    private const double passive_sample_interval = 25;
     private readonly GameplayGhostSnapshot[] snapshots;
+
+    internal int SimulationStepCount { get; }
 
     public GameplayGhostSnapshot FinalSnapshot =>
         snapshots.Length == 0 ? default : snapshots[^1];
 
     private GameplayGhostTimeline(
-        IReadOnlyList<GameplayGhostSnapshot> snapshots)
+        IReadOnlyList<GameplayGhostSnapshot> snapshots,
+        int simulationStepCount)
     {
         this.snapshots = snapshots.ToArray();
+        SimulationStepCount = simulationStepCount;
     }
 
     public static GameplayGhostTimeline Build(
@@ -68,32 +71,32 @@ internal sealed class GameplayGhostTimeline
         var result = new List<GameplayGhostSnapshot>();
 
         simulator.AdvanceTo(startTime);
+        int simulationStepCount = 1;
         addSnapshot(result, simulator, startTime, force: true);
-        double nextSample = startTime + passive_sample_interval;
-        while (nextSample <= endTime
-               || simulator.NextReplayFrameTime is not null)
+        double simulationTime = startTime;
+        while (simulationTime < endTime)
         {
             cancellationToken.ThrowIfCancellationRequested();
             double nextReplay = simulator.NextReplayFrameTime
                                 ?? double.PositiveInfinity;
-            double nextTime = Math.Min(nextSample, nextReplay);
-            if (!double.IsFinite(nextTime) || nextTime > endTime)
+            double nextPassive = simulator.NextPassiveJudgementTime
+                                 ?? double.PositiveInfinity;
+            double nextTime = Math.Min(
+                endTime,
+                Math.Min(nextReplay, nextPassive));
+            if (nextTime <= simulationTime)
+                nextTime = Math.BitIncrement(simulationTime);
+            if (nextTime > endTime)
                 nextTime = endTime;
 
             simulator.AdvanceTo(nextTime);
+            simulationStepCount++;
             addSnapshot(result, simulator, nextTime, force: false);
-
-            if (nextTime >= nextSample - 0.000001)
-                nextSample += passive_sample_interval;
-            if (nextTime >= endTime
-                && simulator.NextReplayFrameTime is null)
-            {
-                break;
-            }
+            simulationTime = nextTime;
         }
 
         addSnapshot(result, simulator, endTime, force: true);
-        return new GameplayGhostTimeline(result);
+        return new GameplayGhostTimeline(result, simulationStepCount);
     }
 
     public bool TryQuery(
