@@ -479,19 +479,30 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                == new Vector2(24, 7)
             && songSelectScreen.TopNavigationLogoSize
                == new Vector2(168, 57)
+            && songSelectScreen.TopNavigationContextPosition
+               == new Vector2(510, 12)
+            && songSelectScreen.TopNavigationContextSize
+               == new Vector2(252, 48)
             && songSelectScreen.TopNavigationProfileSize
-               == new Vector2(210, 46));
+               == new Vector2(210, 46)
+            && Math.Abs(SongSelectScreen.BackgroundIsolationAlpha - 0.64f)
+               < 0.001f);
         AddAssert("browser starts below search, rating and browse controls", () =>
             Math.Abs(songSelectScreen.SongBrowserTop - 184) < 0.01f);
-        AddAssert("difficulty filter defaults to all MSD charts", () =>
+        AddAssert("difficulty filter defaults to all charts in the active mode", () =>
             songSelectScreen.MinimumDifficultyFilter == 0
-            && songSelectScreen.DifficultyFilterUnit == "MSD RANGE"
+            && songSelectScreen.DifficultyFilterUnit
+               == (songSelectScreen.DisplayedDifficultyRatingMode
+                       == ManiaDifficultyRatingMode.EtternaMsd
+                   ? "MSD RANGE"
+                   : "STAR RANGE")
             && songSelectScreen.DifficultyFilterSize
                == new Vector2(520, 40));
         AddAssert("browse controls use one compact row", () =>
         {
             SongSelectBrowseToolButton[] controls = songSelectScreen
                                                     .ChildrenOfType<SongSelectBrowseToolButton>()
+                                                    .Where(control => control.Width <= 200)
                                                     .OrderBy(control => control.X)
                                                     .ToArray();
             return controls.Length == 4

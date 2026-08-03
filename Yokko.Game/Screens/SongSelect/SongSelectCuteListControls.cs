@@ -962,7 +962,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         Size = new Vector2(SongSelectSongRow.RowWidth, headerHeight);
         Masking = true;
         CornerRadius = 10;
-        BorderThickness = selected ? 2 : 1;
+        BorderThickness = selected ? 1.5f : 1;
         BorderColour = selected
             ? SongSelectTheme.Cyan
             : new Color4(
@@ -1126,7 +1126,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         if (showContext)
             updateSelectedContext(context, ratings, mode);
 
-        BorderThickness = selected ? 2 : 1;
+        BorderThickness = selected ? 1.5f : 1;
         BorderColour = selected
             ? SongSelectTheme.Cyan
             : new Color4(
@@ -1360,16 +1360,22 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 Size = new Vector2(276, 30),
                 Masking = true,
                 CornerRadius = 7,
+                BorderThickness = 1,
+                BorderColour = new Color4(
+                    SongSelectTheme.Pink.R,
+                    SongSelectTheme.Pink.G,
+                    SongSelectTheme.Pink.B,
+                    0.24f),
                 Children =
                 [
                     new Box
                     {
                         RelativeSizeAxes = Axes.Both,
                         Colour = new Color4(
-                            SongSelectTheme.Pink.R,
-                            SongSelectTheme.Pink.G,
-                            SongSelectTheme.Pink.B,
-                            0.72f),
+                            SongSelectTheme.PaleCyan.R,
+                            SongSelectTheme.PaleCyan.G,
+                            SongSelectTheme.PaleCyan.B,
+                            0.82f),
                     },
                     selectedModeText = new SpriteText
                     {
@@ -1378,7 +1384,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                         Width = 260,
                         Truncate = true,
                         Font = HomeTypography.Display(16),
-                        Colour = Color4.White,
+                        Colour = SongSelectTheme.Pink,
                     },
                 ],
             },

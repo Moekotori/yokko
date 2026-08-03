@@ -789,9 +789,9 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                    && header.SelectedModePillPosition
                       == new Vector2(244, 98)
                    && header.SelectedModePillSize
-                      == new Vector2(276, 26)
+                      == new Vector2(276, 30)
                    && header.SelectedRatingPosition
-                      == new Vector2(754, 100)
+                      == new Vector2(766, 100)
                    && !string.IsNullOrWhiteSpace(
                        header.SelectedContextRating);
         });
