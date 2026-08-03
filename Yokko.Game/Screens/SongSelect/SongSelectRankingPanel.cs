@@ -74,8 +74,8 @@ internal partial class SongSelectRankingPanel : ClickableContainer
 
         Container paperSurface = SongSelectSurface.CreateCard(
             out _,
-            SongSelectSurface.Ivory(0.94f),
-            SongSelectSurface.Border(0.20f),
+            SongSelectSurface.Ivory(0.975f),
+            SongSelectSurface.Border(0.26f),
             14,
             1);
 
@@ -88,7 +88,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                     rows_top + activeContentHeight),
                 Children =
                 [
-                    SongSelectSurface.CreateShadow(14, 0.09f, 2),
+                    SongSelectSurface.CreateShadow(14, 0.14f, 3),
                     paperSurface,
                 ],
             },

@@ -601,7 +601,9 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                 Math.Abs(row.ModePillWidth - 58) < 0.05f
                 && Math.Abs(row.ModePillX - 872) < 0.05f
                 && row.CompactModeTextAlpha > 0.99f
-                && row.ExpandedModeTextAlpha < 0.01f));
+                && row.ExpandedModeTextAlpha < 0.01f
+                && row.SelectionSignalRailAlpha < 0.01f
+                && row.SelectionSignalRailWidth < 0.01f));
         AddStep("select first package row", () =>
             list.UpdateSelection(entries[0]));
         AddUntilStep("selected row expands full difficulty chip", () =>
@@ -617,9 +619,12 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                    && selected.SelectedStickerAlpha > 0.89f
                    && Vector2.Distance(
                        selected.SelectedStickerScale,
-                       Vector2.One) < 0.01f
+                       Vector2.One) < 0.09f
+                   && selected.SelectionSignalRailAlpha > 0.40f
+                   && selected.SelectionSignalRailWidth > 940
                    && Math.Abs(resting.ModePillWidth - 58) < 0.05f
                    && resting.SelectedStickerAlpha < 0.01f
+                   && resting.SelectionSignalRailAlpha < 0.01f
                    && resting.CompactModeTextAlpha > 0.99f;
         });
         AddStep("transfer selection to second row", () =>
@@ -634,9 +639,13 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                    && Math.Abs(previous.ModePillX - 872) < 0.05f
                    && previous.CompactModeTextAlpha > 0.99f
                    && previous.SelectedStickerAlpha < 0.01f
+                   && previous.SelectionSignalRailAlpha < 0.01f
+                   && previous.SelectionSignalRailWidth < 0.01f
                    && Math.Abs(selected.ModePillWidth - 126) < 0.05f
                    && selected.ExpandedModeTextAlpha > 0.99f
                    && selected.SelectedStickerAlpha > 0.89f
+                   && selected.SelectionSignalRailAlpha > 0.40f
+                   && selected.SelectionSignalRailWidth > 940
                    && list.ItemCount == 2;
         });
     }

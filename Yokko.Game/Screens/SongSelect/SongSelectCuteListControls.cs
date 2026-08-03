@@ -33,6 +33,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
     private Box leadingAccent;
     private Drawable focusShadow;
     private Container selectionOutline;
+    private Box selectionSignalRail;
     private SpriteIcon arrow;
     private Sprite selectedSticker;
     private Container standaloneArtworkFrame;
@@ -78,6 +79,10 @@ internal partial class SongSelectSongRow : PoolableDrawable
     internal float SelectedStickerAlpha => selectedSticker?.Alpha ?? 0;
     internal Vector2 SelectedStickerScale =>
         selectedSticker?.Scale ?? Vector2.Zero;
+    internal float SelectionSignalRailAlpha =>
+        selectionSignalRail?.Alpha ?? 0;
+    internal float SelectionSignalRailWidth =>
+        selectionSignalRail?.Width ?? 0;
 
     public SongSelectSongRow()
     {
@@ -127,6 +132,8 @@ internal partial class SongSelectSongRow : PoolableDrawable
         standalonePreviewHint = null;
         standaloneArtworkFrame = null;
         leadingAccent = null;
+        selectionSignalRail = null;
+        selected = false;
         Entry = entry;
         Action = select;
         DoubleClickAction = play;
@@ -232,6 +239,18 @@ internal partial class SongSelectSongRow : PoolableDrawable
                 Alpha = 0,
             },
         });
+        children.Add(selectionSignalRail = new Box
+        {
+            Anchor = Anchor.BottomLeft,
+            Origin = Anchor.BottomLeft,
+            Position = new Vector2(compact ? 7 : 10, -1),
+            Width = 0,
+            Height = 2,
+            Colour = ColourInfo.GradientHorizontal(
+                SongSelectTheme.Cyan,
+                SongSelectTheme.Pink),
+            Alpha = 0,
+        });
         children.Add(arrow = new SpriteIcon
         {
             Anchor = Anchor.CentreLeft,
@@ -246,8 +265,8 @@ internal partial class SongSelectSongRow : PoolableDrawable
         {
             Anchor = Anchor.TopRight,
             Origin = Anchor.Centre,
-            Position = new Vector2(-8, 2),
-            Size = new Vector2(30),
+            Position = new Vector2(-16, 5),
+            Size = new Vector2(32),
             Texture = selectedStickerTexture,
             FillMode = FillMode.Fit,
             Alpha = 0,
@@ -367,41 +386,10 @@ internal partial class SongSelectSongRow : PoolableDrawable
                 Easing.OutQuint);
         }
         selectionOutline.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
+        updateSelectionSignalRail(selectionChanged, animated);
         focusShadow.FadeTo(selected ? 1 : 0, 170, Easing.OutQuint);
         arrow.FadeTo(selected && compact ? 1 : 0, 120, Easing.OutQuint);
-        selectedSticker.ClearTransforms();
-        if (!selected)
-        {
-            if (animated)
-            {
-                selectedSticker.FadeOut(100, Easing.OutQuint)
-                               .ScaleTo(0.82f, 120, Easing.OutQuint)
-                               .RotateTo(-8, 120, Easing.OutQuint);
-            }
-            else
-            {
-                selectedSticker.Alpha = 0;
-                selectedSticker.Scale = new Vector2(0.82f);
-                selectedSticker.Rotation = -8;
-            }
-        }
-        else if (animated && selectionChanged)
-        {
-            selectedSticker.Alpha = 0;
-            selectedSticker.Scale = new Vector2(0.68f);
-            selectedSticker.Rotation = -12;
-            selectedSticker.FadeTo(compact ? 0.9f : 0.76f,
-                                150,
-                                Easing.OutQuint)
-                           .ScaleTo(1, 230, Easing.OutBack)
-                           .RotateTo(3, 230, Easing.OutBack);
-        }
-        else
-        {
-            selectedSticker.Alpha = compact ? 0.9f : 0.76f;
-            selectedSticker.Scale = Vector2.One;
-            selectedSticker.Rotation = 3;
-        }
+        updateSelectedSticker(animated && selectionChanged, animated);
         compactModePill?.SetExpanded(selected, animated);
         if (standalonePreviewHint != null)
             standalonePreviewHint.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
@@ -419,6 +407,99 @@ internal partial class SongSelectSongRow : PoolableDrawable
             X = targetX;
             Width = RowWidth - targetX;
         }
+    }
+
+    private void updateSelectionSignalRail(
+        bool selectionChanged,
+        bool animated)
+    {
+        selectionSignalRail.ClearTransforms();
+        float targetWidth = Math.Max(
+            0,
+            RowWidth - selectionTargetX() - (compact ? 18 : 22));
+        if (!selected)
+        {
+            if (animated)
+            {
+                selectionSignalRail.FadeOut(110, Easing.OutQuint)
+                                   .ResizeWidthTo(0, 150, Easing.OutQuint);
+            }
+            else
+            {
+                selectionSignalRail.Alpha = 0;
+                selectionSignalRail.Width = 0;
+            }
+            return;
+        }
+
+        if (animated && selectionChanged)
+        {
+            selectionSignalRail.Width = 0;
+            selectionSignalRail.Alpha = 0.92f;
+            selectionSignalRail.ResizeWidthTo(
+                                   targetWidth,
+                                   250,
+                                   Easing.OutQuint)
+                               .FadeTo(0.42f, 420, Easing.OutQuint);
+        }
+        else
+        {
+            selectionSignalRail.Width = targetWidth;
+            selectionSignalRail.Alpha = 0.42f;
+        }
+    }
+
+    private void updateSelectedSticker(bool playIntro, bool animated)
+    {
+        selectedSticker.ClearTransforms();
+        if (!selected)
+        {
+            if (animated)
+            {
+                selectedSticker.FadeOut(100, Easing.OutQuint)
+                               .ScaleTo(0.82f, 120, Easing.OutQuint)
+                               .RotateTo(-8, 120, Easing.OutQuint);
+            }
+            else
+            {
+                selectedSticker.Alpha = 0;
+                selectedSticker.Scale = new Vector2(0.82f);
+                selectedSticker.Rotation = -8;
+            }
+            return;
+        }
+
+        float targetAlpha = compact ? 0.92f : 0.78f;
+        double introDuration = playIntro ? 230 : 0;
+        if (playIntro)
+        {
+            selectedSticker.Alpha = 0;
+            selectedSticker.Scale = new Vector2(0.64f);
+            selectedSticker.Rotation = -14;
+            selectedSticker.FadeTo(
+                targetAlpha,
+                150,
+                Easing.OutQuint);
+        }
+        else
+        {
+            selectedSticker.Alpha = targetAlpha;
+            selectedSticker.Scale = Vector2.One;
+            selectedSticker.Rotation = 3;
+        }
+
+        selectedSticker.ScaleTo(1, introDuration, Easing.OutBack)
+                       .Then()
+                       .ScaleTo(1.08f, 920, Easing.InOutSine)
+                       .Then()
+                       .ScaleTo(1, 920, Easing.InOutSine)
+                       .Loop(320);
+        selectedSticker.RotateTo(3, introDuration, Easing.OutBack)
+                       .Then()
+                       .RotateTo(6, 1180, Easing.InOutSine)
+                       .Then()
+                       .RotateTo(1, 1180, Easing.InOutSine)
+                       .Loop(420);
     }
 
     protected override bool OnHover(HoverEvent e)
@@ -473,6 +554,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         standalonePreviewHint = null;
         standaloneArtworkFrame = null;
         leadingAccent = null;
+        selectionSignalRail = null;
         ClearInternal(true);
         base.FreeAfterUse();
     }
@@ -910,6 +992,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
     private SpriteText selectedRatingUnit;
     private SpriteText selectedRatingValue;
     private bool expanded;
+    private bool selectedState;
 
     internal float ChildGuideStemAlpha => childGuideStem?.Alpha ?? 0;
     internal float SelectedRailHeight => selectedRail?.Height ?? 0;
@@ -988,6 +1071,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         Alpha = 1;
         toggle = toggleAction;
         expanded = !collapsed;
+        selectedState = selected;
         float headerHeight = collapsed ? CollapsedHeight : ExpandedHeight;
         float artworkWidth = collapsed ? 193 : artwork_width;
         Vector2 artworkSize = collapsed
@@ -1087,6 +1171,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 Icon = FontAwesome.Solid.Play,
                 Colour = SongSelectTheme.Pink,
                 Alpha = selected ? 1 : 0,
+                Scale = selected ? Vector2.One : new Vector2(0.72f),
             },
             packageSummaryLayer = createPackageSummary(
                 packageName,
@@ -1135,7 +1220,9 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             {
                 Anchor = Anchor.BottomRight,
                 Origin = Anchor.BottomRight,
-                Width = SongSelectSongRow.RowWidth - artwork_width,
+                Width = selected
+                    ? SongSelectSongRow.RowWidth - artworkWidth
+                    : 0,
                 Height = selected ? 3 : 0,
                 Colour = SongSelectTheme.Cyan,
             },
@@ -1155,6 +1242,8 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         ManiaDifficultyRatingMode mode,
         bool animated = true)
     {
+        bool selectionChanged = selectedState != selected;
+        selectedState = selected;
         bool showContext = expanded
                            && selected
                            && context != null
@@ -1207,6 +1296,21 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         {
             if (animated)
             {
+                selectedIndicator.ClearTransforms();
+                if (selected && selectionChanged)
+                {
+                    selectedIndicator.Scale = new Vector2(0.68f);
+                    selectedIndicator.ScaleTo(1.24f, 130, Easing.OutBack)
+                                     .Then()
+                                     .ScaleTo(1, 140, Easing.OutQuint);
+                }
+                else if (!selected)
+                {
+                    selectedIndicator.ScaleTo(
+                        0.72f,
+                        100,
+                        Easing.OutQuint);
+                }
                 selectedIndicator.FadeTo(
                     selected ? 1 : 0,
                     120,
@@ -1221,6 +1325,9 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             else
             {
                 selectedIndicator.Alpha = selected ? 1 : 0;
+                selectedIndicator.Scale = selected
+                    ? Vector2.One
+                    : new Vector2(0.72f);
                 selectedIndicator.X = selected
                     ? artworkFrame.Width + 8
                     : artworkFrame.Width + 4;
@@ -1228,13 +1335,34 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         }
         if (selectedRail != null)
         {
-            if (animated)
-                selectedRail.ResizeHeightTo(
-                    selected ? 3 : 0,
-                    170,
+            float targetWidth = SongSelectSongRow.RowWidth
+                                - artworkFrame.Width;
+            selectedRail.ClearTransforms();
+            if (animated && selected && selectionChanged)
+            {
+                selectedRail.Width = 0;
+                selectedRail.Height = 3;
+                selectedRail.ResizeWidthTo(
+                    targetWidth,
+                    260,
                     Easing.OutQuint);
+            }
+            else if (animated)
+            {
+                selectedRail.ResizeHeightTo(
+                                selected ? 3 : 0,
+                                170,
+                                Easing.OutQuint)
+                            .ResizeWidthTo(
+                                selected ? targetWidth : 0,
+                                190,
+                                Easing.OutQuint);
+            }
             else
+            {
                 selectedRail.Height = selected ? 3 : 0;
+                selectedRail.Width = selected ? targetWidth : 0;
+            }
         }
         if (childGuideStem != null)
         {
@@ -1258,6 +1386,8 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
     {
         hoverSurface?.FadeTo(0.52f, 110, Easing.OutQuint);
         chevronSurface?.FadeTo(1, 110, Easing.OutQuint);
+        chevronFrame?.MoveToY(chevronFrame.Y - 2, 120, Easing.OutQuint)
+                      .ScaleTo(1.08f, 150, Easing.OutBack);
         return true;
     }
 
@@ -1268,6 +1398,12 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             expanded ? 0.78f : 0.52f,
             130,
             Easing.OutQuint);
+        if (chevronFrame != null)
+        {
+            float restingY = Height - 36;
+            chevronFrame.MoveToY(restingY, 160, Easing.OutQuint)
+                        .ScaleTo(1, 180, Easing.OutQuint);
+        }
     }
 
     protected override void FreeAfterUse()
@@ -1293,6 +1429,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         selectedRatingUnit = null;
         selectedRatingValue = null;
         expanded = false;
+        selectedState = false;
         PackageContentStart = 0;
         ClearInternal(true);
         base.FreeAfterUse();

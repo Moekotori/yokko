@@ -68,7 +68,7 @@ public partial class SongSelectScreen : Screen
     private const float browse_right = 24;
     private const float browse_height =
         designed_height - footer_height - browse_top - 16;
-    private const float background_isolation_alpha = 0.64f;
+    private const float background_isolation_alpha = 0.58f;
     private const int initial_artwork_preload_limit = 16;
     private const int page_navigation_step = 5;
     private const string demo_profile_name = "YOKKO DEMO";
@@ -96,9 +96,11 @@ public partial class SongSelectScreen : Screen
     private readonly SemaphoreSlim filterDifficultyLock = new(1, 1);
     private readonly List<SongSelectEntry> randomHistory = [];
     private readonly List<SongSelectAmbientSticker> ambientStickers = [];
+    private readonly List<SongSelectAmbientSignal> ambientSignals = [];
 
     private TextureStore textures;
     private Container stage;
+    private Container ambientAccents;
     private Container header;
     private Sprite backgroundA;
     private Sprite backgroundB;
@@ -349,6 +351,8 @@ public partial class SongSelectScreen : Screen
     internal int AmbientDecorationCount => ambientStickers.Count;
     internal IReadOnlyList<Vector2> AmbientDecorationPositions =>
         ambientStickers.Select(sticker => sticker.RestingPosition).ToArray();
+    internal int AmbientSignalCount => ambientSignals.Count;
+    internal int AmbientAccentCount => ambientAccents?.Children.Count() ?? 0;
     internal bool GameplayPreloadReady =>
         gameplayPreloadTask?.IsCompletedSuccessfully == true
         && gameplayPreloadTask.Result.InitialPresentationReady;
@@ -884,28 +888,46 @@ public partial class SongSelectScreen : Screen
         footer.MoveToY(0, 180, Easing.OutQuint)
               .FadeIn(180, Easing.OutQuint);
 
-        playHeaderControlEntry(searchBox, 70);
-        playHeaderControlEntry(keyModeFilterButton, 110);
-        playHeaderControlEntry(difficultyFilterBar, 140);
-        playHeaderControlEntry(browseToolbar, 175);
+        playHeaderControlEntry(searchBox, 70, 18);
+        playHeaderControlEntry(keyModeFilterButton, 110, 14);
+        playHeaderControlEntry(difficultyFilterBar, 140, 12);
+        playHeaderControlEntry(browseToolbar, 175, 10);
 
         for (int i = 0; i < ambientStickers.Count; i++)
-            ambientStickers[i].Play(130 + i * 65);
+            ambientStickers[i].Play(120 + i * 42);
+        for (int i = 0; i < ambientSignals.Count; i++)
+            ambientSignals[i].Play(220 + i * 70);
+
+        ambientAccents.ClearTransforms();
+        ambientAccents.Alpha = 0;
+        ambientAccents.Y = 5;
+        ambientAccents.Delay(260)
+                      .FadeIn(360, Easing.OutQuint)
+                      .MoveToY(0, 420, Easing.OutBack);
 
     }
 
-    private static void playHeaderControlEntry(Drawable drawable, double delay)
+    private static void playHeaderControlEntry(
+        Drawable drawable,
+        double delay,
+        float horizontalOffset)
     {
         if (drawable == null)
             return;
 
+        float restingX = drawable.X;
         float restingY = drawable.Y;
         drawable.ClearTransforms();
-        drawable.Y = restingY + 7;
+        drawable.Position = new Vector2(
+            restingX + horizontalOffset,
+            restingY + 6);
         drawable.Alpha = 0;
         drawable.Delay(delay)
-                .MoveToY(restingY, 240, Easing.OutQuint)
-                .FadeIn(180, Easing.OutQuint);
+                .MoveToX(restingX, 300, Easing.OutBack);
+        drawable.Delay(delay)
+                .MoveToY(restingY, 240, Easing.OutQuint);
+        drawable.Delay(delay)
+                .FadeIn(190, Easing.OutQuint);
     }
 
     protected override void Dispose(bool isDisposing)
@@ -2700,45 +2722,231 @@ public partial class SongSelectScreen : Screen
     private Drawable createAmbientDecorations()
     {
         ambientStickers.Clear();
+        ambientSignals.Clear();
         return new Container
         {
             RelativeSizeAxes = Axes.Both,
             Children =
             [
+                createAmbientAccentField(),
+                registerAmbientSignal(
+                    "LIBRARY BUS // READY",
+                    new Vector2(112, 852),
+                    260,
+                    SongSelectTheme.Cyan),
+                registerAmbientSignal(
+                    "PREVIEW LINK // ACTIVE",
+                    new Vector2(486, 718),
+                    188,
+                    SongSelectTheme.Pink),
+                registerAmbientSignal(
+                    "SELECT STREAM // 07",
+                    new Vector2(1018, 842),
+                    246,
+                    SongSelectTheme.Yellow),
+                registerAmbientSignal(
+                    "RHYTHM INDEX // ONLINE",
+                    new Vector2(1430, 758),
+                    238,
+                    SongSelectTheme.Cyan),
                 registerAmbientSticker(
                     "SongSelect/Cute/sticker-heart-medical",
                     new Vector2(72, 742),
-                    54,
+                    60,
                     -8,
-                    0.56f,
-                    3.5f,
-                    2350),
+                    0.68f,
+                    6,
+                    3,
+                    0.05f,
+                    2200),
+                registerAmbientSticker(
+                    "SongSelect/Cute/sticker-diamond",
+                    new Vector2(286, 680),
+                    28,
+                    9,
+                    0.64f,
+                    4,
+                    2,
+                    0.09f,
+                    1800,
+                    true),
+                registerAmbientSticker(
+                    "SongSelect/Cute/sticker-cyan-sparkle",
+                    new Vector2(430, 824),
+                    23,
+                    -6,
+                    0.74f,
+                    3,
+                    2,
+                    0.14f,
+                    1450,
+                    true),
                 registerAmbientSticker(
                     "SongSelect/Cute/sticker-cyan-sparkle",
                     new Vector2(900, 628),
                     36,
                     7,
-                    0.72f,
-                    3,
-                    2050),
+                    0.78f,
+                    4,
+                    2,
+                    0.14f,
+                    1500,
+                    true),
                 registerAmbientSticker(
                     "SongSelect/Cute/sticker-star",
                     new Vector2(842, 884),
-                    44,
+                    50,
                     -10,
+                    0.68f,
+                    7,
+                    4,
+                    0.07f,
+                    2400),
+                registerAmbientSticker(
+                    "SongSelect/Cute/sticker-diamond",
+                    new Vector2(1080, 760),
+                    25,
+                    -5,
                     0.62f,
                     4,
-                    2650),
+                    3,
+                    0.10f,
+                    1750,
+                    true),
+                registerAmbientSticker(
+                    "SongSelect/Cute/sticker-star",
+                    new Vector2(1162, 900),
+                    32,
+                    8,
+                    0.64f,
+                    5,
+                    3,
+                    0.07f,
+                    2150),
+                registerAmbientSticker(
+                    "SongSelect/Cute/sticker-star",
+                    new Vector2(1450, 858),
+                    30,
+                    -9,
+                    0.68f,
+                    5,
+                    3,
+                    0.08f,
+                    1950),
+                registerAmbientSticker(
+                    "SongSelect/Cute/sticker-cyan-sparkle",
+                    new Vector2(1586, 728),
+                    24,
+                    4,
+                    0.76f,
+                    4,
+                    2,
+                    0.14f,
+                    1500,
+                    true),
                 registerAmbientSticker(
                     "SongSelect/Cute/sticker-diamond",
                     new Vector2(1812, 790),
-                    38,
+                    42,
                     9,
-                    0.68f,
-                    3.5f,
+                    0.76f,
+                    5,
+                    3,
+                    0.10f,
+                    1700,
+                    true),
+                registerAmbientSticker(
+                    "SongSelect/Cute/sticker-heart-medical",
+                    new Vector2(1710, 888),
+                    38,
+                    7,
+                    0.64f,
+                    5,
+                    4,
+                    0.05f,
                     2450),
             ],
         };
+    }
+
+    private Drawable createAmbientAccentField() => ambientAccents = new Container
+    {
+        RelativeSizeAxes = Axes.Both,
+        Children =
+        [
+            new HomeDotCross
+            {
+                Position = new Vector2(388, 614),
+                Scale = new Vector2(0.62f),
+                Alpha = 0.62f,
+            },
+            new HomeDotCross
+            {
+                Position = new Vector2(1190, 744),
+                Scale = new Vector2(0.54f),
+                Alpha = 0.52f,
+            },
+            new HomeDotCross
+            {
+                Position = new Vector2(1644, 816),
+                Scale = new Vector2(0.46f),
+                Alpha = 0.50f,
+            },
+            new HomeConnectorPlus
+            {
+                Position = new Vector2(512, 692),
+                Scale = new Vector2(0.78f),
+                Alpha = 0.74f,
+            },
+            new HomeConnectorPlus
+            {
+                Position = new Vector2(1100, 870),
+                Scale = new Vector2(0.72f),
+                Alpha = 0.70f,
+            },
+            new HomeConnectorPlus
+            {
+                Position = new Vector2(1598, 706),
+                Scale = new Vector2(0.68f),
+                Alpha = 0.68f,
+            },
+            new HomeSparkIcon(
+                FontAwesome.Solid.Plus,
+                12,
+                SongSelectTheme.Pink)
+            {
+                Position = new Vector2(344, 772),
+            },
+            new HomeSparkIcon(
+                FontAwesome.Solid.Plus,
+                11,
+                SongSelectTheme.Yellow)
+            {
+                Position = new Vector2(1260, 866),
+            },
+            new HomeSparkIcon(
+                FontAwesome.Solid.Plus,
+                10,
+                SongSelectTheme.Cyan)
+            {
+                Position = new Vector2(1750, 706),
+            },
+        ],
+    };
+
+    private Drawable registerAmbientSignal(
+        string label,
+        Vector2 position,
+        float width,
+        Color4 colour)
+    {
+        var signal = new SongSelectAmbientSignal(
+            label,
+            position,
+            width,
+            colour);
+        ambientSignals.Add(signal);
+        return signal;
     }
 
     private Drawable registerAmbientSticker(
@@ -2748,7 +2956,10 @@ public partial class SongSelectScreen : Screen
         float rotation,
         float alpha,
         float travel,
-        double motionDuration)
+        float horizontalTravel,
+        float pulseScale,
+        double motionDuration,
+        bool twinkle = false)
     {
         var sticker = new SongSelectAmbientSticker(
             textures.Get(textureName),
@@ -2757,7 +2968,10 @@ public partial class SongSelectScreen : Screen
             rotation,
             alpha,
             travel,
-            motionDuration);
+            horizontalTravel,
+            pulseScale,
+            motionDuration,
+            twinkle);
         ambientStickers.Add(sticker);
         return sticker;
     }
@@ -4348,8 +4562,8 @@ public partial class SongSelectScreen : Screen
     {
         Container panel = SongSelectSurface.CreateCard(
             out _,
-            SongSelectSurface.Ivory(0.94f),
-            SongSelectSurface.Border(0.20f),
+            SongSelectSurface.Ivory(0.975f),
+            SongSelectSurface.Border(0.26f),
             14,
             1);
 
@@ -4358,7 +4572,7 @@ public partial class SongSelectScreen : Screen
             Size = new Vector2(details_width, details_panel_height),
             Children =
             [
-                SongSelectSurface.CreateShadow(14, 0.09f, 2),
+                SongSelectSurface.CreateShadow(14, 0.14f, 3),
                 panel,
                 new Box
                 {
@@ -7045,12 +7259,12 @@ public partial class SongSelectScreen : Screen
                         SongSelectTheme.Cyan.R,
                         SongSelectTheme.Cyan.G,
                         SongSelectTheme.Cyan.B,
-                        0.10f),
+                        0.14f),
                     new Color4(
                         SongSelectTheme.Pink.R,
                         SongSelectTheme.Pink.G,
                         SongSelectTheme.Pink.B,
-                        0.035f)),
+                        0.05f)),
             },
             new Box
             {
@@ -7061,7 +7275,7 @@ public partial class SongSelectScreen : Screen
                         SongSelectTheme.Cyan.R,
                         SongSelectTheme.Cyan.G,
                         SongSelectTheme.Cyan.B,
-                        0.05f)),
+                        0.075f)),
             },
         ],
     };

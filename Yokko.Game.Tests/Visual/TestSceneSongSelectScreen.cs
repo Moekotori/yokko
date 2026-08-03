@@ -485,16 +485,25 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                == new Vector2(252, 48)
             && songSelectScreen.TopNavigationProfileSize
                == new Vector2(210, 46)
-            && Math.Abs(SongSelectScreen.BackgroundIsolationAlpha - 0.64f)
+            && Math.Abs(SongSelectScreen.BackgroundIsolationAlpha - 0.58f)
                < 0.001f);
-        AddAssert("ambient stickers stay in the quiet background pockets", () =>
-            songSelectScreen.AmbientDecorationCount == 4
+        AddAssert("ambient scene fills quiet pockets without touching panels", () =>
+            songSelectScreen.AmbientDecorationCount == 11
+            && songSelectScreen.AmbientSignalCount == 4
+            && songSelectScreen.AmbientAccentCount == 9
             && songSelectScreen.AmbientDecorationPositions.SequenceEqual(
             [
                 new Vector2(72, 742),
+                new Vector2(286, 680),
+                new Vector2(430, 824),
                 new Vector2(900, 628),
                 new Vector2(842, 884),
+                new Vector2(1080, 760),
+                new Vector2(1162, 900),
+                new Vector2(1450, 858),
+                new Vector2(1586, 728),
                 new Vector2(1812, 790),
+                new Vector2(1710, 888),
             ]));
         AddAssert("browser starts below search, rating and browse controls", () =>
             Math.Abs(songSelectScreen.SongBrowserTop - 184) < 0.01f);
