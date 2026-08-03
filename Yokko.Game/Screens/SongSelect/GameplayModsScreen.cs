@@ -276,6 +276,8 @@ internal partial class GameplayModsScreen : Screen
             },
         };
 
+        orbitWorkspace.SetBeatmapContext(
+            $"{beatmap.Title} · {beatmap.DifficultyName} · {(int)beatmap.KeyMode}K");
         orbitWorkspace.Build(logo, paperTexture, waveformTexture);
         rebuildModList();
         updateSelection();
@@ -1174,13 +1176,15 @@ internal partial class GameplayModsScreen : Screen
             new SpriteText
             {
                 Position = new Vector2(372, 64),
-                Text = "Customize your play experience.",
-                Font = HomeTypography.Body(13),
+                Width = 560,
+                Truncate = true,
+                Text = $"{beatmap.Title} · {beatmap.DifficultyName} · {(int)beatmap.KeyMode}K",
+                Font = HomeTypography.Body(14),
                 Colour = new Color4(
                     HomeControlColours.Navy.R,
                     HomeControlColours.Navy.G,
                     HomeControlColours.Navy.B,
-                    0.66f),
+                    0.82f),
             },
         },
     };

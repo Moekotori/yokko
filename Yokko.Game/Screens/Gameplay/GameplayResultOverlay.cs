@@ -1842,9 +1842,10 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 },
                 new SpriteText
                 {
-                    Anchor = Anchor.Centre,
-                    Origin = Anchor.Centre,
-                    Width = width - 110,
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    X = 72,
+                    Width = width - 142,
                     Truncate = true,
                     Text = label,
                     Font = HomeTypography.Display(25),

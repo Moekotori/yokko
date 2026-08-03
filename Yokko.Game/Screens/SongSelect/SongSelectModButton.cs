@@ -181,7 +181,7 @@ internal partial class SongSelectModsToggleButton : ClickableContainer
                 Origin = Anchor.BottomCentre,
                 Y = -11,
                 Text = "MODS",
-                Font = HomeTypography.Display(11),
+                Font = HomeTypography.Control(14),
                 Spacing = new Vector2(1.2f, 0),
                 Colour = SongSelectTheme.Navy,
             },
@@ -338,7 +338,7 @@ internal partial class SongSelectSelectedModsButton : ClickableContainer
                 Position = new Vector2(29, 21),
                 Width = 91,
                 Truncate = true,
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Control(14),
                 Colour = SongSelectTheme.Navy,
             },
             countBadge = new Circle

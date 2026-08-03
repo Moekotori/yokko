@@ -150,7 +150,7 @@ public partial class GameplayHud : CompositeDrawable
                                     this.mods,
                                     this.judgementConfiguration),
                                 Font = new FontUsage("PlusJakartaSans").With(
-                                    size: 13),
+                                    size: 16),
                                 Colour = YokkoPalette.Rose,
                             },
                             comboText = createLine(),
@@ -189,7 +189,7 @@ public partial class GameplayHud : CompositeDrawable
                                         Origin = Anchor.Centre,
                                         Text = "HP 100%",
                                         Font = new FontUsage("PlusJakartaSans").With(
-                                            size: 13),
+                                            size: 16),
                                         Colour = Color4.White,
                                     },
                                 },

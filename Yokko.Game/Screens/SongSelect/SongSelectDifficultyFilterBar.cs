@@ -95,7 +95,7 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
                         Text = "ALL",
-                        Font = HomeTypography.Display(12),
+                        Font = HomeTypography.Control(14),
                         Colour = SongSelectTheme.Navy,
                     },
                 ],

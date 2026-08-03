@@ -60,7 +60,7 @@ internal partial class GameplayModSettingsStepButton : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = text,
-                Font = HomeTypography.Display(muted ? 10 : 14),
+                Font = HomeTypography.Control(14),
                 Colour = GameplayModSettingsTheme.Text,
             },
         ];
@@ -156,7 +156,7 @@ internal partial class GameplayModSettingsStateButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 9,
                 Text = text,
-                Font = HomeTypography.Body(10),
+                Font = HomeTypography.Control(14),
                 Colour = GameplayModSettingsTheme.Text,
             },
             stateText = new SpriteText
@@ -164,7 +164,7 @@ internal partial class GameplayModSettingsStateButton : ClickableContainer
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
                 X = -9,
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Control(14),
             },
         ];
     }

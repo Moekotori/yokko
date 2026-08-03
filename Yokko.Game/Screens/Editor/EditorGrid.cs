@@ -134,7 +134,7 @@ public partial class EditorGrid : CompositeDrawable
                          Origin = Anchor.BottomCentre,
                          Y = -6,
                          Text = (lane + 1).ToString(),
-                         Font = new FontUsage("PlusJakartaSans").With(size: 14),
+                         Font = new FontUsage("PlusJakartaSans").With(size: 16),
                          Colour = YokkoPalette.TextDim,
                      })
                      .Cast<Drawable>()

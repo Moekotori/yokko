@@ -110,7 +110,7 @@ internal partial class ChartLibraryActionButton : ClickableContainer
                             Anchor = Anchor.CentreLeft,
                             Origin = Anchor.CentreLeft,
                             Text = text,
-                            Font = HomeTypography.Display(15),
+                            Font = HomeTypography.Control(16),
                             Colour = primary ? Color4.White : HomeControlColours.Navy,
                         },
                     },
@@ -562,7 +562,7 @@ internal partial class ChartLibraryLoadMoreButton : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = text,
-                Font = HomeTypography.Display(13),
+                Font = HomeTypography.Control(14),
                 Colour = HomeControlColours.Navy,
             },
         };

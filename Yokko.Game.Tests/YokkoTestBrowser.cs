@@ -507,6 +507,11 @@ namespace Yokko.Game.Tests
                     Scheduler.AddDelayed(songSelect.ToggleModPanel, 700);
                 }
                 if (Environment.GetEnvironmentVariable(
+                        "YOKKO_SONGSELECT_OPEN_OPTIONS") == "1")
+                {
+                    Scheduler.AddDelayed(songSelect.OpenOptions, 700);
+                }
+                if (Environment.GetEnvironmentVariable(
                         "YOKKO_SONGSELECT_PERSONAL_VIEW") == "1")
                 {
                     Scheduler.AddDelayed(

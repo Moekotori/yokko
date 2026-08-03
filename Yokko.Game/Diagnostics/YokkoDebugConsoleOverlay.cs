@@ -169,7 +169,7 @@ internal partial class YokkoDebugConsoleOverlay : CompositeDrawable
                         Width = -36,
                         Truncate = true,
                         Text = "PERFORMANCE · waiting for samples",
-                        Font = new FontUsage("PlusJakartaSans").With(size: 12, fixedWidth: true),
+                        Font = new FontUsage("PlusJakartaSans").With(size: 14, fixedWidth: true),
                         Colour = new Color4(0.58f, 0.86f, 0.93f, 1),
                     },
                     new Container
@@ -245,7 +245,7 @@ internal partial class YokkoDebugConsoleOverlay : CompositeDrawable
                 RelativeSizeAxes = Axes.X,
                 Height = 18,
                 Text = entry.ToDisplayText(),
-                Font = new FontUsage("PlusJakartaSans").With(size: 13, fixedWidth: true),
+                Font = new FontUsage("PlusJakartaSans").With(size: 15, fixedWidth: true),
                 Colour = colourFor(entry.Level),
                 Truncate = true,
             };

@@ -2574,7 +2574,7 @@ internal partial class GameplayCompactButton : ClickableContainer
             Origin = Anchor.Centre,
             X = itemIcon.HasValue ? 8 : 0,
             Text = label,
-            Font = HomeTypography.Display(16),
+            Font = HomeTypography.Control(16),
             Colour = HomeControlColours.Navy,
         });
 
@@ -3179,7 +3179,7 @@ internal partial class GameplayStepperModeButton : ClickableContainer
                 X = prominent ? 13 : 7,
                 Text = YokkoStrings.Get(
                     "settings.general.fine_adjustment"),
-                Font = HomeTypography.Display(prominent ? 14 : 12),
+                Font = HomeTypography.Control(prominent ? 16 : 14),
                 Colour = HomeControlColours.Navy,
             },
             new Container

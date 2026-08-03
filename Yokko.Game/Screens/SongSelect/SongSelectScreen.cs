@@ -20,6 +20,7 @@ using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osu.Framework.Logging;
+using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osuTK;
 using osuTK.Graphics;
@@ -36,9 +37,9 @@ using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
+using Yokko.Game.Screens.ChartLibrary;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Main;
-using Yokko.Game.Screens.Settings;
 using Yokko.Game.Scoring;
 using Yokko.Game.Skinning.OsuMania;
 
@@ -92,6 +93,7 @@ public partial class SongSelectScreen : Screen
         YokkoBeatmap,
         CachedSearchDocument> searchDocuments = new();
     private readonly SemaphoreSlim filterDifficultyLock = new(1, 1);
+    private readonly List<SongSelectEntry> randomHistory = [];
 
     private TextureStore textures;
     private Container stage;
@@ -163,6 +165,11 @@ public partial class SongSelectScreen : Screen
     private SongSelectBrowseToolButton groupButton;
     private SongSelectBrowseToolButton convertsButton;
     private SongSelectBrowseToolButton filtersButton;
+    private Container beatmapOptionsPopover;
+    private SpriteText beatmapOptionsTitle;
+    private SongSelectBrowseToolButton sourceFolderButton;
+    private SongSelectBrowseToolButton manageLibraryButton;
+    private SongSelectBrowseToolButton reloadLibraryButton;
     private YokkoButton filtersResetButton;
     private Container browseToolbar;
     private Container filtersPopover;
@@ -170,6 +177,7 @@ public partial class SongSelectScreen : Screen
     private Container filterStatus;
     private SpriteText filterStatusText;
     private bool filtersPopoverOpen;
+    private bool beatmapOptionsOpen;
     private Container topNavigation;
     private Sprite topNavigationLogo;
     private Container topNavigationProfile;
@@ -272,6 +280,8 @@ public partial class SongSelectScreen : Screen
     private YokkoDiagnostics diagnostics { get; set; }
     [Resolved]
     private SongSelectArtworkTextureCache artworkTextureCache { get; set; }
+    [Resolved]
+    private GameHost host { get; set; }
 
     private readonly record struct GameplayPreloadKey(
         int BeatmapIdentity,
@@ -365,6 +375,14 @@ public partial class SongSelectScreen : Screen
     internal string NoResultsSummary => noResults?.Summary ?? string.Empty;
     internal bool NoResultsResetVisible =>
         noResults?.ClearButtonVisible ?? false;
+    internal bool NoResultsResetAllVisible =>
+        noResults?.ResetButtonVisible ?? false;
+    internal string NoResultsPrimaryAction =>
+        noResults?.PrimaryButtonText ?? string.Empty;
+    internal void ActivateNoResultsPrimary() =>
+        noResults?.ActivatePrimaryButton();
+    internal void ActivateNoResultsResetAll() =>
+        noResults?.ActivateResetButton();
     internal Vector2 SearchBoxSize => searchBox?.Size ?? Vector2.Zero;
     internal bool SearchHasFocus => searchBox?.HasFocus == true;
     internal Vector2 KeyFilterButtonSize =>
@@ -388,6 +406,9 @@ public partial class SongSelectScreen : Screen
     internal SongSelectSortDirection SortDirection => sortDirection;
     internal bool SortPopoverOpen => sortPopover?.IsOpen == true;
     internal bool FiltersPopoverOpen => filtersPopoverOpen;
+    internal bool BeatmapOptionsOpen => beatmapOptionsOpen;
+    internal string BeatmapOptionsTitle =>
+        beatmapOptionsTitle?.Text.ToString() ?? string.Empty;
     internal string FiltersButtonValue =>
         filtersButton?.DisplayedValue ?? string.Empty;
     internal string FiltersPopoverSummary =>
@@ -623,6 +644,7 @@ public partial class SongSelectScreen : Screen
                     createSortPopover(),
                     createFiltersPopover(),
                     createFooter(),
+                    createBeatmapOptionsPopover(),
                     playbackRateOverlay = new GameplayPlaybackRateOverlay
                     {
                         Anchor = Anchor.TopCentre,
@@ -777,6 +799,7 @@ public partial class SongSelectScreen : Screen
         base.OnSuspending(e);
         closeSortPopover(restoreSearchFocus: false);
         closeFiltersPopover(restoreSearchFocus: false);
+        closeBeatmapOptions(restoreSearchFocus: false);
         searchBox?.SetHoldFocus(false);
         screenActive = false;
         invalidatePackageDifficultyRequest();
@@ -792,6 +815,7 @@ public partial class SongSelectScreen : Screen
     {
         closeSortPopover(restoreSearchFocus: false);
         closeFiltersPopover(restoreSearchFocus: false);
+        closeBeatmapOptions(restoreSearchFocus: false);
         searchBox?.SetHoldFocus(false);
         screenActive = false;
         previewActive = false;
@@ -905,25 +929,50 @@ public partial class SongSelectScreen : Screen
 
     private bool handleSongSelectKey(KeyDownEvent e)
     {
-        if (filtersPopoverOpen || sortPopover?.IsOpen == true)
-            return HandleBrowseKey(e.Key, e.ControlPressed);
+        if (beatmapOptionsOpen
+            || filtersPopoverOpen
+            || sortPopover?.IsOpen == true)
+            return HandleBrowseKey(
+                e.Key,
+                e.ControlPressed,
+                e.ShiftPressed);
 
-        if (HandlePlaybackRateShortcut(e.Key, e.AltPressed))
+        if (HandlePlaybackRateShortcut(
+                e.Key,
+                e.AltPressed,
+                e.ControlPressed))
             return true;
-        if (HandleScrollSpeedShortcut(e.Key, e.ControlPressed))
+
+        // osu!lazer reserves F1/F2/F3 for Mods, Random and Options on song
+        // select. Keep configurable gameplay scroll-speed keys scoped to
+        // gameplay here; the explicit Ctrl +/- alias remains available.
+        if (e.ControlPressed
+            && e.Key is Key.Plus
+                or Key.KeypadPlus
+                or Key.Minus
+                or Key.KeypadMinus
+            && HandleScrollSpeedShortcut(e.Key, true))
             return true;
 
         if (e.Key == Key.F5 && e.Repeat)
             return true;
 
-        if (HandleBrowseKey(e.Key, e.ControlPressed))
+        if (HandleBrowseKey(
+                e.Key,
+                e.ControlPressed,
+                e.ShiftPressed))
             return true;
 
         return false;
     }
 
-    internal bool HandleBrowseKey(Key key, bool controlPressed = false)
+    internal bool HandleBrowseKey(
+        Key key,
+        bool controlPressed = false,
+        bool shiftPressed = false)
     {
+        if (beatmapOptionsOpen)
+            return handleBeatmapOptionsKey(key);
         if (sortPopover?.IsOpen == true)
             return handleSortPopoverKey(key);
         if (filtersPopoverOpen)
@@ -931,6 +980,14 @@ public partial class SongSelectScreen : Screen
 
         switch (key)
         {
+            case Key.Left:
+                selectAdjacentPackage(-1);
+                return true;
+
+            case Key.Right:
+                selectAdjacentPackage(1);
+                return true;
+
             case Key.Up:
                 SelectPrevious();
                 return true;
@@ -968,11 +1025,29 @@ public partial class SongSelectScreen : Screen
                 return true;
 
             case Key.Enter:
+                if (shiftPressed
+                    && !string.IsNullOrWhiteSpace(selectedEntry?.PackageId))
+                {
+                    TogglePackage(selectedEntry.PackageId);
+                    return true;
+                }
+
                 PlaySelected();
                 return true;
 
             case Key.F2:
-                selectRandomEntry();
+                if (shiftPressed)
+                    selectPreviousRandomEntry();
+                else
+                    selectRandomEntry();
+                return true;
+
+            case Key.F3:
+                OpenOptions();
+                return true;
+
+            case Key.BackSpace when searchQuery.Length == 0:
+                clearSelectedMods();
                 return true;
 
             case Key.F5:
@@ -1007,6 +1082,67 @@ public partial class SongSelectScreen : Screen
                 sortPopover?.HandleNavigation(key);
                 return true;
         }
+    }
+
+    private bool handleBeatmapOptionsKey(Key key)
+    {
+        SongSelectBrowseToolButton[] items =
+        [
+            sourceFolderButton,
+            manageLibraryButton,
+            reloadLibraryButton,
+        ];
+
+        switch (key)
+        {
+            case Key.Escape:
+            case Key.F3:
+                closeBeatmapOptions();
+                return true;
+
+            case Key.Up:
+            case Key.Left:
+                focusBeatmapOption(items, -1);
+                return true;
+
+            case Key.Down:
+            case Key.Right:
+                focusBeatmapOption(items, 1);
+                return true;
+
+            case Key.Home:
+                GetContainingFocusManager()?.ChangeFocus(items[0]);
+                return true;
+
+            case Key.End:
+                GetContainingFocusManager()?.ChangeFocus(items[^1]);
+                return true;
+
+            case Key.Enter:
+            case Key.KeypadEnter:
+            case Key.Space:
+                (items.FirstOrDefault(item => item.HasFocus)
+                 ?? items[0]).TriggerClick();
+                return true;
+
+            default:
+                return true;
+        }
+    }
+
+    private void focusBeatmapOption(
+        IReadOnlyList<SongSelectBrowseToolButton> items,
+        int offset)
+    {
+        int current = items
+            .Select((item, index) => (item, index))
+            .FirstOrDefault(pair => pair.item.HasFocus)
+            .index;
+        if (!items.Any(item => item.HasFocus))
+            current = 0;
+        else
+            current = (current + offset + items.Count) % items.Count;
+        GetContainingFocusManager()?.ChangeFocus(items[current]);
     }
 
     private bool handleFiltersPopoverKey(Key key)
@@ -1273,6 +1409,8 @@ public partial class SongSelectScreen : Screen
     {
         if (scoreResultOverlay != null)
             closeScoreResult();
+        else if (beatmapOptionsOpen)
+            closeBeatmapOptions();
         else if (sortPopover?.IsOpen == true)
             closeSortPopover();
         else if (filtersPopoverOpen)
@@ -2098,16 +2236,21 @@ public partial class SongSelectScreen : Screen
 
     internal bool HandlePlaybackRateShortcut(
         Key key,
-        bool altPressed)
+        bool altPressed,
+        bool controlPressed = false)
     {
-        if (!altPressed || selectedEntry == null)
+        if (selectedEntry == null)
             return false;
 
         double amount = key switch
         {
-            Key.Plus or Key.KeypadPlus =>
+            Key.Up when controlPressed =>
                 playbackRateShortcutStep,
-            Key.Minus or Key.KeypadMinus =>
+            Key.Down when controlPressed =>
+                -playbackRateShortcutStep,
+            Key.Plus or Key.KeypadPlus when altPressed =>
+                playbackRateShortcutStep,
+            Key.Minus or Key.KeypadMinus when altPressed =>
                 -playbackRateShortcutStep,
             _ => 0,
         };
@@ -2429,6 +2572,15 @@ public partial class SongSelectScreen : Screen
         rebuildDetails();
         refreshSongListDifficulties();
         scheduleGameplayPreload(settings_preload_delay);
+    }
+
+    private void clearSelectedMods()
+    {
+        if (selectedMods.Equals(ManiaModSet.Empty))
+            return;
+
+        selectedMods = ManiaModSet.Empty;
+        onSelectedModsChanged();
     }
 
     private void showPlaybackRateHint()
@@ -2901,6 +3053,157 @@ public partial class SongSelectScreen : Screen
         return sortPopover;
     }
 
+    private Drawable createBeatmapOptionsPopover()
+    {
+        var card = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Masking = true,
+            CornerRadius = 11,
+            BorderThickness = 1.25f,
+            BorderColour = SongSelectSurface.Border(0.24f),
+            Children =
+            [
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = SongSelectSurface.Ivory(0.99f),
+                },
+            ],
+        };
+
+        return beatmapOptionsPopover = new Container
+        {
+            Anchor = Anchor.BottomRight,
+            Origin = Anchor.BottomRight,
+            Position = new Vector2(-24, -132),
+            Size = new Vector2(360, 224),
+            Alpha = 0,
+            Children =
+            [
+                SongSelectSurface.CreateShadow(11, 0.16f, 4),
+                card,
+                new SpriteText
+                {
+                    Position = new Vector2(16, 13),
+                    Text = "BEATMAP OPTIONS · F3",
+                    Font = HomeTypography.Display(11),
+                    Colour = SongSelectTheme.Pink,
+                },
+                beatmapOptionsTitle = new SpriteText
+                {
+                    Position = new Vector2(16, 31),
+                    Width = 328,
+                    Truncate = true,
+                    Font = HomeTypography.Control(14),
+                    Colour = SongSelectTheme.Navy,
+                },
+                sourceFolderButton = new SongSelectBrowseToolButton(
+                    "SOURCE",
+                    "OPEN FOLDER",
+                    328,
+                    FontAwesome.Solid.FolderOpen,
+                    openSelectedSourceFolder,
+                    92,
+                    showChevron: false)
+                {
+                    Position = new Vector2(16, 58),
+                },
+                manageLibraryButton = new SongSelectBrowseToolButton(
+                    "LIBRARY",
+                    "MANAGE CHART",
+                    328,
+                    FontAwesome.Solid.LayerGroup,
+                    openChartLibrary,
+                    92,
+                    showChevron: false)
+                {
+                    Position = new Vector2(16, 104),
+                },
+                reloadLibraryButton = new SongSelectBrowseToolButton(
+                    "SOURCES",
+                    "REFRESH LIBRARY",
+                    328,
+                    FontAwesome.Solid.SyncAlt,
+                    reloadFromBeatmapOptions,
+                    92,
+                    showChevron: false)
+                {
+                    Position = new Vector2(16, 150),
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(16, 202),
+                    Text = "↑ ↓ MOVE · ENTER OPEN · F3 / ESC CLOSE",
+                    Font = HomeTypography.Display(8),
+                    Colour = new Color4(
+                        SongSelectTheme.Navy.R,
+                        SongSelectTheme.Navy.G,
+                        SongSelectTheme.Navy.B,
+                        0.68f),
+                },
+            ],
+        };
+    }
+
+    private void updateBeatmapOptions()
+    {
+        if (beatmapOptionsTitle == null)
+            return;
+
+        beatmapOptionsTitle.Text = selectedEntry == null
+            ? "NO BEATMAP SELECTED"
+            : $"{selectedEntry.Beatmap.Title} · {selectedEntry.Beatmap.DifficultyName}";
+
+        bool sourceAvailable = tryGetSelectedImportedChart(
+            out ImportedChart imported)
+            && !string.IsNullOrWhiteSpace(imported.SourcePath)
+            && (File.Exists(imported.SourcePath)
+                || Directory.Exists(imported.SourcePath));
+        sourceFolderButton?.SetValue(
+            sourceAvailable ? "OPEN FOLDER" : "UNAVAILABLE");
+        sourceFolderButton?.SetActive(sourceAvailable);
+    }
+
+    private bool tryGetSelectedImportedChart(out ImportedChart imported)
+    {
+        imported = null;
+        return selectedEntry?.ChartId != null
+               && importedChartModels.TryGetValue(
+                   selectedEntry.ChartId,
+                   out imported);
+    }
+
+    private void openSelectedSourceFolder()
+    {
+        if (!tryGetSelectedImportedChart(out ImportedChart imported)
+            || string.IsNullOrWhiteSpace(imported.SourcePath))
+            return;
+
+        string source = imported.SourcePath;
+        string directory = Directory.Exists(source)
+            ? source
+            : Path.GetDirectoryName(source);
+        if (string.IsNullOrWhiteSpace(directory)
+            || !Directory.Exists(directory))
+            return;
+
+        host?.OpenFileExternally(directory);
+        closeBeatmapOptions();
+    }
+
+    private void openChartLibrary()
+    {
+        closeBeatmapOptions(restoreSearchFocus: false);
+        this.Push(new ChartLibraryScreen());
+    }
+
+    private void reloadFromBeatmapOptions()
+    {
+        closeBeatmapOptions();
+        reloadLibrary();
+    }
+
     private Drawable createSongBrowser() => songBrowser = new Container
     {
         Anchor = Anchor.TopRight,
@@ -2924,7 +3227,9 @@ public partial class SongSelectScreen : Screen
                     PlaySelected();
                 },
                 TogglePackage),
-            noResults = new SongSelectNoResultsPanel(ClearBrowseFilters)
+            noResults = new SongSelectNoResultsPanel(
+                () => SetSearchQuery(string.Empty),
+                ClearBrowseFilters)
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
@@ -3213,12 +3518,13 @@ public partial class SongSelectScreen : Screen
                 Colour = SongSelectSurface.Ivory(0.92f),
             },
             shortcutHint("U/D", "BROWSE", 12, 10),
-            shortcutHint("PG", "JUMP", 116, 10),
-            shortcutHint("ABC", "SEARCH", 12, 34),
-            shortcutHint("F6", "FILTERS", 116, 34),
+            shortcutHint("C+F", "SEARCH", 116, 10),
+            shortcutHint("F1", "MODS", 12, 34),
+            shortcutHint("F3", "OPTIONS", 116, 34),
             shortcutHint("F2", "RANDOM", 12, 58),
-            shortcutHint("ENT", "PLAY", 116, 58),
-            shortcutHint("F5", "RELOAD", 12, 82),
+            shortcutHint("S+F2", "REWIND", 116, 58),
+            shortcutHint("L/R", "SETS", 12, 82),
+            shortcutHint("ENT", "PLAY", 116, 82),
         ],
     };
 
@@ -3234,7 +3540,7 @@ public partial class SongSelectScreen : Screen
             [
                 new Container
                 {
-                    Size = new Vector2(27, 16),
+                    Size = new Vector2(30, 16),
                     Masking = true,
                     CornerRadius = 4,
                     Children =
@@ -3253,7 +3559,7 @@ public partial class SongSelectScreen : Screen
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
                             Text = key,
-                            Font = HomeTypography.Display(9),
+                            Font = HomeTypography.Display(9.5f),
                             Colour = SongSelectTheme.Navy,
                         },
                     ],
@@ -3262,14 +3568,14 @@ public partial class SongSelectScreen : Screen
                 {
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
-                    X = 34,
+                    X = 36,
                     Text = label,
-                    Font = HomeTypography.Display(10),
+                    Font = HomeTypography.Display(10.5f),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
                         SongSelectTheme.Navy.B,
-                        0.78f),
+                        0.92f),
                 },
             ],
         };
@@ -3324,7 +3630,27 @@ public partial class SongSelectScreen : Screen
         optionsFooterButton.Position = new Vector2(2 * buttonStep, 0);
     }
 
-    internal void OpenOptions() => this.Push(new SettingsScreen());
+    internal void OpenOptions()
+    {
+        if (beatmapOptionsOpen)
+        {
+            closeBeatmapOptions();
+            return;
+        }
+
+        closeSortPopover(restoreSearchFocus: false);
+        closeFiltersPopover(restoreSearchFocus: false);
+        updateBeatmapOptions();
+        beatmapOptionsOpen = true;
+        searchBox?.SetHoldFocus(false);
+        beatmapOptionsPopover?.ClearTransforms();
+        beatmapOptionsPopover?.FadeIn(120, Easing.OutQuint);
+        Scheduler.AddDelayed(() =>
+        {
+            if (beatmapOptionsOpen)
+                GetContainingFocusManager()?.ChangeFocus(sourceFolderButton);
+        }, 50);
+    }
 
     private Drawable createAccountCard() => accountCard =
         new SongSelectAccountCard(
@@ -4943,10 +5269,48 @@ public partial class SongSelectScreen : Screen
         select(first ? navigableEntries[0] : navigableEntries[^1]);
     }
 
+    private void selectAdjacentPackage(int direction)
+    {
+        if (navigableEntries.Count == 0 || direction == 0)
+            return;
+
+        List<SongSelectEntry> packages = [];
+        string previousPackageId = null;
+        foreach (SongSelectEntry entry in navigableEntries)
+        {
+            string packageId = entry.PackageId ?? string.Empty;
+            if (string.Equals(
+                    packageId,
+                    previousPackageId,
+                    StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            packages.Add(entry);
+            previousPackageId = packageId;
+        }
+
+        if (packages.Count == 0)
+            return;
+
+        int current = packages.FindIndex(entry => string.Equals(
+            entry.PackageId,
+            selectedEntry?.PackageId,
+            StringComparison.OrdinalIgnoreCase));
+        if (current < 0)
+            current = 0;
+        else
+            current = (current + direction % packages.Count
+                       + packages.Count) % packages.Count;
+
+        select(packages[current]);
+    }
+
     private void selectRandomEntry()
     {
         if (navigableEntries.Count == 0)
             return;
+
+        SongSelectEntry selectionBefore = selectedEntry;
 
         int currentIndex = selectedEntry != null
                            && navigableEntryIndices.TryGetValue(
@@ -4960,7 +5324,33 @@ public partial class SongSelectScreen : Screen
         if (currentIndex >= 0 && randomIndex >= currentIndex)
             randomIndex++;
 
-        select(navigableEntries[randomIndex]);
+        SongSelectEntry next = navigableEntries[randomIndex];
+        if (selectionBefore != null && !ReferenceEquals(selectionBefore, next))
+            randomHistory.Add(selectionBefore);
+
+        select(next);
+    }
+
+    private void selectPreviousRandomEntry()
+    {
+        while (randomHistory.Count > 0)
+        {
+            SongSelectEntry previous = randomHistory[^1];
+            randomHistory.RemoveAt(randomHistory.Count - 1);
+
+            SongSelectEntry visiblePrevious = navigableEntries.FirstOrDefault(
+                entry => ReferenceEquals(entry, previous)
+                         || (!string.IsNullOrWhiteSpace(entry.ChartId)
+                             && string.Equals(
+                                 entry.ChartId,
+                                 previous.ChartId,
+                                 StringComparison.OrdinalIgnoreCase)));
+            if (visiblePrevious == null)
+                continue;
+
+            select(visiblePrevious);
+            return;
+        }
     }
 
     private void select(SongSelectEntry entry, bool rebuildList = true)
@@ -4992,6 +5382,8 @@ public partial class SongSelectScreen : Screen
                                   entry.PackageId,
                                   StringComparison.OrdinalIgnoreCase);
         selectedEntry = entry;
+        if (beatmapOptionsOpen)
+            updateBeatmapOptions();
         if (changed)
             requestPlayableBeatmap(selectedEntry);
         rememberSelectedEntry();
@@ -6239,6 +6631,7 @@ public partial class SongSelectScreen : Screen
             return;
         }
 
+        closeBeatmapOptions(restoreSearchFocus: false);
         closeFiltersPopover(restoreSearchFocus: false);
         searchBox?.SetHoldFocus(false);
         sortPopover?.Open();
@@ -6255,6 +6648,7 @@ public partial class SongSelectScreen : Screen
 
         if (sortPopover?.IsOpen == true)
             closeSortPopover(restoreSearchFocus: false);
+        closeBeatmapOptions(restoreSearchFocus: false);
 
         filtersPopoverOpen = true;
         searchBox?.SetHoldFocus(false);
@@ -6286,6 +6680,18 @@ public partial class SongSelectScreen : Screen
 
         sortPopover.Close();
         sortButton?.SetActive(false);
+        if (restoreSearchFocus)
+            restoreSearchFocusAfterPopover();
+    }
+
+    private void closeBeatmapOptions(bool restoreSearchFocus = true)
+    {
+        if (!beatmapOptionsOpen)
+            return;
+
+        beatmapOptionsOpen = false;
+        beatmapOptionsPopover?.ClearTransforms();
+        beatmapOptionsPopover?.FadeOut(90, Easing.OutQuint);
         if (restoreSearchFocus)
             restoreSearchFocusAfterPopover();
     }

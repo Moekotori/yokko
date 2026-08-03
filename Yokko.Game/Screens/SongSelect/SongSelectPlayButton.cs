@@ -134,9 +134,9 @@ internal partial class SongSelectPlayButton : ClickableContainer
         ambientSelection = useAmbientSelection;
         Enabled.Value = true;
         eyebrowText.Text = ambientSelection
-            ? "PLAY PREVIOUS SELECTION"
+            ? "NO VISIBLE RESULT · AMBIENT SELECTION"
             : "START SELECTED CHART";
-        actionText.Text = "PLAY";
+        actionText.Text = ambientSelection ? "PLAY PREVIOUS" : "PLAY";
         stateIcon.Icon = FontAwesome.Solid.Play;
         background.FadeColour(readyColour(), 120, Easing.OutQuint);
         chevron.FadeTo(ambientSelection ? 0.72f : 1, 120, Easing.OutQuint);
@@ -146,7 +146,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
     internal void SetAmbientSelection(bool value)
     {
         ambientSelection = value;
-        if (actionText.Text.ToString() == "PLAY")
+        if (actionText.Text.ToString() is "PLAY" or "PLAY PREVIOUS")
             SetReady(value);
     }
 

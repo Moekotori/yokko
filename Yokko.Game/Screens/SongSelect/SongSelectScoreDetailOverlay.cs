@@ -420,7 +420,7 @@ internal partial class SongSelectScoreDetailOverlay : CompositeDrawable
                 Origin = Anchor.CentreLeft,
                 X = 22,
                 Text = label,
-                Font = HomeTypography.Display(11),
+                Font = HomeTypography.Control(14),
                 Colour = accentText ? accent : mutedNavy(0.66f),
             },
             new SpriteText
@@ -502,7 +502,7 @@ internal partial class SongSelectScoreDetailButton : ClickableContainer
                 Origin = Anchor.Centre,
                 X = 10,
                 Text = text,
-                Font = HomeTypography.Display(11),
+                Font = HomeTypography.Control(16),
                 Colour = primary ? SongSelectTheme.Ivory : SongSelectTheme.Navy,
             },
         ];

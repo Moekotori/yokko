@@ -143,11 +143,21 @@ public sealed record YokkoUiTypographyTokens(
 {
     public const string CompleteFamily = "PlusJakartaSans";
 
+    // A deliberately small, shared type ramp keeps neighbouring pieces of UI
+    // from ending up at subtly different fractional sizes. The larger steps
+    // open up as the text grows so headings keep a clear visual hierarchy.
+    private static readonly float[] readable_type_ramp =
+    {
+        14, 16, 18, 20, 22, 24, 28, 32, 36, 40,
+        48, 56, 64, 72, 80, 88, 96, 104, 112, 120,
+        128, 144, 160,
+    };
+
     public static YokkoUiTypographyTokens Default { get; } = new(
         CompleteFamily,
         CompleteFamily,
         CompleteFamily,
-        14);
+        18);
 
     public FontUsage Display(float size) =>
         new FontUsage(PrimaryFont, ReadableSize(size))
@@ -172,10 +182,34 @@ public sealed record YokkoUiTypographyTokens(
         new FontUsage(PrimaryFont, ReadableSize(size))
             .With(weight: weight ?? "Regular");
 
-    public float ReadableSize(float size) =>
-        MathF.Max(
+    public FontUsage Control(float size = 16, string weight = null) =>
+        new FontUsage(PrimaryFont, ReadableSize(MathF.Max(14, size)))
+            .With(weight: weight ?? "SemiBold");
+
+    public float ReadableSize(float size)
+    {
+        float requestedSize = MathF.Max(
             MinimumReadableSize,
             size + MathF.Min(6, 4 + size * 0.05f));
+
+        float closestSize = readable_type_ramp[0];
+        float closestDistance = MathF.Abs(requestedSize - closestSize);
+
+        foreach (float candidate in readable_type_ramp)
+        {
+            if (candidate < MinimumReadableSize)
+                continue;
+
+            float distance = MathF.Abs(requestedSize - candidate);
+            if (distance < closestDistance)
+            {
+                closestSize = candidate;
+                closestDistance = distance;
+            }
+        }
+
+        return MathF.Max(MinimumReadableSize, closestSize);
+    }
 }
 
 public sealed record YokkoUiMetricTokens(

@@ -71,7 +71,7 @@ internal partial class SettingsSegmentedChoiceButton : ClickableContainer
                         Origin = Anchor.CentreLeft,
                         X = 59,
                         Text = label,
-                        Font = HomeTypography.Body(18),
+                        Font = HomeTypography.Control(18),
                         Colour = HomeControlColours.Navy,
                     },
                     check = new SpriteIcon
@@ -235,7 +235,7 @@ internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
                         Anchor = Anchor.TopCentre,
                         Origin = Anchor.TopCentre,
                         Y = 8,
-                        Font = HomeTypography.Display(13)
+                        Font = HomeTypography.Control(14)
                             .With(fixedWidth: true),
                         Colour = HomeControlColours.Navy,
                     },
@@ -388,7 +388,7 @@ internal partial class SettingsAspectRatioChoiceButton : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = text,
-                Font = HomeTypography.Body(16),
+                Font = HomeTypography.Control(16),
                 Colour = HomeControlColours.Navy,
             },
             focusLine = new Box

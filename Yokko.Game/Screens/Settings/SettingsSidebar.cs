@@ -499,7 +499,7 @@ internal partial class SettingsOutlineButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 51,
                 Text = label,
-                Font = HomeTypography.Display(19),
+                Font = HomeTypography.Control(19),
                 Colour = HomeControlColours.Navy,
             },
         };

@@ -224,7 +224,7 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
                 Origin = Anchor.BottomCentre,
                 Y = -11,
                 Text = label,
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Control(14),
                 Spacing = new Vector2(1.2f, 0),
                 Colour = SongSelectTheme.Navy,
             },

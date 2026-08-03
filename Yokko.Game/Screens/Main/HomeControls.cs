@@ -42,6 +42,9 @@ internal static class HomeTypography
 
     public static FontUsage Brand(float size) => typography.Brand(size);
 
+    public static FontUsage Control(float size = 16) =>
+        typography.Control(size);
+
     // Sticker labels use the strongest Latin weight; CJK stays on lazer Noto.
     public static FontUsage Sticker(float size) => typography.Sticker(size);
 }
@@ -1168,7 +1171,6 @@ public partial class HomeMascotBubble : ClickableContainer
                         Origin = Anchor.Centre,
                         Text = text,
                         Font = HomeTypography.Display(20),
-                        Scale = new Vector2(0.94f, 1),
                         Colour = HomeControlColours.Navy,
                     },
                     underline = new Box

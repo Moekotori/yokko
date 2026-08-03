@@ -37,7 +37,7 @@ public partial class SectionPanel : CompositeDrawable
                     new SpriteText
                     {
                         Text = title,
-                        Font = new FontUsage("PlusJakartaSans").With(size: 20),
+                        Font = HomeTypography.Display(16),
                         Colour = YokkoPalette.Text,
                     },
                     new FillFlowContainer
@@ -73,7 +73,7 @@ public partial class SectionPanel : CompositeDrawable
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = text,
-                Font = new FontUsage("PlusJakartaSans").With(size: 13),
+                Font = HomeTypography.Body(9),
                 Colour = YokkoPalette.TextMuted,
             },
         }

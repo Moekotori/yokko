@@ -1320,7 +1320,7 @@ internal partial class SettingsAudioTestButton : ClickableContainer
                     text = new SpriteText
                     {
                         Text = label,
-                        Font = HomeTypography.Display(16),
+                        Font = HomeTypography.Control(16),
                         Colour = HomeControlColours.Navy,
                     },
                 },

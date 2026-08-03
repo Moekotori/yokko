@@ -147,7 +147,7 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
                     X = -9,
-                    Font = HomeTypography.Display(9),
+                    Font = HomeTypography.Control(14),
                 },
             ];
         }
@@ -223,7 +223,7 @@ internal partial class SongSelectKeyConversionSettings : CompositeDrawable
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Text = $"{keyCount}K",
-                    Font = HomeTypography.Display(10),
+                    Font = HomeTypography.Control(14),
                 },
             ];
         }

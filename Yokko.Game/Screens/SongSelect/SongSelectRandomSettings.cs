@@ -213,7 +213,7 @@ internal partial class SongSelectRandomSettings : CompositeDrawable
                     Origin = Anchor.Centre,
                     Text = YokkoStrings.Get(
                         "mods.settings.generate_seed"),
-                    Font = HomeTypography.Display(10),
+                    Font = HomeTypography.Control(14),
                 },
             };
         }

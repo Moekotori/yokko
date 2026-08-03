@@ -42,19 +42,19 @@ public partial class StatusPanel : CompositeDrawable
                     new SpriteText
                     {
                         Text = label,
-                        Font = new FontUsage("PlusJakartaSans").With(size: 12),
+                        Font = HomeTypography.Body(8),
                         Colour = accent,
                     },
                     new SpriteText
                     {
                         Text = value,
-                        Font = new FontUsage("PlusJakartaSans").With(size: 23),
+                        Font = HomeTypography.Display(18),
                         Colour = YokkoPalette.Text,
                     },
                     new SpriteText
                     {
                         Text = note,
-                        Font = new FontUsage("PlusJakartaSans").With(size: 15),
+                        Font = HomeTypography.Body(11),
                         Colour = YokkoPalette.TextDim,
                     },
                 }

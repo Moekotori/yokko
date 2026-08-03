@@ -93,6 +93,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private OrbitSquareButton accuracyChallengeMinus;
     private OrbitSquareButton accuracyChallengePlus;
     private SpriteText pageIndicator;
+    private SpriteText headerSubtitle;
     private SpriteText rateValue;
     private SpriteText activeCount;
     private SpriteText orbitTelemetryState;
@@ -107,6 +108,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
     private double displayedRate = 1;
     private bool built;
     private bool stateInitialized;
+    private string beatmapContext = string.Empty;
 
     internal IReadOnlyCollection<ManiaModId> VisibleMods => nodes.Keys;
     internal bool RepresentsMod(ManiaModId mod) =>
@@ -216,6 +218,13 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
             },
             createFooter(),
         ];
+    }
+
+    internal void SetBeatmapContext(string value)
+    {
+        beatmapContext = value ?? string.Empty;
+        if (headerSubtitle != null)
+            headerSubtitle.Text = beatmapContext;
     }
 
     internal void SetViewportSize(Vector2 viewport)
@@ -479,12 +488,20 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 Scale = new Vector2(1.02f, 1),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            headerSubtitle = new SpriteText
             {
                 Position = new Vector2(440, 88),
-                Text = YokkoStrings.Get("mods.subtitle"),
-                Font = HomeTypography.Body(19),
-                Colour = HomeControlColours.Cyan,
+                Width = 610,
+                Truncate = true,
+                Text = string.IsNullOrWhiteSpace(beatmapContext)
+                    ? YokkoStrings.Get("mods.subtitle")
+                    : beatmapContext,
+                Font = HomeTypography.Body(18),
+                Colour = new Color4(
+                    HomeControlColours.Navy.R,
+                    HomeControlColours.Navy.G,
+                    HomeControlColours.Navy.B,
+                    0.78f),
             },
         ],
     };
@@ -3639,7 +3656,7 @@ internal partial class OrbitRatePresetButton : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = $"{value:0.00}x",
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Control(14),
                 Colour = HomeControlColours.Navy,
             },
         ];

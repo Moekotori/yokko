@@ -52,7 +52,7 @@ public partial class EditorTimelineControls : CompositeDrawable
                 Origin = Anchor.TopLeft,
                 X = 12,
                 Y = 4,
-                Font = new FontUsage("PlusJakartaSans").With(size: 14),
+                Font = new FontUsage("PlusJakartaSans").With(size: 16),
                 Colour = YokkoPalette.TextMuted,
             },
             playbackText = new SpriteText
@@ -61,7 +61,7 @@ public partial class EditorTimelineControls : CompositeDrawable
                 Origin = Anchor.TopRight,
                 X = -12,
                 Y = 4,
-                Font = new FontUsage("PlusJakartaSans").With(size: 14),
+                Font = new FontUsage("PlusJakartaSans").With(size: 16),
                 Colour = YokkoPalette.TextMuted,
             },
             new FillFlowContainer
@@ -135,7 +135,7 @@ public partial class EditorStepButton : ClickableContainer
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = text,
-                Font = new FontUsage("PlusJakartaSans").With(size: 13),
+                Font = new FontUsage("PlusJakartaSans").With(size: 15),
                 Colour = YokkoPalette.Text,
             },
         };

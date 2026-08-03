@@ -270,7 +270,7 @@ internal partial class SongSelectDifficultyAdjustSettings
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Text = text,
-                    Font = HomeTypography.Display(9),
+                    Font = HomeTypography.Control(14),
                 },
             };
         }

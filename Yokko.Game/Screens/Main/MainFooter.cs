@@ -27,7 +27,7 @@ public partial class MainFooter : CompositeDrawable
             {
                 Y = 16,
                 Text = $"{KeyMode.FourKey:D}K + {KeyMode.SevenKey:D}K ready   •   Esc always takes you back",
-                Font = new FontUsage("PlusJakartaSans").With(size: 15),
+                Font = HomeTypography.Body(11),
                 Colour = YokkoPalette.TextMuted,
             },
             new SpriteText
@@ -36,7 +36,7 @@ public partial class MainFooter : CompositeDrawable
                 Origin = Anchor.TopRight,
                 Y = 16,
                 Text = "Keyboard first. Mouse friendly.",
-                Font = new FontUsage("PlusJakartaSans").With(size: 15),
+                Font = HomeTypography.Body(11),
                 Colour = YokkoPalette.TextDim,
             },
         };

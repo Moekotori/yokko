@@ -92,12 +92,18 @@ public class LocalisationTest
         Assert.That(HomeTypography.SearchInput(16).Weight, Is.Null);
         Assert.That(HomeTypography.Hero(72).Weight, Is.EqualTo("Bold"));
         Assert.That(HomeTypography.Sticker(16).Weight, Is.EqualTo("Bold"));
-        Assert.That(HomeTypography.Display(6).Size, Is.EqualTo(14));
-        Assert.That(HomeTypography.Body(16).Size, Is.EqualTo(20.8f)
-            .Within(0.001f));
-        Assert.That(HomeTypography.Display(22).Size, Is.EqualTo(27.1f)
-            .Within(0.001f));
-        Assert.That(HomeTypography.Hero(72).Size, Is.EqualTo(78));
+        Assert.That(HomeTypography.Control().Weight, Is.EqualTo("SemiBold"));
+        Assert.That(HomeTypography.Control().Size, Is.EqualTo(20));
+        Assert.That(HomeTypography.Control(14).Size, Is.EqualTo(18));
+        Assert.That(HomeTypography.Display(6).Size, Is.EqualTo(18));
+        Assert.That(HomeTypography.Body(16).Size, Is.EqualTo(20));
+        Assert.That(HomeTypography.Display(11).Size, Is.EqualTo(18));
+        Assert.That(HomeTypography.Display(12).Size, Is.EqualTo(18));
+        Assert.That(HomeTypography.Display(14).Size, Is.EqualTo(18));
+        Assert.That(HomeTypography.Display(18).Size, Is.EqualTo(22));
+        Assert.That(HomeTypography.Display(22).Size, Is.EqualTo(28));
+        Assert.That(HomeTypography.Brand(58).Size, Is.EqualTo(64));
+        Assert.That(HomeTypography.Hero(72).Size, Is.EqualTo(80));
     }
 
     [Test]

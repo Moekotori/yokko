@@ -263,7 +263,7 @@ internal partial class GameplayModsCategoryButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 53,
                 Text = label.ToUpperInvariant(),
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Control(14),
                 Colour = HomeControlColours.Navy,
             },
         };
@@ -941,7 +941,7 @@ internal partial class GameplayModsPitchButton : ClickableContainer
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
                         Text = "OFF",
-                        Font = HomeTypography.Display(9),
+                        Font = HomeTypography.Control(14),
                     },
                 ],
             },
@@ -964,7 +964,7 @@ internal partial class GameplayModsPitchButton : ClickableContainer
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
                         Text = "ON (P)",
-                        Font = HomeTypography.Display(9),
+                        Font = HomeTypography.Control(14),
                     },
                 ],
             },
@@ -1073,7 +1073,7 @@ internal partial class GameplayModsResetButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 55,
                 Text = "RESET",
-                Font = HomeTypography.Display(15),
+                Font = HomeTypography.Control(16),
                 Colour = HomeControlColours.Navy,
             },
             new Box
@@ -1169,7 +1169,7 @@ internal partial class GameplayModsDoneButton : ClickableContainer
             {
                 Position = new Vector2(88, 23),
                 Text = "DONE",
-                Font = HomeTypography.Display(27),
+                Font = HomeTypography.Control(27),
                 Colour = Color4.White,
             },
             chevron = new SpriteIcon

@@ -370,7 +370,7 @@ public partial class YokkoButton : ClickableContainer
         accentBar.Width = theme.Metrics.AccentBarWidth;
         accentBar.Colour = accent;
         content.Spacing = new Vector2(theme.Metrics.InlineSpacing, 0);
-        label.Font = theme.Typography.Interface(labelSize, labelWeight);
+        label.Font = theme.Typography.Control(labelSize, labelWeight);
         label.Colour = colours.Text;
         focusLine.Height = theme.Metrics.FocusLineHeight;
         focusLine.Colour = accent;

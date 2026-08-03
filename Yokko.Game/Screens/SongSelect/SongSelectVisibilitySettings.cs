@@ -364,7 +364,7 @@ internal partial class SongSelectVisibilitySettings : CompositeDrawable
                 {
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Font = HomeTypography.Display(9),
+                    Font = HomeTypography.Control(14),
                 },
             };
         }

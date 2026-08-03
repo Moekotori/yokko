@@ -656,7 +656,7 @@ internal partial class SettingsSkinActionButton : ClickableContainer
                 Origin = Anchor.Centre,
                 X = 9,
                 Text = text,
-                Font = HomeTypography.Display(14),
+                Font = HomeTypography.Control(14),
                 Colour = selected
                     ? Color4.White
                     : destructive ? HomeControlColours.Pink : HomeControlColours.Navy,

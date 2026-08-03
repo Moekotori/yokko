@@ -244,7 +244,7 @@ internal partial class GameplayFailOverlay : CompositeDrawable
                     Origin = Anchor.CentreLeft,
                     X = 18,
                     Text = label,
-                    Font = HomeTypography.Display(16),
+                    Font = HomeTypography.Control(16),
                     Colour = Color4.White,
                 },
                 new SpriteText

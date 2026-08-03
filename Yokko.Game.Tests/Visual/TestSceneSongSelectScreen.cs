@@ -21,6 +21,7 @@ using Yokko.Game.Importing;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Presentation;
 using Yokko.Game.Scoring;
+using Yokko.Game.Screens.ChartLibrary;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Settings;
 using Yokko.Game.Screens.SongSelect;
@@ -612,6 +613,12 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             songSelectScreen.HandleBrowseKey(Key.F2));
         AddAssert("random shortcut selected the other song", () =>
             songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");
+        AddStep("shift F2 rewinds random selection", () =>
+            songSelectScreen.HandleBrowseKey(
+                Key.F2,
+                shiftPressed: true));
+        AddAssert("random rewind restores the previous song", () =>
+            songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Seven");
         AddStep("control f focuses search", () =>
             songSelectScreen.HandleBrowseKey(Key.F, controlPressed: true));
         AddAssert("search receives keyboard focus", () =>
@@ -644,8 +651,16 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             && songSelectScreen.NoResultsSummary.Contains("not-a-real-song")
             && songSelectScreen.NoResultsSummary.Contains("7K")
             && songSelectScreen.NoResultsResetVisible
-            && songSelectScreen.PlayButtonEyebrow
-               == "PLAY PREVIOUS SELECTION");
+            && songSelectScreen.NoResultsPrimaryAction == "CLEAR SEARCH"
+            && songSelectScreen.NoResultsResetAllVisible
+            && songSelectScreen.PlayButtonAction == "PLAY PREVIOUS");
+        AddStep("clear only the search query", () =>
+            songSelectScreen.ActivateNoResultsPrimary());
+        AddUntilStep("key filter survives query recovery", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.SearchQuery.Length == 0
+            && songSelectScreen.KeyModeFilter == KeyMode.SevenKey
+            && songSelectScreen.VisibleEntryCount == 1);
         AddStep("clear browse filters", songSelectScreen.ClearBrowseFilters);
         AddUntilStep("clear restores the complete library", () =>
             !songSelectScreen.FilterPending
@@ -771,6 +786,8 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
     [Test]
     public void TestBrowseOverlaysOwnKeyboardAndExplainEmptyResults()
     {
+        SongSelectEntry selectionBeforeRandom = null;
+
         AddStep("load overlay interaction charts", () =>
         {
             importedChartLibrary.Clear();
@@ -815,8 +832,16 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             && songSelectScreen.VisibleEntryCount == 0);
         AddAssert("criteria and ambient play are explicit", () =>
             songSelectScreen.FiltersButtonValue == "SEARCH · 7K"
-            && songSelectScreen.PlayButtonEyebrow
-               == "PLAY PREVIOUS SELECTION");
+            && songSelectScreen.NoResultsPrimaryAction == "CLEAR SEARCH"
+            && songSelectScreen.NoResultsResetAllVisible
+            && songSelectScreen.PlayButtonAction == "PLAY PREVIOUS");
+        AddStep("clear only overlay search", () =>
+            songSelectScreen.ActivateNoResultsPrimary());
+        AddUntilStep("overlay key filter remains active", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.SearchQuery.Length == 0
+            && songSelectScreen.KeyModeFilter == KeyMode.SevenKey
+            && songSelectScreen.VisibleEntryCount == 1);
 
         AddStep("clear browse context", songSelectScreen.ClearBrowseFilters);
         AddUntilStep("normal play context returns", () =>
@@ -825,6 +850,24 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             && songSelectScreen.FiltersButtonValue == "ALL SONGS"
             && songSelectScreen.PlayButtonEyebrow
                == "START SELECTED CHART");
+        AddStep("remember selection before random", () =>
+            selectionBeforeRandom = songSelectScreen.SelectedEntry);
+        AddStep("F2 selects the next random chart", () =>
+            InputManager.Key(Key.F2));
+        AddAssert("random avoids the current chart", () =>
+            !ReferenceEquals(
+                selectionBeforeRandom,
+                songSelectScreen.SelectedEntry));
+        AddStep("shift F2 rewinds random history", () =>
+        {
+            InputManager.PressKey(Key.ShiftLeft);
+            InputManager.Key(Key.F2);
+            InputManager.ReleaseKey(Key.ShiftLeft);
+        });
+        AddAssert("rewind restores the previous chart", () =>
+            ReferenceEquals(
+                selectionBeforeRandom,
+                songSelectScreen.SelectedEntry));
 
         AddStep("open sort menu", () => songSelectScreen
             .ChildrenOfType<SongSelectBrowseToolButton>()
@@ -841,27 +884,55 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         AddUntilStep("sort closes and search focus returns", () =>
             !songSelectScreen.SortPopoverOpen
             && songSelectScreen.SearchHasFocus);
+        AddStep("F1 opens mods like osu", () => InputManager.Key(Key.F1));
+        AddUntilStep("mods screen is current", () =>
+            screenStack.CurrentScreen is GameplayModsScreen);
+        AddStep("return from mods", () => screenStack.CurrentScreen.Exit());
+        AddUntilStep("song select resumes after mods", () =>
+            screenStack.CurrentScreen == songSelectScreen);
+        AddStep("select a mod", () =>
+            songSelectScreen.ToggleMod(ManiaModId.NoFail));
+        AddAssert("mod is selected", () =>
+            songSelectScreen.SelectedMods.Contains(ManiaModId.NoFail));
+        AddStep("empty-search backspace clears mods", () =>
+            InputManager.Key(Key.BackSpace));
+        AddAssert("backspace follows osu deselect-all behaviour", () =>
+            songSelectScreen.SelectedMods.Equals(ManiaModSet.Empty));
     }
 
     [Test]
-    public void TestFooterOptionsOpensSettings()
+    public void TestF3OpensBeatmapOptions()
     {
-        int listVersionBeforeSettings = 0;
-        AddStep("remember list before settings", () =>
-            listVersionBeforeSettings = songSelectScreen
-                .SongListRebuildVersion);
-        AddStep("open options from song select", () =>
-            songSelectScreen.OpenOptions());
-        AddUntilStep("settings is current", () =>
-            screenStack.CurrentScreen is SettingsScreen);
-        AddStep("return from settings", () =>
+        double scrollSpeedBeforeSettings = 0;
+        AddStep("remember scroll speed", () =>
+            scrollSpeedBeforeSettings = gameplaySettings.ScrollSpeed.Value);
+        AddStep("open options with osu F3 shortcut", () =>
+            InputManager.Key(Key.F3));
+        AddUntilStep("beatmap options are open", () =>
+            songSelectScreen.BeatmapOptionsOpen
+            && songSelectScreen.BeatmapOptionsTitle.Length > 0
+            && !songSelectScreen.SearchHasFocus);
+        AddAssert("F3 did not change gameplay scroll speed", () =>
+            gameplaySettings.ScrollSpeed.Value == scrollSpeedBeforeSettings);
+        AddStep("focus manage library action", () =>
+            InputManager.Key(Key.Down));
+        AddStep("open chart library from beatmap options", () =>
+            InputManager.Key(Key.Enter));
+        AddUntilStep("chart library is current", () =>
+            screenStack.CurrentScreen is ChartLibraryScreen);
+        AddStep("return from chart library", () =>
             screenStack.CurrentScreen.Exit());
-        AddUntilStep("song select resumes", () =>
+        AddUntilStep("song select resumes from chart library", () =>
             screenStack.CurrentScreen == songSelectScreen);
-        AddUntilStep("settings return refreshes list once", () =>
-            !songSelectScreen.FilterPending
-            && songSelectScreen.SongListRebuildVersion
-                == listVersionBeforeSettings + 1);
+        AddStep("reopen beatmap options", () =>
+            InputManager.Key(Key.F3));
+        AddUntilStep("beatmap options reopen", () =>
+            songSelectScreen.BeatmapOptionsOpen);
+        AddStep("close beatmap options with F3", () =>
+            InputManager.Key(Key.F3));
+        AddUntilStep("options close and search focus returns", () =>
+            !songSelectScreen.BeatmapOptionsOpen
+            && songSelectScreen.SearchHasFocus);
     }
 
     [Test]
@@ -1789,7 +1860,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             songSelectScreen.SelectedEntry?.Beatmap.Title
                 == "Removed While Suspended");
         AddStep("open settings above song select", () =>
-            songSelectScreen.OpenOptions());
+            screenStack.Push(new SettingsScreen()));
         AddUntilStep("song select is suspended", () =>
             screenStack.CurrentScreen is SettingsScreen);
         AddStep("replace library and seed fallback score", () =>

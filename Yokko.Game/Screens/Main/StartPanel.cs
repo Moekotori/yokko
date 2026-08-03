@@ -60,19 +60,19 @@ public partial class StartPanel : ClickableContainer
                     new SpriteText
                     {
                         Text = eyebrow,
-                        Font = new FontUsage("PlusJakartaSans").With(size: 12),
+                        Font = HomeTypography.Body(8),
                         Colour = accent,
                     },
                     new SpriteText
                     {
                         Text = title,
-                        Font = new FontUsage("PlusJakartaSans").With(size: primary ? 26 : 22),
+                        Font = HomeTypography.Display(primary ? 22 : 18),
                         Colour = YokkoPalette.Text,
                     },
                     new SpriteText
                     {
                         Text = detail,
-                        Font = new FontUsage("PlusJakartaSans").With(size: 15),
+                        Font = HomeTypography.Body(11),
                         Colour = YokkoPalette.TextMuted,
                     },
                 },

@@ -222,6 +222,13 @@ internal partial class SongSelectSearchBox : BasicTextBox
             case Key.F5:
                 return commandPressed(e);
 
+            case Key.Left when Current.Value.Length == 0:
+            case Key.Right when Current.Value.Length == 0:
+                return commandPressed(e);
+
+            case Key.BackSpace when Current.Value.Length == 0:
+                return commandPressed(e);
+
             case Key.F when e.ControlPressed:
             case Key.Plus when e.ControlPressed:
             case Key.KeypadPlus when e.ControlPressed:
@@ -304,7 +311,7 @@ internal partial class SongSelectKeyModeFilterButton : ClickableContainer
             {
                 Position = new Vector2(49, 22),
                 Text = "ALL",
-                Font = HomeTypography.Display(14),
+                Font = HomeTypography.Control(16),
                 Colour = SongSelectTheme.Navy,
             },
             new SpriteIcon
@@ -431,7 +438,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                 Width = width - valueX - 30,
                 Truncate = true,
                 Text = value,
-                Font = HomeTypography.Display(11),
+                Font = HomeTypography.Control(14),
                 Colour = SongSelectTheme.Navy,
             },
             new SpriteIcon
@@ -803,7 +810,7 @@ internal partial class SongSelectSortOptionButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 12,
                 Text = SongSelectSorting.Label(mode),
-                Font = HomeTypography.Display(11),
+                Font = HomeTypography.Control(14),
                 Colour = SongSelectTheme.Navy,
             },
             check = new SpriteIcon
@@ -923,7 +930,7 @@ internal partial class SongSelectSortDirectionButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 28,
                 Text = label,
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Control(14),
                 Colour = SongSelectTheme.Navy,
             },
         ];
@@ -966,14 +973,26 @@ internal partial class SongSelectNoResultsPanel : CompositeDrawable
 {
     private readonly SpriteText title;
     private readonly SpriteText summary;
-    private readonly ClickableContainer clearButton;
+    private readonly ClickableContainer primaryButton;
+    private readonly ClickableContainer resetButton;
+    private readonly SpriteText primaryButtonText;
+    private readonly Action clearSearch;
+    private readonly Action clearFilters;
 
     internal string Title => title.Text.ToString();
     internal string Summary => summary.Text.ToString();
-    internal bool ClearButtonVisible => clearButton.Alpha > 0.5f;
+    internal bool ClearButtonVisible => primaryButton.Alpha > 0.5f;
+    internal bool ResetButtonVisible => resetButton.Alpha > 0.5f;
+    internal string PrimaryButtonText => primaryButtonText.Text.ToString();
+    internal void ActivatePrimaryButton() => primaryButton.TriggerClick();
+    internal void ActivateResetButton() => resetButton.TriggerClick();
 
-    public SongSelectNoResultsPanel(Action clearFilters)
+    public SongSelectNoResultsPanel(
+        Action clearSearch,
+        Action clearFilters)
     {
+        this.clearSearch = clearSearch;
+        this.clearFilters = clearFilters;
         Size = new Vector2(560, 206);
         Alpha = 0;
 
@@ -1042,7 +1061,7 @@ internal partial class SongSelectNoResultsPanel : CompositeDrawable
                     SongSelectTheme.Navy.B,
                     0.64f),
             },
-            clearButton = new ClickableContainer
+            primaryButton = new ClickableContainer
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
@@ -1056,7 +1075,7 @@ internal partial class SongSelectNoResultsPanel : CompositeDrawable
                     SongSelectTheme.Cyan.G,
                     SongSelectTheme.Cyan.B,
                     0.58f),
-                Action = clearFilters,
+                Action = clearSearch,
                 Children =
                 [
                     new Box
@@ -1073,14 +1092,37 @@ internal partial class SongSelectNoResultsPanel : CompositeDrawable
                         Icon = FontAwesome.Solid.UndoAlt,
                         Colour = SongSelectTheme.Pink,
                     },
-                    new SpriteText
+                    primaryButtonText = new SpriteText
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
                         X = 10,
-                        Text = "CLEAR FILTERS",
+                        Text = "CLEAR SEARCH",
                         Font = HomeTypography.Display(10),
                         Colour = SongSelectTheme.Navy,
+                    },
+                ],
+            },
+            resetButton = new ClickableContainer
+            {
+                Anchor = Anchor.TopCentre,
+                Origin = Anchor.TopCentre,
+                Y = 176,
+                Size = new Vector2(168, 30),
+                Action = clearFilters,
+                Children =
+                [
+                    new SpriteText
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Text = "RESET ALL FILTERS",
+                        Font = HomeTypography.Display(9),
+                        Colour = new Color4(
+                            SongSelectTheme.Navy.R,
+                            SongSelectTheme.Navy.G,
+                            SongSelectTheme.Navy.B,
+                            0.76f),
                     },
                 ],
             },
@@ -1117,6 +1159,10 @@ internal partial class SongSelectNoResultsPanel : CompositeDrawable
         if (!showConverts)
             filters.Add("CONVERTS HIDDEN");
 
+        bool hasQuery = trimmedQuery.Length > 0;
+        bool hasOtherFilters = keyMode.HasValue
+                               || minimumDifficulty > 0
+                               || !showConverts;
         bool hasFilters = filters.Count > 0;
         title.Text = hasLibraryEntries && hasFilters
             ? "NO SONGS MATCH"
@@ -1124,7 +1170,16 @@ internal partial class SongSelectNoResultsPanel : CompositeDrawable
         summary.Text = hasLibraryEntries && hasFilters
             ? string.Join("  ·  ", filters)
             : "IMPORT A BEATMAP TO START PLAYING";
-        clearButton.Alpha = hasLibraryEntries && hasFilters ? 1 : 0;
+        primaryButton.Alpha = hasLibraryEntries && hasFilters ? 1 : 0;
+        primaryButton.Action = hasQuery ? clearSearch : clearFilters;
+        primaryButtonText.Text = hasQuery
+            ? "CLEAR SEARCH"
+            : "RESET FILTERS";
+        resetButton.Alpha = hasLibraryEntries
+                            && hasQuery
+                            && hasOtherFilters
+            ? 1
+            : 0;
 
         this.ClearTransforms();
         this.FadeIn(140, Easing.OutQuint);

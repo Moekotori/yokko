@@ -62,7 +62,7 @@ internal partial class GameplayAccuracyProgressDisplay : CompositeDrawable
                         Anchor = Anchor.TopRight,
                         Origin = Anchor.TopRight,
                         Text = "ACCURACY",
-                        Font = new FontUsage("PlusJakartaSans", 14),
+                        Font = new FontUsage("PlusJakartaSans", 16),
                         Colour = new Color4(1f, 1f, 1f, 0.72f),
                     },
                     accuracyValue = new OsuScoreFontText(skin)
@@ -107,7 +107,7 @@ internal partial class GameplayAccuracyProgressDisplay : CompositeDrawable
                         Anchor = Anchor.TopRight,
                         Origin = Anchor.TopRight,
                         Y = 12,
-                        Font = new FontUsage("PlusJakartaSans", 13),
+                        Font = new FontUsage("PlusJakartaSans", 14),
                         Colour = new Color4(1f, 1f, 1f, 0.72f),
                     },
                 },

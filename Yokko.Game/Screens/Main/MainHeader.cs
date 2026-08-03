@@ -26,13 +26,13 @@ public partial class MainHeader : CompositeDrawable
                     new SpriteText
                     {
                         Text = "Yokko",
-                        Font = new FontUsage("PlusJakartaSans").With(size: 58),
+                        Font = HomeTypography.Brand(52),
                         Colour = YokkoPalette.Text,
                     },
                     new SpriteText
                     {
                         Text = "Create a chart. Feel the rhythm. Make it yours.",
-                        Font = new FontUsage("PlusJakartaSans").With(size: 19),
+                        Font = HomeTypography.Body(15),
                         Colour = YokkoPalette.TextMuted,
                     },
                 },
@@ -79,7 +79,7 @@ public partial class MainHeader : CompositeDrawable
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = text,
-                Font = new FontUsage("PlusJakartaSans").With(size: 13),
+                Font = HomeTypography.Body(9),
                 Colour = accent,
             },
         },

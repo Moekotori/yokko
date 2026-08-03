@@ -262,7 +262,7 @@ internal partial class SongSelectAccuracyChallengeSettings
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Text = text,
-                    Font = HomeTypography.Display(10),
+                    Font = HomeTypography.Control(14),
                 },
             };
         }
