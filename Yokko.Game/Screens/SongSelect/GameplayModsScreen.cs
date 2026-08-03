@@ -252,7 +252,7 @@ internal partial class GameplayModsScreen : Screen
                              NavigateToCategoryPage,
                              ToggleMod,
                              CycleOrbitModFamily,
-                            FocusOrbitMod,
+                            FocusModInContext,
                             SetNoPauseAllowedPauses,
                             SetAccuracyChallengeMinimum,
                             PreviewGlobalRate,
@@ -707,6 +707,16 @@ internal partial class GameplayModsScreen : Screen
         focusPreferredMod(category);
         showInteractionHint(
             $"{categoryLabel(category).ToUpperInvariant()} · {visibleItems.Count} MODS");
+    }
+
+    private void FocusModInContext(ManiaModId mod)
+    {
+        ManiaModCategory category =
+            OsuManiaModParityCatalog.Get(mod).Category;
+        if (activeCategory != category)
+            SetCategory(category);
+
+        FocusOrbitMod(mod);
     }
 
     private void setBrowseMode(ModsBrowseMode mode)

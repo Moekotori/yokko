@@ -1901,6 +1901,7 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                 var row = new OrbitActiveModRow(
                     definition,
                     accentFor(definition),
+                    () => focusMod(definition.Id),
                     () => Scheduler.AddDelayed(
                         () => toggleMod(definition.Id),
                         135))
@@ -3266,11 +3267,12 @@ internal partial class OrbitActiveModRow : ClickableContainer
     internal OrbitActiveModRow(
         ManiaModDefinition definition,
         Color4 accent,
+        Action focus,
         Action remove)
     {
         ModId = definition.Id;
         this.remove = remove;
-        Action = beginRemove;
+        Action = focus;
         Size = new Vector2(365, 48);
         background = createHexagonLayer(
             Color4.White,

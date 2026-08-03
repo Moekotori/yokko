@@ -690,7 +690,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
     }
 
     [Test]
-    public void TestActiveModRowsRemoveOnClick()
+    public void TestActiveModRowsFocusOnClickAndRemoveExplicitly()
     {
         OrbitActiveModRow activeRow = null;
         AddStep("prepare active row", () =>
@@ -703,8 +703,15 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         });
         AddStep("activate the active row", () =>
             activeRow.ActivateForTest());
+        AddAssert("clicking the active row opens its category and detail", () =>
+            modsScreen.ActiveCategory
+                == ManiaModCategory.DifficultyReduction
+            && modsScreen.DetailMod == ManiaModId.HalfTime
+            && modsScreen.SelectedMods.Contains(ManiaModId.HalfTime));
+        AddStep("remove from the explicit remove button", () =>
+            activeRow.RemoveForTest());
         AddWaitStep("wait for removal motion", 12);
-        AddAssert("clicking the active row disables mod", () =>
+        AddAssert("explicit remove disables mod", () =>
             !modsScreen.SelectedMods.Contains(ManiaModId.HalfTime));
     }
 
