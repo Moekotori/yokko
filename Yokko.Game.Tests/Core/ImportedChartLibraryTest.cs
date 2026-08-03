@@ -727,6 +727,8 @@ public sealed class ImportedChartLibraryTest
                 await library.RefreshExternalOsuAsync();
             YokkoBeatmap removed =
                 await library.GetPlayableBeatmapAsync(indexed.Id);
+            int hiddenChartCount = library.ExternalOsuChartCount;
+            ImportedChart[] hiddenCharts = library.GetCharts().ToArray();
             Directory.Move(movedSongs, songs);
             ExternalOsuLibraryResult restored;
             do
@@ -739,8 +741,8 @@ public sealed class ImportedChartLibraryTest
             {
                 Assert.That(unavailable.Success, Is.False);
                 Assert.That(unavailable.ChartCount, Is.Zero);
-                Assert.That(library.ExternalOsuChartCount, Is.Zero);
-                Assert.That(library.GetCharts(), Is.Empty);
+                Assert.That(hiddenChartCount, Is.Zero);
+                Assert.That(hiddenCharts, Is.Empty);
                 Assert.That(removed, Is.Null);
                 Assert.That(restored.Success, Is.True);
                 Assert.That(restored.ChartCount, Is.EqualTo(1));

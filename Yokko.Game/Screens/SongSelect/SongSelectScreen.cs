@@ -182,6 +182,10 @@ public partial class SongSelectScreen : Screen
     private CancellationTokenSource filterCancellation;
     private Task<SongSelectFilterResult> filterTask;
     private SongSelectSorting.EntrySnapshot[] basicFilterSnapshots;
+    private SongSelectSorting.EntrySnapshot[] sortedFilterSnapshots;
+    private SongSelectSortMode? sortedFilterMode;
+    private SongSelectSortDirection? sortedFilterDirection;
+    private int filterSortPassCount;
     private int filterGeneration;
     private bool filterDisposed;
     private bool filterPending;
@@ -503,6 +507,7 @@ public partial class SongSelectScreen : Screen
     internal int IndexedSongListItemCount => songList?.ItemCount ?? 0;
     internal int NavigableEntryCount => navigableEntries.Count;
     internal bool FilterPending => filterPending;
+    internal int FilterSortPassCount => Volatile.Read(ref filterSortPassCount);
     internal bool UsesFocusedPackageExpansion => focusedPackageExpansion;
     internal bool LibraryReloadInProgress => libraryReloadInProgress;
 
@@ -4273,8 +4278,7 @@ public partial class SongSelectScreen : Screen
             }
             float sectionSpacing = virtualItems.Count == 0 ? 0 : 12;
             bool collapsed = first.IsPackage
-                             && collapsedPackages.Contains(first.PackageId)
-                             && string.IsNullOrWhiteSpace(searchQuery);
+                             && collapsedPackages.Contains(first.PackageId);
 
             if (first.IsPackage)
             {
@@ -4396,9 +4400,16 @@ public partial class SongSelectScreen : Screen
                 knownValues);
         }
 
+        bool canReuseSortedEntries = sortMode != SongSelectSortMode.Difficulty
+                                     && sortedFilterSnapshots != null
+                                     && sortedFilterMode == sortMode
+                                     && sortedFilterDirection == sortDirection;
         var request = new SongSelectFilterRequest(
             generation,
-            basicFilterSnapshots,
+            canReuseSortedEntries
+                ? sortedFilterSnapshots
+                : basicFilterSnapshots,
+            canReuseSortedEntries,
             searchQuery,
             SongSelectSearchMatcher.TokenizeQuery(searchQuery),
             keyModeFilter,
@@ -4438,8 +4449,23 @@ public partial class SongSelectScreen : Screen
         CancellationToken cancellationToken)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
+        SongSelectSorting.EntrySnapshot[] sortedSourceEntries = null;
+        IReadOnlyList<SongSelectSorting.EntrySnapshot> sourceEntries =
+            request.Entries;
+        bool canSortBeforeFiltering =
+            request.SortMode != SongSelectSortMode.Difficulty;
+        if (canSortBeforeFiltering && !request.EntriesAlreadySorted)
+        {
+            Interlocked.Increment(ref filterSortPassCount);
+            sortedSourceEntries = SongSelectSorting.SortSnapshotEntries(
+                request.Entries,
+                request.SortMode,
+                request.SortDirection,
+                cancellationToken);
+            sourceEntries = sortedSourceEntries;
+        }
         var filtered = new List<SongSelectSorting.EntrySnapshot>(
-            request.Entries.Length);
+            sourceEntries.Count);
         var calculated = new List<CalculatedDifficulty>();
         bool difficultyLockTaken = false;
         try
@@ -4450,12 +4476,12 @@ public partial class SongSelectScreen : Screen
                 difficultyLockTaken = true;
             }
 
-            for (int index = 0; index < request.Entries.Length; index++)
+            for (int index = 0; index < sourceEntries.Count; index++)
             {
                 if ((index & 0x7f) == 0)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                SongSelectSorting.EntrySnapshot snapshot = request.Entries[index];
+                SongSelectSorting.EntrySnapshot snapshot = sourceEntries[index];
                 YokkoBeatmap beatmap = snapshot.Beatmap;
                 if (request.KeyModeFilter.HasValue
                     && beatmap.KeyMode != request.KeyModeFilter)
@@ -4528,15 +4554,25 @@ public partial class SongSelectScreen : Screen
                 filtered.Add(snapshot);
             }
 
-            List<SongSelectEntry> sorted = SongSelectSorting.SortSnapshots(
-                filtered,
-                request.SortMode,
-                request.SortDirection,
-                cancellationToken);
+            List<SongSelectEntry> sorted;
+            if (canSortBeforeFiltering)
+            {
+                sorted = filtered.Select(snapshot => snapshot.Entry).ToList();
+            }
+            else
+            {
+                Interlocked.Increment(ref filterSortPassCount);
+                sorted = SongSelectSorting.SortSnapshots(
+                    filtered,
+                    request.SortMode,
+                    request.SortDirection,
+                    cancellationToken);
+            }
             return new SongSelectFilterResult(
                 sorted,
                 stopwatch.Elapsed,
-                calculated);
+                calculated,
+                sortedSourceEntries);
         }
         finally
         {
@@ -4595,6 +4631,12 @@ public partial class SongSelectScreen : Screen
             }
         }
         visibleEntries = result.Entries;
+        if (result.SortedSourceEntries != null)
+        {
+            sortedFilterSnapshots = result.SortedSourceEntries;
+            sortedFilterMode = request.SortMode;
+            sortedFilterDirection = request.SortDirection;
+        }
         diagnostics.Trace(
             "SONG_SELECT",
             "filter-applied",
@@ -4607,6 +4649,16 @@ public partial class SongSelectScreen : Screen
             + $" | converts={request.ShowConverts}"
             + $" | elapsed-ms={result.Elapsed.TotalMilliseconds:0.0}");
 
+        if (visibleEntries.Count > 0
+            && !visibleEntries.Contains(selectedEntry))
+        {
+            // Commit the replacement selection before rebuilding the virtual
+            // list. Otherwise a search which excludes the current package
+            // rebuilds once around the stale selection and then immediately
+            // rebuilds again when the first result becomes selected.
+            select(visibleEntries[0], rebuildList: false);
+        }
+
         if (focusedPackageExpansion)
         {
             focusPackageExpansion(selectedEntry?.IsPackage == true
@@ -4615,10 +4667,6 @@ public partial class SongSelectScreen : Screen
         }
 
         rebuildSongList();
-
-        if (navigableEntries.Count > 0
-            && !navigableEntries.Contains(selectedEntry))
-            select(navigableEntries[0]);
     }
 
     private void invalidateFilterRequest(bool incrementGeneration = true)
@@ -4632,9 +4680,18 @@ public partial class SongSelectScreen : Screen
         filterPending = false;
     }
 
+    private void invalidateFilterSnapshots()
+    {
+        basicFilterSnapshots = null;
+        sortedFilterSnapshots = null;
+        sortedFilterMode = null;
+        sortedFilterDirection = null;
+    }
+
     private sealed record SongSelectFilterRequest(
         int Generation,
         SongSelectSorting.EntrySnapshot[] Entries,
+        bool EntriesAlreadySorted,
         string SearchQuery,
         string[] SearchTokens,
         KeyMode? KeyModeFilter,
@@ -4647,7 +4704,8 @@ public partial class SongSelectScreen : Screen
     private sealed record SongSelectFilterResult(
         List<SongSelectEntry> Entries,
         TimeSpan Elapsed,
-        IReadOnlyList<CalculatedDifficulty> CalculatedDifficulties);
+        IReadOnlyList<CalculatedDifficulty> CalculatedDifficulties,
+        SongSelectSorting.EntrySnapshot[] SortedSourceEntries);
 
     private sealed record DifficultyFilterContext(
         ManiaModSet Mods,
@@ -5101,7 +5159,7 @@ public partial class SongSelectScreen : Screen
         if (success)
         {
             entry.Beatmap = playable;
-            basicFilterSnapshots = null;
+            invalidateFilterSnapshots();
             materialisedImportedCharts.Add(entry.ChartId);
             difficultyRatingsCache.Remove(entry);
             rebuildDetails();
@@ -5219,7 +5277,7 @@ public partial class SongSelectScreen : Screen
     private void refreshSavedScores(
         SongSelectEntry entryToRefresh = null)
     {
-        basicFilterSnapshots = null;
+        invalidateFilterSnapshots();
         if (entryToRefresh != null)
         {
             refreshEntry(entryToRefresh);
@@ -5572,7 +5630,7 @@ public partial class SongSelectScreen : Screen
         }
 
         materialisedImportedCharts.IntersectWith(importedEntries.Keys);
-        basicFilterSnapshots = null;
+        invalidateFilterSnapshots();
         if (songList == null)
             return true;
 
@@ -5879,7 +5937,7 @@ public partial class SongSelectScreen : Screen
             entries.Add(entry);
         }
         materialisedImportedCharts.IntersectWith(nextEntries.Keys);
-        basicFilterSnapshots = null;
+        invalidateFilterSnapshots();
 
         if (playableBeatmapChartId != null
             && !nextEntries.ContainsKey(playableBeatmapChartId))

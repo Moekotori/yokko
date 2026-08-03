@@ -95,10 +95,23 @@ internal static class SongSelectSorting
         SongSelectSortMode mode,
         SongSelectSortDirection direction,
         CancellationToken cancellationToken)
+        => SortSnapshotEntries(
+                entries,
+                mode,
+                direction,
+                cancellationToken)
+            .Select(snapshot => snapshot.Entry)
+            .ToList();
+
+    internal static EntrySnapshot[] SortSnapshotEntries(
+        IReadOnlyList<EntrySnapshot> entries,
+        SongSelectSortMode mode,
+        SongSelectSortDirection direction,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (entries.Count <= 1)
-            return entries.Select(snapshot => snapshot.Entry).ToList();
+            return entries.ToArray();
 
         var indexed = entries.Select((entry, index) => new IndexedEntry(entry, index))
                              .ToArray();
@@ -131,8 +144,8 @@ internal static class SongSelectSorting
                               indexedComparer)
                           .ThenBy(package => package.FirstIndex)
                           .SelectMany(package => package.Entries)
-                          .Select(item => item.Entry.Entry)
-                          .ToList();
+                          .Select(item => item.Entry)
+                          .ToArray();
         }
         catch (InvalidOperationException exception)
             when (cancellationToken.IsCancellationRequested

@@ -427,6 +427,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
     {
         SongSelectEntry selectedBeforeSort = null;
         int rebuildVersionBeforeSort = 0;
+        int sortPassesBeforeSearch = 0;
 
         AddAssert("song select is current", () => screenStack.CurrentScreen is SongSelectScreen);
         AddStep("start with empty library", () => importedChartLibrary.Clear());
@@ -621,6 +622,8 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             !songSelectScreen.FilterPending
             && songSelectScreen.VisibleEntryCount == 1);
         AddAssert("selection follows filter", () => songSelectScreen.SelectedEntry.Beatmap.KeyMode == KeyMode.SevenKey);
+        AddStep("remember sorted library before search", () =>
+            sortPassesBeforeSearch = songSelectScreen.FilterSortPassCount);
 
         AddStep("search imported seven", () => songSelectScreen.SetSearchQuery("Imported Seven"));
         AddUntilStep("one matching song", () =>
@@ -628,6 +631,8 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             && songSelectScreen.VisibleEntryCount == 1);
         AddAssert("search is counted as an active filter", () =>
             songSelectScreen.FiltersButtonValue == "2 ACTIVE");
+        AddAssert("search reuses the existing sort order", () =>
+            songSelectScreen.FilterSortPassCount == sortPassesBeforeSearch);
 
         AddStep("search no results", () => songSelectScreen.SetSearchQuery("not-a-real-song"));
         AddUntilStep("empty result is stable", () =>
@@ -1139,6 +1144,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
     {
         const string firstPackage = @"C:\Charts\focus-one.osz";
         const string secondPackage = @"C:\Charts\focus-two.osz";
+        int rebuildVersionBeforeSearch = 0;
 
         AddStep("import two multi-chart packages", () =>
         {
@@ -1215,6 +1221,30 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                    && Math.Abs(headers.Single(header => !header.IsExpanded).Height
                                - SongSelectPackageHeader.CollapsedHeight) < 0.05f;
         });
+        AddStep("remember list before search", () =>
+            rebuildVersionBeforeSearch = songSelectScreen.SongListRebuildVersion);
+        AddStep("search into the collapsed package", () =>
+            songSelectScreen.SetSearchQuery("Focus Two"));
+        AddUntilStep("search keeps one focused package", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 2
+            && songSelectScreen.SelectedEntry?.PackageId == secondPackage
+            && songSelectScreen.IsPackageCollapsed(firstPackage)
+            && !songSelectScreen.IsPackageCollapsed(secondPackage)
+            && songSelectScreen.IndexedSongListItemCount == 3
+            && songSelectScreen.NavigableEntryCount == 2);
+        AddAssert("search commits one list rebuild", () =>
+            songSelectScreen.SongListRebuildVersion
+                == rebuildVersionBeforeSearch + 1);
+        AddStep("clear package search", () =>
+            songSelectScreen.SetSearchQuery(string.Empty));
+        AddUntilStep("focused expansion survives cleared search", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 4
+            && songSelectScreen.SelectedEntry?.PackageId == secondPackage
+            && songSelectScreen.IsPackageCollapsed(firstPackage)
+            && !songSelectScreen.IsPackageCollapsed(secondPackage)
+            && songSelectScreen.IndexedSongListItemCount == 4);
     }
 
     [Test]
