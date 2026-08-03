@@ -73,12 +73,12 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
                     "song_select.difficulty_range",
                     ManiaDifficultyPresentation.Unit(
                         ManiaDifficultyRatingMode.EtternaMsd)),
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Display(14),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
                     SongSelectTheme.Navy.B,
-                    0.80f),
+                    0.9f),
             },
             new Container
             {
@@ -100,7 +100,7 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
                         Text = YokkoStrings.Get("song_select.all"),
-                        Font = HomeTypography.Control(15),
+                        Font = HomeTypography.Control(17),
                         Colour = SongSelectTheme.Navy,
                     },
                 ],

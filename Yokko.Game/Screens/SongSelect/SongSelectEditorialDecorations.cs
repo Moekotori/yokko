@@ -269,15 +269,19 @@ internal partial class SongSelectPreviewSignalStrip : CompositeDrawable
             {
                 Position = new Vector2(48, 5),
                 Text = "PREVIEW SIGNAL",
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(12),
                 Spacing = new Vector2(0.7f, 0),
-                Colour = SongSelectTheme.Cyan,
+                Colour = new Color4(
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.82f),
             },
             new SpriteText
             {
                 Position = new Vector2(48, 19),
                 Text = "ACTIVE / READY",
-                Font = HomeTypography.Display(10),
+                Font = HomeTypography.Display(14),
                 Colour = SongSelectTheme.Navy,
             },
             new HomeSignalWave(new Color4(
@@ -295,12 +299,12 @@ internal partial class SongSelectPreviewSignalStrip : CompositeDrawable
                 Origin = Anchor.CentreRight,
                 X = -24,
                 Text = "SYNC / 04",
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(12),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
                     SongSelectTheme.Navy.B,
-                    0.55f),
+                    0.82f),
             },
             statusPulse = new Circle
             {

@@ -482,6 +482,8 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                        == ManiaDifficultyRatingMode.EtternaMsd
                    ? "MSD RANGE"
                    : "STAR RANGE")
+            && songSelectScreen.DifficultyFilterPosition
+               == new Vector2(-460, 76)
             && songSelectScreen.DifficultyFilterSize
                == new Vector2(520, 40));
         AddAssert("browse controls use one compact row", () =>

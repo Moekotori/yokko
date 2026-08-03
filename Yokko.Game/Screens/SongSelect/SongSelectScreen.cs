@@ -460,6 +460,8 @@ public partial class SongSelectScreen : Screen
     internal int FilterOptionCount => filterOptionButtons().Length;
     internal Vector2 DifficultyFilterSize =>
         difficultyFilterBar?.Size ?? Vector2.Zero;
+    internal Vector2 DifficultyFilterPosition =>
+        difficultyFilterBar?.Position ?? Vector2.Zero;
     internal Vector2 BrowseToolbarSize =>
         browseToolbar?.Size ?? Vector2.Zero;
     internal float TopNavigationHeight => topNavigation?.Height ?? 0;
@@ -955,7 +957,8 @@ public partial class SongSelectScreen : Screen
               .FadeIn(180, Easing.OutQuint);
 
         playHeaderControlEntry(searchBox, 70, 18);
-        playHeaderControlEntry(browseToolbar, 130, 10);
+        playHeaderControlEntry(difficultyFilterBar, 110, 12);
+        playHeaderControlEntry(browseToolbar, 140, 10);
 
         for (int i = 0; i < ambientStickers.Count; i++)
             ambientStickers[i].Play(120 + i * 42);
@@ -3178,6 +3181,13 @@ public partial class SongSelectScreen : Screen
                 Position = new Vector2(-browse_right, 18),
                 Size = new Vector2(browse_width, 48),
             },
+            difficultyFilterBar = new SongSelectDifficultyFilterBar(
+                SetMinimumDifficultyFilter)
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(-460, 76),
+            },
             createBrowseToolbar(),
         ],
     };
@@ -3479,7 +3489,7 @@ public partial class SongSelectScreen : Screen
             Anchor = Anchor.TopRight,
             Origin = Anchor.TopRight,
             Position = new Vector2(-browse_right - 210, browse_top + 4),
-            Size = new Vector2(560, 300),
+            Size = new Vector2(560, 250),
             Alpha = 0,
             Children =
             [
@@ -3552,14 +3562,9 @@ public partial class SongSelectScreen : Screen
                 {
                     Position = new Vector2(380, 96),
                 },
-                difficultyFilterBar = new SongSelectDifficultyFilterBar(
-                    SetMinimumDifficultyFilter)
-                {
-                    Position = new Vector2(20, 142),
-                },
                 new SpriteText
                 {
-                    Position = new Vector2(20, 198),
+                    Position = new Vector2(20, 148),
                     Text = YokkoStrings.Get("song_select.filters.converts"),
                     Font = HomeTypography.Display(8),
                     Colour = new Color4(
@@ -3573,14 +3578,14 @@ public partial class SongSelectScreen : Screen
                     252,
                     () => setShowConverts(true))
                 {
-                    Position = new Vector2(20, 216),
+                    Position = new Vector2(20, 166),
                 },
                 excludeConvertsFilterButton = new SongSelectFilterOptionButton(
                     YokkoStrings.Get("song_select.filters.exclude"),
                     252,
                     () => setShowConverts(false))
                 {
-                    Position = new Vector2(288, 216),
+                    Position = new Vector2(288, 166),
                 },
                 filtersResetButton = new YokkoButton(
                     YokkoStrings.Get("song_select.filters.reset"),
@@ -3594,7 +3599,7 @@ public partial class SongSelectScreen : Screen
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(20, 273),
+                    Position = new Vector2(20, 223),
                     Width = 520,
                     Truncate = true,
                     Text = YokkoStrings.Get("song_select.filters.hint"),
@@ -4105,12 +4110,12 @@ public partial class SongSelectScreen : Screen
         float y) => new Container
         {
             Position = new Vector2(x, y),
-            Size = new Vector2(94, 16),
+            Size = new Vector2(94, 18),
             Children =
             [
                 new Container
                 {
-                    Size = new Vector2(30, 16),
+                    Size = new Vector2(32, 18),
                     Masking = true,
                     CornerRadius = 4,
                     Children =
@@ -4129,7 +4134,7 @@ public partial class SongSelectScreen : Screen
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
                             Text = key,
-                            Font = HomeTypography.Display(11),
+                            Font = HomeTypography.Display(13),
                             Colour = SongSelectTheme.Navy,
                         },
                     ],
@@ -4138,9 +4143,9 @@ public partial class SongSelectScreen : Screen
                 {
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
-                    X = 36,
+                    X = 38,
                     Text = label,
-                    Font = HomeTypography.Display(12),
+                    Font = HomeTypography.Display(14),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
@@ -4587,8 +4592,12 @@ public partial class SongSelectScreen : Screen
                     Width = details_content_width,
                     Truncate = true,
                     Text = $"mapped by {selectedEntry.Beatmap.Creator}",
-                    Font = HomeTypography.Body(14),
-                    Colour = SongSelectTheme.Cyan,
+                    Font = HomeTypography.Body(16),
+                    Colour = new Color4(
+                        SongSelectTheme.Navy.R,
+                        SongSelectTheme.Navy.G,
+                        SongSelectTheme.Navy.B,
+                        0.82f),
                 },
                 new SongSelectPreviewSignalStrip
                 {
@@ -5012,17 +5021,17 @@ public partial class SongSelectScreen : Screen
                 new SpriteText
                 {
                     Text = label,
-                    Font = HomeTypography.Display(11),
+                    Font = HomeTypography.Display(13),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
                         SongSelectTheme.Navy.B,
-                        0.78f),
+                        0.88f),
                 },
                 new SpriteText
                 {
                     Text = value,
-                    Font = HomeTypography.Display(13),
+                    Font = HomeTypography.Display(15),
                     Colour = SongSelectTheme.Navy,
                 },
             ],
@@ -5295,12 +5304,12 @@ public partial class SongSelectScreen : Screen
             {
                 Position = new Vector2(18, 0),
                 Text = "BEST SCORE",
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Display(13),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
                     SongSelectTheme.Navy.B,
-                    0.82f),
+                    0.9f),
             },
             new SpriteText
             {
@@ -5311,7 +5320,7 @@ public partial class SongSelectScreen : Screen
                     ? $"{selectedEntry.BestScore:N0}"
                     : "NO SCORE",
                 Font = HomeTypography.Display(
-                    selectedEntry.BestScore > 0 ? 15 : 12),
+                    selectedEntry.BestScore > 0 ? 17 : 16),
                 Colour = SongSelectTheme.Navy,
             },
         },
@@ -5338,12 +5347,12 @@ public partial class SongSelectScreen : Screen
                 {
                     Position = new Vector2(18, 0),
                     Text = "BEST ACCURACY",
-                    Font = HomeTypography.Display(12),
+                    Font = HomeTypography.Display(13),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
                         SongSelectTheme.Navy.B,
-                        0.82f),
+                        0.9f),
                 },
                 new SpriteText
                 {
@@ -5353,7 +5362,7 @@ public partial class SongSelectScreen : Screen
                     Text = selectedEntry.BestAccuracy > 0
                         ? $"{selectedEntry.BestAccuracy:P2}"
                         : "--",
-                    Font = HomeTypography.Display(15),
+                    Font = HomeTypography.Display(17),
                     Colour = SongSelectTheme.Navy,
                 },
             ],
@@ -5380,12 +5389,12 @@ public partial class SongSelectScreen : Screen
                 {
                     Position = new Vector2(18, 0),
                     Text = "PLAY RATE",
-                    Font = HomeTypography.Display(11),
+                    Font = HomeTypography.Display(13),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
                         SongSelectTheme.Navy.B,
-                        0.82f),
+                        0.9f),
                 },
                 new SpriteText
                 {
@@ -5393,7 +5402,7 @@ public partial class SongSelectScreen : Screen
                     Origin = Anchor.TopRight,
                     Position = new Vector2(-2, 0),
                     Text = "ALT +/-",
-                    Font = HomeTypography.Display(10),
+                    Font = HomeTypography.Display(12),
                     Colour = SongSelectTheme.Pink,
                 },
                 new SpriteText
@@ -5402,7 +5411,7 @@ public partial class SongSelectScreen : Screen
                     Width = width - 22,
                     Truncate = true,
                     Text = rateLabel,
-                    Font = HomeTypography.Display(15),
+                    Font = HomeTypography.Display(17),
                     Colour = SongSelectTheme.Navy,
                 },
             ],
@@ -5432,20 +5441,20 @@ public partial class SongSelectScreen : Screen
                 Width = 81,
                 Truncate = true,
                 Text = label,
-                Font = HomeTypography.Display(11),
+                Font = HomeTypography.Display(13),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
                     SongSelectTheme.Navy.B,
-                    0.82f),
+                    0.9f),
             },
             new SpriteText
             {
-                Position = new Vector2(15, 14),
+                Position = new Vector2(15, 15),
                 Width = 81,
                 Truncate = true,
                 Text = value,
-                Font = HomeTypography.Display(15),
+                Font = HomeTypography.Display(17),
                 Colour = SongSelectTheme.Navy,
             },
         },
