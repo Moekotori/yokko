@@ -5931,3 +5931,53 @@ final result: passed
 - Screenshot review does not establish assistive-technology or complete WCAG compliance; existing keyboard paths and visible state transitions remain covered by focused scene tests.
 
 final result: passed
+
+---
+
+# Song Select background and pattern-summary repair (2026-08-03)
+
+- Source visual truth: `F:\Temp\codex-clipboard-7ba9f524-4a48-4959-83a4-01a7ec6977b1.png`
+- Implementation screenshot: `F:\Temp\yokko-songselect-fixed.png`
+- Full-view comparison: `F:\Temp\yokko-songselect-before-after.png`
+- Focused comparison: `F:\Temp\yokko-songselect-focused-before-after.png`
+- Viewport: Yokko shared `1920 x 1080` Song Select preview
+- State: selected package difficulty, ranking empty state, English locale
+- Source pixels: `2556 x 1418`; normalized to `1920 x 1080` for structural comparison. The supplied capture's exact native viewport and density are unknown.
+- Implementation pixels: `1920 x 1080`; native preview capture at the shared `1920 x 1080` design viewport and 1x output density.
+
+## Findings
+
+No actionable P0, P1, or P2 findings remain for the requested repair.
+
+- Fonts and typography: existing Yokko display/body typography and hierarchy are preserved. The selected-row pattern summary uses the same cyan display treatment as adjacent secondary metadata and remains subordinate to title, mapper, and rating.
+- Spacing and layout rhythm: the detached left-side radar is gone, the ranking card returns to its previous `y = 340` position, and the selected-row summary does not collide with mapper, rating, or mode pill at `1920 x 1080`.
+- Colors and visual tokens: the dark navy/black isolation layers are removed. The restored cream isolation and low-opacity cyan/pink wash match the existing ivory, cyan, pink, and navy page system.
+- Image quality and asset fidelity: selected artwork remains sharp, correctly cropped, and visibly integrated into the page. No source art was replaced or redrawn.
+- Copy and content: the opaque `PATTERN RADAR` block is replaced by a concise `PATTERN` summary containing at most the two strongest chart traits. It appears only on the selected difficulty row.
+
+## Comparison history
+
+### Iteration 0
+
+- [P1] The background used a dark navy isolation layer plus a black lower gradient, making the entire page substantially darker than the established light-paper visual language.
+- [P1] The standalone pattern radar sat directly over artwork outside any surface, had weak hierarchy, and pushed the ranking panel down by 64 pixels.
+
+Fixes made:
+
+- Restored the earlier cream isolation layer and cyan/pink mood wash.
+- Removed the standalone radar and restored the ranking panel position.
+- Moved a reduced two-trait pattern summary into the selected chart row on the right.
+
+### Iteration 1
+
+Post-fix evidence in both comparison images shows a bright integrated background, a clean left information column, restored ranking alignment, and a compact selected-row pattern summary. No new overlap, clipping, wrapping, or token mismatch is visible.
+
+## Implementation checklist
+
+- [x] Restore bright Song Select background treatment.
+- [x] Remove detached left-side pattern radar.
+- [x] Restore ranking panel vertical position.
+- [x] Show chart traits only in the selected right-side difficulty row.
+- [x] Verify build, focused interaction tests, and native `1920 x 1080` render.
+
+final result: passed

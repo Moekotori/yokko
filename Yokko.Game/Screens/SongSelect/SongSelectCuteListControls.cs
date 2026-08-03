@@ -11,6 +11,7 @@ using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
+using Yokko.Core.Analysis;
 using Yokko.Core.Difficulty;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
@@ -41,6 +42,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
     private SpriteText compactPrimaryText;
     private SpriteText compactSecondaryText;
     private SpriteText standalonePreviewHint;
+    private SpriteText patternSummary;
     private readonly List<(Box Box, float Alpha)> accentBoxes = [];
     private readonly List<(Container Container, float Alpha)> accentBorders = [];
     private readonly List<SpriteText> difficultyValueTexts = [];
@@ -71,6 +73,9 @@ internal partial class SongSelectSongRow : PoolableDrawable
         compactPrimaryText?.Text.ToString() ?? string.Empty;
     internal string CompactSecondaryText =>
         compactSecondaryText?.Text.ToString() ?? string.Empty;
+    internal string PatternSummaryText =>
+        patternSummary?.Text.ToString() ?? string.Empty;
+    internal float PatternSummaryAlpha => patternSummary?.Alpha ?? 0;
     internal Vector2 StandaloneArtworkFrameSize =>
         standaloneArtworkFrame?.Size ?? Vector2.Zero;
     internal float LeadingAccentWidth => leadingAccent?.Width ?? 0;
@@ -130,6 +135,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         compactPrimaryText = null;
         compactSecondaryText = null;
         standalonePreviewHint = null;
+        patternSummary = null;
         standaloneArtworkFrame = null;
         leadingAccent = null;
         selectionSignalRail = null;
@@ -393,6 +399,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         compactModePill?.SetExpanded(selected, animated);
         if (standalonePreviewHint != null)
             standalonePreviewHint.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
+        updatePatternSummaryVisibility(animated);
         float targetX = selectionTargetX();
         if (animated)
         {
@@ -407,6 +414,65 @@ internal partial class SongSelectSongRow : PoolableDrawable
             X = targetX;
             Width = RowWidth - targetX;
         }
+    }
+
+    internal void SetPatternProfile(
+        ManiaPatternProfile profile,
+        bool animated = true)
+    {
+        if (patternSummary == null)
+            return;
+
+        patternSummary.Text = formatPatternSummary(profile);
+        updatePatternSummaryVisibility(animated);
+    }
+
+    private void updatePatternSummaryVisibility(bool animated)
+    {
+        if (patternSummary == null)
+            return;
+
+        bool visible = selected
+                       && patternSummary.Text.ToString().Length > 0;
+        float targetMapperWidth = visible && compact ? 290 : 540;
+        if (compactSecondaryText != null)
+        {
+            if (animated)
+                compactSecondaryText.ResizeWidthTo(targetMapperWidth, 140);
+            else
+                compactSecondaryText.Width = targetMapperWidth;
+        }
+
+        if (animated)
+            patternSummary.FadeTo(visible ? 0.88f : 0, 120, Easing.OutQuint);
+        else
+            patternSummary.Alpha = visible ? 0.88f : 0;
+    }
+
+    private static string formatPatternSummary(ManiaPatternProfile profile)
+    {
+        if (profile == null)
+            return string.Empty;
+
+        (string Label, double Value)[] strengths =
+        [
+            ("JACK", profile.Jack),
+            ("CHORD", profile.Chord),
+            ("BURST", profile.Burst),
+            ("ANCHOR", profile.Anchor),
+            ("LN", profile.LongNote),
+            ("RELEASE", profile.Release),
+        ];
+        (string Label, double Value)[] strongest = strengths
+            .Where(item => item.Value > 0.5)
+            .OrderByDescending(item => item.Value)
+            .Take(2)
+            .ToArray();
+        return strongest.Length == 0
+            ? string.Empty
+            : "PATTERN  " + string.Join(
+                "  ·  ",
+                strongest.Select(item => $"{item.Label} {item.Value:0}"));
     }
 
     private void updateSelectionSignalRail(
@@ -554,6 +620,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         compactPrimaryText = null;
         compactSecondaryText = null;
         standalonePreviewHint = null;
+        patternSummary = null;
         standaloneArtworkFrame = null;
         leadingAccent = null;
         selectionSignalRail = null;
@@ -615,6 +682,15 @@ internal partial class SongSelectSongRow : PoolableDrawable
                 0.84f),
             true,
             false));
+        children.Add(patternSummary = new SpriteText
+        {
+            Position = new Vector2(330, 34),
+            Width = 300,
+            Truncate = true,
+            Font = HomeTypography.Display(10),
+            Colour = SongSelectTheme.Cyan,
+            Alpha = 0,
+        });
         children.Add(compactModePill = new SongSelectProgressiveModePill(
             entry,
             13));
@@ -686,12 +762,21 @@ internal partial class SongSelectSongRow : PoolableDrawable
             "PREVIEWING  ·  ENTER TO PLAY",
             246,
             104,
-            360,
+            220,
             11,
             SongSelectTheme.Pink,
             SongSelectTheme.Pink,
             true));
         standalonePreviewHint.Alpha = 0;
+        children.Add(patternSummary = new SpriteText
+        {
+            Position = new Vector2(480, 104),
+            Width = 238,
+            Truncate = true,
+            Font = HomeTypography.Display(10),
+            Colour = SongSelectTheme.Cyan,
+            Alpha = 0,
+        });
         children.Add(createFullModePill(entry, 728, 90));
         children.Add(createDifficultyBadge(
             displayedDifficultyRatings,

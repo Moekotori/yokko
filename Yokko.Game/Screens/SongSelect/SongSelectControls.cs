@@ -299,7 +299,7 @@ internal partial class SongSelectKeyModeFilterButton : ClickableContainer
             new SpriteText
             {
                 Position = new Vector2(49, 8),
-                Text = "KEY MODE",
+                Text = YokkoStrings.Get("song_select.key_mode"),
                 Font = HomeTypography.Display(9),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
@@ -310,7 +310,7 @@ internal partial class SongSelectKeyModeFilterButton : ClickableContainer
             valueText = new SpriteText
             {
                 Position = new Vector2(49, 22),
-                Text = "ALL",
+                Text = YokkoStrings.Get("song_select.all"),
                 Font = HomeTypography.Control(16),
                 Colour = SongSelectTheme.Navy,
             },
@@ -342,7 +342,7 @@ internal partial class SongSelectKeyModeFilterButton : ClickableContainer
         {
             KeyMode.FourKey => "4K",
             KeyMode.SevenKey => "7K",
-            _ => "ALL",
+            _ => YokkoStrings.Get("song_select.all"),
         };
         valueText.Colour = mode.HasValue
             ? SongSelectTheme.Pink
@@ -384,12 +384,11 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
     public override bool AcceptsFocus => interactive;
 
     public SongSelectBrowseToolButton(
-        string label,
-        string value,
+        LocalisableString label,
+        LocalisableString value,
         float width,
         IconUsage icon,
         Action action,
-        float valueX = 86,
         bool interactive = true,
         bool showChevron = true)
     {
@@ -397,7 +396,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
         Action = interactive ? action : null;
         Size = new Vector2(width, 40);
         Masking = true;
-        CornerRadius = 7;
+        CornerRadius = 8;
         BorderThickness = 1;
         BorderColour = new Color4(
             SongSelectTheme.Cyan.R,
@@ -412,22 +411,40 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Colour = SongSelectSurface.Ivory(0.96f),
             },
-            new SpriteIcon
+            new Container
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
-                X = 10,
-                Size = new Vector2(12),
-                Icon = icon,
-                Colour = SongSelectTheme.Cyan,
+                X = 8,
+                Size = new Vector2(28),
+                Masking = true,
+                CornerRadius = 8,
+                Children =
+                [
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = new Color4(
+                            SongSelectTheme.Cyan.R,
+                            SongSelectTheme.Cyan.G,
+                            SongSelectTheme.Cyan.B,
+                            0.13f),
+                    },
+                    new SpriteIcon
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Size = new Vector2(13),
+                        Icon = icon,
+                        Colour = SongSelectTheme.Cyan,
+                    },
+                ],
             },
             new SpriteText
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 30,
+                Position = new Vector2(48, 4),
                 Text = label,
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Display(8),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -436,10 +453,8 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
             },
             valueText = new SpriteText
             {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = valueX,
-                Width = width - valueX - 30,
+                Position = new Vector2(48, 17),
+                Width = width - 78,
                 Truncate = true,
                 Text = value,
                 Font = HomeTypography.Control(14),
@@ -449,7 +464,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
-                X = -10,
+                X = -12,
                 Size = new Vector2(9),
                 Icon = FontAwesome.Solid.ChevronDown,
                 Colour = SongSelectTheme.Cyan,
@@ -459,8 +474,8 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
             {
                 Anchor = Anchor.BottomLeft,
                 Origin = Anchor.BottomLeft,
-                X = 30,
-                Width = 42,
+                X = 48,
+                Width = 46,
                 Height = 2,
                 Colour = SongSelectTheme.Pink,
                 Alpha = 0,
@@ -468,7 +483,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
         ];
     }
 
-    public void SetValue(string value) => valueText.Text = value;
+    public void SetValue(LocalisableString value) => valueText.Text = value;
 
     public void SetActive(bool value)
     {
@@ -565,9 +580,9 @@ internal partial class SongSelectSortPopover : CompositeDrawable
         Action<SongSelectSortMode> modeSelected,
         Action<SongSelectSortDirection> directionSelected)
     {
-        Size = new Vector2(430, 274);
+        Size = new Vector2(500, 294);
         Masking = true;
-        CornerRadius = 10;
+        CornerRadius = 12;
         BorderThickness = 1;
         BorderColour = SongSelectSurface.Border(0.24f);
         Alpha = 0;
@@ -584,8 +599,8 @@ internal partial class SongSelectSortPopover : CompositeDrawable
                 () => modeSelected(candidate))
             {
                 Position = new Vector2(
-                    14 + index % 2 * 202,
-                    48 + index / 2 * 42),
+                    14 + index % 2 * 236,
+                    62 + index / 2 * 40),
             };
         }
         optionButtons = buttons;
@@ -600,43 +615,49 @@ internal partial class SongSelectSortPopover : CompositeDrawable
             new Box
             {
                 RelativeSizeAxes = Axes.X,
-                Height = 40,
-                Colour = SongSelectTheme.Navy,
+                Height = 50,
+                Colour = new Color4(
+                    SongSelectTheme.PaleCyan.R,
+                    SongSelectTheme.PaleCyan.G,
+                    SongSelectTheme.PaleCyan.B,
+                    0.76f),
             },
             new SpriteIcon
             {
-                Position = new Vector2(14, 13),
+                Position = new Vector2(16, 17),
                 Size = new Vector2(14),
                 Icon = FontAwesome.Solid.SortAmountDown,
                 Colour = SongSelectTheme.Cyan,
             },
             new SpriteText
             {
-                Position = new Vector2(38, 10),
-                Text = "SORT LIBRARY",
+                Position = new Vector2(42, 7),
+                Text = YokkoStrings.Get("song_select.sort.title"),
                 Font = HomeTypography.Display(12),
-                Colour = Color4.White,
+                Colour = SongSelectTheme.Navy,
             },
             new SpriteText
             {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                Position = new Vector2(-14, 12),
-                Text = "LIVE · SELECTION STAYS",
-                Font = HomeTypography.Display(9),
-                Colour = new Color4(1, 1, 1, 0.62f),
+                Position = new Vector2(42, 27),
+                Text = YokkoStrings.Get("song_select.sort.subtitle"),
+                Font = HomeTypography.Body(9),
+                Colour = new Color4(
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.58f),
             },
             .. buttons.Values,
             new Box
             {
-                Position = new Vector2(14, 222),
-                Size = new Vector2(402, 1),
+                Position = new Vector2(14, 228),
+                Size = new Vector2(472, 1),
                 Colour = SongSelectSurface.Border(0.16f),
             },
             new SpriteText
             {
-                Position = new Vector2(14, 238),
-                Text = "DIRECTION",
+                Position = new Vector2(14, 252),
+                Text = YokkoStrings.Get("song_select.sort.direction"),
                 Font = HomeTypography.Display(8),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
@@ -645,18 +666,18 @@ internal partial class SongSelectSortPopover : CompositeDrawable
                     0.62f),
             },
             ascendingButton = new SongSelectSortDirectionButton(
-                "ASCENDING",
+                YokkoStrings.Get("song_select.sort.ascending"),
                 FontAwesome.Solid.ArrowUp,
                 () => directionSelected(SongSelectSortDirection.Ascending))
             {
-                Position = new Vector2(118, 231),
+                Position = new Vector2(112, 240),
             },
             descendingButton = new SongSelectSortDirectionButton(
-                "DESCENDING",
+                YokkoStrings.Get("song_select.sort.descending"),
                 FontAwesome.Solid.ArrowDown,
                 () => directionSelected(SongSelectSortDirection.Descending))
             {
-                Position = new Vector2(270, 231),
+                Position = new Vector2(306, 240),
             },
         ];
         focusableButtons =
@@ -801,7 +822,7 @@ internal partial class SongSelectSortOptionButton : ClickableContainer
     {
         Mode = mode;
         Action = action;
-        Size = new Vector2(194, 34);
+        Size = new Vector2(222, 34);
         Masking = true;
         CornerRadius = 6;
 
@@ -906,12 +927,12 @@ internal partial class SongSelectSortDirectionButton : ClickableContainer
     public override bool AcceptsFocus => true;
 
     internal SongSelectSortDirectionButton(
-        string label,
+        LocalisableString label,
         IconUsage iconUsage,
         Action action)
     {
         Action = action;
-        Size = new Vector2(142, 32);
+        Size = new Vector2(180, 40);
         Masking = true;
         CornerRadius = 6;
         BorderThickness = 1;

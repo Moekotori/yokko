@@ -4,11 +4,13 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Core.Difficulty;
 using Yokko.Game.Presentation;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -67,7 +69,10 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
                 X = 36,
-                Text = "MSD RANGE",
+                Text = YokkoStrings.Get(
+                    "song_select.difficulty_range",
+                    ManiaDifficultyPresentation.Unit(
+                        ManiaDifficultyRatingMode.EtternaMsd)),
                 Font = HomeTypography.Display(10),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
@@ -94,7 +99,7 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Text = "ALL",
+                        Text = YokkoStrings.Get("song_select.all"),
                         Font = HomeTypography.Control(14),
                         Colour = SongSelectTheme.Navy,
                     },
@@ -167,7 +172,9 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
         step = mode == ManiaDifficultyRatingMode.EtternaMsd
             ? 0.25
             : 0.1;
-        label.Text = $"{ManiaDifficultyPresentation.Unit(mode)} RANGE";
+        label.Text = YokkoStrings.Get(
+            "song_select.difficulty_range",
+            ManiaDifficultyPresentation.Unit(mode));
         updateVisualValue(newValue);
     }
 
@@ -232,9 +239,10 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
         float x = (float)(value / maximum * track_width);
         activeTrack.Width = x;
         marker.X = track_left + x;
-        valueText.Text = value <= 0
-            ? "ALL"
+        LocalisableString displayedValue = value <= 0
+            ? YokkoStrings.Get("song_select.all")
             : $"{value:0.00}+";
+        valueText.Text = displayedValue;
         valueText.Colour = value <= 0
             ? SongSelectTheme.Navy
             : SongSelectTheme.Pink;

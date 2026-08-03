@@ -8,6 +8,7 @@ using osu.Framework.Graphics.Pooling;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Textures;
 using osuTK;
+using Yokko.Core.Analysis;
 using Yokko.Core.Difficulty;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -68,6 +69,7 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
     private bool preserveLayoutScreenPositions;
     private string transitionPackageId;
     private SongSelectEntry selectedEntry;
+    private ManiaPatternProfile selectedPatternProfile;
 
     internal int ItemCount => items.Count;
     internal int VisibleEntryCount => items.Count(item => item.Entry != null);
@@ -369,9 +371,12 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
         }
     }
 
-    internal void UpdateSelection(SongSelectEntry selectedEntry)
+    internal void UpdateSelection(
+        SongSelectEntry selectedEntry,
+        ManiaPatternProfile patternProfile = null)
     {
         this.selectedEntry = selectedEntry;
+        selectedPatternProfile = patternProfile;
         foreach (KeyValuePair<int, PoolableDrawable> pair in active)
         {
             if (pair.Value is SongSelectSongRow row)
@@ -416,6 +421,9 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
         row.SetSelectionState(
             isSelected,
             neighbourIndent,
+            animated);
+        row.SetPatternProfile(
+            isSelected ? selectedPatternProfile : null,
             animated);
     }
 

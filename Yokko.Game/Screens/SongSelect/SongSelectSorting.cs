@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using osu.Framework.Localisation;
 using Yokko.Core.Beatmaps;
+using Yokko.Game.Localisation;
 
 namespace Yokko.Game.Screens.SongSelect;
 
@@ -55,16 +57,16 @@ internal static class SongSelectSorting
             ? SongSelectSortDirection.Ascending
             : SongSelectSortDirection.Descending;
 
-    internal static string Label(SongSelectSortMode mode) => mode switch
+    internal static LocalisableString Label(SongSelectSortMode mode) => mode switch
     {
-        SongSelectSortMode.Title => "TITLE",
-        SongSelectSortMode.Artist => "ARTIST",
-        SongSelectSortMode.Creator => "MAPPER",
-        SongSelectSortMode.Difficulty => "DIFFICULTY",
-        SongSelectSortMode.Bpm => "BPM",
-        SongSelectSortMode.Length => "LENGTH",
-        SongSelectSortMode.LastPlayed => "LAST PLAYED",
-        SongSelectSortMode.BestScore => "BEST SCORE",
+        SongSelectSortMode.Title => YokkoStrings.Get("song_select.sort.mode.title"),
+        SongSelectSortMode.Artist => YokkoStrings.Get("song_select.sort.mode.artist"),
+        SongSelectSortMode.Creator => YokkoStrings.Get("song_select.sort.mode.mapper"),
+        SongSelectSortMode.Difficulty => YokkoStrings.Get("song_select.sort.mode.difficulty"),
+        SongSelectSortMode.Bpm => YokkoStrings.Get("song_select.sort.mode.bpm"),
+        SongSelectSortMode.Length => YokkoStrings.Get("song_select.sort.mode.length"),
+        SongSelectSortMode.LastPlayed => YokkoStrings.Get("song_select.sort.mode.last_played"),
+        SongSelectSortMode.BestScore => YokkoStrings.Get("song_select.sort.mode.best_score"),
         _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
     };
 

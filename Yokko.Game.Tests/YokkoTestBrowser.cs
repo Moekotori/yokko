@@ -399,7 +399,11 @@ namespace Yokko.Game.Tests
                     GetPreviewWindowSize());
                 frameworkConfig.SetValue(
                     FrameworkSetting.Locale,
-                    YokkoLocale.English);
+                    Environment.GetEnvironmentVariable(
+                        "YOKKO_PREVIEW_LOCALE")
+                    is { Length: > 0 } songSelectLocale
+                        ? songSelectLocale
+                        : YokkoLocale.English);
                 var songSelect = new SongSelectScreen(
                     new Yokko.Audio.NullAudioEngine());
                 Add(new ScreenStack(songSelect)
@@ -517,6 +521,28 @@ namespace Yokko.Game.Tests
                     Scheduler.AddDelayed(
                         songSelect.ActivateRankingPanel,
                         700);
+                }
+                string browseOverlay = Environment.GetEnvironmentVariable(
+                    "YOKKO_SONGSELECT_PREVIEW_OVERLAY");
+                if (string.Equals(
+                        browseOverlay,
+                        "filters",
+                        StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(
+                        browseOverlay,
+                        "sort",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    float targetX = string.Equals(
+                            browseOverlay,
+                            "filters",
+                            StringComparison.OrdinalIgnoreCase)
+                        ? 570
+                        : 780;
+                    Scheduler.AddDelayed(() => songSelect
+                        .ChildrenOfType<SongSelectBrowseToolButton>()
+                        .Single(control => Math.Abs(control.X - targetX) < 0.01f)
+                        .TriggerClick(), 700);
                 }
                 schedulePreviewScreenshot(1200);
                 return;

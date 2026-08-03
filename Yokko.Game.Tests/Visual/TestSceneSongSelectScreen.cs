@@ -473,12 +473,12 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                    && songSelectScreen.KeyFilterButtonValue == "ALL"
                    && filters[0].SelectionRailAlpha == 1;
         });
-        AddAssert("lazer chrome leaves controls over the selected artwork", () =>
+        AddAssert("bright paper wash keeps selected artwork visible", () =>
             songSelectScreen.TopNavigationHeight == 0
             && songSelectScreen.AmbientDecorationCount == 0
             && songSelectScreen.AmbientSignalCount == 0
             && songSelectScreen.AmbientAccentCount == 0
-            && Math.Abs(SongSelectScreen.BackgroundIsolationAlpha - 0.52f)
+            && Math.Abs(SongSelectScreen.BackgroundIsolationAlpha - 0.58f)
                < 0.001f);
         AddAssert("browser starts below search, rating and browse controls", () =>
             Math.Abs(songSelectScreen.SongBrowserTop - 132) < 0.01f);
@@ -495,7 +495,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         {
             SongSelectBrowseToolButton[] controls = songSelectScreen
                                                     .ChildrenOfType<SongSelectBrowseToolButton>()
-                                                    .Where(control => control.Width <= 200)
+                                                    .Where(control => control.Width <= 208)
                                                     .OrderBy(control => control.X)
                                                     .ToArray();
             return controls.Length == 4
@@ -503,10 +503,10 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                        Math.Abs(control.Height - 40) < 0.01f)
                    && controls.All(control =>
                        Math.Abs(control.BorderThickness - 1) < 0.01f
-                       && Math.Abs(control.CornerRadius - 7) < 0.01f)
+                       && Math.Abs(control.CornerRadius - 8) < 0.01f)
                    && controls.Select(control => control.Width)
                               .OrderBy(width => width)
-                              .SequenceEqual([184, 184, 200, 200])
+                              .SequenceEqual([200, 200, 208, 208])
                    && controls.All(control => control.Interactive);
         });
         AddAssert("browse controls span one aligned rounded row", () =>
@@ -641,7 +641,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             !songSelectScreen.FilterPending
             && songSelectScreen.VisibleEntryCount == 1);
         AddAssert("filter summary names active criteria", () =>
-            songSelectScreen.FiltersButtonValue == "SEARCH · 7K");
+            songSelectScreen.FiltersButtonValue == "2 FILTERS ACTIVE");
         AddAssert("search reuses the existing sort order", () =>
             songSelectScreen.FilterSortPassCount == sortPassesBeforeSearch);
 
@@ -699,7 +699,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             && !songSelectScreen.SearchHasFocus
             && songSelectScreen.FiltersPopoverFocusedControl == "GROUP");
         AddAssert("filters surface explains current criteria", () =>
-            songSelectScreen.FiltersPopoverSummary == "CURRENT · ALL SONGS");
+            songSelectScreen.FiltersPopoverSummary == "CURRENT  ·  ALL SONGS");
         AddStep("plain typing is isolated from search", () =>
             songSelectScreen.HandleBrowseKey(Key.F));
         AddAssert("filter overlay did not mutate search", () =>
@@ -835,7 +835,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             !songSelectScreen.FilterPending
             && songSelectScreen.VisibleEntryCount == 0);
         AddAssert("criteria and ambient play are explicit", () =>
-            songSelectScreen.FiltersButtonValue == "SEARCH · 7K"
+            songSelectScreen.FiltersButtonValue == "2 FILTERS ACTIVE"
             && songSelectScreen.NoResultsPrimaryAction == "CLEAR SEARCH"
             && songSelectScreen.NoResultsResetAllVisible
             && songSelectScreen.PlayButtonAction == "PLAY PREVIOUS");

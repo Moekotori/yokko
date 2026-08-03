@@ -5,6 +5,7 @@ using NUnit.Framework;
 using osu.Framework.Graphics;
 using osu.Framework.Testing;
 using osuTK;
+using Yokko.Core.Analysis;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Difficulty;
 using Yokko.Core.Scoring;
@@ -605,7 +606,16 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                 && row.SelectionSignalRailAlpha < 0.01f
                 && row.SelectionSignalRailWidth < 0.01f));
         AddStep("select first package row", () =>
-            list.UpdateSelection(entries[0]));
+            list.UpdateSelection(
+                entries[0],
+                new ManiaPatternProfile(
+                    0,
+                    100,
+                    64,
+                    100,
+                    85,
+                    99,
+                    [])));
         AddUntilStep("selected row expands full difficulty chip", () =>
         {
             SongSelectSongRow selected = list.MaterialisedRows.Single(row =>
@@ -622,7 +632,11 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                        Vector2.One) < 0.09f
                    && selected.SelectionSignalRailAlpha > 0.40f
                    && selected.SelectionSignalRailWidth > 940
+                   && selected.PatternSummaryAlpha > 0.85f
+                   && selected.PatternSummaryText.Contains("CHORD 100")
+                   && selected.PatternSummaryText.Contains("ANCHOR 100")
                    && Math.Abs(resting.ModePillWidth - 58) < 0.05f
+                   && resting.PatternSummaryAlpha < 0.01f
                    && resting.SelectedStickerAlpha < 0.01f
                    && resting.SelectionSignalRailAlpha < 0.01f
                    && resting.CompactModeTextAlpha > 0.99f;
@@ -641,11 +655,13 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                    && previous.SelectedStickerAlpha < 0.01f
                    && previous.SelectionSignalRailAlpha < 0.01f
                    && previous.SelectionSignalRailWidth < 0.01f
+                   && previous.PatternSummaryAlpha < 0.01f
                    && Math.Abs(selected.ModePillWidth - 126) < 0.05f
                    && selected.ExpandedModeTextAlpha > 0.99f
                    && selected.SelectedStickerAlpha > 0.89f
                    && selected.SelectionSignalRailAlpha > 0.40f
                    && selected.SelectionSignalRailWidth > 940
+                   && selected.PatternSummaryAlpha < 0.01f
                    && list.ItemCount == 2;
         });
     }

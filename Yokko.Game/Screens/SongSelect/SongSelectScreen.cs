@@ -67,14 +67,14 @@ public partial class SongSelectScreen : Screen
     private const float details_content_left = 310;
     private const float details_content_width = 522;
     private const double details_title_units_per_line = 26;
-    private const float ranking_top = 404;
+    private const float ranking_top = 340;
     private const float ranking_height = 508;
     private const float browse_top = 132;
     private const float browse_width = 980;
     private const float browse_right = 24;
     private const float browse_height =
         designed_height - footer_height - browse_top - 16;
-    private const float background_isolation_alpha = 0.52f;
+    private const float background_isolation_alpha = 0.58f;
     private const int initial_artwork_preload_limit = 16;
     private const int page_navigation_step = 5;
     private const int library_delta_max_operations_per_frame = 128;
@@ -1517,7 +1517,7 @@ public partial class SongSelectScreen : Screen
             searchBox.Current.Value = string.Empty;
         updateFilters();
         refreshDifficultyFilterBar();
-        convertsButton?.SetValue("SHOWN");
+        convertsButton?.SetValue(YokkoStrings.Get("song_select.filters.shown"));
         convertsButton?.SetActive(true);
         diagnostics.Trace(
             "SONG_SELECT",
@@ -3441,22 +3441,20 @@ public partial class SongSelectScreen : Screen
                 ],
             },
             filtersButton = new SongSelectBrowseToolButton(
-                "FILTERS",
-                "ALL SONGS",
+                YokkoStrings.Get("song_select.filters"),
+                YokkoStrings.Get("song_select.all_songs"),
                 200,
                 FontAwesome.Solid.Filter,
-                toggleFiltersPopover,
-                82)
+                toggleFiltersPopover)
             {
                 X = 570,
             },
             sortButton = new SongSelectBrowseToolButton(
-                "SORT",
+                YokkoStrings.Get("song_select.sort"),
                 sortButtonLabel(),
                 200,
                 FontAwesome.Solid.SortAmountDown,
-                toggleSortPopover,
-                68)
+                toggleSortPopover)
             {
                 X = 780,
             },
@@ -3476,7 +3474,7 @@ public partial class SongSelectScreen : Screen
             Anchor = Anchor.TopRight,
             Origin = Anchor.TopRight,
             Position = new Vector2(-browse_right - 210, browse_top + 4),
-            Size = new Vector2(410, 148),
+            Size = new Vector2(460, 176),
             Alpha = 0,
             Children =
             [
@@ -3484,17 +3482,32 @@ public partial class SongSelectScreen : Screen
                 card,
                 new SpriteText
                 {
-                    Position = new Vector2(14, 12),
-                    Text = "LIBRARY VIEW",
+                    Position = new Vector2(16, 9),
+                    Text = YokkoStrings.Get("song_select.filters.title"),
                     Font = HomeTypography.Display(11),
                     Colour = SongSelectTheme.Navy,
                 },
+                new SpriteText
+                {
+                    Position = new Vector2(16, 27),
+                    Width = 300,
+                    Truncate = true,
+                    Text = YokkoStrings.Get("song_select.filters.subtitle"),
+                    Font = HomeTypography.Body(9),
+                    Colour = new Color4(
+                        SongSelectTheme.Navy.R,
+                        SongSelectTheme.Navy.G,
+                        SongSelectTheme.Navy.B,
+                        0.56f),
+                },
                 filtersPopoverSummary = new SpriteText
                 {
-                    Position = new Vector2(14, 34),
-                    Width = 380,
+                    Position = new Vector2(16, 50),
+                    Width = 420,
                     Truncate = true,
-                    Text = "CURRENT · ALL SONGS",
+                    Text = YokkoStrings.Get(
+                        "song_select.filters.current",
+                        YokkoStrings.Get("song_select.all_songs")),
                     Font = HomeTypography.Display(8),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
@@ -3503,30 +3516,33 @@ public partial class SongSelectScreen : Screen
                         0.60f),
                 },
                 groupButton = new SongSelectBrowseToolButton(
-                    "GROUP",
-                    packagesCollapsed ? "COLLAPSED" : "BEATMAPS",
-                    184,
+                    YokkoStrings.Get("song_select.filters.group"),
+                    packagesCollapsed
+                        ? YokkoStrings.Get("song_select.filters.collapsed")
+                        : YokkoStrings.Get("song_select.filters.beatmaps"),
+                    208,
                     FontAwesome.Solid.LayerGroup,
-                    togglePackageVisibility,
-                    76)
+                    togglePackageVisibility)
                 {
-                    Position = new Vector2(14, 58),
+                    Position = new Vector2(16, 78),
                 },
                 createConvertsButton(),
                 filtersResetButton = new YokkoButton(
-                    "RESET",
+                    YokkoStrings.Get("song_select.filters.reset"),
                     FontAwesome.Solid.Undo,
                     ClearBrowseFilters,
                     108,
                     28,
                     YokkoButtonStyle.Quiet)
                 {
-                    Position = new Vector2(288, 8),
+                    Position = new Vector2(336, 9),
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(14, 116),
-                    Text = "← →  MOVE  ·  ENTER  APPLY  ·  F6 / ESC  CLOSE",
+                    Position = new Vector2(16, 143),
+                    Width = 428,
+                    Truncate = true,
+                    Text = YokkoStrings.Get("song_select.filters.hint"),
                     Font = HomeTypography.Display(8),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
@@ -3542,15 +3558,16 @@ public partial class SongSelectScreen : Screen
     private Drawable createConvertsButton()
     {
         convertsButton = new SongSelectBrowseToolButton(
-            "CONVERTS",
-            showConverts ? "SHOWN" : "HIDDEN",
-            184,
+            YokkoStrings.Get("song_select.filters.converts"),
+            showConverts
+                ? YokkoStrings.Get("song_select.filters.shown")
+                : YokkoStrings.Get("song_select.filters.hidden"),
+            208,
             FontAwesome.Solid.ExchangeAlt,
             ToggleConvertedBeatmaps,
-            84,
             showChevron: false)
         {
-            Position = new Vector2(212, 58),
+            Position = new Vector2(236, 78),
         };
         convertsButton.SetActive(showConverts);
         return convertsButton;
@@ -3621,7 +3638,6 @@ public partial class SongSelectScreen : Screen
                     328,
                     FontAwesome.Solid.FolderOpen,
                     openSelectedSourceFolder,
-                    92,
                     showChevron: false)
                 {
                     Position = new Vector2(16, 58),
@@ -3632,7 +3648,6 @@ public partial class SongSelectScreen : Screen
                     328,
                     FontAwesome.Solid.LayerGroup,
                     openChartLibrary,
-                    92,
                     showChevron: false)
                 {
                     Position = new Vector2(16, 104),
@@ -3643,7 +3658,6 @@ public partial class SongSelectScreen : Screen
                     328,
                     FontAwesome.Solid.SyncAlt,
                     reloadFromBeatmapOptions,
-                    92,
                     showChevron: false)
                 {
                     Position = new Vector2(16, 150),
@@ -4491,6 +4505,9 @@ public partial class SongSelectScreen : Screen
             selectedEntry,
             selectedMods.HasTimeRamp ? difficultyBeatmap : appliedBeatmap,
             selectedMods.HasTimeRamp ? 1 : selectedMods.PlaybackRate);
+        songList?.UpdateSelection(
+            selectedEntry,
+            displayedChartAnalysis.PatternProfile);
         string[] detailsTitleLines = LayoutDetailsTitle(
             selectedEntry.Beatmap.Title);
         float artistY = detailsTitleLines.Length == 1 ? 102 : 111;
@@ -4550,7 +4567,6 @@ public partial class SongSelectScreen : Screen
                     createSelectedPerformanceRow(rateLabel),
                 createSelectedAnalysisRow(displayedChartAnalysis),
                 createLaneDensityStrip(displayedChartAnalysis),
-                createPatternRadar(displayedChartAnalysis),
                 rankingPanel,
                 selectedModsButton = new SongSelectSelectedModsButton(
                     ToggleModPanel,
@@ -5020,29 +5036,6 @@ public partial class SongSelectScreen : Screen
             Child = lanes,
         };
     }
-
-    private static Drawable createPatternRadar(
-        ManiaChartAnalysisResult analysis) => new Container
-    {
-        Position = new Vector2(details_content_left, 336),
-        Size = new Vector2(details_content_width, 58),
-        Children =
-        [
-            new SpriteText
-            {
-                Position = new Vector2(0, -2),
-                Text = "PATTERN RADAR",
-                Font = HomeTypography.Display(8),
-                Colour = SongSelectTheme.Navy,
-                Alpha = 0.55f,
-            },
-            new SongSelectPatternRadar(
-                analysis.PatternProfile ?? ManiaPatternProfile.Empty)
-            {
-                Y = 8,
-            },
-        ],
-    };
 
     private ManiaChartAnalysisResult chartAnalysisFor(
         SongSelectEntry entry,
@@ -5565,7 +5558,9 @@ public partial class SongSelectScreen : Screen
             virtualItems,
             animateLayout,
             transitionPackageId);
-        songList.UpdateSelection(selectedEntry);
+        songList.UpdateSelection(
+            selectedEntry,
+            displayedChartAnalysis?.PatternProfile);
 
         noResults.SetState(
             visibleEntries.Count == 0,
@@ -6173,7 +6168,9 @@ public partial class SongSelectScreen : Screen
                 return;
             }
 
-            songList?.UpdateSelection(entry);
+            songList?.UpdateSelection(
+                entry,
+                displayedChartAnalysis?.PatternProfile);
             songList?.ScrollEntryIntoView(entry, true);
         }
     }
@@ -7384,29 +7381,33 @@ public partial class SongSelectScreen : Screen
     private void updateFilters()
     {
         keyModeFilterButton?.SetMode(keyModeFilter);
-        string summary = filterSummary();
+        LocalisableString summary = filterSummary();
         filtersButton?.SetValue(summary);
         if (filtersPopoverSummary != null)
-            filtersPopoverSummary.Text = $"CURRENT · {summary}";
+        {
+            filtersPopoverSummary.Text = YokkoStrings.Get(
+                "song_select.filters.current",
+                summary);
+        }
     }
 
-    private string filterSummary()
+    private LocalisableString filterSummary()
     {
-        var parts = new List<string>(4);
+        int activeCount = 0;
         if (!string.IsNullOrWhiteSpace(searchQuery))
-            parts.Add("SEARCH");
+            activeCount++;
         if (keyModeFilter.HasValue)
-            parts.Add($"{(int)keyModeFilter.Value}K");
+            activeCount++;
         if (MinimumDifficultyFilter > 0)
-            parts.Add($"{DifficultyFilterUnit.Replace(" RANGE", string.Empty)} {MinimumDifficultyFilter:0.#}+");
+            activeCount++;
         if (!showConverts)
-            parts.Add("NO CONVERTS");
+            activeCount++;
 
-        if (parts.Count == 0)
-            return "ALL SONGS";
-        if (parts.Count <= 2)
-            return string.Join(" · ", parts);
-        return $"{parts[0]} · {parts[1]} +{parts.Count - 2}";
+        return activeCount == 0
+            ? YokkoStrings.Get("song_select.all_songs")
+            : activeCount == 1
+                ? YokkoStrings.Get("song_select.filters.active_one")
+                : YokkoStrings.Get("song_select.filters.active_count", activeCount);
     }
 
     private void cycleKeyModeFilter() => SetKeyModeFilter(
@@ -7533,15 +7534,19 @@ public partial class SongSelectScreen : Screen
         selectionMemory.SortDirection = sortDirection;
     }
 
-    private string sortButtonLabel() =>
-        $"{SongSelectSorting.Label(sortMode)} "
-        + (sortDirection == SongSelectSortDirection.Ascending ? "↑" : "↓");
+    private LocalisableString sortButtonLabel() => YokkoStrings.Get(
+        sortDirection == SongSelectSortDirection.Ascending
+            ? "song_select.sort.current_ascending"
+            : "song_select.sort.current_descending",
+        SongSelectSorting.Label(sortMode));
 
     private void togglePackageVisibility()
     {
         packagesCollapsed = !packagesCollapsed;
         focusedPackageExpansion = false;
-        groupButton?.SetValue(packagesCollapsed ? "COLLAPSED" : "BEATMAPS");
+        groupButton?.SetValue(packagesCollapsed
+            ? YokkoStrings.Get("song_select.filters.collapsed")
+            : YokkoStrings.Get("song_select.filters.beatmaps"));
         if (packagesCollapsed)
         {
             foreach (string packageId in entries
@@ -7567,7 +7572,7 @@ public partial class SongSelectScreen : Screen
     {
         focusedPackageExpansion = true;
         packagesCollapsed = false;
-        groupButton?.SetValue("BEATMAPS");
+        groupButton?.SetValue(YokkoStrings.Get("song_select.filters.beatmaps"));
         updateFilters();
         focusPackageExpansion(packageId);
     }
@@ -7595,7 +7600,9 @@ public partial class SongSelectScreen : Screen
     internal void ToggleConvertedBeatmaps()
     {
         showConverts = !showConverts;
-        convertsButton?.SetValue(showConverts ? "SHOWN" : "HIDDEN");
+        convertsButton?.SetValue(showConverts
+            ? YokkoStrings.Get("song_select.filters.shown")
+            : YokkoStrings.Get("song_select.filters.hidden"));
         convertsButton?.SetActive(showConverts);
         updateFilters();
         applyFilters();
@@ -7669,12 +7676,12 @@ public partial class SongSelectScreen : Screen
     private static Drawable createBackgroundIsolation() => new Box
     {
         RelativeSizeAxes = Axes.Both,
-        // osu!lazer keeps the selected artwork visible while placing the
-        // carousel and information wedges over a stable dark field.
+        // Keep the selected artwork bright enough to remain part of the page
+        // while a neutral paper wash protects the foreground controls.
         Colour = new Color4(
-            0.015f,
-            0.025f,
-            0.075f,
+            1f,
+            0.995f,
+            0.972f,
             background_isolation_alpha),
     };
 
@@ -7688,22 +7695,26 @@ public partial class SongSelectScreen : Screen
                 RelativeSizeAxes = Axes.Both,
                 Colour = ColourInfo.GradientHorizontal(
                     new Color4(
-                        0.01f,
-                        0.02f,
-                        0.08f,
-                        0.72f),
+                        SongSelectTheme.Cyan.R,
+                        SongSelectTheme.Cyan.G,
+                        SongSelectTheme.Cyan.B,
+                        0.14f),
                     new Color4(
-                        0.01f,
-                        0.015f,
-                        0.05f,
-                        0.26f)),
+                        SongSelectTheme.Pink.R,
+                        SongSelectTheme.Pink.G,
+                        SongSelectTheme.Pink.B,
+                        0.05f)),
             },
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
                 Colour = ColourInfo.GradientVertical(
                     new Color4(0f, 0f, 0f, 0f),
-                    new Color4(0f, 0f, 0.025f, 0.42f)),
+                    new Color4(
+                        SongSelectTheme.Cyan.R,
+                        SongSelectTheme.Cyan.G,
+                        SongSelectTheme.Cyan.B,
+                        0.075f)),
             },
         ],
     };
