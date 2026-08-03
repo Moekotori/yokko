@@ -42,6 +42,39 @@ public sealed class ManiaChartAnalysisTest
             Assert.That(result.LaneNoteCounts, Is.EqualTo(new[] { 2, 1, 1, 1 }));
             Assert.That(result.BusiestLane, Is.EqualTo(0));
             Assert.That(result.LaneImbalance, Is.EqualTo(0.6).Within(0.0001));
+            Assert.That(result.PatternProfile.LongNote, Is.GreaterThan(0));
+            Assert.That(result.PatternProfile.Peaks, Is.Not.Null);
+        });
+    }
+
+    [Test]
+    public void DetectsJackAndChordPatternShape()
+    {
+        var beatmap = new YokkoBeatmap(
+            "Pattern",
+            "Yokko",
+            "Yokko",
+            "4K",
+            KeyMode.FourKey,
+            ChartSourceFormat.Yokko,
+            [YokkoTimingPoint.Default],
+            null,
+            [
+                new YokkoHitObject(0, 0, null, HitObjectKind.Tap),
+                new YokkoHitObject(0, 100, null, HitObjectKind.Tap),
+                new YokkoHitObject(0, 200, null, HitObjectKind.Tap),
+                new YokkoHitObject(1, 200, null, HitObjectKind.Tap),
+                new YokkoHitObject(2, 200, null, HitObjectKind.Tap),
+            ]);
+
+        ManiaPatternProfile profile =
+            ManiaChartAnalysis.Analyse(beatmap).PatternProfile;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(profile.Jack, Is.GreaterThan(0));
+            Assert.That(profile.Chord, Is.GreaterThan(0));
+            Assert.That(profile.LongNote, Is.Zero);
         });
     }
 }

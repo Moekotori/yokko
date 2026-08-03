@@ -73,6 +73,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private ResultStageDecorations stageDecorations;
     private Sprite resultCharacter;
     private ResultSongHeading songHeading;
+    private GameplayResultAnalysisPanel analysisPanel;
     private float lastResponsiveStageScale;
 
     // Kept for existing result-flow tests; the supplied character artwork is
@@ -96,6 +97,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     internal string DisplayedPlayerId => presentation.PlayerId;
     internal int DisplayedLaneTimingCount =>
         presentation.Timing?.Lanes?.Count ?? 0;
+    internal int DisplayedTimingSampleCount =>
+        analysisPanel?.DisplayedSampleCount ?? 0;
     internal bool ScorePanelInteractionActive =>
         scorePanel?.InteractionActive == true;
     internal bool EntranceComplete =>
@@ -229,6 +232,14 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                                 Position = new Vector2(1600, 570),
                                 Size = new Vector2(1040),
                                 Alpha = 0,
+                            },
+                            analysisPanel = new GameplayResultAnalysisPanel(
+                                this.presentation.Timing,
+                                this.presentation.RejudgeAtOffset,
+                                this.presentation.PracticeSummary)
+                            {
+                                Position = new Vector2(1210, 164),
+                                Depth = -20,
                             },
                         },
                     },

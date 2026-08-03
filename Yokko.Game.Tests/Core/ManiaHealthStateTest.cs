@@ -324,6 +324,98 @@ public sealed class ManiaHealthStateTest
         });
     }
 
+    [TestCase(ManiaModId.IidxHardGauge, ManiaGaugeMode.IidxHard, 0.91)]
+    [TestCase(ManiaModId.Lr2HardGauge, ManiaGaugeMode.Lr2Hard, 0.90)]
+    [TestCase(ManiaModId.BeatorajaHardGauge, ManiaGaugeMode.BeatorajaHard, 0.90)]
+    public void HardGaugeIsIndependentFromJudgementMode(
+        ManiaModId gaugeMod,
+        ManiaGaugeMode expectedMode,
+        double expectedHealth)
+    {
+        YokkoBeatmap beatmap = createBeatmap();
+        var health = new ManiaHealthState(
+            beatmap,
+            new ManiaModSet([gaugeMod]),
+            JudgementConfiguration.QuaverDefault);
+
+        health.Apply(judgement(JudgementRating.Miss));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(health.GaugeMode, Is.EqualTo(expectedMode));
+            Assert.That(health.Health, Is.EqualTo(expectedHealth).Within(1e-12));
+        });
+    }
+
+    [Test]
+    public void HardGaugesApplyTheirLowHealthScaling()
+    {
+        YokkoBeatmap beatmap = createBeatmap();
+        var iidx = new ManiaHealthState(
+            beatmap,
+            new ManiaModSet([ManiaModId.IidxHardGauge]));
+        var lr2 = new ManiaHealthState(
+            beatmap,
+            new ManiaModSet([ManiaModId.Lr2HardGauge]));
+
+        for (int i = 0; i < 8; i++)
+            iidx.Apply(judgement(JudgementRating.Miss));
+        for (int i = 0; i < 8; i++)
+            lr2.Apply(judgement(JudgementRating.Miss));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(iidx.Health, Is.EqualTo(0.28).Within(1e-12));
+            Assert.That(lr2.Health, Is.EqualTo(0.20).Within(1e-12));
+        });
+
+        iidx.Apply(judgement(JudgementRating.Miss));
+        lr2.Apply(judgement(JudgementRating.Miss));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(iidx.Health, Is.EqualTo(0.235).Within(1e-12));
+            Assert.That(lr2.Health, Is.EqualTo(0.14).Within(1e-12));
+        });
+    }
+
+    [Test]
+    public void BeatorajaHardInterpolatesDamageBelowHalfHealth()
+    {
+        YokkoBeatmap beatmap = createBeatmap();
+        var health = new ManiaHealthState(
+            beatmap,
+            new ManiaModSet([ManiaModId.BeatorajaHardGauge]));
+
+        for (int i = 0; i < 5; i++)
+            health.Apply(judgement(JudgementRating.Miss));
+        health.Apply(judgement(JudgementRating.Miss));
+        health.Apply(judgement(JudgementRating.Miss));
+
+        Assert.That(health.Health, Is.EqualTo(0.32).Within(1e-12));
+    }
+
+    [Test]
+    public void HardGaugeSelectionIsExclusiveAndDisablesNoFail()
+    {
+        ManiaModSet selected = ManiaModSet.Empty
+            .With(ManiaModId.IidxHardGauge, true)
+            .With(ManiaModId.Lr2HardGauge, true)
+            .With(ManiaModId.NoFail, true);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(selected.Contains(ManiaModId.NoFail), Is.True);
+            Assert.That(selected.GaugeMode, Is.EqualTo(ManiaGaugeMode.Yokko));
+            Assert.That(
+                () => new ManiaModSet([
+                    ManiaModId.IidxHardGauge,
+                    ManiaModId.BeatorajaHardGauge,
+                ]),
+                Throws.ArgumentException);
+        });
+    }
+
     [Test]
     public void DifficultyAdjustOverridesDrainAndExtendedHitWindows()
     {

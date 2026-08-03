@@ -54,6 +54,9 @@ internal sealed class YokkoManiaModPreferences
         ManiaModId.Muted,
         ManiaModId.AdaptiveSpeed,
         ManiaModId.NoPause,
+        ManiaModId.IidxHardGauge,
+        ManiaModId.Lr2HardGauge,
+        ManiaModId.BeatorajaHardGauge,
     ];
 
     private static readonly HashSet<ManiaModId> configurable_mods =

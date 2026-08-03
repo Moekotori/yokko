@@ -20,6 +20,12 @@ public sealed record ManiaModDefinition(
         ManiaModId.Easy => "Forgiving difficulty and gentler health drain.",
         ManiaModId.NoFail => "Keep playing even when your health reaches zero.",
         ManiaModId.NoPause => "Limit how many times gameplay may be paused.",
+        ManiaModId.IidxHardGauge =>
+            "Use IIDX Hard health changes independently of judgement timing.",
+        ManiaModId.Lr2HardGauge =>
+            "Use LR2 Hard health changes independently of judgement timing.",
+        ManiaModId.BeatorajaHardGauge =>
+            "Use beatoraja Hard health changes independently of judgement timing.",
         ManiaModId.HalfTime => "Slow the song down to 75% speed.",
         ManiaModId.Daycore => "Slow down with a lower-pitched soundtrack.",
         ManiaModId.NoRelease => "Ignore judgements when hold notes are released.",

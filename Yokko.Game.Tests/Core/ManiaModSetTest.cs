@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using NUnit.Framework;
 using Yokko.Core.Mods;
 using Yokko.Core.Scoring;
@@ -676,6 +677,29 @@ public sealed class ManiaModSetTest
                 () => new ManiaModSet(
                     [ManiaModId.NoFail, ManiaModId.NoPause]),
                 Throws.TypeOf<ArgumentException>());
+        });
+    }
+
+    [Test]
+    public void HardGaugeConfigurationRoundTripsWithStableKey()
+    {
+        var source = new ManiaModSet([
+            ManiaModId.Hidden,
+            ManiaModId.BeatorajaHardGauge,
+        ]);
+        ManiaModConfigurationEnvelope envelope =
+            ManiaModConfigurationCodec.Capture(source);
+        ManiaModSet restored = ManiaModConfigurationCodec.Restore(envelope);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(restored, Is.EqualTo(source));
+            Assert.That(
+                envelope.Mods.Select(static mod => mod.Key),
+                Does.Contain("beatoraja-hard-gauge"));
+            Assert.That(
+                restored.GaugeMode,
+                Is.EqualTo(ManiaGaugeMode.BeatorajaHard));
         });
     }
 }

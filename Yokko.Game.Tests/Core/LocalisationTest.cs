@@ -67,7 +67,7 @@ public class LocalisationTest
     [Test]
     public void EveryGameplayModHasLocalisedNameAndDescription()
     {
-        foreach (ManiaModDefinition definition in OsuManiaModParityCatalog.All)
+        foreach (ManiaModDefinition definition in OsuManiaModParityCatalog.RuntimeAll)
         {
             Assert.That(
                 YokkoStrings.ModName(definition).ToString(),

@@ -21,6 +21,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
     private readonly Sprite tape;
     private readonly SpriteText eyebrowText;
     private readonly SpriteText actionText;
+    private readonly Action practiceAction;
     private bool ambientSelection;
 
     internal string EyebrowText => eyebrowText.Text.ToString();
@@ -28,9 +29,11 @@ internal partial class SongSelectPlayButton : ClickableContainer
 
     public SongSelectPlayButton(
         Action action,
-        Texture tapeTexture)
+        Texture tapeTexture,
+        Action practiceAction = null)
     {
         Action = action;
+        this.practiceAction = practiceAction;
         Size = new Vector2(400, 82);
 
         Container panel = SongSelectSurface.CreateCard(
@@ -105,6 +108,14 @@ internal partial class SongSelectPlayButton : ClickableContainer
                         Text = "PLAY",
                         Font = HomeTypography.Display(39),
                         Colour = SongSelectTheme.Navy,
+                    },
+                    new SpriteText
+                    {
+                        Position = new Vector2(250, 57),
+                        Text = "P  PRACTICE  /  RMB",
+                        Font = HomeTypography.Display(8),
+                        Colour = SongSelectTheme.Navy,
+                        Alpha = 0.58f,
                     },
                     chevron = new SpriteIcon
                     {
@@ -225,6 +236,18 @@ internal partial class SongSelectPlayButton : ClickableContainer
     {
         this.ScaleTo(0.975f, 75, Easing.OutQuint);
         return base.OnMouseDown(e);
+    }
+
+    protected override bool OnClick(ClickEvent e)
+    {
+        if (e.Button == osuTK.Input.MouseButton.Right
+            && practiceAction != null)
+        {
+            practiceAction();
+            return true;
+        }
+
+        return base.OnClick(e);
     }
 
     protected override void OnMouseUp(MouseUpEvent e)

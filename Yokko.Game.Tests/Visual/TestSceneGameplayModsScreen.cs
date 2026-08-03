@@ -71,7 +71,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.ActiveCategory
             == ManiaModCategory.DifficultyReduction);
         AddAssert("both difficulty groups are visible", () =>
-            modsScreen.VisibleModCount == 16);
+            modsScreen.VisibleModCount == 19);
         AddStep("search by name", () =>
             modsScreen.SetSearchQuery("half time"));
         AddAssert("search narrows the catalogue", () =>
@@ -82,7 +82,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.HandleInteractionKey(Key.Escape));
         AddAssert("cleared search restores active category", () =>
             modsScreen.SearchQuery.Length == 0
-            && modsScreen.VisibleModCount == 16);
+            && modsScreen.VisibleModCount == 19);
         AddAssert("initial mods are preserved", () =>
             modsScreen.SelectedMods.Contains(ManiaModId.HalfTime)
             && modsScreen.SelectedMods.Contains(ManiaModId.Hidden));
@@ -339,16 +339,16 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             nodes = this.ChildrenOfType<OrbitModNode>().ToArray();
         });
         AddAssert("every visible Mod uses circular node geometry", () =>
-            nodes.Length == 6
+            nodes.Length == 7
             && nodes.All(node =>
                 node.Width == 284
                 && node.Height == 86));
         AddAssert("nodes follow the authored right-hand arc", () =>
             nodes.Select(node => node.Position)
-                .SequenceEqual(Enumerable.Range(0, 6)
+                .SequenceEqual(Enumerable.Range(0, 7)
                     .Select(GameplayModsOrbitWorkspace.CalculateModArcPosition)));
         AddAssert("adjacent nodes retain their signal connectors", () =>
-            this.ChildrenOfType<OrbitConnector>().Count() == 5);
+            this.ChildrenOfType<OrbitConnector>().Count() == 6);
     }
 
     [Test]
@@ -470,7 +470,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             && !modsScreen.IsOrbitModVisible(ManiaModId.Easy)
             && !modsScreen.IsOrbitModVisible(ManiaModId.HalfTime));
         AddAssert("all increase mods remain reachable", () =>
-            modsScreen.VisibleOrbitModCount == 6
+            modsScreen.VisibleOrbitModCount == 7
             && !modsScreen.IsOrbitModVisible(ManiaModId.Perfect)
             && modsScreen.OrbitRepresentsMod(ManiaModId.Perfect)
             && !modsScreen.IsOrbitModVisible(ManiaModId.Nightcore)
@@ -520,7 +520,7 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
         AddStep("show conversion", () =>
             modsScreen.SetCategory(ManiaModCategory.Conversion));
         AddAssert("conversion does not truncate late mods", () =>
-            modsScreen.VisibleOrbitModCount <= 6
+            modsScreen.VisibleOrbitModCount <= 7
             && modsScreen.IsOrbitModVisible(ManiaModId.ConstantSpeed)
             && !modsScreen.IsOrbitModVisible(ManiaModId.HoldOff)
             && modsScreen.OrbitRepresentsMod(ManiaModId.HoldOff));

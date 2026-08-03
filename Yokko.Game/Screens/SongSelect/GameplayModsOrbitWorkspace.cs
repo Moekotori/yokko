@@ -120,7 +120,8 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
         2 => new Vector2(530, 248),
         3 => new Vector2(505, 386),
         4 => new Vector2(430, 468),
-        5 => new Vector2(150, 524),
+        5 => new Vector2(300, 524),
+        6 => new Vector2(150, 524),
         _ => throw new ArgumentOutOfRangeException(nameof(index)),
     };
     internal void CycleNode(ManiaModId mod)
@@ -1721,6 +1722,11 @@ internal partial class GameplayModsOrbitWorkspace : CompositeDrawable
                     ManiaModId.Cover,
                 ],
                 [ManiaModId.AccuracyChallenge],
+                [
+                    ManiaModId.IidxHardGauge,
+                    ManiaModId.Lr2HardGauge,
+                    ManiaModId.BeatorajaHardGauge,
+                ],
                 [ManiaModId.NoPause],
             ],
             ManiaModCategory.Conversion =>

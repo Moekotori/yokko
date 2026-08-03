@@ -6,7 +6,9 @@ namespace Yokko.Core.Scoring;
 
 public readonly record struct GameplayTimingSample(
     int Lane,
-    double ErrorMilliseconds);
+    double ErrorMilliseconds,
+    double? TimeMilliseconds = null,
+    JudgementRating? Rating = null);
 
 public sealed record GameplayLaneTimingStatistics(
     int Lane,
@@ -28,7 +30,8 @@ public sealed record GameplayTimingStatistics(
     double? LateAverageMilliseconds,
     double MeanMilliseconds,
     double UnstableRate,
-    IReadOnlyList<GameplayLaneTimingStatistics> Lanes = null)
+    IReadOnlyList<GameplayLaneTimingStatistics>? Lanes = null,
+    IReadOnlyList<GameplayTimingSample>? Samples = null)
 {
     // Matches the live timing readout's early/on-time/late boundary.
     public const double OnTimeToleranceMilliseconds = 0.05;
@@ -68,7 +71,7 @@ public sealed record GameplayTimingStatistics(
                 .ToLane(group.Key))
             .ToArray();
 
-        return aggregate.ToSummary(lanes);
+        return aggregate.ToSummary(lanes, valid);
     }
 
     private static TimingAggregate? calculate(
@@ -137,7 +140,8 @@ public sealed record GameplayTimingStatistics(
         double UnstableRate)
     {
         public GameplayTimingStatistics ToSummary(
-            IReadOnlyList<GameplayLaneTimingStatistics> lanes = null) => new(
+            IReadOnlyList<GameplayLaneTimingStatistics>? lanes = null,
+            IReadOnlyList<GameplayTimingSample>? samples = null) => new(
             SampleCount,
             EarlyCount,
             OnTimeCount,
@@ -146,7 +150,8 @@ public sealed record GameplayTimingStatistics(
             LateAverageMilliseconds,
             MeanMilliseconds,
             UnstableRate,
-            lanes);
+            lanes,
+            samples);
 
         public GameplayLaneTimingStatistics ToLane(int lane) => new(
             lane,

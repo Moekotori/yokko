@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -11,20 +12,22 @@ using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Gameplay;
 
+internal readonly record struct GameplayGhostRaceSnapshot(
+    string Label,
+    GameplayGhostSnapshot Snapshot);
+
 internal partial class GameplayGhostComparisonPanel : CompositeDrawable
 {
     private readonly SpriteText statusText;
-    private readonly SpriteText scoreText;
-    private readonly SpriteText accuracyText;
-    private readonly SpriteText missText;
+    private readonly SpriteText[] rows = new SpriteText[3];
 
-    internal string DisplayedScore => scoreText.Text.ToString();
-    internal string DisplayedAccuracy => accuracyText.Text.ToString();
-    internal string DisplayedMiss => missText.Text.ToString();
+    internal string DisplayedScore => rows[0].Text.ToString();
+    internal string DisplayedAccuracy => rows[1].Text.ToString();
+    internal string DisplayedMiss => rows[2].Text.ToString();
 
     internal GameplayGhostComparisonPanel()
     {
-        Size = new Vector2(294, 104);
+        Size = new Vector2(354, 142);
         Alpha = 0;
         Masking = true;
         CornerRadius = 6;
@@ -37,72 +40,67 @@ internal partial class GameplayGhostComparisonPanel : CompositeDrawable
 
         InternalChildren =
         [
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(0.025f, 0.03f, 0.045f, 0.88f),
-            },
-            new Box
-            {
-                Size = new Vector2(4, 104),
-                Colour = YokkoPalette.Cyan,
-            },
-            new SpriteText
-            {
-                Position = new Vector2(15, 11),
-                Text = "PB GHOST",
-                Font = HomeTypography.Display(10),
-                Spacing = new Vector2(0.8f, 0),
-                Colour = YokkoPalette.Cyan,
-            },
-            statusText = new SpriteText
-            {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                Position = new Vector2(-13, 12),
-                Font = HomeTypography.Display(8),
-                Colour = YokkoPalette.TextMuted,
-            },
-            scoreText = createValueText(new Vector2(15, 40)),
-            accuracyText = createValueText(new Vector2(15, 62)),
-            missText = createValueText(new Vector2(15, 84)),
+            new Box { RelativeSizeAxes = Axes.Both, Colour = new Color4(0.025f, 0.03f, 0.045f, 0.88f) },
+            new Box { Size = new Vector2(4, 142), Colour = YokkoPalette.Cyan },
+            new SpriteText { Position = new Vector2(15, 11), Text = "LOCAL RACE", Font = HomeTypography.Display(10), Spacing = new Vector2(0.8f, 0), Colour = YokkoPalette.Cyan },
+            statusText = new SpriteText { Anchor = Anchor.TopRight, Origin = Anchor.TopRight, Position = new Vector2(-13, 12), Font = HomeTypography.Display(8), Colour = YokkoPalette.TextMuted },
+            rows[0] = createValueText(new Vector2(15, 43)),
+            rows[1] = createValueText(new Vector2(15, 73)),
+            rows[2] = createValueText(new Vector2(15, 103)),
         ];
     }
 
     internal void ShowLoading()
     {
         statusText.Text = "LOADING";
-        scoreText.Text = "SCORE  --";
-        accuracyText.Text = "ACC    --";
-        missText.Text = "MISS   --";
+        rows[0].Text = "PB        --";
+        rows[1].Text = "LAST      --";
+        rows[2].Text = "BEST ACC  --";
         this.FadeIn(120, Easing.OutQuint);
     }
 
     internal void HidePanel() => this.FadeOut(120, Easing.OutQuint);
 
+    internal void UpdateComparisons(
+        long liveScore,
+        double liveAccuracy,
+        int liveMissCount,
+        IReadOnlyList<GameplayGhostRaceSnapshot> ghosts)
+    {
+        statusText.Text = $"LIVE vs {ghosts.Count}";
+        for (int i = 0; i < rows.Length; i++)
+        {
+            if (i >= ghosts.Count)
+            {
+                rows[i].Text = string.Empty;
+                continue;
+            }
+
+            GameplayGhostRaceSnapshot item = ghosts[i];
+            long scoreDelta = liveScore - item.Snapshot.Score;
+            double accuracyDelta = (liveAccuracy - item.Snapshot.Accuracy) * 100;
+            rows[i].Text =
+                $"{item.Label,-8} {formatSigned(scoreDelta),9}  "
+                + $"{accuracyDelta,+6:0.00;-0.00;0.00}pp  "
+                + $"M {liveMissCount}:{item.Snapshot.MissCount}";
+            rows[i].Colour = deltaColour(scoreDelta);
+        }
+    }
+
     internal void UpdateComparison(
         long liveScore,
         double liveAccuracy,
         int liveMissCount,
-        GameplayGhostSnapshot ghost)
-    {
-        statusText.Text = "LIVE vs PB";
-        long scoreDelta = liveScore - ghost.Score;
-        double accuracyDelta = (liveAccuracy - ghost.Accuracy) * 100;
-        scoreText.Text = $"SCORE  {formatSigned(scoreDelta)}";
-        accuracyText.Text = $"ACC    {accuracyDelta:+0.00;-0.00;0.00}pp";
-        missText.Text = $"MISS   {liveMissCount} / {ghost.MissCount}";
-        scoreText.Colour = deltaColour(scoreDelta);
-        accuracyText.Colour = deltaColour(accuracyDelta);
-        missText.Colour = liveMissCount <= ghost.MissCount
-            ? HomeControlColours.PaleCyan
-            : HomeControlColours.Pink;
-    }
+        GameplayGhostSnapshot ghost) => UpdateComparisons(
+        liveScore,
+        liveAccuracy,
+        liveMissCount,
+        [new GameplayGhostRaceSnapshot("PB", ghost)]);
 
     private static SpriteText createValueText(Vector2 position) => new()
     {
         Position = position,
-        Font = new FontUsage("PlusJakartaSans").With(size: 13),
+        Font = new FontUsage("PlusJakartaSans").With(size: 12),
         Colour = HomeControlColours.Ivory,
     };
 

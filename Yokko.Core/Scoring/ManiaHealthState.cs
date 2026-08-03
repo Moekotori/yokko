@@ -11,6 +11,9 @@ namespace Yokko.Core.Scoring;
 /// 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
 /// LegacyDrainingHealthProcessor is part of this pinned lazer source tree;
 /// its name describes compatibility behaviour, not an osu!stable dependency.
+/// Optional IIDX/LR2/beatoraja hard-gauge tables and low-health scaling are
+/// adapted from SK-la/Ez2Lazer ManiaHealthProcessor and HealthModeHelper at
+/// ecb85832fca6f7d3731079fa474df2f44bd34101 (MIT).
 /// </summary>
 public sealed class ManiaHealthState
 {
@@ -50,6 +53,8 @@ public sealed class ManiaHealthState
     public double EffectiveDrainRate { get; }
 
     public double RecoveryMultiplier { get; }
+
+    public ManiaGaugeMode GaugeMode => mods.GaugeMode;
 
     public int RemainingExtraLives { get; private set; }
 
@@ -166,6 +171,9 @@ public sealed class ManiaHealthState
 
     private double healthDelta(JudgementEvent judgement)
     {
+        if (GaugeMode != ManiaGaugeMode.Yokko)
+            return hardGaugeDelta(judgement);
+
         if (judgementConfiguration.Mode == JudgementMode.Etterna)
             return EtternaScoringRules.LifeDelta(judgement);
 
@@ -198,6 +206,57 @@ public sealed class ManiaHealthState
                 RecoveryMultiplier
                 * (0.0055 - EffectiveDrainRate * 0.0005),
             _ => 0,
+        };
+    }
+
+    private double hardGaugeDelta(JudgementEvent judgement)
+    {
+        if (judgement.Phase == JudgementPhase.Mine)
+        {
+            return judgement.Rating == JudgementRating.IgnoreMiss
+                ? -mineHitHealthPenalty
+                : 0;
+        }
+
+        double delta = (GaugeMode, judgement.Rating) switch
+        {
+            (ManiaGaugeMode.IidxHard, JudgementRating.Perfect) => 0.0016,
+            (ManiaGaugeMode.IidxHard, JudgementRating.Great) => 0.0016,
+            (ManiaGaugeMode.IidxHard, JudgementRating.Good) => 0,
+            (ManiaGaugeMode.IidxHard, JudgementRating.Ok) => 0,
+            (ManiaGaugeMode.IidxHard, JudgementRating.Meh) => -0.05,
+            (ManiaGaugeMode.IidxHard, JudgementRating.Miss) => -0.09,
+            (ManiaGaugeMode.IidxHard, JudgementRating.ComboBreak) => -0.05,
+
+            (ManiaGaugeMode.Lr2Hard, JudgementRating.Perfect) => 0.001,
+            (ManiaGaugeMode.Lr2Hard, JudgementRating.Great) => 0.001,
+            (ManiaGaugeMode.Lr2Hard, JudgementRating.Good) => 0.0005,
+            (ManiaGaugeMode.Lr2Hard, JudgementRating.Ok) => 0,
+            (ManiaGaugeMode.Lr2Hard, JudgementRating.Meh) => -0.06,
+            (ManiaGaugeMode.Lr2Hard, JudgementRating.Miss) => -0.10,
+            (ManiaGaugeMode.Lr2Hard, JudgementRating.ComboBreak) => -0.02,
+
+            (ManiaGaugeMode.BeatorajaHard, JudgementRating.Perfect) => 0.0015,
+            (ManiaGaugeMode.BeatorajaHard, JudgementRating.Great) => 0.0012,
+            (ManiaGaugeMode.BeatorajaHard, JudgementRating.Good) => 0.0003,
+            (ManiaGaugeMode.BeatorajaHard, JudgementRating.Ok) => 0,
+            (ManiaGaugeMode.BeatorajaHard, JudgementRating.Meh) => -0.05,
+            (ManiaGaugeMode.BeatorajaHard, JudgementRating.Miss) => -0.10,
+            (ManiaGaugeMode.BeatorajaHard, JudgementRating.ComboBreak) => -0.05,
+            _ => 0,
+        };
+
+        if (delta >= 0)
+            return delta;
+
+        return GaugeMode switch
+        {
+            ManiaGaugeMode.IidxHard when Health <= 0.3 => delta * 0.5,
+            ManiaGaugeMode.Lr2Hard when Health <= 0.3 => delta * 0.6,
+            ManiaGaugeMode.BeatorajaHard when Health <= 0.3 => delta * 0.6,
+            ManiaGaugeMode.BeatorajaHard when Health < 0.5 =>
+                delta * (0.6 + (Health - 0.3) / 0.2 * 0.4),
+            _ => delta,
         };
     }
 

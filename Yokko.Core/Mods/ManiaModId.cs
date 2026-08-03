@@ -53,4 +53,8 @@ public enum ManiaModId
     ScoreV2,
 
     NoPause,
+
+    IidxHardGauge,
+    Lr2HardGauge,
+    BeatorajaHardGauge,
 }

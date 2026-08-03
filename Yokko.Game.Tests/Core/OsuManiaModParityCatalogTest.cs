@@ -78,4 +78,19 @@ public class OsuManiaModParityCatalogTest
         Assert.That(definition?.Id, Is.EqualTo(ManiaModId.DoubleTime));
         Assert.That(definition?.Acronym, Is.EqualTo("DT"));
     }
+
+    [Test]
+    public void RuntimeCatalogueAddsGaugesWithoutChangingPinnedSnapshot()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(OsuManiaModParityCatalog.All, Has.Count.EqualTo(41));
+            Assert.That(
+                OsuManiaModParityCatalog.RuntimeAll,
+                Has.Count.EqualTo(44));
+            Assert.That(
+                OsuManiaModParityCatalog.Get(ManiaModId.IidxHardGauge).Key,
+                Is.EqualTo("iidx-hard-gauge"));
+        });
+    }
 }

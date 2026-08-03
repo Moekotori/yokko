@@ -39,6 +39,13 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
         ManiaModId.Perfect,
     ];
 
+    private static readonly ManiaModId[] gaugeMods =
+    [
+        ManiaModId.IidxHardGauge,
+        ManiaModId.Lr2HardGauge,
+        ManiaModId.BeatorajaHardGauge,
+    ];
+
     private static readonly ManiaModId[] difficultyRuleMods =
     [
         ManiaModId.Easy,
@@ -318,6 +325,21 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                 nameof(mods));
         }
 
+        if (this.mods.Count(gaugeMods.Contains) > 1)
+        {
+            throw new ArgumentException(
+                "Only one health gauge may be selected.",
+                nameof(mods));
+        }
+
+        if (Contains(ManiaModId.NoFail)
+            && this.mods.Any(gaugeMods.Contains))
+        {
+            throw new ArgumentException(
+                "No Fail is incompatible with hard health gauges.",
+                nameof(mods));
+        }
+
         if (Contains(ManiaModId.NoPause)
             && Contains(ManiaModId.NoFail))
         {
@@ -451,6 +473,17 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
     public bool FixedRateAdjustPitch { get; }
 
     public int NoPauseAllowedPauses { get; }
+
+    public ManiaGaugeMode GaugeMode => mods
+        .Where(gaugeMods.Contains)
+        .Select(static mod => mod switch
+        {
+            ManiaModId.IidxHardGauge => ManiaGaugeMode.IidxHard,
+            ManiaModId.Lr2HardGauge => ManiaGaugeMode.Lr2Hard,
+            ManiaModId.BeatorajaHardGauge => ManiaGaugeMode.BeatorajaHard,
+            _ => ManiaGaugeMode.Yokko,
+        })
+        .FirstOrDefault();
 
     public bool HasTimeRamp =>
         Contains(ManiaModId.WindUp)
@@ -818,6 +851,8 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                 next.RemoveAll(visibilityMods.Contains);
             if (failRuleMods.Contains(mod))
                 next.RemoveAll(failRuleMods.Contains);
+            if (gaugeMods.Contains(mod))
+                next.RemoveAll(gaugeMods.Contains);
             if (difficultyRuleMods.Contains(mod))
                 next.RemoveAll(difficultyRuleMods.Contains);
             if (automationMods.Contains(mod))
@@ -867,6 +902,10 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                 next.Remove(ManiaModId.NoFail);
             else if (mod == ManiaModId.NoFail)
                 next.Remove(ManiaModId.NoPause);
+            if (mod == ManiaModId.NoFail)
+                next.RemoveAll(gaugeMods.Contains);
+            else if (gaugeMods.Contains(mod))
+                next.Remove(ManiaModId.NoFail);
 
             next.Add(mod);
         }

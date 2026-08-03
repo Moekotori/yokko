@@ -132,7 +132,11 @@ public class GameplayScoreStoreTest
         GameplayTimingStatistics timing =
             GameplayTimingStatistics.FromSamples(
             [
-                new GameplayTimingSample(0, -12.5),
+                new GameplayTimingSample(
+                    0,
+                    -12.5,
+                    1234,
+                    JudgementRating.Great),
                 new GameplayTimingSample(0, -4),
                 new GameplayTimingSample(1, 0),
                 new GameplayTimingSample(1, 6),
@@ -173,6 +177,9 @@ public class GameplayScoreStoreTest
             Assert.That(saved.Lanes, Has.Count.EqualTo(2));
             Assert.That(saved.Lanes[0].SampleCount, Is.EqualTo(2));
             Assert.That(saved.Lanes[1].SampleCount, Is.EqualTo(3));
+            Assert.That(saved.Samples, Has.Count.EqualTo(5));
+            Assert.That(saved.Samples[0].TimeMilliseconds, Is.EqualTo(1234));
+            Assert.That(saved.Samples[0].Rating, Is.EqualTo(JudgementRating.Great));
         });
     }
 

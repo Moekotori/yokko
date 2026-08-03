@@ -9,7 +9,9 @@ internal sealed record GameplayResultPresentation(
     DateTimeOffset? PlayedAt,
     long? PreviousBestScore = null,
     bool ReplaySaved = false,
-    GameplayTimingStatistics Timing = null)
+    GameplayTimingStatistics Timing = null,
+    Func<double, ManiaScoreResult> RejudgeAtOffset = null,
+    string PracticeSummary = null)
 {
     public static GameplayResultPresentation LocalFallback(
         DateTimeOffset? playedAt = null) =>

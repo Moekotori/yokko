@@ -2758,7 +2758,7 @@ internal partial class GameplayModsScreen : Screen
     private static IReadOnlyList<ManiaModDefinition> definitionsFor(
         ManiaModCategory category)
     {
-        ManiaModDefinition[] definitions = OsuManiaModParityCatalog.All
+        ManiaModDefinition[] definitions = OsuManiaModParityCatalog.RuntimeAll
             .Where(definition =>
                 definition.Category == category
                 && definition.Id != ManiaModId.ScoreV2
@@ -2787,6 +2787,9 @@ internal partial class GameplayModsScreen : Screen
                 ManiaModId.FadeIn,
                 ManiaModId.Cover,
                 ManiaModId.AccuracyChallenge,
+                ManiaModId.IidxHardGauge,
+                ManiaModId.Lr2HardGauge,
+                ManiaModId.BeatorajaHardGauge,
             ],
             _ => [],
         };
@@ -2806,7 +2809,7 @@ internal partial class GameplayModsScreen : Screen
     private static IReadOnlyList<ManiaModDefinition> definitionsForIds(
         IReadOnlyList<ManiaModId> ids)
     {
-        var definitions = OsuManiaModParityCatalog.All
+        var definitions = OsuManiaModParityCatalog.RuntimeAll
             .ToDictionary(definition => definition.Id);
         return ids
             .Where(definitions.ContainsKey)

@@ -67,7 +67,7 @@ public partial class SongSelectScreen : Screen
     private const float details_content_left = 310;
     private const float details_content_width = 522;
     private const double details_title_units_per_line = 26;
-    private const float ranking_top = 340;
+    private const float ranking_top = 404;
     private const float ranking_height = 508;
     private const float browse_top = 132;
     private const float browse_width = 980;
@@ -135,6 +135,7 @@ public partial class SongSelectScreen : Screen
     private SongSelectRankingPanel rankingPanel;
     private ScoreResultInputBlocker scoreResultHost;
     private GameplayResultOverlay scoreResultOverlay;
+    private SongSelectPracticeOverlay practiceOverlay;
     private SongSelectScore activeScoreResult;
     private SongSelectNoResultsPanel noResults;
     private SongSelectKeyModeFilterButton keyModeFilterButton;
@@ -987,6 +988,15 @@ public partial class SongSelectScreen : Screen
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
+        if (practiceOverlay != null)
+        {
+            if (e.Key == Key.Escape)
+                closePracticeSetup();
+            else if (e.Key is Key.Enter or Key.KeypadEnter)
+                practiceOverlay.TriggerStart();
+            return true;
+        }
+
         if (scoreResultOverlay != null)
         {
             if (e.Key == Key.Escape)
@@ -1111,6 +1121,10 @@ public partial class SongSelectScreen : Screen
                 }
 
                 PlaySelected();
+                return true;
+
+            case Key.P:
+                OpenPracticeSetup();
                 return true;
 
             case Key.F2:
@@ -1517,7 +1531,74 @@ public partial class SongSelectScreen : Screen
         && entries.Count > 0
         && selectedEntry != null);
 
-    internal void PlaySelected()
+    internal void OpenPracticeSetup()
+    {
+        if (practiceOverlay != null
+            || selectedEntry == null
+            || transitionPending
+            || libraryReloadInProgress)
+        {
+            return;
+        }
+
+        double duration = Math.Max(
+            1000,
+            selectedEntry.Length.TotalMilliseconds > 0
+                ? selectedEntry.Length.TotalMilliseconds
+                : selectedEntry.Beatmap.HitObjects
+                    .Select(hitObject => hitObject.EndTimeMilliseconds
+                                         ?? hitObject.StartTimeMilliseconds)
+                    .DefaultIfEmpty(1000)
+                    .Max());
+        ManiaPatternPeak strongest = displayedChartAnalysis?
+            .PatternProfile?.Peaks?
+            .OrderByDescending(static peak => peak.Intensity)
+            .FirstOrDefault();
+        double initialStart = strongest?.StartTimeMilliseconds
+                              ?? duration * 0.25;
+        double initialEnd = strongest?.EndTimeMilliseconds
+                            ?? Math.Min(duration, initialStart + 20000);
+        if (initialEnd - initialStart < 500)
+            initialEnd = Math.Min(duration, initialStart + 500);
+
+        previewActive = false;
+        previewPlayer?.Stop();
+        AddInternal(practiceOverlay = new SongSelectPracticeOverlay(
+            duration,
+            initialStart,
+            initialEnd,
+            startPractice,
+            closePracticeSetup));
+        practiceOverlay.FadeInFromZero(140, Easing.OutQuint);
+    }
+
+    private void startPractice(GameplayPracticePlan plan)
+    {
+        closePracticeSetup(resumePreview: false);
+        playSelected(plan);
+    }
+
+    private void closePracticeSetup() => closePracticeSetup(
+        resumePreview: true);
+
+    private void closePracticeSetup(bool resumePreview)
+    {
+        SongSelectPracticeOverlay overlay = practiceOverlay;
+        if (overlay == null)
+            return;
+
+        practiceOverlay = null;
+        overlay.FadeOut(100, Easing.OutQuint).Expire();
+        if (resumePreview)
+        {
+            previewActive = true;
+            playSelectedPreview();
+        }
+    }
+
+    internal void PlaySelected() => playSelected(null);
+
+    private void playSelected(GameplayPracticePlan practicePlan)
     {
         if (selectedEntry == null || transitionPending || libraryReloadInProgress)
             return;
@@ -1549,7 +1630,7 @@ public partial class SongSelectScreen : Screen
                 if (success && ReferenceEquals(selectedEntry, requested))
                 {
                     setPlayButtonReady();
-                    PlaySelected();
+                    playSelected(practicePlan);
                 }
                 else if (ReferenceEquals(selectedEntry, requested))
                     playButton?.SetError();
@@ -1576,7 +1657,7 @@ public partial class SongSelectScreen : Screen
         transitionPending = true;
         diagnostics.Trace(
             "SONG_SELECT",
-            "play-requested",
+            practicePlan == null ? "play-requested" : "practice-requested",
             $"title={gameplayBeatmap.Title} | difficulty={gameplayBeatmap.DifficultyName}"
             + $" | keys={(int)gameplayBeatmap.KeyMode}"
             + $" | mods={string.Join(',', gameplayMods.DisplayLabels)}"
@@ -1587,13 +1668,27 @@ public partial class SongSelectScreen : Screen
         stage.FadeTo(0.84f, 90, Easing.OutQuint)
              .ScaleTo(0.997f, 90, Easing.OutQuint);
 
-        Task<GameplaySessionScreen> gameplayTask =
-            getOrStartGameplayPreload(
+        Task<GameplaySessionScreen> gameplayTask;
+        if (practicePlan == null)
+        {
+            gameplayTask = getOrStartGameplayPreload(
                 gameplayKey,
                 gameplayBeatmap,
                 gameplayMods,
                 gameplayArtwork,
                 gameplayArtworkTexture);
+        }
+        else
+        {
+            invalidateGameplayPreload();
+            gameplayTask = prepareGameplaySessionAsync(
+                gameplayBeatmap,
+                gameplayMods,
+                gameplayArtwork,
+                gameplayArtworkTexture,
+                CancellationToken.None,
+                practicePlan);
+        }
         _ = finishGameplayTransitionAsync(
             previewPlayer?.WaitForIdleAsync() ?? Task.CompletedTask,
             gameplayTask);
@@ -1800,7 +1895,8 @@ public partial class SongSelectScreen : Screen
         ManiaModSet mods,
         string artworkPath,
         Texture artworkTexture,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        GameplayPracticePlan practicePlan = null)
     {
         GameplaySessionScreen gameplay = null;
         var stopwatch = Stopwatch.StartNew();
@@ -1812,7 +1908,8 @@ public partial class SongSelectScreen : Screen
                     beatmap,
                     mods: mods,
                     artworkPath: artworkPath,
-                    preparedArtworkTexture: artworkTexture)),
+                    preparedArtworkTexture: artworkTexture,
+                    practicePlan: practicePlan)),
                 cancellationToken).ConfigureAwait(false);
             await preloadGameplaySessionAsync(
                 gameplay,
@@ -3803,7 +3900,8 @@ public partial class SongSelectScreen : Screen
                 createFooterToolDock(mods),
                 playButton = new SongSelectPlayButton(
                     PlaySelected,
-                    textures.Get("SongSelect/Cute/tape-long"))
+                    textures.Get("SongSelect/Cute/tape-long"),
+                    OpenPracticeSetup)
                 {
                     Anchor = Anchor.BottomRight,
                     Origin = Anchor.BottomRight,
@@ -4405,6 +4503,7 @@ public partial class SongSelectScreen : Screen
                     createSelectedPerformanceRow(rateLabel),
                 createSelectedAnalysisRow(displayedChartAnalysis),
                 createLaneDensityStrip(displayedChartAnalysis),
+                createPatternRadar(displayedChartAnalysis),
                 rankingPanel,
                 selectedModsButton = new SongSelectSelectedModsButton(
                     ToggleModPanel,
@@ -4874,6 +4973,29 @@ public partial class SongSelectScreen : Screen
             Child = lanes,
         };
     }
+
+    private static Drawable createPatternRadar(
+        ManiaChartAnalysisResult analysis) => new Container
+    {
+        Position = new Vector2(details_content_left, 336),
+        Size = new Vector2(details_content_width, 58),
+        Children =
+        [
+            new SpriteText
+            {
+                Position = new Vector2(0, -2),
+                Text = "PATTERN RADAR",
+                Font = HomeTypography.Display(8),
+                Colour = SongSelectTheme.Navy,
+                Alpha = 0.55f,
+            },
+            new SongSelectPatternRadar(
+                analysis.PatternProfile ?? ManiaPatternProfile.Empty)
+            {
+                Y = 8,
+            },
+        ],
+    };
 
     private ManiaChartAnalysisResult chartAnalysisFor(
         SongSelectEntry entry,

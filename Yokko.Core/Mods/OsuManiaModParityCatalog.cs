@@ -6,8 +6,9 @@ namespace Yokko.Core.Mods;
 /// Source: ppy/osu, osu.Game.Rulesets.Mania/ManiaRuleset.cs
 /// commit 9f227ed28b6c8ba46dfea1f000f778d8b2827ad0 (MIT).
 ///
-/// This is a parity target only. A mod must also have a registered runtime
-/// implementation before Yokko may expose it as selectable.
+/// Yokko-only extensions are available through <see cref="RuntimeAll"/> and
+/// the same lookup methods without changing the pinned upstream snapshot in
+/// <see cref="All"/>.
 /// </summary>
 public static class OsuManiaModParityCatalog
 {
@@ -38,7 +39,6 @@ public static class OsuManiaModParityCatalog
             "AC",
             "Accuracy Challenge",
             ManiaModCategory.DifficultyIncrease),
-
         mod(ManiaModId.Random, "random", "RD", "Random", ManiaModCategory.Conversion),
         mod(ManiaModId.DualStages, "dual-stages", "DS", "Dual Stages", ManiaModCategory.Conversion),
         mod(ManiaModId.Mirror, "mirror", "MR", "Mirror", ManiaModCategory.Conversion),
@@ -89,15 +89,28 @@ public static class OsuManiaModParityCatalog
         mod(ManiaModId.ScoreV2, "score-v2", "SV2", "Score V2", ManiaModCategory.System),
     ];
 
+    private static readonly ManiaModDefinition[] extensions =
+    [
+        mod(ManiaModId.IidxHardGauge, "iidx-hard-gauge", "IG", "IIDX Hard Gauge", ManiaModCategory.DifficultyIncrease),
+        mod(ManiaModId.Lr2HardGauge, "lr2-hard-gauge", "LG", "LR2 Hard Gauge", ManiaModCategory.DifficultyIncrease),
+        mod(ManiaModId.BeatorajaHardGauge, "beatoraja-hard-gauge", "BG", "beatoraja Hard Gauge", ManiaModCategory.DifficultyIncrease),
+    ];
+
+    private static readonly ManiaModDefinition[] runtimeDefinitions =
+        definitions.Concat(extensions).ToArray();
+
     private static readonly IReadOnlyDictionary<ManiaModId, ManiaModDefinition>
-        byId = definitions.ToDictionary(static definition => definition.Id);
+        byId = runtimeDefinitions.ToDictionary(static definition => definition.Id);
 
     private static readonly IReadOnlyDictionary<string, ManiaModDefinition>
-        byKey = definitions.ToDictionary(
+        byKey = runtimeDefinitions.ToDictionary(
             static definition => definition.Key,
             StringComparer.OrdinalIgnoreCase);
 
     public static IReadOnlyList<ManiaModDefinition> All => definitions;
+
+    public static IReadOnlyList<ManiaModDefinition> RuntimeAll =>
+        runtimeDefinitions;
 
     public static ManiaModDefinition Get(ManiaModId id) => byId[id];
 

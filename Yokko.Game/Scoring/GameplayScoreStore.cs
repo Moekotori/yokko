@@ -62,7 +62,7 @@ internal sealed record StoredGameplayScore(
             }
 
             ManiaModId[] legacyMods = (Mods ?? [])
-                .Select(label => OsuManiaModParityCatalog.All
+                .Select(label => OsuManiaModParityCatalog.RuntimeAll
                     .FirstOrDefault(definition => string.Equals(
                         definition.Acronym,
                         label,
