@@ -52,7 +52,11 @@ public partial class SongSelectScreen : Screen
     private const double maximumPlaybackRate = 2;
     private const float designed_height = 1080;
     private const float footer_height = 130;
-    private const float details_top = 82;
+    // Layout follows osu!lazer SongSelect at 7bacc11641952536608394a38c0adf2d450af9be
+    // (MIT): information wedges on the left, filter control above a right-side
+    // carousel, and a persistent footer. Yokko keeps its own chart model and
+    // virtualised list rather than importing lazer's Realm-bound controls.
+    private const float details_top = 24;
     private const float details_left = 36;
     private const float details_width = 850;
     private const float details_panel_height = 320;
@@ -63,12 +67,12 @@ public partial class SongSelectScreen : Screen
     private const double details_title_units_per_line = 26;
     private const float ranking_top = 340;
     private const float ranking_height = 508;
-    private const float browse_top = 184;
+    private const float browse_top = 132;
     private const float browse_width = 980;
     private const float browse_right = 24;
     private const float browse_height =
         designed_height - footer_height - browse_top - 16;
-    private const float background_isolation_alpha = 0.58f;
+    private const float background_isolation_alpha = 0.52f;
     private const int initial_artwork_preload_limit = 16;
     private const int page_navigation_step = 5;
     private const string demo_profile_name = "YOKKO DEMO";
@@ -101,6 +105,7 @@ public partial class SongSelectScreen : Screen
     private TextureStore textures;
     private Container stage;
     private Container ambientAccents;
+    private SongSelectPosterBlock posterBlock;
     private Container header;
     private Sprite backgroundA;
     private Sprite backgroundB;
@@ -353,6 +358,9 @@ public partial class SongSelectScreen : Screen
         ambientStickers.Select(sticker => sticker.RestingPosition).ToArray();
     internal int AmbientSignalCount => ambientSignals.Count;
     internal int AmbientAccentCount => ambientAccents?.Children.Count() ?? 0;
+    internal Vector2 AmbientPosterPosition =>
+        posterBlock?.RestingPosition ?? Vector2.Zero;
+    internal Vector2 AmbientPosterSize => posterBlock?.Size ?? Vector2.Zero;
     internal bool GameplayPreloadReady =>
         gameplayPreloadTask?.IsCompletedSuccessfully == true
         && gameplayPreloadTask.Result.InitialPresentationReady;
@@ -648,7 +656,6 @@ public partial class SongSelectScreen : Screen
                 RelativeSizeAxes = Axes.Both,
                 Children = new Drawable[]
                 {
-                    createAmbientDecorations(),
                     createHeader(logo),
                     detailsHost = new Container
                     {
@@ -898,12 +905,17 @@ public partial class SongSelectScreen : Screen
         for (int i = 0; i < ambientSignals.Count; i++)
             ambientSignals[i].Play(220 + i * 70);
 
-        ambientAccents.ClearTransforms();
-        ambientAccents.Alpha = 0;
-        ambientAccents.Y = 5;
-        ambientAccents.Delay(260)
-                      .FadeIn(360, Easing.OutQuint)
-                      .MoveToY(0, 420, Easing.OutBack);
+        posterBlock?.Play(180);
+
+        if (ambientAccents != null)
+        {
+            ambientAccents.ClearTransforms();
+            ambientAccents.Alpha = 0;
+            ambientAccents.Y = 5;
+            ambientAccents.Delay(260)
+                          .FadeIn(360, Easing.OutQuint)
+                          .MoveToY(0, 420, Easing.OutBack);
+        }
 
     }
 
@@ -2729,6 +2741,8 @@ public partial class SongSelectScreen : Screen
             Children =
             [
                 createAmbientAccentField(),
+                posterBlock = new SongSelectPosterBlock(
+                    new Vector2(108, 630)),
                 registerAmbientSignal(
                     "LIBRARY BUS // READY",
                     new Vector2(112, 852),
@@ -2736,7 +2750,7 @@ public partial class SongSelectScreen : Screen
                     SongSelectTheme.Cyan),
                 registerAmbientSignal(
                     "PREVIEW LINK // ACTIVE",
-                    new Vector2(486, 718),
+                    new Vector2(690, 690),
                     188,
                     SongSelectTheme.Pink),
                 registerAmbientSignal(
@@ -2761,7 +2775,7 @@ public partial class SongSelectScreen : Screen
                     2200),
                 registerAmbientSticker(
                     "SongSelect/Cute/sticker-diamond",
-                    new Vector2(286, 680),
+                    new Vector2(676, 646),
                     28,
                     9,
                     0.64f,
@@ -2772,7 +2786,7 @@ public partial class SongSelectScreen : Screen
                     true),
                 registerAmbientSticker(
                     "SongSelect/Cute/sticker-cyan-sparkle",
-                    new Vector2(430, 824),
+                    new Vector2(610, 836),
                     23,
                     -6,
                     0.74f,
@@ -2894,7 +2908,7 @@ public partial class SongSelectScreen : Screen
             },
             new HomeConnectorPlus
             {
-                Position = new Vector2(512, 692),
+                Position = new Vector2(704, 665),
                 Scale = new Vector2(0.78f),
                 Alpha = 0.74f,
             },
@@ -2915,7 +2929,7 @@ public partial class SongSelectScreen : Screen
                 12,
                 SongSelectTheme.Pink)
             {
-                Position = new Vector2(344, 772),
+                Position = new Vector2(650, 792),
             },
             new HomeSparkIcon(
                 FontAwesome.Solid.Plus,
@@ -2981,7 +2995,6 @@ public partial class SongSelectScreen : Screen
         RelativeSizeAxes = Axes.Both,
         Children =
         [
-            createTopNavigation(logo),
             searchBox = new SongSelectSearchBox(
                 SetSearchQuery,
                 HandleEscape,
@@ -2990,7 +3003,7 @@ public partial class SongSelectScreen : Screen
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-164, 82),
+                Position = new Vector2(-164, 18),
                 Size = new Vector2(816, 48),
             },
             keyModeFilterButton = new SongSelectKeyModeFilterButton(
@@ -2998,14 +3011,14 @@ public partial class SongSelectScreen : Screen
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-browse_right, 82),
+                Position = new Vector2(-browse_right, 18),
             },
             difficultyFilterBar = new SongSelectDifficultyFilterBar(
                 SetMinimumDifficultyFilter)
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-                Position = new Vector2(-460, 136),
+                Position = new Vector2(-460, 76),
             },
             createBrowseToolbar(),
         ],
@@ -3237,7 +3250,7 @@ public partial class SongSelectScreen : Screen
     {
         Anchor = Anchor.TopRight,
         Origin = Anchor.TopRight,
-        Position = new Vector2(-browse_right, 136),
+        Position = new Vector2(-browse_right, 76),
         Size = new Vector2(browse_width, 40),
         Masking = false,
         Children =
@@ -4364,6 +4377,10 @@ public partial class SongSelectScreen : Screen
                     Font = HomeTypography.Body(14),
                     Colour = SongSelectTheme.Cyan,
                 },
+                new SongSelectPreviewSignalStrip
+                {
+                    Position = new Vector2(details_content_left, 158),
+                },
                 selectedChartFactsRow = createSelectedChartFactsRow(
                     displayedLengthMilliseconds,
                     bpmLabel,
@@ -4576,6 +4593,17 @@ public partial class SongSelectScreen : Screen
                 panel,
                 new Box
                 {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = ColourInfo.GradientVertical(
+                        Color4.Transparent,
+                        new Color4(
+                            SongSelectTheme.Cyan.R,
+                            SongSelectTheme.Cyan.G,
+                            SongSelectTheme.Cyan.B,
+                            0.035f)),
+                },
+                new Box
+                {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopRight,
                     Position = new Vector2(-18, 0),
@@ -4590,6 +4618,23 @@ public partial class SongSelectScreen : Screen
                     Position = new Vector2(-18, 0),
                     Size = new Vector2(28, 3),
                     Colour = SongSelectTheme.Pink,
+                },
+                new Box
+                {
+                    Anchor = Anchor.BottomLeft,
+                    Origin = Anchor.BottomLeft,
+                    Position = new Vector2(18, 0),
+                    Size = new Vector2(156, 3),
+                    Colour = SongSelectTheme.Cyan,
+                    Alpha = 0.62f,
+                },
+                new Box
+                {
+                    Anchor = Anchor.BottomLeft,
+                    Origin = Anchor.BottomLeft,
+                    Position = new Vector2(18, 0),
+                    Size = new Vector2(34, 3),
+                    Colour = SongSelectTheme.Yellow,
                 },
             ],
         };
@@ -7236,13 +7281,12 @@ public partial class SongSelectScreen : Screen
     private static Drawable createBackgroundIsolation() => new Box
     {
         RelativeSizeAxes = Axes.Both,
-        // This is deliberately neutral and constant. It protects the paper
-        // UI from both blown-out and very busy chart artwork without sampling
-        // or adapting to any specific beatmap's palette.
+        // osu!lazer keeps the selected artwork visible while placing the
+        // carousel and information wedges over a stable dark field.
         Colour = new Color4(
-            1f,
-            0.995f,
-            0.972f,
+            0.015f,
+            0.025f,
+            0.075f,
             background_isolation_alpha),
     };
 
@@ -7256,26 +7300,22 @@ public partial class SongSelectScreen : Screen
                 RelativeSizeAxes = Axes.Both,
                 Colour = ColourInfo.GradientHorizontal(
                     new Color4(
-                        SongSelectTheme.Cyan.R,
-                        SongSelectTheme.Cyan.G,
-                        SongSelectTheme.Cyan.B,
-                        0.14f),
+                        0.01f,
+                        0.02f,
+                        0.08f,
+                        0.72f),
                     new Color4(
-                        SongSelectTheme.Pink.R,
-                        SongSelectTheme.Pink.G,
-                        SongSelectTheme.Pink.B,
-                        0.05f)),
+                        0.01f,
+                        0.015f,
+                        0.05f,
+                        0.26f)),
             },
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
                 Colour = ColourInfo.GradientVertical(
                     new Color4(0f, 0f, 0f, 0f),
-                    new Color4(
-                        SongSelectTheme.Cyan.R,
-                        SongSelectTheme.Cyan.G,
-                        SongSelectTheme.Cyan.B,
-                        0.075f)),
+                    new Color4(0f, 0f, 0.025f, 0.42f)),
             },
         ],
     };

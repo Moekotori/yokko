@@ -473,40 +473,15 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                    && songSelectScreen.KeyFilterButtonValue == "ALL"
                    && filters[0].SelectionRailAlpha == 1;
         });
-        AddAssert("top navigation keeps the brand lockup proportional", () =>
-            Math.Abs(songSelectScreen.TopNavigationHeight - 72) < 0.01f
-            && songSelectScreen.TopNavigationLogoPosition
-               == new Vector2(24, 7)
-            && songSelectScreen.TopNavigationLogoSize
-               == new Vector2(168, 57)
-            && songSelectScreen.TopNavigationContextPosition
-               == new Vector2(510, 12)
-            && songSelectScreen.TopNavigationContextSize
-               == new Vector2(252, 48)
-            && songSelectScreen.TopNavigationProfileSize
-               == new Vector2(210, 46)
-            && Math.Abs(SongSelectScreen.BackgroundIsolationAlpha - 0.58f)
+        AddAssert("lazer chrome leaves controls over the selected artwork", () =>
+            songSelectScreen.TopNavigationHeight == 0
+            && songSelectScreen.AmbientDecorationCount == 0
+            && songSelectScreen.AmbientSignalCount == 0
+            && songSelectScreen.AmbientAccentCount == 0
+            && Math.Abs(SongSelectScreen.BackgroundIsolationAlpha - 0.52f)
                < 0.001f);
-        AddAssert("ambient scene fills quiet pockets without touching panels", () =>
-            songSelectScreen.AmbientDecorationCount == 11
-            && songSelectScreen.AmbientSignalCount == 4
-            && songSelectScreen.AmbientAccentCount == 9
-            && songSelectScreen.AmbientDecorationPositions.SequenceEqual(
-            [
-                new Vector2(72, 742),
-                new Vector2(286, 680),
-                new Vector2(430, 824),
-                new Vector2(900, 628),
-                new Vector2(842, 884),
-                new Vector2(1080, 760),
-                new Vector2(1162, 900),
-                new Vector2(1450, 858),
-                new Vector2(1586, 728),
-                new Vector2(1812, 790),
-                new Vector2(1710, 888),
-            ]));
         AddAssert("browser starts below search, rating and browse controls", () =>
-            Math.Abs(songSelectScreen.SongBrowserTop - 184) < 0.01f);
+            Math.Abs(songSelectScreen.SongBrowserTop - 132) < 0.01f);
         AddAssert("difficulty filter defaults to all charts in the active mode", () =>
             songSelectScreen.MinimumDifficultyFilter == 0
             && songSelectScreen.DifficultyFilterUnit

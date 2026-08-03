@@ -528,7 +528,9 @@ internal partial class SongSelectSongRow : PoolableDrawable
     private float selectionTargetX() =>
         restingX
         + selectionIndent
-        - (selected && compact ? 3 : 0);
+        // Matches lazer Panel.active_x_offset: the active carousel item
+        // projects towards the information side instead of only changing fill.
+        - (selected ? 25 : 0);
 
     protected override bool OnClick(ClickEvent e)
     {
@@ -1100,6 +1102,17 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                     ? SongSelectSurface.Ivory(0.995f)
                     : SongSelectSurface.Ivory(0.98f),
             },
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = ColourInfo.GradientHorizontal(
+                    Color4.Transparent,
+                    new Color4(
+                        SongSelectTheme.Cyan.R,
+                        SongSelectTheme.Cyan.G,
+                        SongSelectTheme.Cyan.B,
+                        0.045f)),
+            },
             artworkFrame = new Container
             {
                 Size = new Vector2(artworkWidth, headerHeight),
@@ -1446,7 +1459,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         float titleWidth = action_safe_right - contentStart;
         var flow = new FillFlowContainer
         {
-            Position = new Vector2(contentStart, collapsed ? 24 : 20),
+            Position = new Vector2(contentStart, collapsed ? 30 : 28),
             Width = titleWidth,
             AutoSizeAxes = Axes.Y,
             Direction = FillDirection.Vertical,
@@ -1481,6 +1494,25 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             RelativeSizeAxes = Axes.Both,
             Children =
             [
+                new SpriteText
+                {
+                    Position = new Vector2(contentStart, 8),
+                    Text = "CHART COLLECTION",
+                    Font = HomeTypography.Display(8),
+                    Spacing = new Vector2(0.8f, 0),
+                    Colour = new Color4(
+                        SongSelectTheme.Cyan.R,
+                        SongSelectTheme.Cyan.G,
+                        SongSelectTheme.Cyan.B,
+                        0.84f),
+                },
+                new Box
+                {
+                    Position = new Vector2(contentStart, 22),
+                    Size = new Vector2(34, 2),
+                    Colour = SongSelectTheme.Pink,
+                    Alpha = 0.72f,
+                },
                 packageTitle(packageName, collapsed, contentStart),
                 label(
                     $"{songCount} SONGS · {chartCount} CHARTS",

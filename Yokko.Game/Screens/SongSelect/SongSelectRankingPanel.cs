@@ -390,6 +390,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
             X = 31,
             Text = label,
             Font = HomeTypography.Display(11),
+            Colour = SongSelectTheme.Navy,
         };
         return new ClickableContainer
         {
