@@ -5981,3 +5981,50 @@ Post-fix evidence in both comparison images shows a bright integrated background
 - [x] Verify build, focused interaction tests, and native `1920 x 1080` render.
 
 final result: passed
+
+---
+
+# Song Select readability pass (2026-08-03)
+
+- Source visual truth: `F:\Temp\yokko-songselect-readability-before.png`
+- Implementation screenshot: `F:\Temp\yokko-songselect-readability-after.png`
+- Full-view comparison: `F:\Temp\yokko-songselect-readability-comparison.png`
+- Focused comparison: `F:\Temp\yokko-songselect-readability-focused-comparison.png`
+- Viewport and density: native osu!framework `1920 x 1080`, 1x screenshot output; no density normalization was required.
+- State: English locale, selected expanded 7K package, empty ranking state, no open popovers.
+- Comparison boundary: a concurrent filter-toolbar refinement landed between the baseline and final captures. Typography judgments use the identical details, browser-row, ranking, and footer regions shown in the focused comparison; the toolbar structure change is not attributed to this pass.
+
+## Findings
+
+No actionable P0, P1, or P2 readability findings remain at the shared `1920 x 1080` viewport.
+
+- Fonts and typography: high-density labels that previously rendered at 8–10 px now render primarily at 10–13 px. Primary titles retain their existing scale, so hierarchy remains intact. The larger chart facts, performance labels, row pattern summary, filter captions, ranking metadata, account metrics, and footer hints remain inside their original bounds without clipping or unwanted wrapping.
+- Spacing and layout rhythm: no card sizes or main grid positions changed. Increased type fits the existing chart-fact cells, 40 px toolbar controls, 56 px compact rows, ranking empty state, 82 px footer cards, and shortcut legend.
+- Colors and visual tokens: low-contrast secondary navy text was raised from roughly 0.48–0.68 alpha to 0.72–0.82 where it carries user information. The pattern summary and chart-collection label now use readable navy instead of pale cyan on ivory; semantic pink, cyan, yellow, and green accents are preserved.
+- Image quality and asset fidelity: artwork, tape, sticker, and icon assets are unchanged, correctly cropped, and remain sharp.
+- Copy and content: both instances of `PREVIEWING · ENTER TO PLAY` were removed. The selected chart row now uses that space for the concise pattern summary, while the selected package header has cleaner breathing room.
+
+## Comparison history
+
+### Iteration 0
+
+- [P2] Secondary chart facts, analysis values, toolbar captions, package labels, ranking metadata, account metrics, and footer hints were too small or too faint for comfortable reading at 1920 x 1080.
+- [P2] `PREVIEWING · ENTER TO PLAY` duplicated an obvious interaction and competed with useful selected-chart metadata.
+
+Fixes made:
+
+- Raised the affected 8–10 px labels into a 10–13 px range and increased their foreground opacity.
+- Replaced pale cyan body labels on ivory with navy where semantic accent color was not required.
+- Removed the redundant preview prompt from both standalone selected rows and expanded package headers.
+
+### Iteration 1
+
+The focused comparison shows darker, larger chart facts, analysis metrics, ranking copy, package labels, account metrics, and footer hints. The full view and 1:1 native capture show no overlap, clipping, lost controls, or broken hierarchy. No further P0/P1/P2 fix is required.
+
+## Verification
+
+- Release build: 0 warnings, 0 errors.
+- Focused tests: `TestSongSelectInteractions` and `TestCompactModePillProgressivelyDisclosesSelection` passed.
+- Native Song Select preview captured and reviewed at `1920 x 1080`.
+
+final result: passed

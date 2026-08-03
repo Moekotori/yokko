@@ -192,40 +192,34 @@ internal static class YokkoStrings
             ["song_select.difficulty_range"] = new("{0} RANGE", "{0} 范围", "{0} 範囲"),
             ["song_select.filters"] = new("FILTER", "筛选", "絞り込み"),
             ["song_select.filters.title"] = new(
-                "FILTER & VIEW",
-                "筛选与视图",
-                "絞り込み・表示"),
+                "FILTER SONGS",
+                "筛选歌曲",
+                "楽曲を絞り込み"),
             ["song_select.filters.subtitle"] = new(
-                "Narrow the library without losing your place",
-                "缩小曲库范围，不会打断当前选中",
-                "選択位置を保ったまま楽曲を絞り込みます"),
+                "Choose only what you want to see",
+                "只保留你想看到的歌曲",
+                "表示したい楽曲だけを選べます"),
             ["song_select.filters.current"] = new(
                 "CURRENT  ·  {0}",
                 "当前  ·  {0}",
                 "現在  ·  {0}"),
-            ["song_select.filters.active_count"] = new(
-                "{0} FILTERS ACTIVE",
-                "已启用 {0} 项筛选",
-                "{0} 件の絞り込み"),
-            ["song_select.filters.active_one"] = new(
-                "1 FILTER ACTIVE",
-                "已启用 1 项筛选",
-                "1 件の絞り込み"),
-            ["song_select.filters.group"] = new("GROUPING", "图包分组", "譜面セット"),
-            ["song_select.filters.beatmaps"] = new(
-                "EXPANDED",
-                "展开显示",
-                "展開表示"),
-            ["song_select.filters.collapsed"] = new(
-                "COLLAPSED",
-                "折叠显示",
-                "折りたたみ"),
+            ["song_select.filters.search_active"] = new("SEARCH", "搜索", "検索"),
+            ["song_select.filters.no_converts"] = new(
+                "NO CONVERTS",
+                "排除转换谱面",
+                "変換譜面を除外"),
+            ["song_select.filters.summary_two"] = new("{0}  ·  {1}", "{0}  ·  {1}", "{0}  ·  {1}"),
+            ["song_select.filters.summary_more"] = new(
+                "{0}  ·  {1}  +{2}",
+                "{0}  ·  {1}  +{2}",
+                "{0}  ·  {1}  +{2}"),
+            ["song_select.filters.keys"] = new("KEYS", "键位", "キー数"),
             ["song_select.filters.converts"] = new(
                 "CONVERTED MAPS",
                 "转换谱面",
                 "変換譜面"),
-            ["song_select.filters.shown"] = new("SHOWN", "显示", "表示"),
-            ["song_select.filters.hidden"] = new("HIDDEN", "隐藏", "非表示"),
+            ["song_select.filters.include"] = new("INCLUDE", "包含", "含める"),
+            ["song_select.filters.exclude"] = new("EXCLUDE", "排除", "除外"),
             ["song_select.filters.reset"] = new("RESET", "重置", "リセット"),
             ["song_select.filters.hint"] = new(
                 "ARROWS MOVE  ·  ENTER APPLY  ·  F6 / ESC CLOSE",

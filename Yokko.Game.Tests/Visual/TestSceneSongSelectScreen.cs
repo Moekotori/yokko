@@ -460,19 +460,12 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         AddAssert("compact ranking paper includes the header rail", () =>
             songSelectScreen.RankingPaperPosition == Vector2.Zero
             && songSelectScreen.RankingPaperSize == new Vector2(850, 156));
-        AddUntilStep("search box uses the space freed by key filter", () =>
-            songSelectScreen.SearchBoxSize == new Vector2(816, 48));
-        AddAssert("key modes share one compact cycling button", () =>
-        {
-            SongSelectKeyModeFilterButton[] filters = songSelectScreen
-                .ChildrenOfType<SongSelectKeyModeFilterButton>()
-                .ToArray();
-            return filters.Length == 1
-                   && songSelectScreen.KeyFilterButtonSize
-                      == new Vector2(130, 48)
-                   && songSelectScreen.KeyFilterButtonValue == "ALL"
-                   && filters[0].SelectionRailAlpha == 1;
-        });
+        AddUntilStep("search uses the full top row", () =>
+            songSelectScreen.SearchBoxSize == new Vector2(980, 48));
+        AddAssert("filter menu exposes direct choices", () =>
+            !songSelectScreen.ChildrenOfType<SongSelectKeyModeFilterButton>().Any()
+            && songSelectScreen.FilterOptionCount == 6
+            && songSelectScreen.ChildrenOfType<SongSelectFilterOptionButton>().Count() == 5);
         AddAssert("bright paper wash keeps selected artwork visible", () =>
             songSelectScreen.TopNavigationHeight == 0
             && songSelectScreen.AmbientDecorationCount == 0
@@ -498,7 +491,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                                                     .Where(control => control.Width <= 208)
                                                     .OrderBy(control => control.X)
                                                     .ToArray();
-            return controls.Length == 4
+            return controls.Length == 2
                    && controls.All(control =>
                        Math.Abs(control.Height - 40) < 0.01f)
                    && controls.All(control =>
@@ -506,7 +499,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                        && Math.Abs(control.CornerRadius - 8) < 0.01f)
                    && controls.Select(control => control.Width)
                               .OrderBy(width => width)
-                              .SequenceEqual([200, 200, 208, 208])
+                              .SequenceEqual([200, 200])
                    && controls.All(control => control.Interactive);
         });
         AddAssert("browse controls span one aligned rounded row", () =>
@@ -527,6 +520,11 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             && Math.Abs(SongSelectScreen.SelectedArtworkRotation + 1.25f)
                 < 0.01f
             && Math.Abs(SongSelectScreen.RankingTop - 340) < 0.01f);
+        AddAssert("selected rows omit the redundant preview prompt", () =>
+            !songSelectScreen.ChildrenOfType<SpriteText>().Any(text =>
+                text.Text.ToString().Contains(
+                    "PREVIEWING",
+                    StringComparison.OrdinalIgnoreCase)));
         AddAssert("selected mods aligns with the ranking header", () =>
             songSelectScreen.SelectedModsButtonPosition
                 == new Vector2(696, 340)
@@ -641,7 +639,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             !songSelectScreen.FilterPending
             && songSelectScreen.VisibleEntryCount == 1);
         AddAssert("filter summary names active criteria", () =>
-            songSelectScreen.FiltersButtonValue == "2 FILTERS ACTIVE");
+            songSelectScreen.FiltersButtonValue == "SEARCH  ·  7K");
         AddAssert("search reuses the existing sort order", () =>
             songSelectScreen.FilterSortPassCount == sortPassesBeforeSearch);
 
@@ -697,17 +695,17 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         AddUntilStep("filters popover owns focus", () =>
             songSelectScreen.FiltersPopoverOpen
             && !songSelectScreen.SearchHasFocus
-            && songSelectScreen.FiltersPopoverFocusedControl == "GROUP");
+            && songSelectScreen.FiltersPopoverFocusedControl == "ALL KEYS");
         AddAssert("filters surface explains current criteria", () =>
             songSelectScreen.FiltersPopoverSummary == "CURRENT  ·  ALL SONGS");
         AddStep("plain typing is isolated from search", () =>
             songSelectScreen.HandleBrowseKey(Key.F));
         AddAssert("filter overlay did not mutate search", () =>
             songSelectScreen.SearchQuery.Length == 0);
-        AddStep("move filter focus right", () =>
+        AddStep("move to the explicit 4K choice", () =>
             songSelectScreen.HandleBrowseKey(Key.Right));
-        AddAssert("keyboard reaches converts option", () =>
-            songSelectScreen.FiltersPopoverFocusedControl == "CONVERTS");
+        AddAssert("keyboard reaches 4K directly", () =>
+            songSelectScreen.FiltersPopoverFocusedControl == "4K");
         AddStep("F6 closes filters", () =>
             songSelectScreen.HandleBrowseKey(Key.F6));
         AddAssert("filters close without exiting", () =>
@@ -814,13 +812,35 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         AddUntilStep("filters own keyboard focus", () =>
             songSelectScreen.FiltersPopoverOpen
             && !songSelectScreen.SearchHasFocus
-            && songSelectScreen.FiltersPopoverFocusedControl == "GROUP");
+            && songSelectScreen.FiltersPopoverFocusedControl == "ALL KEYS");
         AddStep("type while filters are open", () => InputManager.Key(Key.F));
         AddAssert("typing never leaks into search", () =>
             songSelectScreen.SearchQuery.Length == 0);
-        AddStep("move to converts", () => InputManager.Key(Key.Right));
+        AddStep("move to 4K", () => InputManager.Key(Key.Right));
         AddAssert("filter focus moves visibly", () =>
-            songSelectScreen.FiltersPopoverFocusedControl == "CONVERTS");
+            songSelectScreen.FiltersPopoverFocusedControl == "4K");
+        AddStep("apply 4K directly", () => InputManager.Key(Key.Enter));
+        AddUntilStep("4K filter applies", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.KeyModeFilter == KeyMode.FourKey);
+        AddStep("move to exclude converts", () =>
+        {
+            InputManager.Key(Key.Right);
+            InputManager.Key(Key.Right);
+            InputManager.Key(Key.Right);
+        });
+        AddAssert("exclude converts is explicit", () =>
+            songSelectScreen.FiltersPopoverFocusedControl == "EXCLUDE CONVERTS");
+        AddStep("exclude converted maps", () => InputManager.Key(Key.Enter));
+        AddUntilStep("converted maps are excluded", () =>
+            !songSelectScreen.FilterPending && !songSelectScreen.ShowConverts);
+        AddStep("restore converted maps", () =>
+        {
+            InputManager.Key(Key.Left);
+            InputManager.Key(Key.Enter);
+        });
+        AddUntilStep("converted maps return", () =>
+            !songSelectScreen.FilterPending && songSelectScreen.ShowConverts);
         AddStep("close filters with F6", () => InputManager.Key(Key.F6));
         AddUntilStep("search focus returns", () =>
             !songSelectScreen.FiltersPopoverOpen
@@ -835,7 +855,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             !songSelectScreen.FilterPending
             && songSelectScreen.VisibleEntryCount == 0);
         AddAssert("criteria and ambient play are explicit", () =>
-            songSelectScreen.FiltersButtonValue == "2 FILTERS ACTIVE"
+            songSelectScreen.FiltersButtonValue == "SEARCH  ·  7K"
             && songSelectScreen.NoResultsPrimaryAction == "CLEAR SEARCH"
             && songSelectScreen.NoResultsResetAllVisible
             && songSelectScreen.PlayButtonAction == "PLAY PREVIOUS");

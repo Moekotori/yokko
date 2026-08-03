@@ -91,7 +91,7 @@ internal partial class SongSelectAccountCard : ClickableContainer
             {
                 Position = new Vector2(244, 11),
                 Text = "READY",
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Display(11),
                 Colour = new Color4(0.22f, 0.72f, 0.46f, 1f),
             },
             createMetric(metricValues[0], metricLabels[0], 92),
@@ -119,7 +119,7 @@ internal partial class SongSelectAccountCard : ClickableContainer
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
                         Text = "DEMO",
-                        Font = HomeTypography.Display(9),
+                        Font = HomeTypography.Display(11),
                         Colour = SongSelectTheme.Navy,
                     },
                 ],
@@ -144,7 +144,7 @@ internal partial class SongSelectAccountCard : ClickableContainer
             {
                 Position = new Vector2(398, 54),
                 Text = level,
-                Font = HomeTypography.Display(10),
+                Font = HomeTypography.Display(12),
                 Colour = SongSelectTheme.Pink,
             },
             star = new Sprite
@@ -233,15 +233,19 @@ internal partial class SongSelectAccountCard : ClickableContainer
             new SpriteText
             {
                 Text = value,
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Display(14),
                 Colour = SongSelectTheme.Navy,
             },
             new SpriteText
             {
                 Y = 14,
                 Text = label,
-                Font = HomeTypography.Display(8),
-                Colour = SongSelectTheme.Cyan,
+                Font = HomeTypography.Display(10),
+                Colour = new Color4(
+                    SongSelectTheme.Navy.R,
+                    SongSelectTheme.Navy.G,
+                    SongSelectTheme.Navy.B,
+                    0.78f),
             },
         ],
     };

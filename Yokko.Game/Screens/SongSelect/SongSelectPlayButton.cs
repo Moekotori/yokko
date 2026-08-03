@@ -94,13 +94,13 @@ internal partial class SongSelectPlayButton : ClickableContainer
                     {
                         Position = new Vector2(96, 13),
                         Text = "START SELECTED CHART",
-                        Font = HomeTypography.Display(10),
+                        Font = HomeTypography.Display(12),
                         Spacing = new Vector2(1.1f, 0),
                         Colour = new Color4(
                             SongSelectTheme.Navy.R,
                             SongSelectTheme.Navy.G,
                             SongSelectTheme.Navy.B,
-                            0.64f),
+                            0.80f),
                     },
                     actionText = new SpriteText
                     {
@@ -113,9 +113,9 @@ internal partial class SongSelectPlayButton : ClickableContainer
                     {
                         Position = new Vector2(250, 57),
                         Text = "P  PRACTICE  /  RMB",
-                        Font = HomeTypography.Display(8),
+                        Font = HomeTypography.Display(10),
                         Colour = SongSelectTheme.Navy,
-                        Alpha = 0.58f,
+                        Alpha = 0.72f,
                     },
                     chevron = new SpriteIcon
                     {

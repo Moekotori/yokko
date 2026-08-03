@@ -100,12 +100,12 @@ internal partial class SongSelectSearchBox : BasicTextBox
             Origin = Anchor.CentreRight,
             X = -13,
             Text = "ESC",
-            Font = HomeTypography.Display(10),
+            Font = HomeTypography.Display(12),
             Colour = new Color4(
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
                 SongSelectTheme.Navy.B,
-                0.48f),
+                0.72f),
             Depth = -2,
         });
 
@@ -148,7 +148,7 @@ internal partial class SongSelectSearchBox : BasicTextBox
                 SongSelectTheme.PaleCyan.R,
                 SongSelectTheme.PaleCyan.G,
                 SongSelectTheme.PaleCyan.B,
-                0.48f);
+                0.72f);
         queryChanged(change.NewValue);
     }
 
@@ -166,7 +166,7 @@ internal partial class SongSelectSearchBox : BasicTextBox
             SongSelectTheme.Navy.R,
             SongSelectTheme.Navy.G,
             SongSelectTheme.Navy.B,
-            0.58f),
+            0.72f),
     };
 
     protected override void OnFocus(FocusEvent e)
@@ -300,12 +300,12 @@ internal partial class SongSelectKeyModeFilterButton : ClickableContainer
             {
                 Position = new Vector2(49, 8),
                 Text = YokkoStrings.Get("song_select.key_mode"),
-                Font = HomeTypography.Display(9),
+                Font = HomeTypography.Display(11),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
                     SongSelectTheme.Navy.B,
-                    0.56f),
+                    0.78f),
             },
             valueText = new SpriteText
             {
@@ -444,12 +444,12 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
             {
                 Position = new Vector2(48, 4),
                 Text = label,
-                Font = HomeTypography.Display(8),
+                Font = HomeTypography.Display(10),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
                     SongSelectTheme.Navy.B,
-                    0.62f),
+                    0.80f),
             },
             valueText = new SpriteText
             {
@@ -457,7 +457,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                 Width = width - 78,
                 Truncate = true,
                 Text = value,
-                Font = HomeTypography.Control(14),
+                Font = HomeTypography.Control(15),
                 Colour = SongSelectTheme.Navy,
             },
             new SpriteIcon
@@ -557,6 +557,114 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                     0.78f)
                 : SongSelectSurface.Ivory(0.96f),
             130,
+            Easing.OutQuint);
+    }
+}
+
+internal partial class SongSelectFilterOptionButton : ClickableContainer
+{
+    private readonly Box background;
+    private readonly SpriteText text;
+    private readonly SpriteIcon check;
+    private bool selected;
+
+    internal bool Selected => selected;
+    public override bool AcceptsFocus => true;
+
+    internal SongSelectFilterOptionButton(
+        LocalisableString label,
+        float width,
+        Action action)
+    {
+        Action = action;
+        Size = new Vector2(width, 36);
+        Masking = true;
+        CornerRadius = 8;
+        BorderThickness = 1;
+        BorderColour = SongSelectSurface.Border(0.18f);
+        InternalChildren =
+        [
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = SongSelectSurface.Ivory(0.96f),
+            },
+            text = new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 14,
+                Text = label,
+                Font = HomeTypography.Control(14),
+                Colour = SongSelectTheme.Navy,
+            },
+            check = new SpriteIcon
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -12,
+                Size = new Vector2(10),
+                Icon = FontAwesome.Solid.Check,
+                Colour = SongSelectTheme.Cyan,
+                Alpha = 0,
+            },
+        ];
+    }
+
+    internal void SetSelected(bool value)
+    {
+        selected = value;
+        background.Colour = selected
+            ? SongSelectTheme.Navy
+            : SongSelectSurface.Ivory(0.96f);
+        text.Colour = selected ? Color4.White : SongSelectTheme.Navy;
+        check.Alpha = selected ? 1 : 0;
+        BorderColour = selected
+            ? SongSelectTheme.Pink
+            : SongSelectSurface.Border(0.18f);
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            TriggerClick();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderThickness = 2;
+        BorderColour = SongSelectTheme.Pink;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderThickness = 1;
+        BorderColour = selected
+            ? SongSelectTheme.Pink
+            : SongSelectSurface.Border(0.18f);
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        if (!selected)
+            background.FadeColour(SongSelectTheme.PaleCyan, 90, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        background.FadeColour(
+            selected
+                ? SongSelectTheme.Navy
+                : SongSelectSurface.Ivory(0.96f),
+            110,
             Easing.OutQuint);
     }
 }
@@ -1083,7 +1191,7 @@ internal partial class SongSelectNoResultsPanel : CompositeDrawable
                 Y = 96,
                 Width = 510,
                 Truncate = true,
-                Font = HomeTypography.Body(11),
+                Font = HomeTypography.Body(13),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -1127,7 +1235,7 @@ internal partial class SongSelectNoResultsPanel : CompositeDrawable
                         Origin = Anchor.Centre,
                         X = 10,
                         Text = "CLEAR SEARCH",
-                        Font = HomeTypography.Display(10),
+                        Font = HomeTypography.Display(12),
                         Colour = SongSelectTheme.Navy,
                     },
                 ],
@@ -1146,7 +1254,7 @@ internal partial class SongSelectNoResultsPanel : CompositeDrawable
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
                         Text = "RESET ALL FILTERS",
-                        Font = HomeTypography.Display(9),
+                        Font = HomeTypography.Display(11),
                         Colour = new Color4(
                             SongSelectTheme.Navy.R,
                             SongSelectTheme.Navy.G,

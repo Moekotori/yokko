@@ -41,7 +41,6 @@ internal partial class SongSelectSongRow : PoolableDrawable
     private SongSelectProgressiveModePill compactModePill;
     private SpriteText compactPrimaryText;
     private SpriteText compactSecondaryText;
-    private SpriteText standalonePreviewHint;
     private SpriteText patternSummary;
     private readonly List<(Box Box, float Alpha)> accentBoxes = [];
     private readonly List<(Container Container, float Alpha)> accentBorders = [];
@@ -134,7 +133,6 @@ internal partial class SongSelectSongRow : PoolableDrawable
         compactModePill = null;
         compactPrimaryText = null;
         compactSecondaryText = null;
-        standalonePreviewHint = null;
         patternSummary = null;
         standaloneArtworkFrame = null;
         leadingAccent = null;
@@ -397,8 +395,6 @@ internal partial class SongSelectSongRow : PoolableDrawable
         arrow.FadeTo(selected && compact ? 1 : 0, 120, Easing.OutQuint);
         updateSelectedSticker(animated && selectionChanged, animated);
         compactModePill?.SetExpanded(selected, animated);
-        if (standalonePreviewHint != null)
-            standalonePreviewHint.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);
         updatePatternSummaryVisibility(animated);
         float targetX = selectionTargetX();
         if (animated)
@@ -619,7 +615,6 @@ internal partial class SongSelectSongRow : PoolableDrawable
         compactModePill = null;
         compactPrimaryText = null;
         compactSecondaryText = null;
-        standalonePreviewHint = null;
         patternSummary = null;
         standaloneArtworkFrame = null;
         leadingAccent = null;
@@ -687,8 +682,8 @@ internal partial class SongSelectSongRow : PoolableDrawable
             Position = new Vector2(330, 34),
             Width = 300,
             Truncate = true,
-            Font = HomeTypography.Display(10),
-            Colour = SongSelectTheme.Cyan,
+            Font = HomeTypography.Display(12),
+            Colour = SongSelectTheme.Navy,
             Alpha = 0,
         });
         children.Add(compactModePill = new SongSelectProgressiveModePill(
@@ -758,23 +753,13 @@ internal partial class SongSelectSongRow : PoolableDrawable
             SongSelectTheme.Cyan,
             true,
             false));
-        children.Add(standalonePreviewHint = adaptiveLabel(
-            "PREVIEWING  ·  ENTER TO PLAY",
-            246,
-            104,
-            220,
-            11,
-            SongSelectTheme.Pink,
-            SongSelectTheme.Pink,
-            true));
-        standalonePreviewHint.Alpha = 0;
         children.Add(patternSummary = new SpriteText
         {
-            Position = new Vector2(480, 104),
-            Width = 238,
+            Position = new Vector2(246, 104),
+            Width = 472,
             Truncate = true,
-            Font = HomeTypography.Display(10),
-            Colour = SongSelectTheme.Cyan,
+            Font = HomeTypography.Display(12),
+            Colour = SongSelectTheme.Navy,
             Alpha = 0,
         });
         children.Add(createFullModePill(entry, 728, 90));
@@ -1583,13 +1568,13 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 {
                     Position = new Vector2(contentStart, 8),
                     Text = "CHART COLLECTION",
-                    Font = HomeTypography.Display(8),
+                    Font = HomeTypography.Display(11),
                     Spacing = new Vector2(0.8f, 0),
                     Colour = new Color4(
-                        SongSelectTheme.Cyan.R,
-                        SongSelectTheme.Cyan.G,
-                        SongSelectTheme.Cyan.B,
-                        0.84f),
+                        SongSelectTheme.Navy.R,
+                        SongSelectTheme.Navy.G,
+                        SongSelectTheme.Navy.B,
+                        0.72f),
                 },
                 new Box
                 {
@@ -1609,7 +1594,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
                         SongSelectTheme.Navy.B,
-                        0.64f)),
+                        0.78f)),
             ],
         };
 
@@ -1637,13 +1622,6 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                     SongSelectTheme.Navy.G,
                     SongSelectTheme.Navy.B,
                     0.82f)),
-            label(
-                "PREVIEWING  ·  ENTER TO PLAY",
-                contentStart,
-                76,
-                360,
-                11,
-                SongSelectTheme.Pink),
             selectedModePill = new Container
             {
                 Position = new Vector2(contentStart, 98),
