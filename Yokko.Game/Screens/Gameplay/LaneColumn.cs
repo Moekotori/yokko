@@ -106,7 +106,7 @@ public partial class LaneColumn : CompositeDrawable
                     Origin = Anchor.TopCentre,
                     Y = 10,
                     Text = "SCRATCH",
-                    Font = new FontUsage("NotoSansCJK").With(size: 12),
+                    Font = new FontUsage("PlusJakartaSans").With(size: 12),
                     Colour = YokkoPalette.Violet,
                 });
             }
@@ -150,7 +150,7 @@ public partial class LaneColumn : CompositeDrawable
                             : Anchor.BottomCentre,
                         Y = upscroll ? 26 : -26,
                         Text = displayKey,
-                        Font = new FontUsage("NotoSansCJK").With(size: 18),
+                        Font = new FontUsage("PlusJakartaSans").With(size: 18),
                         Colour = YokkoPalette.TextMuted,
                     },
                     hitEffectsLayer = new Container
@@ -223,7 +223,7 @@ public partial class LaneColumn : CompositeDrawable
                 Origin = Anchor.TopCentre,
                 Y = 8,
                 Text = "SCRATCH",
-                Font = new FontUsage("NotoSansCJK").With(size: 12),
+                Font = new FontUsage("PlusJakartaSans").With(size: 12),
                 Colour = YokkoPalette.Violet,
             });
         }
@@ -327,7 +327,7 @@ public partial class LaneColumn : CompositeDrawable
                     ? keyHeight / 2
                     : -keyHeight / 2,
                 Text = displayKey,
-                Font = new FontUsage("NotoSansCJK").With(size: 16),
+                Font = new FontUsage("PlusJakartaSans").With(size: 16),
                 Colour = configuration.KeyWarningColour,
             });
             skinKeyWarning.Delay(500).FadeOut(3000);
@@ -344,7 +344,7 @@ public partial class LaneColumn : CompositeDrawable
                     : Anchor.BottomCentre,
                 Y = upscroll ? 26 : -26,
                 Text = displayKey,
-                Font = new FontUsage("NotoSansCJK").With(size: 18),
+                Font = new FontUsage("PlusJakartaSans").With(size: 18),
                 Colour = YokkoPalette.TextMuted,
             });
         }

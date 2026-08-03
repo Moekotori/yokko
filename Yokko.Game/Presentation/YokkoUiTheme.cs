@@ -141,7 +141,7 @@ public sealed record YokkoUiTypographyTokens(
     string StickerFont,
     float MinimumReadableSize)
 {
-    public const string CompleteFamily = "NotoSansCJK";
+    public const string CompleteFamily = "PlusJakartaSans";
 
     public static YokkoUiTypographyTokens Default { get; } = new(
         CompleteFamily,

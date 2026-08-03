@@ -112,7 +112,7 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Font = new FontUsage("NotoSansCJK").With(size: 44),
+                        Font = new FontUsage("PlusJakartaSans").With(size: 44),
                         Alpha = 0,
                     },
                 },
@@ -137,7 +137,7 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Font = new FontUsage("NotoSansCJK").With(size: 44),
+                        Font = new FontUsage("PlusJakartaSans").With(size: 44),
                         Alpha = 0,
                         Blending = BlendingParameters.Additive,
                         Colour = configuration.ComboBreakColour,
@@ -152,7 +152,7 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Font = new FontUsage("NotoSansCJK").With(size: 44),
+                        Font = new FontUsage("PlusJakartaSans").With(size: 44),
                         Alpha = 0,
                     },
                 },

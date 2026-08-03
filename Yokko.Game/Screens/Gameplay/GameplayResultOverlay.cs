@@ -52,7 +52,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     private static class ResultTypography
     {
         public static FontUsage Poster(float size) =>
-            new("ArchivoBlack", size);
+            new("PlusJakartaSans", size);
     }
 
     private readonly Action retry;

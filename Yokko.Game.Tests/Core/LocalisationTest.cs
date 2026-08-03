@@ -71,10 +71,10 @@ public class LocalisationTest
     [Test]
     public void SharedTypographyMaintainsReadableFontMetrics()
     {
-        Assert.That(HomeTypography.Body(16).Family, Is.EqualTo("NotoSansCJK"));
-        Assert.That(HomeTypography.Display(16).Family, Is.EqualTo("NotoSansCJK"));
-        Assert.That(HomeTypography.SearchInput(16).Family, Is.EqualTo("NotoSansCJK"));
-        Assert.That(HomeTypography.Sticker(16).Family, Is.EqualTo("NotoSansCJK"));
+        Assert.That(HomeTypography.Body(16).Family, Is.EqualTo("PlusJakartaSans"));
+        Assert.That(HomeTypography.Display(16).Family, Is.EqualTo("PlusJakartaSans"));
+        Assert.That(HomeTypography.SearchInput(16).Family, Is.EqualTo("PlusJakartaSans"));
+        Assert.That(HomeTypography.Sticker(16).Family, Is.EqualTo("PlusJakartaSans"));
         Assert.That(HomeTypography.Display(16).Weight, Is.Null);
         Assert.That(HomeTypography.Display(6).Size, Is.EqualTo(14));
         Assert.That(HomeTypography.Body(16).Size, Is.EqualTo(20.8f)
@@ -84,7 +84,7 @@ public class LocalisationTest
         Assert.That(HomeTypography.Hero(72).Size, Is.EqualTo(78));
     }
 
-    [TestCase("Fonts/NotoSansCJK/NotoSansCJK.bin")]
+    [TestCase("Fonts/PlusJakartaSans/PlusJakartaSans.bin")]
     public void UiFontContainsLocalisationAndExternalText(string resourceName)
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
@@ -109,7 +109,7 @@ public class LocalisationTest
             $"`python scripts/generate-localisation-font.py`; missing: {new string(missing)}");
     }
 
-    [TestCase("Fonts/NotoSansCJK/NotoSansCJK.bin")]
+    [TestCase("Fonts/PlusJakartaSans/PlusJakartaSans.bin")]
     public void UiFontCoversRepresentativeImportedMetadata(string resourceName)
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
@@ -124,7 +124,7 @@ public class LocalisationTest
             "UI and imported metadata must render without replacement glyphs.");
     }
 
-    [TestCase("Fonts/NotoSansCJK/NotoSansCJK.bin")]
+    [TestCase("Fonts/PlusJakartaSans/PlusJakartaSans.bin")]
     public void UiFontKeepsCompleteEastAsianCoverage(string resourceName)
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
@@ -145,7 +145,7 @@ public class LocalisationTest
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
         using Stream obsoleteBold = resources.GetStream(
-            "Fonts/NotoSansCJK/NotoSansCJK-Bold.bin");
+            "Fonts/PlusJakartaSans/PlusJakartaSans-Bold.bin");
 
         Assert.That(
             obsoleteBold,
@@ -154,7 +154,7 @@ public class LocalisationTest
             "thousands of glyphs in memory.");
 
         using Stream descriptor = resources.GetStream(
-            "Fonts/NotoSansCJK/NotoSansCJK.bin");
+            "Fonts/PlusJakartaSans/PlusJakartaSans.bin");
         FontAtlasSummary atlas = readFontAtlasSummary(descriptor);
         long maximumDecodedPageBytes =
             (long)atlas.Width * atlas.Height * 4;
@@ -164,7 +164,7 @@ public class LocalisationTest
         for (int page = 0; page < atlas.PageCount; page++)
         {
             string resourceName =
-                $"Fonts/NotoSansCJK/NotoSansCJK_{page.ToString().PadLeft(pageDigits, '0')}.png";
+                $"Fonts/PlusJakartaSans/PlusJakartaSans_{page.ToString().PadLeft(pageDigits, '0')}.png";
             using Stream pageStream = resources.GetStream(resourceName);
             Assert.That(pageStream, Is.Not.Null, $"Missing font atlas page {resourceName}.");
             compressedBytes += pageStream.Length;

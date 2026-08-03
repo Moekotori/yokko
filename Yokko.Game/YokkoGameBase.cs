@@ -264,8 +264,7 @@ namespace Yokko.Game
 
             var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
             Resources.AddStore(resources);
-            AddFont(Resources, @"Fonts/NotoSansCJK/NotoSansCJK");
-            AddFont(Resources, @"Fonts/ArchivoBlack/ArchivoBlack");
+            AddFont(Resources, @"Fonts/PlusJakartaSans/PlusJakartaSans");
             _ = importedChartLibrary.BeginStartupLoad(
                 importSettings.PreferKeysounds.Value,
                 importSettings.PreferSscSimfiles.Value,

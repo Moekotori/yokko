@@ -54,7 +54,7 @@ public sealed class YokkoDisplaySettings
     public readonly Bindable<double> BackgroundFrameRate = new(30);
     public readonly Bindable<ManiaDifficultyRatingMode>
         DifficultyRatingMode = new(
-            ManiaDifficultyRatingMode.EtternaMsd);
+            ManiaDifficultyRatingMode.RebirthStars);
 
     public Vector2 TargetDrawSize => GetTargetDrawSize(UiScale.Value);
 

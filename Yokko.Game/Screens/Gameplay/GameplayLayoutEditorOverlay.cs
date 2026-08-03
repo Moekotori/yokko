@@ -3257,10 +3257,10 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
     private static class LayoutEditorTypography
     {
         public static FontUsage Regular(float size) =>
-            new("NotoSansCJK", readableSize(size));
+            new("PlusJakartaSans", readableSize(size));
 
         public static FontUsage Bold(float size) =>
-            new("NotoSansCJK", readableSize(size));
+            new("PlusJakartaSans", readableSize(size));
 
         private static float readableSize(float size) =>
             MathF.Max(23, size + MathF.Min(15, 12 + size * 0.12f));

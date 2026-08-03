@@ -90,8 +90,8 @@ structured failure and display `--`; Yokko never substitutes Overall
 Difficulty or another rating while labelling it MSD.
 
 Users can choose the displayed difficulty system under Display settings.
-Etterna MSD remains the default; Rebirth stars use the retained
-StarRatingRebirth adapter and its separate
+Rebirth stars are the default and use the retained StarRatingRebirth adapter
+and its separate
 `Beatmaps/.yokko-cache/star-ratings.json` cache. Song selection, difficulty
 sorting, details, gameplay rate overlays and the live HUD all read the same
 persisted selection.

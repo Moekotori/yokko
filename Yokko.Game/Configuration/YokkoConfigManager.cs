@@ -507,7 +507,7 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         SetDefault(
             YokkoSetting.DisplayDifficultyRatingMode,
             Yokko.Core.Difficulty.ManiaDifficultyRatingMode
-                .EtternaMsd);
+                .RebirthStars);
         SetDefault(YokkoSetting.WindowMaximised, false);
         SetDefault(YokkoSetting.DebugConsoleVisible, false);
         SetDefault(YokkoSetting.SkinSelectedId, string.Empty);

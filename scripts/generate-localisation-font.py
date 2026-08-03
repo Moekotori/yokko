@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Yokko's complete portable-BMP UI fonts for osu!framework."""
+"""Generate Yokko's mixed-script portable-BMP UI font for osu!framework."""
 
 from __future__ import annotations
 
@@ -14,13 +14,17 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 NOTO_CJK_COMMIT = "f8d157532fbfaeda587e826d4cd5b21a49186f7c"
-FONT_URLS = {
-    "NotoSansCJK": (
-        "https://raw.githubusercontent.com/notofonts/noto-cjk/"
-        f"{NOTO_CJK_COMMIT}/Sans/OTF/SimplifiedChinese/"
-        "NotoSansCJKsc-Medium.otf"
-    ),
-}
+PLUS_JAKARTA_SANS_COMMIT = "18d1cd2f7ea10481919d2f05c1f7064b7307fc26"
+FONT_NAME = "PlusJakartaSans"
+PLUS_JAKARTA_SANS_URL = (
+    "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/"
+    f"{PLUS_JAKARTA_SANS_COMMIT}/fonts/ttf/PlusJakartaSans-Medium.ttf"
+)
+NOTO_CJK_URL = (
+    "https://raw.githubusercontent.com/notofonts/noto-cjk/"
+    f"{NOTO_CJK_COMMIT}/Sans/OTF/SimplifiedChinese/"
+    "NotoSansCJKsc-Medium.otf"
+)
 LOCALISATION_FONT_SIZE = 64
 ATLAS_WIDTH = 2048
 ATLAS_HEIGHT = 2048
@@ -51,18 +55,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("Yokko.Resources/Fonts/NotoSansCJK"),
+        default=Path("Yokko.Resources/Fonts/PlusJakartaSans"),
     )
     parser.add_argument(
         "--cache",
         type=Path,
-        default=Path("F:/YokkoArtifacts/font-generator") / NOTO_CJK_COMMIT,
-    )
-    parser.add_argument(
-        "--family",
-        choices=("all", *FONT_URLS),
-        default="all",
-        help="Generate one family while iterating, or all families by default.",
+        default=Path("F:/YokkoArtifacts/font-generator")
+        / f"{PLUS_JAKARTA_SANS_COMMIT}-{NOTO_CJK_COMMIT}",
     )
     return parser.parse_args()
 
@@ -152,19 +151,25 @@ def next_power_of_two(value: int) -> int:
 
 
 def render_font(
-    font_path: Path,
+    latin_font_path: Path,
+    cjk_font_path: Path,
     font_name: str,
     characters: list[str],
     output: Path,
     font_size: int,
 ) -> None:
-    font = ImageFont.truetype(str(font_path), font_size)
-    ascent, descent = font.getmetrics()
+    latin_font = ImageFont.truetype(str(latin_font_path), font_size)
+    cjk_font = ImageFont.truetype(str(cjk_font_path), font_size)
+    ascent, descent = cjk_font.getmetrics()
     line_height = ascent + descent
     baseline = ascent
 
     rendered: list[tuple[str, tuple[int, int, int, int], int, Image.Image]] = []
     for character in characters:
+        # Plus Jakarta Sans supplies visible ASCII (English, figures and common
+        # punctuation). Noto Sans CJK keeps the complete non-ASCII coverage
+        # needed by localisation and arbitrary imported song metadata.
+        font = latin_font if 32 <= ord(character) <= 126 else cjk_font
         left, top, right, bottom = font.getbbox(character, anchor="ls")
         width = max(0, right - left)
         height = max(0, bottom - top)
@@ -345,33 +350,37 @@ def main() -> None:
     cache = args.cache
     cache.mkdir(parents=True, exist_ok=True)
 
-    for font_name, url in FONT_URLS.items():
-        if args.family != "all" and args.family != font_name:
-            continue
-        font_path = cache / url.rsplit("/", 1)[-1]
+    latin_font_path = cache / PLUS_JAKARTA_SANS_URL.rsplit("/", 1)[-1]
+    cjk_font_path = cache / NOTO_CJK_URL.rsplit("/", 1)[-1]
+    for url, font_path in (
+        (PLUS_JAKARTA_SANS_URL, latin_font_path),
+        (NOTO_CJK_URL, cjk_font_path),
+    ):
         if not font_path.exists():
             download_font(url, font_path)
-        characters = sorted(
-            set(collect_supported_bmp_characters(font_path))
-            .union(INVISIBLE_FORMAT_CHARACTERS),
-            key=ord,
+
+    characters = sorted(
+        set(collect_supported_bmp_characters(cjk_font_path))
+        .union(INVISIBLE_FORMAT_CHARACTERS),
+        key=ord,
+    )
+    missing_localisation = sorted(
+        set(localisation_characters).difference(characters), key=ord
+    )
+    if missing_localisation:
+        raise ValueError(
+            f"{FONT_NAME} is missing localisation glyphs: "
+            + "".join(missing_localisation)
         )
-        missing_localisation = sorted(
-            set(localisation_characters).difference(characters), key=ord
-        )
-        if missing_localisation:
-            raise ValueError(
-                f"{font_name} is missing localisation glyphs: "
-                + "".join(missing_localisation)
-            )
-        render_font(
-            font_path,
-            font_name,
-            characters,
-            args.output,
-            LOCALISATION_FONT_SIZE,
-        )
-        print(f"Generated {len(characters)} BMP glyphs for {font_name}")
+    render_font(
+        latin_font_path,
+        cjk_font_path,
+        FONT_NAME,
+        characters,
+        args.output,
+        LOCALISATION_FONT_SIZE,
+    )
+    print(f"Generated {len(characters)} BMP glyphs for {FONT_NAME}")
 
 
 if __name__ == "__main__":

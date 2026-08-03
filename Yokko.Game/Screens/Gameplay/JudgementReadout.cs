@@ -63,14 +63,14 @@ public partial class JudgementReadout : CompositeDrawable
                 {
                     Anchor = Anchor.TopCentre,
                     Origin = Anchor.TopCentre,
-                    Font = new FontUsage("NotoSansCJK").With(size: 44),
+                    Font = new FontUsage("PlusJakartaSans").With(size: 44),
                     Colour = YokkoPalette.Text,
                 },
                 errorText = new SpriteText
                 {
                     Anchor = Anchor.TopCentre,
                     Origin = Anchor.TopCentre,
-                    Font = new FontUsage("NotoSansCJK").With(size: 20),
+                    Font = new FontUsage("PlusJakartaSans").With(size: 20),
                     Colour = YokkoPalette.TextMuted,
                     Alpha = showHitError ? 1 : 0,
                 },

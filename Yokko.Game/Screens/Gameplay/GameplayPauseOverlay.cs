@@ -2180,7 +2180,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     /// </summary>
     private static class PauseTypography
     {
-        public static FontUsage Poster(float size) => new("ArchivoBlack", size);
+        public static FontUsage Poster(float size) => new("PlusJakartaSans", size);
 
         public static FontUsage Display(float size) =>
             HomeTypography.Display(size);

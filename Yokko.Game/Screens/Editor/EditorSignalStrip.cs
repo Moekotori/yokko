@@ -82,7 +82,7 @@ public partial class EditorSignalStrip : CompositeDrawable
                 X = 12,
                 Y = 8,
                 Text = $"{formatSeconds(beatmap.TimeAtRow(viewport.StartRow))} - {formatSeconds(beatmap.TimeAtRow(viewport.EndRowExclusive))}",
-                Font = new FontUsage("NotoSansCJK").With(size: 14),
+                Font = new FontUsage("PlusJakartaSans").With(size: 14),
                 Colour = YokkoPalette.TextMuted,
             },
             new SpriteText
@@ -92,7 +92,7 @@ public partial class EditorSignalStrip : CompositeDrawable
                 X = -12,
                 Y = 8,
                 Text = waveformProvider().Label,
-                Font = new FontUsage("NotoSansCJK").With(size: 13),
+                Font = new FontUsage("PlusJakartaSans").With(size: 13),
                 Colour = waveformProvider().HasAudio ? YokkoPalette.Lime : YokkoPalette.TextDim,
             },
         };

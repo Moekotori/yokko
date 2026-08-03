@@ -140,7 +140,7 @@ public partial class GameplayHud : CompositeDrawable
                             {
                                 Text =
                                     $"{beatmap.Title} [{beatmap.DifficultyName}]",
-                                Font = new FontUsage("NotoSansCJK").With(size: 20),
+                                Font = new FontUsage("PlusJakartaSans").With(size: 20),
                                 Colour = YokkoPalette.Text,
                             },
                             modsText = new SpriteText
@@ -149,7 +149,7 @@ public partial class GameplayHud : CompositeDrawable
                                     beatmap,
                                     this.mods,
                                     this.judgementConfiguration),
-                                Font = new FontUsage("NotoSansCJK").With(
+                                Font = new FontUsage("PlusJakartaSans").With(
                                     size: 13),
                                 Colour = YokkoPalette.Rose,
                             },
@@ -188,7 +188,7 @@ public partial class GameplayHud : CompositeDrawable
                                         Anchor = Anchor.Centre,
                                         Origin = Anchor.Centre,
                                         Text = "HP 100%",
-                                        Font = new FontUsage("NotoSansCJK").With(
+                                        Font = new FontUsage("PlusJakartaSans").With(
                                             size: 13),
                                         Colour = Color4.White,
                                     },
@@ -521,7 +521,7 @@ public partial class GameplayHud : CompositeDrawable
 
     private static SpriteText createLine(float size = 18) => new()
     {
-        Font = new FontUsage("NotoSansCJK").With(size: size),
+        Font = new FontUsage("PlusJakartaSans").With(size: size),
         Colour = YokkoPalette.TextMuted,
     };
 }

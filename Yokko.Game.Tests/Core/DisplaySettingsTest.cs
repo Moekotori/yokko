@@ -757,7 +757,7 @@ public sealed class DisplaySettingsTest
     }
 
     [Test]
-    public void DifficultyRatingModeDefaultsToMsdAndPersists()
+    public void DifficultyRatingModeDefaultsToRebirthAndPersists()
     {
         string directory = Path.Combine(
             TestContext.CurrentContext.WorkDirectory,
@@ -776,10 +776,10 @@ public sealed class DisplaySettingsTest
                 Assert.That(
                     firstSettings.DifficultyRatingMode.Value,
                     Is.EqualTo(
-                        ManiaDifficultyRatingMode.EtternaMsd));
+                        ManiaDifficultyRatingMode.RebirthStars));
 
                 firstSettings.DifficultyRatingMode.Value =
-                    ManiaDifficultyRatingMode.RebirthStars;
+                    ManiaDifficultyRatingMode.EtternaMsd;
                 Assert.That(firstConfig.Save(), Is.True);
             }
 
@@ -793,7 +793,7 @@ public sealed class DisplaySettingsTest
                 Assert.That(
                     restoredSettings.DifficultyRatingMode.Value,
                     Is.EqualTo(
-                        ManiaDifficultyRatingMode.RebirthStars));
+                        ManiaDifficultyRatingMode.EtternaMsd));
             }
         }
         finally
