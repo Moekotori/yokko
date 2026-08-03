@@ -38,6 +38,8 @@ internal sealed record GameplayLayoutEditorLiveSettings(
     Action<double> SetJudgementDisplayDuration,
     Func<double> JudgementOpacity,
     Action<double> SetJudgementOpacity,
+    Func<double> JudgementHitErrorScale,
+    Action<double> SetJudgementHitErrorScale,
     Func<bool> ShowJudgementHitError,
     Action<bool> SetShowJudgementHitError,
     Func<bool> ShowTimingBar,

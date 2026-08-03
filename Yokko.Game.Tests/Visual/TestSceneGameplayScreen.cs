@@ -1418,6 +1418,7 @@ namespace Yokko.Game.Tests.Visual
             });
             double originalJudgementDuration = 0;
             double originalJudgementOpacity = 0;
+            double originalHitErrorScale = 0;
             bool originalShowHitError = false;
             bool originalShowTimingBar = false;
             AddStep("change live judgement feedback settings", () =>
@@ -1426,6 +1427,8 @@ namespace Yokko.Game.Tests.Visual
                     .LayoutEditorJudgementDurationForTest;
                 originalJudgementOpacity = gameplayScreen
                     .LayoutEditorJudgementOpacityForTest;
+                originalHitErrorScale = gameplayScreen
+                    .LayoutEditorHitErrorScaleForTest;
                 originalShowHitError = gameplayScreen
                     .LayoutEditorShowsHitErrorForTest;
                 originalShowTimingBar =
@@ -1434,6 +1437,7 @@ namespace Yokko.Game.Tests.Visual
                     900);
                 gameplayScreen.SetLayoutEditorJudgementOpacityForTest(
                     0.6);
+                gameplayScreen.SetLayoutEditorHitErrorScaleForTest(1.6);
                 gameplayScreen.SetLayoutEditorShowHitErrorForTest(false);
                 gameplayScreen.SetLayoutEditorShowTimingBarForTest(false);
             });
@@ -1444,6 +1448,9 @@ namespace Yokko.Game.Tests.Visual
                 && Math.Abs(
                     gameplayScreen.LayoutEditorJudgementOpacityForTest
                     - 0.6f) < 0.001f
+                && Math.Abs(
+                    gameplayScreen.LayoutEditorHitErrorScaleForTest
+                    - 1.6f) < 0.001f
                 && !gameplayScreen.LayoutEditorShowsHitErrorForTest
                 && timingBar.Alpha < 0.01f);
             AddStep("restore live judgement feedback settings", () =>
@@ -1452,6 +1459,8 @@ namespace Yokko.Game.Tests.Visual
                     originalJudgementDuration);
                 gameplayScreen.SetLayoutEditorJudgementOpacityForTest(
                     originalJudgementOpacity);
+                gameplayScreen.SetLayoutEditorHitErrorScaleForTest(
+                    originalHitErrorScale);
                 gameplayScreen.SetLayoutEditorShowHitErrorForTest(
                     originalShowHitError);
                 gameplayScreen.SetLayoutEditorShowTimingBarForTest(
@@ -1464,6 +1473,9 @@ namespace Yokko.Game.Tests.Visual
                 && Math.Abs(
                     gameplayScreen.LayoutEditorJudgementOpacityForTest
                     - originalJudgementOpacity) < 0.001
+                && Math.Abs(
+                    gameplayScreen.LayoutEditorHitErrorScaleForTest
+                    - originalHitErrorScale) < 0.001
                 && gameplayScreen.LayoutEditorShowsHitErrorForTest
                 == originalShowHitError
                 && (originalShowTimingBar
@@ -1663,6 +1675,8 @@ namespace Yokko.Game.Tests.Visual
                     Math.Min(0.9, originalBackgroundDim + 0.2));
                 gameplayScreen.SetLayoutEditorJudgementDurationForTest(
                     originalJudgementDuration + 200);
+                gameplayScreen.SetLayoutEditorHitErrorScaleForTest(
+                    Math.Min(2.5, originalHitErrorScale + 0.4));
                 gameplayScreen.SetLayoutEditorShowTimingBarForTest(
                     !originalShowTimingBar);
             });
@@ -1703,6 +1717,9 @@ namespace Yokko.Game.Tests.Visual
                 && Math.Abs(
                     gameplayScreen.LayoutEditorJudgementDurationForTest
                     - originalJudgementDuration) < 0.001
+                && Math.Abs(
+                    gameplayScreen.LayoutEditorHitErrorScaleForTest
+                    - originalHitErrorScale) < 0.001
                 && gameplaySettings.ShowTimingBar.Value
                     == originalShowTimingBar);
             AddAssert("pause menu remains available", () =>

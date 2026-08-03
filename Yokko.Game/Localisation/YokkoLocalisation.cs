@@ -863,6 +863,10 @@ internal static class YokkoStrings
                 "Hit error",
                 "误差数值",
                 "判定誤差"),
+            ["gameplay.layout_editor.hit_error_size"] = new(
+                "Hit error size",
+                "误差大小",
+                "判定誤差サイズ"),
             ["gameplay.layout_editor.timing_bar_visibility"] = new(
                 "Timing bar",
                 "判定条",

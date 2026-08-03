@@ -1457,6 +1457,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         liveSettings.LongNoteCutAmount(),
         liveSettings.JudgementDisplayDuration(),
         liveSettings.JudgementOpacity(),
+        liveSettings.JudgementHitErrorScale(),
         liveSettings.ShowJudgementHitError(),
         liveSettings.ShowTimingBar());
 
@@ -1475,6 +1476,8 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         liveSettings.SetJudgementDisplayDuration(
             snapshot.JudgementDisplayDuration);
         liveSettings.SetJudgementOpacity(snapshot.JudgementOpacity);
+        liveSettings.SetJudgementHitErrorScale(
+            snapshot.JudgementHitErrorScale);
         liveSettings.SetShowJudgementHitError(
             snapshot.ShowJudgementHitError);
         liveSettings.SetShowTimingBar(snapshot.ShowTimingBar);
@@ -3251,6 +3254,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
         double LongNoteCutAmount,
         double JudgementDisplayDuration,
         double JudgementOpacity,
+        double JudgementHitErrorScale,
         bool ShowJudgementHitError,
         bool ShowTimingBar);
 

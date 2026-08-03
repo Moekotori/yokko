@@ -67,6 +67,9 @@ public sealed class GameplaySettingsTest
         Assert.That(
             settings.JudgementOpacity.Value,
             Is.EqualTo(YokkoGameplaySettings.MaximumJudgementOpacity));
+        Assert.That(
+            settings.JudgementHitErrorScale.Value,
+            Is.EqualTo(YokkoGameplaySettings.DefaultJudgementHitErrorScale));
         Assert.That(settings.ShowJudgementHitError.Value, Is.True);
         Assert.That(settings.LayoutPlayfieldOffsetX.Value, Is.Zero);
         Assert.That(settings.LayoutPlayfieldOffsetY.Value, Is.Zero);
@@ -137,6 +140,7 @@ public sealed class GameplaySettingsTest
 
         settings.SetJudgementDisplayDuration(874);
         settings.SetJudgementOpacity(0.64);
+        settings.SetJudgementHitErrorScale(1.46);
 
         Assert.Multiple(() =>
         {
@@ -146,10 +150,14 @@ public sealed class GameplaySettingsTest
             Assert.That(
                 settings.JudgementOpacity.Value,
                 Is.EqualTo(0.6).Within(0.001));
+            Assert.That(
+                settings.JudgementHitErrorScale.Value,
+                Is.EqualTo(1.5).Within(0.001));
         });
 
         settings.SetJudgementDisplayDuration(double.MaxValue);
         settings.SetJudgementOpacity(double.MinValue);
+        settings.SetJudgementHitErrorScale(double.MaxValue);
 
         Assert.Multiple(() =>
         {
@@ -161,6 +169,9 @@ public sealed class GameplaySettingsTest
             Assert.That(
                 settings.JudgementOpacity.Value,
                 Is.EqualTo(YokkoGameplaySettings.MinimumJudgementOpacity));
+            Assert.That(
+                settings.JudgementHitErrorScale.Value,
+                Is.EqualTo(YokkoGameplaySettings.MaximumJudgementHitErrorScale));
         });
     }
 
@@ -646,6 +657,7 @@ public sealed class GameplaySettingsTest
                 firstSettings.ShowTimingBar.Value = false;
                 firstSettings.SetJudgementDisplayDuration(850);
                 firstSettings.SetJudgementOpacity(0.6);
+                firstSettings.SetJudgementHitErrorScale(1.7);
                 firstSettings.ShowJudgementHitError.Value = false;
                 firstSettings.LayoutPlayfieldOffsetX.Value = 0.22;
                 firstSettings.LayoutPlayfieldOffsetY.Value = -0.14;
@@ -760,6 +772,9 @@ public sealed class GameplaySettingsTest
                 Assert.That(
                     restoredSettings.JudgementOpacity.Value,
                     Is.EqualTo(0.6).Within(0.001));
+                Assert.That(
+                    restoredSettings.JudgementHitErrorScale.Value,
+                    Is.EqualTo(1.7).Within(0.001));
                 Assert.That(
                     restoredSettings.ShowJudgementHitError.Value,
                     Is.False);

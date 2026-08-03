@@ -487,6 +487,15 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                == new Vector2(210, 46)
             && Math.Abs(SongSelectScreen.BackgroundIsolationAlpha - 0.64f)
                < 0.001f);
+        AddAssert("ambient stickers stay in the quiet background pockets", () =>
+            songSelectScreen.AmbientDecorationCount == 4
+            && songSelectScreen.AmbientDecorationPositions.SequenceEqual(
+            [
+                new Vector2(72, 742),
+                new Vector2(900, 628),
+                new Vector2(842, 884),
+                new Vector2(1812, 790),
+            ]));
         AddAssert("browser starts below search, rating and browse controls", () =>
             Math.Abs(songSelectScreen.SongBrowserTop - 184) < 0.01f);
         AddAssert("difficulty filter defaults to all charts in the active mode", () =>

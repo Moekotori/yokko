@@ -95,6 +95,7 @@ public partial class SongSelectScreen : Screen
         CachedSearchDocument> searchDocuments = new();
     private readonly SemaphoreSlim filterDifficultyLock = new(1, 1);
     private readonly List<SongSelectEntry> randomHistory = [];
+    private readonly List<SongSelectAmbientSticker> ambientStickers = [];
 
     private TextureStore textures;
     private Container stage;
@@ -345,6 +346,9 @@ public partial class SongSelectScreen : Screen
     internal float StageAlpha => stage?.Alpha ?? 0;
     internal bool EntryTransitionInProgress => entryTransitionInProgress;
     internal int EntryTransitionVersion => entryTransitionVersion;
+    internal int AmbientDecorationCount => ambientStickers.Count;
+    internal IReadOnlyList<Vector2> AmbientDecorationPositions =>
+        ambientStickers.Select(sticker => sticker.RestingPosition).ToArray();
     internal bool GameplayPreloadReady =>
         gameplayPreloadTask?.IsCompletedSuccessfully == true
         && gameplayPreloadTask.Result.InitialPresentationReady;
@@ -640,6 +644,7 @@ public partial class SongSelectScreen : Screen
                 RelativeSizeAxes = Axes.Both,
                 Children = new Drawable[]
                 {
+                    createAmbientDecorations(),
                     createHeader(logo),
                     detailsHost = new Container
                     {
@@ -879,6 +884,28 @@ public partial class SongSelectScreen : Screen
         footer.MoveToY(0, 180, Easing.OutQuint)
               .FadeIn(180, Easing.OutQuint);
 
+        playHeaderControlEntry(searchBox, 70);
+        playHeaderControlEntry(keyModeFilterButton, 110);
+        playHeaderControlEntry(difficultyFilterBar, 140);
+        playHeaderControlEntry(browseToolbar, 175);
+
+        for (int i = 0; i < ambientStickers.Count; i++)
+            ambientStickers[i].Play(130 + i * 65);
+
+    }
+
+    private static void playHeaderControlEntry(Drawable drawable, double delay)
+    {
+        if (drawable == null)
+            return;
+
+        float restingY = drawable.Y;
+        drawable.ClearTransforms();
+        drawable.Y = restingY + 7;
+        drawable.Alpha = 0;
+        drawable.Delay(delay)
+                .MoveToY(restingY, 240, Easing.OutQuint)
+                .FadeIn(180, Easing.OutQuint);
     }
 
     protected override void Dispose(bool isDisposing)
@@ -2668,6 +2695,71 @@ public partial class SongSelectScreen : Screen
     {
         selectedMods = mods ?? ManiaModSet.Empty;
         onSelectedModsChanged();
+    }
+
+    private Drawable createAmbientDecorations()
+    {
+        ambientStickers.Clear();
+        return new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Children =
+            [
+                registerAmbientSticker(
+                    "SongSelect/Cute/sticker-heart-medical",
+                    new Vector2(72, 742),
+                    54,
+                    -8,
+                    0.56f,
+                    3.5f,
+                    2350),
+                registerAmbientSticker(
+                    "SongSelect/Cute/sticker-cyan-sparkle",
+                    new Vector2(900, 628),
+                    36,
+                    7,
+                    0.72f,
+                    3,
+                    2050),
+                registerAmbientSticker(
+                    "SongSelect/Cute/sticker-star",
+                    new Vector2(842, 884),
+                    44,
+                    -10,
+                    0.62f,
+                    4,
+                    2650),
+                registerAmbientSticker(
+                    "SongSelect/Cute/sticker-diamond",
+                    new Vector2(1812, 790),
+                    38,
+                    9,
+                    0.68f,
+                    3.5f,
+                    2450),
+            ],
+        };
+    }
+
+    private Drawable registerAmbientSticker(
+        string textureName,
+        Vector2 position,
+        float size,
+        float rotation,
+        float alpha,
+        float travel,
+        double motionDuration)
+    {
+        var sticker = new SongSelectAmbientSticker(
+            textures.Get(textureName),
+            position,
+            size,
+            rotation,
+            alpha,
+            travel,
+            motionDuration);
+        ambientStickers.Add(sticker);
+        return sticker;
     }
 
     private Drawable createHeader(Texture logo) => header = new Container

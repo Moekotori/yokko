@@ -614,7 +614,12 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                    && Math.Abs(selected.ModePillX - 804) < 0.05f
                    && selected.CompactModeTextAlpha < 0.01f
                    && selected.ExpandedModeTextAlpha > 0.99f
+                   && selected.SelectedStickerAlpha > 0.89f
+                   && Vector2.Distance(
+                       selected.SelectedStickerScale,
+                       Vector2.One) < 0.01f
                    && Math.Abs(resting.ModePillWidth - 58) < 0.05f
+                   && resting.SelectedStickerAlpha < 0.01f
                    && resting.CompactModeTextAlpha > 0.99f;
         });
         AddStep("transfer selection to second row", () =>
@@ -628,8 +633,10 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
             return Math.Abs(previous.ModePillWidth - 58) < 0.05f
                    && Math.Abs(previous.ModePillX - 872) < 0.05f
                    && previous.CompactModeTextAlpha > 0.99f
+                   && previous.SelectedStickerAlpha < 0.01f
                    && Math.Abs(selected.ModePillWidth - 126) < 0.05f
                    && selected.ExpandedModeTextAlpha > 0.99f
+                   && selected.SelectedStickerAlpha > 0.89f
                    && list.ItemCount == 2;
         });
     }

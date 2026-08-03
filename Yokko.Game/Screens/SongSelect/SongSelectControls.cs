@@ -59,7 +59,7 @@ internal partial class SongSelectSearchBox : BasicTextBox
             SongSelectTheme.Cyan.B,
             0.56f);
         BackgroundUnfocused = SongSelectSurface.Ivory(0.98f);
-        BackgroundFocused = SongSelectTheme.PaleCyan;
+        BackgroundFocused = SongSelectSurface.Ivory(0.995f);
         FontSize = 17;
         PlaceholderText = YokkoStrings.Get("song_select.search");
 
@@ -399,7 +399,11 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
         Masking = true;
         CornerRadius = 7;
         BorderThickness = 1;
-        BorderColour = SongSelectSurface.Border(0.16f);
+        BorderColour = new Color4(
+            SongSelectTheme.Cyan.R,
+            SongSelectTheme.Cyan.G,
+            SongSelectTheme.Cyan.B,
+            0.22f);
 
         InternalChildren =
         [
@@ -501,7 +505,11 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
     {
         base.OnFocusLost(e);
         BorderThickness = 1;
-        BorderColour = SongSelectSurface.Border(0.16f);
+        BorderColour = new Color4(
+            SongSelectTheme.Cyan.R,
+            SongSelectTheme.Cyan.G,
+            SongSelectTheme.Cyan.B,
+            0.22f);
     }
 
     protected override bool OnHover(HoverEvent e)

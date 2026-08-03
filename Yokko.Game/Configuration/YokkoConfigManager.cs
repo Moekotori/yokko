@@ -70,6 +70,7 @@ internal enum YokkoSetting
     GameplayShowTimingBar,
     GameplayJudgementDisplayDuration,
     GameplayJudgementOpacity,
+    GameplayJudgementHitErrorScale,
     GameplayShowJudgementHitError,
     GameplayLayoutPlayfieldOffsetX,
     GameplayLayoutPlayfieldOffsetY,
@@ -265,6 +266,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             YokkoGameplaySettings.MinimumJudgementOpacity,
             YokkoGameplaySettings.MaximumJudgementOpacity,
             YokkoGameplaySettings.JudgementOpacityStep);
+        SetDefault(
+            YokkoSetting.GameplayJudgementHitErrorScale,
+            YokkoGameplaySettings.DefaultJudgementHitErrorScale,
+            YokkoGameplaySettings.MinimumJudgementHitErrorScale,
+            YokkoGameplaySettings.MaximumJudgementHitErrorScale,
+            YokkoGameplaySettings.JudgementHitErrorScaleStep);
         SetDefault(YokkoSetting.GameplayShowJudgementHitError, true);
         SetDefault(
             YokkoSetting.GameplayLayoutPlayfieldOffsetX,
@@ -701,6 +708,9 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.GameplayJudgementOpacity,
             settings.JudgementOpacity);
+        BindWith(
+            YokkoSetting.GameplayJudgementHitErrorScale,
+            settings.JudgementHitErrorScale);
         BindWith(
             YokkoSetting.GameplayShowJudgementHitError,
             settings.ShowJudgementHitError);

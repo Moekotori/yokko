@@ -31,6 +31,8 @@ public partial class JudgementReadout : CompositeDrawable
 
     internal float ContentOpacityForTest => content.Alpha;
 
+    internal float HitErrorScaleForTest => errorText.Scale.X;
+
     internal bool ShowsHitErrorForTest => showHitError;
 
     public JudgementReadout(
@@ -39,7 +41,9 @@ public partial class JudgementReadout : CompositeDrawable
         double displayDurationMilliseconds =
             YokkoGameplaySettings
                 .DefaultJudgementDisplayDurationMilliseconds,
-        double opacity = YokkoGameplaySettings.MaximumJudgementOpacity)
+        double opacity = YokkoGameplaySettings.MaximumJudgementOpacity,
+        double hitErrorScale = YokkoGameplaySettings
+            .DefaultJudgementHitErrorScale)
     {
         this.showHitError = showHitError;
         this.configuration =
@@ -78,6 +82,7 @@ public partial class JudgementReadout : CompositeDrawable
         };
 
         SetOpacity(opacity);
+        SetHitErrorScale(hitErrorScale);
         Alpha = 0;
     }
 
@@ -120,6 +125,12 @@ public partial class JudgementReadout : CompositeDrawable
             opacity,
             YokkoGameplaySettings.MinimumJudgementOpacity,
             YokkoGameplaySettings.MaximumJudgementOpacity);
+
+    internal void SetHitErrorScale(double scale) =>
+        errorText.Scale = new Vector2((float)Math.Clamp(
+            scale,
+            YokkoGameplaySettings.MinimumJudgementHitErrorScale,
+            YokkoGameplaySettings.MaximumJudgementHitErrorScale));
 
     internal void SetShowHitError(bool show)
     {

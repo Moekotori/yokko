@@ -75,6 +75,9 @@ internal partial class SongSelectSongRow : PoolableDrawable
     internal float LeadingAccentWidth => leadingAccent?.Width ?? 0;
     internal float SelectionOutlineThickness =>
         selectionOutline?.BorderThickness ?? 0;
+    internal float SelectedStickerAlpha => selectedSticker?.Alpha ?? 0;
+    internal Vector2 SelectedStickerScale =>
+        selectedSticker?.Scale ?? Vector2.Zero;
 
     public SongSelectSongRow()
     {
@@ -345,6 +348,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         if (Entry == null)
             return;
 
+        bool selectionChanged = selected != value;
         selected = value;
         selectionIndent = compact
             ? Math.Clamp(neighbourIndent, 0, 12)
@@ -365,7 +369,39 @@ internal partial class SongSelectSongRow : PoolableDrawable
         selectionOutline.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
         focusShadow.FadeTo(selected ? 1 : 0, 170, Easing.OutQuint);
         arrow.FadeTo(selected && compact ? 1 : 0, 120, Easing.OutQuint);
-        selectedSticker.FadeTo(0, 140, Easing.OutQuint);
+        selectedSticker.ClearTransforms();
+        if (!selected)
+        {
+            if (animated)
+            {
+                selectedSticker.FadeOut(100, Easing.OutQuint)
+                               .ScaleTo(0.82f, 120, Easing.OutQuint)
+                               .RotateTo(-8, 120, Easing.OutQuint);
+            }
+            else
+            {
+                selectedSticker.Alpha = 0;
+                selectedSticker.Scale = new Vector2(0.82f);
+                selectedSticker.Rotation = -8;
+            }
+        }
+        else if (animated && selectionChanged)
+        {
+            selectedSticker.Alpha = 0;
+            selectedSticker.Scale = new Vector2(0.68f);
+            selectedSticker.Rotation = -12;
+            selectedSticker.FadeTo(compact ? 0.9f : 0.76f,
+                                150,
+                                Easing.OutQuint)
+                           .ScaleTo(1, 230, Easing.OutBack)
+                           .RotateTo(3, 230, Easing.OutBack);
+        }
+        else
+        {
+            selectedSticker.Alpha = compact ? 0.9f : 0.76f;
+            selectedSticker.Scale = Vector2.One;
+            selectedSticker.Rotation = 3;
+        }
         compactModePill?.SetExpanded(selected, animated);
         if (standalonePreviewHint != null)
             standalonePreviewHint.FadeTo(selected ? 1 : 0, 120, Easing.OutQuint);

@@ -204,11 +204,22 @@ public sealed class YokkoGameplaySettings
 
     public const double JudgementOpacityStep = 0.1;
 
+    public const double MinimumJudgementHitErrorScale = 0.25;
+
+    public const double MaximumJudgementHitErrorScale = 2.5;
+
+    public const double DefaultJudgementHitErrorScale = 1;
+
+    public const double JudgementHitErrorScaleStep = 0.1;
+
     public readonly Bindable<double> JudgementDisplayDurationMilliseconds =
         new(DefaultJudgementDisplayDurationMilliseconds);
 
     public readonly Bindable<double> JudgementOpacity =
         new(MaximumJudgementOpacity);
+
+    public readonly Bindable<double> JudgementHitErrorScale =
+        new(DefaultJudgementHitErrorScale);
 
     public readonly BindableBool ShowJudgementHitError = new(true);
 
@@ -941,6 +952,13 @@ public sealed class YokkoGameplaySettings
             * JudgementOpacityStep,
             MinimumJudgementOpacity,
             MaximumJudgementOpacity);
+
+    public void SetJudgementHitErrorScale(double scale) =>
+        JudgementHitErrorScale.Value = Math.Clamp(
+            Math.Round(scale / JudgementHitErrorScaleStep)
+            * JudgementHitErrorScaleStep,
+            MinimumJudgementHitErrorScale,
+            MaximumJudgementHitErrorScale);
 
     public void ResetGameplayLayout()
     {

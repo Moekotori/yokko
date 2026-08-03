@@ -577,7 +577,8 @@ public partial class GameplayScreen : Screen
                 judgementConfiguration,
                 gameplaySettings
                     .JudgementDisplayDurationMilliseconds.Value,
-                gameplaySettings.JudgementOpacity.Value)
+                gameplaySettings.JudgementOpacity.Value,
+                gameplaySettings.JudgementHitErrorScale.Value)
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
@@ -4600,6 +4601,8 @@ public partial class GameplayScreen : Screen
             setLayoutEditorJudgementDisplayDuration,
             () => gameplaySettings.JudgementOpacity.Value,
             setLayoutEditorJudgementOpacity,
+            () => gameplaySettings.JudgementHitErrorScale.Value,
+            setLayoutEditorJudgementHitErrorScale,
             () => gameplaySettings.ShowJudgementHitError.Value,
             setLayoutEditorShowJudgementHitError,
             () => gameplaySettings.ShowTimingBar.Value,
@@ -4656,6 +4659,13 @@ public partial class GameplayScreen : Screen
         playfield.ConfigureSkinJudgementFeedback(
             gameplaySettings.JudgementDisplayDurationMilliseconds.Value,
             gameplaySettings.JudgementOpacity.Value);
+    }
+
+    private void setLayoutEditorJudgementHitErrorScale(double value)
+    {
+        gameplaySettings.SetJudgementHitErrorScale(value);
+        judgementReadout.SetHitErrorScale(
+            gameplaySettings.JudgementHitErrorScale.Value);
     }
 
     private void setLayoutEditorShowJudgementHitError(bool value)
@@ -4885,6 +4895,9 @@ public partial class GameplayScreen : Screen
     internal void SetLayoutEditorJudgementOpacityForTest(double value) =>
         setLayoutEditorJudgementOpacity(value);
 
+    internal void SetLayoutEditorHitErrorScaleForTest(double value) =>
+        setLayoutEditorJudgementHitErrorScale(value);
+
     internal void SetLayoutEditorShowHitErrorForTest(bool value) =>
         setLayoutEditorShowJudgementHitError(value);
 
@@ -4896,6 +4909,9 @@ public partial class GameplayScreen : Screen
 
     internal float LayoutEditorJudgementOpacityForTest =>
         judgementReadout.ContentOpacityForTest;
+
+    internal float LayoutEditorHitErrorScaleForTest =>
+        judgementReadout.HitErrorScaleForTest;
 
     internal bool LayoutEditorShowsHitErrorForTest =>
         judgementReadout.ShowsHitErrorForTest;

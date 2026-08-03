@@ -23,6 +23,7 @@ internal partial class GameplayLayoutEditorOverlay
         private readonly GameplayLayoutEditorLiveSettings settings;
         private readonly SpriteText durationValue;
         private readonly SpriteText opacityValue;
+        private readonly SpriteText hitErrorSizeValue;
         private readonly CompactTextButton hitErrorButton;
         private readonly CompactTextButton timingBarButton;
 
@@ -34,7 +35,7 @@ internal partial class GameplayLayoutEditorOverlay
             Origin = Anchor.BottomLeft;
             Position = new Vector2(18, -18);
             Scale = new Vector2(1.08f);
-            Size = new Vector2(420, 144);
+            Size = new Vector2(420, 180);
             Depth = -100;
             Masking = true;
             CornerRadius = 11;
@@ -121,21 +122,48 @@ internal partial class GameplayLayoutEditorOverlay
                     Size = new Vector2(28),
                 },
                 createLabel(
-                    "gameplay.layout_editor.hit_error",
+                    "gameplay.layout_editor.hit_error_size",
                     120),
+                new CompactIconButton(
+                    FontAwesome.Solid.Minus,
+                    () => adjustHitErrorScale(-1))
+                {
+                    Position = new Vector2(126, 104),
+                    Size = new Vector2(28),
+                },
+                createValueBox(
+                    hitErrorSizeValue = new SpriteText
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Font = LayoutEditorTypography.Bold(10),
+                        Colour = HomeControlColours.Navy,
+                    },
+                    new Vector2(160, 104),
+                    new Vector2(94, 28)),
+                new CompactIconButton(
+                    FontAwesome.Solid.Plus,
+                    () => adjustHitErrorScale(1))
+                {
+                    Position = new Vector2(260, 104),
+                    Size = new Vector2(28),
+                },
+                createLabel(
+                    "gameplay.layout_editor.hit_error",
+                    156),
                 hitErrorButton = new CompactTextButton(
                     string.Empty,
                     () => settings.SetShowJudgementHitError(
                         !settings.ShowJudgementHitError()))
                 {
-                    Position = new Vector2(104, 104),
+                    Position = new Vector2(104, 140),
                     Size = new Vector2(68, 28),
                 },
                 new SpriteText
                 {
                     Anchor = Anchor.TopLeft,
                     Origin = Anchor.CentreLeft,
-                    Position = new Vector2(190, 120),
+                    Position = new Vector2(190, 156),
                     Text = YokkoStrings.Get(
                         "gameplay.layout_editor.timing_bar_visibility"),
                     Font = LayoutEditorTypography.Bold(10),
@@ -146,7 +174,7 @@ internal partial class GameplayLayoutEditorOverlay
                     () => settings.SetShowTimingBar(
                         !settings.ShowTimingBar()))
                 {
-                    Position = new Vector2(300, 104),
+                    Position = new Vector2(300, 140),
                     Size = new Vector2(78, 28),
                 },
             };
@@ -208,12 +236,23 @@ internal partial class GameplayLayoutEditorOverlay
             refresh();
         }
 
+        private void adjustHitErrorScale(int direction)
+        {
+            settings.SetJudgementHitErrorScale(
+                settings.JudgementHitErrorScale()
+                + direction * YokkoGameplaySettings
+                    .JudgementHitErrorScaleStep);
+            refresh();
+        }
+
         private void refresh()
         {
             durationValue.Text =
                 $"{settings.JudgementDisplayDuration():0} ms";
             opacityValue.Text =
                 $"{Math.Round(settings.JudgementOpacity() * 100):0}%";
+            hitErrorSizeValue.Text =
+                $"{Math.Round(settings.JudgementHitErrorScale() * 100):0}%";
             setToggle(
                 hitErrorButton,
                 settings.ShowJudgementHitError());
