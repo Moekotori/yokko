@@ -671,7 +671,7 @@ internal partial class SongSelectSortPopover : CompositeDrawable
         IsOpen = true;
         this.ClearTransforms();
         this.FadeIn(120, Easing.OutQuint);
-        Scheduler.Add(FocusSelected);
+        Scheduler.AddDelayed(FocusSelected, 50);
     }
 
     internal void Close()

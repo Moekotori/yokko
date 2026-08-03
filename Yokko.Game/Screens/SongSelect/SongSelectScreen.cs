@@ -6257,10 +6257,23 @@ public partial class SongSelectScreen : Screen
 
         filtersPopoverOpen = true;
         searchBox?.SetHoldFocus(false);
+        Logger.Log(
+            $"Filter focus debug immediate: open={filtersPopoverOpen} | search-hold={searchBox?.HoldFocus} | search-focus={searchBox?.HasFocus}",
+            LoggingTarget.Runtime,
+            LogLevel.Important);
         filtersPopover?.ClearTransforms();
         filtersPopover?.FadeIn(120, Easing.OutQuint);
         filtersButton?.SetActive(true);
-        Scheduler.Add(() => focusFiltersPopoverItem(0, absolute: true));
+        Scheduler.AddDelayed(
+            () =>
+            {
+                focusFiltersPopoverItem(0, absolute: true);
+                Logger.Log(
+                    $"Filter focus debug: open={filtersPopoverOpen} | search-hold={searchBox?.HoldFocus} | search-focus={searchBox?.HasFocus} | group-present={groupButton?.IsPresent} | group-focus={groupButton?.HasFocus}",
+                    LoggingTarget.Runtime,
+                    LogLevel.Important);
+            },
+            50);
     }
 
     private void closeFiltersPopover(bool restoreSearchFocus = true)

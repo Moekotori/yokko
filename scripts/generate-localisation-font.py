@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import re
 import struct
 import urllib.request
 from dataclasses import dataclass
@@ -23,7 +22,6 @@ LOCALISATION_FONT_SIZE = 64
 ATLAS_WIDTH = 2048
 ATLAS_HEIGHT = 2048
 PADDING = 4
-INVISIBLE_FORMAT_CHARACTERS = "\u200b\u2060\ufeff"
 
 
 @dataclass
@@ -42,11 +40,6 @@ class Glyph:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--strings",
-        type=Path,
-        default=Path("Yokko.Game/Localisation/YokkoLocalisation.cs"),
-    )
-    parser.add_argument(
         "--output",
         type=Path,
         default=Path("Yokko.Resources/Fonts/PlusJakartaSans"),
@@ -58,80 +51,6 @@ def parse_args() -> argparse.Namespace:
         / PLUS_JAKARTA_SANS_COMMIT,
     )
     return parser.parse_args()
-
-
-def collect_localisation_characters(strings_path: Path) -> list[str]:
-    source = strings_path.read_text(encoding="utf-8")
-    characters = set(chr(codepoint) for codepoint in range(32, 127))
-
-    for literal in re.findall(r'"((?:[^"\\]|\\.)*)"', source):
-        # Decode C# \uXXXX escapes so escape-written characters still reach the subset.
-        decoded = re.sub(
-            r"\\u([0-9a-fA-F]{4})",
-            lambda match: chr(int(match.group(1), 16)),
-            literal,
-        )
-        characters.update(character for character in decoded if ord(character) >= 127)
-
-    return sorted(characters, key=ord)
-
-
-def collect_supported_bmp_characters(font_path: Path) -> list[str]:
-    """Read the font's Unicode cmap and retain every renderable BMP scalar.
-
-    osu!framework's current bitmap glyph API is char-based, so supplementary
-    plane characters cannot be represented by a BMFont atlas. Covering the
-    complete BMP still includes Latin, Greek, Cyrillic, Japanese kana, CJK,
-    full modern Hangul, and the symbols used by imported song metadata.
-    """
-    data = font_path.read_bytes()
-    table_count = struct.unpack_from(">H", data, 4)[0]
-    tables: dict[bytes, tuple[int, int]] = {}
-
-    for index in range(table_count):
-        tag, _, offset, length = struct.unpack_from(
-            ">4sIII", data, 12 + index * 16
-        )
-        tables[tag] = (offset, length)
-
-    cmap_offset, _ = tables[b"cmap"]
-    subtable_count = struct.unpack_from(">H", data, cmap_offset + 2)[0]
-    format_12_offsets: list[int] = []
-
-    for index in range(subtable_count):
-        platform, encoding, relative_offset = struct.unpack_from(
-            ">HHI", data, cmap_offset + 4 + index * 8
-        )
-        subtable_offset = cmap_offset + relative_offset
-        cmap_format = struct.unpack_from(">H", data, subtable_offset)[0]
-        if cmap_format == 12 and (
-            platform == 0 or (platform == 3 and encoding == 10)
-        ):
-            format_12_offsets.append(subtable_offset)
-
-    if not format_12_offsets:
-        raise ValueError(f"{font_path} has no Unicode format 12 cmap")
-
-    subtable_offset = format_12_offsets[0]
-    group_count = struct.unpack_from(">I", data, subtable_offset + 12)[0]
-    codepoints: set[int] = set()
-
-    for index in range(group_count):
-        start, end, _ = struct.unpack_from(
-            ">III", data, subtable_offset + 16 + index * 12
-        )
-        if start > 0xFFFF:
-            continue
-        codepoints.update(range(max(32, start), min(0xFFFF, end) + 1))
-
-    # Surrogates are not Unicode scalar values and private-use glyphs are not
-    # portable user text. Keep all other supported BMP characters.
-    return [
-        chr(codepoint)
-        for codepoint in sorted(codepoints)
-        if not 0xD800 <= codepoint <= 0xDFFF
-        and not 0xE000 <= codepoint <= 0xF8FF
-    ]
 
 
 def download_font(url: str, destination: Path) -> None:
