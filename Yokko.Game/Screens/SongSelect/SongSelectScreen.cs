@@ -693,7 +693,7 @@ public partial class SongSelectScreen : Screen
     {
         base.OnEntering(e);
         searchBox?.SetHoldFocus(true);
-        playButton?.SetReady();
+        setPlayButtonReady();
         screenActive = true;
         applyPendingLibraryChange();
         restoreRememberedSelection();
@@ -718,7 +718,7 @@ public partial class SongSelectScreen : Screen
     public override void OnResuming(ScreenTransitionEvent e)
     {
         base.OnResuming(e);
-        playButton?.SetReady();
+        setPlayButtonReady();
         screenActive = true;
         bool keepExistingSongSelectState = resumeFromGameplayMods;
         resumeFromGameplayMods = false;
@@ -1296,6 +1296,11 @@ public partial class SongSelectScreen : Screen
     internal void ActivateSelectedModsButton() =>
         selectedModsButton?.TriggerClick();
 
+    private void setPlayButtonReady() => playButton?.SetReady(
+        visibleEntries.Count == 0
+        && entries.Count > 0
+        && selectedEntry != null);
+
     internal void PlaySelected()
     {
         if (selectedEntry == null || transitionPending || libraryReloadInProgress)
@@ -1327,7 +1332,7 @@ public partial class SongSelectScreen : Screen
             {
                 if (success && ReferenceEquals(selectedEntry, requested))
                 {
-                    playButton?.SetReady();
+                    setPlayButtonReady();
                     PlaySelected();
                 }
                 else if (ReferenceEquals(selectedEntry, requested))
@@ -4498,6 +4503,10 @@ public partial class SongSelectScreen : Screen
             MinimumDifficultyFilter,
             DifficultyFilterUnit,
             showConverts);
+        playButton?.SetAmbientSelection(
+            visibleEntries.Count == 0
+            && entries.Count > 0
+            && selectedEntry != null);
 
         // 展开/折叠重建时不把滚动条拽回选中行，由 TogglePackage 自行锚定图包头。
         if (!animate)
@@ -4584,6 +4593,7 @@ public partial class SongSelectScreen : Screen
 
         filterCancellation = new CancellationTokenSource();
         filterPending = true;
+        scheduleFilterStatus(generation, request.SearchQuery);
         CancellationToken cancellationToken = filterCancellation.Token;
         filterTask = Task.Run(async () =>
         {
@@ -4772,6 +4782,7 @@ public partial class SongSelectScreen : Screen
         filterCancellation = null;
         filterTask = null;
         filterPending = false;
+        hideFilterStatus();
         foreach (CalculatedDifficulty calculated in result.CalculatedDifficulties)
         {
             if (ReferenceEquals(
@@ -4832,6 +4843,31 @@ public partial class SongSelectScreen : Screen
         filterCancellation = null;
         filterTask = null;
         filterPending = false;
+        hideFilterStatus();
+    }
+
+    private void scheduleFilterStatus(int generation, string query)
+    {
+        Scheduler.AddDelayed(() =>
+        {
+            if (!filterPending || filterGeneration != generation || filterStatus == null)
+                return;
+
+            filterStatusText.Text = string.IsNullOrWhiteSpace(query)
+                ? "UPDATING LIBRARY…"
+                : "SEARCHING LIBRARY…";
+            filterStatus.ClearTransforms();
+            filterStatus.FadeIn(100, Easing.OutQuint);
+        }, 150);
+    }
+
+    private void hideFilterStatus()
+    {
+        if (filterStatus == null)
+            return;
+
+        filterStatus.ClearTransforms();
+        filterStatus.FadeOut(80, Easing.OutQuint);
     }
 
     private void invalidateFilterSnapshots()
@@ -4961,7 +4997,7 @@ public partial class SongSelectScreen : Screen
 
         if (changed)
         {
-            playButton?.SetReady();
+            setPlayButtonReady();
             diagnostics.Trace(
                 "SONG_SELECT",
                 "selection-changed",

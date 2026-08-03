@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.IO.Stores;
 using Yokko.Core.Mods;
@@ -15,6 +16,17 @@ namespace Yokko.Game.Tests.Core;
 [TestFixture]
 public class LocalisationTest
 {
+    private static readonly string[] ui_font_assets =
+    {
+        "Fonts/PlusJakartaSans/PlusJakartaSans",
+        "Fonts/Noto/Noto-Basic",
+        "Fonts/Noto/Noto-Bopomofo",
+        "Fonts/Noto/Noto-CJK-Basic",
+        "Fonts/Noto/Noto-CJK-Compatibility",
+        "Fonts/Noto/Noto-Hangul",
+        "Fonts/Noto/Noto-Thai",
+    };
+
     [Test]
     public void UnsupportedLocalesFallBackToEnglish()
     {
@@ -84,20 +96,16 @@ public class LocalisationTest
         Assert.That(HomeTypography.Hero(72).Size, Is.EqualTo(78));
     }
 
-    [TestCase("Fonts/PlusJakartaSans/PlusJakartaSans.bin")]
-    public void UiFontContainsLocalisationAndExternalText(string resourceName)
+    [Test]
+    public async Task UiFontContainsLocalisationAndExternalText()
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
-        using Stream stream = resources.GetStream(resourceName);
-
-        Assert.That(stream, Is.Not.Null, $"{resourceName} was not embedded.");
-
-        HashSet<int> glyphs = readGlyphCodepoints(stream);
+        IGlyphStore[] glyphStores = await loadUiGlyphStores(resources);
         char[] missing = YokkoLocale.SUPPORTED
                                     .SelectMany(locale => YokkoStrings.ForLocale(locale).Values)
                                     .SelectMany(value => value)
                                     .Concat(YokkoStrings.ExternalTextGlyphs)
-                                    .Where(character => character >= 127 && !glyphs.Contains(character))
+                                    .Where(character => !glyphStores.Any(store => store.HasGlyph(character)))
                                     .Distinct()
                                     .OrderBy(character => character)
                                     .ToArray();
@@ -109,34 +117,55 @@ public class LocalisationTest
             $"`python scripts/generate-localisation-font.py`; missing: {new string(missing)}");
     }
 
-    [TestCase("Fonts/PlusJakartaSans/PlusJakartaSans.bin")]
-    public void UiFontCoversRepresentativeImportedMetadata(string resourceName)
+    [Test]
+    public async Task UiFontCoversRepresentativeImportedMetadata()
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
-        using Stream stream = resources.GetStream(resourceName);
-        HashSet<int> glyphs = readGlyphCodepoints(stream);
+        IGlyphStore[] glyphStores = await loadUiGlyphStores(resources);
         const string metadata =
             "中文輸入検索カタカナひらがな語り한국어제목РусскийΕλληνικα♪→★";
 
         Assert.That(
-            metadata.Where(character => !glyphs.Contains(character)),
+            metadata.Where(character => !glyphStores.Any(store => store.HasGlyph(character))),
             Is.Empty,
             "UI and imported metadata must render without replacement glyphs.");
     }
 
-    [TestCase("Fonts/PlusJakartaSans/PlusJakartaSans.bin")]
-    public void UiFontKeepsCompleteEastAsianCoverage(string resourceName)
+    [Test]
+    public async Task UiFontKeepsCompleteEastAsianCoverage()
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
-        using Stream stream = resources.GetStream(resourceName);
-        HashSet<int> glyphs = readGlyphCodepoints(stream);
+        IGlyphStore[] glyphStores = await loadUiGlyphStores(resources);
 
         Assert.Multiple(() =>
         {
-            Assert.That(countRange(glyphs, 0x3040, 0x309f), Is.GreaterThanOrEqualTo(90), "Hiragana");
-            Assert.That(countRange(glyphs, 0x30a0, 0x30ff), Is.GreaterThanOrEqualTo(90), "Katakana");
-            Assert.That(countRange(glyphs, 0x4e00, 0x9fff), Is.GreaterThanOrEqualTo(20_900), "CJK unified ideographs");
-            Assert.That(countRange(glyphs, 0xac00, 0xd7a3), Is.EqualTo(11_172), "modern Hangul syllables");
+            Assert.That(countRange(glyphStores, 0x3040, 0x309f), Is.GreaterThanOrEqualTo(90), "Hiragana");
+            Assert.That(countRange(glyphStores, 0x30a0, 0x30ff), Is.GreaterThanOrEqualTo(90), "Katakana");
+            Assert.That(countRange(glyphStores, 0x4e00, 0x9fff), Is.GreaterThanOrEqualTo(20_900), "CJK unified ideographs");
+            Assert.That(countRange(glyphStores, 0xac00, 0xd7a3), Is.EqualTo(11_172), "modern Hangul syllables");
+        });
+    }
+
+    [Test]
+    public async Task ChineseGlyphsUseLazerNotoStoresRatherThanLatinAtlas()
+    {
+        using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
+        using Stream latinDescriptor = resources.GetStream(
+            "Fonts/PlusJakartaSans/PlusJakartaSans.bin");
+        HashSet<int> latinGlyphs = readGlyphCodepoints(latinDescriptor);
+        IGlyphStore[] glyphStores = await loadUiGlyphStores(resources);
+        const string representativeChinese = "中文游戏设置成绩谱面";
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                representativeChinese.All(character => !latinGlyphs.Contains(character)),
+                Is.True,
+                "The Plus Jakarta Sans atlas must stay Latin-only.");
+            Assert.That(
+                representativeChinese.All(character => glyphStores.Skip(1).Any(store => store.HasGlyph(character))),
+                Is.True,
+                "Chinese glyphs must come from the osu!lazer Noto stores.");
         });
     }
 
@@ -178,8 +207,23 @@ public class LocalisationTest
         });
     }
 
-    private static int countRange(HashSet<int> glyphs, int start, int end) =>
-        glyphs.Count(codepoint => codepoint >= start && codepoint <= end);
+    private static int countRange(
+        IReadOnlyCollection<IGlyphStore> glyphStores,
+        int start,
+        int end) =>
+        Enumerable.Range(start, end - start + 1)
+                  .Count(codepoint => glyphStores.Any(store => store.HasGlyph((char)codepoint)));
+
+    private static async Task<IGlyphStore[]> loadUiGlyphStores(
+        DllResourceStore resources)
+    {
+        var aggregateResources = new ResourceStore<byte[]>(resources);
+        IGlyphStore[] stores = ui_font_assets
+            .Select(asset => (IGlyphStore)new GlyphStore(aggregateResources, asset))
+            .ToArray();
+        await Task.WhenAll(stores.Select(store => store.LoadFontAsync()));
+        return stores;
+    }
 
     private static FontAtlasSummary readFontAtlasSummary(Stream stream)
     {

@@ -22,10 +22,11 @@ internal partial class SongSelectRankingPanel : ClickableContainer
 {
     private const float panel_width = 850;
     private const float panel_height = 508;
+    private const float compact_panel_height = 166;
     private const float rows_top = 44;
     private const float content_width = 850;
     private const float content_height = 450;
-    private const float paper_height = rows_top + content_height;
+    private const float compact_content_height = 112;
     private const float row_width = 826;
     private const float row_height = 70;
     private const float row_spacing = 0;
@@ -63,7 +64,13 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         this.entry = entry;
         this.textures = textures;
         this.scoreSelected = scoreSelected;
-        Size = new Vector2(panel_width, panel_height);
+        bool compact = entry.Ranking.Count == 0;
+        float activeContentHeight = compact
+            ? compact_content_height
+            : content_height;
+        Size = new Vector2(
+            panel_width,
+            compact ? compact_panel_height : panel_height);
 
         Container paperSurface = SongSelectSurface.CreateCard(
             out _,
@@ -76,7 +83,9 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         [
             paper = new Container
             {
-                Size = new Vector2(panel_width, paper_height),
+                Size = new Vector2(
+                    panel_width,
+                    rows_top + activeContentHeight),
                 Children =
                 [
                     SongSelectSurface.CreateShadow(14, 0.06f, 2),
@@ -115,7 +124,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                 Position = new Vector2(0, rows_top),
                 Size = new Vector2(
                     content_width,
-                    content_height),
+                    activeContentHeight),
                 Masking = true,
             },
         ];
@@ -470,10 +479,10 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
         {
             Anchor = Anchor.Centre,
             Origin = Anchor.Centre,
-            Y = -22,
-            Size = new Vector2(430, 166),
+            Y = -2,
+            Size = new Vector2(610, 78),
             Masking = true,
-            CornerRadius = 14,
+            CornerRadius = 11,
             BorderThickness = 1,
             BorderColour = new Color4(
                 SongSelectTheme.Cyan.R,
@@ -502,10 +511,10 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
                 {
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
-                    X = 28,
-                    Size = new Vector2(68),
+                    X = 18,
+                    Size = new Vector2(46),
                     Masking = true,
-                    CornerRadius = 34,
+                    CornerRadius = 23,
                     BorderThickness = 1.5f,
                     BorderColour = new Color4(
                         SongSelectTheme.Cyan.R,
@@ -523,7 +532,7 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            Size = new Vector2(27),
+                            Size = new Vector2(19),
                             Icon = personalHistory
                                 ? FontAwesome.Solid.Archive
                                 : FontAwesome.Solid.Users,
@@ -535,62 +544,25 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(118, 30),
+                    Position = new Vector2(82, 18),
                     Text = personalHistory
                         ? "NO LOCAL PLAYS YET"
                         : "NO RANKING DATA",
-                    Font = HomeTypography.Display(20),
+                    Font = HomeTypography.Display(15),
                     Colour = SongSelectTheme.Navy,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(118, 62),
+                    Position = new Vector2(82, 43),
                     Text = personalHistory
                         ? "YOUR RESULTS AND REPLAYS WILL LIVE HERE"
                         : "COMPLETE THIS CHART TO CREATE THE FIRST RESULT",
-                    Font = HomeTypography.Body(12),
+                    Font = HomeTypography.Body(11),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
                         SongSelectTheme.Navy.B,
                         0.64f),
-                },
-                new Container
-                {
-                    Position = new Vector2(118, 101),
-                    Size = new Vector2(250, 32),
-                    Masking = true,
-                    CornerRadius = 8,
-                    Children =
-                    [
-                        new Box
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Colour = new Color4(
-                                SongSelectTheme.Yellow.R,
-                                SongSelectTheme.Yellow.G,
-                                SongSelectTheme.Yellow.B,
-                                0.48f),
-                        },
-                        new SpriteIcon
-                        {
-                            Anchor = Anchor.CentreLeft,
-                            Origin = Anchor.CentreLeft,
-                            X = 13,
-                            Size = new Vector2(11),
-                            Icon = FontAwesome.Solid.Play,
-                            Colour = SongSelectTheme.Navy,
-                        },
-                        new SpriteText
-                        {
-                            Anchor = Anchor.CentreLeft,
-                            Origin = Anchor.CentreLeft,
-                            X = 34,
-                            Text = "PLAY TO SET YOUR FIRST SCORE",
-                            Font = HomeTypography.Display(10),
-                            Colour = SongSelectTheme.Navy,
-                        },
-                    ],
                 },
             ],
         };

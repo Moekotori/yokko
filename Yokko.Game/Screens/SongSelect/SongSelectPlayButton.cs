@@ -21,6 +21,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
     private readonly Sprite tape;
     private readonly SpriteText eyebrowText;
     private readonly SpriteText actionText;
+    private bool ambientSelection;
 
     internal string EyebrowText => eyebrowText.Text.ToString();
     internal string ActionText => actionText.Text.ToString();
@@ -128,19 +129,30 @@ internal partial class SongSelectPlayButton : ClickableContainer
         ];
     }
 
-    internal void SetReady()
+    internal void SetReady(bool useAmbientSelection = false)
     {
+        ambientSelection = useAmbientSelection;
         Enabled.Value = true;
-        eyebrowText.Text = "START SELECTED CHART";
+        eyebrowText.Text = ambientSelection
+            ? "PLAY PREVIOUS SELECTION"
+            : "START SELECTED CHART";
         actionText.Text = "PLAY";
         stateIcon.Icon = FontAwesome.Solid.Play;
-        background.FadeColour(SongSelectTheme.Yellow, 120, Easing.OutQuint);
-        chevron.FadeTo(1, 120, Easing.OutQuint);
-        shine.FadeTo(1, 120, Easing.OutQuint);
+        background.FadeColour(readyColour(), 120, Easing.OutQuint);
+        chevron.FadeTo(ambientSelection ? 0.72f : 1, 120, Easing.OutQuint);
+        shine.FadeTo(ambientSelection ? 0.42f : 1, 120, Easing.OutQuint);
+    }
+
+    internal void SetAmbientSelection(bool value)
+    {
+        ambientSelection = value;
+        if (actionText.Text.ToString() == "PLAY")
+            SetReady(value);
     }
 
     internal void SetPreparing(string message = "PREPARING CHART")
     {
+        ambientSelection = false;
         Enabled.Value = false;
         eyebrowText.Text = message;
         actionText.Text = "LOADING...";
@@ -155,6 +167,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
 
     internal void SetError()
     {
+        ambientSelection = false;
         Enabled.Value = true;
         eyebrowText.Text = "CHART COULD NOT LOAD";
         actionText.Text = "RETRY";
@@ -170,7 +183,9 @@ internal partial class SongSelectPlayButton : ClickableContainer
     protected override bool OnHover(HoverEvent e)
     {
         background.FadeColour(
-            new Color4(1f, 0.95f, 0.42f, 1f),
+            ambientSelection
+                ? new Color4(1f, 0.93f, 0.48f, 0.92f)
+                : new Color4(1f, 0.95f, 0.42f, 1f),
             110,
             Easing.OutQuint);
         chevron.MoveToX(-10, 130, Easing.OutQuint);
@@ -182,12 +197,20 @@ internal partial class SongSelectPlayButton : ClickableContainer
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
-        background.FadeColour(SongSelectTheme.Yellow, 130, Easing.OutQuint);
+        background.FadeColour(readyColour(), 130, Easing.OutQuint);
         chevron.MoveToX(-15, 130, Easing.OutQuint);
         playTile.RotateTo(0, 190, Easing.OutQuint);
         tape.RotateTo(0, 210, Easing.OutQuint);
         this.ScaleTo(1, 130, Easing.OutQuint);
     }
+
+    private Color4 readyColour() => ambientSelection
+        ? new Color4(
+            SongSelectTheme.Yellow.R,
+            SongSelectTheme.Yellow.G,
+            SongSelectTheme.Yellow.B,
+            0.78f)
+        : SongSelectTheme.Yellow;
 
     protected override void LoadComplete()
     {

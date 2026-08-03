@@ -129,7 +129,7 @@ internal partial class SongSelectSearchBox : BasicTextBox
         if (value)
             TakeFocus();
         else if (HasFocus)
-            base.KillFocus();
+            GetContainingFocusManager()?.ChangeFocus(null);
     }
 
     internal void TakeFocus()

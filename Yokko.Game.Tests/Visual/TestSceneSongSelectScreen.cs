@@ -452,13 +452,13 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             SongSelectScreen.RankingFitsDesignedStage);
         AddAssert("ranking is above footer", () =>
             songSelectScreen.RankingFitsAboveFooter);
-        AddAssert("ranking uses the available detail width", () =>
-            songSelectScreen.RankingPanelSize == new Vector2(850, 508));
-        AddAssert("ranking body uses its full height", () =>
-            songSelectScreen.RankingContentSize == new Vector2(850, 450));
-        AddAssert("ranking paper includes the header rail", () =>
+        AddAssert("empty ranking uses a compact detail strip", () =>
+            songSelectScreen.RankingPanelSize == new Vector2(850, 166));
+        AddAssert("empty ranking body is compact", () =>
+            songSelectScreen.RankingContentSize == new Vector2(850, 112));
+        AddAssert("compact ranking paper includes the header rail", () =>
             songSelectScreen.RankingPaperPosition == Vector2.Zero
-            && songSelectScreen.RankingPaperSize == new Vector2(850, 494));
+            && songSelectScreen.RankingPaperSize == new Vector2(850, 156));
         AddUntilStep("search box uses the space freed by key filter", () =>
             songSelectScreen.SearchBoxSize == new Vector2(816, 48));
         AddAssert("key modes share one compact cycling button", () =>
@@ -629,8 +629,8 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         AddUntilStep("one matching song", () =>
             !songSelectScreen.FilterPending
             && songSelectScreen.VisibleEntryCount == 1);
-        AddAssert("search is counted as an active filter", () =>
-            songSelectScreen.FiltersButtonValue == "2 ACTIVE");
+        AddAssert("filter summary names active criteria", () =>
+            songSelectScreen.FiltersButtonValue == "SEARCH · 7K");
         AddAssert("search reuses the existing sort order", () =>
             songSelectScreen.FilterSortPassCount == sortPassesBeforeSearch);
 
@@ -643,7 +643,9 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             && songSelectScreen.NoResultsTitle == "NO SONGS MATCH"
             && songSelectScreen.NoResultsSummary.Contains("not-a-real-song")
             && songSelectScreen.NoResultsSummary.Contains("7K")
-            && songSelectScreen.NoResultsResetVisible);
+            && songSelectScreen.NoResultsResetVisible
+            && songSelectScreen.PlayButtonEyebrow
+               == "PLAY PREVIOUS SELECTION");
         AddStep("clear browse filters", songSelectScreen.ClearBrowseFilters);
         AddUntilStep("clear restores the complete library", () =>
             !songSelectScreen.FilterPending
@@ -652,7 +654,9 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             && songSelectScreen.KeyModeFilter == null
             && songSelectScreen.MinimumDifficultyFilter == 0
             && songSelectScreen.ShowConverts
-            && songSelectScreen.FiltersButtonValue == "0 ACTIVE"
+            && songSelectScreen.FiltersButtonValue == "ALL SONGS"
+            && songSelectScreen.PlayButtonEyebrow
+               == "START SELECTED CHART"
             && !songSelectScreen.NoResultsVisible);
         AddStep("new search supersedes queued search", () =>
         {
@@ -671,11 +675,27 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
 
         AddStep("open consolidated filters from keyboard", () =>
             songSelectScreen.HandleBrowseKey(Key.F3));
-        AddAssert("filters popover opens", () => songSelectScreen.FiltersPopoverOpen);
-        AddStep("escape closes filters", songSelectScreen.HandleEscape);
+        AddUntilStep("filters popover owns focus", () =>
+            songSelectScreen.FiltersPopoverOpen
+            && !songSelectScreen.SearchHasFocus
+            && songSelectScreen.FiltersPopoverFocusedControl == "GROUP");
+        AddAssert("filters surface explains current criteria", () =>
+            songSelectScreen.FiltersPopoverSummary == "CURRENT · ALL SONGS");
+        AddStep("plain typing is isolated from search", () =>
+            songSelectScreen.HandleBrowseKey(Key.F));
+        AddAssert("filter overlay did not mutate search", () =>
+            songSelectScreen.SearchQuery.Length == 0);
+        AddStep("move filter focus right", () =>
+            songSelectScreen.HandleBrowseKey(Key.Right));
+        AddAssert("keyboard reaches converts option", () =>
+            songSelectScreen.FiltersPopoverFocusedControl == "CONVERTS");
+        AddStep("F3 closes filters", () =>
+            songSelectScreen.HandleBrowseKey(Key.F3));
         AddAssert("filters close without exiting", () =>
             !songSelectScreen.FiltersPopoverOpen
             && screenStack.CurrentScreen == songSelectScreen);
+        AddUntilStep("search focus returns after filters close", () =>
+            songSelectScreen.SearchHasFocus);
 
         AddStep("open full sort menu", () => songSelectScreen
             .ChildrenOfType<SongSelectBrowseToolButton>()
@@ -683,7 +703,14 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             .TriggerClick());
         AddAssert("sort menu exposes all modes", () =>
             songSelectScreen.SortPopoverOpen
+            && !songSelectScreen.SearchHasFocus
             && songSelectScreen.ChildrenOfType<SongSelectSortOptionButton>().Count() == 8);
+        AddStep("keyboard targets first sort option", () =>
+            songSelectScreen.HandleBrowseKey(Key.Home));
+        AddStep("keyboard applies focused sort option", () =>
+            songSelectScreen.HandleBrowseKey(Key.Enter));
+        AddUntilStep("keyboard sort selection applies", () =>
+            songSelectScreen.SortMode == SongSelectSortMode.Title);
         AddStep("escape closes sort menu", songSelectScreen.HandleEscape);
         AddAssert("sort menu closed without exiting", () =>
             !songSelectScreen.SortPopoverOpen
@@ -710,7 +737,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
 
         AddAssert("personal scores shown by default", () =>
             songSelectScreen.ScoreView == SongSelectScoreView.Personal);
-        AddAssert("empty personal history stays on the enlarged paper", () =>
+        AddAssert("empty personal history stays on the compact paper", () =>
             songSelectScreen.RankingContentLayerCount == 1
             && songSelectScreen.RankingEmptyStateVisible);
         var detailScore = new SongSelectScore(
@@ -739,6 +766,81 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         AddStep("close score result", songSelectScreen.HandleEscape);
         AddUntilStep("score result closes smoothly", () =>
             !songSelectScreen.ScoreResultVisible);
+    }
+
+    [Test]
+    public void TestBrowseOverlaysOwnKeyboardAndExplainEmptyResults()
+    {
+        AddStep("load overlay interaction charts", () =>
+        {
+            importedChartLibrary.Clear();
+            importedChartLibrary.AddOrReplace(
+            [
+                result("Overlay Four", DemoBeatmaps.CreateFourKeyDemo()),
+                result("Overlay Seven", DemoBeatmaps.CreateSevenKeyDemo()),
+            ],
+            @"C:\Charts\overlay-interactions.osz");
+            songSelectScreen.ClearBrowseFilters();
+        });
+        AddUntilStep("overlay charts are ready", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 2);
+        AddAssert("empty ranking is compact", () =>
+            songSelectScreen.RankingPanelSize == new Vector2(850, 166)
+            && songSelectScreen.RankingContentSize == new Vector2(850, 112));
+
+        AddStep("open filters with F3", () => InputManager.Key(Key.F3));
+        AddUntilStep("filters own keyboard focus", () =>
+            songSelectScreen.FiltersPopoverOpen
+            && !songSelectScreen.SearchHasFocus
+            && songSelectScreen.FiltersPopoverFocusedControl == "GROUP");
+        AddStep("type while filters are open", () => InputManager.Key(Key.F));
+        AddAssert("typing never leaks into search", () =>
+            songSelectScreen.SearchQuery.Length == 0);
+        AddStep("move to converts", () => InputManager.Key(Key.Right));
+        AddAssert("filter focus moves visibly", () =>
+            songSelectScreen.FiltersPopoverFocusedControl == "CONVERTS");
+        AddStep("close filters with F3", () => InputManager.Key(Key.F3));
+        AddUntilStep("search focus returns", () =>
+            !songSelectScreen.FiltersPopoverOpen
+            && songSelectScreen.SearchHasFocus);
+
+        AddStep("filter to no results", () =>
+        {
+            songSelectScreen.SetKeyModeFilter(KeyMode.SevenKey);
+            songSelectScreen.SetSearchQuery("not-an-overlay-chart");
+        });
+        AddUntilStep("no-result context settles", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 0);
+        AddAssert("criteria and ambient play are explicit", () =>
+            songSelectScreen.FiltersButtonValue == "SEARCH · 7K"
+            && songSelectScreen.PlayButtonEyebrow
+               == "PLAY PREVIOUS SELECTION");
+
+        AddStep("clear browse context", songSelectScreen.ClearBrowseFilters);
+        AddUntilStep("normal play context returns", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 2
+            && songSelectScreen.FiltersButtonValue == "ALL SONGS"
+            && songSelectScreen.PlayButtonEyebrow
+               == "START SELECTED CHART");
+
+        AddStep("open sort menu", () => songSelectScreen
+            .ChildrenOfType<SongSelectBrowseToolButton>()
+            .Single(control => Math.Abs(control.X - 780) < 0.01f)
+            .TriggerClick());
+        AddUntilStep("sort menu owns keyboard", () =>
+            songSelectScreen.SortPopoverOpen
+            && !songSelectScreen.SearchHasFocus);
+        AddStep("focus title sort", () => InputManager.Key(Key.Home));
+        AddStep("apply title sort", () => InputManager.Key(Key.Enter));
+        AddUntilStep("keyboard sort applies", () =>
+            songSelectScreen.SortMode == SongSelectSortMode.Title);
+        AddStep("close sort menu", () => InputManager.Key(Key.Escape));
+        AddUntilStep("sort closes and search focus returns", () =>
+            !songSelectScreen.SortPopoverOpen
+            && songSelectScreen.SearchHasFocus);
     }
 
     [Test]

@@ -265,6 +265,12 @@ namespace Yokko.Game
             var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
             Resources.AddStore(resources);
             AddFont(Resources, @"Fonts/PlusJakartaSans/PlusJakartaSans");
+            AddFont(Resources, @"Fonts/Noto/Noto-Basic");
+            AddFont(Resources, @"Fonts/Noto/Noto-Bopomofo");
+            AddFont(Resources, @"Fonts/Noto/Noto-CJK-Basic");
+            AddFont(Resources, @"Fonts/Noto/Noto-CJK-Compatibility");
+            AddFont(Resources, @"Fonts/Noto/Noto-Hangul");
+            AddFont(Resources, @"Fonts/Noto/Noto-Thai");
             _ = importedChartLibrary.BeginStartupLoad(
                 importSettings.PreferKeysounds.Value,
                 importSettings.PreferSscSimfiles.Value,
