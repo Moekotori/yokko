@@ -60,7 +60,7 @@ internal partial class SongSelectSearchBox : BasicTextBox
             0.56f);
         BackgroundUnfocused = SongSelectSurface.Ivory(0.98f);
         BackgroundFocused = SongSelectSurface.Ivory(0.995f);
-        FontSize = 20;
+        FontSize = 24;
         PlaceholderText = YokkoStrings.Get("song_select.search");
 
         AddInternal(new Container
@@ -100,7 +100,7 @@ internal partial class SongSelectSearchBox : BasicTextBox
             Origin = Anchor.CentreRight,
             X = -13,
             Text = "ESC",
-            Font = HomeTypography.Display(14),
+            Font = HomeTypography.Display(15),
             Colour = new Color4(
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
@@ -155,13 +155,13 @@ internal partial class SongSelectSearchBox : BasicTextBox
     protected override Drawable GetDrawableCharacter(char c) => new SpriteText
     {
         Text = c.ToString(),
-        Font = HomeTypography.Body(20),
+        Font = HomeTypography.Body(24),
         Colour = SongSelectTheme.Navy,
     };
 
     protected override SpriteText CreatePlaceholder() => new()
     {
-        Font = HomeTypography.Body(20),
+        Font = HomeTypography.Body(24),
         Colour = new Color4(
             SongSelectTheme.Navy.R,
             SongSelectTheme.Navy.G,
@@ -300,7 +300,7 @@ internal partial class SongSelectKeyModeFilterButton : ClickableContainer
             {
                 Position = new Vector2(49, 8),
                 Text = YokkoStrings.Get("song_select.key_mode"),
-                Font = HomeTypography.Display(13),
+                Font = HomeTypography.Display(14),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -311,7 +311,7 @@ internal partial class SongSelectKeyModeFilterButton : ClickableContainer
             {
                 Position = new Vector2(49, 22),
                 Text = YokkoStrings.Get("song_select.all"),
-                Font = HomeTypography.Control(18),
+                Font = HomeTypography.Control(19),
                 Colour = SongSelectTheme.Navy,
             },
             new SpriteIcon
@@ -444,7 +444,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
             {
                 Position = new Vector2(48, 4),
                 Text = label,
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Display(14),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -457,7 +457,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                 Width = width - 78,
                 Truncate = true,
                 Text = value,
-                Font = HomeTypography.Control(17),
+                Font = HomeTypography.Control(19),
                 Colour = SongSelectTheme.Navy,
             },
             new SpriteIcon

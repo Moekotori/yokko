@@ -112,7 +112,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
                 Origin = Anchor.TopRight,
                 Position = new Vector2(-214, 14),
                 Text = "0 PLAYS",
-                Font = HomeTypography.Display(13),
+                Font = HomeTypography.Display(14),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -389,7 +389,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
             Origin = Anchor.CentreLeft,
             X = 31,
             Text = label,
-            Font = HomeTypography.Display(11),
+            Font = HomeTypography.Display(13),
             Colour = SongSelectTheme.Navy,
         };
         return new ClickableContainer
@@ -549,7 +549,7 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
                     Text = personalHistory
                         ? "NO LOCAL PLAYS YET"
                         : "NO RANKING DATA",
-                    Font = HomeTypography.Display(18),
+                    Font = HomeTypography.Display(19),
                     Colour = SongSelectTheme.Navy,
                 },
                 new SpriteText
@@ -558,7 +558,7 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
                     Text = personalHistory
                         ? "YOUR RESULTS AND REPLAYS WILL LIVE HERE"
                         : "COMPLETE THIS CHART TO CREATE THE FIRST RESULT",
-                    Font = HomeTypography.Body(15),
+                    Font = HomeTypography.Body(16),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,

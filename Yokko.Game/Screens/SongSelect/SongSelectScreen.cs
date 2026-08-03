@@ -4592,7 +4592,7 @@ public partial class SongSelectScreen : Screen
                     Width = details_content_width,
                     Truncate = true,
                     Text = $"mapped by {selectedEntry.Beatmap.Creator}",
-                    Font = HomeTypography.Body(16),
+                    Font = HomeTypography.Body(17),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
@@ -5021,7 +5021,7 @@ public partial class SongSelectScreen : Screen
                 new SpriteText
                 {
                     Text = label,
-                    Font = HomeTypography.Display(13),
+                    Font = HomeTypography.Display(14),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
@@ -5031,7 +5031,7 @@ public partial class SongSelectScreen : Screen
                 new SpriteText
                 {
                     Text = value,
-                    Font = HomeTypography.Display(15),
+                    Font = HomeTypography.Display(16),
                     Colour = SongSelectTheme.Navy,
                 },
             ],
@@ -5304,7 +5304,7 @@ public partial class SongSelectScreen : Screen
             {
                 Position = new Vector2(18, 0),
                 Text = "BEST SCORE",
-                Font = HomeTypography.Display(13),
+                Font = HomeTypography.Display(14),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -5320,7 +5320,7 @@ public partial class SongSelectScreen : Screen
                     ? $"{selectedEntry.BestScore:N0}"
                     : "NO SCORE",
                 Font = HomeTypography.Display(
-                    selectedEntry.BestScore > 0 ? 17 : 16),
+                    selectedEntry.BestScore > 0 ? 18 : 17),
                 Colour = SongSelectTheme.Navy,
             },
         },
@@ -5347,7 +5347,7 @@ public partial class SongSelectScreen : Screen
                 {
                     Position = new Vector2(18, 0),
                     Text = "BEST ACCURACY",
-                    Font = HomeTypography.Display(13),
+                    Font = HomeTypography.Display(14),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
@@ -5362,7 +5362,7 @@ public partial class SongSelectScreen : Screen
                     Text = selectedEntry.BestAccuracy > 0
                         ? $"{selectedEntry.BestAccuracy:P2}"
                         : "--",
-                    Font = HomeTypography.Display(17),
+                    Font = HomeTypography.Display(18),
                     Colour = SongSelectTheme.Navy,
                 },
             ],
@@ -5389,7 +5389,7 @@ public partial class SongSelectScreen : Screen
                 {
                     Position = new Vector2(18, 0),
                     Text = "PLAY RATE",
-                    Font = HomeTypography.Display(13),
+                    Font = HomeTypography.Display(14),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,
@@ -5411,7 +5411,7 @@ public partial class SongSelectScreen : Screen
                     Width = width - 22,
                     Truncate = true,
                     Text = rateLabel,
-                    Font = HomeTypography.Display(17),
+                    Font = HomeTypography.Display(18),
                     Colour = SongSelectTheme.Navy,
                 },
             ],
@@ -5441,7 +5441,7 @@ public partial class SongSelectScreen : Screen
                 Width = 81,
                 Truncate = true,
                 Text = label,
-                Font = HomeTypography.Display(13),
+                Font = HomeTypography.Display(14),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -5454,7 +5454,7 @@ public partial class SongSelectScreen : Screen
                 Width = 81,
                 Truncate = true,
                 Text = value,
-                Font = HomeTypography.Display(17),
+                Font = HomeTypography.Display(18),
                 Colour = SongSelectTheme.Navy,
             },
         },

@@ -326,7 +326,7 @@ internal partial class SongSelectSelectedModsButton : ClickableContainer
             {
                 Position = new Vector2(29, 6),
                 Text = "SELECTED MODS",
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Display(13),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -338,7 +338,7 @@ internal partial class SongSelectSelectedModsButton : ClickableContainer
                 Position = new Vector2(29, 21),
                 Width = 91,
                 Truncate = true,
-                Font = HomeTypography.Control(17),
+                Font = HomeTypography.Control(18),
                 Colour = SongSelectTheme.Navy,
             },
             countBadge = new Circle
@@ -355,7 +355,7 @@ internal partial class SongSelectSelectedModsButton : ClickableContainer
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.Centre,
                 Position = new Vector2(-18, 0),
-                Font = HomeTypography.Display(12),
+                Font = HomeTypography.Display(13),
             },
         ];
 

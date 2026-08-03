@@ -682,7 +682,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             Position = new Vector2(330, 34),
             Width = 300,
             Truncate = true,
-            Font = HomeTypography.Display(14),
+            Font = HomeTypography.Display(15),
             Colour = SongSelectTheme.Navy,
             Alpha = 0,
         });
@@ -758,7 +758,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             Position = new Vector2(246, 104),
             Width = 472,
             Truncate = true,
-            Font = HomeTypography.Display(14),
+            Font = HomeTypography.Display(15),
             Colour = SongSelectTheme.Navy,
             Alpha = 0,
         });
@@ -1568,7 +1568,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 {
                     Position = new Vector2(contentStart, 8),
                     Text = "CHART COLLECTION",
-                    Font = HomeTypography.Display(13),
+                    Font = HomeTypography.Display(14),
                     Spacing = new Vector2(0.8f, 0),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
@@ -1589,7 +1589,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                     contentStart,
                     collapsed ? 70 : 98,
                     action_safe_right - contentStart,
-                    14,
+                    15,
                     new Color4(
                         SongSelectTheme.Navy.R,
                         SongSelectTheme.Navy.G,

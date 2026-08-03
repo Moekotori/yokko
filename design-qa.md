@@ -6028,3 +6028,60 @@ The focused comparison shows darker, larger chart facts, analysis metrics, ranki
 - Native Song Select preview captured and reviewed at `1920 x 1080`.
 
 final result: passed
+
+---
+
+# Song Select readability pass, round 2 (2026-08-03)
+
+- Source visual truth: `F:\Temp\yokko-songselect-readability-round2-before.png`
+- Implementation screenshot: `F:\Temp\yokko-songselect-readability-round2-final.png`
+- Full-view and left-detail comparison: `F:\Temp\yokko-songselect-readability-round2-final-comparison.png`
+- Right-browser focused comparison: `F:\Temp\yokko-songselect-readability-round2-final-right-comparison.png`
+- Source pixels: `1920 x 1080`; implementation pixels: `1920 x 1080`.
+- Viewport and density: native osu!framework `1920 x 1080`, 1x screenshot output; no density normalization was required.
+- State: English locale, selected expanded 7K package, empty ranking state, no open popovers.
+
+## Findings
+
+No actionable P0, P1, or P2 readability findings remain in the reviewed state.
+
+- Fonts and typography: the search field now uses 24 px body type; toolbar captions use 14-15 px display type with 19 px values; chart-fact and performance labels use 14 px display type with 18 px values. Secondary metadata, ranking copy, pattern summaries, and collection counts were raised proportionally. The 1:1 focused comparisons show a clear size increase without title wrapping, clipped glyphs, or collapsed hierarchy.
+- Spacing and layout rhythm: the existing card and row geometry remains intact. Larger type still fits the 44 px search field, 40 px filter controls, 34-35 px details rows, compact difficulty rows, ranking empty state, and footer cards. No overlap or truncation caused by this pass is visible.
+- Colors and visual tokens: informative secondary text uses navy at 0.82-0.90 opacity instead of pale cyan or low-alpha navy on ivory. Cyan, pink, yellow, and green remain reserved for accents and semantic states.
+- Image quality and asset fidelity: artwork, tape, stickers, icons, masks, and crops are unchanged and remain sharp. No visual asset was approximated or replaced.
+- Copy and content: the previously removed `PREVIEWING · ENTER TO PLAY` copy remains absent. All remaining labels are coherent in the captured state.
+- Accessibility and interaction: text contrast is materially stronger, persistent controls remain visible, and the focused Song Select interaction tests still pass. No focus, hover, or input behavior was changed by this typography-only pass.
+
+## Comparison history
+
+### Iteration 0
+
+- [P2] The prior readability pass still left search text, toolbar captions, chart-stat labels, ranking metadata, pattern summaries, and chart-collection metadata optically too small at native 1920 x 1080.
+- [P2] Pale cyan mapper text and low-opacity secondary navy text remained weak against the ivory surfaces.
+
+Fixes made:
+
+- Established a stronger practical floor: 14-15 px for dense labels, 16-19 px for values and body metadata, and 24 px for search input text.
+- Increased secondary foreground opacity to 0.82-0.90 and changed the selected mapper and preview labels to navy where cyan carried no semantic meaning.
+- Increased associated shortcut boxes and text slots only where necessary; preserved the already-readable footer action hierarchy.
+
+### Iteration 1
+
+The first revised 1:1 capture improved contrast and footer readability, but the search field, top toolbar, and dense left details still looked optically small because the display font has a modest x-height.
+
+Fixes made:
+
+- Raised search from 20 to 24 px, toolbar captions and values by another 1-2 px, and left detail labels/values by another 1 px.
+- Raised right-side chart collection and selected-row pattern metadata one additional step.
+
+### Iteration 2
+
+Post-fix evidence in the full-view and both focused comparisons shows comfortably readable text, preserved visual hierarchy, and no new overlap, clipping, or wrapping. No actionable P0/P1/P2 issue remains.
+
+## Verification
+
+- Release build: 0 warnings, 0 errors.
+- Focused tests: `TestSongSelectInteractions` and `TestCompactModePillProgressivelyDisclosesSelection` passed (2/2).
+- Native Song Select preview captured and reviewed at `1920 x 1080`.
+
+final result: passed

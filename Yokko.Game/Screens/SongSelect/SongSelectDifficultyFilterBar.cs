@@ -73,7 +73,7 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
                     "song_select.difficulty_range",
                     ManiaDifficultyPresentation.Unit(
                         ManiaDifficultyRatingMode.EtternaMsd)),
-                Font = HomeTypography.Display(14),
+                Font = HomeTypography.Display(15),
                 Colour = new Color4(
                     SongSelectTheme.Navy.R,
                     SongSelectTheme.Navy.G,
@@ -100,7 +100,7 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
                         Text = YokkoStrings.Get("song_select.all"),
-                        Font = HomeTypography.Control(17),
+                        Font = HomeTypography.Control(19),
                         Colour = SongSelectTheme.Navy,
                     },
                 ],
