@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using osu.Framework.Allocation;
@@ -93,6 +94,8 @@ internal partial class GameplayResultOverlay : CompositeDrawable
     internal bool ReplayAvailable { get; private set; }
     internal string DisplayedPlayerName => presentation.PlayerName;
     internal string DisplayedPlayerId => presentation.PlayerId;
+    internal int DisplayedLaneTimingCount =>
+        presentation.Timing?.Lanes?.Count ?? 0;
     internal bool ScorePanelInteractionActive =>
         scorePanel?.InteractionActive == true;
     internal bool EntranceComplete =>
@@ -364,6 +367,7 @@ internal partial class GameplayResultOverlay : CompositeDrawable
                 createSummaryRail(result),
                 createTimingStrip(),
                 createJudgementStrip(result),
+                createLaneTimingStrip(),
                 createActionRow(),
             },
         };
@@ -981,6 +985,83 @@ internal partial class GameplayResultOverlay : CompositeDrawable
         {
             Position = new Vector2(contentLeft, 708),
             Size = new Vector2(judgementStripWidth, 88),
+            Child = flow,
+        };
+    }
+
+    private Drawable createLaneTimingStrip()
+    {
+        IReadOnlyList<GameplayLaneTimingStatistics> lanes =
+            presentation.Timing?.Lanes;
+        if (lanes == null || lanes.Count == 0)
+            return new Container();
+
+        float cellWidth = contentWidth / lanes.Count;
+        var flow = new FillFlowContainer
+        {
+            RelativeSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+        };
+        foreach (GameplayLaneTimingStatistics lane in lanes)
+        {
+            Color4 accent = lane.MeanMilliseconds switch
+            {
+                < -0.05 => ResultColours.Cyan,
+                > 0.05 => ResultColours.Pink,
+                _ => ResultColours.Yellow,
+            };
+            flow.Add(new Container
+            {
+                Width = cellWidth,
+                RelativeSizeAxes = Axes.Y,
+                Children =
+                [
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = accent,
+                        Alpha = 0.08f,
+                    },
+                    new SpriteText
+                    {
+                        Position = new Vector2(10, 9),
+                        Text = $"K{lane.Lane + 1}",
+                        Font = HomeTypography.Display(13),
+                        Colour = accent,
+                    },
+                    new SpriteText
+                    {
+                        Position = new Vector2(10, 31),
+                        Text = lane.MeanMilliseconds.ToString(
+                                   "+0.0;-0.0;0.0",
+                                   CultureInfo.InvariantCulture)
+                               + " ms",
+                        Font = HomeTypography.Display(17),
+                        Colour = ResultColours.Navy,
+                    },
+                    new SpriteText
+                    {
+                        Position = new Vector2(10, 56),
+                        Text = $"UR {lane.UnstableRate:0.0}  N {lane.SampleCount}",
+                        Font = HomeTypography.Display(10),
+                        Colour = ResultColours.Muted,
+                    },
+                ],
+            });
+        }
+
+        return new Container
+        {
+            Position = new Vector2(contentLeft, 812),
+            Size = new Vector2(contentWidth, 82),
+            Masking = true,
+            CornerRadius = 6,
+            BorderThickness = 1,
+            BorderColour = new Color4(
+                ResultColours.Navy.R,
+                ResultColours.Navy.G,
+                ResultColours.Navy.B,
+                0.18f),
             Child = flow,
         };
     }

@@ -1,7 +1,23 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Yokko.Core.Scoring;
+
+public readonly record struct GameplayTimingSample(
+    int Lane,
+    double ErrorMilliseconds);
+
+public sealed record GameplayLaneTimingStatistics(
+    int Lane,
+    int SampleCount,
+    int EarlyCount,
+    int OnTimeCount,
+    int LateCount,
+    double? EarlyAverageMilliseconds,
+    double? LateAverageMilliseconds,
+    double MeanMilliseconds,
+    double UnstableRate);
 
 public sealed record GameplayTimingStatistics(
     int SampleCount,
@@ -11,12 +27,51 @@ public sealed record GameplayTimingStatistics(
     double? EarlyAverageMilliseconds,
     double? LateAverageMilliseconds,
     double MeanMilliseconds,
-    double UnstableRate)
+    double UnstableRate,
+    IReadOnlyList<GameplayLaneTimingStatistics> Lanes = null)
 {
     // Matches the live timing readout's early/on-time/late boundary.
     public const double OnTimeToleranceMilliseconds = 0.05;
 
     public static GameplayTimingStatistics? FromHitErrors(
+        IReadOnlyList<double> hitErrors)
+    {
+        if (hitErrors == null || hitErrors.Count == 0)
+            return null;
+
+        TimingAggregate? aggregate = calculate(hitErrors);
+        return aggregate?.ToSummary();
+    }
+
+    public static GameplayTimingStatistics? FromSamples(
+        IReadOnlyList<GameplayTimingSample> samples)
+    {
+        if (samples == null || samples.Count == 0)
+            return null;
+
+        GameplayTimingSample[] valid = samples
+            .Where(static sample =>
+                sample.Lane >= 0
+                && double.IsFinite(sample.ErrorMilliseconds))
+            .ToArray();
+        if (valid.Length == 0)
+            return null;
+
+        TimingAggregate aggregate = calculate(
+            valid.Select(static sample => sample.ErrorMilliseconds).ToArray())!;
+        GameplayLaneTimingStatistics[] lanes = valid
+            .GroupBy(static sample => sample.Lane)
+            .OrderBy(static group => group.Key)
+            .Select(group => calculate(
+                    group.Select(static sample => sample.ErrorMilliseconds)
+                         .ToArray())!
+                .ToLane(group.Key))
+            .ToArray();
+
+        return aggregate.ToSummary(lanes);
+    }
+
+    private static TimingAggregate? calculate(
         IReadOnlyList<double> hitErrors)
     {
         if (hitErrors == null || hitErrors.Count == 0)
@@ -60,7 +115,7 @@ public sealed record GameplayTimingStatistics(
         if (sampleCount == 0)
             return null;
 
-        return new GameplayTimingStatistics(
+        return new TimingAggregate(
             sampleCount,
             earlyCount,
             onTimeCount,
@@ -69,6 +124,40 @@ public sealed record GameplayTimingStatistics(
             lateCount == 0 ? null : lateSum / lateCount,
             mean,
             Math.Sqrt(squaredDeviation / sampleCount) * 10);
+    }
+
+    private sealed record TimingAggregate(
+        int SampleCount,
+        int EarlyCount,
+        int OnTimeCount,
+        int LateCount,
+        double? EarlyAverageMilliseconds,
+        double? LateAverageMilliseconds,
+        double MeanMilliseconds,
+        double UnstableRate)
+    {
+        public GameplayTimingStatistics ToSummary(
+            IReadOnlyList<GameplayLaneTimingStatistics> lanes = null) => new(
+            SampleCount,
+            EarlyCount,
+            OnTimeCount,
+            LateCount,
+            EarlyAverageMilliseconds,
+            LateAverageMilliseconds,
+            MeanMilliseconds,
+            UnstableRate,
+            lanes);
+
+        public GameplayLaneTimingStatistics ToLane(int lane) => new(
+            lane,
+            SampleCount,
+            EarlyCount,
+            OnTimeCount,
+            LateCount,
+            EarlyAverageMilliseconds,
+            LateAverageMilliseconds,
+            MeanMilliseconds,
+            UnstableRate);
     }
 
     public static bool TryGetRealInputError(

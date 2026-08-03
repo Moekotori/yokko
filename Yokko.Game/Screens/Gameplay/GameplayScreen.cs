@@ -81,7 +81,7 @@ public partial class GameplayScreen : Screen
     private readonly List<JudgementEvent> expiredJudgements = new();
     private readonly List<JudgementEvent> inputJudgements = new(8);
     private readonly List<JudgementInputEvent> inputTimingEvents = new(8);
-    private readonly List<double> resultHitErrors = new(1024);
+    private readonly List<GameplayTimingSample> resultHitErrors = new(1024);
     [Resolved]
     private YokkoAudioSettings audioSettings { get; set; }
     [Resolved]
@@ -148,6 +148,9 @@ public partial class GameplayScreen : Screen
     private bool retryTransitionInProgress;
     private double quickRetryHoldStartTime = double.NaN;
     private GameplayHud hud;
+    private GameplayGhostComparisonPanel ghostComparison;
+    private GameplayGhostTimeline ghostTimeline;
+    private int ghostSnapshotIndex = -1;
     private ManiaScoreResult completedResult;
     private GameplayResultOverlay resultOverlay;
     private GameplayResultPresentation completedResultPresentation;
@@ -565,6 +568,13 @@ public partial class GameplayScreen : Screen
                 playfield,
                 gameplaySettings),
             hud = createGameplayHud(playfield),
+            ghostComparison = new GameplayGhostComparisonPanel
+            {
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+                Position = new Vector2(-24, 126),
+                Depth = -112,
+            },
             comboReadout = new GameplayComboReadout
             {
                 Anchor = Anchor.TopCentre,
@@ -711,6 +721,7 @@ public partial class GameplayScreen : Screen
             "loaded",
             $"first-object={firstObjectTimeMilliseconds:0.###}ms"
             + $" | completion={completionTimeMilliseconds:0.###}ms");
+        beginGhostTimelineLoad();
     }
 
     private void onSelectedSkinIdChanged(ValueChangedEvent<string> _)
@@ -726,6 +737,126 @@ public partial class GameplayScreen : Screen
 
             applySelectedSkinIfChanged();
         });
+    }
+
+    private void beginGhostTimelineLoad()
+    {
+        if (ReplayMode
+            || mods.IsAutomation
+            || mods.IsCinema
+            || mods.HasDynamicRate)
+        {
+            ghostComparison.HidePanel();
+            return;
+        }
+
+        StoredGameplayScore best = scoreStore.GetBest(
+            originalBeatmap,
+            mods,
+            judgementConfiguration);
+        if (string.IsNullOrWhiteSpace(best?.ReplayPath)
+            || !File.Exists(best.ReplayPath))
+        {
+            ghostComparison.HidePanel();
+            return;
+        }
+
+        ghostComparison.ShowLoading();
+        _ = loadGhostTimelineAsync(
+            best.ReplayPath,
+            gameplayLifetimeCancellation.Token);
+    }
+
+    private async Task loadGhostTimelineAsync(
+        string replayPath,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            GameplayGhostTimeline loadedTimeline = await Task.Run(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                YokkoReplayLoadResult loaded =
+                    YokkoReplayIO.ReadFromFile(replayPath);
+                string expectedFingerprint =
+                    YokkoBeatmapFingerprint.Compute(originalBeatmap);
+                JudgementConfiguration loadedJudgement =
+                    loaded.Replay.JudgementConfiguration
+                    ?? JudgementConfiguration.YokkoDefault;
+                if (!string.Equals(
+                        loaded.BeatmapFingerprint,
+                        expectedFingerprint,
+                        StringComparison.OrdinalIgnoreCase)
+                    || loaded.KeyCount != (int)beatmap.KeyMode
+                    || !string.Equals(
+                        loaded.Replay.Mods.Fingerprint,
+                        mods.Fingerprint,
+                        StringComparison.Ordinal)
+                    || loadedJudgement != judgementConfiguration)
+                {
+                    throw new InvalidDataException(
+                        "The personal-best replay does not match this play.");
+                }
+
+                return GameplayGhostTimeline.Build(
+                    beatmap,
+                    loaded.Replay,
+                    mods,
+                    judgementState.Windows,
+                    judgementConfiguration,
+                    minesEnabled,
+                    cancellationToken);
+            }, cancellationToken).ConfigureAwait(false);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            Scheduler.Add(() =>
+            {
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
+                ghostTimeline = loadedTimeline;
+                ghostSnapshotIndex = -1;
+                diagnostics.Trace(
+                    "GAMEPLAY",
+                    "pb-ghost-ready",
+                    $"replay={Path.GetFileName(replayPath)}");
+            });
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception) when (
+            exception is IOException
+            or UnauthorizedAccessException
+            or InvalidDataException
+            or NotSupportedException
+            or ArgumentException)
+        {
+            diagnostics.Trace(
+                "GAMEPLAY",
+                "pb-ghost-unavailable",
+                exception.Message);
+            if (!cancellationToken.IsCancellationRequested)
+                Scheduler.Add(ghostComparison.HidePanel);
+        }
+    }
+
+    private void updateGhostComparison(double gameplayTime)
+    {
+        if (ghostTimeline == null
+            || !ghostTimeline.TryQuery(
+                gameplayTime,
+                ref ghostSnapshotIndex,
+                out GameplayGhostSnapshot ghost))
+        {
+            return;
+        }
+
+        ghostComparison.UpdateComparison(
+            judgementState.Score,
+            judgementState.Accuracy,
+            judgementState.Counts.Miss,
+            ghost);
     }
 
     public override void OnEntering(ScreenTransitionEvent e)
@@ -875,6 +1006,7 @@ public partial class GameplayScreen : Screen
             judgementState,
             healthState);
         hud.UpdateState(gameplayTime, judgementState, healthState);
+        updateGhostComparison(gameplayTime);
         if (!mods.IsCinema)
         {
             comboReadout.UpdateState(judgementState.Combo);
@@ -2522,7 +2654,9 @@ public partial class GameplayScreen : Screen
                 judgementState.Windows.SpeedMultiplier,
                 out double realHitErrorMilliseconds))
         {
-            resultHitErrors.Add(realHitErrorMilliseconds);
+            resultHitErrors.Add(new GameplayTimingSample(
+                judgement.Lane,
+                realHitErrorMilliseconds));
         }
         adaptiveSpeedState?.Apply(judgement);
         ManiaHealthUpdate healthUpdate = healthState.Apply(
@@ -2638,7 +2772,7 @@ public partial class GameplayScreen : Screen
                               judgementConfiguration);
         DateTimeOffset completedAt = DateTimeOffset.UtcNow;
         GameplayTimingStatistics completedTiming =
-            GameplayTimingStatistics.FromHitErrors(resultHitErrors);
+            GameplayTimingStatistics.FromSamples(resultHitErrors);
         StoredGameplayScore previousBest = scoreStore.GetBest(
             originalBeatmap,
             mods,
@@ -2688,6 +2822,8 @@ public partial class GameplayScreen : Screen
                      Easing.OutQuint);
         hud.Delay(completionSettleMilliseconds + 60)
            .FadeOut(420, Easing.OutQuint);
+        ghostComparison.Delay(completionSettleMilliseconds + 60)
+                       .FadeOut(420, Easing.OutQuint);
         judgementReadout.Delay(completionSettleMilliseconds)
                         .FadeOut(420, Easing.OutQuint);
         timingBar.Delay(completionSettleMilliseconds + 40)
@@ -4235,7 +4371,7 @@ public partial class GameplayScreen : Screen
         GameplayReplayTimeline Timeline,
         GameplayReplay BaselineReplay,
         ReplaySeekRollbackState Timing,
-        double[] ResultHitErrors,
+        GameplayTimingSample[] ResultHitErrors,
         int PausesUsed);
 
     private void resetScheduledSampleCursor(double gameplayTime)

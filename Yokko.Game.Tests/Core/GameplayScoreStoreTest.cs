@@ -130,7 +130,14 @@ public class GameplayScoreStoreTest
         var first = new GameplayScoreStore();
         first.Initialise(new NativeStorage(testRoot));
         GameplayTimingStatistics timing =
-            GameplayTimingStatistics.FromHitErrors([-12.5, -4, 0, 6, 18])!;
+            GameplayTimingStatistics.FromSamples(
+            [
+                new GameplayTimingSample(0, -12.5),
+                new GameplayTimingSample(0, -4),
+                new GameplayTimingSample(1, 0),
+                new GameplayTimingSample(1, 6),
+                new GameplayTimingSample(1, 18),
+            ])!;
 
         Assert.That(
             first.SaveBest(
@@ -163,6 +170,9 @@ public class GameplayScoreStoreTest
                 Is.EqualTo(12).Within(0.0001));
             Assert.That(saved.MeanMilliseconds, Is.EqualTo(1.5).Within(0.0001));
             Assert.That(saved.UnstableRate, Is.GreaterThan(0));
+            Assert.That(saved.Lanes, Has.Count.EqualTo(2));
+            Assert.That(saved.Lanes[0].SampleCount, Is.EqualTo(2));
+            Assert.That(saved.Lanes[1].SampleCount, Is.EqualTo(3));
         });
     }
 

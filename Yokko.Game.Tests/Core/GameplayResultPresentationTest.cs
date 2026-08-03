@@ -26,6 +26,29 @@ public class GameplayResultPresentationTest
     }
 
     [Test]
+    public void TimingSummaryKeepsIndependentLaneStatistics()
+    {
+        GameplayTimingStatistics summary =
+            GameplayTimingStatistics.FromSamples(
+            [
+                new GameplayTimingSample(0, -12),
+                new GameplayTimingSample(0, -8),
+                new GameplayTimingSample(1, 4),
+                new GameplayTimingSample(1, 8),
+            ])!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(summary.SampleCount, Is.EqualTo(4));
+            Assert.That(summary.Lanes, Has.Count.EqualTo(2));
+            Assert.That(summary.Lanes[0].Lane, Is.EqualTo(0));
+            Assert.That(summary.Lanes[0].MeanMilliseconds, Is.EqualTo(-10));
+            Assert.That(summary.Lanes[1].Lane, Is.EqualTo(1));
+            Assert.That(summary.Lanes[1].MeanMilliseconds, Is.EqualTo(6));
+        });
+    }
+
+    [Test]
     public void TimingSummaryIsUnavailableWithoutSamples()
     {
         Assert.That(

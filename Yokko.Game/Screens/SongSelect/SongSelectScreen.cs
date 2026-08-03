@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -26,6 +27,7 @@ using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Audio;
+using Yokko.Core.Analysis;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
@@ -93,6 +95,10 @@ public partial class SongSelectScreen : Screen
         SongSelectEntry,
         Dictionary<DifficultyCacheState, ManiaDifficultyRatings>>
         difficultyRatingsCache =
+            new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<
+        SongSelectEntry,
+        Dictionary<string, ManiaChartAnalysisResult>> analysisCache =
             new(ReferenceEqualityComparer.Instance);
     private readonly ConditionalWeakTable<
         YokkoBeatmap,
@@ -268,6 +274,7 @@ public partial class SongSelectScreen : Screen
     private string displayedBpm = "0";
     private ManiaMsdResult displayedMsdRating;
     private ManiaStarRatingResult displayedStarRating;
+    private ManiaChartAnalysisResult displayedChartAnalysis;
     [Resolved]
     private GameplayScoreStore scoreStore { get; set; }
     [Resolved]
@@ -522,6 +529,8 @@ public partial class SongSelectScreen : Screen
         displayedMsdRating;
     internal ManiaStarRatingResult DisplayedStarRating =>
         displayedStarRating;
+    internal ManiaChartAnalysisResult DisplayedChartAnalysis =>
+        displayedChartAnalysis;
     internal ManiaDifficultyRatingMode DisplayedDifficultyRatingMode =>
         displaySettings.DifficultyRatingMode.Value;
     internal SongSelectAccuracyChallengeSettings
@@ -4333,6 +4342,10 @@ public partial class SongSelectScreen : Screen
         displayedBpm = bpmLabel;
         displayedMsdRating = difficultyRatings.EtternaMsd;
         displayedStarRating = difficultyRatings.RebirthStars;
+        displayedChartAnalysis = chartAnalysisFor(
+            selectedEntry,
+            selectedMods.HasTimeRamp ? difficultyBeatmap : appliedBeatmap,
+            selectedMods.HasTimeRamp ? 1 : selectedMods.PlaybackRate);
         string[] detailsTitleLines = LayoutDetailsTitle(
             selectedEntry.Beatmap.Title);
         float artistY = detailsTitleLines.Length == 1 ? 102 : 111;
@@ -4390,6 +4403,8 @@ public partial class SongSelectScreen : Screen
                 createSelectedDetailsDivider(),
                 selectedPerformanceRow =
                     createSelectedPerformanceRow(rateLabel),
+                createSelectedAnalysisRow(displayedChartAnalysis),
+                createLaneDensityStrip(displayedChartAnalysis),
                 rankingPanel,
                 selectedModsButton = new SongSelectSelectedModsButton(
                     ToggleModPanel,
@@ -4756,6 +4771,139 @@ public partial class SongSelectScreen : Screen
             createPlaybackRateStat(374, -3, 136, rateLabel),
         ],
         };
+
+    private static Drawable createSelectedAnalysisRow(
+        ManiaChartAnalysisResult analysis) => new Container
+        {
+            Position = new Vector2(details_content_left, 294),
+            Size = new Vector2(details_content_width, 20),
+            Children =
+            [
+                createAnalysisDatum(
+                    0,
+                    "AVG KPS",
+                    analysis.AverageKps.ToString("0.0")),
+                createAnalysisDatum(
+                    126,
+                    "PEAK KPS",
+                    analysis.PeakKps.ToString("0.0")),
+                createAnalysisDatum(
+                    264,
+                    "LN",
+                    analysis.HoldRatio.ToString("P0")),
+                createAnalysisDatum(
+                    366,
+                    $"BUSY K{analysis.BusiestLane + 1}",
+                    analysis.LaneImbalance.ToString("P0") + " Δ"),
+            ],
+        };
+
+    private static Drawable createAnalysisDatum(
+        float x,
+        string label,
+        string value) => new FillFlowContainer
+        {
+            X = x,
+            AutoSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+            Spacing = new Vector2(6, 0),
+            Children =
+            [
+                new SpriteText
+                {
+                    Text = label,
+                    Font = HomeTypography.Display(9),
+                    Colour = SongSelectTheme.Cyan,
+                },
+                new SpriteText
+                {
+                    Text = value,
+                    Font = HomeTypography.Display(11),
+                    Colour = SongSelectTheme.Navy,
+                },
+            ],
+        };
+
+    private static Drawable createLaneDensityStrip(
+        ManiaChartAnalysisResult analysis)
+    {
+        int peakLaneNotes = analysis.LaneNoteCounts.Count == 0
+            ? 0
+            : analysis.LaneNoteCounts.Max();
+        float laneWidth = details_content_width
+                          / Math.Max(1, analysis.LaneNoteCounts.Count);
+        var lanes = new FillFlowContainer
+        {
+            RelativeSizeAxes = Axes.Both,
+            Direction = FillDirection.Horizontal,
+        };
+        for (int lane = 0; lane < analysis.LaneNoteCounts.Count; lane++)
+        {
+            int laneNotes = analysis.LaneNoteCounts[lane];
+            float fill = peakLaneNotes == 0
+                ? 0
+                : laneNotes / (float)peakLaneNotes;
+            lanes.Add(new Container
+            {
+                Width = laneWidth,
+                RelativeSizeAxes = Axes.Y,
+                Padding = new MarginPadding { Horizontal = 1 },
+                Children =
+                [
+                    new Box
+                    {
+                        Anchor = Anchor.BottomLeft,
+                        Origin = Anchor.BottomLeft,
+                        RelativeSizeAxes = Axes.X,
+                        Height = Math.Max(2, 12 * fill),
+                        Colour = lane == analysis.BusiestLane
+                            ? SongSelectTheme.Pink
+                            : SongSelectTheme.Cyan,
+                        Alpha = peakLaneNotes == 0
+                            ? 0.12f
+                            : 0.28f + 0.62f * fill,
+                    },
+                ],
+            });
+        }
+
+        return new Container
+        {
+            Position = new Vector2(details_content_left, 318),
+            Size = new Vector2(details_content_width, 12),
+            Child = lanes,
+        };
+    }
+
+    private ManiaChartAnalysisResult chartAnalysisFor(
+        SongSelectEntry entry,
+        YokkoBeatmap analysisBeatmap,
+        double playbackRate)
+    {
+        string key = RuntimeHelpers.GetHashCode(analysisBeatmap)
+                     + ":"
+                     + selectedMods.Fingerprint
+                     + "@"
+                     + playbackRate.ToString("R", CultureInfo.InvariantCulture);
+        if (!analysisCache.TryGetValue(
+                entry,
+                out Dictionary<string, ManiaChartAnalysisResult> entryCache))
+        {
+            entryCache = new Dictionary<string, ManiaChartAnalysisResult>(
+                StringComparer.Ordinal);
+            analysisCache[entry] = entryCache;
+        }
+
+        if (!entryCache.TryGetValue(key, out ManiaChartAnalysisResult analysis))
+        {
+            analysis = ManiaChartAnalysis.Analyse(
+                analysisBeatmap,
+                playbackRate);
+            entryCache[key] = analysis;
+        }
+
+        return analysis;
+    }
 
     private static Drawable createDetailsVerticalDivider(
         float x,
