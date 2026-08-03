@@ -717,7 +717,8 @@ public sealed class ImportedChartLibraryTest
                     hidden.TrySetResult(true);
             };
 
-            Directory.Move(songs, Path.Combine(root, "moved-Songs"));
+            string movedSongs = Path.Combine(root, "moved-Songs");
+            Directory.Move(songs, movedSongs);
             Assert.That(
                 await Task.WhenAny(hidden.Task, Task.Delay(5000)),
                 Is.SameAs(hidden.Task),
@@ -726,6 +727,13 @@ public sealed class ImportedChartLibraryTest
                 await library.RefreshExternalOsuAsync();
             YokkoBeatmap removed =
                 await library.GetPlayableBeatmapAsync(indexed.Id);
+            Directory.Move(movedSongs, songs);
+            ExternalOsuLibraryResult restored;
+            do
+            {
+                restored = await library.RefreshExternalOsuAsync();
+            }
+            while (restored.Superseded);
 
             Assert.Multiple(() =>
             {
@@ -734,6 +742,9 @@ public sealed class ImportedChartLibraryTest
                 Assert.That(library.ExternalOsuChartCount, Is.Zero);
                 Assert.That(library.GetCharts(), Is.Empty);
                 Assert.That(removed, Is.Null);
+                Assert.That(restored.Success, Is.True);
+                Assert.That(restored.ChartCount, Is.EqualTo(1));
+                Assert.That(library.GetCharts(), Has.Count.EqualTo(1));
                 Assert.That(settings.SongsPath.Value, Is.EqualTo(songs));
             });
         }
@@ -2025,15 +2036,23 @@ public sealed class ImportedChartLibraryTest
                 await reloaded.LoadFromDiskAsync(true, true),
                 Is.EqualTo(sourceCount));
             warm.Stop();
+            long warmRevision = reloaded.Revision;
+            var unchanged = Stopwatch.StartNew();
+            Assert.That(
+                await reloaded.LoadFromDiskAsync(true, true),
+                Is.EqualTo(sourceCount));
+            unchanged.Stop();
             TestContext.Progress.WriteLine(
                 $"Managed library {sourceCount}: cold={cold.Elapsed.TotalMilliseconds:0} ms, "
-                + $"warm={warm.Elapsed.TotalMilliseconds:0} ms.");
+                + $"warm={warm.Elapsed.TotalMilliseconds:0} ms, "
+                + $"unchanged F5={unchanged.Elapsed.TotalMilliseconds:0} ms.");
 
             Assert.Multiple(() =>
             {
                 Assert.That(reloaded.LastManagedScannedFileCount, Is.EqualTo(sourceCount));
                 Assert.That(reloaded.LastManagedCacheHitCount, Is.EqualTo(sourceCount));
                 Assert.That(reloaded.LastManagedContentReadCount, Is.Zero);
+                Assert.That(reloaded.Revision, Is.EqualTo(warmRevision));
                 Assert.That(warm.Elapsed, Is.LessThan(cold.Elapsed));
             });
         }

@@ -169,6 +169,7 @@ internal sealed class ImportedChartLibrary : IDisposable
     private YokkoExternalOsuSettings externalOsuSettings;
     private string externalOsuCachePath;
     private string managedIndexPath;
+    private ExternalOsuIndexDocument externalOsuIndexSnapshot;
     private ManagedChartIndexDocument managedIndexSnapshot;
     private bool managedPreferKeysounds = true;
     private bool managedPreferSscSimfiles = true;
@@ -305,6 +306,7 @@ internal sealed class ImportedChartLibrary : IDisposable
             Path.Combine("cache", "external-osu"),
             true);
         externalOsuCachePath = Path.Combine(cacheDirectory, "library-index.json");
+        externalOsuIndexSnapshot = null;
         configureExternalAvailabilityMonitor(ExternalOsuSongsPath);
     }
 
@@ -1194,7 +1196,7 @@ internal sealed class ImportedChartLibrary : IDisposable
         try
         {
             ExternalOsuIndexDocument cachedDocument =
-                ExternalOsuSongsIndex.Load(externalOsuCachePath, songsPath);
+                loadExternalOsuIndex(songsPath);
             var cached = (cachedDocument?.Entries ?? [])
                          .GroupBy(entry => entry.SourcePath,
                              StringComparer.OrdinalIgnoreCase)
@@ -1342,17 +1344,19 @@ internal sealed class ImportedChartLibrary : IDisposable
             bool indexChanged = changed.Count > 0
                                 || cachedDocument == null
                                 || cached.Count != entries.Length;
+            int maniaChartCount = entries.Count(entry => entry.Result != null);
             bool reuseIndexedExternalCharts;
             lock (syncRoot)
             {
                 reuseIndexedExternalCharts = !indexChanged
                                              && indexedExternalConfigurationGeneration
-                                             == configurationGeneration;
+                                             == configurationGeneration
+                                             && indexedExternalCharts.Length
+                                             == maniaChartCount;
             }
             ImportedChart[] externalCharts = reuseIndexedExternalCharts
                 ? null
                 : createExternalCharts(entries);
-            int maniaChartCount = entries.Count(entry => entry.Result != null);
             msdRatingCache.SaveIfChanged();
             starRatingCache.SaveIfChanged();
 
@@ -1361,10 +1365,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                 refreshToken.ThrowIfCancellationRequested();
                 if (indexChanged)
                 {
-                    ExternalOsuSongsIndex.Save(
-                        externalOsuCachePath,
-                        songsPath,
-                        entries);
+                    saveExternalOsuIndex(songsPath, entries);
                 }
             }
             catch (Exception exception) when (exception is IOException
@@ -1465,9 +1466,7 @@ internal sealed class ImportedChartLibrary : IDisposable
         await importLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            ExternalOsuIndexDocument cached = ExternalOsuSongsIndex.Load(
-                externalOsuCachePath,
-                songsPath);
+            ExternalOsuIndexDocument cached = loadExternalOsuIndex(songsPath);
             if (cached == null)
             {
                 lock (externalOsuStateLock)
@@ -1507,6 +1506,40 @@ internal sealed class ImportedChartLibrary : IDisposable
         {
             importLock.Release();
         }
+    }
+
+    private ExternalOsuIndexDocument loadExternalOsuIndex(string songsPath)
+    {
+        string fullSongsPath = Path.GetFullPath(songsPath);
+        if (externalOsuIndexSnapshot?.Version
+            == ExternalOsuSongsIndex.CurrentVersion
+            && File.Exists(externalOsuCachePath)
+            && string.Equals(
+                Path.GetFullPath(externalOsuIndexSnapshot.SongsPath),
+                fullSongsPath,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return externalOsuIndexSnapshot;
+        }
+
+        externalOsuIndexSnapshot = ExternalOsuSongsIndex.Load(
+            externalOsuCachePath,
+            fullSongsPath);
+        return externalOsuIndexSnapshot;
+    }
+
+    private void saveExternalOsuIndex(
+        string songsPath,
+        IReadOnlyList<ExternalOsuIndexEntry> entries)
+    {
+        ExternalOsuSongsIndex.Save(
+            externalOsuCachePath,
+            songsPath,
+            entries);
+        externalOsuIndexSnapshot = new ExternalOsuIndexDocument(
+            ExternalOsuSongsIndex.CurrentVersion,
+            Path.GetFullPath(songsPath),
+            entries.ToArray());
     }
 
     private static ImportedChart[] createExternalCharts(
@@ -2106,10 +2139,7 @@ internal sealed class ImportedChartLibrary : IDisposable
             if (!publishToLibrary)
                 return true;
 
-            ExternalOsuSongsIndex.Save(
-                externalOsuCachePath,
-                songsPath,
-                entries);
+            saveExternalOsuIndex(songsPath, entries);
 
             lock (externalOsuStateLock)
             {
@@ -2397,7 +2427,7 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         chartIndices.Clear();
         for (int i = 0; i < charts.Count; i++)
-            chartIndices[charts[i].Id] = i;
+            chartIndices.TryAdd(charts[i].Id, i);
         chartIndicesStructureRevision = structureRevision;
         return chartIndices;
     }
@@ -2842,18 +2872,18 @@ internal sealed class ImportedChartLibrary : IDisposable
         IReadOnlyList<ManagedChartIndexEntry> entries)
     {
         ManagedChartIndexEntry[] snapshotEntries = entries.ToArray();
-        managedIndexSnapshot = new ManagedChartIndexDocument(
-            ManagedChartLibraryIndex.CurrentVersion,
-            Path.GetFullPath(LibraryPath),
-            preferKeysounds,
-            preferSscSimfiles,
-            enableBmsScratch,
-            snapshotEntries);
         try
         {
             ManagedChartLibraryIndex.Save(
                 managedIndexPath,
                 LibraryPath,
+                preferKeysounds,
+                preferSscSimfiles,
+                enableBmsScratch,
+                snapshotEntries);
+            managedIndexSnapshot = new ManagedChartIndexDocument(
+                ManagedChartLibraryIndex.CurrentVersion,
+                Path.GetFullPath(LibraryPath),
                 preferKeysounds,
                 preferSscSimfiles,
                 enableBmsScratch,
