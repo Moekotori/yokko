@@ -5133,6 +5133,35 @@ HitPosition: 400
                     .ChildrenOfType<GameplayPauseOverlay>()
                     .Single()
                     .PauseSettingsExpanded);
+            AddStep("retry shortcut is contained by pause settings", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .HandleKey(gameplaySettings.GetShortcutBinding(
+                        ManiaShortcutAction.Retry)));
+            AddAssert("pause settings remains open after retry shortcut", () =>
+                gameplayScreen.IsPaused
+                && gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .PauseSettingsExpanded);
+            AddStep("confirm closes pause settings only", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .HandleKey(gameplaySettings.GetShortcutBinding(
+                        ManiaShortcutAction.Confirm)));
+            AddAssert("confirm does not resume gameplay", () =>
+                gameplayScreen.IsPaused
+                && !gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .PauseSettingsExpanded);
+            AddStep("reopen pause settings", () =>
+                gameplayScreen
+                    .ChildrenOfType<GameplayPauseOverlay>()
+                    .Single()
+                    .TogglePauseSettings());
             AddStep("increase pause countdown", () =>
                 gameplayScreen
                     .ChildrenOfType<GameplayPauseOverlay>()

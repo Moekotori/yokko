@@ -89,7 +89,7 @@ public partial class SongSelectScreen : Screen
         difficultyRatingsCache =
             new(ReferenceEqualityComparer.Instance);
     private readonly ConditionalWeakTable<
-        SongSelectEntry,
+        YokkoBeatmap,
         CachedSearchDocument> searchDocuments = new();
     private readonly SemaphoreSlim filterDifficultyLock = new(1, 1);
 
@@ -4429,10 +4429,10 @@ public partial class SongSelectScreen : Screen
                 if (request.SearchTokens.Length > 0)
                 {
                     string document = searchDocuments.GetValue(
-                        snapshot.Entry,
-                        static entry => new CachedSearchDocument(
+                        beatmap,
+                        static cachedBeatmap => new CachedSearchDocument(
                             SongSelectSearchMatcher.CreateDocument(
-                                entry.Beatmap))).Value;
+                                cachedBeatmap))).Value;
                     if (!SongSelectSearchMatcher.Matches(
                             document,
                             request.SearchTokens))
@@ -4459,7 +4459,7 @@ public partial class SongSelectScreen : Screen
                         cancellationToken.ThrowIfCancellationRequested();
                         ManiaDifficultyRatings ratings =
                             calculateDifficultyRatings(
-                                snapshot.Entry,
+                                beatmap,
                                 request.Difficulty.Mods,
                                 judgementConfiguration,
                                 request.Difficulty.MinesEnabled);
@@ -4468,6 +4468,7 @@ public partial class SongSelectScreen : Screen
                             request.Difficulty.RatingMode);
                         calculated.Add(new CalculatedDifficulty(
                             snapshot.Entry,
+                            beatmap,
                             state,
                             ratings));
                     }
@@ -4543,7 +4544,17 @@ public partial class SongSelectScreen : Screen
         filterTask = null;
         filterPending = false;
         foreach (CalculatedDifficulty calculated in result.CalculatedDifficulties)
-            cacheDifficultyRatings(calculated.Entry, calculated.State, calculated.Ratings);
+        {
+            if (ReferenceEquals(
+                    calculated.Entry.Beatmap,
+                    calculated.Beatmap))
+            {
+                cacheDifficultyRatings(
+                    calculated.Entry,
+                    calculated.State,
+                    calculated.Ratings);
+            }
+        }
         visibleEntries = result.Entries;
         diagnostics.Trace(
             "SONG_SELECT",
@@ -4608,6 +4619,7 @@ public partial class SongSelectScreen : Screen
 
     private sealed record CalculatedDifficulty(
         SongSelectEntry Entry,
+        YokkoBeatmap Beatmap,
         DifficultyCacheState State,
         ManiaDifficultyRatings Ratings);
 
@@ -5051,7 +5063,6 @@ public partial class SongSelectScreen : Screen
         {
             entry.Beatmap = playable;
             basicFilterSnapshots = null;
-            searchDocuments.Remove(entry);
             materialisedImportedCharts.Add(entry.ChartId);
             difficultyRatingsCache.Remove(entry);
             rebuildDetails();
@@ -5378,13 +5389,33 @@ public partial class SongSelectScreen : Screen
             return false;
 
         string selectedImportedId = selectedEntry?.ChartId;
+        Dictionary<SongSelectEntry, int> entryIndices = null;
+        HashSet<SongSelectEntry> removedEntries = null;
+        if (delta.RemovedChartIds.Count > 0)
+        {
+            removedEntries = new HashSet<SongSelectEntry>(
+                ReferenceEqualityComparer.Instance);
+        }
+
+        void flushRemovedEntries()
+        {
+            if (removedEntries?.Count > 0)
+            {
+                entries.RemoveAll(removedEntries.Contains);
+                removedEntries.Clear();
+            }
+        }
+
         foreach (string id in delta.RemovedChartIds)
         {
             if (!importedEntries.Remove(id, out SongSelectEntry removed))
                 continue;
 
             importedChartModels.Remove(id);
-            entries.Remove(removed);
+            if (removedEntries != null)
+                removedEntries.Add(removed);
+            else
+                entries.Remove(removed);
             difficultyRatingsCache.Remove(removed);
             materialisedImportedCharts.Remove(id);
             if (string.Equals(
@@ -5412,6 +5443,7 @@ public partial class SongSelectScreen : Screen
                         chart.Id,
                         out SongSelectEntry ratingEntry))
                 {
+                    flushRemovedEntries();
                     return false;
                 }
 
@@ -5436,9 +5468,24 @@ public partial class SongSelectScreen : Screen
                     chart.Id,
                     out SongSelectEntry previousEntry))
             {
-                int entryIndex = entries.IndexOf(previousEntry);
-                if (entryIndex < 0)
+                // Keep addition-only deltas proportional to the delta. The
+                // full reference index is only needed when replacements exist.
+                if (entryIndices == null)
+                {
+                    entryIndices = new Dictionary<SongSelectEntry, int>(
+                        entries.Count,
+                        ReferenceEqualityComparer.Instance);
+                    for (int index = 0; index < entries.Count; index++)
+                        entryIndices[entries[index]] = index;
+                }
+                if (!entryIndices.TryGetValue(
+                        previousEntry,
+                        out int entryIndex)
+                    || removedEntries?.Contains(previousEntry) == true)
+                {
+                    flushRemovedEntries();
                     return false;
+                }
                 entries[entryIndex] = replacement;
                 difficultyRatingsCache.Remove(previousEntry);
             }
@@ -5450,6 +5497,8 @@ public partial class SongSelectScreen : Screen
             importedEntries[chart.Id] = replacement;
             importedChartModels[chart.Id] = chart;
         }
+
+        flushRemovedEntries();
 
         // A missed or incomplete delta must never leave Song Select with a
         // partial library. The caller immediately repairs it from a full
@@ -5609,7 +5658,7 @@ public partial class SongSelectScreen : Screen
                 ? JudgementConfiguration.QuaverDefault
                 : configuredJudgement;
         ratings = calculateDifficultyRatings(
-            entry,
+            entry.Beatmap,
             selectedMods,
             judgementConfiguration,
             minesEnabled);
@@ -5695,13 +5744,13 @@ public partial class SongSelectScreen : Screen
     }
 
     private static ManiaDifficultyRatings calculateDifficultyRatings(
-        SongSelectEntry entry,
+        YokkoBeatmap beatmap,
         ManiaModSet mods,
         JudgementConfiguration judgementConfiguration,
         bool minesEnabled)
     {
         YokkoBeatmap appliedBeatmap =
-            ManiaBeatmapModTransformer.Apply(entry.Beatmap, mods);
+            ManiaBeatmapModTransformer.Apply(beatmap, mods);
         YokkoBeatmap difficultyBeatmap =
             ManiaTimeRampTimeline.TransformForDifficulty(
                 appliedBeatmap,

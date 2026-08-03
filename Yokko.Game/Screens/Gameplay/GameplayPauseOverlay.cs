@@ -218,7 +218,10 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     {
         if (pauseSettingsControl?.IsOpen == true)
         {
-            if (matches(ManiaShortcutAction.PauseOrBack, key))
+            if (key == Key.Tab
+                || matches(ManiaShortcutAction.PauseOrBack, key)
+                || matches(ManiaShortcutAction.Confirm, key)
+                || matches(ManiaShortcutAction.ConfirmAlternate, key))
             {
                 pauseSettingsControl.Close();
                 return true;
@@ -253,6 +256,10 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 pauseSettingsControl.AdjustSelectedSetting(1);
                 return true;
             }
+
+            // The settings drawer is modal. In particular, retry and action
+            // shortcuts must never fall through to the pause menu behind it.
+            return true;
         }
 
         if (key == Key.Tab)
@@ -634,7 +641,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 actions[0],
                 pauseSettingsControl = new PauseSettingsControl(
                     gameplaySettings,
-                    audioSettings)
+                    audioSettings,
+                    onPauseSettingsOpenChanged)
                 {
                     Position = new Vector2(leftContentX + 200, 160),
                 },
@@ -2162,6 +2170,10 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
             : KeyModeBindings.FormatKey(key).ToUpperInvariant();
     }
 
+    private void onPauseSettingsOpenChanged(bool isOpen) =>
+        actions[0]?.SetHint(
+            $"{formatResumeKey()} TO {(isOpen ? "CLOSE OPTIONS" : "RESUME")}");
+
     /// <summary>
     /// Localised text uses the shared CJK family. Archivo Black is restricted
     /// to the numeric judgement readout below.
@@ -2614,6 +2626,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
     private partial class PauseSettingsControl : CompositeDrawable
     {
+        private readonly Action<bool> openStateChanged;
         private const int settingCount = 3;
         private const double volumeStep = 0.05;
         private static readonly double[] countdownOptions = [0, 1000, 2000, 3000];
@@ -2639,8 +2652,10 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
         public PauseSettingsControl(
             YokkoGameplaySettings settings,
-            YokkoAudioSettings audioSettings)
+            YokkoAudioSettings audioSettings,
+            Action<bool> openStateChanged)
         {
+            this.openStateChanged = openStateChanged;
             countdownEnabled = settings.ResumeCountdownEnabled;
             countdownDuration = settings.ResumeCountdownMilliseconds;
             masterVolume = audioSettings.MasterVolume;
@@ -2924,6 +2939,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 return;
 
             IsOpen = true;
+            openStateChanged?.Invoke(true);
             updateSelectedSetting();
             drawerShadow.FadeTo(1, 140, Easing.OutQuint);
             drawer.FadeIn(140, Easing.OutQuint);
@@ -2940,6 +2956,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                 return;
 
             IsOpen = false;
+            openStateChanged?.Invoke(false);
             drawerShadow.FadeOut(90, Easing.OutQuint);
             drawer.FadeOut(110, Easing.OutQuint);
             drawer.MoveToY(8, 140, Easing.OutQuint);
@@ -3112,6 +3129,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
         private readonly Box accent;
         private readonly Box focusMarker;
         private readonly SpriteIcon chevron;
+        private readonly SpriteText hintText;
         private bool selected;
 
         public PauseActionButton(
@@ -3274,7 +3292,7 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
                                 ? Color4.White
                                 : HomeControlColours.Navy,
                         },
-                        new SpriteText
+                        hintText = new SpriteText
                         {
                             Anchor = Anchor.CentreLeft,
                             Origin = Anchor.CentreLeft,
@@ -3347,6 +3365,8 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
 
             this.ScaleTo(selected ? 1.01f : 1f, 100, Easing.OutQuint);
         }
+
+        public void SetHint(LocalisableString hint) => hintText.Text = hint;
 
         public void Trigger() => Action?.Invoke();
 

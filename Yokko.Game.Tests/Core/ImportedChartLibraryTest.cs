@@ -138,6 +138,109 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
+    public async Task ExternalOsuDoesNotDuplicateManagedCopyAndRestoresAfterRemoval()
+    {
+        string root = createTestRoot("external-osu-managed-deduplication");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string set = Path.Combine(songs, "100 Artist - Shared Song");
+        Directory.CreateDirectory(set);
+
+        try
+        {
+            writeOsuChart(set, "Shared Song", 3);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+
+            FolderChartImportResult import = await library.ImportFolderAsync(
+                songs,
+                true,
+                true);
+            ImportedChart managed = library.GetCharts().Single();
+            library.ConfigureExternalOsu(storage, settings);
+            await library.RefreshExternalOsuAsync();
+            await library.ExternalDifficultyTask;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(import.ImportedChartCount, Is.EqualTo(1));
+                Assert.That(library.GetCharts(), Has.Count.EqualTo(1));
+                Assert.That(
+                    library.GetCharts().Single().SourceKind,
+                    Is.EqualTo(ImportedChartSourceKind.Managed));
+                Assert.That(library.ExternalOsuChartCount, Is.Zero);
+            });
+
+            Assert.That(
+                (await library.RemoveManagedChartAsync(managed.Id)).RemovedChartCount,
+                Is.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(library.GetCharts(), Has.Count.EqualTo(1));
+                Assert.That(
+                    library.GetCharts().Single().SourceKind,
+                    Is.EqualTo(ImportedChartSourceKind.ExternalOsu));
+                Assert.That(library.ExternalOsuChartCount, Is.EqualTo(1));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ExternalOsuDeduplicatesIdenticalFilesAndPromotesRemainingCopy()
+    {
+        string root = createTestRoot("external-osu-content-deduplication");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string firstSet = Path.Combine(songs, "100 First Copy");
+        string secondSet = Path.Combine(songs, "200 Second Copy");
+        Directory.CreateDirectory(firstSet);
+        Directory.CreateDirectory(secondSet);
+
+        try
+        {
+            string firstPath = writeOsuChart(firstSet, "Shared Song", 3);
+            string secondPath = Path.Combine(secondSet, "Shared Song.osu");
+            File.Copy(firstPath, secondPath);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+
+            await library.RefreshExternalOsuAsync();
+            await library.ExternalDifficultyTask;
+            ImportedChart visible = library.GetCharts().Single();
+
+            Assert.That(visible.SourcePath, Is.EqualTo(firstPath));
+            Assert.That(library.ExternalOsuChartCount, Is.EqualTo(1));
+
+            File.Delete(firstPath);
+            Assert.That(library.PruneUnavailableExternalCharts(), Is.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(library.GetCharts(), Has.Count.EqualTo(1));
+                Assert.That(library.GetCharts().Single().SourcePath,
+                    Is.EqualTo(secondPath));
+                Assert.That(library.ExternalOsuChartCount, Is.EqualTo(1));
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task ExternalBaseDifficultyCanBeRequestedBeforeBackgroundPass()
     {
         string root = createTestRoot("external-osu-priority-difficulty");

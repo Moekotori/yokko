@@ -141,6 +141,7 @@ internal sealed class ImportedChartLibrary : IDisposable
         "Pending background difficulty calculation.";
     private const int difficulty_progress_publish_interval_milliseconds = 750;
     private readonly List<ImportedChart> charts = [];
+    private ImportedChart[] indexedExternalCharts = [];
     private readonly object syncRoot = new();
     private readonly SemaphoreSlim importLock = new(1, 1);
     private readonly SemaphoreSlim externalDifficultyLock = new(1, 1);
@@ -335,12 +336,11 @@ internal sealed class ImportedChartLibrary : IDisposable
         int removed;
         lock (syncRoot)
         {
-            string[] unavailableIds = charts
-                                      .Where(chart => chart.SourceKind
-                                                      == ImportedChartSourceKind.ExternalOsu
-                                                      && !File.Exists(chart.SourcePath))
-                                      .Select(chart => chart.Id)
-                                      .ToArray();
+            string[] unavailableIds = indexedExternalCharts
+                                     .Where(chart => !File.Exists(chart.SourcePath))
+                                     .Select(chart => chart.Id)
+                                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                                     .ToArray();
             removed = unavailableIds.Length;
             if (removed == 0)
                 return 0;
@@ -348,7 +348,10 @@ internal sealed class ImportedChartLibrary : IDisposable
             var unavailable = new HashSet<string>(
                 unavailableIds,
                 StringComparer.OrdinalIgnoreCase);
-            charts.RemoveAll(chart => unavailable.Contains(chart.Id));
+            indexedExternalCharts = indexedExternalCharts
+                                   .Where(chart => !unavailable.Contains(chart.Id))
+                                   .ToArray();
+            refreshVisibleExternalChartsAfterManagedChange();
             evictMaterialisedCharts(unavailable.Contains);
             change = advanceRevision(ImportedChartLibraryChangeKind.Structure);
         }
@@ -363,6 +366,7 @@ internal sealed class ImportedChartLibrary : IDisposable
         lock (syncRoot)
         {
             charts.Clear();
+            indexedExternalCharts = [];
             change = advanceRevision(ImportedChartLibraryChangeKind.Structure);
         }
 
@@ -390,6 +394,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                     managedIds,
                     StringComparer.OrdinalIgnoreCase);
                 charts.RemoveAll(chart => unavailable.Contains(chart.Id));
+                refreshVisibleExternalChartsAfterManagedChange();
                 evictMaterialisedCharts(unavailable.Contains);
                 change = advanceRevision(
                     ImportedChartLibraryChangeKind.Structure);
@@ -487,6 +492,7 @@ internal sealed class ImportedChartLibrary : IDisposable
 
                 if (removed > 0)
                 {
+                    refreshVisibleExternalChartsAfterManagedChange();
                     change = advanceRevision(
                         ImportedChartLibraryChangeKind.Structure);
                 }
@@ -639,11 +645,13 @@ internal sealed class ImportedChartLibrary : IDisposable
                 return;
             }
 
-            charts[index] = current with
+            ImportedChart replacement = current with
             {
                 DifficultyRating = ratings.EtternaMsd,
                 StarRating = ratings.RebirthStars,
             };
+            charts[index] = replacement;
+            updateIndexedExternalChart(replacement);
             change = advanceRevision(
                 ImportedChartLibraryChangeKind.DifficultyRatings);
         }
@@ -837,6 +845,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                 charts.RemoveAll(chart =>
                     chart.SourceKind == ImportedChartSourceKind.Managed);
                 charts.AddRange(loaded);
+                refreshVisibleExternalChartsAfterManagedChange();
                 change = advanceRevision(
                     ImportedChartLibraryChangeKind.Structure);
             }
@@ -1468,6 +1477,8 @@ internal sealed class ImportedChartLibrary : IDisposable
         ImportedChartLibraryChange change = null;
         lock (syncRoot)
         {
+            indexedExternalCharts = external.ToArray();
+            external = visibleExternalCharts(indexedExternalCharts);
             ImportedChart[] existing = charts
                                        .Where(chart => chart.SourceKind
                                                        == ImportedChartSourceKind.ExternalOsu)
@@ -1542,6 +1553,16 @@ internal sealed class ImportedChartLibrary : IDisposable
             charts.RemoveAll(chart =>
                 chart.SourceKind == ImportedChartSourceKind.ExternalOsu);
             charts.AddRange(merged);
+            var mergedById = merged.ToDictionary(
+                chart => chart.Id,
+                StringComparer.OrdinalIgnoreCase);
+            indexedExternalCharts = indexedExternalCharts
+                                   .Select(chart => mergedById.TryGetValue(
+                                       chart.Id,
+                                       out ImportedChart retained)
+                                           ? retained
+                                           : chart)
+                                   .ToArray();
             string[] removedIds = existing
                                   .Where(chart => !incomingIds.Contains(chart.Id))
                                   .Select(chart => chart.Id)
@@ -1577,6 +1598,103 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         if (changed)
             LibraryChanged?.Invoke(change);
+    }
+
+    private ImportedChart[] visibleExternalCharts(
+        IReadOnlyList<ImportedChart> external)
+    {
+        Debug.Assert(Monitor.IsEntered(syncRoot));
+
+        var managedSourceHashes = new HashSet<string>(
+            charts.Where(chart => chart.SourceKind
+                                  == ImportedChartSourceKind.Managed)
+                  .Select(osuSourceHash)
+                  .Where(hash => hash != null),
+            StringComparer.OrdinalIgnoreCase);
+        var seenSourceHashes = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase);
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var visible = new List<ImportedChart>(external.Count);
+
+        foreach (ImportedChart chart in external)
+        {
+            if (!seenIds.Add(chart.Id))
+                continue;
+
+            string sourceHash = osuSourceHash(chart);
+            if (sourceHash != null
+                && (managedSourceHashes.Contains(sourceHash)
+                    || !seenSourceHashes.Add(sourceHash)))
+            {
+                continue;
+            }
+
+            visible.Add(chart);
+        }
+
+        return visible.ToArray();
+    }
+
+    private void refreshVisibleExternalChartsAfterManagedChange()
+    {
+        Debug.Assert(Monitor.IsEntered(syncRoot));
+
+        ImportedChart[] existing = charts
+                                   .Where(chart => chart.SourceKind
+                                                   == ImportedChartSourceKind.ExternalOsu)
+                                   .ToArray();
+        Dictionary<string, ImportedChart> existingById = existing
+            .GroupBy(chart => chart.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First(),
+                StringComparer.OrdinalIgnoreCase);
+        ImportedChart[] visible = visibleExternalCharts(indexedExternalCharts)
+            .Select(chart => existingById.TryGetValue(
+                             chart.Id,
+                                 out ImportedChart current)
+                             && externalChartEquivalentIgnoringRatings(
+                                 current,
+                                 chart)
+                ? current
+                : chart)
+            .ToArray();
+        var visibleIds = new HashSet<string>(
+            visible.Select(chart => chart.Id),
+            StringComparer.OrdinalIgnoreCase);
+
+        charts.RemoveAll(chart =>
+            chart.SourceKind == ImportedChartSourceKind.ExternalOsu);
+        charts.AddRange(visible);
+        evictMaterialisedCharts(id =>
+            id.StartsWith("external-osu\u001f", StringComparison.Ordinal)
+            && !visibleIds.Contains(id));
+    }
+
+    private static string osuSourceHash(ImportedChart chart)
+    {
+        string sourceHash = chart.Result.SourceHash;
+        return chart.Result.Beatmap.SourceFormat == ChartSourceFormat.OsuMania
+               && !string.IsNullOrWhiteSpace(sourceHash)
+            ? sourceHash.Trim()
+            : null;
+    }
+
+    private void updateIndexedExternalChart(ImportedChart replacement)
+    {
+        Debug.Assert(Monitor.IsEntered(syncRoot));
+        if (replacement.SourceKind != ImportedChartSourceKind.ExternalOsu)
+            return;
+
+        for (int index = 0; index < indexedExternalCharts.Length; index++)
+        {
+            if (indexedExternalCharts[index].Id.Equals(
+                    replacement.Id,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                indexedExternalCharts[index] = replacement;
+            }
+        }
     }
 
     private static bool externalChartEquivalent(
@@ -1812,6 +1930,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                         StarRating = entry.StarRating,
                     };
                     charts[index] = replacement;
+                    updateIndexedExternalChart(replacement);
                     updated.Add(replacement);
                     changed = true;
                 }
@@ -2105,6 +2224,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                     sourcePath,
                     StringComparison.OrdinalIgnoreCase));
             charts.AddRange(imported);
+            refreshVisibleExternalChartsAfterManagedChange();
             change = advanceRevision(
                 ImportedChartLibraryChangeKind.Structure);
         }
