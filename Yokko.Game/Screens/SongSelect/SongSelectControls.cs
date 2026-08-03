@@ -373,6 +373,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
     internal bool Active => active;
     internal bool Interactive => interactive;
     internal string DisplayedValue => valueText.Text.ToString();
+    public override bool AcceptsFocus => interactive;
 
     public SongSelectBrowseToolButton(
         string label,
@@ -470,6 +471,31 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
         activeRail.Alpha = active ? 1 : 0;
     }
 
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (interactive && e.Key is Key.Enter or Key.Space)
+        {
+            TriggerClick();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderThickness = 2;
+        BorderColour = SongSelectTheme.Pink;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderThickness = 1;
+        BorderColour = SongSelectSurface.Border(0.16f);
+    }
+
     protected override bool OnHover(HoverEvent e)
     {
         if (!interactive)
@@ -511,6 +537,7 @@ internal partial class SongSelectSortPopover : CompositeDrawable
         SongSelectSortOptionButton> optionButtons;
     private readonly SongSelectSortDirectionButton ascendingButton;
     private readonly SongSelectSortDirectionButton descendingButton;
+    private readonly IReadOnlyList<ClickableContainer> focusableButtons;
     private SongSelectSortMode mode;
     private SongSelectSortDirection direction;
 
@@ -616,6 +643,12 @@ internal partial class SongSelectSortPopover : CompositeDrawable
                 Position = new Vector2(270, 231),
             },
         ];
+        focusableButtons =
+        [
+            .. modes.Select(candidate => buttons[candidate]),
+            ascendingButton,
+            descendingButton,
+        ];
     }
 
     internal void SetState(
@@ -638,6 +671,7 @@ internal partial class SongSelectSortPopover : CompositeDrawable
         IsOpen = true;
         this.ClearTransforms();
         this.FadeIn(120, Easing.OutQuint);
+        Scheduler.Add(FocusSelected);
     }
 
     internal void Close()
@@ -645,6 +679,93 @@ internal partial class SongSelectSortPopover : CompositeDrawable
         IsOpen = false;
         this.ClearTransforms();
         this.FadeOut(90, Easing.OutQuint);
+    }
+
+    internal void FocusSelected()
+    {
+        ClickableContainer target = optionButtons.TryGetValue(mode, out SongSelectSortOptionButton selected)
+            ? selected
+            : focusableButtons[0];
+        GetContainingFocusManager()?.ChangeFocus(target);
+    }
+
+    internal bool HandleNavigation(Key key)
+    {
+        int index = focusedIndex();
+        if (index < 0)
+            index = Math.Max(0, Array.IndexOf(Enum.GetValues<SongSelectSortMode>(), mode));
+
+        int next = index;
+        switch (key)
+        {
+            case Key.Left:
+                next = index switch
+                {
+                    9 => 8,
+                    > 0 and < 8 when index % 2 == 1 => index - 1,
+                    _ => index,
+                };
+                break;
+
+            case Key.Right:
+                next = index switch
+                {
+                    8 => 9,
+                    >= 0 and < 7 when index % 2 == 0 => index + 1,
+                    _ => index,
+                };
+                break;
+
+            case Key.Up:
+                next = index switch
+                {
+                    >= 8 => 6 + index - 8,
+                    >= 2 => index - 2,
+                    _ => index,
+                };
+                break;
+
+            case Key.Down:
+                next = index switch
+                {
+                    < 6 => index + 2,
+                    6 => 8,
+                    7 => 9,
+                    _ => index,
+                };
+                break;
+
+            case Key.Home:
+                next = 0;
+                break;
+
+            case Key.End:
+                next = focusableButtons.Count - 1;
+                break;
+
+            case Key.Enter:
+            case Key.KeypadEnter:
+            case Key.Space:
+                focusableButtons[index].TriggerClick();
+                return true;
+
+            default:
+                return false;
+        }
+
+        GetContainingFocusManager()?.ChangeFocus(focusableButtons[next]);
+        return true;
+    }
+
+    private int focusedIndex()
+    {
+        for (int index = 0; index < focusableButtons.Count; index++)
+        {
+            if (focusableButtons[index].HasFocus)
+                return index;
+        }
+
+        return -1;
     }
 }
 
@@ -656,6 +777,7 @@ internal partial class SongSelectSortOptionButton : ClickableContainer
 
     internal SongSelectSortMode Mode { get; }
     internal bool Selected => selected;
+    public override bool AcceptsFocus => true;
 
     internal SongSelectSortOptionButton(
         SongSelectSortMode mode,
@@ -709,6 +831,30 @@ internal partial class SongSelectSortOptionButton : ClickableContainer
         check.Alpha = selected ? 1 : 0;
     }
 
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            TriggerClick();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderThickness = 2;
+        BorderColour = SongSelectTheme.Pink;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderThickness = 0;
+    }
+
     protected override bool OnHover(HoverEvent e)
     {
         if (!selected)
@@ -741,6 +887,7 @@ internal partial class SongSelectSortDirectionButton : ClickableContainer
     private readonly Box background;
     private readonly SpriteIcon icon;
     private readonly SpriteText text;
+    public override bool AcceptsFocus => true;
 
     internal SongSelectSortDirectionButton(
         string label,
@@ -786,6 +933,31 @@ internal partial class SongSelectSortDirectionButton : ClickableContainer
         background.Colour = selected ? SongSelectTheme.Navy : Color4.Transparent;
         icon.Colour = selected ? SongSelectTheme.Cyan : SongSelectTheme.Cyan;
         text.Colour = selected ? Color4.White : SongSelectTheme.Navy;
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            TriggerClick();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderThickness = 2;
+        BorderColour = SongSelectTheme.Pink;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderThickness = 1;
+        BorderColour = SongSelectSurface.Border(0.16f);
     }
 }
 

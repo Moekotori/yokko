@@ -163,8 +163,12 @@ public partial class SongSelectScreen : Screen
     private SongSelectBrowseToolButton groupButton;
     private SongSelectBrowseToolButton convertsButton;
     private SongSelectBrowseToolButton filtersButton;
+    private YokkoButton filtersResetButton;
     private Container browseToolbar;
     private Container filtersPopover;
+    private SpriteText filtersPopoverSummary;
+    private Container filterStatus;
+    private SpriteText filterStatusText;
     private bool filtersPopoverOpen;
     private Container topNavigation;
     private Sprite topNavigationLogo;
@@ -386,6 +390,19 @@ public partial class SongSelectScreen : Screen
     internal bool FiltersPopoverOpen => filtersPopoverOpen;
     internal string FiltersButtonValue =>
         filtersButton?.DisplayedValue ?? string.Empty;
+    internal string FiltersPopoverSummary =>
+        filtersPopoverSummary?.Text.ToString() ?? string.Empty;
+    internal string FiltersPopoverFocusedControl =>
+        groupButton?.HasFocus == true
+            ? "GROUP"
+            : convertsButton?.HasFocus == true
+                ? "CONVERTS"
+                : filtersResetButton?.HasFocus == true
+                    ? "RESET"
+                    : string.Empty;
+    internal bool FilterStatusVisible => filterStatus?.Alpha > 0.5f;
+    internal string FilterStatusText =>
+        filterStatusText?.Text.ToString() ?? string.Empty;
     internal string PlayButtonEyebrow =>
         playButton?.EyebrowText ?? string.Empty;
     internal string PlayButtonAction =>
@@ -758,6 +775,8 @@ public partial class SongSelectScreen : Screen
     public override void OnSuspending(ScreenTransitionEvent e)
     {
         base.OnSuspending(e);
+        closeSortPopover(restoreSearchFocus: false);
+        closeFiltersPopover(restoreSearchFocus: false);
         searchBox?.SetHoldFocus(false);
         screenActive = false;
         invalidatePackageDifficultyRequest();
@@ -771,6 +790,8 @@ public partial class SongSelectScreen : Screen
 
     public override bool OnExiting(ScreenExitEvent e)
     {
+        closeSortPopover(restoreSearchFocus: false);
+        closeFiltersPopover(restoreSearchFocus: false);
         searchBox?.SetHoldFocus(false);
         screenActive = false;
         previewActive = false;
@@ -884,6 +905,9 @@ public partial class SongSelectScreen : Screen
 
     private bool handleSongSelectKey(KeyDownEvent e)
     {
+        if (filtersPopoverOpen || sortPopover?.IsOpen == true)
+            return HandleBrowseKey(e.Key, e.ControlPressed);
+
         if (HandlePlaybackRateShortcut(e.Key, e.AltPressed))
             return true;
         if (HandleScrollSpeedShortcut(e.Key, e.ControlPressed))
@@ -900,6 +924,11 @@ public partial class SongSelectScreen : Screen
 
     internal bool HandleBrowseKey(Key key, bool controlPressed = false)
     {
+        if (sortPopover?.IsOpen == true)
+            return handleSortPopoverKey(key);
+        if (filtersPopoverOpen)
+            return handleFiltersPopoverKey(key);
+
         switch (key)
         {
             case Key.Up:
@@ -957,6 +986,90 @@ public partial class SongSelectScreen : Screen
             default:
                 return false;
         }
+    }
+
+    private bool handleSortPopoverKey(Key key)
+    {
+        switch (key)
+        {
+            case Key.Escape:
+                closeSortPopover();
+                return true;
+
+            case Key.F3:
+                closeSortPopover(restoreSearchFocus: false);
+                toggleFiltersPopover();
+                return true;
+
+            default:
+                // The open overlay owns keyboard input. Keys which are not
+                // navigation commands must not leak through to song browsing.
+                sortPopover?.HandleNavigation(key);
+                return true;
+        }
+    }
+
+    private bool handleFiltersPopoverKey(Key key)
+    {
+        switch (key)
+        {
+            case Key.Escape:
+            case Key.F3:
+                closeFiltersPopover();
+                return true;
+
+            case Key.Left:
+            case Key.Up:
+                focusFiltersPopoverItem(-1);
+                return true;
+
+            case Key.Right:
+            case Key.Down:
+                focusFiltersPopoverItem(1);
+                return true;
+
+            case Key.Home:
+                focusFiltersPopoverItem(0, absolute: true);
+                return true;
+
+            case Key.End:
+                focusFiltersPopoverItem(2, absolute: true);
+                return true;
+
+            case Key.Enter:
+            case Key.KeypadEnter:
+            case Key.Space:
+                activateFocusedFiltersPopoverItem();
+                return true;
+
+            default:
+                // In particular, typing must not mutate the search query
+                // behind the open filter surface.
+                return true;
+        }
+    }
+
+    private void focusFiltersPopoverItem(int offset, bool absolute = false)
+    {
+        Drawable[] items = [groupButton, convertsButton, filtersResetButton];
+        int current = Array.FindIndex(items, item => item?.HasFocus == true);
+        int next = absolute
+            ? Math.Clamp(offset, 0, items.Length - 1)
+            : current < 0
+                ? 0
+                : (current + offset + items.Length) % items.Length;
+        if (items[next] != null)
+            GetContainingFocusManager()?.ChangeFocus(items[next]);
+    }
+
+    private void activateFocusedFiltersPopoverItem()
+    {
+        Drawable[] items = [groupButton, convertsButton, filtersResetButton];
+        ClickableContainer target = items
+            .OfType<ClickableContainer>()
+            .FirstOrDefault(item => item.HasFocus)
+            ?? groupButton;
+        target?.TriggerClick();
     }
 
     internal void SelectNext() => selectOffset(1);
@@ -1161,10 +1274,7 @@ public partial class SongSelectScreen : Screen
         if (scoreResultOverlay != null)
             closeScoreResult();
         else if (sortPopover?.IsOpen == true)
-        {
-            sortPopover.Close();
-            sortButton?.SetActive(false);
-        }
+            closeSortPopover();
         else if (filtersPopoverOpen)
             closeFiltersPopover();
         else if (!DismissSearch())
@@ -2624,9 +2734,41 @@ public partial class SongSelectScreen : Screen
         Masking = false,
         Children =
         [
+            filterStatus = new Container
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Size = new Vector2(520, 32),
+                Alpha = 0,
+                Children =
+                [
+                    new SpriteIcon
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        X = 4,
+                        Size = new Vector2(12),
+                        Icon = FontAwesome.Solid.HourglassHalf,
+                        Colour = SongSelectTheme.Cyan,
+                    },
+                    filterStatusText = new SpriteText
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        X = 24,
+                        Text = "UPDATING LIBRARY…",
+                        Font = HomeTypography.Display(9),
+                        Colour = new Color4(
+                            SongSelectTheme.Navy.R,
+                            SongSelectTheme.Navy.G,
+                            SongSelectTheme.Navy.B,
+                            0.66f),
+                    },
+                ],
+            },
             filtersButton = new SongSelectBrowseToolButton(
                 "FILTERS",
-                "0 ACTIVE",
+                "ALL SONGS",
                 200,
                 FontAwesome.Solid.Filter,
                 toggleFiltersPopover,
@@ -2660,7 +2802,7 @@ public partial class SongSelectScreen : Screen
             Anchor = Anchor.TopRight,
             Origin = Anchor.TopRight,
             Position = new Vector2(-browse_right - 210, browse_top + 4),
-            Size = new Vector2(410, 132),
+            Size = new Vector2(410, 148),
             Alpha = 0,
             Children =
             [
@@ -2669,9 +2811,22 @@ public partial class SongSelectScreen : Screen
                 new SpriteText
                 {
                     Position = new Vector2(14, 12),
-                    Text = "LIBRARY FILTERS",
+                    Text = "LIBRARY VIEW",
                     Font = HomeTypography.Display(11),
                     Colour = SongSelectTheme.Navy,
+                },
+                filtersPopoverSummary = new SpriteText
+                {
+                    Position = new Vector2(14, 34),
+                    Width = 380,
+                    Truncate = true,
+                    Text = "CURRENT · ALL SONGS",
+                    Font = HomeTypography.Display(8),
+                    Colour = new Color4(
+                        SongSelectTheme.Navy.R,
+                        SongSelectTheme.Navy.G,
+                        SongSelectTheme.Navy.B,
+                        0.60f),
                 },
                 groupButton = new SongSelectBrowseToolButton(
                     "GROUP",
@@ -2681,10 +2836,10 @@ public partial class SongSelectScreen : Screen
                     togglePackageVisibility,
                     76)
                 {
-                    Position = new Vector2(14, 46),
+                    Position = new Vector2(14, 58),
                 },
                 createConvertsButton(),
-                new YokkoButton(
+                filtersResetButton = new YokkoButton(
                     "RESET",
                     FontAwesome.Solid.Undo,
                     ClearBrowseFilters,
@@ -2696,8 +2851,8 @@ public partial class SongSelectScreen : Screen
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(14, 96),
-                    Text = "F  CLOSE  ·  ESC  DISMISS",
+                    Position = new Vector2(14, 116),
+                    Text = "← →  MOVE  ·  ENTER  APPLY  ·  F3 / ESC  CLOSE",
                     Font = HomeTypography.Display(8),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
@@ -2721,7 +2876,7 @@ public partial class SongSelectScreen : Screen
             84,
             showChevron: false)
         {
-            Position = new Vector2(212, 46),
+            Position = new Vector2(212, 58),
         };
         convertsButton.SetActive(showConverts);
         return convertsButton;
@@ -5983,12 +6138,29 @@ public partial class SongSelectScreen : Screen
     private void updateFilters()
     {
         keyModeFilterButton?.SetMode(keyModeFilter);
-        int activeCount = (keyModeFilter.HasValue ? 1 : 0)
-                          + (!string.IsNullOrWhiteSpace(searchQuery) ? 1 : 0)
-                          + (MinimumDifficultyFilter > 0 ? 1 : 0)
-                          + (!showConverts ? 1 : 0)
-                          + (packagesCollapsed ? 1 : 0);
-        filtersButton?.SetValue($"{activeCount} ACTIVE");
+        string summary = filterSummary();
+        filtersButton?.SetValue(summary);
+        if (filtersPopoverSummary != null)
+            filtersPopoverSummary.Text = $"CURRENT · {summary}";
+    }
+
+    private string filterSummary()
+    {
+        var parts = new List<string>(4);
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+            parts.Add("SEARCH");
+        if (keyModeFilter.HasValue)
+            parts.Add($"{(int)keyModeFilter.Value}K");
+        if (MinimumDifficultyFilter > 0)
+            parts.Add($"{DifficultyFilterUnit.Replace(" RANGE", string.Empty)} {MinimumDifficultyFilter:0.#}+");
+        if (!showConverts)
+            parts.Add("NO CONVERTS");
+
+        if (parts.Count == 0)
+            return "ALL SONGS";
+        if (parts.Count <= 2)
+            return string.Join(" · ", parts);
+        return $"{parts[0]} · {parts[1]} +{parts.Count - 2}";
     }
 
     private void cycleKeyModeFilter() => SetKeyModeFilter(
@@ -6026,12 +6198,12 @@ public partial class SongSelectScreen : Screen
     {
         if (sortPopover?.IsOpen == true)
         {
-            sortPopover.Close();
-            sortButton?.SetActive(false);
+            closeSortPopover();
             return;
         }
 
-        closeFiltersPopover();
+        closeFiltersPopover(restoreSearchFocus: false);
+        searchBox?.SetHoldFocus(false);
         sortPopover?.Open();
         sortButton?.SetActive(true);
     }
@@ -6045,23 +6217,43 @@ public partial class SongSelectScreen : Screen
         }
 
         if (sortPopover?.IsOpen == true)
-        {
-            sortPopover.Close();
-            sortButton?.SetActive(false);
-        }
+            closeSortPopover(restoreSearchFocus: false);
 
         filtersPopoverOpen = true;
+        searchBox?.SetHoldFocus(false);
         filtersPopover?.ClearTransforms();
         filtersPopover?.FadeIn(120, Easing.OutQuint);
         filtersButton?.SetActive(true);
+        Scheduler.Add(() => focusFiltersPopoverItem(0, absolute: true));
     }
 
-    private void closeFiltersPopover()
+    private void closeFiltersPopover(bool restoreSearchFocus = true)
     {
+        if (!filtersPopoverOpen)
+            return;
+
         filtersPopoverOpen = false;
         filtersPopover?.ClearTransforms();
         filtersPopover?.FadeOut(90, Easing.OutQuint);
         filtersButton?.SetActive(false);
+        if (restoreSearchFocus)
+            restoreSearchFocusAfterPopover();
+    }
+
+    private void closeSortPopover(bool restoreSearchFocus = true)
+    {
+        if (sortPopover?.IsOpen != true)
+            return;
+
+        sortPopover.Close();
+        sortButton?.SetActive(false);
+        if (restoreSearchFocus)
+            restoreSearchFocusAfterPopover();
+    }
+
+    private void restoreSearchFocusAfterPopover()
+    {
+        searchBox?.SetHoldFocus(screenActive && scoreResultOverlay == null);
     }
 
     private void updateSortControls()
