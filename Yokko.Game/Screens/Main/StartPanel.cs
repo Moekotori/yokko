@@ -60,13 +60,13 @@ public partial class StartPanel : ClickableContainer
                     new SpriteText
                     {
                         Text = eyebrow,
-                        Font = new FontUsage("NotoSansCJK").With(size: 12, weight: "Bold"),
+                        Font = new FontUsage("NotoSansCJK").With(size: 12),
                         Colour = accent,
                     },
                     new SpriteText
                     {
                         Text = title,
-                        Font = new FontUsage("NotoSansCJK").With(size: primary ? 26 : 22, weight: "SemiBold"),
+                        Font = new FontUsage("NotoSansCJK").With(size: primary ? 26 : 22),
                         Colour = YokkoPalette.Text,
                     },
                     new SpriteText

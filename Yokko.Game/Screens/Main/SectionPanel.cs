@@ -37,7 +37,7 @@ public partial class SectionPanel : CompositeDrawable
                     new SpriteText
                     {
                         Text = title,
-                        Font = new FontUsage("NotoSansCJK").With(size: 20, weight: "SemiBold"),
+                        Font = new FontUsage("NotoSansCJK").With(size: 20),
                         Colour = YokkoPalette.Text,
                     },
                     new FillFlowContainer

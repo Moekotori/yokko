@@ -18,18 +18,14 @@ FONT_URLS = {
     "NotoSansCJK": (
         "https://raw.githubusercontent.com/notofonts/noto-cjk/"
         f"{NOTO_CJK_COMMIT}/Sans/OTF/SimplifiedChinese/"
-        "NotoSansCJKsc-Regular.otf"
-    ),
-    "NotoSansCJK-Bold": (
-        "https://raw.githubusercontent.com/notofonts/noto-cjk/"
-        f"{NOTO_CJK_COMMIT}/Sans/OTF/SimplifiedChinese/"
-        "NotoSansCJKsc-Bold.otf"
+        "NotoSansCJKsc-Medium.otf"
     ),
 }
 LOCALISATION_FONT_SIZE = 64
 ATLAS_WIDTH = 2048
-ATLAS_HEIGHT = 4096
+ATLAS_HEIGHT = 2048
 PADDING = 4
+INVISIBLE_FORMAT_CHARACTERS = "\u200b\u2060\ufeff"
 
 
 @dataclass
@@ -352,10 +348,14 @@ def main() -> None:
     for font_name, url in FONT_URLS.items():
         if args.family != "all" and args.family != font_name:
             continue
-        font_path = cache / f"{font_name}.otf"
+        font_path = cache / url.rsplit("/", 1)[-1]
         if not font_path.exists():
             download_font(url, font_path)
-        characters = collect_supported_bmp_characters(font_path)
+        characters = sorted(
+            set(collect_supported_bmp_characters(font_path))
+            .union(INVISIBLE_FORMAT_CHARACTERS),
+            key=ord,
+        )
         missing_localisation = sorted(
             set(localisation_characters).difference(characters), key=ord
         )

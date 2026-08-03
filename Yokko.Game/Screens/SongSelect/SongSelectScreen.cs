@@ -88,6 +88,10 @@ public partial class SongSelectScreen : Screen
         Dictionary<DifficultyCacheState, ManiaDifficultyRatings>>
         difficultyRatingsCache =
             new(ReferenceEqualityComparer.Instance);
+    private readonly ConditionalWeakTable<
+        SongSelectEntry,
+        CachedSearchDocument> searchDocuments = new();
+    private readonly SemaphoreSlim filterDifficultyLock = new(1, 1);
 
     private TextureStore textures;
     private Container stage;
@@ -4314,38 +4318,58 @@ public partial class SongSelectScreen : Screen
         invalidateFilterRequest(incrementGeneration: false);
         bool needsDifficulty = sortMode == SongSelectSortMode.Difficulty
                                || MinimumDifficultyFilter > 0;
-        SongSelectSorting.EntrySnapshot[] filterEntries;
+        basicFilterSnapshots ??= entries.Select(entry =>
+                new SongSelectSorting.EntrySnapshot(
+                    entry,
+                    entry.Beatmap,
+                    null))
+            .ToArray();
+        DifficultyFilterContext difficulty = null;
         if (needsDifficulty)
         {
-            filterEntries = entries.Select(entry =>
-                    new SongSelectSorting.EntrySnapshot(
-                        entry,
-                        entry.Beatmap,
-                        selectedDifficultyValue(entry)))
-                .ToArray();
-        }
-        else
-        {
-            basicFilterSnapshots ??= entries.Select(entry =>
-                    new SongSelectSorting.EntrySnapshot(
-                        entry,
-                        entry.Beatmap,
-                        null))
-                .ToArray();
-            filterEntries = basicFilterSnapshots;
+            ManiaModSet mods = selectedMods;
+            JudgementConfiguration judgementConfiguration =
+                gameplaySettings.GetJudgementConfiguration();
+            bool minesEnabled = gameplaySettings.MinesEnabled.Value;
+            ManiaDifficultyRatingMode ratingMode =
+                displaySettings.DifficultyRatingMode.Value;
+            var knownValues = new Dictionary<SongSelectEntry, double?>(
+                ReferenceEqualityComparer.Instance);
+            foreach (SongSelectSorting.EntrySnapshot snapshot in basicFilterSnapshots)
+            {
+                if (tryGetKnownDifficultyRatings(
+                        snapshot.Entry,
+                        mods,
+                        judgementConfiguration,
+                        minesEnabled,
+                        out _,
+                        out ManiaDifficultyRatings ratings))
+                {
+                    knownValues[snapshot.Entry] = ratings.Value(ratingMode);
+                }
+            }
+
+            difficulty = new DifficultyFilterContext(
+                mods,
+                judgementConfiguration,
+                minesEnabled,
+                ratingMode,
+                knownValues);
         }
 
         var request = new SongSelectFilterRequest(
             generation,
-            filterEntries,
+            basicFilterSnapshots,
             searchQuery,
+            SongSelectSearchMatcher.TokenizeQuery(searchQuery),
             keyModeFilter,
             showConverts,
             MinimumDifficultyFilter,
             sortMode,
-            sortDirection);
+            sortDirection,
+            difficulty);
 
-        if (immediate)
+        if (immediate && difficulty == null)
         {
             completeFilterRequest(
                 request,
@@ -4358,69 +4382,128 @@ public partial class SongSelectScreen : Screen
         CancellationToken cancellationToken = filterCancellation.Token;
         filterTask = Task.Run(async () =>
         {
-            await Task.Delay(
-                    filter_debounce_milliseconds,
-                    cancellationToken)
-                .ConfigureAwait(false);
+            if (!immediate)
+            {
+                await Task.Delay(
+                        filter_debounce_milliseconds,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
             return runFilter(request, cancellationToken);
         }, cancellationToken);
         _ = observeFilterRequestAsync(request, filterTask);
     }
 
-    private static SongSelectFilterResult runFilter(
+    private SongSelectFilterResult runFilter(
         SongSelectFilterRequest request,
         CancellationToken cancellationToken)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         var filtered = new List<SongSelectSorting.EntrySnapshot>(
             request.Entries.Length);
-        for (int index = 0; index < request.Entries.Length; index++)
+        var calculated = new List<CalculatedDifficulty>();
+        bool difficultyLockTaken = false;
+        try
         {
-            if ((index & 0x7f) == 0)
-                cancellationToken.ThrowIfCancellationRequested();
-
-            SongSelectSorting.EntrySnapshot snapshot = request.Entries[index];
-            YokkoBeatmap beatmap = snapshot.Beatmap;
-            if (request.KeyModeFilter.HasValue
-                && beatmap.KeyMode != request.KeyModeFilter)
+            if (request.Difficulty != null)
             {
-                continue;
+                filterDifficultyLock.Wait(cancellationToken);
+                difficultyLockTaken = true;
             }
 
-            if (!request.ShowConverts && beatmap.ConversionSource != null)
-                continue;
-            if (request.MinimumDifficulty > 0
-                && (!snapshot.DifficultyValue.HasValue
-                    || snapshot.DifficultyValue.Value
-                    < request.MinimumDifficulty))
+            for (int index = 0; index < request.Entries.Length; index++)
             {
-                continue;
+                if ((index & 0x7f) == 0)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                SongSelectSorting.EntrySnapshot snapshot = request.Entries[index];
+                YokkoBeatmap beatmap = snapshot.Beatmap;
+                if (request.KeyModeFilter.HasValue
+                    && beatmap.KeyMode != request.KeyModeFilter)
+                {
+                    continue;
+                }
+
+                if (!request.ShowConverts && beatmap.ConversionSource != null)
+                    continue;
+                if (request.SearchTokens.Length > 0)
+                {
+                    string document = searchDocuments.GetValue(
+                        snapshot.Entry,
+                        static entry => new CachedSearchDocument(
+                            SongSelectSearchMatcher.CreateDocument(
+                                entry.Beatmap))).Value;
+                    if (!SongSelectSearchMatcher.Matches(
+                            document,
+                            request.SearchTokens))
+                    {
+                        continue;
+                    }
+                }
+
+                if (request.Difficulty != null)
+                {
+                    double? difficultyValue;
+                    if (!request.Difficulty.KnownValues.TryGetValue(
+                            snapshot.Entry,
+                            out difficultyValue))
+                    {
+                        JudgementConfiguration judgementConfiguration =
+                            beatmap.SourceFormat == ChartSourceFormat.Quaver
+                                ? JudgementConfiguration.QuaverDefault
+                                : request.Difficulty.JudgementConfiguration;
+                        var state = new DifficultyCacheState(
+                            request.Difficulty.Mods.Fingerprint,
+                            judgementConfiguration,
+                            request.Difficulty.MinesEnabled);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        ManiaDifficultyRatings ratings =
+                            calculateDifficultyRatings(
+                                snapshot.Entry,
+                                request.Difficulty.Mods,
+                                judgementConfiguration,
+                                request.Difficulty.MinesEnabled);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        difficultyValue = ratings.Value(
+                            request.Difficulty.RatingMode);
+                        calculated.Add(new CalculatedDifficulty(
+                            snapshot.Entry,
+                            state,
+                            ratings));
+                    }
+
+                    snapshot = snapshot with
+                    {
+                        DifficultyValue = difficultyValue,
+                    };
+                    if (request.MinimumDifficulty > 0
+                        && (!difficultyValue.HasValue
+                            || difficultyValue.Value
+                            < request.MinimumDifficulty))
+                    {
+                        continue;
+                    }
+                }
+
+                filtered.Add(snapshot);
             }
 
-            if (!matchesSearch(beatmap, request.SearchQuery))
-                continue;
-
-            filtered.Add(snapshot);
+            List<SongSelectEntry> sorted = SongSelectSorting.SortSnapshots(
+                filtered,
+                request.SortMode,
+                request.SortDirection,
+                cancellationToken);
+            return new SongSelectFilterResult(
+                sorted,
+                stopwatch.Elapsed,
+                calculated);
         }
-
-        List<SongSelectEntry> sorted = SongSelectSorting.SortSnapshots(
-            filtered,
-            request.SortMode,
-            request.SortDirection,
-            cancellationToken);
-        return new SongSelectFilterResult(sorted, stopwatch.Elapsed);
+        finally
+        {
+            if (difficultyLockTaken)
+                filterDifficultyLock.Release();
+        }
     }
-
-    private static bool matchesSearch(YokkoBeatmap beatmap, string query) =>
-        string.IsNullOrWhiteSpace(query)
-        || beatmap.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || beatmap.RomanisedTitle.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || beatmap.Artist.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || beatmap.RomanisedArtist.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || beatmap.Creator.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || beatmap.DifficultyName.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || beatmap.Source.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || beatmap.Tags.Contains(query, StringComparison.OrdinalIgnoreCase);
 
     private async Task observeFilterRequestAsync(
         SongSelectFilterRequest request,
@@ -4459,6 +4542,8 @@ public partial class SongSelectScreen : Screen
         filterCancellation = null;
         filterTask = null;
         filterPending = false;
+        foreach (CalculatedDifficulty calculated in result.CalculatedDifficulties)
+            cacheDifficultyRatings(calculated.Entry, calculated.State, calculated.Ratings);
         visibleEntries = result.Entries;
         diagnostics.Trace(
             "SONG_SELECT",
@@ -4501,15 +4586,32 @@ public partial class SongSelectScreen : Screen
         int Generation,
         SongSelectSorting.EntrySnapshot[] Entries,
         string SearchQuery,
+        string[] SearchTokens,
         KeyMode? KeyModeFilter,
         bool ShowConverts,
         double MinimumDifficulty,
         SongSelectSortMode SortMode,
-        SongSelectSortDirection SortDirection);
+        SongSelectSortDirection SortDirection,
+        DifficultyFilterContext Difficulty);
 
     private sealed record SongSelectFilterResult(
         List<SongSelectEntry> Entries,
-        TimeSpan Elapsed);
+        TimeSpan Elapsed,
+        IReadOnlyList<CalculatedDifficulty> CalculatedDifficulties);
+
+    private sealed record DifficultyFilterContext(
+        ManiaModSet Mods,
+        JudgementConfiguration JudgementConfiguration,
+        bool MinesEnabled,
+        ManiaDifficultyRatingMode RatingMode,
+        IReadOnlyDictionary<SongSelectEntry, double?> KnownValues);
+
+    private sealed record CalculatedDifficulty(
+        SongSelectEntry Entry,
+        DifficultyCacheState State,
+        ManiaDifficultyRatings Ratings);
+
+    private sealed record CachedSearchDocument(string Value);
 
     private void selectOffset(int direction, bool wrap = true)
     {
@@ -4949,6 +5051,7 @@ public partial class SongSelectScreen : Screen
         {
             entry.Beatmap = playable;
             basicFilterSnapshots = null;
+            searchDocuments.Remove(entry);
             materialisedImportedCharts.Add(entry.ChartId);
             difficultyRatingsCache.Remove(entry);
             rebuildDetails();
@@ -5066,6 +5169,7 @@ public partial class SongSelectScreen : Screen
     private void refreshSavedScores(
         SongSelectEntry entryToRefresh = null)
     {
+        basicFilterSnapshots = null;
         if (entryToRefresh != null)
         {
             refreshEntry(entryToRefresh);
@@ -5486,6 +5590,41 @@ public partial class SongSelectScreen : Screen
     private ManiaDifficultyRatings difficultyRatingsFor(
         SongSelectEntry entry)
     {
+        JudgementConfiguration configuredJudgement =
+            gameplaySettings.GetJudgementConfiguration();
+        bool minesEnabled = gameplaySettings.MinesEnabled.Value;
+        if (tryGetKnownDifficultyRatings(
+                entry,
+                selectedMods,
+                configuredJudgement,
+                minesEnabled,
+                out DifficultyCacheState state,
+                out ManiaDifficultyRatings ratings))
+        {
+            return ratings;
+        }
+
+        JudgementConfiguration judgementConfiguration =
+            entry.Beatmap.SourceFormat == ChartSourceFormat.Quaver
+                ? JudgementConfiguration.QuaverDefault
+                : configuredJudgement;
+        ratings = calculateDifficultyRatings(
+            entry,
+            selectedMods,
+            judgementConfiguration,
+            minesEnabled);
+        cacheDifficultyRatings(entry, state, ratings);
+        return ratings;
+    }
+
+    private bool tryGetKnownDifficultyRatings(
+        SongSelectEntry entry,
+        ManiaModSet mods,
+        JudgementConfiguration configuredJudgement,
+        bool minesEnabled,
+        out DifficultyCacheState state,
+        out ManiaDifficultyRatings ratings)
+    {
         bool usesUnmaterialisedSummary = entry.ChartId != null
                                          && importedChartModels.TryGetValue(
                                              entry.ChartId,
@@ -5495,22 +5634,19 @@ public partial class SongSelectScreen : Screen
                                              entry.ChartId);
         if (usesUnmaterialisedSummary)
         {
-            // External/indexed entries intentionally contain no hit objects.
-            // Until the full chart is materialised, show the asynchronously
-            // calculated base ratings instead of running mod difficulty over
-            // an empty summary and replacing a known value with "--".
-            return new ManiaDifficultyRatings(
+            state = default;
+            ratings = new ManiaDifficultyRatings(
                 entry.DifficultyRating,
                 entry.StarRating);
+            return true;
         }
 
         JudgementConfiguration judgementConfiguration =
             entry.Beatmap.SourceFormat == ChartSourceFormat.Quaver
                 ? JudgementConfiguration.QuaverDefault
-                : gameplaySettings.GetJudgementConfiguration();
-        bool minesEnabled = gameplaySettings.MinesEnabled.Value;
-        var state = new DifficultyCacheState(
-            selectedMods.Fingerprint,
+                : configuredJudgement;
+        state = new DifficultyCacheState(
+            mods.Fingerprint,
             judgementConfiguration,
             minesEnabled);
         if (difficultyRatingsCache.TryGetValue(
@@ -5518,64 +5654,73 @@ public partial class SongSelectScreen : Screen
                 out Dictionary<
                     DifficultyCacheState,
                     ManiaDifficultyRatings> entryCache)
-            && entryCache.TryGetValue(
-                state,
-                out ManiaDifficultyRatings cached))
+            && entryCache.TryGetValue(state, out ratings))
         {
-            return cached;
+            return true;
         }
 
         JudgementConfiguration importedJudgement =
             entry.Beatmap.SourceFormat == ChartSourceFormat.Quaver
                 ? JudgementConfiguration.QuaverDefault
                 : JudgementConfiguration.YokkoDefault;
-        ManiaDifficultyRatings ratings;
-        if (selectedMods.IsEmpty
+        if (mods.IsEmpty
             && minesEnabled
             && judgementConfiguration == importedJudgement)
         {
-            // ImportedChartLibrary already calculates and persistently caches
-            // this exact no-mod result. Re-running both native MSD and Rebirth
-            // for every visual row made the redesigned list take seconds.
             ratings = new ManiaDifficultyRatings(
                 entry.DifficultyRating,
                 entry.StarRating);
-        }
-        else
-        {
-            YokkoBeatmap appliedBeatmap =
-                ManiaBeatmapModTransformer.Apply(
-                    entry.Beatmap,
-                    selectedMods);
-            YokkoBeatmap difficultyBeatmap =
-                ManiaTimeRampTimeline.TransformForDifficulty(
-                    appliedBeatmap,
-                    selectedMods);
-            double timelineRate = selectedMods.HasTimeRamp
-                ? 1
-                : selectedMods.PlaybackRate;
-            ManiaStarRatingContext context =
-                ManiaStarRatingContext.ForGameplay(
-                    difficultyBeatmap,
-                    selectedMods,
-                    judgementConfiguration,
-                    minesEnabled,
-                    timelineRate,
-                    dynamicRatePretransformed:
-                        selectedMods.HasTimeRamp);
-            ratings = ManiaDifficultyCalculator.CalculateResult(
-                difficultyBeatmap,
-                context,
-                timelineRate);
+            return true;
         }
 
-        if (entryCache == null)
+        ratings = null;
+        return false;
+    }
+
+    private void cacheDifficultyRatings(
+        SongSelectEntry entry,
+        DifficultyCacheState state,
+        ManiaDifficultyRatings ratings)
+    {
+        if (!difficultyRatingsCache.TryGetValue(
+                entry,
+                out Dictionary<
+                    DifficultyCacheState,
+                    ManiaDifficultyRatings> entryCache))
         {
             entryCache = [];
             difficultyRatingsCache[entry] = entryCache;
         }
         entryCache[state] = ratings;
-        return ratings;
+    }
+
+    private static ManiaDifficultyRatings calculateDifficultyRatings(
+        SongSelectEntry entry,
+        ManiaModSet mods,
+        JudgementConfiguration judgementConfiguration,
+        bool minesEnabled)
+    {
+        YokkoBeatmap appliedBeatmap =
+            ManiaBeatmapModTransformer.Apply(entry.Beatmap, mods);
+        YokkoBeatmap difficultyBeatmap =
+            ManiaTimeRampTimeline.TransformForDifficulty(
+                appliedBeatmap,
+                mods);
+        double timelineRate = mods.HasTimeRamp
+            ? 1
+            : mods.PlaybackRate;
+        ManiaStarRatingContext context =
+            ManiaStarRatingContext.ForGameplay(
+                difficultyBeatmap,
+                mods,
+                judgementConfiguration,
+                minesEnabled,
+                timelineRate,
+                dynamicRatePretransformed: mods.HasTimeRamp);
+        return ManiaDifficultyCalculator.CalculateResult(
+            difficultyBeatmap,
+            context,
+            timelineRate);
     }
 
     private double? selectedDifficultyValue(

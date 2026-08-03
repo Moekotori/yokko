@@ -74,8 +74,8 @@ public class LocalisationTest
         Assert.That(HomeTypography.Body(16).Family, Is.EqualTo("NotoSansCJK"));
         Assert.That(HomeTypography.Display(16).Family, Is.EqualTo("NotoSansCJK"));
         Assert.That(HomeTypography.SearchInput(16).Family, Is.EqualTo("NotoSansCJK"));
-        Assert.That(HomeTypography.Sticker(16).Family, Is.EqualTo("NotoSansCJK-Bold"));
-        Assert.That(HomeTypography.Display(16).Weight, Is.EqualTo("Bold"));
+        Assert.That(HomeTypography.Sticker(16).Family, Is.EqualTo("NotoSansCJK"));
+        Assert.That(HomeTypography.Display(16).Weight, Is.Null);
         Assert.That(HomeTypography.Display(6).Size, Is.EqualTo(14));
         Assert.That(HomeTypography.Body(16).Size, Is.EqualTo(20.8f)
             .Within(0.001f));
@@ -85,7 +85,6 @@ public class LocalisationTest
     }
 
     [TestCase("Fonts/NotoSansCJK/NotoSansCJK.bin")]
-    [TestCase("Fonts/NotoSansCJK/NotoSansCJK-Bold.bin")]
     public void UiFontContainsLocalisationAndExternalText(string resourceName)
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
@@ -111,7 +110,6 @@ public class LocalisationTest
     }
 
     [TestCase("Fonts/NotoSansCJK/NotoSansCJK.bin")]
-    [TestCase("Fonts/NotoSansCJK/NotoSansCJK-Bold.bin")]
     public void UiFontCoversRepresentativeImportedMetadata(string resourceName)
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
@@ -127,7 +125,6 @@ public class LocalisationTest
     }
 
     [TestCase("Fonts/NotoSansCJK/NotoSansCJK.bin")]
-    [TestCase("Fonts/NotoSansCJK/NotoSansCJK-Bold.bin")]
     public void UiFontKeepsCompleteEastAsianCoverage(string resourceName)
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
@@ -143,8 +140,86 @@ public class LocalisationTest
         });
     }
 
+    [Test]
+    public void UiFontAtlasStaysMemoryBounded()
+    {
+        using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
+        using Stream obsoleteBold = resources.GetStream(
+            "Fonts/NotoSansCJK/NotoSansCJK-Bold.bin");
+
+        Assert.That(
+            obsoleteBold,
+            Is.Null,
+            "Do not embed a second complete CJK weight; it duplicates tens of " +
+            "thousands of glyphs in memory.");
+
+        using Stream descriptor = resources.GetStream(
+            "Fonts/NotoSansCJK/NotoSansCJK.bin");
+        FontAtlasSummary atlas = readFontAtlasSummary(descriptor);
+        long maximumDecodedPageBytes =
+            (long)atlas.Width * atlas.Height * 4;
+        long compressedBytes = 0;
+        int pageDigits = (atlas.PageCount - 1).ToString().Length;
+
+        for (int page = 0; page < atlas.PageCount; page++)
+        {
+            string resourceName =
+                $"Fonts/NotoSansCJK/NotoSansCJK_{page.ToString().PadLeft(pageDigits, '0')}.png";
+            using Stream pageStream = resources.GetStream(resourceName);
+            Assert.That(pageStream, Is.Not.Null, $"Missing font atlas page {resourceName}.");
+            compressedBytes += pageStream.Length;
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(atlas.SourceSize, Is.EqualTo(64));
+            Assert.That(maximumDecodedPageBytes, Is.LessThanOrEqualTo(16L * 1024 * 1024));
+            Assert.That(compressedBytes, Is.LessThanOrEqualTo(48L * 1024 * 1024));
+        });
+    }
+
     private static int countRange(HashSet<int> glyphs, int start, int end) =>
         glyphs.Count(codepoint => codepoint >= start && codepoint <= end);
+
+    private static FontAtlasSummary readFontAtlasSummary(Stream stream)
+    {
+        using var reader = new BinaryReader(stream);
+        Assert.That(new string(reader.ReadChars(3)), Is.EqualTo("BMF"));
+        Assert.That(reader.ReadByte(), Is.EqualTo(3));
+
+        short sourceSize = 0;
+        ushort width = 0;
+        ushort height = 0;
+        ushort pages = 0;
+
+        while (reader.BaseStream.Position < reader.BaseStream.Length)
+        {
+            byte blockType = reader.ReadByte();
+            uint blockLength = reader.ReadUInt32();
+            long nextBlock = reader.BaseStream.Position + blockLength;
+
+            if (blockType == 1)
+                sourceSize = reader.ReadInt16();
+            else if (blockType == 2)
+            {
+                reader.ReadUInt16();
+                reader.ReadUInt16();
+                width = reader.ReadUInt16();
+                height = reader.ReadUInt16();
+                pages = reader.ReadUInt16();
+            }
+
+            reader.BaseStream.Position = nextBlock;
+        }
+
+        return new FontAtlasSummary(sourceSize, width, height, pages);
+    }
+
+    private readonly record struct FontAtlasSummary(
+        short SourceSize,
+        ushort Width,
+        ushort Height,
+        ushort PageCount);
 
     private static HashSet<int> readGlyphCodepoints(Stream stream)
     {

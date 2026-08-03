@@ -918,6 +918,26 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         AddUntilStep("easy charts are filtered", () =>
             songSelectScreen.VisibleEntryCount == 0
             && songSelectScreen.MinimumDifficultyFilter == 30);
+        bool hardRockWasEnabled = false;
+        AddStep("change mods while difficulty filter is active", () =>
+        {
+            hardRockWasEnabled = songSelectScreen.SelectedMods.Contains(
+                ManiaModId.HardRock);
+            songSelectScreen.ToggleMod(ManiaModId.HardRock);
+        });
+        AddUntilStep("modded difficulty filter settles in background", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 0);
+        AddAssert("difficulty filter uses the changed mods", () =>
+            songSelectScreen.SelectedMods.Contains(ManiaModId.HardRock)
+                != hardRockWasEnabled);
+        AddStep("restore difficulty mods", () =>
+            songSelectScreen.ToggleMod(ManiaModId.HardRock));
+        AddUntilStep("restored difficulty filter settles", () =>
+            !songSelectScreen.FilterPending
+            && songSelectScreen.VisibleEntryCount == 0
+            && songSelectScreen.SelectedMods.Contains(ManiaModId.HardRock)
+                == hardRockWasEnabled);
         AddStep("switch to star rating", () =>
             displaySettings.DifficultyRatingMode.Value =
                 ManiaDifficultyRatingMode.RebirthStars);

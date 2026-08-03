@@ -22,6 +22,12 @@ public partial class DrawableNote : CompositeDrawable
     internal const double MinimumVisibleProgress = -0.08;
     internal const double MaximumVisibleProgress = 1.22;
 
+    // Keep vertices close to the playfield. Very long holds can otherwise
+    // create quads hundreds of thousands of pixels tall, which exceed GPU
+    // guard-band precision and leave a visible break in the body.
+    private const float maximumUnclippedHoldHeight = 8192;
+    private const float visibleGeometryPadding = 4;
+
     private static readonly ScrollVelocityMap defaultScrollVelocityMap =
         new([]);
     private static readonly ScrollSpeedFactorMap defaultScrollSpeedFactorMap =
@@ -51,6 +57,8 @@ public partial class DrawableNote : CompositeDrawable
     private float appliedLongNoteCutDistance;
     private float holdBodyY;
     private float holdBodyHeight;
+    private double holdBodyTextureOffset;
+    private double holdBodyTextureFullHeight;
     private float holdHeadY;
     private float holdTailY;
     private float columnScale = 1;
@@ -478,8 +486,8 @@ public partial class DrawableNote : CompositeDrawable
             double tailProgress = 1 - (endPosition - currentPosition)
                 / approachTimeMilliseconds
                 * scrollSpeedFactor;
-            float headY = topY + (float)(headProgress * travel);
-            float tailY = topY + (float)(tailProgress * travel);
+            double headY = topY + headProgress * travel;
+            double tailY = topY + tailProgress * travel;
             double visibleStartTime = hitObject.StartTimeMilliseconds;
 
             if (holdActive && gameplayTimeMilliseconds >= hitObject.StartTimeMilliseconds)
@@ -514,34 +522,67 @@ public partial class DrawableNote : CompositeDrawable
                 (minimumProgress, maximumProgress) =
                     (maximumProgress, minimumProgress);
             }
-            float pathY1 = topY + (float)(minimumProgress * travel);
-            float pathY2 = topY + (float)(maximumProgress * travel);
-            float minimumAnchorY = Math.Min(
+            Alpha = maximumProgress >= MinimumVisibleProgress
+                    && minimumProgress <= MaximumVisibleProgress
+                ? 1
+                : 0;
+
+            if (Alpha == 0)
+                return;
+
+            double pathY1 = topY + minimumProgress * travel;
+            double pathY2 = topY + maximumProgress * travel;
+            double minimumAnchorY = Math.Min(
                 Math.Min(pathY1, pathY2),
                 Math.Min(headY, tailY));
-            float maximumAnchorY = Math.Max(
+            double maximumAnchorY = Math.Max(
                 Math.Max(pathY1, pathY2),
                 Math.Max(headY, tailY));
             float partPadding = Math.Max(headHeight, tailHeight);
+
+            double visibleY1 = topY + MinimumVisibleProgress * travel;
+            double visibleY2 = topY + MaximumVisibleProgress * travel;
+            double visibleMinimumY = Math.Min(visibleY1, visibleY2)
+                                     - partPadding
+                                     - visibleGeometryPadding;
+            double visibleMaximumY = Math.Max(visibleY1, visibleY2)
+                                     + partPadding
+                                     + visibleGeometryPadding;
+            bool clipLongHold = maximumAnchorY - minimumAnchorY
+                                > maximumUnclippedHoldHeight;
+            double renderedMinimumAnchorY = Math.Max(
+                minimumAnchorY,
+                clipLongHold
+                    ? visibleMinimumY
+                    : minimumAnchorY);
+            double renderedMaximumAnchorY = Math.Min(
+                maximumAnchorY,
+                clipLongHold
+                    ? visibleMaximumY
+                    : maximumAnchorY);
 
             // Legacy mania pieces anchor on the top edge for upscroll and
             // the bottom edge for downscroll. Direction-changing SV can put
             // either endpoint at either side, so position each part from its
             // actual integrated anchor instead of assuming head > tail.
-            Y = upsideDown ? minimumAnchorY : minimumAnchorY - partPadding;
+            Y = (float)(upsideDown
+                ? renderedMinimumAnchorY
+                : renderedMinimumAnchorY - partPadding);
             Height = Math.Max(
                 minimumHeight,
-                maximumAnchorY - minimumAnchorY + partPadding);
-            float headCentreY = headY
-                                + (upsideDown ? headHeight : -headHeight)
-                                / 2;
-            float tailCentreY = tailY
-                                + (upsideDown ? tailHeight : -tailHeight)
-                                / 2;
-            appliedLongNoteCutDistance = Math.Min(
+                (float)(renderedMaximumAnchorY
+                        - renderedMinimumAnchorY
+                        + partPadding));
+            double headCentreY = headY
+                                 + (upsideDown ? headHeight : -headHeight)
+                                 / 2;
+            double tailCentreY = tailY
+                                 + (upsideDown ? tailHeight : -tailHeight)
+                                 / 2;
+            appliedLongNoteCutDistance = (float)Math.Min(
                 Math.Abs(tailCentreY - headCentreY),
-                (float)(Width * longNoteCutAmount));
-            float visualTailCentreY = tailCentreY;
+                Width * longNoteCutAmount);
+            double visualTailCentreY = tailCentreY;
 
             if (appliedLongNoteCutDistance > 0)
             {
@@ -550,10 +591,10 @@ public partial class DrawableNote : CompositeDrawable
                     * appliedLongNoteCutDistance;
             }
 
-            float endpointMinimumY = Math.Min(headY, tailY);
-            float endpointMaximumY = Math.Max(headY, tailY);
-            float bodyMinimumY = Math.Min(headCentreY, visualTailCentreY);
-            float bodyMaximumY = Math.Max(headCentreY, visualTailCentreY);
+            double endpointMinimumY = Math.Min(headY, tailY);
+            double endpointMaximumY = Math.Max(headY, tailY);
+            double bodyMinimumY = Math.Min(headCentreY, visualTailCentreY);
+            double bodyMaximumY = Math.Max(headCentreY, visualTailCentreY);
 
             // The body must run underneath the translucent edges of the
             // head and tail. Stopping at their rectangular bounds leaves a
@@ -573,15 +614,53 @@ public partial class DrawableNote : CompositeDrawable
             if (pathY2 > endpointMaximumY + 0.01f)
                 bodyMaximumY = Math.Max(bodyMaximumY, pathY2);
 
-            holdBodyY = bodyMinimumY - Y;
-            holdBodyHeight = Math.Max(0, bodyMaximumY - bodyMinimumY);
-            holdHeadY = (upsideDown ? headY : headY - headHeight) - Y;
-            holdTailY = visualTailCentreY - tailHeight / 2 - Y;
+            double fullBodyMinimumY = bodyMinimumY;
+            double fullBodyMaximumY = bodyMaximumY;
+
+            if (clipLongHold)
+            {
+                bodyMinimumY = Math.Max(bodyMinimumY, visibleMinimumY);
+                bodyMaximumY = Math.Min(bodyMaximumY, visibleMaximumY);
+            }
+
+            if (bodyMaximumY < bodyMinimumY)
+                bodyMaximumY = bodyMinimumY;
+
+            holdBodyY = (float)(bodyMinimumY - Y);
+            holdBodyHeight = (float)(bodyMaximumY - bodyMinimumY);
+            holdBodyTextureFullHeight = Math.Max(
+                0,
+                fullBodyMaximumY - fullBodyMinimumY);
+            holdBodyTextureOffset = Math.Max(
+                0,
+                bodyMinimumY - fullBodyMinimumY);
+            double headTopY = upsideDown ? headY : headY - headHeight;
+            double tailTopY = visualTailCentreY - tailHeight / 2;
+            holdHeadY = (float)((clipLongHold
+                ? Math.Clamp(headTopY, visibleMinimumY, visibleMaximumY)
+                : headTopY) - Y);
+            holdTailY = (float)((clipLongHold
+                ? Math.Clamp(tailTopY, visibleMinimumY, visibleMaximumY)
+                : tailTopY) - Y);
+
+            if (holdHead != null)
+            {
+                holdHead.Alpha = !clipLongHold
+                                 || headTopY + headHeight >= visibleMinimumY
+                                 && headTopY <= visibleMaximumY
+                    ? 1
+                    : 0;
+            }
+
+            if (holdTail != null)
+            {
+                holdTail.Alpha = !clipLongHold
+                                 || tailTopY + tailHeight >= visibleMinimumY
+                                 && tailTopY <= visibleMaximumY
+                    ? 1
+                    : 0;
+            }
             updateHoldBody();
-            Alpha = maximumProgress >= MinimumVisibleProgress
-                    && minimumProgress <= MaximumVisibleProgress
-                ? 1
-                : 0;
             return;
         }
 
@@ -621,23 +700,42 @@ public partial class DrawableNote : CompositeDrawable
             if (noteBodyStyle == 0)
             {
                 holdBody.TextureRelativeSizeAxes = Axes.Both;
-                holdBody.TextureRectangle = new RectangleF(0, 0, 1, 1);
+                double textureOffset = visibleBodyTextureOffset();
+                float relativeY = holdBodyHeight > 0
+                    ? (float)(-textureOffset / holdBodyHeight)
+                    : 0;
+                float relativeHeight = holdBodyHeight > 0
+                    ? (float)(holdBodyTextureFullHeight / holdBodyHeight)
+                    : 1;
+                holdBody.TextureRectangle = new RectangleF(
+                    0,
+                    relativeY,
+                    1,
+                    relativeHeight);
             }
             else
             {
-                float textureY = noteBodyStyle switch
+                double textureY = noteBodyStyle switch
                 {
                     1 => 0,
-                    2 => holdBodyHeight - bodyTextureHeight,
+                    2 => holdBodyTextureFullHeight - bodyTextureHeight,
                     3 => 0,
-                    4 => (holdBodyHeight - bodyTextureHeight) / 2,
+                    4 => (holdBodyTextureFullHeight - bodyTextureHeight) / 2,
                     _ => 0,
                 };
+
+                textureY -= visibleBodyTextureOffset();
+
+                // Repeating textures are periodic. Keeping the coordinate
+                // near zero avoids losing sub-pixel precision on very long
+                // holds while preserving the exact repeat phase.
+                if (bodyTextureHeight > 0)
+                    textureY = Math.IEEERemainder(textureY, bodyTextureHeight);
 
                 holdBody.TextureRelativeSizeAxes = Axes.None;
                 holdBody.TextureRectangle = new RectangleF(
                     0,
-                    textureY,
+                    (float)textureY,
                     Width,
                     bodyTextureHeight);
             }
@@ -661,6 +759,18 @@ public partial class DrawableNote : CompositeDrawable
             holdTailY,
             tailHeight,
             flipHoldTail ^ reverseHoldTailForScrollVelocity);
+    }
+
+    private double visibleBodyTextureOffset()
+    {
+        if (!flipHoldBody)
+            return holdBodyTextureOffset;
+
+        return Math.Max(
+            0,
+            holdBodyTextureFullHeight
+            - holdBodyTextureOffset
+            - holdBodyHeight);
     }
 
     private void placePart(Sprite sprite, float y, float height, bool flip)

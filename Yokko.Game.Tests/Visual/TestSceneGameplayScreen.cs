@@ -3437,6 +3437,64 @@ LightingLWidth: 20,20,20,20
         }
 
         [Test]
+        public void TestExtremelyLongHoldBodyUsesBoundedDrawableGeometry()
+        {
+            string skinPath = null;
+            GameplayScreen gameplay = null;
+            YokkoBeatmap beatmap = createHoldDemo(KeyMode.FourKey) with
+            {
+                HitObjects =
+                [
+                    new YokkoHitObject(
+                        0,
+                        1600,
+                        3_601_600,
+                        HitObjectKind.Hold),
+                ],
+            };
+
+            AddStep("create long-hold skin", () =>
+                skinPath = createTestSkin("NoteBodyStyle0: 0"));
+            AddStep("open extremely long hold", () =>
+                screenStack.Push(gameplay = new GameplayScreen(
+                    beatmap,
+                    skinPath: skinPath)));
+            AddUntilStep("long hold stays connected with bounded geometry", () =>
+            {
+                DrawableNote hold = gameplay?
+                                    .ChildrenOfType<GameplayPlayfield>()
+                                    .SingleOrDefault()?
+                                    .GetDrawableNote(0);
+                Sprite body = hold?
+                              .ChildrenOfType<Sprite>()
+                              .FirstOrDefault(sprite =>
+                                  sprite.Parent is Container { Masking: true });
+
+                if (hold == null || body == null)
+                    return false;
+
+                hold.UpdatePosition(
+                    1600,
+                    false,
+                    false,
+                    0,
+                    460,
+                    1800);
+
+                int visibleEndpointCount = hold
+                                           .ChildrenOfType<Sprite>()
+                                           .Count(sprite =>
+                                               !ReferenceEquals(sprite, body)
+                                               && sprite.Alpha > 0);
+                return hold.Height is > 400 and < 800
+                       && body.Height is > 400 and < 800
+                       && float.IsFinite(body.TextureRectangle.Y)
+                       && float.IsFinite(body.TextureRectangle.Height)
+                       && visibleEndpointCount == 1;
+            });
+        }
+
+        [Test]
         public void TestAdditionalLongNoteCutPreservesBakedPercyTexture()
         {
             string skinPath = null;

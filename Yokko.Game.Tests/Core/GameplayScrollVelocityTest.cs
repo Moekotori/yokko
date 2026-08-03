@@ -283,6 +283,35 @@ public sealed class GameplayScrollVelocityTest
     }
 
     [Test]
+    public void ExtremelyLongHoldKeepsRenderedGeometryNearPlayfield()
+    {
+        var hold = new YokkoHitObject(
+            0,
+            1000,
+            3_601_000,
+            HitObjectKind.Hold);
+        var drawable = new DrawableNote(0, hold, 80);
+
+        drawable.UpdatePosition(
+            1000,
+            false,
+            true,
+            0,
+            500,
+            1800);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(drawable.Alpha, Is.EqualTo(1));
+            Assert.That(drawable.Height, Is.LessThan(800));
+            Assert.That(drawable.VisibleHoldBodyHeight, Is.LessThan(800));
+            Assert.That(drawable.VisibleHoldBodyHeight, Is.GreaterThan(500));
+            Assert.That(float.IsFinite(drawable.Y), Is.True);
+            Assert.That(float.IsFinite(drawable.Height), Is.True);
+        });
+    }
+
+    [Test]
     public void PlaybackRateUsesSourceSpecificScrollNormalization()
     {
         Assert.Multiple(() =>

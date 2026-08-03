@@ -25,7 +25,7 @@ internal partial class GameplayComboReadout : CompositeDrawable
             Anchor = Anchor.TopCentre,
             Origin = Anchor.TopCentre,
             Text = "128x",
-            Font = new FontUsage("NotoSansCJK").With(size: 38, weight: "Bold"),
+            Font = new FontUsage("NotoSansCJK").With(size: 38),
             Colour = Color4.White,
         };
         Alpha = 0;

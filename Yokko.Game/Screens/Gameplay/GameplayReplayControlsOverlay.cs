@@ -28,8 +28,7 @@ internal partial class GameplayReplayControlsOverlay : CompositeDrawable
         YokkoUiTheme.Default.Colours.Brand;
     private static readonly FontUsage cute_font = new(
         "NotoSansCJK",
-        18,
-        "Bold");
+        18);
     private static readonly FontUsage replay_font = new(
         "ArchivoBlack",
         18);
@@ -605,8 +604,7 @@ internal partial class GameplayReplayTextButton : ClickableContainer
             Text = label,
             Font = new FontUsage(
                 "NotoSansCJK",
-                32,
-                "Bold"),
+                32),
             Colour = ink,
         };
     }

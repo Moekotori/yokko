@@ -26,7 +26,7 @@ public partial class MainHeader : CompositeDrawable
                     new SpriteText
                     {
                         Text = "Yokko",
-                        Font = new FontUsage("NotoSansCJK").With(size: 58, weight: "Bold"),
+                        Font = new FontUsage("NotoSansCJK").With(size: 58),
                         Colour = YokkoPalette.Text,
                     },
                     new SpriteText
@@ -79,7 +79,7 @@ public partial class MainHeader : CompositeDrawable
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = text,
-                Font = new FontUsage("NotoSansCJK").With(size: 13, weight: "Bold"),
+                Font = new FontUsage("NotoSansCJK").With(size: 13),
                 Colour = accent,
             },
         },

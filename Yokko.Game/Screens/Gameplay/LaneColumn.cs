@@ -106,7 +106,7 @@ public partial class LaneColumn : CompositeDrawable
                     Origin = Anchor.TopCentre,
                     Y = 10,
                     Text = "SCRATCH",
-                    Font = new FontUsage("NotoSansCJK").With(size: 12, weight: "Bold"),
+                    Font = new FontUsage("NotoSansCJK").With(size: 12),
                     Colour = YokkoPalette.Violet,
                 });
             }
@@ -223,7 +223,7 @@ public partial class LaneColumn : CompositeDrawable
                 Origin = Anchor.TopCentre,
                 Y = 8,
                 Text = "SCRATCH",
-                Font = new FontUsage("NotoSansCJK").With(size: 12, weight: "Bold"),
+                Font = new FontUsage("NotoSansCJK").With(size: 12),
                 Colour = YokkoPalette.Violet,
             });
         }

@@ -3260,7 +3260,7 @@ internal partial class GameplayLayoutEditorOverlay : CompositeDrawable
             new("NotoSansCJK", readableSize(size));
 
         public static FontUsage Bold(float size) =>
-            new("NotoSansCJK", readableSize(size), "Bold");
+            new("NotoSansCJK", readableSize(size));
 
         private static float readableSize(float size) =>
             MathF.Max(23, size + MathF.Min(15, 12 + size * 0.12f));
