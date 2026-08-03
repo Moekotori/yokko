@@ -33,7 +33,7 @@ internal static class HomeTypography
 
     public static FontUsage Display(float size) => typography.Display(size);
 
-    public static FontUsage Hero(float size) => typography.Display(size);
+    public static FontUsage Hero(float size) => typography.Brand(size);
 
     public static FontUsage Body(float size) => typography.Body(size);
 
@@ -42,7 +42,7 @@ internal static class HomeTypography
 
     public static FontUsage Brand(float size) => typography.Brand(size);
 
-    // Sticker labels stay in the same complete bold CJK family as other UI text.
+    // Sticker labels use the strongest Latin weight; CJK stays on lazer Noto.
     public static FontUsage Sticker(float size) => typography.Sticker(size);
 }
 

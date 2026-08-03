@@ -13,11 +13,24 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 PLUS_JAKARTA_SANS_COMMIT = "18d1cd2f7ea10481919d2f05c1f7064b7307fc26"
-FONT_NAME = "PlusJakartaSans"
-PLUS_JAKARTA_SANS_URL = (
-    "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/"
-    f"{PLUS_JAKARTA_SANS_COMMIT}/fonts/ttf/PlusJakartaSans-Medium.ttf"
-)
+FONT_URLS = {
+    "PlusJakartaSans-Regular": (
+        "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/"
+        f"{PLUS_JAKARTA_SANS_COMMIT}/fonts/ttf/PlusJakartaSans-Regular.ttf"
+    ),
+    "PlusJakartaSans": (
+        "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/"
+        f"{PLUS_JAKARTA_SANS_COMMIT}/fonts/ttf/PlusJakartaSans-Medium.ttf"
+    ),
+    "PlusJakartaSans-SemiBold": (
+        "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/"
+        f"{PLUS_JAKARTA_SANS_COMMIT}/fonts/ttf/PlusJakartaSans-SemiBold.ttf"
+    ),
+    "PlusJakartaSans-Bold": (
+        "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/"
+        f"{PLUS_JAKARTA_SANS_COMMIT}/fonts/ttf/PlusJakartaSans-Bold.ttf"
+    ),
+}
 LOCALISATION_FONT_SIZE = 64
 ATLAS_WIDTH = 2048
 ATLAS_HEIGHT = 2048
@@ -49,6 +62,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("F:/YokkoArtifacts/font-generator")
         / PLUS_JAKARTA_SANS_COMMIT,
+    )
+    parser.add_argument(
+        "--family",
+        choices=("all", *FONT_URLS),
+        default="all",
+        help="Generate one weight while iterating, or all weights by default.",
     )
     return parser.parse_args()
 
@@ -255,19 +274,21 @@ def main() -> None:
     cache = args.cache
     cache.mkdir(parents=True, exist_ok=True)
 
-    font_path = cache / PLUS_JAKARTA_SANS_URL.rsplit("/", 1)[-1]
-    if not font_path.exists():
-        download_font(PLUS_JAKARTA_SANS_URL, font_path)
-
     characters = [chr(codepoint) for codepoint in range(32, 127)]
-    render_font(
-        font_path,
-        FONT_NAME,
-        characters,
-        args.output,
-        LOCALISATION_FONT_SIZE,
-    )
-    print(f"Generated {len(characters)} BMP glyphs for {FONT_NAME}")
+    for font_name, url in FONT_URLS.items():
+        if args.family != "all" and args.family != font_name:
+            continue
+        font_path = cache / url.rsplit("/", 1)[-1]
+        if not font_path.exists():
+            download_font(url, font_path)
+        render_font(
+            font_path,
+            font_name,
+            characters,
+            args.output,
+            LOCALISATION_FONT_SIZE,
+        )
+        print(f"Generated {len(characters)} ASCII glyphs for {font_name}")
 
 
 if __name__ == "__main__":

@@ -87,7 +87,11 @@ public class LocalisationTest
         Assert.That(HomeTypography.Display(16).Family, Is.EqualTo("PlusJakartaSans"));
         Assert.That(HomeTypography.SearchInput(16).Family, Is.EqualTo("PlusJakartaSans"));
         Assert.That(HomeTypography.Sticker(16).Family, Is.EqualTo("PlusJakartaSans"));
-        Assert.That(HomeTypography.Display(16).Weight, Is.Null);
+        Assert.That(HomeTypography.Body(16).Weight, Is.EqualTo("Regular"));
+        Assert.That(HomeTypography.Display(16).Weight, Is.EqualTo("SemiBold"));
+        Assert.That(HomeTypography.SearchInput(16).Weight, Is.Null);
+        Assert.That(HomeTypography.Hero(72).Weight, Is.EqualTo("Bold"));
+        Assert.That(HomeTypography.Sticker(16).Weight, Is.EqualTo("Bold"));
         Assert.That(HomeTypography.Display(6).Size, Is.EqualTo(14));
         Assert.That(HomeTypography.Body(16).Size, Is.EqualTo(20.8f)
             .Within(0.001f));
@@ -173,38 +177,38 @@ public class LocalisationTest
     public void UiFontAtlasStaysMemoryBounded()
     {
         using var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
-        using Stream obsoleteBold = resources.GetStream(
-            "Fonts/PlusJakartaSans/PlusJakartaSans-Bold.bin");
-
-        Assert.That(
-            obsoleteBold,
-            Is.Null,
-            "Do not embed a second complete CJK weight; it duplicates tens of " +
-            "thousands of glyphs in memory.");
-
-        using Stream descriptor = resources.GetStream(
-            "Fonts/PlusJakartaSans/PlusJakartaSans.bin");
-        FontAtlasSummary atlas = readFontAtlasSummary(descriptor);
-        long maximumDecodedPageBytes =
-            (long)atlas.Width * atlas.Height * 4;
         long compressedBytes = 0;
-        int pageDigits = (atlas.PageCount - 1).ToString().Length;
-
-        for (int page = 0; page < atlas.PageCount; page++)
+        string[] fontNames =
         {
-            string resourceName =
-                $"Fonts/PlusJakartaSans/PlusJakartaSans_{page.ToString().PadLeft(pageDigits, '0')}.png";
+            "PlusJakartaSans-Regular",
+            "PlusJakartaSans",
+            "PlusJakartaSans-SemiBold",
+            "PlusJakartaSans-Bold",
+        };
+
+        foreach (string fontName in fontNames)
+        {
+            using Stream descriptor = resources.GetStream(
+                $"Fonts/PlusJakartaSans/{fontName}.bin");
+            Assert.That(descriptor, Is.Not.Null, $"Missing {fontName} descriptor.");
+            FontAtlasSummary atlas = readFontAtlasSummary(descriptor);
+            string resourceName = $"Fonts/PlusJakartaSans/{fontName}_0.png";
             using Stream pageStream = resources.GetStream(resourceName);
-            Assert.That(pageStream, Is.Not.Null, $"Missing font atlas page {resourceName}.");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(atlas.SourceSize, Is.EqualTo(64), fontName);
+                Assert.That(atlas.PageCount, Is.EqualTo(1), fontName);
+                Assert.That(
+                    (long)atlas.Width * atlas.Height * 4,
+                    Is.LessThanOrEqualTo(16L * 1024 * 1024),
+                    fontName);
+                Assert.That(pageStream, Is.Not.Null, resourceName);
+            });
             compressedBytes += pageStream.Length;
         }
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(atlas.SourceSize, Is.EqualTo(64));
-            Assert.That(maximumDecodedPageBytes, Is.LessThanOrEqualTo(16L * 1024 * 1024));
-            Assert.That(compressedBytes, Is.LessThanOrEqualTo(48L * 1024 * 1024));
-        });
+        Assert.That(compressedBytes, Is.LessThanOrEqualTo(512L * 1024));
     }
 
     private static int countRange(

@@ -264,7 +264,10 @@ namespace Yokko.Game
 
             var resources = new DllResourceStore(typeof(YokkoResources).Assembly);
             Resources.AddStore(resources);
+            AddFont(Resources, @"Fonts/PlusJakartaSans/PlusJakartaSans-Regular");
             AddFont(Resources, @"Fonts/PlusJakartaSans/PlusJakartaSans");
+            AddFont(Resources, @"Fonts/PlusJakartaSans/PlusJakartaSans-SemiBold");
+            AddFont(Resources, @"Fonts/PlusJakartaSans/PlusJakartaSans-Bold");
             AddFont(Resources, @"Fonts/Noto/Noto-Basic");
             AddFont(Resources, @"Fonts/Noto/Noto-Bopomofo");
             AddFont(Resources, @"Fonts/Noto/Noto-CJK-Basic");

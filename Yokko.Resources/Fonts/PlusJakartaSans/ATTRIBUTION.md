@@ -1,7 +1,8 @@
 # Yokko UI font atlas
 
-The `PlusJakartaSans` bitmap-font atlas contains printable ASCII (English,
-figures, and common punctuation) generated from:
+The `PlusJakartaSans` bitmap-font atlases contain printable ASCII (English,
+figures, and common punctuation) in Regular, Medium, SemiBold, and Bold,
+generated from:
 
 - Plus Jakarta Sans Medium
 - Source repository: `tokotype/PlusJakartaSans`
@@ -12,4 +13,4 @@ bitmap atlas is distributed under the same licence. Chinese and other
 international scripts use the separately bundled osu!lazer Noto font stores.
 
 Run `python scripts/generate-localisation-font.py` from the repository root to
-regenerate the atlas.
+regenerate all four atlases.

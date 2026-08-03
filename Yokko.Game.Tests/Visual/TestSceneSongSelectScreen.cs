@@ -674,7 +674,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         AddAssert("empty search is not dismissed", () => !songSelectScreen.DismissSearch());
 
         AddStep("open consolidated filters from keyboard", () =>
-            songSelectScreen.HandleBrowseKey(Key.F3));
+            songSelectScreen.HandleBrowseKey(Key.F6));
         AddUntilStep("filters popover owns focus", () =>
             songSelectScreen.FiltersPopoverOpen
             && !songSelectScreen.SearchHasFocus
@@ -689,8 +689,8 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             songSelectScreen.HandleBrowseKey(Key.Right));
         AddAssert("keyboard reaches converts option", () =>
             songSelectScreen.FiltersPopoverFocusedControl == "CONVERTS");
-        AddStep("F3 closes filters", () =>
-            songSelectScreen.HandleBrowseKey(Key.F3));
+        AddStep("F6 closes filters", () =>
+            songSelectScreen.HandleBrowseKey(Key.F6));
         AddAssert("filters close without exiting", () =>
             !songSelectScreen.FiltersPopoverOpen
             && screenStack.CurrentScreen == songSelectScreen);
@@ -789,7 +789,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             songSelectScreen.RankingPanelSize == new Vector2(850, 166)
             && songSelectScreen.RankingContentSize == new Vector2(850, 112));
 
-        AddStep("open filters with F3", () => InputManager.Key(Key.F3));
+        AddStep("open filters with F6", () => InputManager.Key(Key.F6));
         AddUntilStep("filters own keyboard focus", () =>
             songSelectScreen.FiltersPopoverOpen
             && !songSelectScreen.SearchHasFocus
@@ -800,7 +800,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         AddStep("move to converts", () => InputManager.Key(Key.Right));
         AddAssert("filter focus moves visibly", () =>
             songSelectScreen.FiltersPopoverFocusedControl == "CONVERTS");
-        AddStep("close filters with F3", () => InputManager.Key(Key.F3));
+        AddStep("close filters with F6", () => InputManager.Key(Key.F6));
         AddUntilStep("search focus returns", () =>
             !songSelectScreen.FiltersPopoverOpen
             && songSelectScreen.SearchHasFocus);

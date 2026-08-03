@@ -963,7 +963,7 @@ public partial class SongSelectScreen : Screen
                 GetContainingFocusManager()?.ChangeFocus(searchBox);
                 return true;
 
-            case Key.F3:
+            case Key.F6:
                 toggleFiltersPopover();
                 return true;
 
@@ -996,7 +996,7 @@ public partial class SongSelectScreen : Screen
                 closeSortPopover();
                 return true;
 
-            case Key.F3:
+            case Key.F6:
                 closeSortPopover(restoreSearchFocus: false);
                 toggleFiltersPopover();
                 return true;
@@ -1014,7 +1014,7 @@ public partial class SongSelectScreen : Screen
         switch (key)
         {
             case Key.Escape:
-            case Key.F3:
+            case Key.F6:
                 closeFiltersPopover();
                 return true;
 
@@ -2857,7 +2857,7 @@ public partial class SongSelectScreen : Screen
                 new SpriteText
                 {
                     Position = new Vector2(14, 116),
-                    Text = "← →  MOVE  ·  ENTER  APPLY  ·  F3 / ESC  CLOSE",
+                    Text = "← →  MOVE  ·  ENTER  APPLY  ·  F6 / ESC  CLOSE",
                     Font = HomeTypography.Display(8),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,
@@ -3215,7 +3215,7 @@ public partial class SongSelectScreen : Screen
             shortcutHint("U/D", "BROWSE", 12, 10),
             shortcutHint("PG", "JUMP", 116, 10),
             shortcutHint("ABC", "SEARCH", 12, 34),
-            shortcutHint("F3", "FILTERS", 116, 34),
+            shortcutHint("F6", "FILTERS", 116, 34),
             shortcutHint("F2", "RANDOM", 12, 58),
             shortcutHint("ENT", "PLAY", 116, 58),
             shortcutHint("F5", "RELOAD", 12, 82),
@@ -4843,7 +4843,8 @@ public partial class SongSelectScreen : Screen
         filterCancellation = null;
         filterTask = null;
         filterPending = false;
-        hideFilterStatus();
+        if (!filterDisposed)
+            hideFilterStatus();
     }
 
     private void scheduleFilterStatus(int generation, string query)
@@ -6257,22 +6258,11 @@ public partial class SongSelectScreen : Screen
 
         filtersPopoverOpen = true;
         searchBox?.SetHoldFocus(false);
-        Logger.Log(
-            $"Filter focus debug immediate: open={filtersPopoverOpen} | search-hold={searchBox?.HoldFocus} | search-focus={searchBox?.HasFocus}",
-            LoggingTarget.Runtime,
-            LogLevel.Important);
         filtersPopover?.ClearTransforms();
         filtersPopover?.FadeIn(120, Easing.OutQuint);
         filtersButton?.SetActive(true);
         Scheduler.AddDelayed(
-            () =>
-            {
-                focusFiltersPopoverItem(0, absolute: true);
-                Logger.Log(
-                    $"Filter focus debug: open={filtersPopoverOpen} | search-hold={searchBox?.HoldFocus} | search-focus={searchBox?.HasFocus} | group-present={groupButton?.IsPresent} | group-focus={groupButton?.HasFocus}",
-                    LoggingTarget.Runtime,
-                    LogLevel.Important);
-            },
+            () => focusFiltersPopoverItem(0, absolute: true),
             50);
     }
 

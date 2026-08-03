@@ -150,21 +150,27 @@ public sealed record YokkoUiTypographyTokens(
         14);
 
     public FontUsage Display(float size) =>
-        new(PrimaryFont, ReadableSize(size));
+        new FontUsage(PrimaryFont, ReadableSize(size))
+            .With(weight: "SemiBold");
 
     public FontUsage Body(float size) =>
-        new(PrimaryFont, ReadableSize(size));
+        new FontUsage(PrimaryFont, ReadableSize(size))
+            .With(weight: "Regular");
 
     public FontUsage SearchInput(float size) =>
         new(InputFont, ReadableSize(size));
 
-    public FontUsage Brand(float size) => Display(size);
+    public FontUsage Brand(float size) =>
+        new FontUsage(PrimaryFont, ReadableSize(size))
+            .With(weight: "Bold");
 
     public FontUsage Sticker(float size) =>
-        new(StickerFont, ReadableSize(size));
+        new FontUsage(StickerFont, ReadableSize(size))
+            .With(weight: "Bold");
 
     public FontUsage Interface(float size, string weight = null) =>
-        new(PrimaryFont, ReadableSize(size));
+        new FontUsage(PrimaryFont, ReadableSize(size))
+            .With(weight: weight ?? "Regular");
 
     public float ReadableSize(float size) =>
         MathF.Max(
@@ -291,7 +297,7 @@ public sealed class YokkoUiThemeStore
                     != YokkoUiTypographyTokens.CompleteFamily)
         {
             throw new ArgumentException(
-                "Theme text fonts must use Yokko's complete Noto Sans CJK family.",
+                "Theme text fonts must use Yokko's registered UI family.",
                 nameof(theme));
         }
 

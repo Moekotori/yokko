@@ -31,7 +31,8 @@ internal partial class GameplayReplayControlsOverlay : CompositeDrawable
         18);
     private static readonly FontUsage replay_font = new(
         "PlusJakartaSans",
-        18);
+        18,
+        "Bold");
 
     private readonly Action togglePause;
     private readonly Action seekBackward;
@@ -604,7 +605,8 @@ internal partial class GameplayReplayTextButton : ClickableContainer
             Text = label,
             Font = new FontUsage(
                 "PlusJakartaSans",
-                32),
+                32,
+                "SemiBold"),
             Colour = ink,
         };
     }

@@ -218,6 +218,7 @@ internal partial class SongSelectSearchBox : BasicTextBox
             case Key.F1:
             case Key.F2:
             case Key.F3:
+            case Key.F6:
             case Key.F5:
                 return commandPressed(e);
 
