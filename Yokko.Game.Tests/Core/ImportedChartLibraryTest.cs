@@ -241,6 +241,60 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
+    public async Task CachedExternalOsuSkipsMissingCanonicalDuplicate()
+    {
+        string root = createTestRoot("external-osu-cached-deduplication");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        string firstSet = Path.Combine(songs, "100 First Copy");
+        string secondSet = Path.Combine(songs, "200 Second Copy");
+        Directory.CreateDirectory(firstSet);
+        Directory.CreateDirectory(secondSet);
+
+        try
+        {
+            string firstPath = writeOsuChart(firstSet, "Shared Song", 3);
+            string secondPath = Path.Combine(secondSet, "Shared Song.osu");
+            File.Copy(firstPath, secondPath);
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            var storage = new NativeStorage(yokkoRoot);
+
+            using (var indexed = new ImportedChartLibrary())
+            {
+                indexed.Initialise(storage);
+                indexed.ConfigureExternalOsu(storage, settings);
+                await indexed.RefreshExternalOsuAsync();
+                await indexed.ExternalDifficultyTask;
+            }
+
+            File.Delete(firstPath);
+            File.SetLastWriteTimeUtc(
+                secondPath,
+                DateTime.UtcNow.AddSeconds(2));
+
+            using var restored = new ImportedChartLibrary();
+            restored.Initialise(storage);
+            restored.ConfigureExternalOsu(storage, settings);
+            restored.SetExternalIndexingPaused(true);
+
+            Assert.That(await restored.BeginStartupLoad(true, true), Is.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(restored.GetCharts(), Has.Count.EqualTo(1));
+                Assert.That(restored.GetCharts().Single().SourcePath,
+                    Is.EqualTo(secondPath));
+            });
+            restored.SetExternalIndexingPaused(false);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task ExternalBaseDifficultyCanBeRequestedBeforeBackgroundPass()
     {
         string root = createTestRoot("external-osu-priority-difficulty");
@@ -517,9 +571,13 @@ public sealed class ImportedChartLibraryTest
                 library.RefreshExternalOsuAsync();
 
             ExternalOsuLibraryResult superseded = await first;
-            Assert.That(
-                superseded.Message,
-                Does.Contain("superseded").IgnoreCase);
+            Assert.Multiple(() =>
+            {
+                Assert.That(superseded.Superseded, Is.True);
+                Assert.That(
+                    superseded.Message,
+                    Does.Contain("superseded").IgnoreCase);
+            });
 
             library.SetExternalIndexingPaused(false);
             ExternalOsuLibraryResult result = await latest;
@@ -1547,6 +1605,70 @@ public sealed class ImportedChartLibraryTest
                 reloaded.GetCharts().Single(chart =>
                     chart.Result.Beatmap.Title == "Second").Id);
             Assert.That(playable.HitObjects, Is.Not.Empty);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task UnchangedManagedReloadReusesSnapshotWithoutPublishingOrWritingIndex()
+    {
+        string root = createTestRoot("managed-unchanged-reload");
+        try
+        {
+            using var library = new ImportedChartLibrary();
+            library.Initialise(new NativeStorage(root));
+            string firstDirectory = Path.Combine(library.LibraryPath, "First");
+            string secondDirectory = Path.Combine(library.LibraryPath, "Second");
+            Directory.CreateDirectory(firstDirectory);
+            Directory.CreateDirectory(secondDirectory);
+            writeOsuChart(firstDirectory, "First", 3);
+            writeOsuChart(secondDirectory, "Second", 3);
+
+            Assert.That(await library.LoadFromDiskAsync(true, true), Is.EqualTo(2));
+            ImportedChart[] originalCharts = library.GetCharts().ToArray();
+            long originalRevision = library.Revision;
+            long originalStructureRevision = library.StructureRevision;
+            int publishedChanges = 0;
+            library.LibraryChanged += _ => publishedChanges++;
+            string indexPath = Directory.EnumerateFiles(
+                root,
+                ManagedChartLibraryIndex.FileName,
+                SearchOption.AllDirectories).Single();
+            var fixedWriteTime = new DateTime(
+                2020,
+                1,
+                2,
+                3,
+                4,
+                5,
+                DateTimeKind.Utc);
+            File.SetLastWriteTimeUtc(indexPath, fixedWriteTime);
+            DateTime indexWriteTime = File.GetLastWriteTimeUtc(indexPath);
+
+            Assert.That(await library.LoadFromDiskAsync(true, true), Is.EqualTo(2));
+            ImportedChart[] reloadedCharts = library.GetCharts().ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(library.Revision, Is.EqualTo(originalRevision));
+                Assert.That(
+                    library.StructureRevision,
+                    Is.EqualTo(originalStructureRevision));
+                Assert.That(publishedChanges, Is.Zero);
+                Assert.That(library.LastManagedScannedFileCount, Is.EqualTo(2));
+                Assert.That(library.LastManagedCacheHitCount, Is.EqualTo(2));
+                Assert.That(library.LastManagedContentReadCount, Is.Zero);
+                Assert.That(reloadedCharts[0], Is.SameAs(originalCharts[0]));
+                Assert.That(reloadedCharts[1], Is.SameAs(originalCharts[1]));
+                Assert.That(
+                    File.GetLastWriteTimeUtc(indexPath),
+                    Is.EqualTo(indexWriteTime),
+                    "An unchanged F5 must not rewrite the managed index.");
+            });
         }
         finally
         {

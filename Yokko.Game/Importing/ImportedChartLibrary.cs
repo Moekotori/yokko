@@ -116,7 +116,8 @@ internal sealed record ExternalOsuLibraryResult(
     string Message,
     int ScannedFileCount = 0,
     int ContentReadCount = 0,
-    double ElapsedMilliseconds = 0);
+    double ElapsedMilliseconds = 0,
+    bool Superseded = false);
 
 internal sealed record ManagedChartRemovalResult(
     int RemovedChartCount,
@@ -142,6 +143,12 @@ internal sealed class ImportedChartLibrary : IDisposable
     private const int difficulty_progress_publish_interval_milliseconds = 750;
     private readonly List<ImportedChart> charts = [];
     private ImportedChart[] indexedExternalCharts = [];
+    private readonly Dictionary<string, int> indexedExternalChartIndices =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> chartIndices =
+        new(StringComparer.OrdinalIgnoreCase);
+    private long chartIndicesStructureRevision = -1;
+    private int indexedExternalConfigurationGeneration = -1;
     private readonly object syncRoot = new();
     private readonly SemaphoreSlim importLock = new(1, 1);
     private readonly SemaphoreSlim externalDifficultyLock = new(1, 1);
@@ -162,6 +169,7 @@ internal sealed class ImportedChartLibrary : IDisposable
     private YokkoExternalOsuSettings externalOsuSettings;
     private string externalOsuCachePath;
     private string managedIndexPath;
+    private ManagedChartIndexDocument managedIndexSnapshot;
     private bool managedPreferKeysounds = true;
     private bool managedPreferSscSimfiles = true;
     private bool managedEnableBmsScratch;
@@ -321,6 +329,15 @@ internal sealed class ImportedChartLibrary : IDisposable
             return charts.ToArray();
     }
 
+    internal HashSet<string> GetChartIdSetSnapshot()
+    {
+        lock (syncRoot)
+        {
+            return charts.Select(chart => chart.Id)
+                         .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
     internal (
         long Revision,
         long StructureRevision,
@@ -336,6 +353,11 @@ internal sealed class ImportedChartLibrary : IDisposable
         int removed;
         lock (syncRoot)
         {
+            string[] previousVisibleIds = charts
+                                         .Where(chart => chart.SourceKind
+                                                         == ImportedChartSourceKind.ExternalOsu)
+                                         .Select(chart => chart.Id)
+                                         .ToArray();
             string[] unavailableIds = indexedExternalCharts
                                      .Where(chart => !File.Exists(chart.SourcePath))
                                      .Select(chart => chart.Id)
@@ -348,15 +370,26 @@ internal sealed class ImportedChartLibrary : IDisposable
             var unavailable = new HashSet<string>(
                 unavailableIds,
                 StringComparer.OrdinalIgnoreCase);
-            indexedExternalCharts = indexedExternalCharts
-                                   .Where(chart => !unavailable.Contains(chart.Id))
-                                   .ToArray();
+            setIndexedExternalCharts(indexedExternalCharts.Where(
+                chart => !unavailable.Contains(chart.Id)));
             refreshVisibleExternalChartsAfterManagedChange();
             evictMaterialisedCharts(unavailable.Contains);
-            change = advanceRevision(ImportedChartLibraryChangeKind.Structure);
+            string[] visibleIds = charts
+                                 .Where(chart => chart.SourceKind
+                                                 == ImportedChartSourceKind.ExternalOsu)
+                                 .Select(chart => chart.Id)
+                                 .ToArray();
+            if (!previousVisibleIds.SequenceEqual(
+                    visibleIds,
+                    StringComparer.OrdinalIgnoreCase))
+            {
+                change = advanceRevision(
+                    ImportedChartLibraryChangeKind.Structure);
+            }
         }
 
-        LibraryChanged?.Invoke(change);
+        if (change != null)
+            LibraryChanged?.Invoke(change);
         return removed;
     }
 
@@ -366,7 +399,8 @@ internal sealed class ImportedChartLibrary : IDisposable
         lock (syncRoot)
         {
             charts.Clear();
-            indexedExternalCharts = [];
+            setIndexedExternalCharts([]);
+            indexedExternalConfigurationGeneration = -1;
             change = advanceRevision(ImportedChartLibraryChangeKind.Structure);
         }
 
@@ -432,7 +466,7 @@ internal sealed class ImportedChartLibrary : IDisposable
         {
             ImportedChart selected;
             lock (syncRoot)
-                selected = charts.FirstOrDefault(chart => chart.Id == chartId);
+                selected = findChartByIdCore(chartId);
 
             if (selected == null)
                 return new ManagedChartRemovalResult(0, string.Empty);
@@ -557,7 +591,7 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         ImportedChart chart;
         lock (syncRoot)
-            chart = charts.FirstOrDefault(candidate => candidate.Id == chartId);
+            chart = findChartByIdCore(chartId);
 
         return materialiseChart(chart)?.Result.Beatmap;
     }
@@ -571,7 +605,7 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         ImportedChart chart;
         lock (syncRoot)
-            chart = charts.FirstOrDefault(candidate => candidate.Id == chartId);
+            chart = findChartByIdCore(chartId);
 
         ImportedChart materialised = await materialiseChartAsync(
             chart,
@@ -588,7 +622,7 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         ImportedChart chart;
         lock (syncRoot)
-            chart = charts.FirstOrDefault(candidate => candidate.Id == chartId);
+            chart = findChartByIdCore(chartId);
         if (chart == null)
             return null;
         if (chart.DifficultyRating?.IsSuccess == true
@@ -631,10 +665,7 @@ internal sealed class ImportedChartLibrary : IDisposable
         ImportedChartLibraryChange change = null;
         lock (syncRoot)
         {
-            int index = charts.FindIndex(candidate => candidate.Id.Equals(
-                materialised.Id,
-                StringComparison.OrdinalIgnoreCase));
-            if (index < 0)
+            if (!getChartIndices().TryGetValue(materialised.Id, out int index))
                 return;
 
             ImportedChart current = charts[index];
@@ -752,9 +783,7 @@ internal sealed class ImportedChartLibrary : IDisposable
 
             var loaded = new List<ImportedChart>();
             var updatedEntries = new List<ManagedChartIndexEntry>();
-            ManagedChartIndexDocument index = ManagedChartLibraryIndex.Load(
-                managedIndexPath,
-                LibraryPath,
+            ManagedChartIndexDocument index = loadManagedIndex(
                 preferKeysounds,
                 preferSscSimfiles,
                 enableBmsScratch);
@@ -790,6 +819,8 @@ internal sealed class ImportedChartLibrary : IDisposable
             }
             int contentReadCount = 0;
             int cacheHitCount = 0;
+            var parsedSources = new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
 
             foreach (string source in sources)
             {
@@ -814,6 +845,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                     }
 
                     contentReadCount++;
+                    parsedSources.Add(source);
                     IReadOnlyList<ChartImportResult> results =
                         await KnownChartImporters.ImportAllAsync(
                             new ChartImportRequest(
@@ -837,24 +869,67 @@ internal sealed class ImportedChartLibrary : IDisposable
                 }
             }
 
-            ImportedChartLibraryChange change;
+            bool indexChanged = index == null
+                                || contentReadCount > 0
+                                || index.Entries.Count != updatedEntries.Count;
+            ImportedChartLibraryChange change = null;
             lock (syncRoot)
             {
-                evictMaterialisedCharts(id =>
-                    !id.StartsWith("external-osu\u001f", StringComparison.Ordinal));
-                charts.RemoveAll(chart =>
-                    chart.SourceKind == ImportedChartSourceKind.Managed);
-                charts.AddRange(loaded);
-                refreshVisibleExternalChartsAfterManagedChange();
-                change = advanceRevision(
-                    ImportedChartLibraryChangeKind.Structure);
+                ImportedChart[] existingManaged = charts
+                    .Where(chart => chart.SourceKind
+                                    == ImportedChartSourceKind.Managed)
+                    .ToArray();
+                Dictionary<string, ImportedChart> existingById = existingManaged
+                    .ToDictionary(
+                        chart => chart.Id,
+                        StringComparer.OrdinalIgnoreCase);
+
+                for (int loadedIndex = 0;
+                     loadedIndex < loaded.Count;
+                     loadedIndex++)
+                {
+                    ImportedChart incoming = loaded[loadedIndex];
+                    if (!parsedSources.Contains(incoming.SourcePath)
+                        && existingById.TryGetValue(
+                            incoming.Id,
+                            out ImportedChart current)
+                        && managedChartEquivalentIgnoringRatings(
+                            current,
+                            incoming))
+                    {
+                        loaded[loadedIndex] = current;
+                    }
+                }
+
+                bool libraryChanged = existingManaged.Length != loaded.Count
+                                      || existingManaged.Where((chart, index) =>
+                                              !ReferenceEquals(
+                                                  chart,
+                                                  loaded[index]))
+                                                         .Any();
+                if (libraryChanged)
+                {
+                    evictMaterialisedCharts(id =>
+                        !id.StartsWith(
+                            "external-osu\u001f",
+                            StringComparison.Ordinal));
+                    charts.RemoveAll(chart =>
+                        chart.SourceKind == ImportedChartSourceKind.Managed);
+                    charts.AddRange(loaded);
+                    refreshVisibleExternalChartsAfterManagedChange();
+                    change = advanceRevision(
+                        ImportedChartLibraryChangeKind.Structure);
+                }
             }
 
-            trySaveManagedIndex(
-                preferKeysounds,
-                preferSscSimfiles,
-                enableBmsScratch,
-                updatedEntries);
+            if (indexChanged)
+            {
+                trySaveManagedIndex(
+                    preferKeysounds,
+                    preferSscSimfiles,
+                    enableBmsScratch,
+                    updatedEntries);
+            }
             managedPreferKeysounds = preferKeysounds;
             managedPreferSscSimfiles = preferSscSimfiles;
             managedEnableBmsScratch = enableBmsScratch;
@@ -864,7 +939,8 @@ internal sealed class ImportedChartLibrary : IDisposable
 
             msdRatingCache.SaveIfChanged();
             starRatingCache.SaveIfChanged();
-            LibraryChanged?.Invoke(change);
+            if (change != null)
+                LibraryChanged?.Invoke(change);
             Logger.Log(
                 $"Persistent beatmap scan loaded {loaded.Count} charts "
                 + $"from {sources.Length} sources in "
@@ -1263,10 +1339,20 @@ internal sealed class ImportedChartLibrary : IDisposable
                                                    StringComparer.OrdinalIgnoreCase)
                                                .ToArray();
             refreshToken.ThrowIfCancellationRequested();
-            ImportedChart[] externalCharts = createExternalCharts(entries);
             bool indexChanged = changed.Count > 0
                                 || cachedDocument == null
                                 || cached.Count != entries.Length;
+            bool reuseIndexedExternalCharts;
+            lock (syncRoot)
+            {
+                reuseIndexedExternalCharts = !indexChanged
+                                             && indexedExternalConfigurationGeneration
+                                             == configurationGeneration;
+            }
+            ImportedChart[] externalCharts = reuseIndexedExternalCharts
+                ? null
+                : createExternalCharts(entries);
+            int maniaChartCount = entries.Count(entry => entry.Result != null);
             msdRatingCache.SaveIfChanged();
             starRatingCache.SaveIfChanged();
 
@@ -1300,7 +1386,8 @@ internal sealed class ImportedChartLibrary : IDisposable
                     return supersededExternalOsuResult();
                 }
 
-                replaceExternalCharts(externalCharts);
+                if (externalCharts != null)
+                    replaceExternalCharts(externalCharts);
                 configureExternalWatcher(songsPath);
                 startExternalDifficultyCompletion(
                     songsPath,
@@ -1308,7 +1395,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                     difficultyGeneration);
             }
             Logger.Log(
-                $"External osu! scan loaded {externalCharts.Length} mania charts "
+                $"External osu! scan loaded {maniaChartCount} mania charts "
                 + $"from {snapshots.Count} .osu files; {changed.Count} files "
                 + $"required content reads ({stopwatch.Elapsed.TotalMilliseconds:0} ms).",
                 LoggingTarget.Runtime,
@@ -1316,7 +1403,7 @@ internal sealed class ImportedChartLibrary : IDisposable
             return new ExternalOsuLibraryResult(
                 true,
                 songsPath,
-                externalCharts.Length,
+                maniaChartCount,
                 enumerationComplete
                     ? "External osu!mania library is ready."
                     : "External osu!mania library loaded with inaccessible folders retained from cache.",
@@ -1395,8 +1482,10 @@ internal sealed class ImportedChartLibrary : IDisposable
                 return 0;
             }
 
-            ImportedChart[] restored = createExternalCharts(
-                cached.Entries);
+            ExternalOsuIndexEntry[] availableEntries = cached.Entries
+                .Where(entry => File.Exists(entry.SourcePath))
+                .ToArray();
+            ImportedChart[] restored = createExternalCharts(availableEntries);
             lock (externalOsuStateLock)
             {
                 if (!isExternalOsuConfigurationCurrent(
@@ -1477,7 +1566,9 @@ internal sealed class ImportedChartLibrary : IDisposable
         ImportedChartLibraryChange change = null;
         lock (syncRoot)
         {
-            indexedExternalCharts = external.ToArray();
+            setIndexedExternalCharts(external);
+            indexedExternalConfigurationGeneration =
+                externalOsuConfigurationGeneration;
             external = visibleExternalCharts(indexedExternalCharts);
             ImportedChart[] existing = charts
                                        .Where(chart => chart.SourceKind
@@ -1635,6 +1726,28 @@ internal sealed class ImportedChartLibrary : IDisposable
         return visible.ToArray();
     }
 
+    private void setIndexedExternalCharts(
+        IEnumerable<ImportedChart> external)
+    {
+        Debug.Assert(Monitor.IsEntered(syncRoot));
+
+        indexedExternalChartIndices.Clear();
+        var unique = new List<ImportedChart>();
+        foreach (ImportedChart chart in external)
+        {
+            if (!indexedExternalChartIndices.TryAdd(
+                    chart.Id,
+                    unique.Count))
+            {
+                continue;
+            }
+
+            unique.Add(chart);
+        }
+
+        indexedExternalCharts = unique.ToArray();
+    }
+
     private void refreshVisibleExternalChartsAfterManagedChange()
     {
         Debug.Assert(Monitor.IsEntered(syncRoot));
@@ -1686,16 +1799,39 @@ internal sealed class ImportedChartLibrary : IDisposable
         if (replacement.SourceKind != ImportedChartSourceKind.ExternalOsu)
             return;
 
-        for (int index = 0; index < indexedExternalCharts.Length; index++)
+        if (indexedExternalChartIndices.TryGetValue(
+                replacement.Id,
+                out int index))
         {
-            if (indexedExternalCharts[index].Id.Equals(
-                    replacement.Id,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                indexedExternalCharts[index] = replacement;
-            }
+            indexedExternalCharts[index] = replacement;
         }
     }
+
+    private static bool managedChartEquivalentIgnoringRatings(
+        ImportedChart current,
+        ImportedChart incoming) =>
+        current.SourceKind == ImportedChartSourceKind.Managed
+        && incoming.SourceKind == ImportedChartSourceKind.Managed
+        && string.Equals(current.Id, incoming.Id,
+            StringComparison.OrdinalIgnoreCase)
+        && string.Equals(current.SourcePath, incoming.SourcePath,
+            StringComparison.OrdinalIgnoreCase)
+        && string.Equals(current.Result.SourceHash, incoming.Result.SourceHash,
+            StringComparison.OrdinalIgnoreCase)
+        && string.Equals(current.ArtworkPath, incoming.ArtworkPath,
+            StringComparison.OrdinalIgnoreCase)
+        && string.Equals(current.PackageId, incoming.PackageId,
+            StringComparison.OrdinalIgnoreCase)
+        && string.Equals(current.PackageName, incoming.PackageName,
+            StringComparison.Ordinal)
+        && current.IsPackage == incoming.IsPackage
+        && current.IsReadOnly == incoming.IsReadOnly
+        && current.LengthMilliseconds == incoming.LengthMilliseconds
+        && current.Bpm == incoming.Bpm
+        && string.Equals(
+            current.BeatmapFingerprint,
+            incoming.BeatmapFingerprint,
+            StringComparison.OrdinalIgnoreCase);
 
     private static bool externalChartEquivalent(
         ImportedChart current,
@@ -1904,17 +2040,13 @@ internal sealed class ImportedChartLibrary : IDisposable
 
             lock (syncRoot)
             {
-                var chartIndices = charts
-                                  .Select((chart, index) => (chart.Id, index))
-                                  .ToDictionary(
-                                      item => item.Id,
-                                      item => item.index,
-                                      StringComparer.OrdinalIgnoreCase);
+                IReadOnlyDictionary<string, int> activeChartIndices =
+                    getChartIndices();
                 var updated = new List<ImportedChart>(completed.Count);
                 foreach (ExternalOsuIndexEntry entry in completed)
                 {
                     string id = $"external-osu\u001f{entry.SourcePath}";
-                    if (!chartIndices.TryGetValue(id, out int index))
+                    if (!activeChartIndices.TryGetValue(id, out int index))
                         continue;
 
                     ImportedChart current = charts[index];
@@ -2071,7 +2203,8 @@ internal sealed class ImportedChartLibrary : IDisposable
         true,
         ExternalOsuSongsPath,
         ExternalOsuChartCount,
-        "External osu! scan was superseded by a configuration change.");
+        "External osu! scan was superseded by a newer scan or configuration change.",
+        Superseded: true);
 
     private void configureExternalWatcher(string songsPath)
     {
@@ -2248,6 +2381,27 @@ internal sealed class ImportedChartLibrary : IDisposable
             delta);
     }
 
+    private ImportedChart findChartByIdCore(string chartId)
+    {
+        Debug.Assert(Monitor.IsEntered(syncRoot));
+        return getChartIndices().TryGetValue(chartId, out int index)
+            ? charts[index]
+            : null;
+    }
+
+    private IReadOnlyDictionary<string, int> getChartIndices()
+    {
+        Debug.Assert(Monitor.IsEntered(syncRoot));
+        if (chartIndicesStructureRevision == structureRevision)
+            return chartIndices;
+
+        chartIndices.Clear();
+        for (int i = 0; i < charts.Count; i++)
+            chartIndices[charts[i].Id] = i;
+        chartIndicesStructureRevision = structureRevision;
+        return chartIndices;
+    }
+
     private void evictMaterialisedCharts(Func<string, bool> predicate)
     {
         Debug.Assert(Monitor.IsEntered(syncRoot));
@@ -2380,10 +2534,7 @@ internal sealed class ImportedChartLibrary : IDisposable
 
         lock (syncRoot)
         {
-            ImportedChart current = charts.FirstOrDefault(candidate =>
-                candidate.Id.Equals(
-                    chart.Id,
-                    StringComparison.OrdinalIgnoreCase));
+            ImportedChart current = findChartByIdCore(chart.Id);
             if (current == null
                 || !externalChartEquivalentIgnoringRatings(current, chart))
             {
@@ -2462,10 +2613,7 @@ internal sealed class ImportedChartLibrary : IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         lock (syncRoot)
         {
-            ImportedChart current = charts.FirstOrDefault(candidate =>
-                candidate.Id.Equals(
-                    chart.Id,
-                    StringComparison.OrdinalIgnoreCase));
+            ImportedChart current = findChartByIdCore(chart.Id);
             if (current == null
                 || !externalChartEquivalentIgnoringRatings(current, chart))
             {
@@ -2645,9 +2793,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                 chart.SourceKind == ImportedChartSourceKind.Managed).ToArray();
         }
 
-        ManagedChartIndexDocument existing = ManagedChartLibraryIndex.Load(
-            managedIndexPath,
-            LibraryPath,
+        ManagedChartIndexDocument existing = loadManagedIndex(
             managedPreferKeysounds,
             managedPreferSscSimfiles,
             managedEnableBmsScratch);
@@ -2695,6 +2841,14 @@ internal sealed class ImportedChartLibrary : IDisposable
         bool enableBmsScratch,
         IReadOnlyList<ManagedChartIndexEntry> entries)
     {
+        ManagedChartIndexEntry[] snapshotEntries = entries.ToArray();
+        managedIndexSnapshot = new ManagedChartIndexDocument(
+            ManagedChartLibraryIndex.CurrentVersion,
+            Path.GetFullPath(LibraryPath),
+            preferKeysounds,
+            preferSscSimfiles,
+            enableBmsScratch,
+            snapshotEntries);
         try
         {
             ManagedChartLibraryIndex.Save(
@@ -2703,7 +2857,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                 preferKeysounds,
                 preferSscSimfiles,
                 enableBmsScratch,
-                entries);
+                snapshotEntries);
         }
         catch (Exception exception) when (exception is IOException
                                           or UnauthorizedAccessException
@@ -2786,6 +2940,36 @@ internal sealed class ImportedChartLibrary : IDisposable
             LibraryPath,
             ".yokko-cache",
             ManagedChartLibraryIndex.FileName);
+        managedIndexSnapshot = null;
+    }
+
+    private ManagedChartIndexDocument loadManagedIndex(
+        bool preferKeysounds,
+        bool preferSscSimfiles,
+        bool enableBmsScratch)
+    {
+        string libraryPath = Path.GetFullPath(LibraryPath);
+        ManagedChartIndexDocument snapshot = managedIndexSnapshot;
+        if (snapshot?.Version == ManagedChartLibraryIndex.CurrentVersion
+            && snapshot.Entries != null
+            && string.Equals(
+                Path.GetFullPath(snapshot.LibraryPath),
+                libraryPath,
+                StringComparison.OrdinalIgnoreCase)
+            && snapshot.PreferKeysounds == preferKeysounds
+            && snapshot.PreferSscSimfiles == preferSscSimfiles
+            && snapshot.EnableBmsScratch == enableBmsScratch)
+        {
+            return snapshot;
+        }
+
+        managedIndexSnapshot = ManagedChartLibraryIndex.Load(
+            managedIndexPath,
+            libraryPath,
+            preferKeysounds,
+            preferSscSimfiles,
+            enableBmsScratch);
+        return managedIndexSnapshot;
     }
 
     private static string resolveArtworkPath(

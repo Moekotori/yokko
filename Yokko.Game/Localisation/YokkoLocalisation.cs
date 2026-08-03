@@ -199,21 +199,21 @@ internal static class YokkoStrings
             ["song_select.you"] = new("YOU", "你", "自分"),
             ["song_select.length"] = new("LENGTH", "时长", "長さ"),
             ["song_select.reload_working"] = new(
-                "Reloading beatmaps…",
-                "正在重载谱面…",
-                "譜面を再読み込み中…"),
+                "Scanning beatmap folders…",
+                "正在扫描谱面文件夹…",
+                "譜面フォルダーを走査中…"),
             ["song_select.reload_complete"] = new(
-                "Reloaded {0} beatmaps.",
-                "已重载 {0} 张谱面。",
-                "{0} 譜面を再読み込みしました。"),
+                "Library refreshed · {0} beatmaps",
+                "曲库已刷新 · 当前 {0} 张谱面",
+                "ライブラリ更新完了 · {0} 譜面"),
             ["song_select.reload_failed"] = new(
                 "Beatmap reload failed",
                 "谱面重载失败",
                 "譜面の再読み込みに失敗しました"),
-            ["song_select.reload_hint"] = new(
-                "F5 · disk rescan complete",
-                "F5 · 磁盘重新扫描完成",
-                "F5 · ディスク再走査完了"),
+            ["song_select.reload_summary"] = new(
+                "+{0} added · −{1} removed · disk rescan complete",
+                "新增 {0} · 移除 {1} · 磁盘扫描完成",
+                "追加 {0} · 削除 {1} · ディスク再走査完了"),
             ["mods.title"] = new("GAMEPLAY MODS", "游玩 MOD", "ゲームプレイ MOD"),
             ["mods.subtitle"] = new(
                 "Customize your play experience.",

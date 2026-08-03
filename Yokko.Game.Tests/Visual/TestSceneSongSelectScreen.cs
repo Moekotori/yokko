@@ -73,7 +73,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
     }
 
     [Test]
-    public void TestF5RemovesMovedExternalChartAndBlocksPlay()
+    public void TestF5FindsNewAndRemovesMovedExternalChart()
     {
         string root = Path.Combine(
             TestContext.CurrentContext.WorkDirectory,
@@ -81,6 +81,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         string songs = Path.Combine(root, "osu!", "Songs");
         string set = Path.Combine(songs, "100 F5 Moved Set");
         string chartPath = Path.Combine(set, "moved.osu");
+        string addedChartPath = Path.Combine(set, "added.osu");
         Task<ExternalOsuLibraryResult> configureTask = null;
 
         AddStep("create external chart", () =>
@@ -104,19 +105,30 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                 == "F5 Moved External");
         AddUntilStep("external gameplay is preloaded", () =>
             songSelectScreen.GameplayPreloadReady);
-        AddStep("move source then press F5 and Enter", () =>
+        AddStep("replace source then press F5 and Enter", () =>
         {
             File.Move(chartPath, Path.Combine(root, "moved.osu"));
+            string addedChart = OsuManiaBeatmapIO.WriteBeatmap(
+                DemoBeatmaps.CreateFourKeyDemo() with
+                {
+                    Title = "F5 Added External",
+                    AudioPath = null,
+                });
+            File.WriteAllText(
+                addedChartPath,
+                addedChart,
+                new UTF8Encoding(false));
             InputManager.Key(Key.F5);
             InputManager.Key(Key.Enter);
         });
         AddUntilStep("reload completes", () =>
             !songSelectScreen.LibraryReloadInProgress);
-        AddUntilStep("moved chart disappears", () =>
-            songSelectScreen.VisibleEntryCount == 0
-            && importedChartLibrary.ExternalOsuChartCount == 0);
-        AddStep("press Enter after removal", () => InputManager.Key(Key.Enter));
-        AddAssert("stale chart never enters gameplay", () =>
+        AddUntilStep("new chart replaces moved chart", () =>
+            songSelectScreen.VisibleEntryCount == 1
+            && importedChartLibrary.ExternalOsuChartCount == 1
+            && songSelectScreen.SelectedEntry?.Beatmap.Title
+            == "F5 Added External");
+        AddAssert("Enter during refresh never entered gameplay", () =>
             screenStack.CurrentScreen == songSelectScreen
             && songSelectScreen.PlayButtonAction != "LOADING...");
         AddStep("clean external fixture", () =>
@@ -589,8 +601,14 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             songSelectScreen.HandleBrowseKey(Key.PageDown));
         AddAssert("page jump reaches last song", () =>
             songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Seven");
+        AddAssert("search holds keyboard focus by default", () =>
+            songSelectScreen.SearchHasFocus);
+        AddAssert("plain R is reserved for search", () =>
+            !songSelectScreen.HandleBrowseKey(Key.R)
+            && songSelectScreen.SelectedEntry.Beatmap.Title
+            == "Imported Seven");
         AddStep("random shortcut avoids current song", () =>
-            songSelectScreen.HandleBrowseKey(Key.R));
+            songSelectScreen.HandleBrowseKey(Key.F2));
         AddAssert("random shortcut selected the other song", () =>
             songSelectScreen.SelectedEntry.Beatmap.Title == "Imported Four");
         AddStep("control f focuses search", () =>
@@ -647,7 +665,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         AddAssert("empty search is not dismissed", () => !songSelectScreen.DismissSearch());
 
         AddStep("open consolidated filters from keyboard", () =>
-            songSelectScreen.HandleBrowseKey(Key.F));
+            songSelectScreen.HandleBrowseKey(Key.F3));
         AddAssert("filters popover opens", () => songSelectScreen.FiltersPopoverOpen);
         AddStep("escape closes filters", songSelectScreen.HandleEscape);
         AddAssert("filters close without exiting", () =>

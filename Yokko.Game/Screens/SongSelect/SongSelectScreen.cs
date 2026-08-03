@@ -271,6 +271,11 @@ public partial class SongSelectScreen : Screen
         string ModsFingerprint,
         string ArtworkPath);
 
+    private readonly record struct LibraryReloadResult(
+        int TotalCount,
+        int AddedCount,
+        int RemovedCount);
+
     private const double selection_preload_delay = 120;
     private const double settings_preload_delay = 350;
     private const int filter_debounce_milliseconds = 100;
@@ -665,6 +670,7 @@ public partial class SongSelectScreen : Screen
     public override void OnEntering(ScreenTransitionEvent e)
     {
         base.OnEntering(e);
+        searchBox?.SetHoldFocus(true);
         playButton?.SetReady();
         screenActive = true;
         applyPendingLibraryChange();
@@ -709,6 +715,7 @@ public partial class SongSelectScreen : Screen
         applyPendingLibraryChange();
         requestExpandedPackageDifficulties(selectedEntry?.PackageId);
         bool scoreResultVisible = scoreResultHost != null;
+        searchBox?.SetHoldFocus(!scoreResultVisible);
         previewActive = !scoreResultVisible;
         diagnostics.Trace(
             "SONG_SELECT",
@@ -746,6 +753,7 @@ public partial class SongSelectScreen : Screen
     public override void OnSuspending(ScreenTransitionEvent e)
     {
         base.OnSuspending(e);
+        searchBox?.SetHoldFocus(false);
         screenActive = false;
         invalidatePackageDifficultyRequest();
         resumeFromGameplayMods = e.Next is GameplayModsScreen;
@@ -758,6 +766,7 @@ public partial class SongSelectScreen : Screen
 
     public override bool OnExiting(ScreenExitEvent e)
     {
+        searchBox?.SetHoldFocus(false);
         screenActive = false;
         previewActive = false;
         invalidatePlayableBeatmapRequest();
@@ -862,6 +871,14 @@ public partial class SongSelectScreen : Screen
             return true;
         }
 
+        if (handleSongSelectKey(e))
+            return true;
+
+        return base.OnKeyDown(e);
+    }
+
+    private bool handleSongSelectKey(KeyDownEvent e)
+    {
         if (HandlePlaybackRateShortcut(e.Key, e.AltPressed))
             return true;
         if (HandleScrollSpeedShortcut(e.Key, e.ControlPressed))
@@ -873,7 +890,7 @@ public partial class SongSelectScreen : Screen
         if (HandleBrowseKey(e.Key, e.ControlPressed))
             return true;
 
-        return base.OnKeyDown(e);
+        return false;
     }
 
     internal bool HandleBrowseKey(Key key, bool controlPressed = false)
@@ -904,7 +921,7 @@ public partial class SongSelectScreen : Screen
                 selectBoundary(first: false);
                 return true;
 
-            case Key.M:
+            case Key.F1:
                 ToggleModPanel();
                 return true;
 
@@ -912,19 +929,15 @@ public partial class SongSelectScreen : Screen
                 GetContainingFocusManager()?.ChangeFocus(searchBox);
                 return true;
 
-            case Key.F:
+            case Key.F3:
                 toggleFiltersPopover();
-                return true;
-
-            case Key.Slash:
-                GetContainingFocusManager()?.ChangeFocus(searchBox);
                 return true;
 
             case Key.Enter:
                 PlaySelected();
                 return true;
 
-            case Key.R:
+            case Key.F2:
                 selectRandomEntry();
                 return true;
 
@@ -952,7 +965,6 @@ public partial class SongSelectScreen : Screen
 
         invalidatePlayableBeatmapRequest();
         invalidateGameplayPreload();
-        importedChartLibrary.PruneUnavailableExternalCharts();
         libraryReloadInProgress = true;
         preserveSelectionForLibraryReload = true;
         libraryReloadOverlay?.ShowImporting(
@@ -965,24 +977,41 @@ public partial class SongSelectScreen : Screen
     {
         try
         {
-            int count = await Task.Run(async () =>
+            LibraryReloadResult result = await Task.Run(async () =>
             {
-                int managedCount = await importedChartLibrary.LoadFromDiskAsync(
+                HashSet<string> previousChartIds = importedChartLibrary
+                    .GetChartIdSetSnapshot();
+                await importedChartLibrary.LoadFromDiskAsync(
                     importSettings.PreferKeysounds.Value,
                     importSettings.PreferSscSimfiles.Value,
                     importSettings.EnableBmsScratch.Value,
                     cancellationToken).ConfigureAwait(false);
 
-                if (string.IsNullOrWhiteSpace(externalOsuSettings.SongsPath.Value))
-                    return managedCount;
+                if (!string.IsNullOrWhiteSpace(
+                        externalOsuSettings.SongsPath.Value))
+                {
+                    ExternalOsuLibraryResult external;
+                    do
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        external = await importedChartLibrary
+                            .RefreshExternalOsuAsync(cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    while (external.Superseded);
 
-                ExternalOsuLibraryResult external =
-                    await importedChartLibrary.RefreshExternalOsuAsync(
-                        cancellationToken).ConfigureAwait(false);
-                if (!external.Success)
-                    throw new InvalidOperationException(external.Message);
+                    if (!external.Success)
+                        throw new InvalidOperationException(external.Message);
+                }
 
-                return managedCount + external.ChartCount;
+                HashSet<string> currentChartIds = importedChartLibrary
+                    .GetChartIdSetSnapshot();
+                return new LibraryReloadResult(
+                    currentChartIds.Count,
+                    currentChartIds.Count(id =>
+                        !previousChartIds.Contains(id)),
+                    previousChartIds.Count(id =>
+                        !currentChartIds.Contains(id)));
             }, cancellationToken).ConfigureAwait(false);
 
             if (!libraryReloadDisposed)
@@ -996,8 +1025,13 @@ public partial class SongSelectScreen : Screen
                     if (screenActive)
                         preserveSelectionForLibraryReload = false;
                     libraryReloadOverlay?.ShowSuccess(
-                        YokkoStrings.Get("song_select.reload_complete", count),
-                        YokkoStrings.Get("song_select.reload_hint"));
+                        YokkoStrings.Get(
+                            "song_select.reload_complete",
+                            result.TotalCount),
+                        YokkoStrings.Get(
+                            "song_select.reload_summary",
+                            result.AddedCount,
+                            result.RemovedCount));
                 });
             }
         }
@@ -1603,6 +1637,7 @@ public partial class SongSelectScreen : Screen
             return;
 
         closeScoreResultImmediately(restartPreview: false);
+        searchBox?.SetHoldFocus(false);
         var result = new ManiaScoreResult(
             score.Score,
             score.Accuracy,
@@ -1686,6 +1721,7 @@ public partial class SongSelectScreen : Screen
         scoreResultHost = null;
         scoreResultOverlay = null;
         activeScoreResult = null;
+        searchBox?.SetHoldFocus(true);
         host.ClearTransforms();
         host.FadeOut(140, Easing.InQuad);
         Scheduler.AddDelayed(() =>
@@ -1703,6 +1739,7 @@ public partial class SongSelectScreen : Screen
         scoreResultHost = null;
         scoreResultOverlay = null;
         activeScoreResult = null;
+        searchBox?.SetHoldFocus(true);
         if (host?.Parent == stage)
             stage.Remove(host, true);
         if (!restartPreview)
@@ -2361,7 +2398,9 @@ public partial class SongSelectScreen : Screen
             createTopNavigation(logo),
             searchBox = new SongSelectSearchBox(
                 SetSearchQuery,
-                HandleEscape)
+                HandleEscape,
+                PlaySelected,
+                handleSongSelectKey)
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
@@ -3010,9 +3049,9 @@ public partial class SongSelectScreen : Screen
             },
             shortcutHint("U/D", "BROWSE", 12, 10),
             shortcutHint("PG", "JUMP", 116, 10),
-            shortcutHint("/", "SEARCH", 12, 34),
-            shortcutHint("F", "FILTERS", 116, 34),
-            shortcutHint("R", "RANDOM", 12, 58),
+            shortcutHint("ABC", "SEARCH", 12, 34),
+            shortcutHint("F3", "FILTERS", 116, 34),
+            shortcutHint("F2", "RANDOM", 12, 58),
             shortcutHint("ENT", "PLAY", 116, 58),
             shortcutHint("F5", "RELOAD", 12, 82),
         ],

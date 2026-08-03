@@ -27,17 +27,28 @@ internal partial class SongSelectSearchBox : BasicTextBox
 {
     private readonly Action<string> queryChanged;
     private readonly Action escapePressed;
+    private readonly Action submitPressed;
+    private readonly Func<KeyDownEvent, bool> commandPressed;
     private readonly Box focusRail;
     private readonly SpriteText escapeHint;
+    private bool holdFocus = true;
 
     protected override float LeftRightPadding => 48;
+    public override bool HandleNonPositionalInput =>
+        holdFocus || base.HandleNonPositionalInput;
+    public override bool RequestsFocus => holdFocus;
+    internal bool HoldFocus => holdFocus;
 
     public SongSelectSearchBox(
         Action<string> queryChanged,
-        Action escapePressed)
+        Action escapePressed,
+        Action submitPressed,
+        Func<KeyDownEvent, bool> commandPressed)
     {
         this.queryChanged = queryChanged;
         this.escapePressed = escapePressed;
+        this.submitPressed = submitPressed;
+        this.commandPressed = commandPressed;
         Size = new Vector2(206, 44);
         Masking = true;
         CornerRadius = 10;
@@ -112,6 +123,23 @@ internal partial class SongSelectSearchBox : BasicTextBox
         Current.ValueChanged += onValueChanged;
     }
 
+    internal void SetHoldFocus(bool value)
+    {
+        holdFocus = value;
+        if (value)
+            TakeFocus();
+        else if (HasFocus)
+            base.KillFocus();
+    }
+
+    internal void TakeFocus()
+    {
+        if (!holdFocus)
+            return;
+
+        Scheduler.Add(() => GetContainingFocusManager()?.ChangeFocus(this));
+    }
+
     private void onValueChanged(ValueChangedEvent<string> change)
     {
         escapeHint.Colour = change.NewValue.Length > 0
@@ -165,11 +193,44 @@ internal partial class SongSelectSearchBox : BasicTextBox
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
-        if (e.Key != Key.Escape)
+        if (!HasFocus)
+            return false;
+        if (ImeCompositionActive)
             return base.OnKeyDown(e);
 
-        escapePressed();
-        return true;
+        switch (e.Key)
+        {
+            case Key.Escape:
+                escapePressed();
+                return true;
+
+            case Key.Enter:
+            case Key.KeypadEnter:
+                submitPressed();
+                return true;
+
+            case Key.Up:
+            case Key.Down:
+            case Key.PageUp:
+            case Key.PageDown:
+            case Key.Home:
+            case Key.End:
+            case Key.F1:
+            case Key.F2:
+            case Key.F3:
+            case Key.F5:
+                return commandPressed(e);
+
+            case Key.F when e.ControlPressed:
+            case Key.Plus when e.ControlPressed:
+            case Key.KeypadPlus when e.ControlPressed:
+            case Key.Minus when e.ControlPressed:
+            case Key.KeypadMinus when e.ControlPressed:
+                return commandPressed(e);
+
+            default:
+                return base.OnKeyDown(e);
+        }
     }
 }
 
